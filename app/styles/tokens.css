@@ -7028,6 +7028,24 @@
   --dh-color-meter-warning: var(--warning);
   --dh-color-meter-danger: var(--danger);
 
+  /**
+   * MOBILE-02 §4 — the Task row's swipe affordance.
+   *
+   * Three roles, not reuses of the meter's: a meter states how something is
+   * GOING, and this states what RELEASING WILL DO. They resolve to the same
+   * underlying values today, and naming them apart is what stops a future change
+   * to the status ramp silently repainting a gesture — the D-series lesson about
+   * identity and status wearing each other's colours, applied one layer earlier.
+   *
+   * `-rest` is the well the row is pulled out of. The two armed roles are the
+   * two acts: completing is the product's success, and changing a plan is its
+   * information. Neither is ever the only signal — the affordance carries an
+   * icon and a word from the first pixel of travel.
+   */
+  --dh-color-swipe-rest: var(--surface-sunken);
+  --dh-color-swipe-complete: var(--success);
+  --dh-color-swipe-schedule: var(--info);
+
   /** The focus indicator. Named separately from the accent because it is an
    * accessibility contract, not a brand decision, and must survive a rebrand. */
   --dh-color-focus: var(--accent);

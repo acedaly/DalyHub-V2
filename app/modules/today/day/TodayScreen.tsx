@@ -1,22 +1,22 @@
 /**
- * TODAY-11 — the Today screen, as MOCKUP 5 draws it.
+ * TODAY-11 / CONVERGE-01 §1 — the Today screen, on ONE grid.
  *
- * The surface the owner lands on every morning, recomposed to the owner's newest
- * approved picture and built ENTIRELY from what DalyHub really knows. The
- * composition is the mockup's; every figure on it is a real reading; and the
- * three things the mockup draws that this product cannot honestly back are
- * omitted by recorded decision rather than faked.
+ * The surface the owner lands on every morning, built ENTIRELY from what DalyHub
+ * really knows. Every figure on it is a real reading, and the things the mockup
+ * drew that this product cannot honestly back are omitted by recorded decision
+ * rather than faked.
  *
  * ── WHAT IT IS ───────────────────────────────────────────────────────────────
+ * Twelve columns, one gutter, four rows. Every band shares the same tracks.
  *
- *   Good afternoon, Aidan                                   [ + Add task ]
+ *   Good afternoon, Aidan
  *   Saturday 16 August 2026
  *   Today · Tomorrow · Next 7 days
- *   ┌────────────────┐┌────────────────┐┌────────────────┐
+ *   ┌── 4 ───────────┐┌── 4 ───────────┐┌── 4 ───────────┐
  *   │ Tasks completed││ Tasks captured ││ Goals on track │   the week's
  *   │ 24  ╱‾╲╱‾      ││ 30  ▁▃▂▅▁▇▃    ││ 3  ▓▓▓▓░░      │   three measures
  *   └────────────────┘└────────────────┘└────────────────┘
- *   ┌──────────────────────────────┐┌───────────────────────┐
+ *   ┌── 7 ─────────────────────────┐┌── 5 ──────────────────┐
  *   │ Today's plan        8 tasks  ││ Schedule    View full │
  *   │  OVERDUE                     ││ August 2026           │
  *   │   ☐ Send the summary  2d ago ││ M T W T F S S         │
@@ -24,25 +24,38 @@
  *   │   ☐ Draft the notes  Proj P1 ││ 09:00 ● Standup       │
  *   │  + Add task                  ││ 12:00 ● Lunch         │
  *   └──────────────────────────────┘└───────────────────────┘
- *   ┌──────────────┐┌──────────────┐┌──────────────────────┐
- *   │ Goal progress││ Insights     ││ Quick capture        │
- *   │              ││   ◜80%◝      ││ Daily reflection     │
- *   └──────────────┘└──────────────┘└──────────────────────┘
- *   ┌──────────────────────────────┐┌───────────────────────┐
+ *   ┌── 7 ─────────────────────────┐┌── 5 ──────────────────┐
  *   │ Needs attention              ││ Continue working      │
  *   └──────────────────────────────┘└───────────────────────┘
+ *   ┌── 7 ─────────────────────────┐┌── 5 ──────────────────┐
+ *   │ Goal progress                ││ Quick capture         │
+ *   │  ▢ ▢  two-up rail            ││ Daily reflection      │
+ *   └──────────────────────────────┘└───────────────────────┘
+ *
+ * ── WHAT WENT, AND WHY ───────────────────────────────────────────────────────
+ *   - **Insights.** A ring reading "24 of 30 captured" over the same window the
+ *     two stat cards beside it already report, from the same single read. It was
+ *     a third presentation of one fact, and the audit asks for it to be deleted
+ *     rather than replaced — its information is above it. `todayInsight` went
+ *     with it rather than being left as an unrendered model.
+ *   - **The header's "+ Add task".** See the note at the header below.
+ *
+ * ── WHAT MOVED ───────────────────────────────────────────────────────────────
+ * **Needs attention** and **Continue working** were the LAST band on the page,
+ * under the Goal rail. They are now the second working row, above it: they
+ * answer "what should I do now?", and a rail of Goal meters answers a question
+ * measured in months.
  *
  * ── WHAT THE MOCKUP DRAWS AND THIS SCREEN DOES NOT ───────────────────────────
  * Three omissions, each because the capability genuinely does not exist. They
  * are recorded in full — with what was checked — in
  * `docs/design/TODAY_11_COMMAND_CENTRE_2026_08.md`.
  *
- *   - **Focus time ("6h 45m")**, twice: a stat card and half the Insights panel.
- *     DalyHub captures no focus time — no timer, no session record and no field
- *     it could be derived from. Building one would be a new feature wearing a
- *     visual pass's clothes, so the slot goes to the honest sibling of the first
- *     figure, from the same bounded query: what was CAPTURED this week beside
- *     what was completed.
+ *   - **Focus time ("6h 45m")**. DalyHub captures no focus time — no timer, no
+ *     session record and no field it could be derived from. Building one would
+ *     be a new feature wearing a visual pass's clothes, so the slot goes to the
+ *     honest sibling of the first figure, from the same bounded query: what was
+ *     CAPTURED this week beside what was completed.
  *   - **Productivity score ("78 · Great")**. A composite score is a judgement
  *     this product has refused everywhere it has been asked for: Analytics
  *     refuses it by name, Areas have no health percentage and Goals state an
@@ -59,11 +72,11 @@
  * DEBT-57) and its **Upload** chip (attachments are deferred — DEBT-35).
  *
  * ── WHAT THE MOCKUP DOES NOT DRAW AND THIS SCREEN KEEPS ──────────────────────
- * **Needs attention** and **Continue working**, below the mockup's ranks. The
- * mockup is a composition for what it shows; it is not an instruction to delete
- * capability it never depicted. Removing the attention rail would silently drop
- * the ONLY surface where an Asset obligation with no open Task reaches the
- * owner (ADR-063 decision 10, and DEBT-57 is about that reach). **DayNav** stays
+ * **Needs attention** and **Continue working**. The mockup is a composition for
+ * what it shows; it is not an instruction to delete capability it never
+ * depicted. Removing the attention rail would silently drop the ONLY surface
+ * where an Asset obligation with no open Task reaches the owner (ADR-063
+ * decision 10, and DEBT-57 is about that reach). **DayNav** stays
  * for the same class of reason: the week strip navigates the SCHEDULE's day,
  * while Tomorrow and Next 7 days show tomorrow's TASKS and seven days of task
  * counts, which the strip cannot.
@@ -72,8 +85,9 @@
  *   - **Zeros never render.** Every measure, every band, every panel is
  *     conditional on its own count. A quiet day is a short page.
  *   - **One fact, one derivation.** The week's completed and captured counts are
- *     read once and presented three times (two cards and the Insights ring); no
- *     figure on this page is computed twice.
+ *     read once and presented once each; no figure on this page is computed
+ *     twice, and — since CONVERGE-01 §1 removed the Insights ring — none is
+ *     PRESENTED twice either.
  *   - **Tasks have no times**, and the day's list says so by not having a time
  *     column at all.
  *   - **Every "View …" goes somewhere real.** There is no "View full calendar",
@@ -99,9 +113,9 @@ import {
 } from "~/shared/entity";
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import { useCapture, type CaptureType } from "~/shared/capture";
-import { ProgressRing, Sparkline } from "~/shared/charts";
+import { Sparkline } from "~/shared/charts";
 import { ProgressTrack } from "~/shared/progress";
-import { Button } from "~/shared/ui";
+import { useCompactViewport } from "~/shared/viewport";
 import {
   AssetIcon,
   CheckCircleIcon,
@@ -146,7 +160,7 @@ import {
 import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
 import { goalIsOnTrack } from "~/shared/goal-progress";
 
-import { todayInsight, todayMeasures, type TodayMeasure } from "./measures";
+import { todayMeasures, type TodayMeasure } from "./measures";
 import { weekStripDayHeading, weekStripMonthLabel } from "./week-strip";
 import type { TodayActivityTrend, TodayGoal } from "./goal-progress";
 import type { TodayDayData, TodayWeekDay } from "./load";
@@ -438,31 +452,56 @@ function PlanBand({
 /* The stat rank                                                               */
 /* -------------------------------------------------------------------------- */
 
-/** The visualisation a stat card carries, in the agreed chart language. */
-function MeasureChart({ measure }: { readonly measure: TodayMeasure }) {
+/**
+ * The visualisation a stat card carries, inside its own PLOT REGION.
+ *
+ * ── The bleed this wrapper exists to make impossible ────────────────────────
+ * Both plots are `inline-size: 100%` primitives — `.dh-spark` and
+ * `.dh-progress__track` each set it, because an SVG with a viewBox and a bare
+ * `<div>` bar have no intrinsic width to stretch from. The card then inset them
+ * with `margin-inline`, and a percentage width resolves against the CONTAINING
+ * BLOCK while margins are added OUTSIDE it: the plot was laid out 16px in from
+ * the card's content edge at its full content width, so its right edge landed
+ * exactly 16px PAST the card. Measured on `/today` before this change, identical
+ * at every width because it is a constant, not a wide-screen artefact:
+ *
+ *   3440: card content [265, 647] · sparkline ink [278.8, 665.3] → 18.3px out
+ *   1440: card content [265, 634] · sparkline ink [278.8, 651.9] → 18.3px out
+ *   3440: card content [1057, 1439] · goals meter [1073, 1455]   → 16px out
+ *
+ * (The sparkline's extra 2.3px is the end marker's 4.5px stroke radius, which
+ * `.dh-spark`'s own `overflow-clip-margin` correctly allows — that clip was
+ * doing its job; the box it was clipping was in the wrong place.)
+ *
+ * The inset now lives on a wrapper that owns it as PADDING, and the plot fills
+ * that wrapper's content box at the 100% it asks for. A percentage width can no
+ * longer be added to a margin because there is no margin left to add it to. The
+ * wrapper also clips, so the GRAPH REGION is bounded without putting `overflow`
+ * on the card — which would clip focus rings and any popover a card ever grows.
+ */
+function MeasurePlot({ measure }: { readonly measure: TodayMeasure }) {
   const chart = measure.chart;
   if (chart === null) return null;
-  if (chart.kind === "spark") {
-    return (
-      <Sparkline
-        className="dh-today__measure-chart"
-        points={chart.points.map((point) => ({
-          key: point.dateIso,
-          date: point.dateIso,
-          value: point.value,
-        }))}
-        direction="increase"
-        height={32}
-      />
-    );
-  }
   return (
-    <ProgressTrack
-      className="dh-today__measure-chart"
-      label={`${measure.label} progress`}
-      percent={chart.percent}
-      valueText={chart.valueText}
-    />
+    <div className="dh-today__measure-plot" data-testid="today-measure-plot">
+      {chart.kind === "spark" ? (
+        <Sparkline
+          points={chart.points.map((point) => ({
+            key: point.dateIso,
+            date: point.dateIso,
+            value: point.value,
+          }))}
+          direction="increase"
+          height={32}
+        />
+      ) : (
+        <ProgressTrack
+          label={`${measure.label} progress`}
+          percent={chart.percent}
+          valueText={chart.valueText}
+        />
+      )}
+    </div>
   );
 }
 
@@ -525,7 +564,7 @@ function TodayStatRank({
                 {body}
               </Link>
             )}
-            <MeasureChart measure={measure} />
+            <MeasurePlot measure={measure} />
           </li>
         );
       })}
@@ -778,74 +817,6 @@ function SchedulePanel({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Insights                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * TODAY-11 — the Insights panel: one ring, and the way to the real thing.
- *
- * The mockup's Insights panel has three parts. Its right half is **Focus time**,
- * which does not exist; its foot is **"Most productive — Mornings, 9AM–12PM"**,
- * which is CONDITIONAL in the brief on costing one cheap grouped query, and does
- * not: completion instants are UTC and "which hour of the owner's day" is not a
- * function of the instant alone across a daylight-saving transition, so it needs
- * either 168 bucketed ranges in one statement or a new bounded kernel read on
- * `TaskRepository`. Both are new kernel surface inside a composition pass, so it
- * is omitted and recorded rather than approximated.
- *
- * What is left is the part that is real, cheap and already loaded: the week's
- * completions against the week's captures, as the ring the mockup draws, over
- * the window it is labelled with. See `measures.ts` for what the ratio IS and,
- * more importantly, what it deliberately is not.
- */
-function InsightsPanel({
-  trend,
-}: {
-  readonly trend: TodayActivityTrend | null;
-}) {
-  const insight = todayInsight(trend);
-  if (insight === null) return null;
-  return (
-    <section
-      className="dh-today__panel dh-today__insights"
-      aria-labelledby="today-insights-heading"
-      data-testid="today-insights"
-    >
-      <div className="dh-today__panel-head">
-        <h2 className="dh-today__panel-title" id="today-insights-heading">
-          Insights
-        </h2>
-        <span className="dh-today__panel-note">{insight.windowLabel}</span>
-      </div>
-      <div className="dh-today__insight">
-        {insight.percent === null ? null : (
-          <ProgressRing
-            value={insight.percent / 100}
-            label={insight.summary}
-            size={92}
-            thickness={8}
-          >
-            <span className="dh-today__insight-percent">
-              {insight.percent}%
-            </span>
-          </ProgressRing>
-        )}
-        <div className="dh-today__insight-facts">
-          <p className="dh-today__insight-label">Tasks completed</p>
-          {/* The ring's figures as ordinary text, so the meaning never depends
-              on seeing the ring — and so the clamped arc cannot be the only
-              statement of a ratio above 100%. */}
-          <p className="dh-today__insight-value">{insight.ratioText}</p>
-          <Link className="dh-today__panel-action" to="/analytics">
-            View analytics
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /* Quick capture                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -1014,6 +985,18 @@ export function TodayScreen({
 }: TodayScreenProps) {
   const [searchParams] = useSearchParams();
   const { openDrawer } = useDrawer();
+  /*
+   * MOBILE-02 §7 — the one thing on this screen a media query cannot do.
+   *
+   * The overdue row's trailing fact is TEXT, and a phone needs a shorter string
+   * rather than a smaller one. Everything else about this screen's phone
+   * composition is CSS, which is the rule `use-compact-viewport` states for
+   * itself: the hook is for behaviour that changes the DOM, never for
+   * presentation. It is desktop-first on the server, so the first byte carries
+   * the full phrase and the client shortens it after mount — which is also the
+   * safe direction if scripting never arrives.
+   */
+  const compactRows = useCompactViewport();
 
   /*
    * Optimistic completion overrides, keyed by task id → intended state. The
@@ -1140,17 +1123,26 @@ export function TodayScreen({
        * step with the first" DS-03 refused when it settled the control's fourth
        * and final home.
        *
-       * "+ Add task" IS here, as the mockup draws it and as every other
-       * collection in the product draws its create action: in the page header,
-       * primary, opening the shared capture sheet on the Task panel.
+       * ── The header's "+ Add task" is deliberately GONE ─────────────────────
+       * CONVERGE-01 §1 / MOBILE-02 §5. Today carried FIVE doors onto the same
+       * capture sheet: the shell's global `+`, this header button, the ghost
+       * "Add task" at the foot of the plan, the Quick capture card and the phone
+       * FAB. This one was the only one that opened `capture.openCapture("task")`
+       * with no context the foot's control does not also have — the same sheet,
+       * on the same panel, from a spot the eye passes on the way to the day —
+       * and on a phone it was a full-width primary button sitting between the
+       * greeting and the first task, which is a large part of the 55.7% of the
+       * first viewport measured before this pass.
+       *
+       * Removing it costs nothing and is the ONE of the five that is pure
+       * duplication: the global capture stays (shell `+`, `C`, the FAB), the
+       * contextual one stays at the foot of the plan where the list ends, and
+       * Quick capture stays because it is the multi-TYPE door.
        */}
       <header className="dh-today__head">
         <div className="dh-today__identity">
           <h1 className="dh-today__greeting">{greeting}</h1>
           <p className="dh-today__date">{data.dateLong}</p>
-        </div>
-        <div className="dh-today__head-actions">
-          <AddTaskButton />
         </div>
       </header>
 
@@ -1162,20 +1154,63 @@ export function TodayScreen({
           and seven days of task counts — which a strip over one panel cannot. */}
       <DayNav active="today" />
 
-      {/* §3.1 — the stat rank returns to the top. See `TodayStatRank`. */}
-      <TodayStatRank trend={data.activityTrend} goals={data.goals} />
-
       {/*
-       * ── The WORK rank ────────────────────────────────────────────────────
-       * The day's own plan, dominant, beside the day's timed commitments. This
-       * is the mockup's first working rank and the only one whose two panels are
-       * of deliberately unequal width: a list of titles wants the room, and a
-       * timeline of times does not.
+       * ── ONE GRID ─────────────────────────────────────────────────────────
+       * CONVERGE-01 §1. Everything below the day navigation is placed on a
+       * SINGLE twelve-column grid, in the audit's order:
        *
-       * Nothing on this screen is moved by CSS `order`. The DOM order IS the
-       * phone composition, which is also the reading order and the tab order.
+       *   stats            4 · 4 · 4
+       *   plan / schedule  7 · 5
+       *   attention / continue
+       *                    7 · 5
+       *   goals / support  7 · 5
+       *
+       * ── What this replaces, and why the replacement is structural ─────────
+       * Today was three separately-defined "ranks", each with its own
+       * `grid-template-columns` chosen for its own contents — `1.55fr 1fr` for
+       * work, `1.2fr 1fr 1fr` for context, `1fr 1fr` for support. Nothing lined
+       * up between one band and the next, which is what made the page read as a
+       * widget board rather than as a workspace. Measured at 3440 before this
+       * change, the panel origins down the page were x = 264, 1322 | 264, 917,
+       * 1465 | 264, 1138 — three different column systems, three different
+       * gutters, in one composition.
+       *
+       * On one grid every band shares the same twelve tracks, so the plan, the
+       * attention rail and the Goal rail all start on the same line and end on
+       * the same line, and the Schedule, Continue and support columns do too.
+       *
+       * ── The order is the audit's, and it is a DECISION about the day ──────
+       * "Needs attention" moves ABOVE "Goal progress". It is the surface that
+       * says what has gone wrong — the only place an Asset obligation with no
+       * open Task reaches the owner at all — and it was the LAST thing on the
+       * page, below a Goal rail that answers a much slower question. Goal
+       * progress is the long game and now sits with the day's other slow
+       * surfaces at the foot.
+       *
+       * Nothing here is moved by CSS `order`. The DOM order IS the phone
+       * composition, the reading order and the tab order — which is why this
+       * reordering had to happen in the markup and why MOBILE-02 §5 waited for
+       * it rather than doing it a second, different way in a media query.
        */}
-      <div className="dh-today__rank dh-today__rank--work">
+      <div
+        className="dh-today__grid"
+        /* Which of the two support panels exist, so the grid can give a lone
+           survivor the full twelve tracks instead of leaving five columns of
+           hole beside it. The pair is data-conditional, so its spans are too. */
+        data-support={
+          data.attention.length > 0 && data.continueProjects.length > 0
+            ? "both"
+            : data.attention.length > 0
+              ? "attention"
+              : data.continueProjects.length > 0
+                ? "continue"
+                : "none"
+        }
+      >
+        {/* §3.1 — the stat rank stays at the top, now as the grid's own first
+            row rather than as a flex strip above it. See `TodayStatRank`. */}
+        <TodayStatRank trend={data.activityTrend} goals={data.goals} />
+
         <section
           className="dh-today__panel dh-today__panel--card dh-today__timeline"
           aria-labelledby="today-day-heading"
@@ -1224,8 +1259,19 @@ export function TodayScreen({
                         task={task}
                         done={isDone(task)}
                         trailing={
+                          /*
+                           * MOBILE-02 §7 — the short form is DRAWN and the full
+                           * phrase is ANNOUNCED. A phone row cannot afford "Due
+                           * over a year ago" beside a task title, and a screen
+                           * reader must never be handed "Due 1y+".
+                           */
                           <span className="dh-day-row__due">
-                            {overdueLabel(task, data.todayIso)}
+                            <span className="dh-visually-hidden">
+                              {overdueLabel(task, data.todayIso)}
+                            </span>
+                            <span aria-hidden="true">
+                              {overdueLabel(task, data.todayIso, compactRows)}
+                            </span>
                           </span>
                         }
                         onToggle={(next) => toggle(task, next)}
@@ -1304,7 +1350,7 @@ export function TodayScreen({
            * list of exactly the promised size.
            */}
           <p className="dh-today__panel-foot">
-            <AddTaskButton variant="ghost" testId="today-plan-add" />
+            <AddTaskButton />
             {plan.hidden > 0 ? (
               <Link
                 className="dh-btn dh-btn--ghost"
@@ -1325,127 +1371,120 @@ export function TodayScreen({
           onOpenEvent={onOpenEvent}
           eventHref={eventHref}
         />
-      </div>
 
-      {/*
-       * ── The CONTEXT rank ─────────────────────────────────────────────────
-       * The longer game, the week's one honest ratio, and the two doorways.
-       * Each panel is a quiet header, one optional trailing action and content
-       * directly on the surface — no card inside a card anywhere on this screen.
-       */}
-      <div className="dh-today__rank dh-today__rank--context">
+        {/*
+         * ── The DECISION row ─────────────────────────────────────────────────
+         * What has gone wrong, and what to pick up next. The audit moves this
+         * pair up into the main flow, above the Goal rail: both are answers to
+         * "what should I do now?", which is the question the owner opened this
+         * page with, and both were previously below a rail that answers "how is
+         * the year going?".
+         *
+         * Kept pragmatic. Neither is inflated into a card: a quiet heading, a
+         * list of label-and-fact rows, and the fact each row carries is the one
+         * that says why it is on the list.
+         */}
+        {data.attention.length > 0 ? (
+          <section
+            className="dh-today__panel dh-today__attention"
+            aria-labelledby="today-attention-heading"
+            data-testid="today-attention"
+          >
+            <div className="dh-today__panel-head">
+              <h2
+                className="dh-today__panel-title"
+                id="today-attention-heading"
+              >
+                Needs attention
+              </h2>
+            </div>
+            <ul className="dh-day-list">
+              {data.attention.map((item: AttentionItem) => (
+                <li className="dh-day-row dh-day-row--attention" key={item.id}>
+                  {/* UIX-01 — the subject KIND as a small tonal tile, which
+                        is what makes a mixed rail scannable before it is read.
+                        Decorative: the row's label and detail carry every fact,
+                        and the tone is identity, never a state. */}
+                  <ToneIcon size="sm" tone={ATTENTION_TONES[item.kind]}>
+                    <AttentionGlyph kind={item.kind} />
+                  </ToneIcon>
+                  <span className="dh-day-row__stack">
+                    <Link className="dh-day-row__title" to={item.href}>
+                      {item.label}
+                    </Link>
+                    <span className="dh-day-row__meta">{item.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* Absent entirely when no project has open work — "continue working"
+            on a project with nothing left to do is not a suggestion. */}
+        {data.continueProjects.length > 0 ? (
+          <section
+            className="dh-today__panel dh-today__continue"
+            aria-labelledby="today-continue-heading"
+            data-testid="today-continue"
+          >
+            <div className="dh-today__panel-head">
+              <h2 className="dh-today__panel-title" id="today-continue-heading">
+                Continue working
+              </h2>
+              <Link className="dh-today__panel-action" to="/projects">
+                All projects
+              </Link>
+            </div>
+            <ul className="dh-day-list">
+              {data.continueProjects.map((project: ContinueProject) => (
+                <li className="dh-day-row dh-day-row--project" key={project.id}>
+                  {/*
+                   * UIX-01 — the project's OWN persisted identity mark, from
+                   * the same stored `iconKey`/`colourRank` the Projects
+                   * gallery and the Project record draw. Identity is
+                   * recognition before reading, and one record must not have
+                   * two appearances.
+                   */}
+                  <AccentIcon
+                    entityType="project"
+                    colourSlot={project.colourSlot}
+                    iconKey={project.iconKey}
+                    colourRank={project.colourRank}
+                    size="sm"
+                  />
+                  <span className="dh-day-row__stack">
+                    <Link
+                      className="dh-day-row__title"
+                      to={`/projects/${encodeURIComponent(project.id)}`}
+                    >
+                      {project.title}
+                    </Link>
+                    <span className="dh-day-row__meta">
+                      {project.openCount} open{" "}
+                      {project.openCount === 1 ? "task" : "tasks"} ·{" "}
+                      {project.statusLabel}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/*
+         * ── The SLOW row ─────────────────────────────────────────────────────
+         * The long game, and the two doorways that close the day. Goal progress
+         * takes the wider track because it is a rail of records; capture and
+         * reflection share the narrower one as a single supporting column, which
+         * is what the audit asks for and what they already were.
+         */}
         <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
-        <InsightsPanel trend={data.activityTrend} />
         <div className="dh-today__stack">
           <QuickCaptureCard />
           <ReflectionCard reflection={data.reflection} />
         </div>
       </div>
-
-      {/*
-       * ── The SUPPORT rank ─────────────────────────────────────────────────
-       * Not in MOCKUP 5, and kept anyway — see the note at the top of this file.
-       * Both are absent entirely when they hold nothing, so on a clear day the
-       * page simply ends at the rank above.
-       */}
-      {data.attention.length > 0 || data.continueProjects.length > 0 ? (
-        <div className="dh-today__rank dh-today__rank--support">
-          {data.attention.length > 0 ? (
-            <section
-              className="dh-today__panel"
-              aria-labelledby="today-attention-heading"
-            >
-              <div className="dh-today__panel-head">
-                <h2
-                  className="dh-today__panel-title"
-                  id="today-attention-heading"
-                >
-                  Needs attention
-                </h2>
-              </div>
-              <ul className="dh-day-list">
-                {data.attention.map((item: AttentionItem) => (
-                  <li
-                    className="dh-day-row dh-day-row--attention"
-                    key={item.id}
-                  >
-                    {/* UIX-01 — the subject KIND as a small tonal tile, which
-                        is what makes a mixed rail scannable before it is read.
-                        Decorative: the row's label and detail carry every fact,
-                        and the tone is identity, never a state. */}
-                    <ToneIcon size="sm" tone={ATTENTION_TONES[item.kind]}>
-                      <AttentionGlyph kind={item.kind} />
-                    </ToneIcon>
-                    <span className="dh-day-row__stack">
-                      <Link className="dh-day-row__title" to={item.href}>
-                        {item.label}
-                      </Link>
-                      <span className="dh-day-row__meta">{item.detail}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {/* Absent entirely when no project has open work — "continue working"
-              on a project with nothing left to do is not a suggestion. */}
-          {data.continueProjects.length > 0 ? (
-            <section
-              className="dh-today__panel"
-              aria-labelledby="today-continue-heading"
-            >
-              <div className="dh-today__panel-head">
-                <h2
-                  className="dh-today__panel-title"
-                  id="today-continue-heading"
-                >
-                  Continue working
-                </h2>
-                <Link className="dh-today__panel-action" to="/projects">
-                  All projects
-                </Link>
-              </div>
-              <ul className="dh-day-list">
-                {data.continueProjects.map((project: ContinueProject) => (
-                  <li
-                    className="dh-day-row dh-day-row--project"
-                    key={project.id}
-                  >
-                    {/*
-                     * UIX-01 — the project's OWN persisted identity mark, from
-                     * the same stored `iconKey`/`colourRank` the Projects
-                     * gallery and the Project record draw. Identity is
-                     * recognition before reading, and one record must not have
-                     * two appearances.
-                     */}
-                    <AccentIcon
-                      entityType="project"
-                      colourSlot={project.colourSlot}
-                      iconKey={project.iconKey}
-                      colourRank={project.colourRank}
-                      size="sm"
-                    />
-                    <span className="dh-day-row__stack">
-                      <Link
-                        className="dh-day-row__title"
-                        to={`/projects/${encodeURIComponent(project.id)}`}
-                      >
-                        {project.title}
-                      </Link>
-                      <span className="dh-day-row__meta">
-                        {project.openCount} open{" "}
-                        {project.openCount === 1 ? "task" : "tasks"} ·{" "}
-                        {project.statusLabel}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </div>
-      ) : null}
 
       {/* The one line the page ends on when the WHOLE page is clear — no day,
           nothing needing attention and no project with open work. It is a LINE,
@@ -1468,61 +1507,47 @@ export function TodayScreen({
 }
 
 /**
- * The mockup's "+ Add task", in both the places it draws one.
+ * "+ Add task" — ONE control, at the foot of the plan.
  *
  * `requestedType` rather than the chooser, for the reason `TasksWorkspace`
  * records: the chooser asks "what are you capturing?" on a surface whose answer
  * is never in doubt.
+ *
+ * ── Why there is no `primary` variant any more ──────────────────────────────
+ * There were two of these: a filled one in the page header and this quiet one
+ * beside the list. Both opened the same sheet on the same panel with the same
+ * context, which made the header's copy pure duplication — CONVERGE-01 §1 A9
+ * asks for exactly that to go, and MOBILE-02 §5 names it as the "duplicate large
+ * Add Task CTA" a phone was paying ~60px of its first viewport for. The variant
+ * went with the caller rather than being left as an unreachable branch.
+ *
+ * The ghost rung has no generic `Button` variant — it is the product's own
+ * text-button class, and it is what every other foot control on this screen
+ * already is, so the row reads as one set rather than as two kinds of link.
  */
 function AddTaskButton({
-  variant = "primary",
-  testId = "today-add-task",
+  testId = "today-plan-add",
 }: {
-  /**
-   * `primary` in the page header, where the product puts the one filled action
-   * per surface; `ghost` at the foot of the plan, where the mockup draws a quiet
-   * "+ Add task" beside the list and a second violet button would be two
-   * primaries on one screen (FINAL-UI §73).
-   */
-  readonly variant?: "primary" | "ghost";
   readonly testId?: string;
 }) {
   const capture = useCapture();
   const ref = useRef<HTMLButtonElement>(null);
   if (capture === null) return null;
-  if (variant === "ghost") {
-    // The ghost rung has no generic `Button` variant — it is the product's own
-    // text-button class, and it is what every other foot control on this screen
-    // already is, so the row reads as one set rather than as two kinds of link.
-    return (
-      <button
-        type="button"
-        ref={ref}
-        className="dh-btn dh-btn--ghost"
-        data-testid={testId}
-        onClick={() => {
-          if (ref.current) capture.openCapture("task", ref.current);
-        }}
-      >
-        <span className="dh-btn__icon" aria-hidden="true">
-          <PlusIcon />
-        </span>
-        Add task
-      </button>
-    );
-  }
   return (
-    <Button
+    <button
+      type="button"
       ref={ref}
-      variant="primary"
-      icon={<PlusIcon />}
+      className="dh-btn dh-btn--ghost"
       data-testid={testId}
       onClick={() => {
         if (ref.current) capture.openCapture("task", ref.current);
       }}
     >
+      <span className="dh-btn__icon" aria-hidden="true">
+        <PlusIcon />
+      </span>
       Add task
-    </Button>
+    </button>
   );
 }
 

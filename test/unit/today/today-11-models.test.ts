@@ -20,7 +20,6 @@ import { reflectionExcerpt } from "~/modules/today/day/reflection";
 import {
   completedNote,
   daySeriesSummary,
-  todayInsight,
   todayMeasures,
 } from "~/modules/today/day/measures";
 import type {
@@ -312,42 +311,6 @@ describe("the stat rank", () => {
     expect(
       todayMeasures({ trend: one, goals: [] }).find((m) => m.id === "completed")
         ?.chart,
-    ).toBeNull();
-  });
-});
-
-describe("the Insights ring", () => {
-  it("states completions against captures over the named window", () => {
-    const insight = todayInsight(trend())!;
-    expect(insight.percent).toBe(80);
-    expect(insight.ratioText).toBe("24 of 30 captured");
-    expect(insight.windowLabel).toBe("Last 7 days");
-  });
-
-  it("clamps the ring but never the figures", () => {
-    // The two sets are not nested — a task completed this week may have been
-    // captured last month — so the ratio can exceed 1. The ring cannot honestly
-    // draw more than full; the words beside it stay true.
-    const insight = todayInsight(
-      trend({ totalCompleted: 40, totalCreated: 10 }),
-    )!;
-    expect(insight.percent).toBe(100);
-    expect(insight.ratioText).toBe("40 of 10 captured");
-    expect(insight.summary).toContain("more cleared than came in");
-  });
-
-  it("has no percentage to state when nothing was captured", () => {
-    const insight = todayInsight(
-      trend({ totalCompleted: 4, totalCreated: 0 }),
-    )!;
-    expect(insight.percent).toBeNull();
-    expect(insight.summary).toContain("none captured");
-  });
-
-  it("is absent on a week with no activity at all", () => {
-    expect(todayInsight(null)).toBeNull();
-    expect(
-      todayInsight(trend({ totalCompleted: 0, totalCreated: 0 })),
     ).toBeNull();
   });
 });

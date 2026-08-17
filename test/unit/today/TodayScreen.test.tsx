@@ -441,7 +441,23 @@ describe("the day timeline", () => {
     renderScreen(
       day({ overdue: [task("o", "Late", { dueDate: "2026-08-05" })] }),
     );
-    expect(screen.getByText("Due 3 days ago")).toBeInTheDocument();
+    /*
+     * MOBILE-02 §7 — the row now carries the phrase TWICE on purpose: the full
+     * one for assistive technology and a short one for the eye, because "Due
+     * over a year ago" beside a task title ellipsises the title on a phone.
+     *
+     * `useCompactViewport` is desktop-first on the server and in jsdom (no
+     * `matchMedia` match), so the drawn string here is the full one and both
+     * spans read the same. What this asserts is the CONTRACT — the full phrase
+     * is always present and always announced — not which of the two rungs the
+     * test environment happens to be on.
+     */
+    const row = within(timelineSection()).getByText("Late").closest("li")!;
+    const due = row.querySelector(".dh-day-row__due")!;
+    expect(due.querySelector(".dh-visually-hidden")?.textContent).toBe(
+      "Due 3 days ago",
+    );
+    expect(due.querySelector("[aria-hidden='true']")).not.toBeNull();
   });
 
   it("caps overdue at three and links the remainder to the overdue view", () => {
@@ -499,11 +515,13 @@ describe("the day timeline", () => {
      * `docs/design/TODAY_11_COMMAND_CENTRE_2026_08.md` §3.1 rather than swapped
      * in silence.
      *
-     * §45's SPIRIT is what this test still protects: exactly THREE blocks may
-     * precede the work rank (the header, the day rail and the measures), and the
-     * day's own plan is the first panel of that rank. A fourth block above the
-     * work — a second figure row, a banner, a hero — fails here whatever it is
-     * called.
+     * CONVERGE-01 §1 put every band on ONE twelve-column grid, so the measures
+     * and the plan are now siblings inside `.dh-today__grid` rather than a strip
+     * above a "work rank". The rule this protects is unchanged and is stated in
+     * the same terms: exactly TWO blocks may precede the grid (the header and
+     * the day rail), the measures are the grid's first child, and the day's own
+     * plan is its second. A block inserted above the work — a second figure row,
+     * a banner, a hero — fails here whatever it is called.
      */
     const { container } = renderScreen(
       day({
@@ -526,16 +544,17 @@ describe("the day timeline", () => {
       .filter((role): role is string => role !== undefined);
     expect(blocks).toEqual(roles);
 
-    const work = surface.querySelector(".dh-today__rank--work")!;
-    const beforeWork = [...surface.children].slice(
+    const grid = surface.querySelector(".dh-today__grid")!;
+    const beforeGrid = [...surface.children].slice(
       0,
-      [...surface.children].indexOf(work),
+      [...surface.children].indexOf(grid),
     );
-    expect(beforeWork).toHaveLength(3); // head, day rail, measures
-    expect(beforeWork.at(-1)?.className).toContain("dh-today__summary");
+    expect(beforeGrid).toHaveLength(2); // head, day rail
 
-    // The day's own work is the FIRST panel of the work rank, ahead of Schedule.
-    expect(work.firstElementChild?.className).toContain("dh-today__timeline");
+    // The measures are the grid's first cell and the day's own plan its second,
+    // ahead of Schedule.
+    expect(grid.children[0]?.className).toContain("dh-today__summary");
+    expect(grid.children[1]?.className).toContain("dh-today__timeline");
     // The first row inside it is the overdue one.
     const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
     expect(firstRow?.textContent).toContain("Late");
@@ -1222,7 +1241,7 @@ describe("TODAY-11: the week strip", () => {
   });
 });
 
-describe("TODAY-11: the Insights panel", () => {
+describe("CONVERGE-01 §1: the Insights panel is deleted", () => {
   const trend = {
     days: [
       { dateIso: "2026-08-07", created: 5, completed: 4 },
@@ -1233,19 +1252,30 @@ describe("TODAY-11: the Insights panel", () => {
     previousCompleted: 16,
   };
 
-  it("states the ring's figures as text as well as an arc", () => {
+  it("is GONE — the ring said a third time what the cards already state", () => {
+    /*
+     * CONVERGE-01 §1 deletes Insights, and the audit is explicit that it must
+     * not be replaced by another decorative widget: its information is already
+     * on the page, directly above it. The ring read "24 of 30 captured" over the
+     * same seven days, from the same single read, as the two stat cards that say
+     * 24 and 30.
+     *
+     * This asserts the deletion is REAL rather than merely visually hidden, and
+     * that nothing has taken the slot: no ring, no donut, no percentage.
+     */
     renderScreen(day({ activityTrend: trend }));
-    const panel = screen.getByTestId("today-insights");
-    expect(within(panel).getByText("80%")).toBeInTheDocument();
-    expect(within(panel).getByText("24 of 30 captured")).toBeInTheDocument();
-    expect(within(panel).getByText("Last 7 days")).toBeInTheDocument();
-    // The ring carries the whole sentence for assistive technology.
+    expect(screen.queryByTestId("today-insights")).toBeNull();
+    expect(screen.queryByText("Insights")).toBeNull();
+    expect(screen.queryByText("24 of 30 captured")).toBeNull();
+    expect(screen.queryByText("80%")).toBeNull();
     expect(
-      within(panel).getByRole("img", { name: /24 tasks completed against 30/ }),
-    ).toBeInTheDocument();
-    expect(
-      within(panel).getByRole("link", { name: "View analytics" }),
-    ).toHaveAttribute("href", "/analytics");
+      screen.queryByRole("img", { name: /tasks completed against/ }),
+    ).toBeNull();
+
+    // The facts themselves stay, in the one place that owns them.
+    const summary = screen.getByTestId("today-summary");
+    expect(within(summary).getByText("24")).toBeVisible();
+    expect(within(summary).getByText("30")).toBeVisible();
   });
 
   it("draws no focus time and no productivity score", () => {
@@ -1257,7 +1287,7 @@ describe("TODAY-11: the Insights panel", () => {
     expect(screen.queryByText(/6h 45m/)).toBeNull();
   });
 
-  it("is absent entirely on a week with nothing to divide", () => {
+  it("is absent on a quiet week too — there is no panel to be absent from", () => {
     renderScreen(day());
     expect(screen.queryByTestId("today-insights")).toBeNull();
   });
@@ -1300,10 +1330,24 @@ describe("TODAY-11: the Quick capture card", () => {
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
   });
 
-  it("puts '+ Add task' in the page header and at the foot of the plan", () => {
+  it("offers '+ Add task' ONCE, at the foot of the plan", () => {
+    /*
+     * CONVERGE-01 §1 A9 / MOBILE-02 §5. Today had two "+ Add task" buttons —
+     * one filled in the page header, one quiet at the foot of the list — and
+     * both opened the same shared capture sheet on the same Task panel with the
+     * same context. The header's copy was pure duplication and, on a phone, a
+     * full-width primary button sitting between the greeting and the first task.
+     *
+     * The contextual one stays. Global capture is untouched and is NOT this
+     * control: the shell's `+`, the `C` shortcut and the phone bottom bar all
+     * still reach the same sheet.
+     */
     renderScreen(day({ today: [task("a", "Alpha")] }));
-    expect(screen.getByTestId("today-add-task")).toBeVisible();
     expect(screen.getByTestId("today-plan-add")).toBeVisible();
+    expect(screen.queryByTestId("today-add-task")).toBeNull();
+    expect(screen.getAllByRole("button", { name: /add task/i })).toHaveLength(
+      1,
+    );
   });
 });
 

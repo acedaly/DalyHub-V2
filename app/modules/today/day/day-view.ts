@@ -143,22 +143,41 @@ export function daysBetween(fromIso: string, toIso: string): number {
  * than "over a year ago" — a figure past a certain size is a curiosity, not a
  * fact to act on.
  */
-export function relativePastLabel(iso: string, todayIso: string): string {
+export function relativePastLabel(
+  iso: string,
+  todayIso: string,
+  /**
+   * MOBILE-02 §7 — the SHORT form, for a phone row.
+   *
+   * Same ladder, same rungs, same thresholds: only the words are abbreviated, so
+   * a row cannot say one thing on a laptop and a different thing on a phone.
+   * "Due over a year ago" is nineteen characters against a task title that has
+   * ~130px to live in at 393 — measured on the seeded fixture, three of the
+   * three overdue rows had their titles ellipsised by their own date. "Due 1y+"
+   * is seven.
+   *
+   * The short form is never the ONLY statement: every caller renders it
+   * `aria-hidden` beside the full phrase in a visually-hidden span, which is the
+   * same trade the week strip's day buttons make a few hundred lines away.
+   */
+  compact = false,
+): string {
   const days = daysBetween(iso, todayIso);
   if (days <= 0) {
     return "today";
   }
   if (days === 1) {
-    return "yesterday";
+    return compact ? "1d" : "yesterday";
   }
   if (days <= 30) {
-    return `${days} days ago`;
+    return compact ? `${days}d` : `${days} days ago`;
   }
   if (days <= 365) {
     const months = Math.round(days / 30);
+    if (compact) return `${months}mo`;
     return months === 1 ? "1 month ago" : `${months} months ago`;
   }
-  return "over a year ago";
+  return compact ? "1y+" : "over a year ago";
 }
 
 /**
@@ -183,12 +202,16 @@ export function overdueReference(
 }
 
 /** The trailing label on an overdue row — "Due 3 days ago" / "Planned yesterday". */
-export function overdueLabel(task: DayTask, todayIso: string): string | null {
+export function overdueLabel(
+  task: DayTask,
+  todayIso: string,
+  compact = false,
+): string | null {
   const reference = overdueReference(task, todayIso);
   if (reference === null) {
     return null;
   }
-  const when = relativePastLabel(reference.date, todayIso);
+  const when = relativePastLabel(reference.date, todayIso, compact);
   return reference.kind === "due" ? `Due ${when}` : `Planned ${when}`;
 }
 
