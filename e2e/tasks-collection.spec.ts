@@ -6,7 +6,9 @@ import {
   expectNoHorizontalOverflow,
   expectMinTouchTarget,
   gotoFixture,
+  openCollectionControls,
   ownerToday,
+  pickCalendarDate,
   taskRows,
   taskRow,
 } from "./helpers";
@@ -55,12 +57,15 @@ async function planForToday(page: Page, title: string) {
 }
 
 /** Open the ONE shared collection sheet. */
-async function openSheet(page: Page) {
-  await page.getByTestId("collection-filter-trigger").click();
-  const sheet = page.getByTestId("collection-sheet");
-  await sheet.waitFor();
-  return sheet;
-}
+/**
+ * The collection's controls, in whichever presentation this viewport gets.
+ *
+ * CONTROL-01 made the Sheet the PHONE presentation and gave a pointer device an
+ * anchored, live-applying popover; `openCollectionControls` is the shared
+ * helper for both. This file used to drive `collection-sheet-*` at desktop
+ * widths, where no sheet has rendered since, and three journeys timed out.
+ */
+const openSheet = openCollectionControls;
 
 /** Delete the spec's saved view if a previous run left it behind. */
 async function removeSavedView(page: Page) {
@@ -191,10 +196,10 @@ test.describe("TASKS-03 — filtering", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks");
-    const sheet = await openSheet(page);
-    await sheet.getByTestId("collection-sheet-priority-p1").click();
-    await sheet.getByTestId("collection-sheet-due-overdue").click();
-    await page.getByTestId("collection-sheet-apply").click();
+    const controls = await openSheet(page);
+    await controls.choose("priority", "p1");
+    await controls.choose("due", "overdue");
+    await controls.commit();
     await expect(page).toHaveURL(/priority=p1/);
     await expect(page).toHaveURL(/due=overdue/);
     // …and the desktop chips reflect exactly what the sheet applied.
@@ -220,10 +225,9 @@ test.describe("TASKS-03 — filtering", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks");
-    await page.getByTestId("collection-filter-trigger").click();
-    await page.getByTestId("collection-sheet").waitFor();
-    await page.getByTestId("collection-sheet-priority-p1").click();
-    await page.getByTestId("collection-sheet-apply").click();
+    const controls = await openSheet(page);
+    await controls.choose("priority", "p1");
+    await controls.commit();
     await expect(page).toHaveURL(/priority=p1/);
 
     await page.reload();
@@ -504,8 +508,20 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
     await card.hover();
     await card.getByRole("button", { name: /^Due date/ }).click();
     const duePopover = page.getByRole("dialog", { name: "Edit due date" });
-    await duePopover.getByLabel("Due date", { exact: true }).fill(ownerToday());
-    await duePopover.getByRole("button", { name: "Save", exact: true }).click();
+    /*
+     * CONTROL-01 §2 — ONE DalyHub date control.
+     *
+     * The field inside this popover was the browser's native
+     * `<input type="date">`, which `fill()` can write to. It is now the shared
+     * calendar: `getByLabel("Due date")` resolves to its `role="grid"`, and
+     * filling a grid is not a thing, so this failed with "Element is not an
+     * <input>". `pickCalendarDate` is the suite's one way to drive it, and it
+     * clicks the day the way an owner does — and the control COMMITS on
+     * selection, because a calendar day is a complete answer, so the Save this
+     * journey used to press no longer exists.
+     */
+    await pickCalendarDate(duePopover, ownerToday());
+    await expect(duePopover).toHaveCount(0);
     // UIX-01 — the row states the due date as the word "Today". The separate
     // "Due today" urgency chip is gone: a relative date says it itself.
     await expect(card).toContainText("Today");
@@ -726,7 +742,12 @@ test.describe("TASKS-03 — accessibility, keyboard and responsive", () => {
     const trigger = page.getByTestId("collection-filter-trigger");
     await trigger.focus();
     await page.keyboard.press("Enter");
-    await page.getByTestId("collection-sheet").waitFor();
+    // Either presentation, for the reason `openSheet` gives above.
+    await expect(
+      page
+        .getByTestId("collection-sheet")
+        .or(page.getByTestId("collection-popover")),
+    ).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(trigger).toBeFocused();
 
@@ -787,15 +808,18 @@ test.describe("TASKS-03 — phone", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks");
-    const sheet = await openSheet(page);
+    const controls = await openSheet(page);
+    // This block runs at 390px, so it genuinely gets the phone's sheet — and
+    // says so, because "one sheet, every control" is a claim about the phone.
+    expect(controls.compact).toBe(true);
     // One sheet, every control: filters, layout, grouping, sort and density.
     for (const heading of ["Priority", "Due", "Layout", "Group by", "Sort"]) {
       await expect(
-        sheet.getByRole("heading", { name: heading, exact: true }),
+        controls.surface.getByRole("heading", { name: heading, exact: true }),
       ).toBeVisible();
     }
-    await sheet.getByTestId("collection-sheet-priority-p1").click();
-    await page.getByTestId("collection-sheet-apply").click();
+    await controls.choose("priority", "p1");
+    await controls.commit();
     await expect(page).toHaveURL(/priority=p1/);
 
     // The applied filter stays understandable on the phone, as a removable chip.

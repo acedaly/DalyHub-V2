@@ -632,3 +632,64 @@ export async function pickCalendarDate(
   // spoken label would make the caller compute a weekday to say it.
   await scope.locator(`.dh-calendar__day[data-iso="${iso}"]`).click();
 }
+
+/* -------------------------------------------------------------------------- */
+/* CONTROL-01 — the shared collection controls, in either presentation         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The collection's filter/sort controls, opened, in whichever presentation this
+ * viewport gets.
+ *
+ * CONTROL-01 split `CollectionControls` in two. A COMPACT viewport still gets
+ * the `Sheet` — a draft the owner edits and commits with Apply. A pointer device
+ * gets `CollectionControlsPopover`: the same groups, the same params, the same
+ * `applyDraft`, anchored beside the trigger and applying LIVE, because on a
+ * 1440px window the sheet meant three open/choose/apply/close round trips each
+ * of which hid the result of the last.
+ *
+ * Only the container differs — "there is one model, one set of options and one
+ * URL writer", in the component's own words — so a journey about FILTERING
+ * should not have to know which one it got. Three specs did know, and knew the
+ * wrong one: they drove `collection-sheet-*` at desktop widths, where the sheet
+ * has not rendered since CONTROL-01, and timed out.
+ *
+ * `choose` names a group's param and an option's value, exactly as both
+ * presentations' test ids do (`priority`, `p1`). `commit` is the Apply the sheet
+ * needs and the popover does not have; calling it in both is what lets one
+ * journey run at both widths.
+ */
+export interface CollectionControlsSurface {
+  /** The open surface — the `Sheet` or the anchored popover. */
+  readonly surface: Locator;
+  /** True when this viewport got the phone's sheet. */
+  readonly compact: boolean;
+  /** Select an option, e.g. `choose("priority", "p1")`. */
+  readonly choose: (param: string, value: string) => Promise<void>;
+  /** Commit the draft. A no-op in the popover, which applies as it goes. */
+  readonly commit: () => Promise<void>;
+}
+
+export async function openCollectionControls(
+  page: Page,
+): Promise<CollectionControlsSurface> {
+  await page.getByTestId("collection-filter-trigger").click();
+  const sheet = page.getByTestId("collection-sheet");
+  const popover = page.getByTestId("collection-popover");
+  // Whichever mounted. `.or()` resolves as soon as either exists, so this waits
+  // for the control surface rather than for a guess about which one it is.
+  await expect(sheet.or(popover)).toBeVisible();
+  const compact = (await sheet.count()) > 0;
+  const surface = compact ? sheet : popover;
+  const prefix = compact ? "collection-sheet" : "collection-popover";
+  return {
+    surface,
+    compact,
+    choose: async (param, value) => {
+      await surface.getByTestId(`${prefix}-${param}-${value}`).click();
+    },
+    commit: async () => {
+      if (compact) await page.getByTestId("collection-sheet-apply").click();
+    },
+  };
+}
