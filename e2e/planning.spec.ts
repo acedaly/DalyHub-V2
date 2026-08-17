@@ -48,7 +48,7 @@ test.describe("TODAY-04 — Planning", () => {
     // of the two ways a task lands there — the other is a due date of today.
     await page.keyboard.press("Escape");
     await expect(
-      page.locator(".dh-today__timeline .dh-day-row", { hasText: TITLE }),
+      page.locator(".dh-today__timeline .dh-taskrow", { hasText: TITLE }),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });

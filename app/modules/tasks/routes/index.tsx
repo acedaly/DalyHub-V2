@@ -314,6 +314,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       id: candidate.id,
       kind: candidate.kind,
       title: candidate.title,
+      // DEBT-144 — the option carries the parent's identity, so the row's
+      // optimistic mark is the parent's own colour from the moment it is chosen.
+      iconKey: candidate.iconKey ?? null,
+      colourSlot: candidate.colourSlot ?? null,
+      colourRank: candidate.colourRank ?? null,
     }));
   } catch {
     // The task list itself handles storage failures below; a preference read

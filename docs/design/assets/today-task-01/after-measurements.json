@@ -1,0 +1,642 @@
+{
+  "1440-light": {
+    "overflow": 0,
+    "docScrollWidth": 1440,
+    "docClientWidth": 1440,
+    "planWidth": 750.7,
+    "planLeft": 264,
+    "scheduleWidth": 365.3,
+    "scheduleLeft": 1034.7,
+    "firstTaskTop": 319.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 44,
+    "titleCellWidth": 302.7,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 128,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 72,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "rowCount": 9
+  },
+  "1440-dark": {
+    "overflow": 0,
+    "docScrollWidth": 1440,
+    "docClientWidth": 1440,
+    "planWidth": 750.7,
+    "planLeft": 264,
+    "scheduleWidth": 365.3,
+    "scheduleLeft": 1034.7,
+    "firstTaskTop": 319.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 44,
+    "titleCellWidth": 302.7,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 128,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 72,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "rowCount": 9
+  },
+  "1280-light": {
+    "overflow": 0,
+    "docScrollWidth": 1280,
+    "docClientWidth": 1280,
+    "planWidth": 644,
+    "planLeft": 264,
+    "scheduleWidth": 312,
+    "scheduleLeft": 928,
+    "firstTaskTop": 319.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 44,
+    "titleCellWidth": 244,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 96,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 64,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "rowCount": 9
+  },
+  "820-light": {
+    "overflow": 0,
+    "docScrollWidth": 820,
+    "docClientWidth": 820,
+    "planWidth": 704,
+    "planLeft": 92,
+    "scheduleWidth": 342,
+    "scheduleLeft": 92,
+    "firstTaskTop": 319.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 44,
+    "titleCellWidth": 304,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 96,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 64,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "rowCount": 9
+  },
+  "393-light": {
+    "overflow": 0,
+    "docScrollWidth": 393,
+    "docClientWidth": 393,
+    "planWidth": 361,
+    "planLeft": 16,
+    "scheduleWidth": 361,
+    "scheduleLeft": 16,
+    "firstTaskTop": 324.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 71.6,
+    "titleCellWidth": 214,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 98.5,
+    "summaryHeight": 41.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.9,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.5,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "rowCount": 9
+  },
+  "393-dark": {
+    "overflow": 0,
+    "docScrollWidth": 393,
+    "docClientWidth": 393,
+    "planWidth": 361,
+    "planLeft": 16,
+    "scheduleWidth": 361,
+    "scheduleLeft": 16,
+    "firstTaskTop": 324.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 71.6,
+    "titleCellWidth": 214,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 98.5,
+    "summaryHeight": 41.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.9,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.5,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "rowCount": 9
+  },
+  "320-light": {
+    "overflow": 0,
+    "docScrollWidth": 320,
+    "docClientWidth": 320,
+    "planWidth": 288,
+    "planLeft": 16,
+    "scheduleWidth": 288,
+    "scheduleLeft": 16,
+    "firstTaskTop": 354,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 91.2,
+    "titleCellWidth": 141,
+    "titleWidth": 141,
+    "headerBlockHeight": 128.4,
+    "summaryHeight": 41.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "task-row-open",
+        "width": 141,
+        "height": 39.2
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 66.5,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.5,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "rowCount": 9
+  },
+  "375-light": {
+    "overflow": 0,
+    "docScrollWidth": 375,
+    "docClientWidth": 375,
+    "planWidth": 343,
+    "planLeft": 16,
+    "scheduleWidth": 343,
+    "scheduleLeft": 16,
+    "firstTaskTop": 324.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 91.2,
+    "titleCellWidth": 196,
+    "titleWidth": 196,
+    "headerBlockHeight": 98.5,
+    "summaryHeight": 41.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "task-row-open",
+        "width": 196,
+        "height": 39.2
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 121.5,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.5,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "rowCount": 9
+  },
+  "390-light": {
+    "overflow": 0,
+    "docScrollWidth": 390,
+    "docClientWidth": 390,
+    "planWidth": 358,
+    "planLeft": 16,
+    "scheduleWidth": 358,
+    "scheduleLeft": 16,
+    "firstTaskTop": 324.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 71.6,
+    "titleCellWidth": 211,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 98.5,
+    "summaryHeight": 41.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 39.9,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.5,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "rowCount": 9
+  },
+  "430-light": {
+    "overflow": 0,
+    "docScrollWidth": 430,
+    "docClientWidth": 430,
+    "planWidth": 398,
+    "planLeft": 16,
+    "scheduleWidth": 398,
+    "scheduleLeft": 16,
+    "firstTaskTop": 324.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 71.6,
+    "titleCellWidth": 251,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 98.5,
+    "summaryHeight": 41.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 79.9,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 42.5,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "rowCount": 9
+  },
+  "1100-light": {
+    "overflow": 0,
+    "docScrollWidth": 1100,
+    "docClientWidth": 1100,
+    "planWidth": 796,
+    "planLeft": 264,
+    "scheduleWidth": 388,
+    "scheduleLeft": 264,
+    "firstTaskTop": 319.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 44,
+    "titleCellWidth": 348,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 128,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 72,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "rowCount": 9
+  },
+  "1728-light": {
+    "overflow": 0,
+    "docScrollWidth": 1728,
+    "docClientWidth": 1728,
+    "planWidth": 942.7,
+    "planLeft": 264,
+    "scheduleWidth": 461.3,
+    "scheduleLeft": 1226.7,
+    "firstTaskTop": 319.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 44,
+    "titleCellWidth": 352.7,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 144,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 80,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "rowCount": 9
+  },
+  "2560-light": {
+    "overflow": 0,
+    "docScrollWidth": 2560,
+    "docClientWidth": 2560,
+    "planWidth": 1145.3,
+    "planLeft": 528,
+    "scheduleWidth": 562.7,
+    "scheduleLeft": 1693.3,
+    "firstTaskTop": 319.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryToday screen redesign2",
+    "rowHeight": 44,
+    "titleCellWidth": 555.3,
+    "titleWidth": 201.8,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "task-row-open",
+        "width": 201.8,
+        "height": 19.6
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 144,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 76.7,
+        "height": 24
+      },
+      {
+        "what": "dh-inline-edit__trigger",
+        "width": 80,
+        "height": 24
+      },
+      {
+        "what": "dh-overflow-menu__trigger",
+        "width": 32,
+        "height": 32
+      }
+    ],
+    "rowCount": 9
+  }
+}

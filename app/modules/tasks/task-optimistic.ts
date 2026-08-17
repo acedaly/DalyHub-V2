@@ -22,6 +22,7 @@
  * column and a flat list render the same records and must not disagree about them.
  */
 
+import { applyTaskListItemPatch } from "~/shared/task-record/task-view";
 import type {
   SerializedTaskListItem,
   TaskListItemPatch,
@@ -76,28 +77,18 @@ export function withoutTaskPatch(
   return next;
 }
 
-/** Apply a patch to one record, returning the record itself when nothing changed. */
-export function applyTaskPatch(
+/**
+ * Apply a patch to one record, returning the record itself when nothing changed.
+ *
+ * TODAY-TASK-01 moved the body to `~/shared/task-record/task-view`, because Today
+ * needs the same mechanism over the same record shape and a second copy of an
+ * optimistic applier is a second set of rules about what an optimistic row may
+ * claim. The name stays here so this module's own callers are untouched.
+ */
+export const applyTaskPatch: (
   item: SerializedTaskListItem,
   patch: TaskListItemPatch | undefined,
-): SerializedTaskListItem {
-  if (patch === undefined) return item;
-  let changed = false;
-  for (const key of Object.keys(patch) as (keyof TaskListItemPatch)[]) {
-    const value = patch[key];
-    if (value === undefined) continue;
-    // A parent is compared by identity of its id, not by object identity: the patch
-    // constructs a fresh relation object every time.
-    if (key === "parent") {
-      const current = item.parent?.id ?? null;
-      const next = (value as SerializedTaskListItem["parent"])?.id ?? null;
-      if (current !== next) changed = true;
-      continue;
-    }
-    if (item[key] !== value) changed = true;
-  }
-  return changed ? { ...item, ...patch } : item;
-}
+) => SerializedTaskListItem = applyTaskListItemPatch;
 
 /** Apply the patch map across a page of records. */
 export function applyTaskPatches(

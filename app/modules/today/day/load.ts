@@ -13,12 +13,19 @@
  */
 
 import { addDaysToIsoDate } from "~/kernel/alignment";
+import type { TaskParentCandidate } from "~/kernel/tasks";
 import type { DaySchedule } from "~/kernel/calendar";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
 import { ownerCalendarIso } from "~/shared/datetime";
+import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
 
-import { bucketDay, type DayBuckets, type DayTask } from "./day-view";
+import {
+  bucketDay,
+  toDayTask,
+  type DayBuckets,
+  type DayTask,
+} from "./day-view";
 /**
  * NOTIFY-01 — the attention facts moved OUT of this file.
  *
@@ -72,6 +79,18 @@ import { createDiaryEntryTypeRegistry } from "~/kernel/diary";
 const PLANNING_SCHEDULED_LIMIT = 200;
 const PLANNING_BACKLOG_LIMIT = 100;
 const PLANNING_COMPLETED_LIMIT = 100;
+
+/**
+ * TODAY-TASK-01 — how many candidate parents the plan's inline project editor
+ * offers, before the searchable escape hatch takes over.
+ *
+ * Fifty, which is `/tasks`'s own `PARENT_OPTION_LIMIT` restated at this call site
+ * rather than a second number: the two surfaces open the SAME menu over the SAME
+ * bounded set, and a workspace whose Areas and Projects outrun it reaches the
+ * rest through the SAME searchable picker (`task-move:`), never through an
+ * unbounded read and never through a query per row.
+ */
+const PARENT_OPTION_LIMIT = 50;
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                      */
@@ -171,6 +190,18 @@ export interface TodayDayData {
    * never an AI summary of it — see `reflection.ts`.
    */
   readonly reflection: TodayReflection | null;
+  /**
+   * TODAY-TASK-01 — the bounded parent CANDIDATES the shared row's inline
+   * project editor offers.
+   *
+   * The shared `TaskRow` requires them, and supplying them is most of what
+   * DEBT-143 was open for: without a bounded set the alternatives were a query
+   * per row or a read of the whole workspace, and both were refused. This is ONE
+   * bounded, workspace-scoped, indexed search (`searchTaskParents`) — the exact
+   * call `/tasks`'s loader makes, not a Today-only repository — so the two
+   * surfaces offer the same menu over the same set.
+   */
+  readonly parents: readonly TaskParentOption[];
 }
 
 /** One day of the Schedule panel's week: the strip's facts and that day's items. */
@@ -203,6 +234,7 @@ export function emptyDay(input: {
     goals: [],
     activityTrend: null,
     reflection: null,
+    parents: [],
   };
 }
 
@@ -236,23 +268,16 @@ async function loadTasks(
     backlogLimit: PLANNING_BACKLOG_LIMIT,
     completedLimit: PLANNING_COMPLETED_LIMIT,
   });
-  const tasks: DayTask[] = page.items.map((item) => ({
-    id: item.id,
-    title: item.title,
-    parent: item.parent,
-    dueDate: item.dueDate,
-    scheduledDate: item.scheduledDate,
-    // TODAY-10 — carried from the SAME planning row the rest of the day is built
-    // from, so Focus can order by it without a second read or an N+1.
-    priority: item.priority,
-    completed: item.completedAt !== null,
+  const tasks: DayTask[] = page.items.map((item) =>
     // Completion is a UTC instant; resolve its OWNER-calendar date so "completed
     // today" means the owner's day, not the runtime's.
-    completedDate:
+    toDayTask(
+      item,
       item.completedAt !== null
         ? ownerCalendarIso(item.completedAt, timezone)
         : null,
-  }));
+    ),
+  );
   return bucketDay(tasks, todayIso);
 }
 
@@ -418,6 +443,7 @@ export async function loadTodayDay(
     measurableGoals,
     activityTrend,
     reflection,
+    parentOptions,
   ] = await Promise.all([
     safely(() => loadTasks(scope, todayIso, timezone), {
       overdue: [],
@@ -460,6 +486,14 @@ export async function loadTodayDay(
     ),
     safely(() => loadActivityTrend(scope, { timezone, todayIso }), null),
     safely(() => loadReflection(scope, todayIso, timezone), null),
+    // The inline project editor's bounded option set. It degrades to an empty
+    // list rather than failing the day: with no candidates the menu offers only
+    // "Move to Inbox" and the searchable picker, which is a narrower control —
+    // never a broken one.
+    safely(
+      () => scope.tasks.searchTaskParents({ limit: PARENT_OPTION_LIMIT }),
+      [] as readonly TaskParentCandidate[],
+    ),
   ]);
 
   return {
@@ -505,5 +539,13 @@ export async function loadTodayDay(
     goals: measurableGoals,
     activityTrend,
     reflection,
+    parents: parentOptions.map((candidate) => ({
+      id: candidate.id,
+      kind: candidate.kind,
+      title: candidate.title,
+      iconKey: candidate.iconKey ?? null,
+      colourSlot: candidate.colourSlot ?? null,
+      colourRank: candidate.colourRank ?? null,
+    })),
   };
 }

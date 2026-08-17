@@ -30,9 +30,13 @@ import { useCallback } from "react";
 
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { InlineDateField, InlineSelectField } from "~/shared/inline-edit";
-import { EntityIcon } from "~/shared/entity";
+import { AccentIcon } from "~/shared/entity";
 import { RepeatIcon } from "~/shared/icons";
-import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
+import {
+  TASK_PRIORITIES,
+  type TaskPriority,
+  type TaskRelation,
+} from "~/kernel/tasks";
 
 import { PriorityFlag } from "./PriorityIndicator";
 import { taskDateShortcuts } from "./plan-targets";
@@ -290,6 +294,14 @@ export interface TaskParentOption {
   readonly id: string;
   readonly kind: "project" | "area";
   readonly title: string;
+  /**
+   * DEBT-144 — the candidate's own identity, so the optimistic patch below can
+   * carry it. Optional: a caller that has not widened its loader passes none and
+   * the row's mark is neutral until the re-read, exactly as it was before.
+   */
+  readonly iconKey?: string | null;
+  readonly colourSlot?: string | null;
+  readonly colourRank?: number | null;
 }
 
 /**
@@ -321,11 +333,7 @@ export function InlineTaskParent({
   onSearchAll,
   disabled = false,
 }: TaskRowFieldProps & {
-  readonly parent: {
-    readonly kind: "project" | "goal" | "area";
-    readonly id: string;
-    readonly title: string;
-  } | null;
+  readonly parent: TaskRelation | null;
   readonly options: readonly TaskParentOption[];
   /**
    * DS-04 — open the shared searchable picker over the WHOLE workspace.
@@ -380,6 +388,11 @@ export function InlineTaskParent({
               kind: chosen.kind,
               id: chosen.id,
               title: chosen.title,
+              // DEBT-144 — the optimistic parent keeps its identity, so the
+              // mark does not flash neutral between the choice and the re-read.
+              iconKey: chosen.iconKey ?? null,
+              colourSlot: chosen.colourSlot ?? null,
+              colourRank: chosen.colourRank ?? null,
             },
           },
         });
@@ -408,21 +421,37 @@ export function InlineTaskParent({
      *
      * The redesign reference draws a task's Project as a small tinted tile and a
      * short name, which is what makes a mixed list scannable by context without
-     * reading it. The mark is the shared `EntityIcon` badge in the entity type's
-     * own generated identity colour — a Project and an Area are visibly
-     * different — so it is the SAME mark the record, the gallery and search
-     * draw, not a colour invented for a row.
+     * reading it.
      *
-     * It is `aria-hidden` by construction (`EntityIcon` is decorative) and it is
+     * ── TODAY-TASK-01 / DEBT-144 — the mark is now the parent's OWN identity ──
+     * It was the shared `EntityIcon` badge, which is the ENTITY TYPE's colour: a
+     * Project and an Area were visibly different, and every Project was visibly
+     * identical. IDENTITY-01's whole premise is the opposite — a record has one
+     * appearance, and it is the same appearance on every surface — so the same
+     * Project was a violet tile on `/projects` and a generic blue badge on the
+     * row that names it.
+     *
+     * `TaskRelation` now carries the parent's stored slot, its stored glyph and
+     * its derived rank, resolved by the same joined read that resolves the title
+     * (no extra query, no N+1), so the row draws the shared `AccentIcon` through
+     * the ONE `resolveIdentity` every identity surface uses. A read that did not
+     * resolve identity (the record overview's relation trio) leaves all three
+     * undefined and the tile falls back to the entity's default glyph on the
+     * neutral container — which is what the badge was, so nothing regresses.
+     *
+     * It is `aria-hidden` by construction (both marks are decorative) and it is
      * outside the control, so the editor's accessible name, its keyboard
      * behaviour and its test id are untouched. An unassigned task gets no mark
      * — "Unassigned" is an absence, and an absence does not have an identity.
      */
     <span className="dh-task-parent">
       {parent ? (
-        <EntityIcon
-          type={parent.kind}
-          variant="badge"
+        <AccentIcon
+          entityType={parent.kind}
+          colourSlot={parent.colourSlot ?? null}
+          iconKey={parent.iconKey ?? null}
+          colourRank={parent.colourRank ?? null}
+          size="sm"
           className="dh-task-parent__mark"
         />
       ) : null}

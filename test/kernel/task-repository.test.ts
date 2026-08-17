@@ -267,10 +267,19 @@ describe("task listing", () => {
 
     const page = await tasks.listTasks();
     expect(page.items.map((t) => t.title)).toEqual(["B", "A"]);
+    // TODAY-TASK-01 / DEBT-144 — the relation carries the parent's IDENTITY as
+    // well as its title, resolved by this same statement: the Area made no
+    // colour or icon choice, so it carries its derived rank (the first Area in
+    // the workspace is rank 0) and null for both stored choices. That is exactly
+    // what `resolveIdentity` walks, which is how a parent is the same colour on
+    // `/today`, on `/tasks` and on the Area's own record.
     expect(page.items[0]?.parent).toEqual({
       kind: "area",
       id: area.id,
       title: "Home",
+      colourSlot: null,
+      iconKey: null,
+      colourRank: 0,
     });
   });
 

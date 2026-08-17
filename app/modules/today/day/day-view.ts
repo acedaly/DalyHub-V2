@@ -45,34 +45,72 @@
  * is ticked.
  */
 
-import type { TaskPriority, TaskRelation } from "~/kernel/tasks";
+import type { TaskListItem, TaskPriority } from "~/kernel/tasks";
+import { serializeTaskListItem } from "~/shared/task-record/task-view";
+import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** One task as the day timeline renders it. Display data only — no `Date`s. */
-export interface DayTask {
-  readonly id: string;
-  readonly title: string;
-  /** The structural parent (Project or Area), for the quiet trailing label. */
-  readonly parent: TaskRelation | null;
-  /** The due date `YYYY-MM-DD`, or null. Date-only — a task never has a time. */
-  readonly dueDate: string | null;
-  /** The scheduled (planned) date `YYYY-MM-DD`, or null. Also date-only. */
-  readonly scheduledDate: string | null;
+/**
+ * One task as the day renders it. Display data only — no `Date`s.
+ *
+ * ── TODAY-TASK-01 — it is the CANONICAL list item, plus the day's two facts ──
+ * It used to be a seven-field subset (id, title, parent, the two dates, priority,
+ * completion), chosen for the private row Today drew. That subset is precisely
+ * what stopped Today adopting the shared `TaskRow` (DEBT-143): the shared row
+ * draws a display STATE, a recurrence signal and a waiting flag, and none of the
+ * three could be derived from a projection that had already thrown away `status`,
+ * `commitmentState`, `timeSector`, `waiting` and `recurrence`.
+ *
+ * So the day carries the whole serialised item — the same shape `/tasks` renders
+ * — and adds the two derivations the DAY needs on top of it:
+ *
+ *   - `completed`, because every bucketing function here asks the question and
+ *     the optimistic overlay ANSWERS it before the server has;
+ *   - `completedDate`, the OWNER-calendar date of the completion instant, which
+ *     is what "finished today" means and is not a function of `completedAt`
+ *     alone (the timezone is the owner's, resolved on the server — ADR-022).
+ *
+ * The planning read already returns every one of these fields, so the widening
+ * costs no query and no column.
+ */
+export interface DayTask extends SerializedTaskListItem {
   /**
    * TODAY-10 — the canonical P1–P4 priority, or null for untriaged work.
    *
-   * Carried because Focus ORDERS by it (see {@link byExecution}): a list whose
-   * order cannot be explained by anything on the row is a list the owner has to
-   * take on trust. The row draws the shared `PriorityIndicator`, which renders
-   * nothing at all when this is null, so the ordinary untriaged row is unchanged.
+   * Restated here (it is also on the item) because Focus ORDERS by it — see
+   * {@link byExecution} — and a reader of this file should not have to follow the
+   * inheritance to learn that the sort key is part of the day's contract.
    */
   readonly priority: TaskPriority | null;
   readonly completed: boolean;
   /** The OWNER-calendar date of completion, or null. */
   readonly completedDate: string | null;
+}
+
+/**
+ * Build a day task from the kernel's planning row.
+ *
+ * ONE constructor, so the four surfaces that read `listPlanningTasks` (Today,
+ * Tomorrow, Next 7 days and the plan route) cannot disagree about what a day task
+ * is — which is exactly what happened while each mapped its own seven fields by
+ * hand and Today's set quietly grew.
+ *
+ * `completedDate` is supplied rather than derived: only the caller knows the
+ * owner's timezone, and inventing one here from the runtime clock is the ADR-022
+ * mistake this codebase has paid for before.
+ */
+export function toDayTask(
+  item: TaskListItem,
+  completedDate: string | null,
+): DayTask {
+  return {
+    ...serializeTaskListItem(item),
+    completed: item.completedAt !== null,
+    completedDate,
+  };
 }
 
 /**

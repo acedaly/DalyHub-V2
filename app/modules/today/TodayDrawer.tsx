@@ -50,7 +50,18 @@ export function createTodayDrawerRenderer(
 
     const { kind, id } = splitKey(entry.key);
 
-    if (kind === "task") {
+    /*
+     * TODAY-TASK-01 — `task-move:` resolves to the SAME record.
+     *
+     * The shared row's project editor offers "Search all Projects and Areas…"
+     * at the foot of its menu, and its overflow offers "Move to Project or
+     * Area…"; both open `task-move:<id>`, which is the key `/tasks` has used
+     * since CONTROL-01 §4 for exactly this. Today now draws that row, so it has
+     * to resolve that key — and it resolves it to the canonical Task record,
+     * which is where the full searchable parent picker lives. Two surfaces, one
+     * drawer key, one editor.
+     */
+    if (kind === "task" || kind === "task-move" || kind === "task-quick") {
       if (id.length === 0) return null;
       // The dialog's accessible name uses the known task title when available — the
       // TaskDrawerContent then loads the full record and renders its real heading.

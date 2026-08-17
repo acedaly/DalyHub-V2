@@ -25,7 +25,7 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
 
 import { ownerCalendarIso } from "../date";
-import { openTaskCountForDate, type DayTask } from "../day/day-view";
+import { openTaskCountForDate, toDayTask, type DayTask } from "../day/day-view";
 import {
   EMPTY_SCHEDULE_WINDOW,
   loadScheduleWindow,
@@ -120,16 +120,7 @@ export async function loader({ context }: Route.LoaderArgs) {
         .catch(() => ({ items: [] as never[] })),
     ]);
     windowData = schedule;
-    dayTasks = tasks.items.map((item) => ({
-      id: item.id,
-      title: item.title,
-      parent: item.parent,
-      dueDate: item.dueDate,
-      scheduledDate: item.scheduledDate,
-      priority: item.priority,
-      completed: item.completedAt !== null,
-      completedDate: null,
-    }));
+    dayTasks = tasks.items.map((item) => toDayTask(item, null));
   } catch {
     // Degrade, never blank: the days still render, empty and truthful.
   }

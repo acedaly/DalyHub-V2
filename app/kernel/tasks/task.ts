@@ -116,11 +116,34 @@ export type TaskWaiting = {
 /**
  * A resolved, REAL entity relationship (never a copied label): the id and current
  * title of a related project, goal or area, resolved within the bound workspace.
+ *
+ * ── TODAY-TASK-01 / DEBT-144 — the relation carries the parent's IDENTITY ────
+ * A task's parent is drawn on `/today`, on `/tasks`, in the Task record and in
+ * search, and IDENTITY-01's whole premise is that one record has one appearance.
+ * Until this pass the relation was `{ kind, id, title }` alone, so every one of
+ * those surfaces drew a neutral mark for a Project that is violet on `/projects`
+ * — and the alternatives were both bad: a read per row (an N+1), or colouring
+ * only the parents that happened to be in another already-loaded list (a list
+ * where some rows carry identity and some do not reads as a rendering fault).
+ *
+ * The three fields below are exactly the inputs `resolveIdentity` walks — the
+ * record's own stored slot, its stored glyph and its derived rank — and they are
+ * resolved by the SAME joined statement that already resolves `title`, so a
+ * parent's identity costs no query. They are OPTIONAL because not every read
+ * that produces a relation resolves them (the record overview's project/goal/area
+ * trio does not), and a surface that has none draws the neutral mark it drew
+ * before rather than inventing one.
  */
 export type TaskRelation = {
   readonly kind: TaskRelationKind;
   readonly id: string;
   readonly title: string;
+  /** The parent's own stored colour slot, or null for "no choice". */
+  readonly colourSlot?: string | null;
+  /** The parent's own stored icon key, or null for "no choice". */
+  readonly iconKey?: string | null;
+  /** The parent's stable 0-based rank in its own type (ADR-068 §5), or null. */
+  readonly colourRank?: number | null;
 };
 
 /**
@@ -917,6 +940,16 @@ export type TaskParentCandidate = {
   readonly id: string;
   readonly kind: "area" | "project";
   readonly title: string;
+  /**
+   * TODAY-TASK-01 / DEBT-144 — the candidate's own identity, for the SAME reason
+   * {@link TaskRelation} carries it: a row's inline project editor paints the
+   * chosen parent optimistically from the option, and an option with no identity
+   * makes the row's mark flash neutral before the revalidation restores it.
+   * Resolved by the same read that resolves the title.
+   */
+  readonly iconKey?: string | null;
+  readonly colourSlot?: string | null;
+  readonly colourRank?: number | null;
 };
 
 /** Options for the bounded task-parent title search. */

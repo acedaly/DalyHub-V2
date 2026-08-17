@@ -38,6 +38,15 @@ function task(overrides: Partial<DayTask> = {}): DayTask {
     priority: null,
     completed: false,
     completedDate: null,
+    // TODAY-TASK-01 — a `DayTask` is the canonical serialised list item plus the
+    // day's two derivations. These are the ordinary open task's values.
+    completedAt: null,
+    status: "todo",
+    timeSector: null,
+    commitmentState: "active",
+    delegation: null,
+    recurrence: null,
+    waiting: null,
     ...overrides,
   };
 }

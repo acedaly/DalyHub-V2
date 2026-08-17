@@ -16,15 +16,20 @@
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 import {
   relativeCalendarDate,
-  taskDisplayState,
   taskPriorityTag,
   timeSectorLabel,
+  toTaskRowProjection,
 } from "~/shared/task-record/task-view";
 import {
   collectionStateBreakdown,
   collectionStateSegment,
 } from "~/shared/collection-layout";
-import type { TaskPriority, TaskSystemView, TimeSector } from "~/kernel/tasks";
+import type {
+  TaskPriority,
+  TaskRelation,
+  TaskSystemView,
+  TimeSector,
+} from "~/kernel/tasks";
 import type { TaskGroupBy, TaskPresentation } from "~/kernel/task-views";
 
 import type { TasksGrouping } from "./tasks-contract";
@@ -115,11 +120,7 @@ export interface TaskCardData {
    * different marks in two different identity colours. Deriving that from the
    * title would be guessing.
    */
-  readonly parent: {
-    readonly kind: "project" | "goal" | "area";
-    readonly id: string;
-    readonly title: string;
-  } | null;
+  readonly parent: TaskRelation | null;
   readonly parentLabel: string | null;
   readonly delegatedTo: string | null;
   readonly completed: boolean;
@@ -128,42 +129,24 @@ export interface TaskCardData {
   readonly recurrence: SerializedTaskListItem["recurrence"];
 }
 
-/** Map a serialized list item into card-ready display data (pure). */
+/**
+ * Map a serialized list item into card-ready display data (pure).
+ *
+ * TODAY-TASK-01 — the ROW's half of this is now `toTaskRowProjection`, shared
+ * with Today. What stays here is what only this module's card needs: the short
+ * priority tag, the Time Sector's words, the delegatee and the flattened parent
+ * label. Composing rather than restating is what makes the same task the same
+ * row on both surfaces — there is one display-state derivation, not two that
+ * happen to agree.
+ */
 export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
-  const state = taskDisplayState({
-    deletedAt: null,
-    completedAt: item.completedAt,
-    status: item.status,
-    commitmentState: item.commitmentState,
-    timeSector: item.timeSector,
-    scheduledDate: item.scheduledDate,
-    waiting: item.waiting,
-  });
   return {
-    id: item.id,
-    title: item.title,
-    priority: item.priority,
+    ...toTaskRowProjection(item),
     priorityTag: taskPriorityTag(item.priority),
     sector: item.timeSector,
     sectorLabel: timeSectorLabel(item.timeSector),
-    stateKind: state.kind,
-    stateLabel: state.label,
-    stateTone: state.tone,
-    dueDate: item.dueDate,
-    scheduledDate: item.scheduledDate,
-    parent:
-      item.parent === null
-        ? null
-        : {
-            kind: item.parent.kind,
-            id: item.parent.id,
-            title: item.parent.title,
-          },
     parentLabel: item.parent?.title ?? null,
     delegatedTo: item.delegation?.to ?? null,
-    completed: item.completedAt !== null,
-    waiting: item.waiting !== null && item.completedAt === null,
-    recurrence: item.recurrence ?? null,
   };
 }
 

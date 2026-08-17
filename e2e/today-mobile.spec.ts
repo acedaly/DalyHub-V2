@@ -125,7 +125,7 @@ test.describe("the Today screen on a phone", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    const row = page.locator(".dh-today__timeline .dh-day-row").first();
+    const row = page.locator(".dh-today__timeline .dh-taskrow").first();
     if ((await row.count()) === 0) {
       test.skip(true, "nothing on the day in the shared dev workspace");
     }
@@ -137,7 +137,7 @@ test.describe("the Today screen on a phone", () => {
   }) => {
     await gotoFixture(page, "/today");
     const title = page
-      .locator(".dh-today__timeline .dh-day-row__title")
+      .locator(".dh-today__timeline .dh-taskrow__title")
       .first();
     if ((await title.count()) === 0) {
       test.skip(true, "nothing on the day in the shared dev workspace");

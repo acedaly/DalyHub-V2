@@ -28,7 +28,7 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
 
 import { formatTodayDate, ownerCalendarIso } from "../date";
-import { dateBand, type DayTask } from "../day/day-view";
+import { dateBand, toDayTask, type DayTask } from "../day/day-view";
 import {
   EMPTY_SCHEDULE_WINDOW,
   loadScheduleWindow,
@@ -108,16 +108,9 @@ export async function loader({ context }: Route.LoaderArgs) {
         .catch(() => ({ items: [] as never[] })),
     ]);
 
-    const dayTasks: DayTask[] = tasks.items.map((item) => ({
-      id: item.id,
-      title: item.title,
-      parent: item.parent,
-      dueDate: item.dueDate,
-      scheduledDate: item.scheduledDate,
-      priority: item.priority,
-      completed: item.completedAt !== null,
-      completedDate: null,
-    }));
+    const dayTasks: DayTask[] = tasks.items.map((item) =>
+      toDayTask(item, null),
+    );
 
     return {
       day: {

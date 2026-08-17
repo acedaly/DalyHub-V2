@@ -213,6 +213,54 @@ const ROLE_TARGET = "target";
 /** The two structural parent link types a Task can carry, as a trusted SQL list. */
 const TASK_PARENT_LINK_LIST = `'${TASK_BELONGS_TO_AREA}', '${TASK_BELONGS_TO_PROJECT}'`;
 
+/**
+ * TODAY-TASK-01 / DEBT-144 — a task PARENT's identity, resolved by the read that
+ * already resolves its title.
+ *
+ * ── Why a CTE and not three more joins ──────────────────────────────────────
+ * Two of the three identity inputs are plain columns on `project_details` /
+ * `area_details` and could be joined directly. The third — `colour_rank` — is a
+ * WINDOW over the whole type ("this Project is the 4th ever created in this
+ * workspace"), exactly as `PROJECT_RANKS_CTE`/`AREA_RANKS_CTE` compute it in
+ * `d1-project-repository.ts`, and a window function cannot be evaluated inside a
+ * correlated join. Ranking both types in ONE partitioned CTE gives each type its
+ * own 0-based sequence, which is what the two separate CTEs there produce and is
+ * what `identityForRank` folds — so a Project is the same colour on `/projects`,
+ * on `/tasks` and on `/today` because the same number reaches the same resolver.
+ *
+ * ── What it costs ───────────────────────────────────────────────────────────
+ * One extra scan of the workspace's Areas and Projects per task-list statement —
+ * tens of rows in a real workspace, indexed by `(workspace_id, type)` — and NO
+ * extra round trip and NO per-row query. That is the whole point: DEBT-144 was
+ * open because the alternatives were an N+1 or half a list carrying identity.
+ *
+ * The CTE takes the workspace id as its FIRST bind, so every statement that
+ * prefixes it binds `this.#workspaceId` ahead of its own parameters.
+ */
+const TASK_PARENT_IDENTITY_CTE = `task_parent_identity AS (
+           SELECT pie.id AS id,
+                  COALESCE(pipd.icon_key, piad.icon_key) AS icon_key,
+                  COALESCE(pipd.colour_slot, piad.colour_slot) AS colour_slot,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY pie.type ORDER BY pie.created_at ASC, pie.id ASC
+                  ) - 1 AS colour_rank
+           FROM entities pie
+           LEFT JOIN project_details pipd
+             ON pipd.workspace_id = pie.workspace_id AND pipd.entity_id = pie.id
+           LEFT JOIN area_details piad
+             ON piad.workspace_id = pie.workspace_id AND piad.entity_id = pie.id
+           WHERE pie.workspace_id = ? AND pie.type IN ('${PROJECT}', '${AREA}')
+         )`;
+
+/** Attach the resolved identity of whichever entity the parent link points at. */
+const TASK_PARENT_IDENTITY_JOIN = `
+  LEFT JOIN task_parent_identity pi ON pi.id = pl.target_entity_id`;
+
+/** The three identity columns a joined task-list row carries for its parent. */
+const TASK_PARENT_IDENTITY_COLUMNS = `pi.icon_key AS parent_icon_key,
+                pi.colour_slot AS parent_colour_slot,
+                pi.colour_rank AS parent_colour_rank`;
+
 /** Map a sector-named system view to its stored `time_sector` value (TASKS-01). */
 const SECTOR_FOR_VIEW: Record<string, string> = {
   this_week: "this_week",
@@ -248,7 +296,15 @@ type TaskWaitingJoinedRow = TaskJoinedRow & WaitingTargetColumns;
  */
 type TaskListRow = TaskJoinedRow & {
   readonly parent_title: string | null;
-} & Partial<WaitingTargetColumns>;
+} & Partial<TaskParentIdentityColumns> &
+  Partial<WaitingTargetColumns>;
+
+/** DEBT-144 — the parent identity columns, present on every task-LIST read. */
+type TaskParentIdentityColumns = {
+  readonly parent_icon_key: string | null;
+  readonly parent_colour_slot: string | null;
+  readonly parent_colour_rank: number | null;
+};
 
 type TaskParentLinkRow = {
   readonly task_id: string;
@@ -1463,11 +1519,13 @@ export class D1TaskRepository implements TaskRepository {
     const waitingClause = excludeWaiting ? " AND td.waiting_since IS NULL" : "";
     const statement = this.#db
       .prepare(
-        `SELECT ${TASK_DETAIL_COLUMNS},
+        `WITH ${TASK_PARENT_IDENTITY_CTE}
+         SELECT ${TASK_DETAIL_COLUMNS},
                 ${WAITING_TARGET_COLUMNS},
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
-                pe.title AS parent_title
+                pe.title AS parent_title,
+                ${TASK_PARENT_IDENTITY_COLUMNS}
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -1480,6 +1538,7 @@ export class D1TaskRepository implements TaskRepository {
          LEFT JOIN entities pe
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.deleted_at IS NULL
+         ${TASK_PARENT_IDENTITY_JOIN}
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL${completedClause}${waitingClause}
          ORDER BY (sr.completed_at IS NOT NULL) ASC,
@@ -1489,7 +1548,7 @@ export class D1TaskRepository implements TaskRepository {
                   e.id ASC
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, limit);
+      .bind(this.#workspaceId, this.#workspaceId, limit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as TaskListRow[];
@@ -1506,11 +1565,13 @@ export class D1TaskRepository implements TaskRepository {
     const like = likeContains(text);
     const statement = this.#db
       .prepare(
-        `SELECT ${TASK_DETAIL_COLUMNS},
+        `WITH ${TASK_PARENT_IDENTITY_CTE}
+         SELECT ${TASK_DETAIL_COLUMNS},
                 ${WAITING_TARGET_COLUMNS},
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
-                pe.title AS parent_title
+                pe.title AS parent_title,
+                ${TASK_PARENT_IDENTITY_COLUMNS}
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -1523,6 +1584,7 @@ export class D1TaskRepository implements TaskRepository {
          LEFT JOIN entities pe
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.deleted_at IS NULL
+         ${TASK_PARENT_IDENTITY_JOIN}
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
                AND lower(e.title) LIKE ? ESCAPE '\\'
@@ -1536,7 +1598,14 @@ export class D1TaskRepository implements TaskRepository {
                   e.id ASC
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, like, text, likePrefix(text), limit);
+      .bind(
+        this.#workspaceId,
+        this.#workspaceId,
+        like,
+        text,
+        likePrefix(text),
+        limit,
+      );
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as TaskListRow[];
@@ -1595,11 +1664,13 @@ export class D1TaskRepository implements TaskRepository {
 
     const statement = this.#db
       .prepare(
-        `SELECT ${TASK_DETAIL_COLUMNS},
+        `WITH ${TASK_PARENT_IDENTITY_CTE}
+         SELECT ${TASK_DETAIL_COLUMNS},
                 ${WAITING_TARGET_COLUMNS},
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
-                pe.title AS parent_title
+                pe.title AS parent_title,
+                ${TASK_PARENT_IDENTITY_COLUMNS}
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -1610,6 +1681,7 @@ export class D1TaskRepository implements TaskRepository {
          JOIN entities pe
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+         ${TASK_PARENT_IDENTITY_JOIN}
          LEFT JOIN task_details td
            ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
          ${TASK_RECURRENCE_JOIN}
@@ -1618,7 +1690,13 @@ export class D1TaskRepository implements TaskRepository {
          ORDER BY e.created_at ASC, e.id ASC
          LIMIT ?`,
       )
-      .bind(parentId, this.#workspaceId, ...cursorParams, fetchLimit);
+      .bind(
+        this.#workspaceId,
+        parentId,
+        this.#workspaceId,
+        ...cursorParams,
+        fetchLimit,
+      );
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as TaskListRow[];
@@ -1693,10 +1771,12 @@ export class D1TaskRepository implements TaskRepository {
   ): Promise<TaskListItem[]> {
     const statement = this.#db
       .prepare(
-        `SELECT ${TASK_DETAIL_COLUMNS},
+        `WITH ${TASK_PARENT_IDENTITY_CTE}
+         SELECT ${TASK_DETAIL_COLUMNS},
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
-                pe.title AS parent_title
+                pe.title AS parent_title,
+                ${TASK_PARENT_IDENTITY_COLUMNS}
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -1709,12 +1789,13 @@ export class D1TaskRepository implements TaskRepository {
          LEFT JOIN entities pe
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.deleted_at IS NULL
+         ${TASK_PARENT_IDENTITY_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
            AND ${where}
          ORDER BY ${order}
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, limit);
+      .bind(this.#workspaceId, this.#workspaceId, limit);
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as TaskListRow[];
     return rows.map((row) => this.#toTaskListItem(row));
@@ -1746,6 +1827,7 @@ export class D1TaskRepository implements TaskRepository {
         row.parent_link_type,
         row.parent_id,
         row.parent_title,
+        row,
       ),
       waiting: rowToTaskWaiting(row),
     };
@@ -2011,11 +2093,13 @@ export class D1TaskRepository implements TaskRepository {
 
     const statement = this.#db
       .prepare(
-        `SELECT ${TASK_DETAIL_COLUMNS},
+        `WITH ${TASK_PARENT_IDENTITY_CTE}
+         SELECT ${TASK_DETAIL_COLUMNS},
                 ${WAITING_TARGET_COLUMNS},
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
                 pe.title AS parent_title,
+                ${TASK_PARENT_IDENTITY_COLUMNS},
                 ${sortSpec.expr} AS sort_value
          FROM entities e
          JOIN spine_records sr
@@ -2029,6 +2113,7 @@ export class D1TaskRepository implements TaskRepository {
          LEFT JOIN entities pe
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.deleted_at IS NULL
+         ${TASK_PARENT_IDENTITY_JOIN}
          ${WAITING_TARGET_JOIN}
          CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
          WHERE e.workspace_id = ? AND e.type = '${TASK}'
@@ -2036,7 +2121,14 @@ export class D1TaskRepository implements TaskRepository {
          ORDER BY sort_value ${sortSpec.dir}, e.created_at ASC, e.id ASC
          LIMIT ?`,
       )
-      .bind(todayIso, weekEnd, this.#workspaceId, ...params, fetchLimit);
+      .bind(
+        this.#workspaceId,
+        todayIso,
+        weekEnd,
+        this.#workspaceId,
+        ...params,
+        fetchLimit,
+      );
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as (TaskListRow & {
@@ -2101,12 +2193,14 @@ export class D1TaskRepository implements TaskRepository {
     // bucket counts are correct before any paging (ADR-043 decision 12).
     const statement = this.#db
       .prepare(
-        `WITH scoped AS (
+        `WITH ${TASK_PARENT_IDENTITY_CTE},
+         scoped AS (
            SELECT ${TASK_DETAIL_COLUMNS},
                   ${WAITING_TARGET_COLUMNS},
                   pl.target_entity_id AS parent_id,
                   pl.type AS parent_link_type,
                   pe.title AS parent_title,
+                  ${TASK_PARENT_IDENTITY_COLUMNS},
                   ${bucketExpr} AS bucket,
                   ${sortSpec.expr} AS sort_value
            FROM entities e
@@ -2121,6 +2215,7 @@ export class D1TaskRepository implements TaskRepository {
            LEFT JOIN entities pe
              ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
                 AND pe.deleted_at IS NULL
+           ${TASK_PARENT_IDENTITY_JOIN}
            ${WAITING_TARGET_JOIN}
            CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
            WHERE e.workspace_id = ? AND e.type = '${TASK}'
@@ -2150,6 +2245,7 @@ export class D1TaskRepository implements TaskRepository {
          ORDER BY bucket ASC, rn ASC`,
       )
       .bind(
+        this.#workspaceId,
         todayIso,
         weekEnd,
         this.#workspaceId,
@@ -2242,12 +2338,29 @@ export class D1TaskRepository implements TaskRepository {
     // newer parent in a long-lived workspace is always found (ADR-043 §9 / decision
     // 13). Deterministic order: Projects first (the preferred parent), then title,
     // then id. The type slugs are trusted kernel constants, never caller data.
+    /*
+     * TODAY-TASK-01 / DEBT-144 — a candidate carries its IDENTITY too.
+     *
+     * The row's inline project editor paints the chosen parent OPTIMISTICALLY,
+     * from the option the owner picked, and everything the option does not carry
+     * is a fact the row loses until the revalidation answers. Without identity
+     * here, re-filing a task made its mark flash neutral and then come back
+     * coloured — half a second of the exact "some rows carry identity and some do
+     * not" reading DEBT-144 refused to ship. The CTE is the same one the task
+     * list reads its parents' identity from, so the option and the row cannot
+     * disagree about what colour a Project is.
+     */
     const statement = this.#db
       .prepare(
-        `SELECT e.id AS id, e.type AS type, e.title AS title
+        `WITH ${TASK_PARENT_IDENTITY_CTE}
+         SELECT e.id AS id, e.type AS type, e.title AS title,
+                pi.icon_key AS icon_key,
+                pi.colour_slot AS colour_slot,
+                pi.colour_rank AS colour_rank
          FROM entities e
          LEFT JOIN project_details pd
            ON pd.workspace_id = e.workspace_id AND pd.entity_id = e.id
+         LEFT JOIN task_parent_identity pi ON pi.id = e.id
          WHERE e.workspace_id = ?
            AND e.type IN ('${AREA}', '${PROJECT}')
            AND e.deleted_at IS NULL
@@ -2257,18 +2370,24 @@ export class D1TaskRepository implements TaskRepository {
                   lower(e.title) ASC, e.id ASC
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, pattern, limit);
+      .bind(this.#workspaceId, this.#workspaceId, pattern, limit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as {
       readonly id: string;
       readonly type: string;
       readonly title: string;
+      readonly icon_key: string | null;
+      readonly colour_slot: string | null;
+      readonly colour_rank: number | null;
     }[];
     return rows.map((row) => ({
       id: row.id,
       kind: row.type === AREA ? "area" : "project",
       title: row.title,
+      iconKey: row.icon_key,
+      colourSlot: row.colour_slot,
+      colourRank: row.colour_rank === null ? null : Number(row.colour_rank),
     }));
   }
 
@@ -3084,11 +3203,13 @@ export class D1TaskRepository implements TaskRepository {
 
     const statement = this.#db
       .prepare(
-        `SELECT ${TASK_DETAIL_COLUMNS},
+        `WITH ${TASK_PARENT_IDENTITY_CTE}
+         SELECT ${TASK_DETAIL_COLUMNS},
                 ${WAITING_TARGET_COLUMNS},
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
-                pe.title AS parent_title
+                pe.title AS parent_title,
+                ${TASK_PARENT_IDENTITY_COLUMNS}
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -3101,6 +3222,7 @@ export class D1TaskRepository implements TaskRepository {
          LEFT JOIN entities pe
            ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
               AND pe.deleted_at IS NULL
+         ${TASK_PARENT_IDENTITY_JOIN}
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
            AND sr.completed_at IS NULL AND td.waiting_since IS NOT NULL
@@ -3113,12 +3235,12 @@ export class D1TaskRepository implements TaskRepository {
            e.id ASC
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, todayIso, limit);
+      .bind(this.#workspaceId, this.#workspaceId, todayIso, limit);
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as (TaskWaitingJoinedRow & {
       readonly parent_title: string | null;
-    })[];
+    } & Partial<TaskParentIdentityColumns>)[];
     const items: WaitingTaskListItem[] = [];
     for (const row of rows) {
       const waiting = rowToTaskWaiting(row);
@@ -3140,6 +3262,7 @@ export class D1TaskRepository implements TaskRepository {
           row.parent_link_type,
           row.parent_id,
           row.parent_title,
+          row,
         ),
         waiting,
       });
@@ -5781,17 +5904,35 @@ export class D1TaskRepository implements TaskRepository {
   }
 
   /** Derive the structural parent relation for a list row's parent columns. */
+  /**
+   * A joined row's structural parent, WITH its identity when the read resolved it.
+   *
+   * DEBT-144: the three identity columns are optional on the row type because not
+   * every statement prefixes `TASK_PARENT_IDENTITY_CTE` — a statement that does
+   * not simply produces the relation it produced before, and the surfaces drawing
+   * it fall back to the neutral entity mark. Every task-LIST read does prefix it,
+   * which is what makes a parent the same colour on every list in the product.
+   */
   #parentRelation(
     linkType: string | null,
     parentId: string | null,
     parentTitle: string | null,
+    identity?: Partial<TaskParentIdentityColumns>,
   ): TaskRelation | null {
     if (linkType === null || parentId === null || parentTitle === null) {
       return null;
     }
     const kind: TaskRelationKind =
       linkType === TASK_BELONGS_TO_PROJECT ? "project" : "area";
-    return { kind, id: parentId, title: parentTitle };
+    const rank = identity?.parent_colour_rank;
+    return {
+      kind,
+      id: parentId,
+      title: parentTitle,
+      colourSlot: identity?.parent_colour_slot ?? null,
+      iconKey: identity?.parent_icon_key ?? null,
+      colourRank: rank === null || rank === undefined ? null : Number(rank),
+    };
   }
 
   #toView(

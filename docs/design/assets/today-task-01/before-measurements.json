@@ -1,0 +1,392 @@
+{
+  "1440-light": {
+    "overflow": 0,
+    "docScrollWidth": 1440,
+    "docClientWidth": 1440,
+    "planWidth": 654.3,
+    "planLeft": 264,
+    "scheduleWidth": 461.7,
+    "scheduleLeft": 938.3,
+    "firstTaskTop": 457.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2 da",
+    "rowHeight": 44,
+    "titleCellWidth": 422,
+    "titleWidth": 422,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 145,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 422,
+        "height": 19.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "1440-dark": {
+    "overflow": 0,
+    "docScrollWidth": 1440,
+    "docClientWidth": 1440,
+    "planWidth": 654.3,
+    "planLeft": 264,
+    "scheduleWidth": 461.7,
+    "scheduleLeft": 938.3,
+    "firstTaskTop": 457.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2 da",
+    "rowHeight": 44,
+    "titleCellWidth": 422,
+    "titleWidth": 422,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 145,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 422,
+        "height": 19.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "1280-light": {
+    "overflow": 0,
+    "docScrollWidth": 1280,
+    "docClientWidth": 1280,
+    "planWidth": 561,
+    "planLeft": 264,
+    "scheduleWidth": 395,
+    "scheduleLeft": 845,
+    "firstTaskTop": 457.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2 da",
+    "rowHeight": 44,
+    "titleCellWidth": 328.6,
+    "titleWidth": 328.6,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 145,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 328.6,
+        "height": 19.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "820-light": {
+    "overflow": 0,
+    "docScrollWidth": 820,
+    "docClientWidth": 820,
+    "planWidth": 704,
+    "planLeft": 92,
+    "scheduleWidth": 342,
+    "scheduleLeft": 92,
+    "firstTaskTop": 457.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2 da",
+    "rowHeight": 44,
+    "titleCellWidth": 471.6,
+    "titleWidth": 471.6,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 145,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 471.6,
+        "height": 19.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "393-light": {
+    "overflow": 0,
+    "docScrollWidth": 393,
+    "docClientWidth": 393,
+    "planWidth": 361,
+    "planLeft": 16,
+    "scheduleWidth": 361,
+    "scheduleLeft": 16,
+    "firstTaskTop": 354.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2dP1",
+    "rowHeight": 45,
+    "titleCellWidth": 210.9,
+    "titleWidth": 210.9,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 210.9,
+        "height": 44.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "393-dark": {
+    "overflow": 0,
+    "docScrollWidth": 393,
+    "docClientWidth": 393,
+    "planWidth": 361,
+    "planLeft": 16,
+    "scheduleWidth": 361,
+    "scheduleLeft": 16,
+    "firstTaskTop": 354.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2dP1",
+    "rowHeight": 45,
+    "titleCellWidth": 210.9,
+    "titleWidth": 210.9,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 210.9,
+        "height": 44.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "320-light": {
+    "overflow": 0,
+    "docScrollWidth": 320,
+    "docClientWidth": 320,
+    "planWidth": 288,
+    "planLeft": 16,
+    "scheduleWidth": 288,
+    "scheduleLeft": 16,
+    "firstTaskTop": 384,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2dP1",
+    "rowHeight": 45,
+    "titleCellWidth": 137.9,
+    "titleWidth": 137.9,
+    "headerBlockHeight": 83.4,
+    "summaryHeight": 67.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 137.9,
+        "height": 44.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "375-light": {
+    "overflow": 0,
+    "docScrollWidth": 375,
+    "docClientWidth": 375,
+    "planWidth": 343,
+    "planLeft": 16,
+    "scheduleWidth": 343,
+    "scheduleLeft": 16,
+    "firstTaskTop": 354.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2dP1",
+    "rowHeight": 45,
+    "titleCellWidth": 192.9,
+    "titleWidth": 192.9,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 192.9,
+        "height": 44.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "390-light": {
+    "overflow": 0,
+    "docScrollWidth": 390,
+    "docClientWidth": 390,
+    "planWidth": 358,
+    "planLeft": 16,
+    "scheduleWidth": 358,
+    "scheduleLeft": 16,
+    "firstTaskTop": 354.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2dP1",
+    "rowHeight": 45,
+    "titleCellWidth": 207.9,
+    "titleWidth": 207.9,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 207.9,
+        "height": 44.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "430-light": {
+    "overflow": 0,
+    "docScrollWidth": 430,
+    "docClientWidth": 430,
+    "planWidth": 398,
+    "planLeft": 16,
+    "scheduleWidth": 398,
+    "scheduleLeft": 16,
+    "firstTaskTop": 354.1,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2dP1",
+    "rowHeight": 45,
+    "titleCellWidth": 247.9,
+    "titleWidth": 247.9,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 67.5,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 45
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 247.9,
+        "height": 44.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "1100-light": {
+    "overflow": 0,
+    "docScrollWidth": 1100,
+    "docClientWidth": 1100,
+    "planWidth": 796,
+    "planLeft": 264,
+    "scheduleWidth": 388,
+    "scheduleLeft": 264,
+    "firstTaskTop": 457.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2 da",
+    "rowHeight": 44,
+    "titleCellWidth": 563.6,
+    "titleWidth": 563.6,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 145,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 563.6,
+        "height": 19.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "1728-light": {
+    "overflow": 0,
+    "docScrollWidth": 1728,
+    "docClientWidth": 1728,
+    "planWidth": 822.3,
+    "planLeft": 264,
+    "scheduleWidth": 581.7,
+    "scheduleLeft": 1106.3,
+    "firstTaskTop": 457.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2 da",
+    "rowHeight": 44,
+    "titleCellWidth": 590,
+    "titleWidth": 590,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 145,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 590,
+        "height": 19.6
+      }
+    ],
+    "rowCount": 9
+  },
+  "2560-light": {
+    "overflow": 0,
+    "docScrollWidth": 2560,
+    "docClientWidth": 2560,
+    "planWidth": 999.7,
+    "planLeft": 528,
+    "scheduleWidth": 708.3,
+    "scheduleLeft": 1547.7,
+    "firstTaskTop": 457.6,
+    "firstTaskAboveFold": true,
+    "firstTaskText": "Send the quarterly summaryDue 2 days agoDue 2 da",
+    "rowHeight": 44,
+    "titleCellWidth": 767.3,
+    "titleWidth": 767.3,
+    "headerBlockHeight": 53.5,
+    "summaryHeight": 145,
+    "touchTargets": [
+      {
+        "what": "dh-check-circle-target",
+        "width": 45,
+        "height": 28
+      },
+      {
+        "what": "dh-day-row__title",
+        "width": 767.3,
+        "height": 19.6
+      }
+    ],
+    "rowCount": 9
+  }
+}

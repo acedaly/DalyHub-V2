@@ -87,46 +87,72 @@
 /* Header block — page content, not a card                                     */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * TODAY-TASK-01 §B3 — ONE calm heading AREA.
+ *
+ * The greeting, the date and the Today · Tomorrow · Next 7 days rail were three
+ * siblings of the page's own flex column, so each pair was separated by the
+ * page gap (20px) whether or not they belonged together. MEASURED at 1440 before
+ * this change: 107px from the greeting's box to the foot of the rail, reading as
+ * "heading — gap — navigation — gap — dashboard".
+ *
+ * They are one thing: *who and when, and which day am I looking at*. So they are
+ * one element with its own internal rhythm, and on a desktop the rail sits on the
+ * BASELINE ROW of the greeting rather than under it — which is where every other
+ * collection in DalyHub puts its principal-mode rail, and which returns the
+ * vertical space to the day.
+ */
 .dh-today__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: baseline;
   justify-content: space-between;
-  gap: var(--app-space-3) var(--app-space-6);
+  /* The row gap is what a WRAPPED rail pays; the column gap keeps the rail off
+     the greeting's descenders on a wide screen. */
+  gap: var(--dh-space-2) var(--app-space-6);
 }
 
 .dh-today__identity {
   min-inline-size: 0;
 }
 
+/*
+ * The rail loses its own leading space inside the heading area.
+ *
+ * `ViewTabs` is authored to sit under a heading with air above it, which is
+ * correct where it IS its own band. Here it is part of the heading, so the block
+ * space it brings would reintroduce exactly the beat this section removes.
+ */
+.dh-today__head .dh-schedule__nav {
+  margin-block: 0;
+  flex: none;
+}
+
 /* -------------------------------------------------------------------------- */
-/* The summary strip                                                           */
+/* The measure strip                                                           */
 /* -------------------------------------------------------------------------- */
 
 /*
- * Three low-profile measures across the top of the day.
+ * TODAY-TASK-01 §B2 — the week's measures are a STRIP, not three cards.
  *
- * `auto-fit` with a floor rather than a fixed three columns: with two measures
- * they share the width, with one it does not stretch to the full page, and a
- * narrow window wraps them instead of crushing three figures into 90px each. The
- * strip disappears entirely when there is nothing real to put in it — the
- * component returns null — so there is no empty-track case to style.
+ * ── What was here ───────────────────────────────────────────────────────────
+ * Three bordered, `--dh-color-surface` cards with 16px of padding on all four
+ * sides, a 24px figure, a note and a 32px plot each. MEASURED at 1440 on the
+ * seeded fixture: 176px tall, occupying the whole width of the page directly
+ * under the greeting — three rectangles of exactly the weight of the Today's
+ * plan card below them, on a page whose argument is that ONE thing is the
+ * subject. That is the "dashboard of widgets" reading in one band.
+ *
+ * ── What it is now ──────────────────────────────────────────────────────────
+ * The same three facts, the same real figures and the same real plots, drawn as
+ * a statistics strip: no boxes, no fill, one hairline BETWEEN measures, and the
+ * figure sharing a line with its own evidence. MEASURED after: 82px.
+ *
+ * Nothing was removed. The label, the figure, the note and the plot are all
+ * still here, and each measure still links where it linked — the change is that
+ * they no longer each carry a container arguing for their own importance.
  */
 .dh-today__summary {
-  /*
-   * TODAY-11 — flex with a CEILING, not `auto-fit` with a floor.
-   *
-   * `repeat(auto-fit, minmax(13rem, 1fr))` is the right tool for a list of
-   * unknown length and the wrong one for a rank capped at three: measured at
-   * 1440 on the seeded fixture with two truthful cards (the workspace had no
-   * measurable Goals), each card stretched to ~560px to hold a two-word label
-   * and a single digit — a stat card wider than the Schedule panel beside it,
-   * which is exactly the dashboard reading §45 warns about.
-   *
-   * A `flex` basis with a `max-inline-size` gives the mockup's proportions at
-   * every count: three cards share the width, two sit side by side at a
-   * card's width rather than half a page each, and one is a card.
-   */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--dh-space-3);
@@ -136,25 +162,23 @@
 }
 
 /*
- * CONVERGE-01 §1 / the audit's 4 · 4 · 4 — three equal cards, EQUAL HEIGHTS.
+ * Three measures abreast, with a RULE between them.
  *
- * The strip was `flex-wrap` with `flex: 1 1 13rem; max-inline-size: 24rem`,
- * which gave three equal widths and — because a wrapped flex line stretches its
- * items — usually equal heights as well. "Usually" is the problem: the audit
- * asks for cards that are coherent as a set, and a rank whose heights agree by
- * side-effect disagrees the moment one card's note wraps to two lines. Explicit
- * tracks make it structural; grid rows stretch their items unconditionally.
+ * The rule is `--dh-color-divider` — the quieter of the two hairlines, the one
+ * that separates parts of one object rather than one object from the next. That
+ * is what these are: one statement about the week, in three parts.
  */
 @container today (min-width: 34rem) {
   .dh-today__summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
   }
 
   /*
-   * Fewer than three REAL measures is a normal state — every figure on this
-   * page is conditional on its own count — and the surviving cards then share
-   * the full width rather than sitting beside an empty track that reads as a
-   * card which failed to render.
+   * Fewer than three REAL measures is a normal state — every figure on this page
+   * is conditional on its own count — so the surviving measures share the width
+   * rather than sitting beside an empty track that reads as one which failed to
+   * render.
    */
   .dh-today__summary:has(> :last-child:nth-child(2)) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -163,61 +187,36 @@
   .dh-today__summary:has(> :only-child) {
     grid-template-columns: minmax(0, 24rem);
   }
+
+  .dh-today__measure + .dh-today__measure {
+    padding-inline-start: var(--dh-space-5);
+    border-inline-start: var(--dh-border-width) solid var(--dh-color-divider);
+  }
+
+  .dh-today__measure:not(:last-child) {
+    padding-inline-end: var(--dh-space-5);
+  }
 }
 
-/*
- * A card by BORDER, not by elevation.
- *
- * These are ordinary surfaces in the brief's sense — white, hairline, modest
- * radius, no shadow. Shadow is reserved for things that genuinely float, and a
- * figure that sits on the page is not one of them.
- */
 .dh-today__measure {
   display: flex;
   flex-direction: column;
   min-inline-size: 0;
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
 }
 
 /*
- * REDESIGN-03 — the padding lives on the CONTENT, not on the card.
+ * The measure's body: three quiet rows, no surface, no inset of its own.
  *
- * A measure that links wraps its three parts in an `<a>`, and a link that is
- * inset from its own card leaves a dead border of card around a target the
- * owner is being invited to press. Putting the padding on the inner box makes
- * the whole card the target when there is a link and changes nothing when there
- * is not — the two cards are the same object, and one of them can be pressed.
+ * The padding that used to live here was the CARD's; with no card the strip's
+ * own rhythm is the page's, and a linked measure is the whole body rather than a
+ * target inset from a border.
  */
-.dh-today__measure,
-.dh-today__measure-link {
-  gap: var(--dh-space-1);
-}
-
-.dh-today__measure > :where(.dh-today__measure-label, .dh-today__measure-link) {
-  padding-block-start: var(--dh-space-4);
-}
-
-.dh-today__measure > :where(.dh-today__measure-note, .dh-today__measure-link) {
-  padding-block-end: var(--dh-space-4);
-}
-
-.dh-today__measure
-  > :where(
-    .dh-today__measure-label,
-    .dh-today__measure-value,
-    .dh-today__measure-note,
-    .dh-today__measure-link
-  ) {
-  padding-inline: var(--dh-space-4);
-}
-
-.dh-today__measure-link {
+.dh-today__measure-body {
   display: flex;
   flex-direction: column;
+  gap: var(--dh-space-1);
   min-inline-size: 0;
-  border-radius: inherit;
+  border-radius: var(--dh-radius-sm);
   color: inherit;
   text-decoration: none;
 }
@@ -233,18 +232,22 @@
   line-height: 1.4;
 }
 
+/* The figure and its evidence, on one line: the whole point of the strip. */
+.dh-today__measure-figure {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  min-inline-size: 0;
+}
+
 /*
- * The FIGURE is the only loud thing in the card, and it is a figure: tabular
- * numerals so three cards side by side align on the digit rather than shimmering
- * against each other, and so a count that ticks up does not shift its own label.
- *
- * REDESIGN-03 took it from 1.75rem to the DalyHub `--t-stat` role (24px). The
- * larger size was set when this row was competing with a second row of stat
- * cards above it for the page's attention; with that row gone it only has to be
- * the loudest thing in its own card, and 28px figures across the top of a
- * workspace are what made the surface read as a dashboard.
+ * The FIGURE is the only loud thing in the measure, and it is a figure: tabular
+ * numerals so three of them side by side align on the digit rather than
+ * shimmering against each other, and so a count that ticks up does not shift the
+ * label beside it.
  */
 .dh-today__measure-value {
+  flex: none;
   color: var(--dh-color-text);
   font: var(--t-stat);
   letter-spacing: var(--t-stat-tracking);
@@ -256,32 +259,19 @@
   font-size: var(--dh-text-meta-size);
   line-height: 1.4;
   font-variant-numeric: var(--dh-font-numeric);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*
- * MOBILE-02 §5 — on a PHONE the three measures are ONE COMPACT BAND.
+ * MOBILE-02 §5 — on a PHONE the measures stay ONE COMPACT BAND.
  *
- * ── What was here, and what it cost ─────────────────────────────────────────
- * REDESIGN-03 made each measure a full-width ROW (label and note on the left,
- * figure at the end of the line), on the reasoning that three stacked cards were
- * "340px of the first viewport" and that a phone reads them one after another
- * rather than comparing them. The rows were a real improvement on the stack and
- * they were still THREE FULL-WIDTH BLOCKS: measured at 393 before this pass,
- * 171px of band, with the first task row at y=474 of an 844px viewport — 56% of
- * the first screen spent before the day, which is the number the audit measured
- * and asked to move.
- *
- * ── What it is now ──────────────────────────────────────────────────────────
- * Three cards ABREAST, ~112px each at 393, carrying the figure and its label and
- * nothing else — about 76px of band instead of 171.
- *
- * The note is what makes the difference and it is what goes. "Last 7 days · −6
- * on the previous 7" is a real string this product prints, and at a third of a
- * phone it wraps to four lines and the band is tall again — which is exactly why
- * the row form was chosen over the card form last time. But the note is
- * SUPPORTING EVIDENCE for a figure, in the same class as the sparkline that this
- * width already drops for the same reason, and the figure and its label are the
- * measure. The full note is one tap away on every card that links.
+ * Three measures abreast at ~112px each, carrying the figure and its label and
+ * nothing else: the note ("Last 7 days · −6 on the previous 7") wraps to four
+ * lines at a third of a phone, and it is supporting evidence for a figure in the
+ * same class as the plot this width already drops. The full note is one tap away
+ * on every measure that links.
  *
  * Same DOM, same reading order, nothing hidden that carries a fact the screen
  * does not otherwise state, and nothing moved by `order`.
@@ -289,11 +279,9 @@
 @container today (max-width: 34rem) {
   .dh-today__summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--dh-space-2);
+    gap: var(--dh-space-3);
   }
 
-  /* Fewer than three real measures share the band, rather than leaving a track
-     that reads as a card which failed to render. */
   .dh-today__summary:has(> :last-child:nth-child(2)) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -302,12 +290,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /*
-   * The card keeps its DESKTOP reading order — label, then figure — so a phone
-   * card is the same object as the one beside it on a laptop, and so nothing
-   * here needs CSS `order`, which would leave a screen reader hearing the two
-   * parts in the opposite order from the one they are drawn in.
-   */
   .dh-today__measure-value {
     font: var(--t-heading);
     letter-spacing: var(--t-heading-tracking);
@@ -317,31 +299,8 @@
     display: none;
   }
 
-  /* The inset moves onto the CARD, so the three parts sit on one rhythm instead
-     of each paying for its own block padding. */
-  .dh-today__measure,
-  .dh-today__measure-link {
-    padding: var(--dh-space-3);
+  .dh-today__measure-body {
     gap: 0;
-  }
-
-  .dh-today__measure > .dh-today__measure-link {
-    padding: 0;
-  }
-
-  .dh-today__measure
-    > :where(
-      .dh-today__measure-label,
-      .dh-today__measure-value,
-      .dh-today__measure-note
-    ),
-  .dh-today__measure-link
-    > :where(
-      .dh-today__measure-label,
-      .dh-today__measure-value,
-      .dh-today__measure-note
-    ) {
-    padding: 0;
   }
 }
 
@@ -507,14 +466,61 @@
    * The decision row is DATA-CONDITIONAL, so its spans are too.
    *
    * "Needs attention" and "Continue working" each render only when they hold
-   * something. With one of the pair absent, a fixed 7/5 would leave five (or
-   * seven) columns of hole beside the survivor and push the Goal row down past
+   * something. With one of the pair absent, a fixed split would leave four (or
+   * eight) columns of hole beside the survivor and push the Goal row down past
    * it — a gap that reads as a panel that failed to load rather than as a panel
-   * that had nothing to say. A lone survivor takes the full twelve.
+   * that had nothing to say. A lone survivor takes the full twelve, at both
+   * splits, which is why the rule lives in the OUTER query.
    */
   .dh-today__grid[data-support="attention"] .dh-today__attention,
   .dh-today__grid[data-support="continue"] .dh-today__continue {
     grid-column: span 12;
+  }
+}
+
+/*
+ * TODAY-TASK-01 §B1 — 8 · 4 once the rail can still hold a comfortable week.
+ *
+ * The brief asks whether the split should move from 7/5 towards 8/4, and asks
+ * for the answer to be MEASURED rather than assumed. It was, on the seeded
+ * fixture, and the measurement decides both the answer and the threshold.
+ *
+ * ── What the plan gains ─────────────────────────────────────────────────────
+ * The plan's card holds the shared task row, whose title track is the only
+ * flexible column; every pixel the cell gains goes to task titles.
+ *
+ *              container   7/5 plan   8/4 plan   7/5 title   8/4 title
+ *   1280           976px      561px      644px       201px       248px
+ *   1440          1136px      654px      751px       248px       306px
+ *   1728+ (cap)   1424px      822px      943px       373px       458px
+ *
+ * ── What the Schedule can afford ────────────────────────────────────────────
+ * The binding constraint is the week strip: seven day columns, each holding a
+ * 28px selected-date disc and a three-letter weekday. Below ~40px per column the
+ * disc and the label start to collide.
+ *
+ *              7/5 rail   8/4 rail   8/4 per day
+ *   832px         335px      264px        34.3px   ← too tight
+ *   976px         395px      312px        41.1px
+ *   1136px        462px      365px        48.7px
+ *   1424px        582px      461px        62.4px
+ *
+ * So the step is 8/4 from a 60rem container (960px) — which is 1280 and up on a
+ * desktop with the rail expanded — and 7/5 below it, where the week is what would
+ * pay. That is the measured result rather than the blanket change, and it is why
+ * this is a second query rather than an edit to the one above.
+ */
+@container today (min-width: 60rem) {
+  .dh-today__timeline,
+  .dh-today__attention,
+  .dh-today__goals {
+    grid-column: span 8;
+  }
+
+  .dh-today__schedule,
+  .dh-today__continue,
+  .dh-today__stack {
+    grid-column: span 4;
   }
 }
 
@@ -563,12 +569,49 @@
   min-inline-size: 0;
 }
 
-/* The one card: the day's own work. */
+/*
+ * The one card: the day's own work.
+ *
+ * TODAY-TASK-01 §B1 — the card is the page's STRONGEST surface, and it earns
+ * that by being the only one with an edge, not by being loud. Two changes make
+ * it read as the hero without becoming a hero banner:
+ *
+ *   - the block inset tightens to `space-4`, because the card now holds the
+ *     shared task row, whose own rows already carry the list's rhythm. 20px of
+ *     card padding above a row that starts with 8px of its own is 28px of nothing
+ *     between the heading and the first task;
+ *   - the ROWS bleed to the card's inline edges. The list's hairlines running the
+ *     full width of the card is what makes it read as one continuous plan rather
+ *     than as a list floating inside a box — the same relationship the reference
+ *     products draw. The heading and the foot keep the inset, so the card still
+ *     has a margin; only the rules cross it.
+ */
 .dh-today__panel--card {
-  padding: var(--dh-space-5);
+  padding-block: var(--dh-space-4);
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
+}
+
+.dh-today__panel--card > :where(.dh-today__panel-head, .dh-today__panel-foot),
+.dh-today__panel--card > .dh-today__quiet {
+  padding-inline: var(--dh-space-5);
+}
+
+/*
+ * The band's heading keeps the card's inset; its ROWS do not.
+ *
+ * `--dh-inset-inline` is the shared list's own inline padding, so subtracting it
+ * from the card's is what lands a task title on exactly the same vertical line as
+ * the band label above it — which is the alignment that makes the plan read as
+ * one object.
+ */
+.dh-today__panel--card .dh-day-section__label {
+  padding-inline: var(--dh-space-5);
+}
+
+.dh-today__panel--card .dh-tasklist {
+  padding-inline: calc(var(--dh-space-5) - var(--dh-inset-inline));
 }
 
 /*
@@ -661,17 +704,26 @@
   gap: var(--app-space-2);
 }
 
-/* The day's three sections, separated by space rather than by another surface. */
+/*
+ * The day's three bands, separated by space rather than by another surface.
+ *
+ * TODAY-TASK-01 — tightened from `space-4` to `space-3` between bands and from
+ * `space-1` to `space-2` under a band's own label. The shared row carries more
+ * inside it than the private one did, so the space BETWEEN groups is where the
+ * height has to come back from: a band label sitting 16px above its first row and
+ * 20px below the last row of the band before it made three short lists read as
+ * three panels.
+ */
 .dh-today__sections {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-4);
+  gap: var(--dh-space-3);
 }
 
 .dh-day-section {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-1);
+  gap: var(--dh-space-2);
 }
 
 /*
@@ -825,141 +877,27 @@
   white-space: nowrap;
 }
 
-/* A completed row reads as done from its strike-through and its dimming — the
- * checkbox state carries it for assistive tech, so nothing rests on colour.
- *
- * M3X-02 gives the change a duration. Ticking a task is the single most
- * frequent act on this screen and it happened instantly and invisibly: the row
- * simply *was* different the next frame, which reads as a glitch rather than as
- * a consequence. `short4` on the colour is the smallest movement that says "that
- * happened, and it happened because you did it" — motion communicating causality,
- * which is the only kind this product spends (AGENTS.md §6). Zeroed with every
- * other transition under `prefers-reduced-motion` by the global rule in
- * `base.css`, and no meaning is lost when it is: the strike-through and the
- * checkbox are the state. */
-.dh-day-row__title {
-  transition: color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-day-row[data-done="true"] .dh-day-row__title {
-  color: var(--dh-color-text-muted);
-  text-decoration: line-through;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Overdue rows                                                                */
-/* -------------------------------------------------------------------------- */
-
 /*
- * The tint is the section: there is no "Overdue" heading, because a heading and
- * a colour saying the same thing is one of them wasted. The whole block is one
- * `error-container` surface with hairlines inside it, so three overdue tasks read
- * as one region rather than three red cards.
+ * TODAY-TASK-01 — the overdue REMAINDER row, inside the shared task list.
+ *
+ * "+3 more overdue" is the one row in the plan that is NOT a task: it carries no
+ * completion control and it opens a collection rather than a record. It lives
+ * inside the shared `TaskList`'s `<ul>` so it sits in the band it describes, and
+ * it borrows nothing from the row anatomy beyond the list's inset — a link at the
+ * touch floor, in the state colour, stating the TRUE count.
+ *
+ * Everything else in this section went with the private row: the `data-done`
+ * strike-through, the overdue tint, the trailing "Due 3 days ago" span, the
+ * context pill and the priority slot are all the shared row's now, drawn once in
+ * `task-list.css` for `/today` and `/tasks` alike.
  */
-/*
- * M3X softened the slab and gave it an edge.
- *
- * A filled `error-container` block was the single most aggressive thing in the
- * product: in dark it painted `#900037` across a third of the first viewport,
- * which is the "aggressively red everywhere" failure the Expressive brief names
- * and a direct contradiction of DalyHub's own calm mandate
- * (M3_EXPRESSIVE_AUDIT_2026_08 §4).
- *
- * What replaces it says exactly as much and shouts none of it: the container at
- * a fraction of its strength over the card surface, plus a solid 3px leading
- * RULE in the full-strength state colour. The rule is the signal — a marker in
- * the margin, the way a proof-reader flags a line — and because it is a shape
- * rather than a wash it survives the surface being quiet. Nothing here depends
- * on seeing colour: every row still says "Due 3 days ago" in words.
- */
-/*
- * UIX-01 took the surface away and kept the marker.
- *
- * The block above records the wash as already-softened, and it was — but beside
- * the reference it is still the loudest object on Today: a tinted panel with a
- * coloured rule down its side, occupying the top of the day's own column, on a
- * screen whose whole argument is calm. The reference marks slipped work the way
- * Things and Todoist do — the row is an ordinary row, and its DATE is coral.
- *
- * So the wash is gone and the leading rule stays, at hairline weight. What
- * carries the meaning is unchanged and was never the fill: the row prints "Due
- * 3 days ago" in words, and the shared date treatment below paints it in the
- * state colour. The rule is a shape, so it survives forced colours; the words
- * survive everything.
- */
-/*
- * DS-06 — and the rule goes too, because the HEADING arrived.
- *
- * The three blocks above are one argument softened twice: a filled
- * `error-container` slab became a pale wash plus a 3px rule, then lost the wash
- * and kept the rule. Each step removed a device and each kept the rule on the
- * grounds that "there is no Overdue heading, because a heading and a colour
- * saying the same thing is one of them wasted".
- *
- * There is an Overdue heading. It is drawn directly above these rows, in muted
- * small caps with a count beside it, which is the treatment DS-04 gave the same
- * group on the Tasks page. So the original trade has already been taken in the
- * other direction, and the rule is now the redundant half of it — a 3px crimson
- * bar down the leading edge of the first panel on the dashboard, saying what the
- * heading above it and the date on every row already say in words.
- *
- * What carries the meaning is unchanged and was never the fill or the rule:
- * every row prints "Due 3 days ago", and the shared date treatment below paints
- * it in the state colour. Overdue on Today and overdue in Tasks are now the same
- * drawing, which is the point.
- */
-.dh-day-list--overdue {
-  padding-inline-start: 0;
+.dh-day-row--more {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--dh-row-height);
+  padding-inline: var(--dh-inset-inline);
 }
 
-.dh-day-list--overdue .dh-day-row__check {
-  accent-color: var(--dh-color-overdue);
-}
-
-/* The age of the slip. It takes the state colour rather than the container's
- * on-colour now that the surface behind it is a quiet tint rather than a filled
- * block — and it is the words, not the colour, that carry the fact. */
-.dh-day-row__due {
-  flex: none;
-  color: var(--dh-color-overdue);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/*
- * …except where the row is narrower than the phrase.
- *
- * `flex: none` plus `nowrap` is right at every ordinary width: a due date is
- * read as one unit and must not be broken across lines while there is room for
- * it. Together they also mean the label CANNOT yield, so at 200% zoom on a
- * phone (a 195px CSS viewport) a 112px "Overdue — 3 days" starting at x=90 ran
- * to x=202 and scrolled the whole page sideways — a WCAG 1.4.10 reflow failure
- * caused by one label refusing to wrap.
- *
- * Below the width where the phrase and the title can share a line, the date
- * wraps instead of overflowing. It is still whole and still tabular; it simply
- * takes a second line, which is what reflow means.
- */
-@media (max-width: 15rem) {
-  .dh-day-row__due {
-    /* Both halves are required. `white-space: normal` only lets a box wrap once
-     * something constrains its width, and `flex: none` (`0 0 auto`) is exactly
-     * what refuses to: the label keeps its max-content 112px however little room
-     * the row has. Allowing it to shrink, with the `min-inline-size: 0` that
-     * stops the flex item's automatic minimum from re-imposing max-content, is
-     * what actually lets the wrap happen. */
-    flex: 0 1 auto;
-    min-inline-size: 0;
-    white-space: normal;
-  }
-}
-
-/* The honest remainder. It states the TRUE count and goes to the canonical
- * overdue view, which is defined by exactly the rule that put these rows here.
- * It keeps the row's target floor: a link is a control, and a control on a
- * touch device is 44px whatever else it is (WCAG 2.2 §2.5.8). */
 .dh-day-row__more-link {
   display: inline-flex;
   align-items: center;
@@ -1046,6 +984,40 @@
   max-inline-size: none;
   padding-inline-start: calc(1.125rem + var(--app-space-3));
   white-space: normal;
+}
+
+/*
+ * TODAY-TASK-01 §B5 — on a wide rail the attention row is ONE line.
+ *
+ * "Needs attention" answers "what has gone wrong?", and the answer should read
+ * as a short DECISION LIST rather than as another dashboard widget. Five
+ * two-line rows in an eight-column cell is 178px of panel with half of it empty
+ * on the right; the same five facts on one line each are 220px shorter and are
+ * scanned in the order they are ranked.
+ *
+ * The subject leads and the fact follows at the end of the line, muted — the
+ * same relationship the plan's rows have. Nothing is dropped and nothing is
+ * abbreviated: below the step the fact still takes its own line, which is what a
+ * phone needs.
+ */
+@container today (min-width: 52rem) {
+  .dh-day-row--attention {
+    flex-wrap: nowrap;
+  }
+
+  .dh-day-row--attention .dh-day-row__stack {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--dh-space-3);
+  }
+
+  .dh-day-row--attention .dh-day-row__meta {
+    flex: 0 1 auto;
+    margin-inline-start: auto;
+    padding-inline-start: 0;
+    max-inline-size: 55%;
+    white-space: nowrap;
+  }
 }
 
 .dh-day-row--project {
@@ -1200,42 +1172,12 @@
   }
 
   /*
-   * The trailing fact stays ON the row.
-   *
-   * It used to wrap below the title, which cost a phone ~22px per row over a
-   * list of eight and gave the rail the ragged rhythm the one-line rule above
-   * exists to prevent. It is a short project name against an ellipsised title,
-   * so the title is the part that gives way — and it is capped so it can never
-   * take more than a third of the line.
+   * The RAIL rows (attention, continue, schedule) keep their one-line rhythm.
+   * The plan's rows are the shared task row now, and its own phone composition
+   * — a title on line one, `date · project … P1` on line two — is declared once
+   * in `task-list.css` and reached here by the LIST's width rather than by the
+   * window's, which is the same ladder `/tasks` runs.
    */
-  .dh-day-row {
-    flex-wrap: nowrap;
-  }
-
-  /*
-   * MOBILE-02 §8 — the FLAG stays on a phone; only its TAG goes.
-   *
-   * TODAY-10 hid the whole indicator here, and its measurement was right: the
-   * flag plus a "P2" tag cost 43px of a 200px content line, which at 320px read
-   * as a 72px title beside an 84px project — a row read by its metadata. Its
-   * conclusion was the part to revisit. The panel is ORDERED by priority, so a
-   * phone row that shows no priority is a list in an order the owner cannot
-   * see; "it is legible from position alone" asks them to infer the sort key
-   * from the sort.
-   *
-   * The flag alone is ~15px, not 43px — the tag was almost all of the cost. So
-   * the glyph stays and the two characters beside it go, which is the same
-   * trade the Tasks row makes at this width for the same reason.
-   *
-   * The accessible name is untouched: it lives on the indicator's container
-   * (`role="img"`, "Priority 2"), not on the tag, so a screen reader hears the
-   * full priority on every row at every width and nothing here is carried by
-   * colour alone.
-   */
-  .dh-day-row .dh-day-row__priority .dh-priority__label {
-    display: none;
-  }
-
   .dh-day-row__meta {
     max-inline-size: 33%;
   }
@@ -1413,90 +1355,62 @@
  */
 
 /* -------------------------------------------------------------------------- */
-/* The stat cards' charts                                                      */
+/* The measure's plot                                                          */
 /* -------------------------------------------------------------------------- */
 
 /*
- * POLISH-01 §5 / CONVERGE-01 §1 A3 — the PLOT REGION.
+ * TODAY-TASK-01 §B2 — the plot moved BESIDE the figure.
  *
- * The chart sits UNDER the figure and its note, inside the card's own padding —
- * a sparkline on each daily series, a meter on goals. It is deliberately short:
- * a 32px plot beside a 24px figure is evidence for the number above it; a taller
- * one turns a measure into a chart, and Analytics is where a chart is the
- * subject.
+ * It used to sit under the figure and its note, inside the card's padding, in a
+ * region tall enough to reserve a 32px sparkline plus 24px of inset — about 60px
+ * of every measure. With the cards gone there is no padding to sit inside and no
+ * card height to equalise, and the honest place for a 7-point series that is
+ * EVIDENCE for a number is on the same line as the number.
  *
- * ── Why the inset is PADDING on a wrapper, and not margin on the plot ────────
- * It was `margin-inline: var(--dh-space-4)` applied directly to the plot, and
- * the plot is an `inline-size: 100%` element in both of its forms (`.dh-spark`
- * and `.dh-progress__track` each set it, because an SVG with a viewBox and a
- * bare `<div>` bar have no intrinsic width to stretch from). A percentage width
- * resolves against the containing block and margins are added OUTSIDE it, so
- * the plot was laid out 16px in from the card's content edge at the card's FULL
- * content width — putting its right edge exactly 16px past the card. Measured on
- * `/today` before this change, and identical at every width because it is a
- * constant rather than a wide-screen artefact:
+ * ── The inset stays PADDING on this wrapper, and that still matters ──────────
+ * Both plots are `inline-size: 100%` primitives (`.dh-spark` and
+ * `.dh-progress__track` each set it, because an SVG with a viewBox and a bare
+ * `<div>` bar have no intrinsic width to stretch from). A percentage width
+ * resolves against the containing block while margins are added OUTSIDE it, so
+ * an inset expressed as `margin-inline` put the plot's right edge exactly that
+ * far past its container — measured at 18.3px on `/today` before CONVERGE-01 §1
+ * fixed it, identically at every width because it is a constant. There is no
+ * margin here for a percentage to be added to.
  *
- *   3440  card content [265, 647]   sparkline ink [278.8, 665.3]   18.3px out
- *   1440  card content [265, 634]   sparkline ink [278.8, 651.9]   18.3px out
- *   3440  card content [1057, 1439] goals meter  [1073, 1455]      16px out
- *
- * The sparkline's extra 2.3px is its end marker's 4.5px stroke radius, which
- * `.dh-spark`'s own `overflow-clip-margin` correctly allows. That clip was never
- * the bug — it was clipping a box that had been placed in the wrong position.
- *
- * With the inset as padding on a wrapper the plot fills that wrapper's content
- * box at the 100% it asks for, and there is no margin left for a percentage to
- * be added to. `overflow: clip` bounds the GRAPH REGION rather than the card,
- * which is what keeps a card's focus ring and any future popover unclipped.
+ * `overflow: clip` bounds the GRAPH REGION rather than the measure, which is what
+ * keeps a focus ring and any future popover unclipped; the clip is on the padding
+ * box, so the sparkline's 4.5px end-marker radius still has its room.
  */
 .dh-today__measure-plot {
-  padding-block-start: var(--dh-space-2);
-  padding-inline: var(--dh-space-4);
-  padding-block-end: var(--dh-space-4);
+  /* Pushed to the trailing edge of its own measure, so the three figures stay
+     on one axis and the evidence lines up on another. */
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  inline-size: 5rem;
+  /* A ceiling, not a stretch: a 24px plot run across 200px of a wide track is a
+     chart, and this is a footnote. */
+  max-inline-size: 40%;
   min-inline-size: 0;
   overflow: clip;
-  /*
-   * The clip is on the region's PADDING box, so the end marker's radius still
-   * has its room and the stroke is never sliced — while nothing can reach the
-   * card's border, let alone the card beside it.
-   */
   overflow-clip-margin: 0;
-  /*
-   * A4 — one internal rhythm for all three cards.
-   *
-   * A sparkline is 32px tall and a meter track is 6px, so a "Goals on track"
-   * card sat 26px shorter than its two neighbours and its bottom padding read as
-   * a different value. The region reserves the plot's height and centres a short
-   * plot in it, which makes the three cards one set without stretching a 6px
-   * meter into a bar it is not.
-   */
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-block-size: calc(32px + var(--dh-space-2) + var(--dh-space-4));
+  min-block-size: 24px;
 }
 
 /*
- * A card WITH a plot does not pay for its note's bottom padding as well.
- *
- * The note's padding is what closes the card when the note is the last thing in
- * it. When a plot follows, that padding plus the plot's own top padding stacked
- * to ~28px of nothing between a one-line note and a 32px line — measured at
- * 1440, a 160px stat card, which is a dashboard tile rather than the shallow
- * rank §3.1 promised. Collapsing the note's half brings the card back to ~120px
- * without touching the plotless case.
- */
-.dh-today__measure:has(.dh-today__measure-plot)
-  > :where(.dh-today__measure-note, .dh-today__measure-link) {
-  padding-block-end: 0;
-}
-
-/*
- * On a phone a measure is a two-column ROW (label and note left, figure right),
- * and a chart under it would put a third band in a 52px row. The figures and
- * their notes carry every fact; the plots are supporting evidence, and evidence
+ * On a phone a measure is a label and a figure and nothing else, and a plot
+ * beside a 22px figure in a 112px column is four pixels of ink. The figures and
+ * their labels carry every fact; the plots are supporting evidence, and evidence
  * is what a narrow screen drops first.
  */
+@container today (max-width: 34rem) {
+  .dh-today__measure-plot {
+    display: none;
+  }
+}
+
 /*
  * At the narrowest widths the four chips are 2 x 2, not 3 + 1.
  *
@@ -1508,22 +1422,6 @@
 @container today (max-width: 22rem) {
   .dh-today__capture-chips {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/*
- * On a phone a measure is a two-column ROW (label and note left, figure right),
- * and a plot under it would put a third band in a 52px row. The figures and
- * their notes carry every fact; the plots are supporting evidence, and evidence
- * is what a narrow screen drops first.
- *
- * The plot REGION is now an ordinary `<div>` this stylesheet owns, so one class
- * is enough — the two-class selector this rule used to need was working around
- * `.dh-spark` setting its own `display` from a stylesheet loaded later.
- */
-@container today (max-width: 34rem) {
-  .dh-today__measure-plot {
-    display: none;
   }
 }
 
@@ -1834,43 +1732,6 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* The plan row's context pill                                                 */
-/* -------------------------------------------------------------------------- */
-
-/*
- * MOCKUP 5 ends each plan row with a small rounded label naming the part of life
- * the task belongs to. It is the task's structural PARENT — a Project, a Goal or
- * an Area — and it is a real link to that record.
- *
- * Neutral rather than identity-coloured, deliberately: the planning read carries
- * a parent as `{ kind, id, title }` with no icon and no colour, and resolving
- * identity per row would be the N+1 this pass forbids. See `TodayScreen.tsx`.
- *
- * Capped at a third of the row, like every other trailing fact on this screen,
- * so the title stays the widest thing on every row at every measured width.
- */
-.dh-day-row__parent {
-  flex: none;
-  max-inline-size: 33%;
-  padding-inline: var(--dh-space-2);
-  padding-block: 0.0625rem;
-  border-radius: var(--dh-radius-pill);
-  background: var(--dh-color-surface-subtle);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: 1.6;
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dh-day-row__parent:hover {
-  color: var(--dh-color-text);
-  text-decoration: underline;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Goal progress — the mockup's additions                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -1923,15 +1784,5 @@
 
   .dh-weekstrip__weekday {
     letter-spacing: 0;
-  }
-
-  /*
-   * The context pill goes, exactly as the priority tag does and for the same
-   * measured reason: at 320px a title, a pill and a flag on one 200px line make
-   * the row readable by its metadata rather than by its work. The parent is on
-   * the Task record a tap away and on every `/tasks` row.
-   */
-  .dh-day-row .dh-day-row__parent {
-    display: none;
   }
 }

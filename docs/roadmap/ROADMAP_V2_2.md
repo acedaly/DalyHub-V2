@@ -45,6 +45,57 @@ visual redesign or add speculative capability.
 
 ### NOW
 
+### ☑ TODAY-TASK-01 - One task row, and Today as the daily driver — **DELIVERED 2026-08-17**
+
+Today stops drawing its own task row, and the screen around it is refined into the
+surface it is meant to be. It CLOSES [DEBT-143](../product/PRODUCT_DEBT.md) and
+[DEBT-144](../product/PRODUCT_DEBT.md), which TODAY-11 raised and deliberately
+did not do. Full record:
+[`TODAY_TASK_01_ONE_TASK_ROW_2026_08.md`](../design/TODAY_TASK_01_ONE_TASK_ROW_2026_08.md).
+
+- **There is ONE product-level task row.** `TodayScreen.tsx` declares no `TaskRow`
+  and no `ParentPill`; the plan's three bands render the shared
+  `~/shared/task-record/TaskRow` inside the shared `TaskList`. Today's rows gained
+  every capability that came with it — inline project, inline due/planned date,
+  inline priority, the row overflow, the long-press, the two swipe acts, the
+  offline note — and re-implemented none of them. `test/unit/today/one-task-row.test.ts`
+  fails if a `TodayTaskRow`/`CompactTodayTaskRow`/`DashboardTaskRow` ever appears.
+- **The plan needed NO new slot on the shared row, and that is the evidence the
+  two rows were one row.** The mockup's context pill is the shared row's project
+  cell; the overdue age is its date cell (which renders a passed date as "3 days
+  ago", in words, in the overdue colour); the priority flag is its priority cell.
+- **What grew, grew SHARED.** `toTaskRowProjection` and `applyTaskListItemPatch`
+  moved into `~/shared/task-record/task-view`; `buildTaskRowActions` holds the
+  overflow SET for both callers; and the column ladder below 56rem was corrected —
+  it still carried the widths from before FINAL-UI swapped date and project, so
+  priority had 9.5rem and project 4rem (project cell 64 → 144px, title cell
+  202 → 303px at 1440). **Today declares no `.dh-today .dh-taskrow` structural
+  overrides.**
+- **No second mutation authority.** `useDayTaskActions` is a host — an optimistic
+  patch map, an announcement, a revalidation — and every write leaves through the
+  shared posters to `POST /tasks/:id` and `POST /tasks/bulk`. The route's own
+  completion fetcher and `completion-feedback.ts` were deleted rather than left as
+  a second door. The loader adds ONE bounded `searchTaskParents({ limit: 50 })` —
+  the same call `/tasks` makes.
+- **DEBT-144: one parent, one identity.** `TaskRelation` carries `colourSlot`,
+  `iconKey` and `colourRank`, resolved by the SAME joined statement that already
+  resolved the title (one CTE; no extra round trip, no N+1, no migration). Both
+  surfaces changed: `InlineTaskParent` now draws the shared `AccentIcon` through
+  `resolveIdentity` instead of the entity type's generic badge, so a Project is
+  the same colour on `/projects`, `/tasks` and `/today`.
+- **The visual pass, measured.** The greeting, the date and the day rail became
+  ONE heading area (107 → 62px at 1440). The three bordered metric cards became a
+  compact statistics strip with hairline separators, keeping every figure, note,
+  link and plot (176 → 82px). The split moves to **8/4 above a 60rem container**
+  and stays 7/5 below it — the measured answer, because the week strip needs
+  ~40px per day and 8/4 gives it 34px at 832px and 41px at 976px. First task row
+  y at 1440: **457.6 → 319.6**; plan : rail **1.42 → 2.06**.
+- **Honesty rules unchanged.** No new data, no productivity score, no focus time,
+  no task times, no `order`-based reordering, no MD3 regression, no new
+  dependency. One thing was deliberately left: a row still restates the date its
+  band already states, because `/tasks` does the same and the fix belongs on the
+  shared list ([DEBT-150](../product/PRODUCT_DEBT.md)).
+
 ### ☑ FINISH-01 - Close the 16 August audit: analytics, people, notes, and one grammar — **DELIVERED 2026-08-17**
 
 The last eight rows of the [16 August 2026 UX/UI audit](../product/UX_UI_AUDIT_COMPLETION_2026_08_16.md),

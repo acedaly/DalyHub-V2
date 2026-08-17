@@ -20,7 +20,7 @@
 
 import { env } from "cloudflare:workers";
 import { useCallback, useMemo, useState } from "react";
-import { useFetcher, useRevalidator, useSearchParams } from "react-router";
+import { useRevalidator, useSearchParams } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -28,9 +28,6 @@ import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { GoalCheckInSheet, goalCheckInLabel } from "~/shared/goal-progress";
 import { greetingNameFor } from "~/shared/shell/identity-display";
-import type { TaskActionData } from "~/shared/task-record/contract";
-
-import { useCompletionFailureFeedback } from "../completion-feedback";
 import { formatTodayDate, ownerCalendarIso } from "../date";
 import { emptyDay, loadTodayDay, type TodayDayData } from "../day/load";
 import type { TodayGoal } from "../day/goal-progress";
@@ -100,7 +97,6 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function TodayRoute({ loaderData }: Route.ComponentProps) {
-  const fetcher = useFetcher<TaskActionData>();
   const revalidator = useRevalidator();
 
   /*
@@ -156,10 +152,6 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
     [checkIn, revalidator],
   );
 
-  // A failed completion is never silent: it surfaces as a calm error, and the
-  // ensuing revalidation reconciles the optimistic row.
-  useCompletionFailureFeedback(fetcher.data);
-
   // Every task on the day, so an opened Drawer dialog is named by its real title.
   const taskTitles = useMemo(() => {
     const map = new Map<string, string>();
@@ -199,21 +191,10 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
       renderTask(entry) ?? renderEvent(entry);
   }, [taskTitles, scheduleEntries, loaderData.day.dateLong]);
 
-  const onCompleteTask = useCallback(
-    (taskId: string, complete: boolean) => {
-      fetcher.submit(
-        { intent: complete ? "complete" : "reopen" },
-        { method: "post", action: `/tasks/${encodeURIComponent(taskId)}` },
-      );
-    },
-    [fetcher],
-  );
-
   return (
     <DrawerProvider renderDrawer={renderTodayDrawer}>
       <TodayBody
         data={loaderData.day}
-        onCompleteTask={onCompleteTask}
         onUpdateGoal={(goal, trigger) => setCheckIn({ goal, opener: trigger })}
       />
       {checkIn ? (
@@ -241,11 +222,9 @@ export default function TodayRoute({ loaderData }: Route.ComponentProps) {
  */
 function TodayBody({
   data,
-  onCompleteTask,
   onUpdateGoal,
 }: {
   readonly data: TodayDayData;
-  readonly onCompleteTask: (taskId: string, complete: boolean) => void;
   readonly onUpdateGoal: (goal: TodayGoal, trigger: HTMLElement | null) => void;
 }) {
   const [searchParams] = useSearchParams();
@@ -264,7 +243,6 @@ function TodayBody({
   return (
     <TodayScreen
       data={data}
-      onCompleteTask={onCompleteTask}
       onUpdateGoal={onUpdateGoal}
       onOpenEvent={onOpenEvent}
       eventHref={eventHref}

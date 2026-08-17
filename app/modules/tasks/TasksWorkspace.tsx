@@ -55,22 +55,14 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { useCapture } from "~/shared/capture";
 import { OverflowMenu } from "~/shared/overflow-menu";
-import {
-  ArchiveIcon,
-  ChevronRightIcon,
-  EditIcon,
-  PlusIcon,
-  ProjectIcon,
-  RepeatIcon,
-  TaskIcon,
-  TodayIcon,
-} from "~/shared/icons";
+import { PlusIcon } from "~/shared/icons";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { useFeedback } from "~/shared/feedback";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
+import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";
@@ -1275,119 +1267,46 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
        * repeat…" and "Open task record" pointed at two different editors for one
        * object, and §4 merged them.
        */
-      const overflowActions = viewingDeleted
-        ? [
-            {
-              id: "open-record",
-              label: "Open task",
-              icon: <TaskIcon />,
-              description: "Read-only until it is restored.",
-              onSelect: () => openDrawer(`task:${card.id}`),
-            },
-          ]
-        : card.completed
-          ? [
-              {
-                id: "reopen-record",
-                label: "Open task",
-                icon: <TaskIcon />,
-                onSelect: () => openDrawer(`task:${card.id}`),
-              },
-            ]
-          : [
-              ...(planTodayAction
-                ? [
-                    {
-                      id: "plan-today",
-                      label: "Plan for today",
-                      icon: <TodayIcon />,
-                      // No `ariaLabel` naming the task: the MENU is already
-                      // "More actions for <title>", so repeating it on the item
-                      // makes a screen reader say the title twice and makes the
-                      // item's name unmatchable by the words on it.
-                      onSelect: planTodayAction.onSelect,
-                    },
-                  ]
-                : []),
-              {
-                id: "rename",
-                label: "Rename",
-                icon: <EditIcon />,
-                onSelect: () => setEditingTitleId(card.id),
-              },
-              {
-                id: "move-to",
-                label: "Move to Project or Area…",
-                icon: <ProjectIcon />,
-                description: "Search the whole workspace.",
-                onSelect: () => openDrawer(`task-move:${card.id}`),
-              },
-              {
-                id: "someday",
-                label: "Move to Someday / Maybe",
-                icon: <ArchiveIcon />,
-                separatorBefore: true,
-                onSelect: () =>
-                  quick.setField(
-                    card.id,
-                    { intent: "set_commitment", commitment: "someday" },
-                    `${card.title} moved to Someday / Maybe.`,
-                    { commitmentState: "someday" },
-                  ),
-              },
-              // TASKS-07 — the two series operations that belong on a row. Skipping is
-              // NOT completing: the occurrence moves one step along the series and the
-              // history says it was skipped. Stopping keeps every past occurrence and
-              // only ends the future.
-              ...(card.recurrence
-                ? [
-                    {
-                      id: "skip-occurrence",
-                      label: "Skip this occurrence",
-                      icon: <ChevronRightIcon />,
-                      description:
-                        "Moves to the next date without completing it.",
-                      separatorBefore: true,
-                      onSelect: () =>
-                        quick.setRecord(
-                          card.id,
-                          { intent: "skip_occurrence" },
-                          `Skipped this occurrence of ${card.title}.`,
-                        ),
-                    },
-                    {
-                      id: "stop-repeat",
-                      label: "Stop repeating",
-                      icon: <RepeatIcon />,
-                      description: "Past occurrences are kept.",
-                      onSelect: () =>
-                        quick.setRecord(
-                          card.id,
-                          { intent: "set_recurrence" },
-                          `${card.title} no longer repeats.`,
-                        ),
-                    },
-                  ]
-                : []),
-              {
-                /*
-                 * The ONE record-level item, below the group break.
-                 *
-                 * It replaces the pair this menu used to end on. "Priority,
-                 * dates and repeat…" opened `task-quick:`, "Open task record"
-                 * opened `task:`, and an owner had to know which of the two held
-                 * the property they wanted — the exact split CONTROL-01 §4
-                 * closes. Both keys now resolve to this one record, so the menu
-                 * needs one door to it.
-                 */
-                id: "open-record",
-                label: "Open task",
-                icon: <TaskIcon />,
-                description: "Every property, plus delegation and removal.",
-                separatorBefore: true,
-                onSelect: () => openDrawer(`task:${card.id}`),
-              },
-            ];
+      /*
+       * TODAY-TASK-01 — the SET is shared; only the callbacks are this surface's.
+       *
+       * It was declared inline here, which was correct while `/tasks` was the
+       * only surface drawing the shared row. Today now draws the same row, and a
+       * long tail that lives in one module's component is a long tail the second
+       * caller can only get by copying — which is how "the same task behaves the
+       * same way everywhere" stops being true. The ordering, the icons, the
+       * separators and the three shapes (read-only, completed, open) all moved to
+       * `~/shared/task-record/task-row-actions` unchanged.
+       */
+      const overflowActions = buildTaskRowActions(
+        card,
+        {
+          onOpenRecord: () => openDrawer(`task:${card.id}`),
+          ...(planTodayAction ? { onPlanToday: planTodayAction.onSelect } : {}),
+          onRename: () => setEditingTitleId(card.id),
+          onMoveToParent: () => openDrawer(`task-move:${card.id}`),
+          onSomeday: () =>
+            quick.setField(
+              card.id,
+              { intent: "set_commitment", commitment: "someday" },
+              `${card.title} moved to Someday / Maybe.`,
+              { commitmentState: "someday" },
+            ),
+          onSkipOccurrence: () =>
+            quick.setRecord(
+              card.id,
+              { intent: "skip_occurrence" },
+              `Skipped this occurrence of ${card.title}.`,
+            ),
+          onStopRepeating: () =>
+            quick.setRecord(
+              card.id,
+              { intent: "set_recurrence" },
+              `${card.title} no longer repeats.`,
+            ),
+        },
+        { readOnly: viewingDeleted },
+      );
 
       const key = `task:${card.id}`;
       return {
