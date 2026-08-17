@@ -102,7 +102,11 @@ Results are in §8.
 
 ## 6. Flake check
 
-Every failure classified as synchronisation, fixture or state-dependent was re-run repeatedly, in isolation and inside its own partition. No permanent retry was added anywhere.
+No permanent retry was added anywhere; `retries: 0` is unchanged.
+
+**One open item, and it is stated rather than absorbed.** `notes.spec.ts:382` ("a failed save shows the error state with Retry…") **passed on clean `main` at the base SHA and passes in isolation on this branch**, and failed once inside `p03` of the verification sweep on `getByText('Couldn’t save')`. It is not in the baseline set and nothing in this pass touches the Notes editor's save path.
+
+The suspicion — NOT yet confirmed, and recorded as a suspicion — is a race in the TEST rather than in the product: it installs a `page.route("**/mutate")` that fails the next POST, and an autosave left in flight by `createNote` can consume that one before the typing the journey is actually about. If that is right, the fix is to fail the save whose body carries the draft rather than "the next one". It is not fixed here because it was not diagnosed here, and guessing at a flake is how a flake becomes a retry.
 
 ---
 
@@ -114,9 +118,28 @@ One observation is recorded rather than acted on: at the base SHA `p01` took **2
 
 ---
 
-## 8. Final verification matrix
+## 8. Verification matrix
 
-_Filled in from the verification run; see §5 for the commands._
+**This is a partial run and says so.** The work was paused for review before the E2E sweep completed; `p05`…`p10` have not been run on the final tree. Every spec they hold was run and made green individually during the pass, but that is a weaker claim than a clean partition run and is not presented as one.
+
+| Check | Baseline at `f994aa0` | This branch |
+|---|---|---|
+| `format:check` | pass | pass |
+| `lint` | pass | pass |
+| `typecheck` | pass | pass |
+| `scheme:check` | pass | pass |
+| `e2e:partitions:check` | pass | pass |
+| `icons:check` | pass | pass |
+| `test:unit` (5,859) | pass | pass |
+| `test:kernel` (2,574) | pass | pass |
+| `build` + `wrangler --dry-run` | pass | pass |
+| **E2E p01** (209) | 3 failed | **0 failed** |
+| **E2E p02** (145) | 6 failed | **0 failed** |
+| **E2E p03** (157) | 8 failed | **1 failed** — see §6 |
+| **E2E p04** (170) | 18 failed | 0 failed in the 97 executed before the run was stopped |
+| E2E p05…p10 | 38 failed | **not run on the final tree** |
+
+Baseline total: **73 failing / 1678**. Measured on this branch so far: **1 failing / 609**, and that one is the item in §6.
 
 ---
 
