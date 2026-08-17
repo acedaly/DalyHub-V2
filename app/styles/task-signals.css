@@ -384,15 +384,28 @@
  */
 @media (hover: none) {
   /*
-   * The Tasks / Project-tasks row. The clip is on the `h3` as well as on the
-   * link inside it, so BOTH grow — a 44px link inside a 22px clipped heading is
-   * still a 22px target.
+   * HARDEN-05 — the rule below used to name `.dh-card__title` / `.dh-card__open`
+   * inside `.dh-card-collection--list`, which is the anatomy DS-04 RETIRED when
+   * the Tasks collection stopped rendering the generic Card and started
+   * rendering `TaskRow`. Nothing on `/tasks` or a Project's task list has
+   * matched it since, so the target this rule exists to guarantee silently went
+   * back to 19.6px — MEASURED at 390px on `main` @ f994aa0, which is under even
+   * SC 2.5.8's 24px AA minimum, let alone the 44px this file argues for.
+   *
+   * It is the same rule against the current anatomy. `.dh-taskrow__title` is a
+   * `flow-root` box that clips its own text (that is what draws the ellipsis
+   * and the two-line clamp), and the `h3` around it does NOT clip, so unlike
+   * the Card there is exactly one box to grow.
+   *
+   * 1.25rem is the row's own line box (`--dh-text-row-line-height` at the row
+   * size measures 19.6px), so the padding lands the target at ~44px. The phone
+   * composition's `row-gap` was widened to 12px in `task-list.css` so the lower
+   * half of that target falls in the gap rather than on the metadata line's
+   * inline editors.
    */
-  :is(.dh-collection--tasks, .dh-tasklist)
-    .dh-card-collection--list
-    :is(.dh-card__title, .dh-card__title .dh-card__open) {
-    padding-block: calc(0.5 * (var(--app-touch-target-min) - 1.375rem));
-    margin-block: calc(-0.5 * (var(--app-touch-target-min) - 1.375rem));
+  :is(.dh-taskrow__title, .dh-card__title, .dh-card__title .dh-card__open) {
+    padding-block: calc(0.5 * (var(--app-touch-target-min) - 1.25rem));
+    margin-block: calc(-0.5 * (var(--app-touch-target-min) - 1.25rem));
   }
 
   /* Today's Focus / Attention row. One box, so one rule. */

@@ -818,7 +818,17 @@
   padding-block: var(--dh-space-2);
   padding-inline: calc(var(--dh-space-3) + 1.5rem) var(--dh-space-3);
   font: inherit;
-  font-size: var(--dh-text-body-size);
+  /*
+   * HARDEN-05 — the anti-zoom floor, through the token that carries it.
+   *
+   * `--dh-text-body-size` is a TYPE role and has no touch floor, so this field
+   * computed 14px on a phone (MEASURED on `/notes` at 390px, `main` @ f994aa0)
+   * and focusing it zoomed iOS Safari — the exact defect MOBILE-01 created
+   * `--app-field-font-size-compact` to make unmissable, arriving in a control
+   * written after it. `max()` keeps the design size wherever it is already the
+   * larger, so a pointer device is drawn unchanged.
+   */
+  font-size: max(var(--dh-text-body-size), var(--app-field-font-size-compact));
   line-height: var(--dh-text-body-line-height);
   color: var(--dh-color-text);
   background: var(--dh-color-surface);
