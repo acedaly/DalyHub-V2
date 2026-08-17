@@ -14,7 +14,10 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CaptureProvider } from "~/shared/capture";
+import { FeedbackProvider } from "~/shared/feedback";
+import { resolveIdentity } from "~/shared/entity";
 import { DrawerProvider } from "~/shared/drawer";
+import { postTaskRecordActionOffline } from "~/shared/task-record/task-inline-edit";
 import { TodayScreen } from "~/modules/today/day/TodayScreen";
 import { emptyDay, type TodayDayData } from "~/modules/today/day/load";
 import {
@@ -24,13 +27,46 @@ import {
   type GoalProgressEvaluation,
 } from "~/kernel/goals";
 
+/*
+ * TODAY-TASK-01 — the canonical posters, stubbed.
+ *
+ * Today's rows write through `~/shared/task-record/task-inline-edit`, which is
+ * the SAME module `/tasks` posts through. Stubbing it here is what lets these
+ * tests assert the INTENT that leaves the screen — the thing that has to be
+ * identical on both surfaces — without standing up a server. Nothing about the
+ * screen's own reconciliation is stubbed: the optimistic patch, the re-bucketing
+ * and the roll-back all run for real.
+ */
+vi.mock("~/shared/task-record/task-inline-edit", () => ({
+  postTaskRecordActionOffline: vi.fn(async () => ({
+    kind: "ok" as const,
+    data: { kind: "completion" as const, ok: true as const, recurrence: null },
+  })),
+  postTaskRecordAction: vi.fn(async () => ({
+    kind: "update" as const,
+    status: "success" as const,
+  })),
+  postTaskBulkAction: vi.fn(async () => ({ ok: true as const })),
+  saveTaskRecordField: vi.fn(async () => ({ ok: true as const })),
+  saveTaskBulkField: vi.fn(async () => ({ ok: true as const })),
+}));
+
 const TODAY = "2026-08-08";
 
+/**
+ * One day task.
+ *
+ * TODAY-TASK-01 — a `DayTask` is now the CANONICAL serialised list item plus the
+ * day's two derivations, because the shared `TaskRow` Today adopted draws a
+ * display state, a recurrence signal and a waiting flag that a seven-field
+ * projection could not produce. The defaults below are the ordinary open task:
+ * to do, active, not waiting, not repeating.
+ */
 function task(
   id: string,
   title: string,
   overrides: Partial<TodayDayData["today"][number]> = {},
-) {
+): TodayDayData["today"][number] {
   return {
     id,
     title,
@@ -40,6 +76,13 @@ function task(
     priority: null,
     completed: false,
     completedDate: null,
+    completedAt: null,
+    status: "todo",
+    timeSector: null,
+    commitmentState: "active",
+    delegation: null,
+    recurrence: null,
+    waiting: null,
     ...overrides,
   };
 }
@@ -190,16 +233,15 @@ function weekWith(
  * render nothing — which would make every assertion about them pass for the
  * wrong reason.
  */
-function renderScreen(
-  data: TodayDayData,
-  onCompleteTask?: (id: string, complete: boolean) => void,
-) {
+function renderScreen(data: TodayDayData) {
   const element: ReactElement = (
-    <CaptureProvider>
-      <DrawerProvider renderDrawer={() => null}>
-        <TodayScreen data={data} onCompleteTask={onCompleteTask} />
-      </DrawerProvider>
-    </CaptureProvider>
+    <FeedbackProvider>
+      <CaptureProvider>
+        <DrawerProvider renderDrawer={() => null}>
+          <TodayScreen data={data} />
+        </DrawerProvider>
+      </CaptureProvider>
+    </FeedbackProvider>
   );
   const router = createMemoryRouter(
     [
@@ -433,31 +475,32 @@ describe("the day timeline", () => {
   it("never prints a time beside a task", () => {
     const { container } = renderScreen(day({ today: [task("a", "Alpha")] }));
     const row = within(timelineSection()).getByText("Alpha").closest("li")!;
-    expect(row.querySelector(".dh-day-row__time")).toBeNull();
+    expect(row.querySelector(".dh-taskrow__time")).toBeNull();
     expect(container.textContent).not.toMatch(/Morning|Afternoon/);
   });
 
-  it("labels an overdue row with WHICH date slipped and how long ago", () => {
+  it("says how long an overdue row has slipped, through the shared date cell", () => {
     renderScreen(
       day({ overdue: [task("o", "Late", { dueDate: "2026-08-05" })] }),
     );
     /*
-     * MOBILE-02 §7 — the row now carries the phrase TWICE on purpose: the full
-     * one for assistive technology and a short one for the eye, because "Due
-     * over a year ago" beside a task title ellipsises the title on a phone.
+     * TODAY-TASK-01 — the overdue AGE is no longer a Today-only trailing span.
      *
-     * `useCompactViewport` is desktop-first on the server and in jsdom (no
-     * `matchMedia` match), so the drawn string here is the full one and both
-     * spans read the same. What this asserts is the CONTRACT — the full phrase
-     * is always present and always announced — not which of the two rungs the
-     * test environment happens to be on.
+     * Today used to render `overdueLabel` ("Due 3 days ago") into a slot of its
+     * private row, with a short form for the phone beside a visually-hidden full
+     * one. The shared row's DATE cell already answers exactly this question in
+     * exactly these words — `relativeCalendarDate` renders a passed date as
+     * "3 days ago", in the overdue colour, bounded at every distance — and it is
+     * an EDITOR rather than a printed string, so the same control that states
+     * the slip is the one that fixes it.
+     *
+     * That is why adopting the shared row cost the plan no facts: this was the
+     * last one that looked bespoke, and it was the same fact said twice.
      */
     const row = within(timelineSection()).getByText("Late").closest("li")!;
-    const due = row.querySelector(".dh-day-row__due")!;
-    expect(due.querySelector(".dh-visually-hidden")?.textContent).toBe(
-      "Due 3 days ago",
-    );
-    expect(due.querySelector("[aria-hidden='true']")).not.toBeNull();
+    const date = within(row).getByTestId("task-row-due-date");
+    expect(date.textContent).toContain("3 days ago");
+    expect(row.getAttribute("data-overdue")).toBe("true");
   });
 
   it("caps overdue at three and links the remainder to the overdue view", () => {
@@ -517,11 +560,15 @@ describe("the day timeline", () => {
      *
      * CONVERGE-01 §1 put every band on ONE twelve-column grid, so the measures
      * and the plan are now siblings inside `.dh-today__grid` rather than a strip
-     * above a "work rank". The rule this protects is unchanged and is stated in
-     * the same terms: exactly TWO blocks may precede the grid (the header and
-     * the day rail), the measures are the grid's first child, and the day's own
-     * plan is its second. A block inserted above the work — a second figure row,
-     * a banner, a hero — fails here whatever it is called.
+     * above a "work rank".
+     *
+     * TODAY-TASK-01 §B3 folded the day rail INTO the header block — the
+     * greeting, the date and Today · Tomorrow · Next 7 days are one heading
+     * area rather than three vertical beats — so exactly ONE block now precedes
+     * the grid. The rule this protects is unchanged and is stated in the same
+     * terms: the measures are the grid's first child and the day's own plan is
+     * its second. A block inserted above the work — a second figure row, a
+     * banner, a hero — fails here whatever it is called.
      */
     const { container } = renderScreen(
       day({
@@ -549,14 +596,15 @@ describe("the day timeline", () => {
       0,
       [...surface.children].indexOf(grid),
     );
-    expect(beforeGrid).toHaveLength(2); // head, day rail
+    expect(beforeGrid).toHaveLength(1); // the one heading area
 
     // The measures are the grid's first cell and the day's own plan its second,
     // ahead of Schedule.
     expect(grid.children[0]?.className).toContain("dh-today__summary");
     expect(grid.children[1]?.className).toContain("dh-today__timeline");
-    // The first row inside it is the overdue one.
-    const firstRow = container.querySelector(".dh-today__timeline .dh-day-row");
+    // The first row inside it is the overdue one — and it is the SHARED task
+    // row (DEBT-143), not a Today-private one.
+    const firstRow = container.querySelector(".dh-today__timeline .dh-taskrow");
     expect(firstRow?.textContent).toContain("Late");
   });
 });
@@ -642,7 +690,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
       "Priority 4",
     );
     // Still exactly one indicator per row — nothing gained a second marker.
-    expect(container.querySelectorAll(".dh-day-row .dh-priority")).toHaveLength(
+    expect(container.querySelectorAll(".dh-taskrow .dh-priority")).toHaveLength(
       2,
     );
   });
@@ -654,7 +702,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
       }),
     );
     const titles = [
-      ...timelineSection().querySelectorAll(".dh-day-row__title"),
+      ...timelineSection().querySelectorAll(".dh-taskrow__title"),
     ].map((node) => node.textContent);
     expect(titles).toEqual(["Zebra", "Aardvark"]);
   });
@@ -668,7 +716,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
       }),
     );
     expect(
-      timelineSection().querySelectorAll(".dh-day-row__title"),
+      timelineSection().querySelectorAll(".dh-taskrow__title"),
     ).toHaveLength(8);
     expect(
       screen.getByRole("link", { name: "View all 14 tasks for today" }),
@@ -676,14 +724,12 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
   });
 
   it("keeps a ticked row on screen even when the band is at its bound", () => {
-    const onCompleteTask = vi.fn();
     renderScreen(
       day({
         today: Array.from({ length: 9 }, (_, index) =>
           task(`t${index}`, `Task ${String(index).padStart(2, "0")}`),
         ),
       }),
-      onCompleteTask,
     );
     expect(screen.getByText(/View all 9 tasks for today/)).toBeInTheDocument();
 
@@ -742,13 +788,11 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
   });
 
   it("does not move a row between bands when it is ticked", () => {
-    const onCompleteTask = vi.fn();
     renderScreen(
       day({
         overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
         today: [task("a", "Alpha")],
       }),
-      onCompleteTask,
     );
     const bandOf = (title: string) =>
       within(timelineSection())
@@ -758,7 +802,11 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
 
     expect(bandOf("Late")).toBe("Overdue");
     fireEvent.click(screen.getByRole("checkbox", { name: "Complete Late" }));
-    expect(onCompleteTask).toHaveBeenCalledWith("o", true);
+    expect(postTaskRecordActionOffline).toHaveBeenCalledWith(
+      "o",
+      { intent: "complete" },
+      { operation: "complete" },
+    );
     // Still under Overdue, dimmed — not fifteen rows down under "Due today".
     expect(bandOf("Late")).toBe("Overdue");
     // And the overdue FIGURE stops counting it, because it is done.
@@ -834,20 +882,33 @@ describe("the Schedule panel", () => {
 });
 
 describe("completing a task from the timeline", () => {
-  it("writes through the existing completion path and ticks optimistically", () => {
-    const onCompleteTask = vi.fn();
-    const done = task("c", "Gamma", { completed: true, completedDate: TODAY });
+  it("writes through the canonical completion path and ticks optimistically", () => {
+    const done = task("c", "Gamma", {
+      completed: true,
+      completedAt: `${TODAY}T09:00:00.000Z`,
+      completedDate: TODAY,
+    });
     renderScreen(
       day({
         today: [task("a", "Alpha"), task("b", "Beta"), done],
         completedToday: [done],
       }),
-      onCompleteTask,
     );
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Complete Alpha" }));
 
-    expect(onCompleteTask).toHaveBeenCalledWith("a", true);
+    /*
+     * TODAY-TASK-01 — the assertion is now on the POST rather than on a screen
+     * prop, and that is the stronger claim: Today has no completion path of its
+     * own, so what has to be true is that ticking a row posts the CANONICAL
+     * `complete` intent through the shared offline-aware poster — the same call
+     * `/tasks` makes for the same act.
+     */
+    expect(postTaskRecordActionOffline).toHaveBeenCalledWith(
+      "a",
+      { intent: "complete" },
+      { operation: "complete" },
+    );
     /*
      * Optimistic: the ROW changes state before any revalidation. This used to
      * watch the daily-progress figure move from "1 of 3" to "2 of 3"; that
@@ -862,14 +923,18 @@ describe("completing a task from the timeline", () => {
   });
 
   it("reopens a completed task through the same path", () => {
-    const onCompleteTask = vi.fn();
-    const done = task("c", "Gamma", { completed: true, completedDate: TODAY });
-    renderScreen(
-      day({ today: [done], completedToday: [done] }),
-      onCompleteTask,
-    );
+    const done = task("c", "Gamma", {
+      completed: true,
+      completedAt: `${TODAY}T09:00:00.000Z`,
+      completedDate: TODAY,
+    });
+    renderScreen(day({ today: [done], completedToday: [done] }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Reopen Gamma" }));
-    expect(onCompleteTask).toHaveBeenCalledWith("c", false);
+    expect(postTaskRecordActionOffline).toHaveBeenCalledWith(
+      "c",
+      { intent: "reopen" },
+      { operation: "reopen" },
+    );
   });
 });
 
@@ -1399,28 +1464,49 @@ describe("TODAY-11: the plan's rows", () => {
       }),
     );
     const row = within(timelineSection()).getByText("Alpha").closest("li")!;
-    expect(row.querySelector(".dh-day-row__time")).toBeNull();
+    expect(row.querySelector(".dh-taskrow__time")).toBeNull();
     expect(row.textContent).not.toMatch(/\d{1,2}:\d{2}/);
     // The time that IS real — a meeting's — is in the Schedule panel beside it.
     expect(container.textContent).toContain("09:30");
   });
 
-  it("ends a row with the parent as a linked pill, naming its kind", () => {
+  it("shows a row's parent through the shared inline editor, not a read-only pill", () => {
     renderScreen(
       day({
+        parents: [{ id: "p1", kind: "project", title: "Kitchen renovation" }],
         today: [
           task("d", "Deadline", {
-            parent: { kind: "project", id: "p1", title: "Kitchen renovation" },
+            parent: {
+              kind: "project",
+              id: "p1",
+              title: "Kitchen renovation",
+              colourSlot: null,
+              iconKey: null,
+              colourRank: 2,
+            },
           }),
         ],
       }),
     );
+    /*
+     * TODAY-TASK-01 / DEBT-143 — the parent was a NEUTRAL LINK to the record.
+     * It is now the same editable cell `/tasks` draws: the name is there, and so
+     * is the ability to re-file the task without leaving the day.
+     */
     const row = within(timelineSection()).getByText("Deadline").closest("li")!;
-    const pill = within(row).getByRole("link", {
-      name: "Project: Kitchen renovation",
-    });
-    expect(pill).toHaveAttribute("href", "/projects/p1");
-    expect(pill).toHaveTextContent("Kitchen renovation");
+    const parent = within(row).getByTestId("task-row-parent");
+    expect(parent.textContent).toContain("Kitchen renovation");
+    expect(parent.querySelector("button")).not.toBeNull();
+
+    /*
+     * DEBT-144 — and the mark beside it carries the PARENT's own identity,
+     * resolved through the one shared resolver, rather than the entity type's
+     * generic badge. Rank 2 folds to the third derived slot.
+     */
+    const mark = row.querySelector(".dh-task-parent__mark")!;
+    expect(mark.getAttribute("data-identity")).toBe(
+      resolveIdentity({ colourRank: 2 }).slot,
+    );
   });
 
   it("states the day's canonical count beside the plan's heading", () => {

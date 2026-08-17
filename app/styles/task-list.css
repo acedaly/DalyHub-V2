@@ -1097,8 +1097,23 @@
    * to sit in. The header row and the task rows are both descendants, so both
    * are named here.
    */
+  /*
+   * TODAY-TASK-01 — the narrow tracks now MATCH the columns they carry.
+   *
+   * The wide template is `… due 7rem · priority 5rem · project 10rem · status`,
+   * and these two rungs still carried the widths from BEFORE FINAL-UI swapped
+   * the date and the project — so below 56rem the 4th track (priority, holding a
+   * flag and two characters) was given 9.5rem while the 5th (project, holding a
+   * name) was squeezed to 4rem. On `/tasks` that produced a wide empty gap after
+   * every flag; the defect only became conspicuous when Today adopted the row and
+   * ran it at ~38rem, where every project name in the plan read "T…", "H…", "K…".
+   *
+   * MEASURED on `/today` at 1440 before this change: project cell 64px, title
+   * 201.8px. After: project 144px, title 306px — the title gains 104px because
+   * the priority column stops hoarding 88 of them.
+   */
   .dh-taskrow {
-    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6.5rem 9.5rem 4rem
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6.5rem 4.5rem 9rem
       1.75rem;
   }
 
@@ -1113,8 +1128,7 @@
 
 @container tasklist (max-width: 44rem) {
   .dh-taskrow {
-    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 5.5rem 7.5rem 4rem
-      1.75rem;
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6rem 4rem 7rem 1.75rem;
   }
 }
 

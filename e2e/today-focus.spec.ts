@@ -99,7 +99,7 @@ async function focusBands(
       const label =
         section.querySelector(".dh-day-section__label")?.textContent?.trim() ??
         "";
-      bands[label] = [...section.querySelectorAll(".dh-day-row__title")]
+      bands[label] = [...section.querySelectorAll(".dh-taskrow__title")]
         .map((node) => node.textContent?.trim() ?? "")
         .filter((title) => title.startsWith(stamp));
     }
@@ -196,7 +196,7 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     expect(bands["Planned today"]).not.toContain(both.title);
     // …and the whole panel draws exactly one row for it.
     await expect(
-      page.locator(".dh-today__timeline .dh-day-row__title", {
+      page.locator(".dh-today__timeline .dh-taskrow__title", {
         hasText: both.title,
       }),
     ).toHaveCount(1);
@@ -256,7 +256,7 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     // 1–2. Open Today; the Focus panel distinguishes the work.
     await page.goto("/today");
     const row = page
-      .locator(".dh-today__timeline .dh-day-row", { hasText: target.title })
+      .locator(".dh-today__timeline .dh-taskrow", { hasText: target.title })
       .first();
     await expect(row).toBeVisible();
     const bandLabel = (locator: typeof row) =>
@@ -296,7 +296,7 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     // 8–9. Back on Today, the state is unchanged: still done, still in place.
     await page.goto("/today");
     const again = page
-      .locator(".dh-today__timeline .dh-day-row", { hasText: target.title })
+      .locator(".dh-today__timeline .dh-taskrow", { hasText: target.title })
       .first();
     await expect(
       again.getByRole("checkbox", { name: `Reopen ${target.title}` }),
@@ -340,12 +340,15 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     const bands = await page.evaluate(() =>
       [
         ...document.querySelectorAll(
-          ".dh-day-section:not(:has(.dh-day-list--overdue))",
+          '.dh-day-section:not([data-tone="overdue"])',
         ),
       ].map((section) =>
-        [...section.querySelectorAll(".dh-day-row")]
-          .filter((row) => row.querySelector(".dh-day-row__title"))
-          .map((row) => row.getAttribute("data-done") === "true"),
+        // TODAY-TASK-01 — the shared row states its own completion in a data
+        // attribute, exactly as it does on `/tasks`; the private row's
+        // `data-done` went with the private row.
+        [...section.querySelectorAll(".dh-taskrow")].map(
+          (row) => row.getAttribute("data-completed") === "true",
+        ),
       ),
     );
     const openRows = bands.flat().filter((done) => !done);
@@ -398,62 +401,56 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
 
-      // Every Focus row is one line of uniform height, and its TITLE is the
-      // widest thing on it — a list read by its metadata is not a list.
+      /*
+       * TODAY-TASK-01 — the phone row's CONTRACT changed, deliberately.
+       *
+       * Today drew a private one-line row here: a title, one trailing fact and
+       * a priority flag, with the project pill hidden below 48rem because a
+       * title, a pill and a flag could not share a 200px line. This test held
+       * that shape ("`lines` is 1, every row is the same box").
+       *
+       * The plan now draws the SHARED `TaskRow`, whose phone composition is the
+       * DS-04 concept's two lines — the title on its own line, then a quiet
+       * `date · project … P1` under it. That is not a regression of the rule
+       * this test protects; it is the rule taken further. The old shape kept
+       * the title widest by DELETING the project on a phone; the new one keeps
+       * the title widest by giving it a whole line and putting the metadata
+       * where it cannot compete — which is why the project, the date and the
+       * priority are all reachable and editable on a phone for the first time.
+       *
+       * So the assertions move to the new contract and keep the same intent:
+       * the title's track outranks the metadata's, the row clears the target
+       * floor, and a title takes at most the two lines the shared clamp allows.
+       */
       const rows = await page.evaluate(() =>
-        [...document.querySelectorAll(".dh-today__timeline .dh-day-row")]
-          .filter((row) => row.querySelector(".dh-day-row__title"))
-          .map((row) => {
-            const title = row.querySelector(".dh-day-row__title")!;
-            const styles = getComputedStyle(row);
+        [...document.querySelectorAll(".dh-today__timeline .dh-taskrow")].map(
+          (row) => {
+            const title = row.querySelector(".dh-taskrow__main")!;
+            const project = row.querySelector(".dh-taskrow__cell--project");
+            const titleInk = row.querySelector(".dh-taskrow__title")!;
             return {
               title: Math.round(title.getBoundingClientRect().width),
-              project: Math.round(
-                row.querySelector(".dh-day-row__meta")?.getBoundingClientRect()
-                  .width ?? 0,
-              ),
+              project: Math.round(project?.getBoundingClientRect().width ?? 0),
               height: Math.round(row.getBoundingClientRect().height),
-              /*
-               * The row's own box, WITHOUT the hairline it draws between
-               * siblings (`today.css` → `.dh-day-row + .dh-day-row`). That
-               * border is on the row, so a row that follows another is exactly
-               * 1px taller than the first row of its band — by design.
-               */
-              box: Math.round(
-                row.getBoundingClientRect().height -
-                  parseFloat(styles.borderBlockStartWidth || "0"),
-              ),
               /* How many line boxes the title actually occupies. */
               lines: Math.round(
-                title.getBoundingClientRect().height /
-                  parseFloat(getComputedStyle(title).lineHeight || "1"),
+                titleInk.getBoundingClientRect().height /
+                  parseFloat(getComputedStyle(titleInk).lineHeight || "1"),
               ),
             };
-          }),
+          },
+        ),
       );
       expect(rows.length).toBeGreaterThan(0);
       for (const row of rows) {
+        // Metadata yields before the title does (DS-04 §10).
         expect(row.title).toBeGreaterThan(row.project);
         // The 44px WCAG 2.2 target floor, which the row's own min-height sets.
         expect(row.height).toBeGreaterThanOrEqual(44);
-        // ONE LINE each — the rule itself (`today.css`: nowrap and an ellipsis
-        // rather than a wrap), asserted on the title rather than inferred from
-        // the row being as tall as its neighbour.
-        expect(row.lines).toBe(1);
+        // At most the two lines the shared clamp allows — never an unbounded
+        // wrap that makes the list ragged.
+        expect(row.lines).toBeLessThanOrEqual(2);
       }
-      /*
-       * …and every row is the same size, measured on the row's own box.
-       *
-       * HARDEN-04: this compared `height`, which includes the 1px hairline
-       * between siblings, so it could only pass when every band held exactly
-       * ONE row — no hairline anywhere. MEASURED at 320px on the shared
-       * workspace: 61px for the first row of a band and 62px for every row
-       * after it, `border-block-start-width` 0px and 1px respectively. Two
-       * heights, one rhythm, and the assertion could not tell the difference.
-       * The ragged-list failure it exists to catch — a wrapped title, a row
-       * grown by its metadata — is caught by `lines` above and by this.
-       */
-      expect(new Set(rows.map((row) => row.box)).size).toBe(1);
     }
   });
 

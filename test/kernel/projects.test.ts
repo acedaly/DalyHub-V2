@@ -419,10 +419,15 @@ describe("TaskRepository.listProjectTasks", () => {
       kind: "text",
       note: "finance sign-off",
     });
+    // TODAY-TASK-01 / DEBT-144 — a project's task rows carry the Project's own
+    // resolved identity, from the same joined read that resolves its title.
     expect(waitingItem.parent).toEqual({
       kind: "project",
       id: project.id,
       title: "DalyHub V2",
+      colourSlot: null,
+      iconKey: null,
+      colourRank: 0,
     });
 
     // completed / all filters.

@@ -164,6 +164,40 @@ export type TaskListItemPatch = Partial<
   >
 >;
 
+/**
+ * Apply an optimistic patch to ONE record, returning the record itself when
+ * nothing actually changed.
+ *
+ * TODAY-TASK-01 moved this out of the Tasks module. It is the mechanism ADR-086
+ * describes — "presentation may lead the server" expressed as data over the
+ * loader's own record, so every derived display value is re-derived by the SAME
+ * pure functions that read the server's answer — and Today needs exactly it for
+ * exactly that reason. Generic in the record type so a surface carrying extra
+ * per-day facts alongside the item (Today's `DayTask`) keeps them.
+ *
+ * A parent is compared by the identity of its id, not by object identity: the
+ * patch constructs a fresh relation object every time.
+ */
+export function applyTaskListItemPatch<T extends SerializedTaskListItem>(
+  item: T,
+  patch: TaskListItemPatch | undefined,
+): T {
+  if (patch === undefined) return item;
+  let changed = false;
+  for (const key of Object.keys(patch) as (keyof TaskListItemPatch)[]) {
+    const value = patch[key];
+    if (value === undefined) continue;
+    if (key === "parent") {
+      const current = item.parent?.id ?? null;
+      const next = (value as SerializedTaskListItem["parent"])?.id ?? null;
+      if (current !== next) changed = true;
+      continue;
+    }
+    if (item[key] !== value) changed = true;
+  }
+  return changed ? { ...item, ...patch } : item;
+}
+
 /** Serialise a `TaskListItem` for a JSON loader response. */
 export function serializeTaskListItem(
   item: TaskListItem,
@@ -184,6 +218,68 @@ export function serializeTaskListItem(
     recurrence: item.recurrence,
     parent: item.parent,
     waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
+  };
+}
+
+/**
+ * TODAY-TASK-01 — the SHARED display projection of one list item.
+ *
+ * Every surface that draws a task ROW needs the same six derivations over the
+ * loader's record: is it complete, is it waiting, what display state does the
+ * precedence evaluator give it, and the three values (`priority`, the two dates)
+ * that pass through untouched. The Tasks module had them, inside its own
+ * `toTaskCardData`, and Today could not adopt the shared row without either
+ * importing a module-private view-model (which the module-isolation rule forbids)
+ * or writing a second copy of `taskDisplayState`'s plumbing.
+ *
+ * So the projection lives here, beside the row it feeds. `toTaskCardData` now
+ * composes it rather than restating it, which is what makes "the same task is the
+ * same row on `/today` and on `/tasks`" true by construction rather than by two
+ * files agreeing.
+ */
+export interface TaskRowProjection {
+  readonly id: string;
+  readonly title: string;
+  readonly priority: TaskPriority | null;
+  readonly stateKind: TaskDisplayStateKind;
+  readonly stateLabel: string;
+  readonly stateTone: RecordTone;
+  readonly dueDate: string | null;
+  readonly scheduledDate: string | null;
+  readonly parent: TaskRelation | null;
+  readonly completed: boolean;
+  readonly waiting: boolean;
+  readonly recurrence: TaskRecurrenceRule | null;
+}
+
+/** Project one serialised list item into the shared row's data contract. */
+export function toTaskRowProjection(
+  item: SerializedTaskListItem,
+): TaskRowProjection {
+  const state = taskDisplayState({
+    deletedAt: null,
+    completedAt: item.completedAt,
+    status: item.status,
+    commitmentState: item.commitmentState,
+    timeSector: item.timeSector,
+    scheduledDate: item.scheduledDate,
+    waiting: item.waiting,
+  });
+  return {
+    id: item.id,
+    title: item.title,
+    priority: item.priority,
+    stateKind: state.kind,
+    stateLabel: state.label,
+    stateTone: state.tone,
+    dueDate: item.dueDate,
+    scheduledDate: item.scheduledDate,
+    // The relation is passed through WHOLE — including the identity DEBT-144
+    // added to it — so a row's parent mark is the parent's own, everywhere.
+    parent: item.parent,
+    completed: item.completedAt !== null,
+    waiting: item.waiting !== null && item.completedAt === null,
+    recurrence: item.recurrence ?? null,
   };
 }
 

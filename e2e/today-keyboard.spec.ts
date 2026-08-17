@@ -84,7 +84,7 @@ test.describe("the day is operable from the keyboard", () => {
     page,
   }) => {
     await openToday(page);
-    const row = page.locator(".dh-today__timeline .dh-day-row").first();
+    const row = page.locator(".dh-today__timeline .dh-taskrow").first();
     if ((await row.count()) === 0) {
       test.skip(true, "nothing on the day in the shared dev workspace");
     }
@@ -92,7 +92,7 @@ test.describe("the day is operable from the keyboard", () => {
     // Plain rows: the checkbox and the title are two ordinary controls, both in
     // the natural tab order. No roving model, no composite widget.
     const checkbox = row.getByRole("checkbox").first();
-    const title = row.locator(".dh-day-row__title").first();
+    const title = row.locator(".dh-taskrow__title").first();
     await checkbox.focus();
     await expect(checkbox).toBeFocused();
     await page.keyboard.press("Tab");
@@ -109,7 +109,7 @@ test.describe("the day is operable from the keyboard", () => {
   test("Back closes the Drawer and Forward reopens it", async ({ page }) => {
     await openToday(page);
     const title = page
-      .locator(".dh-today__timeline .dh-day-row__title")
+      .locator(".dh-today__timeline .dh-taskrow__title")
       .first();
     if ((await title.count()) === 0) {
       test.skip(true, "nothing on the day in the shared dev workspace");

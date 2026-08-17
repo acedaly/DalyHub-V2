@@ -17,6 +17,7 @@ import {
   normalizeGoalMeasurementConfig,
 } from "~/kernel/goals";
 import { DrawerProvider } from "~/shared/drawer";
+import { FeedbackProvider } from "~/shared/feedback";
 import { TodayScreen } from "~/modules/today/day/TodayScreen";
 import type { TodayGoal } from "~/modules/today/day/goal-progress";
 import { emptyDay, type TodayDayData } from "~/modules/today/day/load";
@@ -80,9 +81,14 @@ function renderScreen(
   onUpdateGoal?: (goal: TodayGoal, trigger: HTMLElement | null) => void,
 ) {
   const element: ReactElement = (
-    <DrawerProvider renderDrawer={() => null}>
-      <TodayScreen data={data} onUpdateGoal={onUpdateGoal} />
-    </DrawerProvider>
+    // TODAY-TASK-01 — the screen's rows now write through the shared task
+    // mutation host, which raises a refusal through the shared feedback API.
+    // The AppShell mounts the provider; the test frame has to as well.
+    <FeedbackProvider>
+      <DrawerProvider renderDrawer={() => null}>
+        <TodayScreen data={data} onUpdateGoal={onUpdateGoal} />
+      </DrawerProvider>
+    </FeedbackProvider>
   );
   const router = createMemoryRouter(
     [

@@ -44,7 +44,7 @@ import { Link } from "react-router";
 import { useCardLongPress } from "~/shared/card/useCardLongPress";
 import { Menu, type MenuItem } from "~/shared/ui";
 import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
-import type { TaskPriority } from "~/kernel/tasks";
+import type { TaskPriority, TaskRelation } from "~/kernel/tasks";
 
 import { useTaskRowSwipe } from "./useTaskRowSwipe";
 
@@ -72,11 +72,12 @@ export interface TaskRowData {
   readonly stateTone: string;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
-  readonly parent: {
-    readonly kind: "project" | "goal" | "area";
-    readonly id: string;
-    readonly title: string;
-  } | null;
+  /**
+   * The structural parent, as the kernel resolves it — including the identity
+   * DEBT-144 added, so the row's parent mark is the parent's OWN colour and
+   * glyph rather than a neutral entity badge (TODAY-TASK-01).
+   */
+  readonly parent: TaskRelation | null;
   readonly completed: boolean;
   readonly waiting: boolean;
   readonly recurrence: SerializedTaskListItem["recurrence"];

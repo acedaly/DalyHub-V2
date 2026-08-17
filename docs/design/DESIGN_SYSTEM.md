@@ -1725,7 +1725,20 @@ The `/tasks` workspace does not render tasks as [Cards](#shared-cards-ds-04). It
 6. **Quiet is a property of the paint.** An affordance may be invisible until hover; it may never be smaller than 24×24.
 7. **The row owns no authority.** Every edit is a shared control posting a canonical intent.
 
-**Adoption.** DS-04 wired it into `/tasks` only; Today, Projects and search still render Cards ([DEBT-128](../product/PRODUCT_DEBT.md)).
+**Adoption.** DS-04 wired it into `/tasks` only. [TODAY-TASK-01](TODAY_TASK_01_ONE_TASK_ROW_2026_08.md) added **Today's plan** as its second caller and closed [DEBT-143](../product/PRODUCT_DEBT.md) with it — Today's private row is deleted, and the module declares no `.dh-today .dh-taskrow` structural override. Projects and search still render Cards ([DEBT-128](../product/PRODUCT_DEBT.md)).
+
+**What a second caller supplies, and what it must NOT.** The row asks for data plus callbacks and nothing else. A new caller supplies:
+
+| It supplies | From |
+|---|---|
+| `task` | `toTaskRowProjection(item)` — the SHARED display projection ([`task-view.ts`](../../app/shared/task-record/task-view.ts)). Never a hand-rolled derivation of the display state, the completion flag or the waiting flag. |
+| `parents` | ONE bounded `searchTaskParents({ limit })` in its loader. Never a query per row, never the whole workspace. |
+| `overflowActions` | `buildTaskRowActions(task, handlers, { readOnly })` ([`task-row-actions.tsx`](../../app/shared/task-record/task-row-actions.tsx)) — the shared SET. A caller omits an item by passing no handler for it, and states why; it never assembles a menu of its own. |
+| the callbacks | Its own host, posting the canonical intents through [`task-inline-edit.ts`](../../app/shared/task-record/task-inline-edit.ts) to `POST /tasks/:id` and `POST /tasks/bulk`. **A surface never gets a mutation endpoint of its own.** |
+
+It must not add a Today-shaped (or Projects-shaped) column, a per-surface stylesheet override of the grid, or a second optimistic applier — `applyTaskListItemPatch` is shared and generic over the record type for exactly that reason.
+
+**Two-caller rule for the ladder.** The responsive template is the LIST's, and both callers run it at different widths — `/tasks` at ~56rem+, Today's plan at ~38–44rem, both at ~21rem on a phone. A width that only one caller reaches is still a shared rung: TODAY-TASK-01 found the ≤56rem and ≤44rem rungs carrying track widths from before FINAL-UI swapped the date and project columns, which was a wide gap on `/tasks` and a one-letter project name on Today. Fix the rung, never the caller.
 
 ## Shared overflow menu (DS-12)
 

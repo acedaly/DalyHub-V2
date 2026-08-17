@@ -17,6 +17,36 @@ no version number to group them under.
 
 ---
 
+## Today's tasks are the same tasks
+
+**You can now change a task from Today without leaving it.** The rows on Today's
+plan were a different object from the rows on Tasks — they looked similar and they
+could not do the same things. A task's project, its date and its priority were
+editable on Tasks and merely printed on the screen you open first every morning.
+They are now the SAME row, so everything you could already do on Tasks you can do
+on Today: tick it, re-file it under a different Project or Area, move its date,
+change its priority, send it to Someday / Maybe, skip an occurrence of a repeating
+task, or open the full record. On a phone, swiping still completes a task one way
+and opens its date the other.
+
+**A project looks like itself, everywhere.** The small mark beside a task's
+project used to be a generic badge — every Project the same colour. It now carries
+that Project's own colour and glyph, the ones you see on the Projects page and on
+its own record, wherever the task appears.
+
+**Today looks like a workspace rather than a dashboard.** The greeting, the date
+and Today · Tomorrow · Next 7 days are one calm heading instead of three separate
+bands. The week's three figures lost their boxes and became a quiet strip — the
+same numbers, the same charts, a third of the height. The day's own plan is wider
+and starts higher up the page: on a 1440-wide laptop the first task is now 138
+pixels further up the screen. Needs attention reads as a short list of decisions
+rather than another panel.
+
+Nothing was added that DalyHub cannot honestly back — still no productivity score,
+no focus time and no invented times on tasks.
+
+---
+
 ## Overdue, on the record — and the lists get out of the way
 
 **Analytics now says what you have NOT finished.** It reported four things you

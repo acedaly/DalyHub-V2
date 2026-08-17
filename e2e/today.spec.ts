@@ -185,7 +185,11 @@ test.describe("Today — the day surface", () => {
   }) => {
     await page.goto("/today");
 
-    const overdueRows = page.locator(".dh-day-list--overdue .dh-day-row");
+    // TODAY-TASK-01 — the overdue band is the shared task list under a band
+    // labelled "Overdue"; `.dh-day-list--overdue` went with the private row.
+    const overdueRows = page.locator(
+      '.dh-day-section[data-tone="overdue"] .dh-taskrow',
+    );
     const shown = await overdueRows.count();
     if (shown === 0) {
       test.skip(true, "the shared dev workspace has nothing overdue right now");
@@ -203,10 +207,10 @@ test.describe("Today — the day surface", () => {
      * done) on a workspace that had.
      */
     const taskRows = page.locator(
-      ".dh-day-list--overdue .dh-day-row:not(.dh-day-row--more)",
+      '.dh-day-section[data-tone="overdue"] .dh-taskrow',
     );
     const openRows = page.locator(
-      '.dh-day-list--overdue .dh-day-row:not(.dh-day-row--more):not([data-done="true"])',
+      '.dh-day-section[data-tone="overdue"] .dh-taskrow:not([data-completed="true"])',
     );
     expect(await openRows.count()).toBeLessThanOrEqual(3);
     const more = page.getByRole("link", { name: /^\+\d+ more overdue$/ });
@@ -214,10 +218,20 @@ test.describe("Today — the day surface", () => {
       await expect(more).toHaveAttribute("href", "/tasks?system=overdue");
     }
 
-    // Each overdue row names WHICH date slipped and how long ago.
-    await expect(taskRows.first().locator(".dh-day-row__due")).toHaveText(
-      /^(Due|Planned) /,
-    );
+    /*
+     * Each overdue row says how long ago it slipped, in words.
+     *
+     * TODAY-TASK-01 — through the SHARED date cell rather than a Today-only
+     * trailing span: the row shows its due date, and `relativeCalendarDate`
+     * renders a passed one as "Yesterday" / "3 days ago" / "2 months ago" /
+     * "Over a year ago", bounded at every distance and in the overdue colour.
+     * The row also states the fact structurally, which is what the colour is
+     * never allowed to carry alone.
+     */
+    await expect(
+      taskRows.first().getByTestId(/^task-row-(due|scheduled)-date$/),
+    ).toHaveText(/ago$|^Yesterday$/);
+    await expect(taskRows.first()).toHaveAttribute("data-overdue", "true");
 
     // The rail holds only what the day does not show.
     const rail = page
@@ -292,7 +306,7 @@ test.describe("Today — the day surface", () => {
     expect((await response.json()).ok).toBe(true);
 
     await page.goto("/today");
-    const row = page.locator(".dh-day-row", { hasText: title }).first();
+    const row = page.locator(".dh-taskrow", { hasText: title }).first();
     await expect(row).toBeVisible();
 
     await row.getByRole("checkbox", { name: `Complete ${title}` }).check();
@@ -303,7 +317,11 @@ test.describe("Today — the day surface", () => {
 
     // The SAME task record reads as complete — one completion path, one truth.
     await page.goto("/today");
-    await page.locator(".dh-day-row", { hasText: title }).first().click();
+    await page
+      .locator(".dh-taskrow", { hasText: title })
+      .first()
+      .getByTestId("task-row-open")
+      .click();
     const record = page.getByRole("dialog");
     await expect(
       record.getByRole("heading", { name: title }).first(),
@@ -332,7 +350,7 @@ test.describe("Today — the day surface", () => {
     page,
   }) => {
     await page.goto("/today");
-    const row = page.locator(".dh-today__timeline .dh-day-row__title").first();
+    const row = page.locator(".dh-today__timeline .dh-taskrow__title").first();
     if ((await row.count()) === 0) {
       test.skip(true, "nothing on the day in the shared dev workspace");
     }

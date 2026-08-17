@@ -363,13 +363,13 @@ test.describe("GOAL-02 — Today", () => {
 
     await gotoFixture(page, "/today");
     const own = page
-      .locator(".dh-day-row", { hasText: title })
+      .locator(".dh-taskrow", { hasText: title })
       .getByRole("checkbox", { name: `Complete ${title}` });
     await own.check();
     // The row's own state is the signal that the completion landed — no sleep.
     await expect(
       page
-        .locator(".dh-day-row", { hasText: title })
+        .locator(".dh-taskrow", { hasText: title })
         .getByRole("checkbox", { name: `Reopen ${title}` }),
     ).toBeChecked();
 

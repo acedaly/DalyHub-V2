@@ -226,7 +226,7 @@ test.describe("MOBILE-01 touch targets", () => {
     await gotoFixture(page, "/");
 
     // The circle stays 20px; the shared label around it is the target.
-    const target = page.locator(".dh-day-row .dh-check-circle-target").first();
+    const target = page.locator(".dh-taskrow .dh-check-circle-target").first();
     await expectMinTouchTarget(target);
 
     const circle = target.locator(".dh-check-circle");

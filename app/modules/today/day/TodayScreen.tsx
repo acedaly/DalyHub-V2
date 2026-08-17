@@ -115,7 +115,6 @@ import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import { useCapture, type CaptureType } from "~/shared/capture";
 import { Sparkline } from "~/shared/charts";
 import { ProgressTrack } from "~/shared/progress";
-import { useCompactViewport } from "~/shared/viewport";
 import {
   AssetIcon,
   CheckCircleIcon,
@@ -137,7 +136,13 @@ import {
   goalCheckInLabel,
 } from "~/shared/goal-progress";
 
-import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
+import { TaskList } from "~/shared/task-record/TaskList";
+import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
+import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
+import {
+  applyTaskListItemPatch,
+  toTaskRowProjection,
+} from "~/shared/task-record/task-view";
 
 import { DayNav } from "../schedule/DayNav";
 import { ScheduleList } from "../schedule/ScheduleList";
@@ -147,11 +152,11 @@ import {
   focusTodaySlice,
   greetingFor,
   dayPartForHour,
-  overdueLabel,
   overdueSlice,
   tasksForTodayCount,
   type DayTask,
 } from "./day-view";
+import { useDayTaskActions } from "./use-day-task-actions";
 import {
   type AttentionItem,
   type AttentionKind,
@@ -178,12 +183,6 @@ export type TodayScreenProps = {
     goal: TodayGoal,
     trigger: HTMLElement | null,
   ) => void;
-  /**
-   * Persist a task's completion through the EXISTING task-completion path
-   * (`POST /tasks/:id`), so ticking a row on Today writes the same record the
-   * Tasks collection and the Task Drawer edit.
-   */
-  readonly onCompleteTask?: (taskId: string, complete: boolean) => void;
   /**
    * CAL-01 — open an imported calendar occurrence's detail in Today's own
    * Drawer. Supplied by the route, which owns the Drawer, exactly as the Task
@@ -252,198 +251,77 @@ const ATTENTION_TONES: Readonly<Record<AttentionKind, ToneName>> = {
   inbox: "violet",
 };
 
-/** Where a task's structural parent lives, so its pill is a real link. */
-function parentHref(parent: NonNullable<DayTask["parent"]>): string {
-  const id = encodeURIComponent(parent.id);
-  if (parent.kind === "project") return `/projects/${id}`;
-  if (parent.kind === "goal") return `/goals/${id}`;
-  return `/areas/${id}`;
-}
-
-/** The product's own noun for each parent kind, for the pill's accessible name. */
-const PARENT_KIND_LABELS: Readonly<
-  Record<NonNullable<DayTask["parent"]>["kind"], string>
-> = { project: "Project", goal: "Goal", area: "Area" };
-
 /**
- * TODAY-11 — the plan row's trailing CONTEXT, as the mockup's pill.
+ * TODAY-TASK-01 / DEBT-143 — one named band of the plan, drawn with the SHARED
+ * task row.
  *
- * The mockup ends each plan row with a coloured pill naming the part of life the
- * task belongs to. DalyHub has the relationship — a Task's structural parent is
- * a Project, a Goal or an Area — so the pill states it, links to it, and names
- * the KIND in its accessible name, because "Work" alone does not say whether it
- * is an Area or a project called Work.
+ * ── What was here ───────────────────────────────────────────────────────────
+ * A module-private `TaskRow` (a checkbox, a title link, a neutral parent pill
+ * and a priority flag) and a `ParentPill` beside it. They were a second anatomy
+ * for an object the product already had one of, and — the part that actually
+ * cost the owner something — a READ-ONLY one: a task's project, its dates and
+ * its priority were editable in place on `/tasks` and merely printed on the
+ * surface opened first every morning. Both are deleted.
  *
- * It is deliberately the NEUTRAL pill rather than an identity-coloured one. The
- * planning read returns a parent as `{ kind, id, title }` and carries no icon or
- * colour; resolving identity here would mean either a read per row (the N+1 this
- * pass forbids) or widening a kernel type used across the whole product from
- * inside a Today redesign. Colouring only the parents that happen to be in
- * another already-loaded list would be worse than colouring none: a list where
- * some rows carry identity and some do not reads as a rendering fault. Recorded
- * as debt with a closing condition rather than half-done.
- */
-function ParentPill({
-  parent,
-}: {
-  readonly parent: NonNullable<DayTask["parent"]>;
-}) {
-  return (
-    <Link
-      className="dh-day-row__parent"
-      to={parentHref(parent)}
-      aria-label={`${PARENT_KIND_LABELS[parent.kind]}: ${parent.title}`}
-    >
-      {parent.title}
-    </Link>
-  );
-}
-
-/**
- * One task row: a checkbox that completes, and a title that opens the record.
+ * ── What draws the row now ──────────────────────────────────────────────────
+ * `~/shared/task-record/TaskRow`, inside the shared `TaskList` that owns the
+ * column grid. Every capability comes with it and none of it is re-implemented
+ * here: completion, the inline project/date/priority editors, the row overflow,
+ * the touch long-press, the swipe, the pending/offline note and the
+ * accessibility behaviour. The plan's own facts did not need a new slot to
+ * survive, which is the strongest evidence the two rows were the same row:
  *
- * The checkbox and the title are two separate controls on purpose — ticking is
- * the frequent act and must never be a click away from opening a drawer by
- * accident, and opening must never require aiming past a checkbox.
+ *   - the mockup's context PILL is the row's project cell, and it is now an
+ *     identity-carrying editor rather than a neutral link (DEBT-144);
+ *   - the overdue AGE ("Due 2 days ago") is the row's date cell, which already
+ *     renders a passed date as "2 days ago" in the overdue colour, in words;
+ *   - the priority FLAG is the row's priority cell.
  *
- * ── On the shared `TaskRow` ─────────────────────────────────────────────────
- * This is NOT `~/shared/task-record/TaskRow`, and that remains outstanding work
- * rather than a decision that Today should differ. What is already shared is the
- * part that matters most for consistency: the completion control
- * (`dh-check-circle` with the product-wide "Complete <title>" name), the
- * `PriorityIndicator`, the band heading language and the row density — FINAL-UI
- * §4.3 records that convergence. What is not shared is the ANATOMY: the shared
- * row is a five-column grid owned by `TaskList` (`project · due · priority ·
- * status`) with inline editors for each, and adopting it here needs a bounded
- * parents read, five mutation intents and a per-row overflow menu that Today's
- * loader and route do not have. See `PRODUCT_DEBT.md` for the closing condition.
- */
-function TaskRow({
-  task,
-  done,
-  trailing,
-  onToggle,
-  openHref,
-  onOpen,
-}: {
-  readonly task: DayTask;
-  readonly done: boolean;
-  /** The row's one trailing fact — the parent pill, or the overdue age. */
-  readonly trailing: React.ReactNode;
-  readonly onToggle: (done: boolean) => void;
-  readonly openHref: string;
-  readonly onOpen: () => void;
-}) {
-  return (
-    <li className="dh-day-row" data-done={done ? "true" : undefined}>
-      {/*
-       * MOBILE-01 (iPhone daily driver) — the shared 44px hit area.
-       *
-       * The circle itself is 20px and stays 20px; what it lacked was the
-       * `.dh-check-circle-target` label the Tasks collection and the Project
-       * tasks tab both wrap it in. Measured before that change at 320/375/390/430:
-       * the effective target on Today's rows was 20×20, on the single most
-       * used control in the product, on the surface a phone opens first. The
-       * label pulls its own padding back out of the row's rhythm, so the row is
-       * still laid out against the circle and no row grew.
-       */}
-      <label className="dh-check-circle-target">
-        <input
-          type="checkbox"
-          className="dh-check-circle dh-day-row__check"
-          checked={done}
-          aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
-          onChange={(event) => onToggle(event.currentTarget.checked)}
-        />
-      </label>
-      <a
-        className="dh-day-row__title"
-        href={openHref}
-        onClick={(event) => {
-          if (
-            event.metaKey ||
-            event.ctrlKey ||
-            event.shiftKey ||
-            event.button !== 0
-          ) {
-            return;
-          }
-          event.preventDefault();
-          onOpen();
-        }}
-      >
-        {task.title}
-      </a>
-      {trailing}
-      {/*
-       * TODAY-10 — priority, and ONLY when the task has one.
-       *
-       * The plan orders by priority, so the row has to be able to explain its
-       * own position; without it the panel is a list in an order the owner
-       * cannot see. It is the SHARED `PriorityIndicator` the Tasks collection,
-       * the Waiting card and Search all draw — one appearance, one vocabulary,
-       * no Today-only priority treatment — and it renders NOTHING when the task
-       * is untriaged, which is most rows on most days.
-       *
-       * TODAY-11 moved it to the END of the row, where MOCKUP 5 draws it: the
-       * flag is the last thing on the line, after the context pill. It sat
-       * between the title and the trailing fact before, which put a variable
-       * gap in the middle of every row.
-       */}
-      <PriorityIndicator
-        priority={task.priority}
-        className="dh-day-row__priority"
-      />
-    </li>
-  );
-}
-
-/**
- * TODAY-10 — one named band of the plan.
- *
- * A band is a heading and its rows, and nothing else: no card, no surface, no
- * count beside the label. It renders only when it holds work, so the panel's
- * shape follows the day rather than the model — a day with only deadlines is one
- * labelled list, not one list and an empty heading.
- *
- * The label is an `h3` under the panel's own `h2`, which is what makes the
- * headings a real outline for a screen reader: Today's plan → Overdue / Due
- * today / Planned today.
+ * A band is still a heading and its rows: no card, no surface, no count beside
+ * the label, and it renders only when it holds work. The label is an `h3` under
+ * the panel's `h2`, which is what makes the headings a real outline — Today's
+ * plan → Overdue / Due today / Planned today.
  */
 function PlanBand({
   label,
+  tone,
   tasks,
-  isDone,
-  onToggle,
-  taskHref,
-  onOpen,
+  rowProps,
+  children,
 }: {
   readonly label: string;
+  readonly tone?: "overdue";
   readonly tasks: readonly DayTask[];
-  readonly isDone: (task: DayTask) => boolean;
-  readonly onToggle: (task: DayTask, done: boolean) => void;
-  readonly taskHref: (id: string) => string;
-  readonly onOpen: (id: string) => void;
+  readonly rowProps: (task: DayTask) => TaskRowProps;
+  /** The band's own trailing row, when it has one (the overdue remainder). */
+  readonly children?: React.ReactNode;
 }) {
   if (tasks.length === 0) {
     return null;
   }
   return (
-    <div className="dh-day-section">
+    <div className="dh-day-section" data-tone={tone}>
       <h3 className="dh-day-section__label">{label}</h3>
-      <ul className="dh-day-list">
+      {/*
+       * The band's own `TaskList`.
+       *
+       * The list — not the row — owns the column template, and it is a container
+       * query on the LIST's width, so the same rows that run five columns across
+       * `/tasks` run three inside the plan's narrower card and become the phone's
+       * two-line composition at 393. That is why Today needed no Today-specific
+       * column rules: the responsive ladder is a property of the shared list and
+       * Today simply gives it less room.
+       *
+       * One list per band rather than one for the panel, because the bands are
+       * three separately-bounded slices with their own headings; they are the
+       * same width, so the columns line up across all three.
+       */}
+      <TaskList ariaLabel={`${label} tasks`}>
         {tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            done={isDone(task)}
-            trailing={task.parent ? <ParentPill parent={task.parent} /> : null}
-            onToggle={(next) => onToggle(task, next)}
-            openHref={taskHref(task.id)}
-            onOpen={() => onOpen(task.id)}
-          />
+          <TaskRow key={task.id} {...rowProps(task)} />
         ))}
-      </ul>
+        {children}
+      </TaskList>
     </div>
   );
 }
@@ -492,7 +370,15 @@ function MeasurePlot({ measure }: { readonly measure: TodayMeasure }) {
             value: point.value,
           }))}
           direction="increase"
-          height={32}
+          /*
+           * TODAY-TASK-01 §B2 — 24px, down from 32.
+           *
+           * The plot now sits BESIDE the figure rather than under it, so its
+           * height is bounded by the line it shares. Evidence for a number, at
+           * the size evidence should be; a chart is Analytics' subject, not
+           * Today's.
+           */
+          height={24}
         />
       ) : (
         <ProgressTrack
@@ -549,22 +435,34 @@ function TodayStatRank({
         const body = (
           <>
             <span className="dh-today__measure-label">{measure.label}</span>
-            <span className="dh-today__measure-value">{measure.value}</span>
+            {/* The figure and its evidence share ONE line, which is what makes
+                the rank a strip rather than three tiles. */}
+            <span className="dh-today__measure-figure">
+              <span className="dh-today__measure-value">{measure.value}</span>
+              <MeasurePlot measure={measure} />
+            </span>
             <span className="dh-today__measure-note">{measure.note}</span>
           </>
         );
         return (
           <li className="dh-today__measure" key={measure.id}>
+            {/*
+             * The body is ALWAYS one element — a link when there is somewhere to
+             * go, a plain box when there is not — so a linked and an unlinked
+             * measure are the same object at a glance and the plot sits inside
+             * the same box as the figure either way. The link is an affordance on
+             * the measure, not a different measure.
+             */}
             {measure.href === null ? (
-              body
+              <span className="dh-today__measure-body">{body}</span>
             ) : (
-              /* The whole card is the target — a figure the owner is being
-                 invited to check should not need them to aim at its label. */
-              <Link className="dh-today__measure-link" to={measure.href}>
+              <Link
+                className="dh-today__measure-body dh-today__measure-link"
+                to={measure.href}
+              >
                 {body}
               </Link>
             )}
-            <MeasurePlot measure={measure} />
           </li>
         );
       })}
@@ -978,78 +876,58 @@ function ReflectionCard({
 
 export function TodayScreen({
   data,
-  onCompleteTask,
   onUpdateGoal,
   onOpenEvent,
   eventHref,
 }: TodayScreenProps) {
   const [searchParams] = useSearchParams();
   const { openDrawer } = useDrawer();
-  /*
-   * MOBILE-02 §7 — the one thing on this screen a media query cannot do.
-   *
-   * The overdue row's trailing fact is TEXT, and a phone needs a shorter string
-   * rather than a smaller one. Everything else about this screen's phone
-   * composition is CSS, which is the rule `use-compact-viewport` states for
-   * itself: the hook is for behaviour that changes the DOM, never for
-   * presentation. It is desktop-first on the server, so the first byte carries
-   * the full phrase and the client shortens it after mount — which is also the
-   * safe direction if scripting never arrives.
-   */
-  const compactRows = useCompactViewport();
 
   /*
-   * Optimistic completion overrides, keyed by task id → intended state. The
-   * server truth is the base; an override reflects an in-flight toggle and is
-   * dropped the moment fresh loader data arrives. Ticking a task must feel
-   * instant (AGENTS.md §16), and every figure derived from the day is derived
-   * from the SAME overridden state, so nothing on the page can disagree.
+   * TODAY-TASK-01 — the day's mutations, through the CANONICAL routes.
+   *
+   * `useDayTaskActions` holds the in-flight patch map, posts to `/tasks/:id` and
+   * `/tasks/bulk`, revalidates on success and rolls back exactly what a refused
+   * write painted. It is a HOST, not an authority — see its own file.
    */
-  const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(
-    new Map(),
-  );
+  const actions = useDayTaskActions();
+  const { clearPatches } = actions;
+  // Fresh loader data is the truth; every client guess is dropped the moment it
+  // arrives, which is what keeps a patch a guess rather than a second state.
   useEffect(() => {
-    setOverrides((previous) => (previous.size === 0 ? previous : new Map()));
-  }, [data]);
-
-  const isDone = useCallback(
-    (task: DayTask) => overrides.get(task.id) ?? task.completed,
-    [overrides],
-  );
-
-  const toggle = useCallback(
-    (task: DayTask, willBeDone: boolean) => {
-      setOverrides((previous) => {
-        const next = new Map(previous);
-        next.set(task.id, willBeDone);
-        return next;
-      });
-      onCompleteTask?.(task.id, willBeDone);
-    },
-    [onCompleteTask],
-  );
+    clearPatches();
+  }, [data, clearPatches]);
 
   /*
-   * The day, re-bucketed against the OPTIMISTIC completion state.
+   * The day, re-bucketed against the OPTIMISTIC state.
    *
-   * Re-running the pure bucketing (rather than patching the loader's arrays)
-   * is what keeps a ticked task in place, dimmed at the end of the day's list,
-   * and the count stable while the row moves.
+   * Every patch is applied to the SOURCE record and the pure bucketing is then
+   * re-run over the result, so a ticked task stays in place, dimmed at the end of
+   * the band it was already in, and the count stays stable while the row moves.
+   * Re-deriving rather than patching the rendered row is what stops an optimistic
+   * row having a display value the server's own answer could not produce.
+   *
+   * It also means a change made from a row — a new project, a new due date —
+   * re-buckets the day immediately: re-projecting a task to tomorrow moves it out
+   * of "Due today" without waiting for the round trip, and the revalidation
+   * confirms it.
    */
   const buckets = useMemo(() => {
     const applied = [...data.overdue, ...data.today].map((task) => {
-      const override = overrides.get(task.id);
-      if (override === undefined || override === task.completed) {
-        return task;
-      }
+      const patched = applyTaskListItemPatch(
+        task,
+        actions.patches.get(task.id),
+      );
+      if (patched === task) return task;
+      const completed = patched.completedAt !== null;
       return {
-        ...task,
-        completed: override,
-        completedDate: override ? data.todayIso : null,
+        ...patched,
+        completed,
+        completedDate: completed ? (task.completedDate ?? data.todayIso) : null,
       };
     });
     return bucketDay(applied, data.todayIso);
-  }, [data, overrides]);
+  }, [data, actions.patches]);
 
   /*
    * TODAY-10 — the figure is the CANONICAL count, not the row count.
@@ -1064,11 +942,6 @@ export function TodayScreen({
   const overdue = overdueSlice(buckets.overdue);
   const plan = focusTodaySlice(buckets);
   const greeting = greetingFor(dayPartForHour(data.hour), data.ownerName);
-
-  const openTask = useCallback(
-    (id: string) => openDrawer(`task:${id}`),
-    [openDrawer],
-  );
 
   /*
    * The ONE contextual command Today registers: `?` opens the keyboard
@@ -1100,10 +973,70 @@ export function TodayScreen({
   );
   useRegisterContextualActions(helpCommand);
 
-  const taskHref = useCallback(
-    (id: string) =>
-      `?${withDrawerPushed(searchParams, `task:${id}`).toString()}`,
-    [searchParams],
+  /**
+   * TODAY-TASK-01 — one day task, as SHARED `TaskRow` props.
+   *
+   * Everything about authority is the Tasks collection's: the completion control,
+   * the three inline editors and the overflow all post the same canonical intents
+   * to the same canonical routes. What this function supplies is only the data
+   * and the callbacks — which is the whole contract the shared row asks for.
+   *
+   * Two deliberate differences from `/tasks`, each an omission the caller states
+   * rather than a second menu it assembles:
+   *
+   *   - **no "Plan for today"**. Every row on this panel is already today's work
+   *     — it is the membership rule the panel is built from — so the item would
+   *     be an act with no effect on every row it appeared on.
+   *   - **no "Rename"**. Today's plan is a bounded view of the day, not the
+   *     collection you file and tidy from; renaming lives on `/tasks` and in the
+   *     record, both one click away through the same menu's last item.
+   */
+  const rowProps = useCallback(
+    (task: DayTask): TaskRowProps => {
+      const key = `task:${task.id}`;
+      const row = toTaskRowProjection(task);
+      return {
+        task: row,
+        todayIso: data.todayIso,
+        parents: data.parents,
+        // `h3` under the band's own `h3`? No — the band label is the `h3`, so the
+        // row's title is one level deeper and the outline stays: page → panel →
+        // band → task.
+        headingLevel: 3,
+        href: `?${withDrawerPushed(searchParams, key).toString()}`,
+        onOpen: () => openDrawer(key),
+        onCompletedChange: (complete: boolean) =>
+          actions.setCompleted(task.id, complete, task.title),
+        onInlineSave: actions.reportInlineSave,
+        // The project menu's escape hatch: the SAME searchable picker `/tasks`
+        // opens, through the same drawer key.
+        onSearchParents: () => openDrawer(`task-move:${task.id}`),
+        overflowActions: buildTaskRowActions(row, {
+          onOpenRecord: () => openDrawer(key),
+          onMoveToParent: () => openDrawer(`task-move:${task.id}`),
+          onSomeday: () =>
+            actions.setField(
+              task.id,
+              { intent: "set_commitment", commitment: "someday" },
+              `${task.title} moved to Someday / Maybe.`,
+              { commitmentState: "someday" },
+            ),
+          onSkipOccurrence: () =>
+            actions.setRecord(
+              task.id,
+              { intent: "skip_occurrence" },
+              `Skipped this occurrence of ${task.title}.`,
+            ),
+          onStopRepeating: () =>
+            actions.setRecord(
+              task.id,
+              { intent: "set_recurrence" },
+              `${task.title} no longer repeats.`,
+            ),
+        }),
+      };
+    },
+    [data.todayIso, data.parents, searchParams, openDrawer, actions],
   );
 
   const hasDay = buckets.overdue.length > 0 || buckets.today.length > 0;
@@ -1139,20 +1072,45 @@ export function TodayScreen({
        * contextual one stays at the foot of the plan where the list ends, and
        * Quick capture stays because it is the multi-TYPE door.
        */}
+      {/*
+       * TODAY-TASK-01 §B3 — ONE heading AREA, not three vertical beats.
+       *
+       * The greeting, the date and the day navigation were three siblings of the
+       * page's flex column, each paying the column's own 20px gap: measured at
+       * 1440 the block ran from the first baseline to the foot of the rail in
+       * 107px, and read as "heading, gap, navigation, gap, dashboard". They are
+       * one thing — *who and when, and which day am I looking at* — so they are
+       * now one element with its own internal rhythm, and the rail sits directly
+       * under the date rather than a page-gap below it.
+       *
+       * ── The mockup's SEARCH icon is deliberately not here ──────────────────
+       * The shell already carries search, as a real labelled control on the same
+       * gutter line one rank above this heading (`DesktopTopBar`) and in the
+       * phone bar (`MobileTopBar`), both bound to `/`. A second search
+       * affordance on one page is the "second search implementation to keep in
+       * step with the first" DS-03 refused when it settled the control's fourth
+       * and final home.
+       *
+       * ── The header's "+ Add task" is deliberately GONE ─────────────────────
+       * CONVERGE-01 §1 / MOBILE-02 §5. Today carried FIVE doors onto the same
+       * capture sheet: the shell's global `+`, this header button, the ghost
+       * "Add task" at the foot of the plan, the Quick capture card and the phone
+       * FAB. This one was the only one that opened `capture.openCapture("task")`
+       * with no context the foot's control does not also have, and on a phone it
+       * was a full-width primary button sitting between the greeting and the
+       * first task.
+       */}
       <header className="dh-today__head">
         <div className="dh-today__identity">
           <h1 className="dh-today__greeting">{greeting}</h1>
           <p className="dh-today__date">{data.dateLong}</p>
         </div>
+        {/* CAL-02 — the three daily surfaces. It survives TODAY-11 because the
+            Schedule panel's week strip navigates the SCHEDULE's day, while
+            Tomorrow and Next 7 days carry tomorrow's TASKS and seven days of
+            task counts — which a strip over one panel cannot. */}
+        <DayNav active="today" />
       </header>
-
-      {/* CAL-02 — the three daily surfaces. A restrained text rail directly
-          under the page's own heading block, exactly where every other
-          collection in DalyHub puts its principal-mode rail. It survives
-          TODAY-11 because the Schedule panel's week strip navigates the
-          SCHEDULE's day, while Tomorrow and Next 7 days carry tomorrow's TASKS
-          and seven days of task counts — which a strip over one panel cannot. */}
-      <DayNav active="today" />
 
       {/*
        * ── ONE GRID ─────────────────────────────────────────────────────────
@@ -1247,83 +1205,51 @@ export function TodayScreen({
                * TODAY-10 — Overdue is NAMED, in the same quiet heading language
                * as its siblings. The one band whose meaning could be carried by
                * colour is the one that must not be (AGENTS.md §15), and the
-               * trailing "Due 3 days ago" says it a second time in words.
+               * row's own date says it a second time in words — "2 days ago",
+               * from the shared date cell, in the overdue colour.
                */}
-              {overdue.shown.length > 0 ? (
-                <div className="dh-day-section" data-tone="overdue">
-                  <h3 className="dh-day-section__label">Overdue</h3>
-                  <ul className="dh-day-list dh-day-list--overdue">
-                    {overdue.shown.map((task) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        done={isDone(task)}
-                        trailing={
-                          /*
-                           * MOBILE-02 §7 — the short form is DRAWN and the full
-                           * phrase is ANNOUNCED. A phone row cannot afford "Due
-                           * over a year ago" beside a task title, and a screen
-                           * reader must never be handed "Due 1y+".
-                           */
-                          <span className="dh-day-row__due">
-                            <span className="dh-visually-hidden">
-                              {overdueLabel(task, data.todayIso)}
-                            </span>
-                            <span aria-hidden="true">
-                              {overdueLabel(task, data.todayIso, compactRows)}
-                            </span>
-                          </span>
-                        }
-                        onToggle={(next) => toggle(task, next)}
-                        openHref={taskHref(task.id)}
-                        onOpen={() => openTask(task.id)}
-                      />
-                    ))}
-                    {/* The remainder row is NOT a task row: it carries no
-                    completion control and opens a collection rather than a
-                    record. It says so in its class, so anything counting the
-                    day's overdue tasks — CSS, a screen reader's list, a
-                    regression test — is not counting the link that says how
-                    many were left out. */}
-                    {overdue.hidden > 0 ? (
-                      <li className="dh-day-row dh-day-row--more">
-                        <Link
-                          className="dh-day-row__more-link"
-                          to="/tasks?system=overdue"
-                        >
-                          +{overdue.hidden} more overdue
-                        </Link>
-                      </li>
-                    ) : null}
-                  </ul>
-                </div>
-              ) : null}
+              <PlanBand
+                label="Overdue"
+                tone="overdue"
+                tasks={overdue.shown}
+                rowProps={rowProps}
+              >
+                {/* The remainder row is NOT a task row: it carries no completion
+                    control and opens a collection rather than a record. It says
+                    so in its class, so anything counting the day's overdue tasks
+                    — CSS, a screen reader's list, a regression test — is not
+                    counting the link that says how many were left out. */}
+                {overdue.hidden > 0 ? (
+                  <li className="dh-day-row dh-day-row--more">
+                    <Link
+                      className="dh-day-row__more-link"
+                      to="/tasks?system=overdue"
+                    >
+                      +{overdue.hidden} more overdue
+                    </Link>
+                  </li>
+                ) : null}
+              </PlanBand>
 
               {/*
                * TODAY-10 — the day's own work, in two named bands.
                *
                * A task DUE today is a deadline; a task PLANNED for today is a
                * choice the owner made, and it may not be due for weeks. The
-               * distinction is carried by the band, not by the row, because the
-               * row's one trailing slot is the parent — and at 320px a row
-               * cannot hold a title, a date phrase AND a context pill without
-               * the title losing. Each band draws only when it has work.
+               * distinction is carried by the BAND rather than by the row,
+               * because the row's date cell shows one date and the band says
+               * which of the two put the task on the day. Each band draws only
+               * when it has work.
                */}
               <PlanBand
                 label="Due today"
                 tasks={plan.dueToday}
-                isDone={isDone}
-                onToggle={toggle}
-                taskHref={taskHref}
-                onOpen={openTask}
+                rowProps={rowProps}
               />
               <PlanBand
                 label="Planned today"
                 tasks={plan.plannedToday}
-                isDone={isDone}
-                onToggle={toggle}
-                taskHref={taskHref}
-                onOpen={openTask}
+                rowProps={rowProps}
               />
 
               {/* Overdue work but nothing actually ON today is a real and
@@ -1502,6 +1428,14 @@ export function TodayScreen({
           All clear.
         </p>
       ) : null}
+
+      {/* Every row mutation announces its outcome once, politely — the SAME one
+          channel `/tasks` uses, so a change made here is announced in the same
+          words it would be there. A refusal is a notification instead, because a
+          failure has to interrupt. */}
+      <p className="dh-visually-hidden" role="status" aria-live="polite">
+        {actions.announcement ?? ""}
+      </p>
     </div>
   );
 }
