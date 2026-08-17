@@ -86,7 +86,9 @@ import {
   validateTaskId,
   validateTaskIdList,
   validateTaskLimit,
+  validateTaskPriorities,
   validateTaskPriority,
+  validateTaskDateBound,
   validateTaskSeriesEditScope,
   validateTaskSort,
   validateTaskSortDirection,
@@ -1898,6 +1900,15 @@ export class D1TaskRepository implements TaskRepository {
       filters.delegatedTo === undefined || filters.delegatedTo === null
         ? undefined
         : String(filters.delegatedTo);
+    // PLAN-01 / SMART-01 — the set and range filters. Every value is validated
+    // here and BOUND below; nothing reaches SQL as text.
+    const filterPriorities = validateTaskPriorities(filters.priorities);
+    const filterDueFrom = validateTaskDateBound(filters.dueFrom);
+    const filterDueTo = validateTaskDateBound(filters.dueTo);
+    const filterPlannedFrom = validateTaskDateBound(filters.plannedFrom);
+    const filterPlannedTo = validateTaskDateBound(filters.plannedTo);
+    const filterRecurring =
+      typeof filters.recurring === "boolean" ? filters.recurring : undefined;
 
     if (filterPriority !== undefined) {
       if (filterPriority === null) {
@@ -2030,6 +2041,58 @@ export class D1TaskRepository implements TaskRepository {
       whereParts.push("e.updated_at >= ?");
       params.push(
         `${recencyWindowStart(todayIso, filterUpdatedWithin)}T00:00:00.000Z`,
+      );
+    }
+    if (filterPriorities !== undefined) {
+      /*
+       * A SET of priorities, as one bound IN-list plus an explicit NULL branch.
+       *
+       * The members come from the closed priority vocabulary, so the placeholder
+       * count is derived from validated data and every value is bound — the list
+       * is never assembled from caller text. `p4` carries the same
+       * stored-null-IS-P4 contract the scalar filter documents (CONTROL-01), so
+       * "P1 and P4" returns exactly the rows the screen labels P1 and P4.
+       */
+      const explicit = filterPriorities.filter(
+        (value): value is TaskPriority => value !== null,
+      );
+      const wantsNull =
+        filterPriorities.includes(null) || explicit.includes("p4");
+      const clauses: string[] = [];
+      if (explicit.length > 0) {
+        clauses.push(
+          `td.priority IN (${explicit.map(() => "?").join(", ")})`,
+        );
+        params.push(...explicit);
+      }
+      if (wantsNull) clauses.push("td.priority IS NULL");
+      whereParts.push(`(${clauses.join(" OR ")})`);
+    }
+    if (filterDueFrom !== undefined) {
+      whereParts.push("td.due_date IS NOT NULL AND td.due_date >= ?");
+      params.push(filterDueFrom);
+    }
+    if (filterDueTo !== undefined) {
+      whereParts.push("td.due_date IS NOT NULL AND td.due_date <= ?");
+      params.push(filterDueTo);
+    }
+    if (filterPlannedFrom !== undefined) {
+      whereParts.push(
+        "td.scheduled_date IS NOT NULL AND td.scheduled_date >= ?",
+      );
+      params.push(filterPlannedFrom);
+    }
+    if (filterPlannedTo !== undefined) {
+      whereParts.push(
+        "td.scheduled_date IS NOT NULL AND td.scheduled_date <= ?",
+      );
+      params.push(filterPlannedTo);
+    }
+    if (filterRecurring !== undefined) {
+      // `rr` is the LEFT-JOINed recurrence rule the list already resolves for
+      // the row's repeat signal, so this costs no extra join.
+      whereParts.push(
+        filterRecurring ? "rr.entity_id IS NOT NULL" : "rr.entity_id IS NULL",
       );
     }
     // Completed visibility is applied LAST and on top of the view, so it can widen
@@ -2569,6 +2632,18 @@ export class D1TaskRepository implements TaskRepository {
         // The lifecycle predicate (`#taskLifecycleWhere`) already restricted the
         // population to soft-deleted Tasks; nothing further narrows it, so every
         // deleted Task — completed, cancelled, parked or ordinary — is restorable.
+        return;
+      case "open":
+        /*
+         * PLAN-01 — the OPEN scope: still committed, not yet finished.
+         *
+         * `notTerminal` alone, which is the whole definition: completed,
+         * cancelled and Someday/Maybe are out; waiting and on_hold stay IN,
+         * because a Task blocked on someone else is still a commitment the
+         * owner made and a week that hides it is a week that lies. It is the
+         * one view of the fifteen that keeps the parked states.
+         */
+        whereParts.push(notTerminal);
         return;
       case "active":
         // The ACTIVE PLANNING scope (Matrix/Sectors, ADR-043 §11): actionable-now

@@ -651,6 +651,23 @@ export const TASK_SYSTEM_VIEWS = [
    */
   "deleted",
   /**
+   * PLAN-01 — the OPEN scope: every Task the owner is still committed to.
+   *
+   * `active` was the closest existing scope and it is the wrong one for a
+   * WEEK: it excludes the two parked states, so a Task the owner planned for
+   * Wednesday and is waiting on someone for would vanish from Wednesday. A
+   * planner that silently drops a commitment is worse than one that shows it
+   * as blocked (PLAN-01 §B7), so this view keeps `waiting` and `on_hold` and
+   * excludes only the three TERMINAL/parked-out-of-commitment states the whole
+   * product excludes: completed, cancelled and Someday/Maybe.
+   *
+   * It is therefore the widest scope that still means "work I intend to do",
+   * and it is what the planning week's own read and a date-range saved view
+   * both want. The surface distinguishes blocked work in WORDS (the row's own
+   * state pill), never by hiding it.
+   */
+  "open",
+  /**
    * The ACTIVE PLANNING scope — the default for the Matrix and Sectors planning
    * views (ADR-043 §11), distinct from `all` (the complete collection incl.
    * terminal/parked records). It excludes every state that is not actionable *now*:
@@ -812,6 +829,57 @@ export type WorkspaceTaskFilters = {
   readonly updatedWithin?: TaskRecencyWindow;
   /** Completed/terminal visibility applied on top of the system view. */
   readonly completedVisibility?: TaskCompletedVisibility;
+
+  /* ---- PLAN-01 / SMART-01 additions. -------------------------------------
+     Every one is resolved SERVER-side and bound into the cursor signature, so a
+     page-two cursor can never survive a filter change — the same contract the
+     TASKS-03 filters above hold to. */
+
+  /**
+   * PRIORITIES, as a SET rather than a single value.
+   *
+   * "Priority 1 and 2" is the most common real filter an owner wants and the one
+   * the single-valued `priority` above cannot express. A closed set of at most
+   * four members is not an arbitrary OR clause — it is one dimension with more
+   * than one accepted value, which stays safe to persist and safe to restore from
+   * an untrusted URL because the members come from a closed vocabulary and the
+   * repository still chooses the predicate.
+   *
+   * `null` inside the set is the explicit "no priority recorded" member, so
+   * "P1, P2 or untriaged" is expressible. An EMPTY set is not a filter (it would
+   * match nothing, which no control can produce and no owner intends) and is
+   * treated as absent.
+   *
+   * `priority` (the scalar) is retained: it is a genuinely different query — one
+   * value, including its documented P4-includes-null behaviour — and existing
+   * links, cursors and callers keep working. A caller supplying both is applying
+   * both, which narrows to their intersection.
+   */
+  readonly priorities?: readonly (TaskPriority | null)[];
+  /** Only Tasks whose DUE date is on or after this wall-calendar date. */
+  readonly dueFrom?: string;
+  /** Only Tasks whose DUE date is on or before this wall-calendar date. */
+  readonly dueTo?: string;
+  /**
+   * Only Tasks whose PLANNED (scheduled) date is on or after this date.
+   *
+   * The planned date is the owner's intention and the due date is the deadline
+   * (ADR-043 §3), and these two pairs of bounds are as strictly separate as the
+   * dates they read. A range never matches a Task with no date in that field: a
+   * missing date is not inside any window, and treating it as one is how "planned
+   * next week" comes to include the entire unplanned backlog.
+   */
+  readonly plannedFrom?: string;
+  /** Only Tasks whose PLANNED (scheduled) date is on or before this date. */
+  readonly plannedTo?: string;
+  /**
+   * Only Tasks that REPEAT — that carry a stored recurrence rule (TASKS-04).
+   *
+   * `true` narrows to recurring Tasks and `false` to one-off ones; absent is no
+   * filter. It reads the same `task_recurrence_rules` join the list already
+   * makes for the row's repeat signal, so it costs no additional query.
+   */
+  readonly recurring?: boolean;
 };
 
 /** Options for the bounded, cursor-paginated workspace-wide Tasks query. */

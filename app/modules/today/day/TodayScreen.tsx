@@ -156,7 +156,7 @@ import {
   tasksForTodayCount,
   type DayTask,
 } from "./day-view";
-import { useDayTaskActions } from "./use-day-task-actions";
+import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
 import {
   type AttentionItem,
   type AttentionKind,
@@ -886,11 +886,11 @@ export function TodayScreen({
   /*
    * TODAY-TASK-01 — the day's mutations, through the CANONICAL routes.
    *
-   * `useDayTaskActions` holds the in-flight patch map, posts to `/tasks/:id` and
+   * `useTaskSurfaceActions` holds the in-flight patch map, posts to `/tasks/:id` and
    * `/tasks/bulk`, revalidates on success and rolls back exactly what a refused
    * write painted. It is a HOST, not an authority — see its own file.
    */
-  const actions = useDayTaskActions();
+  const actions = useTaskSurfaceActions();
   const { clearPatches } = actions;
   // Fresh loader data is the truth; every client guess is dropped the moment it
   // arrives, which is what keeps a patch a guess rather than a second state.

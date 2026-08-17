@@ -58,6 +58,7 @@ export {
   activeSummary,
   applyDraft,
   currentValue,
+  currentValues,
   draftFromParams,
   draftIsDirty,
   emptyDraft,

@@ -274,7 +274,20 @@ export function CollectionControls({
         >
           <div className="dh-collection-sheet">
             {groups.map((group) => {
-              const selected = draft[group.param] ?? null;
+              const committed = draft[group.param] ?? null;
+              /*
+               * SMART-01 — a multi-select group's draft value is a comma list, so
+               * "is this option chosen?" is a membership test rather than an
+               * equality one. `SheetOption` already announces itself with
+               * `aria-pressed`, which is toggle semantics: a multi-select group
+               * needs no second control type, only the right answer here.
+               */
+              const selected =
+                committed === null
+                  ? []
+                  : group.multiple === true
+                    ? committed.split(",")
+                    : [committed];
               return (
                 <section
                   key={group.id}
@@ -299,8 +312,8 @@ export function CollectionControls({
                           ? { icon: <ControlOptionMark mark={option.mark} /> }
                           : {})}
                         selected={
-                          selected === option.value ||
-                          (selected === null &&
+                          selected.includes(option.value) ||
+                          (selected.length === 0 &&
                             option.value === (group.defaultValue ?? ""))
                         }
                         onSelect={() =>

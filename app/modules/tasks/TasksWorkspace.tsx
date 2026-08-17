@@ -1468,8 +1468,18 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       timeSector?: string;
       scheduledDate?: string;
     } = {};
-    const priority = config.filters.priority;
-    if (priority && priority !== "__none") defaults.priority = priority;
+    /*
+     * SMART-01 — a quick-add default is seeded from the priority filter only when
+     * it names EXACTLY ONE real priority. The dimension is a set now, and a view
+     * filtered to "P1 and P2" has no single priority a new Task should inherit —
+     * picking one of the two would be inventing the owner's intent.
+     */
+    const priorities = config.filters.priorities;
+    const onlyPriority =
+      priorities?.length === 1 && priorities[0] !== "__none"
+        ? priorities[0]
+        : undefined;
+    if (onlyPriority) defaults.priority = onlyPriority;
     const sector = config.filters.timeSector;
     if (sector && sector !== "__none") defaults.timeSector = sector;
     else if ((TIME_SECTORS as readonly string[]).includes(config.systemView)) {

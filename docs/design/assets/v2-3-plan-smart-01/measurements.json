@@ -1,0 +1,893 @@
+{
+  "plan-1440-light": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 1216,
+      "height": 1084,
+      "top": 56
+    },
+    "agenda": {
+      "width": 856,
+      "height": 759,
+      "top": 156
+    },
+    "queueRail": {
+      "width": 336,
+      "height": 952,
+      "top": 156
+    },
+    "firstDaySection": {
+      "width": 856,
+      "height": 110,
+      "top": 247
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 297,
+    "dayControlTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-1440-dark": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 1216,
+      "height": 1084,
+      "top": 56
+    },
+    "agenda": {
+      "width": 856,
+      "height": 759,
+      "top": 156
+    },
+    "queueRail": {
+      "width": 336,
+      "height": 952,
+      "top": 156
+    },
+    "firstDaySection": {
+      "width": 856,
+      "height": 110,
+      "top": 247
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 297,
+    "dayControlTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-1280": {
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 1056,
+      "height": 984,
+      "top": 56
+    },
+    "agenda": {
+      "width": 696,
+      "height": 759,
+      "top": 156
+    },
+    "queueRail": {
+      "width": 336,
+      "height": 852,
+      "top": 156
+    },
+    "firstDaySection": {
+      "width": 696,
+      "height": 110,
+      "top": 247
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 297,
+    "dayControlTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-820": {
+    "viewport": {
+      "width": 820,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 820,
+      "scrollWidth": 820,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 752,
+      "height": 2664,
+      "top": 56
+    },
+    "agenda": {
+      "width": 752,
+      "height": 759,
+      "top": 156
+    },
+    "queueRail": {
+      "width": 752,
+      "height": 1748,
+      "top": 940
+    },
+    "firstDaySection": {
+      "width": 752,
+      "height": 110,
+      "top": 247
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 297,
+    "dayControlTargets": [
+      {
+        "width": 101,
+        "height": 45
+      },
+      {
+        "width": 101,
+        "height": 45
+      },
+      {
+        "width": 101,
+        "height": 45
+      },
+      {
+        "width": 101,
+        "height": 45
+      },
+      {
+        "width": 101,
+        "height": 45
+      },
+      {
+        "width": 101,
+        "height": 45
+      },
+      {
+        "width": 101,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-next-week-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 1216,
+      "height": 1084,
+      "top": 56
+    },
+    "agenda": {
+      "width": 856,
+      "height": 757,
+      "top": 156
+    },
+    "queueRail": {
+      "width": 336,
+      "height": 952,
+      "top": 156
+    },
+    "firstDaySection": {
+      "width": 856,
+      "height": 179,
+      "top": 156
+    },
+    "taskTitleWidth": 269,
+    "firstActionableY": 187,
+    "dayControlTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-393-light": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 393,
+      "height": 2770,
+      "top": 53
+    },
+    "agenda": {
+      "width": 393,
+      "height": 197,
+      "top": 197
+    },
+    "queueRail": {
+      "width": 393,
+      "height": 2372,
+      "top": 418
+    },
+    "firstDaySection": {
+      "width": 393,
+      "height": 128,
+      "top": 266
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 299,
+    "dayControlTargets": [
+      {
+        "width": 56,
+        "height": 49
+      },
+      {
+        "width": 53,
+        "height": 49
+      },
+      {
+        "width": 57,
+        "height": 49
+      },
+      {
+        "width": 53,
+        "height": 49
+      },
+      {
+        "width": 47,
+        "height": 49
+      },
+      {
+        "width": 50,
+        "height": 49
+      },
+      {
+        "width": 54,
+        "height": 49
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-393-dark": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 393,
+      "height": 2770,
+      "top": 53
+    },
+    "agenda": {
+      "width": 393,
+      "height": 197,
+      "top": 197
+    },
+    "queueRail": {
+      "width": 393,
+      "height": 2372,
+      "top": 418
+    },
+    "firstDaySection": {
+      "width": 393,
+      "height": 128,
+      "top": 266
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 299,
+    "dayControlTargets": [
+      {
+        "width": 56,
+        "height": 49
+      },
+      {
+        "width": 53,
+        "height": 49
+      },
+      {
+        "width": 57,
+        "height": 49
+      },
+      {
+        "width": 53,
+        "height": 49
+      },
+      {
+        "width": 47,
+        "height": 49
+      },
+      {
+        "width": 50,
+        "height": 49
+      },
+      {
+        "width": 54,
+        "height": 49
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      },
+      {
+        "width": 49,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-430": {
+    "viewport": {
+      "width": 430,
+      "height": 932
+    },
+    "document": {
+      "clientWidth": 430,
+      "scrollWidth": 430,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 430,
+      "height": 2381,
+      "top": 53
+    },
+    "agenda": {
+      "width": 430,
+      "height": 197,
+      "top": 197
+    },
+    "queueRail": {
+      "width": 430,
+      "height": 1984,
+      "top": 418
+    },
+    "firstDaySection": {
+      "width": 430,
+      "height": 128,
+      "top": 266
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 299,
+    "dayControlTargets": [
+      {
+        "width": 61,
+        "height": 49
+      },
+      {
+        "width": 58,
+        "height": 49
+      },
+      {
+        "width": 62,
+        "height": 49
+      },
+      {
+        "width": 58,
+        "height": 49
+      },
+      {
+        "width": 52,
+        "height": 49
+      },
+      {
+        "width": 55,
+        "height": 49
+      },
+      {
+        "width": 59,
+        "height": 49
+      },
+      {
+        "width": 55,
+        "height": 45
+      },
+      {
+        "width": 55,
+        "height": 45
+      },
+      {
+        "width": 55,
+        "height": 45
+      },
+      {
+        "width": 55,
+        "height": 45
+      },
+      {
+        "width": 55,
+        "height": 45
+      },
+      {
+        "width": 55,
+        "height": 45
+      },
+      {
+        "width": 55,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-375": {
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "document": {
+      "clientWidth": 375,
+      "scrollWidth": 375,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 375,
+      "height": 2890,
+      "top": 53
+    },
+    "agenda": {
+      "width": 375,
+      "height": 197,
+      "top": 197
+    },
+    "queueRail": {
+      "width": 375,
+      "height": 2492,
+      "top": 418
+    },
+    "firstDaySection": {
+      "width": 375,
+      "height": 128,
+      "top": 266
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 299,
+    "dayControlTargets": [
+      {
+        "width": 53,
+        "height": 49
+      },
+      {
+        "width": 50,
+        "height": 49
+      },
+      {
+        "width": 54,
+        "height": 49
+      },
+      {
+        "width": 50,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 48,
+        "height": 49
+      },
+      {
+        "width": 51,
+        "height": 49
+      },
+      {
+        "width": 47,
+        "height": 45
+      },
+      {
+        "width": 47,
+        "height": 45
+      },
+      {
+        "width": 47,
+        "height": 45
+      },
+      {
+        "width": 47,
+        "height": 45
+      },
+      {
+        "width": 47,
+        "height": 45
+      },
+      {
+        "width": 47,
+        "height": 45
+      },
+      {
+        "width": 47,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-320": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 320,
+      "height": 3162,
+      "top": 53
+    },
+    "agenda": {
+      "width": 320,
+      "height": 217,
+      "top": 197
+    },
+    "queueRail": {
+      "width": 320,
+      "height": 2745,
+      "top": 438
+    },
+    "firstDaySection": {
+      "width": 320,
+      "height": 148,
+      "top": 266
+    },
+    "taskTitleWidth": 236,
+    "firstActionableY": 299,
+    "dayControlTargets": [
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 49
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "plan-zoom-200": {
+    "viewport": {
+      "width": 640,
+      "height": 512
+    },
+    "document": {
+      "clientWidth": 640,
+      "scrollWidth": 640,
+      "horizontalOverflow": false
+    },
+    "page": {
+      "width": 640,
+      "height": 2366,
+      "top": 53
+    },
+    "agenda": {
+      "width": 640,
+      "height": 162,
+      "top": 197
+    },
+    "queueRail": {
+      "width": 640,
+      "height": 2003,
+      "top": 384
+    },
+    "firstDaySection": {
+      "width": 640,
+      "height": 94,
+      "top": 266
+    },
+    "taskTitleWidth": 254,
+    "firstActionableY": 299,
+    "dayControlTargets": [
+      {
+        "width": 91,
+        "height": 49
+      },
+      {
+        "width": 88,
+        "height": 49
+      },
+      {
+        "width": 92,
+        "height": 49
+      },
+      {
+        "width": 88,
+        "height": 49
+      },
+      {
+        "width": 82,
+        "height": 49
+      },
+      {
+        "width": 85,
+        "height": 49
+      },
+      {
+        "width": 89,
+        "height": 49
+      },
+      {
+        "width": 85,
+        "height": 45
+      },
+      {
+        "width": 85,
+        "height": 45
+      },
+      {
+        "width": 85,
+        "height": 45
+      },
+      {
+        "width": 85,
+        "height": 45
+      },
+      {
+        "width": 85,
+        "height": 45
+      },
+      {
+        "width": 85,
+        "height": 45
+      },
+      {
+        "width": 85,
+        "height": 45
+      }
+    ],
+    "smallestDayControl": 45
+  },
+  "tasks-priority-set-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "page": null,
+    "agenda": null,
+    "queueRail": null,
+    "firstDaySection": null,
+    "taskTitleWidth": null,
+    "firstActionableY": null,
+    "dayControlTargets": [],
+    "smallestDayControl": null
+  }
+}

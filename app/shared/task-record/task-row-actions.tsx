@@ -36,6 +36,7 @@ import {
   EditIcon,
   ProjectIcon,
   RepeatIcon,
+  ScheduleIcon,
   TaskIcon,
   TodayIcon,
 } from "~/shared/icons";
@@ -57,6 +58,27 @@ export interface TaskRowActionHandlers {
   readonly onSkipOccurrence?: () => void;
   /** End the series, keeping every past occurrence (`set_recurrence`). */
   readonly onStopRepeating?: () => void;
+  /**
+   * PLAN-01 — the DAYS this surface can place the task on, as menu items.
+   *
+   * The one thing a week surface adds to the row's long tail, and it is here
+   * rather than assembled by Weekly Planning for the reason the whole file
+   * exists: "move this to Wednesday" must be the same act, with the same words
+   * and the same authority, wherever a surface can offer it. Each entry states
+   * one owner-local day; a surface with no week (the Tasks collection, Today)
+   * passes none and the items are simply absent.
+   *
+   * Bounded by construction — a caller passes the days it actually drew, so this
+   * can never become a date picker in a menu.
+   */
+  readonly planDays?: readonly {
+    readonly dateIso: string;
+    /** "Wednesday 14 May" — the day in words, never a bare date. */
+    readonly label: string;
+    readonly onSelect: () => void;
+  }[];
+  /** Clear the task's planned date (`clear_plan`) — take it back out of the week. */
+  readonly onClearPlan?: () => void;
 }
 
 /**
@@ -108,6 +130,31 @@ export function buildTaskRowActions(
             // for <title>", so repeating it makes a screen reader say the title
             // twice and makes the item unmatchable by the words on it.
             onSelect: handlers.onPlanToday,
+          },
+        ]
+      : []),
+    /*
+     * PLAN-01 — placement, as ordinary keyboard-reachable menu items.
+     *
+     * This is the reason Weekly Planning needs no drag-and-drop to be complete:
+     * every placement the surface offers by pointer is offered here by keyboard,
+     * with a real accessible name naming the day in words. Drag is an
+     * accelerator elsewhere or nowhere; this is the capability.
+     */
+    ...(handlers.planDays ?? []).map((day) => ({
+      id: `plan-${day.dateIso}`,
+      label: `Plan for ${day.label}`,
+      icon: <ScheduleIcon />,
+      onSelect: day.onSelect,
+    })),
+    ...(handlers.onClearPlan
+      ? [
+          {
+            id: "clear-plan",
+            label: "Remove the planned date",
+            icon: <ScheduleIcon />,
+            description: "The deadline is untouched.",
+            onSelect: handlers.onClearPlan,
           },
         ]
       : []),

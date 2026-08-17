@@ -49,6 +49,7 @@ import { AnchoredSurface } from "~/shared/anchored";
 
 import {
   currentValue,
+  currentValues,
   type CollectionControlGroup,
 } from "./collection-controls-model";
 import { ControlOptionMark } from "./ControlOptionMark";
@@ -198,7 +199,8 @@ export function CollectionControlsPopover({
         className="dh-collection-popover__body"
       >
         {groups.map((group) => {
-          const selected = currentValue(group, params);
+          const selected = currentValues(group, params);
+          const multiple = group.multiple === true;
           return (
             <div
               key={group.id}
@@ -211,15 +213,26 @@ export function CollectionControlsPopover({
               </p>
               {group.options.map((option) => {
                 const checked =
-                  selected === option.value ||
-                  (selected === null &&
+                  selected.includes(option.value) ||
+                  (selected.length === 0 &&
                     option.value === (group.defaultValue ?? ""));
                 return (
                   <button
                     key={option.value}
                     type="button"
                     ref={register}
-                    role="menuitemradio"
+                    /*
+                     * SMART-01 — a multi-select group's options are CHECKBOXES,
+                     * not radios, so assistive technology announces that more
+                     * than one can be chosen. The group's "any" option stays a
+                     * radio-like clear: it is the one option that unsets the
+                     * others rather than joining them.
+                     */
+                    role={
+                      multiple && option.value !== (group.defaultValue ?? "")
+                        ? "menuitemcheckbox"
+                        : "menuitemradio"
+                    }
                     aria-checked={checked}
                     tabIndex={-1}
                     className="dh-collection-popover__option"

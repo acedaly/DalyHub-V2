@@ -73,6 +73,32 @@ export const TASK_SYSTEM_VIEW_DEFINITIONS: readonly TaskSystemViewDefinition[] =
     derived("default", "All active", "Everything actionable right now.", {
       groupBy: "due_state",
     }),
+    /*
+     * PLAN-01 — the OPEN scope, as a built-in view.
+     *
+     * The kernel gained an `open` system view for the planning week (still
+     * committed, not yet finished — the one scope that keeps waiting and on-hold
+     * work), and a scope with no view of its own is a real hazard rather than
+     * merely an omission: a URL that names one falls back to ALL ACTIVE's
+     * configuration, so `?system=open` would silently become "Open, grouped by
+     * due state", report itself as "Custom", and be unsaveable as the thing it
+     * is. That is exactly the failure UIX-01 fixed for the other scopes.
+     *
+     * It is also a view an owner wants: "everything I am still committed to,
+     * including what is blocked" is the honest superset of All active, and the
+     * only place the two differ is the parked states — which is why the
+     * description says so rather than leaving the difference to be discovered.
+     *
+     * Left FLAT for the reason the other single-state views are: its population
+     * is a lifecycle scope, and banding it by due state would put one heading
+     * over most of it.
+     */
+    derived(
+      "open",
+      "Open",
+      "Everything still committed to, including blocked work.",
+      { systemView: "open" },
+    ),
     derived("inbox", "Inbox", "Unassigned active tasks.", {
       systemView: "inbox",
       groupBy: "due_state",

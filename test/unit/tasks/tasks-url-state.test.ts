@@ -36,7 +36,7 @@ describe("round trip", () => {
       groupBy: "parent",
       density: "compact",
       filters: {
-        priority: "p1",
+        priorities: ["p1"],
         dueState: "overdue",
         delegated: true,
         delegatedTo: "Sam",
@@ -53,10 +53,10 @@ describe("round trip", () => {
 
   it("produces the same link for two equivalent configurations", () => {
     const a = paramsFromConfig(
-      config({ filters: { priority: "p1", waiting: true } }),
+      config({ filters: { priorities: ["p1"], waiting: true } }),
     ).toString();
     const b = paramsFromConfig(
-      config({ filters: { waiting: true, priority: "p1" } }),
+      config({ filters: { waiting: true, priorities: ["p1"] } }),
     ).toString();
     expect(a).toBe(b);
   });
@@ -110,7 +110,7 @@ describe("decoding untrusted URLs", () => {
         "priority=p9&due=whenever&person=" + encodeURIComponent("' OR 1=1"),
       ),
     );
-    expect(decoded.filters.priority).toBeUndefined();
+    expect(decoded.filters.priorities).toBeUndefined();
     expect(decoded.filters.dueState).toBeUndefined();
     // A quoted value is legal TEXT for a delegatee — it is bound, never inlined —
     // so it is preserved as data rather than rejected.
@@ -138,9 +138,9 @@ describe("decoding untrusted URLs", () => {
 describe("toWorkspaceFilters", () => {
   it("maps the explicit EMPTY-field filters to an explicit null", () => {
     const filters = toWorkspaceFilters(
-      config({ filters: { priority: "__none", timeSector: "__none" } }),
+      config({ filters: { priorities: ["__none"], timeSector: "__none" } }),
     );
-    expect(filters.priority).toBeNull();
+    expect(filters.priorities).toEqual([null]);
     expect(filters.timeSector).toBeNull();
     // Absent is a different scope from null, and stays absent.
     expect(

@@ -94,8 +94,22 @@ export type TaskDensity = (typeof TASK_DENSITIES)[number];
  */
 export interface TaskViewFilters {
   readonly status?: TaskStatus;
-  /** A priority, or `__none` for untriaged. */
-  readonly priority?: TaskPriority | "__none";
+  /**
+   * SMART-01 — the priorities to include, as a SET.
+   *
+   * A single priority was the TASKS-03 shape, and "P1 and P2" — the most common
+   * real filter an owner wants — could not be said at all. This is ONE dimension
+   * with more than one accepted value, not a nested OR clause: every member comes
+   * from the closed priority vocabulary, the repository still chooses the
+   * predicate, and the URL parameter keeps its name and accepts a comma list, so
+   * every previously-shared `?priority=p1` link and every stored single-value
+   * saved view continues to mean exactly what it meant (`parseTaskViewConfig`
+   * canonicalises both into this set).
+   *
+   * `__none` is the explicit "no priority recorded" member. An EMPTY set is not a
+   * filter and is dropped.
+   */
+  readonly priorities?: readonly (TaskPriority | "__none")[];
   readonly dueState?: TaskDueState;
   readonly plannedState?: TaskPlannedState;
   readonly parentKind?: TaskParentKind;
@@ -116,6 +130,22 @@ export interface TaskViewFilters {
   readonly updatedWithin?: TaskRecencyWindow;
   /** Completed/terminal visibility on top of the system view. */
   readonly completed?: TaskCompletedVisibility;
+  /**
+   * PLAN-01 / SMART-01 — explicit DATE-RANGE bounds, `YYYY-MM-DD`.
+   *
+   * The derived `dueState`/`plannedState` dimensions above answer relative
+   * questions ("overdue", "planned this week") against the owner's calendar day,
+   * and they are the right thing for an everyday view. They cannot express a
+   * SPECIFIC window, which is what a planning week is and what "due between these
+   * two dates" is, so these four bounds exist beside them rather than instead of
+   * them. Due and planned stay strictly separate, exactly as the dates do.
+   */
+  readonly dueFrom?: string;
+  readonly dueTo?: string;
+  readonly plannedFrom?: string;
+  readonly plannedTo?: string;
+  /** Only Tasks that repeat (`true`) or only one-off Tasks (`false`). */
+  readonly recurring?: boolean;
 }
 
 /** A complete, validated Tasks workspace configuration. */
@@ -182,6 +212,63 @@ function flag(value: unknown): true | undefined {
 }
 
 /**
+ * A TRISTATE flag: `true`, `false` or absent. Distinct from {@link flag}, which
+ * models a filter that is only ever on — "only one-off Tasks" is a real filter,
+ * so `false` has to survive the parse rather than being read as "no filter".
+ */
+function tristate(value: unknown): boolean | undefined {
+  if (value === true || value === "true" || value === "1") return true;
+  if (value === false || value === "false" || value === "0") return false;
+  return undefined;
+}
+
+/** A wall-calendar `YYYY-MM-DD` bound, or undefined for anything else. */
+function dateBound(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (match === null) return undefined;
+  const utc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(utc)) return undefined;
+  // The components must round-trip, so `2026-02-31` never becomes 2026-03-03.
+  return new Date(utc).toISOString().slice(0, 10) === trimmed
+    ? trimmed
+    : undefined;
+}
+
+/**
+ * Canonicalise a priority SET from any of the three shapes it legitimately
+ * arrives in: an array (the current form), a comma-separated string (the URL),
+ * or one bare value (a TASKS-03 saved view, and every link shared before
+ * SMART-01). Unrecognised members are dropped, duplicates collapse, and the
+ * result is ordered by the canonical priority vocabulary — so two equivalent
+ * sets always serialise identically and compare equal.
+ */
+function priorityMembers(
+  value: unknown,
+): readonly (TaskPriority | "__none")[] | undefined {
+  const raw: unknown[] = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const candidate = member(
+      typeof entry === "string" ? entry.trim() : entry,
+      [...TASK_PRIORITIES, "__none"] as const,
+    );
+    if (candidate) seen.add(candidate);
+  }
+  if (seen.size === 0) return undefined;
+  const ordered: (TaskPriority | "__none")[] = TASK_PRIORITIES.filter(
+    (priority) => seen.has(priority),
+  );
+  if (seen.has("__none")) ordered.push("__none");
+  return ordered;
+}
+
+/**
  * Parse an untrusted value (a stored JSON blob, a URL-derived object) into a
  * validated config. TOTAL: it never throws and never propagates an unrecognised
  * value — anything unknown, malformed or from a future version is dropped and the
@@ -202,11 +289,10 @@ export function parseTaskViewConfig(raw: unknown): TaskViewConfig {
   } = {};
   const status = member(rawFilters.status, TASK_STATUSES);
   if (status) filters.status = status;
-  const priority = member(rawFilters.priority, [
-    ...TASK_PRIORITIES,
-    "__none",
-  ] as const);
-  if (priority) filters.priority = priority;
+  const priorities = priorityMembers(
+    rawFilters.priorities ?? rawFilters.priority,
+  );
+  if (priorities) filters.priorities = priorities;
   const dueState = member(rawFilters.dueState, TASK_DUE_STATES);
   if (dueState) filters.dueState = dueState;
   const plannedState = member(rawFilters.plannedState, TASK_PLANNED_STATES);
@@ -238,6 +324,16 @@ export function parseTaskViewConfig(raw: unknown): TaskViewConfig {
   if (updatedWithin) filters.updatedWithin = updatedWithin;
   const completed = member(rawFilters.completed, TASK_COMPLETED_VISIBILITIES);
   if (completed && completed !== "default") filters.completed = completed;
+  const dueFrom = dateBound(rawFilters.dueFrom);
+  if (dueFrom) filters.dueFrom = dueFrom;
+  const dueTo = dateBound(rawFilters.dueTo);
+  if (dueTo) filters.dueTo = dueTo;
+  const plannedFrom = dateBound(rawFilters.plannedFrom);
+  if (plannedFrom) filters.plannedFrom = plannedFrom;
+  const plannedTo = dateBound(rawFilters.plannedTo);
+  if (plannedTo) filters.plannedTo = plannedTo;
+  const recurring = tristate(rawFilters.recurring);
+  if (recurring !== undefined) filters.recurring = recurring;
 
   return {
     version: TASK_VIEW_CONFIG_VERSION,
@@ -301,7 +397,7 @@ export function serialiseTaskViewConfig(config: TaskViewConfig): string {
 /** The canonical filter-key order — the one place the key set is enumerated. */
 export const TASK_VIEW_FILTER_KEYS = [
   "status",
-  "priority",
+  "priorities",
   "dueState",
   "plannedState",
   "parentKind",
@@ -316,4 +412,9 @@ export const TASK_VIEW_FILTER_KEYS = [
   "createdWithin",
   "updatedWithin",
   "completed",
+  "dueFrom",
+  "dueTo",
+  "plannedFrom",
+  "plannedTo",
+  "recurring",
 ] as const satisfies readonly (keyof TaskViewFilters)[];

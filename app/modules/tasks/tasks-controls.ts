@@ -123,7 +123,17 @@ export function buildTasksControlGroups(
        */
       id: "priority",
       label: "Priority",
-      param: TASKS_FILTER_PARAMS.priority,
+      param: TASKS_FILTER_PARAMS.priorities,
+      /*
+       * SMART-01 — priority takes MORE THAN ONE value.
+       *
+       * "Priority 1 and 2" is the filter an owner reaches for first when they save
+       * a view called "Work priorities", and it is the one thing the single-select
+       * form could not say. It is still one dimension bound to one parameter, so a
+       * link stays legible (`?priority=p1,p2`) and the persisted configuration
+       * gains no operator, no nesting and no second dimension.
+       */
+      multiple: true,
       options: [
         { value: ANY, label: "Any priority" },
         ...TASK_PRIORITIES.map((priority) => ({
@@ -172,6 +182,24 @@ export function buildTasksControlGroups(
           value: sector,
           label: SECTOR_LABELS[sector] ?? sector,
         })),
+      ],
+    },
+    {
+      /*
+       * SMART-01 — REPEATS, as a real filter.
+       *
+       * "Which of my Tasks are routines?" was answerable only by reading the
+       * repeat glyph down a list, and "which are one-off?" was not answerable at
+       * all. Both directions are offered because both are real questions, and the
+       * predicate reads the recurrence join the list already makes.
+       */
+      id: "repeats",
+      label: "Repeats",
+      param: TASKS_FILTER_PARAMS.recurring,
+      options: [
+        { value: ANY, label: "Any task" },
+        { value: "1", label: "Repeating only", chipLabel: "Repeating" },
+        { value: "0", label: "One-off only", chipLabel: "One-off" },
       ],
     },
     {

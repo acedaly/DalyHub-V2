@@ -1,5 +1,17 @@
 /**
- * TODAY-TASK-01 — Today's HOST for the shared task row's mutations.
+ * TODAY-TASK-01 / PLAN-01 — the SHARED host for a bounded surface's task row
+ * mutations.
+ *
+ * PLAN-01 moved this file from `app/modules/today/day/` into the shared Task
+ * surfaces without changing a line of its behaviour. The reason is the reason the
+ * body already gives: it is the per-surface reconciliation policy for a BOUNDED
+ * task surface — one page of rows, revalidated unconditionally, with no grouping
+ * dimension to reason about — and Weekly Planning is exactly a second one of
+ * those. The alternative was a second copy of the patch map, the rollback rule
+ * and the announcement channel, which is how two surfaces come to disagree about
+ * whether a refused write was rolled back.
+ *
+ * Today is unchanged: it imports the same hook from here.
  *
  * ── What this is NOT ────────────────────────────────────────────────────────
  * It is not a second mutation authority, and there is no Today task endpoint.
@@ -26,7 +38,7 @@
  *   - the announcement and the notification fire only AFTER the server has said
  *     yes, and a refusal is stated in words rather than silently reverted.
  *
- * ── Why Today does not simply reuse `/tasks`'s `useTaskQuickMutation` ───────
+ * ── Why a bounded surface does not reuse `/tasks`'s `useTaskQuickMutation` ──
  * That hook is not a general host: it also owns the Tasks view's REVALIDATION
  * PREDICATE (whether a change touches the grouping dimension the current
  * configuration is sorted by), the undo notification for a completion, and the
@@ -55,10 +67,10 @@ import type { TaskListItemPatch } from "~/shared/task-record/task-view";
 const GENERIC_ROW_REFUSAL = "That couldn’t be saved. Please try again.";
 
 /** In-flight patches, keyed by task id. Empty is the steady state. */
-export type DayTaskPatches = ReadonlyMap<string, TaskListItemPatch>;
+export type TaskSurfacePatches = ReadonlyMap<string, TaskListItemPatch>;
 
-export interface DayTaskActions {
-  readonly patches: DayTaskPatches;
+export interface TaskSurfaceActions {
+  readonly patches: TaskSurfacePatches;
   /** Drop every patch — the screen calls this when fresh loader data arrives. */
   readonly clearPatches: () => void;
   readonly announcement: string | null;
@@ -86,10 +98,10 @@ export interface DayTaskActions {
 }
 
 function withPatch(
-  patches: DayTaskPatches,
+  patches: TaskSurfacePatches,
   taskId: string,
   patch: TaskListItemPatch,
-): DayTaskPatches {
+): TaskSurfacePatches {
   const next = new Map(patches);
   // Two edits to one row before either answers MERGE rather than replace:
   // changing a priority and then a date must not make the first look undone.
@@ -98,10 +110,10 @@ function withPatch(
 }
 
 function withoutKeys(
-  patches: DayTaskPatches,
+  patches: TaskSurfacePatches,
   taskId: string,
   keys: readonly (keyof TaskListItemPatch)[],
-): DayTaskPatches {
+): TaskSurfacePatches {
   const current = patches.get(taskId);
   if (current === undefined) return patches;
   const next = new Map(patches);
@@ -116,10 +128,10 @@ function withoutKeys(
   return next;
 }
 
-export function useDayTaskActions(): DayTaskActions {
+export function useTaskSurfaceActions(): TaskSurfaceActions {
   const revalidator = useRevalidator();
   const { notifyError } = useFeedback();
-  const [patches, setPatches] = useState<DayTaskPatches>(new Map());
+  const [patches, setPatches] = useState<TaskSurfacePatches>(new Map());
   const [announcement, setAnnouncement] = useState<string | null>(null);
 
   const clearPatches = useCallback(() => {

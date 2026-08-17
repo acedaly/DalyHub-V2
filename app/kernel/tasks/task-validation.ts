@@ -431,6 +431,63 @@ export function validateTaskCompletedVisibility(
   );
 }
 
+/**
+ * PLAN-01 / SMART-01 — validate a PRIORITY SET filter.
+ *
+ * Returns `undefined` for "no filter": an absent value, a non-array, or an array
+ * that contains no recognised member. An empty set is never a filter, because a
+ * filter matching nothing is a state no control can produce and no owner means.
+ * Duplicates collapse and the result is ordered by the canonical priority
+ * vocabulary, so two equivalent sets always produce the same cursor signature.
+ */
+export function validateTaskPriorities(
+  value: unknown,
+): readonly (TaskPriority | null)[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const seen = new Set<string>();
+  for (const member of value) {
+    if (member === null || member === "__none") {
+      seen.add("__none");
+      continue;
+    }
+    if (
+      typeof member === "string" &&
+      (TASK_PRIORITIES as readonly string[]).includes(member)
+    ) {
+      seen.add(member);
+    }
+  }
+  if (seen.size === 0) return undefined;
+  const ordered: (TaskPriority | null)[] = TASK_PRIORITIES.filter((priority) =>
+    seen.has(priority),
+  );
+  if (seen.has("__none")) ordered.push(null);
+  return ordered;
+}
+
+/**
+ * PLAN-01 / SMART-01 — validate one bound of a DATE RANGE filter.
+ *
+ * `undefined` means "no bound". A malformed value is DROPPED rather than
+ * rejected, because these bounds arrive from a stored saved view and from a URL:
+ * the documented contract for both is that an unrecognised value degrades to the
+ * default (no filter) instead of erroring a page (`parseTaskViewConfig` rule 2).
+ */
+export function validateTaskDateBound(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return undefined;
+  const match = DATE_ONLY_PATTERN.exec(trimmed);
+  if (match === null) return undefined;
+  const [, year, month, day] = match;
+  const utc = Date.UTC(Number(year), Number(month) - 1, Number(day));
+  if (Number.isNaN(utc)) return undefined;
+  // The components must round-trip, so `2026-02-31` is not silently 2026-03-03.
+  return new Date(utc).toISOString().slice(0, 10) === trimmed
+    ? trimmed
+    : undefined;
+}
+
 /** Validate a server-side grouping dimension. */
 export function validateTaskGroupDimension(
   value: unknown,

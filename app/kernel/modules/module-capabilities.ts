@@ -100,6 +100,17 @@ export const NAV_ICON_NAMES = [
    */
   "inbox",
   "upcoming",
+  /*
+   * PLAN-01 — Weekly Planning's own glyph.
+   *
+   * It sits between Today and Inbox in the daily group, and both of its
+   * neighbours already have a distinct mark. Reusing `today` there would draw
+   * the same glyph on two adjacent rows — exactly the failure the four names
+   * above were added to fix — and on the collapsed 68px rail, where the label
+   * is the one thing not available, that is a navigation failure rather than a
+   * blemish.
+   */
+  "plan",
   "ai",
   "analytics",
   "views",
