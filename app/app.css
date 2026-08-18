@@ -93,6 +93,15 @@
 @import "./styles/view-tabs.css";
 @import "./styles/task-drawer.css";
 @import "./styles/task-signals.css";
+/* TASKS-13 — the Task record's checklist and the row's compact progress figure.
+ * AFTER `task-drawer.css` (the checklist adjusts the Task record's feature
+ * region, which that file de-cards) AND after `task-signals.css`, because the
+ * checklist row adjusts the SHARED check control's target and both selectors
+ * carry one class — so order, not specificity, is what decides. Placing it
+ * before `task-signals.css` left the shared -12px inline margin in force, and
+ * MEASURED the consequence: the rename trigger overlapped the checkbox by 2px
+ * and axe reported a serious `target-size` violation on every row. */
+@import "./styles/task-checklist.css";
 @import "./styles/projects.css";
 @import "./styles/areas.css";
 @import "./styles/goals.css";

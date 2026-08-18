@@ -776,6 +776,9 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   // TASKS-04: the recurrence rows reference entities ON DELETE RESTRICT, so they
   // must clear before entities.
   await env.DB.prepare("DELETE FROM task_recurrence_rules").run();
+  // TASKS-13: checklist items reference entities ON DELETE RESTRICT, so they
+  // must clear before entities.
+  await env.DB.prepare("DELETE FROM task_checklist_items").run();
   // PWA-05 offline capture receipts reference workspaces ON DELETE RESTRICT, so
   // they must clear before workspaces (they do not reference entities).
   await env.DB.prepare("DELETE FROM offline_capture_receipts").run();

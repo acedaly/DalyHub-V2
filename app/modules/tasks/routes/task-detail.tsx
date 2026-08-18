@@ -26,6 +26,8 @@ import { env } from "cloudflare:workers";
 import { SpineParentUnavailableError } from "~/kernel/spine";
 import {
   DEFAULT_TASK_RECURRENCE_MODE,
+  TaskChecklistFullError,
+  TaskChecklistItemNotFoundError,
   TASK_RECURRENCE_DATE_KINDS,
   TASK_RECURRENCE_FREQUENCIES,
   TASK_RECURRENCE_MODES,
@@ -39,6 +41,7 @@ import {
   type TaskRecurrenceFrequency,
   type TaskRecurrenceMode,
   type SetWaitingInput,
+  type TaskChecklistItem,
   type TaskPriority,
   type TaskStatus,
   type TaskView,
@@ -71,6 +74,8 @@ import {
 import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
+  serializeChecklist,
+  serializeChecklistItem,
   serializeTaskView,
   TASK_RELATE_TARGET_TYPES,
   TASK_RELATES_TO,
@@ -128,15 +133,23 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     return json({ error: "not_found" }, 404);
   }
 
-  const links = await listActiveLinks(pickerDeps(scope), {
-    anchorId: taskId,
-    direction: "outgoing",
-    linkTypes: [TASK_RELATES_TO],
-  });
+  const [links, checklist] = await Promise.all([
+    listActiveLinks(pickerDeps(scope), {
+      anchorId: taskId,
+      direction: "outgoing",
+      linkTypes: [TASK_RELATES_TO],
+    }),
+    // TASKS-13 — ONE bounded, ordered read for THIS Task's checklist. A record
+    // read may fetch its own record's children directly; what it may never do is
+    // fetch one per row of a list, which is why the collection surfaces go
+    // through the aggregate instead.
+    scope.tasks.listChecklist(taskId),
+  ]);
 
   return json({
     task: serializeTaskView(task),
     links,
+    checklist: serializeChecklist(checklist),
     // Server-derived owner calendar date (ADR-022) so the Drawer's urgency chip
     // never computes "Overdue"/"Due today" in browser-local time (TASKS-02).
     todayIso: ownerCalendarIso(new Date(), timezone),
@@ -186,17 +199,51 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         404,
       );
     }
+    /*
+     * TASKS-13 — a queued checklist tick contends over an ITEM, not over the
+     * Task.
+     *
+     * Two consequences, and both are load-bearing. The value the conflict rule
+     * compares is that item's own tick, read here from the canonical checklist.
+     * And the id the RECEIPT is filed under is the ITEM's, so a receipt written
+     * for "tick step 2" can never be satisfied by a request naming step 3 — the
+     * guard the receipt table exists for stays as tight for a checklist as it is
+     * for a Task.
+     */
+    const targetId =
+      replay.operation === "set_checklist_completed"
+        ? nullable(form.get("itemId"))
+        : null;
+    const targetItem =
+      targetId === null
+        ? null
+        : ((await scope.tasks.listChecklist(taskId)).find(
+            (candidate) => candidate.id === targetId,
+          ) ?? null);
+    if (targetId !== null && targetItem === null) {
+      // The item was deleted on another device. Terminal for this change, and
+      // said in the owner's words — the same treatment a deleted Task gets.
+      return json(
+        {
+          kind: "checklist",
+          status: "error",
+          formError: OFFLINE_CHECKLIST_ITEM_GONE,
+          offline: { kind: "gone", message: OFFLINE_CHECKLIST_ITEM_GONE },
+        } satisfies TaskActionData & OfflineReplayEnvelope,
+        404,
+      );
+    }
     const outcome = await withTaskMutationReplay(
       {
         db: env.DB,
         workspaceId: scope.context.workspaceId,
         ownerSubject: session.user.subject,
-        entityId: taskId,
+        entityId: targetId ?? taskId,
         operation: replay.operation,
         now: new Date(),
       },
       replay,
-      currentFieldValue(task, replay.operation),
+      currentFieldValue(task, replay.operation, targetItem),
       () => dispatchTaskIntent(scope, taskId, task, intent, form),
       taskResultApplied,
       taskResultRefusal,
@@ -204,7 +251,13 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     return json({
       ...(outcome.applied
         ? outcome.result
-        : replayedTaskResult(intent, await scope.tasks.getTask(taskId), task)),
+        : await replayedTaskResult(
+            scope,
+            taskId,
+            intent,
+            await scope.tasks.getTask(taskId),
+            task,
+          )),
       offline: outcome.report,
     });
   }
@@ -263,6 +316,20 @@ async function dispatchTaskIntent(
       return handleMoveOccurrence(scope, taskId, form);
     case "skip_occurrence":
       return handleSkipOccurrence(scope, taskId, await ownerTodayIsoFor(scope));
+    // TASKS-13 — the five checklist mutations. They live on the TASK's own route
+    // because a checklist item has no address of its own: it is reachable only
+    // through the Task that owns it, and routing it that way is what makes the
+    // workspace + Task ownership check impossible to skip.
+    case "checklist_add":
+      return handleChecklistAdd(scope, taskId, form);
+    case "checklist_rename":
+      return handleChecklistRename(scope, taskId, form);
+    case "checklist_set_completed":
+      return handleChecklistCompleted(scope, taskId, form);
+    case "checklist_delete":
+      return handleChecklistDelete(scope, taskId, form);
+    case "checklist_reorder":
+      return handleChecklistReorder(scope, taskId, form);
     default:
       return { kind: "update", status: "error", formError: "Unknown action." };
   }
@@ -294,6 +361,10 @@ const REPLAY_INTENTS = {
   // that authority's two intents rather than a generic field write. Replay uses
   // the SAME domain path the online control uses; it never finds a shortcut.
   set_planned: ["plan", "clear_plan"],
+  // TASKS-13 — the queued tick arrives as the SAME intent the online control
+  // posts, carrying the same `itemId` + `completed` pair. Replay gets no verb of
+  // its own here either.
+  set_checklist_completed: ["checklist_set_completed"],
 } as const satisfies Record<OfflineMutationOperation, readonly string[]>;
 
 /** The form key each replace-style operation writes, per intent. */
@@ -302,6 +373,10 @@ const REPLAY_FORM_KEYS: Readonly<Record<string, string>> = {
   update: "",
   plan: "scheduledDate",
   clear_plan: "",
+  // TASKS-13 — the flag field. `nullable()` reads "" back as null, and the
+  // conflict rule normalises null and "" to the same absence, so "not done"
+  // compares equal however it crossed the wire.
+  checklist_set_completed: "completed",
 };
 
 /** The `update` PATCH key each field operation is allowed to carry. */
@@ -366,6 +441,7 @@ function taskResultApplied(result: TaskActionData): boolean {
     case "update":
     case "planning":
     case "waiting":
+    case "checklist":
       return result.status === "success";
   }
 }
@@ -379,7 +455,8 @@ function taskResultRefusal(result: TaskActionData): string {
   if (
     result.kind === "update" ||
     result.kind === "planning" ||
-    result.kind === "waiting"
+    result.kind === "waiting" ||
+    result.kind === "checklist"
   ) {
     if (result.status === "error") {
       return (
@@ -393,6 +470,15 @@ function taskResultRefusal(result: TaskActionData): string {
 }
 
 /** The refusal for a replay whose own fields do not agree with each other. */
+/**
+ * TASKS-13 — the wording for a queued tick whose checklist item no longer exists.
+ *
+ * Its own sentence rather than `OFFLINE_TARGET_GONE`, because the Task is still
+ * there and telling the owner it was deleted would be untrue.
+ */
+const OFFLINE_CHECKLIST_ITEM_GONE =
+  "This checklist item was deleted on another device, so this change could not be applied.";
+
 function malformedReplay(): TaskActionData & OfflineReplayEnvelope {
   const message = "That change could not be read, so nothing was applied.";
   return {
@@ -407,6 +493,8 @@ function malformedReplay(): TaskActionData & OfflineReplayEnvelope {
 function currentFieldValue(
   task: TaskView,
   operation: OfflineMutationOperation,
+  /** TASKS-13 — the addressed checklist item, when the operation names one. */
+  item: TaskChecklistItem | null = null,
 ): OfflineMutationValue {
   switch (operation) {
     case "complete":
@@ -420,6 +508,10 @@ function currentFieldValue(
       return task.dueDate;
     case "set_planned":
       return task.scheduledDate;
+    case "set_checklist_completed":
+      // The SAME "1" / "" flag the form carries, so the base, the intent and the
+      // server value are all one representation and the comparison is exact.
+      return item?.completed ? "1" : "";
   }
 }
 
@@ -432,11 +524,23 @@ function currentFieldValue(
  * attempt did. The pre-read record is the fallback for the one case a re-read can
  * fail: the Task being deleted between the decision and this line.
  */
-function replayedTaskResult(
+async function replayedTaskResult(
+  scope: WorkspaceScope,
+  taskId: string,
   intent: string,
   fresh: TaskView | null,
   fallback: TaskView,
-): TaskActionData {
+): Promise<TaskActionData> {
+  // TASKS-13 — a checklist replay that applied nothing still answers with the
+  // checklist as it stands NOW, so the surface reconciles against the truth
+  // rather than against a guess about what an earlier attempt did.
+  if (intent === "checklist_set_completed") {
+    return {
+      kind: "checklist",
+      status: "success",
+      checklist: serializeChecklist(await scope.tasks.listChecklist(taskId)),
+    };
+  }
   const task = serializeTaskView(fresh ?? fallback);
   // The recurrence consequence is deliberately NOT restated here. Only the
   // completion that actually ran knows whether it created a successor, and a
@@ -742,6 +846,170 @@ async function handleSkipOccurrence(
       "That occurrence couldn’t be skipped. Nothing was changed — try again.",
     );
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-13 — the checklist handlers                                          */
+/*                                                                            */
+/* Five thin translations between a form submission and the ONE checklist      */
+/* authority (`scope.tasks.*Checklist*`). They validate nothing themselves —   */
+/* the kernel does that, at the boundary every caller passes through — and     */
+/* every one of them answers with the WHOLE checklist as the server now holds  */
+/* it, so the section reconciles rather than accumulating a second opinion.    */
+/* -------------------------------------------------------------------------- */
+
+/** The checklist as it stands now, for a success answer. */
+async function checklistSuccess(
+  scope: WorkspaceScope,
+  taskId: string,
+  item?: TaskChecklistItem,
+): Promise<TaskActionData> {
+  return {
+    kind: "checklist",
+    status: "success",
+    checklist: serializeChecklist(await scope.tasks.listChecklist(taskId)),
+    ...(item ? { item: serializeChecklistItem(item) } : {}),
+  };
+}
+
+/**
+ * The ONE typed-error translation every checklist operation uses.
+ *
+ * A refusal the surface can ACT on carries the current checklist with it: an
+ * item another device deleted, or an order composed against a list that has
+ * since changed, is not something the owner can fix by retrying, so the section
+ * is corrected in the same response that refuses. An ordinary validation
+ * refusal does not, because nothing moved and the owner's draft is the only
+ * thing to change.
+ */
+async function checklistFailure(
+  scope: WorkspaceScope,
+  taskId: string,
+  cause: unknown,
+): Promise<TaskActionData> {
+  if (cause instanceof TaskValidationError) {
+    return {
+      kind: "checklist",
+      status: "error",
+      fieldErrors: { [cause.field]: cause.message },
+    };
+  }
+  if (cause instanceof TaskChecklistFullError) {
+    return { kind: "checklist", status: "error", formError: cause.message };
+  }
+  if (cause instanceof TaskChecklistItemNotFoundError) {
+    return {
+      kind: "checklist",
+      status: "error",
+      formError: cause.message,
+      checklist: serializeChecklist(await scope.tasks.listChecklist(taskId)),
+    };
+  }
+  if (cause instanceof TaskNotFoundError) {
+    return {
+      kind: "checklist",
+      status: "error",
+      formError: "This task is no longer available.",
+    };
+  }
+  if (cause instanceof TaskProjectArchivedError) {
+    return { kind: "checklist", status: "error", formError: cause.message };
+  }
+  return {
+    kind: "checklist",
+    status: "error",
+    formError: "That couldn’t be saved. Nothing was changed — try again.",
+  };
+}
+
+async function handleChecklistAdd(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  try {
+    const item = await scope.tasks.createChecklistItem(taskId, {
+      title: String(form.get("title") ?? ""),
+    });
+    return await checklistSuccess(scope, taskId, item);
+  } catch (cause) {
+    return await checklistFailure(scope, taskId, cause);
+  }
+}
+
+async function handleChecklistRename(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  try {
+    const result = await scope.tasks.renameChecklistItem(
+      taskId,
+      String(form.get("itemId") ?? ""),
+      String(form.get("title") ?? ""),
+    );
+    return await checklistSuccess(scope, taskId, result.item);
+  } catch (cause) {
+    return await checklistFailure(scope, taskId, cause);
+  }
+}
+
+async function handleChecklistCompleted(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  try {
+    const result = await scope.tasks.setChecklistItemCompleted(
+      taskId,
+      String(form.get("itemId") ?? ""),
+      // The wire value is the same "1" / "" every DalyHub form uses for a flag,
+      // so the online control and a replayed offline tick send the same body.
+      checklistFlag(form.get("completed")),
+    );
+    return await checklistSuccess(scope, taskId, result.item);
+  } catch (cause) {
+    return await checklistFailure(scope, taskId, cause);
+  }
+}
+
+async function handleChecklistDelete(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  try {
+    await scope.tasks.deleteChecklistItem(
+      taskId,
+      String(form.get("itemId") ?? ""),
+    );
+    return await checklistSuccess(scope, taskId);
+  } catch (cause) {
+    return await checklistFailure(scope, taskId, cause);
+  }
+}
+
+async function handleChecklistReorder(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  try {
+    // The order arrives as repeated `itemId` fields — an ordinary form list, so
+    // the same submission works from a fetcher, a plain form and a replay.
+    await scope.tasks.reorderChecklist(
+      taskId,
+      form.getAll("itemId").map((value) => String(value)),
+    );
+    return await checklistSuccess(scope, taskId);
+  } catch (cause) {
+    return await checklistFailure(scope, taskId, cause);
+  }
+}
+
+/** Read a checklist completion flag from a form field. "1" is true; all else false. */
+function checklistFlag(value: FormDataEntryValue | null): boolean {
+  return String(value ?? "") === "1";
 }
 
 /** The ONE typed-error translation both series operations use. Never raw SQL. */

@@ -87,6 +87,8 @@ export function conflictMessage(operation: OfflineMutationOperation): string {
       return "This task's due date changed on another device while you were offline.";
     case "set_planned":
       return "This task's planned date changed on another device while you were offline.";
+    case "set_checklist_completed":
+      return "This checklist item changed on another device while you were offline.";
     case "complete":
     case "reopen":
       return "This task changed on another device while you were offline.";

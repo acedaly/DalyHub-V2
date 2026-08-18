@@ -29,6 +29,7 @@ import {
   type TaskRecurrenceSeries,
   type TaskStatus,
   type TaskWaiting,
+  type TaskChecklistItem,
   type TaskWaitingSubject,
   type TimeSector,
 } from "~/kernel/tasks";
@@ -171,6 +172,67 @@ export const WAITING_TARGET_COLUMNS = `
   we.id AS waiting_target_id,
   we.type AS waiting_target_type,
   we.title AS waiting_target_title`;
+
+/**
+ * TASKS-13 — the raw `task_checklist_items` row, exactly as stored in D1.
+ *
+ * `completed` is SQLite's 0/1 integer, never a boolean, and the conversion lives
+ * in {@link rowToChecklistItem} so no query result reaches the domain with a
+ * truthy number standing in for a flag.
+ */
+export interface TaskChecklistItemRow {
+  readonly id: string;
+  readonly workspace_id: string;
+  readonly task_id: string;
+  readonly title: string;
+  readonly position: number;
+  readonly completed: number;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/**
+ * The columns a checklist read selects, aliased. Declared here beside the row
+ * type so a query cannot select a shape the converter does not expect.
+ */
+export const TASK_CHECKLIST_COLUMNS = `ci.id AS id,
+  ci.workspace_id AS workspace_id,
+  ci.task_id AS task_id,
+  ci.title AS title,
+  ci.position AS position,
+  ci.completed AS completed,
+  ci.created_at AS created_at,
+  ci.updated_at AS updated_at`;
+
+/**
+ * The ORDER the whole product reads a checklist in.
+ *
+ * A TOTAL order: `position` is the owner's choice, and `created_at, id` break a
+ * tie that a reorder interrupted mid-flight could otherwise leave. Declared once
+ * so the record, the recurrence clone and every test agree by construction.
+ */
+export const TASK_CHECKLIST_ORDER = `ci.position ASC, ci.created_at ASC, ci.id ASC`;
+
+/** Convert a stored checklist row into the domain item. Total and defensive. */
+export function rowToChecklistItem(
+  row: TaskChecklistItemRow,
+): TaskChecklistItem {
+  if (!Number.isInteger(row.position) || row.position < 0) {
+    throw new CorruptTaskRecordError();
+  }
+  if (row.completed !== 0 && row.completed !== 1) {
+    throw new CorruptTaskRecordError();
+  }
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    title: row.title,
+    position: row.position,
+    completed: row.completed === 1,
+    createdAt: fromStorageTimestamp(row.created_at),
+    updatedAt: fromStorageTimestamp(row.updated_at),
+  };
+}
 
 /** Validate a stored priority string (or null) into a domain value; defensive. */
 function toPriority(value: string | null): TaskPriority | null {

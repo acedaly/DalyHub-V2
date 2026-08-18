@@ -96,6 +96,10 @@ describe("the mutation envelope", () => {
       "sequence",
       "status",
       "syncedAt",
+      // TASKS-13 — the sub-record a checklist tick addresses. Null for every
+      // Task-level operation, and still no session token, no CSRF token and no
+      // copy of the record.
+      "targetId",
       "value",
     ]);
     expect(created.status).toBe("pending");

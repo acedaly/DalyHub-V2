@@ -1,0 +1,294 @@
+/*
+ * TASKS-13 — the Task record's Checklist.
+ *
+ * Layout and rhythm only; every value is a DalyHub token. The check control is
+ * `.dh-check-circle` (task-signals.css) verbatim and the overflow is the shared
+ * DS-12 menu, so this file styles the ROW's arrangement and nothing that already
+ * has an owner.
+ *
+ * ── The anatomy, and what it deliberately is not ─────────────────────────────
+ *
+ *     [check]  Item title .......................................... [more]
+ *
+ * Three cells. No card, no border box, no tonal fill, no chip and no icon run —
+ * a checklist is intentionally simpler than a Task, and the way that reads is by
+ * the row having almost nothing on it. Separation comes from whitespace and from
+ * the alignment of the check column, not from a container per item.
+ */
+
+.dh-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-checklist__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1) var(--dh-space-3);
+}
+
+/*
+ * The section label takes the small label rung, not a heading size.
+ *
+ * It is a real `h4` for the document outline and for the list it names, but a
+ * record's loudest thing is its title (task-drawer.css) and a section eyebrow
+ * that competed with it would flatten the hierarchy.
+ */
+.dh-checklist__title {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-checklist__progress {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * "the task is still open until you complete it" wraps onto its own line at a
+ * narrow width rather than pushing the figure off the row.
+ */
+.dh-checklist__all-done {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-checklist__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * The row.
+ *
+ * A grid, not a flex run: the title is the only flexible track, so a long step
+ * takes every pixel the check and the overflow do not need, and the overflow
+ * stays on the same vertical line down the whole list however long the titles
+ * are.
+ *
+ * `min-height` is the row's own floor rather than a fixed height — a wrapped
+ * title grows the row, which is exactly what must happen to a long step.
+ */
+.dh-checklist__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--dh-space-2);
+  min-block-size: var(--app-touch-target-min);
+}
+
+/*
+ * The check keeps a FULL 44px target on every viewport and every pointer, and
+ * occupies it.
+ *
+ * Two deliberate departures from the Task ROW's version of the same control, and
+ * both are about this being a RECORD panel rather than a dense collection:
+ *
+ *   - the desktop reduction to 28px is not inherited. A row buys that height back
+ *     from a list of fifty; a checklist of five in a 420px panel has it to spare.
+ *   - the negative inline margin is removed. On a row it pulls the target out of
+ *     the grid so the row aligns to the 20px MARK — here it would put the next
+ *     interactive thing (the rename trigger) 8px from the checkbox, which is what
+ *     axe's `target-size` rule measures and refuses. MEASURED: with the margin,
+ *     the safe clickable space around a 20px control is 20px, below the 24px
+ *     WCAG 2.2 minimum; without it, the target is a real 44px square.
+ */
+.dh-checklist__check {
+  align-self: start;
+  inline-size: var(--app-touch-target-min);
+  block-size: var(--app-touch-target-min);
+  margin-inline: 0;
+}
+
+/*
+ * The title cell, centred against the check's 44px target.
+ *
+ * It carries NO padding of its own: the shared inline editor inside it already
+ * holds the product's 44px control floor and centres its own value, so a top
+ * padding here would stack on top of that. MEASURED: with a 12px top padding the
+ * row came out 57px tall; without it, 44px — thirteen pixels a step, which on a
+ * checklist of eight is a hundred pixels of a 420px panel.
+ *
+ * `min-block-size` keeps the READ-ONLY form (a completed Task's plain text, with
+ * no editor in it) on the same line as its mark.
+ */
+.dh-checklist__label {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: var(--app-touch-target-min);
+  font-size: var(--dh-text-row-size);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A completed step is struck through AND its checkbox is checked AND its
+ * accessible state says so. The line is the third statement, never the only one
+ * (AGENTS.md §15), and the colour is muted rather than removed so the text stays
+ * readable at AA.
+ */
+.dh-checklist__label[data-completed="true"],
+/*
+ * …AND the inline editor's own trigger, because `text-decoration` does not
+ * propagate into an atomic inline-level box and the shared trigger is an
+ * `inline-flex` button. Setting it on the wrapper alone drew no line at all —
+ * which would have left completion carried by the checkbox and the colour, and
+ * the colour is exactly what AGENTS.md §15 says may not carry it alone.
+ */
+.dh-checklist__label[data-completed="true"] .dh-inline-edit__trigger,
+.dh-checklist__label[data-completed="true"] .dh-inline-edit__value {
+  color: var(--dh-color-text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* The inline editor fills the cell, so clicking anywhere along the row's title
+ * lands on the control rather than on dead space beside it. */
+.dh-checklist__label .dh-inline-edit,
+.dh-checklist__label .dh-inline-edit__trigger {
+  inline-size: 100%;
+  text-align: start;
+}
+
+/*
+ * The row's long tail, held to the SAME 44px floor as the check.
+ *
+ * The shared menu trigger is an icon button sized by the design system, which is
+ * 32px — right for a toolbar, and eight pixels short of a thumb. MEASURED at 390
+ * before this rule: 32px. It is raised here rather than on the shared button,
+ * because this is a claim about a checklist row on a phone and not a redesign of
+ * every icon button in the product.
+ */
+.dh-checklist__overflow {
+  align-self: start;
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+}
+
+/*
+ * The composer.
+ *
+ * Aligned to the TITLE column rather than to the row's leading edge, so a new
+ * step is typed exactly where it will appear. It has no submit button: Enter
+ * saves and opens the next one, blur saves, and a blank input closes — the whole
+ * interaction is the keyboard.
+ */
+.dh-checklist__composer {
+  display: flex;
+  padding-inline-start: calc(var(--app-touch-target-min) + var(--dh-space-2));
+  padding-block: var(--dh-space-1) 0;
+}
+
+.dh-checklist__input {
+  inline-size: 100%;
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-sm, var(--md-sys-shape-corner-small));
+  background: var(--dh-color-surface, transparent);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-text-row-size);
+}
+
+.dh-checklist__input:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-color-focus);
+  outline-offset: var(--dh-focus-offset);
+}
+
+/*
+ * The Add control aligns with the TITLE column, not with the panel's centre.
+ *
+ * A subtle Button is a flex ITEM of the section's column, so it stretched to the
+ * panel width and centred its label — which read as a form's submit row in the
+ * middle of a list. It starts where the steps' text starts, so "the next step
+ * goes here" is what the eye is told.
+ *
+ * It also takes the product's target floor, at EVERY width, and that floor is
+ * not scoped to `hover: none` the way `card.css` scopes its own. A `sm` Button
+ * is 32px, which is the wrong size for a thumb. It is also the wrong size for
+ * the SLOT: clicking it replaces it with the composer, and the composer carries
+ * the shared inline editor's 45px floor. MEASURED at 393 before this rule: the
+ * button 32px, the composer 45px — so the section grew thirteen pixels the
+ * moment the caret arrived. At 45px the control is exactly the size of the
+ * thing it turns into, so opening the composer moves nothing.
+ */
+.dh-checklist__add {
+  align-self: flex-start;
+  margin-inline-start: calc(var(--app-touch-target-min) + var(--dh-space-2));
+  min-block-size: var(--app-touch-target-min);
+}
+
+.dh-checklist__limit {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * The Task record de-cards its feature region (task-drawer.css), so the
+ * checklist sits directly on the panel. It keeps one hairline BELOW it, because
+ * the summary band that follows has one above it and two adjacent regions with
+ * no rule between them read as one.
+ */
+.dh-task-record .record-layout__feature {
+  padding-block: 0 var(--dh-space-4);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+/*
+ * ── The Task ROW's checklist indicator ──────────────────────────────────────
+ *
+ * One compact figure in the row's title cell, beside the repeat mark, drawn as
+ * an ordinary metadata value rather than a pill. On a DESKTOP row it adds no
+ * grid track and no height: it sits on the title's own line.
+ *
+ * MEASURED, on the same page with and without it
+ * (`docs/design/assets/v2-3-tasks-13-checklists/measurements.json`):
+ *
+ *     1440   row with "2 of 5" = 44px   row with no checklist = 44px
+ *     1280   row with "2 of 5" = 44px   row with no checklist = 44px
+ *      393   row with "1 of 2" = 100px  row with no checklist = 81px
+ *      320   row with "2 of 5" = 100px  row with no checklist = 81px
+ *
+ * The phone numbers are why the figure STOPS below `md`. There the row is two
+ * stacked lines and the title has the narrowest measure it ever gets, so a
+ * five-character value beside it does not sit in spare space — it takes width
+ * off the title and wraps it, at nineteen pixels a row, on the surface where
+ * density matters most. The step count is one tap away in the record, and the
+ * prompt's own rule applies: if the indicator harms row clarity, keep it to the
+ * record.
+ */
+@media (min-width: 48rem) {
+  .dh-taskrow__checklist {
+    flex: none;
+    font-size: var(--dh-text-meta-size);
+    font-variant-numeric: tabular-nums;
+    color: var(--dh-color-text-muted);
+    white-space: nowrap;
+  }
+}
+
+/* Below `md` it is not drawn at all — see the measurements above. */
+.dh-taskrow__checklist {
+  display: none;
+}
+
+@media (min-width: 48rem) {
+  .dh-taskrow__checklist {
+    display: inline;
+  }
+}
+
+/* Every step done is still only a muted figure. No colour change, no tick, no
+ * celebration: the Task is not finished, and the row must not imply it is. */

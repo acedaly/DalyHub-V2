@@ -44,7 +44,12 @@ import { Link } from "react-router";
 import { useCardLongPress } from "~/shared/card/useCardLongPress";
 import { Menu, type MenuItem } from "~/shared/ui";
 import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
-import type { TaskPriority, TaskRelation } from "~/kernel/tasks";
+import {
+  checklistProgressLabel,
+  type TaskChecklistProgress,
+  type TaskPriority,
+  type TaskRelation,
+} from "~/kernel/tasks";
 
 import { useTaskRowSwipe } from "./useTaskRowSwipe";
 
@@ -81,6 +86,15 @@ export interface TaskRowData {
   readonly completed: boolean;
   readonly waiting: boolean;
   readonly recurrence: SerializedTaskListItem["recurrence"];
+  /**
+   * TASKS-13 — this Task's checklist progress, when the SURFACE projected it.
+   *
+   * Absent means the surface did not read it (and pays nothing for it), which is
+   * deliberately different from a total of zero — a Task with no checklist. The
+   * row draws the figure only for a real, non-empty checklist, so neither can be
+   * mistaken for the other.
+   */
+  readonly checklist?: TaskChecklistProgress;
 }
 
 export interface TaskRowSelection {
@@ -159,6 +173,7 @@ export function TaskRow({
   const disabled = readOnly || task.completed;
   const showState = !ROUTINE_STATES.has(task.stateKind);
   const repeat = taskRecurrenceLabel(task.recurrence ?? null);
+  const checklist = checklistProgressLabel(task.checklist);
 
   /*
    * The hold gesture, through the SHARED hook.
@@ -403,6 +418,27 @@ export function TaskRow({
           <span className="dh-taskrow__signal" data-testid="task-row-repeat">
             <RepeatIcon aria-hidden="true" />
             <span className="dh-visually-hidden">Repeats: {repeat}</span>
+          </span>
+        ) : null}
+        {/*
+         * TASKS-13 — the checklist figure, as a compact "2 of 4".
+         *
+         * On the TITLE's own line, so it costs the row no grid track and no
+         * height: a row with a checklist is exactly as tall as one without
+         * (measured). It is a value rather than a signal, so it is READ rather
+         * than hidden — and it is the same two numbers the record shows, which is
+         * what stops a second wording appearing for one fact.
+         *
+         * The checklist's ITEMS are never drawn here. The Task is the unit of
+         * planning and completion, and a row that unfolded into five sub-rows
+         * would make the collection a tree.
+         */}
+        {checklist !== null ? (
+          <span
+            className="dh-taskrow__checklist"
+            data-testid="task-row-checklist"
+          >
+            {checklist}
           </span>
         ) : null}
         {/* PWA-12 — what this device is still holding, in words. Absent in the

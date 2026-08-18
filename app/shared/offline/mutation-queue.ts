@@ -112,6 +112,12 @@ export function announceReplayApplied(): void {
 /** What a queued Task edit needs to say. */
 export interface TaskMutationIntent {
   readonly entityId: string;
+  /**
+   * TASKS-13 — the sub-record within the entity, when the operation names one
+   * (today: the checklist item a tick addresses). Absent for every operation
+   * that changes the Task itself.
+   */
+  readonly targetId?: string | null;
   readonly operation: OfflineMutationOperation;
   /**
    * The intended value, already CANONICAL. A date must be a resolved
@@ -221,6 +227,7 @@ async function enqueueOne(
     : createMutationRecord({
         namespace,
         entityId: intent.entityId,
+        targetId: intent.targetId ?? null,
         operation: intent.operation,
         value: intent.value ?? null,
         baseValue: intent.baseValue ?? null,

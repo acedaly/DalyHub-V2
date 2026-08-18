@@ -1256,7 +1256,7 @@ The design principle, in four lines:
 
 ### 15.1 What may be changed offline
 
-Six operations, one entity type:
+Seven operations, one entity type (TASKS-13 added the seventh):
 
 | Operation | Canonical intent replay uses | Field it contends over |
 |---|---|---|
@@ -1266,11 +1266,39 @@ Six operations, one entity type:
 | Set / clear priority | `intent=update` + `priority` | `priority` |
 | Set / clear the due date | `intent=update` + `dueDate` | `dueDate` |
 | Set / clear the planned date | `intent=plan` / `intent=clear_plan` | `scheduledDate` |
+| Tick / untick a CHECKLIST ITEM | `intent=checklist_set_completed` | that item's `completed` |
 
 The planned date carries its own two intents rather than a generic field write
 because `planTask`/`clearPlan` is its domain authority and is kept strictly
 separate from the due date (ADR-043 §3). **Replay always uses the same domain path
 the online control uses**; it never finds a shortcut.
+
+**A checklist tick is the first operation that addresses something INSIDE a
+record (TASKS-13, 2026-08-18).** `entityId` is still the TASK — that is the record
+replay posts to, and the record whose existence decides whether the change can
+still be applied — and a new `targetId` names the checklist item. Three
+consequences, and each of them is why the field exists:
+
+  - `targetId` is part of the COALESCE key, so two queued ticks on two different
+    steps of one Task are two independent changes rather than one field edited
+    twice (which would silently lose one of them);
+  - the RECEIPT is filed under the item's id, so a receipt written for "tick step
+    2" can never be satisfied by a request naming step 3;
+  - the CONFLICT compares that item's own tick, so a server change to a DIFFERENT
+    step MERGES rather than conflicting — the same rule §18 states for two
+    different Task fields.
+
+The value crosses the wire as the ordinary `1` / empty flag every DalyHub form
+uses, so the online control and a replayed tick send the same body. An item
+deleted on another device is TERMINAL and says which thing went — the Task is
+still there, so `OFFLINE_TARGET_GONE`'s wording would have been untrue.
+
+**The other four checklist operations are online-only, deliberately.** Adding
+needs a server-assigned id and position; renaming and deleting address an item
+whose identity the device may no longer share; reordering contends over the
+list's WHOLE current order, which is not a single comparable field. Queueing any
+of them would mean inventing a conflict rule this contract does not have.
+Recorded as **DEBT-160**.
 
 **Project / Area reassignment was assessed and deliberately deferred.** The
 architecture would permit it — `intent=set_parent` is atomic and re-validates its

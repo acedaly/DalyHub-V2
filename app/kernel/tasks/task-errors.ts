@@ -15,7 +15,13 @@
 
 /** Discriminator so callers can branch on error kind without `instanceof`. */
 export type TaskErrorCode =
-  "validation" | "not_found" | "storage" | "corrupt" | "project_archived";
+  | "validation"
+  | "not_found"
+  | "storage"
+  | "corrupt"
+  | "project_archived"
+  | "checklist_item_not_found"
+  | "checklist_full";
 
 /** Base class for every kernel task error. */
 export abstract class TaskError extends Error {
@@ -62,6 +68,14 @@ export type TaskValidationField =
   | "savedView"
   | "savedViewName"
   | "recurrence"
+  // TASKS-13 (checklists) additive fields. A checklist item is not a Task, so
+  // its rejections are named after the checklist rather than borrowing "title"
+  // and "id" from the Task that owns it -- a form showing both must be able to
+  // put each message beside the control it belongs to.
+  | "checklistTitle"
+  | "checklistItem"
+  | "checklistOrder"
+  | "checklist"
   /**
    * The mutation was rejected because the task is completed (TODAY-04): planning
    * applies to open work only. The id/input are valid — the STATE is not — so this
@@ -137,5 +151,40 @@ export class TaskProjectArchivedError extends TaskError {
     message = "This task's project is archived and read-only — restore it to make changes",
   ) {
     super(message);
+  }
+}
+
+/**
+ * TASKS-13 — no checklist item with the given id belongs to the given Task in
+ * the bound workspace.
+ *
+ * Its own error rather than `TaskNotFoundError` because the two say different
+ * things to the surface: the Task is right there and still open, and it is the
+ * ITEM that has gone (deleted on another device, or named by a stale id). Like
+ * every other not-found in this family, a missing item, an item belonging to a
+ * DIFFERENT Task and an item in another workspace are indistinguishable.
+ */
+export class TaskChecklistItemNotFoundError extends TaskError {
+  readonly code = "checklist_item_not_found" as const;
+
+  constructor(message = "That checklist item is no longer there") {
+    super(message);
+  }
+}
+
+/**
+ * TASKS-13 — the Task's checklist already holds the maximum number of items.
+ *
+ * A refusal with a reason, never a silent drop: the owner is told the checklist
+ * is full so they can decide what the work actually is, rather than typing an
+ * item that quietly does not appear.
+ */
+export class TaskChecklistFullError extends TaskError {
+  readonly code = "checklist_full" as const;
+
+  constructor(limit: number) {
+    super(
+      `A checklist holds at most ${limit} items. Remove one, or make this its own Task.`,
+    );
   }
 }

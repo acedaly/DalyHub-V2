@@ -77,6 +77,8 @@ export type TaskSaveOutcome =
  */
 export interface TaskOfflineIntent {
   readonly operation: OfflineMutationOperation;
+  /** TASKS-13 — the checklist item a tick addresses, for operations that name one. */
+  readonly targetId?: string | null;
   /** The intended value, already canonical (a date is `YYYY-MM-DD`, never "tomorrow"). */
   readonly value?: string | null;
   /** The value the surface was showing. The base the server compares against. */
@@ -110,6 +112,7 @@ async function queueUnsent(
 ): Promise<TaskSaveOutcome> {
   const intent: TaskMutationIntent = {
     entityId: taskId,
+    targetId: offline.targetId ?? null,
     operation: offline.operation,
     value: offline.value ?? null,
     baseValue: offline.baseValue ?? null,

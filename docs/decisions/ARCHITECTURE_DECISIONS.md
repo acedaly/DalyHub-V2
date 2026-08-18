@@ -2497,11 +2497,12 @@ that existed for exactly this purpose was incremented and never compared.
 > existing link still resolves — the same reasoning
 > [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) records for the duplicated
 > DEBT-45. Cite these two by title, not by number alone. The next free ADR number
-> is **ADR-101**. *(This line said **ADR-086** while the file already carried
+> is **ADR-104**. *(This line said **ADR-086** while the file already carried
 > headings up to ADR-099 — exactly the staleness the collision notes above warn
 > about, arriving in the authority line itself. Corrected 2026-08-17 by FINISH-01,
-> which took ADR-100 by reading the file rather than this sentence. Do the same,
-> and re-check on rebase.)*
+> which took ADR-100 by reading the file rather than this sentence; advanced to
+> ADR-104 on 2026-08-18 by TASKS-13, which took ADR-103 the same way. Do the
+> same, and re-check on rebase.)*
 
 **Status.** Accepted (SET-03 / AUDIT-10). Builds on [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) (Cloudflare Access is the identity provider and DalyHub holds no session of its own), [ADR-015](#adr-015-markdown-rendering-and-sanitisation) (the sanitisation pipeline this policy sits behind), [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (one append-only Activity stream) and the AUDIT-FIX-04 mutation boundary. Findings: [AUDIT-10](../product/END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08) and the offline-data-after-logout finding ([DEBT-68](../product/PRODUCT_DEBT.md)).
 
@@ -3611,3 +3612,153 @@ habit-shaped queue beside it is exactly what its own contract refuses (deferred
 as **DEBT-155**). A future Habit reminder is possible without a schema change —
 the data a notification evaluator needs is already stored — but HABITS-01 sends
 nothing, because notification sends belong to the NOTIFY ledger architecture.
+
+---
+
+## ADR-103: A checklist item is NOT a Task — one durable level of ordered steps inside one Task, with dense integer order, no Activity, and no automatic completion in either direction
+
+**Status.** Accepted (V2.3 TASKS-13, 18 August 2026). Adjacent to
+[ADR-001](#adr-001-area-hierarchy) (the Area → Goal → Project → Task spine, which this deliberately does not extend),
+[ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (Activity is appended atomically, and not everything is an Activity event),
+[ADR-028](#adr-028-task-details-as-an-additive-slice) (the additive `task_details` slice this sits beside),
+[ADR-029](#adr-029-completion-and-waiting-are-one-atomic-domain-operation) (completion as one atomic domain operation),
+[ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence) and [ADR-085](#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) (structured Task recurrence and its successor), and
+[ADR-102](#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) (the previous item, which kept its domain boundary the same way).
+Full record: [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md).
+
+**Context.** Some Tasks are genuinely one commitment with several steps —
+*prepare the camper for the trip* is one thing to have done, and four things to
+do. DalyHub had nowhere to put the four. The roadmap named the decision as *where
+a checklist lives* — `task_details`, its own table, or the Markdown description
+already there — and added the harder half: *what a partially-complete checklist
+means to a Project's progress.*
+
+Three cheap answers were available and all three are wrong, each for its own
+reason:
+
+  - a **child Task** is a second level of the SPINE. Every count, rollup, filter
+    and view in DalyHub answers a question about Tasks, and a second level makes
+    every one of those answers ambiguous, permanently. A Project holding one Task
+    with ten steps would report eleven; a weekly planning queue would offer to
+    place a step on Wednesday; an Inbox would fill with fragments of one job.
+  - a **Markdown checkbox** in the description is not data. Ticking one is a
+    whole-description rewrite, two devices ticking two boxes lose one of them,
+    the order cannot change without editing prose, and a future Project Template
+    could not copy the steps without parsing them back out.
+  - a **JSON array** on the Task has the same lost update in a less honest form,
+    and cannot be indexed, counted or ordered by the database — so every progress
+    figure would mean reading and parsing a blob.
+
+- **Decision 1 — a checklist item is a ROW, and it is not an entity.**
+  `task_checklist_items` (migration 0045): id, workspace, task, title, position,
+  completed, timestamps. It has no `entities` row, no spine record, no
+  EntityLinks, no Activity of its own and no route. It therefore cannot be
+  opened, planned, delegated, filtered, counted, searched to, or completed as a
+  Task — not because the interface hides those things, but because the machinery
+  that would provide them does not exist for it. A Project's open-Task count and
+  a Goal's measured progress are untouched by construction.
+
+- **Decision 2 — ONE level, enforced by the absence of a column.** There is no
+  `parent_item_id`, and there will not be one. A checklist item cannot contain a
+  checklist item, a Task, a Note or another checklist. The no-nesting rule is a
+  property of the schema rather than a convention someone has to remember.
+
+- **Decision 3 — order is a dense integer, and it is deliberately NOT unique.**
+  The read order is `(position, created_at, id)` — a TOTAL order, so the list is
+  deterministic even if two rows ever shared a position. A reorder rewrites one
+  Task's positions inside a single transaction, and SQLite checks a UNIQUE index
+  row by row rather than at commit, so a unique constraint would reject exactly
+  the legitimate intermediate state a reorder passes through. No floating-point
+  midpoints and no rebalancing scheme: a checklist is bounded at 100 items, a
+  whole-list renumber is one batch, and a rebalance that never has to happen
+  cannot go wrong. The bound is enforced by the INSERT rather than by a count
+  read before it, so two devices adding at ninety-nine cannot both pass. A
+  reorder that does not name exactly the Task's current items is REFUSED with
+  the current list, because a partial reorder would silently invent an order the
+  owner never chose — and the membership it was validated against is carried
+  into the write as a precondition on every statement in the batch, so a step
+  added or deleted inside the write gap refuses the whole transaction rather
+  than letting a stale order half-apply.
+
+- **Decision 4 — completion does not propagate, in either direction.**
+  Ticking every step does NOT complete the Task: a checklist describes the steps
+  and the Task is the commitment, and only the owner decides the commitment is
+  met. Completing the Task does NOT tick, clear or hide a single step: the
+  checklist is the truthful record of what was actually done, and a Task
+  completed with two of four steps done says so afterwards. Completing a Task
+  with unfinished steps is allowed with NO confirmation — DalyHub prefers undo
+  over confirmation dialogs (AGENTS.md §7), reopening restores the Task exactly,
+  and a dialog here would tax the commonest act in the product to warn about a
+  state the record already shows. A completed Task's checklist also stays
+  EDITABLE: completion is a fact about the commitment, not an archive of the
+  work, so "finished it, forgot to tick the last one" is an ordinary correction
+  and a mis-ticked step in a completed occurrence is not permanent. The
+  read-only case is DELETION, which is the test every other control in the
+  record makes.
+
+- **Decision 5 — a recurring Task's successor inherits the STRUCTURE and none of
+  the ticks.** A routine's steps are part of the routine, so *Monthly camper
+  check* arrives next month with its four checks; last month's ticks describe
+  last month's work, so they do not. The clone is written INSIDE the existing
+  completion batch at the one recurrence authority (`#buildSuccessorGroup`), with
+  fresh row ids and `completed` hard-coded to 0 — so the successor arrives with
+  its steps or does not arrive at all, and the completed occurrence's own
+  checklist is never shared or rewritten. No second recurrence mechanism exists.
+
+- **Decision 6 — checklist mutations append NO Activity.** A checklist tick is
+  STATE, not history. Activity is the history of RECORDS, and putting ten rows in
+  the workspace timeline because a Task grew ten steps would drown the events
+  that describe commitments — the flood the item was warned about. The Task's
+  current checklist is itself the useful truth. Every mutation does bump the
+  parent Task's `updated_at`, so "recently updated" stays honest. If per-item
+  completion history is ever needed, it is a deliberate design rather than a
+  side effect of this one.
+
+- **Decision 7 — ONE mutation authority, on the TASK's own route.** Five intents
+  (`checklist_add`, `checklist_rename`, `checklist_set_completed`,
+  `checklist_delete`, `checklist_reorder`) on `/tasks/:taskId`, because a
+  checklist item has no address of its own: it is reachable only through the Task
+  that owns it, and routing it that way makes the workspace + ownership check
+  impossible to skip. Every mutation proves three things agree — the item's
+  workspace, its parent Task's workspace, and the authenticated one — and every
+  answer carries the WHOLE checklist, so a surface reconciles rather than
+  accumulating a second opinion.
+
+- **Decision 8 — progress is a BOUNDED aggregate, never a per-row read.** A row
+  surface obtains progress only through `listChecklistProgress(ids)`: one indexed
+  statement per bounded chunk of ids, so the statement count is a function of the
+  caller's PAGE SIZE — a constant per surface — and never of how many Tasks the
+  workspace holds. The chunk is 80 rather than 100 because D1 accepts at most 100
+  bound parameters per query and the workspace id is one of them.
+
+- **Decision 9 — offline covers the TICK, and says so.** The queued mutation is
+  `set_checklist_completed`, carried by PWA-12's existing queue, receipts and
+  conflict rule; the record gains `targetId` so two ticks on two different steps
+  of one Task are two changes rather than one field edited twice. Adding,
+  renaming, deleting and reordering are online-only: each needs a server-assigned
+  identity or the list's whole current order, neither of which is a single
+  comparable field, and inventing one would be a second offline system.
+
+- **Decision 10 — the Task ROW carries a compact figure on desktop and none on a
+  phone.** MEASURED on one page with and without it: at 1440 and 1280 a row with
+  "2 of 5" is 44px and a row with no checklist is 44px — it costs nothing. Below
+  `md` the row is two stacked lines and the title has its narrowest measure, so
+  the same five characters take width off the title and wrap it, at nineteen
+  pixels a row. The figure therefore stops below `md`; the record is one tap away.
+  Checklist item TITLES are never drawn in a collection, on Today or in Weekly
+  Planning, and an item never gets a selection checkbox: the Task remains the
+  canonical unit of planning and completion.
+
+**Consequences.** Checklists are a new durable table with a migration (0045), a
+kernel model, five repository operations and one client seam, all workspace-scoped
+and bounded. Migration 0045 also REBUILDS `offline_mutation_receipts` to widen its
+`operation` CHECK, because SQLite cannot alter a CHECK in place — the same
+procedure 0021 and 0026 used, copying every row by an explicit column list. The
+checklist is exported, restored and backed up as its own snapshot collection, so
+it survives a round trip like every other durable record. Search finds the parent
+TASK by its checklist text through the existing `searchTasks` statement (an
+`EXISTS`, ranked below every title match); a checklist item is never a search
+result, and SEARCH-02 is not started here. Four checklist operations stay
+online-only (**DEBT-160**) and a phone Task row shows no progress figure
+(**DEBT-161**). The model is deliberately easy for PROJECT-02 to clone: durable
+rows, stable ordering, deterministic per-row ids and no component-local state.

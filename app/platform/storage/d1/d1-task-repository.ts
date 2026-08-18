@@ -147,6 +147,14 @@ import {
   type TaskPriority,
   type TaskRecurrenceRule,
   type TaskRecurrenceSeries,
+  MAX_CHECKLIST_ITEMS,
+  TaskChecklistFullError,
+  TaskChecklistItemNotFoundError,
+  validateChecklistItemId,
+  validateChecklistOrder,
+  validateChecklistTitle,
+  type TaskChecklistItem,
+  type TaskChecklistProgress,
   type TaskRelation,
   type TaskRelationKind,
   type TaskRepository,
@@ -186,11 +194,15 @@ import {
   spineLinkCreatedEvent,
 } from "./spine-database";
 import {
+  rowToChecklistItem,
   rowToTaskDetails,
   rowToTaskWaiting,
+  TASK_CHECKLIST_COLUMNS,
+  TASK_CHECKLIST_ORDER,
   TASK_DETAIL_COLUMNS,
   TASK_RECURRENCE_JOIN,
   WAITING_TARGET_COLUMNS,
+  type TaskChecklistItemRow,
   type TaskJoinedRow,
   type WaitingTargetColumns,
 } from "./task-database";
@@ -345,6 +357,20 @@ type SuccessorPlan = {
     readonly kind: "area" | "project";
     readonly id: string;
   } | null;
+  /**
+   * TASKS-13 — the checklist STRUCTURE the successor inherits, with fresh ids and
+   * every item RESET to unticked.
+   *
+   * Resolved before the batch (it needs one id per row, and SQL cannot mint them)
+   * and written inside it, so the successor arrives with its steps or does not
+   * arrive at all. Bounded by MAX_CHECKLIST_ITEMS, so the completion batch stays
+   * a known size.
+   */
+  readonly checklist: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly position: number;
+  }[];
 };
 
 /** The row shape a successor-safety read needs from a candidate successor. */
@@ -475,6 +501,32 @@ const WORKSPACE_GROUP_BUCKET_MAX = 200;
 const WORKSPACE_GROUP_MAX_BUCKETS = 24;
 
 /** Default and hard-max results for the bounded task-parent title search (ADR-043 §9). */
+/**
+ * TASKS-13 — the most Tasks one checklist-progress read may cover.
+ *
+ * Generously above every page in the product (a Tasks page is at most 100 rows,
+ * a grouped view at most 24 buckets of 50) and present so a caller cannot turn a
+ * bounded aggregate into an unbounded one by handing it a whole workspace.
+ */
+const CHECKLIST_PROGRESS_MAX_TASKS = 1_500;
+
+/**
+ * How many Task ids one progress statement binds.
+ *
+ * **D1 accepts at most 100 bound parameters per query**, and the workspace id is
+ * one of them — so a chunk of 100 is a hundred-and-one, and the statement fails.
+ * MEASURED: it did, on a development workspace of 212 Tasks, and because Today
+ * degrades a failed section rather than 500ing, the symptom was a day that said
+ * "Nothing planned today" while the database held thirty-seven planned Tasks.
+ *
+ * Eighty leaves real headroom under the limit and still means a full 100-row
+ * Tasks page costs two statements rather than a hundred. The statement count is
+ * a function of the caller's PAGE SIZE — a constant per surface — never of how
+ * many Tasks the workspace holds, which is the property `no N+1` actually asks
+ * for.
+ */
+const CHECKLIST_ID_CHUNK = 80;
+
 const TASK_PARENT_SEARCH_LIMIT = 25;
 const TASK_PARENT_SEARCH_MAX = 50;
 
@@ -1589,11 +1641,29 @@ export class D1TaskRepository implements TaskRepository {
          ${TASK_PARENT_IDENTITY_JOIN}
          ${WAITING_TARGET_JOIN}
          WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
-               AND lower(e.title) LIKE ? ESCAPE '\\'
+               AND (
+                 lower(e.title) LIKE ? ESCAPE '\\'
+                 /*
+                  * TASKS-13 — a Task is also found by the text of its own
+                  * checklist, so "tyre pressures" reaches "Prepare camper for
+                  * trip". The item is never a RESULT: this is an EXISTS over the
+                  * same statement, it returns the parent TASK, and there is no
+                  * route, no record and no search hit a checklist item could be.
+                  * Ranked below every title match by the CASE below, so a Task
+                  * actually called "tyre pressures" still comes first.
+                  */
+                 OR EXISTS (
+                      SELECT 1 FROM task_checklist_items ci
+                      WHERE ci.workspace_id = e.workspace_id
+                        AND ci.task_id = e.id
+                        AND lower(ci.title) LIKE ? ESCAPE '\\'
+                    )
+               )
          ORDER BY CASE
                     WHEN lower(e.title) = ? THEN 0
                     WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 1
-                    ELSE 2
+                    WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 2
+                    ELSE 3
                   END,
                   (sr.completed_at IS NOT NULL) ASC,
                   lower(e.title) ASC,
@@ -1604,8 +1674,10 @@ export class D1TaskRepository implements TaskRepository {
         this.#workspaceId,
         this.#workspaceId,
         like,
+        like,
         text,
         likePrefix(text),
+        like,
         limit,
       );
 
@@ -4055,6 +4127,27 @@ export class D1TaskRepository implements TaskRepository {
       parentLink?.parent_id && parentKind !== null
         ? { kind: parentKind, id: parentLink.parent_id }
         : null;
+    /*
+     * TASKS-13 — the checklist STRUCTURE carries over; the TICKS do not.
+     *
+     * A routine's steps are part of the routine: "Monthly camper check" means
+     * the same four checks every month, and a successor that arrived empty would
+     * make the owner retype them. But last month's ticks describe last month's
+     * work, and copying them would have this month's occurrence claim, on the day
+     * it is created, that its steps are already done. So each item is cloned by
+     * title and position with a FRESH id and `completed` reset — which is also
+     * what keeps the completed occurrence's own checklist intact as history.
+     *
+     * Read here, before the batch, because each cloned row needs an id and SQL
+     * cannot mint one per row. Bounded by MAX_CHECKLIST_ITEMS.
+     */
+    const checklist = (await this.listChecklist(current.id)).map(
+      (item, index) => ({
+        id: this.#newEntityId(),
+        title: item.title,
+        position: index,
+      }),
+    );
     return {
       id: this.#newEntityId(),
       linkId: parent === null ? null : this.#newEntityId(),
@@ -4074,6 +4167,7 @@ export class D1TaskRepository implements TaskRepository {
       timeSector: current.timeSector,
       commitmentState: current.commitmentState,
       parent,
+      checklist,
     };
   }
 
@@ -4288,6 +4382,44 @@ export class D1TaskRepository implements TaskRepository {
     statements.push(
       this.#insertRecurrenceStatement(plan.id, plan.rule, plan.series, nowTs),
     );
+
+    /*
+     * TASKS-13 — the successor's checklist, cloned STRUCTURE-ONLY.
+     *
+     * One statement per item, each gated on the successor entity actually
+     * existing, so the clone rides on the same cascade as the detail row: if the
+     * successor was declined because a live occurrence already holds this series
+     * slot, no checklist row is written either, and there is never a set of items
+     * belonging to a Task that was not created. `completed` is hard-coded 0 -- the
+     * reset is in the SQL, not in a value someone could pass through.
+     */
+    for (const item of plan.checklist) {
+      statements.push(
+        this.#db
+          .prepare(
+            `INSERT INTO task_checklist_items
+               (id, workspace_id, task_id, task_type, title, position, completed,
+                created_at, updated_at)
+             SELECT ?, ?, ?, '${TASK}', ?, ?, 0, ?, ?
+             WHERE EXISTS (
+                     SELECT 1 FROM entities
+                     WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                       AND deleted_at IS NULL
+                   )`,
+          )
+          .bind(
+            item.id,
+            this.#workspaceId,
+            plan.id,
+            item.title,
+            item.position,
+            nowTs,
+            nowTs,
+            this.#workspaceId,
+            plan.id,
+          ),
+      );
+    }
 
     // ONE legible event on the SERIES: the completed occurrence and the occurrence it
     // produced, so the timeline explains where the new task came from.
@@ -6096,6 +6228,532 @@ export class D1TaskRepository implements TaskRepository {
   async #run(statement: D1PreparedStatement): Promise<D1Result> {
     try {
       return await statement.all();
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* TASKS-13 — checklists                                                    */
+  /*                                                                          */
+  /* The ONE place a checklist item is written. Every surface — the record,   */
+  /* the phone, an offline replay and (later) a Project Template clone —      */
+  /* reaches these methods, so consistency between them is structural rather  */
+  /* than a convention. Nothing here appends Activity: a checklist tick is    */
+  /* STATE, not history (TASKS_MODULE.md records the decision and its         */
+  /* reasoning), and every mutation instead bumps the parent Task's           */
+  /* `updated_at` so a Task whose steps changed reads as recently changed.    */
+  /* ---------------------------------------------------------------------- */
+
+  async listChecklist(taskId: string): Promise<readonly TaskChecklistItem[]> {
+    let entityId: string;
+    try {
+      entityId = validateTaskId(taskId);
+    } catch {
+      // A malformed id is not an error on a READ: it simply names no Task, and
+      // a Task that names nothing has no checklist.
+      return [];
+    }
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT ${TASK_CHECKLIST_COLUMNS}
+           FROM task_checklist_items ci
+           WHERE ci.workspace_id = ? AND ci.task_id = ?
+           ORDER BY ${TASK_CHECKLIST_ORDER}
+           LIMIT ?`,
+        )
+        .bind(this.#workspaceId, entityId, MAX_CHECKLIST_ITEMS),
+    );
+    return ((result.results ?? []) as TaskChecklistItemRow[]).map(
+      rowToChecklistItem,
+    );
+  }
+
+  async listChecklistProgress(
+    taskIds: readonly string[],
+  ): Promise<ReadonlyMap<string, TaskChecklistProgress>> {
+    const unique: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of taskIds) {
+      if (typeof raw !== "string" || raw.length === 0) continue;
+      if (seen.has(raw)) continue;
+      seen.add(raw);
+      unique.push(raw);
+    }
+    const progress = new Map<string, TaskChecklistProgress>();
+    // An empty page costs NOTHING. A surface with no Tasks must not pay for a
+    // statement that can only answer "none".
+    if (unique.length === 0) return progress;
+    if (unique.length > CHECKLIST_PROGRESS_MAX_TASKS) {
+      throw new TaskValidationError(
+        "limit",
+        `checklist progress is read for at most ${CHECKLIST_PROGRESS_MAX_TASKS} tasks at a time`,
+      );
+    }
+
+    /*
+     * ONE aggregate per CHUNK, never one per Task.
+     *
+     * The chunk exists only because D1 accepts a finite number of bound
+     * parameters; the statement count is therefore
+     * ceil(pageSize / CHECKLIST_ID_CHUNK) — a function of the caller's PAGE,
+     * which is a constant per surface, and independent of how many Tasks the
+     * workspace holds. That is the property `no N+1` actually asks for, and
+     * `task-checklist-query-bounds.test.ts` asserts it.
+     */
+    for (let start = 0; start < unique.length; start += CHECKLIST_ID_CHUNK) {
+      const chunk = unique.slice(start, start + CHECKLIST_ID_CHUNK);
+      const result = await this.#run(
+        this.#db
+          .prepare(
+            `SELECT task_id AS task_id,
+                    COUNT(*) AS total,
+                    SUM(completed) AS done
+             FROM task_checklist_items
+             WHERE workspace_id = ? AND task_id IN (${chunk.map(() => "?").join(", ")})
+             GROUP BY task_id`,
+          )
+          .bind(this.#workspaceId, ...chunk),
+      );
+      for (const row of (result.results ?? []) as {
+        readonly task_id: string;
+        readonly total: number;
+        readonly done: number | null;
+      }[]) {
+        progress.set(row.task_id, {
+          total: Number(row.total ?? 0),
+          completed: Number(row.done ?? 0),
+        });
+      }
+    }
+    return progress;
+  }
+
+  async createChecklistItem(
+    taskId: string,
+    input: { readonly title: string },
+  ): Promise<TaskChecklistItem> {
+    const entityId = validateTaskId(taskId);
+    const title = validateChecklistTitle(input.title);
+    await this.#requireWritableTask(entityId);
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const itemId = this.#newEntityId();
+
+    /*
+     * The position is resolved INSIDE the insert, from the table itself.
+     *
+     * Reading `MAX(position)` first and binding the result would leave a gap two
+     * quick additions could both read through, and both would land on the same
+     * slot. `COALESCE(MAX(position) + 1, 0)` over this Task's rows makes the
+     * database choose, so the second insert sees the first.
+     *
+     * The insert is also gated on the Task being present and active, so a Task
+     * deleted between the guard above and this statement yields no orphan row.
+     *
+     * The LIMIT is enforced by the same statement, for the same reason. Reading
+     * the count first and deciding in TypeScript leaves a window two devices can
+     * both pass at ninety-nine, and a hundred-and-first row is worse than a
+     * refusal: `listChecklist` stops at a hundred, so the extra row becomes
+     * invisible to the record while `listChecklistProgress` — which counts
+     * without a limit — keeps counting it. The owner would see a total they
+     * could not reach. Asking the database to decide closes the window.
+     */
+    const statements: D1PreparedStatement[] = [
+      this.#db
+        .prepare(
+          `INSERT INTO task_checklist_items
+             (id, workspace_id, task_id, task_type, title, position, completed,
+              created_at, updated_at)
+           SELECT ?, ?, ?, '${TASK}', ?,
+                  (SELECT COALESCE(MAX(ci.position) + 1, 0)
+                     FROM task_checklist_items ci
+                    WHERE ci.workspace_id = ? AND ci.task_id = ?),
+                  0, ?, ?
+           WHERE EXISTS (
+                   SELECT 1 FROM entities
+                   WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+                     AND deleted_at IS NULL
+                 )
+             AND (SELECT COUNT(*)
+                    FROM task_checklist_items held
+                   WHERE held.workspace_id = ? AND held.task_id = ?)
+                 < ${MAX_CHECKLIST_ITEMS}`,
+        )
+        .bind(
+          itemId,
+          this.#workspaceId,
+          entityId,
+          title,
+          this.#workspaceId,
+          entityId,
+          nowTs,
+          nowTs,
+          this.#workspaceId,
+          entityId,
+          this.#workspaceId,
+          entityId,
+        ),
+      // Guarded on the insert's own `changes()`, so a refused insert leaves the
+      // Task's timestamp exactly where it was.
+      buildEntityUpdatedAtBumpStatement(
+        this.#db,
+        this.#workspaceId,
+        entityId,
+        nowTs,
+      ),
+    ];
+
+    const results = await this.#runChecklistBatch(statements);
+
+    if ((results[0]?.meta?.changes ?? 0) === 0) {
+      /*
+       * The statement refused it, and only the statement knows which of its two
+       * conditions said no. Counting now distinguishes them, and it costs a
+       * query only on the path that is already failing.
+       */
+      if ((await this.#countChecklist(entityId)) >= MAX_CHECKLIST_ITEMS) {
+        throw new TaskChecklistFullError(MAX_CHECKLIST_ITEMS);
+      }
+      // The Task vanished between the guard and the insert. Nothing was written.
+      throw new TaskNotFoundError();
+    }
+
+    const item = await this.#readChecklistItem(entityId, itemId);
+    if (item === null) {
+      throw new TaskNotFoundError();
+    }
+    return item;
+  }
+
+  async renameChecklistItem(
+    taskId: string,
+    itemId: string,
+    title: string,
+  ): Promise<{ readonly item: TaskChecklistItem; readonly changed: boolean }> {
+    const entityId = validateTaskId(taskId);
+    const checklistItemId = validateChecklistItemId(itemId);
+    const next = validateChecklistTitle(title);
+    await this.#requireWritableTask(entityId);
+
+    const current = await this.#readChecklistItem(entityId, checklistItemId);
+    if (current === null) {
+      throw new TaskChecklistItemNotFoundError();
+    }
+    if (current.title === next) {
+      return { item: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const results = await this.#runChecklistBatch([
+      // ONE column. A rename cannot disturb completion or order, so two devices
+      // renaming two different items — or the same item's tick — never contend.
+      this.#db
+        .prepare(
+          `UPDATE task_checklist_items
+           SET title = ?, updated_at = ?
+           WHERE workspace_id = ? AND task_id = ? AND id = ? AND title <> ?`,
+        )
+        .bind(next, nowTs, this.#workspaceId, entityId, checklistItemId, next),
+      buildEntityUpdatedAtBumpStatement(
+        this.#db,
+        this.#workspaceId,
+        entityId,
+        nowTs,
+      ),
+    ]);
+
+    const item = await this.#readChecklistItem(entityId, checklistItemId);
+    if (item === null) {
+      throw new TaskChecklistItemNotFoundError();
+    }
+    // `changed` is what the GUARDED statement actually did, not what was asked
+    // for: a racer that wrote the same title first leaves this one at zero, and
+    // saying "changed" then would be a claim about a write that did not happen.
+    return { item, changed: (results[0]?.meta?.changes ?? 0) > 0 };
+  }
+
+  async setChecklistItemCompleted(
+    taskId: string,
+    itemId: string,
+    completed: boolean,
+  ): Promise<{ readonly item: TaskChecklistItem; readonly changed: boolean }> {
+    const entityId = validateTaskId(taskId);
+    const checklistItemId = validateChecklistItemId(itemId);
+    await this.#requireWritableTask(entityId);
+
+    const current = await this.#readChecklistItem(entityId, checklistItemId);
+    if (current === null) {
+      throw new TaskChecklistItemNotFoundError();
+    }
+    if (current.completed === completed) {
+      // Idempotent. This is what makes a replayed offline tick safe to repeat,
+      // and it is the SECOND of the two protections — the offline receipt is the
+      // first, and neither is load-bearing alone.
+      return { item: current, changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const flag = completed ? 1 : 0;
+    const results = await this.#runChecklistBatch([
+      /*
+       * ONE row, ONE column, guarded on the value actually changing.
+       *
+       * Note what is NOT in this batch: any statement touching the parent Task's
+       * `spine_records.completed_at`. Completing every step does not complete the
+       * Task, and completing the Task does not touch a step. The two are separate
+       * decisions and the schema keeps them separate.
+       */
+      this.#db
+        .prepare(
+          `UPDATE task_checklist_items
+           SET completed = ?, updated_at = ?
+           WHERE workspace_id = ? AND task_id = ? AND id = ? AND completed <> ?`,
+        )
+        .bind(flag, nowTs, this.#workspaceId, entityId, checklistItemId, flag),
+      buildEntityUpdatedAtBumpStatement(
+        this.#db,
+        this.#workspaceId,
+        entityId,
+        nowTs,
+      ),
+    ]);
+
+    const item = await this.#readChecklistItem(entityId, checklistItemId);
+    if (item === null) {
+      throw new TaskChecklistItemNotFoundError();
+    }
+    // The guarded UPDATE's own answer. Two devices ticking the same item in the
+    // same instant both see the intended state, and at most ONE of them reports
+    // having written it.
+    return { item, changed: (results[0]?.meta?.changes ?? 0) > 0 };
+  }
+
+  async deleteChecklistItem(
+    taskId: string,
+    itemId: string,
+  ): Promise<{ readonly changed: boolean }> {
+    const entityId = validateTaskId(taskId);
+    const checklistItemId = validateChecklistItemId(itemId);
+    await this.#requireWritableTask(entityId);
+
+    const current = await this.#readChecklistItem(entityId, checklistItemId);
+    if (current === null) {
+      // Deleting what is already gone is the outcome that was asked for. On a
+      // surface two devices can both act on, that is not an error.
+      return { changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const results = await this.#runChecklistBatch([
+      this.#db
+        .prepare(
+          `DELETE FROM task_checklist_items
+           WHERE workspace_id = ? AND task_id = ? AND id = ?`,
+        )
+        .bind(this.#workspaceId, entityId, checklistItemId),
+      // Close the gap IN THE SAME transaction, so positions stay dense and the
+      // next item added cannot collide with a slot the deletion vacated. Gated on
+      // the delete's own `changes()`.
+      this.#db
+        .prepare(
+          `UPDATE task_checklist_items
+           SET position = position - 1, updated_at = ?
+           WHERE workspace_id = ? AND task_id = ? AND position > ?
+             AND changes() > 0`,
+        )
+        .bind(nowTs, this.#workspaceId, entityId, current.position),
+      this.#db
+        .prepare(
+          `UPDATE entities SET updated_at = ?
+           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL`,
+        )
+        .bind(nowTs, this.#workspaceId, entityId),
+    ]);
+    // The DELETE is the first statement. A racer that removed the row between the
+    // read and the batch leaves it at zero, and the honest answer is "nothing
+    // changed here" rather than a claim this call made the removal.
+    return { changed: (results[0]?.meta?.changes ?? 0) > 0 };
+  }
+
+  async reorderChecklist(
+    taskId: string,
+    orderedItemIds: readonly string[],
+  ): Promise<{ readonly changed: boolean }> {
+    const entityId = validateTaskId(taskId);
+    const order = validateChecklistOrder(orderedItemIds);
+    await this.#requireWritableTask(entityId);
+
+    const current = await this.listChecklist(entityId);
+    /*
+     * The submitted list must name EXACTLY this Task's items, each once.
+     *
+     * A partial reorder is refused rather than applied, because the alternative
+     * is silently inventing an order the owner never chose: a device holding a
+     * stale list (one item short, because another device added one) would push
+     * the missing item to an arbitrary place. Refusing means the surface re-reads
+     * and the owner sees the truth.
+     */
+    const currentIds = new Set(current.map((item) => item.id));
+    if (
+      order.length !== current.length ||
+      order.some((id) => !currentIds.has(id))
+    ) {
+      throw new TaskChecklistItemNotFoundError(
+        "This checklist changed somewhere else, so the new order was not saved.",
+      );
+    }
+    const unchanged = current.every((item, index) => order[index] === item.id);
+    if (unchanged) {
+      return { changed: false };
+    }
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    /*
+     * ONE statement per row, in ONE batch, so the whole order commits or none of
+     * it does — a half-applied reorder is not a state the owner can be shown.
+     *
+     * `position` carries no UNIQUE index (migration 0045 says why): a renumber
+     * necessarily passes through states where two rows briefly share a value, and
+     * SQLite checks a unique index row by row rather than at commit. The read
+     * order's `(created_at, id)` tiebreak means even that transient state has one
+     * deterministic answer.
+     */
+    /*
+     * The membership check above ran against a SNAPSHOT, so it is carried into
+     * the write as a precondition rather than trusted across the gap.
+     *
+     * Every statement in the batch — the rows and the Task's own timestamp —
+     * requires the checklist to still hold exactly the number of steps the
+     * submitted order names. A step added or deleted between the read and the
+     * batch changes that count, so every statement finds nothing, the whole
+     * transaction writes nothing, and the caller is told the list moved instead
+     * of being told a stale order was saved. The batch is one transaction and
+     * every statement carries the SAME condition, so it cannot half-apply.
+     *
+     * What it does not separate is a delete and an add landing together, which
+     * leaves the count where it was. The order then applies to the steps it can
+     * still find and the added one keeps its own place — not a corrupt list,
+     * because `(position, created_at, id)` is a TOTAL order, and the next
+     * reorder or delete renumbers it. Closing that window as well would mean
+     * naming every id inside the condition, and a hundred ids do not fit D1's
+     * bound-parameter budget.
+     */
+    const stillHolds = `(SELECT COUNT(*)
+                           FROM task_checklist_items held
+                          WHERE held.workspace_id = ? AND held.task_id = ?) = ?`;
+    const statements = order.map((id, index) =>
+      this.#db
+        .prepare(
+          `UPDATE task_checklist_items
+           SET position = ?, updated_at = ?
+           WHERE workspace_id = ? AND task_id = ? AND id = ? AND position <> ?
+             AND ${stillHolds}`,
+        )
+        .bind(
+          index,
+          nowTs,
+          this.#workspaceId,
+          entityId,
+          id,
+          index,
+          this.#workspaceId,
+          entityId,
+          order.length,
+        ),
+    );
+    statements.push(
+      this.#db
+        .prepare(
+          `UPDATE entities SET updated_at = ?
+           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+             AND ${stillHolds}`,
+        )
+        .bind(
+          nowTs,
+          this.#workspaceId,
+          entityId,
+          this.#workspaceId,
+          entityId,
+          order.length,
+        ),
+    );
+    const results = await this.#runChecklistBatch(statements);
+
+    /*
+     * At least one row MUST have moved: the unchanged case returned above, so a
+     * batch that wrote nothing means the precondition refused it.
+     */
+    const rowsWritten = results
+      .slice(0, order.length)
+      .reduce((total, result) => total + (result.meta?.changes ?? 0), 0);
+    if (rowsWritten === 0) {
+      throw new TaskChecklistItemNotFoundError(
+        "This checklist changed somewhere else, so the new order was not saved.",
+      );
+    }
+    return { changed: true };
+  }
+
+  /**
+   * The guard every checklist MUTATION passes: the id names a live Task in this
+   * workspace, and its Project is not archived.
+   *
+   * Workspace isolation is proved twice over — once here, and again by the
+   * `workspace_id = ?` on every statement below — so an item can never be reached
+   * through a Task in another workspace, and a Task id from another workspace is
+   * indistinguishable from one that does not exist.
+   */
+  async #requireWritableTask(entityId: string): Promise<TaskView> {
+    const task = await this.getTask(entityId);
+    if (!task) {
+      throw new TaskNotFoundError();
+    }
+    await this.#rejectIfParentProjectArchived(task);
+    return task;
+  }
+
+  /** How many steps this Task holds right now. Used only on a refused write. */
+  async #countChecklist(taskId: string): Promise<number> {
+    const row = await this.#db
+      .prepare(
+        `SELECT COUNT(*) AS total
+         FROM task_checklist_items ci
+         WHERE ci.workspace_id = ? AND ci.task_id = ?`,
+      )
+      .bind(this.#workspaceId, taskId)
+      .first<{ total: number }>();
+    return row?.total ?? 0;
+  }
+
+  /** Read ONE checklist item, scoped to its workspace AND its parent Task. */
+  async #readChecklistItem(
+    taskId: string,
+    itemId: string,
+  ): Promise<TaskChecklistItem | null> {
+    const row = await this.#db
+      .prepare(
+        `SELECT ${TASK_CHECKLIST_COLUMNS}
+         FROM task_checklist_items ci
+         WHERE ci.workspace_id = ? AND ci.task_id = ? AND ci.id = ?`,
+      )
+      .bind(this.#workspaceId, taskId, itemId)
+      .first<TaskChecklistItemRow>();
+    return row === null ? null : rowToChecklistItem(row);
+  }
+
+  /** Run a checklist write batch, re-typing raw storage failures. */
+  async #runChecklistBatch(
+    statements: readonly D1PreparedStatement[],
+  ): Promise<D1Result[]> {
+    try {
+      return await this.#db.batch(statements as D1PreparedStatement[]);
     } catch (cause) {
       throw new TaskStorageError(undefined, { cause });
     }

@@ -374,6 +374,29 @@ export function makeSnapshot(
         updatedAt: T(2),
       },
     ],
+    // TASKS-13 — a checklist on the recurring Task, one step done and one not, so
+    // the export fixture carries both states and the vault/JSON writers are
+    // exercised against a real ordered list rather than an empty one.
+    taskChecklistItems: [
+      {
+        id: "cl-01",
+        taskId: IDS.taskRecurring,
+        title: "Lay out kit the night before",
+        position: 0,
+        completed: true,
+        createdAt: T(1),
+        updatedAt: T(2),
+      },
+      {
+        id: "cl-02",
+        taskId: IDS.taskRecurring,
+        title: "Fill water bottles",
+        position: 1,
+        completed: false,
+        createdAt: T(1),
+        updatedAt: T(2),
+      },
+    ],
     noteDetails: [
       {
         entityId: IDS.noteA,

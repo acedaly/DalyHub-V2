@@ -155,6 +155,7 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   projectDetails: (row: { entityId: string }) => row.entityId,
   taskDetails: (row: { entityId: string }) => row.entityId,
   taskRecurrenceRules: (row: { entityId: string }) => row.entityId,
+  taskChecklistItems: (row: { id: string }) => row.id,
   noteDetails: (row: { entityId: string }) => row.entityId,
   diaryEntryDetails: (row: { entityId: string }) => row.entityId,
   personDetails: (row: { entityId: string }) => row.entityId,

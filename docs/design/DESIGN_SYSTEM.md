@@ -2963,3 +2963,95 @@ things.
 **The empty state teaches the next action** and is honest about why it is empty —
 notifications are off by default, so "nothing yet" alone would mislead most owners
 reading it.
+
+---
+
+## The checklist row (TASKS-13, 2026-08-18)
+
+The lightest repeating row in the product, for the ordered steps inside one
+record. Introduced for the Task record's checklist; the pattern is shared because
+anything that is *a short list of one-line steps* should look and behave like it.
+
+### Anatomy
+
+```
+[check]  Item title ................................................ [⋯]
+```
+
+Three grid cells, one flexible:
+
+  - **the check** — the SHARED `.dh-check-circle` inside `.dh-check-circle-target`,
+    the same mark completion has everywhere in DalyHub. In this row it keeps a
+    full **44 × 44** target on every viewport and **does not** inherit the Task
+    row's fine-pointer reduction to 28px: a dense collection buys that height
+    back from fifty rows, a record panel has it to spare;
+  - **the title** — the only `1fr` track, edited in place through the shared
+    DS-16 `InlineTextField`. It wraps; it is never truncated;
+  - **the overflow** — the shared DS-12 menu, holding the row's long tail.
+
+No card per item, no border box, no tonal fill, no chip, no status, no date and
+no icon run. Separation is whitespace and the alignment of the check column. A
+step is deliberately simpler than the record it lives in, and the anatomy is the
+argument.
+
+### Two rules the anatomy depends on
+
+**The row must occupy its target, not pull itself out of the grid.** The shared
+check target carries a negative inline margin so a Task ROW aligns to the 20px
+mark rather than the 44px hit area. In a checklist that margin puts the next
+interactive thing 2px inside the checkbox, and axe reports a serious
+`target-size` violation on every row. MEASURED: safe clickable space 20px against
+the WCAG 2.2 minimum of 24px. The checklist sets `margin-inline: 0`.
+
+**The title cell carries no padding of its own.** The inline editor inside it
+already holds the product's 44px control floor and centres its own value, so a
+top padding stacks on top of that. MEASURED: 57px a row with it, 45px without —
+thirteen pixels a step, which on a list of eight is a hundred pixels of a 420px
+panel.
+
+### Interaction
+
+  - one **Add …** affordance opens an inline input in place; a list with no items
+    costs one subtle button, never an empty-state card;
+  - **Enter** saves and immediately opens the next blank input, so a list is
+    typed in one flow;
+  - **⌘/Ctrl+Enter** finishes — the product's existing "commit and leave", not a
+    new shortcut;
+  - **Escape** closes a BLANK input and never discards typed words;
+  - **blur saves**, like every other inline field;
+  - **reorder is two ordinary menu commands** — *Move up* and *Move down*,
+    disabled at the ends. No drag-and-drop dependency is added, and a command
+    works identically for a mouse, a keyboard and a thumb;
+  - focus after a delete lands on the row that took the deleted one's place;
+    closing the composer returns focus to the control that opened it;
+  - a **polite live region** speaks an add, a move and a delete — the three
+    changes a reader who cannot see the list would otherwise miss. A TICK is not
+    announced: the checkbox announces its own state, and a second sentence beside
+    it makes the row's most frequent act speak twice.
+
+### One more rule the anatomy depends on
+
+**The Add control is the size of the composer it opens.** A `sm` Button is 32px
+and the composer carries the shared inline editor's 45px floor, so the section
+grew thirteen pixels the moment the caret arrived. Its floor is therefore
+unconditional rather than scoped to `hover: none` the way `card.css` scopes its
+touch floors: it is both the thumb target and the slot.
+
+### Progress
+
+Two NUMBERS, in words: **"3 of 5 complete"**. Never a ring, never a percentage,
+never a score, never confetti. When everything is done the line says so — and, if
+finishing the list does not finish the record, it says that too, because the
+reader will otherwise wonder.
+
+`checklistProgressLabel()` is the one place the wording lives, so a row, a record
+and a test cannot disagree about it.
+
+### Where a progress figure may go on a collection row
+
+A compact `2 of 5` may sit in the shared row's title cell beside its other
+signals — on a DESKTOP row. Below `md` it must not: the row is two stacked lines
+and the title has its narrowest measure, so five characters beside it take width
+off the title and wrap it. MEASURED on the Tasks collection with and without a
+checklist: 44px vs 44px at 1440 and 1280, 100px vs 81px at 393 and 320. The
+figure stops below `md`; the record carries it.

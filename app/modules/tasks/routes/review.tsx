@@ -54,7 +54,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       ...(cursor ? { cursor } : {}),
     });
     return {
-      items: page.items.map(serializeTaskListItem),
+      // TASKS-13 — the Review Inbox deliberately projects NO checklist progress.
+      // It is a triage flow whose one question is "where does this belong", and a
+      // step count answers a different one. Not projecting it also means this
+      // surface pays nothing for it.
+      items: page.items.map((item) => serializeTaskListItem(item)),
       nextCursor: page.nextCursor,
       todayIso,
       failed: false,

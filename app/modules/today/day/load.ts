@@ -14,7 +14,10 @@
 
 import { addDaysToIsoDate } from "~/kernel/alignment";
 import type { FirstDayOfWeek } from "~/kernel/preferences";
-import type { TaskParentCandidate } from "~/kernel/tasks";
+import type {
+  TaskChecklistProgress,
+  TaskParentCandidate,
+} from "~/kernel/tasks";
 import type { DaySchedule } from "~/kernel/calendar";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
@@ -300,6 +303,21 @@ async function loadTasks(
     backlogLimit: PLANNING_BACKLOG_LIMIT,
     completedLimit: PLANNING_COMPLETED_LIMIT,
   });
+  /*
+   * TASKS-13 — ONE bounded aggregate for the whole day, never one per row. Today
+   * draws the shared `TaskRow`, so it shows the same "2 of 4" the Tasks
+   * collection does: the row gained a capability, not a per-surface variant.
+   *
+   * Guarded on its OWN, inside a section that is already guarded, because the two
+   * failures are not the same size. The day's work is the reason this surface
+   * exists; a step count beside it is decoration. A progress read that fails must
+   * cost the decoration, never the day — which is exactly what it did cost before
+   * this guard existed.
+   */
+  const progress = await safely(
+    () => scope.tasks.listChecklistProgress(page.items.map((item) => item.id)),
+    new Map() as ReadonlyMap<string, TaskChecklistProgress>,
+  );
   const tasks: DayTask[] = page.items.map((item) =>
     // Completion is a UTC instant; resolve its OWNER-calendar date so "completed
     // today" means the owner's day, not the runtime's.
@@ -308,6 +326,7 @@ async function loadTasks(
       item.completedAt !== null
         ? ownerCalendarIso(item.completedAt, timezone)
         : null,
+      progress.get(item.id),
     ),
   );
   return bucketDay(tasks, todayIso);

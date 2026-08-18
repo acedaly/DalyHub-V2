@@ -58,7 +58,7 @@ import {
   selectPriorPeriodFocus,
   type PriorFocusCandidate,
 } from "~/kernel/reviews";
-import type { TaskListItem } from "~/kernel/tasks";
+import type { TaskChecklistProgress, TaskListItem } from "~/kernel/tasks";
 import {
   findTaskSystemView,
   toWorkspaceFilters,
@@ -78,7 +78,10 @@ import {
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
-import { serializeTaskListItem } from "~/shared/task-record/task-view";
+import {
+  serializeTaskListItem,
+  withChecklistProgress,
+} from "~/shared/task-record/task-view";
 import { formatPreferenceDate } from "~/kernel/preferences";
 
 import type {
@@ -320,10 +323,34 @@ export async function loadPlanPage(
     plannedItems,
   });
 
+  /*
+   * TASKS-13 — checklist progress for the whole page, in ONE bounded aggregate.
+   *
+   * Read here, at the top level, over the union of every Task the page ended up
+   * with (the week's placed work AND the queue), and stamped onto the already
+   * built projections. `/plan` composes its answer through several nested
+   * builders, so reading progress inside any of them would mean one statement per
+   * section at best and one per row at worst; one read over the union is one more
+   * statement than `/plan` made before, whatever the week holds.
+   *
+   * The figure appears because `/plan` draws the SHARED `TaskRow`: giving the row
+   * a capability and then withholding its data on one surface would make the same
+   * Task read differently depending on where the owner opened it.
+   */
+  const checklistProgress = await soft(
+    scope.tasks.listChecklistProgress([
+      ...plannedItems.map((task) => task.id),
+      ...queueResult.items.map((entry) => entry.task.id),
+    ]),
+    new Map() as ReadonlyMap<string, TaskChecklistProgress>,
+  );
+
   const days: PlanDay[] = week.days.map((day) => {
     const tasks = plannedItems
       .filter((task) => task.scheduledDate === day.dateIso)
-      .map(serializeTaskListItem);
+      .map((task) =>
+        withChecklistProgress(serializeTaskListItem(task), checklistProgress),
+      );
     return {
       ...day,
       schedule: scheduleForDate(scheduleWindow, {
@@ -345,7 +372,10 @@ export async function loadPlanPage(
     days,
     todayIso,
     selectedDayIso,
-    queue: queueResult.items,
+    queue: queueResult.items.map((entry) => ({
+      ...entry,
+      task: withChecklistProgress(entry.task, checklistProgress),
+    })),
     queueTruncated: queueResult.truncated,
     queueSources: [
       suggestedSource(week.offset),

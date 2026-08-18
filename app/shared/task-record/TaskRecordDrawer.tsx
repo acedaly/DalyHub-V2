@@ -47,6 +47,7 @@ import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import { CollectionSkeleton } from "~/shared/skeleton";
 
 import type { TaskActionData, TaskDetailData } from "./contract";
+import { TaskChecklistSection } from "./TaskChecklistSection";
 import { TaskDetailsTab, type TaskDetailsValues } from "./TaskDetailsTab";
 import { TaskLinksTab } from "./TaskLinksTab";
 import { TaskTimelineTab } from "./TaskTimelineTab";
@@ -62,6 +63,7 @@ import { PriorityFlag } from "./PriorityIndicator";
 import { recurrenceFormFields } from "./recurrence-authoring";
 import { TaskRecurrenceEditor } from "./TaskRecurrenceEditor";
 import { UrgencyChip } from "./UrgencyChip";
+import { useTaskChecklist } from "./use-task-checklist";
 import { useTaskParentSearch } from "./use-task-parent-search";
 import {
   isTaskComplete,
@@ -69,6 +71,7 @@ import {
   taskPriorityLabel,
   taskRecurrenceLabel,
   timeSectorLabel,
+  type SerializedChecklistItem,
   type SerializedTaskView,
 } from "./task-view";
 
@@ -168,6 +171,15 @@ interface TaskRecordDrawerProps {
 }
 
 type DetailResponse = TaskDetailData | { readonly error: string };
+
+/**
+ * The stable empty checklist used while the record is loading or missing.
+ *
+ * A module constant rather than a fresh `[]` per render, because
+ * `useTaskChecklist` re-seeds its state when the array IDENTITY changes — a new
+ * literal every render would reset it on every render.
+ */
+const NO_CHECKLIST: readonly SerializedChecklistItem[] = [];
 
 export function TaskRecordDrawer({
   taskId,
@@ -273,6 +285,34 @@ export function TaskRecordDrawer({
     void load();
     revalidator.revalidate();
   }, [load, revalidator]);
+
+  /*
+   * TASKS-13 — the Task's checklist.
+   *
+   * Called unconditionally, above every early return, because it is a hook. It
+   * is seeded from the loader payload (a stable empty array while the record is
+   * loading or missing, so the seeding effect does not re-run on every render)
+   * and re-seeds itself whenever the record delivers a different one.
+   *
+   * `revalidate` — not `refresh` — is the change callback: `refresh` reloads THIS
+   * record, and the checklist already has the server's fresh answer in the
+   * mutation's own response, so reloading it would be a second request for data
+   * the section is already holding. What DOES need re-reading is the surface
+   * BEHIND the drawer, whose row draws the "2 of 4".
+   */
+  const loadedChecklist =
+    // `?? NO_CHECKLIST` is not belt-and-braces: this is a parsed JSON response,
+    // so the type is a claim about the server rather than a guarantee, and a
+    // record served by an older Worker mid-deploy must render rather than throw.
+    data !== null && !("error" in data)
+      ? (data.checklist ?? NO_CHECKLIST)
+      : NO_CHECKLIST;
+  const checklist = useTaskChecklist(
+    taskId,
+    loadedChecklist,
+    basePath,
+    revalidator.revalidate,
+  );
 
   const submitUpdate = useCallback(
     async (
@@ -1097,6 +1137,35 @@ export function TaskRecordDrawer({
           disabled: completionPending,
           onSelect: () => toggleCompletion(!completed),
         }}
+        /*
+         * TASKS-13 — the checklist is the record's FEATURE region.
+         *
+         * `RecordLayout` places `feature` directly under the header and above
+         * the summary band, and describes that slot as the region that IS the
+         * record's subject. For a Task with steps, the steps are what the owner
+         * opened the record to work through — so it sits above the parent, the
+         * waiting state, the dates and the repeat rule rather than below all
+         * four of them. The Task record's stylesheet already de-cards this
+         * region (DS-04), so it costs no container.
+         *
+         * A Task with NO checklist pays one subtle button for it.
+         */
+        featureLabel="Checklist"
+        feature={
+          <TaskChecklistSection
+            checklist={checklist}
+            /*
+             * DELETED, not completed — the same test every other control in
+             * this record makes. A completed Task keeps its steps editable
+             * because "finished it, forgot to tick the last one" is an ordinary
+             * correction, and because a completed occurrence of a recurring
+             * Task would otherwise carry a mis-ticked step for good. The one
+             * control completion does disable is the repeat rule above, which
+             * has already produced its successor.
+             */
+            readOnly={task.deletedAt !== null}
+          />
+        }
         summary={{
           description: (
             <div className="dh-task-drawer__summary-controls">

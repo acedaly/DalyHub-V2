@@ -17,6 +17,52 @@ no version number to group them under.
 
 ---
 
+## Tasks can hold their steps now
+
+**Some jobs are one thing to have done and several things to do.** _Prepare the
+camper for the trip_ is one commitment — but it is tyre pressures, water tanks,
+batteries and the fridge. Until now there was nowhere to put those four except in
+the notes, where they could not be ticked, or as four separate tasks, where they
+filled your Inbox and had to be planned one by one.
+
+**Open a task and you will find a checklist.** Press _Add checklist_, type the
+first step and press Enter — the box stays open, so you type the next one and the
+one after that without touching the mouse. Press ⌘/Ctrl+Enter when you are done.
+Click a step to rename it, tick it off, and use the ⋯ menu beside it to move it up
+or down or remove it. It all works with the keyboard, and it all works with a
+thumb.
+
+**A step is not a task, and that is the point.** Checklist steps never appear in
+your Inbox, never turn up in Today, never ask to be given a day in Weekly
+Planning, and never change what a Project or a Goal says about your progress.
+_Prepare the camper_ is one task on your list whether it has four steps or none.
+
+**Finishing every step does not finish the task.** DalyHub shows _"4 of 4
+complete"_ and says, plainly, that the task is still open until you complete it —
+because there is often a last look before you call something done. Equally, when
+you do complete a task, nothing tidies your steps away: if you finished two of
+four and decided that was enough, the record says exactly that afterwards.
+
+**Repeating tasks bring their checklist with them.** Complete _Monthly camper
+check_ and next month's arrives with the same three checks, unticked. Last
+month's ticks stay with last month.
+
+**Where you see it.** The task's own record is where you work through a checklist.
+On a laptop the tasks list, Today and Weekly Planning show a quiet _2 of 5_
+beside the title so you can see how far through you are without opening it; on a
+phone that count would have pushed titles onto a second line, so it stays in the
+record, one tap away.
+
+**Ticking a step works offline.** If you lose signal mid-job, ticks are kept on
+your device and sent when you are back — the same way completing a task already
+did. Adding, renaming, removing and reordering steps still need a connection, and
+say so.
+
+**Searching finds the task through its steps.** Look for "tyre pressures" and you
+will find _Prepare camper for trip_, even though nothing in its title says so.
+
+---
+
 ## The things you do again and again
 
 **DalyHub now holds your habits and routines — and it does not turn them into

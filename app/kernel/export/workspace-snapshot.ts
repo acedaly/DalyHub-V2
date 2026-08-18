@@ -474,6 +474,24 @@ export interface SnapshotTaskRecurrenceRule {
   readonly updatedAt: IsoInstant;
 }
 
+/**
+ * TASKS-13 — one ordered step inside one Task.
+ *
+ * Exported as its own collection rather than folded into the Task's row, for
+ * exactly the reason it is its own table: it is a durable, individually
+ * addressable record, and a snapshot that flattened it into a string could not
+ * be restored back into one. `taskId` references a Task in the same snapshot.
+ */
+export interface SnapshotTaskChecklistItem {
+  readonly id: string;
+  readonly taskId: string;
+  readonly title: string;
+  readonly position: number;
+  readonly completed: boolean;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
 /** Note-owned state (NOTES-01A / NOTES-03). */
 export interface SnapshotNoteDetail {
   readonly entityId: string;
@@ -810,6 +828,7 @@ export interface SnapshotCollectionRowMap {
   readonly projectDetails: SnapshotProjectDetail;
   readonly taskDetails: SnapshotTaskDetail;
   readonly taskRecurrenceRules: SnapshotTaskRecurrenceRule;
+  readonly taskChecklistItems: SnapshotTaskChecklistItem;
   readonly noteDetails: SnapshotNoteDetail;
   readonly diaryEntryDetails: SnapshotDiaryEntryDetail;
   readonly personDetails: SnapshotPersonDetail;
@@ -890,6 +909,10 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "projectDetails",
   "taskDetails",
   "taskRecurrenceRules",
+  // TASKS-13 — after `taskDetails`, because a checklist item references the Task
+  // it belongs to. A restore inserts in this order and deletes in its exact
+  // reverse, which is what satisfies the ON DELETE RESTRICT key.
+  "taskChecklistItems",
   "noteDetails",
   "diaryEntryDetails",
   "personDetails",

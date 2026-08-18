@@ -62,6 +62,10 @@ import type {
   WorkspaceTaskGrouping,
   WorkspaceTaskListPage,
 } from "./task";
+import type {
+  TaskChecklistItem,
+  TaskChecklistProgress,
+} from "./task-checklist";
 
 export interface TaskRepository {
   /**
@@ -541,4 +545,127 @@ export interface TaskRepository {
    * `TaskProjectArchivedError` is thrown when the parent Project is archived.
    */
   reopenTask(id: string): Promise<ReopenTaskResult>;
+
+  /* ------------------------------------------------------------------------ */
+  /* TASKS-13 — checklists                                                     */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * TASKS-13 — the ordered checklist of ONE Task.
+   *
+   * One bounded, workspace-scoped statement, already in the owner's order
+   * (`position, created_at, id` — a total order, so the list is deterministic
+   * even if two items ever shared a position). Returns an empty list for a Task
+   * with no checklist AND for an id that is not a Task in this workspace: a
+   * checklist read discloses nothing about what exists elsewhere.
+   */
+  listChecklist(taskId: string): Promise<readonly TaskChecklistItem[]>;
+
+  /**
+   * TASKS-13 — the checklist progress of MANY Tasks, for a collection surface.
+   *
+   * ONE bounded, indexed, workspace-scoped aggregate over the whole id list —
+   * never one statement per Task, and never "read every item and count in
+   * JavaScript". This is the only way a row surface may obtain progress, which
+   * is what makes the no-N+1 property structural rather than a habit.
+   *
+   * Only Tasks that HAVE at least one item appear in the returned map; a caller
+   * reads a missing key as {@link EMPTY_CHECKLIST_PROGRESS}, so "no checklist"
+   * costs no row. An empty id list returns an empty map and issues no statement.
+   */
+  listChecklistProgress(
+    taskIds: readonly string[],
+  ): Promise<ReadonlyMap<string, TaskChecklistProgress>>;
+
+  /**
+   * TASKS-13 — append one item to the END of a Task's checklist, atomically.
+   *
+   * One batch inserts the item at the next dense position and bumps the parent
+   * Task's `updated_at`, so a Task whose steps changed reads as recently changed.
+   * NO Activity event is appended: see `TASKS_MODULE.md` — a checklist tick is
+   * state, not history, and ten items would otherwise put ten rows into a
+   * timeline that describes commitments.
+   *
+   * The position is resolved from `MAX(position) + 1` INSIDE the write, so two
+   * items added at once cannot claim the same slot through a read-then-write gap.
+   *
+   * Throws `TaskNotFoundError` for a missing/deleted/non-task/cross-workspace id,
+   * `TaskProjectArchivedError` inside an archived Project, `TaskValidationError`
+   * for an unusable title, and `TaskChecklistFullError` at the bound.
+   */
+  createChecklistItem(
+    taskId: string,
+    input: { readonly title: string },
+  ): Promise<TaskChecklistItem>;
+
+  /**
+   * TASKS-13 — rename one checklist item. Narrow by construction: the statement
+   * writes `title` and nothing else, so a rename cannot disturb an item's
+   * completion or its place in the order, and two devices renaming two different
+   * items never contend.
+   *
+   * An unchanged title is an idempotent no-op reporting `changed: false`.
+   */
+  renameChecklistItem(
+    taskId: string,
+    itemId: string,
+    title: string,
+  ): Promise<{
+    readonly item: TaskChecklistItem;
+    readonly changed: boolean;
+  }>;
+
+  /**
+   * TASKS-13 — tick or untick one checklist item.
+   *
+   * The narrowest mutation in the domain: ONE row, ONE column. It never touches
+   * any other item, and — this is the decision TASKS-13 records — it never
+   * touches the PARENT Task's completion. Completing every item does not
+   * complete the Task, because the checklist describes the steps and the Task is
+   * the commitment; the owner decides when that commitment is met.
+   *
+   * Idempotent: setting the state it already holds reports `changed: false` and
+   * writes nothing, which is what makes an offline replay safe to repeat.
+   */
+  setChecklistItemCompleted(
+    taskId: string,
+    itemId: string,
+    completed: boolean,
+  ): Promise<{
+    readonly item: TaskChecklistItem;
+    readonly changed: boolean;
+  }>;
+
+  /**
+   * TASKS-13 — delete one checklist item and CLOSE THE GAP, atomically.
+   *
+   * One batch removes the row, renumbers every later item down one place so
+   * positions stay dense, and bumps the parent Task. Deleting an item that is
+   * already gone is an idempotent no-op rather than an error: on a surface where
+   * two devices can both delete, "it is not there" is the outcome that was
+   * asked for.
+   */
+  deleteChecklistItem(
+    taskId: string,
+    itemId: string,
+  ): Promise<{ readonly changed: boolean }>;
+
+  /**
+   * TASKS-13 — set the whole order of ONE Task's checklist, atomically.
+   *
+   * The submitted list must name EXACTLY the Task's current items — every one of
+   * them, each once. Anything else (a stale list missing an item another device
+   * added, a list naming a deleted item) is refused with
+   * `TaskChecklistItemNotFoundError` and NOTHING is written, because a partial
+   * reorder would silently invent an order the owner never chose. The check and
+   * the write happen in the same request against the same read, so the loser of
+   * a race retries against the truth rather than overwriting it.
+   *
+   * One batch renumbers every row to its dense index. An order identical to the
+   * stored one is an idempotent no-op.
+   */
+  reorderChecklist(
+    taskId: string,
+    orderedItemIds: readonly string[],
+  ): Promise<{ readonly changed: boolean }>;
 }
