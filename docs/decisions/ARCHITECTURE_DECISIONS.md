@@ -3487,3 +3487,127 @@ dimensions widen two closed vocabularies, which is append-only and lenient-parse
 in both the URL and stored configs; existing cursors, links and saved views are
 unaffected. The shared collection-control model now supports multi-select, which
 every other collection may use and none is changed by.
+
+---
+
+## ADR-102: A Habit is a BEHAVIOUR, not a recurring Task — a distinct domain with effective-dated schedules, owner-local check-ins and no manufactured streaks
+
+**Status.** Accepted (V2.3 HABITS-01, 18 August 2026). Adjacent to
+[ADR-001](#adr-001-area-hierarchy) (the Area → Goal → Project → Task spine),
+[ADR-002](#adr-002-entitylinks) (EntityLinks as the one relationship primitive),
+[ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (Activity is appended atomically, and not everything is an Activity event),
+[ADR-022 §22.7](#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker) (dates are wall-calendar strings read in the owner's timezone),
+[ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence) and [ADR-085](#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) (structured TASK recurrence, which this deliberately does not reuse) and
+[ADR-101](#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers) (the owner's calendar week).
+Full record: [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md).
+
+**Context.** DalyHub already stores structured Task recurrence, so the cheap
+answer to "add habits" was a flag on a Task and a saved view over it. That answer
+is wrong about what the two things ARE, and the roadmap says so in one line: *a
+recurring Task is a routine you must not forget; a HABIT is a behaviour you are
+trying to build.* A recurring Task is an obligation — it has a due date, it can
+be overdue, it belongs to a Project, it moves that Project's progress, and it
+sits in the planning queue until it is placed. A Habit has a cadence rather than
+a deadline, cannot be late, and missing a Tuesday is not a debt carried into
+Wednesday. Building it as a Task would have made every one of those false.
+
+The second question the roadmap raises is sharper: *can streaks exist in a
+product whose principle is calm over urgent?* AGENTS.md §2 forbids manufactured
+streaks by name, and a habit tracker is the single easiest place in a product to
+manufacture urgency.
+
+- **Decision 1 — a Habit is its own first-class domain, ADJACENT to the spine.**
+  A `habit` entity plus a `habit_details` slice, exactly as a Person is; NOT a
+  spine record, NOT a rung under a Goal, and NOT a presentation of Task
+  recurrence. Nothing generates a Task for an occurrence: there is no occurrence
+  row at all. A missed Habit therefore cannot become an overdue Task, cannot
+  enter a Task statistic and cannot move a Project's progress — structurally,
+  because the Task it would have to become does not exist.
+
+- **Decision 2 — the schedule vocabulary is THREE kinds, and staying small is
+  the decision.** `daily`, `weekdays` (a selected set) and `weekly_count`
+  (N times in the owner's calendar week). Monthly cadences, nth-weekday-of-month,
+  end conditions, times of day, reminders and multiple completions per day are
+  all deliberately absent. Each of them turns "how often do I want to do this?"
+  into a rule language, and none is needed to answer the question the surface
+  exists for. Advanced TASK recurrence (TASKS-12) is a different model for a
+  different object and is not shared.
+
+- **Decision 3 — the schedule is EFFECTIVE-DATED, and that is what makes history
+  true.** `habit_schedules` holds a contiguous, non-overlapping chain of versions
+  per Habit. Changing Monday/Wednesday/Friday to Tuesday/Thursday closes the
+  current version at yesterday and opens a new one today, so DalyHub still says
+  what the owner was supposed to do last month. Without it, every historical
+  figure would be recomputed from the current cadence and the owner's past would
+  change every time they changed their mind — which is the one thing a
+  consistency measure must never do. Nothing else in DalyHub becomes temporal: a
+  Habit's title and notes are not versioned, because renaming a Habit does not
+  change what was expected of it.
+
+- **Decision 4 — a check-in is identified by the OWNER-LOCAL DATE, and the
+  primary key is the invariant.** `habit_completions` is keyed
+  `(workspace, habit, completed_on)`. "At most once per local calendar date" is
+  therefore a property of the DATABASE, not of a control's disabled state: two
+  taps that race produce one completion because the loser's insert is a no-op.
+  The date is stored, never re-derived from an instant, so moving countries
+  cannot re-date the owner's history and a DST transition cannot move a
+  completion onto another day. The date is resolved ONCE, through the one
+  owner-timezone authority (ADR-022), and a future date is refused.
+
+- **Decision 5 — there is ONE check-in authority.** `POST
+  /habits/:id/check-in`. Today, the `/habits` collection and the Habit record all
+  post to it and all render the ONE shared `HabitRow` over the ONE serialised
+  shape. Consistency between surfaces is structural rather than a thing to keep
+  in step.
+
+- **Decision 6 — Goals and Areas are EntityLinks, and a Habit never alters a
+  Goal's progress.** `habit.supports_goal` and `habit.belongs_to_area`, both
+  directed habit → target, in the relationship primitive the product already has
+  (ADR-002) rather than a second join model. A Goal record shows its supporting
+  Habits as EVIDENCE of the behaviour behind the outcome; the Goal's measured
+  progress (GOAL-02) remains the sole authority on how the Goal is going, and no
+  check-in is a term in it.
+
+- **Decision 7 — a check-in appends NO Activity.** The five Habit-owned events
+  (create, update, schedule change, archive, restore) are the owner CHANGING the
+  record and belong in the one shared stream. A daily Habit produces hundreds of
+  one-bit check-ins a year, and appending them would drown the events that
+  genuinely are the owner's history — the same reasoning ADR-012 applies to
+  calendar synchronisation and [ADR-073](#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract) to the AI
+  usage ledger. A Habit's own history is its `habit_completions` rows, rendered
+  in full on the record as four weeks at a glance.
+
+- **Decision 8 — NO manufactured streaks, and the wording is part of the
+  contract.** There is no streak, no flame, no "day 17", no chain to break, no
+  score and no percentage anywhere in the product. What a Habit shows is three
+  factual readings: today (done / not yet), this week ("2 of 3"), and a bounded
+  recent window ("9 of 12 expected check-ins"). Two sentences are made
+  unsayable and asserted as such: an unscheduled day is never described as a
+  miss, and a future day is never described as incomplete.
+
+- **Decision 9 — Today gains a COMPACT band, below the day's work.** It shows
+  only the Habits today is actually asking about, and it sits under the plan and
+  the schedule rather than above them. MEASURED on the seeded fixture: the first
+  task's vertical position is 233px at 1440, 263px at 393 and 292px at 320 —
+  identical with the band present and absent, because nothing was inserted above
+  it.
+
+- **Decision 10 — Weekly Planning gets read-only CONTEXT and nothing more.**
+  `/plan` shows "Routines this week": names and cadences, with no control on
+  them. A Habit is not a Task, so it cannot be placed on a day, cannot appear in
+  the "Still to place" queue, cannot consume its bulk selection and never writes
+  a `scheduled_date`. PLAN-01's mutation authority is untouched.
+
+**Consequences.** Habits are a new durable domain with a migration (0044), three
+tables and a repository, all workspace-scoped and bounded — a page of Habits
+costs two statements whatever it holds. The Weekly Review gains nothing in this
+item and that is deliberate: a truthful "habits: 8 of 10 scheduled check-ins"
+over a Review's arbitrary period needs an expectation sum across a
+schedule-version chain, which is a second aggregation path through REVIEW-02's
+guided workflow, and doing it badly would put a guilt figure in the one surface
+whose whole design is calm (deferred as **DEBT-156**). Check-ins are online-only:
+PWA-12's offline mutation queue is deliberately Task-shaped, and a second,
+habit-shaped queue beside it is exactly what its own contract refuses (deferred
+as **DEBT-155**). A future Habit reminder is possible without a schema change —
+the data a notification evaluator needs is already stored — but HABITS-01 sends
+nothing, because notification sends belong to the NOTIFY ledger architecture.

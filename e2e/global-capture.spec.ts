@@ -95,13 +95,14 @@ test.describe("compact widths — ONE global Capture affordance, not two", () =>
       await changeType.click();
     }
     // The SAME types the floating button offers elsewhere — the four routine
-    // record types, and Asset (ASSET-03).
-    for (const type of ["task", "note", "meeting", "diary", "asset"]) {
+    // record types, Asset (ASSET-03) and Habit (HABITS-01).
+    const types = ["task", "note", "meeting", "diary", "asset", "habit"];
+    for (const type of types) {
       await expect(sheet.getByTestId(`capture-choose-${type}`)).toHaveCount(1);
     }
     await expect(
       sheet.getByRole("group", { name: "Capture type" }).getByRole("button"),
-    ).toHaveCount(5);
+    ).toHaveCount(types.length);
   });
 
   /*

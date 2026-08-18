@@ -145,6 +145,7 @@ test.describe("DS-08 Shared Search — desktop", () => {
     expect(providerIds).toEqual([
       "areas.search",
       "goals.search",
+      "habits.search",
       "projects.search",
       "tasks.search",
       "notes.search",

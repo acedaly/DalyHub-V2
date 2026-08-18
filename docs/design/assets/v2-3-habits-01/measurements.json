@@ -1,0 +1,1294 @@
+{
+  "habits-1440-light": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 1136,
+      "height": 221,
+      "top": 181
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      54,
+      55,
+      55,
+      55
+    ],
+    "titleWidths": [
+      938,
+      978,
+      993,
+      993
+    ],
+    "smallestTitleWidth": 938,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-1440-dark": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 1136,
+      "height": 221,
+      "top": 181
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      54,
+      55,
+      55,
+      55
+    ],
+    "titleWidths": [
+      938,
+      978,
+      993,
+      993
+    ],
+    "smallestTitleWidth": 938,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-820": {
+    "viewport": {
+      "width": 820,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 820,
+      "scrollWidth": 820,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 704,
+      "height": 221,
+      "top": 181
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      54,
+      55,
+      55,
+      55
+    ],
+    "titleWidths": [
+      506,
+      546,
+      561,
+      561
+    ],
+    "smallestTitleWidth": 506,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-393-light": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 361,
+      "height": 356,
+      "top": 235
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      83,
+      91,
+      91,
+      91
+    ],
+    "titleWidths": [
+      304,
+      329,
+      329,
+      329
+    ],
+    "smallestTitleWidth": 304,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-393-dark": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 361,
+      "height": 356,
+      "top": 235
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      83,
+      91,
+      91,
+      91
+    ],
+    "titleWidths": [
+      304,
+      329,
+      329,
+      329
+    ],
+    "smallestTitleWidth": 304,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-320": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 288,
+      "height": 356,
+      "top": 235
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      83,
+      91,
+      91,
+      91
+    ],
+    "titleWidths": [
+      231,
+      256,
+      256,
+      256
+    ],
+    "smallestTitleWidth": 231,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-375": {
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "document": {
+      "clientWidth": 375,
+      "scrollWidth": 375,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 343,
+      "height": 356,
+      "top": 235
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      83,
+      91,
+      91,
+      91
+    ],
+    "titleWidths": [
+      286,
+      311,
+      311,
+      311
+    ],
+    "smallestTitleWidth": 286,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-430": {
+    "viewport": {
+      "width": 430,
+      "height": 932
+    },
+    "document": {
+      "clientWidth": 430,
+      "scrollWidth": 430,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 398,
+      "height": 356,
+      "top": 235
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      83,
+      91,
+      91,
+      91
+    ],
+    "titleWidths": [
+      341,
+      366,
+      366,
+      366
+    ],
+    "smallestTitleWidth": 341,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habits-1280": {
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 976,
+      "height": 221,
+      "top": 181
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      54,
+      55,
+      55,
+      55
+    ],
+    "titleWidths": [
+      778,
+      818,
+      833,
+      833
+    ],
+    "smallestTitleWidth": 778,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-record-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1100
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": {
+      "width": 200,
+      "height": 117,
+      "top": 464
+    },
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-record-1440-dark": {
+    "viewport": {
+      "width": 1440,
+      "height": 1100
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": {
+      "width": 200,
+      "height": 117,
+      "top": 464
+    },
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-record-393": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": {
+      "width": 200,
+      "height": 117,
+      "top": 543
+    },
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-record-320": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": {
+      "width": 200,
+      "height": 117,
+      "top": 565
+    },
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "today-1440-with-habits": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 1136,
+      "height": 141,
+      "top": 613
+    },
+    "habitsPanel": {
+      "width": 1136,
+      "height": 176,
+      "top": 578
+    },
+    "historyGrid": null,
+    "rowHeights": [
+      46,
+      47,
+      47
+    ],
+    "titleWidths": [
+      978,
+      993,
+      993
+    ],
+    "smallestTitleWidth": 978,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": 233,
+    "todayPlanY": 153
+  },
+  "today-393-with-habits": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 329,
+      "height": 248,
+      "top": 1079
+    },
+    "habitsPanel": {
+      "width": 361,
+      "height": 314,
+      "top": 1028
+    },
+    "historyGrid": null,
+    "rowHeights": [
+      82,
+      83,
+      83
+    ],
+    "titleWidths": [
+      297,
+      297,
+      297
+    ],
+    "smallestTitleWidth": 297,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": 263,
+    "todayPlanY": 183
+  },
+  "today-320-with-habits": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 256,
+      "height": 265,
+      "top": 1142
+    },
+    "habitsPanel": {
+      "width": 288,
+      "height": 331,
+      "top": 1091
+    },
+    "historyGrid": null,
+    "rowHeights": [
+      99,
+      83,
+      83
+    ],
+    "titleWidths": [
+      224,
+      224,
+      224
+    ],
+    "smallestTitleWidth": 224,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": 292,
+    "todayPlanY": 213
+  },
+  "today-1440-without-habits": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": 233,
+    "todayPlanY": 153
+  },
+  "today-393-without-habits": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": 263,
+    "todayPlanY": 183
+  },
+  "today-320-without-habits": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": 292,
+    "todayPlanY": 213
+  },
+  "habit-new-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-new-393": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-new-320": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-schedule-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 56,
+        "height": 45
+      },
+      {
+        "width": 50,
+        "height": 45
+      },
+      {
+        "width": 57,
+        "height": 45
+      },
+      {
+        "width": 52,
+        "height": 45
+      },
+      {
+        "width": 48,
+        "height": 45
+      },
+      {
+        "width": 69,
+        "height": 45
+      },
+      {
+        "width": 73,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "habit-schedule-393": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 56,
+        "height": 45
+      },
+      {
+        "width": 50,
+        "height": 45
+      },
+      {
+        "width": 57,
+        "height": 45
+      },
+      {
+        "width": 52,
+        "height": 45
+      },
+      {
+        "width": 48,
+        "height": 45
+      },
+      {
+        "width": 69,
+        "height": 45
+      },
+      {
+        "width": 73,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "goal-supporting-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1100
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 1030,
+      "height": 46,
+      "top": 823
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      46
+    ],
+    "titleWidths": [
+      847
+    ],
+    "smallestTitleWidth": 847,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "goal-supporting-393": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 319,
+      "height": 75,
+      "top": 923
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      75
+    ],
+    "titleWidths": [
+      262
+    ],
+    "smallestTitleWidth": 262,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "plan-routines-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1100
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      },
+      {
+        "width": 45,
+        "height": 28
+      }
+    ],
+    "smallestTouchTarget": 28,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "plan-routines-393": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "habitList": null,
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [],
+    "titleWidths": [],
+    "smallestTitleWidth": null,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "firstTaskY": null,
+    "todayPlanY": null
+  },
+  "area-habits-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1100
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "habitList": {
+      "width": 1030,
+      "height": 189,
+      "top": 472
+    },
+    "habitsPanel": null,
+    "historyGrid": null,
+    "rowHeights": [
+      46,
+      47,
+      47,
+      47
+    ],
+    "titleWidths": [
+      862,
+      862,
+      847,
+      832
+    ],
+    "smallestTitleWidth": 832,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "firstTaskY": null,
+    "todayPlanY": null
+  }
+}

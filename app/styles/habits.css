@@ -184,9 +184,20 @@ a.dh-habit-row__title:hover {
 /* The create page                                                            */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * The create page's own column.
+ *
+ * The INLINE padding is load-bearing, not decoration: the shared sticky
+ * commitment row bleeds to the page edges with `margin-inline: calc(-1 *
+ * --app-space-4)` (forms.css), so a container without that much padding lets it
+ * escape. MEASURED at 320px before this padding existed: `document.scrollWidth`
+ * 336 against a `clientWidth` of 320, with `.dh-form-actions--sticky` the sole
+ * offender at 352px wide. With it, 320 = 320.
+ */
 .dh-habit-new {
   max-inline-size: var(--app-width-narrow);
-  padding-block: var(--app-space-5);
+  margin-inline: auto;
+  padding: var(--app-space-4);
 }
 
 .dh-habit-new__head {

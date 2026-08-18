@@ -95,6 +95,12 @@ const PRODUCT_ROUTES = [
   "/assets/service-due",
   "/assets/archived",
   "/new/asset",
+  // HABITS-01 — the Habits collection, its Archived view and the creation form
+  // (whose weekday toggle group is a new shared control, so it earns its own
+  // place in the sweep rather than only in the module's own axe pass).
+  "/habits",
+  "/habits/archived",
+  "/habits/new",
   // PX-03 — the remaining navigation-shell Coming Soon placeholder routes.
   "/diary",
   "/meetings",

@@ -17,6 +17,55 @@ no version number to group them under.
 
 ---
 
+## The things you do again and again
+
+**DalyHub now holds your habits and routines — and it does not turn them into
+tasks.** Going for a walk every morning, calling your parents on Sundays, three
+gym sessions a week: these are behaviours you repeat, not jobs on a list that get
+finished. Until now the only way to keep them here was to make a repeating task,
+which meant every morning began with something already waiting to be ticked, and
+every day you skipped one made you look further behind than you were.
+
+**Habits live on their own page.** `/habits` lists what you are keeping up, with
+a schedule in plain words beside each one and where it stands today. You can start
+one, describe it, change its schedule, archive it when it has served its purpose,
+and bring it back if it hasn't.
+
+**There are three ways to say when.** _Every day._ _On chosen days_ — pick the
+weekdays and no others. _A number of times a week_ — three runs, any three days.
+That is the whole vocabulary, deliberately: it covers what people actually keep,
+and it stays readable at a glance instead of becoming a scheduling language you
+have to learn.
+
+**Today shows only what today asks for.** A habit scheduled for Tuesday appears
+on Tuesday. A three-times-a-week habit stays available until the third one is
+done, then steps back. Ticking one is a single tap, and tapping again undoes it —
+there is no confirmation and nothing to regret. The band sits below your plan and
+your schedule, so the first thing you see is still your first task.
+
+**Nothing here keeps score against you.** There is no streak, no flame, no
+counter that resets to zero and no red warning for a day you missed. Three
+honest measurements, and only three: whether today is done, how this week is
+going ("2 of 3 this week"), and how recent weeks have gone ("9 of 12"). A day a
+habit was never scheduled is not a miss. A day that hasn't happened yet is not a
+failure. Skipping a habit does not make a task overdue, does not move a project's
+progress, does not dent a goal's percentage and does not appear in anything that
+needs your attention.
+
+**A habit can support a goal or belong to an area.** The goal shows the habits
+behind it, and an area shows the routines that keep it running — but a habit
+never changes a goal's number. A goal is measured by its own measurements; the
+habit is how you get there, not the evidence that you have.
+
+**Changing a schedule does not rewrite your history.** Move a habit from four
+days a week to two and last month still says what last month actually asked of
+you. The record's history strip is a small calendar you can read — and it reads
+aloud properly too, day by day, rather than being a wall of coloured squares.
+
+**Deliberately not included:** reminders and notifications of any kind, more than
+one tick a day, quantities to log, and anything that would celebrate, badge or
+shame you.
+
 ## A phone can reach what a phone can see
 
 **Four things on a phone were smaller, or further away, than they were meant to
