@@ -36,7 +36,7 @@
  * the steps and the Task is the commitment.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import {
   CHECKLIST_TITLE_MAX_LENGTH,
@@ -62,6 +62,15 @@ export function TaskChecklistSection({
 }: TaskChecklistSectionProps) {
   const { items, progress } = checklist;
   const { notifyError } = useFeedback();
+  /*
+   * A generated id, not a literal.
+   *
+   * The drawer STACKS: opening a Task from a Task leaves two records mounted, and
+   * two elements sharing one id would make the list's `aria-labelledby` point at
+   * whichever the browser found first. `useId` is the React-provided answer and
+   * costs nothing.
+   */
+  const headingId = `task-checklist-heading-${useId()}`;
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -186,7 +195,7 @@ export function TaskChecklistSection({
   return (
     <div className="dh-checklist" data-testid="task-checklist">
       <div className="dh-checklist__head">
-        <h4 className="dh-checklist__title" id="task-checklist-heading">
+        <h4 className="dh-checklist__title" id={headingId}>
           Checklist
         </h4>
         {/*
@@ -214,10 +223,7 @@ export function TaskChecklistSection({
       </div>
 
       {items.length > 0 ? (
-        <ul
-          className="dh-checklist__items"
-          aria-labelledby="task-checklist-heading"
-        >
+        <ul className="dh-checklist__items" aria-labelledby={headingId}>
           {items.map((item, index) => (
             <ChecklistRow
               key={item.id}
