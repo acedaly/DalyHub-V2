@@ -12,12 +12,34 @@
 -- it, and a fixture that changes meaning over time is a flaky test waiting to
 -- happen. So every date here is derived from `now`:
 --
---   * the Review period is the seven days ending today;
---   * completions inside it are stamped at 02:00Z on the seed's own UTC date,
---     which is midday in the owner's timezone (ahead of UTC) and therefore
---     inside the period whatever hour the suite runs at;
+--   * the Review period is a seven-day week that ENDED TWO DAYS AGO;
+--   * completions inside it are stamped at 02:00Z on a date within it, which is
+--     midday in the owner's timezone (ahead of UTC) and therefore inside the
+--     period whatever hour the suite runs at;
 --   * overdue work is due 60 days ago, so it is overdue on any day;
 --   * work that must NOT read as overdue is due 90+ days out.
+--
+-- ── Why the period ENDS BEFORE TODAY (V2.3-GATE-01) ─────────────────────────
+-- The insight this fixture exists to prove counts, correctly, EVERY Task
+-- completed in the workspace during the period — `countCompletionsInPeriods`
+-- aggregates `task.completed` activity, not a set of rows this file owns. So
+-- prefixing the fixture's own records isolates them from being READ as records,
+-- and isolates nothing at all from being COUNTED.
+--
+-- That is what made "3 Tasks completed" fail: E2E partition p02 runs whole spec
+-- files back to back against one shared local D1, and several of the files that
+-- run before this one (Today, Projects, the iPhone daily driver, the planner)
+-- complete real Tasks through the real product. Every one of those completions
+-- is stamped at the moment it happens — i.e. NOW — and while the period ran up
+-- to and including today, each one landed inside it and pushed the count past 3.
+--
+-- The answer is a BOUNDED period rather than a looser assertion: the week ends
+-- two days ago, so the only completions that can fall inside it are the ones
+-- this file writes. Nothing else in the suite can reach into a closed week,
+-- because nothing else can complete a Task in the past. Two days rather than one
+-- is margin for the owner's timezone being ahead of UTC. A Review whose period
+-- closed on Friday and is still in progress on Sunday is also the ordinary case
+-- rather than a contrivance — the weekly Review is usually done after the week.
 --
 -- Everything is prefixed `ri-` / "RI:" so it is trivially separable from the
 -- other fixtures sharing this database. Idempotent (`INSERT OR IGNORE` plus a
@@ -149,11 +171,11 @@ VALUES
   ('local-dev-workspace', 'ri-task-run-open', 'task', NULL);
 
 -- Completions inside this period.
-UPDATE spine_records SET completed_at = date('now') || 'T02:00:00.000Z'
+UPDATE spine_records SET completed_at = date('now', '-4 days') || 'T02:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('ri-task-k1', 'ri-task-k2', 'ri-task-k3');
 -- Completions inside the PREVIOUS period.
-UPDATE spine_records SET completed_at = date('now', '-9 days') || 'T02:00:00.000Z'
+UPDATE spine_records SET completed_at = date('now', '-11 days') || 'T02:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('ri-task-k4', 'ri-task-k5');
 -- Still open.
@@ -201,9 +223,9 @@ VALUES
   ('ri-act-k3', 'local-dev-workspace', 'task.completed', 'user', 'local-dev-owner', '2026-01-01T00:00:00.000Z', '{"kind":"task"}'),
   ('ri-act-k4', 'local-dev-workspace', 'task.completed', 'user', 'local-dev-owner', '2026-01-01T00:00:00.000Z', '{"kind":"task"}'),
   ('ri-act-k5', 'local-dev-workspace', 'task.completed', 'user', 'local-dev-owner', '2026-01-01T00:00:00.000Z', '{"kind":"task"}');
-UPDATE activities SET occurred_at = date('now') || 'T02:00:00.000Z'
+UPDATE activities SET occurred_at = date('now', '-4 days') || 'T02:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND id IN ('ri-act-k1', 'ri-act-k2', 'ri-act-k3');
-UPDATE activities SET occurred_at = date('now', '-9 days') || 'T02:00:00.000Z'
+UPDATE activities SET occurred_at = date('now', '-11 days') || 'T02:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND id IN ('ri-act-k4', 'ri-act-k5');
 
 INSERT OR IGNORE INTO activity_subjects (workspace_id, activity_id, entity_id, role)
@@ -235,15 +257,15 @@ VALUES
   ('local-dev-workspace', 'ri-review-first', 'review', 'monthly', '2026-01-01', '2026-01-31', 'in_progress', 'review.monthly.v1', NULL, NULL, '2026-01-31T00:00:00.000Z');
 
 UPDATE review_details
-SET period_start = date('now', '-13 days'), period_end = date('now', '-7 days'),
-    status = 'completed', completed_at = date('now', '-7 days') || 'T09:00:00.000Z'
+SET period_start = date('now', '-15 days'), period_end = date('now', '-9 days'),
+    status = 'completed', completed_at = date('now', '-9 days') || 'T09:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'ri-review-prev';
 UPDATE review_details
-SET period_start = date('now', '-6 days'), period_end = date('now'),
+SET period_start = date('now', '-8 days'), period_end = date('now', '-2 days'),
     status = 'in_progress', completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'ri-review-now';
 UPDATE review_details
-SET period_start = date('now', '-6 days'), period_end = date('now'),
+SET period_start = date('now', '-8 days'), period_end = date('now', '-2 days'),
     status = 'in_progress', completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'ri-review-first';
 
@@ -255,8 +277,8 @@ INSERT OR IGNORE INTO review_insight_snapshots
 VALUES
   ('local-dev-workspace', 'ri-review-prev', 1, '2026-01-01', '2026-01-07', '2026-01-07T09:00:00.000Z', '{}');
 UPDATE review_insight_snapshots
-SET period_start = date('now', '-13 days'),
-    period_end = date('now', '-7 days'),
-    captured_at = date('now', '-7 days') || 'T09:00:00.000Z',
-    facts_json = '{"version":1,"periodStart":"' || date('now', '-13 days') || '","periodEnd":"' || date('now', '-7 days') || '","tasksCompleted":2,"projectsCompleted":0,"goalsCompleted":0,"overdueCarryOver":1,"waitingCarryOver":0,"projects":[{"id":"ri-proj-kitchen","health":"at_risk","openTasks":4,"overdueTasks":2},{"id":"ri-proj-loft","health":"on_track","openTasks":1,"overdueTasks":0}],"projectsBounded":false,"goals":[{"id":"ri-goal-home","alignment":"active","contributingProjects":1,"contribution":"moving"},{"id":"ri-goal-fit","alignment":"neglected","contributingProjects":1,"contribution":"none"}],"goalsBounded":false,"areas":[{"id":"ri-area-home","tasksCompleted":2},{"id":"ri-area-health","tasksCompleted":0}],"areasBounded":false,"carryOverTaskIds":["ri-task-loft-overdue"],"carryOverTaskIdsBounded":false}'
+SET period_start = date('now', '-15 days'),
+    period_end = date('now', '-9 days'),
+    captured_at = date('now', '-9 days') || 'T09:00:00.000Z',
+    facts_json = '{"version":1,"periodStart":"' || date('now', '-15 days') || '","periodEnd":"' || date('now', '-9 days') || '","tasksCompleted":2,"projectsCompleted":0,"goalsCompleted":0,"overdueCarryOver":1,"waitingCarryOver":0,"projects":[{"id":"ri-proj-kitchen","health":"at_risk","openTasks":4,"overdueTasks":2},{"id":"ri-proj-loft","health":"on_track","openTasks":1,"overdueTasks":0}],"projectsBounded":false,"goals":[{"id":"ri-goal-home","alignment":"active","contributingProjects":1,"contribution":"moving"},{"id":"ri-goal-fit","alignment":"neglected","contributingProjects":1,"contribution":"none"}],"goalsBounded":false,"areas":[{"id":"ri-area-home","tasksCompleted":2},{"id":"ri-area-health","tasksCompleted":0}],"areasBounded":false,"carryOverTaskIds":["ri-task-loft-overdue"],"carryOverTaskIdsBounded":false}'
 WHERE workspace_id = 'local-dev-workspace' AND review_id = 'ri-review-prev';

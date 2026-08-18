@@ -203,11 +203,36 @@ export function evaluateHabitWeek(
      * completions that satisfy it may fall on any of its days. `completed` is
      * capped at the target so a seven-session week cannot hide a missed week in
      * the consistency figure that sums these.
+     *
+     * ── The PARTIAL FIRST WEEK (V2.3-GATE-01) ───────────────────────────────
+     * A week the Habit did not exist for the whole of expects NOTHING, and the
+     * rule is the one this module already applies twice rather than a new idea:
+     *
+     *   - a day-based week counts only the scheduled days the Habit was active
+     *     on, which is why "a Habit created on Friday did not fail Monday to
+     *     Thursday" (`habitWeekLabel`);
+     *   - the consistency window takes a count-based week only "once the week is
+     *     over — half a week's target is a number nobody chose, so a partial
+     *     week is excluded rather than pro-rated"
+     *     (`evaluateHabitConsistency`).
+     *
+     * A week that is partial because the Habit was CREATED inside it is the same
+     * sentence with the same number nobody chose. Start "three times a week" on
+     * the Sunday and the old rule charged the full three: a target that cannot be
+     * reached in the time remaining, printed as "0 of 3 this week", and — worse,
+     * because it is permanent — carried into the recent-window figure as three
+     * expectations against a week the owner never had a chance in. That is
+     * manufactured guilt about days before the Habit existed, which is precisely
+     * what ADR-102 and AGENTS.md §2 forbid.
+     *
+     * So: expectation applies only to a week the Habit was active on EVERY day
+     * of. The first whole week is the first week with a target, completions made
+     * before it still count as `recorded`, and nothing is pro-rated. The rule is
+     * symmetric at the other end by construction — archiving on Tuesday cannot
+     * leave three sessions owed for that week either.
      */
-    const expected =
-      activeOn(facts, week.endIso) || activeOn(facts, week.startIso)
-        ? version.schedule.timesPerWeek
-        : 0;
+    const wholeWeek = days.every((dateIso) => activeOn(facts, dateIso));
+    const expected = wholeWeek ? version.schedule.timesPerWeek : 0;
     const completed = Math.min(recorded, expected);
     return {
       startIso: week.startIso,

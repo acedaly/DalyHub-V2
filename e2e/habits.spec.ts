@@ -337,6 +337,54 @@ test.describe("HABITS-01 — the record", () => {
     await expect(page.getByText("Every day").first()).toBeVisible();
   });
 
+  /**
+   * V2.3-GATE-01 — the partial first week, from the owner's side of the glass.
+   *
+   * A Habit created through the product is effective FROM TODAY, so on the day it
+   * is made it has never had a whole owner-calendar week. `weekly_count` holds a
+   * week to its target only when the Habit was active for every day of it (see
+   * `docs/development/HABITS_MODULE.md → The partial first week`), so nothing in
+   * the record may describe the days before it existed as anything owed.
+   *
+   * The assertions here are the ones that hold on EVERY day of the week — the
+   * exact week arithmetic, including the boundary where creation day IS the first
+   * day of the week, is asserted in `test/unit/habits/habit-progress.test.ts`.
+   */
+  test("does not invent expectations for the week it was created in", async ({
+    page,
+  }) => {
+    const title = uniqueHabitTitle("partial-first-week");
+    await createHabit(page, {
+      title,
+      cadence: "A number of times a week",
+      timesPerWeek: "3 times a week",
+    });
+
+    const summary = page.getByTestId("habit-summary");
+    await expect(summary).toBeVisible();
+
+    // No recent-window denominator: a Habit made today has had no whole week, so
+    // there is no bounded expectation to report, and reporting one would be a
+    // measurement of weeks it did not exist for.
+    await expect(summary).not.toContainText(/expected check-ins/i);
+
+    // No verdict language anywhere — this is the calm contract, checked on the
+    // one surface most tempted to grow it.
+    await expect(summary).not.toContainText(/missed|behind|streak|broke/i);
+
+    // Every day before today is stated as INACTIVE rather than as a scheduled day
+    // without a check-in. That is the sentence the history strip must never say
+    // about a day the Habit did not exist on.
+    const strip = summary.locator(".dh-habit-history");
+    await expect(strip).toBeVisible();
+    await expect(
+      strip.getByRole("cell", { name: /scheduled, no check-in/ }),
+    ).toHaveCount(0);
+
+    // And the Habit is still fully usable: today is available, on any day.
+    await expect(summary).toContainText(/Any day this week|Not yet today/);
+  });
+
   test("shows a supporting habit on its Goal, without changing the Goal's progress", async ({
     page,
   }) => {

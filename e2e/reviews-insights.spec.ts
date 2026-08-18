@@ -19,7 +19,6 @@
  * what any other journey sees.
  */
 
-import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -31,6 +30,16 @@ import {
   gotoFixture,
   waitForInteractive,
 } from "./helpers";
+/*
+ * V2.3-GATE-01 — the SHARED D1 helper, not a private `execFileSync`.
+ *
+ * This file used to spawn wrangler itself, which meant its seed and its cleanup
+ * had no `SQLITE_BUSY` retry: the suite drives one dev server against one local
+ * SQLite file while a fixture opens it from a second process, so a statement
+ * issued while the server is mid-write is refused. `e2e/d1.ts` exists to make
+ * that survivable in one place rather than in fifteen.
+ */
+import { d1Execute, d1ExecuteFile } from "./d1";
 
 const WORKSPACE = "local-dev-workspace";
 const SEED_FILE = join(
@@ -41,14 +50,6 @@ const SEED_FILE = join(
 const CURRENT_REVIEW = "/reviews/ri-review-now?tab=progress";
 const FIRST_REVIEW = "/reviews/ri-review-first?tab=progress";
 const GUIDED_REVIEW = "/reviews/ri-review-now/guide?step=overview";
-
-function wrangler(args: readonly string[]): void {
-  execFileSync("pnpm", ["exec", "wrangler", ...args], {
-    cwd: process.cwd(),
-    env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-    stdio: "pipe",
-  });
-}
 
 /** Every row this fixture owns, removed child-first. */
 const CLEANUP = [
@@ -69,20 +70,29 @@ const CLEANUP = [
 ].join("\n");
 
 test.beforeAll(() => {
-  wrangler(["d1", "execute", "DB", "--local", "--command", CLEANUP]);
-  wrangler(["d1", "execute", "DB", "--local", "--file", SEED_FILE]);
+  d1Execute(CLEANUP);
+  d1ExecuteFile(SEED_FILE);
 });
 
 test.afterAll(() => {
   try {
-    wrangler(["d1", "execute", "DB", "--local", "--command", CLEANUP]);
+    d1Execute(CLEANUP);
   } catch {
     // Cleanup is best-effort; it must never fail an assertion a test made.
   }
 });
 
+/**
+ * THE evidence surface — singular, and asserted to be so.
+ *
+ * V2.3-GATE-01 — this was `.first()`, which quietly answered "whichever one
+ * came first" to a question that has exactly one right answer. A Review page
+ * renders one `ReviewInsightsPanel`; if it ever renders two, that is a defect
+ * this helper should surface rather than paper over, and Playwright's strict
+ * mode now says so instead of silently picking.
+ */
 function evidence(page: Page) {
-  return page.locator(".dh-insights").first();
+  return page.locator(".dh-insights");
 }
 
 function section(page: Page, id: string) {
@@ -127,6 +137,18 @@ test("a populated Review answers what changed, what contributed and what needs a
   await gotoFixture(page, CURRENT_REVIEW);
   await waitForInteractive(page);
 
+  // Exactly ONE evidence surface, and it is the one every assertion below reads.
+  await expect(evidence(page)).toHaveCount(1);
+
+  /*
+   * THREE, and the three are `ri-task-k1`, `ri-task-k2` and `ri-task-k3` —
+   * derived from the fixture, not from whatever the workspace happens to hold.
+   *
+   * The insight counts every Task completed in the workspace during the period,
+   * which is correct and is why the fixture gives it a period nothing else can
+   * write into (see `seed-review-insights.sql`). The number stays exact because
+   * the window is bounded, never because the assertion was loosened to `>=`.
+   */
   await expect(section(page, "movement")).toContainText("3 Tasks completed");
 
   // Goal contribution, with its reason — never a bare label.
@@ -162,6 +184,46 @@ test("a populated Review answers what changed, what contributed and what needs a
   await expect(distribution).toContainText("RI: Health & Fitness");
 
   await expectNoHorizontalOverflow(page);
+});
+
+/**
+ * V2.3-GATE-01 — the count is a property of the PERIOD, not of the suite.
+ *
+ * This is the regression guard for the failure that made three of this file's
+ * journeys red on `main` @ bcdba66: the Review period ran up to and including
+ * today, the insight counts every Task completed in the workspace during the
+ * period, and the spec files that run before this one in partition p02 complete
+ * real Tasks. "3 Tasks completed" therefore became 4, 5 or 6 depending on what
+ * had already run — an assertion that was exact and not deterministic.
+ *
+ * So this test does deliberately what those files did incidentally: it stamps a
+ * completion at NOW, exactly as the product does, and asserts the Review is
+ * unmoved. It fails if the period is ever widened back over today, which is the
+ * only way the contamination can return.
+ */
+test("a Task completed today does not change a closed period's evidence", async ({
+  page,
+}) => {
+  await gotoFixture(page, CURRENT_REVIEW);
+  await waitForInteractive(page);
+  await expect(section(page, "movement")).toContainText("3 Tasks completed");
+
+  // A completion stamped NOW — the shape every other spec's real completion has.
+  // Prefixed `ri-` so the file's own afterAll cleanup already removes it.
+  d1Execute([
+    `INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('ri-task-today', '${WORKSPACE}', 'task', 'RI: Completed today, outside the period', '2026-06-01T00:00:04.000Z', '2026-06-01T00:00:04.000Z', NULL);`,
+    `INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at) VALUES ('${WORKSPACE}', 'ri-task-today', 'task', NULL);`,
+    `UPDATE spine_records SET completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE workspace_id = '${WORKSPACE}' AND entity_id = 'ri-task-today';`,
+    `INSERT OR IGNORE INTO activities (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json) VALUES ('ri-act-today', '${WORKSPACE}', 'task.completed', 'user', 'local-dev-owner', '2026-06-01T00:00:04.000Z', '{"kind":"task"}');`,
+    `UPDATE activities SET occurred_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE workspace_id = '${WORKSPACE}' AND id = 'ri-act-today';`,
+    `INSERT OR IGNORE INTO activity_subjects (workspace_id, activity_id, entity_id, role) VALUES ('${WORKSPACE}', 'ri-act-today', 'ri-task-today', 'subject');`,
+  ]);
+
+  await gotoFixture(page, CURRENT_REVIEW);
+  await waitForInteractive(page);
+  // Still three: today is outside the week this Review is about.
+  await expect(section(page, "movement")).toContainText("3 Tasks completed");
+  await expect(section(page, "distribution")).toContainText("RI: Home (3)");
 });
 
 test("the trend is readable without the chart", async ({ page }) => {

@@ -1,7 +1,5 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { execFileSync } from "node:child_process";
-
 import {
   expectMinTouchTarget,
   expectNoAxeViolations,
@@ -9,6 +7,10 @@ import {
   gotoFixture,
   mobileNavigationOpener,
 } from "./helpers";
+// V2.3-GATE-01 — the shared D1 helper. This cleanup used to spawn wrangler
+// itself, so it carried no `SQLITE_BUSY` retry and could fail the whole file for
+// losing a race with the dev server's own write (see `e2e/d1.ts`).
+import { d1Execute } from "./d1";
 
 /**
  * PROJ-06 — mobile-complete Projects.
@@ -48,26 +50,10 @@ const MOBILE_CLEANUP_SQL = [
 test.use({ viewport: PHONE, isMobile: true, hasTouch: true });
 
 function cleanupMobileProjects() {
-  for (const command of MOBILE_CLEANUP_SQL) {
-    execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "d1",
-        "execute",
-        "DB",
-        "--local",
-        "--command",
-        command,
-      ],
-      {
-        cwd: process.cwd(),
-        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-        stdio: "pipe",
-      },
-    );
-  }
+  // ONE invocation for the ordered sequence: it removes six process spawns and
+  // shrinks the window in which the server can interleave a write between the
+  // statements, which is the foreign-key half of the contention `d1.ts` retries.
+  d1Execute(MOBILE_CLEANUP_SQL);
 }
 
 async function enterProjectsFromMobileShell(page: Page) {

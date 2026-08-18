@@ -152,15 +152,17 @@ export default function CaptureSheet({
   /*
    * MOBILE-02 — the type SELECTOR replaces the chooser screen.
    *
-   * The sheet used to open on a list of five options and only then show a
-   * field. It now opens on the field, with the five types as a compact chip row
-   * above it: the common case costs no decision at all, and an uncommon one
-   * costs exactly one tap instead of one tap plus a screen.
+   * The sheet used to open on a list of options and only then show a field. It
+   * now opens on the field, with the types as a compact chip row above it: the
+   * common case costs no decision at all, and an uncommon one costs exactly one
+   * tap instead of one tap plus a screen.
    *
-   * It is a `dh-scroll-strip`, so five chips on a 320px phone announce that
-   * they continue rather than being cut off — the same affordance every other
-   * horizontally-constrained strip in the product uses. `aria-pressed` carries
-   * which type is active; the chip is never distinguished by fill alone.
+   * It is a `dh-scroll-strip`, so the chips on a 320px phone announce that they
+   * continue rather than being cut off — the same affordance every other
+   * horizontally-constrained strip in the product uses. The row is driven by
+   * `CAPTURE_TYPE_DESCRIPTORS`, so adding a first-class record (HABITS-01 added
+   * Habit) needs no change here. `aria-pressed` carries which type is active;
+   * the chip is never distinguished by fill alone.
    */
   const typeSelector = (
     <div

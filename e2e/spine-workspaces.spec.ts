@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import {
   expectNoAxeViolations,
@@ -21,6 +22,29 @@ import {
  * progressbars and headings by their accessible names, not for the classes that
  * happen to draw them.
  */
+
+/**
+ * Every Project record, in whichever presentation the scope resolves to.
+ *
+ * ADR-100 — a Projects scope above forty records defaults to the TABLE and one
+ * below it to the gallery, so a Project is an `article` in one drawing and a
+ * `<tr>` in the other. The contract that does NOT change is the product-wide
+ * one: every Project is reachable as a link named "Open <title>".
+ *
+ * V2.3-GATE-01 — asserting THAT, rather than the gallery's anatomy, is what
+ * makes a test about the collection instead of about which presentation the
+ * seeded workspace happens to trip. `getByRole("article")` was the latter: the
+ * default `state=all` scope holds 83 Projects, so ADR-100 correctly draws it as
+ * a table, and the assertion had been looking for a gallery that had stopped
+ * being the default. It is scoped to the collection because the page also
+ * carries the compact Goals summary, whose rows name their links the same way.
+ */
+function projectRecords(page: Page) {
+  return page
+    .getByRole("list", { name: "Projects" })
+    .or(page.getByTestId("projects-table"))
+    .getByRole("link", { name: /^Open / });
+}
 
 test.describe("REDESIGN-04 — the Projects collection", () => {
   test("narrows by search, opens a project, and comes back to the same view", async ({
@@ -74,7 +98,48 @@ test.describe("REDESIGN-04 — the Projects collection", () => {
       .getByRole("button", { name: "Clear search", exact: true })
       .click();
     await expect(page).not.toHaveURL(/[?&]q=/);
-    await expect(page.getByRole("article").first()).toBeVisible();
+    // The narrowing is undone and the collection is showing its records again —
+    // in whichever presentation this scope resolves to.
+    await expect(projectRecords(page).first()).toBeVisible();
+  });
+
+  test("opens a Project from the collection's DEFAULT presentation", async ({
+    page,
+  }) => {
+    /*
+     * The default scope, deliberately un-pinned: at this workspace's size
+     * ADR-100 resolves it to the table, which is exactly the drawing the older
+     * `article` assertion could not see. Navigation is a property of the
+     * COLLECTION rather than of one of its two presentations, so it is proved on
+     * whichever one the size rule actually chooses.
+     */
+    await gotoFixture(page, "/projects");
+
+    // A real, NAMED structure either way — never a nameless stack of divs.
+    await expect(
+      page
+        .getByRole("list", { name: "Projects" })
+        .or(page.getByRole("table", { name: /^Projects,/ })),
+    ).toBeVisible();
+
+    const first = projectRecords(page).first();
+    await expect(first).toBeVisible();
+    // The record states its own identity, and that identity is what opens.
+    const title = ((await first.getAttribute("aria-label")) ?? "").replace(
+      /^Open /,
+      "",
+    );
+    expect(title.length).toBeGreaterThan(0);
+
+    await first.click();
+    await expect(page).toHaveURL(/\/projects\/[^/?]+$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: title }),
+    ).toBeVisible();
+
+    // …and Back returns to the collection, still showing its records.
+    await page.goBack();
+    await expect(projectRecords(page).first()).toBeVisible();
   });
 
   test("switches between Grid and Table showing the SAME records", async ({

@@ -183,6 +183,77 @@ module behaviour: [`HABITS_MODULE.md`](../development/HABITS_MODULE.md).
   holds, asserted by `test/unit/habits/habit-query-bounds.test.ts` and counted
   for real in `test/kernel/habits.test.ts`.
 
+### ☑ V2.3-GATE-01 — A trustworthy V2.3 baseline — **DELIVERED 2026-08-18**
+
+**Not a feature. The pass that makes `main` mean something again after PLAN-01 /
+SMART-01 and HABITS-01, so TASKS-13 is built on a green gate rather than beside a
+red one.**
+
+Five E2E partitions were red on `main` @ bcdba66 (run 32107056970). Every one was
+reproduced and classified before anything was changed, and the classification is
+the point: **one was a real product defect, four were tests that had stopped
+describing the product.** Nothing was skipped, no timeout was raised, no
+assertion was loosened, and no product behaviour was changed to satisfy a stale
+test.
+
+- **The Tasks filter defect was real, and it was a lost update.** Choosing
+  Priority 1 and then Due Overdue wrote `?due=overdue` alone. The desktop popover
+  LIVE-APPLIES (CONTROL-01) and composes each write over what the collection
+  reports as APPLIED — which for Tasks is the canonical configuration derived from
+  the loader, so it does not advance until the loader answers. A second choice
+  made inside that window was composed over a base that had never heard of the
+  first. MEASURED with the revalidation held for 1.5 s: the first write carried
+  `priority=p1`, the second did not. Fixed at the one authority
+  (`use-applied-params.ts`): every write leaves through ONE function that records
+  what it wrote, and the badge, the chips, the popover's checkmarks and the next
+  write all read the same answer. No second filter model, and the committed state
+  is authoritative again the moment the router settles — so a value the server
+  canonicalises away still disappears.
+- **Quick Capture's assertion was stale, and Habit stays.** A test named "all four
+  types" was checking five and failing on the sixth. It now names each type with
+  its own test id AND its own visible label, exact in both directions, so a type
+  quietly dropped fails and so does one added without a decision.
+- **The Projects assertion was testing an obsolete anatomy.** `getByRole("article")`
+  looked for the gallery on a scope that [ADR-100](../decisions/ARCHITECTURE_DECISIONS.md)
+  correctly draws as a TABLE — the default `state=all` holds 83 Projects, above
+  the forty-record threshold. It now asserts the product-wide record contract
+  ("every Project is a link named `Open <title>`"), which holds in both drawings,
+  and a new journey opens a Project from whichever presentation the size rule
+  actually chooses.
+- **The Review counts were contaminated, and the fixture is now bounded.** The
+  insight counts every Task completed in the workspace during the period — which
+  is correct — while the fixture's period ran up to and including today, and the
+  spec files that run before it in partition p02 complete real Tasks. "3 Tasks
+  completed" became 4, 5 or 6 depending on what had already run. The fixture's
+  week now ENDS TWO DAYS AGO, so the only completions that can fall inside it are
+  the ones it writes: nothing else in the suite can complete a Task in the past.
+  The assertions stayed exact, and a new test stamps a completion at NOW and
+  proves the Review does not move.
+- **SQLITE_BUSY is understood, and the last five bypasses are closed.** It is
+  local Miniflare contention, already diagnosed and already handled: the suite
+  drives one dev server against one SQLite file while a fixture opens it from a
+  second process, and `e2e/d1.ts` retries exactly that. What was left was that
+  five specs could not use it — it had no file mode — so each had grown a private
+  `execFileSync` with **no retry at all**. They now all go through the one helper.
+  No retry was added around any product D1 operation.
+- **The Habits partial first week is settled and tested.** An X-times-per-week
+  Habit created on the Sunday was charged the full weekly target: unreachable in
+  the day remaining, and — because the recent window sums elapsed weeks —
+  carried forward permanently as three expectations against a week the owner
+  never had a chance in. A count-based week is now held to its target only if the
+  Habit was active for EVERY day of it, which is the rule the module already
+  applied to day-based weeks and to unfinished ones. Not pro-rated, symmetric at
+  the archiving end, and recorded in [`HABITS_MODULE.md`](../development/HABITS_MODULE.md#the-partial-first-week-v23-gate-01).
+- **What it deliberately did NOT do.** It did not redesign the E2E split. The
+  imbalance is real and measured — p08 ran 21.1 min against a 25-minute ceiling
+  while the two `responsive.spec.ts` slices ran ~12 — but no failure was a
+  timeout, and the mechanism that would rebalance it cannot be fed because a
+  GREEN partition uploads no `results.json`. That is recorded as DEBT-157 with
+  its evidence rather than fixed by mixing local timings into a manifest whose
+  authority is that its numbers were measured in CI. DEBT-158 (a Goal measurement
+  journey that has never once run) and DEBT-159 (the same in-flight race, still
+  reachable through two chip removals) are recorded for the same reason.
+
 ---
 
 ## NEXT

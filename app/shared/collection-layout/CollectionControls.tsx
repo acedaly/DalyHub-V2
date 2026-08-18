@@ -32,7 +32,7 @@
  * of them hiding the result of the last.
  *
  * So the SHEET is now what a compact viewport gets, and a pointer device gets
- * `CollectionControlsPopover`: the same groups, the same committed params, the
+ * `CollectionControlsPopover`: the same groups, the same applied params, the
  * same `applyDraft`, anchored beside the trigger and live-applying. The split is
  * `useCompactViewport`, the one boolean in the product allowed to change the DOM
  * rather than its presentation, and the same one `InlineSelectField` already
@@ -40,6 +40,12 @@
  *
  * There is one model, one set of options and one URL writer. Only the container
  * differs, which is what stops this becoming two filter systems that drift.
+ *
+ * V2.3-GATE-01 added the one thing live-applying needed to be correct: a single
+ * answer to "what is applied right now", which is the committed state EXCEPT
+ * while this collection is still waiting on a write these controls just made.
+ * Without it a second choice made inside that window was composed over a base
+ * that had never heard of the first, and deleted it — see `use-applied-params.ts`.
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -56,6 +62,7 @@ import {
 import { ControlOptionMark } from "./ControlOptionMark";
 
 import { CollectionFilterChips } from "./CollectionFilterChips";
+import { useAppliedParams } from "./use-applied-params";
 import {
   activeFilterCount,
   applyDraft,
@@ -114,7 +121,17 @@ export function CollectionControls({
   params,
 }: CollectionControlsProps) {
   const [urlParams, setSearchParams] = useSearchParams();
-  const searchParams = params ?? urlParams;
+  const committedParams = params ?? urlParams;
+  /**
+   * V2.3-GATE-01 — the ONE thing every surface below reads as "what is applied".
+   *
+   * The committed parameters, except while this collection is still waiting on a
+   * write these controls just made — see `use-applied-params.ts` for the lost
+   * update that closes. Everything downstream (the badge, the chips, the
+   * popover's checkmarks, the draft the sheet seeds, and the base every write is
+   * composed over) reads THIS, so there is exactly one answer on screen.
+   */
+  const { applied: searchParams, record } = useAppliedParams(committedParams);
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<CollectionControlsDraft>(() =>
@@ -148,47 +165,47 @@ export function CollectionControls({
   }, []);
 
   /**
+   * The ONE place collection controls turn a draft into a URL — the sheet's
+   * Apply, the popover's live commit and Reset all leave through here.
+   *
+   * It RECORDS what it wrote before writing it, so a second choice made while
+   * this one is still in flight composes over it rather than over the committed
+   * state the loader has not replaced yet (`use-applied-params.ts`).
+   */
+  const write = useCallback(
+    (next: CollectionControlsDraft) => {
+      const written = applyDraft(groups, searchParams, next, {
+        ...(resetParams ? { resetParams: ["cursor", ...resetParams] } : {}),
+      });
+      record(written);
+      setSearchParams(written, { replace: true, preventScrollReset: true });
+    },
+    [groups, searchParams, setSearchParams, resetParams, record],
+  );
+
+  /**
    * Commit ONE control immediately — the popover's whole behavioural difference.
    *
-   * It writes through the same `applyDraft` the sheet's Apply uses, over a draft
-   * containing only this change, so there is exactly one function in the product
-   * that turns collection controls into a URL.
+   * The draft it composes over is derived from what is APPLIED, which is what
+   * makes two quick choices combine instead of the second erasing the first.
    */
   const commit = useCallback(
     (group: CollectionControlGroup, value: string) => {
-      const next = withDraftValue(
-        draftFromParams(groups, searchParams),
-        group,
-        value,
-      );
-      setSearchParams(
-        applyDraft(groups, searchParams, next, {
-          ...(resetParams ? { resetParams: ["cursor", ...resetParams] } : {}),
-        }),
-        { replace: true, preventScrollReset: true },
+      write(
+        withDraftValue(draftFromParams(groups, searchParams), group, value),
       );
     },
-    [groups, searchParams, setSearchParams, resetParams],
+    [groups, searchParams, write],
   );
 
   const clearAll = useCallback(() => {
-    setSearchParams(
-      applyDraft(groups, searchParams, emptyDraft(groups), {
-        ...(resetParams ? { resetParams: ["cursor", ...resetParams] } : {}),
-      }),
-      { replace: true, preventScrollReset: true },
-    );
-  }, [groups, searchParams, setSearchParams, resetParams]);
+    write(emptyDraft(groups));
+  }, [groups, write]);
 
   const apply = useCallback(() => {
-    setSearchParams(
-      applyDraft(groups, searchParams, draft, {
-        ...(resetParams ? { resetParams: ["cursor", ...resetParams] } : {}),
-      }),
-      { replace: true, preventScrollReset: true },
-    );
+    write(draft);
     setOpen(false);
-  }, [groups, searchParams, draft, setSearchParams, resetParams]);
+  }, [draft, write]);
 
   const reset = useCallback(() => setDraft(emptyDraft(groups)), [groups]);
 
