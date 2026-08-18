@@ -74,6 +74,15 @@ export function TaskChecklistSection({
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  /*
+   * What a screen reader is TOLD about a change it cannot see.
+   *
+   * Adding, deleting and moving all change the list silently: the DOM updates,
+   * focus may not move, and nothing speaks. Ticking is deliberately absent from
+   * this — the checkbox announces its own state, and saying "done" beside it
+   * would make every tick speak twice.
+   */
+  const [announcement, setAnnouncement] = useState("");
   const composerRef = useRef<HTMLInputElement | null>(null);
   const addButtonRef = useRef<HTMLButtonElement | null>(null);
   /*
@@ -111,6 +120,20 @@ export function TaskChecklistSection({
     },
     [notifyError],
   );
+
+  /**
+   * Speak one sentence into the live region.
+   *
+   * The text is re-set even when it repeats, with a zero-width space appended on
+   * the repeat, because an unchanged `aria-live` node is not re-announced — and
+   * "Move up" pressed twice on the same step is exactly the case that would
+   * otherwise fall silent the second time.
+   */
+  const announce = useCallback((message: string) => {
+    setAnnouncement((current) =>
+      current === message ? `${message}\u200b` : message,
+    );
+  }, []);
 
   const openComposer = useCallback(() => {
     setDraft("");
@@ -178,6 +201,7 @@ export function TaskChecklistSection({
       const outcome = report(await checklist.addItem(title));
       setSaving(false);
       if (!outcome.ok) return;
+      announce(`${title} added.`);
       setDraft("");
       if (keepGoing) {
         composerRef.current?.focus();
@@ -185,7 +209,7 @@ export function TaskChecklistSection({
         closeComposer();
       }
     },
-    [checklist, closeComposer, draft, report],
+    [announce, checklist, closeComposer, draft, report],
   );
 
   const full = items.length >= MAX_CHECKLIST_ITEMS;
@@ -233,6 +257,7 @@ export function TaskChecklistSection({
               readOnly={readOnly}
               checklist={checklist}
               report={report}
+              announce={announce}
               onBeforeDelete={() => {
                 // The row that will occupy this position afterwards, or the Add
                 // control when this was the last one.
@@ -311,6 +336,7 @@ export function TaskChecklistSection({
           type="button"
           variant="subtle"
           size="sm"
+          className="dh-checklist__add"
           disabled={full}
           onClick={openComposer}
           data-testid="checklist-add"
@@ -323,6 +349,10 @@ export function TaskChecklistSection({
           A checklist holds at most {MAX_CHECKLIST_ITEMS} items.
         </p>
       ) : null}
+
+      <p className="dh-visually-hidden" role="status" aria-live="polite">
+        {announcement}
+      </p>
     </div>
   );
 }
@@ -334,6 +364,7 @@ interface ChecklistRowProps {
   readonly readOnly: boolean;
   readonly checklist: TaskChecklistApi;
   readonly report: (outcome: ChecklistOutcome) => ChecklistOutcome;
+  readonly announce: (message: string) => void;
   readonly onBeforeDelete: () => void;
 }
 
@@ -344,6 +375,7 @@ function ChecklistRow({
   readOnly,
   checklist,
   report,
+  announce,
   onBeforeDelete,
 }: ChecklistRowProps) {
   return (
@@ -413,7 +445,13 @@ function ChecklistRow({
               label: "Move up",
               disabled: index === 0,
               onSelect: () => {
-                void checklist.moveItem(item.id, -1).then(report);
+                void checklist.moveItem(item.id, -1).then((outcome) => {
+                  if (report(outcome).ok) {
+                    announce(
+                      `${item.title} moved to position ${index} of ${count}.`,
+                    );
+                  }
+                });
               },
             },
             {
@@ -421,7 +459,13 @@ function ChecklistRow({
               label: "Move down",
               disabled: index === count - 1,
               onSelect: () => {
-                void checklist.moveItem(item.id, 1).then(report);
+                void checklist.moveItem(item.id, 1).then((outcome) => {
+                  if (report(outcome).ok) {
+                    announce(
+                      `${item.title} moved to position ${index + 2} of ${count}.`,
+                    );
+                  }
+                });
               },
             },
             {
@@ -431,7 +475,9 @@ function ChecklistRow({
               separatorBefore: true,
               onSelect: () => {
                 onBeforeDelete();
-                void checklist.deleteItem(item.id).then(report);
+                void checklist.deleteItem(item.id).then((outcome) => {
+                  if (report(outcome).ok) announce(`${item.title} deleted.`);
+                });
               },
             },
           ]}

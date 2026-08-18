@@ -213,10 +213,20 @@
  * panel width and centred its label — which read as a form's submit row in the
  * middle of a list. It starts where the steps' text starts, so "the next step
  * goes here" is what the eye is told.
+ *
+ * It also takes the product's target floor, at EVERY width, and that floor is
+ * not scoped to `hover: none` the way `card.css` scopes its own. A `sm` Button
+ * is 32px, which is the wrong size for a thumb. It is also the wrong size for
+ * the SLOT: clicking it replaces it with the composer, and the composer carries
+ * the shared inline editor's 45px floor. MEASURED at 393 before this rule: the
+ * button 32px, the composer 45px — so the section grew thirteen pixels the
+ * moment the caret arrived. At 45px the control is exactly the size of the
+ * thing it turns into, so opening the composer moves nothing.
  */
-[data-testid="checklist-add"] {
+.dh-checklist__add {
   align-self: flex-start;
   margin-inline-start: calc(var(--app-touch-target-min) + var(--dh-space-2));
+  min-block-size: var(--app-touch-target-min);
 }
 
 .dh-checklist__limit {

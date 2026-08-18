@@ -394,10 +394,13 @@ MEASURED at 1440, 393 and 320
     stacked on top of the shared inline editor's 44px floor; removing it is
     thirteen pixels a step, which on a checklist of eight is a hundred pixels of
     a 420px panel;
-  - **every check control and every item menu is 45 × 45**, on every viewport.
-    The Task ROW's control shrinks to 28px behind a fine-pointer query for
-    density; a record panel has the height to spare, so the checklist does not
-    inherit that reduction;
+  - **every check control, every item menu, the composer and the Add control are
+    45 × 45**, on every viewport. The Task ROW's control shrinks to 28px behind
+    a fine-pointer query for density; a record panel has the height to spare, so
+    the checklist does not inherit that reduction. The Add control's floor is
+    unconditional rather than scoped to `hover: none` for a second reason: a
+    `sm` Button is 32px and the composer it opens is 45px, so before the rule
+    the section grew thirteen pixels the moment the caret arrived;
   - **a long step WRAPS rather than truncating**: the 76-character step measures
     75px at 1440 and 118px at 320, and the row grows with it;
   - **the title keeps the width**: 269px at 1440, 255px at 393, 182px at 320,
@@ -409,7 +412,17 @@ step and whose state is the checkbox's; completion is carried by the checkbox an
 the strike-through is decoration on top of it, never the only signal; every item
 menu names its step; focus after a delete lands on the step that took its place;
 and closing the composer returns focus to the control that opened it. `axe` runs
-clean at WCAG 2.2 AA in BOTH appearances, with no rule disabled.
+clean at WCAG 2.2 AA in BOTH appearances, with no rule disabled, and the section
+reflows at 195px — the CSS viewport 200% zoom on a 390px phone implies — with no
+horizontal scrolling and every step still operable.
+
+A **polite live region** speaks the three changes that are otherwise silent: an
+add, a move (*"Fill water tanks moved to position 1 of 4"*) and a delete. A TICK
+is deliberately not announced — the checkbox announces its own state, and a
+second sentence beside it would make the most frequent act in the section speak
+twice. Repeating a message re-announces it, because an unchanged `aria-live` node
+is not read again and *Move up* pressed twice is exactly the case that would
+otherwise fall silent.
 
 That last one found a real defect. The checkbox's 20px mark passes SC 2.5.8 only
 through the spacing exception, and the shared control's -12px inline margins put

@@ -153,18 +153,27 @@ async function measure(page: Page, name: string) {
     ];
     const taskRows = [
       ...document.querySelectorAll<HTMLElement>(".dh-taskrow"),
-    ].map((node) => ({
-      title:
-        node
-          .querySelector(".dh-taskrow__title")
-          ?.textContent?.trim()
-          .slice(0, 48) ?? "",
-      height: Math.round(node.getBoundingClientRect().height),
-      checklist:
-        node
-          .querySelector('[data-testid="task-row-checklist"]')
-          ?.textContent?.trim() ?? null,
-    }));
+    ].map((node) => {
+      const figure = node.querySelector<HTMLElement>(
+        '[data-testid="task-row-checklist"]',
+      );
+      return {
+        title:
+          node
+            .querySelector(".dh-taskrow__title")
+            ?.textContent?.trim()
+            .slice(0, 48) ?? "",
+        height: Math.round(node.getBoundingClientRect().height),
+        checklist: figure?.textContent?.trim() ?? null,
+        /*
+         * DRAWN, not merely present. `textContent` reads through `display:
+         * none`, so the count alone would suggest the figure is on a phone row
+         * when the rule below `md` says it is not — and that is exactly the
+         * claim this file exists to evidence.
+         */
+        checklistDrawn: figure !== null && figure.getClientRects().length > 0,
+      };
+    });
 
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },

@@ -3023,7 +3023,19 @@ panel.
     disabled at the ends. No drag-and-drop dependency is added, and a command
     works identically for a mouse, a keyboard and a thumb;
   - focus after a delete lands on the row that took the deleted one's place;
-    closing the composer returns focus to the control that opened it.
+    closing the composer returns focus to the control that opened it;
+  - a **polite live region** speaks an add, a move and a delete — the three
+    changes a reader who cannot see the list would otherwise miss. A TICK is not
+    announced: the checkbox announces its own state, and a second sentence beside
+    it makes the row's most frequent act speak twice.
+
+### One more rule the anatomy depends on
+
+**The Add control is the size of the composer it opens.** A `sm` Button is 32px
+and the composer carries the shared inline editor's 45px floor, so the section
+grew thirteen pixels the moment the caret arrived. Its floor is therefore
+unconditional rather than scoped to `hover: none` the way `card.css` scopes its
+touch floors: it is both the thumb target and the slot.
 
 ### Progress
 

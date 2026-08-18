@@ -375,6 +375,33 @@ test.describe("TASKS-13 — editing an existing checklist", () => {
     await expect(steps(page)).toHaveCount(5);
   });
 
+  test("announces a move, an add and a delete to a screen reader", async ({
+    page,
+  }) => {
+    await gotoFixture(page, recordUrl(TASK_ID));
+    // The live region is the only thing that speaks for these three: the DOM
+    // changes, focus may not move, and nothing else says what happened.
+    const live = checklist(page).getByRole("status");
+
+    await checklist(page)
+      .getByRole("button", { name: /More actions for Fill water tanks/ })
+      .click();
+    await page.getByRole("menuitem", { name: "Move up" }).click();
+    await expect(live).toHaveText(/Fill water tanks moved to position 1 of 4/);
+
+    await checklist(page).getByTestId("checklist-add").click();
+    const composer = checklist(page).getByTestId("checklist-composer");
+    await composer.fill("Empty the toilet cassette");
+    await composer.press("Control+Enter");
+    await expect(live).toHaveText(/Empty the toilet cassette added/);
+
+    await checklist(page)
+      .getByRole("button", { name: /More actions for Fill water tanks/ })
+      .click();
+    await page.getByRole("menuitem", { name: "Delete item" }).click();
+    await expect(live).toHaveText(/Fill water tanks deleted/);
+  });
+
   test("has no accessibility violations, in light and in dark", async ({
     page,
   }) => {
@@ -722,10 +749,18 @@ test.describe("TASKS-13 — phone", () => {
   test("adds a step at 390 with the keyboard visible", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoFixture(page, recordUrl(TASK_ID));
-    await checklist(page).getByTestId("checklist-add").click();
+    const add = checklist(page).getByTestId("checklist-add");
+    // The control that OPENS the composer is a thumb target too, and it is the
+    // same height as the composer it turns into, so the section does not move
+    // under the finger that just tapped it.
+    await expectMinTouchTarget(add);
+    const closed = await add.boundingBox();
+    await add.click();
     const composer = checklist(page).getByTestId("checklist-composer");
     await expect(composer).toBeFocused();
     await expectMinTouchTarget(composer);
+    const opened = await composer.boundingBox();
+    expect(Math.round(opened!.height)).toBe(Math.round(closed!.height));
     await composer.fill("Empty the toilet cassette");
     await composer.press("Enter");
     await expect(steps(page)).toHaveCount(4);
@@ -746,6 +781,32 @@ test.describe("TASKS-13 — phone", () => {
     const box = await long.boundingBox();
     expect(box!.height).toBeGreaterThan(44);
     expect(box!.width).toBeLessThanOrEqual(320);
+  });
+
+  test("stays usable at 200% zoom", async ({ page }) => {
+    /*
+     * WCAG 1.4.10 reflow, at the width the requirement actually implies: 200%
+     * on a 390px phone halves the CSS viewport to ~195px, which is the width
+     * `mobile-shell.spec.ts` holds the shell to. A checklist is a list of
+     * one-line strings beside two controls, so this is the width at which a
+     * title either wraps or pushes the page sideways.
+     */
+    await page.setViewportSize({ width: 195, height: 422 });
+    await gotoFixture(page, recordUrl(TASK_ID));
+    await expect(checklist(page)).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    // Reachable, not merely un-overflowing: hiding the list would satisfy the
+    // width check and fail the requirement.
+    await expect(
+      checklist(page).getByRole("checkbox", { name: "Fill water tanks" }),
+    ).toBeVisible();
+    await checklist(page)
+      .getByRole("checkbox", { name: "Fill water tanks" })
+      .click();
+    await expect(
+      checklist(page).getByRole("checkbox", { name: "Fill water tanks" }),
+    ).toBeChecked();
+    await expectNoAxeViolations(page);
   });
 
   test("reorders without a precision drag", async ({ page }) => {

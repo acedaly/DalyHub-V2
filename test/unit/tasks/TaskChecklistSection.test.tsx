@@ -322,6 +322,33 @@ describe("an existing checklist", () => {
     restore();
   });
 
+  it("SAYS what a move and a delete did, for a reader who cannot see them", async () => {
+    // A move reorders the DOM and a delete removes a row: both are silent to a
+    // screen reader unless something speaks. The checkbox announces its own tick,
+    // so ticking is deliberately NOT announced here — it would speak twice.
+    const moved = [ITEMS[1]!, ITEMS[0]!, ITEMS[2]!];
+    const { restore } = renderSection(ITEMS, () => ({
+      kind: "checklist",
+      status: "success",
+      checklist: moved,
+    }));
+    const rows = screen.getAllByTestId("checklist-item");
+    fireEvent.click(
+      within(rows[1]!).getByRole("button", {
+        name: /More actions for Fill water tanks/,
+      }),
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Move up" }));
+
+    const live = screen.getByRole("status");
+    await waitFor(() =>
+      expect(live.textContent).toBe(
+        "Fill water tanks moved to position 1 of 3.",
+      ),
+    );
+    restore();
+  });
+
   it("reconciles from the SERVER's answer, not from what it asked for", async () => {
     // The server normalises the title; the section must show what was stored.
     const { restore } = renderSection([item("i-1", "A", 0)], () => ({
