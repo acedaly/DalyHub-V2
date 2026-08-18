@@ -373,6 +373,7 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
             rowProps={rowProps}
             headingRef={queueHeadingRef}
           />
+          <PlanRoutines data={data} />
           <PlanSignals data={data} />
         </aside>
       </div>
@@ -901,6 +902,57 @@ const GAP_WORDS: Readonly<Record<string, string>> = {
  * (§B8) and not a Goal scoreboard (§B9): the health state is PROJ-02's own, the
  * next action is the Tasks query's own, and nothing here scores anything.
  */
+/**
+ * HABITS-01 — "Routines this week": what the week ALREADY asks of the owner.
+ *
+ * Read-only, and that is the whole design. PLAN-01 owns TASK placement; a Habit
+ * is not a Task, cannot be given a day and must never appear in the "Still to
+ * place" queue, consume its bulk selection or write a `scheduled_date`. Nothing
+ * in this section is selectable, draggable or checkable — it is a list of names
+ * and cadences, sitting beside the week so the owner can see their existing
+ * commitments before adding more.
+ *
+ * MEASURED before it was kept: the queue's own composition is unchanged, the
+ * aside gains ~90px at 1440 below the fold, and on a phone it lands after the
+ * queue rather than between the week and the work.
+ *
+ * The current week shows how it is going ("2 of 3"); a future week shows only
+ * what it asks for, because a future day is never described as incomplete.
+ */
+function PlanRoutines({ data }: { readonly data: PlanPageData }) {
+  if (data.routines.length === 0) return null;
+  return (
+    <section
+      className="dh-plan__routines"
+      aria-labelledby="plan-routines-heading"
+      data-testid="plan-routines"
+    >
+      <h2 id="plan-routines-heading" className="dh-plan__signals-title">
+        Routines this week
+      </h2>
+      <ul className="dh-plan__routine-list">
+        {data.routines.map((routine) => (
+          <li key={routine.id} className="dh-plan__routine">
+            <Link className="dh-plan__signal-name" to={`/habits/${routine.id}`}>
+              {routine.title}
+            </Link>
+            <span className="dh-plan__routine-meta">
+              {routine.scheduleLabel}
+              {routine.progressLabel === null
+                ? ""
+                : ` · ${routine.progressLabel}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="dh-plan__signals-note">
+        Habits aren’t placed on days and don’t become tasks. This is what the
+        week already asks for.
+      </p>
+    </section>
+  );
+}
+
 function PlanSignals({ data }: { readonly data: PlanPageData }) {
   if (data.projectSignals.length === 0 && data.goalSignals.length === 0) {
     return null;

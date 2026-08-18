@@ -76,6 +76,8 @@ interface AreaOverviewViewProps {
   readonly linkedTab: ReactNode;
   /** AREA-05: the lifecycle & danger section (Archive/Restore + permanent delete). */
   readonly settingsTab?: ReactNode;
+  /** HABITS-01 — the Area's active Habits, as contextual support. */
+  readonly habitsSlot?: ReactNode;
   /** PX-04: the shared lifecycle actions, also surfaced in the header overflow. */
   readonly onArchive?: () => Promise<void>;
   readonly onRestore?: () => Promise<void>;
@@ -254,6 +256,7 @@ function AreaOverviewTab({
   openTasks,
   onSelectTab,
   activityTab,
+  habitsSlot,
 }: {
   readonly rollup: SerializedAreaRollup;
   /**
@@ -268,6 +271,17 @@ function AreaOverviewTab({
   readonly openTasks: number;
   readonly onSelectTab?: (tabId: string) => void;
   readonly activityTab: ReactNode;
+  /**
+   * HABITS-01 — the behaviours the owner practises in this part of life.
+   *
+   * A SLOT, so the Areas module stays unaware of what a Habit is. It sits ABOVE
+   * the activity feed and below the counts, because it is current context
+   * ("these are the routines that live here") rather than history — and it is
+   * deliberately not counted in any of the three tiles: a Habit is not a Goal,
+   * a Project or a Task, and folding it into one of those figures would be the
+   * exact conflation this module exists to prevent.
+   */
+  readonly habitsSlot?: ReactNode;
 }) {
   const openGoals = Math.max(0, rollup.goals.total - rollup.goals.completed);
   /*
@@ -351,6 +365,8 @@ function AreaOverviewTab({
         </MetricRow>
       )}
 
+      {habitsSlot}
+
       {/*
        * The activity feed itself, not a second copy of it: the same component
        * the Activity tab renders. An Area's recent events are the most useful
@@ -402,6 +418,7 @@ export function AreaOverviewView({
   activityTab,
   linkedTab,
   settingsTab,
+  habitsSlot,
   onArchive,
   onRestore,
   onDelete,
@@ -577,6 +594,7 @@ export function AreaOverviewView({
                 openTasks={openTasks}
                 onSelectTab={onTabChange}
                 activityTab={activityTab}
+                habitsSlot={habitsSlot}
               />
             ),
           },

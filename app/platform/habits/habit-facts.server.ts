@@ -22,6 +22,8 @@
 
 import {
   HABIT_RECENT_WINDOW_DAYS,
+  evaluateHabitWeek,
+  habitScheduleShortLabel,
   habitWeek,
   type Habit,
   type HabitCalendarContext,
@@ -174,4 +176,96 @@ export async function readSupportingHabits(
     );
   }
   return result;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The planning summary                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** One routine, as Weekly Planning prints it. Read-only, and never a Task. */
+export interface HabitWeekSummaryItem {
+  readonly id: string;
+  readonly title: string;
+  /** "3x weekly", "Weekdays" — what the week asks for. */
+  readonly scheduleLabel: string;
+  /**
+   * "2 of 3 this week", or `null`.
+   *
+   * Present ONLY when the shown week is the one the owner is actually in. A
+   * future week has nothing to report — printing "0 of 3" against days that have
+   * not happened would describe a future day as incomplete, which is exactly the
+   * manufactured urgency this product refuses.
+   */
+  readonly progressLabel: string | null;
+}
+
+/**
+ * HABITS-01 — the routine CONTEXT Weekly Planning shows beside the week.
+ *
+ * Deliberately narrow, and deliberately read-only. Planning owns TASK placement
+ * (PLAN-01, ADR-101); a Habit is not a Task, cannot be placed on a day and must
+ * never appear in the "Still to place" queue or consume its bulk selection. What
+ * a planner genuinely needs to know is what the week ALREADY asks of them before
+ * they commit more work to it — so this is a list of names and cadences, with no
+ * control on it at all.
+ *
+ * TWO bounded statements, the same pair every other Habit read makes.
+ */
+export async function readHabitWeekSummary(
+  scope: WorkspaceScope,
+  calendar: HabitCalendarContext,
+  input: {
+    readonly weekStartIso: string;
+    readonly weekEndIso: string;
+    readonly limit?: number;
+  },
+): Promise<readonly HabitWeekSummaryItem[]> {
+  const page = await scope.habits.list({
+    status: "active",
+    limit: input.limit ?? 12,
+  });
+  if (page.items.length === 0) return [];
+  const completions = await scope.habits.listCompletionsInRange({
+    habitIds: page.items.map((habit) => habit.id),
+    fromIso: input.weekStartIso,
+    toIso: input.weekEndIso,
+  });
+  const byHabit = completionsByHabit(completions);
+  // The shown week is the CURRENT one exactly when it contains the owner's today.
+  const isCurrentWeek =
+    calendar.todayIso >= input.weekStartIso &&
+    calendar.todayIso <= input.weekEndIso;
+
+  return (
+    page.items
+      .map((habit) => {
+        const reading = evaluateHabitWeek(
+          {
+            versions: habit.versions,
+            completedDates: byHabit.get(habit.id) ?? new Set(),
+            archivedOnIso: habit.archivedOn,
+          },
+          calendar,
+          input.weekStartIso,
+        );
+        return {
+          id: habit.id,
+          title: habit.title,
+          scheduleLabel: habitScheduleShortLabel(
+            habit.schedule,
+            calendar.firstDayOfWeek,
+          ),
+          progressLabel:
+            isCurrentWeek && reading.expected > 0
+              ? reading.met
+                ? "done"
+                : `${reading.completed} of ${reading.expected}`
+              : null,
+          expected: reading.expected,
+        };
+      })
+      // A Habit the week asks nothing of is not part of the week's picture.
+      .filter((item) => item.expected > 0)
+      .map(({ expected: _expected, ...item }) => item)
+  );
 }

@@ -8,6 +8,10 @@
 
 export { HabitRow, type HabitRowProps } from "./HabitRow";
 export {
+  SupportingHabits,
+  type SupportingHabitsProps,
+} from "./SupportingHabits";
+export {
   useHabitCheckIn,
   type HabitCheckInController,
   type HabitCheckPatch,

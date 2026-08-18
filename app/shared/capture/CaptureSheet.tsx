@@ -67,6 +67,15 @@ const AssetCapturePanel = lazy(
   () => import("~/modules/assets/AssetCapturePanel"),
 );
 
+/**
+ * HABITS-01 — Habits' capture panel is the module's OWN canonical New Habit
+ * form, for the same reason Assets' is. Lazy, so the shell never statically
+ * depends on the module and no Habit form enters the initial bundle.
+ */
+const HabitCapturePanel = lazy(
+  () => import("~/modules/habits/HabitCapturePanel"),
+);
+
 export type CaptureSheetProps = {
   /** Open straight into this type; omitted opens the chooser (or the remembered type). */
   readonly requestedType?: CaptureType;
@@ -247,6 +256,10 @@ export default function CaptureSheet({
       ) : active === "asset" ? (
         <Suspense fallback={null}>
           <AssetCapturePanel {...panelProps} />
+        </Suspense>
+      ) : active === "habit" ? (
+        <Suspense fallback={null}>
+          <HabitCapturePanel {...panelProps} />
         </Suspense>
       ) : (
         <NoteCapturePanel {...panelProps} />

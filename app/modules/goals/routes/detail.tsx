@@ -13,6 +13,8 @@ import {
 
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
+import { readSupportingHabits } from "~/platform/habits/habit-facts.server";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -29,6 +31,8 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { SupportingHabits } from "~/shared/habits";
+import type { SerializedHabit } from "~/shared/habits";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { useFeedback } from "~/shared/feedback";
@@ -106,6 +110,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     evidencePage,
     measurements,
     milestones,
+    firstDayOfWeek,
   ] = await Promise.all([
     scope.goalDetails.get(goalId),
     scope.goals.getGoalProjectContribution(goalId),
@@ -117,7 +122,38 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     ),
     scope.goalMeasurements.listMeasurements(goalId),
     scope.goalMeasurements.listMilestones(goalId),
+    /*
+     * HABITS-01 — the behaviours being practised towards this Goal.
+     *
+     * ONE bounded read for the anchor (plus its own schedule/completion reads
+     * inside `readSupportingHabits`), run alongside everything else rather than
+     * after it, and degrading to an empty list rather than failing the record: a
+     * Goal with no supporting habits is the ordinary case, and a habits read
+     * that throws must narrow what the page SAYS, never take it down.
+     */
+    scope.appPreferences
+      .get(session.user.subject)
+      .then((preferences) => preferences.firstDayOfWeek)
+      .catch(() => DEFAULT_APP_PREFERENCES.firstDayOfWeek),
   ]);
+
+  /*
+   * The supporting Habits, read AFTER the preference so the week they report is
+   * the owner's own. It is its own bounded read (`readSupportingHabits`: one
+   * link query, one schedule query, one completion window) and it fails soft.
+   */
+  let supportingHabits: readonly SerializedHabit[] = [];
+  try {
+    const grouped = await readSupportingHabits(
+      scope,
+      { todayIso: evaluation.todayIso, firstDayOfWeek },
+      { anchorIds: [goalId], relation: "goal", limitPerAnchor: 5 },
+    );
+    supportingHabits = grouped.get(goalId) ?? [];
+  } catch {
+    // A Goal with no supporting habits is the ordinary case; a failed read must
+    // narrow what the page says rather than take the record down.
+  }
 
   const alignmentFacts = composeGoalAlignmentFacts({
     goalId,
@@ -171,6 +207,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     alignment,
     alignmentEvidence: evidencePage.items.map(serializeGoalAlignmentEvidence),
     alignmentEvidenceHasMore: evidencePage.hasMore,
+    supportingHabits,
+    firstDayOfWeek,
   };
 }
 
@@ -639,6 +677,9 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
          * stays the record's composition and knows nothing about measurements,
          * sheets or fetches. Everything it needs was derived server-side.
          */
+        supportingHabitsSlot={
+          <SupportingHabits habits={props.supportingHabits} />
+        }
         progressSlot={
           <GoalMeasurementPanel
             goalTitle={props.overview.title}

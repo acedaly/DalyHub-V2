@@ -133,6 +133,16 @@ interface GoalOverviewProps {
    * definition of done and the Project contribution explain HOW, and follow it.
    */
   readonly progressSlot?: ReactNode;
+  /**
+   * HABITS-01 — the behaviours being practised towards this Goal.
+   *
+   * A SLOT rather than data, for the same reason `progressSlot` is one: the
+   * record's composition should not have to know what a Habit is. It is
+   * deliberately below the definition of done and above the contribution
+   * evidence — it is context for the outcome, not a term in its progress, and
+   * nothing it contains changes the Goal's percentage.
+   */
+  readonly supportingHabitsSlot?: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
 }
@@ -161,6 +171,7 @@ export function GoalOverview({
   activityTab,
   linkedTab,
   progressSlot,
+  supportingHabitsSlot,
   activeTabId,
   onTabChange,
 }: GoalOverviewProps) {
@@ -423,6 +434,11 @@ export function GoalOverview({
                     area={overview.area}
                     onSetIdentity={onSetIdentity}
                   />
+                </div>
+              ) : null}
+              {supportingHabitsSlot ? (
+                <div className="dh-goal-overview__habits">
+                  {supportingHabitsSlot}
                 </div>
               ) : null}
               {/*

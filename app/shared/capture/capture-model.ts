@@ -12,6 +12,7 @@
  * second store, a second validator or a second create path (AGENTS.md §9.8):
  *
  *   task    → POST /tasks/new        (TASKS-01, atomic create + planning fields)
+  habit   → POST /habits/create    (HABITS-01, the reserved HabitRepository)
  *   diary   → POST /diary/new        (DIARY-01, the reserved DiaryRepository)
  *   meeting → POST /meetings/create  (MEET-01, owner-timezone start conversion)
  *   note    → POST /notes/new        (NOTES-01B, then the canonical Note editor)
@@ -29,6 +30,14 @@ import type { EntityType } from "~/shared/entity";
  * standing in front of the object with a phone in your hand, and having to
  * navigate to Assets and find a module-specific button to do it was the reason
  * assets went unrecorded.
+ *
+ * **Habit** (HABITS-01) is last and is the one capture that is NOT routine: an
+ * owner starts a handful of behaviours a year, not several a day. It is here
+ * anyway because a Habit is a first-class record, and the global create surface
+ * enumerates first-class records — the alternative was a Habits-only "+" beside
+ * the one the whole product already has. Creating one stays DELIBERATE: nothing
+ * infers a Habit from a captured Task, and "gym every Monday" typed into the
+ * Task panel is a Task.
  */
 export const CAPTURE_TYPES = [
   "task",
@@ -36,6 +45,7 @@ export const CAPTURE_TYPES = [
   "meeting",
   "note",
   "asset",
+  "habit",
 ] as const;
 
 export type CaptureType = (typeof CAPTURE_TYPES)[number];
@@ -81,6 +91,12 @@ export const CAPTURE_TYPE_DESCRIPTORS: readonly CaptureTypeDescriptor[] = [
     label: "Asset",
     description: "Something you own — a name and a kind.",
     entityType: "asset",
+  },
+  {
+    type: "habit",
+    label: "Habit",
+    description: "A behaviour to practise — and how often.",
+    entityType: "habit",
   },
 ];
 
