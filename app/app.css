@@ -80,6 +80,11 @@
  * DS-04 anatomy wins over the UIX-01 card-override layer wherever a selector
  * of equal specificity survives in both. */
 @import "./styles/task-list.css";
+/* PLAN-01 — Weekly Planning. AFTER `tasks.css` and the task row/list, because the
+ * queue rail asks the SHARED task row for its narrow composition rather than
+ * restyling it, and a rule that adjusts a row's grid must win over the row's own
+ * default. It adds no task-row treatment of its own. */
+@import "./styles/plan.css";
 @import "./styles/views.css";
 @import "./styles/segmented-filter.css";
 /* UIX-02 — the shared view TAB RAIL (`.dh-viewtabs`), drawn by both `ViewTabs`

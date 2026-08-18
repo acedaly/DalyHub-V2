@@ -130,6 +130,10 @@ const SYSTEM_VIEW_EFFECTS: Readonly<
 > = {
   all: [],
   deleted: [],
+  // PLAN-01's OPEN scope: not completed, not cancelled, not someday. It keeps the
+  // parked states, so — unlike `active` — a waiting change cannot move a Task in
+  // or out of it and `waiting` is deliberately absent.
+  open: ["completion", "status", "commitment"],
   // The active planning scope: not completed, not cancelled/on_hold, not someday,
   // not waiting.
   active: ["completion", "status", "commitment", "waiting"],
@@ -202,12 +206,24 @@ export function taskViewSensitivity(
 
   const filters = config.filters;
   if (filters.status !== undefined) effects.add("status");
-  if (filters.priority !== undefined) effects.add("priority");
+  if (filters.priorities !== undefined) effects.add("priority");
   if (filters.dueState !== undefined) {
     effects.add("dueDate");
     effects.add("completion");
   }
   if (filters.plannedState !== undefined) effects.add("plannedDate");
+  // PLAN-01 / SMART-01 — an explicit date window depends on exactly the field it
+  // reads, and on nothing else.
+  if (filters.dueFrom !== undefined || filters.dueTo !== undefined) {
+    effects.add("dueDate");
+  }
+  if (filters.plannedFrom !== undefined || filters.plannedTo !== undefined) {
+    effects.add("plannedDate");
+  }
+  // A recurrence filter's membership depends on whether a rule EXISTS, which only
+  // a series operation changes — and a series operation always revalidates. It is
+  // named anyway so the dependency is stated rather than left implicit.
+  if (filters.recurring !== undefined) effects.add("series");
   if (
     filters.parentKind !== undefined ||
     filters.projectId !== undefined ||

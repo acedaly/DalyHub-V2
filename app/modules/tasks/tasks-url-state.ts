@@ -30,8 +30,6 @@ import {
   TASK_SORTS,
   TASK_SORT_DIRECTIONS,
   TASK_SYSTEM_VIEWS,
-  type TaskPriority,
-  type WorkspaceTaskFilters,
   type WorkspaceTaskGroupDimension,
 } from "~/kernel/tasks";
 
@@ -53,7 +51,9 @@ export const TASKS_PARAMS = {
 /** The URL parameter each FILTER dimension writes, keyed by its config key. */
 export const TASKS_FILTER_PARAMS: Record<keyof TaskViewFilters, string> = {
   status: "status",
-  priority: "priority",
+  // SMART-01 — the parameter KEEPS its name while the dimension became a set, so
+  // every `?priority=p1` link ever shared still selects exactly Priority 1.
+  priorities: "priority",
   dueState: "due",
   plannedState: "planned",
   parentKind: "parentType",
@@ -68,10 +68,23 @@ export const TASKS_FILTER_PARAMS: Record<keyof TaskViewFilters, string> = {
   createdWithin: "created",
   updatedWithin: "updated",
   completed: "completed",
+  dueFrom: "dueFrom",
+  dueTo: "dueTo",
+  plannedFrom: "plannedFrom",
+  plannedTo: "plannedTo",
+  recurring: "repeats",
 };
 
 /** The boolean filter keys, which encode as `1` and are absent when off. */
 const BOOLEAN_FILTER_KEYS = ["delegated", "waiting", "someday"] as const;
+
+/**
+ * The TRISTATE filter keys, which encode as `1`/`0` and are absent when unset.
+ *
+ * `repeats=0` ("only one-off Tasks") is a real filter, so unlike the boolean keys
+ * above an explicit `0` must survive the decode rather than being read as "off".
+ */
+const TRISTATE_FILTER_KEYS = ["recurring"] as const;
 
 /** The parameters a FILTER reset clears (never the presentation, sort or view). */
 export const TASKS_FILTER_PARAM_NAMES: readonly string[] =
@@ -98,6 +111,12 @@ export function configFromParams(
     const param = TASKS_FILTER_PARAMS[key];
     const value = read(params, param);
     if (value === null) continue;
+    if ((TRISTATE_FILTER_KEYS as readonly string[]).includes(key)) {
+      // The kernel's parse accepts "1"/"0"/"true"/"false"; anything else is
+      // dropped there, so an unrecognised value degrades to "no filter".
+      rawFilters[key] = value;
+      continue;
+    }
     if ((BOOLEAN_FILTER_KEYS as readonly string[]).includes(key)) {
       // A boolean filter is present-and-`1` or absent. `0` is an explicit OFF, so a
       // link can turn off a filter the owner's default view turns on.
@@ -191,7 +210,19 @@ export function paramsFromConfig(
   for (const key of TASK_VIEW_FILTER_KEYS) {
     const param = TASKS_FILTER_PARAMS[key];
     const value = config.filters[key];
-    if (value === undefined || value === false) {
+    if (value === undefined) {
+      next.delete(param);
+    } else if (Array.isArray(value)) {
+      // A SET writes one comma-joined parameter, in the canonical order the
+      // config already put it in, so two equivalent sets produce one link.
+      if (value.length === 0) next.delete(param);
+      else next.set(param, value.join(","));
+    } else if (
+      (TRISTATE_FILTER_KEYS as readonly string[]).includes(key) &&
+      typeof value === "boolean"
+    ) {
+      next.set(param, value ? "1" : "0");
+    } else if (value === false) {
       next.delete(param);
     } else if (value === true) {
       next.set(param, "1");
@@ -206,37 +237,17 @@ export function paramsFromConfig(
   return next;
 }
 
-/** Translate a validated config's filters into the kernel's repository filters. */
-export function toWorkspaceFilters(
-  config: TaskViewConfig,
-): WorkspaceTaskFilters {
-  const f = config.filters;
-  const out: {
-    -readonly [K in keyof WorkspaceTaskFilters]: WorkspaceTaskFilters[K];
-  } = {};
-  // `__none` is the explicit "this field is empty" filter — it maps to an explicit
-  // null so the repository queries `IS NULL`, distinct from "no filter" (absent).
-  if (f.priority === "__none") out.priority = null;
-  else if (f.priority) out.priority = f.priority as TaskPriority;
-  if (f.timeSector === "__none") out.timeSector = null;
-  else if (f.timeSector) out.timeSector = f.timeSector;
-  if (f.status) out.status = f.status;
-  if (f.dueState) out.dueState = f.dueState;
-  if (f.plannedState) out.plannedState = f.plannedState;
-  if (f.parentKind) out.parentKind = f.parentKind;
-  if (f.projectId) out.projectId = f.projectId;
-  if (f.areaId) out.areaId = f.areaId;
-  if (f.goalId) out.goalId = f.goalId;
-  if (f.delegatedTo) out.delegatedTo = f.delegatedTo;
-  if (f.delegated) out.delegatedOnly = true;
-  if (f.waiting) out.waitingOnly = true;
-  // Someday/Maybe is the COMMITMENT state, not a status or a priority (ADR-043 §4).
-  if (f.someday) out.commitmentState = "someday";
-  if (f.createdWithin) out.createdWithin = f.createdWithin;
-  if (f.updatedWithin) out.updatedWithin = f.updatedWithin;
-  if (f.completed) out.completedVisibility = f.completed;
-  return out;
-}
+/**
+ * Translate a validated config's filters into the kernel's repository filters.
+ *
+ * Re-exported from the KERNEL (`~/kernel/task-views`), where it moved in PLAN-01.
+ * It never had any Tasks-module knowledge — it maps one validated kernel shape to
+ * another — and Weekly Planning needs the same translation to run a saved view
+ * through the same canonical query path. A second module importing this file
+ * would be a cross-module import (AGENTS.md §9.1); one definition in the kernel is
+ * what keeps "one filter vocabulary, two consumers" literally true.
+ */
+export { toWorkspaceFilters } from "~/kernel/task-views";
 
 /**
  * The server grouping dimension a configuration renders from, or `null` for a flat

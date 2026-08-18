@@ -62,3 +62,9 @@ export {
   validateTaskViewOwnerId,
   validateTaskViewConfigForWrite,
 } from "./task-view-validation";
+
+/**
+ * SMART-01 — the ONE translation from a validated view configuration to the
+ * repository's filters, shared by `/tasks` and by Weekly Planning's queue.
+ */
+export { toWorkspaceFilters } from "./task-view-filters";

@@ -107,6 +107,21 @@ export function workspaceTaskFiltersSignature(
   ) {
     parts.push(`cv=${filters.completedVisibility}`);
   }
+  // PLAN-01 / SMART-01 filters. Additive in the same way: a query that applies
+  // none of them signs exactly as it did before, so every existing cursor and
+  // every existing link stays valid.
+  if (filters.priorities !== undefined && filters.priorities.length > 0) {
+    parts.push(
+      `ps=${filters.priorities.map((value) => value ?? "null").join(",")}`,
+    );
+  }
+  if (filters.dueFrom != null) parts.push(`df=${filters.dueFrom}`);
+  if (filters.dueTo != null) parts.push(`dtm=${filters.dueTo}`);
+  if (filters.plannedFrom != null) parts.push(`pf=${filters.plannedFrom}`);
+  if (filters.plannedTo != null) parts.push(`pt=${filters.plannedTo}`);
+  if (filters.recurring !== undefined) {
+    parts.push(`rc=${filters.recurring ? "1" : "0"}`);
+  }
   return parts.join("&");
 }
 

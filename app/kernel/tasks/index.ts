@@ -206,6 +206,8 @@ export {
   validateTaskGroupDimension,
   validateTaskSeriesEditScope,
   shiftCalendarDate,
+  validateTaskDateBound,
+  validateTaskPriorities,
   weekWindowEnd,
   recencyWindowStart,
   validateTaskDate,

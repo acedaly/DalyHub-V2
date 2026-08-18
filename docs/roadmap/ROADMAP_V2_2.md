@@ -6,6 +6,10 @@
 > [`ROADMAP_V2.md`](ROADMAP_V2.md) is the closed record of V2;
 > [`ROADMAP_V2_1.md`](ROADMAP_V2_1.md) holds the V2.1 work. This file is V2.2.
 >
+> **New work now goes in [`ROADMAP_V2_3.md`](ROADMAP_V2_3.md)** — V2.3, "Planning
+> & Routines", which begins with PLAN-01 (Weekly Planning) and SMART-01 (one Task
+> filter vocabulary with two consumers).
+>
 > The rules are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to build;
 > this tells you *what*. Status is updated in the PR that changes it. No time
 > estimates.

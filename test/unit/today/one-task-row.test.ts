@@ -72,8 +72,17 @@ describe("DEBT-143 — the Today module declares no task row of its own", () => 
      * `/tasks/bulk`. A `fetch("/today/...")` or a route action of its own inside
      * this module would be the fork this item exists to prevent.
      */
+    // PLAN-01 promoted the host into the shared Task surfaces, unchanged, so
+    // Weekly Planning reuses it rather than growing a second copy. The assertion
+    // is the same one and still names the file it actually guards.
     const host = readFileSync(
-      path.join(TODAY_DIR, "day", "use-day-task-actions.ts"),
+      path.join(
+        process.cwd(),
+        "app",
+        "shared",
+        "task-record",
+        "use-task-surface-actions.ts",
+      ),
       "utf8",
     );
     expect(host).toContain('from "~/shared/task-record/task-inline-edit"');

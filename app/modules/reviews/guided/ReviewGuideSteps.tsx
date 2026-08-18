@@ -680,8 +680,22 @@ export function FocusStep({
       <section aria-labelledby="guide-close-out-heading">
         <h3 id="guide-close-out-heading">Set it up</h3>
         <p className="dh-review-guide__close-out">
+          {/*
+           * PLAN-01 — the REVIEW → PLAN handoff, as a link and nothing more.
+           *
+           * A Review is retrospective and changes nothing; Weekly Planning is
+           * where the owner places real work on real days. Making that the FIRST
+           * action here is the whole of the handoff: no Task is created from this
+           * prose, no date is chosen for anybody, and the Review is not modified
+           * by following it (the planner only READS the focus this step wrote).
+           * Completing the Review is deliberately NOT dependent on planning —
+           * "complete and leave" stays a first-class ending.
+           */}
+          <Link className="dh-btn dh-btn--primary" to="/plan?week=next">
+            Plan next week
+          </Link>
           <Link className="dh-btn dh-btn--ghost" to="/today">
-            Open Today planning
+            Open Today
           </Link>
           <Link className="dh-btn dh-btn--ghost" to="/tasks?system=inbox">
             Capture a Task
@@ -692,7 +706,8 @@ export function FocusStep({
         </p>
         <p className="dh-review-guide__note">
           Nothing is scheduled or changed for you. Writing a focus never creates
-          a Task or edits a Project — you decide what happens next.
+          a Task or edits a Project — and Weekly planning shows this focus
+          beside the week without copying it, so you decide what happens next.
         </p>
       </section>
     </div>
@@ -801,6 +816,17 @@ export function CompleteStep({
             Complete Review
           </button>
         )}
+        {/*
+         * PLAN-01 — the second door onto planning, at the END of the flow.
+         *
+         * The Review is finished here, and "what now?" is the question the screen
+         * leaves the owner with. It is a plain link out, not a step: completing
+         * the Review neither requires nor triggers planning, and leaving is still
+         * a complete ending.
+         */}
+        <Link className="dh-btn dh-btn--secondary" to="/plan?week=next">
+          Plan next week
+        </Link>
         <Link className="dh-btn dh-btn--ghost" to={reviewRecordPath(review.id)}>
           Open the full Review
         </Link>

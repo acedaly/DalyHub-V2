@@ -62,7 +62,10 @@ export function CollectionFilterChips({
     <div className="dh-filter-chips" data-testid="collection-filter-chips">
       <ul className="dh-filter-chips__list" aria-label={label}>
         {applied.map((control) => (
-          <li key={control.groupId} className="dh-filter-chips__item">
+          <li
+            key={`${control.groupId}:${control.value}`}
+            className="dh-filter-chips__item"
+          >
             <span className="dh-filter-chips__chip">
               <span className="dh-filter-chips__label">{control.label}:</span>{" "}
               <span className="dh-filter-chips__value">
@@ -70,7 +73,17 @@ export function CollectionFilterChips({
               </span>
               <Link
                 className="dh-filter-chips__remove"
-                to={href(withoutControl(params, control.param, options))}
+                /*
+                 * SMART-01 — removing ONE value of a multi-select dimension
+                 * leaves the others applied. The model computes what remains, so
+                 * this row never has to know how a set is encoded.
+                 */
+                to={href(
+                  withoutControl(params, control.param, {
+                    ...options,
+                    remainingValue: control.remainingValue,
+                  }),
+                )}
                 replace
                 preventScrollReset
                 aria-label={`Remove filter ${control.label}: ${control.valueLabel}`}

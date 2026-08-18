@@ -187,7 +187,7 @@ const BUCKET_FILTERS: Record<
   { param: string; value: (key: string) => string | null }
 > = {
   priority: {
-    param: TASKS_FILTER_PARAMS.priority,
+    param: TASKS_FILTER_PARAMS.priorities,
     // CONTROL-01 — an `untriaged` bucket can only come from a cursor issued
     // before the query coalesced `null` into `p4`. It scopes to P4, which is
     // what those rows are, rather than to the retired `__none` filter.

@@ -89,6 +89,23 @@ export type CollectionControlGroup = {
   readonly defaultValue?: string;
   /** Defaults to `filter`. */
   readonly kind?: CollectionControlKind;
+  /**
+   * SMART-01 — the group accepts MORE THAN ONE of its options at once.
+   *
+   * Every group was single-select, and one real filter could not be expressed at
+   * all: "Priority 1 and 2", which is the first thing an owner reaches for when
+   * they save a view called "Work priorities". A multi-select group is still ONE
+   * dimension bound to ONE parameter — the selected values are comma-joined, in
+   * the group's own option order, so the URL stays legible and two equivalent
+   * selections always produce the same link.
+   *
+   * It is deliberately NOT a general expression builder: there is no operator, no
+   * nesting and no second dimension, so nothing about the persisted, declarative
+   * filter contract changes (`DESIGN_SYSTEM.md → Shared Filters`).
+   *
+   * Defaults to single-select, so every existing group is untouched.
+   */
+  readonly multiple?: boolean;
 };
 
 /** The sheet's editable draft: param → selected value (or null for "not set"). */
@@ -107,6 +124,42 @@ export function currentValue(
   return raw;
 }
 
+/**
+ * The values a group currently holds, as a list.
+ *
+ * One member for a single-select group, zero or more for a multi-select one.
+ * Members that are not options of the group are dropped, so a hand-typed URL
+ * cannot put an unknown value into a chip row — the same lenient-degradation rule
+ * the view configuration's own parse follows.
+ */
+export function currentValues(
+  group: CollectionControlGroup,
+  params: URLSearchParams,
+): readonly string[] {
+  const raw = currentValue(group, params);
+  if (raw === null) return [];
+  if (group.multiple !== true) return [raw];
+  return splitValues(group, raw);
+}
+
+/** Split and canonicalise a multi-select parameter against the group's options. */
+function splitValues(
+  group: CollectionControlGroup,
+  raw: string,
+): readonly string[] {
+  const wanted = new Set(
+    raw
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0),
+  );
+  // Ordered by the GROUP's option order, not the URL's, so two equivalent
+  // selections are one selection.
+  return group.options
+    .map((option) => option.value)
+    .filter((value) => value.length > 0 && wanted.has(value));
+}
+
 /** Seed a draft from the committed URL state. */
 export function draftFromParams(
   groups: readonly CollectionControlGroup[],
@@ -119,16 +172,44 @@ export function draftFromParams(
   return draft;
 }
 
-/** Set one group's value in the draft (selecting the active value clears it). */
+/**
+ * Set one group's value in the draft.
+ *
+ * Single-select: selecting the active value clears it (the option row is a toggle,
+ * which is how "Any priority" is reachable without a separate control).
+ *
+ * Multi-select: the value is ADDED to the selection, or removed when it is already
+ * in it, and choosing the group's "any" value clears the whole selection. An empty
+ * selection is stored as `null`, so it leaves the URL entirely rather than writing
+ * an empty parameter that would count as a filter matching nothing.
+ */
 export function withDraftValue(
   draft: CollectionControlsDraft,
   group: CollectionControlGroup,
   value: string,
 ): CollectionControlsDraft {
   const fallback = group.defaultValue ?? "";
-  const next =
-    value === fallback || draft[group.param] === value ? null : value;
-  return { ...draft, [group.param]: next };
+  if (group.multiple !== true) {
+    const next =
+      value === fallback || draft[group.param] === value ? null : value;
+    return { ...draft, [group.param]: next };
+  }
+  if (value === fallback) return { ...draft, [group.param]: null };
+  const committed = draft[group.param];
+  const selected = new Set(
+    committed === null || committed === undefined
+      ? []
+      : splitValues(group, committed),
+  );
+  if (selected.has(value)) selected.delete(value);
+  else selected.add(value);
+  const ordered = group.options
+    .map((option) => option.value)
+    .filter((candidate) => candidate.length > 0 && selected.has(candidate));
+  return {
+    ...draft,
+    [group.param]: ordered.length === 0 ? null : ordered.join(","),
+  };
 }
 
 /** A draft with every managed control cleared — the explicit Reset. */
@@ -208,12 +289,15 @@ export function activeSummary(
 ): readonly string[] {
   const out: string[] = [];
   for (const group of groups) {
-    const value = currentValue(group, params);
-    if (value === null) {
-      continue;
-    }
-    const option = group.options.find((entry) => entry.value === value);
-    out.push(`${group.label}: ${option?.chipLabel ?? option?.label ?? value}`);
+    const values = currentValues(group, params);
+    if (values.length === 0) continue;
+    // A multi-select group summarises as ONE entry naming every value —
+    // "Priority: P1, P2" — because the dimension is applied once.
+    const labels = values.map((value) => {
+      const option = group.options.find((entry) => entry.value === value);
+      return option?.chipLabel ?? option?.label ?? value;
+    });
+    out.push(`${group.label}: ${labels.join(", ")}`);
   }
   return out;
 }
@@ -237,6 +321,16 @@ export type ActiveCollectionControl = {
   /** The option's human label, falling back to the raw value. */
   readonly valueLabel: string;
   readonly kind: CollectionControlKind;
+  /**
+   * SMART-01 — the parameter value REMAINING after this chip is removed, or null
+   * when removing it clears the parameter.
+   *
+   * A single-select chip removes its whole dimension, which is what
+   * `withoutControl` does. One of three selected priorities must remove only
+   * ITSELF, so the chip carries the value the parameter should be set to instead —
+   * the model computes it, so no chip row has to know how a set is encoded.
+   */
+  readonly remainingValue: string | null;
 };
 
 /**
@@ -255,17 +349,20 @@ export function activeControls(
   for (const group of groups) {
     const kind = group.kind ?? "filter";
     if (!kinds.includes(kind)) continue;
-    const value = currentValue(group, params);
-    if (value === null) continue;
-    const option = group.options.find((entry) => entry.value === value);
-    out.push({
-      groupId: group.id,
-      param: group.param,
-      label: group.label,
-      value,
-      valueLabel: option?.chipLabel ?? option?.label ?? value,
-      kind,
-    });
+    const values = currentValues(group, params);
+    for (const value of values) {
+      const option = group.options.find((entry) => entry.value === value);
+      const remaining = values.filter((other) => other !== value);
+      out.push({
+        groupId: group.id,
+        param: group.param,
+        label: group.label,
+        value,
+        valueLabel: option?.chipLabel ?? option?.label ?? value,
+        kind,
+        remainingValue: remaining.length === 0 ? null : remaining.join(","),
+      });
+    }
   }
   return out;
 }
@@ -277,10 +374,21 @@ export function activeControls(
 export function withoutControl(
   params: URLSearchParams,
   param: string,
-  options: { readonly resetParams?: readonly string[] } = {},
+  options: {
+    readonly resetParams?: readonly string[];
+    /**
+     * SMART-01 — what the parameter should hold INSTEAD of being deleted, for a
+     * multi-select group where one chip removes one value rather than the whole
+     * dimension. Omit (or pass null) to delete the parameter, which is what every
+     * single-select chip does and what this function did before.
+     */
+    readonly remainingValue?: string | null;
+  } = {},
 ): URLSearchParams {
   const next = new URLSearchParams(params);
-  next.delete(param);
+  const remaining = options.remainingValue ?? null;
+  if (remaining === null) next.delete(param);
+  else next.set(param, remaining);
   for (const extra of options.resetParams ?? ["cursor"]) {
     next.delete(extra);
   }
