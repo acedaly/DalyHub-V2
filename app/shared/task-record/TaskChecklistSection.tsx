@@ -52,7 +52,17 @@ import type { ChecklistOutcome, TaskChecklistApi } from "./use-task-checklist";
 
 export interface TaskChecklistSectionProps {
   readonly checklist: TaskChecklistApi;
-  /** A completed or otherwise read-only Task shows its checklist, never edits it. */
+  /**
+   * A read-only Task shows its checklist and offers no control on it.
+   *
+   * This is DELETION, not completion. A completed Task keeps every checklist
+   * control, exactly as it keeps its title, its parent and its dates — the one
+   * thing the record disables on completion is the repeat rule, because that
+   * occurrence has already produced its successor. Locking the steps would
+   * punish the ordinary correction ("finished it, forgot to tick the last one")
+   * and would make a mis-ticked step in a completed occurrence permanent.
+   * Completion is a fact about the COMMITMENT; it is not an archive of the work.
+   */
   readonly readOnly?: boolean;
 }
 

@@ -28,6 +28,7 @@ import { RouterContextProvider } from "react-router";
 import { env } from "cloudflare:test";
 
 import type { AuthenticatedSession } from "~/kernel/auth";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import type { OfflineReplayReport } from "~/kernel/offline";
 import { setAuthenticatedSession } from "~/platform/request";
 import { claimMutation, settleMutation } from "~/platform/offline";
@@ -44,6 +45,32 @@ import {
 
 const WS = "test-default-workspace";
 const OWNER = "dev@dalyhub.test";
+
+/**
+ * The OWNER's civil date, and dates relative to it.
+ *
+ * A replay goes through the REAL route, which builds its repository from the
+ * request and therefore reads the real clock in the owner's own timezone — the
+ * `FakeClock` below only serves the direct-repository reads. A recurrence
+ * expectation written as a date literal is really an assertion about the day the
+ * suite was written, and it starts failing the day after.
+ */
+function ownerDate(offsetDays = 0): string {
+  const [year, month, day] = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: DEFAULT_OWNER_TIME_ZONE,
+  })
+    .format(new Date())
+    .split("-")
+    .map(Number) as [number, number, number];
+  // Civil-date arithmetic through UTC. The parts are ALREADY the owner's civil
+  // date, so nothing is being converted and no DST transition can move it.
+  return new Date(Date.UTC(year, month - 1, day + offsetDays))
+    .toISOString()
+    .slice(0, 10);
+}
 
 const nextEntityId = sequentialIds("orent");
 const nextActivityId = sequentialIds("oract");
@@ -237,9 +264,15 @@ describe("replaying the same mutation twice", () => {
 
 describe("recurrence: a FIXED schedule completed offline", () => {
   it("produces exactly one successor, on the fixed-schedule date", async () => {
+    /*
+     * The anchor is SIX days before the owner's today, so the two modes give
+     * different answers and this test still discriminates between them: the
+     * fixed grid steps to anchor + 7, which is tomorrow, where re-anchoring on
+     * the completion day would give today + 7.
+     */
     const taskId = await createTask({
       title: "Bin night",
-      scheduledDate: "2026-08-12",
+      scheduledDate: ownerDate(-6),
       recurrenceFrequency: "week",
       recurrenceDateKind: "scheduled",
       recurrenceInterval: "1",
@@ -268,7 +301,8 @@ describe("recurrence: a FIXED schedule completed offline", () => {
     const successor = await taskRepo().getTask(successorId);
     // The fixed rule advances from the OCCURRENCE's own anchor, not from the day
     // the owner happened to tick it.
-    expect(successor?.scheduledDate).toBe("2026-08-19");
+    expect(successor?.scheduledDate).toBe(ownerDate(1));
+    expect(successor?.scheduledDate).not.toBe(ownerDate(7));
     expect(successor?.completedAt).toBeNull();
   });
 

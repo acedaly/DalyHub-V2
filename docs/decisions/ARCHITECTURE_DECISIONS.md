@@ -3671,9 +3671,14 @@ reason:
   the legitimate intermediate state a reorder passes through. No floating-point
   midpoints and no rebalancing scheme: a checklist is bounded at 100 items, a
   whole-list renumber is one batch, and a rebalance that never has to happen
-  cannot go wrong. A reorder that does not name exactly the Task's current items
-  is REFUSED with the current list, because a partial reorder would silently
-  invent an order the owner never chose.
+  cannot go wrong. The bound is enforced by the INSERT rather than by a count
+  read before it, so two devices adding at ninety-nine cannot both pass. A
+  reorder that does not name exactly the Task's current items is REFUSED with
+  the current list, because a partial reorder would silently invent an order the
+  owner never chose — and the membership it was validated against is carried
+  into the write as a precondition on every statement in the batch, so a step
+  added or deleted inside the write gap refuses the whole transaction rather
+  than letting a stale order half-apply.
 
 - **Decision 4 — completion does not propagate, in either direction.**
   Ticking every step does NOT complete the Task: a checklist describes the steps
@@ -3684,7 +3689,12 @@ reason:
   with unfinished steps is allowed with NO confirmation — DalyHub prefers undo
   over confirmation dialogs (AGENTS.md §7), reopening restores the Task exactly,
   and a dialog here would tax the commonest act in the product to warn about a
-  state the record already shows.
+  state the record already shows. A completed Task's checklist also stays
+  EDITABLE: completion is a fact about the commitment, not an archive of the
+  work, so "finished it, forgot to tick the last one" is an ordinary correction
+  and a mis-ticked step in a completed occurrence is not permanent. The
+  read-only case is DELETION, which is the test every other control in the
+  record makes.
 
 - **Decision 5 — a recurring Task's successor inherits the STRUCTURE and none of
   the ticks.** A routine's steps are part of the routine, so *Monthly camper

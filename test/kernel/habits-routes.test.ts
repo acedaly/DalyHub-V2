@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { RouterContextProvider } from "react-router";
 
 import type { AuthenticatedSession } from "~/kernel/auth";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { setAuthenticatedSession } from "~/platform/request";
 import { action as createAction } from "~/modules/habits/routes/create";
 import type { CreateHabitResult } from "~/modules/habits/routes/create";
@@ -108,12 +109,21 @@ function habits() {
 }
 
 /** The owner's calendar day, as the actions resolve it. */
+/**
+ * The OWNER's today, which is the day the route actually uses.
+ *
+ * Not UTC. The check-in route resolves "today" in the owner's timezone, and the
+ * product's default is `Australia/Sydney` — ten hours ahead — so a UTC answer
+ * here disagrees with the route for the ten hours of every day between 14:00 UTC
+ * and midnight. Reading the same constant the product reads keeps the two in
+ * lockstep instead of agreeing only during Sydney's afternoon.
+ */
 function todayIso(): string {
   return new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    timeZone: "UTC",
+    timeZone: DEFAULT_OWNER_TIME_ZONE,
   }).format(new Date());
 }
 

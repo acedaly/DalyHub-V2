@@ -120,11 +120,31 @@ There are no floating-point midpoints and no rebalancing scheme. A checklist is
 bounded at 100 items, a whole-list renumber is one batch of at most 100
 statements, and a rebalance that never has to happen cannot go wrong.
 
+The bound is enforced by the INSERT itself, not by a count read before it.
+Deciding in TypeScript leaves a window two devices can both pass at ninety-nine,
+and the hundred-and-first row would be worse than a refusal: `listChecklist`
+stops at a hundred, so the extra row would be invisible to the record while the
+progress aggregate — which counts without a limit — kept counting it, and the
+owner would read a total they could not reach.
+
 A reorder submits the WHOLE order. If the submitted list does not name exactly
 the Task's current items — one short because another device added a step, or
 naming an item that has gone — it is REFUSED and nothing is written, with the
 current list returned so the surface corrects itself. A partial reorder would
 silently invent an order the owner never chose.
+
+That check reads a SNAPSHOT, so it is carried into the write as a precondition
+rather than trusted across the gap: every statement in the batch, the rows and
+the Task's timestamp alike, requires the checklist to still hold exactly the
+number of steps the submitted order names. A step added or deleted between the
+read and the batch changes that count, so every statement finds nothing, the
+transaction writes nothing, and the caller is told the list moved. One window
+stays open by choice — a delete and an add landing TOGETHER leave the count
+where it was, and the order then applies to the steps it can still find while
+the added one keeps its place. That is not a corrupt list, because
+`(position, created_at, id)` is a total order and the next reorder or delete
+renumbers it; closing it would mean naming every id inside the condition, and a
+hundred ids do not fit D1's bound-parameter budget.
 
 Deleting an item closes the gap in the same transaction, so positions stay dense
 and the next item added cannot collide with the slot the deletion vacated.
@@ -143,6 +163,15 @@ complete it"* — because the owner will otherwise wonder whether something fail
 cleared or hidden. A Task completed with two of four steps done says exactly that
 afterwards, which is the truthful record and the one a later reader needs.
 Reopening restores the Task and touches no item.
+
+**A completed Task's checklist stays EDITABLE.** Completion is a fact about the
+commitment, not an archive of the work: "finished it, forgot to tick the last
+one" is an ordinary correction, and a mis-ticked step in a completed occurrence
+of a recurring Task would otherwise be wrong for good. It is also the behaviour
+every other control in the record already has — the one thing completion
+disables is the repeat rule, which has already produced its successor. The
+read-only case is DELETION, and `TaskDrawerContent.test.tsx` pins both halves so
+the two cannot quietly swap.
 
 **Completing a Task with unfinished steps is allowed, with no confirmation.**
 DalyHub prefers undo over confirmation dialogs (AGENTS.md §7): reopening is one

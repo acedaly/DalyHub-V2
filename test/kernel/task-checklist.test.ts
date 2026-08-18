@@ -237,6 +237,36 @@ describe("creating items", () => {
     );
   });
 
+  it("refuses the hundred-and-first even when two additions RACE at the bound", async () => {
+    /*
+     * The bound is enforced by the INSERT, not by a read before it. Checking the
+     * count in TypeScript leaves a window both of these pass at ninety-nine, and
+     * a hundred-and-first row is worse than a refusal: `listChecklist` stops at a
+     * hundred, so the extra row would be invisible to the record while the
+     * progress aggregate — which counts without a limit — kept counting it.
+     */
+    const task = await seedTask(WS);
+    const tasks = taskRepo(WS);
+    for (let index = 0; index < MAX_CHECKLIST_ITEMS - 1; index += 1) {
+      await tasks.createChecklistItem(task.id, { title: `Step ${index}` });
+    }
+
+    const outcomes = await Promise.allSettled([
+      tasks.createChecklistItem(task.id, { title: "Ninety-ninth" }),
+      tasks.createChecklistItem(task.id, { title: "One too many" }),
+    ]);
+    // Exactly one wins, and the loser is told WHY rather than being told the
+    // Task went missing.
+    expect(outcomes.filter((one) => one.status === "fulfilled")).toHaveLength(
+      1,
+    );
+    const refused = outcomes.find((one) => one.status === "rejected");
+    expect((refused as PromiseRejectedResult).reason).toBeInstanceOf(
+      TaskChecklistFullError,
+    );
+    expect(await countChecklistRows()).toBe(MAX_CHECKLIST_ITEMS);
+  });
+
   it("gives two rapid additions two different positions", async () => {
     // The position is resolved INSIDE the insert, so a read-then-write gap
     // cannot let both land on the same slot.
@@ -520,6 +550,142 @@ describe("reordering", () => {
       "C",
       "D",
     ]);
+  });
+
+  it("refuses a reorder submitted AFTER an add landed, and writes nothing", async () => {
+    /*
+     * The membership check reads a snapshot, so it is carried into the write as
+     * a precondition rather than trusted across the gap. Here the add lands
+     * after the snapshot the reorder validated against — the sequencing a second
+     * device produces — and the batch must refuse rather than save an order that
+     * does not describe the list.
+     */
+    const task = await seedTask(WS);
+    const items = await seedChecklist(WS, task.id, ["A", "B", "C"]);
+    const tasks = taskRepo(WS);
+    const stale = [items[2]!.id, items[1]!.id, items[0]!.id];
+
+    await tasks.createChecklistItem(task.id, { title: "D" });
+    // The snapshot the reorder validates against is already wrong when it runs.
+    await expect(tasks.reorderChecklist(task.id, stale)).rejects.toBeInstanceOf(
+      TaskChecklistItemNotFoundError,
+    );
+    expect((await tasks.listChecklist(task.id)).map((e) => e.title)).toEqual([
+      "A",
+      "B",
+      "C",
+      "D",
+    ]);
+  });
+
+  it("refuses a reorder submitted AFTER a delete landed, and writes nothing", async () => {
+    const task = await seedTask(WS);
+    const items = await seedChecklist(WS, task.id, ["A", "B", "C"]);
+    const tasks = taskRepo(WS);
+    const stale = [items[2]!.id, items[1]!.id, items[0]!.id];
+
+    await tasks.deleteChecklistItem(task.id, items[1]!.id);
+    await expect(tasks.reorderChecklist(task.id, stale)).rejects.toBeInstanceOf(
+      TaskChecklistItemNotFoundError,
+    );
+    // The delete's own renumbering stands, and the stale order did not half-apply
+    // on top of it.
+    const after = await tasks.listChecklist(task.id);
+    expect(after.map((e) => e.title)).toEqual(["A", "C"]);
+    expect(after.map((e) => e.position)).toEqual([0, 1]);
+  });
+
+  it("REFUSES a reorder whose list changed inside the write gap", async () => {
+    /*
+     * The two tests above sequence the other device's write before the reorder
+     * is submitted, which the snapshot check alone would catch. This one puts
+     * the write exactly where the snapshot cannot see it: after the membership
+     * was read, before the batch runs. That is the gap the precondition on every
+     * statement exists for, and a scheduler cannot be asked to produce it on
+     * demand — so the gap is opened deliberately, by a database that performs
+     * the interfering insert at the moment the batch is handed to it.
+     */
+    const task = await seedTask(WS);
+    const items = await seedChecklist(WS, task.id, ["A", "B", "C"]);
+
+    let interfered = false;
+    const interfering = new Proxy(env.DB, {
+      get(target, prop, receiver) {
+        if (prop === "batch") {
+          return async (statements: D1PreparedStatement[]) => {
+            if (!interfered) {
+              interfered = true;
+              // The other device adds a step. Same workspace, same Task.
+              await createTaskRepository(
+                env.DB,
+                makeContext(WS),
+              ).createChecklistItem(task.id, { title: "D" });
+            }
+            return target.batch(statements);
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as D1Database;
+
+    await expect(
+      createTaskRepository(interfering, makeContext(WS)).reorderChecklist(
+        task.id,
+        [items[2]!.id, items[1]!.id, items[0]!.id],
+      ),
+    ).rejects.toBeInstanceOf(TaskChecklistItemNotFoundError);
+    expect(interfered).toBe(true);
+
+    // NOTHING of the stale order was written — not even the rows it could still
+    // find — and the added step kept the place the insert gave it.
+    const after = await taskRepo(WS).listChecklist(task.id);
+    expect(after.map((entry) => entry.title)).toEqual(["A", "B", "C", "D"]);
+    expect(after.map((entry) => entry.position)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("never half-applies a reorder that a write INTERLEAVES with", async () => {
+    /*
+     * The two tests above sequence the other device's write BEFORE the reorder
+     * is submitted, which the snapshot check alone would catch. This one starts
+     * both at once, so the add may land in the gap between the reorder's
+     * snapshot and its batch — the window the snapshot check cannot see, and the
+     * reason every statement in the batch carries the membership as a
+     * PRECONDITION.
+     *
+     * The interleaving is not deterministic, so the assertion is not about which
+     * one wins. It is the invariant that must hold whichever does: the list
+     * still holds every step exactly once, with dense positions, and never an
+     * order assembled from two different opinions.
+     */
+    const task = await seedTask(WS);
+    const items = await seedChecklist(WS, task.id, ["A", "B", "C"]);
+    const tasks = taskRepo(WS);
+
+    const outcomes = await Promise.allSettled([
+      tasks.reorderChecklist(task.id, [
+        items[2]!.id,
+        items[1]!.id,
+        items[0]!.id,
+      ]),
+      tasks.createChecklistItem(task.id, { title: "D" }),
+    ]);
+    // The ADD always succeeds: nothing about a reorder can refuse it.
+    expect(outcomes[1]!.status).toBe("fulfilled");
+
+    const after = await tasks.listChecklist(task.id);
+    expect([...after.map((e) => e.title)].sort()).toEqual(["A", "B", "C", "D"]);
+    expect(after.map((e) => e.position)).toEqual([0, 1, 2, 3]);
+    if (outcomes[0]!.status === "fulfilled") {
+      // If the reorder committed, it committed WHOLE: A, B and C sit in the
+      // submitted order and the added step keeps the place the insert gave it.
+      expect(after.map((e) => e.title)).toEqual(["C", "B", "A", "D"]);
+    } else {
+      expect((outcomes[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+        TaskChecklistItemNotFoundError,
+      );
+      expect(after.map((e) => e.title)).toEqual(["A", "B", "C", "D"]);
+    }
   });
 
   it("refuses an order naming an item that belongs to another Task", async () => {

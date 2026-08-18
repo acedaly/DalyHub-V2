@@ -386,6 +386,89 @@ describe("priority and dates, changed on the record (EDIT-02)", () => {
 });
 
 describe("completion", () => {
+  it("leaves the checklist EDITABLE on a completed Task, and locks it on a deleted one", async () => {
+    /*
+     * TASKS-13 — completion is a fact about the COMMITMENT, not an archive of
+     * the work. "Finished it, forgot to tick the last one" is an ordinary
+     * correction, and a mis-ticked step in a completed occurrence of a recurring
+     * Task would otherwise be permanent. Every other control in this record
+     * behaves the same way; the one thing completion disables is the repeat
+     * rule, which has already produced its successor.
+     *
+     * Deletion is the read-only case, and this pins both halves so the two can
+     * never quietly swap.
+     */
+    const completed = { ...TASK, completedAt: "2026-07-21T09:00:00.000Z" };
+    stubFetch({
+      detail: {
+        task: completed,
+        links: [],
+        checklist: [
+          {
+            id: "c1",
+            taskId: "t1",
+            title: "Check tyre pressures",
+            position: 0,
+            completed: false,
+            createdAt: "2026-07-18T09:00:00.000Z",
+            updatedAt: "2026-07-18T09:00:00.000Z",
+          },
+        ],
+        todayIso: "2026-07-20",
+      },
+    });
+    const { unmount } = renderDrawer(<TaskDrawerContent taskId="t1" />);
+    // The Task is completed…
+    await screen.findByRole("button", { name: "Reopen task" });
+    /*
+     * …and its step is still a live control, with its menu. Awaited rather than
+     * read synchronously: the checklist is seeded from the loaded record in an
+     * effect, so it paints one render after the header the record's own state
+     * produces.
+     */
+    expect(
+      await screen.findByRole("checkbox", { name: "Check tyre pressures" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", {
+        name: /More actions for Check tyre pressures/,
+      }),
+    ).toBeInTheDocument();
+    unmount();
+
+    const deleted = {
+      ...completed,
+      deletedAt: "2026-07-22T09:00:00.000Z",
+    };
+    stubFetch({
+      detail: {
+        task: deleted,
+        links: [],
+        checklist: [
+          {
+            id: "c1",
+            taskId: "t1",
+            title: "Check tyre pressures",
+            position: 0,
+            completed: false,
+            createdAt: "2026-07-18T09:00:00.000Z",
+            updatedAt: "2026-07-18T09:00:00.000Z",
+          },
+        ],
+        todayIso: "2026-07-20",
+      },
+    });
+    renderDrawer(<TaskDrawerContent taskId="t1" />);
+    expect(
+      await screen.findByRole("checkbox", { name: "Check tyre pressures" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", {
+        name: /More actions for Check tyre pressures/,
+      }),
+    ).toBeNull();
+  });
+
   it("posts a completion when the control is toggled", async () => {
     const posts: string[] = [];
     stubFetch({ onPost: (intent) => posts.push(intent) });

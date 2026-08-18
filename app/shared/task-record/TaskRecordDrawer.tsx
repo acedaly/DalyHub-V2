@@ -1154,6 +1154,15 @@ export function TaskRecordDrawer({
         feature={
           <TaskChecklistSection
             checklist={checklist}
+            /*
+             * DELETED, not completed — the same test every other control in
+             * this record makes. A completed Task keeps its steps editable
+             * because "finished it, forgot to tick the last one" is an ordinary
+             * correction, and because a completed occurrence of a recurring
+             * Task would otherwise carry a mis-ticked step for good. The one
+             * control completion does disable is the repeat rule above, which
+             * has already produced its successor.
+             */
             readOnly={task.deletedAt !== null}
           />
         }

@@ -6338,11 +6338,6 @@ export class D1TaskRepository implements TaskRepository {
     const title = validateChecklistTitle(input.title);
     await this.#requireWritableTask(entityId);
 
-    const existing = await this.listChecklist(entityId);
-    if (existing.length >= MAX_CHECKLIST_ITEMS) {
-      throw new TaskChecklistFullError(MAX_CHECKLIST_ITEMS);
-    }
-
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
     const itemId = this.#newEntityId();
@@ -6357,6 +6352,14 @@ export class D1TaskRepository implements TaskRepository {
      *
      * The insert is also gated on the Task being present and active, so a Task
      * deleted between the guard above and this statement yields no orphan row.
+     *
+     * The LIMIT is enforced by the same statement, for the same reason. Reading
+     * the count first and deciding in TypeScript leaves a window two devices can
+     * both pass at ninety-nine, and a hundred-and-first row is worse than a
+     * refusal: `listChecklist` stops at a hundred, so the extra row becomes
+     * invisible to the record while `listChecklistProgress` — which counts
+     * without a limit — keeps counting it. The owner would see a total they
+     * could not reach. Asking the database to decide closes the window.
      */
     const statements: D1PreparedStatement[] = [
       this.#db
@@ -6373,7 +6376,11 @@ export class D1TaskRepository implements TaskRepository {
                    SELECT 1 FROM entities
                    WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
                      AND deleted_at IS NULL
-                 )`,
+                 )
+             AND (SELECT COUNT(*)
+                    FROM task_checklist_items held
+                   WHERE held.workspace_id = ? AND held.task_id = ?)
+                 < ${MAX_CHECKLIST_ITEMS}`,
         )
         .bind(
           itemId,
@@ -6384,6 +6391,8 @@ export class D1TaskRepository implements TaskRepository {
           entityId,
           nowTs,
           nowTs,
+          this.#workspaceId,
+          entityId,
           this.#workspaceId,
           entityId,
         ),
@@ -6397,11 +6406,23 @@ export class D1TaskRepository implements TaskRepository {
       ),
     ];
 
-    await this.#runChecklistBatch(statements);
+    const results = await this.#runChecklistBatch(statements);
+
+    if ((results[0]?.meta?.changes ?? 0) === 0) {
+      /*
+       * The statement refused it, and only the statement knows which of its two
+       * conditions said no. Counting now distinguishes them, and it costs a
+       * query only on the path that is already failing.
+       */
+      if ((await this.#countChecklist(entityId)) >= MAX_CHECKLIST_ITEMS) {
+        throw new TaskChecklistFullError(MAX_CHECKLIST_ITEMS);
+      }
+      // The Task vanished between the guard and the insert. Nothing was written.
+      throw new TaskNotFoundError();
+    }
 
     const item = await this.#readChecklistItem(entityId, itemId);
     if (item === null) {
-      // The Task vanished between the guard and the insert. Nothing was written.
       throw new TaskNotFoundError();
     }
     return item;
@@ -6604,24 +6625,79 @@ export class D1TaskRepository implements TaskRepository {
      * order's `(created_at, id)` tiebreak means even that transient state has one
      * deterministic answer.
      */
+    /*
+     * The membership check above ran against a SNAPSHOT, so it is carried into
+     * the write as a precondition rather than trusted across the gap.
+     *
+     * Every statement in the batch — the rows and the Task's own timestamp —
+     * requires the checklist to still hold exactly the number of steps the
+     * submitted order names. A step added or deleted between the read and the
+     * batch changes that count, so every statement finds nothing, the whole
+     * transaction writes nothing, and the caller is told the list moved instead
+     * of being told a stale order was saved. The batch is one transaction and
+     * every statement carries the SAME condition, so it cannot half-apply.
+     *
+     * What it does not separate is a delete and an add landing together, which
+     * leaves the count where it was. The order then applies to the steps it can
+     * still find and the added one keeps its own place — not a corrupt list,
+     * because `(position, created_at, id)` is a TOTAL order, and the next
+     * reorder or delete renumbers it. Closing that window as well would mean
+     * naming every id inside the condition, and a hundred ids do not fit D1's
+     * bound-parameter budget.
+     */
+    const stillHolds = `(SELECT COUNT(*)
+                           FROM task_checklist_items held
+                          WHERE held.workspace_id = ? AND held.task_id = ?) = ?`;
     const statements = order.map((id, index) =>
       this.#db
         .prepare(
           `UPDATE task_checklist_items
            SET position = ?, updated_at = ?
-           WHERE workspace_id = ? AND task_id = ? AND id = ? AND position <> ?`,
+           WHERE workspace_id = ? AND task_id = ? AND id = ? AND position <> ?
+             AND ${stillHolds}`,
         )
-        .bind(index, nowTs, this.#workspaceId, entityId, id, index),
+        .bind(
+          index,
+          nowTs,
+          this.#workspaceId,
+          entityId,
+          id,
+          index,
+          this.#workspaceId,
+          entityId,
+          order.length,
+        ),
     );
     statements.push(
       this.#db
         .prepare(
           `UPDATE entities SET updated_at = ?
-           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL`,
+           WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
+             AND ${stillHolds}`,
         )
-        .bind(nowTs, this.#workspaceId, entityId),
+        .bind(
+          nowTs,
+          this.#workspaceId,
+          entityId,
+          this.#workspaceId,
+          entityId,
+          order.length,
+        ),
     );
-    await this.#runChecklistBatch(statements);
+    const results = await this.#runChecklistBatch(statements);
+
+    /*
+     * At least one row MUST have moved: the unchanged case returned above, so a
+     * batch that wrote nothing means the precondition refused it.
+     */
+    const rowsWritten = results
+      .slice(0, order.length)
+      .reduce((total, result) => total + (result.meta?.changes ?? 0), 0);
+    if (rowsWritten === 0) {
+      throw new TaskChecklistItemNotFoundError(
+        "This checklist changed somewhere else, so the new order was not saved.",
+      );
+    }
     return { changed: true };
   }
 
@@ -6641,6 +6717,19 @@ export class D1TaskRepository implements TaskRepository {
     }
     await this.#rejectIfParentProjectArchived(task);
     return task;
+  }
+
+  /** How many steps this Task holds right now. Used only on a refused write. */
+  async #countChecklist(taskId: string): Promise<number> {
+    const row = await this.#db
+      .prepare(
+        `SELECT COUNT(*) AS total
+         FROM task_checklist_items ci
+         WHERE ci.workspace_id = ? AND ci.task_id = ?`,
+      )
+      .bind(this.#workspaceId, taskId)
+      .first<{ total: number }>();
+    return row?.total ?? 0;
   }
 
   /** Read ONE checklist item, scoped to its workspace AND its parent Task. */
