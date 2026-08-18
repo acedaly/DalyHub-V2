@@ -341,9 +341,13 @@ overflow at any width in either appearance**.
 Stated plainly, because the Definition of Done asks about the first one directly.
 
 - **Today's plan does not use the shared `~/shared/task-record/TaskRow`.** The
-  work package refers to a "UX-02 item A" brief; **no UX-02 exists in this
-  repository** (`grep -rn "UX-02" docs/` finds nothing), so there is no adoption
-  contract to follow. What *is* already shared, and is what FINAL-UI §4.3
+  work package refers to a "UX-02 item A" brief; **no UX-02 existed in this
+  repository when this pass ran** (`grep -rn "UX-02" docs/` found nothing), so
+  there was no adoption contract to follow. *(A UX-02 exists now —
+  [`UX_02_PLAN_HABITS_2026_08.md`](UX_02_PLAN_HABITS_2026_08.md), 19 August 2026 —
+  and it is a different item: it rebuilds `/plan` and `/habits` to two visual
+  references, and it does not define a Today adoption contract either. Today's
+  plan still does not use the shared row, and the reasoning below still stands.)* What *is* already shared, and is what FINAL-UI §4.3
   recorded as the convergence, stays shared: the completion control
   (`dh-check-circle` with the product-wide "Complete &lt;title&gt;" name), the
   `PriorityIndicator`, the band heading language and the row density. What is not

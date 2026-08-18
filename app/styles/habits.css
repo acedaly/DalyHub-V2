@@ -543,3 +543,593 @@ a.dh-habit-row__title:hover {
   margin: 0;
   padding: 0;
 }
+
+/* ========================================================================== */
+/* UX-02 — the rebuilt collection (Mockup 8)                                  */
+/*                                                                            */
+/* Three additions, and no new colour: the four-column TABLE, the RAIL beside  */
+/* it, and the week STRIP inside a row. The rule at the head of this file is   */
+/* unchanged and governs all of it — a Habit surface must be able to say "you  */
+/* did not do it" without looking like an alarm. There is still no red, no      */
+/* flame, no streak and no ring that empties.                                  */
+/* ========================================================================== */
+
+/*
+ * The list is a CONTAINER, and the row's breakpoints are the list's width.
+ *
+ * Not the window's, and this is a correctness requirement rather than a
+ * refinement — the same one DS-04's task list documents. This exact component is
+ * drawn full-width in the collection AND inside a 21rem rail, so a window-width
+ * media query would happily hand the rail the seven-column desktop grid, whose
+ * fixed tracks alone are wider than the rail.
+ */
+.dh-habits-list {
+  container-type: inline-size;
+  container-name: habits;
+  min-inline-size: 0;
+}
+
+/*
+ * The column template, declared ONCE and inherited by the header and by every
+ * row. The title is the only `1fr` — and `minmax(0, 1fr)` rather than `auto`, so
+ * a long title truncates inside its track instead of widening the grid and
+ * pushing the strip off the right edge.
+ */
+.dh-habits-list--columns {
+  --habitrow-columns: auto auto minmax(0, 1fr) 7.5rem 9rem 7rem 1.25rem;
+}
+
+/* The small-caps header. `aria-hidden` in the markup: every cell below carries
+ * its own accessible name, so this is for the eye alone (see `HabitList`). */
+.dh-habits-list__head {
+  display: grid;
+  grid-template-columns: var(--habitrow-columns);
+  gap: var(--app-space-3);
+  align-items: end;
+  padding-block-end: var(--app-space-2);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-habits-list__column {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* The four names sit over the four columns that hold content: the lead control
+ * and the icon have no heading, and neither does the trailing chevron. */
+.dh-habits-list__column:nth-child(1) {
+  grid-column: 3;
+}
+
+.dh-habits-list__column:nth-child(2) {
+  grid-column: 4;
+}
+
+.dh-habits-list__column:nth-child(3) {
+  grid-column: 5;
+}
+
+.dh-habits-list__column:nth-child(4) {
+  grid-column: 6;
+}
+
+/* The row in its columns layout: the list's grid, inherited. */
+.dh-habit-row[data-layout="columns"] {
+  display: grid;
+  grid-template-columns: var(--habitrow-columns);
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+/*
+ * The identity tile. The hue is INHERITED from the row's `data-identity`, which
+ * carries the Area's resolved slot — so a tile and its Area's own record cannot
+ * disagree about what colour "Health & Fitness" is.
+ */
+.dh-habit-row__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+/* Where the behaviour belongs, as a dot and its name. The dot is never the only
+ * carrier of the fact — the Area's title is right beside it. */
+.dh-habit-row__place {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-habit-row__place-dot {
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  /* The record's own hue, or the neutral container when it belongs nowhere. */
+  background: var(--dh-identity, var(--dh-color-border-strong));
+}
+
+.dh-habit-row__schedule,
+.dh-habit-row__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.dh-habit-row__cadence {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-habit-row__cadence-detail {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * "Done today" is the ONE place a Habit row takes a colour other than the tick's.
+ *
+ * It is the success role, it is spent on a finished thing rather than on an
+ * unfinished one, and it is never the only signal: the words say "Done today"
+ * and the row's tick is already drawn as a tick.
+ */
+.dh-habit-row__today[data-done="true"] {
+  color: var(--dh-color-success);
+  font-weight: 500;
+}
+
+/* The week's bar is thin and quiet — a second reading of the words above it. */
+.dh-habit-row__bar {
+  inline-size: 100%;
+}
+
+.dh-habit-row__week-cell {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.dh-habit-row__open {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/*
+ * The trailing chevron. `aria-hidden` and out of the tab order in the markup —
+ * the title beside it is the row's real link — so this is decoration that says
+ * "this row opens", and it is not sized as a touch target because it is not one.
+ */
+.dh-habit-row__open-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--dh-color-text-muted);
+  pointer-events: none;
+}
+
+.dh-habit-row[data-layout="columns"]:hover .dh-habit-row__open-link {
+  color: var(--dh-color-text);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The week strip                                                             */
+/* -------------------------------------------------------------------------- */
+
+.dh-habit-week {
+  border-collapse: collapse;
+  table-layout: fixed;
+  inline-size: 100%;
+}
+
+.dh-habit-week th,
+.dh-habit-week td {
+  padding: 0;
+  text-align: center;
+  font-weight: 400;
+}
+
+.dh-habit-week th {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.4;
+}
+
+.dh-habit-week__day,
+.dh-habit-week__future {
+  display: inline-block;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+}
+
+/* A day that has not happened. No dot at all: Thursday cannot be incomplete on
+ * Wednesday, so it is empty ground rather than a hollow circle. */
+.dh-habit-week__future {
+  background: transparent;
+}
+
+.dh-habit-week__day[data-state="completed"] {
+  background: var(--md-sys-color-primary);
+}
+
+/* Scheduled and not checked in. A ring, not a filled dot, and NOT red: the fact
+ * is "no check-in", and a verdict is not this product's to add. */
+.dh-habit-week__day[data-state="expected"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 var(--app-border-width-thin)
+    var(--dh-color-border-strong);
+}
+
+/* A day that never asked for anything, and a day before the Habit existed. Drawn
+ * as almost nothing, because they mean almost nothing. */
+.dh-habit-week__day[data-state="unscheduled"] {
+  background: var(--dh-color-divider);
+}
+
+.dh-habit-week__day[data-state="inactive"] {
+  background: transparent;
+}
+
+@media (forced-colors: active) {
+  .dh-habit-week__day[data-state="completed"] {
+    background: CanvasText;
+  }
+
+  .dh-habit-week__day[data-state="expected"] {
+    box-shadow: inset 0 0 0 1px CanvasText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The body: the table, and the rail beside it                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-habits__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--app-space-6);
+  min-inline-size: 0;
+}
+
+.dh-habits__main,
+.dh-habits__rail {
+  min-inline-size: 0;
+}
+
+/*
+ * The table gets a PANEL, and it is a departure worth stating.
+ *
+ * DS-04's rule is that a list has no surface of its own and sits directly on the
+ * page canvas, and that rule still governs `/tasks`. Mockup 8 draws the Habits
+ * table inside a bordered panel, and here it is right for a reason the rule did
+ * not anticipate: this screen is a table BESIDE A RAIL OF CARDS. A flat list
+ * against three bordered cards reads as an unfinished region rather than as a
+ * calmer one — measured by looking at it — so the two sides of the body take the
+ * same surface and the composition balances.
+ *
+ * The ROWS inside are unchanged: still hairline-separated, still no card each,
+ * still no radius or shadow of their own.
+ */
+.dh-habits__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+  padding: var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+}
+
+.dh-habits__rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+/*
+ * 21rem for the rail, the same measure the planning rail takes — wide enough for
+ * a habit title beside its cadence, narrow enough that the table keeps the
+ * majority of the pane, because the table is what the owner came for.
+ */
+@media (min-width: 64rem) {
+  .dh-habits__body {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    align-items: start;
+  }
+}
+
+.dh-habits__footer {
+  margin: 0;
+  padding-block-start: var(--app-space-2);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
+  text-align: center;
+}
+
+.dh-habits__footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  min-block-size: var(--app-touch-target-min);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  text-decoration: none;
+}
+
+.dh-habits__footer-link:hover {
+  color: var(--dh-color-text);
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The rail's cards                                                           */
+/* -------------------------------------------------------------------------- */
+
+.dh-habits-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+  min-inline-size: 0;
+}
+
+.dh-habits-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.dh-habits-card__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0;
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
+  color: var(--dh-color-text);
+}
+
+/*
+ * The count is a FIGURE beside the word, not a badge — the rule the Task group's
+ * heading follows. A coloured pill here would be the loudest object on a screen
+ * whose whole job is to be calm.
+ */
+.dh-habits-card__count {
+  margin-inline-start: auto;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-row-size);
+}
+
+.dh-habits-card__empty,
+.dh-habits-card__note {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.5;
+}
+
+.dh-habits-card__foot {
+  margin: 0;
+  padding-block-start: var(--app-space-2);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-habits-card__link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--app-touch-target-min);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
+  text-decoration: none;
+}
+
+.dh-habits-card__link:hover {
+  text-decoration: underline;
+}
+
+.dh-habits-goals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-habits-goals__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+.dh-habits-goals__name {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.dh-habits-goals__name:hover {
+  text-decoration: underline;
+}
+
+.dh-habits-goals__count {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+}
+
+.dh-habits-goals__habits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  margin: var(--app-space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A supporting Habit's chip. Deliberately NOT a `StatusPill`: a status pill
+ * states a state, and this states a RECORD — so it is a quiet link in the pill
+ * shape rather than a tone from the state ramp.
+ */
+.dh-habits-goals__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--app-space-1) var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  text-decoration: none;
+}
+
+.dh-habits-goals__chip:hover {
+  border-color: var(--dh-color-border-strong);
+  color: var(--dh-color-text);
+}
+
+.dh-habits-week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dh-habits-week__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dh-habits-week__value {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-section-title-size);
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.dh-habits-week__label {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The table's tiers — RECOMPOSE, never squeeze                               */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The strip yields first. It is the least load-bearing cell — the week is
+ * already stated in words in the progress column — and it is the one whose
+ * seven columns cannot usefully shrink.
+ */
+@container habits (max-width: 42rem) {
+  .dh-habits-list--columns {
+    --habitrow-columns: auto auto minmax(0, 1fr) 7.5rem 9rem 1.25rem;
+  }
+
+  .dh-habit-row__week-cell,
+  .dh-habits-list__column:nth-child(4) {
+    display: none;
+  }
+}
+
+/*
+ * Below the two-column step the row becomes the flat composition again: the
+ * cadence and the week's reading wrap onto their own line under the title,
+ * exactly as the default row draws them. Nothing is hidden and nothing is
+ * clipped — the row becomes two lines at the one width where one cannot be
+ * honest.
+ */
+@container habits (max-width: 34rem) {
+  .dh-habits-list__head {
+    display: none;
+  }
+
+  .dh-habit-row[data-layout="columns"] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .dh-habit-row[data-layout="columns"] .dh-habit-row__main {
+    flex: 1 1 auto;
+  }
+
+  .dh-habit-row[data-layout="columns"] .dh-habit-row__schedule,
+  .dh-habit-row[data-layout="columns"] .dh-habit-row__progress {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--app-space-2);
+  }
+
+  .dh-habit-row[data-layout="columns"] .dh-habit-row__schedule {
+    inline-size: 100%;
+    padding-inline-start: var(--app-touch-target-min);
+  }
+
+  .dh-habit-row[data-layout="columns"] .dh-habit-row__progress {
+    inline-size: 100%;
+    padding-inline-start: var(--app-touch-target-min);
+  }
+
+  /* With a line of its own the bar would run the row's whole width and read as
+   * a divider. It keeps a stated measure instead. */
+  .dh-habit-row__bar {
+    inline-size: 8rem;
+  }
+
+  /*
+   * The chevron goes. It is decoration — `aria-hidden` and out of the tab order
+   * — and in a wrapped row it takes a LINE of its own to say nothing, which is
+   * four lines a phone spends on one habit. The title is still the link.
+   */
+  .dh-habit-row[data-layout="columns"] .dh-habit-row__open {
+    display: none;
+  }
+}
+
+/*
+ * The rail's Today card, when the rail is BENEATH the table rather than beside
+ * it.
+ *
+ * The card is the top of the table — the same rows, the same rule, the same
+ * check-in — and it earns its place only while the table can scroll past it. In
+ * the stacked composition it is the same list printed twice, directly under
+ * itself, so it is not drawn at all. The two cards that carry facts the table
+ * does not (the Goals, the week's figures) stay.
+ */
+@media (max-width: 63.999rem) {
+  .dh-habits-card--today {
+    display: none;
+  }
+}

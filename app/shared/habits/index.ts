@@ -7,6 +7,8 @@
  */
 
 export { HabitRow, type HabitRowProps } from "./HabitRow";
+export { HabitList, type HabitListProps } from "./HabitList";
+export { HabitWeekStrip, type HabitWeekStripProps } from "./HabitWeekStrip";
 export {
   SupportingHabits,
   type SupportingHabitsProps,
@@ -18,12 +20,16 @@ export {
 } from "./use-habit-check-in";
 export {
   habitConsistencyLabel,
+  habitConsistencyPercent,
+  habitDueToday,
   habitFactsFor,
   habitHistoryDayLabel,
+  habitOpenToday,
   habitWeekLabel,
   serializeHabit,
   serializeHabitRecord,
   type SerializedHabit,
+  type SerializeHabitOptions,
   type SerializedHabitConsistency,
   type SerializedHabitContext,
   type SerializedHabitHistoryDay,

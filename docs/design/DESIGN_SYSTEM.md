@@ -3055,3 +3055,121 @@ and the title has its narrowest measure, so five characters beside it take width
 off the title and wrap it. MEASURED on the Tasks collection with and without a
 checklist: 44px vs 44px at 1440 and 1280, 100px vs 81px at 393 and 320. The
 figure stops below `md`; the record carries it.
+
+---
+
+## The Task card, and the day-column board (UX-02, 2026-08-19)
+
+The narrow presentation of the ONE shared Task row, and the board it exists for.
+Introduced for Weekly Planning's week board; the pattern is shared because
+**anything with a column narrower than 12rem needs it**, and the alternative is a
+second Task row.
+
+### It is a variant, not a second row
+
+`dh-tasklist--cards` on the shared `TaskList` (`app/styles/task-list.css`).
+`TaskRow.tsx` is not forked and gains no prop: same markup, same controls, same
+canonical intents. Only the grid and the surface change.
+
+```
+┌──────────────────────┐
+│ ☐  SAF moving from   │     "lead main"
+│    CI to GI level    │     "meta meta"
+│    qualification     │
+│  ⚑P2 ● Work — NSW    │
+└──────────────────────┘
+```
+
+### The three departures, and what each one buys
+
+| Departure from DS-04 | Why it is right HERE |
+|---|---|
+| the row takes a **surface** | on a board, a card is what makes a task read as PLACED ON a day rather than as text near a date |
+| the title **wraps to three lines** | at a 147px column there is no metadata left to yield, so §10's "metadata yields before the title" is satisfied vacuously |
+| the completion target narrows to **28×28** | the same bargain `task-signals.css` already strikes for the row's block size: precise pointer AND desktop frame. WCAG 2.2 SC 2.5.8's 24×24 (AA) fits with room on both axes; every pixel of SC 2.5.5's 44px is kept on a coarse pointer and below `md` |
+
+Two smaller rules the anatomy depends on:
+
+- **The due date is the only cell that yields.** In a day column the column IS the
+  date. The cell stays in the DOM and in the accessible reading; only the drawing
+  yields.
+- **The overflow menu is POSITIONED, not tracked.** `position: absolute`, so the
+  card's geometry is identical with it and without it — the device the row's swipe
+  tray uses — revealed on hover AND on `:focus-within`, and always visible where
+  hover does not exist.
+
+### The gotcha, MEASURED
+
+`--taskrow-columns` is declared on the LIST and inherited — except that the narrow
+container-query tiers redeclare it on `.dh-taskrow` itself, and **a value set on
+the element beats one it inherits, however specific the list's selector.** A
+variant that sets the template on the list alone silently gets the narrow tier's
+tracks: measured before it moved onto the row, the card's computed template was
+`36px 47.3px 0px` with the title squeezed to 47px.
+
+### Before adopting it: measure the column
+
+The board's numbers are 147px per day at 1440 and a 73px three-line title, and
+they are the numbers this variant was tuned against. A surface with a different
+column should measure its own and record it, exactly as
+[`UX_02_PLAN_HABITS_2026_08.md`](UX_02_PLAN_HABITS_2026_08.md) §3 does — a card is
+not a licence to make a column arbitrarily narrow.
+
+---
+
+## The Habit table row and the week strip (UX-02, 2026-08-19)
+
+The four-column presentation of the ONE shared `HabitRow`, and the seven-dot week
+inside it.
+
+### The list owns the columns
+
+`HabitList` declares the grid template once and the header and every row inherit
+it — DS-04's device for the Tasks list, applied to a second domain for the same
+reason: a cell cannot line up with its neighbours if each row decides its own
+tracks. `HabitRow` gained a `layout` (`row` | `columns`) rather than a sibling
+component, because "ONE Habit row" is what keeps `/habits` and Today from
+disagreeing about the same record.
+
+```
+[check] [▧]  Strength training   3× weekly       1 of 3 this week   M T W T F S S  ›
+             ● Health & Fitness  Mon · Wed · Fri ▓▓▓░░░░            ● ● ○ · · · ·
+```
+
+- **The tiers are container queries on the LIST, never media queries on the
+  window.** This is a correctness requirement, not a refinement: the component is
+  drawn full-width AND inside a 21rem rail, and a window query hands the rail the
+  seven-track desktop grid. The strip yields first (the week is already stated in
+  words beside it), then below 34rem the row returns to the flat two-line form.
+- **The header row is `aria-hidden`.** Every cell carries its own accessible name,
+  so a screen reader never needed it and reading it would announce each fact's
+  category twice — FINAL-UI's rule for the Tasks list, applied here.
+- **Identity is inherited, never invented.** The tile is the shared `AccentIcon`
+  at its compact rung, resolved through the ONE `resolveIdentity` from the Area's
+  (or supporting Goal's) stored slot and icon key. A record filed nowhere draws
+  the neutral container.
+
+### The week strip
+
+Seven dots under seven weekday letters, as a `<table>` with real column headers
+where every cell carries the full sentence (`habitHistoryDayLabel`). The rules are
+the record's four-week grid's, unchanged — plus one this pass added:
+
+**A day that has not happened is not drawn at all.** The strip receives only the
+days up to and including today; every remaining column is empty ground whose
+accessible cell says "not yet". A future day is never a hollow circle, because a
+hollow circle in a row of filled ones reads as a miss and Thursday cannot be
+incomplete on Wednesday.
+
+Four states, and only one of them is a filled dot: `completed` (filled),
+`expected` (a ring — the fact is "no check-in", and a verdict is not the product's
+to add), `unscheduled` (a whisper), `inactive` (nothing).
+
+### One proportion is allowed, and only under three conditions
+
+A percentage may be drawn only if it is (1) beside the two integers it comes from,
+(2) over a bounded window, and (3) computed so that an unscheduled or future day
+is not a miss — with no percentage at all when the window expected nothing. See
+[ADR-104](../decisions/ARCHITECTURE_DECISIONS.md#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8).
+Streaks, flames, chains, day counts and rings that empty remain forbidden
+everywhere.

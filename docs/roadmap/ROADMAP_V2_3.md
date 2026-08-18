@@ -320,6 +320,62 @@ module behaviour: [`TASKS_MODULE.md`](../development/TASKS_MODULE.md#checklists-
 
 ---
 
+### ☑ UX-02 — Weekly Planning and Habits, rebuilt to the visual references — **DELIVERED 2026-08-19**
+
+**Two screens rebuilt to `Mockup 7.png` and `Mockup 8.png` — and two recorded
+decisions re-taken, one because its measurement had stopped being true and one
+because the principle behind it did not forbid what the reference asked for.**
+
+Accepted as
+[ADR-104](../decisions/ARCHITECTURE_DECISIONS.md#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8).
+Full record: [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md).
+
+- **`/plan` is a week BOARD, and the decision is a re-measurement.** ADR-101 §10
+  rejected a column board because "at 1440 a seven-column board leaves ~100px per
+  day". MEASURED on `main` @ 3d8d0d6: the planning content column is **856px**, not
+  the 1096 that figure was derived from. Six columns (Saturday and Sunday share
+  one), the rail giving up 2rem, and the shared Task row in a new CARD presentation
+  make it **147px per day with a 73px three-line title** at 1440. At 1280 six
+  columns would be 108px, so the board FOLDS to three columns over two rows —
+  recompose, never squeeze. The phone composition is unchanged.
+- **`/habits` is a four-column table with a glance row and a rail.** The stat row is
+  the shared `StatCard` (shared since UIX-01 with no consumer until now); the table
+  is the ONE `HabitRow` in a new `columns` layout inside a `HabitList` that declares
+  the grid once — DS-04's device, applied to a second domain; the rail carries what
+  today asks for, which Goals these behaviours support, and the week in three
+  figures.
+- **ONE percentage now exists, and the ban it narrows was read precisely.** ADR-102
+  §8 forbade percentages to prevent three things: a figure with no denominator, a
+  figure over an unbounded history, and a figure that treats an unscheduled or
+  future day as a miss. "78% recent consistency" has none of them — it is drawn
+  beside "111 of 142 expected check-ins", over the existing 28-day window, and a
+  window that expected nothing has no percentage at all. No streak, no flame, no
+  chain, no ring that empties, and both unsayable sentences still asserted.
+- **A day that has not happened is still not drawn.** The collection's new week
+  strip stops at today: Thursday is empty ground with an accessible "not yet", never
+  a hollow circle that reads as a miss.
+- **The board's "Plan a task" ARMS a day; it creates nothing.** It names the day the
+  queue's existing bulk placement commits to and moves focus there. `/plan` still
+  has no mutation authority, no create path and no drag-and-drop.
+- **The weekend column keeps TWO days inside it**, which is the one thing on Mockup
+  7 the rebuild did not copy: a planner exists to say WHICH day, and a Saturday task
+  in a band that also holds Sunday's is a task whose day the screen stopped stating.
+  The pairing follows the owner's `firstDayOfWeek` rather than assuming Monday.
+- **`/plan` gained no query.** The week's four figures are pure arithmetic over the
+  days and the queue it had already read (`planningWeekTotals`, unit-tested).
+  `/habits` gained ONE bounded read of two statements — capped at 60 Habits because
+  **D1 accepts at most 100 bound parameters per query**, the ceiling TASKS-13 found
+  the hard way — and the per-row week strip costs nothing at all, because the
+  current week's completions were already being read.
+- **No document scrolls sideways at 1440, 1280, 820, 393 or 320, in either
+  appearance**, and every figure quoted above is reproducible with
+  `node scripts/ux-02-shot.mjs --measure 1`.
+- **Three pieces of debt raised rather than hidden**: the six-column board needs a
+  1440 viewport (DEBT-162), a Sunday-start week wraps a seventh column (DEBT-163),
+  and a queue row still carries two checkboxes (DEBT-164).
+
+---
+
 ## NEXT
 
 The rest of the theme. Each is a separate item with its own decision — none of
@@ -364,10 +420,12 @@ authority · a second filter engine.
 
 ## Related documents
 
+- [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md) — the UX-02 record
 - [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md) — the PLAN-01 + SMART-01 record
 - [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md) — the TASKS-13 record
 - [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md) — the HABITS-01 record
 - [`HABITS_MODULE.md`](../development/HABITS_MODULE.md) — the Habits module's full behaviour
+- [ADR-104](../decisions/ARCHITECTURE_DECISIONS.md#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8) — the planning week is a board, and one proportion is allowed
 - [ADR-103](../decisions/ARCHITECTURE_DECISIONS.md#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction) — a checklist item is not a Task
 - [ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) — a Habit is a behaviour, not a recurring Task
 - [ADR-101](../decisions/ARCHITECTURE_DECISIONS.md#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers) — the accepted decision

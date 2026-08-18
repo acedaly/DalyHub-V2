@@ -26,6 +26,18 @@ export {
 } from "./planning-week";
 
 export {
+  planningDurationAccessibleLabel,
+  planningDurationLabel,
+  planningEntryMinutes,
+  planningTotalMinutes,
+  planningWeekTotals,
+  type PlanningDurationFacts,
+  type PlanningTotalsDay,
+  type PlanningTotalsTask,
+  type PlanningWeekTotals,
+} from "./planning-load";
+
+export {
   PLANNING_QUEUE_BANDS,
   PLANNING_QUEUE_BAND_LABELS,
   PLANNING_QUEUE_BAND_NOTES,

@@ -124,9 +124,38 @@ This week    "2 of 3 this week"  →  "Done this week" once met  →  null when 
 Recently     "9 of 12 expected check-ins"   (a bounded four-week window)
 ```
 
-**There is no streak, score or percentage anywhere**, and two sentences are
-unsayable by construction: an unscheduled day is never a miss, and a future day
-is never incomplete. `test/unit/habits/habit-view.test.ts` asserts both.
+**There is no streak and no score anywhere**, and two sentences are unsayable by
+construction: an unscheduled day is never a miss, and a future day is never
+incomplete. `test/unit/habits/habit-view.test.ts` asserts both.
+
+### The one percentage (UX-02)
+
+`habitConsistencyPercent` states the RECENT WINDOW as a proportion — "78%" for 111
+of 142 expected check-ins — and it is the only percentage in the module.
+[ADR-104](../decisions/ARCHITECTURE_DECISIONS.md#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8)
+narrowed HABITS-01's blanket ban to the three things it was protecting against,
+and this figure has none of them:
+
+| the ban was against | this figure |
+|---|---|
+| a figure with no denominator | always drawn beside "111 of 142 expected check-ins" |
+| a figure over unbounded history | the existing 28-day window, and no other |
+| a figure that counts an unscheduled or future day as a miss | `evaluateHabitConsistency` excludes both; an empty window has NO percentage rather than 0% |
+
+It rounds to a whole number, clamps to 0–100, and returns `null` when nothing was
+expected. Streaks, flames, chains, day counts and rings that empty stay forbidden.
+
+### This week, day by day (UX-02)
+
+`weekHistory` is an OPTIONAL projection on the serialised shape: one entry per day
+of the owner's current week, up to and including today. Absent means "the surface
+did not ask for it" — deliberately different from an empty array — so Today and a
+Goal's supporting section pay nothing for a strip they do not draw.
+
+It costs no query. The current week's completions are already the second of
+`readHabitPage`'s two statements; this is the same facts arranged by day. It stops
+at today, so the collection's strip draws a future day as empty ground rather than
+as an unfilled expectation.
 
 ### The partial first week (V2.3-GATE-01)
 
@@ -167,7 +196,8 @@ started partway through a week") and end to end by `e2e/habits.spec.ts`.
 
 | Route | What it is |
 | --- | --- |
-| `/habits` | the collection (Active), a flat hairline-separated list |
+| `/habits` | the collection, **Today** scope: every active Habit, the ones today asks for first (UX-02) |
+| `/habits?scope=all` | the same collection, **All active** — paginated and searchable |
 | `/habits/archived` | the same collection, archived scope |
 | `/habits/new` | the ONE New Habit form (also hosted by Quick Capture) |
 | `/habits/create` | the create ENDPOINT (action-only) |
@@ -176,8 +206,17 @@ started partway through a week") and end to end by `e2e/habits.spec.ts`.
 | `/habits/:id/check-in` | the ONE check-in authority |
 | `/habits/:id/activity` | one bounded page of the record's Activity |
 
-`HabitRow` (`~/shared/habits`) is drawn identically by `/habits` and by Today's
-routine band, and `useHabitCheckIn` is the only client-side check-in path.
+`HabitRow` (`~/shared/habits`) is drawn by `/habits` and by Today's routine band,
+and `useHabitCheckIn` is the only client-side check-in path. UX-02 gave the row a
+`layout` — `columns` for the collection's four-column table (inside `HabitList`,
+which declares the grid once), `row` everywhere else — rather than a second
+component, because ONE row is what keeps two surfaces from disagreeing about the
+same record.
+
+The collection's **Today** scope REORDERS rather than filters: it shows every
+active Habit with `habitDueToday` first, drawn from the bounded overview read the
+page already makes. Nothing disappeared from the default view when UX-02 changed
+it — the order changed.
 
 Habits also appear, read-only, on:
 
@@ -194,6 +233,17 @@ Habits also appear, read-only, on:
 | a page of Habits | 2 |
 | a week of completions for a whole page | 1 |
 | supporting Habits for a set of anchors | 3 |
+| the collection's overview (UX-02) | 2 |
+
+The `/habits` loader therefore costs FOUR bounded statements: the preference read,
+the overview's two, and — for the `all` and `archived` scopes only — the page's
+two. The `today` scope makes no page read at all.
+
+`readHabitOverview` is capped at **60** Habits, and the number is a constraint
+rather than a preference: it binds one parameter per Habit id plus the workspace
+and two dates, and **D1 accepts at most 100 bound parameters per query** (the
+ceiling TASKS-13 found the hard way). A workspace holding more says so rather than
+printing a total that quietly is not one.
 
 There is deliberately **no** `getCompletions(habitId)`: its absence is what makes
 the N+1 unwritable. `test/unit/habits/habit-query-bounds.test.ts` asserts the
@@ -204,7 +254,7 @@ shape; `test/kernel/habits.test.ts` counts real statements against real D1.
 Generate Tasks · become overdue · enter a Task count, a Project's progress or an
 Attention warning · send a reminder · work offline (DEBT-155) · appear in a
 Review figure (DEBT-156) · record a check-in in the global Activity stream ·
-show a streak, a score or a percentage · accept more than one completion per day
+show a streak, a score, a flame or a chain · accept more than one completion per day
 · accept a future date · accept a check-in against an archived Habit.
 
 ---

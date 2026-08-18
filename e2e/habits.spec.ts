@@ -88,9 +88,29 @@ function weekdayName(offset: number): string {
   return WEEKDAY_NAMES[(todayIndex + offset + 7) % 7]!;
 }
 
+/**
+ * One Habit's row IN THE COLLECTION'S TABLE.
+ *
+ * Scoped to `habit-list` since UX-02, because the same Habit now legitimately
+ * appears twice on `/habits`: once in the table, and once in the rail's "Today"
+ * card — the same shared `HabitRow`, posting through the same one check-in
+ * authority, which is exactly the arrangement Today already has. An unscoped
+ * locator is a strict-mode violation rather than a defect, and scoping it is what
+ * makes each assertion say WHICH surface it is about.
+ */
 function habitRow(page: Page, title: string): Locator {
-  return page.getByTestId("habit-row").filter({ hasText: title });
+  return page
+    .getByTestId("habit-list")
+    .getByTestId("habit-row")
+    .filter({ hasText: title });
 }
+
+/*
+ * The same Habit's row in the rail's "Today" card is asserted in
+ * `ux-02-plan-habits.spec.ts` ("the rail's Today card and the table are the same
+ * check-in"), which is where that arrangement belongs — these journeys are about
+ * the collection and the record.
+ */
 
 /**
  * Create a Habit through the product's own `/habits/new` page.

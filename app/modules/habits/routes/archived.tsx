@@ -27,7 +27,7 @@ export function meta() {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
-  return loadHabitsCollection({ env, session, request, status: "archived" });
+  return loadHabitsCollection({ env, session, request, archived: true });
 }
 
 export default function ArchivedHabitsRoute({

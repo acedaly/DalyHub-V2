@@ -43,24 +43,25 @@
 /*
  * ONE heading area, not four vertical beats.
  *
- * The title, the week it is showing, the navigation and the count are one object
- * on one line at desktop widths, and a two-row block on a phone. The alternative
- * — each as its own row of the page's flex column — is what makes a header eat a
- * third of a phone's first viewport before a single task appears.
+ * UX-02 moved the week's navigation and its figures out of the header and into
+ * the control row beneath it (Mockup 7), so the header is now the title and the
+ * week it is showing — on ONE line where there is room for one, which is what
+ * keeps a header from eating a third of a phone's first viewport before a single
+ * task appears.
  */
 .dh-plan__head {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "identity nav"
-    "count    nav";
-  align-items: start;
-  column-gap: var(--dh-space-4);
-  row-gap: var(--dh-space-1);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  min-width: 0;
 }
 
 .dh-plan__identity {
-  grid-area: identity;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
   min-width: 0;
 }
 
@@ -73,7 +74,7 @@
 }
 
 .dh-plan__range {
-  margin: var(--dh-space-1) 0 0;
+  margin: 0;
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -83,26 +84,27 @@
   color: var(--dh-color-text-muted);
 }
 
-/* The relative word is the ink; the explicit range is the supporting fact. */
-.dh-plan__relative {
+/*
+ * The explicit range leads and the relative word supports it, which is the
+ * reverse of PLAN-01's order and is what Mockup 7 draws. Both are still present,
+ * always: "Next week" alone cannot be checked, and a bare date range cannot be
+ * recognised at a glance — a planner has to be right about which week it shows.
+ */
+.dh-plan__range {
   color: var(--dh-color-text);
   font-weight: var(--dh-text-label-weight);
+}
+
+.dh-plan__relative {
+  color: var(--dh-color-text-muted);
+  font-weight: var(--dh-text-body-weight);
 }
 
 .dh-plan__dot {
   color: var(--dh-color-text-muted);
 }
 
-.dh-plan__count {
-  grid-area: count;
-  margin: 0;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  color: var(--dh-color-text-muted);
-}
-
 .dh-plan__weeknav {
-  grid-area: nav;
   display: flex;
   align-items: center;
   gap: var(--dh-space-1);
@@ -220,8 +222,8 @@
   .dh-plan__body {
     /*
      * 21rem for the rail. Wide enough for a task title plus its priority flag
-     * and a two-word band label; narrow enough that the agenda keeps the
-     * majority of the pane, because the agenda is what the owner came for.
+     * and a two-word band label; narrow enough that the board keeps the majority
+     * of the pane, because the board is what the owner came for.
      */
     grid-template-columns: minmax(0, 1fr) 21rem;
     align-items: start;
@@ -246,35 +248,173 @@
     /* Room for the last row's focus ring, which a clipped scroller would cut. */
     padding-inline-end: var(--dh-space-1);
   }
+
+  /*
+   * The placement bar STICKS to the foot of the rail — and ONLY here.
+   *
+   * Mockup 7 draws it beneath the queue's rows, and with the queue bounded at
+   * fifteen that is about 1,000px down a 19rem rail; on the mockup's own evidence
+   * it belongs at the bottom, and on the measurement it has to stay in view.
+   * Sticky inside the rail's own scroller is both.
+   *
+   * Below this width the rail is NOT a scroller — it is a section of the page —
+   * and `inset-block-end: 0` there stuck the bar over the top of the rows it
+   * belongs under, hiding every queue title behind it. MEASURED on the 393px
+   * capture before this moved: six titles unreadable. A sticky element needs a
+   * scroll container, so the rule lives with the container.
+   */
+  .dh-plan__place {
+    position: sticky;
+    inset-block-end: 0;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
-/* One day                                                                    */
+/* The board, and one day in it (UX-02)                                       */
 /* -------------------------------------------------------------------------- */
 
 /*
- * A day is a BAND, not a card.
+ * The week as COLUMNS, and the widths are measured rather than asserted.
  *
- * One hairline above it and nothing else: no border box, no radius, no shadow,
- * no tonal fill. Seven bounded surfaces stacked down a page is the "every
- * section becomes a card" the design direction rules out, and it would also make
- * the shared task rows inside look like cards within cards.
+ * MEASURED in Chromium on `main` @ 3d8d0d6, with the 21rem queue rail beside it:
+ *
+ *   viewport   board    6 columns   3 columns
+ *   1440       856px    133px       277px
+ *   1280       696px    108px       227px
+ *   1024       420px     62px       132px
+ *
+ * A day column holds the shared Task row in its CARD presentation, whose title
+ * wraps to three lines; 133px is enough for that and 108px is not. So SIX
+ * columns is the composition from 90rem (1440px) up — the width Mockup 7's own
+ * proportions describe — and below it the same board FOLDS to three columns over
+ * two rows rather than shrinking every column past legibility. That is the
+ * product's standing rule applied to a new surface: recompose, never squeeze.
+ *
+ * Below `md` the board is one column and the day rail above it chooses which day
+ * — a genuinely mobile composition, never six columns squeezed into 390px.
  */
-.dh-plan__day {
-  padding-block: var(--dh-space-4);
-  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+.dh-plan__board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  min-width: 0;
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+  overflow: hidden;
+}
+
+.dh-plan__column {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
-.dh-plan__day:first-of-type {
-  border-block-start: 0;
-  padding-block-start: 0;
+/* A hairline between columns, never a box around each: the board is one object. */
+.dh-plan__column + .dh-plan__column {
+  border-inline-start: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+@media (min-width: 48rem) {
+  .dh-plan__board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* With three per row, every fourth column starts a new row and takes the
+     hairline ABOVE it rather than the one beside it. */
+  .dh-plan__column:nth-child(3n + 1) {
+    border-inline-start: 0;
+  }
+
+  .dh-plan__column:nth-child(n + 4) {
+    border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+  }
+}
+
+@media (min-width: 90rem) {
+  /*
+   * The rail gives up 2rem to the board at the width where the board becomes six
+   * columns, and every one of those pixels is a measured gain: 21rem → 19rem
+   * takes the board from 856px to 888px, which is 133px per day rather than
+   * 141... the arithmetic runs the other way — 888/6 with the hairlines is 148px,
+   * so each day column gains 7px and each Task card's TITLE gains the same. At
+   * this width a title is the scarcest thing on the screen and the queue rail is
+   * the roomiest, so the trade is one-way.
+   */
+  .dh-plan__body {
+    grid-template-columns: minmax(0, 1fr) 19rem;
+  }
+
+  .dh-plan__board {
+    /*
+     * SIX. A week's five working days plus the weekend, which Mockup 7 pairs
+     * into one column because Saturday and Sunday together hold about as much as
+     * one weekday does.
+     *
+     * A Sunday-start week yields seven groups (neither weekend day has a
+     * neighbour to pair with); the seventh wraps to a second row rather than
+     * taking 20px off every column to fit.
+     */
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .dh-plan__column:nth-child(3n + 1) {
+    border-inline-start: var(--dh-border-width) solid var(--dh-color-divider);
+  }
+
+  .dh-plan__column:first-child {
+    border-inline-start: 0;
+  }
+
+  .dh-plan__column:nth-child(n + 4) {
+    border-block-start: 0;
+  }
+
+  .dh-plan__column:nth-child(n + 7) {
+    border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+  }
+}
+
+/*
+ * A day inside a column.
+ *
+ * A merged weekend column holds TWO of these, each with its own heading and its
+ * own bands. Mockup 7 draws the weekend as one shared band pair, and that is the
+ * one thing on the mockup this rebuild did not copy: a planner exists to say
+ * WHICH DAY, and a Saturday task drawn in a band that also holds Sunday's is a
+ * task whose day the screen has stopped stating.
+ */
+.dh-plan__day {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /*
+   * 8px, and it is 8 rather than 12 because of what the twelve cost: MEASURED at
+   * 1440, a day column is 147px, and every pixel of its inline padding comes
+   * straight off the Task card's title inside it. At 12px the title measured
+   * 65px; at 8 it measures 73. The board's own hairlines already separate the
+   * columns, so the padding is breathing room rather than structure.
+   */
+  padding: var(--dh-space-3) var(--dh-space-2);
+}
+
+.dh-plan__day + .dh-plan__day {
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
 /* A past day is quieter, and it is quieter by WEIGHT, never by colour alone. */
 .dh-plan__day[data-past="true"] .dh-plan__day-title {
   color: var(--dh-color-text-muted);
-  font-weight: var(--dh-text-body-weight);
+}
+
+/*
+ * The ARMED day — the one a column's own control named for the queue's next
+ * placement. A tinted edge, plus the button's own `aria-pressed`, plus the
+ * queue's sentence naming the day in words: three signals, none of them colour
+ * alone.
+ */
+.dh-plan__day[data-armed="true"] {
+  background: var(--dh-color-surface-selected);
 }
 
 .dh-plan__day-head {
@@ -282,20 +422,38 @@
   align-items: baseline;
   gap: var(--dh-space-2);
   flex-wrap: wrap;
+  /* A stated height so the six columns' headings sit on one line even when one
+     of them carries the "Today" mark and the others do not. */
+  min-block-size: 1.75rem;
   margin-block-end: var(--dh-space-2);
 }
 
 .dh-plan__day-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
   margin: 0;
-  font-size: var(--dh-text-section-title-size);
-  line-height: var(--dh-text-section-title-line-height);
-  font-weight: var(--dh-text-section-title-weight);
-  color: var(--dh-color-text);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
+/* The DATE is the loud half of the heading — it is what the eye finds a column
+ * by — and the weekday is its label. */
 .dh-plan__day-date {
-  color: var(--dh-color-text-muted);
-  font-weight: var(--dh-text-body-weight);
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-section-title-size);
+  line-height: 1.1;
+  font-weight: var(--dh-text-section-title-weight);
+  letter-spacing: normal;
+}
+
+.dh-plan__day[data-today="true"] .dh-plan__day-title,
+.dh-plan__day[data-today="true"] .dh-plan__day-date {
+  color: var(--dh-color-accent);
 }
 
 /* "Today" is a WORD. The tint reinforces it; it never carries it alone. */
@@ -309,51 +467,86 @@
   font-weight: var(--dh-text-label-weight);
 }
 
+/* -------------------------------------------------------------------------- */
+/* A day's two bands                                                          */
+/* -------------------------------------------------------------------------- */
+
+.dh-plan__band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-plan__band + .dh-plan__band {
+  margin-block-start: var(--dh-space-3);
+}
+
 /*
- * The day's own line, pushed to the trailing edge — and allowed to WRAP there.
- *
- * `margin-inline-start: auto` alone put it hard against the pane edge on a phone
- * and let the flex row squeeze it until "1 task" was clipped mid-word. The header
- * already wraps; `flex-shrink: 0` is what makes it wrap instead of shrink.
+ * The band's own label: a small-caps word, the count as a FIGURE beside it, and
+ * a note only when there is one. Never a badge — a coloured pill per band, six
+ * columns wide, is the loudest thing a calm screen could grow.
  */
-.dh-plan__day-meta,
-.dh-plan__day-empty {
+.dh-plan__band-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  flex-wrap: wrap;
   margin: 0;
-  margin-inline-start: auto;
-  flex: 0 0 auto;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-plan__band-count {
+  color: var(--dh-color-text);
+  letter-spacing: normal;
+}
+
+.dh-plan__band-note {
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: var(--dh-text-body-weight);
+}
+
+.dh-plan__band-empty {
+  margin: 0;
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
   color: var(--dh-color-text-muted);
 }
 
-.dh-plan__day-empty {
-  margin-inline-start: 0;
-  padding-block: var(--dh-space-2);
-}
-
 /*
  * The calendar, quietly.
  *
- * A time in a fixed 4rem column so every time on the day starts at the same x,
- * then the title. Muted, no surface, no icon: the schedule is the shape of the
- * day the owner is planning around, and it must not compete with the work.
+ * Each commitment is a small card with a tinted leading edge: it must read as
+ * something ALREADY TRUE about the day rather than as work, which is why it has
+ * a fill and the Task cards beside it do not have that fill. It carries no
+ * control at all (see `PlanCommitment`).
  */
 .dh-plan__events {
   list-style: none;
-  margin: 0 0 var(--dh-space-2);
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-px);
+  gap: var(--dh-space-2);
 }
 
 .dh-plan__event {
   display: flex;
-  align-items: baseline;
-  gap: var(--dh-space-3);
+  flex-direction: column;
+  gap: var(--dh-space-px);
   min-width: 0;
+  padding: var(--dh-space-2);
+  border-inline-start: 2px solid var(--dh-color-accent);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-subtle);
   font-size: var(--dh-text-meta-size);
-  line-height: calc(var(--dh-text-meta-line-height) * 1.5);
+  line-height: var(--dh-text-meta-line-height);
   color: var(--dh-color-text-muted);
 }
 
@@ -362,15 +555,54 @@
 }
 
 .dh-plan__event-time {
-  flex: 0 0 4rem;
   font-variant-numeric: tabular-nums;
 }
 
 .dh-plan__event-title {
   min-width: 0;
+  color: var(--dh-color-text);
+  font-weight: var(--dh-text-label-weight);
+  overflow-wrap: anywhere;
+}
+
+.dh-plan__event-where,
+.dh-plan__event-duration {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * The column's one control. Quiet until it is wanted: a dashed outline reads as
+ * "something can go here" without competing with the work already there.
+ */
+.dh-plan__plan-here {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-2);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--dh-space-2);
+  border: var(--dh-border-width) dashed var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-md);
+  background: transparent;
+  color: var(--dh-color-text-muted);
+  font: inherit;
+  font-size: var(--dh-text-meta-size);
+  cursor: pointer;
+}
+
+.dh-plan__plan-here:hover {
+  border-color: var(--dh-color-accent);
+  color: var(--dh-color-accent);
+}
+
+.dh-plan__plan-here[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -387,8 +619,9 @@
 
 .dh-plan__queue-head {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
   gap: var(--dh-space-2);
+  min-width: 0;
 }
 
 .dh-plan__queue-title,
@@ -398,24 +631,6 @@
   line-height: var(--dh-text-section-title-line-height);
   font-weight: var(--dh-text-section-title-weight);
   color: var(--dh-color-text);
-}
-
-.dh-plan__queue-source {
-  display: flex;
-  align-items: center;
-  gap: var(--dh-space-2);
-  min-width: 0;
-}
-
-.dh-plan__queue-source-label {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
-  flex: 0 0 auto;
-}
-
-.dh-plan__queue-source :where(select) {
-  min-width: 0;
-  flex: 1 1 auto;
 }
 
 .dh-plan__queue-empty,
@@ -439,7 +654,9 @@
   flex-direction: column;
   gap: var(--dh-space-2);
   padding: var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
+  /* An OPAQUE ground: the rows it sticks over must not read through it. */
   background: var(--dh-color-surface-quiet);
 }
 
@@ -662,26 +879,32 @@
   }
 
   /*
-   * The six days that are not selected are NOT RENDERED, rather than merely
+   * The columns that are not selected are NOT RENDERED, rather than merely
    * invisible: `display: none` takes them out of the accessibility tree too, so
    * a screen-reader user reads the day the rail says is selected instead of
    * walking seven days the eye cannot see.
+   *
+   * The selection is on the COLUMN, so choosing Sunday on a phone shows the
+   * weekend column — and inside it both Saturday and Sunday, each still under its
+   * own heading. Showing a merged column for either of its days is the only way
+   * a phone can honour the same pairing the board uses.
    */
-  .dh-plan__day:not([data-selected="true"]) {
+  .dh-plan__column:not([data-selected="true"]) {
     display: none;
   }
 
-  .dh-plan__day[data-selected="true"] {
-    border-block-start: 0;
-    padding-block-start: 0;
+  .dh-plan__board {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .dh-plan__day {
+    padding: 0;
   }
 
   .dh-plan__head {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "identity"
-      "nav"
-      "count";
     row-gap: var(--dh-space-2);
   }
 
@@ -746,4 +969,307 @@
   color: var(--dh-color-text-muted);
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
+}
+
+/* ========================================================================== */
+/* UX-02 — the control row, the queue's chips, and the glance bar (Mockup 7)   */
+/* ========================================================================== */
+
+/*
+ * The control row: the week's three figures, then the week's navigation.
+ *
+ * One row above the board rather than four beats down the page. It wraps rather
+ * than scrolling, because three figures and three links is a wrap a phone can
+ * read and a scroll strip would hide half of.
+ */
+.dh-plan__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-plan__figures {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/*
+ * One figure. A hairline chip, never a filled pill: three filled chips across the
+ * top of a planning screen is a dashboard's opening move, and this is a working
+ * surface. The icon is decoration — the number and its word carry the fact.
+ */
+.dh-plan__figure {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-1) var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface);
+  font-size: var(--dh-text-meta-size);
+  line-height: calc(var(--dh-text-meta-line-height) * 1.4);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-plan__figure svg {
+  align-self: center;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-plan__figure-value {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-text-label-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * A non-zero overdue count takes the product's overdue INK and nothing else — no
+ * fill, no border colour, no icon change. The word "overdue" is beside it, so the
+ * colour is a shortcut rather than the signal (AGENTS.md §15).
+ */
+.dh-plan__figure[data-tone="overdue"] .dh-plan__figure-value,
+.dh-plan__figure[data-tone="overdue"] svg,
+.dh-plan__glance-figure[data-tone="overdue"] .dh-plan__glance-value {
+  color: var(--dh-color-overdue);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The queue's source chips                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-plan__queue-count {
+  margin-inline-start: auto;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-row-size);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The sources, as a scrolling strip of links.
+ *
+ * Links rather than a select: each source is a real URL the owner can bookmark
+ * and share, Back works, and changing source needs no JavaScript. A strip rather
+ * than a wrap: a rail that grows a row taller for every saved view pushes the
+ * work it is about off the screen.
+ */
+.dh-plan__sources {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-plan__source,
+.dh-plan__source-manage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--dh-space-1);
+  flex: 0 0 auto;
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dh-plan__source:hover,
+.dh-plan__source-manage:hover {
+  border-color: var(--dh-color-border-strong);
+  color: var(--dh-color-text);
+}
+
+/*
+ * The chosen source. `aria-current` is the source of truth for both the
+ * appearance and assistive technology — one attribute, so they cannot disagree —
+ * and it is a filled ground plus the bolder weight, never colour alone.
+ */
+.dh-plan__source[aria-current="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-plan__source-manage {
+  padding-inline: var(--dh-space-2);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The placement bar's primary button                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * "Plan selected" commits to the day the BOARD armed, and it is disabled until
+ * both halves exist — a selection and a day. The seven day chips beneath it still
+ * commit in one gesture, which is the path PLAN-01 shipped and the one a keyboard
+ * user reaches first; this button is a second door for an owner who started from
+ * a column rather than from the queue.
+ */
+.dh-plan__place-go {
+  inline-size: 100%;
+  justify-content: center;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Planning signals                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A signal is a whole-row LINK to the record that can close the gap — one
+ * ordinary link, so it is right-clickable and keyboard-operable like any other,
+ * rather than a div with a click handler and a chevron that looks like one.
+ */
+.dh-plan__signal-open {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-3);
+  min-block-size: var(--app-touch-target-min);
+  padding: var(--dh-space-2) var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  text-decoration: none;
+}
+
+.dh-plan__signal-open:hover {
+  border-color: var(--dh-color-border-strong);
+  background: var(--dh-color-surface-subtle);
+}
+
+.dh-plan__signal-open svg {
+  flex: none;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-plan__signal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dh-plan__signals-foot {
+  margin: 0;
+}
+
+.dh-plan__signals-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-block-size: var(--app-touch-target-min);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
+  text-decoration: none;
+}
+
+.dh-plan__signals-link:hover {
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Week at a glance                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The foot bar. The SAME four figures the control row shows — one set of numbers
+ * from the loader, printed twice, because the top of a planning session and the
+ * bottom of one are two different moments and both want them.
+ */
+.dh-plan__glance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--dh-space-4);
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+  min-width: 0;
+}
+
+.dh-plan__glance-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-plan__glance-figures {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--dh-space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dh-plan__glance-figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-px);
+  min-width: 0;
+}
+
+.dh-plan__glance-value {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-section-title-size);
+  line-height: 1.2;
+  font-weight: var(--dh-text-section-title-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-plan__glance-label {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/*
+ * The door to the Review focus. A real disclosure — `aria-expanded` plus
+ * `aria-controls` onto a `hidden` panel — so the owner's own words are one press
+ * away without costing the board its first fold on every visit afterwards.
+ */
+.dh-plan__glance-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-block-size: var(--app-touch-target-min);
+  padding: 0 var(--dh-space-4);
+  border: var(--dh-border-width) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-text-meta-size);
+  cursor: pointer;
+}
+
+.dh-plan__glance-action:hover {
+  border-color: var(--dh-color-accent);
+  color: var(--dh-color-accent);
 }

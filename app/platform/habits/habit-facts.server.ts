@@ -15,6 +15,8 @@
  *   readHabitRecord      2  — the Habit, then its four-week completion window.
  *   readSupportingHabits 3  — the linked Habits for a bounded set of anchors,
  *                             their schedule chains, and one completion window.
+ *   readHabitOverview    2  — every active Habit up to a stated bound, then ONE
+ *                             four-week completion window for all of them.
  *
  * `test/unit/habits/habit-query-bounds.test.ts` asserts the budget, following
  * PLAN-01's precedent.
@@ -22,6 +24,7 @@
 
 import {
   HABIT_RECENT_WINDOW_DAYS,
+  evaluateHabitConsistency,
   evaluateHabitWeek,
   habitScheduleShortLabel,
   habitWeek,
@@ -31,6 +34,10 @@ import {
 import { addPlanningDays } from "~/kernel/planning";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import {
+  habitConsistencyPercent,
+  habitDueToday,
+  habitFactsFor,
+  habitOpenToday,
   serializeHabit,
   serializeHabitRecord,
   type SerializedHabit,
@@ -73,6 +80,8 @@ export async function readHabitPage(
     readonly query?: string;
     readonly limit?: number;
     readonly cursor?: string;
+    /** UX-02 — include each Habit's week as one entry per day (the dot strip). */
+    readonly weekHistory?: boolean;
   } = {},
 ): Promise<HabitPageResult> {
   const page = await scope.habits.list({
@@ -91,9 +100,16 @@ export async function readHabitPage(
           toIso: week.endIso,
         });
   const byHabit = completionsByHabit(completions);
+  const options =
+    input.weekHistory === true ? { weekHistory: true as const } : {};
   return {
     items: page.items.map((habit) =>
-      serializeHabit(habit, byHabit.get(habit.id) ?? new Set(), calendar),
+      serializeHabit(
+        habit,
+        byHabit.get(habit.id) ?? new Set(),
+        calendar,
+        options,
+      ),
     ),
     nextCursor: page.nextCursor,
     hasMore: page.hasMore,
@@ -176,6 +192,184 @@ export async function readSupportingHabits(
     );
   }
   return result;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The collection's overview (UX-02)                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * How many active Habits one overview reads.
+ *
+ * SIXTY, and the number is a constraint rather than a preference: the completion
+ * window below binds one parameter per Habit id plus the workspace and two
+ * dates, and **D1 accepts at most 100 bound parameters per query** — the limit
+ * TASKS-13 found the hard way, where a 100-id chunk failed and a Today section
+ * silently reported "nothing planned" against thirty-seven planned Tasks. Sixty
+ * leaves room the shape of this query cannot outgrow, and it is far above any
+ * plausible number of behaviours one person is practising at once.
+ *
+ * A workspace holding more says so: `truncated` is reported and the surface
+ * prints what the figures cover, rather than a total that quietly is not one.
+ */
+export const HABIT_OVERVIEW_LIMIT = 60;
+
+/** One Goal and the Habits supporting it, as the collection's rail lists them. */
+export interface HabitOverviewGoal {
+  readonly id: string;
+  readonly title: string;
+  readonly habits: readonly { readonly id: string; readonly title: string }[];
+}
+
+/**
+ * UX-02 — the workspace-level reading the rebuilt `/habits` collection prints.
+ *
+ * Every figure here is a COUNT or a ratio of two counts, and each one names its
+ * own denominator on the screen that draws it. There is no score, no streak and
+ * no grade: `consistencyPercent` is the bounded four-week window expressed as a
+ * proportion of what was expected, drawn beside the words that state both
+ * integers ([ADR-104](../../../docs/decisions/ARCHITECTURE_DECISIONS.md)).
+ */
+export interface HabitOverview {
+  /** Every active Habit read, week-history included, in the collection's order. */
+  readonly habits: readonly SerializedHabit[];
+  /** True when the workspace holds more active Habits than the bound above. */
+  readonly truncated: boolean;
+  readonly activeCount: number;
+  /** How many the day asks for — `habitDueToday`, never "every active one". */
+  readonly dueTodayCount: number;
+  /** Due today and not yet checked in. */
+  readonly openTodayCount: number;
+  readonly doneTodayCount: number;
+  /** Check-ins recorded inside the owner's current calendar week. */
+  readonly completedThisWeek: number;
+  /** What this week asked for across every active Habit, and what happened. */
+  readonly weekExpected: number;
+  readonly weekCompleted: number;
+  /** The four-week window, summed across every active Habit. */
+  readonly consistencyFromIso: string;
+  readonly consistencyExpected: number;
+  readonly consistencyCompleted: number;
+  /** "84%", as a number 0–100, or `null` when the window expected nothing. */
+  readonly consistencyPercent: number | null;
+  /** The Goals these Habits support, each with its supporting Habits. */
+  readonly goals: readonly HabitOverviewGoal[];
+}
+
+/**
+ * The workspace's Habit overview: two statements, whatever it holds.
+ *
+ * The first lists the active Habits (with their Goal/Area joins and schedule
+ * chains, as every Habit read does); the second reads FOUR WEEKS of completions
+ * for all of them at once, which is the same single range read `readHabitRecord`
+ * makes for one Habit — the completion index is `(workspace, completed_on,
+ * habit)`, so widening the id set costs nothing extra.
+ *
+ * Everything else is arithmetic over those two results. In particular the
+ * supporting-Goal grouping adds NO query: a Habit already carries its Goal
+ * through its EntityLink join, so the rail's "Supporting goals" card is that
+ * same data inverted rather than a second read of the Goals collection.
+ */
+export async function readHabitOverview(
+  scope: WorkspaceScope,
+  calendar: HabitCalendarContext,
+  input: { readonly limit?: number } = {},
+): Promise<HabitOverview> {
+  const limit = Math.min(
+    input.limit ?? HABIT_OVERVIEW_LIMIT,
+    HABIT_OVERVIEW_LIMIT,
+  );
+  const page = await scope.habits.list({ status: "active", limit });
+  const week = habitWeek(calendar.todayIso, calendar.firstDayOfWeek);
+  const fromIso = habitWindowStart(calendar);
+
+  const completions =
+    page.items.length === 0
+      ? []
+      : await scope.habits.listCompletionsInRange({
+          habitIds: page.items.map((habit) => habit.id),
+          fromIso,
+          toIso: calendar.todayIso,
+        });
+  const byHabit = completionsByHabit(completions);
+
+  const habits = page.items.map((habit) =>
+    serializeHabit(habit, byHabit.get(habit.id) ?? new Set(), calendar, {
+      weekHistory: true,
+    }),
+  );
+
+  let weekExpected = 0;
+  let weekCompleted = 0;
+  let consistencyExpected = 0;
+  let consistencyCompleted = 0;
+  let dueTodayCount = 0;
+  let openTodayCount = 0;
+  let doneTodayCount = 0;
+  let completedThisWeek = 0;
+
+  const goals = new Map<
+    string,
+    { title: string; habits: { id: string; title: string }[] }
+  >();
+
+  for (const habit of page.items) {
+    const dates = byHabit.get(habit.id) ?? new Set<string>();
+    const facts = habitFactsFor(habit, dates);
+    const reading = evaluateHabitWeek(facts, calendar, week.startIso);
+    weekExpected += reading.expected;
+    weekCompleted += reading.completed;
+
+    const consistency = evaluateHabitConsistency(facts, calendar, fromIso);
+    consistencyExpected += consistency.expected;
+    consistencyCompleted += consistency.completed;
+
+    // Every check-in inside the owner's current calendar week — the recorded
+    // count, not the expected one, because "completed this week" is a tally of
+    // what happened and a Habit may be checked on a day it was not asked for.
+    for (const dateIso of dates) {
+      if (dateIso >= week.startIso && dateIso <= week.endIso)
+        completedThisWeek += 1;
+    }
+  }
+
+  for (const habit of habits) {
+    if (habitDueToday(habit)) dueTodayCount += 1;
+    if (habitOpenToday(habit)) openTodayCount += 1;
+    if (habit.today.done) doneTodayCount += 1;
+    if (habit.goal !== null) {
+      const bucket = goals.get(habit.goal.id) ?? {
+        title: habit.goal.title,
+        habits: [],
+      };
+      bucket.habits.push({ id: habit.id, title: habit.title });
+      goals.set(habit.goal.id, bucket);
+    }
+  }
+
+  return {
+    habits,
+    truncated: page.hasMore,
+    activeCount: habits.length,
+    dueTodayCount,
+    openTodayCount,
+    doneTodayCount,
+    completedThisWeek,
+    weekExpected,
+    weekCompleted,
+    consistencyFromIso: fromIso,
+    consistencyExpected,
+    consistencyCompleted,
+    consistencyPercent: habitConsistencyPercent({
+      expected: consistencyExpected,
+      completed: consistencyCompleted,
+    }),
+    goals: [...goals.entries()].map(([id, value]) => ({
+      id,
+      title: value.title,
+      habits: value.habits,
+    })),
+  };
 }
 
 /* -------------------------------------------------------------------------- */

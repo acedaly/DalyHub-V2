@@ -188,10 +188,14 @@ test("a saved view is offered as the PLANNING QUEUE's source", async ({
   await saveCurrentView(page, VIEW);
 
   await gotoFixture(page, "/plan");
-  const source = page.getByTestId("plan-queue-source");
-  // "Suggested" first, then the owner's views.
-  await expect(source).toContainText("Suggested");
-  await expect(source.getByRole("option", { name: VIEW })).toHaveCount(1);
+  /*
+   * UX-02 draws the sources as CHIPS rather than as a select (Mockup 7), and they
+   * are LINKS — one real URL per source. The assertion is unchanged in substance:
+   * "Suggested" is offered first, and the owner's saved view is offered beside it.
+   */
+  const sources = page.getByTestId("plan-queue-source");
+  await expect(sources.first()).toHaveText("Suggested");
+  await expect(sources.filter({ hasText: VIEW })).toHaveCount(1);
 });
 
 test("the SAME saved view returns the same Task set in Tasks and in Planning", async ({
@@ -212,9 +216,11 @@ test("the SAME saved view returns the same Task set in Tasks and in Planning", a
   const inTasks = await taskTitles(page);
   expect(inTasks.length).toBeGreaterThan(0);
 
-  // The same view, as the planning queue's source.
+  // The same view, as the planning queue's source. Choosing it is a NAVIGATION
+  // since UX-02 — each source is its own URL — so the assertion that the URL
+  // carries `queue=` is now a consequence of the click rather than a side effect.
   await gotoFixture(page, "/plan");
-  await page.getByTestId("plan-queue-source").selectOption({ label: VIEW });
+  await page.getByTestId("plan-queue-source").filter({ hasText: VIEW }).click();
   await expect(page).toHaveURL(/queue=/);
   // Wait for the QUEUE to be the view's, not merely for the URL to say so. A
   // view-sourced queue carries ONE group whose `data-band` is `view` and whose
@@ -253,7 +259,14 @@ test("a `?queue=` naming a view that no longer exists degrades to Suggested", as
   page,
 }) => {
   await gotoFixture(page, "/plan?queue=tv_does_not_exist");
-  await expect(page.getByTestId("plan-queue-source")).toHaveValue("suggested");
+  /*
+   * The CHOSEN source is carried by `aria-current` — one attribute that is both
+   * the appearance and what assistive technology reads, so the two cannot
+   * disagree. A `?queue=` naming nothing falls back to the built-in rule.
+   */
+  await expect(
+    page.getByTestId("plan-queue-source").filter({ hasText: "Suggested" }),
+  ).toHaveAttribute("aria-current", "true");
   await expect(page.getByTestId("plan-queue")).toBeVisible();
 });
 

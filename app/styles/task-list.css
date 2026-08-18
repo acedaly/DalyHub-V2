@@ -1612,3 +1612,191 @@
     transition: none;
   }
 }
+
+/* ========================================================================== */
+/* UX-02 — the CARD presentation of the shared Task row                       */
+/*                                                                            */
+/* A VARIANT, not a second row. Same component, same markup, same controls,    */
+/* same canonical intents: `dh-tasklist--cards` changes the grid and the        */
+/* surface, and nothing else. `/plan`'s week board is its one consumer, and     */
+/* the reason it exists is geometric — MEASURED at 1440, a day column is 133px, */
+/* which is narrower than any tier of the desktop row's column grid and         */
+/* narrower even than the 12rem reflow tier HARDEN-05 added for a 200%-zoomed   */
+/* phone. A column that narrow cannot hold a row; it can hold a card.           */
+/*                                                                            */
+/* Two departures from DS-04 are deliberate and stated here rather than         */
+/* discovered later:                                                           */
+/*                                                                            */
+/*   1. IT HAS A SURFACE. DS-04's rule is that a task row has no card of its    */
+/*      own, and that rule still governs `/tasks`, Today and a Project. On a    */
+/*      board a card is what makes a task read as a thing PLACED ON a day       */
+/*      rather than as a line of text near a date, and it is what the concept   */
+/*      draws (Mockup 7).                                                      */
+/*   2. THE TITLE WRAPS TO THREE LINES instead of truncating. §10's rule is     */
+/*      that metadata yields before the title does; at 133px there is no        */
+/*      metadata left to yield, so the title takes the height it needs. Three   */
+/*      lines, then it truncates — an unbounded title would let one card push   */
+/*      a column past the board.                                               */
+/* ========================================================================== */
+
+.dh-tasklist--cards .dh-tasklist__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+/*
+ * TWO tracks, and the declaration has to live on the ROW.
+ *
+ * `--taskrow-columns` is declared on the list and inherited — except that the
+ * narrow container-query tiers redeclare it on `.dh-taskrow` itself, and a
+ * value set on the element always beats one it inherits however specific the
+ * list's selector is. MEASURED before this moved: the card's computed template
+ * was `36px 47.3px 0px` — the 34rem tier's three tracks, with the trailing
+ * actions column at zero and the title squeezed to 47px.
+ */
+.dh-tasklist--cards .dh-taskrow {
+  --taskrow-columns: auto minmax(0, 1fr);
+
+  grid-template-columns: var(--taskrow-columns);
+  grid-template-areas:
+    "lead main"
+    "meta meta";
+  align-items: start;
+  column-gap: var(--dh-space-1);
+  row-gap: var(--dh-space-1);
+  min-block-size: 0;
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/* The list's hairline, cancelled — including on the last row, where DS-04
+ * already drops it. */
+.dh-tasklist--cards .dh-taskrow,
+.dh-tasklist--cards .dh-taskrow:last-child {
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-tasklist--cards .dh-taskrow[data-selected="true"] {
+  border-color: var(--dh-color-accent);
+}
+
+.dh-tasklist--cards .dh-taskrow__lead {
+  grid-area: lead;
+  align-self: start;
+  /* The lead holds ONE control here (a card in the board is never in selection
+   * mode), so its inter-control gap is 8px of a 73px title. */
+  gap: 0;
+}
+
+/*
+ * The completion target, narrowed on the SAME bargain the row already strikes
+ * for its block size (task-signals.css): the input must be precise AND the frame
+ * must be the desktop one. 28×28 still contains the 24×24 square WCAG 2.2 SC
+ * 2.5.8 (AA) asks for, with room on both axes; SC 2.5.5's 44px is a TOUCH
+ * guideline, and every pixel of it is kept wherever a thumb can reach — on a
+ * coarse pointer, and below `md`, where the board is not drawn at all and the
+ * phone shows the full-width row instead.
+ *
+ * Without this the 45px target alone takes a third of a 133px column.
+ */
+@media (pointer: fine) and (min-width: 48rem) {
+  .dh-tasklist--cards .dh-check-circle-target,
+  .dh-tasklist--cards .dh-taskrow__select {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    margin-inline: 0;
+  }
+}
+
+.dh-tasklist--cards .dh-taskrow__main {
+  grid-area: main;
+  align-items: start;
+  min-width: 0;
+}
+
+/* Three lines, then truncate. `overflow-wrap: anywhere` so a single long word
+ * (a ticket id, a URL) breaks inside the column instead of widening it. */
+.dh-tasklist--cards .dh-taskrow__title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+/* The metadata takes a row of its own beneath the title and WRAPS in it: at this
+ * width the priority mark and the project cell cannot share a line with the
+ * title, and nothing is hidden. */
+.dh-tasklist--cards .dh-taskrow__meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-1) var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+.dh-tasklist--cards .dh-taskrow__cell {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+/* With a line of its own there is no trailing edge to pin the priority mark to,
+ * and the auto margin would push it onto a line by itself. */
+.dh-tasklist--cards .dh-taskrow__cell--priority {
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+}
+
+/*
+ * The due date yields, and it is the ONLY thing that does.
+ *
+ * A card in a day column already says WHEN it is planned — the column is the
+ * date — so the planned/due pair that a row needs is one fact of context here.
+ * The date stays in the DOM and stays in the accessible reading; it is the
+ * drawing that yields, and the row's overflow menu still opens the same date
+ * control.
+ */
+.dh-tasklist--cards .dh-taskrow__cell--due {
+  display: none;
+}
+
+/*
+ * The overflow menu is POSITIONED rather than tracked.
+ *
+ * `position: absolute` takes it out of the grid, so the card's geometry is
+ * identical with it and without it — the same device the row's swipe tray uses.
+ * It is revealed on hover and on focus-within, and `:focus-visible` inside is
+ * what keeps it reachable by keyboard rather than hover-only.
+ */
+.dh-tasklist--cards .dh-taskrow__actions {
+  position: absolute;
+  inset-block-start: var(--dh-space-px);
+  inset-inline-end: var(--dh-space-px);
+  opacity: 0;
+}
+
+.dh-tasklist--cards .dh-taskrow:hover .dh-taskrow__actions,
+.dh-tasklist--cards .dh-taskrow:focus-within .dh-taskrow__actions {
+  opacity: 1;
+}
+
+/* A pointer that cannot hover has no reveal to wait for. */
+@media (hover: none) {
+  .dh-tasklist--cards .dh-taskrow__actions {
+    opacity: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .dh-tasklist--cards .dh-taskrow__actions {
+    opacity: 1;
+  }
+}
