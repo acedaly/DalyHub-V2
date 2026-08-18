@@ -104,6 +104,7 @@ describe("module discovery", () => {
         "meetings",
         "notes",
         "people",
+        "plan",
         "projects",
         "reviews",
         "settings",
@@ -115,11 +116,13 @@ describe("module discovery", () => {
 
     it("assembles a valid registry with the spine capability metadata", () => {
       const registry = discoverModuleRegistry();
-      // Today (order 5) sorts ahead of the four spine modules (order 10–40),
-      // which sort ahead of PX-03's placeholder modules (order 100–310, grouped
-      // capture/insight/system as declared in their manifests).
+      // Today (order 5) sorts ahead of Weekly Planning (order 7, PLAN-01) and
+      // both ahead of the four spine modules (order 10–40), which sort ahead of
+      // PX-03's placeholder modules (order 100–310, grouped capture/insight/
+      // system as declared in their manifests).
       expect(registry.listModules().map((m) => m.id)).toEqual([
         "today",
+        "plan",
         "areas",
         "goals",
         "projects",
@@ -208,6 +211,9 @@ describe("module discovery", () => {
           moduleId: "today",
           file: "routes/schedule.tsx",
         },
+        // PLAN-01 adds Weekly Planning: ONE navigable route, and deliberately no
+        // action route — every write leaves through the canonical Task routes.
+        { id: "plan.index", moduleId: "plan", file: "routes/index.tsx" },
         { id: "areas.index", moduleId: "areas", file: "routes/index.tsx" },
         { id: "areas.new", moduleId: "areas", file: "routes/new.tsx" },
         {
@@ -635,6 +641,10 @@ describe("module discovery", () => {
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
         "today.open_waiting",
+        // PLAN-01 — two NAVIGATION commands, so "plan next week" is a sentence the
+        // palette answers.
+        "plan.open",
+        "plan.open_next_week",
         // V2.0.1 navigation commands, in module order (Areas 10 → Goals 20 →
         // Projects 30) ahead of Tasks at 40. Goals contributes NO create
         // command on purpose: a Goal is created from an Area record (the only

@@ -85,7 +85,11 @@ describe("buildPlanningQueue", () => {
       placedIds: new Set(),
       limit: 10,
     });
-    expect(queue.entries.map((entry) => entry.task.id)).toEqual(["c", "a", "b"]);
+    expect(queue.entries.map((entry) => entry.task.id)).toEqual([
+      "c",
+      "a",
+      "b",
+    ]);
   });
 
   it("gives a task ONE band — its highest-priority one — and never two rows", () => {

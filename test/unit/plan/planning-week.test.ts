@@ -71,10 +71,9 @@ describe("planningWeek", () => {
     });
     expect(week.days.filter((day) => day.isToday)).toHaveLength(1);
     expect(week.days.find((day) => day.isToday)?.dateIso).toBe("2026-08-19");
-    expect(week.days.filter((day) => day.isPast).map((d) => d.dateIso)).toEqual([
-      "2026-08-17",
-      "2026-08-18",
-    ]);
+    expect(week.days.filter((day) => day.isPast).map((d) => d.dateIso)).toEqual(
+      ["2026-08-17", "2026-08-18"],
+    );
   });
 
   it("names the weekend without relying on colour", () => {

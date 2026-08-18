@@ -23,7 +23,11 @@ import { join } from "node:path";
 import { test, type Page } from "@playwright/test";
 
 import { gotoFixture } from "./helpers";
-import { clearPlanFixture, planFixture, seedPlanFixture } from "./plan-fixtures";
+import {
+  clearPlanFixture,
+  planFixture,
+  seedPlanFixture,
+} from "./plan-fixtures";
 
 const OUTPUT = join(process.cwd(), "test-results", "v2-3-plan-smart-01");
 
@@ -78,9 +82,11 @@ async function measure(page: Page, name: string) {
     // Only the controls that are actually RENDERED: the phone day rail does not
     // exist above the phone tier, and a `display: none` element measures 0×0 —
     // which would report a touch-target failure for a control that is not there.
-    const targets = [...document.querySelectorAll<HTMLElement>(
-      '[data-testid="plan-place-day"], [data-testid="plan-rail-day"]',
-    )]
+    const targets = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-testid="plan-place-day"], [data-testid="plan-rail-day"]',
+      ),
+    ]
       .map((node) => {
         const rect = node.getBoundingClientRect();
         return {
@@ -89,9 +95,10 @@ async function measure(page: Page, name: string) {
         };
       })
       .filter((box) => box.width > 0 && box.height > 0);
-    const firstTitle = document.querySelector(
-      '[data-testid="plan-day"][data-selected="true"] .dh-taskrow__title',
-    ) ?? document.querySelector('.dh-plan__week .dh-taskrow__title');
+    const firstTitle =
+      document.querySelector(
+        '[data-testid="plan-day"][data-selected="true"] .dh-taskrow__title',
+      ) ?? document.querySelector(".dh-plan__week .dh-taskrow__title");
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       document: {
@@ -112,7 +119,8 @@ async function measure(page: Page, name: string) {
           ? null
           : Math.round(firstTitle.getBoundingClientRect().width),
       firstActionableY:
-        box('[data-testid="plan-day"][data-selected="true"] .dh-taskrow')?.top ??
+        box('[data-testid="plan-day"][data-selected="true"] .dh-taskrow')
+          ?.top ??
         box('[data-testid="plan-day"] .dh-taskrow')?.top ??
         null,
       dayControlTargets: targets,

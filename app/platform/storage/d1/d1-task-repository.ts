@@ -2060,9 +2060,7 @@ export class D1TaskRepository implements TaskRepository {
         filterPriorities.includes(null) || explicit.includes("p4");
       const clauses: string[] = [];
       if (explicit.length > 0) {
-        clauses.push(
-          `td.priority IN (${explicit.map(() => "?").join(", ")})`,
-        );
+        clauses.push(`td.priority IN (${explicit.map(() => "?").join(", ")})`);
         params.push(...explicit);
       }
       if (wantsNull) clauses.push("td.priority IS NULL");

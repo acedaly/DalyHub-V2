@@ -16,7 +16,12 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
 } from "./helpers";
-import { clearPlanFixture, planFixture, seedPlanFixture, type PlanFixture } from "./plan-fixtures";
+import {
+  clearPlanFixture,
+  planFixture,
+  seedPlanFixture,
+  type PlanFixture,
+} from "./plan-fixtures";
 
 /** Every width in the matrix, from the widest desktop to the narrowest phone. */
 const WIDTHS = [
@@ -58,24 +63,24 @@ async function visibleControlBoxes(
       '[data-testid="plan-queue-source"]',
       ".dh-plan__weeknav-link",
     ];
-    return [
-      ...document.querySelectorAll<HTMLElement>(selectors.join(", ")),
-    ]
-      .map((node) => {
-        const rect = node.getBoundingClientRect();
-        return {
-          label:
-            node.getAttribute("aria-label") ??
-            node.textContent?.trim().slice(0, 40) ??
-            node.tagName,
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-        };
-      })
-      // A control that is not RENDERED has no target to measure: the day rail
-      // does not exist above the phone tier, and a `display: none` day section
-      // contributes nothing.
-      .filter((box) => box.width > 0 && box.height > 0);
+    return (
+      [...document.querySelectorAll<HTMLElement>(selectors.join(", "))]
+        .map((node) => {
+          const rect = node.getBoundingClientRect();
+          return {
+            label:
+              node.getAttribute("aria-label") ??
+              node.textContent?.trim().slice(0, 40) ??
+              node.tagName,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          };
+        })
+        // A control that is not RENDERED has no target to measure: the day rail
+        // does not exist above the phone tier, and a `display: none` day section
+        // contributes nothing.
+        .filter((box) => box.width > 0 && box.height > 0)
+    );
   });
 }
 
@@ -85,7 +90,9 @@ for (const size of WIDTHS) {
   }) => {
     await page.setViewportSize({ width: size.width, height: size.height });
     await gotoFixture(page, "/plan");
-    await expect(page.getByRole("heading", { name: "Weekly planning" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Weekly planning" }),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 }
@@ -98,18 +105,20 @@ test("shows all seven days above the phone tier and exactly ONE below it", async
   // Every day is drawn, so a desktop reader sees the shape of the week.
   await expect(page.getByTestId("plan-day")).toHaveCount(7);
   for (const day of fixture.tasks) void day;
-  await expect(
-    page.locator('[data-testid="plan-day"]:visible'),
-  ).toHaveCount(7);
+  await expect(page.locator('[data-testid="plan-day"]:visible')).toHaveCount(7);
   // The day rail is a phone affordance and does not exist here.
-  await expect(page.locator('[data-testid="plan-rail-day"]:visible')).toHaveCount(0);
+  await expect(
+    page.locator('[data-testid="plan-rail-day"]:visible'),
+  ).toHaveCount(0);
 
   await page.setViewportSize({ width: 393, height: 852 });
   await gotoFixture(page, "/plan");
   // One day, and a rail to move between them. The other six are `display: none`,
   // so they are out of the accessibility tree too — not readable-but-invisible.
   await expect(page.locator('[data-testid="plan-day"]:visible')).toHaveCount(1);
-  await expect(page.locator('[data-testid="plan-rail-day"]:visible')).toHaveCount(7);
+  await expect(
+    page.locator('[data-testid="plan-rail-day"]:visible'),
+  ).toHaveCount(7);
 });
 
 test("the phone day rail moves the day, by pointer and by keyboard", async ({
@@ -130,7 +139,9 @@ test("the phone day rail moves the day, by pointer and by keyboard", async ({
   await expect(shown).toHaveCount(1);
   await expect(shown).toHaveAttribute(
     "data-date",
-    await friday.getAttribute("aria-controls").then((id) => id!.replace("plan-day-", "")),
+    await friday
+      .getAttribute("aria-controls")
+      .then((id) => id!.replace("plan-day-", "")),
   );
 
   // …and the same by keyboard alone.
@@ -180,11 +191,15 @@ test.describe("the phone's touch targets", () => {
   });
 });
 
-test("reflows at 200% zoom without a horizontal scrollbar", async ({ page }) => {
+test("reflows at 200% zoom without a horizontal scrollbar", async ({
+  page,
+}) => {
   // WCAG 2.2 §1.4.10 reflow: 1280 CSS pixels at 200% is a 640px viewport.
   await page.setViewportSize({ width: 640, height: 512 });
   await gotoFixture(page, "/plan");
-  await expect(page.getByRole("heading", { name: "Weekly planning" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Weekly planning" }),
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
   // The week is still readable and still one day at a time — reflow must not mean
   // "the surface disappears".

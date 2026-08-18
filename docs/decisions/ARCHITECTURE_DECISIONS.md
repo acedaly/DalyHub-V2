@@ -3371,3 +3371,119 @@ The question is real. The gallery is the right first impression of a workspace w
 - **Consequences.** *Easy:* a second collection opts in by passing its own `allowed` and `large`. *Easy:* the threshold moves in one place, and the unit tests state it in terms of the constant rather than the literal. *Accepted:* an owner whose workspace crosses forty sees their Projects page change shape once, unannounced. The alternative — asking — is a dialog on a page they came to for something else, and the change is one click and a shareable URL away from being undone permanently. *Accepted:* the presentation is now resolved after the counts read rather than beside the other URL parsing, which makes the loader's order load-bearing; the comment at the call site says so.
 
 - **Alternatives considered.** *Leave it open* (rejected: it had been open for three passes, and the register is where decisions go to be made, not to be deferred). *A stored preference* (rejected by decision 2: REDESIGN-04 §5.4 already refused a new persistence mechanism for this toggle, and a stored preference would also make the choice unshareable). *Ask the owner once, with a banner* (rejected: a modal question on a page opened for another purpose, to settle something a single click already settles). *Switch on the LOADED page size rather than the scope total* (rejected: the page is a keyset page of a fixed size, so it would answer "is this the first page?" rather than "how big is this collection?"). *A workspace-wide total rather than the scope's* (rejected by decision 4: it would put "Archived (3)" in a table because "Active" has two hundred).
+
+---
+
+## ADR-101: Weekly Planning is a PROJECTION, not a record — the owner's calendar week, a named-band queue, and one declarative filter vocabulary with two consumers
+
+**Status.** Accepted (V2.3 PLAN-01 + SMART-01, 17 August 2026). Builds on
+[ADR-030](#adr-030-task-planning--the-scheduled-date-is-the-commitment) (the scheduled date IS the commitment),
+[ADR-043](#adr-043-the-tasks-collection) §3 (planned and due are different fields with different meanings),
+[ADR-059](#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration) (the declarative view configuration),
+[ADR-082](#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract) (one saved-view system, keyed by kind) and
+[ADR-086](#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) (presentation may lead the server; claims of success may not).
+Full record: [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md).
+
+**Context.** V2.2 ends at execution. The Weekly Review is retrospective and says
+so in as many words — *"Nothing is scheduled or changed for you"* — which is right
+for a Review and leaves the owner with no surface that answers *what am I
+committing to this week, and on which days?* Building one raises exactly the
+questions this product has answered badly elsewhere: whether a plan is a record,
+whose "week" it is, what decides the order of a suggestion list, and whether a
+saved filter becomes a second query engine the moment a second surface wants one.
+
+- **Decision 1 — a week is a PROJECTION, and Tasks remain the one planning
+  record.** There is no `PlanningTask`, no week row, no new table and no
+  migration. `task_details.scheduled_date` already IS the plan (ADR-030), written
+  by the canonical planning path since TODAY-04 and read by Today, `/tasks`, the
+  Task record and the forward agenda. A second record would need a reconciliation
+  rule for every edit made anywhere else in the product, and every one of those
+  rules is a place two records can disagree about what the owner committed to. It
+  is also what makes "use the same Tasks in Today afterwards" true by
+  construction rather than by feature.
+
+- **Decision 2 — `/plan` has NO mutation authority.** It has no action route.
+  Every write leaves through the canonical client posters to `POST /tasks/:id` and
+  `POST /tasks/bulk` — the same routes every other Task surface posts to. The
+  per-surface reconciliation policy (patch map, rollback, announcement,
+  revalidation) is the SHARED `useTaskSurfaceActions`, promoted out of the Today
+  module unchanged: it was never Today-specific, it is the policy for a bounded
+  task surface, and Weekly Planning is the second one. A second copy of it would
+  be two surfaces that disagree about whether a refused write was rolled back.
+
+- **Decision 3 — the planning week is the OWNER's calendar week, and the rolling
+  window is not a rival.** DalyHub had two week conventions and they answer
+  different questions: the `firstDayOfWeek` preference (which a weekly Review's
+  period already uses) and the preference-free rolling `today … today + 6` window
+  behind `due_this_week`. Planning takes the first, because REVIEW → PLAN is its
+  premise and a planner whose "next week" started on a different day from the
+  Review that handed it over would be lying. The rolling window is untouched, and
+  both are now stated together in one module so the distinction stops being
+  rediscovered. Navigation is bounded to previous/this/next: an operational
+  planner, not a calendar application (CAL-01 §21, §45).
+
+- **Decision 4 — "Still to place" is a set of named BANDS, never a score.** Five
+  bands in a declared priority order — overdue, plan lapsed, due this week, high
+  priority, unfiled — each a bounded query over the canonical read model, each
+  Task in exactly one, and the band printed as the group's heading. A weighted
+  importance score would be unarguable in the wrong way: the owner could see the
+  order and never the reason, and no test could assert anything but the
+  arithmetic. Work already placed in the shown week is never queued; the queue is
+  bounded and truncation is REPORTED with the way to narrow it named.
+
+- **Decision 5 — the calendar is CONTEXT, and stays read-only.** The existing
+  unified schedule projection, read once for the whole week. Occurrences are drawn
+  as text; they are not interactive, are never converted into Tasks, and nothing
+  is written to any calendar. No availability is invented and no time blocking is
+  offered.
+
+- **Decision 6 — a new `open` system view, because a planner must not hide a
+  commitment.** `active` excludes both parked states, which would drop a Task
+  planned for Wednesday and waiting on someone from Wednesday. `open` excludes the
+  three states that are not commitments (completed, cancelled, Someday/Maybe) and
+  keeps waiting and on-hold. It is also a built-in Tasks view: a scope with no
+  view of its own falls back to another view's configuration and reports itself as
+  "Custom", which is the failure UIX-01 fixed for the other scopes.
+
+- **Decision 7 — SMART-01 converges on the EXISTING declarative configuration; it
+  does not add a filter model.** DEBT-49 already settled the rule — a collection
+  whose filters are executed by a repository, and any collection with saved views,
+  uses the declarative view configuration. So the saved "smart list" IS the
+  existing saved Tasks view: same table, same repository, same codec, no
+  migration. What was added is CAPABILITY inside that model (a multi-value
+  priority set, explicit due and planned windows, a repeats filter) and a SECOND
+  CONSUMER: Weekly Planning's queue runs a chosen saved view through the same
+  `listWorkspaceTasks` with the same translation `/tasks` uses. A priority set is
+  one dimension with more than one accepted value, not a nested OR clause: the
+  members come from a closed vocabulary and the repository still chooses the
+  predicate, so nothing about the persisted contract gains an operator, a nesting
+  level or a field name.
+
+- **Decision 8 — the product's noun stays "saved view".** "Smart list" is not
+  introduced as a synonym. AGENTS.md §7 forbids exactly that drift, and the
+  concept already exists under a name the switcher, the route, the repository and
+  the documentation all use. The roadmap item keeps its id; the product keeps its
+  word.
+
+- **Decision 9 — no drag-and-drop, and no dependency added for one.** The stack
+  ships none, and the accessible path has to be complete on its own. Placement is
+  select-then-choose-a-day (one atomic bulk mutation, each day named in words) plus
+  per-row day items in the SHARED row-actions menu. A drag would have been an
+  enhancement over a complete keyboard path; adding a library to build the
+  enhancement first is how the keyboard path ends up second.
+
+- **Decision 10 — the week is an AGENDA, and the decision is a measurement.** At
+  1440 a seven-column board leaves ~100px per day after the queue rail, which is
+  narrower than a task title. The agenda gives every title 254px, gives the phone
+  the same DOM as a day rail plus one day, and is recorded with its numbers in the
+  design document rather than as a preference.
+
+**Consequences.** Weekly Planning stores nothing and can therefore never drift
+from Tasks; the acceptance claim "the same Tasks in Today afterwards" is
+structural. A future planning feature that needs its own state — a draft week, a
+capacity model, an AI proposal — needs a new ADR, because this one is explicitly
+the decision NOT to have planning state. The `open` view and the four new filter
+dimensions widen two closed vocabularies, which is append-only and lenient-parsed
+in both the URL and stored configs; existing cursors, links and saved views are
+unaffected. The shared collection-control model now supports multi-select, which
+every other collection may use and none is changed by.

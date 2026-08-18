@@ -61,19 +61,19 @@ describe("the planning loader's bounds", () => {
      * file, this asserts the loader's shape directly — every `await scope.` sits
      * at the top level of a function or inside a `Promise.all([…])`.
      */
-     const lines = SOURCE.split("\n");
-     let loopDepth = 0;
-     const offenders: string[] = [];
-     for (const line of lines) {
-       const trimmed = line.trim();
-       if (/^(for|while)\s*\(/.test(trimmed)) loopDepth += 1;
-       // A closing brace at the start of a line ends the innermost block; this is
-       // deliberately coarse and errs towards flagging, which is the safe side.
-       if (loopDepth > 0 && /^\}/.test(trimmed)) loopDepth -= 1;
-       if (loopDepth > 0 && /await\s+(scope|soft\(scope)/.test(trimmed)) {
-         offenders.push(trimmed);
-       }
-     }
+    const lines = SOURCE.split("\n");
+    let loopDepth = 0;
+    const offenders: string[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (/^(for|while)\s*\(/.test(trimmed)) loopDepth += 1;
+      // A closing brace at the start of a line ends the innermost block; this is
+      // deliberately coarse and errs towards flagging, which is the safe side.
+      if (loopDepth > 0 && /^\}/.test(trimmed)) loopDepth -= 1;
+      if (loopDepth > 0 && /await\s+(scope|soft\(scope)/.test(trimmed)) {
+        offenders.push(trimmed);
+      }
+    }
     expect(offenders).toEqual([]);
   });
 

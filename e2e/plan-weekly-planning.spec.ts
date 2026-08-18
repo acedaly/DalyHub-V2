@@ -78,7 +78,9 @@ test("opens on the owner's current planning week", async ({ page }) => {
   // Seven day sections, one per day of the owner's week, in order.
   const dates = await page
     .getByTestId("plan-day")
-    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-date")));
+    .evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute("data-date")),
+    );
   expect(dates).toEqual(
     Array.from({ length: 7 }, (_, index) => addDays(fixture.weekStart, index)),
   );
@@ -137,19 +139,37 @@ test("placing an unplaced task sets its PLANNED date and leaves the deadline alo
 }) => {
   await gotoFixture(page, "/plan");
 
-  const due = fixture.task("due");
+  /*
+   * The `overdue` band's fixture task, deliberately.
+   *
+   * The queue is BOUNDED at fifteen and the committed E2E workspace is heavy, so
+   * on it the first band fills the queue — which is the product being right, not
+   * a defect. A journey that reached for a later band would be asserting the
+   * bound rather than the behaviour. The band RULE (order, one-band-per-task,
+   * the placed exclusion, the bound) is proven exhaustively in
+   * `test/unit/plan/planning-queue.test.ts`, and each band's QUERY in
+   * `test/kernel/plan-task-filters.test.ts`.
+   */
+  const overdue = fixture.task("unplaced");
   const target = addDays(fixture.weekStart, 3);
   const queue = page.getByTestId("plan-queue");
 
-  // The queue shows it, with the REASON in words.
-  const entry = queue
-    .locator(".dh-plan__queue-item")
-    .filter({ hasText: due.title });
-  await expect(entry).toContainText("Due this week");
+  // The queue shows it, in the group whose heading STATES the reason. The band is
+  // a property of a GROUP of tasks, so the word is drawn once above them rather
+  // than repeated on every row.
+  const band = page.locator(
+    '[data-testid="plan-queue-group"][data-band="overdue"]',
+  );
+  await expect(band).toContainText("Overdue");
+  await expect(
+    band.getByRole("link", { name: `Open ${overdue.title}` }),
+  ).toBeVisible();
 
   // Select it, then choose a day. No drag anywhere in this journey.
   await queue
-    .getByRole("checkbox", { name: `Select ${due.title} to place on a day` })
+    .getByRole("checkbox", {
+      name: `Select ${overdue.title} to place on a day`,
+    })
     .check();
   await page
     .locator(`[data-testid="plan-place-day"][data-date="${target}"]`)
@@ -158,19 +178,22 @@ test("placing an unplaced task sets its PLANNED date and leaves the deadline alo
   // It is now on that day…
   const targetSection = daySection(page, target);
   await expect(
-    targetSection.getByRole("link", { name: `Open ${due.title}` }),
+    targetSection.getByRole("link", { name: `Open ${overdue.title}` }),
   ).toBeVisible();
   // …and out of the queue: it is placed, so it is no longer waiting on a
   // decision. That rule holds for every band, from one place.
   await expect(
-    queue.getByRole("link", { name: `Open ${due.title}` }),
+    queue.getByRole("link", { name: `Open ${overdue.title}` }),
   ).toHaveCount(0);
 
   // The DEADLINE did not move. Read from the canonical Tasks surface, filtered to
   // the deadline the fixture set — if planning had rewritten the due date this
   // would be empty.
-  await gotoFixture(page, `/tasks?system=open&dueFrom=${due.dueDate}&dueTo=${due.dueDate}`);
-  await expect(taskRow(page, due.title)).toHaveCount(1);
+  await gotoFixture(
+    page,
+    `/tasks?system=open&dueFrom=${overdue.dueDate}&dueTo=${overdue.dueDate}`,
+  );
+  await expect(taskRow(page, overdue.title)).toHaveCount(1);
 });
 
 test("a change made in Planning is the same Task in Tasks and Today", async ({
@@ -183,7 +206,9 @@ test("a change made in Planning is the same Task in Tasks and Today", async ({
   const queue = page.getByTestId("plan-queue");
 
   await queue
-    .getByRole("checkbox", { name: `Select ${unplaced.title} to place on a day` })
+    .getByRole("checkbox", {
+      name: `Select ${unplaced.title} to place on a day`,
+    })
     .check();
   await page
     .locator(`[data-testid="plan-place-day"][data-date="${today}"]`)
@@ -216,9 +241,7 @@ test("clearing a plan returns the task to the planning queue", async ({
   await mondaySection
     .getByRole("button", { name: `More actions for ${monday.title}` })
     .click();
-  await page
-    .getByRole("menuitem", { name: "Remove the planned date" })
-    .click();
+  await page.getByRole("menuitem", { name: "Remove the planned date" }).click();
 
   // Off the day…
   await expect(

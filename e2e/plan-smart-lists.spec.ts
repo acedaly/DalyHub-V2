@@ -11,7 +11,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { gotoFixture, taskRow } from "./helpers";
+import { gotoFixture } from "./helpers";
 import {
   clearPlanFixture,
   clearPlanSavedViews,
@@ -56,7 +56,9 @@ async function saveCurrentView(page: Page, name: string): Promise<void> {
 async function taskTitles(page: Page): Promise<string[]> {
   return page
     .getByTestId("task-row-open")
-    .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
+    .evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent?.trim() ?? ""),
+    );
 }
 
 test("a priority SET is one filter, and it is shareable", async ({ page }) => {
@@ -72,9 +74,7 @@ test("a priority SET is one filter, and it is shareable", async ({ page }) => {
 
   // Removing ONE chip leaves the other applied — the whole reason a set needs its
   // own removal semantics.
-  await chips
-    .getByRole("link", { name: "Remove filter Priority: P1" })
-    .click();
+  await chips.getByRole("link", { name: "Remove filter Priority: P1" }).click();
   await expect(page).toHaveURL(/priority=p2/);
   await expect(page).not.toHaveURL(/priority=p1/);
 
@@ -227,7 +227,9 @@ test("the SAME saved view returns the same Task set in Tasks and in Planning", a
   const inPlanning = await page
     .getByTestId("plan-queue")
     .getByTestId("task-row-open")
-    .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
+    .evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent?.trim() ?? ""),
+    );
 
   /*
    * Equivalent, not identical: Planning applies exactly ONE rule on top of the
@@ -240,7 +242,9 @@ test("the SAME saved view returns the same Task set in Tasks and in Planning", a
   const placedThisWeek = await page
     .locator(".dh-plan__week")
     .getByTestId("task-row-open")
-    .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() ?? ""));
+    .evaluateAll((nodes) =>
+      nodes.map((node) => node.textContent?.trim() ?? ""),
+    );
   const expected = inTasks.filter((title) => !placedThisWeek.includes(title));
   expect(inPlanning.sort()).toEqual(expected.sort());
 });

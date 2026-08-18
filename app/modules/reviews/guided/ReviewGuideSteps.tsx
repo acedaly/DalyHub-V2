@@ -706,8 +706,8 @@ export function FocusStep({
         </p>
         <p className="dh-review-guide__note">
           Nothing is scheduled or changed for you. Writing a focus never creates
-          a Task or edits a Project — and Weekly planning shows this focus beside
-          the week without copying it, so you decide what happens next.
+          a Task or edits a Project — and Weekly planning shows this focus
+          beside the week without copying it, so you decide what happens next.
         </p>
       </section>
     </div>

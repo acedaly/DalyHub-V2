@@ -289,15 +289,15 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
 
       <div className="dh-plan__body">
         {/*
-          * A named SECTION, not a `main`.
-          *
-          * The application shell already owns the document's one `main`
-          * (`#main-content`), and a second one nested inside it is two WCAG
-          * failures at once — "more than one main landmark" and "main contained
-          * in another landmark". A labelled `section` is a region a screen-reader
-          * user can still jump to, which is the whole benefit this was reaching
-          * for.
-          */}
+         * A named SECTION, not a `main`.
+         *
+         * The application shell already owns the document's one `main`
+         * (`#main-content`), and a second one nested inside it is two WCAG
+         * failures at once — "more than one main landmark" and "main contained
+         * in another landmark". A labelled `section` is a region a screen-reader
+         * user can still jump to, which is the whole benefit this was reaching
+         * for.
+         */}
         <section className="dh-plan__week" aria-label="The week">
           {/*
            * The PHONE day rail.
@@ -308,7 +308,11 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
            * fetched, so moving day costs no request and reaches no date the page
            * does not hold.
            */}
-          <div className="dh-plan__rail dh-scroll-strip" role="tablist" aria-label="Days of the week">
+          <div
+            className="dh-plan__rail dh-scroll-strip"
+            role="tablist"
+            aria-label="Days of the week"
+          >
             {data.days.map((day) => {
               const current = day.dateIso === selectedDay;
               return (
@@ -488,18 +492,18 @@ function PlanFocus({
         Your focus for this week
       </h2>
       {/*
-        * The owner's own words, verbatim, in the SAME read-only treatment the
-        * Review's focus step draws them in. Not re-rendered as Markdown here: the
-        * planner is not a second reader of a Review, and a `pre` preserves the
-        * list the owner actually typed without this surface acquiring a
-        * Markdown pipeline of its own.
-        */}
+       * The owner's own words, verbatim, in the SAME read-only treatment the
+       * Review's focus step draws them in. Not re-rendered as Markdown here: the
+       * planner is not a second reader of a Review, and a `pre` preserves the
+       * list the owner actually typed without this surface acquiring a
+       * Markdown pipeline of its own.
+       */}
       <div className="dh-review-section-readonly dh-plan__focus-body">
         <pre>{focus.body}</pre>
       </div>
       <p className="dh-plan__focus-note">
-        From <Link to={`/reviews/${focus.reviewId}`}>{focus.reviewTitle}</Link> (
-        {focus.periodLabel}). Read from that Review, never copied — and nothing
+        From <Link to={`/reviews/${focus.reviewId}`}>{focus.reviewTitle}</Link>{" "}
+        ({focus.periodLabel}). Read from that Review, never copied — and nothing
         here is scheduled for you.
       </p>
     </section>
@@ -576,7 +580,10 @@ function PlanDaySection({
        * place an occurrence is read.
        */}
       {events.length > 0 ? (
-        <ul className="dh-plan__events" aria-label={`${day.fullLabel} calendar`}>
+        <ul
+          className="dh-plan__events"
+          aria-label={`${day.fullLabel} calendar`}
+        >
           {events.map((entry) => (
             <li
               className="dh-plan__event"

@@ -270,9 +270,19 @@ describe("existing Tasks saved views survive the generalisation", () => {
     const loaded = await tasks.get(OWNER, "legacy-1");
     expect(loaded).not.toBeNull();
     expect(loaded!.name).toBe("Legacy P1 work");
-    // The stored filters still produce the same query after the change.
+    /*
+     * The stored filters still produce the same query after the change — and
+     * SMART-01 made that claim stronger rather than weaker.
+     *
+     * This row was written with a single `priority` value, before the dimension
+     * became a SET. It reads back as a one-member set, which is the same query:
+     * the parse canonicalises the legacy shape, so every saved view and every
+     * shared `?priority=p1` link written before SMART-01 still means exactly
+     * Priority 1. Asserting the CANONICAL shape here is the point — if the parse
+     * ever stopped migrating the legacy value, this is where it would fail.
+     */
     expect(loaded!.config.filters).toEqual({
-      priority: "p1",
+      priorities: ["p1"],
       dueState: "overdue",
     });
     expect(loaded!.config.sort).toBe("due_date");
@@ -286,7 +296,9 @@ describe("existing Tasks saved views survive the generalisation", () => {
       }),
     });
     expect(updated.changed).toBe(true);
-    expect(updated.view.config.filters).toEqual({ priority: "p2" });
+    // The canonical SMART-01 shape, written back on update: a single value in,
+    // a one-member set stored, the same query out.
+    expect(updated.view.config.filters).toEqual({ priorities: ["p2"] });
     expect((await tasks.list(OWNER)).map((view) => view.id)).toContain(
       "legacy-1",
     );

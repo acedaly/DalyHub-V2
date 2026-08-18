@@ -228,7 +228,11 @@ function dateBound(value: unknown): string | undefined {
   const trimmed = value.trim();
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
   if (match === null) return undefined;
-  const utc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const utc = Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
   if (Number.isNaN(utc)) return undefined;
   // The components must round-trip, so `2026-02-31` never becomes 2026-03-03.
   return new Date(utc).toISOString().slice(0, 10) === trimmed
@@ -254,10 +258,10 @@ function priorityMembers(
       : [];
   const seen = new Set<string>();
   for (const entry of raw) {
-    const candidate = member(
-      typeof entry === "string" ? entry.trim() : entry,
-      [...TASK_PRIORITIES, "__none"] as const,
-    );
+    const candidate = member(typeof entry === "string" ? entry.trim() : entry, [
+      ...TASK_PRIORITIES,
+      "__none",
+    ] as const);
     if (candidate) seen.add(candidate);
   }
   if (seen.size === 0) return undefined;

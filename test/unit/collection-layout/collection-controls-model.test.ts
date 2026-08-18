@@ -196,6 +196,9 @@ describe("activeControls", () => {
         label: "Priority",
         value: "p1",
         valueLabel: "P1 · Urgent",
+        // SMART-01 — what the parameter holds after this chip is removed. Null
+        // for a single-select dimension, which removes itself entirely.
+        remainingValue: null,
         kind: "filter",
       },
       {
@@ -204,6 +207,7 @@ describe("activeControls", () => {
         label: "Sector",
         value: "this_week",
         valueLabel: "This week",
+        remainingValue: null,
         kind: "filter",
       },
     ]);

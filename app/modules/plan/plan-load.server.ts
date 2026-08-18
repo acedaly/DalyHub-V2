@@ -61,6 +61,7 @@ import {
 import type { TaskListItem } from "~/kernel/tasks";
 import {
   findTaskSystemView,
+  toWorkspaceFilters,
   type TaskDensity,
   type TaskSavedView,
   type TaskViewConfig,
@@ -75,8 +76,6 @@ import { ownerCalendarIso } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
 import { serializeTaskListItem } from "~/shared/task-record/task-view";
 import { formatPreferenceDate } from "~/kernel/preferences";
-
-import { toWorkspaceFilters } from "~/modules/tasks/tasks-url-state";
 
 import type {
   PlanDay,
@@ -276,7 +275,10 @@ export async function loadPlanPage(
   const plannedItems = [...plannedPage.items, ...completedPage.items];
   const placedIds = new Set(plannedItems.map((task) => task.id));
 
-  const activeSource = resolveQueueSource(input.requestedQueueSource, savedViews);
+  const activeSource = resolveQueueSource(
+    input.requestedQueueSource,
+    savedViews,
+  );
   const queueResult = await buildQueue({
     scope,
     week,
@@ -362,7 +364,9 @@ function resolveQueueSource(
   const own = savedViews.find((view) => view.id === requested);
   // A `?queue=` naming a view that no longer exists degrades to the built-in
   // rule rather than to an error — a deleted saved view must not break a page.
-  return own ? { id: own.id, view: own } : { id: SUGGESTED_QUEUE_SOURCE_ID, view: null };
+  return own
+    ? { id: own.id, view: own }
+    : { id: SUGGESTED_QUEUE_SOURCE_ID, view: null };
 }
 
 function suggestedSource(offset: number): PlanQueueSource {
@@ -510,7 +514,10 @@ async function buildQueue(input: {
 
   const band = (
     name: PlanningQueueBand,
-    page: { readonly items: readonly TaskListItem[]; readonly nextCursor: string | null },
+    page: {
+      readonly items: readonly TaskListItem[];
+      readonly nextCursor: string | null;
+    },
   ): PlanningQueueBandResult<TaskListItem> => ({
     band: name,
     items: page.items,
