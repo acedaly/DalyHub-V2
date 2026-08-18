@@ -45,7 +45,11 @@
  * is ticked.
  */
 
-import type { TaskListItem, TaskPriority } from "~/kernel/tasks";
+import type {
+  TaskChecklistProgress,
+  TaskListItem,
+  TaskPriority,
+} from "~/kernel/tasks";
 import { serializeTaskListItem } from "~/shared/task-record/task-view";
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 
@@ -105,9 +109,18 @@ export interface DayTask extends SerializedTaskListItem {
 export function toDayTask(
   item: TaskListItem,
   completedDate: string | null,
+  /**
+   * TASKS-13 — this Task's checklist progress, when the caller read it.
+   *
+   * Supplied rather than fetched, for the same reason `completedDate` is: the
+   * constructor must not be able to make a query, because it is called once per
+   * row and that is the definition of an N+1. The caller reads progress ONCE for
+   * the whole page and hands each row its entry.
+   */
+  progress?: TaskChecklistProgress,
 ): DayTask {
   return {
-    ...serializeTaskListItem(item),
+    ...serializeTaskListItem(item, progress),
     completed: item.completedAt !== null,
     completedDate,
   };

@@ -85,6 +85,18 @@ function patchFor(record: OfflineMutationRecord): TaskListItemPatch {
       return { dueDate: record.value };
     case "set_planned":
       return { scheduledDate: record.value };
+    case "set_checklist_completed":
+      /*
+       * TASKS-13 — a queued checklist tick changes NOTHING about the Task row.
+       *
+       * `TaskListItemPatch` describes fields the ROW draws, and a checklist item
+       * is not one of them: the row's progress figure comes from the server's
+       * bounded aggregate, and painting an optimistic count here would mean the
+       * client keeping a second opinion about a number it does not own. The row
+       * still says the Task is holding an unsent change, because the pending
+       * STATE below is keyed on the Task whatever the operation touched.
+       */
+      return {};
   }
 }
 

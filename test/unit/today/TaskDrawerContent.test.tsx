@@ -107,7 +107,15 @@ function stubFetch(options: StubOptions = {}) {
       return jsonResponse({ kind: "link", ok: true });
     }
     return jsonResponse(
-      options.detail ?? { task: TASK, links: [], todayIso: "2026-07-20" },
+      options.detail ?? {
+        task: TASK,
+        links: [],
+        // TASKS-13 — the record's loader payload carries its checklist. Empty
+        // here: these specs are about the drawer's Task behaviour, and the
+        // checklist has its own.
+        checklist: [],
+        todayIso: "2026-07-20",
+      },
       options.detailStatus ?? 200,
     );
   });

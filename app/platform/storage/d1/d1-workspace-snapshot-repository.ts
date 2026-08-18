@@ -355,6 +355,23 @@ const COLLECTIONS: CollectionDescriptors = {
       updatedAt: requiredText(row.updated_at),
     }),
   },
+  taskChecklistItems: {
+    table: "task_checklist_items",
+    columns: "id, task_id, title, position, completed, created_at, updated_at",
+    // The item's own id is the only stable identity it has, and the read order
+    // must be deterministic independently of `position` -- which a reorder
+    // rewrites, and which two exports of the same data must not disagree about.
+    order: ["id"],
+    map: (row) => ({
+      id: requiredText(row.id),
+      taskId: requiredText(row.task_id),
+      title: requiredText(row.title),
+      position: requiredInteger(row.position, 0),
+      completed: requiredInteger(row.completed, 0) === 1,
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
   noteDetails: {
     table: "note_details",
     columns: "entity_id, content, tags, archived_at, updated_at",

@@ -43,6 +43,23 @@ export const OFFLINE_REPLACE_OPERATIONS = [
   "set_priority",
   "set_due",
   "set_planned",
+  /*
+   * TASKS-13 — ticking or unticking ONE checklist item.
+   *
+   * The seventh operation, and the first that addresses something INSIDE a Task
+   * rather than a field of it: `entityId` is still the Task (that is the record
+   * the replay posts to, and the record whose existence decides whether the
+   * change can still be applied) and `targetId` names the item. It is
+   * replace-style rather than lifecycle because it genuinely is one field with
+   * two values, and because a queued tick that the server has already applied
+   * must resolve as `satisfied` rather than being asked again.
+   *
+   * It is the only checklist operation that ships offline. See
+   * `TASKS_MODULE.md` for why adding, renaming, deleting and reordering did not:
+   * each of them needs the checklist's IDENTITY or its whole ORDER to still be
+   * what the device last saw, and neither is a single comparable field.
+   */
+  "set_checklist_completed",
 ] as const;
 
 export type OfflineReplaceOperation =
@@ -94,6 +111,11 @@ export const OFFLINE_MUTATION_FIELDS = {
   set_priority: "priority",
   set_due: "dueDate",
   set_planned: "scheduledDate",
+  // TASKS-13 — the field is the ITEM's tick, resolved against `targetId`. Two
+  // devices ticking two DIFFERENT items therefore merge, exactly as two edits to
+  // two different Task fields do: the contended thing is (item, completed), not
+  // "the checklist".
+  set_checklist_completed: "checklistItemCompleted",
 } as const satisfies Record<OfflineMutationOperation, string>;
 
 export type OfflineMutationField =
@@ -193,6 +215,21 @@ export interface OfflineMutationRecord {
   /** The only entity type PWA-12 supports. Present so the shape can widen later. */
   readonly entityType: "task";
   readonly entityId: string;
+  /**
+   * TASKS-13 — the sub-record WITHIN the entity this mutation addresses, when the
+   * operation addresses one. Null for every operation that changes the Task
+   * itself.
+   *
+   * It exists because a checklist tick is not a field of the Task: two queued
+   * ticks on two different items of the SAME Task are two independent changes,
+   * and without this they would look like one field edited twice and coalesce
+   * into a single write that lost one of them. It is part of the coalesce key and
+   * part of the server's receipt guard for exactly that reason.
+   *
+   * Optional on the stored shape, so a record queued before TASKS-13 reads back
+   * unchanged rather than needing a migration of the owner's un-synced work.
+   */
+  readonly targetId?: string | null;
   readonly operation: OfflineMutationOperation;
   /** The intended value. Always null for `complete`/`reopen`. */
   readonly value: OfflineMutationValue;
@@ -299,6 +336,7 @@ export function checkMutationBounds(input: {
 export function createMutationRecord(input: {
   readonly namespace: string;
   readonly entityId: string;
+  readonly targetId?: string | null;
   readonly operation: OfflineMutationOperation;
   readonly value?: OfflineMutationValue;
   readonly baseValue?: OfflineMutationValue;
@@ -313,6 +351,7 @@ export function createMutationRecord(input: {
     namespace: input.namespace,
     entityType: "task",
     entityId: input.entityId,
+    targetId: input.targetId ?? null,
     operation: input.operation,
     // A lifecycle operation carries no value: the operation IS the value, and
     // storing one would invite a caller to invent a second way to say "done".
@@ -382,6 +421,8 @@ export function findCoalesceTarget(
   next: {
     readonly entityId: string;
     readonly operation: OfflineMutationOperation;
+    /** TASKS-13 — part of the key: two items of one Task are two changes. */
+    readonly targetId?: string | null;
   },
 ): OfflineMutationRecord | null {
   if (!isReplaceOperation(next.operation)) return null;
@@ -396,6 +437,7 @@ export function findCoalesceTarget(
     if (record.status === "synced") continue;
     if (
       record.operation === next.operation &&
+      (record.targetId ?? null) === (next.targetId ?? null) &&
       record.status === "pending" &&
       record.attempts === 0
     ) {
@@ -796,6 +838,8 @@ export function mutationOperationLabel(
       return "Due date changed";
     case "set_planned":
       return "Planned date changed";
+    case "set_checklist_completed":
+      return "Checklist item changed";
   }
 }
 

@@ -1,0 +1,4222 @@
+{
+  "record-1440-light": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 375,
+      "height": 1287,
+      "top": 98
+    },
+    "checklistSection": {
+      "width": 375,
+      "height": 247,
+      "top": 251
+    },
+    "progress": "2 of 4 complete",
+    "rowHeights": [
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 45,
+    "shortestRow": 45,
+    "titleWidths": [
+      269,
+      269,
+      269,
+      269
+    ],
+    "narrowestTitle": 269,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 375,
+        "height": 32
+      }
+    ],
+    "smallestTouchTarget": 32,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 44,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 44,
+        "checklist": "2 of 4"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 44,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 44,
+        "checklist": null
+      }
+    ]
+  },
+  "record-1440-dark": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 375,
+      "height": 1287,
+      "top": 98
+    },
+    "checklistSection": {
+      "width": 375,
+      "height": 247,
+      "top": 251
+    },
+    "progress": "2 of 4 complete",
+    "rowHeights": [
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 45,
+    "shortestRow": 45,
+    "titleWidths": [
+      269,
+      269,
+      269,
+      269
+    ],
+    "narrowestTitle": 269,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 375,
+        "height": 32
+      }
+    ],
+    "smallestTouchTarget": 32,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 44,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 44,
+        "checklist": "2 of 4"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 44,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 44,
+        "checklist": null
+      }
+    ]
+  },
+  "record-393-light": {
+    "viewport": {
+      "width": 393,
+      "height": 844
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 361,
+      "height": 1368,
+      "top": 82
+    },
+    "checklistSection": {
+      "width": 361,
+      "height": 247,
+      "top": 235
+    },
+    "progress": "2 of 4 complete",
+    "rowHeights": [
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 45,
+    "shortestRow": 45,
+    "titleWidths": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "narrowestTitle": 255,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 361,
+        "height": 32
+      }
+    ],
+    "smallestTouchTarget": 32,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 81,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 81,
+        "checklist": "2 of 4"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 81,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 80,
+        "checklist": null
+      }
+    ]
+  },
+  "record-320-light": {
+    "viewport": {
+      "width": 320,
+      "height": 844
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 288,
+      "height": 1394,
+      "top": 82
+    },
+    "checklistSection": {
+      "width": 288,
+      "height": 247,
+      "top": 261
+    },
+    "progress": "2 of 4 complete",
+    "rowHeights": [
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 45,
+    "shortestRow": 45,
+    "titleWidths": [
+      182,
+      182,
+      182,
+      182
+    ],
+    "narrowestTitle": 182,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 288,
+        "height": 32
+      }
+    ],
+    "smallestTouchTarget": 32,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 100,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 81,
+        "checklist": "2 of 4"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 100,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 80,
+        "checklist": null
+      }
+    ]
+  },
+  "record-393-dark": {
+    "viewport": {
+      "width": 393,
+      "height": 844
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 361,
+      "height": 1368,
+      "top": 82
+    },
+    "checklistSection": {
+      "width": 361,
+      "height": 247,
+      "top": 235
+    },
+    "progress": "2 of 4 complete",
+    "rowHeights": [
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 45,
+    "shortestRow": 45,
+    "titleWidths": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "narrowestTitle": 255,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 361,
+        "height": 32
+      }
+    ],
+    "smallestTouchTarget": 32,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 81,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 81,
+        "checklist": "2 of 4"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 81,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 80,
+        "checklist": null
+      }
+    ]
+  },
+  "composer-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 375,
+      "height": 1304,
+      "top": 98
+    },
+    "checklistSection": {
+      "width": 375,
+      "height": 264,
+      "top": 251
+    },
+    "progress": "2 of 4 complete",
+    "rowHeights": [
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 45,
+    "shortestRow": 45,
+    "titleWidths": [
+      269,
+      269,
+      269,
+      269
+    ],
+    "narrowestTitle": 269,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 322,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 44,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 44,
+        "checklist": "2 of 4"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 44,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 44,
+        "checklist": null
+      }
+    ]
+  },
+  "composer-393": {
+    "viewport": {
+      "width": 393,
+      "height": 844
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 361,
+      "height": 1385,
+      "top": 82
+    },
+    "checklistSection": {
+      "width": 361,
+      "height": 264,
+      "top": 235
+    },
+    "progress": "2 of 4 complete",
+    "rowHeights": [
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 45,
+    "shortestRow": 45,
+    "titleWidths": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "narrowestTitle": 255,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 308,
+        "height": 45
+      }
+    ],
+    "smallestTouchTarget": 45,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 81,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 81,
+        "checklist": "2 of 4"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 81,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 80,
+        "checklist": null
+      }
+    ]
+  },
+  "long-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1100
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 375,
+      "height": 1561,
+      "top": 98
+    },
+    "checklistSection": {
+      "width": 375,
+      "height": 466,
+      "top": 306
+    },
+    "progress": "1 of 8 complete",
+    "rowHeights": [
+      75,
+      53,
+      45,
+      45,
+      45,
+      45,
+      45,
+      45
+    ],
+    "tallestRow": 75,
+    "shortestRow": 45,
+    "titleWidths": [
+      269,
+      269,
+      269,
+      269,
+      269,
+      269,
+      269,
+      269
+    ],
+    "narrowestTitle": 269,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 375,
+        "height": 32
+      }
+    ],
+    "smallestTouchTarget": 32,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 44,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 44,
+        "checklist": "2 of 5"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 44,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 44,
+        "checklist": null
+      }
+    ]
+  },
+  "long-320": {
+    "viewport": {
+      "width": 320,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "record": {
+      "width": 288,
+      "height": 1732,
+      "top": 82
+    },
+    "checklistSection": {
+      "width": 288,
+      "height": 556,
+      "top": 290
+    },
+    "progress": "1 of 8 complete",
+    "rowHeights": [
+      118,
+      75,
+      45,
+      45,
+      45,
+      53,
+      53,
+      53
+    ],
+    "tallestRow": 118,
+    "shortestRow": 45,
+    "titleWidths": [
+      182,
+      182,
+      182,
+      182,
+      182,
+      182,
+      182,
+      182
+    ],
+    "narrowestTitle": 182,
+    "touchTargets": [
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 45,
+        "height": 45
+      },
+      {
+        "width": 288,
+        "height": 32
+      }
+    ],
+    "smallestTouchTarget": 32,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 100,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 81,
+        "checklist": "2 of 5"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 100,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 80,
+        "checklist": null
+      }
+    ]
+  },
+  "tasks-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "record": null,
+    "checklistSection": null,
+    "progress": "",
+    "rowHeights": [],
+    "tallestRow": null,
+    "shortestRow": null,
+    "titleWidths": [],
+    "narrowestTitle": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 44,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 44,
+        "checklist": "2 of 5"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 44,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 44,
+        "checklist": null
+      }
+    ]
+  },
+  "tasks-1280": {
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "document": {
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "horizontalOverflow": false
+    },
+    "record": null,
+    "checklistSection": null,
+    "progress": "",
+    "rowHeights": [],
+    "tallestRow": null,
+    "shortestRow": null,
+    "titleWidths": [],
+    "narrowestTitle": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 44,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 44,
+        "checklist": "2 of 5"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 44,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 44,
+        "checklist": null
+      }
+    ]
+  },
+  "tasks-393": {
+    "viewport": {
+      "width": 393,
+      "height": 844
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "record": null,
+    "checklistSection": null,
+    "progress": "",
+    "rowHeights": [],
+    "tallestRow": null,
+    "shortestRow": null,
+    "titleWidths": [],
+    "narrowestTitle": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 81,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 81,
+        "checklist": "2 of 5"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 81,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 80,
+        "checklist": null
+      }
+    ]
+  },
+  "tasks-320": {
+    "viewport": {
+      "width": 320,
+      "height": 640
+    },
+    "document": {
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "record": null,
+    "checklistSection": null,
+    "progress": "",
+    "rowHeights": [],
+    "tallestRow": null,
+    "shortestRow": null,
+    "titleWidths": [],
+    "narrowestTitle": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "taskRows": [
+      {
+        "title": "Prepare camper for the long trip",
+        "height": 100,
+        "checklist": "1 of 8"
+      },
+      {
+        "title": "A task with no steps at all",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper for trip",
+        "height": 81,
+        "checklist": "2 of 5"
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 100,
+        "checklist": "1 of 2"
+      },
+      {
+        "title": "Unfinished blocking task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Today rail open task",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 77",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 75",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 74",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 70",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 69",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 66",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 65",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 64",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 62",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 61",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 59",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 56",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 48",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 46",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 44",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 43",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 42",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 41",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 39",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 37",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 36",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 35",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 33",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 28",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 26",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 24",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 23",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 21",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 20",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 18",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 17",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 15",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 14",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 12",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 07",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 03",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 02",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 01",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 00",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 30",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 29",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Activity task 28",
+        "height": 80,
+        "checklist": null
+      }
+    ]
+  },
+  "today-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "document": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "record": null,
+    "checklistSection": null,
+    "progress": "",
+    "rowHeights": [],
+    "tallestRow": null,
+    "shortestRow": null,
+    "titleWidths": [],
+    "narrowestTitle": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "taskRows": [
+      {
+        "title": "Submit the abstract",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Review the overdue signal",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Arrange the appliance delivery window",
+        "height": 44,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 44,
+        "checklist": "1 of 2"
+      }
+    ]
+  },
+  "today-393": {
+    "viewport": {
+      "width": 393,
+      "height": 844
+    },
+    "document": {
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "record": null,
+    "checklistSection": null,
+    "progress": "",
+    "rowHeights": [],
+    "tallestRow": null,
+    "shortestRow": null,
+    "titleWidths": [],
+    "narrowestTitle": null,
+    "touchTargets": [],
+    "smallestTouchTarget": null,
+    "taskRows": [
+      {
+        "title": "Submit the abstract",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Review the overdue signal",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Dataset task 63",
+        "height": 81,
+        "checklist": null
+      },
+      {
+        "title": "Arrange the appliance delivery window",
+        "height": 99,
+        "checklist": null
+      },
+      {
+        "title": "Prepare camper before the weekend",
+        "height": 99,
+        "checklist": "1 of 2"
+      }
+    ]
+  }
+}

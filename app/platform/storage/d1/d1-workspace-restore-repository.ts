@@ -249,6 +249,18 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "updated_at",
     ],
   },
+  taskChecklistItems: {
+    table: "task_checklist_items",
+    columns: [
+      "id",
+      "task_id",
+      "title",
+      "position",
+      "completed",
+      "created_at",
+      "updated_at",
+    ],
+  },
   noteDetails: {
     table: "note_details",
     columns: ["entity_id", "content", "tags", "archived_at", "updated_at"],

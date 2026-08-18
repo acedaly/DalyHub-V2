@@ -2070,3 +2070,145 @@ The generic Card's **swipe tray** went with the Card. Nothing became unreachable
 completion is the leading circle, and "Plan for today" is in the row's overflow,
 which is reachable by pointer, keyboard and screen reader on every device. A
 gesture was always an accelerator over affordances that exist elsewhere.
+
+---
+
+## Checklists (TASKS-13)
+
+> Delivered 2026-08-18. Accepted as
+> [ADR-103](../decisions/ARCHITECTURE_DECISIONS.md#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction).
+> Full record: [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md).
+
+A checklist is the ordered steps inside ONE Task. **A checklist item is not a
+Task**, and everything below follows from that.
+
+### The model
+
+`task_checklist_items` (migration 0045): `id`, `workspace_id`, `task_id`
+(+`task_type`, so the composite FK asserts the parent really is a Task), `title`,
+`position`, `completed`, `created_at`, `updated_at`.
+
+It has no `entities` row, no spine record, no EntityLinks, no Activity of its own
+and no route — so it cannot be opened, planned, delegated, filed, filtered,
+counted, searched to or completed as a Task. There is no `parent_item_id`: one
+level, enforced by the absence of the column.
+
+Bounds: **100 items** per Task (`MAX_CHECKLIST_ITEMS`), **500 characters** per
+title (`CHECKLIST_TITLE_MAX_LENGTH`, control characters stripped and internal
+whitespace collapsed, because a step is one line).
+
+### Ordering
+
+Read order is `(position, created_at, id)` — total, so the list is deterministic
+even if two rows ever shared a position. Positions are dense `0..n-1` after every
+mutation; a delete closes the gap in the same transaction.
+
+`position` is deliberately NOT unique: SQLite checks a unique index row by row
+rather than at commit, so a constraint would reject the legitimate intermediate
+state a reorder passes through.
+
+A reorder submits the WHOLE order and must name exactly the Task's current items.
+Anything else is refused with `TaskChecklistItemNotFoundError` and the current
+list, so a stale device re-reads rather than half-applying an order nobody chose.
+
+### The five mutations
+
+All on the Task's own route, `POST /tasks/:taskId`:
+
+| intent | fields | notes |
+|---|---|---|
+| `checklist_add` | `title` | appends at `MAX(position)+1`, resolved inside the insert |
+| `checklist_rename` | `itemId`, `title` | writes `title` only |
+| `checklist_set_completed` | `itemId`, `completed` (`1` / empty) | writes `completed` only; idempotent |
+| `checklist_delete` | `itemId` | removes and closes the gap; already-gone is a no-op |
+| `checklist_reorder` | repeated `itemId` | whole order, atomically |
+
+Every mutation proves the item's workspace, its parent Task's workspace and the
+authenticated workspace agree, and refuses inside an archived Project. Every
+answer carries the WHOLE checklist as the server holds it, so a surface
+reconciles rather than accumulating a second opinion. The one client seam is
+`app/shared/task-record/use-task-checklist.ts`.
+
+### Completion semantics
+
+- **Ticking every step does NOT complete the Task.** The record says so in words
+  when the last box is ticked.
+- **Completing the Task does NOT change one item.** No tidying, no hiding.
+- **Completing a Task with unfinished steps is allowed, with no confirmation.**
+  Reopening restores the Task and touches nothing.
+
+### Recurrence
+
+A recurring Task's successor inherits the checklist STRUCTURE with completion
+RESET. It is written inside the existing completion batch at the one recurrence
+authority (`#planSuccessor` reads it, `#buildSuccessorGroup` writes it), with
+fresh row ids and `completed` hard-coded to `0`, gated on the successor entity
+existing. The completed occurrence's checklist is never shared or rewritten, and
+undoing the completion withdraws the successor with its clone.
+
+### Activity
+
+**None.** A checklist tick is state, not history; ten steps would put ten rows
+into a timeline that describes commitments. Every mutation bumps the parent
+Task's `updated_at`, so "recently updated" stays honest.
+
+### Progress, and its bounds
+
+`TaskRepository.listChecklistProgress(ids)` is the ONLY way a row surface obtains
+progress: one indexed, workspace-scoped aggregate per bounded chunk of ids. A
+page of fifty Tasks costs the same one statement a page of one does; an empty
+page costs none.
+
+**The chunk is 80 because D1 accepts at most 100 bound parameters per query and
+the workspace id is one of them.** At 100 the statement failed, and because Today
+degrades a failed section the symptom was a day reporting "Nothing planned today"
+against thirty-seven planned Tasks. Each surface's progress read is additionally
+guarded on its own, so a figure that cannot be read costs the figure and never
+the page.
+
+Which surfaces project it: `/tasks` (list and grouped), Today, `/plan`. Which
+deliberately do not: the Review Inbox and the guided Review — both are triage
+flows whose question is "where does this belong".
+
+### The Task row
+
+One compact value, `2 of 5`, in the shared `TaskRow`'s title cell beside the
+repeat mark — a shared capability, so `/tasks`, Today and `/plan` all show the
+same figure and none forks the row. Item TITLES are never drawn in a collection,
+and an item never gets a selection checkbox.
+
+**The figure stops below `md`.** MEASURED on the same page with and without a
+checklist: 44px vs 44px at 1440 and 1280 (it costs nothing), but 100px vs 81px at
+393 and 320 before the rule — on a phone the row is two stacked lines and five
+characters beside the title wrap it. The record is one tap away.
+
+### Search
+
+`searchTasks` also matches a Task whose CHECKLIST text contains the query, as one
+`EXISTS` in the statement it already makes, ranked below every title match. The
+result is always the TASK; a checklist item is never a search result.
+
+### Offline
+
+**Ticking and unticking is offline-capable. Adding, renaming, deleting and
+reordering are not** (DEBT-160).
+
+The tick is PWA-12's `set_checklist_completed`: the queued record carries
+`targetId` (the ITEM), so two ticks on two different steps of one Task are two
+changes rather than one field edited twice; the receipt is filed under the item,
+so one step's receipt cannot satisfy another's request; and a server change to a
+DIFFERENT step merges rather than conflicting. An item deleted elsewhere is
+terminal and says which thing went. The other four operations each need a
+server-assigned identity or the list's whole current order, neither of which is a
+single comparable field.
+
+### Tests
+
+- `test/unit/tasks/task-checklist.test.ts` — the pure rules.
+- `test/unit/tasks/task-checklist-query-bounds.test.ts` — the source-level N+1
+  and bound-parameter guards.
+- `test/unit/tasks/TaskChecklistSection.test.tsx` — the interaction, focus and
+  keyboard contract.
+- `test/kernel/task-checklist.test.ts` — the storage guarantees against real D1.
+- `test/kernel/task-checklist-route.test.ts` — the route and the offline replay.
+- `e2e/tasks-checklist.spec.ts` — the journeys, phone, keyboard, axe and offline.

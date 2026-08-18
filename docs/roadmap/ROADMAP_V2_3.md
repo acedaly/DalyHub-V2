@@ -256,19 +256,74 @@ test.
 
 ---
 
+### ☑ TASKS-13 — Checklists — **DELIVERED 2026-08-18**
+
+**Bounded, ordered steps inside ONE Task — a row apiece, and never a Task.**
+
+Accepted as
+[ADR-103](../decisions/ARCHITECTURE_DECISIONS.md#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction).
+Full record:
+[`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md);
+module behaviour: [`TASKS_MODULE.md`](../development/TASKS_MODULE.md#checklists-tasks-13).
+
+- **The two questions this item asked are both answered, and the first answers
+  the second.** A checklist lives in its OWN table (`task_checklist_items`,
+  migration 0045) — not in `task_details`, not in the Markdown description, and
+  not as child Tasks. And a partially-complete checklist means NOTHING to a
+  Project's progress: an item is not a Task, so it is not in the count the
+  progress is computed from. A Project holding one Task with ten steps reports
+  one open Task.
+- **A checklist item is not a record, structurally.** No `entities` row, no spine
+  record, no EntityLinks, no Activity of its own, no route. It cannot be opened,
+  planned, delegated, filed, filtered, counted or completed as a Task, because
+  the machinery that would let it does not exist — asserted at the storage layer,
+  not in the interface.
+- **ONE level, enforced by an absent column.** There is no `parent_item_id` and
+  there will not be one. No nesting, no Task trees, no Jira subtasks.
+- **Completion does not propagate, in either direction.** Ticking every step does
+  NOT complete the Task (and the record says so in words when the last box is
+  ticked); completing the Task does NOT tick, clear or hide a single step.
+  Completing a Task with unfinished steps is allowed with no confirmation —
+  DalyHub prefers undo over dialogs, and the record already shows the state.
+- **A recurring Task's successor inherits the STRUCTURE and none of the ticks.**
+  Written inside the existing completion batch at the one recurrence authority,
+  with fresh row ids and `completed` hard-coded to 0 — so the successor arrives
+  with its steps or does not arrive at all, and last month's occurrence keeps its
+  own history.
+- **Ordering is a dense integer and deliberately NOT unique**, because SQLite
+  checks a unique index row by row and a reorder legitimately passes through a
+  duplicate. A stale reorder is REFUSED with the current list rather than half
+  applied. Reorder is two ordinary menu commands — no drag-and-drop dependency
+  was added, and a command works the same for a mouse, a keyboard and a thumb.
+- **No Activity, by decision.** A tick is state, not history; ten steps would put
+  ten rows into a timeline that describes commitments. Every mutation still bumps
+  the parent Task's `updated_at`.
+- **Bounded by construction, and it found a real defect.** Progress is ONE
+  indexed aggregate per bounded chunk of ids — a page of fifty Tasks costs the
+  same one statement a page of one does. The chunk is 80 rather than 100 because
+  **D1 accepts at most 100 bound parameters per query** and the workspace id is
+  one of them; at 100 the statement failed, and because Today degrades a failed
+  section the symptom was a day reporting "Nothing planned today" against
+  thirty-seven planned Tasks.
+- **The row figure is desktop-only, and the numbers decided it.** MEASURED: at
+  1440 and 1280 a row with "2 of 5" is 44px and one without is 44px. On a phone
+  the same five characters wrapped the title, at nineteen pixels a row — so the
+  figure stops below `md` and the record, one tap away, carries it.
+- **Offline covers the TICK.** `set_checklist_completed` rides PWA-12's existing
+  queue, receipts and conflict rule, with a new `targetId` so two ticks on two
+  different steps of one Task are two changes rather than one field edited twice.
+  The other four operations are online-only and say so (DEBT-160).
+- **`axe` is green in both appearances with no rule disabled**, which found a
+  real `target-size` violation: the shared check control's negative inline
+  margins put the rename trigger 2px inside the checkbox. Fixed by the row
+  occupying its full 44px target.
+
+---
+
 ## NEXT
 
 The rest of the theme. Each is a separate item with its own decision — none of
 them was started by the programmes above, and none should be inferred from them.
-
-### ☐ TASKS-13 — Checklists
-
-Bounded, ordered sub-items inside one Task, for the case that is genuinely one
-piece of work with steps. Explicitly NOT subtasks: a second level of the spine
-would make every count, rollup, filter and view answer a new question. The
-decision to make is where a checklist lives (`task_details`, its own table, or
-the Markdown description already there) and what a partially-complete checklist
-means to a Project's progress.
 
 ### ☐ PROJECT-02 — Project templates
 
@@ -295,7 +350,9 @@ else stands.)
 Recorded so they are not mistaken for oversights. Each is a separate product
 decision, and several are the NEXT items above:
 
-Task checklists and subtasks · advanced recurrence · Project templates ·
+(Task checklists were on this list and are now delivered by TASKS-13 above.)
+
+Subtasks · advanced recurrence · Project templates ·
 AI automatic weekly planning · automatic time blocking · calendar write-back ·
 dependencies and Gantt charts · resource capacity planning · estimates and time
 tracking · shared or team planning · public or shared smart lists · a smart-list
@@ -308,8 +365,10 @@ authority · a second filter engine.
 ## Related documents
 
 - [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md) — the PLAN-01 + SMART-01 record
+- [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md) — the TASKS-13 record
 - [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md) — the HABITS-01 record
 - [`HABITS_MODULE.md`](../development/HABITS_MODULE.md) — the Habits module's full behaviour
+- [ADR-103](../decisions/ARCHITECTURE_DECISIONS.md#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction) — a checklist item is not a Task
 - [ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) — a Habit is a behaviour, not a recurring Task
 - [ADR-101](../decisions/ARCHITECTURE_DECISIONS.md#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers) — the accepted decision
 - [`TASKS_MODULE.md`](../development/TASKS_MODULE.md) — the Tasks module's full behaviour

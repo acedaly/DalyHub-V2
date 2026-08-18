@@ -14,6 +14,8 @@
 import type { RecordTone } from "~/shared/record-layout";
 import type {
   CommitmentState,
+  TaskChecklistItem,
+  TaskChecklistProgress,
   TaskDelegation,
   TaskListItem,
   TaskPriority,
@@ -115,6 +117,56 @@ export function serializeTaskView(task: TaskView): SerializedTaskView {
   };
 }
 
+/**
+ * TASKS-13 — one checklist item, JSON-serialised.
+ *
+ * The Dates become ISO strings like every other serialised record. Nothing else
+ * is added, removed or derived: a checklist item is a title, an order and a tick,
+ * and the wire shape says so as plainly as the domain type does.
+ */
+export interface SerializedChecklistItem {
+  readonly id: string;
+  readonly taskId: string;
+  readonly title: string;
+  readonly position: number;
+  readonly completed: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/** Serialise a kernel checklist item for a JSON loader/action response. */
+export function serializeChecklistItem(
+  item: TaskChecklistItem,
+): SerializedChecklistItem {
+  return {
+    id: item.id,
+    taskId: item.taskId,
+    title: item.title,
+    position: item.position,
+    completed: item.completed,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  };
+}
+
+/** Serialise a whole checklist, preserving the repository's canonical order. */
+export function serializeChecklist(
+  items: readonly TaskChecklistItem[],
+): readonly SerializedChecklistItem[] {
+  return items.map(serializeChecklistItem);
+}
+
+/** Progress over the SERIALISED shape, so a client counts the same way the server does. */
+export function serializedChecklistProgress(
+  items: readonly SerializedChecklistItem[],
+): TaskChecklistProgress {
+  let completed = 0;
+  for (const item of items) {
+    if (item.completed) completed += 1;
+  }
+  return { total: items.length, completed };
+}
+
 /** A lightweight focus-task summary for the Today surface (Dates → ISO strings). */
 export interface SerializedTaskListItem {
   readonly id: string;
@@ -132,6 +184,18 @@ export interface SerializedTaskListItem {
   readonly recurrence?: TaskRecurrenceRule | null;
   readonly parent: TaskRelation | null;
   readonly waiting: SerializedTaskWaiting | null;
+  /**
+   * TASKS-13 — this Task's checklist progress, when the surface asked for it.
+   *
+   * `undefined` means the loader did not project it (most surfaces do not), and
+   * is deliberately different from `{ total: 0 }`, which means "this Task has no
+   * checklist". A row draws the indicator only for a real, non-empty checklist,
+   * so neither value can be mistaken for the other.
+   *
+   * It is only ever filled from the repository's ONE bounded aggregate
+   * (`listChecklistProgress`), never by counting items a surface fetched.
+   */
+  readonly checklist?: TaskChecklistProgress;
 }
 
 /**
@@ -198,11 +262,21 @@ export function applyTaskListItemPatch<T extends SerializedTaskListItem>(
   return changed ? { ...item, ...patch } : item;
 }
 
-/** Serialise a `TaskListItem` for a JSON loader response. */
+/**
+ * Serialise a `TaskListItem` for a JSON loader response.
+ *
+ * TASKS-13 — `progress` is the SECOND argument rather than a field of the kernel
+ * item, because a checklist figure costs a query and most surfaces do not draw
+ * one. A loader that wants it reads `listChecklistProgress` ONCE for the whole
+ * page and passes each Task its entry, which is what makes "no N+1" visible at
+ * the call site rather than hidden inside a list method.
+ */
 export function serializeTaskListItem(
   item: TaskListItem,
+  progress?: TaskChecklistProgress | null,
 ): SerializedTaskListItem {
   return {
+    ...(progress ? { checklist: progress } : {}),
     id: item.id,
     title: item.title,
     createdAt: item.createdAt.toISOString(),
@@ -219,6 +293,40 @@ export function serializeTaskListItem(
     parent: item.parent,
     waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
   };
+}
+
+/**
+ * TASKS-13 — serialise a whole PAGE of Tasks with their checklist progress.
+ *
+ * The shape every surface that draws the figure uses, so the "read progress ONCE
+ * for the page, then stamp it" discipline is one call rather than a pattern each
+ * loader re-implements (and one of them eventually gets wrong by reading inside
+ * the map).
+ */
+export function serializeTaskListPage(
+  items: readonly TaskListItem[],
+  progress: ReadonlyMap<string, TaskChecklistProgress>,
+): readonly SerializedTaskListItem[] {
+  return items.map((item) =>
+    serializeTaskListItem(item, progress.get(item.id)),
+  );
+}
+
+/**
+ * TASKS-13 — stamp checklist progress onto an ALREADY-serialised item.
+ *
+ * For a loader that builds its projection through several nested steps (Weekly
+ * Planning composes days and a banded queue before it has one list to map over):
+ * it collects the ids it ended up with, makes ONE bounded progress read, and
+ * stamps the result. Returns the SAME object when there is nothing to add, so an
+ * unchanged page is not needlessly re-allocated.
+ */
+export function withChecklistProgress<T extends SerializedTaskListItem>(
+  item: T,
+  progress: ReadonlyMap<string, TaskChecklistProgress>,
+): T {
+  const found = progress.get(item.id);
+  return found === undefined ? item : { ...item, checklist: found };
 }
 
 /**
@@ -250,6 +358,8 @@ export interface TaskRowProjection {
   readonly completed: boolean;
   readonly waiting: boolean;
   readonly recurrence: TaskRecurrenceRule | null;
+  /** TASKS-13 — checklist progress, when the surface projected it. */
+  readonly checklist?: TaskChecklistProgress;
 }
 
 /** Project one serialised list item into the shared row's data contract. */
@@ -280,6 +390,9 @@ export function toTaskRowProjection(
     completed: item.completedAt !== null,
     waiting: item.waiting !== null && item.completedAt === null,
     recurrence: item.recurrence ?? null,
+    // Passed through whole, so every surface drawing the shared row shows the
+    // same figure — and a surface that did not project it shows none.
+    ...(item.checklist ? { checklist: item.checklist } : {}),
   };
 }
 

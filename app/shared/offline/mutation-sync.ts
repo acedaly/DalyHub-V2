@@ -77,6 +77,11 @@ function submissionFor(record: OfflineMutationRecord): {
       return record.value === null || record.value.length === 0
         ? { intent: "clear_plan", field: null }
         : { intent: "plan", field: "scheduledDate" };
+    case "set_checklist_completed":
+      // TASKS-13 — the one operation that addresses something inside the Task.
+      // The intent is the online control's own, and `targetId` travels as the
+      // `itemId` the handler reads.
+      return { intent: "checklist_set_completed", field: "completed" };
   }
 }
 
@@ -90,6 +95,12 @@ export function mutationFormData(record: OfflineMutationRecord): FormData {
     // `nullable()` reads it back as null. A queued clear therefore travels as the
     // same submission the online control produces.
     form.set(submission.field, record.value ?? "");
+  }
+  // TASKS-13 — the sub-record the mutation addresses, when it has one. Absent for
+  // every operation that changes the Task itself, so the ordinary submission is
+  // byte-identical to what it was.
+  if (record.targetId) {
+    form.set("itemId", record.targetId);
   }
   form.set("offlineKey", record.id);
   form.set("offlineOperation", record.operation);

@@ -178,9 +178,26 @@ export {
   TaskStorageError,
   CorruptTaskRecordError,
   TaskProjectArchivedError,
+  TaskChecklistItemNotFoundError,
+  TaskChecklistFullError,
   type TaskErrorCode,
   type TaskValidationField,
 } from "./task-errors";
+
+export {
+  CHECKLIST_TITLE_MAX_LENGTH,
+  EMPTY_CHECKLIST_PROGRESS,
+  MAX_CHECKLIST_ITEMS,
+  checklistIsComplete,
+  checklistProgress,
+  checklistProgressLabel,
+  moveChecklistOrder,
+  validateChecklistItemId,
+  validateChecklistOrder,
+  validateChecklistTitle,
+  type TaskChecklistItem,
+  type TaskChecklistProgress,
+} from "./task-checklist";
 
 export {
   DEFAULT_TASK_PAGE_SIZE,

@@ -331,10 +331,10 @@ describe("workspace export (D1)", () => {
     //
     // The ceiling moves with the number of COLLECTIONS, never with the number of
     // records: HABITS-01 added three (habit details, schedule versions, check-in
-    // history), so three more statements — and the second half of this test is
-    // what actually holds the bound, by proving that twenty more records add
-    // none at all.
-    expect(statements).toBeLessThanOrEqual(33);
+    // history) and TASKS-13 added one (Task checklist items), so four more
+    // statements — and the second half of this test is what actually holds the
+    // bound, by proving that twenty more records add none at all.
+    expect(statements).toBeLessThanOrEqual(34);
     expect(statements).toBeGreaterThan(20);
 
     // Growing the workspace must not grow the statement count while the data

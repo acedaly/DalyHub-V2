@@ -416,7 +416,7 @@ async function readInbox(
       todayIso: input.todayIso,
     });
     return {
-      tasks: page.items.map(serializeTaskListItem),
+      tasks: page.items.map((item) => serializeTaskListItem(item)),
       remaining: remaining ?? page.items.length,
       nextCursor: page.nextCursor,
       unavailable: false,

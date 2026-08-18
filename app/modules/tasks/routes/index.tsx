@@ -31,7 +31,8 @@ import {
   isSameDocumentParameterChange,
   parametersUnchanged,
 } from "~/shared/router/revalidation";
-import { serializeTaskListItem } from "~/shared/task-record/task-view";
+import type { TaskChecklistProgress } from "~/kernel/tasks";
+import { serializeTaskListPage } from "~/shared/task-record/task-view";
 import {
   DEFAULT_TASK_VIEW_CONFIG,
   TASK_SYSTEM_VIEW_DEFINITIONS,
@@ -109,6 +110,28 @@ const PARENT_OPTION_LIMIT = 50;
  * owner's saved views. Each carries the query string that applies it, so selecting
  * a view is an ordinary navigation — shareable, bookmarkable and Back/Forward-safe.
  */
+/**
+ * TASKS-13 — read checklist progress for a page, and never let it cost the page.
+ *
+ * The Tasks loader degrades a read failure to a calm empty collection, which is
+ * the right answer for the TASKS and the wrong one for a step count beside them:
+ * a figure that cannot be read must cost the figure, not the list. So the
+ * aggregate is guarded on its own and an empty map means "no figures this time".
+ *
+ * The ids are supplied by a callback rather than as an array, so the caller's own
+ * mapping runs inside the guard too.
+ */
+async function checklistProgressOrNone(
+  scope: WorkspaceScope,
+  ids: () => readonly string[],
+): Promise<ReadonlyMap<string, TaskChecklistProgress>> {
+  try {
+    return await scope.tasks.listChecklistProgress(ids());
+  } catch {
+    return new Map();
+  }
+}
+
 function buildViewOptions(
   saved: readonly TaskSavedView[],
   defaultViewId: string | null,
@@ -418,6 +441,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         direction: config.direction,
         todayIso,
       });
+      /*
+       * TASKS-13 — checklist progress for the WHOLE grouping, read once.
+       *
+       * One aggregate over every id the grouping returned (bounded: at most
+       * WORKSPACE_GROUP_MAX_BUCKETS buckets of WORKSPACE_GROUP_BUCKET_LIMIT
+       * rows), never one per bucket and never one per Task.
+       */
+      const groupedProgress = await checklistProgressOrNone(scope, () =>
+        grouping.groups.flatMap((group) => group.items.map((item) => item.id)),
+      );
       return {
         ...base,
         items: [],
@@ -429,7 +462,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
             count: group.count,
             hasMore: group.hasMore,
             label: group.label,
-            items: group.items.map(serializeTaskListItem),
+            items: serializeTaskListPage(group.items, groupedProgress),
           })),
         },
         failed: false,
@@ -443,9 +476,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       todayIso,
       cursor: cursor ?? undefined,
     });
+    // TASKS-13 — ONE bounded aggregate for the page, whatever the page holds.
+    const progress = await checklistProgressOrNone(scope, () =>
+      page.items.map((item) => item.id),
+    );
     return {
       ...base,
-      items: page.items.map(serializeTaskListItem),
+      items: serializeTaskListPage(page.items, progress),
       nextCursor: page.nextCursor,
       grouping: null,
       failed: false,

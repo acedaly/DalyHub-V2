@@ -48,6 +48,8 @@ export function conflictFieldLabel(field: OfflineMutationField): string {
       return "Planned date";
     case "completedAt":
       return "Completion";
+    case "checklistItemCompleted":
+      return "Checklist item";
   }
 }
 
@@ -55,8 +57,17 @@ export function conflictFieldLabel(field: OfflineMutationField): string {
  * A value as the owner reads it. An absent value is named, never blank: "no
  * priority" and "the panel failed to render the priority" must not look alike.
  */
-export function describeConflictValue(value: OfflineMutationValue): string {
+export function describeConflictValue(
+  value: OfflineMutationValue,
+  field?: OfflineMutationField,
+): string {
   const text = (value ?? "").trim();
+  // TASKS-13 — a checklist tick crosses the wire as the same "1" / "" flag every
+  // DalyHub form uses, and "1" is not a sentence. The two states are named in the
+  // owner's words, here, where every other conflict value is already worded.
+  if (field === "checklistItemCompleted") {
+    return text === "1" ? "Done" : "Not done";
+  }
   if (text.length === 0) return "Not set";
   return text;
 }
@@ -146,14 +157,22 @@ export function OfflineChangesPanel({
                   <dl className="dh-offline-sync__values">
                     <div>
                       <dt>{conflictFieldLabel(record.conflict.field)} here</dt>
-                      <dd>{describeConflictValue(record.value)}</dd>
+                      <dd>
+                        {describeConflictValue(
+                          record.value,
+                          record.conflict.field,
+                        )}
+                      </dd>
                     </div>
                     <div>
                       <dt>
                         {conflictFieldLabel(record.conflict.field)} in DalyHub
                       </dt>
                       <dd>
-                        {describeConflictValue(record.conflict.serverValue)}
+                        {describeConflictValue(
+                          record.conflict.serverValue,
+                          record.conflict.field,
+                        )}
                       </dd>
                     </div>
                   </dl>
