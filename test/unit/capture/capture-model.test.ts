@@ -48,12 +48,22 @@ describe("capture types", () => {
 
   it("offers Asset from the global capture surface (ASSET-03)", () => {
     // The gap ASSET-03 closed: recording something you own required navigating
-    // to Assets and finding a module-specific button. It is now one of the
-    // types the global `+` offers, last because it is the least routine.
+    // to Assets and finding a module-specific button. It is one of the types the
+    // global `+` offers, near the end because it is not routine.
     expect(CAPTURE_TYPES).toContain("asset");
-    expect(CAPTURE_TYPES[CAPTURE_TYPES.length - 1]).toBe("asset");
     expect(captureDescriptor("asset").entityType).toBe("asset");
     expect(captureDescriptor("asset").label).toBe("Asset");
+  });
+
+  it("offers Habit from the global capture surface (HABITS-01)", () => {
+    // A Habit is a first-class record, and the global create surface enumerates
+    // first-class records — the alternative was a Habits-only "+" beside the one
+    // the whole product already has. LAST, because an owner starts a handful of
+    // behaviours a year rather than several a day.
+    expect(CAPTURE_TYPES).toContain("habit");
+    expect(CAPTURE_TYPES[CAPTURE_TYPES.length - 1]).toBe("habit");
+    expect(captureDescriptor("habit").entityType).toBe("habit");
+    expect(captureDescriptor("habit").label).toBe("Habit");
   });
 
   it("narrows only real capture types", () => {

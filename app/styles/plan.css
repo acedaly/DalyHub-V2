@@ -708,3 +708,42 @@
     border: var(--dh-border-width) solid CanvasText;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* HABITS-01 - routines this week (read-only planning context)                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * It borrows the signals band's typography deliberately: it is the same KIND of
+ * thing - something to be aware of while planning, with no control on it - and
+ * giving it its own visual language would say it was a third kind of object.
+ */
+.dh-plan__routines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-plan__routine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-plan__routine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-plan__routine-meta {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}

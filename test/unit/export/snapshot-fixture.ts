@@ -56,7 +56,9 @@ export const IDS = {
   person: "e-19-person",
   asset: "e-20-asset",
   review: "e-21-review",
-  future: "e-22-future-type",
+  habit: "e-22-habit",
+  habitArchived: "e-23-habit-archived",
+  future: "e-24-future-type",
 } as const;
 
 /** A record id that is NOT in the snapshot, for the broken-link case. */
@@ -103,6 +105,8 @@ const ENTITIES: readonly Entity[] = [
   { id: IDS.person, type: "person", title: "Jamie Rivers" },
   { id: IDS.asset, type: "asset", title: "Road bike" },
   { id: IDS.review, type: "review", title: "Week 27 review" },
+  { id: IDS.habit, type: "habit", title: "Strength training" },
+  { id: IDS.habitArchived, type: "habit", title: "Cold shower" },
   { id: IDS.future, type: "widget", title: "A type this build does not know" },
 ];
 
@@ -224,6 +228,81 @@ export function makeSnapshot(
         completedAt: null,
         createdAt: T(3),
         updatedAt: T(3),
+      },
+    ],
+    /*
+     * HABITS-01 — a live Habit whose cadence has CHANGED, plus an archived one.
+     *
+     * Two schedule versions for the same Habit is the case the export exists to
+     * carry: the closed version is what the owner was expected to do in July,
+     * and an archive that kept only the open one would restore a workspace whose
+     * history had been quietly rewritten.
+     */
+    habitDetails: [
+      {
+        entityId: IDS.habit,
+        notes: "Three sessions, any days.",
+        archivedAt: null,
+        archivedOn: null,
+        createdAt: T(1),
+        updatedAt: T(3),
+      },
+      {
+        entityId: IDS.habitArchived,
+        notes: null,
+        archivedAt: T(40),
+        archivedOn: "2026-08-09",
+        createdAt: T(1),
+        updatedAt: T(40),
+      },
+    ],
+    habitSchedules: [
+      {
+        id: "hs-01",
+        habitId: IDS.habit,
+        kind: "weekdays",
+        weekdays: "1,3,5",
+        targetCount: null,
+        effectiveFrom: "2026-07-01",
+        effectiveTo: "2026-07-31",
+        createdAt: T(1),
+      },
+      {
+        id: "hs-02",
+        habitId: IDS.habit,
+        kind: "weekly_count",
+        weekdays: null,
+        targetCount: 3,
+        effectiveFrom: "2026-08-01",
+        effectiveTo: null,
+        createdAt: T(3),
+      },
+      {
+        id: "hs-03",
+        habitId: IDS.habitArchived,
+        kind: "daily",
+        weekdays: null,
+        targetCount: null,
+        effectiveFrom: "2026-07-01",
+        effectiveTo: null,
+        createdAt: T(1),
+      },
+    ],
+    habitCompletions: [
+      {
+        habitId: IDS.habit,
+        completedOn: "2026-08-03",
+        recordedAt: T(3),
+      },
+      {
+        habitId: IDS.habit,
+        completedOn: "2026-08-05",
+        recordedAt: T(4),
+      },
+      {
+        habitId: IDS.habitArchived,
+        completedOn: "2026-07-02",
+        recordedAt: T(2),
       },
     ],
     projectDetails: [

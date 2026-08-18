@@ -34,6 +34,7 @@ import { isReservedDiaryEntityType } from "~/kernel/diary";
 import { MEETING_ENTITY_TYPE } from "~/kernel/meetings";
 import { isReservedPersonEntityType } from "~/kernel/people";
 import { isReservedReviewEntityType } from "~/kernel/reviews";
+import { isReservedHabitEntityType } from "~/kernel/habits";
 import { RESERVED_SPINE_ENTITY_TYPES } from "~/kernel/spine";
 import {
   EntityError,
@@ -175,6 +176,12 @@ export class D1EntityRepository implements EntityRepository {
       RESERVED_SPINE_ENTITY_TYPES.has(type) ||
       isReservedDiaryEntityType(type) ||
       isReservedPersonEntityType(type) ||
+      // The `habit` type is reserved for the HabitRepository, which writes the
+      // Habit's detail slice AND its first effective-dated schedule version
+      // atomically with the row; a bare `create` would produce a Habit with no
+      // cadence at all, which every expectation figure is derived from
+      // (HABITS-01).
+      isReservedHabitEntityType(type) ||
       isReservedAssetEntityType(type) ||
       isReservedReviewEntityType(type) ||
       type === MEETING_ENTITY_TYPE

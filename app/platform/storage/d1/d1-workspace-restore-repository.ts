@@ -174,6 +174,34 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "updated_at",
     ],
   },
+  habitDetails: {
+    table: "habit_details",
+    columns: [
+      "entity_id",
+      "notes",
+      "archived_at",
+      "archived_on",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  habitSchedules: {
+    table: "habit_schedules",
+    columns: [
+      "id",
+      "habit_id",
+      "kind",
+      "weekdays",
+      "target_count",
+      "effective_from",
+      "effective_to",
+      "created_at",
+    ],
+  },
+  habitCompletions: {
+    table: "habit_completions",
+    columns: ["habit_id", "completed_on", "recorded_at"],
+  },
   projectDetails: {
     table: "project_details",
     columns: [
@@ -677,6 +705,41 @@ function stageRows(
         completed_at: row.completedAt,
         created_at: row.createdAt,
         updated_at: row.updatedAt,
+      }));
+    case "habitDetails":
+      return (rows as readonly SnapshotCollectionRowMap["habitDetails"][]).map(
+        (row) => ({
+          entity_id: row.entityId,
+          notes: row.notes,
+          archived_at: row.archivedAt,
+          // `?? null` rather than the value alone: an archive written before
+          // HABITS-01 cannot reach this branch, but a partially-hand-edited one
+          // can, and `undefined` is not a bindable D1 value.
+          archived_on: row.archivedOn ?? null,
+          created_at: row.createdAt,
+          updated_at: row.updatedAt,
+        }),
+      );
+    case "habitSchedules":
+      return (
+        rows as readonly SnapshotCollectionRowMap["habitSchedules"][]
+      ).map((row) => ({
+        id: row.id,
+        habit_id: row.habitId,
+        kind: row.kind,
+        weekdays: row.weekdays ?? null,
+        target_count: row.targetCount ?? null,
+        effective_from: row.effectiveFrom,
+        effective_to: row.effectiveTo ?? null,
+        created_at: row.createdAt,
+      }));
+    case "habitCompletions":
+      return (
+        rows as readonly SnapshotCollectionRowMap["habitCompletions"][]
+      ).map((row) => ({
+        habit_id: row.habitId,
+        completed_on: row.completedOn,
+        recorded_at: row.recordedAt,
       }));
     case "projectDetails":
       return (

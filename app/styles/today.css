@@ -448,6 +448,19 @@
     grid-column: span 12;
   }
 
+  /*
+   * HABITS-01 — the routine band takes the full width.
+   *
+   * It sits between the day's work and the decision row, and it is a short list
+   * of ONE-LINE rows: a title, a cadence, a context and two counts. Given a
+   * column it would leave the other half of its row empty for the sake of a
+   * five-word list; given the full twelve it reads as a single quiet band and
+   * the decision row below it starts clean.
+   */
+  .dh-today__habits-panel {
+    grid-column: span 12;
+  }
+
   /* The MAJOR cell of each working row — the list of titles. */
   .dh-today__timeline,
   .dh-today__attention,

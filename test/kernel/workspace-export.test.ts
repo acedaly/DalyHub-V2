@@ -326,9 +326,15 @@ describe("workspace export (D1)", () => {
     await exportSnapshot(counting.db, SNAPSHOT_PAGE_SIZE);
     const statements = counting.prepareCount();
     // One workspace read + one preferences read + one saved-views read + one
-    // page per collection (21). A per-record read would be an order of magnitude
-    // more on this workspace.
-    expect(statements).toBeLessThanOrEqual(30);
+    // page per collection. A per-record read would be an order of magnitude more
+    // on this workspace.
+    //
+    // The ceiling moves with the number of COLLECTIONS, never with the number of
+    // records: HABITS-01 added three (habit details, schedule versions, check-in
+    // history), so three more statements — and the second half of this test is
+    // what actually holds the bound, by proving that twenty more records add
+    // none at all.
+    expect(statements).toBeLessThanOrEqual(33);
     expect(statements).toBeGreaterThan(20);
 
     // Growing the workspace must not grow the statement count while the data

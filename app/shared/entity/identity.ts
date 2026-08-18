@@ -25,6 +25,7 @@ import {
   AssetIcon,
   DiaryIcon,
   GoalIcon,
+  HabitIcon,
   MeetingIcon,
   NoteIcon,
   PersonIcon,
@@ -37,6 +38,7 @@ import {
 export const ENTITY_TYPES = [
   "area",
   "goal",
+  "habit",
   "project",
   "task",
   "note",
@@ -92,6 +94,14 @@ export const ENTITY_IDENTITY: Readonly<Record<EntityType, EntityIdentity>> =
   Object.freeze({
     area: identity("area", "Area", "Areas", AreaIcon),
     goal: identity("goal", "Goal", "Goals", GoalIcon),
+    /*
+     * HABITS-01 — a Habit is a first-class record with its own identity, and
+     * that is the point. It sits ADJACENT to the spine (Area → Goal → Project →
+     * Task) rather than inside it: it may support a Goal and belong in an Area,
+     * but it is never a Project or a Task underneath one, and it never carries a
+     * Task's accent.
+     */
+    habit: identity("habit", "Habit", "Habits", HabitIcon),
     project: identity("project", "Project", "Projects", ProjectIcon),
     task: identity("task", "Task", "Tasks", TaskIcon),
     note: identity("note", "Note", "Notes", NoteIcon),

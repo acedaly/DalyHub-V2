@@ -19,6 +19,7 @@ import {
   createGoalDetailsRepository,
   createGoalMeasurementRepository,
   createGoalRepository,
+  createHabitRepository,
   createMeetingRepository,
   createMeetingTaskConversionRepository,
   createNoteDetailsRepository,
@@ -42,6 +43,7 @@ import {
   type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
   type D1GoalMeasurementRepositoryOptions,
+  type D1HabitRepositoryOptions,
   type D1NoteDetailsRepositoryOptions,
   type D1PersonRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
@@ -265,6 +267,29 @@ export function makePersonRepository(
 export async function countPersonRows(): Promise<number> {
   const row = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM person_details",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * Construct a workspace-scoped D1-backed HabitRepository over the isolated test
+ * database (HABITS-01: the authoritative Habit repository, its effective-dated
+ * schedule chain and the ONE check-in authority, bound to a `WorkspaceContext`).
+ *
+ * `ownerTimeZone` defaults to UTC here so a test's dates are the dates it wrote;
+ * a test about the owner's calendar passes its own zone and asserts against it.
+ */
+export function makeHabitRepository(
+  context: WorkspaceContext,
+  options?: D1HabitRepositoryOptions,
+) {
+  return createHabitRepository(env.DB, context, options);
+}
+
+/** Count all rows in `habit_completions` directly. */
+export async function countHabitCompletionRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM habit_completions",
   ).first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -721,6 +746,12 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM note_details").run();
   await env.DB.prepare("DELETE FROM diary_entry_details").run();
   await env.DB.prepare("DELETE FROM person_details").run();
+  // HABITS-01 children first: the schedule chain and the check-in history both
+  // reference `habit_details` ON DELETE RESTRICT, which itself references
+  // `entities` the same way.
+  await env.DB.prepare("DELETE FROM habit_completions").run();
+  await env.DB.prepare("DELETE FROM habit_schedules").run();
+  await env.DB.prepare("DELETE FROM habit_details").run();
   // Meeting children first (both cascade from meeting_details); meeting_details FK
   // to entities is ON DELETE RESTRICT so it must clear before entities.
   await env.DB.prepare("DELETE FROM meeting_item_tasks").run();

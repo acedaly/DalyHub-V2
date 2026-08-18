@@ -129,6 +129,10 @@
 @import "./styles/notes.css";
 @import "./styles/diary.css";
 @import "./styles/people.css";
+/* HABITS-01 — the Habits collection, record and history grid, plus the shared
+   DS-06 toggle group the weekday picker introduced. After people.css, with the
+   other module surfaces. */
+@import "./styles/habits.css";
 @import "./styles/entity-link.css";
 @import "./styles/linked-items.css";
 @import "./styles/references.css";

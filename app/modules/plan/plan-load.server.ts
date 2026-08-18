@@ -71,6 +71,10 @@ import {
   loadScheduleWindow,
   scheduleForDate,
 } from "~/platform/calendar/schedule-load.server";
+import {
+  readHabitWeekSummary,
+  type HabitWeekSummaryItem,
+} from "~/platform/habits/habit-facts.server";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
@@ -204,6 +208,7 @@ export async function loadPlanPage(
     queueTruncated: false,
     queueSources: [suggestedSource(week.offset)],
     activeQueueSourceId: SUGGESTED_QUEUE_SOURCE_ID,
+    routines: [],
     projectSignals: [],
     goalSignals: [],
     priorFocus: null,
@@ -216,43 +221,63 @@ export async function loadPlanPage(
   if (scope === null) return empty;
 
   /*
-   * The five independent reads, concurrently. Each is bounded and each fails on
+   * The six independent reads, concurrently. Each is bounded and each fails on
    * its own — a calendar outage must not cost the owner their plan.
    */
-  const [scheduleWindow, plannedPage, savedViews, parentOptions, focus] =
-    await Promise.all([
-      soft(
-        loadScheduleWindow(scope, {
-          fromDateIso: week.startIso,
-          toDateIso: week.endIso,
-          timeZone: timezone,
-        }),
-        EMPTY_SCHEDULE_WINDOW,
+  const [
+    scheduleWindow,
+    plannedPage,
+    savedViews,
+    parentOptions,
+    focus,
+    routines,
+  ] = await Promise.all([
+    soft(
+      loadScheduleWindow(scope, {
+        fromDateIso: week.startIso,
+        toDateIso: week.endIso,
+        timeZone: timezone,
+      }),
+      EMPTY_SCHEDULE_WINDOW,
+    ),
+    soft(
+      scope.tasks.listWorkspaceTasks({
+        // The OPEN scope, so a Task the owner planned for Wednesday and is
+        // waiting on someone for still appears on Wednesday — surfaced as
+        // blocked, never hidden (PLAN-01 §B7).
+        view: "open",
+        filters: { plannedFrom: week.startIso, plannedTo: week.endIso },
+        sort: "scheduled_date",
+        limit: PLAN_LIMITS.plannedTasks,
+        todayIso,
+      }),
+      { items: [] as readonly TaskListItem[], nextCursor: null },
+    ),
+    soft(scope.taskViews.list(input.ownerId), [] as readonly TaskSavedView[]),
+    soft(
+      scope.tasks.searchTaskParents({ limit: PLAN_LIMITS.parents }),
+      [] as readonly Awaited<
+        ReturnType<WorkspaceScope["tasks"]["searchTaskParents"]>
+      >[number][],
+    ),
+    readPriorFocus(scope, week.startIso, (iso) =>
+      formatPreferenceDate(iso, dateFormat),
+    ),
+    /*
+     * HABITS-01 — the week's routines, as read-only CONTEXT (two bounded
+     * statements). It fails soft to an empty list: a planner with no habits
+     * is the ordinary case, and a habits read that throws must narrow what the
+     * page says rather than cost the owner their week.
+     */
+    soft(
+      readHabitWeekSummary(
+        scope,
+        { todayIso, firstDayOfWeek },
+        { weekStartIso: week.startIso, weekEndIso: week.endIso },
       ),
-      soft(
-        scope.tasks.listWorkspaceTasks({
-          // The OPEN scope, so a Task the owner planned for Wednesday and is
-          // waiting on someone for still appears on Wednesday — surfaced as
-          // blocked, never hidden (PLAN-01 §B7).
-          view: "open",
-          filters: { plannedFrom: week.startIso, plannedTo: week.endIso },
-          sort: "scheduled_date",
-          limit: PLAN_LIMITS.plannedTasks,
-          todayIso,
-        }),
-        { items: [] as readonly TaskListItem[], nextCursor: null },
-      ),
-      soft(scope.taskViews.list(input.ownerId), [] as readonly TaskSavedView[]),
-      soft(
-        scope.tasks.searchTaskParents({ limit: PLAN_LIMITS.parents }),
-        [] as readonly Awaited<
-          ReturnType<WorkspaceScope["tasks"]["searchTaskParents"]>
-        >[number][],
-      ),
-      readPriorFocus(scope, week.startIso, (iso) =>
-        formatPreferenceDate(iso, dateFormat),
-      ),
-    ]);
+      [] as readonly HabitWeekSummaryItem[],
+    ),
+  ]);
 
   /*
    * The week's COMPLETED work is read separately and deliberately.
@@ -327,6 +352,7 @@ export async function loadPlanPage(
       ...savedViews.map((view) => savedSource(view, week.offset)),
     ],
     activeQueueSourceId: activeSource?.id ?? SUGGESTED_QUEUE_SOURCE_ID,
+    routines,
     projectSignals: signals.projects,
     goalSignals: signals.goals,
     priorFocus: focus,

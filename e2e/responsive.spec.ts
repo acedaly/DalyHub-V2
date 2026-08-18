@@ -92,6 +92,13 @@ const PRODUCT_ROUTES = [
   "/assets/service-due",
   "/new/asset",
   "/reviews",
+  // HABITS-01 — the Habits collection, its Archived view and the creation
+  // form. The form earns its place: its sticky action bar bleeds past the
+  // container's inline padding, which is exactly the shape of rule that
+  // overflows a 320px phone (and did, before this work measured it).
+  "/habits",
+  "/habits/archived",
+  "/habits/new",
   "/ai",
   "/settings",
   // PWA — the Settings offline section (three destructive rows, a facts grid)

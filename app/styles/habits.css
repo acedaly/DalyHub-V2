@@ -1,0 +1,545 @@
+/*
+ * HABITS-01 — Habits and routines.
+ *
+ * The visual rule for this whole file, stated once: a Habit surface must be able
+ * to say "you did not do it" WITHOUT looking like an alarm. AGENTS.md §2 forbids
+ * manufactured urgency, and a habit tracker is the single easiest place in a
+ * product to manufacture it — so there is no red anywhere below, no flame, no
+ * streak counter, no ring that empties, and no state that is louder than the one
+ * beside it. The only colour a Habit row ever takes is the completion tick's,
+ * which is the same primary the Task row uses, for the same act.
+ *
+ * Everything here composes existing tokens and existing shared objects. The
+ * check control is `.dh-check-circle` (task-signals.css) verbatim — the same
+ * 20px square, the same 44px coarse-pointer target, the same forced-colours
+ * fallback — because ticking a Habit and finishing a Task are the same physical
+ * gesture and must not be two different controls.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* The list                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-habit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+/*
+ * A row is a ROW: hairline-separated, content-height, no card.
+ *
+ * DESIGN_SYSTEM's card-vs-list rule puts repeated homogeneous content in a list,
+ * and D41's "whitespace and rules over boxes" is why the separator is
+ * `--dh-color-divider` (the quieter hairline) rather than a border on each row.
+ */
+.dh-habit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-block-size: var(--dh-row-height);
+  padding-block: var(--app-space-2);
+  min-inline-size: 0;
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+}
+
+.dh-habit-row + .dh-habit-row {
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-habit-row__lead {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+/*
+ * The placeholder for a day the Habit never asked for.
+ *
+ * Deliberately NOT a disabled checkbox: a disabled control is still announced,
+ * and it still says "this could be finished", which is exactly the wrong thing
+ * to say about a Tuesday for a Monday/Wednesday/Friday habit. It is a quiet dot
+ * that holds the row's leading column so titles still line up down the list.
+ */
+.dh-habit-row__rest {
+  display: inline-block;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  margin-inline: calc(0.5 * (var(--app-touch-target-min) - 0.5rem));
+  border-radius: 50%;
+  background: var(--dh-color-divider);
+}
+
+.dh-habit-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.dh-habit-row__title {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: 500;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-inline-size: 0;
+}
+
+a.dh-habit-row__title:hover {
+  text-decoration: underline;
+}
+
+.dh-habit-row__meta {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-inline-size: 0;
+}
+
+/*
+ * The state column: today's word above the week's count.
+ *
+ * Right-aligned and never coloured. Two quiet facts read as a pair; two coloured
+ * ones would read as a verdict.
+ */
+.dh-habit-row__state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+  text-align: end;
+}
+
+.dh-habit-row__today {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+.dh-habit-row__week {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/*
+ * A done row settles rather than celebrates: the title steps back to the muted
+ * ink, exactly as a completed Task's does, and nothing else changes. There is no
+ * strike-through, because a habit practised is not a thing crossed out.
+ */
+.dh-habit-row[data-state="done"] .dh-habit-row__title {
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * A day the habit never asked for. The row stays legible and simply carries
+ * less weight than the ones that are live today — it is not dimmed to the point
+ * of looking disabled, because the habit is not.
+ */
+.dh-habit-row[data-state="not_scheduled"] .dh-habit-row__today {
+  color: var(--dh-color-text-muted);
+}
+
+/* The compact presentation Today uses, where vertical space is the scarce
+   thing. The touch target is untouched — density may take padding, never hit
+   area (AGENTS.md §15). */
+.dh-habit-row[data-density="compact"] {
+  min-block-size: auto;
+  padding-block: var(--app-space-1);
+}
+
+/*
+ * Below the two-column step the state column moves under the title rather than
+ * competing with it for a 320px line. `flex-wrap` plus a full-width third child
+ * keeps the DOM order (and therefore the reading order) unchanged.
+ */
+@media (max-width: 30rem) {
+  .dh-habit-row {
+    flex-wrap: wrap;
+  }
+
+  .dh-habit-row__state {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--app-space-2);
+    inline-size: 100%;
+    padding-inline-start: var(--app-touch-target-min);
+    text-align: start;
+    justify-content: flex-start;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The create page                                                            */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The create page's own column.
+ *
+ * The INLINE padding is load-bearing, not decoration: the shared sticky
+ * commitment row bleeds to the page edges with `margin-inline: calc(-1 *
+ * --app-space-4)` (forms.css), so a container without that much padding lets it
+ * escape. MEASURED at 320px before this padding existed: `document.scrollWidth`
+ * 336 against a `clientWidth` of 320, with `.dh-form-actions--sticky` the sole
+ * offender at 352px wide. With it, 320 = 320.
+ */
+.dh-habit-new {
+  max-inline-size: var(--app-width-narrow);
+  margin-inline: auto;
+  padding: var(--app-space-4);
+}
+
+.dh-habit-new__head {
+  margin-block-end: var(--app-space-5);
+}
+
+.dh-habit-new__title {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--dh-text-page-title-size);
+  line-height: 1.25;
+}
+
+.dh-habit-new__lead {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.5;
+  max-inline-size: 46ch;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The toggle group (shared DS-06 control, HABITS-01)                          */
+/* -------------------------------------------------------------------------- */
+
+.dh-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+/*
+ * One option. A real `<label>` wrapping a real checkbox, sized to the WCAG 2.2
+ * touch floor on every pointer — these WRAP onto a second row on a narrow phone
+ * rather than shrinking, because seven 28px letter circles is exactly the
+ * pattern this control exists to replace.
+ */
+.dh-toggle-group__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 3rem;
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  cursor: pointer;
+  user-select: none;
+}
+
+.dh-toggle-group__input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dh-toggle-group__face {
+  pointer-events: none;
+}
+
+/*
+ * Selected is NEVER carried by the fill alone: the option gains the inverse
+ * ground AND a leading tick, and its native `checked` state is what assistive
+ * technology reads.
+ */
+.dh-toggle-group__option[data-checked] {
+  background: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+  color: var(--dh-color-text-on-accent);
+  font-weight: 600;
+}
+
+.dh-toggle-group__option[data-checked] .dh-toggle-group__face::before {
+  content: "✓ ";
+}
+
+.dh-toggle-group__input:focus-visible {
+  outline: none;
+}
+
+.dh-toggle-group__option:has(.dh-toggle-group__input:focus-visible) {
+  outline: var(--dh-focus-width) solid var(--dh-color-focus);
+  outline-offset: 2px;
+}
+
+.dh-toggle-group__option:hover {
+  border-color: var(--md-sys-color-primary);
+}
+
+@media (forced-colors: active) {
+  .dh-toggle-group__option[data-checked] {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The record                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.dh-habit-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-6);
+  min-inline-size: 0;
+}
+
+.dh-habit-summary__heading {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-habit-summary__check {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+.dh-habit-summary__state {
+  margin: 0;
+  font-size: var(--dh-text-row-size);
+  color: var(--dh-color-text);
+}
+
+.dh-habit-summary__quiet,
+.dh-habit-summary__consistency {
+  margin: 0 0 var(--app-space-3);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.5;
+}
+
+.dh-habit-summary__notes p {
+  margin: 0;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-row-size);
+  line-height: 1.55;
+  max-inline-size: 60ch;
+}
+
+.dh-habit-versions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-habit-versions li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  align-items: baseline;
+  font-size: var(--dh-text-meta-size);
+}
+
+.dh-habit-versions__label {
+  color: var(--dh-color-text);
+  font-weight: 500;
+}
+
+.dh-habit-versions__range {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-habit-schedule__note {
+  margin: 0 0 var(--app-space-4);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.5;
+  max-inline-size: 60ch;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The history grid                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Four weeks of days, as a real table with real headers.
+ *
+ * It is NOT a contribution heatmap: four rows, no intensity ramp, no year, no
+ * total. The whole grid is ~200px wide, so it fits a 320px phone without
+ * scrolling, and every square carries its full sentence for a screen reader.
+ */
+.dh-habit-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  align-items: flex-start;
+}
+
+.dh-habit-history__grid {
+  border-collapse: collapse;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-habit-history__grid th,
+.dh-habit-history__grid td {
+  padding: 2px;
+  text-align: center;
+  font-weight: 400;
+}
+
+.dh-habit-history__week {
+  padding-inline-end: var(--app-space-2) !important;
+  text-align: end !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-habit-history__day,
+.dh-habit-history__gap {
+  display: block;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border-radius: 4px;
+}
+
+.dh-habit-history__gap {
+  background: transparent;
+}
+
+/* Done — the completion colour, and the ONLY filled square in the grid. */
+.dh-habit-history__day[data-state="completed"] {
+  background: var(--md-sys-color-primary);
+}
+
+/*
+ * Scheduled and not done. An OUTLINE, not a red block: the day asked for
+ * something and holds nothing, which is a fact rather than a verdict. It is
+ * distinguishable from "not scheduled" by having an edge at all, and every
+ * square's meaning is in its hidden label regardless.
+ */
+.dh-habit-history__day[data-state="expected"] {
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+  background: transparent;
+}
+
+/* Never asked for. Almost nothing, because it means almost nothing. */
+.dh-habit-history__day[data-state="unscheduled"] {
+  background: var(--dh-color-divider);
+}
+
+/* Before the habit existed, or after it was archived. Nothing at all. */
+.dh-habit-history__day[data-state="inactive"] {
+  background: transparent;
+}
+
+.dh-habit-history__key {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-3);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-habit-history__key li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.dh-habit-history__empty {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+}
+
+@media (forced-colors: active) {
+  .dh-habit-history__day[data-state="completed"] {
+    background: Highlight;
+  }
+
+  .dh-habit-history__day[data-state="expected"] {
+    border-color: CanvasText;
+  }
+
+  .dh-habit-history__day[data-state="unscheduled"] {
+    background: GrayText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Supporting habits, on a Goal or an Area record                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A COMPACT section, never a dashboard.
+ *
+ * It exists to say "these are the behaviours behind this outcome", and it is
+ * deliberately read-only and free of any progress arithmetic: a Habit is
+ * evidence of behaviour, and the Goal's own measured progress stays the one
+ * authority on how the Goal is going.
+ */
+.dh-supporting-habits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-supporting-habits__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+}
+
+.dh-supporting-habits__title {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-supporting-habits__note {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+}
+
+.dh-supporting-habits__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

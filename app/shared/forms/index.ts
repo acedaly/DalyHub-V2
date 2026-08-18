@@ -76,6 +76,17 @@ export {
 } from "./SelectField";
 export { groupSelectOptions } from "./SelectSheetControl";
 export { TagsField, type TagsFieldProps } from "./TagsField";
+/**
+ * HABITS-01 — the toggle GROUP: a short closed vocabulary, several of which may
+ * be on at once (the days of the week). Reach for it instead of `SelectField
+ * multiple` when the set is small and already known to the reader, and instead
+ * of a hand-rolled row of circles ever.
+ */
+export {
+  ToggleGroupField,
+  type ToggleGroupFieldProps,
+  type ToggleGroupOption,
+} from "./ToggleGroupField";
 export { BooleanField, type BooleanFieldProps } from "./BooleanField";
 /**
  * M3-INT — the ONE M3 switch, for an immediate on/off preference. Exported

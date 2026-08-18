@@ -14,6 +14,7 @@
  */
 
 import type { DaySchedule } from "~/kernel/calendar";
+import type { HabitWeekSummaryItem } from "~/platform/habits/habit-facts.server";
 import type { PlanningQueueBand, PlanningWeek } from "~/kernel/planning";
 import type { TaskDensity } from "~/kernel/task-views";
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
@@ -116,6 +117,17 @@ export interface PlanPageData {
   /** Every queue source on offer, "Suggested" first. */
   readonly queueSources: readonly PlanQueueSource[];
   readonly activeQueueSourceId: string;
+  /**
+   * HABITS-01 — the routines the shown week already asks for.
+   *
+   * READ-ONLY planning CONTEXT, and nothing more. PLAN-01 owns Task placement;
+   * a Habit is not a Task, so nothing here can be placed on a day, nothing here
+   * appears in the "Still to place" queue, nothing here consumes the queue's
+   * bulk selection and nothing here writes a `scheduled_date`. What it answers
+   * is the question a planner actually has before committing more work to a
+   * week: what does this week already ask of me?
+   */
+  readonly routines: readonly HabitWeekSummaryItem[];
   readonly projectSignals: readonly PlanProjectSignal[];
   readonly goalSignals: readonly PlanGoalSignal[];
   readonly priorFocus: PlanPriorFocus | null;

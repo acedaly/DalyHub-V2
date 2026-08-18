@@ -23,7 +23,11 @@ import {
   type ProjectHealthRepository,
 } from "~/kernel/project-health";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
+import { readSupportingHabits } from "~/platform/habits/habit-facts.server";
 import { requireAuthenticatedSession } from "~/platform/request";
+import { SupportingHabits } from "~/shared/habits";
+import type { SerializedHabit } from "~/shared/habits";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
   DrawerProvider,
@@ -142,6 +146,30 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     await scope.ownerTimeZone(),
   );
 
+  /*
+   * HABITS-01 — the behaviours the owner practises in this part of life.
+   *
+   * Its own bounded read, and it fails soft: an Area with no habits is the
+   * ordinary case, and a habits read that throws must narrow what the record
+   * SAYS rather than take it down. Nothing it returns is counted in the Area's
+   * roll-up — a Habit is not a Goal, a Project or a Task.
+   */
+  let habits: readonly SerializedHabit[] = [];
+  try {
+    const firstDayOfWeek = await scope.appPreferences
+      .get(session.user.subject)
+      .then((preferences) => preferences.firstDayOfWeek)
+      .catch(() => DEFAULT_APP_PREFERENCES.firstDayOfWeek);
+    const grouped = await readSupportingHabits(
+      scope,
+      { todayIso: healthContext.todayIso, firstDayOfWeek },
+      { anchorIds: [areaId], relation: "area", limitPerAnchor: 5 },
+    );
+    habits = grouped.get(areaId) ?? [];
+  } catch {
+    // See above: a narrower record, never a broken one.
+  }
+
   // The DISPLAYED (bounded) card page — a separate concern from momentum.
   const displayedFactsById = await collectProjectHealthFacts(
     scope.projectHealth,
@@ -245,6 +273,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     projects,
     projectsNextCursor: projectPage.nextCursor,
     dependencies,
+    habits,
   };
 }
 
@@ -462,6 +491,13 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
       projectsNextCursor={props.projectsNextCursor}
       activeProjectTotal={props.activeProjectTotal}
       archived={archived}
+      habitsSlot={
+        <SupportingHabits
+          habits={props.habits}
+          title="Habits"
+          note="Behaviours you are practising in this part of life. They are context, not part of this Area’s roll-up."
+        />
+      }
       onRename={onRename}
       onOpenGoal={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}
       onOpenProject={(projectId) =>

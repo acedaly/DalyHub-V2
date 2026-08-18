@@ -81,6 +81,9 @@ export async function loader({ context }: Route.LoaderArgs) {
       dateLong: formatTodayDate(now, timezone),
       hour: ownerLocalHour(now, timezone),
       ownerName,
+      // HABITS-01 — the owner's week start, so a Habit's "this week" is the SAME
+      // seven days Weekly Planning and a weekly Review use.
+      firstDayOfWeek: preferences.firstDayOfWeek,
     });
   } catch {
     // A scope/preferences failure degrades to a quiet, correct day — the greeting

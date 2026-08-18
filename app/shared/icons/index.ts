@@ -17,6 +17,7 @@ export {
   // Entity icons
   AreaIcon,
   GoalIcon,
+  HabitIcon,
   ProjectIcon,
   TaskIcon,
   NoteIcon,

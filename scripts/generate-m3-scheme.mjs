@@ -353,6 +353,10 @@ function customColorGroups(scheme) {
       colors: [
         ["entity-area", "#00897B"], // teal
         ["entity-goal", "#8E24AA"], // purple
+        // HABITS-01 - a Habit is a first-class record and needs an accent that
+        // is not a Task's and not a Goal's. Lime sits between the Task green and
+        // the Note amber and is used nowhere else in the scheme.
+        ["entity-habit", "#7CB342"], // lime
         ["entity-project", BLUE_HEX], // blue
         ["entity-task", "#1B873F"], // green
         ["entity-note", "#B26A00"], // amber

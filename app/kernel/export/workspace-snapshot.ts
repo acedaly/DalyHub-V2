@@ -377,6 +377,53 @@ export interface SnapshotGoalMilestone {
 }
 
 /**
+ * HABITS-01 — a Habit's detail slice: its notes and its reversible archive.
+ *
+ * `archivedOn` is the OWNER-LOCAL calendar date of `archivedAt`, exported
+ * verbatim rather than re-derived, because it bounds what the Habit was expected
+ * to do and a calendar boundary must not move when a timezone preference does.
+ */
+export interface SnapshotHabitDetail {
+  readonly entityId: string;
+  readonly notes: string | null;
+  readonly archivedAt: IsoInstant | null;
+  readonly archivedOn: IsoDate | null;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
+/**
+ * HABITS-01 — one effective-dated version of a Habit's cadence.
+ *
+ * The whole chain is exported, not just the current version: the chain IS the
+ * record of what the owner was expected to do on each past day, and an export
+ * that kept only today's cadence would restore a workspace whose history had
+ * been quietly rewritten. `kind`, `weekdays` and `targetCount` are carried
+ * verbatim, exactly as an Area's `iconKey` is, so a schedule kind this build no
+ * longer recognises still survives the round trip.
+ */
+export interface SnapshotHabitSchedule {
+  readonly id: string;
+  readonly habitId: string;
+  readonly kind: string;
+  readonly weekdays: string | null;
+  readonly targetCount: number | null;
+  readonly effectiveFrom: IsoDate;
+  readonly effectiveTo: IsoDate | null;
+  readonly createdAt: IsoInstant;
+}
+
+/**
+ * HABITS-01 — one check-in: the owner-local calendar date a Habit counted for,
+ * and the instant it was recorded. The DATE is the identity.
+ */
+export interface SnapshotHabitCompletion {
+  readonly habitId: string;
+  readonly completedOn: IsoDate;
+  readonly recordedAt: IsoInstant;
+}
+
+/**
  * Project-owned state (PROJ-05): workflow status, the reversible archive, and
  * the owner's chosen icon. `iconKey` carries the same contract as
  * {@link SnapshotAreaDetail.iconKey} — the stored key verbatim, `null` for no
@@ -757,6 +804,9 @@ export interface SnapshotCollectionRowMap {
   readonly goalDetails: SnapshotGoalDetail;
   readonly goalMeasurements: SnapshotGoalMeasurement;
   readonly goalMilestones: SnapshotGoalMilestone;
+  readonly habitDetails: SnapshotHabitDetail;
+  readonly habitSchedules: SnapshotHabitSchedule;
+  readonly habitCompletions: SnapshotHabitCompletion;
   readonly projectDetails: SnapshotProjectDetail;
   readonly taskDetails: SnapshotTaskDetail;
   readonly taskRecurrenceRules: SnapshotTaskRecurrenceRule;
@@ -816,6 +866,11 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
     // before it is still valid and still restores.
     "goalMeasurements",
     "goalMilestones",
+    // HABITS-01 — added with the Habits domain. Every archive written before it
+    // is still valid and still restores.
+    "habitDetails",
+    "habitSchedules",
+    "habitCompletions",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
@@ -825,6 +880,13 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "goalDetails",
   "goalMeasurements",
   "goalMilestones",
+  // HABITS-01 — the detail slice FIRST, because the schedule chain and the
+  // check-ins both reference it. A restore inserts in this order and deletes in
+  // its exact reverse, which is what satisfies the ON DELETE RESTRICT keys
+  // without deferring constraint checks.
+  "habitDetails",
+  "habitSchedules",
+  "habitCompletions",
   "projectDetails",
   "taskDetails",
   "taskRecurrenceRules",

@@ -30,6 +30,9 @@ import type {
   SnapshotEntity,
   SnapshotEntityLink,
   SnapshotGoalDetail,
+  SnapshotHabitCompletion,
+  SnapshotHabitDetail,
+  SnapshotHabitSchedule,
   SnapshotMeetingDetail,
   SnapshotMeetingItem,
   SnapshotMeetingItemTask,
@@ -61,6 +64,7 @@ import {
 export const VAULT_FOLDER_BY_TYPE: Readonly<Record<string, string>> = {
   area: "Areas",
   goal: "Goals",
+  habit: "Habits",
   project: "Projects",
   task: "Tasks",
   note: "Notes",
@@ -78,6 +82,7 @@ export const VAULT_OTHER_FOLDER = "Other";
 export const VAULT_FOLDER_ORDER: readonly string[] = [
   "Areas",
   "Goals",
+  "Habits",
   "Projects",
   "Tasks",
   "Notes",
@@ -148,6 +153,7 @@ export interface VaultIndex {
   readonly personDetail: ReadonlyMap<string, SnapshotPersonDetail>;
   readonly meetingDetail: ReadonlyMap<string, SnapshotMeetingDetail>;
   readonly assetDetail: ReadonlyMap<string, SnapshotAssetDetail>;
+  readonly habitDetail: ReadonlyMap<string, SnapshotHabitDetail>;
   readonly reviewDetail: ReadonlyMap<string, SnapshotReviewDetail>;
 
   readonly meetingItems: ReadonlyMap<string, readonly SnapshotMeetingItem[]>;
@@ -163,6 +169,15 @@ export interface VaultIndex {
   readonly reviewSections: ReadonlyMap<
     string,
     readonly SnapshotReviewSection[]
+  >;
+  /** A Habit's WHOLE schedule chain, oldest first — its history of expectation. */
+  readonly habitSchedules: ReadonlyMap<
+    string,
+    readonly SnapshotHabitSchedule[]
+  >;
+  readonly habitCompletions: ReadonlyMap<
+    string,
+    readonly SnapshotHabitCompletion[]
   >;
 
   /** Active, NON-structural outgoing links (the record's own references). */
@@ -376,12 +391,15 @@ export function buildVaultIndex(snapshot: WorkspaceSnapshotV1): VaultIndex {
     personDetail: byId(records.personDetails, (row) => row.entityId),
     meetingDetail: byId(records.meetingDetails, (row) => row.entityId),
     assetDetail: byId(records.assetDetails, (row) => row.entityId),
+    habitDetail: byId(records.habitDetails, (row) => row.entityId),
     reviewDetail: byId(records.reviewDetails, (row) => row.entityId),
     meetingItems: group(records.meetingItems, (row) => row.meetingId),
     meetingFollowUps: group(records.meetingItemTasks, (row) => row.meetingId),
     assetEvents: group(records.assetEvents, (row) => row.assetId),
     assetObligations: group(records.assetObligations, (row) => row.assetId),
     reviewSections: group(records.reviewSections, (row) => row.reviewId),
+    habitSchedules: group(records.habitSchedules, (row) => row.habitId),
+    habitCompletions: group(records.habitCompletions, (row) => row.habitId),
     outgoingLinks: group(referential, (link) => link.sourceEntityId),
     incomingLinks: group(referential, (link) => link.targetEntityId),
     parents,
