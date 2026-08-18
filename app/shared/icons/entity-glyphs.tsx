@@ -1032,6 +1032,15 @@ export const GlyphReviewDefault = createStrokeIcon(
   </>,
 );
 
+/** Habit — a loop that comes round again: a behaviour practised on a cadence. */
+export const GlyphHabitDefault = createStrokeIcon(
+  "GlyphHabitDefault",
+  <>
+    <path d="M20.4 12a8.4 8.4 0 1 1-8.4-8.4c2.34 0 4.48.94 6.06 2.46L20.4 8.4" />
+    <path d="M20.4 3.6v4.8h-4.8" />
+  </>,
+);
+
 /**
  * The default glyph for each entity type, in the identity vocabulary.
  *
@@ -1041,6 +1050,7 @@ export const GlyphReviewDefault = createStrokeIcon(
 export const ENTITY_DEFAULT_GLYPHS = {
   area: GlyphAreaDefault,
   goal: GlyphGoalDefault,
+  habit: GlyphHabitDefault,
   project: GlyphProjectDefault,
   task: GlyphTaskDefault,
   note: GlyphNoteDefault,

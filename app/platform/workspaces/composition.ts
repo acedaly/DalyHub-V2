@@ -49,6 +49,7 @@ import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
 import type { EntityRepository } from "~/kernel/entities";
+import type { HabitRepository } from "~/kernel/habits";
 import type { EntityLinkRepository } from "~/kernel/entity-links";
 import type {
   ActorDirectory,
@@ -110,6 +111,7 @@ import {
   createGoalDetailsRepository,
   createGoalMeasurementRepository,
   createGoalRepository,
+  createHabitRepository,
   createNoteDetailsRepository,
   createNoteRepository,
   createNotificationRepository,
@@ -207,6 +209,21 @@ export interface WorkspaceScope {
    * "change the target" the same operation.
    */
   readonly goalMeasurements: GoalMeasurementRepository;
+  /**
+   * HABITS-01 — the authoritative Habit repository: the Habits collection and
+   * record's read model, the ONE check-in authority, and the owner of a Habit's
+   * effective-dated schedule chain.
+   *
+   * It creates `habit` entities with their detail slice and their FIRST schedule
+   * version atomically (the generic `entities` repository refuses to create one),
+   * so a Habit can never exist without a cadence. A Habit is NOT a Task and
+   * generates none: nothing here writes, reads or counts a Task, and a missed
+   * Habit can therefore never become an overdue Task, enter a Task statistic or
+   * move a Project's progress. Title/soft-delete/restore stay `entities.*`;
+   * relationships to Goals and Areas stay `entityLinks`; the audit trail stays
+   * `activity` — except a check-in, which deliberately records none (ADR-102 §7).
+   */
+  readonly habits: HabitRepository;
   /**
    * The NOTES-01A Note-owned Markdown content slice — the entities table
    * deliberately does not model a Note's body. Notes are NOT part of the
@@ -558,6 +575,14 @@ export function bindWorkspaceRepositories(
   const goalMeasurements = createGoalMeasurementRepository(env.DB, context, {
     actorContext,
   });
+  // HABITS-01 — the Habit repository takes the SAME owner-timezone resolver every
+  // other date-sensitive path uses (AUDIT-14), because a Habit's first schedule
+  // day, a schedule change's boundary and a check-in's calendar date must all be
+  // the owner's day rather than the Worker's UTC one.
+  const habits = createHabitRepository(env.DB, context, {
+    actorContext,
+    ownerTimeZone,
+  });
   const noteDetails = createNoteDetailsRepository(env.DB, context, {
     actorContext,
   });
@@ -675,6 +700,7 @@ export function bindWorkspaceRepositories(
     goals,
     goalDetails,
     goalMeasurements,
+    habits,
     noteDetails,
     notes,
     diary,

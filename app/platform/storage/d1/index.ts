@@ -57,6 +57,7 @@ import type {
   NoteDetailsRepository,
   NoteQueryRepository,
 } from "~/kernel/notes";
+import type { HabitRepository } from "~/kernel/habits";
 import type { PersonRepository } from "~/kernel/people";
 import type { MeetingTaskConversionRepository } from "~/kernel/meetings";
 import type { ProjectHealthRepository } from "~/kernel/project-health";
@@ -138,6 +139,10 @@ import {
   type D1GoalMeasurementRepositoryOptions,
 } from "./d1-goal-measurement-repository";
 import { D1GoalRepository } from "./d1-goal-repository";
+import {
+  D1HabitRepository,
+  type D1HabitRepositoryOptions,
+} from "./d1-habit-repository";
 import {
   D1NoteDetailsRepository,
   type D1NoteDetailsRepositoryOptions,
@@ -240,6 +245,11 @@ export {
   type D1PersonRepositoryOptions,
   type D1PersonCreateFault,
 } from "./d1-person-repository";
+export {
+  D1HabitRepository,
+  type D1HabitRepositoryOptions,
+  type D1HabitCreateFault,
+} from "./d1-habit-repository";
 export { D1MeetingRepository } from "./d1-meeting-repository";
 export {
   D1MeetingTaskConversionRepository,
@@ -484,6 +494,24 @@ export function createPersonRepository(
   options?: D1PersonRepositoryOptions,
 ): PersonRepository {
   return new D1PersonRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed HabitRepository — the HABITS-01
+ * authoritative Habit repository. It CREATES `habit` entities with their detail
+ * slice AND their first schedule version atomically (the generic
+ * EntityRepository refuses to create one), owns the schedule chain, the archive
+ * lifecycle and the ONE check-in authority, and shares the trusted Activity
+ * actor. A Habit's soft-delete/restore stay the generic EntityRepository's;
+ * relationships stay FND-04 EntityLinks. Bound to a `WorkspaceContext`; there is
+ * no unscoped construction path.
+ */
+export function createHabitRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1HabitRepositoryOptions,
+): HabitRepository {
+  return new D1HabitRepository(db, context, options);
 }
 
 export function createMeetingRepository(

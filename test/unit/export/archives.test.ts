@@ -32,6 +32,7 @@ describe("countRecordsByModule", () => {
       "asset",
       "diary",
       "goal",
+      "habit",
       "meeting",
       "note",
       "person",

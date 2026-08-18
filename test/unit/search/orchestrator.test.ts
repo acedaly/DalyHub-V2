@@ -183,6 +183,7 @@ describe("registry-driven provider discovery", () => {
     expect(providers.map((provider) => provider.id)).toEqual([
       "areas.search",
       "goals.search",
+      "habits.search",
       "projects.search",
       "tasks.search",
       "notes.search",

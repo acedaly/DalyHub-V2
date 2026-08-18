@@ -11,6 +11,7 @@ import {
   makeContext,
   makeAssetRepository,
   makeDiaryRepository,
+  makeHabitRepository,
   makeMeetingRepository,
   makeNoteDetailsRepository,
   makePersonRepository,
@@ -135,6 +136,10 @@ async function seedEverySearchableRecord(): Promise<void> {
     serialNumber: "SECRET-SERIAL-123",
     referenceNumber: "SECRET-POLICY-456",
   });
+  await makeHabitRepository(context).create({
+    title: "GlobalSearch Habit",
+    schedule: { kind: "weekly_count", timesPerWeek: 3 },
+  });
   await makeReviewRepository(context).create({
     type: "custom",
     periodStart: "2026-07-01",
@@ -176,6 +181,7 @@ describe("GET /search route loader", () => {
     expect(outcome.providers.map((provider) => provider.providerId)).toEqual([
       "areas.search",
       "goals.search",
+      "habits.search",
       "projects.search",
       "tasks.search",
       "notes.search",
@@ -191,6 +197,7 @@ describe("GET /search route loader", () => {
       new Set([
         "area",
         "goal",
+        "habit",
         "project",
         "task",
         "note",

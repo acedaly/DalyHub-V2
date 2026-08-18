@@ -227,6 +227,52 @@ const COLLECTIONS: CollectionDescriptors = {
       updatedAt: requiredText(row.updated_at),
     }),
   },
+  habitDetails: {
+    table: "habit_details",
+    columns:
+      "entity_id, notes, archived_at, archived_on, created_at, updated_at",
+    order: ["entity_id"],
+    map: (row) => ({
+      entityId: requiredText(row.entity_id),
+      notes: text(row.notes),
+      archivedAt: text(row.archived_at),
+      archivedOn: text(row.archived_on),
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
+  habitSchedules: {
+    table: "habit_schedules",
+    columns:
+      "id, habit_id, kind, weekdays, target_count, effective_from, effective_to, created_at",
+    order: ["id"],
+    map: (row) => ({
+      id: requiredText(row.id),
+      habitId: requiredText(row.habit_id),
+      // Verbatim, exactly as an Area's `iconKey`: an export records what the
+      // database holds, so a schedule kind this build no longer recognises still
+      // survives the round trip — and the CHAIN is what makes the owner's past
+      // expectations restorable at all.
+      kind: requiredText(row.kind),
+      weekdays: text(row.weekdays),
+      targetCount: integer(row.target_count),
+      effectiveFrom: requiredText(row.effective_from),
+      effectiveTo: text(row.effective_to),
+      createdAt: requiredText(row.created_at),
+    }),
+  },
+  habitCompletions: {
+    table: "habit_completions",
+    columns: "habit_id, completed_on, recorded_at",
+    // The check-in's identity is the (habit, date) pair the table's primary key
+    // already is; there is no surrogate id to order by and none is invented.
+    order: ["habit_id", "completed_on"],
+    map: (row) => ({
+      habitId: requiredText(row.habit_id),
+      completedOn: requiredText(row.completed_on),
+      recordedAt: requiredText(row.recorded_at),
+    }),
+  },
   projectDetails: {
     table: "project_details",
     columns:

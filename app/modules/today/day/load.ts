@@ -13,10 +13,13 @@
  */
 
 import { addDaysToIsoDate } from "~/kernel/alignment";
+import type { FirstDayOfWeek } from "~/kernel/preferences";
 import type { TaskParentCandidate } from "~/kernel/tasks";
 import type { DaySchedule } from "~/kernel/calendar";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
+import { readHabitPage } from "~/platform/habits/habit-facts.server";
+import type { SerializedHabit } from "~/shared/habits";
 import { ownerCalendarIso } from "~/shared/datetime";
 import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
 
@@ -91,6 +94,17 @@ const PLANNING_COMPLETED_LIMIT = 100;
  * unbounded read and never through a query per row.
  */
 const PARENT_OPTION_LIMIT = 50;
+
+/**
+ * HABITS-01 — how many active Habits Today's routine section reads.
+ *
+ * Twenty, and the bound is about the SURFACE rather than about the data: Today's
+ * first job is the day's work, so the routine section is a short band under it,
+ * not a second collection. A workspace with more than twenty active habits has
+ * `/habits` one tap away, and the section says so rather than growing. The read
+ * itself is two bounded statements whatever this number is.
+ */
+const HABIT_LIMIT = 20;
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                      */
@@ -202,6 +216,22 @@ export interface TodayDayData {
    * surfaces offer the same menu over the same set.
    */
   readonly parents: readonly TaskParentOption[];
+  /**
+   * HABITS-01 — the active Habits relevant to today, already serialised.
+   *
+   * "Relevant" is decided by the SCHEDULE, not by a flag: a day-based Habit
+   * appears on the days it asks for, and a count-based one appears while its
+   * week is unmet (or once it has been done today, so the tick can be undone).
+   * A Habit that is not relevant today is simply absent — Today never lists a
+   * behaviour it is not asking about, and never describes an unscheduled day as
+   * a miss.
+   *
+   * A Habit is NOT a Task. Nothing in this array reaches the day's task bands,
+   * the overdue count, the attention rail or any Project's progress.
+   */
+  readonly habits: readonly SerializedHabit[];
+  /** Whether more active Habits exist than this section shows. */
+  readonly habitsTruncated: boolean;
 }
 
 /** One day of the Schedule panel's week: the strip's facts and that day's items. */
@@ -235,6 +265,8 @@ export function emptyDay(input: {
     activityTrend: null,
     reflection: null,
     parents: [],
+    habits: [],
+    habitsTruncated: false,
   };
 }
 
@@ -424,6 +456,7 @@ export async function loadTodayDay(
     readonly dateLong: string;
     readonly hour: number;
     readonly ownerName: string | null;
+    readonly firstDayOfWeek: FirstDayOfWeek;
   },
 ): Promise<TodayDayData> {
   const { now, timezone, todayIso } = facts;
@@ -444,6 +477,7 @@ export async function loadTodayDay(
     activityTrend,
     reflection,
     parentOptions,
+    habitPage,
   ] = await Promise.all([
     safely(() => loadTasks(scope, todayIso, timezone), {
       overdue: [],
@@ -494,6 +528,26 @@ export async function loadTodayDay(
       () => scope.tasks.searchTaskParents({ limit: PARENT_OPTION_LIMIT }),
       [] as readonly TaskParentCandidate[],
     ),
+    /*
+     * HABITS-01 — the routine band. TWO bounded statements (the Habit page, then
+     * every completion in the owner's calendar week for that whole page), which
+     * is the same cost whether the workspace holds one Habit or twenty. It
+     * degrades to an empty band rather than failing the day, exactly as every
+     * other section here does.
+     */
+    safely(
+      () =>
+        readHabitPage(
+          scope,
+          { todayIso, firstDayOfWeek: facts.firstDayOfWeek },
+          { status: "active", limit: HABIT_LIMIT },
+        ),
+      {
+        items: [] as readonly SerializedHabit[],
+        nextCursor: null,
+        hasMore: false,
+      },
+    ),
   ]);
 
   return {
@@ -539,6 +593,14 @@ export async function loadTodayDay(
     goals: measurableGoals,
     activityTrend,
     reflection,
+    /*
+     * Only the Habits today is actually asking about. `today.checkable` is the
+     * kernel's own answer — a scheduled day, a count-based Habit whose week is
+     * not yet met, or a day already done (so the tick can be undone) — so this
+     * filter states the rule once and Today never re-derives it.
+     */
+    habits: habitPage.items.filter((habit) => habit.today.checkable),
+    habitsTruncated: habitPage.hasMore,
     parents: parentOptions.map((candidate) => ({
       id: candidate.id,
       kind: candidate.kind,

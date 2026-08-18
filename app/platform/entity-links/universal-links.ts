@@ -29,6 +29,7 @@
  * injects a workspace-scoped {@link EntityLinkPickerDeps}).
  */
 
+import { HABIT_LINK_TYPES } from "~/kernel/habits";
 import { isReservedSpineLinkType } from "~/kernel/spine";
 import type {
   LinkedItem,
@@ -68,6 +69,10 @@ export const UNIVERSAL_RELATED_DESCRIPTOR = {
 export const SUPPORTED_LINK_ENTITY_TYPES = [
   "area",
   "goal",
+  // HABITS-01 — a Habit has a canonical record, so it can be a linked item like
+  // any other. Its STRUCTURAL links (to a Goal and an Area) stay module-owned
+  // and are filtered out of this picker, exactly as a Goal's Area parentage is.
+  "habit",
   "project",
   "task",
   "note",
@@ -110,6 +115,25 @@ const LINK_SCAN_PAGE_SIZE = 100;
 const MAX_SCAN_PAGES_PER_CALL = 20;
 
 /**
+ * The link types the Linked Items surface HIDES, because another part of the
+ * record already draws them.
+ *
+ * The four spine links are hidden because the hierarchy renders them in its own
+ * relationships view. HABITS-01 adds the two a Habit owns for the same reason
+ * and no other: a Habit's Goal and Area are printed in its record header, and a
+ * Goal's supporting Habits have their own section — so leaving them here would
+ * be a second, non-removable copy of a relationship the reader can already see.
+ * Neither is a rule about what may be LINKED; both are about what this one
+ * surface would otherwise duplicate.
+ */
+function isStructuralLinkType(type: string): boolean {
+  return (
+    isReservedSpineLinkType(type) ||
+    (HABIT_LINK_TYPES as readonly string[]).includes(type)
+  );
+}
+
+/**
  * Load one bounded page of a record's Linked Items: active links at either end,
  * EXCLUDING the reserved structural spine links (the Area→Goal→Project→Task
  * hierarchy renders those in its own relationships view), each mapped to a
@@ -143,7 +167,7 @@ export async function loadLinkedItems(
     });
     scanned += 1;
     for (const view of page.items) {
-      if (isReservedSpineLinkType(view.link.type)) continue;
+      if (isStructuralLinkType(view.link.type)) continue;
       items.push({
         linkId: view.link.id,
         target: {

@@ -34,6 +34,7 @@ import type {
   SnapshotAssetObligation,
   SnapshotEntity,
   SnapshotEntityLink,
+  SnapshotHabitSchedule,
   SnapshotTaskRecurrenceRule,
   WorkspaceSnapshotV1,
 } from "~/kernel/export";
@@ -290,6 +291,8 @@ function archivedAtOf(
       return index.meetingDetail.get(entity.id)?.archivedAt ?? null;
     case "asset":
       return index.assetDetail.get(entity.id)?.archivedAt ?? null;
+    case "habit":
+      return index.habitDetail.get(entity.id)?.archivedAt ?? null;
     case "review":
       return index.reviewDetail.get(entity.id)?.archivedAt ?? null;
     default:
@@ -990,6 +993,94 @@ function writeReview(context: WriterContext): string {
   ]);
 }
 
+/**
+ * HABITS-01 — a Habit, written as what it is: a cadence, a history of cadences,
+ * and the days it actually happened.
+ *
+ * The WHOLE schedule chain is printed, not just the current one, because the
+ * chain is what says what each past day was expected to hold — a vault that kept
+ * only today's cadence would let a reader draw a conclusion about last month
+ * that the data does not support. There is no streak, no score and no
+ * percentage: the check-ins are listed as dates, which is the fact.
+ */
+function writeHabit(context: WriterContext): string {
+  const { index, entity, path } = context;
+  const detail = index.habitDetail.get(entity.id);
+  const schedules = [...(index.habitSchedules.get(entity.id) ?? [])].sort(
+    (a, b) =>
+      a.effectiveFrom < b.effectiveFrom
+        ? -1
+        : a.effectiveFrom > b.effectiveFrom
+          ? 1
+          : 0,
+  );
+  const completions = [...(index.habitCompletions.get(entity.id) ?? [])].sort(
+    (a, b) =>
+      a.completedOn < b.completedOn
+        ? 1
+        : a.completedOn > b.completedOn
+          ? -1
+          : 0,
+  );
+  const current = schedules.at(-1) ?? null;
+
+  const describe = (row: SnapshotHabitSchedule): string => {
+    if (row.kind === "daily") return "Every day";
+    if (row.kind === "weekdays") {
+      const names = (row.weekdays ?? "")
+        .split(",")
+        .map((part) => Number.parseInt(part, 10))
+        .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+        .map((day) => WEEKDAY_NAMES[day] ?? String(day));
+      return names.length > 0 ? names.join(", ") : row.kind;
+    }
+    if (row.kind === "weekly_count") {
+      return `${row.targetCount ?? 0} times a week`;
+    }
+    return row.kind;
+  };
+
+  return document([
+    commonFields(context, [
+      ["schedule", current ? describe(current) : null],
+      ["check_ins", completions.length],
+    ]),
+    `# ${entity.title}`,
+    lifecycleBanner(lifecycleOf(index, entity)),
+    section("Notes", detail?.notes ?? null),
+    section(
+      "Schedule",
+      schedules.length === 0
+        ? null
+        : schedules
+            .map(
+              (row) =>
+                `- **${row.effectiveFrom} to ${row.effectiveTo ?? "now"}** - ${describe(row)}`,
+            )
+            .join("\n"),
+    ),
+    section(
+      "Check-ins",
+      completions.length === 0
+        ? null
+        : completions.map((row) => `- ${row.completedOn}`).join("\n"),
+    ),
+    section("Related records", relationshipSection(index, path, entity.id)),
+    section("Recent activity", activityExcerpt(context)),
+  ]);
+}
+
+/** Weekday names, indexed Sunday = 0 — the same basis the Habits kernel uses. */
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
 function writeGeneric(context: WriterContext): string {
   const { index, entity, path } = context;
   return document([
@@ -1359,6 +1450,9 @@ export function buildObsidianVault(
         break;
       case "asset":
         contents = writeAsset(context);
+        break;
+      case "habit":
+        contents = writeHabit(context);
         break;
       case "review":
         contents = writeReview(context);

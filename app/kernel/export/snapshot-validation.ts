@@ -146,6 +146,12 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   goalDetails: (row: { entityId: string }) => row.entityId,
   goalMeasurements: (row: { id: string }) => row.id,
   goalMilestones: (row: { id: string }) => row.id,
+  habitDetails: (row: { entityId: string }) => row.entityId,
+  habitSchedules: (row: { id: string }) => row.id,
+  // The check-in's identity IS (habit, date) — the table's own primary key — so
+  // the deterministic order key is the pair rather than a surrogate it has none of.
+  habitCompletions: (row: { habitId: string; completedOn: string }) =>
+    `${row.habitId}:${row.completedOn}`,
   projectDetails: (row: { entityId: string }) => row.entityId,
   taskDetails: (row: { entityId: string }) => row.entityId,
   taskRecurrenceRules: (row: { entityId: string }) => row.entityId,
@@ -448,6 +454,38 @@ export function validateWorkspaceSnapshot(
     });
     if (!entityIds.has(row.goalId)) {
       c.add(`${path}.goalId`, "references a goal not in this snapshot");
+    }
+  });
+
+  records.habitDetails.forEach((row, index) => {
+    const path = `records.habitDetails[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.entityId`, row.entityId);
+    requireInstant(c, `${path}.archivedAt`, row.archivedAt, { nullable: true });
+    if (!entityIds.has(row.entityId)) {
+      c.add(`${path}.entityId`, "references a habit not in this snapshot");
+    }
+  });
+  records.habitSchedules.forEach((row, index) => {
+    const path = `records.habitSchedules[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.id`, row.id);
+    requireNonEmptyString(c, `${path}.kind`, row.kind);
+    requireDate(c, `${path}.effectiveFrom`, row.effectiveFrom);
+    if (row.effectiveTo !== null) {
+      requireDate(c, `${path}.effectiveTo`, row.effectiveTo);
+    }
+    if (!entityIds.has(row.habitId)) {
+      c.add(`${path}.habitId`, "references a habit not in this snapshot");
+    }
+  });
+  records.habitCompletions.forEach((row, index) => {
+    const path = `records.habitCompletions[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireDate(c, `${path}.completedOn`, row.completedOn);
+    requireInstant(c, `${path}.recordedAt`, row.recordedAt);
+    if (!entityIds.has(row.habitId)) {
+      c.add(`${path}.habitId`, "references a habit not in this snapshot");
     }
   });
 

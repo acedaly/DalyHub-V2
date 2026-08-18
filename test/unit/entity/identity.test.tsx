@@ -27,6 +27,7 @@ describe("PX-02 entity identity map", () => {
     expect([...ENTITY_TYPES]).toEqual([
       "area",
       "goal",
+      "habit",
       "project",
       "task",
       "note",

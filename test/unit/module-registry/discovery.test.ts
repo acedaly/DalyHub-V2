@@ -100,6 +100,7 @@ describe("module discovery", () => {
         "assets",
         "diary",
         "goals",
+        "habits",
         "help",
         "meetings",
         "notes",
@@ -125,6 +126,7 @@ describe("module discovery", () => {
         "plan",
         "areas",
         "goals",
+        "habits",
         "projects",
         "tasks",
         "views",
@@ -143,6 +145,9 @@ describe("module discovery", () => {
       // Entity types are owned by exactly one module each.
       expect(registry.getEntityType("area")?.moduleId).toBe("areas");
       expect(registry.getEntityType("goal")?.moduleId).toBe("goals");
+      // HABITS-01 — Habits owns its own entity type. A Habit is not a Task, so
+      // `habit` is never owned by the Tasks module.
+      expect(registry.getEntityType("habit")?.moduleId).toBe("habits");
       expect(registry.getEntityType("project")?.moduleId).toBe("projects");
       expect(registry.getEntityType("task")?.moduleId).toBe("tasks");
       // PX-03's placeholder modules pre-register their future entity types too
@@ -258,6 +263,42 @@ describe("module discovery", () => {
         {
           id: "goals.activity",
           moduleId: "goals",
+          file: "routes/activity.tsx",
+        },
+        // HABITS-01 adds the Habits collection, its archived view, the create
+        // page + endpoint, the record, and the two resource routes a Habit owns:
+        // `mutate` (the record) and `check-in` (the history). Check-in is the
+        // ONE authority Today, the collection and the record all post to.
+        { id: "habits.index", moduleId: "habits", file: "routes/index.tsx" },
+        {
+          id: "habits.archived",
+          moduleId: "habits",
+          file: "routes/archived.tsx",
+        },
+        { id: "habits.new", moduleId: "habits", file: "routes/new.tsx" },
+        {
+          id: "habits.create",
+          moduleId: "habits",
+          file: "routes/create.tsx",
+        },
+        {
+          id: "habits.detail",
+          moduleId: "habits",
+          file: "routes/detail.tsx",
+        },
+        {
+          id: "habits.mutate",
+          moduleId: "habits",
+          file: "routes/mutate.tsx",
+        },
+        {
+          id: "habits.check_in",
+          moduleId: "habits",
+          file: "routes/check-in.tsx",
+        },
+        {
+          id: "habits.activity",
+          moduleId: "habits",
           file: "routes/activity.tsx",
         },
         // PROJ-01 adds the collection + record page routes and the create/mutate/
@@ -653,6 +694,11 @@ describe("module discovery", () => {
         "areas.open",
         "areas.new",
         "goals.open",
+        // HABITS-01 — Habits contributes both a navigation command and a create
+        // one, because unlike a Goal a Habit HAS a workspace-level creation
+        // surface (`/habits/new`) with no required parent.
+        "habits.open",
+        "habits.new",
         "projects.open",
         "projects.new",
         "tasks.open",
@@ -719,6 +765,7 @@ describe("module discovery", () => {
       expect(searchProviders.map((provider) => provider.id)).toEqual([
         "areas.search",
         "goals.search",
+        "habits.search",
         "projects.search",
         "tasks.search",
         // NOTES-03 closes the DEBT-36 gap for Notes: full-content search over

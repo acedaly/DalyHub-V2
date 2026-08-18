@@ -115,6 +115,9 @@ export function countRecordsByModule(
     snapshot.records.personDetails,
     snapshot.records.meetingDetails,
     snapshot.records.assetDetails,
+    // HABITS-01 — a Habit carries the same reversible archive a Person does, so
+    // an archived Habit is counted as archived rather than as active.
+    snapshot.records.habitDetails,
   ]) {
     for (const row of rows) archived.set(row.entityId, row.archivedAt);
   }

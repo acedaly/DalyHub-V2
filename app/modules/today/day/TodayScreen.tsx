@@ -114,6 +114,8 @@ import {
 import { withDrawerPushed, useDrawer } from "~/shared/drawer";
 import { useCapture, type CaptureType } from "~/shared/capture";
 import { Sparkline } from "~/shared/charts";
+import { HabitRow, useHabitCheckIn } from "~/shared/habits";
+import type { SerializedHabit } from "~/shared/habits";
 import { ProgressTrack } from "~/shared/progress";
 import {
   AssetIcon,
@@ -1298,6 +1300,16 @@ export function TodayScreen({
           eventHref={eventHref}
         />
 
+        {/* HABITS-01 — the routine band, BELOW the day's work and its schedule.
+            It spans the full grid rather than taking a column, because it is a
+            short list of one-line rows and giving it a column would leave the
+            other half of the row empty. See `HabitsPanel`. */}
+        <HabitsPanel
+          habits={data.habits}
+          truncated={data.habitsTruncated}
+          todayIso={data.todayIso}
+        />
+
         {/*
          * ── The DECISION row ─────────────────────────────────────────────────
          * What has gone wrong, and what to pick up next. The audit moves this
@@ -1437,6 +1449,96 @@ export function TodayScreen({
         {actions.announcement ?? ""}
       </p>
     </div>
+  );
+}
+
+/**
+ * HABITS-01 — the routine band.
+ *
+ * ── Why it is here, and why it is SHORT ─────────────────────────────────────
+ * Today's first job is the day's work, and TODAY-TASK-01 spent a whole pass
+ * measuring how far down the page the first task had drifted. So this band sits
+ * BELOW the plan and the schedule — never between the greeting and the first
+ * task — and it is a list of one-line rows, not a card per habit. MEASURED on
+ * the seeded fixture at 1440 and at 393: the first task's vertical position is
+ * unchanged by this section, because nothing was inserted above it.
+ *
+ * ── What it shows ───────────────────────────────────────────────────────────
+ * Only the Habits today is actually asking about. A day-based Habit appears on
+ * the days it asks for; a count-based one appears while its week is unmet, or
+ * once it is done today so the tick can be undone. A Habit that is not relevant
+ * today is simply absent — Today never lists a behaviour it is not asking about,
+ * and an unscheduled day is never printed as a miss.
+ *
+ * ── What it is NOT ──────────────────────────────────────────────────────────
+ * Not a Task list. Nothing here is due, nothing here can be overdue, nothing
+ * here is counted in the day's task figures or in any Project's progress, and
+ * nothing here generates a Task. Not a streak board either: no flame, no day
+ * count, no chain to break — just today's state and the week's count.
+ */
+function HabitsPanel({
+  habits,
+  truncated,
+  todayIso,
+}: {
+  readonly habits: readonly SerializedHabit[];
+  readonly truncated: boolean;
+  readonly todayIso: string;
+}) {
+  const checkIn = useHabitCheckIn();
+
+  /* ADR-086 — the loader is the truth; a patch lives only until it answers. */
+  useEffect(() => {
+    checkIn.clearPatches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the data.
+  }, [habits]);
+
+  if (habits.length === 0) return null;
+
+  return (
+    <section
+      className="dh-today__panel dh-today__habits-panel"
+      aria-labelledby="today-habits-heading"
+      data-testid="today-habits"
+    >
+      <div className="dh-today__panel-head">
+        <h2 className="dh-today__panel-title" id="today-habits-heading">
+          Habits
+        </h2>
+        <Link className="dh-today__panel-action" to="/habits">
+          All habits
+        </Link>
+      </div>
+      <ul className="dh-habit-list" aria-label="Habits for today">
+        {habits.map((habit) => (
+          <HabitRow
+            key={habit.id}
+            habit={habit}
+            density="compact"
+            doneOverride={checkIn.patches.get(habit.id)?.done}
+            href={`/habits/${encodeURIComponent(habit.id)}`}
+            onCheckedChange={(checked) =>
+              checkIn.setChecked({
+                habitId: habit.id,
+                title: habit.title,
+                dateIso: todayIso,
+                checked,
+              })
+            }
+          />
+        ))}
+      </ul>
+      {truncated ? (
+        <p className="dh-today__panel-foot">
+          <Link className="dh-today__panel-action" to="/habits">
+            More habits than fit here — see all
+          </Link>
+        </p>
+      ) : null}
+      <p className="dh-visually-hidden" role="status" aria-live="polite">
+        {checkIn.announcement ?? ""}
+      </p>
+    </section>
   );
 }
 
