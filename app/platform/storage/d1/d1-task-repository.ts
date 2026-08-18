@@ -6295,11 +6295,12 @@ export class D1TaskRepository implements TaskRepository {
     /*
      * ONE aggregate per CHUNK, never one per Task.
      *
-     * The chunk exists only because a bound parameter list is finite; the
-     * statement count is therefore ceil(pageSize / 100) — a function of the
-     * caller's PAGE, which is a constant per surface, and independent of how
-     * many Tasks the workspace holds. That is the property `no N+1` actually
-     * asks for, and `task-checklist-query-bounds.test.ts` asserts it.
+     * The chunk exists only because D1 accepts a finite number of bound
+     * parameters; the statement count is therefore
+     * ceil(pageSize / CHECKLIST_ID_CHUNK) — a function of the caller's PAGE,
+     * which is a constant per surface, and independent of how many Tasks the
+     * workspace holds. That is the property `no N+1` actually asks for, and
+     * `task-checklist-query-bounds.test.ts` asserts it.
      */
     for (let start = 0; start < unique.length; start += CHECKLIST_ID_CHUNK) {
       const chunk = unique.slice(start, start + CHECKLIST_ID_CHUNK);
