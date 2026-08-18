@@ -128,6 +128,41 @@ Recently     "9 of 12 expected check-ins"   (a bounded four-week window)
 unsayable by construction: an unscheduled day is never a miss, and a future day
 is never incomplete. `test/unit/habits/habit-view.test.ts` asserts both.
 
+### The partial first week (V2.3-GATE-01)
+
+A **`weekly_count`** week is held to its target only when the Habit was active
+for **every day of that week**. A week the Habit was created inside expects
+nothing at all — `expected` is `0`, so "This week" prints nothing rather than a
+target — and the first week with a target is the first whole one.
+
+The rule is not new reasoning; it is the reasoning the module already applied
+twice, extended to the case it had missed:
+
+- a **day-based** week already counts only the scheduled days the Habit was
+  active on, which is why *a Habit created on Friday did not fail Monday to
+  Thursday*;
+- the **recent window** already takes a count-based week only once that week is
+  over, because *half a week's target is a number nobody chose, so a partial
+  week is excluded rather than pro-rated*.
+
+A week that is partial because the Habit was **created** inside it is the same
+sentence with the same number nobody chose. Start "three times a week" on the
+Sunday and the previous rule charged the full three: a target unreachable in the
+day remaining, printed as "0 of 3 this week", and — because the recent window
+sums elapsed weeks — carried forward permanently as three expectations against a
+week the owner never had a chance in. That is manufactured guilt about days
+before the Habit existed, which
+[ADR-102](../decisions/ARCHITECTURE_DECISIONS.md) and AGENTS.md §2 forbid.
+
+What is **not** lost: a check-in made in the partial week is still `recorded`,
+still appears in the history strip, and still counts as a completion. Only the
+invented denominator is absent. Nothing is pro-rated, and the rule is symmetric
+at the other end by construction — archiving on a Tuesday cannot leave three
+sessions owed for that week either.
+
+Asserted by `test/unit/habits/habit-progress.test.ts` ("a count-based habit
+started partway through a week") and end to end by `e2e/habits.spec.ts`.
+
 ## Surfaces
 
 | Route | What it is |

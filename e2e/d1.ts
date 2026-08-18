@@ -57,7 +57,14 @@ function isTransientD1Error(output: string): boolean {
   );
 }
 
-function runOnce(command: string, json = false): string {
+function runOnce(
+  source: { readonly command: string } | { readonly file: string },
+  json = false,
+): string {
+  const input =
+    "command" in source
+      ? ["--command", source.command]
+      : ["--file", source.file];
   return execFileSync(
     "pnpm",
     [
@@ -68,8 +75,7 @@ function runOnce(command: string, json = false): string {
       "DB",
       "--local",
       ...(json ? ["--json"] : []),
-      "--command",
-      command,
+      ...input,
     ],
     {
       cwd: process.cwd(),
@@ -78,6 +84,27 @@ function runOnce(command: string, json = false): string {
       encoding: "utf8",
     },
   );
+}
+
+/** The retry loop itself, shared by every entry point below. */
+function withRetries<T>(run: () => T): T {
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+    try {
+      return run();
+    } catch (error) {
+      const err = error as {
+        message?: string;
+        stdout?: unknown;
+        stderr?: unknown;
+      };
+      const output = [err.message, err.stdout, err.stderr]
+        .map((part) => String(part ?? ""))
+        .join("\n");
+      if (attempt === ATTEMPTS || !isTransientD1Error(output)) throw error;
+    }
+  }
+  // Unreachable: the loop either returns or throws on its final attempt.
+  throw new Error("d1: exhausted attempts without returning");
 }
 
 /**
@@ -94,22 +121,25 @@ export function d1Execute(command: string | readonly string[]): void {
     ? (command as readonly string[]).join("\n")
     : (command as string);
 
-  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-    try {
-      runOnce(sql);
-      return;
-    } catch (error) {
-      const err = error as {
-        message?: string;
-        stdout?: unknown;
-        stderr?: unknown;
-      };
-      const output = [err.message, err.stdout, err.stderr]
-        .map((part) => String(part ?? ""))
-        .join("\n");
-      if (attempt === ATTEMPTS || !isTransientD1Error(output)) throw error;
-    }
-  }
+  withRetries(() => runOnce({ command: sql }));
+}
+
+/**
+ * Apply a whole `.sql` FILE, with the same retry rule.
+ *
+ * V2.3-GATE-01 — added because five specs could not use this module and had
+ * therefore each grown a private `execFileSync` with no retry at all, which is
+ * exactly the "whether a fixture survived contention was decided by which file
+ * it happened to live in" this module was written to end. The largest fixtures
+ * (the Review evidence week, the mobile Projects cleanup) are files rather than
+ * commands, so a command-only helper could never have covered them.
+ *
+ * Same idempotency requirement as `d1Execute`: the file is re-run WHOLE on a
+ * transient failure, so it must be safe to apply twice (`INSERT OR IGNORE` plus
+ * `UPDATE`, which is how the seeds in this directory are written).
+ */
+export function d1ExecuteFile(path: string): void {
+  withRetries(() => runOnce({ file: path }));
 }
 
 /**
@@ -127,28 +157,15 @@ export function d1Execute(command: string | readonly string[]): void {
 export function d1Query<T = Record<string, unknown>>(
   command: string,
 ): readonly T[] {
-  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-    try {
-      const output = runOnce(command, true);
-      // Wrangler prefixes its JSON with human-readable lines; the payload is the
-      // first well-formed array in the output.
-      const start = output.indexOf("[");
-      if (start === -1) return [];
-      const parsed = JSON.parse(output.slice(start)) as {
-        results?: T[];
-      }[];
-      return parsed[0]?.results ?? [];
-    } catch (error) {
-      const err = error as {
-        message?: string;
-        stdout?: unknown;
-        stderr?: unknown;
-      };
-      const output = [err.message, err.stdout, err.stderr]
-        .map((part) => String(part ?? ""))
-        .join("\n");
-      if (attempt === ATTEMPTS || !isTransientD1Error(output)) throw error;
-    }
-  }
-  return [];
+  return withRetries(() => {
+    const output = runOnce({ command }, true);
+    // Wrangler prefixes its JSON with human-readable lines; the payload is the
+    // first well-formed array in the output.
+    const start = output.indexOf("[");
+    if (start === -1) return [] as readonly T[];
+    const parsed = JSON.parse(output.slice(start)) as {
+      results?: T[];
+    }[];
+    return (parsed[0]?.results ?? []) as readonly T[];
+  });
 }

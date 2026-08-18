@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { expectNoAxeViolations, mobileNavigationOpener } from "./helpers";
+// V2.3-GATE-01 — the shared D1 helper. This fixture used to spawn wrangler from
+// its own closure, so it carried no `SQLITE_BUSY` retry: the suite drives one dev
+// server against one local SQLite file while a fixture opens it from a second
+// process (see `e2e/d1.ts`). Its inserts are `OR IGNORE` so re-running the whole
+// command after transient contention is safe, which the helper requires.
+import { d1Execute } from "./d1";
+
 import type { Locator, Page } from "@playwright/test";
 
 /**
@@ -523,7 +530,6 @@ test.describe("DS-08 Shared Search — stale selection is not activatable", () =
 test("global search finds an upcoming meeting and opens it (V2.0.1)", async ({
   page,
 }) => {
-  const { execFileSync } = await import("node:child_process");
   const WS = "local-dev-workspace";
   const stamp = Date.now();
   const meetingId = `search-e2e-upcoming-meeting-${stamp}`;
@@ -531,30 +537,10 @@ test("global search finds an upcoming meeting and opens it (V2.0.1)", async ({
   const startsAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
   const now = new Date().toISOString();
 
-  const d1Execute = (command: string) =>
-    execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "d1",
-        "execute",
-        "DB",
-        "--local",
-        "--command",
-        command,
-      ],
-      {
-        cwd: process.cwd(),
-        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-        stdio: "pipe",
-      },
-    );
-
   d1Execute(
     [
-      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${meetingId}', '${WS}', 'meeting', '${title}', '${now}', '${now}', NULL);`,
-      `INSERT INTO meeting_details (workspace_id, entity_id, starts_at, timezone, status, updated_at) VALUES ('${WS}', '${meetingId}', '${startsAt}', 'Australia/Sydney', 'planned', '${now}');`,
+      `INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${meetingId}', '${WS}', 'meeting', '${title}', '${now}', '${now}', NULL);`,
+      `INSERT OR IGNORE INTO meeting_details (workspace_id, entity_id, starts_at, timezone, status, updated_at) VALUES ('${WS}', '${meetingId}', '${startsAt}', 'Australia/Sydney', 'planned', '${now}');`,
     ].join("\n"),
   );
 

@@ -20,6 +20,12 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
 } from "./helpers";
+// V2.3-GATE-01 — the shared D1 helper. This fixture used to spawn wrangler from
+// its own closure, so it carried no `SQLITE_BUSY` retry: the suite drives one dev
+// server against one local SQLite file while a fixture opens it from a second
+// process (see `e2e/d1.ts`). Its inserts are `OR IGNORE` so re-running the whole
+// command after transient contention is safe, which the helper requires.
+import { d1Execute } from "./d1";
 
 const owned = new Set<string>();
 
@@ -212,7 +218,6 @@ test("Review period context opens the correct Diary entry (V2.0.1)", async ({
   page,
 }) => {
   test.setTimeout(90_000);
-  const { execFileSync } = await import("node:child_process");
   const WS = "local-dev-workspace";
   const entryId = `reviews-e2e-diary-${Date.now()}`;
   const entryTitle = `Reviews e2e diary link target ${Date.now()}`;
@@ -224,30 +229,10 @@ test("Review period context opens the correct Diary entry (V2.0.1)", async ({
     day: "2-digit",
   }).format(new Date(occurred));
 
-  const d1Execute = (command: string) =>
-    execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "d1",
-        "execute",
-        "DB",
-        "--local",
-        "--command",
-        command,
-      ],
-      {
-        cwd: process.cwd(),
-        env: { ...process.env, WRANGLER_SEND_METRICS: "false" },
-        stdio: "pipe",
-      },
-    );
-
   d1Execute(
     [
-      `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${entryId}', '${WS}', 'diary', '${entryTitle}', '${occurred}', '${occurred}', NULL);`,
-      `INSERT INTO diary_entry_details (workspace_id, entity_id, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at) VALUES ('${WS}', '${entryId}', 'note', NULL, '${occurred}', 'Australia/Sydney', 'manual', NULL, '${occurred}');`,
+      `INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${entryId}', '${WS}', 'diary', '${entryTitle}', '${occurred}', '${occurred}', NULL);`,
+      `INSERT OR IGNORE INTO diary_entry_details (workspace_id, entity_id, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at) VALUES ('${WS}', '${entryId}', 'note', NULL, '${occurred}', 'Australia/Sydney', 'manual', NULL, '${occurred}');`,
     ].join("\n"),
   );
 

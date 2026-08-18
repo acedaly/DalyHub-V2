@@ -17,6 +17,7 @@ import {
   type HabitFacts,
   type HabitScheduleVersion,
 } from "~/kernel/habits";
+import { habitConsistencyLabel, habitWeekLabel } from "~/shared/habits";
 
 /** 2026-08-17 Mon … 2026-08-23 Sun. */
 const MON = "2026-08-17";
@@ -124,6 +125,119 @@ describe("the week", () => {
         firstDayOfWeek: "sunday",
       }).completed,
     ).toBe(2);
+  });
+});
+
+/**
+ * V2.3-GATE-01 — the partial first week of an X-times-per-week Habit.
+ *
+ * The rule, stated once: **a count-based week is held to its target only if the
+ * Habit was active for every day of it.** A week the Habit was created inside
+ * expects nothing, exactly as a week it did not exist in at all expects nothing,
+ * and exactly as a day-based Habit created on Friday is not held to Monday.
+ *
+ * It is not pro-rated. Half a week's target is a number nobody chose, which is
+ * the reason `evaluateHabitConsistency` already gives for excluding an
+ * unfinished week rather than scaling it.
+ */
+describe("a count-based habit started partway through a week", () => {
+  /** Created on the SUNDAY — the last day of a Monday-start week. */
+  const STARTED_SUNDAY: readonly HabitScheduleVersion[] = [
+    {
+      id: "v",
+      schedule: { kind: "weekly_count", timesPerWeek: 3 },
+      effectiveFrom: "2026-08-23",
+      effectiveTo: null,
+    },
+  ];
+  const SUNDAY = "2026-08-23";
+  const SUNDAY_CONTEXT: HabitCalendarContext = {
+    todayIso: SUNDAY,
+    firstDayOfWeek: "monday",
+  };
+
+  it("expects NOTHING in the week it was created in", () => {
+    // Three sessions cannot be reached in the one day the Habit has existed for,
+    // and printing "0 of 3 this week" would be an obligation nobody agreed to.
+    const reading = evaluateHabitWeek(facts(STARTED_SUNDAY), SUNDAY_CONTEXT);
+    expect(reading.expected).toBe(0);
+    expect(reading.completed).toBe(0);
+    expect(reading.met).toBe(false);
+    // …and with nothing expected, the surface says nothing rather than "0 of 0".
+    expect(habitWeekLabel(reading)).toBeNull();
+  });
+
+  it("still RECORDS a check-in made in that week", () => {
+    // Nothing is lost: the day happened, and the history strip says so. Only the
+    // manufactured target is absent.
+    const reading = evaluateHabitWeek(
+      facts(STARTED_SUNDAY, [SUNDAY]),
+      SUNDAY_CONTEXT,
+    );
+    expect(reading.recorded).toBe(1);
+    expect(reading.expected).toBe(0);
+  });
+
+  it("expects the FULL target from the first whole week onward", () => {
+    // The following Monday–Sunday is the first week the Habit existed for all of.
+    const nextWeek = evaluateHabitWeek(facts(STARTED_SUNDAY), {
+      todayIso: "2026-08-26",
+      firstDayOfWeek: "monday",
+    });
+    expect(nextWeek.expected).toBe(3);
+  });
+
+  it("never turns days before it existed into missed opportunities", () => {
+    // The days of the creation week that came BEFORE the Habit are `inactive` —
+    // not `expected`, and so not misses — in the strip the record draws.
+    const history = buildHabitHistory(
+      facts(STARTED_SUNDAY),
+      SUNDAY_CONTEXT,
+      "2026-08-17",
+    );
+    const before = history.filter((day) => day.dateIso < SUNDAY);
+    expect(before).toHaveLength(6);
+    expect(before.every((day) => day.state === "inactive")).toBe(true);
+  });
+
+  it("carries no expectation for the partial week into the recent window", () => {
+    /*
+     * The load-bearing case, because this figure is PERMANENT. Read a fortnight
+     * later, the creation week is whole and elapsed — so the old rule summed its
+     * full target into "expected" and left the owner permanently short in a week
+     * they never had a chance in.
+     */
+    const later: HabitCalendarContext = {
+      todayIso: "2026-09-06",
+      firstDayOfWeek: "monday",
+    };
+    const consistency = evaluateHabitConsistency(
+      // Every session of both whole weeks done, and one on the creation Sunday.
+      facts(STARTED_SUNDAY, [
+        SUNDAY,
+        "2026-08-24",
+        "2026-08-25",
+        "2026-08-26",
+        "2026-08-31",
+        "2026-09-01",
+        "2026-09-02",
+      ]),
+      later,
+      "2026-08-17",
+    );
+    // Two whole weeks at three each — the creation week contributes nothing.
+    expect(consistency.expected).toBe(6);
+    expect(consistency.completed).toBe(6);
+    expect(habitConsistencyLabel(consistency)).toBe(
+      "6 of 6 expected check-ins",
+    );
+  });
+
+  it("applies the same rule at the OTHER end: archiving leaves no debt", () => {
+    // Symmetric by construction — a week the Habit was put away inside is a week
+    // it was not active for all of, so it is not held to the target either.
+    const archived = facts(THRICE, [MON], TUE);
+    expect(evaluateHabitWeek(archived, MONDAY_WEEK).expected).toBe(0);
   });
 });
 

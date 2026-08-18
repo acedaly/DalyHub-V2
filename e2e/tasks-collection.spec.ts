@@ -208,6 +208,112 @@ test.describe("TASKS-03 — filtering", () => {
     ).toContainText("Overdue");
   });
 
+  /**
+   * V2.3-GATE-01 — two filters chosen faster than the collection can reload.
+   *
+   * The desktop popover LIVE-APPLIES (CONTROL-01): each choice is committed as
+   * it is made, composed over what the collection reports as applied. That
+   * committed state only advances when the navigation COMPLETES, and a
+   * navigation completes only after its loader has answered — so a second choice
+   * made inside that window used to be composed over a base that had never heard
+   * of the first, which deleted it. MEASURED on `main` @ bcdba66: choosing
+   * Priority 1 then Due Overdue wrote `/tasks?group=due_state&due=overdue`, and
+   * `priority=p1` was simply gone.
+   *
+   * The window is held open DETERMINISTICALLY here — the first revalidation is
+   * paused until the second choice has actually been made — so this is a real
+   * product condition (a collection still loading) reproduced exactly, never a
+   * sleep and never a race the test hopes to win.
+   */
+  test("combines two filters chosen before the first has finished loading", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks");
+    const controls = await openSheet(page);
+    // The pointer device gets the live-applying popover; that IS the surface
+    // under test, so the test says so rather than assuming it.
+    expect(controls.compact).toBe(false);
+
+    let releaseFirstReload: (() => void) | undefined;
+    const firstReloadHeld = new Promise<void>((resolve) => {
+      releaseFirstReload = resolve;
+    });
+    let reloads = 0;
+    await page.route(/\.data(\?|$)/, async (route) => {
+      reloads += 1;
+      // Only the FIRST is held; everything after it answers normally.
+      if (reloads === 1) await firstReloadHeld;
+      await route.continue();
+    });
+
+    await controls.choose("priority", "p1");
+    // Made while the first choice is still in flight — the exact window.
+    await controls.choose("due", "overdue");
+    releaseFirstReload?.();
+    await controls.commit();
+
+    // BOTH dimensions survived, and the URL says so truthfully.
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+    await expect(page.getByTestId("collection-filter-trigger")).toContainText(
+      "2",
+    );
+    const chips = page.getByRole("list", { name: "Active filters" });
+    await expect(chips).toContainText("P1");
+    await expect(chips).toContainText("Overdue");
+  });
+
+  test("keeps BOTH filters through reload, Back and Forward", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks");
+    const controls = await openSheet(page);
+    await controls.choose("priority", "p1");
+    await expect(page).toHaveURL(/priority=p1/);
+    await controls.choose("due", "overdue");
+    await controls.commit();
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+
+    // A hard reload of the resulting link restores exactly the same two.
+    await page.reload();
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+    const chips = page.getByRole("list", { name: "Active filters" });
+    await expect(chips).toContainText("P1");
+    await expect(chips).toContainText("Overdue");
+
+    // Leaving and coming back is Back/Forward-correct in both directions: the
+    // live commits `replace`, so the pair is ONE history entry rather than two.
+    await gotoFixture(page, "/tasks?view=list&system=all&status=done");
+    await expect(page).toHaveURL(/status=done/);
+    await page.goBack();
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+    await page.goForward();
+    await expect(page).toHaveURL(/status=done/);
+    await expect(page).not.toHaveURL(/priority=p1/);
+  });
+
+  test("removes one of two applied filters and leaves the other", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks");
+    const controls = await openSheet(page);
+    await controls.choose("priority", "p1");
+    await controls.choose("due", "overdue");
+    await controls.commit();
+
+    await page
+      .getByRole("link", { name: /^Remove filter Priority: P1$/ })
+      .click();
+    await expect(page).not.toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+    await expect(
+      page.getByRole("list", { name: "Active filters" }),
+    ).toContainText("Overdue");
+  });
+
   test("teaches the way out of a filtered-empty result", async ({ page }) => {
     // A deliberately contradictory combination: due today AND due later.
     await gotoFixture(
@@ -826,6 +932,38 @@ test.describe("TASKS-03 — phone", () => {
     await expect(
       page.getByRole("list", { name: "Active filters" }),
     ).toContainText("P1");
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("applies Priority AND Due together from the one sheet", async ({
+    page,
+  }) => {
+    /*
+     * V2.3-GATE-01 — the compact half of the same contract.
+     *
+     * The Sheet edits a DRAFT and writes once on Apply, so it was never exposed
+     * to the live-apply lost update the popover was; asserting it here is what
+     * makes "filters combine" a claim about the PRODUCT rather than about one
+     * viewport, and what would catch the sheet ever being converted to
+     * live-apply without the same care.
+     */
+    await gotoFixture(page, "/tasks");
+    const controls = await openSheet(page);
+    expect(controls.compact).toBe(true);
+    await controls.choose("priority", "p1");
+    await controls.choose("due", "overdue");
+    await controls.commit();
+
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+    const chips = page.getByRole("list", { name: "Active filters" });
+    await expect(chips).toContainText("P1");
+    await expect(chips).toContainText("Overdue");
+
+    // And the pair survives a reload on the phone exactly as on the desktop.
+    await page.reload();
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
     await expectNoHorizontalOverflow(page);
   });
 

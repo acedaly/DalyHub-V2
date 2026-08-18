@@ -239,7 +239,29 @@ test.describe("MOBILE-01 the More navigation sheet", () => {
 });
 
 test.describe("MOBILE-01 shared Quick Capture", () => {
-  test("opens from the bottom bar and offers all four types", async ({
+  /**
+   * The capture surface enumerates the FIRST-CLASS RECORDS the product can
+   * create, so this asserts the list rather than a count: the old name said
+   * "all four types" while the body checked five, which is a test that had
+   * already stopped describing the product once and would do it again.
+   *
+   * The pairing is what makes it truthful — each type is addressed by its own
+   * test id AND its own visible label, so a chip cannot pass by being present
+   * under someone else's word. Exact in both directions: a type quietly dropped
+   * fails here, and so does one added without a deliberate decision.
+   */
+  const CAPTURE_TYPES = [
+    { type: "task", label: "Task" },
+    { type: "diary", label: "Diary entry" },
+    { type: "meeting", label: "Meeting" },
+    { type: "note", label: "Note" },
+    { type: "asset", label: "Asset" },
+    // HABITS-01 — a Habit is a first-class record, so the one global create
+    // surface offers it rather than the module growing a "+" of its own.
+    { type: "habit", label: "Habit" },
+  ] as const;
+
+  test("opens from the bottom bar and offers every capture type, Habit included", async ({
     page,
   }) => {
     await gotoFixture(page, "/today");
@@ -253,17 +275,49 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
 
     // Addressed by test id, not by accessible name: each option's name is its
     // label PLUS its description, so "Note" is legitimately a substring of both
-    // the Note option and the Diary option's "A note about today". The visible
-    // labels are asserted separately below.
-    for (const type of ["task", "diary", "meeting", "note", "asset"]) {
-      await expect(sheet.getByTestId(`capture-choose-${type}`)).toBeVisible();
+    // the Note option and the Diary option's "A note about today".
+    for (const { type, label } of CAPTURE_TYPES) {
+      const chip = sheet.getByTestId(`capture-choose-${type}`);
+      await expect(chip).toBeVisible();
+      // Every type carries a real, visible word — never an unlabelled glyph —
+      // and it is the word that belongs to THAT type.
+      await expect(chip).toHaveText(label);
     }
 
-    // Every type carries a real, visible word — never an unlabelled glyph.
     // MOBILE-02 — they are a CHIP ROW above the field rather than a list on a
-    // screen of their own, so the labels are read from the chips.
+    // screen of their own, so the labels are read from the chips. Compared as a
+    // whole so an extra, a missing or a reordered chip all fail.
     const labels = await sheet.locator(".dh-capture-type").allTextContents();
-    expect(labels).toEqual(["Task", "Diary entry", "Meeting", "Note", "Asset"]);
+    expect(labels).toEqual(CAPTURE_TYPES.map((entry) => entry.label));
+    // No duplicates: two chips reading "Note" would be two ways to say one
+    // thing, and the owner could not tell which one they had chosen.
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  test("says which capture type is active, and Habit can become it", async ({
+    page,
+  }) => {
+    /*
+     * HABITS-01 — the new type is not decoration on the row: choosing it makes
+     * it the ACTIVE capture, announced by `aria-pressed` rather than by fill
+     * alone, and exactly one type is active at a time.
+     */
+    await gotoFixture(page, "/today");
+    await page
+      .locator(bottomNav)
+      .getByRole("button", { name: "Add", exact: true })
+      .click();
+    const sheet = page.getByTestId("capture-sheet");
+    const habit = sheet.getByTestId("capture-choose-habit");
+    await habit.click();
+    await expect(habit).toHaveAttribute("aria-pressed", "true");
+    const pressed = sheet.locator('.dh-capture-type[aria-pressed="true"]');
+    await expect(pressed).toHaveCount(1);
+    // The chip row is a labelled group, so a screen-reader user can enumerate
+    // the choice they are making.
+    await expect(
+      sheet.getByRole("group", { name: "Capture type" }),
+    ).toBeVisible();
   });
 
   test("captures a Task from title plus Enter, then offers the next step", async ({
