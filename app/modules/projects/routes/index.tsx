@@ -28,6 +28,7 @@ import { createOwnerHealthContext } from "~/shared/project-health";
 import {
   ProjectsCollectionView,
   type ProjectState,
+  type TemplateOption,
 } from "../ProjectsCollection";
 import {
   serializeProjectListItem,
@@ -98,6 +99,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       counts: null as ProjectLifecycleCounts | null,
       goals: [] as readonly GoalSummary[],
       goalsFailed: true,
+      templates: [] as TemplateOption[],
       query,
       // No scope resolved, so no count: an unknown size falls to the gallery,
       // and an explicit choice is still honoured.
@@ -259,6 +261,29 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   });
 
   /*
+   * PROJECT-02 — the templates the create form can offer.
+   *
+   * ONE bounded read whose counts already come from grouped aggregates, so a
+   * workspace with a dozen templates costs three statements rather than
+   * thirteen. Its OWN failure domain: a template read that fails leaves the
+   * collection exactly as it was before templates existed — no field in the
+   * create form, no Templates link — rather than taking the gallery down.
+   */
+  let templates: TemplateOption[];
+  try {
+    const page = await scope.projectTemplates.listTemplates();
+    templates = page.items.map((template) => ({
+      id: template.id,
+      name: template.name,
+      taskCount: template.taskCount,
+      checklistCount: template.checklistCount,
+      parentId: template.defaultParent?.id ?? null,
+    }));
+  } catch {
+    templates = [];
+  }
+
+  /*
    * REDESIGN-04 §5.3 — the compact Goals section beneath the gallery.
    *
    * The SHARED summary read Today already makes for its own Goal rail
@@ -296,6 +321,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     counts,
     goals,
     goalsFailed,
+    templates,
     query,
     presentation,
     state,
@@ -313,6 +339,7 @@ export default function ProjectsRoute({ loaderData }: Route.ComponentProps) {
       counts={loaderData.counts}
       goals={loaderData.goals}
       goalsFailed={loaderData.goalsFailed}
+      templates={loaderData.templates}
       query={loaderData.query}
       presentation={loaderData.presentation}
       state={loaderData.state}

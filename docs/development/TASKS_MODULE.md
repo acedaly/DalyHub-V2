@@ -2146,6 +2146,28 @@ fresh row ids and `completed` hard-coded to `0`, gated on the successor entity
 existing. The completed occurrence's checklist is never shared or rewritten, and
 undoing the completion withdraws the successor with its clone.
 
+### Project templates (PROJECT-02)
+
+The SECOND consumer of the cloning semantics above, and it obeys them exactly —
+migration 0045's own comment already named it as one.
+
+- **Capturing** a Project into a template reads only `title` and the order from
+  `task_checklist_items`. The projection does not name `completed` at all, so a
+  tick is not merely dropped, it is never read.
+- **Instantiating** a template writes `completed` as a SQL LITERAL `0`, so the
+  reset is a property of the statement rather than of a value some future caller
+  could route through it. Each cloned row gets a fresh id from the repository's
+  generator.
+- **No shared clone helper was extracted.** The two paths do not share a row
+  shape — one reads `task_checklist_items`, the other
+  `project_template_checklist_items` — and the only thing a helper would carry is
+  a two-line map. What is shared is the SEMANTICS, and they are stated in both
+  places and asserted in both suites.
+- A template's own checklist rows are NOT `task_checklist_items` and never
+  become them: they are copies at instantiation, not the same rows. See
+  [ADR-105](../decisions/ARCHITECTURE_DECISIONS.md) and
+  [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+
 ### Activity
 
 **None.** A checklist tick is state, not history; ten steps would put ten rows

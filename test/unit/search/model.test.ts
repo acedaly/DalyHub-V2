@@ -372,6 +372,32 @@ describe("groupRankedResults", () => {
     const moduleGroup = groups.find((g) => g.kind === "module");
     expect(moduleGroup!.label).toBe("Today");
   });
+
+  /*
+   * PROJECT-02 — a Project template is a real entity type with NO visual
+   * identity of its own (it wears the Project mark), so the heading has to come
+   * from the label its module declared. Without this the group was headed with
+   * the raw `project_template` slug.
+   */
+  it("heads an entity group with the label its module declared", () => {
+    const ranked = rankResults("a", [
+      tagged({ itemId: "1", title: "a1", entityType: "project_template" }),
+    ]);
+    const groups = groupRankedResults(
+      ranked,
+      new Map(),
+      new Map([["project_template", "Project templates"]]),
+    );
+    expect(groups[0]!.label).toBe("Project templates");
+  });
+
+  it("falls back to the entity-type slug when no label was declared", () => {
+    const ranked = rankResults("a", [
+      tagged({ itemId: "1", title: "a1", entityType: "project_template" }),
+    ]);
+    const groups = groupRankedResults(ranked, new Map());
+    expect(groups[0]!.label).toBe("project_template");
+  });
 });
 
 describe("assembleOutcome", () => {

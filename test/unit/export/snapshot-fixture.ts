@@ -59,6 +59,9 @@ export const IDS = {
   habit: "e-22-habit",
   habitArchived: "e-23-habit-archived",
   future: "e-24-future-type",
+  // PROJECT-02 — a Project template. An ordinary entity with NO spine record,
+  // which is exactly what the export must reproduce.
+  template: "e-25-project-template",
 } as const;
 
 /** A record id that is NOT in the snapshot, for the broken-link case. */
@@ -108,6 +111,11 @@ const ENTITIES: readonly Entity[] = [
   { id: IDS.habit, type: "habit", title: "Strength training" },
   { id: IDS.habitArchived, type: "habit", title: "Cold shower" },
   { id: IDS.future, type: "widget", title: "A type this build does not know" },
+  {
+    id: IDS.template,
+    type: "project_template",
+    title: "Monthly reporting",
+  },
 ];
 
 /**
@@ -395,6 +403,65 @@ export function makeSnapshot(
         completed: false,
         createdAt: T(1),
         updatedAt: T(2),
+      },
+    ],
+    /*
+     * PROJECT-02 — one template with two ordered tasks, the second carrying a
+     * checklist. It has no `spineRecords` row (a template is not spine work)
+     * and no dates, statuses or ticks anywhere (a template holds no execution
+     * state), so an export → restore → instantiate round trip is exercised
+     * against a real shape rather than an empty one.
+     */
+    projectTemplateDetails: [
+      {
+        entityId: IDS.template,
+        description: "The reporting pack, start to finish.",
+        iconKey: null,
+        colourSlot: null,
+        defaultParentId: IDS.area,
+        defaultParentKind: "area",
+        createdAt: T(1),
+        updatedAt: T(2),
+      },
+    ],
+    projectTemplateTasks: [
+      {
+        id: "pt-task-01",
+        templateId: IDS.template,
+        title: "Pull the numbers",
+        description: null,
+        priority: "p2",
+        position: 0,
+        createdAt: T(1),
+        updatedAt: T(1),
+      },
+      {
+        id: "pt-task-02",
+        templateId: IDS.template,
+        title: "Write the summary",
+        description: "Lead with what changed.\n",
+        priority: null,
+        position: 1,
+        createdAt: T(1),
+        updatedAt: T(1),
+      },
+    ],
+    projectTemplateChecklistItems: [
+      {
+        id: "pt-cl-01",
+        templateTaskId: "pt-task-02",
+        title: "Headline figure",
+        position: 0,
+        createdAt: T(1),
+        updatedAt: T(1),
+      },
+      {
+        id: "pt-cl-02",
+        templateTaskId: "pt-task-02",
+        title: "One risk, one win",
+        position: 1,
+        createdAt: T(1),
+        updatedAt: T(1),
       },
     ],
     noteDetails: [

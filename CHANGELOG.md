@@ -17,6 +17,55 @@ no version number to group them under.
 
 ---
 
+## Start a project from one that already worked
+
+**Some projects come round again.** Monthly reporting, a new client, packing for a
+trip — the same twelve things, in the same order, with the same short checklists
+inside them. Until now the only way to reuse that was to find last time's project,
+duplicate it by hand, rename it, and then go through it deleting the parts that
+had already happened.
+
+**Now you save the shape once.** Open a project that worked, choose **Save as
+template** from its ⋯ menu, and DalyHub tells you exactly what it kept — for
+example _"Saved "Monthly reporting" — 12 tasks · 3 checklist items. Dates,
+progress and history were not copied."_
+
+A template holds the **shape of the work**: the task titles, what you wrote about
+each one, how important each is, the order you put them in, and the checklists
+inside them. It holds none of last time's **history** — no completed tasks, no
+due dates, no planned days, no ticks, no waiting-on-someone, no activity. Every
+task in a project made from a template arrives open, undated and unticked, which
+is the point: it is the next one, not a copy of the last one.
+
+**Templates live behind one quiet link** beside _New project_, and that link only
+appears once you have one. If you have never saved a template, `/projects` is
+exactly the page it always was.
+
+**Creating from one asks you two things and no more:** what to call this project,
+and which Area or Goal it belongs to. Both start pre-filled — the template's name,
+and the Area the original was in — so the usual case is one edit and Enter. The
+line above the button says what is about to be created before it creates it.
+
+**Templates are editable, and safely so.** Open one to rename it, describe what it
+is for, add or remove a task, reorder with _Move up_ / _Move down_, set a
+priority, or add steps inside a task. Editing a template **never** changes a
+project you already made from it, and editing that project never changes the
+template — the record says so at the foot of its own task list, because it is the
+one thing you would otherwise have to guess.
+
+**Deleting a template deletes only the template.** Projects created from it keep
+every task and are not touched.
+
+**Search finds a template by name**, under its own _Project templates_ heading,
+and opens the template itself. The tasks inside a template never appear in
+search: they are the shape of work you have not started, not work you can do.
+
+**Dates are deliberately not part of a template**, including "14 days after the
+project starts". A new project arrives with nothing scheduled, and **Plan** is
+where you give it days — which is what Plan is for.
+
+---
+
 ## Your week, on one board — and your habits, at a glance
 
 **Weekly Planning was a list of seven days, one under another.** It worked, and it

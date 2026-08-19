@@ -27,8 +27,18 @@ import {
   PROJECT_RESTORED,
   PROJECT_STATUS_CHANGED,
 } from "~/kernel/project-settings";
+import {
+  PROJECT_CREATED_FROM_TEMPLATE,
+  PROJECT_TEMPLATE,
+  PROJECT_TEMPLATE_CREATED,
+  PROJECT_TEMPLATE_DELETED,
+  PROJECT_TEMPLATE_UPDATED,
+} from "~/kernel/project-templates";
 import { projectsCommands } from "./commands";
-import { projectsSearchProvider } from "./search";
+import {
+  projectTemplatesSearchProvider,
+  projectsSearchProvider,
+} from "./search";
 
 export default defineModule({
   id: "projects",
@@ -36,8 +46,23 @@ export default defineModule({
   description: "Finite bodies of work under an Area or a Goal.",
   order: 30,
   routes,
-  entityTypes: [{ type: PROJECT, singular: "Project", plural: "Projects" }],
-  searchProviders: [projectsSearchProvider],
+  entityTypes: [
+    { type: PROJECT, singular: "Project", plural: "Projects" },
+    /*
+     * PROJECT-02 — a Project template is a first-class ENTITY (identity,
+     * workspace scope, soft-delete, Activity) and deliberately NOT a spine
+     * record, so it never reaches a Project rollup, a Project count, Goal
+     * progress, Project health, Today or Weekly Planning. Registering the type
+     * here is what gives it a name in the shared vocabulary; it grants it
+     * nothing else.
+     */
+    {
+      type: PROJECT_TEMPLATE,
+      singular: "Project template",
+      plural: "Project templates",
+    },
+  ],
+  searchProviders: [projectsSearchProvider, projectTemplatesSearchProvider],
   commands: projectsCommands,
   entityLinkTypes: [
     {
@@ -70,6 +95,27 @@ export default defineModule({
       type: PROJECT_RESTORED,
       label: "Project restored",
       description: "A project was restored.",
+    },
+    {
+      type: PROJECT_TEMPLATE_CREATED,
+      label: "Project template created",
+      description: "A reusable project shape was saved.",
+    },
+    {
+      type: PROJECT_TEMPLATE_UPDATED,
+      label: "Project template updated",
+      description: "A reusable project shape changed.",
+    },
+    {
+      type: PROJECT_TEMPLATE_DELETED,
+      label: "Project template deleted",
+      description: "A reusable project shape was deleted.",
+    },
+    {
+      type: PROJECT_CREATED_FROM_TEMPLATE,
+      label: "Project created from a template",
+      description:
+        "A project was created from a template. Informational provenance only — the two are never synchronised.",
     },
     {
       type: PROJECT_COMPLETED,

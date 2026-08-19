@@ -1,0 +1,278 @@
+/*
+ * PROJECT-02 — the Project-template surfaces.
+ *
+ * Layout and rhythm only; every value is a DalyHub token. Nothing here paints a
+ * colour, a radius or a spacing of its own, and nothing here restyles a shared
+ * primitive: the identity mark is `AccentIcon`, the menus are the DS-12 menu,
+ * the inline fields are `~/shared/inline-edit` and the buttons are `~/shared/ui`.
+ *
+ * ── One list, at every width ─────────────────────────────────────────────────
+ * The template list is a single column from 320 through ultra-wide. There is no
+ * grid to collapse and no card to shrink, because a template is chosen by
+ * READING it and every fact on the row is text. On a phone the row simply
+ * stacks: mark and name, then the description, then the counts, then the
+ * action — the same reading order, in one column instead of three.
+ */
+
+.dh-template-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * Separation comes from a hairline between rows, not from a container per
+ * template. A gallery of bordered cards would make ten templates ten objects
+ * competing for attention; a list makes them one object to scan.
+ */
+.dh-template-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--dh-space-3);
+  padding-block: var(--dh-space-3);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-template-row:last-child {
+  border-block-end: none;
+}
+
+.dh-template-row__mark {
+  display: flex;
+  align-items: center;
+  /* Optically aligned with the first line of the name rather than the row box. */
+  padding-block-start: var(--dh-space-px);
+}
+
+.dh-template-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-width: 0;
+}
+
+.dh-template-row__name {
+  font-size: var(--dh-text-card-title-size);
+  font-weight: var(--dh-text-card-title-weight);
+  line-height: var(--dh-text-card-title-line-height);
+  color: var(--dh-color-text);
+  text-decoration: none;
+  /*
+   * The name is the row's link and it must be a real target on a coarse
+   * pointer, so its hit area is floored at the WCAG minimum without the row
+   * growing a fixed height it does not need at desktop widths.
+   */
+  min-block-size: var(--app-touch-target-min);
+  display: flex;
+  align-items: center;
+}
+
+.dh-template-row__name:hover {
+  text-decoration: underline;
+}
+
+.dh-template-row__description,
+.dh-template-row__meta {
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+  /* Wrap rather than truncate: a description the owner wrote is worth reading. */
+  overflow-wrap: anywhere;
+}
+
+.dh-template-row__actions {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--app-touch-target-min);
+}
+
+/*
+ * Below the `sm` breakpoint the three columns become one.
+ *
+ * The mark keeps its own row beside nothing rather than being dropped: it is
+ * the recognition device, and at 320 it is the only non-text thing on the row.
+ */
+@media (max-width: 33.75rem) {
+  .dh-template-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: var(--dh-space-2);
+  }
+
+  .dh-template-row__actions {
+    grid-column: 1 / -1;
+  }
+
+  .dh-template-row__actions > * {
+    inline-size: 100%;
+  }
+}
+
+/* ── "What will be created" ─────────────────────────────────────────────────
+ *
+ * The statement that precedes the button which creates it. A quiet surface
+ * rather than a warning tone: it is a fact, not a caution.
+ */
+.dh-template-preview {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  padding: var(--dh-space-3);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-quiet);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+.dh-template-preview strong {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-text-label-weight);
+}
+
+/* ── The template record's task list ───────────────────────────────────────── */
+
+.dh-template-tasks {
+  display: flex;
+  flex-direction: column;
+  /*
+   * `start`, not the flex default of `stretch`: an "Add task" button in a
+   * stretched column becomes a full-width bar with its label in the middle,
+   * which reads as a primary action rather than as the quiet affordance it is.
+   * The list itself is put back to full width below.
+   */
+  align-items: start;
+  gap: var(--dh-space-3);
+}
+
+.dh-template-tasks__heading,
+.dh-template-tasks__list,
+.dh-template-tasks__empty {
+  inline-size: 100%;
+}
+
+.dh-template-tasks__heading {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-3);
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * "3 of 40" — the bound, stated before it is reached rather than only when it
+ * refuses. A limit an owner discovers by hitting it is a limit that feels like
+ * a bug.
+ */
+.dh-template-tasks__count {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: var(--dh-text-meta-weight);
+}
+
+.dh-template-tasks__empty,
+.dh-template-tasks__note,
+.dh-template-add__limit {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-template-tasks__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-4);
+}
+
+.dh-template-task {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: var(--dh-space-2);
+}
+
+.dh-template-task__head,
+.dh-template-task__checklist {
+  inline-size: 100%;
+}
+
+.dh-template-task__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+/*
+ * The ordinal, so the ORDER is visible without relying on position alone —
+ * which is what makes "Move up" comprehensible after it has been pressed.
+ */
+.dh-template-task__index {
+  min-inline-size: 1.5rem;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-template-task__title {
+  min-width: 0;
+}
+
+.dh-template-task__checklist {
+  list-style: none;
+  margin: 0;
+  /* Indented to the title column, so a step reads as inside its task. */
+  padding: 0 0 0 calc(1.5rem + var(--dh-space-2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+}
+
+.dh-template-task__step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-template-add {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+}
+
+.dh-template-add > .dh-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/*
+ * At 320 the four-column task head becomes two rows rather than four squeezed
+ * columns: the ordinal and the title, then the priority and the menu. Nothing
+ * scrolls horizontally, and no control drops below its minimum target.
+ */
+@media (max-width: 33.75rem) {
+  .dh-template-task__head {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: var(--dh-space-2);
+  }
+
+  .dh-template-task__priority {
+    grid-column: 2;
+  }
+
+  .dh-template-task__checklist {
+    padding-inline-start: var(--dh-space-4);
+  }
+}

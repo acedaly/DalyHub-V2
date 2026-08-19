@@ -88,6 +88,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       providers: registry.listSearchProviders(),
       context: { workspace: scope.context, ownerId: session.user.subject },
       rawQuery,
+      // Group headings come from the SAME registry the providers came from: a
+      // module declares what its entity type is called, so a type with no
+      // visual identity of its own (a Project template wears the Project mark)
+      // is still headed with a human label rather than its slug.
+      entityLabels: new Map(
+        registry
+          .listEntityTypes()
+          .map((entity) => [entity.type, entity.plural ?? entity.singular]),
+      ),
       ...(boostIds && boostIds.size > 0 ? { boostIds } : {}),
     });
     return json(outcome);

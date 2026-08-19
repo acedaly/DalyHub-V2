@@ -597,7 +597,9 @@ function ResultOption({
     result.entityType !== undefined && isEntityType(result.entityType)
       ? getEntityIdentity(result.entityType)
       : null;
-  const typeLabel = identity?.label ?? result.entityType;
+  // As in Search: the chip speaks the identity vocabulary, so a type without an
+  // identity of its own shows no chip rather than a raw `entities.type` slug.
+  const typeLabel = identity?.label;
 
   return (
     <div

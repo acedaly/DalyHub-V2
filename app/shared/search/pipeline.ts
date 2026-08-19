@@ -38,6 +38,12 @@ export type AssembleOptions = {
   readonly maxTotalResults?: number;
   /** Item ids to boost within their tier (e.g. a record's directly-linked ids). */
   readonly boostIds?: ReadonlySet<string>;
+  /**
+   * Entity-type slug → the plural label its owning module declared, used to head
+   * an entity group. Supplied by the composition boundary from the module
+   * registry; an entity type with no declared label keeps its slug.
+   */
+  readonly entityLabels?: ReadonlyMap<string, string>;
 };
 
 function deriveStatus(executed: number, failed: number): SearchOutcomeStatus {
@@ -98,7 +104,11 @@ export function assembleOutcome(
   );
   const limited = ranked.slice(0, Math.max(0, totalLimit));
   const truncated = ranked.length > limited.length;
-  const groups = groupRankedResults(limited, moduleLabels);
+  const groups = groupRankedResults(
+    limited,
+    moduleLabels,
+    options.entityLabels ?? new Map(),
+  );
 
   const failed = batches.reduce((n, batch) => (batch.ok ? n : n + 1), 0);
 

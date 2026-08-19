@@ -185,6 +185,9 @@ describe("registry-driven provider discovery", () => {
       "goals.search",
       "habits.search",
       "projects.search",
+      // PROJECT-02 — templates are findable BY NAME. Template TASKS are not:
+      // they are internal structural rows, and the palette's job is live work.
+      "projects.template_search",
       "tasks.search",
       "notes.search",
       "diary.search",

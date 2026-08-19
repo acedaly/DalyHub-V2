@@ -75,6 +75,7 @@ import type { ProjectHealthRepository } from "~/kernel/project-health";
 import type { ProjectRepository } from "~/kernel/projects";
 import type { RelationshipRepository } from "~/kernel/relationships";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
+import type { ProjectTemplateRepository } from "~/kernel/project-templates";
 import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
@@ -122,6 +123,7 @@ import {
   createProjectHealthRepository,
   createProjectRepository,
   createProjectSettingsRepository,
+  createProjectTemplateRepository,
   createRelationshipRepository,
   createReviewRepository,
   createSpineRepository,
@@ -292,6 +294,17 @@ export interface WorkspaceScope {
   readonly assetHistory: AssetHistoryRepository;
   readonly reviews: ReviewRepository;
   readonly projectSettings: ProjectSettingsRepository;
+  /**
+   * PROJECT-02 — Project templates: the reusable Project SHAPE, and the ONE
+   * authority that turns one into a real Project.
+   *
+   * A template is an `entities` row of type `project_template` with no spine
+   * record, so it is structurally absent from every Project and Task surface;
+   * its tasks are plain rows, so they are structurally absent from Today,
+   * Weekly Planning, the Tasks collection and every count. Instantiation is a
+   * single atomic batch that mints a fresh id for every row it writes.
+   */
+  readonly projectTemplates: ProjectTemplateRepository;
   /**
    * The PROJ-02 project-health facts projection (ADR-035): a READ-ONLY, non-persisted
    * view that gathers the raw facts (rollup, waiting, overdue/slipped/upcoming, latest
@@ -629,6 +642,11 @@ export function bindWorkspaceRepositories(
   const projectSettings = createProjectSettingsRepository(env.DB, context, {
     actorContext,
   });
+  // PROJECT-02 — templates write their own Activity, so they carry the same
+  // trusted actor every mutation repository above does.
+  const projectTemplates = createProjectTemplateRepository(env.DB, context, {
+    actorContext,
+  });
   const areaSettings = createAreaSettingsRepository(env.DB, context, {
     actorContext,
   });
@@ -713,6 +731,7 @@ export function bindWorkspaceRepositories(
     projectHealth,
     relationships,
     projectSettings,
+    projectTemplates,
     activity,
     workspaceEvents,
     members,

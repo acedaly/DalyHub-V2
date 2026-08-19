@@ -492,6 +492,66 @@ export interface SnapshotTaskChecklistItem {
   readonly updatedAt: IsoInstant;
 }
 
+/**
+ * PROJECT-02 — a Project template's own state.
+ *
+ * The template's identity lives in `entities` (type `project_template`), so this
+ * carries only the additive slice: the description, the identity defaults and
+ * the OPTIONAL default Area/Goal. `defaultParentId` is exported verbatim rather
+ * than resolved, because it is a stored hint and a restore must put back
+ * exactly what was there — including a hint that no longer resolves, which is a
+ * legitimate state rather than corruption.
+ */
+export interface SnapshotProjectTemplateDetail {
+  readonly entityId: string;
+  readonly description: string | null;
+  readonly iconKey: string | null;
+  readonly colourSlot: string | null;
+  readonly defaultParentId: string | null;
+  readonly defaultParentKind: string | null;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
+/**
+ * PROJECT-02 — one Task a template will create.
+ *
+ * Its own collection rather than a field on the template, for the reason it is
+ * its own table: it is a durable, individually addressable, ordered record.
+ * `templateId` references a `project_template` entity in the same snapshot.
+ *
+ * There is deliberately no status, no completion, no date, no sector, no
+ * waiting state, no delegation and no recurrence here — a template stores none
+ * of them, so an archive cannot smuggle one back in on a restore.
+ */
+export interface SnapshotProjectTemplateTask {
+  readonly id: string;
+  readonly templateId: string;
+  readonly title: string;
+  /** The canonical Markdown source (ADR-015). Never rendered to HTML. */
+  readonly description: string | null;
+  readonly priority: string | null;
+  readonly position: number;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
+/**
+ * PROJECT-02 — one step inside one template task.
+ *
+ * A title and an order. There is no `completed` field, because a template holds
+ * the SHAPE of a checklist and a tick is something that happens to the Task the
+ * template creates.
+ */
+export interface SnapshotProjectTemplateChecklistItem {
+  readonly id: string;
+  readonly templateTaskId: string;
+  readonly title: string;
+  readonly position: number;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
 /** Note-owned state (NOTES-01A / NOTES-03). */
 export interface SnapshotNoteDetail {
   readonly entityId: string;
@@ -829,6 +889,9 @@ export interface SnapshotCollectionRowMap {
   readonly taskDetails: SnapshotTaskDetail;
   readonly taskRecurrenceRules: SnapshotTaskRecurrenceRule;
   readonly taskChecklistItems: SnapshotTaskChecklistItem;
+  readonly projectTemplateDetails: SnapshotProjectTemplateDetail;
+  readonly projectTemplateTasks: SnapshotProjectTemplateTask;
+  readonly projectTemplateChecklistItems: SnapshotProjectTemplateChecklistItem;
   readonly noteDetails: SnapshotNoteDetail;
   readonly diaryEntryDetails: SnapshotDiaryEntryDetail;
   readonly personDetails: SnapshotPersonDetail;
@@ -890,6 +953,11 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
     "habitDetails",
     "habitSchedules",
     "habitCompletions",
+    // PROJECT-02 — added with Project templates. Every archive written before
+    // it is still valid and still restores.
+    "projectTemplateDetails",
+    "projectTemplateTasks",
+    "projectTemplateChecklistItems",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
@@ -913,6 +981,14 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   // it belongs to. A restore inserts in this order and deletes in its exact
   // reverse, which is what satisfies the ON DELETE RESTRICT key.
   "taskChecklistItems",
+  // PROJECT-02 — the template's detail slice first (it references the
+  // `project_template` entity), then its tasks (which reference the detail's
+  // entity), then the checklist items (which reference a task). A restore
+  // inserts in this order and deletes in its exact reverse, which is what
+  // satisfies the ON DELETE RESTRICT keys without deferring constraint checks.
+  "projectTemplateDetails",
+  "projectTemplateTasks",
+  "projectTemplateChecklistItems",
   "noteDetails",
   "diaryEntryDetails",
   "personDetails",

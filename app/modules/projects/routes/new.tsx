@@ -26,6 +26,11 @@ import {
   SpineValidationError,
 } from "~/kernel/spine";
 import {
+  ProjectTemplateNotFoundError,
+  ProjectTemplateParentUnavailableError,
+  ProjectTemplateValidationError,
+} from "~/kernel/project-templates";
+import {
   readEntityIconField,
   readIdentityColourField,
   requireAuthenticatedSession,
@@ -71,11 +76,58 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const title = String(form.get("title") ?? "");
   const parentId = String(form.get("parentId") ?? "").trim();
+  const templateId = String(form.get("templateId") ?? "").trim();
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
   if (parentId.length === 0) {
     return json({ ok: false, fieldErrors: { parentId: PARENT_ERROR } });
+  }
+
+  /*
+   * PROJECT-02 — creating FROM a template is a different write, so it takes a
+   * different path rather than a flag through this one.
+   *
+   * A blank Project is `spine.createProject` plus an optional identity write:
+   * two small mutations, and the second failing costs an icon. A Project made
+   * from a template is a Project, N Tasks, N links, N detail rows and every
+   * checklist item, and those must arrive together or not at all — so the whole
+   * thing is ONE atomic batch inside the template repository, and this route
+   * hands it the two values the owner chose and gets back an id.
+   *
+   * Everything below this branch is EXACTLY the code that ran before templates
+   * existed. Blank creation is not routed through a template code path, is not
+   * slowed by one, and cannot be broken by one.
+   */
+  if (templateId.length > 0) {
+    try {
+      const created = await scope.projectTemplates.instantiate(templateId, {
+        title: title.trim().length === 0 ? undefined : title,
+        parentId,
+      });
+      return json({ ok: true, projectId: created.projectId });
+    } catch (cause) {
+      if (cause instanceof ProjectTemplateNotFoundError) {
+        // A malformed id, a template deleted on another device, or one from
+        // another workspace — all indistinguishable, and all the same calm
+        // message against the field that names it.
+        return json({
+          ok: false,
+          fieldErrors: { templateId: "That template is no longer here." },
+        });
+      }
+      if (cause instanceof ProjectTemplateParentUnavailableError) {
+        return json({ ok: false, fieldErrors: { parentId: PARENT_ERROR } });
+      }
+      if (cause instanceof ProjectTemplateValidationError) {
+        const field = cause.field === "name" ? "title" : cause.field;
+        return json({ ok: false, fieldErrors: { [field]: cause.message } });
+      }
+      return json({
+        ok: false,
+        formError: "That project couldn\u2019t be created. Please try again.",
+      });
+    }
   }
 
   // Resolve the parent's KIND server-side — the client never asserts it. A missing,

@@ -15,6 +15,7 @@ import {
   makeMeetingRepository,
   makeNoteDetailsRepository,
   makePersonRepository,
+  makeProjectTemplateRepository,
   makeRepository,
   makeReviewRepository,
   makeSpineRepository,
@@ -183,6 +184,8 @@ describe("GET /search route loader", () => {
       "goals.search",
       "habits.search",
       "projects.search",
+      // PROJECT-02 — templates are findable BY NAME; template tasks are not.
+      "projects.template_search",
       "tasks.search",
       "notes.search",
       "diary.search",
@@ -225,6 +228,35 @@ describe("GET /search route loader", () => {
     expect(payload).not.toContain("SECRET-SERIAL-123");
     expect(payload).not.toContain("SECRET-POLICY-456");
     expect(payload).not.toContain("today.search");
+  });
+
+  /*
+   * PROJECT-02 — a Project template IS a real entity type, but deliberately has
+   * no visual identity of its own (it wears the Project mark), so the shared
+   * Search surface cannot name it from `ENTITY_IDENTITY`. The heading therefore
+   * has to come from the label the projects module DECLARED; without that the
+   * group was headed with the raw `project_template` slug.
+   */
+  it("heads the template group with a human label, not the entity-type slug", async () => {
+    await makeWorkspaceRepository().create({
+      id: parseWorkspaceId(CONFIGURED_WORKSPACE),
+    });
+    await makeProjectTemplateRepository(
+      makeContext(CONFIGURED_WORKSPACE),
+    ).createTemplate({ name: "GlobalSearch Template" });
+
+    const response = await runLoader(
+      request("GlobalSearch Template"),
+      authedContext(),
+    );
+    const outcome = (await response.json()) as SearchOutcome;
+    const group = outcome.groups.find(
+      (candidate) => candidate.entityType === "project_template",
+    );
+    expect(group?.label).toBe("Project templates");
+    expect(JSON.stringify(outcome.groups.map((g) => g.label))).not.toContain(
+      "project_template",
+    );
   });
 
   it("excludes archived People from global Search", async () => {

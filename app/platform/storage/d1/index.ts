@@ -853,6 +853,19 @@ export function createWorkspaceRepository(
   return new D1WorkspaceRepository(db, options);
 }
 
+/**
+ * PROJECT-02 — the workspace-scoped D1-backed ProjectTemplateRepository.
+ *
+ * Templates are ordinary `entities` rows of type `project_template` and are
+ * deliberately NOT spine records, so they cannot reach any Project or Task
+ * surface. Creating a Project from one is a single atomic batch.
+ */
+export {
+  D1ProjectTemplateRepository,
+  createProjectTemplateRepository,
+  type D1ProjectTemplateRepositoryOptions,
+} from "./d1-project-template-repository";
+
 export {
   D1ProjectSettingsRepository,
   type D1ProjectSettingsRepositoryOptions,
