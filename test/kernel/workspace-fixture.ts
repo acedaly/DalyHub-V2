@@ -59,6 +59,12 @@ export interface Seeded {
   readonly projectId: string;
   readonly taskId: string;
   readonly recurringTaskId: string;
+  /**
+   * TASKS-12 — a Task carrying an ADVANCED recurrence rule (nth-weekday, a
+   * weekend rule and an end condition) AND a dependency, so both survive the
+   * export/restore round trip on the same workspace every other proof uses.
+   */
+  readonly advancedRecurringTaskId: string;
   readonly deletedTaskId: string;
   readonly noteId: string;
   readonly linkingNoteId: string;
@@ -154,6 +160,35 @@ export async function seedWorkspace(): Promise<Seeded> {
     title: "Fill water bottles",
   });
   await tasks.setChecklistItemCompleted(recurringTask.id, secondStep.id, true);
+
+  /*
+   * TASKS-12 — an ADVANCED recurrence rule and a DEPENDENCY, so the export proof
+   * and the restore round trip both cover them.
+   *
+   * The recurrence carries all four TASKS-12 columns plus TASKS-07's mode, which
+   * is what catches a snapshot reader that selects the old column list: without a
+   * rule that USES them, the round trip compares two sets of nulls and passes
+   * while an owner's "last Friday, twelve times" comes back as "every month,
+   * forever". (TASKS-07's own two columns were missing from the snapshot for
+   * exactly that reason until TASKS-12 added them.)
+   */
+  const monthlyReview = await tasks.createTask({
+    title: "Last Friday review",
+    parent: { kind: "area", id: area.id },
+    scheduledDate: "2026-08-28",
+  });
+  await tasks.setTaskRecurrence(monthlyReview.id, {
+    frequency: "month",
+    dateKind: "scheduled",
+    interval: 1,
+    weekdays: [5],
+    ordinal: "last",
+    weekendRule: "before",
+    endsAfterCount: 12,
+  });
+  // A dependency between two Tasks in this workspace: one directed EntityLink,
+  // which the archive carries as an ordinary link row.
+  await tasks.addTaskDependency(monthlyReview.id, recurringTask.id);
 
   await spine.complete(task.id);
   await spine.softDelete(deletedTask.id);
@@ -387,6 +422,7 @@ export async function seedWorkspace(): Promise<Seeded> {
     projectId: project.id,
     taskId: task.id,
     recurringTaskId: recurringTask.id,
+    advancedRecurringTaskId: monthlyReview.id,
     deletedTaskId: deletedTask.id,
     noteId: note.id,
     linkingNoteId: linkingNote.id,

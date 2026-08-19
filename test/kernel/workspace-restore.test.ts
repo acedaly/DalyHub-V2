@@ -71,6 +71,7 @@ import {
   FIXTURE_OWNER,
   FIXTURE_WORKSPACE,
   seedWorkspace,
+  type Seeded,
 } from "./workspace-fixture";
 
 const SOURCE = FIXTURE_WORKSPACE;
@@ -222,11 +223,14 @@ async function countRecords(workspaceId: string): Promise<number> {
 
 describe("workspace backup and restore (D1)", () => {
   let source: WorkspaceSnapshotV1;
+  /** The ids the fixture minted, for the tests that name a specific record. */
+  let seededIds: Seeded;
   let archive: Uint8Array;
 
   beforeEach(async () => {
     await resetTables([SOURCE, OTHER, TARGET]);
     const seeded = await seedWorkspace();
+    seededIds = seeded;
     await seedIdentityAndInsights(seeded.reviewId, seeded.personId);
     source = await exportSnapshot(SOURCE);
     archive = (await buildStructuredExportArchive(source)).bytes;
@@ -396,6 +400,89 @@ describe("workspace backup and restore (D1)", () => {
       const checklist = await tasksRepo.listChecklist(child.id);
       expect(checklist.every((item) => item.completed === false)).toBe(true);
     }
+  });
+
+  it("restores an ADVANCED recurrence rule well enough to produce the right next occurrence", async () => {
+    /*
+     * TASKS-12 — the restore claim that actually matters for recurrence.
+     *
+     * Snapshot equality proves the ROW came back. This proves the SERIES is still
+     * usable: completing the restored occurrence produces the date the rule says,
+     * with the end condition intact — which is what catches a restore that
+     * silently dropped the ordinal, the weekend rule or the count and left a
+     * routine that looks right and repeats wrongly.
+     */
+    const seeded = seededIds.advancedRecurringTaskId;
+
+    await loseWorkspaceRecords(SOURCE);
+    await ensureWorkspace(TARGET);
+    const deps = dependencies(TARGET);
+    const preview = await prepareRestore(deps, archive);
+    expect((await applyRestore(deps, preview.operationId)).verification.passed).toBe(
+      true,
+    );
+
+    const tasksRepo = makeTaskRepository(makeContext(TARGET));
+    const restored = await tasksRepo.getTask(seeded);
+    expect(restored?.recurrence).toMatchObject({
+      frequency: "month",
+      ordinal: "last",
+      weekdays: [5],
+      weekendRule: "before",
+      endsAfterCount: 12,
+      endsOnDate: null,
+    });
+
+    // 25 September 2026 is the last Friday of September, and it is a Friday
+    // already, so the weekend rule leaves it where it is.
+    const completed = await tasksRepo.completeTask(seeded, {
+      ownerTodayIso: "2026-08-28",
+    });
+    expect(completed.successor?.scheduledDate).toBe("2026-09-25");
+    expect(completed.successor?.recurrence?.endsAfterCount).toBe(12);
+  });
+
+  it("restores a DEPENDENCY pointing at the right Tasks, with blocked state derived", async () => {
+    /*
+     * TASKS-12 — a dependency is an EntityLink, so snapshot equality already
+     * proves the row came back. What it cannot prove is that the DERIVED state
+     * still works: that the restored edge names the two restored Tasks, that the
+     * blocked aggregate answers from it, and that no edge crossed a workspace.
+     */
+    const blocked = seededIds.advancedRecurringTaskId;
+    const blocker = seededIds.recurringTaskId;
+
+    await loseWorkspaceRecords(SOURCE);
+    await ensureWorkspace(TARGET);
+    const deps = dependencies(TARGET);
+    const preview = await prepareRestore(deps, archive);
+    expect((await applyRestore(deps, preview.operationId)).verification.passed).toBe(
+      true,
+    );
+
+    const tasksRepo = makeTaskRepository(makeContext(TARGET));
+    const restored = await tasksRepo.listTaskDependencies(blocked);
+    expect(restored.blockedBy.map((entry) => entry.taskId)).toEqual([blocker]);
+    expect(
+      (await tasksRepo.listBlockedSummaries([blocked])).get(blocked),
+    ).toMatchObject({ blockerCount: 1 });
+
+    // Completing the blocker unblocks it, derived, in the restored workspace.
+    await tasksRepo.completeTask(blocker, { ownerTodayIso: "2026-08-28" });
+    expect((await tasksRepo.listBlockedSummaries([blocked])).has(blocked)).toBe(
+      false,
+    );
+
+    // No dependency edge names an entity outside the restored workspace.
+    const stray = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM entity_links l
+       WHERE l.type = 'task.blocks'
+         AND (NOT EXISTS (SELECT 1 FROM entities e
+                          WHERE e.workspace_id = l.workspace_id AND e.id = l.source_entity_id)
+              OR NOT EXISTS (SELECT 1 FROM entities e
+                             WHERE e.workspace_id = l.workspace_id AND e.id = l.target_entity_id))`,
+    ).first<{ n: number }>();
+    expect(stray?.n).toBe(0);
   });
 
   it("restores the owner's appearance AND colour scheme, not just the defaults", async () => {

@@ -261,7 +261,7 @@ describe("end conditions stop the series", () => {
       const result = await tasks.completeTask(current.id, {
         ownerTodayIso: current.scheduledDate!,
       });
-      if (result.successor === null) break;
+      if (!result.successor) break;
       current = result.successor;
       dates.push(current.scheduledDate!);
     }
