@@ -220,12 +220,12 @@ describe("ends after N occurrences", () => {
   });
 
   it("reports how many remain, counting the current occurrence", () => {
-    expect(taskRecurrenceRemaining({ endsAfterCount: 3 }, { sequence: 0 })).toBe(
-      2,
-    );
-    expect(taskRecurrenceRemaining({ endsAfterCount: 3 }, { sequence: 2 })).toBe(
-      0,
-    );
+    expect(
+      taskRecurrenceRemaining({ endsAfterCount: 3 }, { sequence: 0 }),
+    ).toBe(2);
+    expect(
+      taskRecurrenceRemaining({ endsAfterCount: 3 }, { sequence: 2 }),
+    ).toBe(0);
     expect(taskRecurrenceRemaining({ endsAfterCount: null }, null)).toBeNull();
   });
 });
@@ -355,7 +355,12 @@ describe("weekend handling", () => {
   it("crosses a YEAR boundary under the weekend rule", () => {
     // 1 January 2028 is a Saturday; `after` moves it to Monday 3 January.
     const step = nextTaskOccurrenceStep(
-      rule({ frequency: "year", anchorDay: 1, anchorMonth: 1, weekendRule: "after" }),
+      rule({
+        frequency: "year",
+        anchorDay: 1,
+        anchorMonth: 1,
+        weekendRule: "after",
+      }),
       "2027-01-01",
       "2027-01-01",
     );
@@ -450,8 +455,8 @@ describe("advanced rule validation", () => {
     expect(legacy.endsAfterCount).toBeNull();
     expect(legacy.endsOnDate).toBeNull();
     // And it steps exactly as it always did.
-    expect(nextDate({ frequency: "week", weekdays: [1], interval: 2 }, "2026-08-17")).toBe(
-      "2026-08-31",
-    );
+    expect(
+      nextDate({ frequency: "week", weekdays: [1], interval: 2 }, "2026-08-17"),
+    ).toBe("2026-08-31");
   });
 });

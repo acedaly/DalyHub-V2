@@ -1300,6 +1300,27 @@ list's WHOLE current order, which is not a single comparable field. Queueing any
 of them would mean inventing a conflict rule this contract does not have.
 Recorded as **DEBT-160**.
 
+**Dependencies and recurrence RULES are online-only, deliberately (TASKS-12,
+2026-08-19).** Blocked state is CARRIED by the offline snapshot — derived
+server-side, exactly as it is for every online surface, and sent as an optional
+field on each retained task in ONE bounded read (no version bump: a snapshot
+stored by an earlier build simply has no value there, which reads as "nothing
+blocking", the same answer that build gave). But adding or removing a
+dependency, and editing a recurrence rule, require a connection. A dependency's
+outcome is a property of the GRAPH at the moment of the write: only the server
+knows whether an edge closes a cycle or crosses one of the two bounds, so a
+queued dependency would be an intent the device cannot evaluate and might have to
+withdraw hours later. A recurrence rule's validity likewise depends on the Task's
+own anchor date. Building a local dependency engine to decide either would be a
+second authority for the one thing TASKS-12 exists to keep singular. Recorded as
+**DEBT-170**.
+
+There is a temporary state this leaves, and it is DOCUMENTED rather than
+engineered around: completing a blocker offline queues (it is the operation
+above), so the device knows the blocker is done while the server does not, and
+the dependent Task may still read as blocked until the completion replays. That
+is server truth arriving late, not a wrong answer.
+
 **Project / Area reassignment was assessed and deliberately deferred.** The
 architecture would permit it — `intent=set_parent` is atomic and re-validates its
 destination — but it is the one supported-looking Task field whose target can

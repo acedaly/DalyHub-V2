@@ -31,10 +31,7 @@ import {
   isSameDocumentParameterChange,
   parametersUnchanged,
 } from "~/shared/router/revalidation";
-import type {
-  TaskBlockedSummary,
-  TaskChecklistProgress,
-} from "~/kernel/tasks";
+import type { TaskBlockedSummary, TaskChecklistProgress } from "~/kernel/tasks";
 import { serializeTaskListPage } from "~/shared/task-record/task-view";
 import {
   DEFAULT_TASK_VIEW_CONFIG,

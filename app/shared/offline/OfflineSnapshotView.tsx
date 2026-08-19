@@ -20,6 +20,7 @@
 import { useMemo, useState } from "react";
 
 import { calendarDaysBetween, isSnapshotStale } from "~/kernel/offline";
+import { taskBlockedLabel } from "~/kernel/tasks";
 import { EmptyState } from "~/shared/empty-state";
 
 import { localStateCopy } from "./local-state";
@@ -346,6 +347,9 @@ function TaskRow({ task }: { readonly task: OfflineDataset["tasks"][number] }) {
           planned ? `Planned ${planned}` : null,
           task.priority ? `Priority ${task.priority}` : null,
           task.waiting ? "Waiting" : null,
+          // TASKS-12 — the same sentence every online surface uses, from the one
+          // shared formatter, so the offline card and the row agree.
+          taskBlockedLabel(task.blocked),
           task.status === "completed" ? "Completed" : null,
         ]
           .filter(Boolean)

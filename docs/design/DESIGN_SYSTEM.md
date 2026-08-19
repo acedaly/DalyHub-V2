@@ -3173,3 +3173,92 @@ is not a miss — with no percentage at all when the window expected nothing. Se
 [ADR-104](../decisions/ARCHITECTURE_DECISIONS.md#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8).
 Streaks, flames, chains, day counts and rings that empty remain forbidden
 everywhere.
+
+---
+
+## The dependency row and the blocked line (TASKS-12, 2026-08-19)
+
+Two small patterns, added because TASKS-12 needed to show a RELATIONSHIP between
+two Tasks and a derived STATE on a row. Neither introduces a container, a colour
+or a glyph the system did not already have.
+
+### The dependency row
+
+```
+Blocked by
+  Done      Prepare draft                                   [ Remove ]
+  Waiting   Get director approval                           [ Remove ]
+  [ Add blocker ]
+```
+
+Three cells: a state WORD in a fixed measure, a title that opens that record
+through the shared `EntityLink`, and — on the editable direction only — a Remove
+control. No card per row, no chip, no arrow glyph, no drag handle and no second
+level. Separation comes from whitespace and from the alignment of the state
+column, exactly as it does for the [checklist row](#the-checklist-row-tasks-13-2026-08-18).
+
+Three rules the pattern carries:
+
+- **The state is a WORD, never a colour and never a glyph alone.** "Done" /
+  "Waiting", so the row survives a monochrome display, a screen reader and a
+  colour-blind reader identically. A completed row's strike-through is a SECOND
+  reading, never the only one.
+- **The row WRAPS rather than truncating.** At 320 the title takes a full line of
+  its own and the control follows it; a relationship control pushed off the edge
+  is a relationship that cannot be removed.
+- **Every control is a 44px target at every width.** The floor is applied to the
+  composition rather than to the shared ghost button, because it is a property of
+  a relationship control (WCAG 2.2 AA target size) — and a fine pointer loses
+  nothing by a control being comfortable.
+
+Only ONE direction of a relationship is editable on a record. The other end is
+the same row seen from the other side and is editable on its own record: one
+control per fact, so there is never a question of which one won.
+
+### The blocked line on the shared Task row
+
+```
+Publish the report          Blocked by Get director approval
+```
+
+**It REPLACES the status pill rather than joining it.** "Blocked" on its own is
+the least useful half of the fact — the owner already knows the Task has not
+moved, and what they need is the name of the thing to chase — so the row states
+the whole sentence and the status column stays empty. A pill reading "Blocked"
+beside a line reading "Blocked by …" is a duplicated label, which is the thing a
+row at 320px can least afford.
+
+- It sits on the TITLE's own line, beside the checklist figure, so it costs the
+  row **no grid track and no height**: a blocked row is exactly as tall as one
+  that is not, at every width (measured).
+- One blocker is NAMED; more than one is COUNTED ("Blocked by 2 tasks"), because
+  a row cannot carry three titles and naming only the first is a half-truth.
+- Unlike the checklist figure, it is drawn at **every** width including the
+  phone. "2 of 5" is a detail the owner can go and find; "this cannot start" is
+  the reason the row has not moved, and a phone is exactly where that needs
+  saying.
+
+`blocked` joins the ONE display-state precedence evaluator between Waiting and On
+hold and takes the **waiting tone**. Blocked and waiting are the same family
+("this cannot proceed"), and a second colour for a second flavour of one fact is
+status-pill inflation. There is no red, no banner and no border: blocked is a
+workflow state, not an error.
+
+### Progressive disclosure in the recurrence editor
+
+TASKS-12 tripled what a recurrence rule can express without lengthening the
+common path. The pattern, reusable wherever a closed choice reveals a field:
+
+- the ordinary case is still ONE select (**Repeat**), saved immediately;
+- **Custom…** opens the composition, and inside it each further choice reveals
+  **exactly one field or none** — the monthly shape is a radio pair (`the same
+  day of the month` reveals nothing, `a named weekday` reveals two short
+  selects), and the end condition reveals one number, one date, or nothing;
+- the RESULT is stated as a sentence before it is saved, through the same
+  formatter every read-only surface uses.
+
+**A behavioural choice is offered as OUTCOMES, never as a flag.** There is no
+checkbox called "skip weekends" anywhere in DalyHub: the phrase names three
+different behaviours in three different products, so the control offers four
+complete sentences about what will happen instead. Where a flag would need a
+tooltip to say what it does, it should have been a choice.

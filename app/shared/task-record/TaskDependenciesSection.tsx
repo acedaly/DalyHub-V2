@@ -85,15 +85,29 @@ export function TaskDependenciesSection({
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   /*
-   * Focus is restored through the CONTAINER rather than through a ref on the
-   * button, because the shared `FormButton` deliberately exposes no ref — a
-   * generic primitive that handed out its DOM node would be a primitive callers
-   * could reach around. The container holds exactly one button, so querying it is
-   * unambiguous, and focus lands on whatever the shared control renders today.
+   * Focus after a change that REMOVES the element holding it.
+   *
+   * Two things make this an effect rather than a call. The control focus should
+   * land on may not exist yet at the moment the mutation resolves — React has
+   * not re-rendered — and while the request is in flight the shared button is
+   * `disabled`, which silently ignores `.focus()`. Both were true of the first
+   * attempt, and the outcome was a keyboard user dropped to the document body
+   * after removing a blocker; the E2E keyboard journey caught it.
+   *
+   * So a mutation RECORDS the intent and the effect below performs it once the
+   * list it is keyed on has actually been drawn — the same shape
+   * `TaskChecklistSection` uses for the same reason.
+   *
+   * Focus is taken through the CONTAINER rather than through a ref on the
+   * button, because the shared `FormButton` deliberately exposes no ref: a
+   * generic primitive that handed out its DOM node would be one callers could
+   * reach around. The container holds exactly one button, so the query is
+   * unambiguous.
    */
   const addSlotRef = useRef<HTMLDivElement | null>(null);
+  const wantsAddFocus = useRef(false);
   const focusAdd = useCallback(() => {
-    addSlotRef.current?.querySelector("button")?.focus();
+    wantsAddFocus.current = true;
   }, []);
   const searchSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -105,6 +119,16 @@ export function TaskDependenciesSection({
       abortRef.current?.abort();
     };
   }, []);
+
+  // Keyed on the two things that decide whether the Add control is on screen and
+  // enabled: the list it sits under, and whether a mutation is still in flight.
+  useEffect(() => {
+    if (!wantsAddFocus.current) return;
+    const button = addSlotRef.current?.querySelector("button");
+    if (!button || button.disabled) return;
+    wantsAddFocus.current = false;
+    button.focus();
+  }, [blockedBy, adding, dependencies.busy]);
 
   const runSearch = useCallback(
     (query: string) => {
@@ -201,7 +225,10 @@ export function TaskDependenciesSection({
        * blocked" on every unblocked Task is noise.
        */}
       {blockedLabel !== null ? (
-        <p className="dh-task-dependencies__state" data-testid="task-blocked-state">
+        <p
+          className="dh-task-dependencies__state"
+          data-testid="task-blocked-state"
+        >
           {blockedLabel}
         </p>
       ) : null}
@@ -216,7 +243,9 @@ export function TaskDependenciesSection({
               <li
                 key={blocker.taskId}
                 className="dh-task-dependencies__row"
-                data-complete={blocker.completedAt !== null ? "true" : undefined}
+                data-complete={
+                  blocker.completedAt !== null ? "true" : undefined
+                }
               >
                 {/*
                  * The state is a WORD, not a colour and not a glyph alone: a

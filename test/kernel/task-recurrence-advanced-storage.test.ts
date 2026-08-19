@@ -23,7 +23,6 @@ import {
   FakeClock,
   countActivitiesOfType,
   makeContext,
-  makeSpineRepository,
   makeTaskRepository,
   resetTables,
   sequentialIds,
@@ -37,14 +36,6 @@ const nextActivityId = sequentialIds("advact");
 function taskRepo(at = "2026-08-19T09:00:00.000Z") {
   return makeTaskRepository(makeContext(WS), {
     clock: new FakeClock(at).now,
-    idGenerator: nextEntityId,
-    activityIdGenerator: nextActivityId,
-  });
-}
-
-function spineRepo() {
-  return makeSpineRepository(makeContext(WS), {
-    clock: new FakeClock("2026-08-19T09:00:00.000Z").now,
     idGenerator: nextEntityId,
     activityIdGenerator: nextActivityId,
   });

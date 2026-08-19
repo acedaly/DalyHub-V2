@@ -69,6 +69,24 @@ export interface OfflineTask {
   readonly parentLabel: string | null;
   /** True when the task is blocked on someone or something (TODAY-03). */
   readonly waiting: boolean;
+  /**
+   * TASKS-12 — the Tasks that must be finished before this one can proceed, when
+   * there are any.
+   *
+   * READ-ONLY, and derived server-side exactly as it is for every online surface:
+   * the device is told what the server currently believes, never asked to work
+   * it out. There is no offline dependency mutation (see `PWA_AND_OFFLINE.md`),
+   * so nothing on the device can change this — which is precisely what keeps the
+   * one authority singular.
+   *
+   * OPTIONAL rather than a version bump: a snapshot stored by an earlier build
+   * simply has no value here, which reads as "nothing blocking" — the same
+   * answer that build gave, so an old cache cannot be misread by a new client.
+   */
+  readonly blocked?: {
+    readonly blockerCount: number;
+    readonly firstBlockerTitle: string;
+  };
 }
 
 /** A note, reduced to a readable card: title, tags, and a bounded excerpt. */

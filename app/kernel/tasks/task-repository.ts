@@ -66,10 +66,7 @@ import type {
   TaskChecklistItem,
   TaskChecklistProgress,
 } from "./task-checklist";
-import type {
-  TaskBlockedSummary,
-  TaskDependencies,
-} from "./task-dependencies";
+import type { TaskBlockedSummary, TaskDependencies } from "./task-dependencies";
 
 export interface TaskRepository {
   /**

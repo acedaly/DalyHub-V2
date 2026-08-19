@@ -219,8 +219,28 @@ async function buildTasks(
     });
   }
 
+  /*
+   * TASKS-12 — the blocked state of the retained tasks, in ONE bounded read.
+   *
+   * After the loop, over the ids that actually reached the device — never inside
+   * it, which would be one statement per task. Guarded on its own for the same
+   * reason the waiting read is: a failing dependency read must cost the owner
+   * the "Blocked by …" line, not their whole task section, and a snapshot
+   * without it simply reads as it did before TASKS-12.
+   */
+  const blocked = await section(
+    () => scope.tasks.listBlockedSummaries(tasks.map((task) => task.id)),
+    new Map() as ReadonlyMap<
+      string,
+      { readonly blockerCount: number; readonly firstBlockerTitle: string }
+    >,
+  );
+
   return {
-    tasks,
+    tasks: tasks.map((task) => {
+      const summary = blocked.get(task.id);
+      return summary ? { ...task, blocked: summary } : task;
+    }),
     references: [...references.values()],
     bounded:
       page.items.length >= OFFLINE_SNAPSHOT_LIMITS.tasks ||

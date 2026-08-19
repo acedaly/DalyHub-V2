@@ -92,8 +92,7 @@
  * title is everywhere else in DalyHub — and the row still says "Done" in words
  * beside it, so the strike is a second reading rather than the only one.
  */
-.dh-task-dependencies__row[data-complete="true"]
-  .dh-task-dependencies__title {
+.dh-task-dependencies__row[data-complete="true"] .dh-task-dependencies__title {
   text-decoration: line-through;
   color: var(--dh-color-text-muted);
 }
@@ -101,6 +100,22 @@
 .dh-task-dependencies__title {
   flex: 1 1 12rem;
   min-width: 0;
+}
+
+/*
+ * Every control in this section is a THUMB target.
+ *
+ * The shared ghost button is 36px tall, which is right for a dense form row and
+ * wrong for the one control on a phone that removes a relationship. The floor is
+ * applied here rather than in the primitive, because it is a property of THIS
+ * composition (WCAG 2.2 AA target size), and it is applied at every width: a
+ * fine pointer loses nothing by a control being comfortable.
+ */
+.dh-task-dependencies__row .dh-btn,
+.dh-task-dependencies__add .dh-btn,
+.dh-task-dependencies__actions .dh-btn {
+  min-height: var(--app-touch-target-min);
+  min-width: var(--app-touch-target-min);
 }
 
 .dh-task-dependencies__composer {

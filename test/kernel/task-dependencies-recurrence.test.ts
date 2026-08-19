@@ -61,7 +61,10 @@ async function seed(
 }
 
 async function activeEdges(): Promise<
-  readonly { readonly source_entity_id: string; readonly target_entity_id: string }[]
+  readonly {
+    readonly source_entity_id: string;
+    readonly target_entity_id: string;
+  }[]
 > {
   const result = await env.DB.prepare(
     `SELECT source_entity_id, target_entity_id FROM entity_links
@@ -127,7 +130,10 @@ describe("Case B: a one-off Task blocks a recurring Task", () => {
     await tasks.addTaskDependency(weekly.id, install.id);
     expect(
       (await tasks.listBlockedSummaries([weekly.id])).get(weekly.id),
-    ).toMatchObject({ blockerCount: 1, firstBlockerTitle: "Install new system" });
+    ).toMatchObject({
+      blockerCount: 1,
+      firstBlockerTitle: "Install new system",
+    });
 
     // The owner completes the blocked occurrence anyway (blocked never prevents
     // completion). Its successor is a NEW piece of work with no relationships.

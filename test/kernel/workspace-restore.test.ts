@@ -418,9 +418,9 @@ describe("workspace backup and restore (D1)", () => {
     await ensureWorkspace(TARGET);
     const deps = dependencies(TARGET);
     const preview = await prepareRestore(deps, archive);
-    expect((await applyRestore(deps, preview.operationId)).verification.passed).toBe(
-      true,
-    );
+    expect(
+      (await applyRestore(deps, preview.operationId)).verification.passed,
+    ).toBe(true);
 
     const tasksRepo = makeTaskRepository(makeContext(TARGET));
     const restored = await tasksRepo.getTask(seeded);
@@ -456,9 +456,9 @@ describe("workspace backup and restore (D1)", () => {
     await ensureWorkspace(TARGET);
     const deps = dependencies(TARGET);
     const preview = await prepareRestore(deps, archive);
-    expect((await applyRestore(deps, preview.operationId)).verification.passed).toBe(
-      true,
-    );
+    expect(
+      (await applyRestore(deps, preview.operationId)).verification.passed,
+    ).toBe(true);
 
     const tasksRepo = makeTaskRepository(makeContext(TARGET));
     const restored = await tasksRepo.listTaskDependencies(blocked);

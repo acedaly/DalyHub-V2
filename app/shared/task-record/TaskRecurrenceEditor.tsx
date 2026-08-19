@@ -372,7 +372,9 @@ export function TaskRecurrenceEditor({
                 <label
                   key={shape}
                   className="dh-recurrence-editor__mode"
-                  data-selected={draft.monthlyShape === shape ? "true" : "false"}
+                  data-selected={
+                    draft.monthlyShape === shape ? "true" : "false"
+                  }
                 >
                   <input
                     type="radio"

@@ -17,6 +17,83 @@ no version number to group them under.
 
 ---
 
+## Repeats that match how you actually work, and tasks that can wait for each other
+
+**Two things arrived together, and they answer two different questions.** A
+repeat decides _when_ a task turns up. A dependency decides _whether_ a task you
+already have can be started. DalyHub keeps them apart on purpose — a dependency
+will never quietly move a date you chose.
+
+### Repeats
+
+**"The last Friday of every month" is now a thing you can say.** Open a task's
+**Repeat** control, choose **Custom…**, and beside _Monthly_ you can pick a named
+weekday — the first, second, third, fourth or last — instead of a day number.
+There is no "fifth Monday", deliberately: it does not exist in most months, and a
+repeat that skips a month without telling you is worse than one you can predict.
+
+**Mon/Wed/Fri is one repeat, not three tasks.** Selecting several weekdays has
+always been possible; now it is guaranteed to stay one series with one history,
+however long it runs.
+
+**A repeat can end.** _Never_ (as before), _after a number of times_, or _on a
+date_. The count includes the occurrence you are looking at — so "3 times" means
+this one and two more — and the control says so where you type the number. An
+"ends on" date is inclusive: something falling exactly on it still happens.
+
+**Weekends are a choice, not a checkbox.** DalyHub deliberately does not offer a
+box marked "skip weekends", because that phrase means three different things in
+three different apps. Instead you pick what should actually happen:
+
+- leave it on the weekend,
+- move it to the **Friday before**,
+- move it to the **Monday after**,
+- or skip that occurrence entirely.
+
+If a repeat gets moved off its day, the _routine_ stays where it was. "The 1st of
+every month, moved to the Friday before" comes back to the 1st next month rather
+than creeping earlier and earlier until it is a different thing.
+
+### Tasks that wait for other tasks
+
+**Open a task and you will find _Dependencies_.** Add a blocker — another task
+that has to happen first — and the task says so, in words:
+
+> Blocked by Get director approval
+
+That line appears wherever the task appears: in your task list, on **Today**, in
+**Weekly Planning**, and inside a project. A blocked task planned for today is
+**still on Today**. It was your commitment, and the reason it is not moving is
+exactly what you need to see.
+
+**Nothing is moved on your behalf.** If the thing you are waiting for slips by
+three days, your task stays exactly where you put it and simply says it is
+blocked. No date is rewritten, no priority is changed, nothing is rescheduled.
+
+**It keeps itself up to date.** Finish the last blocker and the task is no longer
+blocked. Re-open that blocker and it is blocked again. Put a blocker in the trash
+and it stops holding anything up; take it back out and it starts again. There is
+nothing to refresh.
+
+**And you can still finish a blocked task.** "Blocked" is DalyHub telling you what
+was supposed to happen first — never DalyHub deciding what you are allowed to do.
+
+**Circles are refused.** If A waits for B, then B cannot be made to wait for A —
+at any distance, however long the chain — and DalyHub says why rather than
+letting you build a knot that can never come undone.
+
+**One thing worth knowing.** A dependency is between the two tasks in front of
+you. If both of them repeat, next month's pair starts fresh: the relationship is
+not copied forward. That is deliberate — guessing which future repeat pairs with
+which is exactly the kind of quiet wrong answer this product tries not to give —
+but it does mean a monthly pair is re-linked once a month.
+
+Adding or removing a dependency, and editing a repeat, need a connection.
+Everything else about them — including seeing what is blocked — works from what
+your device already has.
+
+---
+
 ## Start a project from one that already worked
 
 **Some projects come round again.** Monthly reporting, a new client, packing for a

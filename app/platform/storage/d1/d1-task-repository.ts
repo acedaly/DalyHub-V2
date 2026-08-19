@@ -4810,18 +4810,23 @@ export class D1TaskRepository implements TaskRepository {
     // A skip puts the occurrence back ON the grid — unless TASKS-12's weekend rule
     // moved the new date off it, in which case the grid is remembered exactly as a
     // successor's is, so the routine does not drift.
-    const task = await this.#writeOccurrenceDates(move, nextIso, step.gridDate, {
-      type: TASK_RECURRENCE_OCCURRENCE_SKIPPED,
-      subjects: [{ entityId, role: SUBJECT_ROLE }],
-      payload: {
-        entityType: TASK,
-        seriesId: move.series.seriesId,
-        sequence: move.series.sequence,
-        dateKind: move.rule.dateKind,
-        skippedFrom: move.anchorIso,
-        nextDate: nextIso,
+    const task = await this.#writeOccurrenceDates(
+      move,
+      nextIso,
+      step.gridDate,
+      {
+        type: TASK_RECURRENCE_OCCURRENCE_SKIPPED,
+        subjects: [{ entityId, role: SUBJECT_ROLE }],
+        payload: {
+          entityType: TASK,
+          seriesId: move.series.seriesId,
+          sequence: move.series.sequence,
+          dateKind: move.rule.dateKind,
+          skippedFrom: move.anchorIso,
+          nextDate: nextIso,
+        },
       },
-    });
+    );
     return {
       task,
       changed: true,

@@ -112,7 +112,10 @@ async function searchTargets(taskId: string, query: string) {
     params: { taskId },
   } as unknown as Parameters<typeof dependencyTargetsLoader>[0])) as Response;
   return (await response.json()) as {
-    readonly options?: readonly { readonly id: string; readonly title: string }[];
+    readonly options?: readonly {
+      readonly id: string;
+      readonly title: string;
+    }[];
   };
 }
 

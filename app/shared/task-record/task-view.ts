@@ -505,11 +505,7 @@ export function taskRecurrenceLabel(
         Partial<
           Pick<
             TaskRecurrenceRule,
-            | "mode"
-            | "ordinal"
-            | "weekendRule"
-            | "endsAfterCount"
-            | "endsOnDate"
+            "mode" | "ordinal" | "weekendRule" | "endsAfterCount" | "endsOnDate"
           >
         >)
     | null
@@ -550,9 +546,7 @@ export function taskRecurrenceLabel(
               ? `The ${rule.ordinal} ${TASK_WEEKDAY_NAMES[rule.weekdays[0]!] ?? "day"} of ${rule.interval === 1 ? "every month" : `every ${rule.interval} months`}`
               : every("month")
             : every("year");
-  const parts = [
-    rule.dateKind === "due" ? `${base}, from the due date` : base,
-  ];
+  const parts = [rule.dateKind === "due" ? `${base}, from the due date` : base];
   /*
    * TASKS-12 — the weekend rule and the end condition are stated as CLAUSES of
    * the same sentence rather than as separate chips, because they qualify the

@@ -189,7 +189,8 @@ export function describeRecurrence(rule: SnapshotTaskRecurrenceRule): string {
   // mechanically from the stored tokens. No future date is computed here either.
   if (rule.mode === "after_completion") parts.push("after completion");
   if (rule.weekendRule === "before") parts.push("moved to the Friday before");
-  else if (rule.weekendRule === "after") parts.push("moved to the Monday after");
+  else if (rule.weekendRule === "after")
+    parts.push("moved to the Monday after");
   else if (rule.weekendRule === "skip") parts.push("skipping weekends");
   if (rule.endsAfterCount !== null) {
     parts.push(`ending after ${rule.endsAfterCount} occurrences`);

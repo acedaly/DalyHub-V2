@@ -176,9 +176,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
    */
   const taskBlocked = await scope.tasks
     .listBlockedSummaries(taskPage.items.map((item) => item.id))
-    .catch(
-      () => new Map() as ReadonlyMap<string, TaskBlockedSummary>,
-    );
+    .catch(() => new Map() as ReadonlyMap<string, TaskBlockedSummary>);
 
   return {
     // The KEY only. The settings repository has already normalised it, so a key

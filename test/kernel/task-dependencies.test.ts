@@ -231,7 +231,9 @@ describe("blocked state is derived, never stored", () => {
     });
 
     await tasks.completeTask(second, { ownerTodayIso: "2026-08-19" });
-    expect((await tasks.listBlockedSummaries([target])).has(target)).toBe(false);
+    expect((await tasks.listBlockedSummaries([target])).has(target)).toBe(
+      false,
+    );
   });
 
   it("becomes blocked AGAIN when a completed blocker is reopened", async () => {
@@ -240,7 +242,9 @@ describe("blocked state is derived, never stored", () => {
     const blocker = await seedTask("Get director approval");
     await tasks.addTaskDependency(target, blocker);
     await tasks.completeTask(blocker, { ownerTodayIso: "2026-08-19" });
-    expect((await tasks.listBlockedSummaries([target])).has(target)).toBe(false);
+    expect((await tasks.listBlockedSummaries([target])).has(target)).toBe(
+      false,
+    );
 
     await tasks.reopenTask(blocker);
     expect((await tasks.listBlockedSummaries([target])).get(target)).toEqual({
@@ -257,16 +261,18 @@ describe("blocked state is derived, never stored", () => {
 
     await tasks.deleteTasks([blocker]);
     // A Task in the trash is not holding anything up.
-    expect((await tasks.listBlockedSummaries([target])).has(target)).toBe(false);
+    expect((await tasks.listBlockedSummaries([target])).has(target)).toBe(
+      false,
+    );
     expect((await tasks.listTaskDependencies(target)).blockedBy).toEqual([]);
     // The EDGE survives, so restoring the blocker restores the dependency
     // rather than losing a relationship the owner created.
     expect(await edgeRows()).toHaveLength(1);
 
     await tasks.restoreTasks([blocker]);
-    expect((await tasks.listBlockedSummaries([target])).get(target)).toMatchObject(
-      { blockerCount: 1 },
-    );
+    expect(
+      (await tasks.listBlockedSummaries([target])).get(target),
+    ).toMatchObject({ blockerCount: 1 });
   });
 
   it("returns nothing for an empty id list, and issues no statement", async () => {
@@ -390,12 +396,12 @@ describe("bounds", () => {
       await tasks.addTaskDependency(target, await seedTask(`Blocker ${index}`));
     }
     const extra = await seedTask("One too many");
-    await expect(
-      tasks.addTaskDependency(target, extra),
-    ).rejects.toBeInstanceOf(TaskDependencyLimitError);
-    expect(
-      (await tasks.listTaskDependencies(target)).blockedBy,
-    ).toHaveLength(MAX_TASK_BLOCKERS);
+    await expect(tasks.addTaskDependency(target, extra)).rejects.toBeInstanceOf(
+      TaskDependencyLimitError,
+    );
+    expect((await tasks.listTaskDependencies(target)).blockedBy).toHaveLength(
+      MAX_TASK_BLOCKERS,
+    );
   });
 
   it("refuses the Task past the BLOCKS limit too", async () => {
@@ -424,9 +430,9 @@ describe("bounds", () => {
       taskRepo().addTaskDependency(target, first),
       taskRepo().addTaskDependency(target, second),
     ]);
-    expect(
-      (await tasks.listTaskDependencies(target)).blockedBy,
-    ).toHaveLength(MAX_TASK_BLOCKERS);
+    expect((await tasks.listTaskDependencies(target)).blockedBy).toHaveLength(
+      MAX_TASK_BLOCKERS,
+    );
     expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
   });
 
@@ -457,9 +463,9 @@ describe("workspace isolation and endpoint kinds", () => {
     const tasks = taskRepo();
     const mine = await seedTask("Mine");
     const theirs = await seedTask("Theirs", OTHER);
-    await expect(
-      tasks.addTaskDependency(mine, theirs),
-    ).rejects.toBeInstanceOf(TaskNotFoundError);
+    await expect(tasks.addTaskDependency(mine, theirs)).rejects.toBeInstanceOf(
+      TaskNotFoundError,
+    );
     await expect(
       tasks.addTaskDependency(mine, "ent_does_not_exist"),
     ).rejects.toBeInstanceOf(TaskNotFoundError);

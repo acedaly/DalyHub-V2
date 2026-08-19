@@ -88,13 +88,14 @@ export const MONTHLY_SHAPES = ["day", "ordinal"] as const;
 export type MonthlyShape = (typeof MONTHLY_SHAPES)[number];
 
 /** The ordinal labels, in the owner's words. */
-export const RECURRENCE_ORDINAL_LABELS: Record<TaskRecurrenceOrdinal, string> = {
-  first: "First",
-  second: "Second",
-  third: "Third",
-  fourth: "Fourth",
-  last: "Last",
-};
+export const RECURRENCE_ORDINAL_LABELS: Record<TaskRecurrenceOrdinal, string> =
+  {
+    first: "First",
+    second: "Second",
+    third: "Third",
+    fourth: "Fourth",
+    last: "Last",
+  };
 
 /**
  * TASKS-12 — the weekend rule, worded as the BEHAVIOUR rather than as a flag.
@@ -275,9 +276,7 @@ export function ruleForPreset(
 
 /** Load a stored rule into the editor's draft, so opening it shows what exists. */
 export function draftFromRule(
-  rule:
-    | (AuthoredRule & Pick<TaskRecurrenceRule, "dateKind">)
-    | null,
+  rule: (AuthoredRule & Pick<TaskRecurrenceRule, "dateKind">) | null,
   fallbackDateKind: TaskRecurrenceDateKind = "scheduled",
 ): RecurrenceDraft {
   if (rule === null) {
@@ -402,15 +401,16 @@ export function ruleFromDraft(
    * Everything else drops it, so switching the unit cannot smuggle a set into a
    * rule the kernel would refuse.
    */
-  const ordinalRule = draft.unit === "month" && draft.monthlyShape === "ordinal";
+  const ordinalRule =
+    draft.unit === "month" && draft.monthlyShape === "ordinal";
   const weekdays = ordinalRule
     ? draft.weekdays.slice(0, 1)
     : draft.unit === "week" && draft.mode === "fixed"
       ? draft.weekdays
       : [];
-  const weekendRule = (
-    WEEKEND_RULE_FREQUENCIES as readonly string[]
-  ).includes(draft.unit)
+  const weekendRule = (WEEKEND_RULE_FREQUENCIES as readonly string[]).includes(
+    draft.unit,
+  )
     ? draft.weekendRule
     : "allow";
   return {

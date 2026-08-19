@@ -28,7 +28,7 @@
 -- `TaskRepository` INSIDE the write (a predicate in the same statement, never a
 -- read-then-decide), exactly as migration 0007 did for `task.waiting_on`. The
 -- generic EntityLink repository REFUSES `task.blocks` (RESERVED_TASK_LINK_TYPES),
--- so there is no second way to create one. See ADR-105.
+-- so there is no second way to create one. See ADR-106.
 --
 -- -- The four recurrence columns ----------------------------------------------
 -- 1. ordinal

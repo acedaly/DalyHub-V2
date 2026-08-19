@@ -175,10 +175,7 @@ export function validateTaskDependencyPair(
     throw new TaskValidationError("dependency", "choose a task");
   }
   if (blocker === blocked) {
-    throw new TaskValidationError(
-      "dependency",
-      "a task cannot block itself",
-    );
+    throw new TaskValidationError("dependency", "a task cannot block itself");
   }
   return { blockerId: blocker, blockedId: blocked };
 }

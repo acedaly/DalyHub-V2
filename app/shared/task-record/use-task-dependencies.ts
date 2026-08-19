@@ -25,10 +25,7 @@ import { isTaskBlocked, type TaskBlockedSummary } from "~/kernel/tasks";
 
 import type { TaskActionData } from "./contract";
 import { postTaskRecordAction } from "./task-inline-edit";
-import {
-  blockedSummaryOf,
-  type SerializedTaskDependencies,
-} from "./task-view";
+import { blockedSummaryOf, type SerializedTaskDependencies } from "./task-view";
 
 /** What a dependency mutation concluded, in the terms a control needs. */
 export interface DependencyOutcome {

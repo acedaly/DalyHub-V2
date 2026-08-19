@@ -424,20 +424,83 @@ Both questions this item left open are now answered on the record:
 - **Phone-first, and measured.** One list at every width, because a template is
   chosen by reading it; no overflow at 320; 44px targets under a coarse pointer.
 
+### ☑ TASKS-12 — Advanced recurrence + dependencies — **DELIVERED 2026-08-19**
+
+**Extend the existing structured recurrence model with nth-weekday, multi-weekday,
+end conditions and weekend handling; add bounded Task-to-Task "blocks / blocked
+by" relationships with cycle prevention and derived blocked state.**
+
+*Recurrence controls WHEN work exists. Dependencies control WHETHER existing work
+can proceed. Dependencies never silently reschedule Tasks.*
+
+Accepted as
+[ADR-106](../decisions/ARCHITECTURE_DECISIONS.md#adr-106-a-task-dependency-is-a-directed-entitylink-not-a-second-join-model--derived-blocked-state-and-cycle--bound-enforcement-inside-the-write)
+and
+[ADR-107](../decisions/ARCHITECTURE_DECISIONS.md#adr-107-advanced-recurrence-widens-a-closed-vocabulary-and-dependencies-are-occurrence-local--one-successor-authority-a-remembered-grid-and-no-relationship-cloning).
+Full record:
+[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md);
+module behaviour: [`TASKS_MODULE.md`](../development/TASKS_MODULE.md#advanced-recurrence-and-dependencies-tasks-12).
+
+- **The vocabulary WIDENED; the kind of thing it is did not.** Four additive
+  columns on the same structured rule (migration 0047) — a monthly `ordinal`, a
+  `weekend_rule`, and the two mutually-exclusive end conditions. Still no cron, no
+  expression language, no RRULE parser and no scripting.
+- **There is no "fifth Monday" and no "skip weekends" checkbox.** A fifth weekday
+  exists in only some months, so a rule naming one needs a silent fallback nobody
+  chose; and "skip weekends" names three different behaviours in three different
+  products. The editor offers `last` and four complete SENTENCES about what will
+  happen to a weekend occurrence — leave it, the Friday before, the Monday after,
+  or skip it entirely.
+- **A moved occurrence never re-anchors the routine.** The successor records the
+  UNADJUSTED grid date in TASKS-07's `series_anchor_date`, so "the 1st of every
+  month, moved to the Friday before" returns to the 1st instead of walking
+  backwards. No second mechanism was invented for it.
+- **The current occurrence COUNTS toward "ends after N"**, and "ends on" is
+  INCLUSIVE and compared against the date the occurrence actually falls on. Both
+  are stated on the controls, not only in a document.
+- **ONE successor authority, widened rather than bypassed.**
+  `planNextTaskOccurrence` decides whether a series continues AND where, and
+  returns null when it has ended. Completion is its only caller.
+- **A dependency is one directed EntityLink — NO new table.** Migration 0003
+  already makes a cross-workspace edge impossible, a self-edge unstorable, a
+  duplicate impossible and a removed dependency's identity stable, and its two
+  partial indexes are exactly the access paths a blocker read and a cycle walk
+  need. A second join model would have re-earned all of it.
+- **Cycles and both bounds are enforced INSIDE the write** — one SQL expression
+  AND-ed into the statement that inserts the row, including a bounded recursive
+  CTE (`depth < 64`, `UNION`). Two concurrent adds cannot both see nineteen
+  blockers; two concurrent edges cannot close a cycle. Proved under real
+  concurrency, not argued.
+- **Blocked is DERIVED, never stored.** Completing the last blocker unblocks;
+  REOPENING it blocks again; a soft-deleted blocker stops blocking. No
+  reconciliation job, no cache, no flag to go stale.
+- **A dependency moves nothing.** No date, priority, status or completion changes
+  on either Task — including the blocked-Task-due-before-its-blocker case a
+  "helpful" scheduler would silently repair — and a blocked Task can still be
+  completed.
+- **Dependencies are OCCURRENCE-LOCAL and are never cloned onto a successor**, in
+  all three interaction cases. An occurrence that does not exist yet is a
+  prediction, and the only mappings between two series are wrong the moment one is
+  completed late or skipped. Asserted in each case, so a future generic
+  relationship-copier cannot change it quietly.
+- **ONE blocked label per row, and it says why.** "Blocked by Get director
+  approval" replaces the status pill rather than joining it, costs the row no
+  height, and is drawn at every width including the phone. `blocked` joins the one
+  display-state evaluator (waiting tone, no new colour) and becomes a FILTER on
+  the existing declarative vocabulary — never a new view.
+- **A pre-existing data-loss defect was fixed on the way**: TASKS-07's `mode` and
+  `series_anchor_date` were missing from the workspace snapshot, so an
+  `after_completion` routine came back from a restore as a fixed schedule. Both
+  are exported and restored now, with TASKS-12's four beside them and regression
+  coverage on the shared fixture.
+
 ---
 
 ## NEXT
 
-The rest of the theme. Each is a separate item with its own decision — none of
-them was started by the programmes above, and none should be inferred from them.
-
-### ☐ TASKS-12 — Advanced recurrence
-
-The rules TASKS-07 deliberately deferred: nth-weekday-of-month ("the last Friday"),
-multi-weekday patterns, end conditions (after N occurrences, until a date), and
-skip-weekends. The recurrence model is already structured DATA rather than a cron
-string ([ADR-062](../decisions/ARCHITECTURE_DECISIONS.md), [ADR-085](../decisions/ARCHITECTURE_DECISIONS.md)),
-so this widens a closed vocabulary rather than introducing an expression language.
+**Nothing.** TASKS-12 was the last item of the V2.3 theme, and it is delivered
+above. The list below records what this theme deliberately did NOT add; a new
+item belongs in a new roadmap document with its own decision, not appended here.
 
 ---
 
@@ -447,29 +510,37 @@ so this widens a closed vocabulary rather than introducing an expression languag
 else stands.)
 
 Recorded so they are not mistaken for oversights. Each is a separate product
-decision, and several are the NEXT items above:
+decision:
 
 (Task checklists were on this list and are now delivered by TASKS-13 above;
-Project templates are now delivered by PROJECT-02.)
+Project templates are now delivered by PROJECT-02; advanced recurrence and Task
+dependencies are now delivered by TASKS-12 — **the Gantt charts, automatic date
+shifting, critical path and dependency notifications that were listed beside them
+are NOT, and remain deliberate non-goals**.)
 
-Subtasks · advanced recurrence ·
+Subtasks ·
 AI automatic weekly planning · automatic time blocking · calendar write-back ·
-dependencies and Gantt charts · resource capacity planning · estimates and time
-tracking · shared or team planning · public or shared smart lists · a smart-list
-marketplace or template gallery · a new calendar module · a month grid or a
-week timetable · drag-and-drop (no dependency was added for it) · a second Task
-authority · a second filter engine.
+Gantt charts and dependency timeline visualisation · automatic date shifting ·
+critical path · a dependency notification programme · resource capacity planning ·
+estimates and time tracking · shared or team planning · public or shared smart
+lists · a smart-list marketplace or template gallery · a new calendar module · a
+month grid or a week timetable · drag-and-drop (no dependency was added for it) ·
+a second Task authority · a second filter engine · a second Task relationship
+model.
 
 ---
 
 ## Related documents
 
+- [`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md) — the TASKS-12 record
 - [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md) — the PROJECT-02 record
 - [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md) — the UX-02 record
 - [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md) — the PLAN-01 + SMART-01 record
 - [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md) — the TASKS-13 record
 - [`HABITS_01_HABITS_AND_ROUTINES_2026_08.md`](../design/HABITS_01_HABITS_AND_ROUTINES_2026_08.md) — the HABITS-01 record
 - [`HABITS_MODULE.md`](../development/HABITS_MODULE.md) — the Habits module's full behaviour
+- [ADR-107](../decisions/ARCHITECTURE_DECISIONS.md#adr-107-advanced-recurrence-widens-a-closed-vocabulary-and-dependencies-are-occurrence-local--one-successor-authority-a-remembered-grid-and-no-relationship-cloning) — advanced recurrence widens a closed vocabulary, and dependencies are occurrence-local
+- [ADR-106](../decisions/ARCHITECTURE_DECISIONS.md#adr-106-a-task-dependency-is-a-directed-entitylink-not-a-second-join-model--derived-blocked-state-and-cycle--bound-enforcement-inside-the-write) — a Task dependency is a directed EntityLink
 - [ADR-104](../decisions/ARCHITECTURE_DECISIONS.md#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8) — the planning week is a board, and one proportion is allowed
 - [ADR-103](../decisions/ARCHITECTURE_DECISIONS.md#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction) — a checklist item is not a Task
 - [ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) — a Habit is a behaviour, not a recurring Task

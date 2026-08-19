@@ -4057,3 +4057,217 @@ UUID. Both carry regression tests.
 The full record, including every field copied and reset, the bounds arithmetic,
 the offline boundary and the measured mobile numbers, is
 [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+
+---
+
+## ADR-106: A Task dependency is a DIRECTED ENTITYLINK, not a second join model — derived blocked state, and cycle + bound enforcement inside the write
+
+**Date:** 2026-08-19 · **Status:** Accepted · **Item:** TASKS-12 (V2.3)
+
+**Context.** V2.3 asked for Task-to-Task dependencies: *A blocks B*. DalyHub has
+two candidate mechanisms. **EntityLinks** (ADR-002/ADR-011) is the kernel
+primitive for a typed, directed, workspace-isolated relationship between two
+entities — which is, word for word, what a dependency is. A **dedicated
+`task_dependencies` table** would give the domain its own schema and its own
+constraints. The choice matters because Tasks would otherwise end up with two
+relationship systems, and because whichever is chosen has to carry three
+invariants neither mechanism supplies on its own: no cycles, a bounded fan-in and
+fan-out, and Task-only endpoints.
+
+**Decision.**
+
+1. **A dependency is ONE `entity_links` row of the reserved type `task.blocks`,
+   directed BLOCKER → BLOCKED.** No new table, no new entity type, no new
+   repository. Migration 0003 already supplies, at the DATABASE level: composite
+   endpoint foreign keys that make a cross-workspace edge impossible rather than
+   merely refused; `CHECK (source <> target)`, so `A blocks A` cannot be stored;
+   a UNIQUE identity index spanning soft-deleted rows, so a duplicate edge is
+   impossible and a removed dependency keeps ONE stable identity across
+   re-adding; and the two partial type-filtered indexes that are exactly the
+   access paths a blocker read and a cycle walk need. A dedicated table would
+   have re-earned all of it.
+
+2. **One canonical direction, stored once.** "B is blocked by A" is the SAME row
+   read from the other end. Two mutable directions could disagree, with nothing
+   to say which was right. The record edits from the blocked end (the end the
+   owner is looking at when they hit the obstacle); the *Blocks* list is
+   read-only there and editable on its own record.
+
+3. **`task.blocks` is RESERVED to the `TaskRepository`**, exactly as
+   `task.waiting_on` has been since TODAY-03. The generic EntityLink repository
+   refuses the type, so every dependency in the workspace passed through the one
+   authority and every check below. A link the picker could create would be a
+   second, unchecked way to build the graph.
+
+4. **Every invariant is a PREDICATE INSIDE THE WRITE, never a read-then-decide.**
+   Live Task endpoints, both bounds (20 blockers, 20 blocked) and the cycle walk
+   are one SQL expression AND-ed into the statement that inserts or restores the
+   row. SQLite serialises writers and a D1 batch is one transaction, so the loser
+   of a race re-evaluates against committed state: two concurrent adds cannot
+   both see nineteen blockers, and two concurrent edges cannot close a cycle
+   between them. Both are asserted under real concurrency.
+
+5. **Cycle detection is a BOUNDED recursive CTE, server-side, in the same
+   statement.** The walk starts at the BLOCKED Task and looks for the BLOCKER,
+   which covers the self-edge (depth 0), the two-node pair (depth 1) and any
+   longer chain with one rule rather than three special cases. It is bounded on
+   both axes — depth by an explicit `depth < 64` in the recursive term, breadth
+   by the fan-out limit the same predicate enforces — and uses `UNION` rather
+   than `UNION ALL`, so it terminates even on a graph that somehow already
+   contained a cycle. This is DalyHub's first recursive CTE, and the bound is why
+   it is acceptable: an unbounded one would be a query whose cost the product
+   could not state.
+
+6. **Blocked is DERIVED on every read, never stored.** There is no `is_blocked`
+   column and no `blocked` status. A Task is blocked iff at least one active
+   `task.blocks` edge points at it from a Task that is alive and not complete.
+   Completing the last blocker unblocks; REOPENING it blocks again; a
+   soft-deleted blocker stops blocking and restoring it starts again — all with
+   no reconciliation job, no cache and no flag to go stale.
+
+7. **A dependency blocks EXECUTION STATE and nothing else.** It never moves a
+   due date, a planned date, a priority, a status or a completion, on either
+   Task — including the case a "helpful" scheduler would silently repair, a
+   blocked Task due before its blocker. Nor does it PREVENT completion: blocked
+   describes what should happen first, not what the owner is permitted to do.
+
+8. **`blocked` joins the ONE display-state evaluator (ADR-043 §6)**, between
+   Waiting and On hold, taking the waiting TONE. Below Waiting because a
+   statement the owner made outranks one derived from another record; above On
+   hold because those describe how the owner is treating the work while blocked
+   describes whether it can be done at all. No new colour: blocked is a workflow
+   state, not an error.
+
+9. **`blocked` is a FILTER on the existing declarative vocabulary, not a new
+   view.** One parameter, both directions, translated by the same
+   `toWorkspaceFilters` path every other filter uses and bound into the cursor
+   signature like every other filter. A separate "Blocked" view would be a second
+   membership model for the same rows.
+
+10. **Two Activity events, and two that deliberately do not exist.**
+    `task.dependency_added` and `task.dependency_removed` record decisions the
+    owner made. There is NO `task.blocked` and no `task.unblocked`: a Task
+    becoming unblocked is a consequence of `task.completed` on another Task,
+    which the timeline already records, and writing derived facts into an
+    append-only log leaves history able to disagree with the data it was derived
+    from.
+
+**Alternatives rejected.** A dedicated `task_dependencies` table — rejected as a
+second relationship system for Tasks that would re-earn six database guarantees
+EntityLinks already provides. Storing both directions — rejected: two mutable
+truths. A stored `is_blocked` flag — rejected: it is exactly the field that would
+be wrong after a reopen, and the reconciliation job it needs is the machinery
+this decision exists to avoid. Client-side cycle prevention — rejected outright:
+the UI cannot see the graph at the moment of the write, and a hand-made POST must
+meet the same answer the picker does. A larger bound, or none — rejected: an
+unbounded fan-out makes the cycle walk and every dependency read unbounded too,
+and a Task gating more than twenty others is a Project.
+
+**Consequences.** One migration (0047) that adds NO dependency schema at all, one
+reserved link type, four repository methods, one picker route, one record section
+and one row treatment. The `blocked` filter joins the existing control sheet. The
+Markdown vault export already renders the edge as an ordinary relationship line,
+so nothing was special-cased there.
+
+The full record — the deletion table, the surface-by-surface behaviour, the
+measured mobile numbers and the offline boundary — is
+[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md).
+
+---
+
+## ADR-107: Advanced recurrence WIDENS a closed vocabulary, and dependencies are OCCURRENCE-LOCAL — one successor authority, a remembered grid, and no relationship cloning
+
+**Date:** 2026-08-19 · **Status:** Accepted · **Item:** TASKS-12 (V2.3)
+
+**Context.** TASKS-04 made recurrence structured DATA rather than a cron string
+([ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence)),
+and TASKS-07 added two scheduling modes and a series grid
+([ADR-085](#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode)).
+TASKS-12 was asked for the rules those two deliberately deferred —
+nth-weekday-of-month, multi-weekday patterns, end conditions and "skip weekends"
+— shipped alongside dependencies. Two questions had to be answered together: how
+far the vocabulary may widen before it becomes an expression language, and what a
+dependency means when one or both of its Tasks repeat.
+
+**Decision.**
+
+1. **Four fields on the SAME rule, and still no expression language.** `ordinal`
+   (a closed set of five), `weekendRule` (a closed set of four),
+   `endsAfterCount` and `endsOnDate`. No cron, no free-form expression, no RRULE
+   parser, no scripting. The vocabulary widened; the KIND of thing it is did not.
+
+2. **There is no "fifth" ordinal.** A fifth Monday exists in roughly four months
+   a year, so a rule naming one is a rule the owner cannot predict, and every
+   product that offers it invents a silent fallback nobody chose. `last` is the
+   position people mean, it exists in every month, and it is computed BACKWARDS
+   from the month's final day — which makes it correct in a 28-day February, a
+   29-day leap February and a 31-day January with no special case.
+
+3. **There is no checkbox called "skip weekends" anywhere in DalyHub.** The
+   phrase names three different behaviours in three different products, so the
+   control offers four complete sentences about what will happen instead: leave
+   it, move it to the Friday before, move it to the Monday after, or skip that
+   occurrence entirely. Offered only for weekly, monthly and yearly rules — a
+   daily rule that avoids weekends is already spelled "Every weekday".
+
+4. **A moved occurrence NEVER re-anchors the series.** When the weekend rule
+   moves an occurrence off the schedule, the successor stores the unadjusted grid
+   date in `series_anchor_date` — the SAME field TASKS-07 added for "change this
+   occurrence" — and the step after it is computed from the grid. Without this,
+   "the 1st of every month, moved to the Friday before" walks backwards a day or
+   two every month until it is a different routine. No second mechanism was
+   introduced for it.
+
+5. **The end conditions are mutually exclusive, and the CURRENT occurrence
+   counts.** Occurrence number is `sequence + 1`, so a successor is created only
+   while `sequence + 2 <= endsAfterCount`; "ends after 1" means this one and no
+   more. `endsOnDate` is INCLUSIVE and is compared against the date the
+   occurrence actually falls on, after the weekend rule, because that is the date
+   the owner sees. Both rules are stated on the controls themselves.
+
+6. **ONE successor authority, widened rather than bypassed.**
+   `planNextTaskOccurrence` decides whether a series continues AND where, and
+   returns `null` when it has ended — an ordinary outcome, not an error.
+   Completion in the storage layer is its only caller. Today, Weekly Planning,
+   the Tasks list, the dependency code and every UI component compute nothing.
+
+7. **Dependencies are OCCURRENCE-LOCAL and are never copied to a successor.** A
+   dependency is a fact about two pieces of work that EXIST; an occurrence not
+   yet created is a prediction, and an edge to one would reference something that
+   may never happen. Cloning would also require guessing which future occurrence
+   of A corresponds to which of B — the only answers being "by date" (wrong the
+   moment either is completed late) and "by sequence" (wrong the moment either is
+   skipped). A successor therefore arrives with no dependencies, exactly as it
+   arrives with no waiting state and no delegation. This holds in all three
+   interaction cases and is asserted in each, so a future generic
+   relationship-copier cannot change it quietly.
+
+8. **A series that ends creates NO phantom dependency.** No successor exists, so
+   no edge to one is created, and every dependency endpoint in the workspace
+   resolves to a real Task.
+
+9. **TASKS-13's checklist contract is preserved under every new rule.** A
+   successor still inherits titles and order with fresh ids and completion reset
+   — and a completion that creates NO successor writes no checklist rows either,
+   so there is never a set of items belonging to a Task that was not created.
+
+**Alternatives rejected.** Cron or an RRULE string — rejected: ADR-062's whole
+argument, unchanged, and a rule the product cannot render in words is a rule the
+owner cannot verify. A "fifth" ordinal — rejected as unpredictable (2). A boolean
+"skip weekends" — rejected as ambiguous (3). Re-anchoring on a weekend move —
+rejected: it silently redefines the routine (4). Corresponding-occurrence
+dependency inheritance — rejected FOR THIS PROGRAMME (7) rather than forever;
+recorded as deferred with the mapping a future attempt would need. A second
+"blocked" concept inside recurrence, so a series could wait on a series —
+rejected: it is the same guess as inheritance, wearing a different name.
+
+**Consequences.** Migration 0047 adds four additive columns whose defaults
+reproduce every stored rule's behaviour exactly. The recurrence editor gained
+three progressive-disclosure controls and stayed a short form on a phone. The
+snapshot gained six recurrence columns — TASKS-12's four AND TASKS-07's two,
+which had been missing since migration 0037, so an `after_completion` routine
+came back from a restore as a fixed schedule. That is a pre-existing data-loss
+defect found and fixed here, with regression coverage.
+
+The full record is
+[`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md).

@@ -422,8 +422,7 @@ export function validateTaskRecurrenceRule(
       "selected weekdays are only valid for weekly recurrence",
     );
   }
-  const weekendRule =
-    input.weekendRule ?? DEFAULT_TASK_RECURRENCE_WEEKEND_RULE;
+  const weekendRule = input.weekendRule ?? DEFAULT_TASK_RECURRENCE_WEEKEND_RULE;
   if (
     !(TASK_RECURRENCE_WEEKEND_RULES as readonly string[]).includes(weekendRule)
   ) {
@@ -569,9 +568,7 @@ export function resolveTaskRecurrenceRule(
     (input.ordinal ?? null) !== null && (input.weekdays ?? []).length === 0;
   const resolved = validateTaskRecurrenceRule({
     ...input,
-    ...(needsOrdinalWeekday
-      ? { weekdays: [weekdayOfDate(anchorIso)] }
-      : {}),
+    ...(needsOrdinalWeekday ? { weekdays: [weekdayOfDate(anchorIso)] } : {}),
     anchorDay: input.anchorDay ?? (needsDay ? parts.day : null),
     anchorMonth: input.anchorMonth ?? (needsMonth ? parts.month : null),
   });
@@ -720,11 +717,8 @@ export function nextTaskOccurrenceDate(
   currentAnchorIso: string,
   ownerCompletionIso: string,
 ): string {
-  return nextTaskOccurrenceStep(
-    ruleInput,
-    currentAnchorIso,
-    ownerCompletionIso,
-  ).date;
+  return nextTaskOccurrenceStep(ruleInput, currentAnchorIso, ownerCompletionIso)
+    .date;
 }
 
 /**
@@ -753,7 +747,12 @@ export function nextTaskOccurrenceStep(
 ): TaskOccurrenceStep {
   const validated = validateTaskRecurrenceRule(ruleInput);
   const grid = nextGridDate(validated, currentAnchorIso, ownerCompletionIso);
-  return applyWeekendRule(validated, grid, currentAnchorIso, ownerCompletionIso);
+  return applyWeekendRule(
+    validated,
+    grid,
+    currentAnchorIso,
+    ownerCompletionIso,
+  );
 }
 
 /**
@@ -779,7 +778,11 @@ function applyWeekendRule(
       if (!isWeekend(weekdayOfDate(candidate))) {
         return { date: candidate, gridDate: null };
       }
-      candidate = nextGridDate(rule, currentAnchorIso, maxIso(candidate, ownerCompletionIso));
+      candidate = nextGridDate(
+        rule,
+        currentAnchorIso,
+        maxIso(candidate, ownerCompletionIso),
+      );
     }
     throw new TaskValidationError("recurrence", "could not advance recurrence");
   }
