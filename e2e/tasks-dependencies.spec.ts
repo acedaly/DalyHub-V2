@@ -315,11 +315,13 @@ test.describe("TASKS-12 — managing dependencies on the Task record", () => {
 
     await addBlocker(page, "Get director approval");
 
-    await expect(
-      dependencies(page).getByTestId("task-blocked-state"),
-    ).toHaveText("Blocked by Get director approval");
-    // The state is a WORD beside the blocker, never colour alone.
+    // The record says WHAT is blocking, in the list; the record HEADER says the
+    // Task is blocked, through the one display-state evaluator. Two renderings,
+    // each adding something — never a third sentence repeating both.
+    await expect(dependencies(page)).toContainText("Get director approval");
+    // The blocker's state is a WORD beside it, never colour alone.
     await expect(dependencies(page)).toContainText("Waiting");
+    await expect(record(page)).toContainText("Blocked");
     expect(storedBlockers(BLOCKED)).toEqual([BLOCKER]);
   });
 
@@ -347,9 +349,9 @@ test.describe("TASKS-12 — managing dependencies on the Task record", () => {
     await dependencies(page)
       .getByRole("button", { name: /Remove Get director approval/ })
       .click();
-    await expect(
-      dependencies(page).getByTestId("task-blocked-state"),
-    ).toHaveCount(0);
+    await expect(dependencies(page)).toContainText(
+      "Nothing is holding this task up.",
+    );
     expect(storedBlockers(BLOCKED)).toEqual([]);
   });
 
@@ -408,8 +410,8 @@ test.describe("TASKS-12 — managing dependencies on the Task record", () => {
       .press("Enter");
 
     await expect(
-      dependencies(page).getByTestId("task-blocked-state"),
-    ).toHaveText("Blocked by Get director approval");
+      dependencies(page).getByRole("link", { name: /Get director approval/ }),
+    ).toBeVisible();
 
     // Removing it returns focus to the control that adds one, so a keyboard user
     // is never dropped to the document body.
@@ -545,9 +547,9 @@ test.describe("TASKS-12 — phone", () => {
     });
     await expectMinTouchTarget(remove);
     await remove.click();
-    await expect(
-      dependencies(page).getByTestId("task-blocked-state"),
-    ).toHaveCount(0);
+    await expect(dependencies(page)).toContainText(
+      "Nothing is holding this task up.",
+    );
     await expectMinTouchTarget(
       dependencies(page).getByRole("button", { name: "Add blocker" }),
     );

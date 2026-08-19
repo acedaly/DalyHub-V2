@@ -9,7 +9,6 @@
  * ── The record's anatomy ─────────────────────────────────────────────────────
  *
  *     Dependencies
- *     Blocked by Get director approval
  *     Blocked by
  *       Done      Prepare draft                              [Remove]
  *       Waiting   Get director approval                      [Remove]
@@ -26,17 +25,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
-}
-
-/*
- * The state sentence. It is `--dh-color-text` rather than a status colour: a
- * blocked Task is a workflow state, not an error, and painting the one line that
- * says so in a warning colour is exactly the alarm AGENTS.md §2 forbids.
- */
-.dh-task-dependencies__state {
-  margin: 0;
-  font-size: var(--dh-text-body-size);
-  color: var(--dh-color-text);
 }
 
 .dh-task-dependencies__group {
@@ -133,12 +121,17 @@
 /*
  * ── The row's blocked line ──────────────────────────────────────────────────
  *
- * It sits on the TITLE's own line, beside the checklist figure, so a blocked row
- * is exactly as tall as one that is not (measured — see
- * `docs/design/assets/v2-3-tasks-12/measurements.json`). Unlike the checklist
- * figure it is drawn at EVERY width, including the phone: "2 of 5" is a detail
- * the owner can go and find, but "this cannot start" is the reason the row has
- * not moved, and a phone is exactly where that needs saying.
+ * It sits on the TITLE's own line, beside the checklist figure, so it takes no
+ * grid track. MEASURED (`docs/design/assets/v2-3-tasks-12/measurements.json`): at
+ * 1440, 1280 and 820 a blocked row is exactly as tall as one that is not, because
+ * the title's row has spare width beside it; at 393 and 320 it costs ONE LINE
+ * (+19px on the Tasks collection), because there the row is already two stacked
+ * lines and the title has the narrowest measure it ever gets.
+ *
+ * That cost is ACCEPTED, where the same nineteen pixels were REFUSED for the
+ * checklist figure — which stops below `md` for exactly this reason. "2 of 5" is
+ * a detail the owner can go and find; "this cannot start" is the reason the row
+ * has not moved, which on a phone is the content rather than decoration.
  *
  * It replaces the status pill rather than joining it (see `TaskRow.tsx`), so the
  * row gains a line of text and loses one — never two labels for one fact.

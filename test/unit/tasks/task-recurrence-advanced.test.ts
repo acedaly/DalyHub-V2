@@ -14,7 +14,6 @@ import {
   ordinalWeekdayOfMonth,
   nextTaskOccurrenceStep,
   planNextTaskOccurrence,
-  taskRecurrenceRemaining,
   validateTaskRecurrenceRule,
   weekdayOfDate,
   type TaskRecurrenceRule,
@@ -217,16 +216,6 @@ describe("ends after N occurrences", () => {
         "2026-08-01",
       ),
     ).toBeNull();
-  });
-
-  it("reports how many remain, counting the current occurrence", () => {
-    expect(
-      taskRecurrenceRemaining({ endsAfterCount: 3 }, { sequence: 0 }),
-    ).toBe(2);
-    expect(
-      taskRecurrenceRemaining({ endsAfterCount: 3 }, { sequence: 2 }),
-    ).toBe(0);
-    expect(taskRecurrenceRemaining({ endsAfterCount: null }, null)).toBeNull();
   });
 });
 

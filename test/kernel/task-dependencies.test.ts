@@ -37,6 +37,7 @@ import {
   FakeClock,
   countingDb,
   makeContext,
+  makeLinkRepository,
   makeTaskRepository,
   resetTables,
   sequentialIds,
@@ -500,6 +501,40 @@ describe("workspace isolation and endpoint kinds", () => {
       blocks: [],
     });
     expect((await taskRepo().listBlockedSummaries([b])).size).toBe(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The reserved type                                                          */
+/* -------------------------------------------------------------------------- */
+
+describe("`task.blocks` is reserved to the TaskRepository", () => {
+  it("is refused by the GENERIC EntityLink repository", async () => {
+    /*
+     * The property the whole design rests on: if the generic picker could create
+     * one of these, the cycle check, both bounds and the Task-only endpoint rule
+     * would all have a way round them. It is refused for exactly the reason
+     * `task.waiting_on` is.
+     */
+    const tasks = taskRepo();
+    const a = await seedTask("A");
+    const b = await seedTask("B");
+    const links = makeLinkRepository(makeContext(WS), {
+      clock: new FakeClock().now,
+      idGenerator: nextEntityId,
+      activityIdGenerator: nextActivityId,
+    });
+    await expect(
+      links.create({
+        sourceEntityId: a,
+        targetEntityId: b,
+        type: TASK_BLOCKS,
+      }),
+    ).rejects.toThrow();
+    expect(await edgeRows()).toHaveLength(0);
+    // ...and the ONE authority still creates it.
+    await tasks.addTaskDependency(b, a);
+    expect(await edgeRows()).toHaveLength(1);
   });
 });
 

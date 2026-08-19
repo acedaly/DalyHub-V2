@@ -158,7 +158,6 @@ export {
   planNextTaskOccurrence,
   recurrenceAnchorField,
   resolveTaskRecurrenceRule,
-  taskRecurrenceRemaining,
   validateTaskRecurrenceRule,
   weekdayOfDate,
   type TaskOccurrenceStep,

@@ -36,7 +36,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { MAX_TASK_BLOCKERS, taskBlockedLabel } from "~/kernel/tasks";
+import { MAX_TASK_BLOCKERS } from "~/kernel/tasks";
 import { EntityLink } from "~/shared/entity";
 import { FormButton, SelectField } from "~/shared/forms";
 import type { EntityLinkTargetOption } from "~/shared/forms/model";
@@ -206,7 +206,6 @@ export function TaskDependenciesSection({
   );
 
   const full = blockedBy.length >= MAX_TASK_BLOCKERS;
-  const blockedLabel = taskBlockedLabel(dependencies.blocked);
 
   return (
     <section
@@ -219,20 +218,17 @@ export function TaskDependenciesSection({
       </h4>
 
       {/*
-       * The state, in one sentence, at the top — so the answer to "can I start
-       * this?" is the first thing read rather than something to be worked out
-       * from two lists. Absent when nothing blocks, because a line saying "not
-       * blocked" on every unblocked Task is noise.
+       * There is deliberately NO "Blocked by …" sentence at the top of this
+       * section.
+       *
+       * The record's HEADER already says Blocked, through the one display-state
+       * evaluator, and the list below already names what by. A third rendering of
+       * one fact, on one screen, is the thing §18's "no duplicate blocked labels"
+       * rule exists to prevent — it was drafted, drawn, and cut on the evidence
+       * (`assets/v2-3-tasks-12/dependencies-1440-light.png` shows why). The ROW is
+       * the surface that needs the sentence, because a row has no header to carry
+       * the state.
        */}
-      {blockedLabel !== null ? (
-        <p
-          className="dh-task-dependencies__state"
-          data-testid="task-blocked-state"
-        >
-          {blockedLabel}
-        </p>
-      ) : null}
-
       <div className="dh-task-dependencies__group">
         <h5 className="dh-task-dependencies__label">Blocked by</h5>
         {blockedBy.length === 0 ? (

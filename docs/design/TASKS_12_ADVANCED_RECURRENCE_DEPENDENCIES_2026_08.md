@@ -157,6 +157,28 @@ one"), because that is the end the owner is looking at when they hit the
 obstacle. The **Blocks** list is read-only there and editable on its own record —
 one control per fact.
 
+```
+Dependencies
+Blocked by
+  Done      Prepare the draft                          [ Remove ]
+  Waiting   Get director approval                      [ Remove ]
+  [ Add blocker ]
+Blocks
+  Waiting   Send the report to the board
+```
+
+Three cells per row: a state WORD, a title that opens that Task, and — on the
+editable direction only — a Remove control. No card per row, no chip, no arrow
+glyph, no drag handle and no second level.
+
+There is deliberately **no "Blocked by Get director approval" sentence at the top
+of the section**. The record's HEADER already says *Blocked*, through the one
+display-state evaluator, and the list already names what by; a third rendering of
+one fact on one screen is exactly what §5's "one blocked label" rule exists to
+prevent. It was drafted, drawn and cut on the evidence
+([`dependencies-1440-light.png`](assets/v2-3-tasks-12/dependencies-1440-light.png)).
+The ROW keeps the sentence, because a row has no header to carry the state.
+
 ### 3.3 The invariants, and where they live
 
 `task.blocks` is a RESERVED task link type: the generic EntityLink repository
@@ -285,7 +307,9 @@ disagree about which one.
 Unlike TASKS-13's checklist figure, the blocked line is drawn at EVERY width
 including the phone: "2 of 5" is a detail the owner can go and find, but "this
 cannot start" is the reason the row has not moved, and a phone is exactly where
-that needs saying.
+that needs saying. It is free at desktop widths and costs one line on a phone;
+the measured numbers, and why that trade is the opposite of TASKS-13's, are in
+§12.
 
 ### Per surface
 
@@ -408,19 +432,55 @@ expression rather than a read-then-decide.
 Captured at 1440, 1280, 820, 393 and 320; numbers in
 [`assets/v2-3-tasks-12/measurements.json`](assets/v2-3-tasks-12/measurements.json).
 
-- **The blocked line costs the row no height.** It sits on the title's own line
-  beside the checklist figure, so a blocked row is exactly as tall as one that is
-  not, at every width.
-- **No horizontal overflow at 320** on the Tasks collection, on Today, on
-  Weekly Planning or on the Task record.
-- **Every dependency control is a 44px target**, at every width — the floor is
-  applied to this composition rather than to the shared ghost button, because it
-  is a property of the relationship control (WCAG 2.2 AA target size), and a fine
-  pointer loses nothing by a control being comfortable.
+- **The blocked line is free on a desktop and costs one line on a phone.**
+
+  MEASURED (`assets/v2-3-tasks-12/measurements.json`), a blocked row against an
+  unblocked one on the same page:
+  
+  | Width | Tasks collection | Today | Weekly Planning |
+  |---|---|---|---|
+  | 1440 | 44px vs 44px (**+0**) | 44px vs 44px (**+0**) | 125px vs 125px (**+0**) |
+  | 1280 | 44px vs 44px (**+0**) | — | — |
+  | 820  | 44px vs 44px (**+0**) | — | — |
+  | 393  | 100px vs 81px (**+19**) | 99px vs 81px (**+18**) | 84px vs 84px (**+0**) |
+  | 320  | 100px vs 81px (**+19**) | 99px vs 100px (**−1**) | 97px vs 84px (**+13**) |
+  
+  **On a desktop the line is free**, because the title's row has spare width beside
+  it. **On a phone it costs one line**, because there the row is already two
+  stacked lines and the title has the narrowest measure it ever gets.
+  
+  That cost is ACCEPTED here and was refused for TASKS-13's checklist figure, and
+  the difference is the point: "2 of 5" is a detail the owner can go and find, so
+  paying nineteen pixels a row for it on the surface where density matters most was
+  not worth it. "This cannot start" is the REASON the row has not moved — the
+  answer to the question a phone is most often opened to ask — so on a phone the
+  line is not decoration, it is the content.
+
+- **No horizontal overflow at ANY captured width** — 1440, 1280, 820, 393 and
+  320 — on the Tasks collection, on Today, on Weekly Planning, on the Task
+  record or with the recurrence editor's longest form open. Every one of the
+  eighteen captures records `horizontalOverflow: false`.
+- **A dependency row WRAPS rather than truncating.** Measured 45px at 1440 and
+  393, where the state word, the title and the Remove control share one line;
+  72px at 320, where the control takes a line of its own and the blocker's title
+  keeps its full 208px measure
+  ([`dependencies-320-light.png`](assets/v2-3-tasks-12/dependencies-320-light.png)).
+- **Every dependency control is a 44px target**, at every width — MEASURED 45px,
+  the smallest control in the section AND in the recurrence editor, at 1440, 393
+  and 320 alike. The floor is applied to
+  this composition rather than to the shared ghost button, because it is a
+  property of the relationship control (WCAG 2.2 AA target size), and a fine
+  pointer loses nothing by a control being comfortable. The shared button is 36px:
+  the E2E phone journey caught it, which is why the number is a measurement rather
+  than an intention.
 - **The recurrence editor stays a short form on a phone.** The monthly shape is a
   radio pair whose chosen option reveals ONE field and whose other reveals none;
-  the end condition reveals exactly one field or none. A monthly rule is three
-  lines, not eight.
+  the end condition reveals exactly one field or none. MEASURED at its WORST
+  case — the named-weekday monthly shape, a weekend rule and an "after N times"
+  end condition all open at once — the Custom form is 893px at 1440 and 1017px at
+  393, with no horizontal overflow at either
+  ([`recurrence-393-light.png`](assets/v2-3-tasks-12/recurrence-393-light.png)).
+  The ordinary monthly rule is three lines, not eight.
 
 ## 13. Accessibility
 

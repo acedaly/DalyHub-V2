@@ -965,16 +965,3 @@ export function planNextTaskOccurrence(
   if (rule.endsOnDate !== null && step.date > rule.endsOnDate) return null;
   return step;
 }
-
-/**
- * How many occurrences of a bounded series remain AFTER this one, or `null` when
- * the series has no count limit. Display only — the authority above is what
- * decides whether a successor is created.
- */
-export function taskRecurrenceRemaining(
-  rule: Pick<TaskRecurrenceRule, "endsAfterCount"> | null | undefined,
-  series: Pick<TaskRecurrenceSeries, "sequence"> | null | undefined,
-): number | null {
-  if (!rule || rule.endsAfterCount === null) return null;
-  return Math.max(0, rule.endsAfterCount - ((series?.sequence ?? 0) + 1));
-}

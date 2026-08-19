@@ -3191,6 +3191,11 @@ Blocked by
   [ Add blocker ]
 ```
 
+The section states no summary sentence of its own. Where a record HEADER already
+carries the state, a section that repeats it is a third rendering of one fact —
+the record's header says *Blocked*, this list says by what, and that is the whole
+of it.
+
 Three cells: a state WORD in a fixed measure, a title that opens that record
 through the shared `EntityLink`, and — on the editable direction only — a Remove
 control. No card per row, no chip, no arrow glyph, no drag handle and no second
@@ -3229,14 +3234,16 @@ beside a line reading "Blocked by …" is a duplicated label, which is the thing
 row at 320px can least afford.
 
 - It sits on the TITLE's own line, beside the checklist figure, so it costs the
-  row **no grid track and no height**: a blocked row is exactly as tall as one
-  that is not, at every width (measured).
+  row **no grid track**. Measured: **no height at all** at 1440, 1280 and 820,
+  and **one extra line** at 393 and 320 (+19px on the Tasks collection), because
+  there the row is already two stacked lines.
 - One blocker is NAMED; more than one is COUNTED ("Blocked by 2 tasks"), because
   a row cannot carry three titles and naming only the first is a half-truth.
-- Unlike the checklist figure, it is drawn at **every** width including the
-  phone. "2 of 5" is a detail the owner can go and find; "this cannot start" is
-  the reason the row has not moved, and a phone is exactly where that needs
-  saying.
+- Unlike the checklist figure — which stops below `md` rather than pay those
+  nineteen pixels — it is drawn at **every** width including the phone. That is
+  the same trade decided the other way, on purpose: "2 of 5" is a detail the
+  owner can go and find; "this cannot start" is the reason the row has not moved,
+  which on a phone is the content rather than decoration.
 
 `blocked` joins the ONE display-state precedence evaluator between Waiting and On
 hold and takes the **waiting tone**. Blocked and waiting are the same family

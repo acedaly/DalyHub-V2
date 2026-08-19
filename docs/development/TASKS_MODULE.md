@@ -2356,8 +2356,9 @@ a workflow state, not an error.
 The shared Task row draws ONE blocked label and it says why: **"Blocked by Get
 director approval"**, or **"Blocked by 2 tasks"** when naming one would be a
 half-truth. It REPLACES the status pill rather than joining it, sits on the
-title's own line (so a blocked row is exactly as tall as one that is not), and —
-unlike the checklist figure — is drawn at every width including the phone.
+title's own line (measured: no extra height at 1440/1280/820, one line at
+393/320), and — unlike the checklist figure, which stops below `md` — is drawn at
+every width including the phone.
 
 | Surface | Behaviour |
 | --- | --- |

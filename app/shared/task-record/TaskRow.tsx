@@ -195,10 +195,18 @@ export function TaskRow({
    * line reading "Blocked by …" is the duplicated label a row cannot afford.
    *
    * It sits on the TITLE's own line, beside the checklist figure, so it costs the
-   * row no grid track and no height (measured), and it is TEXT rather than a
-   * colour, so the state survives a monochrome display and a screen reader alike.
+   * row no grid track — and, measured, no HEIGHT at 1440/1280/820, one extra line
+   * at 393/320. Unlike the checklist figure, that phone cost is accepted: see
+   * `task-dependencies.css`. It is TEXT rather than a colour, so the state
+   * survives a monochrome display and a screen reader alike.
+   *
+   * It is drawn ONLY when the shared precedence evaluator actually resolved to
+   * `blocked`. A Task that is both waiting and blocked reads "Waiting" and says
+   * nothing about the blocker — exactly as a completed Task says nothing about
+   * being in progress. One state per row, decided in one place.
    */
-  const blocked = task.completed ? null : taskBlockedLabel(task.blocked);
+  const blocked =
+    task.stateKind === "blocked" ? taskBlockedLabel(task.blocked) : null;
   const showState = !ROUTINE_STATES.has(task.stateKind) && blocked === null;
 
   /*

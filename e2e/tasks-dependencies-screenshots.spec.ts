@@ -199,10 +199,6 @@ async function measure(page: Page, name: string) {
       dependencySection: box(".dh-task-dependencies"),
       recurrenceEditor: box(".dh-recurrence-editor"),
       recurrenceCustom: box(".dh-recurrence-editor__custom"),
-      blockedState: (
-        document.querySelector('[data-testid="task-blocked-state"]')
-          ?.textContent ?? ""
-      ).trim(),
       recurrenceSummary: (
         document.querySelector('[data-testid="task-recurrence-summary"]')
           ?.textContent ?? ""
@@ -237,6 +233,23 @@ async function openCustomRepeat(page: Page): Promise<void> {
   await repeat.fill("Custom");
   await drawer.getByRole("option", { name: /^Custom/ }).click();
   await page.waitForSelector(".dh-recurrence-editor__custom");
+  /*
+   * Scrolled INTO the drawer's viewport before the shot. The editor opens below
+   * the fold on a record that also carries a checklist, a parent, a waiting
+   * control and two dates, and a screenshot of the controls above it is evidence
+   * of nothing.
+   */
+  await drawer
+    .locator(".dh-recurrence-editor__custom")
+    .scrollIntoViewIfNeeded();
+  // The end condition is the one control that reveals a field, so the shot shows
+  // the form at its longest rather than at its default.
+  const ends = drawer.getByRole("combobox", { name: "Ends" });
+  await ends.click();
+  await drawer.getByRole("option", { name: "After a number of times" }).click();
+  await drawer
+    .locator(".dh-recurrence-editor__actions")
+    .scrollIntoViewIfNeeded();
 }
 
 test("the recurrence editor", async ({ page }) => {
