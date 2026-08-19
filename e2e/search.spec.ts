@@ -154,6 +154,8 @@ test.describe("DS-08 Shared Search — desktop", () => {
       "goals.search",
       "habits.search",
       "projects.search",
+      // PROJECT-02 — templates are findable BY NAME; template tasks are not.
+      "projects.template_search",
       "tasks.search",
       "notes.search",
       "diary.search",

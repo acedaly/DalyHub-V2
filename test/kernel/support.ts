@@ -30,6 +30,7 @@ import {
   createReviewInsightRepository,
   createProjectRepository,
   createProjectSettingsRepository,
+  createProjectTemplateRepository,
   createReviewRepository,
   createSpineRepository,
   createTaskRepository,
@@ -47,6 +48,7 @@ import {
   type D1NoteDetailsRepositoryOptions,
   type D1PersonRepositoryOptions,
   type D1ProjectSettingsRepositoryOptions,
+  type D1ProjectTemplateRepositoryOptions,
   type D1ReviewRepositoryOptions,
   type D1MeetingTaskConversionOptions,
   type D1SpineRepositoryOptions,
@@ -284,6 +286,17 @@ export function makeHabitRepository(
   options?: D1HabitRepositoryOptions,
 ) {
   return createHabitRepository(env.DB, context, options);
+}
+
+/**
+ * PROJECT-02 — the workspace-scoped D1-backed ProjectTemplateRepository over the
+ * isolated test database.
+ */
+export function makeProjectTemplateRepository(
+  context: WorkspaceContext,
+  options?: D1ProjectTemplateRepositoryOptions,
+) {
+  return createProjectTemplateRepository(env.DB, context, options);
 }
 
 /** Count all rows in `habit_completions` directly. */
@@ -746,6 +759,11 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM note_details").run();
   await env.DB.prepare("DELETE FROM diary_entry_details").run();
   await env.DB.prepare("DELETE FROM person_details").run();
+  // PROJECT-02 children first: checklist items reference template tasks, which
+  // reference the `project_template` entity, all ON DELETE RESTRICT.
+  await env.DB.prepare("DELETE FROM project_template_checklist_items").run();
+  await env.DB.prepare("DELETE FROM project_template_tasks").run();
+  await env.DB.prepare("DELETE FROM project_template_details").run();
   // HABITS-01 children first: the schedule chain and the check-in history both
   // reference `habit_details` ON DELETE RESTRICT, which itself references
   // `entities` the same way.

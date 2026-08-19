@@ -154,6 +154,42 @@ describe("SearchSurface", () => {
     expect(screen.getByText("Projects")).toBeVisible();
   });
 
+  /*
+   * PROJECT-02 — the first entity type with no visual identity of its own. The
+   * heading comes from the label its module declared (assembled server-side);
+   * the row's trailing type chip speaks the identity vocabulary, so it is simply
+   * absent rather than showing the raw `project_template` slug.
+   */
+  it("never renders a raw entity-type slug for a type with no identity", async () => {
+    const templateSearch: SearchFn = async (query) =>
+      assembleOutcome(
+        query,
+        [
+          {
+            providerId: "projects.template_search",
+            moduleId: "projects",
+            moduleLabel: "Project templates",
+            ok: true,
+            items: [
+              {
+                id: "project_template:tpl1",
+                title: "Finish-line launch template",
+                subtitle: "Template · 4 tasks",
+                entityType: "project_template",
+                target: { kind: "route", to: "/projects/templates/tpl1" },
+              },
+            ],
+          },
+        ],
+        { entityLabels: new Map([["project_template", "Project templates"]]) },
+      );
+    const { view } = renderSurface(templateSearch);
+    typeQuery("Finish");
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(1));
+    expect(screen.getByText("Project templates")).toBeVisible();
+    expect(view.container.textContent).not.toContain("project_template");
+  });
+
   it("renders generic result signals as shared task presentation", async () => {
     renderSurface(healthySearch);
     typeQuery("PX-02");

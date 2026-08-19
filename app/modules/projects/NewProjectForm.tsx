@@ -36,15 +36,37 @@ import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import type { IdentityColourSlot } from "~/kernel/entities/identity-colour-slots";
 import { EntityIdentityPicker } from "~/shared/entity";
 
+import { templateContentsLabel } from "~/kernel/project-templates";
+
+import type { TemplateOption } from "./template-view";
 import type { CreateProjectResult } from "./routes/new";
 import { useParentOptionsSearch } from "./use-parent-options-search";
 
-type Values = { readonly title: string; readonly parentId: string };
+type Values = {
+  readonly title: string;
+  readonly parentId: string;
+  /**
+   * PROJECT-02 — the template to start from, or `""` for a blank project.
+   *
+   * Part of `useForm` rather than local state so the whole form has ONE source
+   * of truth and the submit path reads a value it can see, not a closure it has
+   * to keep in step.
+   */
+  readonly templateId: string;
+};
 
 const FIELD_LABELS: Record<string, string> = {
   title: "Title",
   parentId: "Area or Goal",
   iconKey: "Icon",
+  templateId: "Start from",
+};
+
+/** The always-present first option: a blank project, exactly as before. */
+const BLANK_TEMPLATE_OPTION: SelectOption = {
+  value: "",
+  label: "Blank project",
+  description: "Start with nothing",
 };
 
 interface NewProjectFormProps {
@@ -63,6 +85,15 @@ interface NewProjectFormProps {
   readonly onCancel: () => void;
   /** Retry loading the Area/Goal options after a failure. */
   readonly onRetryParentOptions?: () => void;
+  /**
+   * PROJECT-02 — the workspace's templates, or an empty list.
+   *
+   * When it is empty NOTHING is rendered for it: no field, no help text, no
+   * hint that templates exist. Blank creation stays the two-field form it has
+   * always been, which is the promise this feature makes about not making
+   * project creation harder.
+   */
+  readonly templates?: readonly TemplateOption[];
 }
 
 /**
@@ -129,6 +160,7 @@ export function NewProjectForm({
   onCreated,
   onCancel,
   onRetryParentOptions,
+  templates = [],
 }: NewProjectFormProps) {
   const parentSearch = useParentOptionsSearch(parentOptions);
   // Held outside `useForm` for the same reason as the Area form: the picker's
@@ -137,16 +169,24 @@ export function NewProjectForm({
   const [colourSlot, setColourSlot] = useState<IdentityColourSlot | null>(null);
 
   const form = useForm<Values>({
-    initialValues: { title: "", parentId: "" },
+    initialValues: { title: "", parentId: "", templateId: "" },
     fields: {
       title: { validate: required("A title is required") },
       parentId: { validate: required("Choose an Area or a Goal") },
     },
-    fieldOrder: ["title", "parentId"],
+    fieldOrder: ["templateId", "title", "parentId"],
     onSubmit: async (values): Promise<SubmitOutcome<Values>> => {
       const body = new FormData();
       body.set("title", values.title);
       body.set("parentId", values.parentId);
+      /*
+       * PROJECT-02 — always sent, empty for a blank project. The SERVER decides
+       * what a non-empty value means: it resolves the template in the
+       * authenticated workspace and instantiates it atomically, so the client
+       * cannot name a template it may not see and cannot assemble a project out
+       * of parts.
+       */
+      body.set("templateId", values.templateId);
       // Always sent, empty when unchosen — see the Area form.
       body.set("iconKey", iconKey ?? "");
       // The COLOUR travels the same way and for the same reason. Omitting it
@@ -181,6 +221,9 @@ export function NewProjectForm({
 
   const titleField = form.field("title");
   const parentField = form.field("parentId");
+  const templateField = form.field("templateId");
+  const chosenTemplate =
+    templates.find((template) => template.id === templateField.value) ?? null;
 
   // A load failure is NOT proof the workspace has no Areas or Goals — model it
   // separately from a confirmed-empty result so a storage/query failure never
@@ -216,6 +259,44 @@ export function NewProjectForm({
         labels={FIELD_LABELS}
         onFocusField={form.focusField}
       />
+      {/*
+       * PROJECT-02 — "Start from", above the title because it changes what the
+       * other fields mean, and rendered ONLY when the workspace has templates.
+       * Choosing one prefills the title and the Area/Goal from the template's
+       * own defaults; both stay fully editable, because naming this instance is
+       * the reason the field is here at all.
+       */}
+      {templates.length > 0 ? (
+        <SelectField
+          label="Start from"
+          options={[
+            BLANK_TEMPLATE_OPTION,
+            ...templates.map((template) => ({
+              value: template.id,
+              label: template.name,
+              description: templateContentsLabel(
+                template.taskCount,
+                template.checklistCount,
+              ),
+            })),
+          ]}
+          {...templateField}
+          onChange={(next) => {
+            templateField.onChange(next);
+            const template = templates.find((entry) => entry.id === next);
+            if (!template) return;
+            // Only ever FILLS a field the owner has not written in. Overwriting
+            // a title they already typed would be the form taking a decision
+            // back off them.
+            if (titleField.value.trim().length === 0) {
+              form.setValue("title", template.name);
+            }
+            if (parentField.value.length === 0 && template.parentId !== null) {
+              form.setValue("parentId", template.parentId);
+            }
+          }}
+        />
+      ) : null}
       <TextField label="Title" required maxLength={512} {...titleField} />
       <SelectField
         label="Area or Goal"
@@ -228,6 +309,19 @@ export function NewProjectForm({
         emptyMessage="No matching Areas or Goals"
         {...parentField}
       />
+      {chosenTemplate ? (
+        <p className="dh-template-preview" role="status">
+          <span>
+            {templateContentsLabel(
+              chosenTemplate.taskCount,
+              chosenTemplate.checklistCount,
+            )}
+            {
+              " will be created. Nothing is scheduled — every task starts open and undated."
+            }
+          </span>
+        </p>
+      ) : null}
       {/* With the identity fields, not after them. */}
       <EntityIdentityPicker
         entityType="project"

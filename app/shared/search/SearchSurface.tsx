@@ -593,7 +593,14 @@ function SearchOption({
     result.entityType !== undefined && isEntityType(result.entityType)
       ? getEntityIdentity(result.entityType)
       : null;
-  const typeLabel = identity?.label ?? result.entityType;
+  /*
+   * The trailing chip names the record's TYPE in the identity vocabulary. A type
+   * with no visual identity of its own (PROJECT-02: a Project template wears the
+   * Project mark rather than a twelfth accent) simply has no chip — a raw
+   * `entities.type` slug is never shown to a person, and such a provider carries
+   * the type in its own subtitle instead ("Template · 4 tasks").
+   */
+  const typeLabel = identity?.label;
 
   const body = (
     <>

@@ -374,19 +374,62 @@ Full record: [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_0
   1440 viewport (DEBT-162), a Sunday-start week wraps a seventh column (DEBT-163),
   and a queue row still carries two checkboxes (DEBT-164).
 
+### ☑ PROJECT-02 — Project templates — **DELIVERED 2026-08-19**
+
+**Start a Project from a shape that already worked, without copying and renaming
+last time's.**
+
+Accepted as
+[ADR-105](../decisions/ARCHITECTURE_DECISIONS.md#adr-105-a-project-template-is-an-entity-that-is-not-a-spine-record--a-reusable-shape-whose-tasks-are-rows-instantiated-atomically-and-never-synchronised).
+Full record:
+[`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+
+Both questions this item left open are now answered on the record:
+
+- **A template is an ENTITY that is not a spine record.** An ordinary `entities`
+  row of type `project_template`, with no `spine_records` row — the HABITS-01
+  precedent applied a second time. So it cannot appear in a Project count, a
+  rollup, Goal progress, Project health, Today, Weekly Planning or Review:
+  not filtered out of them, *structurally absent*, because the row those
+  surfaces read does not exist. A flag on a Project would have needed an
+  exclusion predicate in every one of those queries, forever.
+- **A template TASK is a ROW, not a Task.** The TASKS-13 argument one level down.
+  No entity id, no spine record, no EntityLink, no Activity, no route — so it
+  cannot reach the Tasks collection, the Inbox count, an overdue figure, a
+  notification or a recurrence series.
+- **It captures structure and intentional defaults, never execution history.**
+  Titles, descriptions, priorities, order, and checklist STRUCTURE. Not
+  completion, status, dates, sector, waiting, delegation, recurrence, ticks,
+  Activity or any historical timestamp — and the enforcement is the ABSENCE of
+  those columns, so a future change cannot carry one through by accident.
+- **No dates at all, absolute or relative.** DalyHub already has three date
+  authorities and a relative offset would be a fourth. PLAN-01 built the surface
+  where a fresh Project gets its days; the create flow says so in words. Recorded
+  as debt.
+- **Instantiation is ONE atomic batch** — the Project, its link, every Task, every
+  detail row, every checklist item and the Activity event — with a fresh id for
+  every row and every relationship remapped onto the new ones. A half-created
+  Project is impossible, and an unavailable Area/Goal creates nothing at all.
+- **Bounds are enforced by the WRITE, not by a read-then-decide** (40 tasks, 20
+  steps per task, 120 steps per template), asserted at each statement's own
+  commit and proved under a concurrent race. A maximal template is instantiated
+  against real D1, so the numbers are a measurement.
+- **A template is a SNAPSHOT.** Editing one never changes a Project made from it;
+  editing that Project never changes the template; deleting it leaves its
+  Projects and their work untouched. Provenance is ONE Activity event, never a
+  column — so there is nothing to synchronise and nothing to dangle.
+- **Project creation is not harder.** A workspace with no templates sees exactly
+  the header and the form it saw before, asserted end to end. With templates, one
+  "Start from" field appears above the title, defaulting to *Blank project*.
+- **Phone-first, and measured.** One list at every width, because a template is
+  chosen by reading it; no overflow at 320; 44px targets under a coarse pointer.
+
 ---
 
 ## NEXT
 
 The rest of the theme. Each is a separate item with its own decision — none of
 them was started by the programmes above, and none should be inferred from them.
-
-### ☐ PROJECT-02 — Project templates
-
-Start a Project from a shape that already worked, without copying and renaming
-last time's. Needs a decision on what a template captures (structure, Tasks,
-relative dates, none of the above) and on whether it is a first-class record or a
-Project marked as one.
 
 ### ☐ TASKS-12 — Advanced recurrence
 
@@ -406,9 +449,10 @@ else stands.)
 Recorded so they are not mistaken for oversights. Each is a separate product
 decision, and several are the NEXT items above:
 
-(Task checklists were on this list and are now delivered by TASKS-13 above.)
+(Task checklists were on this list and are now delivered by TASKS-13 above;
+Project templates are now delivered by PROJECT-02.)
 
-Subtasks · advanced recurrence · Project templates ·
+Subtasks · advanced recurrence ·
 AI automatic weekly planning · automatic time blocking · calendar write-back ·
 dependencies and Gantt charts · resource capacity planning · estimates and time
 tracking · shared or team planning · public or shared smart lists · a smart-list
@@ -420,6 +464,7 @@ authority · a second filter engine.
 
 ## Related documents
 
+- [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md) — the PROJECT-02 record
 - [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md) — the UX-02 record
 - [`PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md`](../design/PLAN_01_SMART_01_WEEKLY_PLANNING_2026_08.md) — the PLAN-01 + SMART-01 record
 - [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md) — the TASKS-13 record

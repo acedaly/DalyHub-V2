@@ -6,7 +6,8 @@
  * config loader and imported by `module.ts` for the runtime registry (ADR-016 §5.10).
  *
  * Two page routes (the collection and the project record) and two action-only
- * resource routes (create a project, mutate a project). The resource routes return
+ * resource routes (create a project, mutate a project), plus PROJECT-02's two
+ * template pages and their own action route. The resource routes return
  * real JSON Responses so the shared DS-06 forms post to them with a plain `fetch`
  * (the same pattern the task record surface uses), and a page-route loader
  * revalidation reconciles the surfaces after a mutation. `projects/new` is a static
@@ -35,6 +36,29 @@ const routes: readonly RouteContribution[] = [
     id: "projects.new",
     path: "projects/new",
     file: "routes/new.tsx",
+  },
+  /*
+   * PROJECT-02 — the template surfaces.
+   *
+   * All three are STATIC segments under `projects/templates`, so they rank
+   * above the dynamic `projects/:projectId` and can never shadow a real Project
+   * id (which is a UUID). `projects/templates/:templateId` is itself dynamic and
+   * is ranked below `projects/templates` for the same reason.
+   */
+  {
+    id: "projects.templates",
+    path: "projects/templates",
+    file: "routes/templates.tsx",
+  },
+  {
+    id: "projects.template_detail",
+    path: "projects/templates/:templateId",
+    file: "routes/template-detail.tsx",
+  },
+  {
+    id: "projects.template_mutate",
+    path: "projects/templates/:templateId/mutate",
+    file: "routes/template-mutate.tsx",
   },
   {
     id: "projects.detail",

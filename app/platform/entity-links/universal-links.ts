@@ -81,6 +81,15 @@ export const SUPPORTED_LINK_ENTITY_TYPES = [
   "person",
   "asset",
   "review",
+  /*
+   * PROJECT-02 — `project_template` is deliberately NOT here.
+   *
+   * A template is reusable CONFIGURATION, not a participant in the workspace's
+   * relationship graph: linking a Note to "the monthly reporting template"
+   * would be linking to a shape rather than to work. Its absence is what keeps
+   * it out of every link picker, and it is stated here rather than left to be
+   * inferred from a missing line.
+   */
 ] as const;
 
 /**

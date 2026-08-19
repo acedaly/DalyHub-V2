@@ -72,6 +72,7 @@ import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import type { SelectOption } from "~/shared/forms/types";
 import type { GoalSummary } from "~/shared/goal-progress";
 import { GridIcon, TableIcon } from "~/shared/icons";
+import { ButtonLink } from "~/shared/ui";
 import { ViewSwitcher, ViewTabs } from "~/shared/view-switcher";
 
 import { GoalSummarySection } from "./GoalSummarySection";
@@ -82,8 +83,12 @@ import {
   type ProjectCardData,
   type SerializedProjectListItem,
 } from "./project-view";
+import type { TemplateOption } from "./template-view";
 
 export type ProjectState = "open" | "completed" | "archived" | "all";
+
+// Re-exported so the loader that feeds this view keeps ONE import for both.
+export type { TemplateOption };
 
 /** The drawer key hosting the create form. */
 const NEW_PROJECT_KEY = "new-project";
@@ -150,6 +155,15 @@ export interface ProjectsCollectionViewProps {
   readonly presentation?: CollectionPresentation;
   readonly state: ProjectState;
   readonly failed: boolean;
+  /**
+   * PROJECT-02 — the templates the create form can start from, and whether the
+   * workspace has any at all.
+   *
+   * When there are none, blank creation is EXACTLY what it was: no "Start from"
+   * field is rendered, and no Templates link appears. A feature nobody has used
+   * yet costs nothing on the surface everyone uses.
+   */
+  readonly templates?: readonly TemplateOption[];
 }
 
 /**
@@ -181,6 +195,7 @@ export function ProjectsCollectionView({
   presentation = "grid",
   state,
   failed,
+  templates = [],
 }: ProjectsCollectionViewProps) {
   const revalidator = useRevalidator();
 
@@ -196,12 +211,13 @@ export function ProjectsCollectionView({
           <NewProjectFormHost
             parentOptions={parentOptions}
             parentOptionsFailed={parentOptionsFailed}
+            templates={templates}
             onRetryParentOptions={() => revalidator.revalidate()}
           />
         ),
       };
     };
-  }, [parentOptions, parentOptionsFailed, revalidator]);
+  }, [parentOptions, parentOptionsFailed, revalidator, templates]);
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>
@@ -215,6 +231,7 @@ export function ProjectsCollectionView({
         presentation={presentation}
         state={state}
         failed={failed}
+        hasTemplates={templates.length > 0}
       />
     </DrawerProvider>
   );
@@ -224,10 +241,12 @@ export function ProjectsCollectionView({
 function NewProjectFormHost({
   parentOptions,
   parentOptionsFailed,
+  templates,
   onRetryParentOptions,
 }: {
   readonly parentOptions: readonly SelectOption[];
   readonly parentOptionsFailed: boolean;
+  readonly templates: readonly TemplateOption[];
   readonly onRetryParentOptions: () => void;
 }) {
   const navigate = useNavigate();
@@ -236,6 +255,7 @@ function NewProjectFormHost({
     <NewProjectForm
       parentOptions={parentOptions}
       parentOptionsFailed={parentOptionsFailed}
+      templates={templates}
       onRetryParentOptions={onRetryParentOptions}
       onCreated={(projectId) =>
         navigate(`/projects/${encodeURIComponent(projectId)}`)
@@ -495,6 +515,7 @@ function ProjectsCollection({
   presentation,
   state,
   failed,
+  hasTemplates,
 }: {
   readonly projects: readonly SerializedProjectListItem[];
   readonly nextCursor: string | null;
@@ -505,6 +526,7 @@ function ProjectsCollection({
   readonly presentation: CollectionPresentation;
   readonly state: ProjectState;
   readonly failed: boolean;
+  readonly hasTemplates: boolean;
 }) {
   const { items, hasMore, loading, loadFailed, loadMore } =
     useProjectPagination(projects, nextCursor, state, query);
@@ -560,6 +582,23 @@ function ProjectsCollection({
         >
           <CreateActionLabel>New project</CreateActionLabel>
         </DrawerTrigger>
+      }
+      /*
+       * PROJECT-02 — the way to the template library: ONE quiet secondary link
+       * beside the primary action, and only when templates exist.
+       *
+       * Not a fifth lifecycle tab (Active/All/Completed/Archived are four
+       * collections of PROJECTS, and templates are not projects in any state),
+       * not a second navigation destination in the rail, and not a dashboard
+       * card. A workspace with no templates sees exactly the header it saw
+       * before this feature existed.
+       */
+      secondaryActions={
+        hasTemplates ? (
+          <ButtonLink href="/projects/templates" variant="subtle">
+            Templates
+          </ButtonLink>
+        ) : undefined
       }
       /*
        * REDESIGN-04 — search is on the TITLE row, per `mockup3.png`, through the

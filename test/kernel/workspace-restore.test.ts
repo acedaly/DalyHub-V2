@@ -58,7 +58,14 @@ import {
   createWorkspaceSnapshotRepository,
 } from "~/platform/storage/d1";
 
-import { ensureWorkspace, makeContext, resetTables } from "./support";
+import {
+  ensureWorkspace,
+  makeContext,
+  makeProjectTemplateRepository,
+  makeSpineRepository,
+  makeTaskRepository,
+  resetTables,
+} from "./support";
 import {
   FIXTURE_OTHER_WORKSPACE,
   FIXTURE_OWNER,
@@ -139,6 +146,14 @@ async function loseWorkspaceRecords(workspaceId: string): Promise<void> {
     "diary_entry_details",
     "note_details",
     "task_recurrence_rules",
+    // TASKS-13 and PROJECT-02 rows, dependents first: a checklist item
+    // references its Task, and a template's checklist items reference its
+    // tasks, which reference the `project_template` entity — every one of those
+    // keys is ON DELETE RESTRICT.
+    "task_checklist_items",
+    "project_template_checklist_items",
+    "project_template_tasks",
+    "project_template_details",
     "task_details",
     "project_details",
     "goal_details",
@@ -237,6 +252,25 @@ describe("workspace backup and restore (D1)", () => {
       source.records.entityLinks.some((link) => link.deletedAt !== null),
     ).toBe(true);
     expect(source.records.taskRecurrenceRules.length).toBeGreaterThan(0);
+    /*
+     * TASKS-13 — the regression assertion for a real defect: the restore
+     * repository had no `stageRows` branch for this collection, so every
+     * checklist item was exported faithfully and dropped on the way back in.
+     * The equality assertion below is what catches it; this is here so a
+     * future fixture change cannot quietly empty the collection and make that
+     * equality vacuous.
+     */
+    expect(source.records.taskChecklistItems.length).toBeGreaterThan(0);
+    expect(
+      source.records.taskChecklistItems.some((item) => item.completed),
+    ).toBe(true);
+    // PROJECT-02 — the fixture holds a real template with ordered tasks and a
+    // step, so the round trip below is a claim about templates too.
+    expect(source.records.projectTemplateDetails).toHaveLength(1);
+    expect(source.records.projectTemplateTasks.length).toBeGreaterThan(0);
+    expect(source.records.projectTemplateChecklistItems.length).toBeGreaterThan(
+      0,
+    );
     // X-02: both saved-view KINDS share one table, so the fixture holds one of
     // each. A restore that dropped the discriminator would rewrite the
     // cross-module view as a Tasks view — silently, and only visibly here.
@@ -304,6 +338,63 @@ describe("workspace backup and restore (D1)", () => {
       expect(restored.records[collection], `collection ${collection}`).toEqual(
         source.records[collection],
       );
+    }
+  });
+
+  it("restores a template well enough to create the same project from it", async () => {
+    /*
+     * PROJECT-02 — the restore claim that actually matters for templates.
+     *
+     * Snapshot equality proves the ROWS came back. This proves the template is
+     * still USABLE: instantiating it in the restored workspace produces the
+     * same Project structure the source workspace's template would have — same
+     * task titles, same order, same checklist, and every created Task open,
+     * undated and unticked.
+     */
+    const seededTemplateId = source.records.projectTemplateDetails[0]!.entityId;
+    const expectedTasks = [...source.records.projectTemplateTasks]
+      .sort((a, b) => a.position - b.position)
+      .map((task) => task.title);
+
+    await loseWorkspaceRecords(SOURCE);
+    await ensureWorkspace(TARGET);
+    const deps = dependencies(TARGET);
+    const preview = await prepareRestore(deps, archive);
+    const result = await applyRestore(deps, preview.operationId);
+    expect(result.verification.passed).toBe(true);
+
+    const context = makeContext(TARGET);
+    const templates = makeProjectTemplateRepository(context);
+    const spine = makeSpineRepository(context);
+    const tasksRepo = makeTaskRepository(context);
+
+    const restoredTemplate =
+      await templates.getTemplateDetail(seededTemplateId);
+    expect(restoredTemplate).not.toBeNull();
+    expect(restoredTemplate!.tasks.map((task) => task.title)).toEqual(
+      expectedTasks,
+    );
+
+    // A real Area in the restored workspace to hang the new Project off.
+    const area = await spine.createArea({ title: "Restored area" });
+    const created = await templates.instantiate(seededTemplateId, {
+      title: "From the restored template",
+      parentId: area.id,
+    });
+    expect(created.taskCount).toBe(expectedTasks.length);
+
+    const children = await spine.listChildren({
+      parentId: created.projectId,
+      childKind: "task",
+    });
+    expect(children.items.map((child) => child.title)).toEqual(expectedTasks);
+    for (const child of children.items) {
+      const task = await tasksRepo.getTask(child.id);
+      expect(task?.completedAt).toBeNull();
+      expect(task?.dueDate).toBeNull();
+      expect(task?.scheduledDate).toBeNull();
+      const checklist = await tasksRepo.listChecklist(child.id);
+      expect(checklist.every((item) => item.completed === false)).toBe(true);
     }
   });
 

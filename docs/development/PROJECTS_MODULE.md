@@ -934,3 +934,91 @@ roll-up and every mutation intent are untouched:
   entries stay in the overflow because they have no local path on this record.
 
 Measured at 1280×800: working content moved from 860px (below the fold) to 317px.
+
+---
+
+## Project templates (PROJECT-02, ADR-105, August 2026)
+
+> The full record, including every captured and reset field, the bounds
+> arithmetic and the measured mobile numbers, is
+> [`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).
+> The decision is
+> [ADR-105](../decisions/ARCHITECTURE_DECISIONS.md#adr-105-a-project-template-is-an-entity-that-is-not-a-spine-record--a-reusable-shape-whose-tasks-are-rows-instantiated-atomically-and-never-synchronised).
+
+### What a template is, in this module's terms
+
+A template is an ordinary `entities` row of type `project_template`, with a
+`project_template_details` slice — and **no `spine_records` row**. That single
+absence is what keeps it out of everything this document describes above: it has
+no completion, no structural parent, no rollup and no health, so it cannot appear
+in `listProjects`, in `countProjectsByLifecycle`, in `getRollup`, in Project
+health, in Goal progress, in Today's "Continue working" or in the PLAN-01 queue.
+Not filtered out of them — absent from them.
+
+Its tasks are rows in `project_template_tasks`, and their steps rows in
+`project_template_checklist_items`. Neither has an entity id, a spine record, an
+EntityLink, an Activity event or a route.
+
+### Storage
+
+`migrations/0046_create_project_templates.sql`. Three tables, additive only, no
+existing table rebuilt.
+
+| Table | Holds |
+|---|---|
+| `project_template_details` | description, `icon_key`, `colour_slot`, an optional `default_parent_id` + `default_parent_kind` |
+| `project_template_tasks` | `title`, Markdown `description`, `priority`, dense `position` |
+| `project_template_checklist_items` | `title`, dense `position` — and deliberately **no `completed` column** |
+
+There is no `status`, no `due_date`, no `scheduled_date`, no `time_sector`, no
+waiting or delegation column and no recurrence anywhere in the file. The absent
+columns are the enforcement of "structure and defaults, never history".
+
+### The repository
+
+`scope.projectTemplates` (`D1ProjectTemplateRepository`) is the ONE authority.
+No route writes a template row directly.
+
+| Method | Notes |
+|---|---|
+| `listTemplates` | bounded page, newest-updated first; counts from TWO grouped aggregates over the whole page — never one query per template |
+| `getTemplate` / `getTemplateDetail` | fixed statement count whatever the template holds |
+| `createTemplate` | an empty template |
+| `createTemplateFromProject` | captures the Project's OPEN, non-cancelled, non-someday Tasks with their checklist STRUCTURE; refuses (never truncates) a Project with too many Tasks, or a Task with too many steps |
+| `updateTemplate` | header fields; an unchanged update writes nothing |
+| `deleteTemplate` | soft-delete through the shared entity lifecycle; retains the template's rows; touches no Project |
+| `addTask` / `updateTask` / `deleteTask` / `reorderTasks` | dense positions; the bound asserted inside the insert |
+| `addChecklistItem` / `renameChecklistItem` / `deleteChecklistItem` / `reorderChecklist` | as above, with BOTH checklist bounds in one statement |
+| `instantiate` | ONE atomic batch; fresh ids; every relationship remapped; re-asserts BOTH the parent's and the template's liveness at commit |
+
+### Routes
+
+| Route | What it is |
+|---|---|
+| `/projects/templates` | the Templates collection (a page) |
+| `/projects/templates/:templateId` | the template record (a page) |
+| `/projects/templates/:templateId/mutate` | every template mutation, including `instantiate` (action only) |
+| `POST /projects/new` | gained an optional `templateId`; **empty is the unchanged blank-project path, byte for byte** |
+| `POST /projects/:projectId/mutate` | gained a `save_as_template` intent, refused on an archived Project by the route's existing gate |
+
+All three template segments are STATIC under `projects/`, so they rank above the
+dynamic `projects/:projectId` and can never shadow a real Project id.
+
+### Bounds
+
+`MAX_TEMPLATE_TASKS` 40 · `MAX_TEMPLATE_CHECKLIST_ITEMS_PER_TASK` 20 ·
+`MAX_TEMPLATE_CHECKLIST_ITEMS` 120. Every one is asserted by the inserting
+statement's own `WHERE (SELECT COUNT(*) …) < n`, evaluated at that statement's
+commit — the TASKS-13 lesson carried forward, and proved under a concurrent race
+in `test/kernel/project-templates.test.ts`. The worst-case instantiation batch is
+~287 statements, each binding at most a dozen parameters, well inside D1's
+100-bound-parameter ceiling.
+
+### What a template never does
+
+It never syncs. Editing a template changes no Project made from it; editing that
+Project changes no template; deleting a template leaves its Projects and their
+work untouched. Provenance is ONE Activity event on the new Project
+(`project.created_from_template`), informational only — nothing reads it to
+decide behaviour, and because Activity is append-only a deleted template leaves
+no dangling reference.

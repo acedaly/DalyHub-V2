@@ -19,6 +19,10 @@ import { env } from "cloudflare:workers";
 
 import { SpineValidationError } from "~/kernel/spine";
 import {
+  ProjectTemplateTooLargeError,
+  ProjectTemplateValidationError,
+} from "~/kernel/project-templates";
+import {
   ProjectArchiveBlockedError,
   ProjectSettingsValidationError,
   parseProjectWorkflowStatus,
@@ -65,6 +69,24 @@ export type ProjectMutationResult =
     }
   | {
       readonly kind: "setIdentity";
+      readonly ok: false;
+      readonly formError: string;
+    }
+  | {
+      /**
+       * PROJECT-02 — the Project was captured as a new template. Carries the
+       * template's id so the caller can offer to open it, and the two counts so
+       * the confirmation can state exactly what was captured.
+       */
+      readonly kind: "saveAsTemplate";
+      readonly ok: true;
+      readonly templateId: string;
+      readonly name: string;
+      readonly taskCount: number;
+      readonly checklistCount: number;
+    }
+  | {
+      readonly kind: "saveAsTemplate";
       readonly ok: false;
       readonly formError: string;
     }
@@ -193,11 +215,65 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return json(await handleArchive(scope, projectId));
     case "restore":
       return json(await handleRestore(scope, projectId));
+    case "save_as_template":
+      return json(await handleSaveAsTemplate(scope, projectId, form));
     default:
       return json(
         { kind: "rename", ok: false, formError: "Unknown action." },
         400,
       );
+  }
+}
+
+/**
+ * PROJECT-02 — capture this Project as a new template.
+ *
+ * The whole decision about what travels and what is left behind lives in the
+ * repository (and is documented on the domain model): this route only names the
+ * Project, passes the owner's chosen template name through, and turns a refusal
+ * into a sentence that states the actual limit.
+ *
+ * It creates a SNAPSHOT. The new template has no link back to this Project, and
+ * this Project has no link to it — editing either afterwards leaves the other
+ * exactly as it was.
+ */
+async function handleSaveAsTemplate(
+  scope: WorkspaceScope,
+  projectId: string,
+  form: FormData,
+): Promise<ProjectMutationResult> {
+  const rawName = String(form.get("name") ?? "").trim();
+  const rawDescription = String(form.get("description") ?? "").trim();
+  try {
+    const template = await scope.projectTemplates.createTemplateFromProject(
+      projectId,
+      {
+        name: rawName.length === 0 ? undefined : rawName,
+        description: rawDescription.length === 0 ? null : rawDescription,
+      },
+    );
+    return {
+      kind: "saveAsTemplate",
+      ok: true,
+      templateId: template.id,
+      name: template.name,
+      taskCount: template.taskCount,
+      checklistCount: template.checklistCount,
+    };
+  } catch (cause) {
+    if (
+      cause instanceof ProjectTemplateTooLargeError ||
+      cause instanceof ProjectTemplateValidationError
+    ) {
+      // The exact number, never a shrug: refusing rather than truncating is only
+      // defensible if the owner is told what the ceiling is.
+      return { kind: "saveAsTemplate", ok: false, formError: cause.message };
+    }
+    return {
+      kind: "saveAsTemplate",
+      ok: false,
+      formError: "That template couldn\u2019t be created. Please try again.",
+    };
   }
 }
 

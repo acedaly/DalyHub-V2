@@ -1627,7 +1627,24 @@ the contract depends on is available in all of them.
 ### 15.17 Explicit non-goals, held
 
 No offline editing of Projects, Goals, Areas, Notes, Diary, Meetings, Assets or
-Reviews. No full database replication, no CRDTs, no collaborative editing, no
+Reviews — **including Project templates and the act of creating a Project from
+one** (PROJECT-02, 2026-08-19).
+
+That boundary is deliberate rather than merely unbuilt. This ledger exists for
+single, idempotent, NARROW Task mutations, which is why `operation` is a closed
+CHECK constraint naming seven of them. Creating a Project from a template is a
+compound write of up to ~287 statements whose entire guarantee is that it commits
+or does not ([ADR-105 §5](../decisions/ARCHITECTURE_DECISIONS.md)); replaying it
+from a queue would mean either giving that guarantee up or reimplementing it on
+the client, which is a second Project authority in the place it would be hardest
+to see. Browsing templates works from whatever the shell has already cached;
+saving, editing and instantiating require connectivity, and the surfaces say so
+through the ordinary offline experience (§15.15). Raised as DEBT-167, with the
+only honest future shape named there: a QUEUED INTENT (template id, title,
+parent) replayed as one server-side instantiation — never a client-side assembly
+of the rows.
+
+No full database replication, no CRDTs, no collaborative editing, no
 general multi-device live sync, no WebSockets, no native application, no push
 notifications, no background polling, no AI reconciliation, no service-worker
 rewrite, no duplicate Task repository, no client-side recurrence generation, and no

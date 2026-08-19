@@ -45,6 +45,7 @@ import {
 } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
+import { templateContentsLabel } from "~/kernel/project-templates";
 import { useFeedback } from "~/shared/feedback";
 import type {
   EntityLinkSelection,
@@ -607,6 +608,36 @@ function ProjectDetail({
     [postMutation, revalidator],
   );
 
+  /*
+   * PROJECT-02 — capture this Project as a template.
+   *
+   * A single POST and a confirmation that STATES what was captured, because
+   * "Saved as template" alone leaves the owner to open it to find out whether
+   * the completed tasks came too (they did not). A refusal is surfaced
+   * verbatim: the bound is a number, and telling the owner the number is the
+   * only thing that makes refusing better than truncating.
+   */
+  const onSaveAsTemplate = useCallback(async () => {
+    const body = new FormData();
+    body.set("intent", "save_as_template");
+    const result = await postMutation(body);
+    if (result.kind !== "saveAsTemplate") {
+      notifyError("That template couldn’t be created. Please try again.");
+      return;
+    }
+    if (!result.ok) {
+      notifyError(result.formError);
+      return;
+    }
+    notifySuccess(
+      `Saved “${result.name}” — ${templateContentsLabel(
+        result.taskCount,
+        result.checklistCount,
+      )}. Dates, progress and history were not copied.`,
+    );
+    revalidator.revalidate();
+  }, [notifyError, notifySuccess, postMutation, revalidator]);
+
   const onUnlink = useCallback(
     async (link: EntityLinkSelection) => {
       const body = new FormData();
@@ -630,6 +661,7 @@ function ProjectDetail({
       completionPending={completionPending}
       onToggleComplete={(complete) => void onToggleComplete(complete)}
       onRename={onRename}
+      onSaveAsTemplate={() => void onSaveAsTemplate()}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       tasksTab={

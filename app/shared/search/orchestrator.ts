@@ -64,6 +64,13 @@ export type ExecuteSearchOptions = {
    * System). Resolved server-side; the client never supplies raw boost ids.
    */
   readonly boostIds?: ReadonlySet<string>;
+  /**
+   * Entity-type slug → the plural label its owning module declared
+   * (`EntityTypeContribution.plural`), used to head an entity group. The caller
+   * sources it from the SAME registry it sourced the providers from; omitting
+   * it leaves an entity group headed with its slug.
+   */
+  readonly entityLabels?: ReadonlyMap<string, string>;
 };
 
 type ProviderRun = {
@@ -181,5 +188,6 @@ export async function executeSearch(
     maxResultsPerProvider: perProvider,
     maxTotalResults: options.maxTotalResults ?? MAX_TOTAL_RESULTS,
     ...(options.boostIds ? { boostIds: options.boostIds } : {}),
+    ...(options.entityLabels ? { entityLabels: options.entityLabels } : {}),
   });
 }

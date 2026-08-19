@@ -372,6 +372,58 @@ const COLLECTIONS: CollectionDescriptors = {
       updatedAt: requiredText(row.updated_at),
     }),
   },
+  projectTemplateDetails: {
+    table: "project_template_details",
+    columns:
+      "entity_id, description, icon_key, colour_slot, default_parent_id, " +
+      "default_parent_kind, created_at, updated_at",
+    order: ["entity_id"],
+    map: (row) => ({
+      entityId: requiredText(row.entity_id),
+      description: text(row.description),
+      iconKey: text(row.icon_key),
+      colourSlot: text(row.colour_slot),
+      // Exported verbatim, never resolved: a hint that no longer names a live
+      // Area or Goal is a legitimate stored state, and a restore must put back
+      // exactly what was there.
+      defaultParentId: text(row.default_parent_id),
+      defaultParentKind: text(row.default_parent_kind),
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
+  projectTemplateTasks: {
+    table: "project_template_tasks",
+    columns:
+      "id, template_id, title, description, priority, position, created_at, updated_at",
+    // The row's own id, for the reason `taskChecklistItems` gives: the read
+    // order must be deterministic independently of `position`, which a reorder
+    // rewrites and which two exports of the same data must not disagree about.
+    order: ["id"],
+    map: (row) => ({
+      id: requiredText(row.id),
+      templateId: requiredText(row.template_id),
+      title: requiredText(row.title),
+      description: text(row.description),
+      priority: text(row.priority),
+      position: requiredInteger(row.position, 0),
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
+  projectTemplateChecklistItems: {
+    table: "project_template_checklist_items",
+    columns: "id, template_task_id, title, position, created_at, updated_at",
+    order: ["id"],
+    map: (row) => ({
+      id: requiredText(row.id),
+      templateTaskId: requiredText(row.template_task_id),
+      title: requiredText(row.title),
+      position: requiredInteger(row.position, 0),
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
   noteDetails: {
     table: "note_details",
     columns: "entity_id, content, tags, archived_at, updated_at",

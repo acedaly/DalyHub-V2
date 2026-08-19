@@ -463,6 +463,38 @@ These are real and recorded rather than hidden.
   `dalyhub-snapshot.json` still carries `actorType`/`actorId` verbatim — it is a
   faithful record of the database, and the owner's own copy of their own ids.
 - **No attachments.** DalyHub stores none yet.
+- **Task checklist items were exported and NOT restored, until 2026-08-19.**
+  `task_checklist_items` had a snapshot collection and a restore destination but
+  no `stageRows` branch, so every checklist item in an archive was written
+  faithfully and silently dropped on the way back in. Found and fixed by
+  PROJECT-02 while adding the three template collections beside it, with a
+  regression assertion in the round-trip suite. An archive taken before that date
+  still CONTAINS its checklist items — they were always exported — so restoring
+  such an archive with the current build recovers them.
+
+### PROJECT-02 — the three template collections (2026-08-19)
+
+`projectTemplateDetails`, `projectTemplateTasks` and
+`projectTemplateChecklistItems`, ordered after `taskChecklistItems` and before
+`noteDetails`: the detail slice first (it references the `project_template`
+entity), then the tasks (which reference that entity), then the steps (which
+reference a task). A restore inserts in that order and deletes in its exact
+reverse, which satisfies every `ON DELETE RESTRICT` key without deferring
+constraint checks.
+
+All three are in `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS`, so an archive written
+before PROJECT-02 still validates and still restores.
+
+`defaultParentId` is exported **verbatim**, never resolved: it is a stored hint
+rather than a foreign key, and one that no longer names a live Area or Goal is a
+legitimate state a restore must reproduce rather than repair. Validation checks
+only that it is present together with its `defaultParentKind`, or that both are
+null.
+
+The round trip is proved twice: the shared workspace fixture now holds a real
+template with ordered tasks and a step, so snapshot equality covers it; and a
+dedicated test restores an archive and then INSTANTIATES the restored template,
+proving it is still usable rather than merely present.
 
 ---
 

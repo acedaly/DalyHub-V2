@@ -12,12 +12,20 @@ import type { RankedSearchResult, SearchResultGroup } from "./types";
 
 /**
  * Group ranked results. `moduleLabels` maps a module id to a human label for
- * module-fallback groups; entity groups carry the entity-type slug as a safe
- * default label (the UI upgrades it via the entity-identity system).
+ * module-fallback groups.
+ *
+ * `entityLabels` maps an entity-type slug to the plural label its owning module
+ * DECLARED (`EntityTypeContribution.plural`), and is what an entity group is
+ * headed with. It matters for an entity type that has no visual identity of its
+ * own — a Project template wears the Project mark rather than a twelfth accent,
+ * so `getEntityIdentity` cannot name it and the raw `project_template` slug
+ * would otherwise be drawn as a heading. Absent a declared label the slug is
+ * still the safe default, and the UI may upgrade either via entity identity.
  */
 export function groupRankedResults(
   results: readonly RankedSearchResult[],
   moduleLabels: ReadonlyMap<string, string>,
+  entityLabels: ReadonlyMap<string, string> = new Map(),
 ): SearchResultGroup[] {
   const order: string[] = [];
   const buckets = new Map<string, RankedSearchResult[]>();
@@ -43,7 +51,7 @@ export function groupRankedResults(
       return {
         id: key,
         kind: "entity" as const,
-        label: entityType,
+        label: entityLabels.get(entityType) ?? entityType,
         entityType,
         results: bucketResults,
       };

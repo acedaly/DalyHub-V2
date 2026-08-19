@@ -313,6 +313,23 @@ describe("module discovery", () => {
           moduleId: "projects",
           file: "routes/new.tsx",
         },
+        // PROJECT-02 — the template surfaces, ranked above the dynamic
+        // `projects/:projectId` because their segments are static.
+        {
+          id: "projects.templates",
+          moduleId: "projects",
+          file: "routes/templates.tsx",
+        },
+        {
+          id: "projects.template_detail",
+          moduleId: "projects",
+          file: "routes/template-detail.tsx",
+        },
+        {
+          id: "projects.template_mutate",
+          moduleId: "projects",
+          file: "routes/template-mutate.tsx",
+        },
         {
           id: "projects.detail",
           moduleId: "projects",
@@ -767,6 +784,8 @@ describe("module discovery", () => {
         "goals.search",
         "habits.search",
         "projects.search",
+        // PROJECT-02 — templates are findable BY NAME; template tasks are not.
+        "projects.template_search",
         "tasks.search",
         // NOTES-03 closes the DEBT-36 gap for Notes: full-content search over
         // title, Markdown body, headings and tags.

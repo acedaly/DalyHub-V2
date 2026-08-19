@@ -37,6 +37,7 @@ describe("countRecordsByModule", () => {
       "note",
       "person",
       "project",
+      "project_template",
       "review",
       "task",
       "widget",

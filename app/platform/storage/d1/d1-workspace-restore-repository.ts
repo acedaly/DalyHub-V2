@@ -261,6 +261,43 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "updated_at",
     ],
   },
+  projectTemplateDetails: {
+    table: "project_template_details",
+    columns: [
+      "entity_id",
+      "description",
+      "icon_key",
+      "colour_slot",
+      "default_parent_id",
+      "default_parent_kind",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  projectTemplateTasks: {
+    table: "project_template_tasks",
+    columns: [
+      "id",
+      "template_id",
+      "title",
+      "description",
+      "priority",
+      "position",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  projectTemplateChecklistItems: {
+    table: "project_template_checklist_items",
+    columns: [
+      "id",
+      "template_task_id",
+      "title",
+      "position",
+      "created_at",
+      "updated_at",
+    ],
+  },
   noteDetails: {
     table: "note_details",
     columns: ["entity_id", "content", "tags", "archived_at", "updated_at"],
@@ -797,6 +834,70 @@ function stageRows(
         anchor_month: row.anchorMonth,
         series_id: row.seriesId,
         sequence: row.sequence,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
+    /*
+     * TASKS-13 — checklist items.
+     *
+     * This case was MISSING. `task_checklist_items` had a destination
+     * descriptor and a place in `SNAPSHOT_COLLECTION_ORDER`, but no branch
+     * here, so `stageRows` fell through to the `default: return []` and every
+     * checklist item in an archive was silently dropped on restore: exported
+     * faithfully, staged as nothing, restored as nothing. Found while adding
+     * the PROJECT-02 collections beside it, and fixed here because it is
+     * data LOSS in the one path whose whole job is not to lose data.
+     */
+    case "taskChecklistItems":
+      return (
+        rows as readonly SnapshotCollectionRowMap["taskChecklistItems"][]
+      ).map((row) => ({
+        id: row.id,
+        task_id: row.taskId,
+        title: row.title,
+        position: row.position,
+        completed: row.completed ? 1 : 0,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
+    // PROJECT-02 — a template's detail slice, its ordered tasks, and the steps
+    // inside them. `default_parent_id` is restored verbatim: it is a stored
+    // hint rather than a foreign key, and one that no longer resolves is a
+    // legitimate state the restore must reproduce rather than repair.
+    case "projectTemplateDetails":
+      return (
+        rows as readonly SnapshotCollectionRowMap["projectTemplateDetails"][]
+      ).map((row) => ({
+        entity_id: row.entityId,
+        description: row.description,
+        icon_key: row.iconKey,
+        colour_slot: row.colourSlot,
+        default_parent_id: row.defaultParentId,
+        default_parent_kind: row.defaultParentKind,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
+    case "projectTemplateTasks":
+      return (
+        rows as readonly SnapshotCollectionRowMap["projectTemplateTasks"][]
+      ).map((row) => ({
+        id: row.id,
+        template_id: row.templateId,
+        title: row.title,
+        description: row.description,
+        priority: row.priority,
+        position: row.position,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
+    case "projectTemplateChecklistItems":
+      return (
+        rows as readonly SnapshotCollectionRowMap["projectTemplateChecklistItems"][]
+      ).map((row) => ({
+        id: row.id,
+        template_task_id: row.templateTaskId,
+        title: row.title,
+        position: row.position,
         created_at: row.createdAt,
         updated_at: row.updatedAt,
       }));
@@ -1646,6 +1747,24 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
         `SELECT COUNT(*) AS n FROM task_recurrence_rules r
          WHERE r.workspace_id = ?1
            AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.workspace_id = ?1 AND e.id = r.entity_id AND e.type = 'task')`,
+      ],
+      [
+        "projectTemplateDetails",
+        `SELECT COUNT(*) AS n FROM project_template_details d
+         WHERE d.workspace_id = ?1
+           AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.workspace_id = ?1 AND e.id = d.entity_id AND e.type = 'project_template')`,
+      ],
+      [
+        "projectTemplateTasks",
+        `SELECT COUNT(*) AS n FROM project_template_tasks t
+         WHERE t.workspace_id = ?1
+           AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.workspace_id = ?1 AND e.id = t.template_id AND e.type = 'project_template')`,
+      ],
+      [
+        "projectTemplateChecklistItems",
+        `SELECT COUNT(*) AS n FROM project_template_checklist_items c
+         WHERE c.workspace_id = ?1
+           AND NOT EXISTS (SELECT 1 FROM project_template_tasks t WHERE t.workspace_id = ?1 AND t.id = c.template_task_id)`,
       ],
       [
         "spineRecords",

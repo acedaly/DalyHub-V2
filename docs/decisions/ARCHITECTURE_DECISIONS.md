@@ -3908,3 +3908,152 @@ its own column rather than assume 147px. One shared component gained a second
 layout (`HabitRow`), one gained a list that owns its grid (`HabitList`, the device
 DS-04 built for Tasks), and `StatCard` — shared since UIX-01 with no consumer —
 has one.
+
+---
+
+## ADR-105: A Project template is an ENTITY that is not a spine record — a reusable shape whose tasks are rows, instantiated atomically, and never synchronised
+
+**Status.** Accepted (PROJECT-02, 19 August 2026).
+
+**Context.** ROADMAP_V2_3's PROJECT-02 asks for "a Project started from a shape
+that already worked", and leaves two questions open in as many words: what a
+template CAPTURES, and whether it is a first-class record or a Project marked as
+one. Both had to be answered before a line of it could be written, because both
+are permanent.
+
+The cheap answer to the second was `project_details.is_template`, reusing the
+Project domain, the Project record and the Project editor wholesale. It is wrong
+for one reason, and the reason does not go away:
+
+> A Project is a row in `spine_records`, and everything in DalyHub that answers a
+> question about work reads the spine.
+
+The Projects collection and its lifecycle counts, `SpineRepository.getRollup`,
+PROJ-02 Project health, Goal progress, Today's "Continue working", the PLAN-01
+queue, the Tasks collection, the Inbox count, Review, analytics — a flagged
+Project would need an exclusion predicate added to every one of them, correct on
+the day it was written and correct forever afterwards, including in the query
+nobody has written yet. The first one anybody forgets is a template silently
+counted as live work, and the owner has no way to tell.
+
+The opposite extreme — a wholly separate `ProjectTemplate` domain with its own
+identity table — buys the separation and pays for it twice: a second identity
+authority, a second workspace-scoping mechanism, a second soft-delete, a second
+Activity integration and a second thing every snapshot has to learn about.
+
+**Decision.**
+
+- **Decision 1 — a template is an ordinary `entities` row of a NEW type,
+  `project_template`, and deliberately NOT a `spine_records` row.** This is
+  HABITS-01's precedent ([ADR-102](#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks))
+  applied a second time rather than reinvented: a Habit is an entity that is not
+  in the spine, for the same reason. The kernel's identity primitive supplies the
+  workspace-scoped id, the title, the timestamps, the shared soft-delete, the
+  Activity subjects and a place in the workspace snapshot — no second authority.
+  The absent spine row supplies everything else: with no `spine_records` entry
+  there is no completion, no structural parent, no rollup and no health, so a
+  template cannot appear in a Project count, a Goal's progress, Project health,
+  Today, Weekly Planning or Review. Not "is filtered out of" — cannot appear in,
+  because the row those surfaces read does not exist.
+
+- **Decision 2 — a template TASK is a ROW, not an entity.** The same argument one
+  level down, and the same answer [ADR-103](#adr-103-a-checklist-item-is-not-a-task--one-durable-level-of-ordered-steps-inside-one-task-with-dense-integer-order-no-activity-and-no-automatic-completion-in-either-direction)
+  gave for a checklist item. `project_template_tasks` rows have no id in
+  `entities`, no spine record, no EntityLinks, no Activity and no route, so they
+  cannot reach the Tasks collection, an Inbox count, an overdue figure, a
+  notification, a recurrence series or search. They become Tasks exactly once:
+  when the owner creates a Project from the template.
+
+- **Decision 3 — a template captures STRUCTURE and INTENTIONAL DEFAULTS, and no
+  execution state.** Copied: the template's name, description, icon, colour, an
+  optional default Area/Goal, and per task a title, a Markdown description, a
+  priority, an order and an ordered checklist of titles. NOT copied: completion,
+  status, due date, planned date, time sector, waiting state, delegation,
+  recurrence, checklist ticks, Activity and every historical timestamp. The
+  enforcement is the ABSENCE of the columns — migration 0046 gives a template
+  nowhere to keep any of them — so a future change that wanted to carry a stale
+  date into a fresh Project would have to add a field to a domain type whose own
+  doc comment says why it does not have one.
+
+- **Decision 4 — a template carries NO dates, absolute or relative.** PROJECT-02
+  deliberately ships no relative-date vocabulary ("14 days after creation").
+  DalyHub already has three date authorities — a due date, the `scheduled_date`
+  that IS the plan ([ADR-030](#adr-030-task-planning--the-scheduled-date-as-commitment-atomic-single--bulk-mutations-and-planning-activity)), and a
+  recurrence anchor ([ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence)/[ADR-085](#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode)) —
+  and an offset resolved once at instantiation and never re-derivable would be a
+  fourth, with its own vocabulary and its own edge cases. PLAN-01 built the
+  surface where a fresh Project gets its days. Recorded as debt, not as an
+  oversight.
+
+- **Decision 5 — instantiation is ONE atomic batch, and every row in it gets a
+  fresh id.** The Project's `entities`/`spine_records`/`entity_links`/
+  `project_details` rows, every Task's four rows, every checklist row and the
+  Activity append are one `D1Database.batch()` — a single SQL transaction. Every
+  dependent statement is additionally gated on the row it depends on having been
+  written, so an unavailable Area/Goal — or a template deleted between opening the
+  drawer and pressing the button — declines the whole cascade, and the caller
+  raises a typed error rather than discovering a foreign-key failure. Both
+  preconditions are re-asserted by the first statement, at ITS commit, rather
+  than trusted from the reads before it. There is no state in which a Project
+  exists holding seven of its twelve Tasks. Ids are
+  minted per row and relationships are remapped onto them; nothing an
+  instantiation writes points back at the template.
+
+- **Decision 6 — bounds are asserted by the WRITE.** `MAX_TEMPLATE_TASKS` (40),
+  `MAX_TEMPLATE_CHECKLIST_ITEMS_PER_TASK` (20) and
+  `MAX_TEMPLATE_CHECKLIST_ITEMS` (120) are enforced by the inserting statement's
+  own `WHERE (SELECT COUNT(*) …) < n`, evaluated at that statement's commit —
+  never by a read followed by a decision in TypeScript, which is the window
+  ADR-103 §8 closed for checklists and which this carries forward. The numbers
+  are chosen against what a template IS and against what the batch COSTS: a
+  maximal template commits in under 300 statements, each binding at most a dozen
+  parameters, comfortably inside D1's 100-bound-parameter-per-statement ceiling.
+  A maximal template is instantiated against the real database in
+  `test/kernel/project-templates.test.ts`, so the bound is a measurement.
+
+- **Decision 7 — a template is a SNAPSHOT, and there is no synchronisation in
+  either direction.** Editing a template never changes a Project made from it;
+  editing that Project never changes the template; deleting the template leaves
+  its Projects and their work untouched. Provenance is recorded as ONE Activity
+  event on the new Project (`project.created_from_template`) rather than as a
+  column: Activity is where DalyHub records "this happened, because of that"
+  ([ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording)), it is append-only so a deleted
+  template leaves no dangling reference, and nothing reads it to decide
+  behaviour.
+
+- **Decision 8 — the default Area/Goal is a plain column, not an EntityLink.**
+  It is a convenience the create form starts on, resolved against the live
+  hierarchy on READ and degrading to "no default" when it no longer names an
+  active record. It is deliberately not a link, for two reasons: AREA-05's
+  permanent Area deletion refuses while any active link references the Area, and
+  a template's convenience default must never be why an owner cannot delete an
+  empty Area; and a template is configuration rather than a participant in the
+  workspace's relationship graph, so it should not appear in an Area's linked
+  items.
+
+- **Decision 9 — templates are findable by NAME; template tasks are not
+  searchable at all.** ADR-103's rule, applied one level up: searchable context
+  may lead to the owning meaningful record, but an internal structural record
+  must not pretend to be a first-class entity. A template is a short,
+  single-page object, so finding it by name is enough — and twelve task-name hits
+  per template would flood a palette whose job is to find live work.
+
+**Consequences.** One migration (0046), three tables, one new entity type, one
+new repository, three new snapshot collections and one new route family. Nothing
+existing changed shape: the Projects collection, the Project record, the spine,
+the Task repository and every Task surface are untouched except for two additive
+seams — an optional `templateId` on `POST /projects/new` (whose absence is the
+unchanged blank-project path, byte for byte) and a `save_as_template` intent on
+the Project mutation route.
+
+Two pre-existing defects were found and fixed on the way, both in code this
+change had to sit beside: `stageRows` in the restore repository had no
+`taskChecklistItems` branch, so every TASKS-13 checklist item in an archive was
+exported faithfully and silently dropped on restore; and instantiation's own
+first draft gave every created Task one shared timestamp, which left the
+canonical `(created_at, id)` order deciding a template's task order by random
+UUID. Both carry regression tests.
+
+The full record, including every field copied and reset, the bounds arithmetic,
+the offline boundary and the measured mobile numbers, is
+[`PROJECT_02_PROJECT_TEMPLATES_2026_08.md`](../design/PROJECT_02_PROJECT_TEMPLATES_2026_08.md).

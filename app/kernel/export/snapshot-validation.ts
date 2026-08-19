@@ -156,6 +156,9 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   taskDetails: (row: { entityId: string }) => row.entityId,
   taskRecurrenceRules: (row: { entityId: string }) => row.entityId,
   taskChecklistItems: (row: { id: string }) => row.id,
+  projectTemplateDetails: (row: { entityId: string }) => row.entityId,
+  projectTemplateTasks: (row: { id: string }) => row.id,
+  projectTemplateChecklistItems: (row: { id: string }) => row.id,
   noteDetails: (row: { entityId: string }) => row.entityId,
   diaryEntryDetails: (row: { entityId: string }) => row.entityId,
   personDetails: (row: { entityId: string }) => row.entityId,
@@ -188,6 +191,9 @@ const ENTITY_SCOPED_COLLECTIONS: readonly SnapshotCollection[] = [
   "projectDetails",
   "taskDetails",
   "taskRecurrenceRules",
+  // PROJECT-02 — a template's detail slice hangs off its `project_template`
+  // entity exactly as `projectDetails` hangs off a Project.
+  "projectTemplateDetails",
   "noteDetails",
   "diaryEntryDetails",
   "personDetails",
@@ -487,6 +493,72 @@ export function validateWorkspaceSnapshot(
     requireInstant(c, `${path}.recordedAt`, row.recordedAt);
     if (!entityIds.has(row.habitId)) {
       c.add(`${path}.habitId`, "references a habit not in this snapshot");
+    }
+  });
+
+  /*
+   * PROJECT-02 — a template's tasks and their steps.
+   *
+   * Referential: a task must name a `project_template` entity IN THIS SNAPSHOT,
+   * and a checklist item must name a task in it. The assertions below also pin
+   * the two properties a template's shape depends on — a dense, non-negative
+   * position, and the ABSENCE of any execution state. `requireNoUndefined`
+   * catches a key present-but-undefined; a `completed`, `dueDate` or `status`
+   * key would be a shape change caught by the type system before it reached an
+   * archive at all.
+   */
+  const templateIds = new Set(
+    records.projectTemplateDetails.map((row) => row.entityId),
+  );
+  const templateTaskIds = new Set(
+    records.projectTemplateTasks.map((row) => row.id),
+  );
+  records.projectTemplateTasks.forEach((row, index) => {
+    const path = `records.projectTemplateTasks[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.id`, row.id);
+    requireNonEmptyString(c, `${path}.title`, row.title);
+    if (!Number.isInteger(row.position) || row.position < 0) {
+      c.add(`${path}.position`, "must be a whole number of at least 0");
+    }
+    if (!entityIds.has(row.templateId) || !templateIds.has(row.templateId)) {
+      c.add(
+        `${path}.templateId`,
+        "references a project template not in this snapshot",
+      );
+    }
+    requireInstant(c, `${path}.createdAt`, row.createdAt);
+    requireInstant(c, `${path}.updatedAt`, row.updatedAt);
+  });
+  records.projectTemplateChecklistItems.forEach((row, index) => {
+    const path = `records.projectTemplateChecklistItems[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.id`, row.id);
+    requireNonEmptyString(c, `${path}.title`, row.title);
+    if (!Number.isInteger(row.position) || row.position < 0) {
+      c.add(`${path}.position`, "must be a whole number of at least 0");
+    }
+    if (!templateTaskIds.has(row.templateTaskId)) {
+      c.add(
+        `${path}.templateTaskId`,
+        "references a template task not in this snapshot",
+      );
+    }
+    requireInstant(c, `${path}.createdAt`, row.createdAt);
+    requireInstant(c, `${path}.updatedAt`, row.updatedAt);
+  });
+  records.projectTemplateDetails.forEach((row, index) => {
+    const path = `records.projectTemplateDetails[${index}]`;
+    requireInstant(c, `${path}.createdAt`, row.createdAt);
+    requireInstant(c, `${path}.updatedAt`, row.updatedAt);
+    // A default parent is a HINT, not a reference: it is exported verbatim and
+    // may legitimately name an Area that has since been removed. Only its
+    // internal consistency is checked.
+    if ((row.defaultParentId === null) !== (row.defaultParentKind === null)) {
+      c.add(
+        `${path}.defaultParentId`,
+        "must be present together with defaultParentKind, or both null",
+      );
     }
   });
 

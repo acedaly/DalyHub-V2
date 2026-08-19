@@ -1,0 +1,385 @@
+{
+  "templates-1440-light": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflows": false
+    },
+    "templateRows": [
+      90
+    ],
+    "templateNameWidths": [
+      953
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": 36,
+    "targetCount": 2
+  },
+  "templates-393-light": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [
+      143
+    ],
+    "templateNameWidths": [
+      309
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": 36,
+    "targetCount": 2
+  },
+  "template-record-1440-light": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [
+      85,
+      187
+    ],
+    "templateStepRows": [
+      45,
+      45
+    ],
+    "drawer": null,
+    "smallestTarget": 32,
+    "targetCount": 6
+  },
+  "template-record-393-light": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [
+      138,
+      240
+    ],
+    "templateStepRows": [
+      45,
+      45
+    ],
+    "drawer": null,
+    "smallestTarget": 32,
+    "targetCount": 6
+  },
+  "templates-1440-dark": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflows": false
+    },
+    "templateRows": [
+      90
+    ],
+    "templateNameWidths": [
+      953
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": 36,
+    "targetCount": 2
+  },
+  "templates-393-dark": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [
+      143
+    ],
+    "templateNameWidths": [
+      309
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": 36,
+    "targetCount": 2
+  },
+  "template-record-1440-dark": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [
+      85,
+      187
+    ],
+    "templateStepRows": [
+      45,
+      45
+    ],
+    "drawer": null,
+    "smallestTarget": 32,
+    "targetCount": 6
+  },
+  "template-record-393-dark": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [
+      138,
+      240
+    ],
+    "templateStepRows": [
+      45,
+      45
+    ],
+    "drawer": null,
+    "smallestTarget": 32,
+    "targetCount": 6
+  },
+  "create-from-template-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflows": false
+    },
+    "templateRows": [
+      90
+    ],
+    "templateNameWidths": [
+      953
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": {
+      "width": 416,
+      "height": 900
+    },
+    "smallestTarget": 36,
+    "targetCount": 2
+  },
+  "create-from-template-393": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [
+      143
+    ],
+    "templateNameWidths": [
+      309
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": {
+      "width": 393,
+      "height": 852
+    },
+    "smallestTarget": 36,
+    "targetCount": 2
+  },
+  "instantiated-project-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": null,
+    "targetCount": 0
+  },
+  "instantiated-project-393": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": null,
+    "targetCount": 0
+  },
+  "templates-320": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "overflows": false
+    },
+    "templateRows": [
+      143
+    ],
+    "templateNameWidths": [
+      236
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": 36,
+    "targetCount": 2
+  },
+  "template-record-320": {
+    "viewport": {
+      "width": 320,
+      "height": 720
+    },
+    "document": {
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [
+      138,
+      240
+    ],
+    "templateStepRows": [
+      45,
+      45
+    ],
+    "drawer": null,
+    "smallestTarget": 32,
+    "targetCount": 6
+  },
+  "new-project-with-template-1440": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "document": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": {
+      "width": 416,
+      "height": 900
+    },
+    "smallestTarget": null,
+    "targetCount": 0
+  },
+  "templates-393-touch": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [
+      143
+    ],
+    "templateNameWidths": [
+      309
+    ],
+    "templateTaskRows": [],
+    "templateStepRows": [],
+    "drawer": null,
+    "smallestTarget": 44,
+    "targetCount": 2
+  },
+  "template-record-393-touch": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "scrollWidth": 393,
+      "clientWidth": 393,
+      "overflows": false
+    },
+    "templateRows": [],
+    "templateNameWidths": [],
+    "templateTaskRows": [
+      150,
+      252
+    ],
+    "templateStepRows": [
+      45,
+      45
+    ],
+    "drawer": null,
+    "smallestTarget": 45,
+    "targetCount": 6
+  }
+}

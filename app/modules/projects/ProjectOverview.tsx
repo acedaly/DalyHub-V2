@@ -65,6 +65,14 @@ interface ProjectOverviewProps {
    * A Project archives rather than deletes (PROJ-05), so no delete is offered. */
   readonly onArchive?: () => Promise<void>;
   readonly onRestore?: () => Promise<void>;
+  /**
+   * PROJECT-02 — capture this Project's shape as a reusable template.
+   *
+   * In the header OVERFLOW rather than as a visible action: it is a deliberate,
+   * infrequent thing an owner does to a Project that has proved itself, not
+   * part of running one. Absent for an archived Project, which is read-only.
+   */
+  readonly onSaveAsTemplate?: () => void;
   /** Controlled active tab (deep-linked via the Record Layout). */
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
@@ -85,6 +93,7 @@ export function ProjectOverview({
   settingsTab,
   onArchive,
   onRestore,
+  onSaveAsTemplate,
   activeTabId,
   onTabChange,
 }: ProjectOverviewProps) {
@@ -236,6 +245,26 @@ export function ProjectOverview({
         },
       ];
 
+  /*
+   * PROJECT-02 — "Save as template", between the create actions and the
+   * lifecycle ones, with its own separator so it reads as its own kind of
+   * thing. Hidden on an archived Project for the same reason every other
+   * mutation is: an archived Project is read-only until restored.
+   */
+  const templateActions =
+    archived || !onSaveAsTemplate
+      ? []
+      : [
+          {
+            id: "save-as-template",
+            label: "Save as template",
+            description:
+              "Reuse this project\u2019s tasks and checklists. Dates, progress and history are not copied.",
+            separatorBefore: contextualCreateActions.length > 0,
+            onSelect: onSaveAsTemplate,
+          },
+        ];
+
   return (
     <>
       <RecordLayout
@@ -282,8 +311,10 @@ export function ProjectOverview({
         primaryAction={primaryAction}
         overflowActions={[
           ...contextualCreateActions,
+          ...templateActions,
           ...lifecycle.overflowActions.map((item, index) =>
-            index === 0 && contextualCreateActions.length > 0
+            index === 0 &&
+            contextualCreateActions.length + templateActions.length > 0
               ? { ...item, separatorBefore: true }
               : item,
           ),

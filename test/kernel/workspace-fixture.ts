@@ -33,6 +33,7 @@ import {
   makePersonRepository,
   makeRepository,
   makeReviewRepository,
+  makeProjectTemplateRepository,
   makeSpineRepository,
   makeTaskRepository,
   makeTaskViewRepository,
@@ -72,6 +73,13 @@ export interface Seeded {
   readonly assetEventId: string;
   readonly obligationId: string;
   readonly reviewId: string;
+  /**
+   * PROJECT-02 — a Project template, captured from the seeded Project. Present
+   * so the export proof and the restore round-trip proof both cover a template
+   * and its ordered tasks and steps, rather than proving them separately on an
+   * easier workspace.
+   */
+  readonly templateId: string;
   readonly unlinkedLinkId: string;
   readonly otherWorkspaceEntityId: string;
 }
@@ -97,6 +105,7 @@ export async function seedWorkspace(): Promise<Seeded> {
   const assetHistory = makeAssetHistoryRepository(context);
   const reviews = makeReviewRepository(context);
   const preferences = makeAppPreferencesRepository(context);
+  const projectTemplates = makeProjectTemplateRepository(context);
 
   /* The spine ----------------------------------------------------------- */
   const area = await spine.createArea({ title: "Health" });
@@ -127,6 +136,25 @@ export async function seedWorkspace(): Promise<Seeded> {
     title: "Abandoned task",
     parent: { kind: "area", id: area.id },
   });
+  /*
+   * TASKS-13 — a checklist on the recurring Task, one step ticked and one not.
+   *
+   * Present so the export proof AND the restore round-trip proof both cover
+   * `task_checklist_items` with both completion states. Added by PROJECT-02,
+   * which found that the restore repository had no `stageRows` branch for this
+   * collection at all: every checklist item in an archive was exported
+   * faithfully and silently dropped on the way back in. This fixture is the
+   * regression coverage for that fix — without a checklist here, the round trip
+   * compared two empty collections and passed.
+   */
+  await tasks.createChecklistItem(recurringTask.id, {
+    title: "Lay out kit the night before",
+  });
+  const secondStep = await tasks.createChecklistItem(recurringTask.id, {
+    title: "Fill water bottles",
+  });
+  await tasks.setChecklistItemCompleted(recurringTask.id, secondStep.id, true);
+
   await spine.complete(task.id);
   await spine.softDelete(deletedTask.id);
 
@@ -253,6 +281,31 @@ export async function seedWorkspace(): Promise<Seeded> {
   await reviews.setStepAcknowledged(review.review.id, "inbox", true);
   await reviews.complete(review.review.id);
 
+  /* PROJECT-02 — a Project template ---------------------------------------- */
+  /*
+   * Built explicitly rather than captured from the seeded Project, because that
+   * Project's only Task is COMPLETED and a capture correctly leaves completed
+   * work behind — so capturing it would seed an empty template and prove
+   * nothing about ordered tasks or steps. Written through the production
+   * repository all the same, so the fixture holds exactly the rows the product
+   * writes, in the order it writes them.
+   */
+  const template = await projectTemplates.createTemplate({
+    name: "12-week training block",
+    description: "The training block, ready to run again.",
+    defaultParent: { id: area.id },
+  });
+  const templateFirst = await projectTemplates.addTask(template.id, {
+    title: "Book the race",
+    priority: "p2",
+  });
+  await projectTemplates.addTask(template.id, {
+    title: "Plan the long-run days",
+  });
+  await projectTemplates.addChecklistItem(template.id, templateFirst.id, {
+    title: "Check the shoes",
+  });
+
   /* Relationships --------------------------------------------------------- */
   await links.create({
     sourceEntityId: project.id,
@@ -347,6 +400,7 @@ export async function seedWorkspace(): Promise<Seeded> {
     assetEventId: assetEvent.id,
     obligationId: obligation.id,
     reviewId: review.review.id,
+    templateId: template.id,
     unlinkedLinkId: unlinked.link.id,
     otherWorkspaceEntityId: other.id,
   };
