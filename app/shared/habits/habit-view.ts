@@ -18,9 +18,21 @@
  *     "2 of 3 this week"    "Done this week"      "Any day this week"
  *     "9 of 12 recently"
  *
- * There is no streak, no percentage, no "you missed", no "don't break the
- * chain", and no sentence that describes an unscheduled day as a failure or a
- * future day as incomplete.
+ * There is no streak, no "you missed", no "don't break the chain", and no
+ * sentence that describes an unscheduled day as a failure or a future day as
+ * incomplete.
+ *
+ * ── UX-02 added ONE percentage, and only one ────────────────────────────────
+ * `habitConsistencyPercent` states the bounded recent window as a proportion —
+ * "84%" for nine of twelve expected check-ins. HABITS-01 forbade percentages
+ * outright and [ADR-104](../../../docs/decisions/ARCHITECTURE_DECISIONS.md)
+ * narrows that ban to what it was actually protecting against: a figure with no
+ * denominator, a figure over an unbounded history, and a figure that treats an
+ * unscheduled or future day as a miss. This one has all three properties the ban
+ * wanted — it is computed from the SAME `expected`/`completed` pair the words
+ * already state, over the SAME 28-day window, and it is drawn beside those words
+ * rather than instead of them. It is still not a streak, and there is still no
+ * flame, no chain and no day count.
  */
 
 import {
@@ -114,6 +126,22 @@ export interface SerializedHabit {
 
   readonly today: SerializedHabitToday;
   readonly week: SerializedHabitWeek;
+
+  /**
+   * UX-02 — THIS week, one entry per day, for the collection's dot strip.
+   *
+   * OPTIONAL, and absent means "the surface did not ask for it" — deliberately
+   * different from an empty array, which would mean a week that holds no days.
+   * The precedent is `TaskRowData.checklist` (TASKS-13): a projection a surface
+   * pays for only when it draws it.
+   *
+   * It costs NO extra query anywhere. Every Habit read already loads the
+   * completions for the owner's current calendar week — that is the second of
+   * `readHabitPage`'s two statements — so this is the same facts, arranged by
+   * day instead of summed. It stops at today: a future day of this week is not
+   * in the array at all, because a day that has not happened has no state.
+   */
+  readonly weekHistory?: readonly SerializedHabitHistoryDay[];
 }
 
 /** The Habit record's fuller payload: the Habit plus its bounded history. */
@@ -162,6 +190,53 @@ export function habitConsistencyLabel(consistency: {
   return `${consistency.completed} of ${consistency.expected} expected check-ins`;
 }
 
+/**
+ * UX-02 — the bounded recent window as a whole-number proportion, 0–100.
+ *
+ * `null` when the window expected nothing, which is the same rule the words
+ * follow: a window with no expectation has no proportion, and "0%" against a
+ * week nobody was asked for anything in is a manufactured verdict. Rounded to a
+ * whole number because a habit reading is not a measurement instrument, and
+ * clamped so a stored oddity can never draw an arc past full.
+ *
+ * It is derived from the same two integers `habitConsistencyLabel` prints, and
+ * every surface that draws it draws those words beside it — so the denominator
+ * is never hidden behind the percentage.
+ */
+export function habitConsistencyPercent(consistency: {
+  readonly expected: number;
+  readonly completed: number;
+}): number | null {
+  if (consistency.expected <= 0) return null;
+  const percent = Math.round(
+    (consistency.completed / consistency.expected) * 100,
+  );
+  return Math.min(100, Math.max(0, percent));
+}
+
+/**
+ * UX-02 — whether TODAY asks for this Habit. The rule "Due today" counts.
+ *
+ * A day-scheduled Habit is due on the days its cadence names. A count-based one
+ * is due while its week is not yet satisfied — and stays "due" on a day it was
+ * already checked, because that check-in is what the day asked for. Everything
+ * else (an unscheduled day, an archived Habit, a day before it existed) is NOT
+ * due, and is never counted as one: an unscheduled Tuesday must not appear in a
+ * figure the owner reads as work outstanding.
+ */
+export function habitDueToday(habit: SerializedHabit): boolean {
+  if (habit.archived) return false;
+  if (habit.today.kind === "scheduled") return true;
+  if (habit.today.kind === "flexible")
+    return !habit.week.met || habit.today.done;
+  return false;
+}
+
+/** UX-02 — due today and not yet checked in. The "still open" figure. */
+export function habitOpenToday(habit: SerializedHabit): boolean {
+  return habitDueToday(habit) && !habit.today.done;
+}
+
 /** The accessible sentence for one history square. Never a colour on its own. */
 export function habitHistoryDayLabel(
   dateIso: string,
@@ -200,11 +275,23 @@ export function habitFactsFor(
   };
 }
 
+/** What a surface may ask `serializeHabit` for beyond the default projection. */
+export interface SerializeHabitOptions {
+  /**
+   * UX-02 — include THIS week as one entry per day (the collection's strip).
+   *
+   * Off by default, so Today, a Goal's supporting section and an Area's pay
+   * nothing for a strip they do not draw.
+   */
+  readonly weekHistory?: boolean;
+}
+
 /** Serialise one Habit for a collection row, Today, or a supporting section. */
 export function serializeHabit(
   habit: Habit,
   completedDates: ReadonlySet<string>,
   calendar: HabitCalendarContext,
+  options: SerializeHabitOptions = {},
 ): SerializedHabit {
   const facts = habitFactsFor(habit, completedDates);
   const week = evaluateHabitWeek(facts, calendar);
@@ -260,6 +347,27 @@ export function serializeHabit(
       met: week.met,
       label: habitWeekLabel(week),
     },
+    /*
+     * `buildHabitHistory` clamps its upper bound to the owner's today, so
+     * passing the week's own end asks for "this week so far" and can never
+     * produce an entry for a day that has not happened. The strip draws the
+     * remaining columns as empty ground.
+     */
+    ...(options.weekHistory === true
+      ? {
+          weekHistory: buildHabitHistory(
+            facts,
+            calendar,
+            week.startIso,
+            week.endIso,
+          ).map((day) => ({
+            dateIso: day.dateIso,
+            state: day.state,
+            weekday: day.weekday,
+            label: habitHistoryDayLabel(day.dateIso, day.state, day.weekday),
+          })),
+        }
+      : {}),
   };
 }
 

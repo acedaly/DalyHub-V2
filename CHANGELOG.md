@@ -17,6 +17,53 @@ no version number to group them under.
 
 ---
 
+## Your week, on one board — and your habits, at a glance
+
+**Weekly Planning was a list of seven days, one under another.** It worked, and it
+meant the week was something you scrolled rather than something you saw. Now it is
+a **board**: Monday to Friday side by side, the weekend sharing the last column,
+and every day showing what is already booked above what you have planned to do.
+
+Each column shows your calendar commitments first — the time, what it is, where it
+is and how long it takes — because that is what you are planning around. Under
+them sit the tasks you have given that day, as small cards you can tick off where
+they stand. At the foot of every column there is **Plan a task**: press it to name
+that day, then pick the work from _Still to place_ beside it. Nothing is created
+behind your back, and nothing is dragged anywhere — the same select-and-choose it
+always was, now reachable from the day you are looking at.
+
+**Three figures sit above the board and again below it:** what is planned, what is
+still to place, and what is already overdue — plus how many hours of your week the
+calendar has already taken. The **Week at a glance** bar at the foot carries all
+four, and the focus you wrote in your last weekly Review is one press away instead
+of taking up the top of the screen every time.
+
+On a narrower laptop the board folds to three columns over two rows rather than
+squeezing six columns into space they do not fit. On a phone it is unchanged: the
+day rail across the top, and one day beneath it.
+
+**Habits got the same treatment.** The list became a table that says everything at
+once: the habit and where it belongs, its cadence, how the week is going with a
+quiet bar, and **this week as seven dots** — one per day, filled where you checked
+in. Days that have not happened yet are simply blank. Thursday cannot be a missed
+day on a Wednesday, and DalyHub will not draw it as one.
+
+Above the table, four figures: how many habits are active, how many today asks
+for, how many check-ins the week has, and **how consistent you have been recently**
+— shown as a percentage _with_ the numbers it comes from, always ("78%", and "111
+of 142 expected check-ins" right beside it). It is the only percentage in Habits,
+it only ever covers the last four weeks, and a stretch where nothing was expected
+of you has no percentage at all rather than a zero. There is still no streak, no
+flame, no chain to break and nothing that empties if you miss a day. That was never
+going to change.
+
+Beside the table there is a rail: what today is asking for (tick it off there
+without scrolling), which of your goals these behaviours are supporting, and the
+week in three numbers. The tabs now open on **Today** — the same habits as before,
+with the ones today asks for at the top.
+
+---
+
 ## Tasks can hold their steps now
 
 **Some jobs are one thing to have done and several things to do.** _Prepare the

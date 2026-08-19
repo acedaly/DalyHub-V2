@@ -48,7 +48,9 @@ import {
   PLANNING_QUEUE_BAND_LABELS,
   addPlanningDays,
   buildPlanningQueue,
+  planningTotalMinutes,
   planningWeek,
+  planningWeekTotals,
   resolvePlanningDay,
   type PlanningQueueBand,
   type PlanningQueueBandResult,
@@ -92,6 +94,7 @@ import type {
   PlanProjectSignal,
   PlanQueueItem,
   PlanQueueSource,
+  PlanWeekTotals,
 } from "./plan-contract";
 
 /**
@@ -134,6 +137,20 @@ export const PLAN_LIMITS = {
   /** Parent candidates offered by the row's inline Project editor. */
   parents: 50,
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/* UX-02 — the week's four figures                                            */
+/* -------------------------------------------------------------------------- */
+
+/** The figures a week with nothing in it has. Every one of them is really zero. */
+const EMPTY_TOTALS: PlanWeekTotals = {
+  plannedCount: 0,
+  unplacedCount: 0,
+  overdueCount: 0,
+  commitmentMinutes: 0,
+  commitmentLabel: null,
+  commitmentAccessibleLabel: null,
+};
 
 /** The built-in queue source's id. Not a saved view — the deterministic rule. */
 export const SUGGESTED_QUEUE_SOURCE_ID = "suggested";
@@ -204,9 +221,11 @@ export async function loadPlanPage(
       tasks: [],
       waitingCount: 0,
       completedCount: 0,
+      commitmentMinutes: 0,
     })),
     todayIso,
     selectedDayIso,
+    totals: EMPTY_TOTALS,
     queue: [],
     queueTruncated: false,
     queueSources: [suggestedSource(week.offset)],
@@ -351,20 +370,34 @@ export async function loadPlanPage(
       .map((task) =>
         withChecklistProgress(serializeTaskListItem(task), checklistProgress),
       );
+    const schedule = scheduleForDate(scheduleWindow, {
+      dateIso: day.dateIso,
+      timeZone: timezone,
+      now,
+      isToday: day.isToday,
+    });
     return {
       ...day,
-      schedule: scheduleForDate(scheduleWindow, {
-        dateIso: day.dateIso,
-        timeZone: timezone,
-        now,
-        isToday: day.isToday,
-      }),
+      schedule,
       tasks,
       waitingCount: tasks.filter(
         (task) => task.waiting !== null && task.completedAt === null,
       ).length,
       completedCount: tasks.filter((task) => task.completedAt !== null).length,
+      /*
+       * Timed commitments only. An all-day item returns zero minutes from the
+       * kernel helper, so it is counted in the day's `schedule.count` (it IS a
+       * commitment) and contributes nothing to a figure the owner reads as "how
+       * much of this day is already spoken for".
+       */
+      commitmentMinutes: planningTotalMinutes(schedule.timed),
     };
+  });
+
+  const totals = planningWeekTotals({
+    days,
+    queue: queueResult.items,
+    todayIso,
   });
 
   return {
@@ -372,6 +405,7 @@ export async function loadPlanPage(
     days,
     todayIso,
     selectedDayIso,
+    totals,
     queue: queueResult.items.map((entry) => ({
       ...entry,
       task: withChecklistProgress(entry.task, checklistProgress),

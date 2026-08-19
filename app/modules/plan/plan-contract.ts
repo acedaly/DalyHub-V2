@@ -15,7 +15,11 @@
 
 import type { DaySchedule } from "~/kernel/calendar";
 import type { HabitWeekSummaryItem } from "~/platform/habits/habit-facts.server";
-import type { PlanningQueueBand, PlanningWeek } from "~/kernel/planning";
+import type {
+  PlanningQueueBand,
+  PlanningWeek,
+  PlanningWeekTotals,
+} from "~/kernel/planning";
 import type { TaskDensity } from "~/kernel/task-views";
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
@@ -38,6 +42,14 @@ export interface PlanDay {
   readonly waitingCount: number;
   /** How many of `tasks` are already complete. */
   readonly completedCount: number;
+  /**
+   * UX-02 — how many minutes of this day the calendar already holds.
+   *
+   * Timed commitments only: an all-day item is a day something is true on, not a
+   * block of time, so it contributes nothing (`planningEntryMinutes`). Zero is a
+   * real answer and the column says "No commitments" in words rather than "0m".
+   */
+  readonly commitmentMinutes: number;
 }
 
 /**
@@ -104,6 +116,21 @@ export interface PlanQueueSource {
   readonly query: string;
 }
 
+/**
+ * UX-02 — the week in four figures, resolved once server-side.
+ *
+ * Mockup 7 draws them twice: as chips above the board, and as the "Week at a
+ * glance" bar beneath it. They are ONE set of numbers used in two places rather
+ * than two counts of the same thing, because a screen that states a figure twice
+ * and disagrees with itself is worse than one that states it once.
+ *
+ * The shape and every rule behind it belong to the pure kernel
+ * (`planningWeekTotals`), so the rules are unit-testable on their own and there
+ * is not a second definition of "planned", "still to place" or "overdue" living
+ * in a contract beside the one that computes them.
+ */
+export type PlanWeekTotals = PlanningWeekTotals;
+
 export interface PlanPageData {
   readonly week: PlanningWeek;
   readonly days: readonly PlanDay[];
@@ -111,6 +138,8 @@ export interface PlanPageData {
   readonly todayIso: string;
   /** The day a phone's rail selects and the desktop scrolls to. */
   readonly selectedDayIso: string;
+  /** UX-02 — the week's four figures, for the chip row and the glance bar. */
+  readonly totals: PlanWeekTotals;
   readonly queue: readonly PlanQueueItem[];
   /** True when a queue band or the merged queue hit its bound. Stated in words. */
   readonly queueTruncated: boolean;

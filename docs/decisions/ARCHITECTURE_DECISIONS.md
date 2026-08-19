@@ -3473,11 +3473,16 @@ saved filter becomes a second query engine the moment a second surface wants one
   enhancement over a complete keyboard path; adding a library to build the
   enhancement first is how the keyboard path ends up second.
 
-- **Decision 10 — the week is an AGENDA, and the decision is a measurement.** At
-  1440 a seven-column board leaves ~100px per day after the queue rail, which is
-  narrower than a task title. The agenda gives every title 254px, gives the phone
-  the same DOM as a day rail plus one day, and is recorded with its numbers in the
-  design document rather than as a preference.
+- **Decision 10 — the week is an AGENDA, and the decision is a measurement.**
+  **SUPERSEDED by [ADR-104](#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8)
+  (V2.3 UX-02, 19 August 2026): the measurement was re-taken and had stopped being
+  true — the content column is 856px at 1440, not the 1096 this figure was derived
+  from — and the week is now a six-column BOARD that folds to three columns below
+  90rem. The phone composition is unchanged.** As originally decided: at 1440 a
+  seven-column board leaves ~100px per day after the queue rail, which is narrower
+  than a task title. The agenda gives every title 254px, gives the phone the same
+  DOM as a day rail plus one day, and is recorded with its numbers in the design
+  document rather than as a preference.
 
 **Consequences.** Weekly Planning stores nothing and can therefore never drift
 from Tasks; the acceptance claim "the same Tasks in Today afterwards" is
@@ -3585,6 +3590,13 @@ manufacture urgency.
   recent window ("9 of 12 expected check-ins"). Two sentences are made
   unsayable and asserted as such: an unscheduled day is never described as a
   miss, and a future day is never described as incomplete.
+
+  **NARROWED by [ADR-104](#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8)
+  (V2.3 UX-02, 19 August 2026): ONE percentage is now permitted — the bounded
+  recent window expressed as a proportion of what it expected, drawn beside the
+  two integers it comes from, and absent entirely when the window expected
+  nothing. Everything else in this decision stands, including both unsayable
+  sentences and the ban on streaks, flames, chains and scores.**
 
 - **Decision 9 — Today gains a COMPACT band, below the day's work.** It shows
   only the Habits today is actually asking about, and it sits under the plan and
@@ -3762,3 +3774,137 @@ result, and SEARCH-02 is not started here. Four checklist operations stay
 online-only (**DEBT-160**) and a phone Task row shows no progress figure
 (**DEBT-161**). The model is deliberately easy for PROJECT-02 to clone: durable
 rows, stable ordering, deterministic per-row ids and no component-local state.
+
+---
+
+## ADR-104: The planning week is a BOARD and a Habit may state one proportion — two decisions re-taken on fresh measurements, superseding ADR-101 §10 and ADR-102 §8
+
+**Status.** Accepted (V2.3 UX-02, 19 August 2026). Supersedes
+[ADR-101](#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers)
+**Decision 10** (the week is an agenda) and narrows
+[ADR-102](#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks)
+**Decision 8** (no percentage anywhere). Every other decision in both ADRs stands
+unchanged — in particular ADR-101 §1 (planning stores nothing), §2 (`/plan` has no
+mutation authority) and §9 (no drag-and-drop), and ADR-102 §1 (a Habit is its own
+domain) and §10 (Planning gets read-only Habit context).
+Full record: [`UX_02_PLAN_HABITS_2026_08.md`](../design/UX_02_PLAN_HABITS_2026_08.md).
+
+**Context.** UX-02 rebuilds `/plan` and `/habits` to two approved visual
+references (`Mockup 7.png`, `Mockup 8.png`). Both references contradict a decision
+the roadmap records as deliberate, and in both cases the decision was made for a
+good reason — which is why re-taking them needs an ADR rather than a stylesheet.
+
+The two decisions are not alike, and the difference is the point. One was made on
+a MEASUREMENT that has since stopped being true. The other was made on a
+PRINCIPLE that is still true, and the reference asks for something that principle
+does not actually forbid once it is read precisely.
+
+- **Decision 1 — the planning week is a BOARD of day columns, and the
+  measurement is re-taken rather than argued with.** ADR-101 §10 rejected a
+  column board because "at 1440 a seven-column board leaves ~100px per day after
+  the queue rail, which is narrower than a task title". MEASURED in Chromium on
+  `main` @ 3d8d0d6, at a 1440 viewport, the planning content column is **856px**
+  — not the 1096px that figure was derived from, which predated the shell's
+  current gutters. Three things have also changed since:
+
+  1. the board draws **six** columns, not seven. Saturday and Sunday share one,
+     which is what the reference draws and what a week actually holds;
+  2. the rail gives up 2rem (21rem → 19rem) at the width where the board becomes
+     six columns, taking the board to **888px** — **147px per day**;
+  3. a day column no longer has to hold a full-width row. HARDEN-05 taught the
+     shared Task row a genuine narrow composition, and UX-02 adds a documented
+     CARD presentation of that same row — one component, one set of controls, one
+     set of canonical intents — in which the title wraps to three lines instead of
+     truncating.
+
+  So the numbers, in full: at 1440 a day column is 147px and a Task card's title
+  measures **73px** over up to three lines. At 1280 the board is 696px, six
+  columns would be 108px, and the board therefore FOLDS to three columns over two
+  rows (230px each) rather than shrinking — the product's standing "recompose,
+  never squeeze" rule applied to a new surface. Below `md` the composition is
+  unchanged from PLAN-01: a horizontal day rail and one day, from the same DOM.
+
+- **Decision 2 — a Habit may state ONE proportion, of a stated denominator, over
+  a bounded window.** ADR-102 §8 says "no score and no percentage anywhere in the
+  product", and read literally that forbids the "84% recent consistency" figure
+  Mockup 8 draws. Read for what it was protecting against, it forbids three
+  specific things, and this figure has none of them:
+
+  - a figure with **no denominator**, which the owner cannot check. This one is
+    drawn WITH the two integers it comes from ("111 of 142 expected check-ins"),
+    on the same card, always;
+  - a figure over an **unbounded history**, which grows into a score for a life.
+    This one is the existing `HABIT_RECENT_WINDOW_DAYS` window — 28 days — and no
+    other;
+  - a figure that treats an **unscheduled or future day as a miss**. This one is
+    computed from `evaluateHabitConsistency`, which already excludes both, and a
+    window that expected nothing has **no percentage at all** rather than 0%.
+
+  What stays forbidden is unchanged and is still asserted in tests: no streak, no
+  flame, no "day 17", no chain to break, no ring that empties, and no sentence
+  that describes an unscheduled day as a miss or a future day as incomplete. The
+  ban was on manufactured urgency, not on arithmetic the owner can verify.
+
+- **Decision 3 — the card presentation is a VARIANT of the one Task row, never a
+  second row.** `dh-tasklist--cards` changes the grid and the surface in one
+  stylesheet; `TaskRow.tsx` is not forked and gains no prop. Two departures from
+  DS-04 are stated in that stylesheet rather than discovered later: the row takes
+  a surface (on a board, a card is what makes a task read as PLACED ON a day), and
+  the title wraps rather than truncating (at 147px there is no metadata left to
+  yield, so §10's "metadata yields before the title" is satisfied vacuously). The
+  completion target narrows to 28×28 on the SAME bargain the row already strikes
+  for its block size — precise pointer AND desktop frame — which keeps WCAG 2.2
+  SC 2.5.8's 24×24 (AA) with room on both axes, while every pixel of SC 2.5.5's
+  44px is kept wherever a thumb can reach.
+
+- **Decision 4 — the board's per-column control ARMS a day; it creates nothing.**
+  Mockup 7 draws "+ Plan a task" in every column. It sets the day the queue's
+  existing bulk placement will commit to, and moves focus to the queue — because
+  the queue is the only place a Task can be chosen. It is not a create: a create
+  here would be a second create path beside the shared Quick Capture, and ADR-101
+  §2 (no mutation authority on `/plan`) is untouched. Clicking a day chip in the
+  queue still commits in one gesture, so the keyboard path PLAN-01 shipped is
+  unchanged and the new control is a second door into the same one mutation.
+
+- **Decision 5 — the merged weekend column keeps TWO days inside it.** Mockup 7
+  draws the weekend as one shared band pair, and this is the one thing on the
+  reference the rebuild did not copy. A planner exists to say WHICH DAY; a
+  Saturday task drawn in a band that also holds Sunday's is a task whose day the
+  screen has stopped stating. The column is one column with two headed sections,
+  and the pairing follows the owner's `firstDayOfWeek` rather than assuming
+  Monday — a Sunday-start week yields seven groups, because neither weekend day
+  then has a neighbour to pair with, and the seventh wraps rather than taking
+  width off the other six.
+
+- **Decision 6 — the Habits collection's default tab REORDERS, it does not
+  filter.** Mockup 8 puts "Today" first and selected. It shows every active Habit,
+  with the ones the day ASKS FOR first, drawn from a bounded read the page already
+  makes; "All active" is the paginated, searchable collection unchanged from
+  HABITS-01. Nothing disappeared from the default view — the order changed — which
+  is what makes a new default safe. "Due today" is `habitDueToday`: the cadence
+  names today, or a count-based week is not yet satisfied. An unscheduled day is
+  never counted as work outstanding.
+
+- **Decision 7 — every new figure is a COUNT or a ratio of two counts, and the
+  reads stay bounded by construction.** `readHabitOverview` is TWO statements
+  whatever the workspace holds — the active Habits, then ONE four-week completion
+  window for all of them — and the per-row week strip costs nothing at all,
+  because the completions for the current week are already the second of
+  `readHabitPage`'s two statements. Its bound is 60 Habits rather than 100 because
+  **D1 accepts at most 100 bound parameters per query** (the ceiling ADR-103 §8
+  found the hard way), and a workspace holding more says so instead of printing a
+  total that quietly is not one. `/plan` gained no query: the week's four figures
+  are arithmetic over the days and the queue it had already read.
+
+**Consequences.** Two ADRs are amended rather than replaced, and the amendment is
+narrow in both: planning still stores nothing, `/plan` still has no mutation
+authority of its own, a Habit still generates no Task, and streaks are still
+absent and still asserted. `docs/design/UX_02_PLAN_HABITS_2026_08.md` carries every
+measurement quoted above and the command that reproduces it
+(`node scripts/ux-02-shot.mjs --measure 1`). The card presentation lives in the
+shared task-row stylesheet, so any future surface with a narrow column may adopt
+it rather than inventing a second card; the first surface to do so should measure
+its own column rather than assume 147px. One shared component gained a second
+layout (`HabitRow`), one gained a list that owns its grid (`HabitList`, the device
+DS-04 built for Tasks), and `StatCard` — shared since UIX-01 with no consumer —
+has one.

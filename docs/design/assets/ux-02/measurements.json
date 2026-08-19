@@ -1,0 +1,260 @@
+{
+  "item": "UX-02 \u2014 Weekly Planning and Habits, rebuilt to the visual references",
+  "recorded": "2026-08-19",
+  "how": "node scripts/ux-02-shot.mjs --measure 1, against the local design fixture written by scripts/ux-02-seed.mjs. Every figure is read from the LIVE layout with getBoundingClientRect, so it is the width the browser resolved rather than the width a stylesheet asked for.",
+  "why": "ADR-101 \u00a710 rejected a column week board on a measurement (\"~100px per day at 1440\"). UX-02 supersedes that decision, so the measurement is re-taken and kept rather than asserted. ADR-104 quotes these numbers.",
+  "before": {
+    "commit": "3d8d0d6 (main, before any UX-02 change)",
+    "note": "The planning content column, and what a board of 6 or 7 columns would have given each day inside it. The 1096px the ADR-101 figure was derived from predated the shell's current gutters.",
+    "readings": [
+      {
+        "viewport": 1440,
+        "planWeekColumn": 856,
+        "queueRail": 336,
+        "sevenColumns": 112,
+        "sixColumns": 133
+      },
+      {
+        "viewport": 1280,
+        "planWeekColumn": 696,
+        "queueRail": 336,
+        "sevenColumns": 91,
+        "sixColumns": 108
+      },
+      {
+        "viewport": 820,
+        "planWeekColumn": 752,
+        "queueRail": null,
+        "sevenColumns": 101,
+        "sixColumns": 120
+      }
+    ],
+    "habits": [
+      {
+        "viewport": 1440,
+        "list": 1136,
+        "rail": null,
+        "note": "a flat full-width list; no rail and no glance row existed"
+      }
+    ]
+  },
+  "after": {
+    "note": "planDayWidth is one day COLUMN; planRowWidth is the Task card inside it; planTitleWidth is that card's title, which wraps to three lines. habitsTable is the four-column table and habitsRail the 21rem aid rail.",
+    "readings": [
+      {
+        "surface": "plan",
+        "viewport": 1440,
+        "documentScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "planBoard": 888,
+        "planRail": 304,
+        "planDayColumn": 147,
+        "planTaskCard": 131,
+        "planCardTitle": 73,
+        "habitsTable": null,
+        "habitsRail": null
+      },
+      {
+        "surface": "plan",
+        "viewport": 1280,
+        "documentScrollWidth": 1280,
+        "horizontalOverflow": false,
+        "planBoard": 696,
+        "planRail": 336,
+        "planDayColumn": 230,
+        "planTaskCard": 214,
+        "planCardTitle": 111,
+        "habitsTable": null,
+        "habitsRail": null
+      },
+      {
+        "surface": "plan",
+        "viewport": 820,
+        "documentScrollWidth": 820,
+        "horizontalOverflow": false,
+        "planBoard": 752,
+        "planRail": 752,
+        "planDayColumn": 249,
+        "planTaskCard": 233,
+        "planCardTitle": 111,
+        "habitsTable": null,
+        "habitsRail": null
+      },
+      {
+        "surface": "plan",
+        "viewport": 393,
+        "documentScrollWidth": 393,
+        "horizontalOverflow": false,
+        "planBoard": 393,
+        "planRail": 393,
+        "planDayColumn": 0,
+        "planTaskCard": 0,
+        "planCardTitle": 0,
+        "habitsTable": null,
+        "habitsRail": null
+      },
+      {
+        "surface": "plan",
+        "viewport": 320,
+        "documentScrollWidth": 320,
+        "horizontalOverflow": false,
+        "planBoard": 320,
+        "planRail": 320,
+        "planDayColumn": 0,
+        "planTaskCard": 0,
+        "planCardTitle": 0,
+        "habitsTable": null,
+        "habitsRail": null
+      },
+      {
+        "surface": "plan-next",
+        "viewport": 1440,
+        "documentScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "planBoard": 888,
+        "planRail": 304,
+        "planDayColumn": 147,
+        "planTaskCard": 132,
+        "planCardTitle": 74,
+        "habitsTable": null,
+        "habitsRail": null
+      },
+      {
+        "surface": "plan-next",
+        "viewport": 393,
+        "documentScrollWidth": 393,
+        "horizontalOverflow": false,
+        "planBoard": 393,
+        "planRail": 393,
+        "planDayColumn": 0,
+        "planTaskCard": 393,
+        "planCardTitle": 111,
+        "habitsTable": null,
+        "habitsRail": null
+      },
+      {
+        "surface": "habits",
+        "viewport": 1440,
+        "documentScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 742,
+        "habitsRail": 336
+      },
+      {
+        "surface": "habits",
+        "viewport": 1280,
+        "documentScrollWidth": 1280,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 582,
+        "habitsRail": 336
+      },
+      {
+        "surface": "habits",
+        "viewport": 820,
+        "documentScrollWidth": 820,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 670,
+        "habitsRail": 704
+      },
+      {
+        "surface": "habits",
+        "viewport": 393,
+        "documentScrollWidth": 393,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 327,
+        "habitsRail": 361
+      },
+      {
+        "surface": "habits",
+        "viewport": 320,
+        "documentScrollWidth": 320,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 254,
+        "habitsRail": 288
+      },
+      {
+        "surface": "habits-all",
+        "viewport": 1440,
+        "documentScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 742,
+        "habitsRail": 336
+      },
+      {
+        "surface": "habits-all",
+        "viewport": 393,
+        "documentScrollWidth": 393,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 327,
+        "habitsRail": 361
+      },
+      {
+        "surface": "habits-archived",
+        "viewport": 1440,
+        "documentScrollWidth": 1440,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 742,
+        "habitsRail": 336
+      },
+      {
+        "surface": "habits-archived",
+        "viewport": 393,
+        "documentScrollWidth": 393,
+        "horizontalOverflow": false,
+        "planBoard": null,
+        "planRail": null,
+        "planDayColumn": null,
+        "planTaskCard": null,
+        "planCardTitle": null,
+        "habitsTable": 327,
+        "habitsRail": 361
+      }
+    ]
+  },
+  "conclusions": [
+    "Six day columns are honest from 90rem (1440px) up: the board is 888px and each day is 147px, holding a Task card whose title measures 73px over up to three lines.",
+    "At 1280 six columns would be 108px, which the card cannot hold \u2014 so the board FOLDS to three columns over two rows (230px each) rather than shrinking. Recompose, never squeeze.",
+    "The queue rail gives up 2rem (21rem to 19rem) only at the six-column width, and every pixel of it lands on the day columns.",
+    "No document scrolls sideways at 1440, 1280, 820, 393 or 320, on either surface."
+  ]
+}
