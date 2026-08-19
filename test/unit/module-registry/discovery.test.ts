@@ -415,6 +415,12 @@ describe("module discovery", () => {
           moduleId: "tasks",
           file: "routes/task-waiting-targets.tsx",
         },
+        // TASKS-12 — the dependency picker's candidate search.
+        {
+          id: "tasks.record.dependency_targets",
+          moduleId: "tasks",
+          file: "routes/task-dependency-targets.tsx",
+        },
         // X-02 — the cross-module Views collection and its saved-view
         // mutation route. Views owns no entity type; it is a way of ASKING
         // about records other modules own.

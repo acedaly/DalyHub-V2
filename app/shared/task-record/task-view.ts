@@ -12,10 +12,14 @@
  */
 
 import type { RecordTone } from "~/shared/record-layout";
+import { isTaskBlocked } from "~/kernel/tasks";
 import type {
   CommitmentState,
+  TaskBlockedSummary,
   TaskChecklistItem,
   TaskChecklistProgress,
+  TaskDependencies,
+  TaskDependencyEndpoint,
   TaskDelegation,
   TaskListItem,
   TaskPriority,
@@ -196,6 +200,20 @@ export interface SerializedTaskListItem {
    * (`listChecklistProgress`), never by counting items a surface fetched.
    */
   readonly checklist?: TaskChecklistProgress;
+  /**
+   * TASKS-12 — this Task's BLOCKED state, when the surface asked for it.
+   *
+   * `undefined` means the loader did not project it, which is deliberately
+   * different from "not blocked" — a Task with no incomplete blockers simply has
+   * no entry in the aggregate, and both read as "draw nothing". A row therefore
+   * never claims a Task is unblocked on a surface that did not ask.
+   *
+   * Only ever filled from the repository's ONE bounded aggregate
+   * (`listBlockedSummaries`), never by counting edges a surface fetched, and
+   * never stored: it is derived on every read from the edges plus the blockers'
+   * own completion.
+   */
+  readonly blocked?: TaskBlockedSummary;
 }
 
 /**
@@ -306,10 +324,18 @@ export function serializeTaskListItem(
 export function serializeTaskListPage(
   items: readonly TaskListItem[],
   progress: ReadonlyMap<string, TaskChecklistProgress>,
+  /**
+   * TASKS-12 — the page's blocked state, from its own bounded aggregate. Optional
+   * so a surface that does not draw blocked state pays nothing for it, exactly as
+   * `progress` is optional per item.
+   */
+  blocked?: ReadonlyMap<string, TaskBlockedSummary>,
 ): readonly SerializedTaskListItem[] {
-  return items.map((item) =>
-    serializeTaskListItem(item, progress.get(item.id)),
-  );
+  return items.map((item) => {
+    const serialised = serializeTaskListItem(item, progress.get(item.id));
+    const summary = blocked?.get(item.id);
+    return summary ? { ...serialised, blocked: summary } : serialised;
+  });
 }
 
 /**
@@ -360,6 +386,8 @@ export interface TaskRowProjection {
   readonly recurrence: TaskRecurrenceRule | null;
   /** TASKS-13 — checklist progress, when the surface projected it. */
   readonly checklist?: TaskChecklistProgress;
+  /** TASKS-12 — blocked state, when the surface projected it. */
+  readonly blocked?: TaskBlockedSummary;
 }
 
 /** Project one serialised list item into the shared row's data contract. */
@@ -374,6 +402,10 @@ export function toTaskRowProjection(
     timeSector: item.timeSector,
     scheduledDate: item.scheduledDate,
     waiting: item.waiting,
+    // TASKS-12 — passed through so ONE evaluator decides the state. A surface
+    // that did not project blocked state passes `undefined` and gets exactly the
+    // state it got before TASKS-12.
+    blocked: isTaskBlocked(item.blocked),
   });
   return {
     id: item.id,
@@ -393,6 +425,7 @@ export function toTaskRowProjection(
     // Passed through whole, so every surface drawing the shared row shows the
     // same figure — and a surface that did not project it shows none.
     ...(item.checklist ? { checklist: item.checklist } : {}),
+    ...(item.blocked ? { blocked: item.blocked } : {}),
   };
 }
 
@@ -469,7 +502,16 @@ export function taskRecurrenceLabel(
         TaskRecurrenceRule,
         "frequency" | "interval" | "dateKind" | "weekdays"
       > &
-        Partial<Pick<TaskRecurrenceRule, "mode">>)
+        Partial<
+          Pick<
+            TaskRecurrenceRule,
+            | "mode"
+            | "ordinal"
+            | "weekendRule"
+            | "endsAfterCount"
+            | "endsOnDate"
+          >
+        >)
     | null
     | undefined,
 ): string | null {
@@ -502,9 +544,30 @@ export function taskRecurrenceLabel(
             ? `Every ${rule.weekdays.map((day) => TASK_WEEKDAY_NAMES[day] ?? "day").join(", ")}${rule.interval === 1 ? "" : `, every ${rule.interval} weeks`}`
             : every("week")
           : rule.frequency === "month"
-            ? every("month")
+            ? // TASKS-12 — the nth-weekday monthly rule reads as the phrase people
+              // actually say: "The last Friday of every month".
+              (rule.ordinal ?? null) !== null && rule.weekdays.length === 1
+              ? `The ${rule.ordinal} ${TASK_WEEKDAY_NAMES[rule.weekdays[0]!] ?? "day"} of ${rule.interval === 1 ? "every month" : `every ${rule.interval} months`}`
+              : every("month")
             : every("year");
-  return rule.dateKind === "due" ? `${base}, from the due date` : base;
+  const parts = [
+    rule.dateKind === "due" ? `${base}, from the due date` : base,
+  ];
+  /*
+   * TASKS-12 — the weekend rule and the end condition are stated as CLAUSES of
+   * the same sentence rather than as separate chips, because they qualify the
+   * rule rather than standing beside it: "The last Friday of every month, moved
+   * to the Friday before, 12 times".
+   */
+  const weekend = rule.weekendRule ?? "allow";
+  if (weekend === "before") parts.push("moved to the Friday before");
+  else if (weekend === "after") parts.push("moved to the Monday after");
+  else if (weekend === "skip") parts.push("skipping weekends");
+  const count = rule.endsAfterCount ?? null;
+  const until = rule.endsOnDate ?? null;
+  if (count !== null) parts.push(count === 1 ? "once only" : `${count} times`);
+  else if (until !== null) parts.push(`until ${until}`);
+  return parts.join(", ");
 }
 
 /**
@@ -565,6 +628,7 @@ export type TaskDisplayStateKind =
   | "completed"
   | "cancelled"
   | "waiting"
+  | "blocked"
   | "on_hold"
   | "someday"
   | "in_progress"
@@ -586,6 +650,15 @@ export interface TaskDisplayStateInput {
   readonly timeSector: TimeSector | null;
   readonly scheduledDate: string | null;
   readonly waiting: SerializedTaskWaiting | null;
+  /**
+   * TASKS-12 — does at least one incomplete blocker remain?
+   *
+   * Optional, and absent means "the surface did not ask", not "no". It is DERIVED
+   * on every read (there is no stored flag), so a Task cannot be left displaying
+   * Blocked after its last blocker was completed, or displaying Planned after one
+   * was reopened.
+   */
+  readonly blocked?: boolean;
 }
 
 /** Evaluate the deterministic display state of a task (ADR-043 §6). */
@@ -603,6 +676,23 @@ export function taskDisplayState(
   }
   if (task.waiting !== null) {
     return { kind: "waiting", label: "Waiting", tone: "waiting" };
+  }
+  /*
+   * TASKS-12 — Blocked sits BELOW Waiting and ABOVE On hold.
+   *
+   * Below Waiting because waiting is a statement the owner made about this Task
+   * ("I have asked Finance"), and a statement the owner made outranks one derived
+   * from another record. Above On hold, Someday and In progress because those
+   * describe how the owner is treating the work, while blocked describes whether
+   * it can be done at all — and a Task that says "In progress" when it cannot
+   * start is the more misleading of the two.
+   *
+   * It takes the WAITING tone deliberately: blocked and waiting are the same
+   * family ("this cannot proceed"), and a new colour for a second flavour of the
+   * same fact would be status-pill inflation. Meaning is carried by the label.
+   */
+  if (task.blocked === true) {
+    return { kind: "blocked", label: "Blocked", tone: "waiting" };
   }
   if (task.status === "on_hold") {
     return { kind: "on_hold", label: "On hold", tone: "on-hold" };
@@ -977,4 +1067,83 @@ export function formatWaitingElapsed(sinceIso: string, nowMs: number): string {
   }
   const months = Math.floor(days / 30);
   return months === 1 ? "1 month" : `${months} months`;
+}
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-12 — dependencies                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** One end of a dependency, JSON-serialised (`completedAt` → ISO string). */
+export interface SerializedTaskDependency {
+  readonly taskId: string;
+  readonly title: string;
+  readonly completedAt: string | null;
+}
+
+/** A Task's dependencies in both directions, JSON-serialised. */
+export interface SerializedTaskDependencies {
+  readonly blockedBy: readonly SerializedTaskDependency[];
+  readonly blocks: readonly SerializedTaskDependency[];
+}
+
+function serializeDependencyEndpoint(
+  endpoint: TaskDependencyEndpoint,
+): SerializedTaskDependency {
+  return {
+    taskId: endpoint.taskId,
+    title: endpoint.title,
+    completedAt: endpoint.completedAt
+      ? endpoint.completedAt.toISOString()
+      : null,
+  };
+}
+
+/** Serialise both directions, preserving the repository's canonical order. */
+export function serializeTaskDependencies(
+  dependencies: TaskDependencies,
+): SerializedTaskDependencies {
+  return {
+    blockedBy: dependencies.blockedBy.map(serializeDependencyEndpoint),
+    blocks: dependencies.blocks.map(serializeDependencyEndpoint),
+  };
+}
+
+/**
+ * TASKS-12 — the blocked summary a RECORD derives from its own dependency list.
+ *
+ * The record already holds every blocker, so asking the server a second time for
+ * a figure it can count would be a query for nothing. It counts the SAME way the
+ * server's aggregate does — a blocker blocks only while it is incomplete — and
+ * names the alphabetically-first such blocker, so the record's wording and the
+ * row's wording are the same sentence about the same Task.
+ */
+export function blockedSummaryOf(
+  dependencies: SerializedTaskDependencies | null | undefined,
+): TaskBlockedSummary | null {
+  const open = (dependencies?.blockedBy ?? []).filter(
+    (blocker) => blocker.completedAt === null,
+  );
+  if (open.length === 0) return null;
+  const first = [...open].sort((a, b) =>
+    a.title === b.title
+      ? a.taskId.localeCompare(b.taskId)
+      : a.title.localeCompare(b.title),
+  )[0]!;
+  return { blockerCount: open.length, firstBlockerTitle: first.title };
+}
+
+/**
+ * TASKS-12 — stamp blocked state onto an ALREADY-serialised list item.
+ *
+ * The mirror of `withChecklistProgress`, and it exists for the same reason: a
+ * loader collects the ids it ended up with, makes ONE bounded read, and stamps
+ * the result — so "no N+1" is visible at the call site rather than hidden inside
+ * a list method. Returns the SAME object when there is nothing to add.
+ */
+export function withBlockedSummary<T extends SerializedTaskListItem>(
+  item: T,
+  blocked: ReadonlyMap<string, TaskBlockedSummary>,
+): T {
+  const found = blocked.get(item.id);
+  return found === undefined ? item : { ...item, blocked: found };
 }

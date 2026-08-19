@@ -66,6 +66,10 @@ import type {
   TaskChecklistItem,
   TaskChecklistProgress,
 } from "./task-checklist";
+import type {
+  TaskBlockedSummary,
+  TaskDependencies,
+} from "./task-dependencies";
 
 export interface TaskRepository {
   /**
@@ -667,5 +671,97 @@ export interface TaskRepository {
   reorderChecklist(
     taskId: string,
     orderedItemIds: readonly string[],
+  ): Promise<{ readonly changed: boolean }>;
+
+  /* ------------------------------------------------------------------------ */
+  /* TASKS-12 — dependencies                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * TASKS-12 — the Tasks that block THIS one, and the Tasks it blocks.
+   *
+   * ONE bounded, workspace-scoped statement returning both directions of the same
+   * `task.blocks` relationship, with each counterpart's title and completion
+   * already resolved — so the record draws its dependencies without a read per
+   * row. Soft-deleted counterparts are excluded: a Task in the trash is not
+   * holding anything up (see `TASKS_MODULE.md → Deleted blockers`).
+   *
+   * Returns {@link EMPTY_TASK_DEPENDENCIES} for a Task with none AND for an id
+   * that is not a Task in this workspace — a dependency read discloses nothing
+   * about what exists elsewhere.
+   */
+  listTaskDependencies(taskId: string): Promise<TaskDependencies>;
+
+  /**
+   * TASKS-12 — the BLOCKED state of many Tasks, for a collection surface.
+   *
+   * ONE bounded, indexed, workspace-scoped aggregate over the whole id list —
+   * never one statement per Task, and never "read every edge and count in
+   * JavaScript". This is the only way a row surface may learn that a Task is
+   * blocked, which is what makes the no-N+1 property structural rather than a
+   * habit.
+   *
+   * Only Tasks with at least one LIVE, INCOMPLETE blocker appear in the map; a
+   * caller reads a missing key as "not blocked", so an unblocked Task costs no
+   * row. An empty id list returns an empty map and issues no statement.
+   *
+   * The state is DERIVED here, on every read, from the edges and the blockers'
+   * own completion — there is no stored flag to go stale, which is what makes
+   * "completing the last blocker unblocks it" and "reopening a blocker blocks it
+   * again" true with no reconciliation anywhere.
+   */
+  listBlockedSummaries(
+    taskIds: readonly string[],
+  ): Promise<ReadonlyMap<string, TaskBlockedSummary>>;
+
+  /**
+   * TASKS-12 — record that `blockerId` must be complete before `taskId` can
+   * proceed.
+   *
+   * ONE atomic statement group. Every invariant is a predicate INSIDE the write
+   * rather than a read-then-decide, so two concurrent adds cannot both pass:
+   *
+   *   - both endpoints are live, non-deleted TASKS in the bound workspace;
+   *   - neither id is the other (also a schema CHECK);
+   *   - the blocked Task has fewer than {@link MAX_TASK_BLOCKERS} blockers and the
+   *     blocker blocks fewer than {@link MAX_TASK_BLOCKS} Tasks, counted in the
+   *     same statement that inserts;
+   *   - the blocker is not already reachable FROM the blocked Task by following
+   *     `task.blocks` edges — the bounded cycle walk, evaluated in SQL in the same
+   *     statement.
+   *
+   * Adding a dependency that already exists is an idempotent no-op reporting
+   * `changed: false`; re-adding one that was previously removed RESTORES the
+   * original relationship row rather than minting a second identity, exactly as
+   * the generic link lifecycle does.
+   *
+   * It NEVER changes a date, a priority, a status or a completion on either Task
+   * (ADR-106). A dependency describes what must happen first; it does not
+   * reschedule the owner's plan.
+   *
+   * Throws `TaskNotFoundError` for a missing/deleted/non-task/cross-workspace id
+   * on either end, `TaskValidationError` for a self-dependency,
+   * `TaskDependencyCycleError` for a cycle, `TaskDependencyLimitError` at either
+   * bound, and `TaskProjectArchivedError` when the blocked Task sits in an
+   * archived Project.
+   */
+  addTaskDependency(
+    taskId: string,
+    blockerId: string,
+  ): Promise<{ readonly changed: boolean }>;
+
+  /**
+   * TASKS-12 — remove one dependency edge (`blockerId` no longer blocks
+   * `taskId`).
+   *
+   * The relationship is UNLINKED, not destroyed: its stable id survives, so
+   * re-adding the same dependency later restores one relationship rather than
+   * creating a second. Removing an edge that is not there is an idempotent no-op
+   * — on a surface where two devices can both remove, "it is not there" is the
+   * outcome that was asked for.
+   */
+  removeTaskDependency(
+    taskId: string,
+    blockerId: string,
   ): Promise<{ readonly changed: boolean }>;
 }

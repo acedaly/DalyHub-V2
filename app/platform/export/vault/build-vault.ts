@@ -169,12 +169,32 @@ export function describeRecurrence(rule: SnapshotTaskRecurrenceRule): string {
         : `${rule.frequency}s`;
   const parts = [`${every} ${unit}`];
   if (rule.weekdays !== null && rule.weekdays !== "") {
-    parts.push(`on ${rule.weekdays}`);
+    // TASKS-12 — a monthly nth-weekday rule reads as its ordinal ("on the last
+    // weekday 5") rather than as a bare weekday set, because the two mean
+    // completely different things over the same column.
+    parts.push(
+      rule.ordinal === null
+        ? `on ${rule.weekdays}`
+        : `on the ${rule.ordinal} ${rule.weekdays}`,
+    );
   }
-  if (rule.anchorMonth !== null && rule.anchorDay !== null) {
-    parts.push(`on ${rule.anchorDay}/${rule.anchorMonth}`);
-  } else if (rule.anchorDay !== null) {
-    parts.push(`on day ${rule.anchorDay}`);
+  if (rule.ordinal === null) {
+    if (rule.anchorMonth !== null && rule.anchorDay !== null) {
+      parts.push(`on ${rule.anchorDay}/${rule.anchorMonth}`);
+    } else if (rule.anchorDay !== null) {
+      parts.push(`on day ${rule.anchorDay}`);
+    }
+  }
+  // TASKS-07's mode and TASKS-12's weekend handling and end condition, read back
+  // mechanically from the stored tokens. No future date is computed here either.
+  if (rule.mode === "after_completion") parts.push("after completion");
+  if (rule.weekendRule === "before") parts.push("moved to the Friday before");
+  else if (rule.weekendRule === "after") parts.push("moved to the Monday after");
+  else if (rule.weekendRule === "skip") parts.push("skipping weekends");
+  if (rule.endsAfterCount !== null) {
+    parts.push(`ending after ${rule.endsAfterCount} occurrences`);
+  } else if (rule.endsOnDate !== null) {
+    parts.push(`ending on ${rule.endsOnDate}`);
   }
   parts.push(`(${rule.dateKind} date)`);
   return parts.join(" ");

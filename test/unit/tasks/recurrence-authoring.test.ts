@@ -121,6 +121,15 @@ describe("loading a stored rule into the editor", () => {
       weekdays: [1, 4],
       mode: "fixed",
       dateKind: "due",
+      // TASKS-12 — a rule with no advanced part loads with every advanced
+      // control at the value that means "not used", so opening the editor on an
+      // old rule changes nothing about it.
+      monthlyShape: "day",
+      ordinal: "first",
+      weekendRule: "allow",
+      ends: "never",
+      endsAfterCount: "12",
+      endsOnDate: "",
     });
   });
 
@@ -144,6 +153,13 @@ describe("building a rule from the draft", () => {
       dateKind: "scheduled",
       mode: "fixed",
       weekdays: [],
+      // TASKS-12 — explicitly absent rather than omitted, so switching a rule
+      // back from an advanced form CLEARS the advanced part instead of leaving
+      // half of it behind.
+      ordinal: null,
+      weekendRule: "allow",
+      endsAfterCount: null,
+      endsOnDate: null,
     });
   });
 
@@ -301,6 +317,12 @@ describe("the wire form", () => {
       dateKind: "scheduled",
       mode: "fixed",
       weekdays: "1,4",
+      // TASKS-12 — every advanced field is SENT, empty when unused, so turning
+      // one off is a real change rather than an absent key the action ignores.
+      ordinal: "",
+      weekendRule: "allow",
+      endsAfterCount: "",
+      endsOnDate: "",
     });
   });
 });

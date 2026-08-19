@@ -19,6 +19,7 @@
 import { env } from "cloudflare:workers";
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
+import type { TaskBlockedSummary } from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -63,8 +64,15 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       state,
       cursor,
     });
+    // TASKS-12 — ONE bounded aggregate for the page, guarded on its own so a
+    // dependency read failure costs the blocked state rather than the page.
+    const blocked = await scope.tasks
+      .listBlockedSummaries(page.items.map((item) => item.id))
+      .catch(() => new Map() as ReadonlyMap<string, TaskBlockedSummary>);
     return json({
-      tasks: page.items.map(serializeProjectTask),
+      tasks: page.items.map((item) =>
+        serializeProjectTask(item, blocked.get(item.id)),
+      ),
       nextCursor: page.nextCursor,
     } satisfies ProjectTasksPageData);
   } catch (error) {

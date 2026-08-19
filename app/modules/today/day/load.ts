@@ -15,6 +15,7 @@
 import { addDaysToIsoDate } from "~/kernel/alignment";
 import type { FirstDayOfWeek } from "~/kernel/preferences";
 import type {
+  TaskBlockedSummary,
   TaskChecklistProgress,
   TaskParentCandidate,
 } from "~/kernel/tasks";
@@ -314,9 +315,21 @@ async function loadTasks(
    * cost the decoration, never the day — which is exactly what it did cost before
    * this guard existed.
    */
+  const ids = page.items.map((item) => item.id);
   const progress = await safely(
-    () => scope.tasks.listChecklistProgress(page.items.map((item) => item.id)),
+    () => scope.tasks.listChecklistProgress(ids),
     new Map() as ReadonlyMap<string, TaskChecklistProgress>,
+  );
+  /*
+   * TASKS-12 — ONE bounded aggregate for the whole day's blocked state, guarded
+   * on its own for the same reason the progress read is: the day's work is why
+   * this surface exists, and a dependency read that fails must cost the "Blocked
+   * by …" line rather than the day. A blocked Task then simply reads as it did
+   * before TASKS-12, which is a truthful degradation rather than a wrong one.
+   */
+  const blocked = await safely(
+    () => scope.tasks.listBlockedSummaries(ids),
+    new Map() as ReadonlyMap<string, TaskBlockedSummary>,
   );
   const tasks: DayTask[] = page.items.map((item) =>
     // Completion is a UTC instant; resolve its OWNER-calendar date so "completed
@@ -327,6 +340,7 @@ async function loadTasks(
         ? ownerCalendarIso(item.completedAt, timezone)
         : null,
       progress.get(item.id),
+      blocked.get(item.id),
     ),
   );
   return bucketDay(tasks, todayIso);

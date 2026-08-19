@@ -31,18 +31,30 @@
 
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
-import { FormButton, SelectField, TextField } from "~/shared/forms";
 import {
+  CalendarDateField,
+  FormButton,
+  SelectField,
+  TextField,
+} from "~/shared/forms";
+import {
+  MONTHLY_SHAPES,
+  RECURRENCE_END_LABELS,
+  RECURRENCE_ENDS,
   RECURRENCE_MODE_DESCRIPTIONS,
   RECURRENCE_MODE_LABELS,
+  RECURRENCE_ORDINAL_LABELS,
   RECURRENCE_PRESETS,
   RECURRENCE_PRESET_LABELS,
   RECURRENCE_UNITS,
+  RECURRENCE_WEEKEND_LABELS,
   draftFromRule,
   recurrenceDraftError,
   recurrenceUnitLabel,
   ruleFromDraft,
+  type MonthlyShape,
   type RecurrenceDraft,
+  type RecurrenceEnd,
   type RecurrencePreset,
   type RecurrenceUnit,
 } from "./recurrence-authoring";
@@ -52,19 +64,33 @@ import {
   taskRecurrenceLabel,
 } from "./task-view";
 import {
+  MAX_TASK_RECURRENCE_COUNT,
   TASK_RECURRENCE_MODES,
+  TASK_RECURRENCE_ORDINALS,
+  TASK_RECURRENCE_WEEKEND_RULES,
+  WEEKEND_RULE_FREQUENCIES,
   type TaskRecurrenceDateKind,
   type TaskRecurrenceInput,
   type TaskRecurrenceMode,
+  type TaskRecurrenceOrdinal,
   type TaskRecurrenceRule,
+  type TaskRecurrenceWeekendRule,
 } from "~/kernel/tasks";
 
 /** The recurrence-bearing subset of a Task this editor reads. */
 export type RecurrenceEditorTask = {
-  readonly recurrence?: Pick<
-    TaskRecurrenceRule,
-    "frequency" | "interval" | "weekdays" | "mode" | "dateKind"
-  > | null;
+  readonly recurrence?:
+    | (Pick<
+        TaskRecurrenceRule,
+        "frequency" | "interval" | "weekdays" | "mode" | "dateKind"
+      > &
+        Partial<
+          Pick<
+            TaskRecurrenceRule,
+            "ordinal" | "weekendRule" | "endsAfterCount" | "endsOnDate"
+          >
+        >)
+    | null;
   readonly scheduledDate: string | null;
   readonly dueDate: string | null;
 };
@@ -82,6 +108,12 @@ export interface TaskRecurrenceEditorProps {
   readonly disabled?: boolean;
   /** A server-side refusal to show beside the controls. */
   readonly error?: string | null;
+  /**
+   * TASKS-12 — the OWNER's calendar day (ADR-022), for the end-date picker's
+   * "today" mark. Null when the host has no honest answer: a wrong today is
+   * worse than none, so the picker simply shows no mark.
+   */
+  readonly todayIso?: string | null;
 }
 
 /**
@@ -107,6 +139,7 @@ export function TaskRecurrenceEditor({
   onSave,
   disabled = false,
   error,
+  todayIso = null,
 }: TaskRecurrenceEditorProps) {
   const groupId = useId();
   const anchors = anchorChoices(task);
@@ -124,7 +157,20 @@ export function TaskRecurrenceEditor({
     () =>
       stored === null
         ? "none"
-        : `${stored.frequency}:${stored.interval}:${stored.dateKind}:${stored.mode ?? "fixed"}:${[...stored.weekdays].join(",")}`,
+        : [
+            stored.frequency,
+            stored.interval,
+            stored.dateKind,
+            stored.mode ?? "fixed",
+            [...stored.weekdays].join("."),
+            // TASKS-12 — the advanced fields are part of the rule's identity, so
+            // editing one elsewhere re-seeds this editor rather than leaving it
+            // showing the rule the Task used to have.
+            stored.ordinal ?? "",
+            stored.weekendRule ?? "allow",
+            stored.endsAfterCount ?? "",
+            stored.endsOnDate ?? "",
+          ].join(":"),
     [stored],
   );
   useEffect(() => {
@@ -147,6 +193,10 @@ export function TaskRecurrenceEditor({
             dateKind: pending.dateKind,
             mode: pending.mode ?? "fixed",
             weekdays: pending.weekdays ?? [],
+            ordinal: pending.ordinal ?? null,
+            weekendRule: pending.weekendRule ?? "allow",
+            endsAfterCount: pending.endsAfterCount ?? null,
+            endsOnDate: pending.endsOnDate ?? null,
           });
 
   const commit = useCallback(
@@ -296,6 +346,105 @@ export function TaskRecurrenceEditor({
             ))}
           </fieldset>
 
+          {/*
+           * TASKS-12 — the MONTHLY shape, and why it is a radio pair rather than
+           * a second dropdown.
+           *
+           * "Day 15" and "Last Friday" are the two things a monthly repeat can
+           * mean, and they are mutually exclusive — so the control that presents
+           * them says so structurally. The chosen one reveals its own field and
+           * the other reveals nothing, which keeps the phone form short: a
+           * monthly rule is three lines, not eight.
+           *
+           * The day-of-month case has NO field at all: the rule takes the day
+           * from the Task's own date, exactly as it has since TASKS-04, so there
+           * is nothing here to keep in step with the date control above.
+           */}
+          {draft.unit === "month" && draft.mode === "fixed" ? (
+            <fieldset
+              className="dh-recurrence-editor__monthly"
+              disabled={busy || undefined}
+            >
+              <legend className="dh-recurrence-editor__legend">
+                Monthly on
+              </legend>
+              {MONTHLY_SHAPES.map((shape) => (
+                <label
+                  key={shape}
+                  className="dh-recurrence-editor__mode"
+                  data-selected={draft.monthlyShape === shape ? "true" : "false"}
+                >
+                  <input
+                    type="radio"
+                    name={`${groupId}-monthly`}
+                    value={shape}
+                    checked={draft.monthlyShape === shape}
+                    disabled={busy}
+                    onChange={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        monthlyShape: shape as MonthlyShape,
+                        // Choosing the named-weekday shape seeds ONE weekday so
+                        // the rule is complete the moment it is chosen; choosing
+                        // the day-of-month shape drops the set, because a
+                        // day-of-month rule has no weekday.
+                        weekdays:
+                          shape === "ordinal"
+                            ? current.weekdays.length === 1
+                              ? current.weekdays
+                              : [1]
+                            : [],
+                      }))
+                    }
+                  />
+                  <span className="dh-recurrence-editor__mode-title">
+                    {shape === "day"
+                      ? "The same day of the month"
+                      : "A named weekday"}
+                  </span>
+                </label>
+              ))}
+              {draft.monthlyShape === "ordinal" ? (
+                <div className="dh-recurrence-editor__every">
+                  <SelectField
+                    label="Which one"
+                    id={`${groupId}-ordinal`}
+                    showOptionalCue={false}
+                    value={draft.ordinal}
+                    options={TASK_RECURRENCE_ORDINALS.map((ordinal) => ({
+                      value: ordinal,
+                      label: RECURRENCE_ORDINAL_LABELS[ordinal],
+                    }))}
+                    disabled={busy}
+                    onChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        ordinal: value as TaskRecurrenceOrdinal,
+                      }))
+                    }
+                  />
+                  <SelectField
+                    label="Weekday"
+                    id={`${groupId}-ordinal-weekday`}
+                    showOptionalCue={false}
+                    value={String(draft.weekdays[0] ?? 1)}
+                    options={TASK_WEEKDAY_NAMES.map((name, weekday) => ({
+                      value: String(weekday),
+                      label: name,
+                    }))}
+                    disabled={busy}
+                    onChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        weekdays: [Number(value)],
+                      }))
+                    }
+                  />
+                </div>
+              ) : null}
+            </fieldset>
+          ) : null}
+
           {draft.unit === "week" && draft.mode === "fixed" ? (
             <fieldset
               className="dh-recurrence-editor__weekdays"
@@ -344,6 +493,96 @@ export function TaskRecurrenceEditor({
                 current date.
               </p>
             </fieldset>
+          ) : null}
+
+          {/*
+           * TASKS-12 — weekend handling, as four OUTCOMES rather than a flag.
+           *
+           * There is no checkbox called "Skip weekends" anywhere in DalyHub, and
+           * this control is the reason: the phrase names three different
+           * behaviours in three different products, so each option here is a
+           * complete sentence about what will happen. Offered only for the
+           * frequencies where it can mean something — a daily rule that avoids
+           * weekends is already spelled "Every weekday".
+           */}
+          {(WEEKEND_RULE_FREQUENCIES as readonly string[]).includes(
+            draft.unit,
+          ) ? (
+            <SelectField
+              label="If it falls on a weekend"
+              id={`${groupId}-weekend`}
+              showOptionalCue={false}
+              value={draft.weekendRule}
+              options={TASK_RECURRENCE_WEEKEND_RULES.map((weekendRule) => ({
+                value: weekendRule,
+                label: RECURRENCE_WEEKEND_LABELS[weekendRule],
+              }))}
+              disabled={busy}
+              onChange={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  weekendRule: value as TaskRecurrenceWeekendRule,
+                }))
+              }
+            />
+          ) : null}
+
+          {/*
+           * TASKS-12 — the END condition: one choice, and the chosen one reveals
+           * its own single field. "Never" is first because that is what almost
+           * every routine is, and choosing it hides both fields rather than
+           * leaving a disabled one on screen.
+           */}
+          <SelectField
+            label="Ends"
+            id={`${groupId}-ends`}
+            showOptionalCue={false}
+            value={draft.ends}
+            options={RECURRENCE_ENDS.map((ends) => ({
+              value: ends,
+              label: RECURRENCE_END_LABELS[ends],
+            }))}
+            disabled={busy}
+            onChange={(value) =>
+              setDraft((current) => ({
+                ...current,
+                ends: value as RecurrenceEnd,
+              }))
+            }
+          />
+          {draft.ends === "after" ? (
+            <TextField
+              label="Number of times"
+              id={`${groupId}-ends-count`}
+              value={draft.endsAfterCount}
+              // A phone must offer the number pad for a number (TASKS-08 §42).
+              inputMode="numeric"
+              maxLength={3}
+              help={`Counts this occurrence. 1 to ${MAX_TASK_RECURRENCE_COUNT}.`}
+              disabled={busy}
+              onChange={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  endsAfterCount: value.replace(/[^0-9]/g, ""),
+                }))
+              }
+            />
+          ) : null}
+          {draft.ends === "on" ? (
+            // The SHARED DalyHub date control, not a native `<input type=date>`:
+            // the end date is chosen the same way every other date in the product
+            // is chosen, on a keyboard, a mouse and a thumb alike.
+            <CalendarDateField
+              label="Last date"
+              id={`${groupId}-ends-on`}
+              value={draft.endsOnDate}
+              todayIso={todayIso}
+              help="An occurrence on this date still happens."
+              disabled={busy}
+              onChange={(value) =>
+                setDraft((current) => ({ ...current, endsOnDate: value }))
+              }
+            />
           ) : null}
 
           {anchors.options.length > 1 ? (

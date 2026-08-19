@@ -26,8 +26,14 @@ import { env } from "cloudflare:workers";
 import { SpineParentUnavailableError } from "~/kernel/spine";
 import {
   DEFAULT_TASK_RECURRENCE_MODE,
+  DEFAULT_TASK_RECURRENCE_WEEKEND_RULE,
+  MAX_TASK_RECURRENCE_COUNT,
+  TASK_RECURRENCE_ORDINALS,
+  TASK_RECURRENCE_WEEKEND_RULES,
   TaskChecklistFullError,
   TaskChecklistItemNotFoundError,
+  TaskDependencyCycleError,
+  TaskDependencyLimitError,
   TASK_RECURRENCE_DATE_KINDS,
   TASK_RECURRENCE_FREQUENCIES,
   TASK_RECURRENCE_MODES,
@@ -40,6 +46,8 @@ import {
   type TaskRecurrenceDateKind,
   type TaskRecurrenceFrequency,
   type TaskRecurrenceMode,
+  type TaskRecurrenceOrdinal,
+  type TaskRecurrenceWeekendRule,
   type SetWaitingInput,
   type TaskChecklistItem,
   type TaskPriority,
@@ -76,6 +84,7 @@ import { ownerCalendarIso } from "~/shared/datetime";
 import {
   serializeChecklist,
   serializeChecklistItem,
+  serializeTaskDependencies,
   serializeTaskView,
   TASK_RELATE_TARGET_TYPES,
   TASK_RELATES_TO,
@@ -133,7 +142,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     return json({ error: "not_found" }, 404);
   }
 
-  const [links, checklist] = await Promise.all([
+  const [links, checklist, dependencies] = await Promise.all([
     listActiveLinks(pickerDeps(scope), {
       anchorId: taskId,
       direction: "outgoing",
@@ -144,12 +153,19 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     // fetch one per row of a list, which is why the collection surfaces go
     // through the aggregate instead.
     scope.tasks.listChecklist(taskId),
+    // TASKS-12 — ONE bounded read for BOTH directions of this Task's
+    // dependencies, with each counterpart's title and completion resolved. A
+    // record may read its own relationships directly; what it may never do is
+    // read one per row of a list, which is why the collection surfaces go through
+    // `listBlockedSummaries` instead.
+    scope.tasks.listTaskDependencies(taskId),
   ]);
 
   return json({
     task: serializeTaskView(task),
     links,
     checklist: serializeChecklist(checklist),
+    dependencies: serializeTaskDependencies(dependencies),
     // Server-derived owner calendar date (ADR-022) so the Drawer's urgency chip
     // never computes "Overdue"/"Due today" in browser-local time (TASKS-02).
     todayIso: ownerCalendarIso(new Date(), timezone),
@@ -330,6 +346,14 @@ async function dispatchTaskIntent(
       return handleChecklistDelete(scope, taskId, form);
     case "checklist_reorder":
       return handleChecklistReorder(scope, taskId, form);
+    // TASKS-12 — the two dependency mutations. They live on the BLOCKED Task's
+    // own route because that is the Task the relationship changes, and routing
+    // them here is what makes the workspace + Task ownership check impossible to
+    // skip. The blocker end is re-verified inside the write.
+    case "dependency_add":
+      return handleDependencyAdd(scope, taskId, form);
+    case "dependency_remove":
+      return handleDependencyRemove(scope, taskId, form);
     default:
       return { kind: "update", status: "error", formError: "Unknown action." };
   }
@@ -442,6 +466,11 @@ function taskResultApplied(result: TaskActionData): boolean {
     case "planning":
     case "waiting":
     case "checklist":
+    // TASKS-12 — a dependency mutation is not an OFFLINE operation (there is no
+    // queued verb for one, see `PWA_AND_OFFLINE.md`), so this arm is only ever
+    // reached by the exhaustiveness check. Listing it keeps the switch total, so
+    // adding an offline dependency verb later cannot silently fall through.
+    case "dependency":
       return result.status === "success";
   }
 }
@@ -456,7 +485,8 @@ function taskResultRefusal(result: TaskActionData): string {
     result.kind === "update" ||
     result.kind === "planning" ||
     result.kind === "waiting" ||
-    result.kind === "checklist"
+    result.kind === "checklist" ||
+    result.kind === "dependency"
   ) {
     if (result.status === "error") {
       return (
@@ -1091,12 +1121,67 @@ async function handleSetRecurrence(
       .map((part) => part.trim())
       .filter((part) => /^[0-6]$/.test(part))
       .map(Number);
+    /*
+     * TASKS-12 — the four advanced fields.
+     *
+     * Each is OPTIONAL and each absent value is the documented default, so an
+     * older client (or an offline replay queued before this shipped) posting the
+     * TASKS-07 field set still means exactly the rule it meant then. Every value
+     * is checked against its closed set HERE, at the trusted boundary, before the
+     * kernel validates the rule as a whole — the client's own checks are a
+     * courtesy, never the authority.
+     */
+    const ordinalRaw = nullable(form.get("ordinal"));
+    if (
+      ordinalRaw !== null &&
+      !(TASK_RECURRENCE_ORDINALS as readonly string[]).includes(ordinalRaw)
+    ) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { recurrence: "Choose which weekday of the month." },
+      };
+    }
+    const weekendRaw =
+      nullable(form.get("weekendRule")) ?? DEFAULT_TASK_RECURRENCE_WEEKEND_RULE;
+    if (
+      !(TASK_RECURRENCE_WEEKEND_RULES as readonly string[]).includes(weekendRaw)
+    ) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: {
+          recurrence: "Choose what happens when it falls at a weekend.",
+        },
+      };
+    }
+    const endsAfterRaw = nullable(form.get("endsAfterCount"));
+    const endsAfterCount = endsAfterRaw === null ? null : Number(endsAfterRaw);
+    if (
+      endsAfterCount !== null &&
+      (!Number.isInteger(endsAfterCount) ||
+        endsAfterCount < 1 ||
+        endsAfterCount > MAX_TASK_RECURRENCE_COUNT)
+    ) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: {
+          recurrence: `Enter how many times it repeats, from 1 to ${MAX_TASK_RECURRENCE_COUNT}.`,
+        },
+      };
+    }
+    const endsOnDate = nullable(form.get("endsOnDate"));
     recurrence = {
       frequency: frequency as TaskRecurrenceFrequency,
       dateKind: dateKind as TaskRecurrenceDateKind,
       mode: modeRaw as TaskRecurrenceMode,
       interval,
       weekdays,
+      ordinal: ordinalRaw as TaskRecurrenceOrdinal | null,
+      weekendRule: weekendRaw as TaskRecurrenceWeekendRule,
+      endsAfterCount,
+      endsOnDate,
     };
   }
 
@@ -1131,6 +1216,117 @@ async function handleSetRecurrence(
       formError: "That repeat couldn’t be saved. Please try again.",
     };
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* TASKS-12 — dependencies                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Add "this Task is blocked by <blockerId>".
+ *
+ * The route validates NOTHING about the graph. Every dependency invariant —
+ * Task-only live endpoints, no self-edge, no duplicate, no cycle and both bounds
+ * — is enforced inside the repository's write, so a hand-made POST meets exactly
+ * the same answer the picker does. This handler's whole job is to turn each typed
+ * refusal into a sentence the owner can act on, and to answer with the Task's
+ * dependencies as the server now holds them, so the section is self-correcting.
+ */
+async function handleDependencyAdd(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  const blockerId = nullable(form.get("blockerId"));
+  if (blockerId === null) {
+    return {
+      kind: "dependency",
+      status: "error",
+      fieldErrors: { dependency: "Choose the task this one waits on." },
+    };
+  }
+  try {
+    await scope.tasks.addTaskDependency(taskId, blockerId);
+    return await dependencyResult(scope, taskId);
+  } catch (cause) {
+    return dependencyRefusal(cause);
+  }
+}
+
+/** Remove one dependency edge. Idempotent: removing what is gone is success. */
+async function handleDependencyRemove(
+  scope: WorkspaceScope,
+  taskId: string,
+  form: FormData,
+): Promise<TaskActionData> {
+  const blockerId = nullable(form.get("blockerId"));
+  if (blockerId === null) {
+    return {
+      kind: "dependency",
+      status: "error",
+      fieldErrors: { dependency: "Choose the task to remove." },
+    };
+  }
+  try {
+    await scope.tasks.removeTaskDependency(taskId, blockerId);
+    return await dependencyResult(scope, taskId);
+  } catch (cause) {
+    return dependencyRefusal(cause);
+  }
+}
+
+/** The Task's dependencies as the server holds them NOW, in both directions. */
+async function dependencyResult(
+  scope: WorkspaceScope,
+  taskId: string,
+): Promise<TaskActionData> {
+  return {
+    kind: "dependency",
+    status: "success",
+    dependencies: serializeTaskDependencies(
+      await scope.tasks.listTaskDependencies(taskId),
+    ),
+  };
+}
+
+/** Each typed dependency refusal, in the owner's words. */
+function dependencyRefusal(cause: unknown): TaskActionData {
+  if (
+    cause instanceof TaskDependencyCycleError ||
+    cause instanceof TaskDependencyLimitError
+  ) {
+    // Both already read as sentences addressed to the owner, and neither
+    // discloses anything about a record they cannot see.
+    return {
+      kind: "dependency",
+      status: "error",
+      fieldErrors: { dependency: cause.message },
+    };
+  }
+  if (cause instanceof TaskValidationError) {
+    return {
+      kind: "dependency",
+      status: "error",
+      fieldErrors: { dependency: cause.message },
+    };
+  }
+  if (cause instanceof TaskNotFoundError) {
+    // A missing, deleted, non-Task or cross-workspace endpoint — all
+    // indistinguishable, disclosing nothing about another workspace.
+    return {
+      kind: "dependency",
+      status: "error",
+      formError: "That task is no longer available.",
+    };
+  }
+  if (cause instanceof TaskProjectArchivedError) {
+    return { kind: "dependency", status: "error", formError: cause.message };
+  }
+  return {
+    kind: "dependency",
+    status: "error",
+    formError: "That couldn’t be saved. Please try again.",
+  };
 }
 
 async function handleSetParent(

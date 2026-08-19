@@ -12,7 +12,11 @@
 import type { ActivityItem } from "~/shared/activity-feed/model";
 import type { EntityLinkSelection } from "~/shared/forms/model";
 
-import type { SerializedChecklistItem, SerializedTaskView } from "./task-view";
+import type {
+  SerializedChecklistItem,
+  SerializedTaskDependencies,
+  SerializedTaskView,
+} from "./task-view";
 
 /** The loader payload for a task Drawer: the task and its related-record links. */
 export interface TaskDetailData {
@@ -28,6 +32,16 @@ export interface TaskDetailData {
    * the ordinary case.
    */
   readonly checklist: readonly SerializedChecklistItem[];
+  /**
+   * TASKS-12 — this Task's dependencies, in both directions.
+   *
+   * Sent WHOLE with the record for the same reason the checklist is: it is at
+   * most forty short rows, the record cannot draw its Dependencies section
+   * without it, and a second round trip would mean the section arriving after the
+   * panel it lives in. Two empty arrays is a Task with no dependencies, which is
+   * the ordinary case.
+   */
+  readonly dependencies: SerializedTaskDependencies;
   /**
    * The owner's current calendar date `YYYY-MM-DD`, resolved server-side (ADR-022)
    * so the Drawer's urgency chip ("Overdue" / "Due today") never derives the date in
@@ -126,6 +140,26 @@ export type TaskActionData =
       readonly checklist: readonly SerializedChecklistItem[];
       /** The item this mutation addressed, when it still exists. */
       readonly item?: SerializedChecklistItem;
+    }
+  /**
+   * TASKS-12 — the outcome of any dependency mutation.
+   *
+   * ONE result kind for both operations, and it always carries the WHOLE
+   * dependency set as the server now holds it. That is what makes the section
+   * self-correcting: an add and a remove reconcile the same way, and a client
+   * that had drifted (an edge another device removed) is corrected by the next
+   * answer rather than accumulating a second opinion.
+   */
+  | {
+      readonly kind: "dependency";
+      readonly status: "success";
+      readonly dependencies: SerializedTaskDependencies;
+    }
+  | {
+      readonly kind: "dependency";
+      readonly status: "error";
+      readonly formError?: string;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
     }
   | {
       readonly kind: "checklist";

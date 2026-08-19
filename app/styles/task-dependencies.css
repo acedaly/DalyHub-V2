@@ -1,0 +1,141 @@
+/*
+ * TASKS-12 — the Task record's Dependencies, and the blocked state on the row.
+ *
+ * Layout and rhythm only; every value is a DalyHub token. There is no new
+ * colour, no new pill family and no graph: a dependency is a relationship
+ * between two Tasks, and the way that reads is by the section having almost
+ * nothing on it.
+ *
+ * ── The record's anatomy ─────────────────────────────────────────────────────
+ *
+ *     Dependencies
+ *     Blocked by Get director approval
+ *     Blocked by
+ *       Done      Prepare draft                              [Remove]
+ *       Waiting   Get director approval                      [Remove]
+ *       [ Add blocker ]
+ *     Blocks
+ *       Waiting   Publish report
+ *
+ * Three cells per row — a state WORD, a title that opens that Task, and (on the
+ * blockers only) a Remove control. No card per row, no chip, no arrow glyph and
+ * no second level.
+ */
+
+.dh-task-dependencies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-3);
+}
+
+/*
+ * The state sentence. It is `--dh-color-text` rather than a status colour: a
+ * blocked Task is a workflow state, not an error, and painting the one line that
+ * says so in a warning colour is exactly the alarm AGENTS.md §2 forbids.
+ */
+.dh-task-dependencies__state {
+  margin: 0;
+  font-size: var(--dh-text-body-size);
+  color: var(--dh-color-text);
+}
+
+.dh-task-dependencies__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-task-dependencies__label {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-task-dependencies__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The row WRAPS rather than truncating. A phone at 320 has room for a state word
+ * and part of a title; what it must not do is clip the title to nothing or push
+ * the Remove control off the edge, so the title takes a full line of its own when
+ * it needs one and the control follows it.
+ */
+.dh-task-dependencies__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--dh-space-1) var(--dh-space-2);
+  min-height: var(--dh-row-height);
+}
+
+/*
+ * The state is a WORD in a fixed measure, so the two columns line up down the
+ * list without a table. Muted, and never the only carrier of meaning — the word
+ * itself is the signal, so a monochrome display loses nothing.
+ */
+.dh-task-dependencies__status {
+  flex: none;
+  min-width: 4.5rem;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * A completed blocker's title is struck through, exactly as a completed Task's
+ * title is everywhere else in DalyHub — and the row still says "Done" in words
+ * beside it, so the strike is a second reading rather than the only one.
+ */
+.dh-task-dependencies__row[data-complete="true"]
+  .dh-task-dependencies__title {
+  text-decoration: line-through;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-task-dependencies__title {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.dh-task-dependencies__composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+.dh-task-dependencies__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}
+
+/*
+ * ── The row's blocked line ──────────────────────────────────────────────────
+ *
+ * It sits on the TITLE's own line, beside the checklist figure, so a blocked row
+ * is exactly as tall as one that is not (measured — see
+ * `docs/design/assets/v2-3-tasks-12/measurements.json`). Unlike the checklist
+ * figure it is drawn at EVERY width, including the phone: "2 of 5" is a detail
+ * the owner can go and find, but "this cannot start" is the reason the row has
+ * not moved, and a phone is exactly where that needs saying.
+ *
+ * It replaces the status pill rather than joining it (see `TaskRow.tsx`), so the
+ * row gains a line of text and loses one — never two labels for one fact.
+ */
+.dh-taskrow__blocked {
+  flex: none;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  /*
+   * It may wrap on a narrow phone; what it must not do is push the title's own
+   * line wider than the row, which is what `min-width: 0` on the flex item
+   * prevents.
+   */
+  min-width: 0;
+}

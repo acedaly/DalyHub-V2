@@ -122,6 +122,14 @@ const routes: readonly RouteContribution[] = [
     path: "tasks/:taskId/waiting-targets",
     file: "routes/task-waiting-targets.tsx",
   },
+  // TASKS-12 — the dependency picker's candidate search. Its own endpoint rather
+  // than a parameter on the waiting search, because a dependency accepts exactly
+  // one entity type and waiting accepts five.
+  {
+    id: "tasks.record.dependency_targets",
+    path: "tasks/:taskId/dependency-targets",
+    file: "routes/task-dependency-targets.tsx",
+  },
 ];
 
 export default routes;

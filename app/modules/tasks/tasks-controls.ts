@@ -203,6 +203,25 @@ export function buildTasksControlGroups(
       ],
     },
     {
+      /*
+       * TASKS-12 — BLOCKED, as a filter on the existing vocabulary.
+       *
+       * "What is stuck?" and "what can I actually start?" are both real
+       * questions, so both directions are offered — and neither is a new view:
+       * a blocked Task is an ordinary Task in whichever view its dates put it,
+       * and the predicate derives the state from the dependency edges rather
+       * than from a stored flag.
+       */
+      id: "blocked",
+      label: "Blocked",
+      param: TASKS_FILTER_PARAMS.blocked,
+      options: [
+        { value: ANY, label: "Any task" },
+        { value: "1", label: "Blocked only", chipLabel: "Blocked" },
+        { value: "0", label: "Not blocked", chipLabel: "Not blocked" },
+      ],
+    },
+    {
       id: "parentType",
       label: "Parent type",
       param: TASKS_FILTER_PARAMS.parentKind,

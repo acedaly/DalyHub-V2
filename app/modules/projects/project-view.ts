@@ -37,6 +37,7 @@ import type {
 } from "~/kernel/projects";
 import type { CompletionRollup } from "~/kernel/spine";
 import type {
+  TaskBlockedSummary,
   CommitmentState,
   TaskListItem,
   TaskPriority,
@@ -620,11 +621,21 @@ export interface SerializedProjectTask {
   /** Commitment state — carried so Someday/Maybe resolves via `taskDisplayState`. */
   readonly commitmentState: CommitmentState;
   readonly waiting: SerializedTaskWaiting | null;
+  /**
+   * TASKS-12 — blocked state, when the loader projected it.
+   *
+   * A blocked Task is still an OPEN Task: it counts towards the Project exactly
+   * as it did before, and Project progress stays a function of completion alone.
+   * There is deliberately no dependency-weighted progress anywhere in DalyHub.
+   */
+  readonly blocked?: TaskBlockedSummary;
 }
 
 /** Serialise a kernel `TaskListItem` for a project's task list (Dates → ISO). */
 export function serializeProjectTask(
   item: TaskListItem,
+  /** TASKS-12 — this Task's entry from the page's ONE bounded aggregate. */
+  blocked?: TaskBlockedSummary,
 ): SerializedProjectTask {
   return {
     id: item.id,
@@ -637,6 +648,7 @@ export function serializeProjectTask(
     timeSector: item.timeSector,
     commitmentState: item.commitmentState,
     waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
+    ...(blocked ? { blocked } : {}),
   };
 }
 
