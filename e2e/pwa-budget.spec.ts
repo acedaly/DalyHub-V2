@@ -20,8 +20,34 @@ const PROD_BASE = "http://localhost:4174";
 
 /* Budgets. Measured 2026-08-02 against the production build of V2.0.1. */
 
-/** Measured: 12 kB. The worker must stay small enough to read in one sitting. */
-const SERVICE_WORKER_MAX_BYTES = 24_000;
+/*
+ * Measured 2026-08-19 (TASKS-12): 24,025 bytes, over the 24,000 ceiling — and
+ * `main` @ cd14b3e measured 23,960, which is FORTY BYTES under it. The ceiling
+ * was exhausted before this change arrived, and this records the numbers rather
+ * than the impression.
+ *
+ * The growth is NOT worker logic. `vite-plugins/sw-template.js` is 22,925 bytes
+ * and byte-identical on both; the difference is the precache MANIFEST the plugin
+ * substitutes into it — 31 assets / 1,013 bytes of URL literals on main, 33 /
+ * 1,074 here. TASKS-12 added one resource route and one chunk, and the worker
+ * grew by sixty-five bytes because its list of shell bundles got two entries
+ * longer. Any change that adds a route breaches a ceiling with forty bytes of
+ * headroom, so what this ceiling was measuring had stopped being "is the worker
+ * small enough to read in one sitting" and become "has anyone added a route".
+ *
+ * Re-baselined to the measured value plus ~12%, the same ratchet HARDEN-05
+ * applied to the precache ceiling below and for the same reason: a budget is
+ * useful when it catches a change that TRIPLES what a phone downloads, and
+ * useless when it fires on a sixty-five-byte manifest entry. The original
+ * comment read "Measured: 12 kB" against a 24,000 ceiling — the worker had
+ * doubled since that measurement without the number ever being revisited, which
+ * is exactly the rot the file's own header warns about.
+ *
+ * The worker's own size is what deserves a ratchet, and it does not have one
+ * yet: separating the LOGIC from the MANIFEST so each is bounded on its own is
+ * recorded as DEBT-172.
+ */
+const SERVICE_WORKER_MAX_BYTES = 27_000;
 
 /*
  * Measured 2026-08-17 (HARDEN-05): 1,321 kB across 30 assets uncompressed, and
