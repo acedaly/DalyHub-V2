@@ -182,6 +182,32 @@ describe("a dependency is one directed EntityLink", () => {
     expect((await tasks.removeTaskDependency(b, a)).changed).toBe(false);
   });
 
+  it("reconciles TWO CONCURRENT requests adding the SAME dependency", async () => {
+    /*
+     * Both read "no edge", both build an insert, and the second meets the UNIQUE
+     * identity index. That is the duplicate backstop firing correctly, and the
+     * outcome the loser asked for — the dependency exists — so it is reconciled
+     * rather than surfaced as a storage error. ONE row either way.
+     */
+    const a = await seedTask("A");
+    const b = await seedTask("B");
+    const results = await Promise.allSettled([
+      taskRepo().addTaskDependency(b, a),
+      taskRepo().addTaskDependency(b, a),
+    ]);
+    expect(results.every((result) => result.status === "fulfilled")).toBe(true);
+    expect(await edgeRows()).toHaveLength(1);
+    // Exactly ONE of them reports having changed anything.
+    const changed = results.filter(
+      (result) =>
+        result.status === "fulfilled" &&
+        (result.value as { changed: boolean }).changed,
+    );
+    expect(changed).toHaveLength(1);
+    // And exactly one Activity entry, so the timeline does not claim it twice.
+    expect(await activityTypes()).toEqual([TASK_DEPENDENCY_ADDED]);
+  });
+
   it("RESTORES the same relationship row when a removed dependency is re-added", async () => {
     const tasks = taskRepo();
     const a = await seedTask("A");

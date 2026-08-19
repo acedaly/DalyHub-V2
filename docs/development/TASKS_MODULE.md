@@ -2312,6 +2312,11 @@ concurrent adds cannot both pass a bound and two concurrent edges cannot close a
 cycle. The cycle walk carries an explicit `depth < 64` and uses `UNION`, so it
 terminates even on a graph that already contained one.
 
+Two requests adding the SAME edge at once is the one race a predicate cannot see:
+both read "no row" and the second meets the UNIQUE identity index. It is
+RECONCILED to an idempotent no-op — one row, one Activity entry, exactly one
+request reporting a change — rather than surfaced as a storage error.
+
 **Blocked is DERIVED on every read** from the edges plus each blocker's own
 completion. There is no `is_blocked` column: completing the last blocker unblocks,
 **reopening** it blocks again, and a soft-deleted blocker stops blocking — with no

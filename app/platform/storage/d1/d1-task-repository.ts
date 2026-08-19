@@ -6541,7 +6541,7 @@ export class D1TaskRepository implements TaskRepository {
       ),
     ];
 
-    const results = await this.#runChecklistBatch(statements);
+    const results = await this.#runTaskBatch(statements);
 
     if ((results[0]?.meta?.changes ?? 0) === 0) {
       /*
@@ -6583,7 +6583,7 @@ export class D1TaskRepository implements TaskRepository {
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runTaskBatch([
       // ONE column. A rename cannot disturb completion or order, so two devices
       // renaming two different items — or the same item's tick — never contend.
       this.#db
@@ -6634,7 +6634,7 @@ export class D1TaskRepository implements TaskRepository {
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
     const flag = completed ? 1 : 0;
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runTaskBatch([
       /*
        * ONE row, ONE column, guarded on the value actually changing.
        *
@@ -6685,7 +6685,7 @@ export class D1TaskRepository implements TaskRepository {
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runTaskBatch([
       this.#db
         .prepare(
           `DELETE FROM task_checklist_items
@@ -6819,7 +6819,7 @@ export class D1TaskRepository implements TaskRepository {
           order.length,
         ),
     );
-    const results = await this.#runChecklistBatch(statements);
+    const results = await this.#runTaskBatch(statements);
 
     /*
      * At least one row MUST have moved: the unchanged case returned above, so a
@@ -7137,7 +7137,7 @@ export class D1TaskRepository implements TaskRepository {
             )
             .bind(nowTs, this.#workspaceId, linkId, ...guard.params);
 
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runDependencyWrite([
       write,
       // The Activity is guarded on the write's own `changes()`, so a refused
       // dependency leaves no entry claiming it was added.
@@ -7163,6 +7163,16 @@ export class D1TaskRepository implements TaskRepository {
       ),
     ]);
 
+    if (results === "already_linked") {
+      /*
+       * A concurrent request inserted the SAME edge between this method's read
+       * and its write, and the UNIQUE identity index fired. That is the
+       * duplicate backstop doing its job, and the outcome is the one that was
+       * asked for: the dependency exists. Reconciled rather than surfaced,
+       * exactly as the generic link repository reconciles the same race.
+       */
+      return { changed: false };
+    }
     if ((results[0]?.meta?.changes ?? 0) === 0) {
       // The statement refused it, and only the statement knows which of its
       // conditions said no. Diagnosing it costs reads only on the path that has
@@ -7189,7 +7199,7 @@ export class D1TaskRepository implements TaskRepository {
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runTaskBatch([
       /*
        * UNLINK, never DELETE. The relationship keeps its stable id, so adding the
        * same dependency back later restores ONE relationship rather than minting
@@ -7234,6 +7244,29 @@ export class D1TaskRepository implements TaskRepository {
     ]);
     // Removing an edge that is not there is the outcome that was asked for.
     return { changed: (results[0]?.meta?.changes ?? 0) > 0 };
+  }
+
+  /**
+   * Run a dependency write batch, reconciling the ONE race the guard cannot see.
+   *
+   * Every dependency invariant is a predicate inside the write, so a losing
+   * racer normally just changes no rows. The exception is two requests inserting
+   * the SAME edge at once: both read "no row", both build an insert, and the
+   * second meets `entity_links_identity_idx`. That is the duplicate backstop
+   * firing correctly, and the outcome — the dependency exists — is exactly what
+   * the second request asked for, so it is reconciled here rather than surfaced
+   * as a storage error. Every other failure is re-typed and rethrown.
+   */
+  async #runDependencyWrite(
+    statements: readonly D1PreparedStatement[],
+  ): Promise<D1Result[] | "already_linked"> {
+    try {
+      return await this.#db.batch(statements as D1PreparedStatement[]);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (/UNIQUE constraint failed/i.test(message)) return "already_linked";
+      throw new TaskStorageError(undefined, { cause });
+    }
   }
 
   /**
@@ -7390,8 +7423,15 @@ export class D1TaskRepository implements TaskRepository {
     if ((await this.getTask(blockedId)) === null) throw new TaskNotFoundError();
   }
 
-  /** Run a checklist write batch, re-typing raw storage failures. */
-  async #runChecklistBatch(
+  /**
+   * Run a small domain write batch, re-typing raw storage failures.
+   *
+   * Shared by the checklist and the dependency mutations — both are narrow,
+   * guarded statement groups that need the same failure translation, and neither
+   * needs the Activity-first coordination `recordAtomicMutation` provides
+   * (each builds its own guarded append statements).
+   */
+  async #runTaskBatch(
     statements: readonly D1PreparedStatement[],
   ): Promise<D1Result[]> {
     try {

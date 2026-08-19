@@ -226,6 +226,14 @@ SQLite serialises writers and a D1 batch is one transaction, so a statement whos
 adds cannot both see nineteen blockers; two concurrent edges cannot close a cycle
 between them. Both are asserted under real concurrency, not argued.
 
+**The one race a predicate cannot see** is two requests inserting the SAME edge
+at once: both read "no row", both build an insert, and the second meets the
+UNIQUE identity index. That is the duplicate backstop working, and the outcome —
+the dependency exists — is exactly what the loser asked for, so it is RECONCILED
+to an idempotent `changed: false` rather than surfaced as a storage error. One
+row, one Activity entry, and exactly one of the two requests reports a change.
+Asserted under real concurrency too.
+
 ### 3.4 Cycle prevention
 
 A bounded recursive CTE, evaluated inside the same statement as the row it gates:
