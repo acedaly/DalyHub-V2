@@ -358,6 +358,96 @@ describe("weekend handling", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* DST, and why it cannot reach this arithmetic                               */
+/* -------------------------------------------------------------------------- */
+
+describe("daylight saving cannot move an occurrence", () => {
+  /*
+   * The owner's timezone is Australia/Sydney (ADR-022), where in 2026 DST ENDS
+   * on 5 April (clocks back one hour) and STARTS on 4 October (clocks forward).
+   * Those are the two days a naive "add 7 × 86,400,000 milliseconds to a local
+   * Date" lands on the wrong calendar day.
+   *
+   * It cannot happen here, and these assert that rather than assuming it: every
+   * function in this module is CALENDAR-ONLY, stepping UTC-midnight dates, and
+   * the owner's day arrives as a `YYYY-MM-DD` string that the ONE timezone
+   * authority (`ownerCalendarIso`) resolved. There is no local `Date` in the
+   * path, so there is no hour to gain or lose.
+   */
+  it("steps a weekly rule exactly seven days across BOTH Sydney transitions", () => {
+    // DST ends Sunday 5 April 2026: the Sunday before is 29 March.
+    expect(nextDate({ frequency: "week", weekdays: [0] }, "2026-03-29")).toBe(
+      "2026-04-05",
+    );
+    expect(nextDate({ frequency: "week", weekdays: [0] }, "2026-04-05")).toBe(
+      "2026-04-12",
+    );
+    // DST starts Sunday 4 October 2026.
+    expect(nextDate({ frequency: "week", weekdays: [0] }, "2026-09-27")).toBe(
+      "2026-10-04",
+    );
+    expect(nextDate({ frequency: "week", weekdays: [0] }, "2026-10-04")).toBe(
+      "2026-10-11",
+    );
+  });
+
+  it("steps a daily rule exactly one day ACROSS each transition", () => {
+    expect(nextDate({ frequency: "day" }, "2026-04-04")).toBe("2026-04-05");
+    expect(nextDate({ frequency: "day" }, "2026-04-05")).toBe("2026-04-06");
+    expect(nextDate({ frequency: "day" }, "2026-10-03")).toBe("2026-10-04");
+    expect(nextDate({ frequency: "day" }, "2026-10-04")).toBe("2026-10-05");
+  });
+
+  it("lands an nth-weekday rule on the transition day itself, unmoved", () => {
+    // 5 April 2026 is the FIRST Sunday of April; 4 October is the first Sunday
+    // of October. Both are transition days, and both are ordinary dates here.
+    expect(
+      nextDate(
+        { frequency: "month", ordinal: "first", weekdays: [0] },
+        "2026-03-01",
+      ),
+    ).toBe("2026-04-05");
+    expect(
+      nextDate(
+        { frequency: "month", ordinal: "first", weekdays: [0] },
+        "2026-09-06",
+      ),
+    ).toBe("2026-10-04");
+  });
+
+  it("moves a transition-day occurrence by the weekend rule, not by an hour", () => {
+    // Both transitions fall on a Sunday, which is exactly when the weekend rule
+    // applies — and it moves the date by WHOLE DAYS in both directions.
+    expect(
+      nextTaskOccurrenceStep(
+        rule({
+          frequency: "month",
+          ordinal: "first",
+          weekdays: [0],
+          weekendRule: "after",
+          anchorDay: 5,
+        }),
+        "2026-03-01",
+        "2026-03-01",
+      ),
+    ).toEqual({ date: "2026-04-06", gridDate: "2026-04-05" });
+    expect(
+      nextTaskOccurrenceStep(
+        rule({
+          frequency: "month",
+          ordinal: "first",
+          weekdays: [0],
+          weekendRule: "before",
+          anchorDay: 5,
+        }),
+        "2026-09-06",
+        "2026-09-06",
+      ),
+    ).toEqual({ date: "2026-10-02", gridDate: "2026-10-04" });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Validation                                                                 */
 /* -------------------------------------------------------------------------- */
 

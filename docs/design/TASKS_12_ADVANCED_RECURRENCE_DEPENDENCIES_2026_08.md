@@ -123,6 +123,33 @@ ordinary outcome, not an error. Completion in `D1TaskRepository` is its only
 caller. Today, Planning, the Tasks list, the dependency code and every UI
 component compute nothing.
 
+## 2.6 Timezone and date semantics — audited, not assumed
+
+Every function in the recurrence module is PURE and CALENDAR-ONLY: it takes and
+returns `YYYY-MM-DD` strings and steps them through `Date.UTC` midnights. There
+is no local `Date`, no clock and no timezone anywhere in the path. The owner's
+day arrives as a string that the ONE timezone authority (`ownerCalendarIso`,
+ADR-022) already resolved from their stored preference, server-side.
+
+That is what makes the following true rather than hoped for, and each is
+asserted:
+
+| Boundary | Behaviour |
+|---|---|
+| **DST end** (Sydney, 5 Apr 2026) | A weekly rule steps 29 Mar → 5 Apr → 12 Apr. A daily rule steps 4 → 5 → 6 Apr. Whole days, both directions |
+| **DST start** (Sydney, 4 Oct 2026) | The same, across the hour going the other way |
+| **A transition day that is also an occurrence** | It is an ordinary date. Both 2026 transitions fall on a Sunday, so the weekend rule applies — and moves the occurrence by whole DAYS, never by an hour |
+| **Month end** | 31 Jan → 28 Feb, and the ORIGINALLY REQUESTED day returns in March (TASKS-04's `anchorDay`, unchanged) |
+| **February** | The fourth Thursday of Feb 2026 IS the last one (28 days), and both ordinals resolve to 26 Feb |
+| **A leap year** | The last Tuesday of Feb 2028 is the 29th — the day a non-leap year does not have |
+| **Year end** | The last Friday of Dec 2026 → the last Friday of Jan 2027; a Mon/Wed/Fri rule steps 30 Dec → 1 Jan → 4 Jan |
+| **29 February, yearly** | Clamps to 28 Feb 2029 and RETURNS to 29 Feb in 2032 |
+
+No browser-local recurrence authority exists: the recurrence editor takes the
+owner's day from the record's loader (`todayIso`) for its end-date picker, and
+computes no date of its own. Nothing in the dependency model touches a date at
+all.
+
 ## 3. Dependencies — the representation
 
 **One directed EntityLink, `blocker --task.blocks--> blocked`. No new table.**

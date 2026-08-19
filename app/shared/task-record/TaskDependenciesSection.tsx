@@ -223,11 +223,11 @@ export function TaskDependenciesSection({
        *
        * The record's HEADER already says Blocked, through the one display-state
        * evaluator, and the list below already names what by. A third rendering of
-       * one fact, on one screen, is the thing §18's "no duplicate blocked labels"
-       * rule exists to prevent — it was drafted, drawn, and cut on the evidence
-       * (`assets/v2-3-tasks-12/dependencies-1440-light.png` shows why). The ROW is
-       * the surface that needs the sentence, because a row has no header to carry
-       * the state.
+       * one fact on one screen is what the "one blocked label" rule exists to
+       * prevent (`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md` §3.2) —
+       * it WAS drafted, drawn on the 1440 capture and cut on that evidence. The
+       * ROW is the surface that needs the sentence, because a row has no header
+       * to carry the state.
        */}
       <div className="dh-task-dependencies__group">
         <h5 className="dh-task-dependencies__label">Blocked by</h5>
