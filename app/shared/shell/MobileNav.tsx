@@ -87,12 +87,12 @@ export function MobileNav({
   return (
     <div className="dh-mobilenav" ref={rootRef}>
       <div
-        className="dh-mobilenav__scrim"
+        className="dh-mobilenav__scrim dh-motion-scrim"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className="dh-mobilenav__panel"
+        className="dh-mobilenav__panel dh-motion-edge-inline"
         role="dialog"
         aria-modal="true"
         aria-label="Navigation"

@@ -127,7 +127,12 @@ export function Card(props: CardProps) {
         : [];
   const TitleHeading = `h${headingLevel}` as const;
 
-  const titleContent = <span className="dh-card__title-text">{title}</span>;
+  // DHDS-08 — the shared completion grammar: the strike is always present and
+  // transparent, so completing transitions a COLOUR rather than switching a
+  // text decoration on. See `motion.css` → `.dh-complete-strike`.
+  const titleContent = (
+    <span className="dh-card__title-text dh-complete-strike">{title}</span>
+  );
 
   // While an inline editor is supplied the title cell becomes that editor; the rest
   // of the time the card keeps its ordinary open control, so a row is never left

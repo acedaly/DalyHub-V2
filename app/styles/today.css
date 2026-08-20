@@ -546,11 +546,21 @@
   font-variant-numeric: var(--dh-font-numeric);
 }
 
+/*
+ * The marker turns at the SHARED disclosure duration (DHDS-08), so it reads as
+ * the same interaction as a task group's chevron.
+ *
+ * The REGION does not transition, and that is deliberate rather than missed:
+ * this is a native `<details>`, whose content cannot be animated open without
+ * the `height: auto` machinery §9 rules out. A native disclosure that opens
+ * instantly is honest; a fragile one that sometimes clips its content is not.
+ * Recorded as a deliberate static exception in the DHDS-08 record.
+ */
 .dh-today__completed > summary::before {
   content: "›";
   margin-inline-end: var(--dh-space-2);
   transform: rotate(0deg);
-  transition: transform var(--dh-motion-fast) var(--dh-ease-standard);
+  transition: transform var(--dh-motion-base) var(--dh-ease-standard);
 }
 
 .dh-today__completed[open] > summary::before {

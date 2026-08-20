@@ -42,7 +42,13 @@
   line-height: var(--dh-text-meta-line-height);
   /* One line where it fits; wrapping only for genuinely long supporting text. */
   text-wrap: pretty;
-  animation: dh-tooltip-in var(--dh-motion-instant) var(--dh-ease-standard);
+  /*
+   * Motion: the shared anchored-reveal grammar (`.dh-motion-reveal`), at the
+   * REVEAL rung rather than the state rung, and that is the whole of it. §11:
+   * a tooltip prioritises readability over animation. It must be legible the
+   * instant it is there, so there is nothing here that delays reading it and
+   * nothing that moves once it has been read.
+   */
 }
 
 /* Measured but not yet placed (the first layout pass). Hidden rather than moved
@@ -69,23 +75,6 @@
   font: inherit;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-@keyframes dh-tooltip-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Motion communicates causality here and nothing else, so under reduced motion
- * the tooltip simply appears. */
-@media (prefers-reduced-motion: reduce) {
-  .dh-tooltip {
-    animation: none;
-  }
 }
 
 /* Forced colours: the fill is replaced by the system's, so the tooltip needs a

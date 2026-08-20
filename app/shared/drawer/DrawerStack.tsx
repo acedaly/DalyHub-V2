@@ -81,7 +81,7 @@ export function DrawerStack({
       children.push(
         <div
           key="drawer-backdrop"
-          className="drawer-backdrop"
+          className="drawer-backdrop dh-motion-scrim"
           data-drawer-backdrop="true"
           // The backdrop is a convenience click target; keyboard users close via
           // Escape or the labelled close button, so it needs no role.

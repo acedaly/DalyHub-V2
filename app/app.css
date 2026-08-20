@@ -29,6 +29,17 @@
 @import "./styles/fonts.css";
 @import "./styles/base.css";
 /*
+ * DHDS-08 — the shared MOTION layer.
+ *
+ * Directly after `base.css` and before every component stylesheet, because it
+ * publishes the canonical keyframes and the enter/exit, row-reveal, disclosure
+ * and completion classes those stylesheets adopt. A component that needs to
+ * adjust a shared motion on one surface must be able to say so without
+ * `!important`, which means this has to lose on source order — the same
+ * argument `ui.css` makes immediately below.
+ */
+@import "./styles/motion.css";
+/*
  * DS-02 — the generic UI primitive layer.
  *
  * Early, and directly after `base.css`, for two reasons. It is the FLOOR every

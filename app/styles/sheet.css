@@ -29,7 +29,7 @@
   position: absolute;
   inset: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
-  animation: dh-sheet-scrim-in var(--dh-motion-base) var(--dh-ease-standard);
+  /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
 }
 
 .dh-sheet {
@@ -54,7 +54,13 @@
   border-top-right-radius: var(--dh-radius-xl);
   border: none;
   box-shadow: var(--dh-elevation-raised);
-  animation: dh-sheet-in var(--dh-motion-base) var(--dh-ease-emphasized);
+  /*
+   * DHDS-08 — the shared block-axis edge grammar (`.dh-motion-edge-block`).
+   * A bottom sheet rises from the bottom edge, at the standard duration, with
+   * no overshoot and no bounce: §10 is explicit that a phone sheet must not
+   * spring, and a sheet that does makes every capture feel like a toy.
+   */
+  --app-motion-edge-from: 100%;
 }
 
 /* The `full` variant is for longer capture flows, where a half sheet would make
@@ -297,28 +303,30 @@
     max-block-size: min(85dvh, 48rem);
     border-radius: var(--dh-radius-lg);
     border: var(--app-border-width-thin) solid var(--dh-color-border);
+    /*
+     * At tablet width and up the sheet is a centred DIALOG, so it takes the
+     * shared modal grammar instead. It cannot use `.dh-motion-lift`'s keyframe
+     * directly: the surface is centred with `translate(-50%, -50%)`, and a
+     * keyframe that animated `translateY` alone would discard that. Hence a
+     * pair of keyframes local to this file — the one place in the product
+     * where a private keyframe is the correct answer, kept because the
+     * alternative is a wrapper element around every sheet purely so a shared
+     * class has an untransformed box to animate.
+     */
     animation-name: dh-sheet-dialog-in;
   }
-}
 
-@keyframes dh-sheet-scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
+  .dh-sheet[data-dh-exit="true"],
+  .dh-sheet[data-variant="full"][data-dh-exit="true"] {
+    animation-name: dh-sheet-dialog-out;
   }
 }
 
-@keyframes dh-sheet-in {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
+/* The centred-dialog pair. See the note at `animation-name`, above, for why
+ * these two are the product's one legitimate private keyframes: the surface's
+ * resting transform is itself a translate, so a shared keyframe would erase it.
+ * The rise is `--dh-motion-travel-modal` expressed as a percentage of the
+ * surface, which is what `translate(-50%, …)` centring forces. */
 @keyframes dh-sheet-dialog-in {
   from {
     opacity: 0;
@@ -327,6 +335,17 @@
   to {
     opacity: 1;
     transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes dh-sheet-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%);
   }
 }
 

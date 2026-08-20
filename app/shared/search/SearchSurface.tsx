@@ -285,9 +285,13 @@ export default function SearchSurface({
 
   return (
     <div className="dh-search" role="presentation" ref={modalRootRef}>
-      <div className="dh-search__scrim" onClick={onClose} aria-hidden="true" />
       <div
-        className="dh-search__panel"
+        className="dh-search__scrim dh-motion-scrim"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className="dh-search__panel dh-motion-lift"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

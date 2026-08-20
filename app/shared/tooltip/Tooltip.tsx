@@ -348,7 +348,7 @@ export function Tooltip({
               id={id}
               role="tooltip"
               ref={setTip}
-              className="dh-tooltip"
+              className="dh-tooltip dh-motion-reveal"
               data-placement={position?.placement ?? placement}
               // Hidden until measured, so it is never painted at 0,0 first.
               data-positioned={position ? "true" : "false"}

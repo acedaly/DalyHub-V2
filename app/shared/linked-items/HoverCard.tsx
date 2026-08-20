@@ -140,7 +140,7 @@ export function HoverCard({
         <span
           id={cardId}
           role="tooltip"
-          className="dh-hover-card__panel"
+          className="dh-hover-card__panel dh-motion-reveal"
           data-status={state.status}
         >
           {state.status === "loading" ? (

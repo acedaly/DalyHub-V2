@@ -26,6 +26,7 @@ import { useId, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { ChevronDownIcon } from "~/shared/icons";
+import { DH_MOTION_BASE_MS, usePresence } from "~/shared/motion";
 import type { TaskDensity } from "~/kernel/task-views";
 
 /**
@@ -127,6 +128,18 @@ export function TaskGroup({
 }: TaskGroupProps) {
   const Heading = `h${headingLevel}` as const;
   const [collapsed, setCollapsed] = useState(false);
+  /*
+   * DHDS-08 — the body stays PAINTED for the length of the collapse, so the
+   * section can transition shut instead of teleporting.
+   *
+   * `hidden` is still the collapsed end state (see the note on the body below:
+   * it is what keeps a folded group out of the accessibility tree and out of
+   * layout on a long list). It simply arrives when the transition finishes
+   * rather than on the click, which is exactly the removal-timing problem
+   * `usePresence` exists for. Under reduced motion it arrives immediately and
+   * the behaviour is identical to what it was before DHDS-08.
+   */
+  const { mounted: bodyPainted } = usePresence(!collapsed, DH_MOTION_BASE_MS);
   const bodyId = `${useId()}-taskgroup-body`;
   return (
     /*
@@ -197,7 +210,10 @@ export function TaskGroup({
            * margin — a screen reader cannot see margin, so without it the
            * accessible name would be "Overdue2".
            */}
-          <span className="dh-taskgroup__chevron" aria-hidden="true">
+          <span
+            className="dh-taskgroup__chevron dh-disclosure-marker"
+            aria-hidden="true"
+          >
             <ChevronDownIcon />
           </span>
           <Heading className="dh-taskgroup__title">
@@ -230,8 +246,14 @@ export function TaskGroup({
        * element and takes the subtree out of the accessibility tree at the same
        * time.
        */}
-      <div id={bodyId} className="dh-taskgroup__body" hidden={collapsed}>
-        {children}
+      <div
+        id={bodyId}
+        className="dh-taskgroup__body dh-disclosure"
+        data-dh-open={collapsed ? "false" : "true"}
+      >
+        <div className="dh-disclosure__content" hidden={!bodyPainted}>
+          {children}
+        </div>
       </div>
     </section>
   );

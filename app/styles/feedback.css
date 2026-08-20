@@ -120,7 +120,17 @@
   border-left: 3px solid var(--dh-color-text-on-overlay);
   border-radius: var(--dh-radius-sm);
   box-shadow: var(--dh-elevation-modal);
-  animation: dh-toast-in var(--dh-motion-base) var(--dh-ease-emphasized);
+  /*
+   * DHDS-08 — the shared block-axis edge grammar (`.dh-motion-edge-block`) at
+   * a SMALL amplitude, so a toast reads as transient feedback rising into
+   * view rather than as an announcement being presented.
+   *
+   * §12: it is interactive the moment it exists. Nothing here gates the Undo
+   * button on the entrance finishing — the animation is `opacity` and
+   * `transform` on an element that is already in the tree, already focusable,
+   * and already has `pointer-events` from the rule above.
+   */
+  --app-motion-edge-from: var(--dh-motion-travel-modal);
 }
 
 /* The tone edge is painted with the tone's CONTAINER, not its base colour: the
@@ -258,24 +268,9 @@
 }
 
 .dh-toast__spinner {
-  animation: dh-spin 900ms linear infinite;
-}
-
-@keyframes dh-toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes dh-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  /* The same PERIOD the button spinner takes, by name — one loop rhythm in
+   * the product rather than one per surface (DHDS-08). */
+  animation: dh-spin var(--dh-motion-spinner) linear infinite;
 }
 
 /* Mobile: bottom full-width, safe-area aware, above content without covering it.
@@ -292,9 +287,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dh-toast {
-    animation: none;
-  }
+  /* The toast's own entrance/exit is the shared grammar, whose reduced-motion
+   * contract is at the foot of `motion.css` (travel removed, fade kept). Only
+   * the indefinite spinner is switched off here, because a loop that never
+   * ends is motion with no state to preserve. */
   .dh-toast__spinner {
     animation: none;
   }

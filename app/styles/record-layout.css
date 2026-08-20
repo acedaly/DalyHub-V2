@@ -759,8 +759,9 @@
     var(--dh-color-bg-sunken) 100%
   );
   background-size: 200% 100%;
-  animation: record-skeleton-shimmer var(--dh-motion-slow) linear infinite
-    alternate;
+  /* The SHARED sweep (`motion.css`), so a record's skeleton and a collection's
+   * skeleton shimmer at one rhythm rather than two. */
+  animation: dh-shimmer var(--dh-motion-shimmer) ease-in-out infinite;
 }
 
 .record-skeleton__line--title {
@@ -770,15 +771,6 @@
 
 .record-skeleton__line--short {
   width: 60%;
-}
-
-@keyframes record-skeleton-shimmer {
-  from {
-    background-position: 0% 0%;
-  }
-  to {
-    background-position: -100% 0%;
-  }
 }
 
 /* Visually-hidden but screen-reader-available text (e.g. "Loading…"). */

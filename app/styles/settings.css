@@ -394,7 +394,7 @@
   padding: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
   cursor: default;
-  animation: dh-confirm-scrim-in var(--dh-motion-fast) var(--dh-ease-standard);
+  /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
 }
 
 .dh-confirm {
@@ -420,7 +420,8 @@
    */
   border-radius: var(--dh-radius-lg);
   box-shadow: var(--dh-elevation-modal);
-  animation: dh-confirm-in var(--dh-motion-base) var(--dh-ease-emphasized);
+  /* Motion: the shared centred-modal grammar (`.dh-motion-lift`). §10 — a
+   * dialog does not fly across the screen; it rises a little and fades. */
 }
 
 .dh-confirm--danger {
@@ -531,31 +532,9 @@
   }
 }
 
-@keyframes dh-confirm-scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes dh-confirm-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.5rem) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .dh-confirm-scrim,
-  .dh-confirm {
-    animation: none;
-  }
+  /* The dialog's own entrance is the shared grammar, whose reduced-motion
+   * contract lives at the foot of `motion.css`. */
   .dh-settings-switch::before,
   .dh-settings-switch::after {
     transition: none;

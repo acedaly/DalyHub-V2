@@ -92,7 +92,7 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
   return (
     <div
       ref={panelRef}
-      className="drawer"
+      className="drawer dh-motion-edge-inline"
       role="dialog"
       aria-modal={isTop ? true : undefined}
       aria-labelledby={titleId}

@@ -91,6 +91,11 @@ export function RecordRow({
   return (
     <li
       className={classes}
+      /* DHDS-08 — the shared completion grammar keys on this attribute, so a
+       * completed row's strike transitions rather than switching on. The
+       * `dh-row--completed` class stays: it is what carries the row's colour
+       * treatment and is referenced from module stylesheets. */
+      data-completed={completed ? "true" : undefined}
       data-dh-action-context={actions ? "true" : undefined}
       data-testid={testId}
       aria-current={undefined}
@@ -98,7 +103,8 @@ export function RecordRow({
       {lead ? <div className="dh-row__lead">{lead}</div> : null}
 
       <div className="dh-row__body">
-        <Title className="dh-row__title">
+        {/* DHDS-08 — the shared completion grammar (`motion.css`). */}
+        <Title className="dh-row__title dh-complete-strike dh-complete-recede">
           {href ? (
             <a
               className="dh-row__open"

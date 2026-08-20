@@ -209,14 +209,14 @@ function ConfirmationDialogPanel({
     <div className="dh-confirm-root" ref={rootRef}>
       <button
         type="button"
-        className="dh-confirm-scrim"
+        className="dh-confirm-scrim dh-motion-scrim"
         aria-label="Dismiss dialog"
         tabIndex={-1}
         onClick={requestClose}
       />
       <div
         ref={containerRef}
-        className={`dh-confirm${tone === "danger" ? " dh-confirm--danger" : ""}`}
+        className={`dh-confirm dh-motion-lift${tone === "danger" ? " dh-confirm--danger" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

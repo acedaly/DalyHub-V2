@@ -90,9 +90,9 @@
   /* Keeps the shared state layer inside the corner. */
   overflow: hidden;
   transition:
-    background-color var(--dur-hover) var(--ease),
-    border-color var(--dur-hover) var(--ease),
-    color var(--dur-hover) var(--ease);
+    background-color var(--dh-motion-instant) var(--dh-ease-standard),
+    border-color var(--dh-motion-instant) var(--dh-ease-standard),
+    color var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 /* A leading or trailing glyph takes the tighter inline inset on its own side, so
@@ -248,8 +248,10 @@
   background: transparent;
 }
 
-/* The in-flight spinner. `--dh-motion-slow` is the longest duration the system
- * publishes; a spinner is the one thing allowed to repeat it. */
+/* The in-flight spinner. `--dh-motion-spinner` is a PERIOD rather than a
+ * transition rung (DHDS-08): a loop's rhythm is a different quantity from a
+ * transition's length, and borrowing a transition rung for one is how a
+ * spinner ends up rotating three times a second. */
 :is(.dh-button__spinner, .dh-btn__spinner) {
   flex: none;
   inline-size: var(--dh-space-4);
@@ -257,13 +259,7 @@
   border: var(--dh-border-width-strong) solid currentColor;
   border-inline-end-color: transparent;
   border-radius: var(--dh-radius-pill);
-  animation: dh-button-spin var(--dh-motion-slow) linear infinite;
-}
-
-@keyframes dh-button-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: dh-spin var(--dh-motion-spinner) linear infinite;
 }
 
 /* ========================================================================== */
