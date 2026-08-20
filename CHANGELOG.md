@@ -1,5 +1,11 @@
 # Changelog
 
+- Unified DalyHub's dense working rows: Task metadata now reads **when, where,
+  importance** in the same order visually and to assistive technology; secondary
+  actions stay quiet until hover/focus on desktop while remaining visible on
+  touch; Weekly Planning uses the same collapsible group headings as Tasks; and
+  agenda note actions no longer add permanent row noise on pointer devices.
+
 - Added the first DHDS implementation ratchet: product styles may reduce but no
   longer increase their direct dependency on Material machinery tokens; Today,
   Goals and Habits now consume DalyHub semantic colour roles directly.
