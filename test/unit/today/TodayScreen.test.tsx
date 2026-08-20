@@ -319,6 +319,10 @@ describe("TODAY-12: decision-first command centre", () => {
     );
     const now = screen.getByTestId("today-now");
     expect(within(now).getByText("Oldest promise")).toBeVisible();
+    expect(within(now).queryByRole("link", { name: "Open task" })).toBeNull();
+    expect(
+      within(now).getByRole("link", { name: "Open Oldest promise" }),
+    ).toBeVisible();
     expect(screen.getAllByText("Oldest promise")).toHaveLength(1);
     expect(
       within(timelineSection()).getByText("Another late task"),
@@ -1413,8 +1417,8 @@ describe("CONVERGE-01 §1: the Insights panel is deleted", () => {
 
     // The facts themselves stay, in the one place that owns them.
     const summary = screen.getByTestId("today-summary");
-    expect(within(summary).getByText("24")).toBeVisible();
-    expect(within(summary).getByText("30")).toBeVisible();
+    expect(within(summary).getByText("24")).toBeInTheDocument();
+    expect(within(summary).getByText("30")).toBeInTheDocument();
   });
 
   it("draws no focus time and no productivity score", () => {

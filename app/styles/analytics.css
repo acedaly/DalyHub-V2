@@ -16,7 +16,7 @@
 .dh-analytics__body {
   display: flex;
   flex-direction: column;
-  gap: var(--app-dashboard-gap);
+  gap: var(--app-space-4);
   min-inline-size: 0;
 }
 
@@ -43,7 +43,7 @@
   padding: var(--app-card-padding);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
-  gap: var(--app-space-5);
+  gap: var(--app-space-4);
   background: var(--dh-color-surface);
   border-radius: var(--app-shape-entity-card);
   box-shadow: var(--app-elevation-resting);
@@ -135,7 +135,7 @@
 .dh-analytics__panels {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: var(--app-dashboard-gap);
+  gap: var(--app-space-4);
   align-items: start;
   min-inline-size: 0;
 }

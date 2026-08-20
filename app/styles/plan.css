@@ -30,7 +30,7 @@
 .dh-plan {
   display: flex;
   flex-direction: column;
-  gap: var(--dh-space-6);
+  gap: var(--dh-space-4);
   /* The pane already owns the gutter; the page adds only its own bottom air. */
   padding-block-end: var(--dh-space-8);
   min-width: 0;

@@ -14,6 +14,22 @@ a.dh-btn {
   text-decoration: none;
 }
 
+/* PRODUCTIVITY-01 — Projects is a working collection, not a display gallery.
+ * The shared cards remain the canonical object; this module tightens only the
+ * collection's density so more active work stays visible without shrinking
+ * touch targets or truncating the progress facts. */
+.dh-collection--projects .dh-ecard-grid {
+  gap: var(--dh-space-3);
+}
+
+.dh-collection--projects .dh-pcard {
+  padding: var(--dh-space-4);
+}
+
+.dh-collection--projects .dh-collection__content {
+  padding-block-start: var(--dh-space-4);
+}
+
 /* The project overview's Tasks tab toolbar: filter on the left, "Add task" trailing. */
 /* The roll-up progress line in the record Summary. */
 .dh-project-overview__progress {
@@ -291,7 +307,7 @@ a.dh-btn {
 /* -- The compact Goals section (§5.3) -------------------------------------- */
 
 .dh-goal-summary {
-  margin-block-start: var(--dh-space-8);
+  margin-block-start: var(--dh-space-4);
   max-inline-size: var(--app-width-wide);
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);

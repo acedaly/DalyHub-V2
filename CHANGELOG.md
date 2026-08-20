@@ -1,5 +1,16 @@
 # Changelog
 
+- Established `docs/design/DESIGN_DIRECTION.md` as the product-level UI/UX
+  brief for coding agents, including system-wide interaction rules,
+  module-specific direction and a practical completion checklist.
+
+- Tightened the daily-work surfaces after production review: Today now uses a
+  compact current-task row, bounded supporting regions, smaller gaps and a
+  collapsed weekly KPI strip; Tasks has a denser capture/list transition;
+  Goals exposes progress state and the next incomplete stage; Projects uses a
+  tighter working-card grid; and the remaining workspaces now share compact
+  controls, card density and section rhythm.
+
 ## Unreleased
 
 - Refined Today into a decision-first command centre: one canonical Now task,

@@ -15,7 +15,7 @@
 
 .dh-insights {
   display: grid;
-  gap: var(--app-space-5);
+  gap: var(--app-space-4);
   min-width: 0;
 }
 
