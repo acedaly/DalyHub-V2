@@ -29,17 +29,15 @@
   margin-inline: calc(-1 * var(--app-space-2));
   padding: var(--app-space-1) var(--app-space-2);
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: start;
   cursor: pointer;
   transition:
-    background-color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard),
-    border-color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard);
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 /*
@@ -213,8 +211,8 @@
 .dh-inline-edit[data-variant="heading"] .dh-inline-edit__trigger {
   display: flex;
   inline-size: auto;
-  font-size: var(--md-sys-typescale-headline-small-size);
-  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-size: var(--dh-text-page-title-size);
+  line-height: var(--dh-text-page-title-line-height);
   font-weight: 500;
 }
 
@@ -242,11 +240,11 @@
   padding: var(--app-space-1) var(--app-space-2);
   margin-inline-start: calc(-1 * var(--app-space-2));
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: transparent;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   font: inherit;
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   cursor: pointer;
 }
@@ -261,7 +259,7 @@
 
 .dh-inline-edit__render-error {
   color: var(--dh-color-danger);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* ------------------------------------------------------------------------- *
@@ -272,7 +270,7 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-2);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: var(--dh-color-bg);
   color: var(--dh-color-text);
   font: inherit;
@@ -284,17 +282,17 @@
   max-inline-size: var(--app-width-prose);
   min-block-size: 0;
   resize: vertical;
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  line-height: var(--dh-text-body-line-height);
 }
 
 .dh-inline-edit[data-variant="heading"] .dh-inline-edit__input {
-  font-size: var(--md-sys-typescale-headline-small-size);
-  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-size: var(--dh-text-page-title-size);
+  line-height: var(--dh-text-page-title-line-height);
   font-weight: 500;
 }
 
 .dh-inline-edit__input:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-border-width-thin);
 }
 
@@ -314,7 +312,7 @@
 
 .dh-inline-edit__hint {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* The hint is a pointer/keyboard convenience; on a phone there is no ⌘ and the
@@ -358,13 +356,13 @@
 
 .dh-inline-edit__pending {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-inline-edit__error {
   margin: var(--app-space-1) 0 0;
   color: var(--dh-color-danger);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* ------------------------------------------------------------------------- *

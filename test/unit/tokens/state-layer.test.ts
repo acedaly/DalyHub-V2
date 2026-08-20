@@ -171,18 +171,18 @@ describe("M3-INT — no bespoke state layers", () => {
   it("base.css states every state in the contract exactly once", () => {
     const text = readFileSync(join(STYLES_DIR, "base.css"), "utf8");
 
-    // Hover, focus and pressed each resolve to their own M3 opacity token, and
+    // Hover, focus and pressed each resolve to their DalyHub semantic role, and
     // each token is referenced exactly once — one implementation, not several.
     for (const token of [
-      "--md-sys-state-hover-state-layer-opacity",
-      "--md-sys-state-focus-state-layer-opacity",
-      "--md-sys-state-pressed-state-layer-opacity",
+      "--dh-state-hover-opacity",
+      "--dh-state-focus-opacity",
+      "--dh-state-pressed-opacity",
     ]) {
       const uses = text.split(`var(${token})`).length - 1;
       expect(uses, `${token} is used ${uses}× in base.css`).toBe(1);
     }
 
-    // Disabled has no layer at all — the M3 disabled treatment replaces it.
+    // Disabled has no layer at all — the shared disabled treatment replaces it.
     expect(text).toContain('[aria-disabled="true"]');
   });
 

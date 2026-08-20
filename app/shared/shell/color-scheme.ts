@@ -21,7 +21,7 @@
  *
  * ── The preview is a token reference, never a hex ────────────────────────────
  * A descriptor does NOT carry colours. Settings has to preview a scheme it is not
- * currently painting, which no `var(--md-sys-color-primary)` can do, so the
+ * currently painting, which no static accent-token reference can do, so the
  * generator emits every scheme's three preview colours into every block as
  * `--md-app-color-preview-<key>-{primary,secondary,tertiary}`. The picker reads
  * those, which keeps this module free of authored colour (AGENTS.md §9.8) and the

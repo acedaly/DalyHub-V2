@@ -17,7 +17,7 @@
 
 .forms-demo__header h1 {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
 }
 
 .forms-demo__header p {
@@ -31,19 +31,19 @@
   gap: var(--app-space-4);
   padding: var(--app-space-5);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
 }
 
 .forms-demo__panel h2 {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
 }
 
 .forms-demo__note {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .forms-demo__grid {
@@ -65,10 +65,10 @@
 
 .forms-demo__dirty {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .forms-demo__saved {
-  color: var(--md-sys-color-on-success-container);
-  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--dh-color-text-on-success-subtle);
+  font-size: var(--dh-text-meta-size);
 }

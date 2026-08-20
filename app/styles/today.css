@@ -155,15 +155,44 @@
  * they no longer each carry a container arguing for their own importance.
  */
 .dh-today__summary {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  overflow: hidden;
+}
+
+.dh-today__weekly > summary {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--dh-space-4);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  font-weight: var(--dh-text-label-weight);
+  cursor: pointer;
+}
+
+.dh-today__weekly > summary::before {
+  content: "›";
+  margin-inline-end: var(--dh-space-2);
+  transition: transform var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-today__weekly[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.dh-today__weekly-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--dh-space-3);
   margin: 0;
   padding: var(--dh-space-4) var(--dh-space-5);
   list-style: none;
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-subtle);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
 /*
@@ -174,7 +203,7 @@
  * is what these are: one statement about the week, in three parts.
  */
 @container today (min-width: 34rem) {
-  .dh-today__summary {
+  .dh-today__weekly-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0;
   }
@@ -185,11 +214,11 @@
    * rather than sitting beside an empty track that reads as one which failed to
    * render.
    */
-  .dh-today__summary:has(> :last-child:nth-child(2)) {
+  .dh-today__weekly-list:has(> :last-child:nth-child(2)) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dh-today__summary:has(> :only-child) {
+  .dh-today__weekly-list:has(> :only-child) {
     grid-template-columns: minmax(0, 24rem);
   }
 
@@ -282,16 +311,16 @@
  * does not otherwise state, and nothing moved by `order`.
  */
 @container today (max-width: 34rem) {
-  .dh-today__summary {
+  .dh-today__weekly-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--dh-space-3);
   }
 
-  .dh-today__summary:has(> :last-child:nth-child(2)) {
+  .dh-today__weekly-list:has(> :last-child:nth-child(2)) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dh-today__summary:has(> :only-child) {
+  .dh-today__weekly-list:has(> :only-child) {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -428,12 +457,7 @@
 .dh-today__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  /* The scale has no rung 7 — it steps 6 (24) → 8 (32) — so `--dh-space-7`
-     was undefined and the whole declaration invalid, which meant NO row gap
-     rendered at all. 8 is the next rung and is what the pairing with 6 for the
-     column gap intends. (Not from the audit-repair pass; `tokens.test.ts` was
-     already red on `main`.) */
-  gap: var(--dh-space-8) var(--dh-space-6);
+  gap: var(--dh-space-4);
   align-items: start;
   min-inline-size: 0;
 }
@@ -458,10 +482,6 @@
 
 .dh-today__now[data-overdue="true"] .dh-today__now-label {
   color: var(--dh-color-overdue);
-}
-
-.dh-today__now-foot {
-  justify-content: flex-end;
 }
 
 .dh-today__next {
@@ -706,10 +726,6 @@
 }
 
 @container today (max-width: 33.999rem) {
-  .dh-today__now-foot .dh-btn {
-    inline-size: 100%;
-  }
-
   .dh-today__next {
     padding: var(--dh-space-4);
   }
@@ -778,9 +794,9 @@
  *     has a margin; only the rules cross it.
  */
 .dh-today__panel--card {
-  padding-block: var(--dh-space-5);
+  padding-block: var(--dh-space-4);
   border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
 }
 
@@ -792,9 +808,28 @@
   .dh-today__schedule,
   .dh-today__continue,
   .dh-today__stack {
-    padding-inline-start: var(--dh-space-5);
-    border-inline-start: var(--dh-border-width) solid var(--dh-color-divider);
+    padding-inline-start: var(--dh-space-4);
   }
+}
+
+/* TODAY-13 — production showed that loose supporting sections did not read as
+ * calm; their headings and rows simply ran into adjacent columns. These are
+ * compact bounded regions, not elevated widgets: one hairline, one surface and
+ * no resting shadow. */
+.dh-today__schedule,
+.dh-today__habits-panel,
+.dh-today__goals,
+.dh-today__attention,
+.dh-today__continue,
+.dh-today__reflection {
+  padding: var(--dh-space-4);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+}
+
+.dh-today__now .dh-tasklist {
+  margin-block: calc(-1 * var(--dh-space-1));
 }
 
 .dh-today__panel--card > :where(.dh-today__panel-head, .dh-today__panel-foot),
@@ -1158,7 +1193,7 @@
   margin-block-start: 0.4375rem;
   margin-inline: calc((1.25rem - 0.5rem) / 2);
   border-radius: var(--dh-radius-pill);
-  background: var(--md-sys-color-entity-meeting);
+  background: var(--dh-color-entity-meeting);
 }
 
 @media (forced-colors: active) {
@@ -1252,8 +1287,8 @@
   inline-size: 2rem;
   block-size: 2rem;
   border-radius: var(--dh-radius-pill);
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--dh-color-surface-selected);
+  color: var(--dh-color-text);
   font-size: var(--dh-text-label-size);
   font-weight: var(--dh-text-label-weight);
 }
@@ -1377,7 +1412,7 @@
   }
 
   .dh-today__summary {
-    padding: var(--dh-space-3) var(--dh-space-4);
+    padding: 0;
   }
 
   /* The greeting steps down one rung so it does not take a third of a phone

@@ -194,7 +194,7 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--dh-space-1) var(--dh-space-2);
   border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-sm, var(--md-sys-shape-corner-small));
+  border-radius: var(--dh-radius-sm, var(--dh-radius-control));
   background: var(--dh-color-surface, transparent);
   color: var(--dh-color-text);
   font: inherit;

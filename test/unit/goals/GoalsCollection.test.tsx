@@ -10,7 +10,9 @@ import {
   type SerializedGoalWithAlignment,
 } from "~/modules/goals/GoalsCollection";
 import type { GoalAlignment } from "~/kernel/alignment";
+import type { GoalWorkspaceDetail } from "~/modules/goals/goal-workspace-load";
 import {
+  UNMEASURED_GOAL,
   UNMEASURED_GOAL_PROGRESS,
   evaluateGoalProgress,
   normalizeGoalMeasurementConfig,
@@ -87,6 +89,7 @@ function renderCollection(
     state?: "active" | "deleted";
     /** REDESIGN-04 — the resolved master–detail selection. */
     selectedId?: string | null;
+    selected?: GoalWorkspaceDetail | null;
   } = {},
 ) {
   const state = opts.state ?? "active";
@@ -99,7 +102,9 @@ function renderCollection(
             goals={goals}
             deletedGoals={opts.deletedGoals ?? []}
             nextCursor={opts.nextCursor ?? null}
+            selected={opts.selected ?? null}
             selectedId={opts.selectedId ?? null}
+            todayIso="2026-07-24"
             state={state}
             failed={opts.failed ?? false}
           />
@@ -136,7 +141,9 @@ describe("Goals collection (the Alignment view)", () => {
     ).toHaveAttribute("href", "/goals?goal=g1");
     // The Area is the row's CONTEXT LINE, not a second link inside a row whose
     // whole surface is already one link.
-    expect(within(row).getByText("Health")).toBeInTheDocument();
+    expect(
+      within(row).getByText("Health · No measurement"),
+    ).toBeInTheDocument();
     expect(within(row).getAllByRole("link")).toHaveLength(1);
     /*
      * §6.2 — alignment survives as a QUIET state. It is not drawn as a measure
@@ -149,6 +156,59 @@ describe("Goals collection (the Alignment view)", () => {
     expect(link.getAttribute("aria-label")).toContain(
       "Contributing Task activity was recorded today.",
     );
+  });
+
+  it("surfaces the selected Goal's current status and next incomplete stage before its history", () => {
+    const selectedGoal = goal();
+    renderCollection([selectedGoal], {
+      selectedId: selectedGoal.id,
+      selected: {
+        overview: {
+          id: selectedGoal.id,
+          title: selectedGoal.title,
+          createdAt: selectedGoal.createdAt,
+          updatedAt: selectedGoal.updatedAt,
+          completedAt: selectedGoal.completedAt,
+          area: selectedGoal.area,
+        },
+        details: {
+          targetDate: null,
+          definitionOfDone: null,
+          iconKey: null,
+          colourSlot: null,
+          measurement: UNMEASURED_GOAL,
+        },
+        progress: selectedGoal.progress,
+        measurements: [],
+        milestones: [
+          {
+            id: "m2",
+            title: "Book the race entry",
+            weight: 1,
+            position: 2,
+            completed: false,
+          },
+          {
+            id: "m1",
+            title: "Choose a training plan",
+            weight: 1,
+            position: 1,
+            completed: true,
+          },
+        ],
+        contribution: selectedGoal.contribution,
+        projects: [],
+        projectsNextCursor: null,
+        alignment: selectedGoal.alignment,
+        alignmentEvidence: [],
+        alignmentEvidenceHasMore: false,
+      } as GoalWorkspaceDetail,
+    });
+
+    const focus = screen.getByRole("region", { name: "Goal focus" });
+    expect(within(focus).getByText("No measurement")).toBeVisible();
+    expect(within(focus).getByText("Book the race entry")).toBeVisible();
+    expect(within(focus).queryByText("Choose a training plan")).toBeNull();
   });
 
   it("marks the selected row as the current one, semantically and not by tint alone", () => {

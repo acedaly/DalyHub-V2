@@ -31,6 +31,8 @@ If you ever feel you need a long prompt to do a piece of work, that is a **docum
 | [`AGENTS.md`](AGENTS.md) (this file) | How do we build DalyHub, and what does "good" mean? |
 | [`docs/product/PRODUCT_PRINCIPLES.md`](docs/product/PRODUCT_PRINCIPLES.md) | What is DalyHub, why does it exist, and how should it feel? |
 | [`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) | What are we building next, and in what order? |
+| [`docs/design/DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) | What should the finished product feel like, and how should each module express that direction? |
+| [`docs/design/DHDS_01_WORK_PACKAGE.md`](docs/design/DHDS_01_WORK_PACKAGE.md) | How do we deliver the DalyHub-native design direction in staged, measurable implementation work? |
 | [`docs/design/DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) | What is DalyHub's design philosophy, and where does it deliberately depart from Material? |
 | [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) | What are the shared interaction patterns every module reuses? |
 | [`docs/governance/OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md) | When and how do we reuse open-source code, and how do we handle licensing? |
@@ -118,6 +120,12 @@ DalyHub models a life, and lives contain people. People are not a bolt-on CRM; t
 ---
 
 ## 6. UX philosophy
+
+The governing product-level visual and interaction brief is
+[`docs/design/DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md). Read it
+before changing a user-facing surface. Concept screenshots are references for
+composition and finish; they do not override its usability, semantics, mobile
+or accessibility requirements.
 
 - **One layout to learn.** Every record — a task, a project, a person, a note — uses the same [Record Layout](docs/design/DESIGN_SYSTEM.md#record-header): header, summary, tabs, timeline, activity. Learn it once, know it everywhere.
 - **Progressive disclosure.** Show the essential first; reveal depth on demand. The [Drawer](docs/design/DESIGN_SYSTEM.md#drawer) and [Inspector](docs/design/DESIGN_SYSTEM.md#inspector) exist so the user is never overwhelmed and never blocked.

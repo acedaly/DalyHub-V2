@@ -17,7 +17,7 @@
 
 .settings-demo__header h1 {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
@@ -25,7 +25,7 @@
 .settings-demo__header p {
   margin: 0;
   max-width: 46rem;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.65;
   color: var(--dh-color-text-muted);
 }
@@ -33,20 +33,19 @@
 .settings-demo__narrow-wrap {
   margin-top: var(--app-space-12);
   padding-top: var(--app-space-8);
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .settings-demo__narrow-title {
   margin: 0 0 var(--app-space-1);
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
 
 .settings-demo__narrow-note {
   margin: 0 0 var(--app-space-4);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -55,6 +54,6 @@
   max-width: 100%;
   padding: var(--app-space-4);
   border: var(--app-border-width-thin) dashed var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-large);
+  border-radius: var(--dh-radius-lg);
   background: var(--dh-color-bg-sunken);
 }

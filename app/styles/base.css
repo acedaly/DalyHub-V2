@@ -229,8 +229,7 @@ body {
   background: currentColor;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
+  transition: opacity var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 :is(
@@ -254,7 +253,7 @@ body {
     .dh-mobilebar__action,
     .dh-command__close
   ):hover::after {
-  opacity: var(--md-sys-state-hover-state-layer-opacity);
+  opacity: var(--dh-state-hover-opacity);
 }
 
 /*
@@ -287,7 +286,7 @@ body {
     .dh-mobilebar__action,
     .dh-command__close
   ):focus-visible::after {
-  opacity: var(--md-sys-state-focus-state-layer-opacity);
+  opacity: var(--dh-state-focus-opacity);
 }
 
 /* PRESSED. After hover and focus so it wins while the pointer is down — and the
@@ -314,7 +313,7 @@ body {
     .dh-mobilebar__action,
     .dh-command__close
   ):active::after {
-  opacity: var(--md-sys-state-pressed-state-layer-opacity);
+  opacity: var(--dh-state-pressed-opacity);
 }
 
 /* A disabled component has no states at all — the M3 disabled treatment (12%
@@ -500,7 +499,7 @@ body {
 /* Selection and toggle controls take the accent so they are unmistakably the
  * product's, and a 44px target on touch is provided by their labels/cells. */
 :where(input[type="checkbox"], input[type="radio"]) {
-  accent-color: var(--md-sys-color-primary);
+  accent-color: var(--dh-color-accent);
   inline-size: var(--app-space-5);
   block-size: var(--app-space-5);
   cursor: pointer;
@@ -516,7 +515,7 @@ body {
  * themes. Zero specificity, so every existing link treatment still wins.
  */
 :where(a) {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 /* Honour the user's reduced-motion preference: motion never carries meaning that
@@ -525,9 +524,9 @@ body {
   *,
   *::before,
   *::after {
-    animation-duration: var(--md-sys-motion-duration-none) !important;
+    animation-duration: var(--dh-motion-none) !important;
     animation-iteration-count: 1 !important;
-    transition-duration: var(--md-sys-motion-duration-none) !important;
+    transition-duration: var(--dh-motion-none) !important;
     scroll-behavior: auto !important;
   }
 }
@@ -573,7 +572,7 @@ body {
 }
 
 .page h1 {
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   line-height: 1.2;
   letter-spacing: -0.01em;
   margin: 0 0 var(--app-space-2);
@@ -599,10 +598,10 @@ body {
 
 .dh-route-error h1 {
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-headline-medium-size);
-  line-height: var(--md-sys-typescale-headline-medium-line-height);
-  font-weight: var(--md-sys-typescale-headline-medium-weight);
-  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-size: var(--dh-text-record-title-size);
+  line-height: var(--dh-text-record-title-line-height);
+  font-weight: var(--dh-text-record-title-weight);
+  letter-spacing: var(--dh-text-display-tracking);
 }
 
 .dh-route-error p {
@@ -616,13 +615,13 @@ body {
 
 .page h2,
 .dh-pane-body h2 {
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   line-height: 1.35;
   margin: var(--app-space-6) 0 var(--app-space-2);
 }
 
 .lead {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   color: var(--dh-color-text-muted);
   margin: 0 0 var(--app-space-4);
 }
@@ -648,7 +647,7 @@ body {
  */
 .page a:not(.dh-btn),
 .dh-pane-body a:not(.dh-btn) {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 .page ul,
@@ -664,8 +663,7 @@ body {
 
 .page hr {
   border: none;
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
   margin: var(--app-space-8) 0;
 }
 
@@ -689,15 +687,15 @@ body {
   padding: var(--app-space-6);
   max-width: var(--app-width-narrow);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
 }
 
 .dh-coming-soon__title {
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
   color: var(--dh-color-text);
   margin: 0 0 var(--app-space-3);
@@ -711,11 +709,11 @@ body {
 pre {
   overflow-x: auto;
   padding: var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
   font-family: var(--md-ref-typeface-mono);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .home-modules {
@@ -738,9 +736,9 @@ pre {
  */
 .markdown-content {
   max-inline-size: var(--app-width-prose);
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
-  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  font-size: var(--dh-text-lead-size);
+  line-height: var(--dh-text-lead-line-height);
+  letter-spacing: var(--dh-text-body-tracking);
 }
 
 /*
@@ -812,7 +810,7 @@ pre {
   margin-block: var(--app-space-4);
   padding-inline-start: var(--app-space-4);
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-outline-variant);
+    var(--dh-color-border);
   color: var(--dh-color-text-muted);
 }
 
@@ -857,14 +855,13 @@ pre {
 .markdown-content li > input[type="checkbox"] {
   margin-inline-start: calc(-1 * var(--app-space-5));
   margin-inline-end: var(--app-space-2);
-  accent-color: var(--md-sys-color-primary);
+  accent-color: var(--dh-color-accent);
 }
 
 .markdown-content hr {
   margin-block: var(--app-space-6);
   border: none;
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 /*
@@ -876,13 +873,13 @@ pre {
  * never colour-only: the underline is always there (AGENTS.md §15).
  */
 .markdown-content a {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   text-decoration: underline;
   text-decoration-thickness: var(--app-border-width-thin);
   text-underline-offset: 0.2em;
   text-decoration-color: color-mix(
     in srgb,
-    var(--md-sys-color-primary) 45%,
+    var(--dh-color-accent) 45%,
     transparent
   );
   /* A pasted URL must wrap rather than push the whole column sideways. */
@@ -910,7 +907,7 @@ pre {
  */
 .markdown-content :not(pre) > code {
   padding: 0.1em 0.32em;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   background: var(--dh-color-bg-sunken);
   color: var(--dh-color-text);
 }
@@ -918,7 +915,7 @@ pre {
 .markdown-content pre {
   margin-block: var(--app-space-4);
   padding: var(--app-space-3) var(--app-space-4);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-bg-sunken);
   overflow-x: auto;
   line-height: 1.55;
@@ -940,15 +937,14 @@ pre {
   margin-block: var(--app-space-4);
   border-collapse: collapse;
   font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
 
 .markdown-content :is(th, td) {
   padding: var(--app-space-2) var(--app-space-3);
-  border-block-end: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
   text-align: start;
 }
 

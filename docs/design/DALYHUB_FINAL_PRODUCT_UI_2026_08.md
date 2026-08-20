@@ -1,10 +1,13 @@
 # DalyHub — the final product UI (2026-08)
 
-> **The visual authority for DalyHub is now `concept 1.png`, `concept 2.png` and
-> `concept 3.png` in the repository root.** They supersede the earlier
+> **The visual reference for this implementation pass is `concept 1.png`,
+> `concept 2.png` and `concept 3.png` in the repository root.** The governing
+> product brief is now [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md); the concepts
+> illustrate its composition and finish but do not override its usability,
+> semantics, accessibility or adaptive-mobile rules. They supersede the earlier
 > exploratory references (`ChatGPT Image Aug 14 …`) wherever the two disagree,
 > and they supersede any generic Material Design 3, Fluent, shadcn or Radix
-> reference outright.
+> reference for the scope of this recorded pass.
 >
 > The three are one specification seen from three angles, not three options:
 >

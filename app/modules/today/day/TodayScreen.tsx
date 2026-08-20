@@ -329,12 +329,10 @@ function PlanBand({
 function NowTaskPanel({
   task,
   rowProps,
-  href,
   overdue,
 }: {
   readonly task: DayTask;
   readonly rowProps: (task: DayTask) => TaskRowProps;
-  readonly href: string;
   readonly overdue: boolean;
 }) {
   return (
@@ -352,11 +350,6 @@ function NowTaskPanel({
       <TaskList ariaLabel="Now task">
         <TaskRow {...rowProps(task)} />
       </TaskList>
-      <p className="dh-today__panel-foot dh-today__now-foot">
-        <Link className="dh-btn dh-btn--primary" to={href}>
-          Open task
-        </Link>
-      </p>
     </section>
   );
 }
@@ -488,53 +481,60 @@ function TodayStatRank({
   const measures = todayMeasures({ trend, goals });
   if (measures.length === 0) return null;
   return (
-    <ul className="dh-today__summary" data-testid="today-summary">
-      {measures.map((measure) => {
-        /*
-         * The LABEL leads and the figure follows, because that is the reading
-         * order the mockup sets and the only one that works when three cards sit
-         * side by side: the eye lands on the number, and the words above it are
-         * what the number is OF.
-         *
-         * The parts are the same markup whether or not the measure links, so a
-         * linked and an unlinked card are the same object at a glance — the link
-         * is an affordance on the card, not a different card.
-         */
-        const body = (
-          <>
-            <span className="dh-today__measure-label">{measure.label}</span>
-            {/* The figure and its evidence share ONE line, which is what makes
+    <div className="dh-today__summary" data-testid="today-summary">
+      <details className="dh-today__weekly">
+        <summary>Last 7 days</summary>
+        <ul className="dh-today__weekly-list">
+          {measures.map((measure) => {
+            /*
+             * The LABEL leads and the figure follows, because that is the reading
+             * order the mockup sets and the only one that works when three cards sit
+             * side by side: the eye lands on the number, and the words above it are
+             * what the number is OF.
+             *
+             * The parts are the same markup whether or not the measure links, so a
+             * linked and an unlinked card are the same object at a glance — the link
+             * is an affordance on the card, not a different card.
+             */
+            const body = (
+              <>
+                <span className="dh-today__measure-label">{measure.label}</span>
+                {/* The figure and its evidence share ONE line, which is what makes
                 the rank a strip rather than three tiles. */}
-            <span className="dh-today__measure-figure">
-              <span className="dh-today__measure-value">{measure.value}</span>
-              <MeasurePlot measure={measure} />
-            </span>
-            <span className="dh-today__measure-note">{measure.note}</span>
-          </>
-        );
-        return (
-          <li className="dh-today__measure" key={measure.id}>
-            {/*
-             * The body is ALWAYS one element — a link when there is somewhere to
-             * go, a plain box when there is not — so a linked and an unlinked
-             * measure are the same object at a glance and the plot sits inside
-             * the same box as the figure either way. The link is an affordance on
-             * the measure, not a different measure.
-             */}
-            {measure.href === null ? (
-              <span className="dh-today__measure-body">{body}</span>
-            ) : (
-              <Link
-                className="dh-today__measure-body dh-today__measure-link"
-                to={measure.href}
-              >
-                {body}
-              </Link>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+                <span className="dh-today__measure-figure">
+                  <span className="dh-today__measure-value">
+                    {measure.value}
+                  </span>
+                  <MeasurePlot measure={measure} />
+                </span>
+                <span className="dh-today__measure-note">{measure.note}</span>
+              </>
+            );
+            return (
+              <li className="dh-today__measure" key={measure.id}>
+                {/*
+                 * The body is ALWAYS one element — a link when there is somewhere to
+                 * go, a plain box when there is not — so a linked and an unlinked
+                 * measure are the same object at a glance and the plot sits inside
+                 * the same box as the figure either way. The link is an affordance on
+                 * the measure, not a different measure.
+                 */}
+                {measure.href === null ? (
+                  <span className="dh-today__measure-body">{body}</span>
+                ) : (
+                  <Link
+                    className="dh-today__measure-body dh-today__measure-link"
+                    to={measure.href}
+                  >
+                    {body}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </details>
+    </div>
   );
 }
 
@@ -1189,10 +1189,6 @@ export function TodayScreen({
             task={nowTask}
             rowProps={rowProps}
             overdue={buckets.overdue.some((task) => task.id === nowTask.id)}
-            href={`?${withDrawerPushed(
-              searchParams,
-              `task:${nowTask.id}`,
-            ).toString()}`}
           />
         )}
 

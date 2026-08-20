@@ -1,5 +1,24 @@
 # Changelog
 
+- Added the first DHDS implementation ratchet: product styles may reduce but no
+  longer increase their direct dependency on Material machinery tokens; Today,
+  Goals and Habits now consume DalyHub semantic colour roles directly.
+
+- Established `docs/design/DESIGN_DIRECTION.md` as the product-level UI/UX
+  brief for coding agents, including system-wide interaction rules,
+  module-specific direction and a practical completion checklist.
+
+- Expanded the design direction with explicit desktop/mobile compositions,
+  competitive quality standards and measurable density guidance, and added the
+  staged `DHDS_01_WORK_PACKAGE.md` implementation package.
+
+- Tightened the daily-work surfaces after production review: Today now uses a
+  compact current-task row, bounded supporting regions, smaller gaps and a
+  collapsed weekly KPI strip; Tasks has a denser capture/list transition;
+  Goals exposes progress state and the next incomplete stage; Projects uses a
+  tighter working-card grid; and the remaining workspaces now share compact
+  controls, card density and section rhythm.
+
 ## Unreleased
 
 - Refined Today into a decision-first command centre: one canonical Now task,

@@ -47,6 +47,7 @@ import {
 } from "~/shared/alignment";
 import {
   goalProgressMeterStatus,
+  goalProgressStatusLabel,
   goalProgressSummaryText,
   goalRowValue,
 } from "~/shared/goal-progress";
@@ -150,7 +151,7 @@ export function GoalWorkspaceList({
             }
             title={goal.title}
             headingLevel={3}
-            context={goal.area.title}
+            context={`${goal.area.title} · ${goalProgressStatusLabel(goal.progress.status)}`}
             accent={goal.area.colourRank}
             colourSlot={
               resolveIdentity({

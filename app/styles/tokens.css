@@ -6967,6 +6967,9 @@
   --dh-color-surface-bar: var(--canvas);
   /** A SELECTED destination or row. A tint, not a slab (see the M3X note). */
   --dh-color-surface-selected: var(--surface-muted);
+  --dh-color-surface-expressive: var(--md-app-color-surface-expressive);
+  --dh-color-text-on-expressive: var(--md-app-color-on-surface-expressive);
+  --dh-color-surface-supporting: var(--md-app-color-surface-supporting);
 
   /*
    * THE RAIL, and the seven names that make it self-contained.
@@ -7030,6 +7033,9 @@
   --dh-color-text-on-accent-subtle: var(--accent-pressed);
   /** Text on a filled danger surface. */
   --dh-color-text-on-danger: var(--ink-inverse);
+  /** Overlay surfaces and their foreground. */
+  --dh-color-overlay: var(--md-sys-color-inverse-surface);
+  --dh-color-text-on-overlay: var(--md-sys-color-inverse-on-surface);
 
   /*
    * TWO borders, and the split is the WCAG one rather than a visual one.
@@ -7062,6 +7068,16 @@
   --dh-color-accent: var(--accent);
   /** Its pale container, for a wash or a selected chip. Used sparingly. */
   --dh-color-accent-subtle: var(--accent-tint);
+  /** Meeting identity; generated privately, consumed through DalyHub meaning. */
+  --dh-color-entity-meeting: var(--md-sys-color-entity-meeting);
+  --dh-color-entity-area: var(--md-sys-color-entity-area);
+  --dh-color-entity-goal: var(--md-sys-color-entity-goal);
+  --dh-color-entity-habit: var(--md-sys-color-entity-habit);
+  --dh-color-entity-project: var(--md-sys-color-entity-project);
+  --dh-color-entity-task: var(--md-sys-color-entity-task);
+  --dh-color-entity-note: var(--md-sys-color-entity-note);
+  --dh-color-entity-asset: var(--md-sys-color-entity-asset);
+  --dh-color-entity-review: var(--md-sys-color-entity-review);
 
   /*
    * Status. Four names, and `danger` is not `overdue` — D3: a slipped Task is a
@@ -7073,6 +7089,78 @@
   --dh-color-warning: var(--warning);
   --dh-color-info: var(--info);
   --dh-color-overdue: var(--danger);
+  --dh-color-danger-subtle: var(--md-sys-color-error-container);
+  --dh-color-text-on-danger-subtle: var(--md-sys-color-on-error-container);
+  --dh-color-warning-subtle: var(--md-sys-color-warning-container);
+  --dh-color-text-on-warning-subtle: var(--md-sys-color-on-warning-container);
+  --dh-color-success-subtle: var(--md-sys-color-success-container);
+  --dh-color-text-on-success-subtle: var(--md-sys-color-on-success-container);
+  --dh-color-info-subtle: var(--md-sys-color-info-container);
+  --dh-color-text-on-info-subtle: var(--md-sys-color-on-info-container);
+
+  /** Product states whose words and colour travel together. */
+  --dh-color-state-completed: var(--md-sys-color-state-completed);
+  --dh-color-state-completed-subtle: var(
+    --md-sys-color-state-completed-container
+  );
+  --dh-color-text-on-completed-subtle: var(
+    --md-sys-color-on-state-completed-container
+  );
+  --dh-color-state-waiting: var(--md-sys-color-state-waiting);
+  --dh-color-state-waiting-subtle: var(--md-sys-color-state-waiting-container);
+  --dh-color-text-on-waiting-subtle: var(
+    --md-sys-color-on-state-waiting-container
+  );
+  --dh-color-state-on-hold: var(--md-sys-color-state-on-hold);
+  --dh-color-state-on-hold-subtle: var(--md-sys-color-state-on-hold-container);
+  --dh-color-text-on-hold-subtle: var(
+    --md-sys-color-on-state-on-hold-container
+  );
+  --dh-color-state-due-soon: var(--md-sys-color-state-due-soon);
+  --dh-color-state-due-soon-subtle: var(
+    --md-sys-color-state-due-soon-container
+  );
+  --dh-color-state-overdue-subtle: var(--md-sys-color-state-overdue-container);
+
+  /** Entity identities and the approved decorative accent vocabulary. */
+  --dh-color-entity-person: var(--md-sys-color-entity-person);
+  --dh-color-entity-diary: var(--md-sys-color-entity-diary);
+  --dh-color-accent-violet: var(--md-sys-color-accent-violet);
+  --dh-color-accent-blue: var(--md-sys-color-accent-blue);
+  --dh-color-accent-green: var(--md-sys-color-accent-green);
+  --dh-color-accent-amber: var(--md-sys-color-accent-amber);
+  --dh-color-accent-teal: var(--md-sys-color-accent-teal);
+  --dh-color-accent-coral: var(--md-sys-color-accent-coral);
+  --dh-color-area-1: var(--md-sys-color-area-accent-1);
+  --dh-color-area-2: var(--md-sys-color-area-accent-2);
+  --dh-color-area-3: var(--md-sys-color-area-accent-3);
+  --dh-color-area-4: var(--md-sys-color-area-accent-4);
+  --dh-color-area-5: var(--md-sys-color-area-accent-5);
+  --dh-color-area-6: var(--md-sys-color-area-accent-6);
+  --dh-color-area-1-subtle: var(--md-sys-color-area-accent-1-container);
+  --dh-color-area-2-subtle: var(--md-sys-color-area-accent-2-container);
+  --dh-color-area-3-subtle: var(--md-sys-color-area-accent-3-container);
+  --dh-color-area-4-subtle: var(--md-sys-color-area-accent-4-container);
+  --dh-color-area-5-subtle: var(--md-sys-color-area-accent-5-container);
+  --dh-color-area-6-subtle: var(--md-sys-color-area-accent-6-container);
+  --dh-color-text-on-area-1-subtle: var(
+    --md-sys-color-on-area-accent-1-container
+  );
+  --dh-color-text-on-area-2-subtle: var(
+    --md-sys-color-on-area-accent-2-container
+  );
+  --dh-color-text-on-area-3-subtle: var(
+    --md-sys-color-on-area-accent-3-container
+  );
+  --dh-color-text-on-area-4-subtle: var(
+    --md-sys-color-on-area-accent-4-container
+  );
+  --dh-color-text-on-area-5-subtle: var(
+    --md-sys-color-on-area-accent-5-container
+  );
+  --dh-color-text-on-area-6-subtle: var(
+    --md-sys-color-on-area-accent-6-container
+  );
 
   /*
    * POLISH-01 — the METER pair: what a progress bar is drawn in, and what it is
@@ -7308,6 +7396,40 @@
   --dh-text-label-size: 13px;
   --dh-text-label-line-height: 1.2;
   --dh-text-label-weight: 500;
+  --dh-text-label-strong-weight: 600;
+  --dh-text-display-size: var(--md-sys-typescale-display-small-size);
+  --dh-text-display-line-height: var(
+    --md-sys-typescale-display-small-line-height
+  );
+  --dh-text-display-weight: var(
+    --md-sys-typescale-display-small-weight-emphasized
+  );
+  --dh-text-lead-size: var(--md-sys-typescale-body-large-size);
+  --dh-text-lead-line-height: var(--md-sys-typescale-body-large-line-height);
+  --dh-text-lead-weight: var(--md-sys-typescale-body-large-weight);
+  --dh-text-compact-title-size: var(--md-sys-typescale-title-small-size);
+  --dh-text-compact-title-line-height: var(
+    --md-sys-typescale-title-small-line-height
+  );
+  --dh-text-compact-title-weight: var(--md-sys-typescale-title-small-weight);
+
+  /** Tracking is intentionally normalised instead of exposing a framework
+   * typescale's per-rung letter-spacing decisions to product styles. */
+  --dh-text-body-tracking: normal;
+  --dh-text-meta-tracking: normal;
+  --dh-text-label-tracking: normal;
+  --dh-text-display-tracking: normal;
+
+  /* State-layer opacity is behaviour, named once for every primitive. */
+  --dh-state-hover-opacity: var(--md-sys-state-hover-state-layer-opacity);
+  --dh-state-focus-opacity: var(--md-sys-state-focus-state-layer-opacity);
+  --dh-state-pressed-opacity: var(--md-sys-state-pressed-state-layer-opacity);
+  --dh-state-disabled-content-opacity: var(
+    --md-sys-state-disabled-content-opacity
+  );
+  --dh-state-disabled-container-opacity: var(
+    --md-sys-state-disabled-container-opacity
+  );
 
   /*
    * NUMERIC readability, as a property rather than as a size.

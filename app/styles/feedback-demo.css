@@ -11,7 +11,7 @@
 
 .fb-demo__header h1 {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   font-weight: 500;
 }
 
@@ -28,21 +28,21 @@
 }
 
 .fb-demo__panel {
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
   padding: var(--app-space-4);
   background: var(--dh-color-surface-raised);
 }
 
 .fb-demo__panel h2 {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
 }
 
 .fb-demo__note {
   margin: 0 0 var(--app-space-4);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -58,16 +58,16 @@
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   min-height: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 .fb-demo__actions button:hover,
 .fb-demo__row button:hover {
   background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
 }
 
 .fb-demo__list {
@@ -92,7 +92,7 @@
 .fb-demo__empty,
 .fb-demo__hint {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .fb-demo__inspector-form,

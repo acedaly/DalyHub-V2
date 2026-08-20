@@ -27,19 +27,19 @@
 
 .dh-progress__label {
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-title-small-size);
-  line-height: var(--md-sys-typescale-title-small-line-height);
-  font-weight: var(--md-sys-typescale-title-small-weight);
-  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+  font-size: var(--dh-text-compact-title-size);
+  line-height: var(--dh-text-compact-title-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
 }
 
 /* The authoritative statement of progress. Secondary, never faint: it carries the
  * meaning for anyone who cannot see the bar. */
 .dh-progress__summary {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
   overflow-wrap: anywhere;
 }
 
@@ -51,7 +51,7 @@
      rather than a bar: the number beside it is the authority and the track
      illustrates it. */
   block-size: var(--app-progress-bar-height);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   /* POLISH-01 — the ONE meter track. It was `secondary-container`, a lavender
      in this scheme, so an empty bar read as a full one in a different colour. */
   background: var(--dh-color-meter-track);
@@ -60,10 +60,9 @@
 
 .dh-progress__fill {
   block-size: 100%;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-meter-neutral);
-  transition: inline-size var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-standard);
+  transition: inline-size var(--dh-motion-base) var(--dh-ease-standard);
 }
 
 /*
@@ -165,7 +164,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dh-progress__fill {
-    transition-duration: var(--md-sys-motion-duration-none);
+    transition-duration: var(--dh-motion-none);
   }
 }
 
@@ -203,12 +202,11 @@
 }
 
 .dh-ring__track {
-  stroke: var(--md-sys-color-secondary-container);
+  stroke: var(--dh-color-accent-subtle);
 }
 
 .dh-ring__arc {
-  transition: stroke-dashoffset var(--md-sys-motion-duration-long2)
-    var(--md-sys-motion-easing-emphasized-decelerate);
+  transition: stroke-dashoffset var(--dh-motion-slow) var(--dh-ease-enter);
 }
 
 /* The centre well. `aria-hidden` in the component — it repeats the ring's own

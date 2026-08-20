@@ -22,11 +22,15 @@
 .dh-diary-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2);
   align-items: center;
   justify-content: space-between;
   min-inline-size: 0;
   max-inline-size: 100%;
+  padding: var(--app-space-3) var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-subtle);
 }
 
 /* UIQ-013 — Diary's own `.dh-diary-modes` underline tabs are retired: Day /
@@ -69,9 +73,9 @@
   flex: 0 0 auto;
   min-inline-size: var(--app-touch-target-min);
   min-block-size: var(--app-touch-target-min);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--dh-text-metric-size);
   line-height: 1;
   text-decoration: none;
 }
@@ -113,20 +117,20 @@
   min-inline-size: var(--app-touch-target-min);
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   color: var(--dh-color-text-muted);
   text-decoration: none;
 }
 
 .dh-diary-week__weekday {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .dh-diary-week__number {
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -148,14 +152,14 @@
   content: "";
   inline-size: var(--app-space-1);
   block-size: var(--app-space-1);
-  border-radius: var(--md-sys-shape-corner-full);
-  background: var(--md-sys-color-primary);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-accent);
 }
 
 /* The SELECTED day: the DalyHub accent, as §18 asks for by name. A filled
  * container, so it survives forced-colours and does not depend on hue. */
 .dh-diary-week__day[aria-current="date"] {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
 }
 
@@ -179,7 +183,7 @@
 
 .dh-diary-week__caption {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -197,7 +201,7 @@
   justify-content: center;
   inline-size: var(--app-touch-target-min);
   block-size: var(--app-touch-target-min);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   color: var(--dh-color-text-muted);
 }
 
@@ -222,7 +226,7 @@
 
 /* The ring belongs to the visible well, since the input itself is invisible. */
 .dh-diary-week__pickerwell:focus-within {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;
 }
 
@@ -231,9 +235,9 @@
   align-items: center;
   min-block-size: var(--app-touch-target-min);
   padding-inline: var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-full);
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-body-small-size);
+  border-radius: var(--dh-radius-pill);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
@@ -241,7 +245,7 @@
 
 .dh-diary-week__today[aria-disabled="true"] {
   color: var(--dh-color-text-muted);
-  opacity: var(--md-sys-state-disabled-content-opacity);
+  opacity: var(--dh-state-disabled-content-opacity);
   pointer-events: none;
 }
 
@@ -288,8 +292,8 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-body-small-size);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   text-decoration: none;
   white-space: nowrap;
@@ -311,7 +315,7 @@
 .dh-diary-filter__icon {
   display: inline-flex;
   flex: none;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
 }
 
 .dh-diary-filter__option:hover {
@@ -351,8 +355,8 @@
 .dh-diary-filter__count {
   min-inline-size: 1.25rem;
   padding: 0 var(--app-space-1);
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-label-small-size);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
   font-variant-numeric: tabular-nums;
   text-align: center;
   color: var(--dh-color-text-muted);
@@ -360,7 +364,7 @@
 }
 
 .dh-diary-filter__option[aria-current="true"] .dh-diary-filter__count {
-  color: var(--md-sys-color-on-secondary-container);
+  color: var(--dh-color-text);
   background: transparent;
 }
 
@@ -418,7 +422,7 @@
   gap: var(--app-space-2);
   padding: var(--app-space-3) var(--app-space-4);
   background: var(--dh-color-surface);
-  border-radius: var(--md-sys-shape-corner-large);
+  border-radius: var(--dh-radius-lg);
 }
 
 /* Entries are rows inside the day. The timeline rule behind them already says
@@ -435,7 +439,7 @@
  */
 .dh-diary-day__heading {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-small-size);
+  font-size: var(--dh-text-compact-title-size);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--dh-color-text);
@@ -459,7 +463,7 @@
     var(--diary-tl-rule-x) - (var(--app-border-width-thick) / 2)
   );
   inline-size: var(--app-border-width-thick);
-  background: var(--md-sys-color-outline-variant);
+  background: var(--dh-color-border);
 }
 
 .dh-diary-entry {
@@ -469,7 +473,7 @@
   column-gap: var(--diary-tl-gap);
   align-items: start;
   padding: var(--app-space-2) var(--app-space-2) var(--app-space-2) 0;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
 }
 
 .dh-diary-entry:hover {
@@ -477,12 +481,12 @@
 }
 
 .dh-diary-entry[data-selected="true"] {
-  background: var(--md-sys-color-secondary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 .dh-diary-entry__time {
   padding-block-start: var(--app-space-1);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   color: var(--dh-color-text-muted);
@@ -496,9 +500,9 @@
   justify-content: center;
   inline-size: var(--diary-tl-node);
   block-size: var(--diary-tl-node);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
-  color: var(--md-sys-color-entity-diary);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  color: var(--dh-color-entity-diary);
   background: var(--dh-color-surface);
 }
 
@@ -508,7 +512,7 @@
 }
 
 .dh-diary-entry[data-selected="true"] .dh-diary-entry__node {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
 }
 
 .dh-diary-entry__main {
@@ -521,7 +525,7 @@
 
 .dh-diary-entry__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
   line-height: 1.35;
   color: var(--dh-color-text);
@@ -546,7 +550,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
 }
 
 /*
@@ -559,8 +563,8 @@
  */
 .dh-diary-entry__excerpt {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
   color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -596,9 +600,9 @@
 
 .dh-diary-entry__backdated {
   padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-label-small-size);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -611,7 +615,7 @@
   min-inline-size: var(--app-touch-target-min);
   min-block-size: var(--app-touch-target-min);
   border: 0;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   color: var(--dh-color-text-muted);
   background: transparent;
   cursor: pointer;
@@ -648,7 +652,7 @@
 
 .dh-diary-detail__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--dh-text-metric-size);
   font-weight: 500;
   line-height: 1.35;
   color: var(--dh-color-text);
@@ -665,8 +669,7 @@
 
 .dh-diary-detail__stamps {
   padding-block-start: var(--app-space-3);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-diary-detail__fact {
@@ -677,7 +680,7 @@
 }
 
 .dh-diary-detail__fact dt {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -688,14 +691,14 @@
   flex-wrap: wrap;
   gap: var(--app-space-2);
   align-items: baseline;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
 }
 
 .dh-diary-detail__type {
   padding: 0 var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-label-small-size);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
   background: var(--dh-color-bg-sunken);
@@ -703,9 +706,9 @@
 
 .dh-diary-detail__badge {
   padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-label-small-size);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -715,7 +718,7 @@
 
 .dh-diary-detail__empty-body {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -731,7 +734,7 @@
  */
 .dh-diary-detail__section-heading {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -739,13 +742,12 @@
 .dh-diary-detail__related,
 .dh-day-context {
   padding-block-start: var(--app-space-3);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-day-context__help {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -795,7 +797,7 @@
  * suggestion that only looked different would be indistinguishable from a real
  * relationship to a screen reader or a monochrome display. */
 .dh-day-context__meta {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -806,7 +808,7 @@
 
 .dh-diary-detail__render-error {
   margin: 0;
-  color: var(--md-sys-color-on-error-container);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 .dh-diary-detail__actions {
@@ -850,7 +852,7 @@
 .dh-diary-capture__legend {
   padding: 0;
   margin-block-end: var(--app-space-2);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -867,9 +869,9 @@
   gap: var(--app-space-1);
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-body-small-size);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   background: var(--dh-color-surface);
   cursor: pointer;
@@ -887,8 +889,8 @@
 
 .dh-diary-capture__chip[data-checked="true"] {
   font-weight: 500;
-  color: var(--md-sys-color-primary);
-  border-color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
+  border-color: var(--dh-color-accent);
   background: var(--dh-color-accent-subtle);
 }
 
@@ -906,7 +908,7 @@
 }
 
 .dh-diary-capture__chip:focus-within {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;
 }
 
@@ -923,8 +925,7 @@
   flex-direction: column;
   gap: var(--app-space-3);
   padding-block-start: var(--app-space-3);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 /* The `display: flex` above outranks the UA `[hidden]` rule, so restore hiding
@@ -953,15 +954,15 @@
 
 .dh-diary-editor__partial {
   margin: 0;
-  color: var(--md-sys-color-on-warning-container);
+  color: var(--dh-color-text-on-warning-subtle);
 }
 
 .dh-diary-when__input {
   inline-size: 100%;
   min-block-size: var(--app-control-height-md);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   font: inherit;
   color: var(--dh-color-text);
   background: var(--dh-color-surface);

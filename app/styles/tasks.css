@@ -43,8 +43,8 @@
  * beside it keeps its own weight. */
 .dh-tasks-section__label {
   margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
-  font-weight: var(--md-sys-typescale-label-large-weight-emphasized);
+  font-size: var(--dh-text-label-size);
+  font-weight: var(--dh-text-label-strong-weight);
   line-height: 1.35;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -58,7 +58,7 @@
 
 .dh-tasks-section__empty {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -67,9 +67,9 @@
 .dh-tasks-section__more {
   align-self: flex-start;
   margin-top: var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 600;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   text-decoration: underline;
 }
 
@@ -144,7 +144,7 @@
 
 .dh-tasks-controls__summary {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -171,8 +171,8 @@
 .dh-tasks-quickadd__error {
   flex-basis: 100%;
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-error-container);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 .dh-tasks-inline-title-editor {
@@ -187,8 +187,8 @@
 }
 
 .dh-tasks-inline-title-editor__error {
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-error-container);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 /* TASKS-04 — the shared quick-edit panel (a `/tasks` row's Drawer and the body of
@@ -202,7 +202,7 @@
 
 .dh-task-quick-edit__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 500;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -229,8 +229,8 @@
 
 .dh-task-quick-edit__error {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-error-container);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -251,8 +251,8 @@
   display: grid;
   gap: var(--app-space-4);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-bg-sunken);
   min-width: 0;
 }
@@ -294,7 +294,7 @@
 
 .dh-recurrence-editor__legend {
   padding: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -312,13 +312,13 @@
   align-items: center;
   min-height: var(--app-touch-target-min);
   padding: var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 
 .dh-recurrence-editor__mode:focus-within {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-1);
 }
 
@@ -328,21 +328,21 @@
 
 .dh-recurrence-editor__mode-title {
   grid-area: title;
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   color: var(--dh-color-text);
 }
 
 .dh-recurrence-editor__mode-help {
   grid-area: help;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
 /* The selected mode is marked by the checked radio AND a stronger outline — the
  * radio carries the state, the outline reinforces it. */
 .dh-recurrence-editor__mode[data-selected="true"] {
-  border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-surface-container-highest);
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-recurrence-editor__weekday-row {
@@ -360,10 +360,10 @@
   justify-content: center;
   min-width: var(--app-touch-target-min);
   min-height: var(--app-touch-target-min);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
   cursor: pointer;
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text);
 }
 
@@ -390,20 +390,20 @@
 }
 
 .dh-recurrence-editor__weekday:focus-within {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-1);
 }
 
 .dh-recurrence-editor__weekday[data-selected="true"] {
-  border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text);
   font-weight: 600;
 }
 
 .dh-recurrence-editor__hint {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -411,7 +411,7 @@
  * statement rather than a caption. */
 .dh-recurrence-editor__summary {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   font-weight: 500;
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
@@ -425,8 +425,8 @@
 
 .dh-recurrence-editor__error {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-error-container);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 /* Review Inbox. A single bounded column so triage reads as one decision at a time
@@ -440,7 +440,7 @@
 
 .dh-task-review__progress {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -449,9 +449,9 @@
    programmatic focus is not always `:focus-visible` — so the indicator is on `:focus`.
    A ring, never colour alone. */
 .dh-task-review__progress:focus {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
 }
 
 .dh-task-review__more {
@@ -474,11 +474,11 @@
   gap: var(--app-space-2);
   min-height: var(--app-touch-target-min);
   padding-inline: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-tasks-views__label {
@@ -503,10 +503,10 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
   background: var(--dh-color-surface-raised);
-  box-shadow: var(--md-sys-elevation-2);
+  box-shadow: var(--dh-elevation-overlay);
 }
 
 .dh-tasks-views__group + .dh-tasks-views__group {
@@ -515,7 +515,7 @@
 
 .dh-tasks-views__heading {
   margin: 0 0 var(--app-space-1);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--dh-color-text-muted);
@@ -524,7 +524,7 @@
 .dh-tasks-views__note,
 .dh-tasks-views__empty {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -541,7 +541,7 @@
   gap: var(--app-space-2);
   min-height: var(--app-touch-target-min);
   padding: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   color: var(--dh-color-text);
   text-decoration: none;
 }
@@ -556,15 +556,15 @@
 }
 
 .dh-tasks-views__item-note {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-tasks-views__badge {
   padding: 0 var(--app-space-2);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -574,12 +574,11 @@
   gap: var(--app-space-2);
   margin-bottom: var(--app-space-4);
   padding-bottom: var(--app-space-3);
-  border-bottom: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-tasks-views__name-label {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
 }
 
@@ -605,19 +604,19 @@
   flex-direction: column;
   gap: var(--app-space-2);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-bg-sunken);
 }
 
 .dh-tasks-capture__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
 }
 
 .dh-tasks-capture__label {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--dh-color-text-muted);
@@ -634,10 +633,10 @@
 
 .dh-tasks-capture__token {
   padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text);
 }
 
@@ -665,18 +664,18 @@
   align-items: center;
   min-height: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--dh-radius-pill);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   text-decoration: none;
 }
 
 .dh-tasks-systems__link[aria-current="true"] {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
 }
 
 /* Bulk-action bar — bottom-anchored in the CollectionLayout selection slot. */
@@ -685,14 +684,14 @@
   flex-direction: column;
   gap: var(--app-space-2);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface-raised);
 }
 
 .dh-tasks-bulk__count {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
@@ -717,7 +716,7 @@
  * a real `<span>` inside the `<label>`, never a placeholder pretending to be one.
  */
 .dh-tasks-bulk__select-label {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -732,7 +731,7 @@
 
 .dh-tasks-bulk__confirm-title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-small-size);
+  font-size: var(--dh-text-compact-title-size);
   font-weight: 600;
   color: var(--dh-color-text);
 }
@@ -740,7 +739,7 @@
 .dh-tasks-bulk__confirm-body {
   margin: 0;
   max-width: var(--app-width-prose);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -758,21 +757,21 @@
  */
 .dh-btn--danger-quiet {
   color: var(--dh-color-danger);
-  border-color: var(--md-sys-color-outline-variant);
+  border-color: var(--dh-color-border);
   background: transparent;
 }
 
 .dh-btn--danger-quiet:hover {
   background: color-mix(
     in srgb,
-    var(--dh-color-danger) var(--md-sys-state-hover-state-layer-opacity),
+    var(--dh-color-danger) var(--dh-state-hover-opacity),
     transparent
   );
 }
 
 .dh-tasks-bulk__status {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -786,7 +785,7 @@
   align-items: center;
   gap: var(--app-space-1);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-task-repeat__icon {
@@ -820,7 +819,7 @@
    * Sectors views were already mobile-first stacked — TASKS-01 — so a phone has
    * never seen a compressed multi-column board.) */
   .dh-tasks-section__label {
-    font-size: var(--md-sys-typescale-body-small-size);
+    font-size: var(--dh-text-meta-size);
     font-weight: 500;
     color: var(--dh-color-text);
   }
@@ -1358,8 +1357,7 @@
 @media (hover: hover) and (pointer: fine) {
   .dh-card__meta[data-priority="quiet"] {
     opacity: 0;
-    transition: opacity var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard);
+    transition: opacity var(--dh-motion-instant) var(--dh-ease-standard);
   }
 
   .dh-card:hover .dh-card__meta[data-priority="quiet"],
@@ -1466,10 +1464,19 @@
  */
 :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd {
   gap: var(--app-space-2);
-  margin-block-end: var(--app-space-4);
-  padding-inline: var(--app-space-4);
-  border-radius: var(--app-shape-card);
+  margin-block-end: var(--dh-space-2);
+  padding-inline: var(--dh-inset-inline);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
+}
+
+.dh-collection--tasks .dh-collection__content {
+  padding-block-start: var(--dh-space-3);
+}
+
+.dh-collection--tasks .dh-tasklist {
+  border-block: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
 :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__input {
@@ -1487,15 +1494,15 @@
   place-content: center;
   inline-size: 1.25rem;
   block-size: 1.25rem;
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-title-medium-size);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-section-title-size);
   line-height: 1;
 }
 
 :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__submit {
   background: transparent;
   border-color: transparent;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__submit:disabled {
@@ -2117,5 +2124,5 @@
 
 .dh-task-sync[data-attention] {
   color: var(--dh-color-overdue);
-  font-weight: var(--md-sys-typescale-label-medium-weight);
+  font-weight: var(--dh-text-label-weight);
 }

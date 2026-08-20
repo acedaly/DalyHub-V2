@@ -24,7 +24,7 @@
 
 .dh-settings__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 500;
   line-height: 1.35;
   color: var(--dh-color-text);
@@ -32,7 +32,7 @@
 
 .dh-settings__description {
   margin: var(--app-space-2) 0 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.5;
   color: var(--dh-color-text-muted);
 }
@@ -70,7 +70,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-3);
-  padding: var(--dh-space-5);
+  padding: var(--dh-space-4);
   background: var(--dh-color-surface);
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
@@ -88,7 +88,7 @@
   align-items: center;
   gap: var(--app-space-2);
   margin: 0;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
   line-height: 1.35;
   color: var(--dh-color-text);
@@ -101,7 +101,7 @@
 
 .dh-settings-group__description {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.5;
   color: var(--dh-color-text-muted);
 }
@@ -114,8 +114,7 @@
 /* Rows within a group are separated by hairlines, calm and consistent. The
    within-card separator token, now that the group is a card. */
 .dh-settings-group__rows > .dh-settings-row + .dh-settings-row {
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 /* The dangerous region: visually separated by a bordered, tinted card — the
@@ -125,8 +124,8 @@
   gap: 0;
   padding: var(--app-space-4) var(--app-space-5) var(--app-space-2);
   border: var(--app-border-width-thin) solid var(--dh-color-danger);
-  border-radius: var(--md-sys-shape-corner-large);
-  background: var(--md-sys-color-error-container);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-danger-subtle);
 }
 
 .dh-settings-group--danger .dh-settings-group__header {
@@ -135,11 +134,11 @@
 }
 
 .dh-settings-group--danger .dh-settings-group__title {
-  color: var(--md-sys-color-on-error-container);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 .dh-settings-group--danger .dh-settings-group__description {
-  color: var(--md-sys-color-on-error-container);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 .dh-settings-group--danger
@@ -174,7 +173,7 @@
 }
 
 .dh-settings-row__label {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   line-height: 1.35;
   color: var(--dh-color-text);
@@ -183,7 +182,7 @@
 }
 
 .dh-settings-row__description {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.5;
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
@@ -205,7 +204,7 @@
 }
 
 .dh-settings-row__status {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -214,13 +213,13 @@
   color: var(--dh-color-text-muted);
 }
 .dh-settings-row__status--success {
-  color: var(--md-sys-color-on-success-container);
+  color: var(--dh-color-text-on-success-subtle);
 }
 .dh-settings-row__status--warning {
-  color: var(--md-sys-color-on-warning-container);
+  color: var(--dh-color-text-on-warning-subtle);
 }
 .dh-settings-row__status--danger {
-  color: var(--md-sys-color-on-error-container);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 /* Narrow containers (e.g. a Drawer or a 320px phone) stack the row cleanly so the
@@ -250,7 +249,7 @@
   height: var(--app-touch-target-min);
   margin: 0;
   padding: 0;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: transparent;
   cursor: pointer;
 }
@@ -262,10 +261,9 @@
   inset: 50% 0 auto 0;
   transform: translateY(-50%);
   height: 1.5rem;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-border-strong);
-  transition: background var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-settings-switch::after {
@@ -276,15 +274,14 @@
   transform: translateY(-50%);
   width: 1.2rem;
   height: 1.2rem;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-text-on-accent);
-  box-shadow: var(--md-sys-elevation-1);
-  transition: left var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  box-shadow: var(--dh-elevation-raised);
+  transition: left var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-settings-switch:checked::before {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 .dh-settings-switch:checked::after {
@@ -295,7 +292,7 @@
   outline: none;
   box-shadow:
     0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--md-sys-color-primary);
+    0 0 0 4px var(--dh-color-accent);
 }
 
 .dh-settings-switch:disabled {
@@ -314,17 +311,17 @@
  */
 .dh-settings-select {
   max-width: 100%;
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   /* `background-color`: the shorthand would clear the baseline's chevron. */
   background-color: var(--dh-color-surface);
 }
 
 .dh-settings-select:focus-visible {
   outline: none;
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
   box-shadow:
     0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--md-sys-color-primary);
+    0 0 0 4px var(--dh-color-accent);
 }
 
 .dh-settings-select:disabled {
@@ -340,26 +337,25 @@
   min-height: var(--app-control-height-lg);
   padding: 0 var(--app-space-4);
   font-family: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-error-container);
+  color: var(--dh-color-text-on-danger-subtle);
   background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--dh-color-danger);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   cursor: pointer;
-  transition: background var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-settings-danger-button:hover:not(:disabled) {
-  background: var(--md-sys-color-error-container);
+  background: var(--dh-color-danger-subtle);
 }
 
 .dh-settings-danger-button:focus-visible {
   outline: none;
   box-shadow:
     0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--md-sys-color-primary);
+    0 0 0 4px var(--dh-color-accent);
 }
 
 .dh-settings-danger-button:disabled {
@@ -398,8 +394,7 @@
   padding: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
   cursor: default;
-  animation: dh-confirm-scrim-in var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  animation: dh-confirm-scrim-in var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-confirm {
@@ -425,8 +420,7 @@
    */
   border-radius: var(--dh-radius-lg);
   box-shadow: var(--dh-elevation-modal);
-  animation: dh-confirm-in var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-emphasized);
+  animation: dh-confirm-in var(--dh-motion-base) var(--dh-ease-emphasized);
 }
 
 .dh-confirm--danger {
@@ -459,15 +453,15 @@
 }
 
 .dh-confirm__typed-label {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-confirm__phrase {
   font-family: var(--md-ref-typeface-mono);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   padding: 0 var(--app-space-1);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   background: var(--dh-color-bg-sunken);
   color: var(--dh-color-text);
 }
@@ -475,23 +469,23 @@
 /* UIX-06 — the shared control baseline supplies height, padding, border and
  * corner; a destructive confirmation is not the place to invent a control. */
 .dh-confirm__input {
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   background: var(--dh-color-surface);
 }
 
 .dh-confirm__input:focus-visible {
   outline: none;
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
   box-shadow:
     0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--md-sys-color-primary);
+    0 0 0 4px var(--dh-color-accent);
 }
 
 .dh-confirm__error {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.5;
-  color: var(--md-sys-color-on-error-container);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 .dh-confirm__actions {
@@ -667,7 +661,7 @@
   flex-direction: column;
   justify-content: center;
   min-inline-size: 0;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
 }
 
 /*
@@ -688,8 +682,7 @@
   align-items: center;
   min-height: var(--app-control-height-md);
   padding: var(--app-space-2) var(--app-space-3) 0;
-  border-radius: var(--md-sys-shape-corner-medium)
-    var(--md-sys-shape-corner-medium) 0 0;
+  border-radius: var(--dh-radius-md) var(--dh-radius-md) 0 0;
   color: var(--dh-color-text);
   text-decoration: none;
   font-size: var(--dh-text-row-size);
@@ -751,7 +744,7 @@
   outline: none;
   box-shadow:
     0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--md-sys-color-primary);
+    0 0 0 4px var(--dh-color-accent);
 }
 
 /*
@@ -810,9 +803,9 @@
 .dh-settings-page__description {
   max-width: 44rem;
   margin: 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  letter-spacing: var(--dh-text-body-tracking);
   color: var(--dh-color-text-muted);
 }
 
@@ -830,7 +823,7 @@
   display: inline-flex;
   align-items: center;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   overflow-wrap: anywhere;
 }
 
@@ -892,7 +885,7 @@
     padding: 0;
     border-radius: 0;
     color: var(--dh-color-text);
-    font-size: var(--md-sys-typescale-body-medium-size);
+    font-size: var(--dh-text-body-size);
   }
 
   /* The desktop rail insets the summary to sit under its own padded title; the
@@ -905,7 +898,7 @@
 
   /* The whole row lights up on press, not just the label's own box. */
   .dh-settings-page__nav-item:has(.dh-settings-page__nav-link:focus-visible) {
-    outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+    outline: var(--app-border-width-thick) solid var(--dh-color-accent);
     outline-offset: calc(-1 * var(--app-border-width-thick));
   }
 
@@ -933,8 +926,8 @@
    * single orphan word.
    */
   .dh-settings-page__nav-summary {
-    font-size: var(--md-sys-typescale-body-small-size);
-    line-height: var(--md-sys-typescale-body-small-line-height);
+    font-size: var(--dh-text-meta-size);
+    line-height: var(--dh-text-meta-line-height);
     font-weight: 400;
     text-wrap: pretty;
   }
@@ -1044,7 +1037,7 @@
   outline: none;
   box-shadow:
     0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--md-sys-color-primary);
+    0 0 0 4px var(--dh-color-accent);
 }
 
 .dh-restore__preview {
@@ -1059,7 +1052,7 @@
 .dh-restore__counts-caption,
 .dh-restore__counts-empty {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.5;
   color: var(--dh-color-text-muted);
 }
@@ -1085,7 +1078,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -1137,7 +1130,7 @@
   flex-direction: column;
   gap: var(--app-space-1);
   padding-block-end: var(--app-space-3);
-  border-block-end: 1px solid var(--md-sys-color-outline-variant);
+  border-block-end: 1px solid var(--dh-color-border);
 }
 
 .dh-account-security__event:last-child {
@@ -1147,14 +1140,14 @@
 
 .dh-account-security__event-summary {
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
   overflow-wrap: anywhere;
 }
 
 .dh-account-security__event-time {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-variant-numeric: tabular-nums;
 }
 

@@ -16,7 +16,7 @@
 .dh-analytics__body {
   display: flex;
   flex-direction: column;
-  gap: var(--app-dashboard-gap);
+  gap: var(--app-space-4);
   min-inline-size: 0;
 }
 
@@ -43,7 +43,7 @@
   padding: var(--app-card-padding);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
-  gap: var(--app-space-5);
+  gap: var(--app-space-4);
   background: var(--dh-color-surface);
   border-radius: var(--app-shape-entity-card);
   box-shadow: var(--app-elevation-resting);
@@ -58,8 +58,8 @@
 
 .dh-analytics__metric-label {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
   color: var(--dh-color-text-muted);
 }
 
@@ -70,10 +70,10 @@
  */
 .dh-analytics__metric-value {
   margin: 0;
-  font-size: var(--md-sys-typescale-display-small-size);
-  line-height: var(--md-sys-typescale-display-small-line-height);
-  font-weight: var(--md-sys-typescale-display-small-weight-emphasized);
-  letter-spacing: var(--md-sys-typescale-display-small-tracking);
+  font-size: var(--dh-text-display-size);
+  line-height: var(--dh-text-display-line-height);
+  font-weight: var(--dh-text-display-weight);
+  letter-spacing: var(--dh-text-display-tracking);
   color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
 }
@@ -93,16 +93,16 @@
 
 .dh-analytics .dh-analytics__metric-link:hover,
 .dh-analytics .dh-analytics__metric-link:focus-visible {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   text-decoration: underline;
 }
 
 /* A figure whose read failed says so at the figure's own size, so the row keeps
  * its rhythm and the absence is impossible to mistake for a zero. */
 .dh-analytics__metric-absent {
-  font-size: var(--md-sys-typescale-title-medium-size);
-  line-height: var(--md-sys-typescale-display-small-line-height);
-  font-weight: var(--md-sys-typescale-title-medium-weight);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-display-line-height);
+  font-weight: var(--dh-text-section-title-weight);
   color: var(--dh-color-text-muted);
 }
 
@@ -116,8 +116,8 @@
  */
 .dh-analytics__metric-supporting {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   color: var(--dh-color-text-muted);
   text-wrap: pretty;
 }
@@ -135,7 +135,7 @@
 .dh-analytics__panels {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: var(--app-dashboard-gap);
+  gap: var(--app-space-4);
   align-items: start;
   min-inline-size: 0;
 }
@@ -169,8 +169,8 @@
 .dh-analytics__absent {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
   text-wrap: pretty;
 }
 
@@ -209,8 +209,8 @@
 .dh-analytics .dh-analytics__split-name:visited {
   min-inline-size: 0;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -229,7 +229,7 @@
   display: block;
   inline-size: 100%;
   block-size: var(--app-progress-bar-height-entity);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-bg-sunken);
   overflow: hidden;
 }
@@ -238,7 +238,7 @@
   display: block;
   block-size: 100%;
   border-radius: inherit;
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 /*
@@ -249,22 +249,22 @@
  * are printed beside every bar, so the colour is never the signal.
  */
 .dh-analytics__split-track[data-accent="1"] .dh-analytics__split-fill {
-  background: var(--md-sys-color-area-accent-1);
+  background: var(--dh-color-area-1);
 }
 .dh-analytics__split-track[data-accent="2"] .dh-analytics__split-fill {
-  background: var(--md-sys-color-area-accent-2);
+  background: var(--dh-color-area-2);
 }
 .dh-analytics__split-track[data-accent="3"] .dh-analytics__split-fill {
-  background: var(--md-sys-color-area-accent-3);
+  background: var(--dh-color-area-3);
 }
 .dh-analytics__split-track[data-accent="4"] .dh-analytics__split-fill {
-  background: var(--md-sys-color-area-accent-4);
+  background: var(--dh-color-area-4);
 }
 .dh-analytics__split-track[data-accent="5"] .dh-analytics__split-fill {
-  background: var(--md-sys-color-area-accent-5);
+  background: var(--dh-color-area-5);
 }
 .dh-analytics__split-track[data-accent="6"] .dh-analytics__split-fill {
-  background: var(--md-sys-color-area-accent-6);
+  background: var(--dh-color-area-6);
 }
 
 .dh-analytics__split-figure {
@@ -272,8 +272,8 @@
   align-items: baseline;
   gap: var(--app-space-2);
   flex: none;
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   font-weight: 500;
   color: var(--dh-color-text);
   font-variant-numeric: tabular-nums;
@@ -304,7 +304,7 @@
 .dh-analytics__note {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.65;
   text-wrap: pretty;
 }
@@ -335,8 +335,8 @@
   }
 
   .dh-analytics__metric-value {
-    font-size: var(--md-sys-typescale-headline-medium-size);
-    line-height: var(--md-sys-typescale-headline-medium-line-height);
+    font-size: var(--dh-text-record-title-size);
+    line-height: var(--dh-text-record-title-line-height);
   }
 
   .dh-analytics__split-row {

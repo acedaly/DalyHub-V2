@@ -31,8 +31,8 @@
   min-width: 0;
   min-height: var(--app-control-height-lg);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
   background: var(--dh-color-surface);
   text-decoration: none;
   color: inherit;
@@ -45,13 +45,13 @@
 }
 
 .dh-summary-card__label {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-summary-card__value {
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 500;
   line-height: 1.2;
   color: var(--dh-color-text);
@@ -61,21 +61,20 @@
 /* Tone tints the value only; the label above always states what the number is, so
  * meaning is never carried by colour alone (DS-11 / WCAG 2.2 AA). */
 .dh-summary-card__value[data-tone="success"] {
-  color: var(--md-sys-color-on-success-container);
+  color: var(--dh-color-text-on-success-subtle);
 }
 .dh-summary-card__value[data-tone="info"] {
-  color: var(--md-sys-color-on-info-container);
+  color: var(--dh-color-text-on-info-subtle);
 }
 
 .dh-summary-card__detail {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-summary-card--link {
-  transition: border-color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-summary-card--link:hover {

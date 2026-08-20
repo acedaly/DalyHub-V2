@@ -15,14 +15,14 @@
 
 .dh-insights {
   display: grid;
-  gap: var(--app-space-5);
+  gap: var(--app-space-4);
   min-width: 0;
 }
 
 .dh-insights__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
-  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
 }
 
 .dh-insights__section {
@@ -33,8 +33,8 @@
 
 .dh-insights__section-heading {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-small-size);
-  line-height: var(--md-sys-typescale-title-small-line-height);
+  font-size: var(--dh-text-compact-title-size);
+  line-height: var(--dh-text-compact-title-line-height);
   color: var(--dh-color-text);
 }
 
@@ -59,7 +59,7 @@
   min-width: 0;
   padding-inline-start: var(--app-space-3);
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-outline-variant);
+    var(--dh-color-border);
 }
 
 .dh-insights__item[data-tone="success"] {
@@ -69,13 +69,13 @@
   border-inline-start-color: var(--dh-color-warning);
 }
 .dh-insights__item[data-tone="info"] {
-  border-inline-start-color: var(--md-sys-color-info);
+  border-inline-start-color: var(--dh-color-info);
 }
 
 .dh-insights__claim {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
+  font-size: var(--dh-text-lead-size);
+  line-height: var(--dh-text-lead-line-height);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
@@ -83,8 +83,8 @@
 .dh-insights__reason,
 .dh-insights__note {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
@@ -97,10 +97,10 @@
   gap: var(--app-space-1);
   padding: 0 var(--app-space-2);
   min-height: var(--app-space-5);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
-  border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--dh-radius-pill);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   color: var(--dh-color-text-muted);
   background: var(--dh-color-surface);
   white-space: nowrap;
@@ -109,24 +109,24 @@
 .dh-insights__dot {
   inline-size: var(--app-space-2);
   block-size: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: currentColor;
   flex: none;
 }
 
 .dh-insights__pill[data-tone="success"] {
-  color: var(--md-sys-color-on-success-container);
-  background: var(--md-sys-color-success-container);
+  color: var(--dh-color-text-on-success-subtle);
+  background: var(--dh-color-success-subtle);
   border-color: transparent;
 }
 .dh-insights__pill[data-tone="warning"] {
-  color: var(--md-sys-color-on-warning-container);
-  background: var(--md-sys-color-warning-container);
+  color: var(--dh-color-text-on-warning-subtle);
+  background: var(--dh-color-warning-subtle);
   border-color: transparent;
 }
 .dh-insights__pill[data-tone="info"] {
-  color: var(--md-sys-color-on-info-container);
-  background: var(--md-sys-color-info-container);
+  color: var(--dh-color-text-on-info-subtle);
+  background: var(--dh-color-info-subtle);
   border-color: transparent;
 }
 
@@ -145,7 +145,7 @@
   align-items: center;
   /* Every drill-down is a real touch target on a phone. */
   min-block-size: var(--app-touch-target-min);
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   overflow-wrap: anywhere;
 }
 
@@ -153,12 +153,11 @@
   display: grid;
   gap: var(--app-space-2);
   padding-block-start: var(--app-space-3);
-  border-block-start: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-insights__notes .dh-insights__note {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-insights[data-empty="true"] {
@@ -183,7 +182,7 @@
 }
 
 .dh-insights__trend-label {
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -217,14 +216,14 @@
 }
 
 .dh-trend__bar {
-  fill: var(--md-sys-color-secondary-container);
+  fill: var(--dh-color-accent-subtle);
 }
 
 /* The period being reviewed is the stronger tone — and it is also the only one
  * labelled as current in the summary sentence, so the emphasis is never the
  * only cue. */
 .dh-trend__bar[data-current="true"] {
-  fill: var(--md-sys-color-primary);
+  fill: var(--dh-color-accent);
 }
 
 /* In forced-colours mode fills collapse; an explicit stroke keeps the bars
@@ -259,20 +258,20 @@
 }
 
 .dh-trend__value {
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
 
 .dh-trend__label {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
 
 .dh-trend__summary {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }

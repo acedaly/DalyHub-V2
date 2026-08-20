@@ -29,8 +29,7 @@
   padding: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
   cursor: default;
-  animation: dh-search-fade var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  animation: dh-search-fade var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-search__panel {
@@ -41,12 +40,11 @@
   max-width: 40rem;
   max-height: min(32rem, calc(100vh - var(--app-space-16)));
   background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
-  box-shadow: var(--md-sys-elevation-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  box-shadow: var(--dh-elevation-modal);
   overflow: hidden;
-  animation: dh-search-rise var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-emphasized);
+  animation: dh-search-rise var(--dh-motion-base) var(--dh-ease-emphasized);
 }
 
 .dh-search__header {
@@ -59,7 +57,7 @@
 
 .dh-search__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
   letter-spacing: 0.04em;
@@ -74,12 +72,12 @@
    * Command Palette close control — the width token alone left this 44×32. */
   min-height: var(--app-touch-target-min);
   padding: 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
   background: var(--dh-color-bg-sunken);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 
@@ -92,8 +90,7 @@
   align-items: center;
   gap: var(--app-space-3);
   padding: var(--app-space-3) var(--app-space-4);
-  border-bottom: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-search__inputicon {
@@ -108,7 +105,7 @@
   border: 0;
   background: transparent;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-family: var(--md-ref-typeface-plain);
 }
 
@@ -131,13 +128,13 @@
   margin: 0;
   padding: var(--app-space-4);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-search__partial {
-  color: var(--md-sys-color-on-warning-container);
-  background: var(--md-sys-color-warning-container);
-  border-radius: var(--md-sys-shape-corner-small);
+  color: var(--dh-color-text-on-warning-subtle);
+  background: var(--dh-color-warning-subtle);
+  border-radius: var(--dh-radius-control);
   margin-bottom: var(--app-space-2);
 }
 
@@ -151,7 +148,7 @@
   gap: var(--app-space-2);
   margin: 0;
   padding: var(--app-space-2) var(--app-space-3);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--dh-color-text-muted);
@@ -159,7 +156,7 @@
 
 .dh-search__groupicon {
   display: inline-flex;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-search__groupcount {
@@ -174,8 +171,8 @@
   padding: 0 var(--app-space-2);
   color: var(--dh-color-text-muted);
   background: transparent;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
   font: inherit;
   text-transform: none;
   cursor: pointer;
@@ -186,7 +183,7 @@
 }
 
 .dh-search__option {
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
 }
 
 .dh-search__optionlink {
@@ -197,12 +194,12 @@
   padding: var(--app-space-2) var(--app-space-3);
   color: inherit;
   text-decoration: none;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
 }
 
 .dh-search__option[data-active="true"] {
   background: var(--dh-color-accent-subtle);
-  outline: var(--app-border-width-thin) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thin) solid var(--dh-color-accent);
   outline-offset: calc(-1 * var(--app-border-width-thin));
 }
 
@@ -220,7 +217,7 @@
 
 .dh-search__optiontitle {
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -229,7 +226,7 @@
 
 .dh-search__optionsubtitle {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -254,16 +251,16 @@
   padding: 0 var(--app-space-2);
   color: var(--dh-color-text-muted);
   background: var(--dh-color-bg-sunken);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
-  font-size: var(--md-sys-typescale-label-small-size);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
 }
 
 .dh-search__signal--generic[data-tone="warning"],
 .dh-search__signal--generic[data-tone="danger"] {
-  color: var(--md-sys-color-on-warning-container);
-  background: var(--md-sys-color-warning-container);
+  color: var(--dh-color-text-on-warning-subtle);
+  background: var(--dh-color-warning-subtle);
 }
 
 .dh-search__optiontype {
@@ -271,15 +268,15 @@
   flex: 0 0 auto;
   padding-left: var(--app-space-2);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   letter-spacing: 0.03em;
 }
 
 .dh-search__mark {
   background: var(--dh-color-accent-subtle);
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   font-weight: 500;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   padding: 0 0.1em;
 }
 
@@ -289,10 +286,9 @@
   justify-content: space-between;
   gap: var(--app-space-3);
   padding: var(--app-space-2) var(--app-space-4);
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-search__hint {
@@ -303,15 +299,15 @@
   min-height: var(--app-touch-target-min);
   padding: 0 var(--app-space-4);
   color: var(--dh-color-text-on-accent);
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
   border: 0;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   font-weight: 500;
   cursor: pointer;
 }
 
 .dh-search__retry:hover {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 @keyframes dh-search-fade {
@@ -351,6 +347,6 @@
 @media (prefers-reduced-motion: reduce) {
   .dh-search__scrim,
   .dh-search__panel {
-    animation-duration: var(--md-sys-motion-duration-none);
+    animation-duration: var(--dh-motion-none);
   }
 }

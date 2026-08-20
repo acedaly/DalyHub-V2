@@ -23,7 +23,7 @@
 }
 
 .dh-activity__viewport:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-1);
 }
 
@@ -42,13 +42,12 @@
   z-index: var(--app-z-raised);
   padding: var(--app-space-2) var(--app-space-1);
   background: var(--dh-color-bg);
-  border-bottom: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-activity-day__label {
   margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -64,8 +63,7 @@
   gap: var(--app-space-2) var(--app-space-3);
   min-width: 0;
   padding: var(--app-space-3) var(--app-space-1);
-  border-bottom: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-activity-item:last-child {
@@ -84,12 +82,12 @@
 .dh-activity-item__dot {
   width: var(--app-space-3);
   height: var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-border-strong);
 }
 
 .dh-activity-item__dot[data-tone="accent"] {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 .dh-activity-item__dot[data-tone="success"] {
   background: var(--dh-color-success);
@@ -101,7 +99,7 @@
   background: var(--dh-color-danger);
 }
 .dh-activity-item__dot[data-tone="info"] {
-  background: var(--md-sys-color-info);
+  background: var(--dh-color-info);
 }
 
 .dh-activity-item__body {
@@ -110,7 +108,7 @@
 
 .dh-activity-item__description {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.5;
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
@@ -139,10 +137,10 @@
   flex: none;
   inline-size: 1.25rem;
   block-size: 1.25rem;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-accent-subtle);
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-label-small-size);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0;
@@ -166,10 +164,10 @@
 }
 
 .dh-activity-item__entity--link {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   text-decoration: underline;
   text-underline-offset: 0.15em;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
 }
 
 .dh-activity-item__entity--link:hover {
@@ -177,7 +175,7 @@
 }
 
 .dh-activity-item__entity--link:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-px);
 }
 
@@ -197,7 +195,7 @@
   display: inline-flex;
   gap: var(--app-space-1);
   min-width: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
 }
 
 .dh-activity-item__meta-entry dt {
@@ -212,7 +210,7 @@
 }
 
 .dh-activity-item__time {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-variant-numeric: tabular-nums;
   color: var(--dh-color-text-muted);
   white-space: nowrap;
@@ -223,11 +221,11 @@
   justify-self: start;
   margin-top: var(--app-space-1);
   padding: 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
-  color: var(--md-sys-color-on-warning-container);
-  background: var(--md-sys-color-warning-container);
-  border-radius: var(--md-sys-shape-corner-full);
+  color: var(--dh-color-text-on-warning-subtle);
+  background: var(--dh-color-warning-subtle);
+  border-radius: var(--dh-radius-pill);
   line-height: 1.65;
 }
 
@@ -249,19 +247,19 @@
 
 .dh-activity__end {
   margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-activity__loading-more {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-activity__error-text {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-on-error-container);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 .dh-activity__btn {
@@ -271,15 +269,14 @@
   min-height: var(--app-touch-target-min);
   padding: 0 var(--app-space-4);
   font-family: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text);
   background: var(--dh-color-surface);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   cursor: pointer;
-  transition: background var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: background var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-activity__btn:hover {
@@ -287,18 +284,18 @@
 }
 
 .dh-activity__btn:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-px);
 }
 
 .dh-activity__btn--load-more {
   color: var(--dh-color-text-on-accent);
-  background: var(--md-sys-color-primary);
-  border-color: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
+  border-color: var(--dh-color-accent);
 }
 
 .dh-activity__btn--load-more:hover {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 @container (max-width: 28rem) {
@@ -320,6 +317,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dh-activity__btn {
-    transition-duration: var(--md-sys-motion-duration-none);
+    transition-duration: var(--dh-motion-none);
   }
 }

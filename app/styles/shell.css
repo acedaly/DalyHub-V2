@@ -313,9 +313,9 @@
  * for the product rather than as the product. */
 .dh-sidebar__brand-workspace {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  letter-spacing: var(--dh-text-label-tracking);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -386,7 +386,7 @@
 .dh-sidebar__search-hint {
   flex: none;
   font-family: var(--dh-font-family-mono);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   background: var(--dh-color-bg);
   padding: 0 var(--dh-space-1);
@@ -935,13 +935,13 @@
   font-size: var(--dh-text-label-size);
   line-height: var(--dh-text-label-line-height);
   font-weight: var(--dh-text-label-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  letter-spacing: var(--dh-text-label-tracking);
   cursor: pointer;
 }
 
 .dh-user-menu__trigger[aria-expanded="true"] {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text);
 }
 
 .dh-user-menu__avatar {
@@ -951,11 +951,11 @@
   inline-size: 1.75rem;
   block-size: 1.75rem;
   flex: none;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
-  font-size: var(--md-sys-typescale-label-small-size);
-  font-weight: var(--md-sys-typescale-label-small-weight);
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
 }
 
 .dh-user-menu__trigger-name {
@@ -1007,16 +1007,16 @@
 }
 
 .dh-user-menu__name {
-  font-size: var(--md-sys-typescale-title-small-size);
-  line-height: var(--md-sys-typescale-title-small-line-height);
-  font-weight: var(--md-sys-typescale-title-small-weight);
-  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+  font-size: var(--dh-text-compact-title-size);
+  line-height: var(--dh-text-compact-title-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
 }
 
 .dh-user-menu__email {
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
   color: var(--dh-color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1026,7 +1026,7 @@
 .dh-user-menu__section {
   padding-block-start: var(--dh-space-2);
   margin-block-start: var(--dh-space-2);
-  border-top: var(--dh-border-width) solid var(--md-sys-color-outline-variant);
+  border-top: var(--dh-border-width) solid var(--dh-color-border);
 }
 
 .dh-user-menu__links {
@@ -1046,9 +1046,9 @@
   padding-inline: var(--dh-space-3);
   text-decoration: none;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
-  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  font-size: var(--dh-text-lead-size);
+  line-height: var(--dh-text-lead-line-height);
+  letter-spacing: var(--dh-text-body-tracking);
 }
 
 /* Hover / focus / pressed: the shared state layer (M3-INT, `base.css`). */
@@ -1253,7 +1253,7 @@
   background: var(--dh-color-bg);
   color: var(--dh-color-text-muted);
   font-family: var(--dh-font-family-mono);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.25rem;
   text-align: center;
 }
@@ -1579,10 +1579,10 @@
 
 .dh-pane-header__eyebrow {
   margin: 0 0 var(--dh-space-1);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  font-weight: var(--md-sys-typescale-label-medium-weight);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
   color: var(--dh-color-text-muted);
   text-transform: uppercase;
 }
@@ -1610,9 +1610,9 @@
   align-items: center;
   gap: var(--dh-space-2) var(--dh-space-5);
   margin-block-start: var(--dh-space-3);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
   color: var(--dh-color-text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1954,9 +1954,9 @@
   background: var(--dh-color-surface-nav);
   /* The M3 modal navigation drawer rounds its TRAILING edge only — the leading
    * edge is flush with the screen it slid in from. */
-  border-start-end-radius: var(--md-sys-shape-corner-extra-large);
-  border-end-end-radius: var(--md-sys-shape-corner-extra-large);
-  box-shadow: var(--md-sys-elevation-1);
+  border-start-end-radius: var(--dh-radius-xl);
+  border-end-end-radius: var(--dh-radius-xl);
+  box-shadow: var(--dh-elevation-raised);
   overflow-y: auto;
   padding-block-end: var(--dh-safe-bottom);
   padding-inline-start: var(--dh-safe-left);
@@ -2191,10 +2191,10 @@
 
 /* The label is ALWAYS visible — no icon-only targets in primary navigation. */
 .dh-bottomnav__label {
-  font-size: var(--md-sys-typescale-label-small-size);
-  line-height: var(--md-sys-typescale-label-small-line-height);
-  font-weight: var(--md-sys-typescale-label-medium-weight);
-  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-meta-tracking);
   max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2244,7 +2244,7 @@
 .dh-bottomnav__control--capture .dh-bottomnav__indicator {
   inline-size: var(--app-bottomnav-capture-size);
   block-size: var(--app-bottomnav-capture-size);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
 }

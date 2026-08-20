@@ -19,7 +19,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   overflow: hidden;
   flex: none;
   /* The neutral disc — a Person with no relationship recorded. It is a real
@@ -51,28 +51,28 @@
 }
 
 .dh-person-avatar[data-accent="1"] {
-  --person-avatar-container: var(--md-sys-color-area-accent-1-container);
-  --person-avatar-on-container: var(--md-sys-color-on-area-accent-1-container);
+  --person-avatar-container: var(--dh-color-area-1-subtle);
+  --person-avatar-on-container: var(--dh-color-text-on-area-1-subtle);
 }
 .dh-person-avatar[data-accent="2"] {
-  --person-avatar-container: var(--md-sys-color-area-accent-2-container);
-  --person-avatar-on-container: var(--md-sys-color-on-area-accent-2-container);
+  --person-avatar-container: var(--dh-color-area-2-subtle);
+  --person-avatar-on-container: var(--dh-color-text-on-area-2-subtle);
 }
 .dh-person-avatar[data-accent="3"] {
-  --person-avatar-container: var(--md-sys-color-area-accent-3-container);
-  --person-avatar-on-container: var(--md-sys-color-on-area-accent-3-container);
+  --person-avatar-container: var(--dh-color-area-3-subtle);
+  --person-avatar-on-container: var(--dh-color-text-on-area-3-subtle);
 }
 .dh-person-avatar[data-accent="4"] {
-  --person-avatar-container: var(--md-sys-color-area-accent-4-container);
-  --person-avatar-on-container: var(--md-sys-color-on-area-accent-4-container);
+  --person-avatar-container: var(--dh-color-area-4-subtle);
+  --person-avatar-on-container: var(--dh-color-text-on-area-4-subtle);
 }
 .dh-person-avatar[data-accent="5"] {
-  --person-avatar-container: var(--md-sys-color-area-accent-5-container);
-  --person-avatar-on-container: var(--md-sys-color-on-area-accent-5-container);
+  --person-avatar-container: var(--dh-color-area-5-subtle);
+  --person-avatar-on-container: var(--dh-color-text-on-area-5-subtle);
 }
 .dh-person-avatar[data-accent="6"] {
-  --person-avatar-container: var(--md-sys-color-area-accent-6-container);
-  --person-avatar-on-container: var(--md-sys-color-on-area-accent-6-container);
+  --person-avatar-container: var(--dh-color-area-6-subtle);
+  --person-avatar-on-container: var(--dh-color-text-on-area-6-subtle);
 }
 
 /* Forced colours strip the generated tints, which would leave identical discs.
@@ -110,9 +110,13 @@
 .dh-people-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2);
   align-items: center;
   inline-size: 100%;
+  padding: var(--app-space-3) var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-subtle);
 }
 
 .dh-people-filters__search {
@@ -167,9 +171,9 @@
 /* Pressed is a SURFACE and a border, never a tone alone — and `aria-pressed`
  * carries it for anyone who cannot see either. */
 .dh-people-filters__toggle[aria-pressed="true"] {
-  background: var(--md-sys-color-secondary-container);
-  border-color: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--dh-color-accent-subtle);
+  border-color: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text);
 }
 
 .dh-people-filters__toggle-count {
@@ -212,13 +216,13 @@
 }
 
 .dh-person-new__icon {
-  color: var(--md-sys-color-entity-person);
+  color: var(--dh-color-entity-person);
   flex: none;
 }
 
 .dh-person-new__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   font-weight: 500;
 }
 
@@ -250,7 +254,7 @@
 
 .dh-person-summary__name {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--dh-text-metric-size);
   font-weight: 500;
 }
 
@@ -278,10 +282,10 @@
   display: inline-flex;
   align-items: center;
   padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   background: var(--dh-color-accent-subtle);
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-person-summary__actions {
@@ -302,7 +306,7 @@
 
 .dh-person-summary__section-heading {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -316,7 +320,7 @@
 
 .dh-person-summary__fact dt {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-person-summary__fact dd {
@@ -352,7 +356,7 @@
   align-items: center;
   gap: var(--app-space-2);
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
 }
 
@@ -455,7 +459,7 @@
   align-items: center;
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   text-decoration: none;
   color: inherit;
 }
@@ -496,7 +500,7 @@
 .dh-person-timeline__note {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -507,8 +511,8 @@
  */
 .dh-person-timeline__note {
   padding: var(--app-space-3);
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: 1px solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
   background: var(--dh-color-surface);
 }
 

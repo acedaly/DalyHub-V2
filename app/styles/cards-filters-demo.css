@@ -18,7 +18,7 @@
 
 .cf-demo__header h1 {
   margin: 0 0 var(--app-space-1);
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   line-height: 1.2;
 }
 
@@ -35,8 +35,8 @@
   align-items: center;
   padding: var(--app-space-3);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
 }
 
 .cf-demo__group {
@@ -48,7 +48,7 @@
   margin: 0;
   padding: 0;
   min-width: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -58,7 +58,7 @@
   margin-inline-end: var(--app-space-1);
   font-weight: 500;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
 }
 
 .cf-demo__group label {
@@ -69,15 +69,15 @@
 }
 
 .cf-demo__selected {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
 .cf-demo__action-log {
   margin: 0;
   min-height: var(--app-space-5);
-  font-size: var(--md-sys-typescale-body-small-size);
-  color: var(--md-sys-color-primary);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-accent);
 }
 
 .cf-demo__collection {
@@ -101,7 +101,7 @@
 
 .cf-demo__board-heading {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -114,9 +114,8 @@
 
 .cf-demo__filler {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  font-size: var(--dh-text-meta-size);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
   padding-top: var(--app-space-4);
 }
 

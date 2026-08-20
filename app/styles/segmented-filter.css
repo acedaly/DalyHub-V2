@@ -137,18 +137,17 @@
   padding-inline: var(--app-space-2);
   border-radius: var(--app-shape-control);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  font-weight: var(--md-sys-typescale-label-medium-weight);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
   background: transparent;
   border: 0;
   cursor: pointer;
-  transition: background-color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: background-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 /*
@@ -207,8 +206,7 @@
   /* The Material Symbols `check` glyph, as a mask so it takes `currentColor`. */
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z'/%3E%3C/svg%3E")
     center / contain no-repeat;
-  transition: opacity var(--md-sys-motion-duration-short2)
-    var(--md-sys-motion-easing-standard);
+  transition: opacity var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 /* Selected, whichever mode the switcher is in: a URL-backed segment marks
@@ -261,7 +259,7 @@
 .dh-segmented__icon {
   display: inline-flex;
   flex: none;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   line-height: 1;
 }
 
@@ -340,10 +338,10 @@
 }
 
 .dh-segmented--subtle .dh-segmented__option {
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  font-weight: var(--md-sys-typescale-label-medium-weight);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
   color: var(--dh-color-text-muted);
 }
 
