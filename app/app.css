@@ -102,6 +102,7 @@
  * MEASURED the consequence: the rename trigger overlapped the checkbox by 2px
  * and axe reported a serious `target-size` violation on every row. */
 @import "./styles/task-checklist.css";
+@import "./styles/task-dependencies.css";
 @import "./styles/projects.css";
 @import "./styles/project-templates.css";
 @import "./styles/areas.css";

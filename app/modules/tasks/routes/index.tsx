@@ -31,7 +31,7 @@ import {
   isSameDocumentParameterChange,
   parametersUnchanged,
 } from "~/shared/router/revalidation";
-import type { TaskChecklistProgress } from "~/kernel/tasks";
+import type { TaskBlockedSummary, TaskChecklistProgress } from "~/kernel/tasks";
 import { serializeTaskListPage } from "~/shared/task-record/task-view";
 import {
   DEFAULT_TASK_VIEW_CONFIG,
@@ -127,6 +127,24 @@ async function checklistProgressOrNone(
 ): Promise<ReadonlyMap<string, TaskChecklistProgress>> {
   try {
     return await scope.tasks.listChecklistProgress(ids());
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * TASKS-12 — read blocked state for a page, on exactly the same terms.
+ *
+ * One bounded aggregate, guarded on its own, degrading to "no blocked state this
+ * time" rather than to an empty collection: a Task that cannot be shown as
+ * blocked still has to be shown.
+ */
+async function blockedSummariesOrNone(
+  scope: WorkspaceScope,
+  ids: () => readonly string[],
+): Promise<ReadonlyMap<string, TaskBlockedSummary>> {
+  try {
+    return await scope.tasks.listBlockedSummaries(ids());
   } catch {
     return new Map();
   }
@@ -448,9 +466,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
        * WORKSPACE_GROUP_MAX_BUCKETS buckets of WORKSPACE_GROUP_BUCKET_LIMIT
        * rows), never one per bucket and never one per Task.
        */
-      const groupedProgress = await checklistProgressOrNone(scope, () =>
-        grouping.groups.flatMap((group) => group.items.map((item) => item.id)),
-      );
+      const groupedIds = () =>
+        grouping.groups.flatMap((group) => group.items.map((item) => item.id));
+      const groupedProgress = await checklistProgressOrNone(scope, groupedIds);
+      const groupedBlocked = await blockedSummariesOrNone(scope, groupedIds);
       return {
         ...base,
         items: [],
@@ -462,7 +481,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
             count: group.count,
             hasMore: group.hasMore,
             label: group.label,
-            items: serializeTaskListPage(group.items, groupedProgress),
+            items: serializeTaskListPage(
+              group.items,
+              groupedProgress,
+              groupedBlocked,
+            ),
           })),
         },
         failed: false,
@@ -477,12 +500,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       cursor: cursor ?? undefined,
     });
     // TASKS-13 — ONE bounded aggregate for the page, whatever the page holds.
-    const progress = await checklistProgressOrNone(scope, () =>
-      page.items.map((item) => item.id),
-    );
+    const pageIds = () => page.items.map((item) => item.id);
+    const progress = await checklistProgressOrNone(scope, pageIds);
+    // TASKS-12 — and ONE for the page's blocked state, on the same terms.
+    const blocked = await blockedSummariesOrNone(scope, pageIds);
     return {
       ...base,
-      items: serializeTaskListPage(page.items, progress),
+      items: serializeTaskListPage(page.items, progress, blocked),
       nextCursor: page.nextCursor,
       grouping: null,
       failed: false,

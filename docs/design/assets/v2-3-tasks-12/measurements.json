@@ -1,0 +1,299 @@
+{
+  "_note": "TASKS-12 evidence. Captured by e2e/tasks-dependencies-screenshots.spec.ts (CAPTURE_SCREENSHOTS=1). Every number below is measured in the real app against real seeded D1, never estimated.",
+  "overflow": {
+    "recurrence-1440-light": {
+      "viewport": 1440,
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "recurrence-393-light": {
+      "viewport": 393,
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "recurrence-393-dark": {
+      "viewport": 393,
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "dependencies-1440-light": {
+      "viewport": 1440,
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "dependencies-393-light": {
+      "viewport": 393,
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "dependencies-320-light": {
+      "viewport": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "dependencies-393-dark": {
+      "viewport": 393,
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "tasks-1440": {
+      "viewport": 1440,
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "tasks-1280": {
+      "viewport": 1280,
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "horizontalOverflow": false
+    },
+    "tasks-820": {
+      "viewport": 820,
+      "clientWidth": 820,
+      "scrollWidth": 820,
+      "horizontalOverflow": false
+    },
+    "tasks-393": {
+      "viewport": 393,
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "tasks-320": {
+      "viewport": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "today-1440": {
+      "viewport": 1440,
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "today-393": {
+      "viewport": 393,
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "today-320": {
+      "viewport": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    },
+    "plan-1440": {
+      "viewport": 1440,
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "horizontalOverflow": false
+    },
+    "plan-393": {
+      "viewport": 393,
+      "clientWidth": 393,
+      "scrollWidth": 393,
+      "horizontalOverflow": false
+    },
+    "plan-320": {
+      "viewport": 320,
+      "clientWidth": 320,
+      "scrollWidth": 320,
+      "horizontalOverflow": false
+    }
+  },
+  "blockedRowHeight": {
+    "tasks-1440": {
+      "blockedRow": 44,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 44,
+      "delta": 0
+    },
+    "tasks-1280": {
+      "blockedRow": 44,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 44,
+      "delta": 0
+    },
+    "tasks-820": {
+      "blockedRow": 44,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 44,
+      "delta": 0
+    },
+    "tasks-393": {
+      "blockedRow": 100,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 81,
+      "delta": 19
+    },
+    "tasks-320": {
+      "blockedRow": 100,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 81,
+      "delta": 19
+    },
+    "today-1440": {
+      "blockedRow": 44,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 44,
+      "delta": 0
+    },
+    "today-393": {
+      "blockedRow": 99,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 81,
+      "delta": 18
+    },
+    "today-320": {
+      "blockedRow": 99,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 100,
+      "delta": -1
+    },
+    "plan-1440": {
+      "blockedRow": 125,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 125,
+      "delta": 0
+    },
+    "plan-393": {
+      "blockedRow": 84,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 84,
+      "delta": 0
+    },
+    "plan-320": {
+      "blockedRow": 97,
+      "blockedLine": "Blocked by Get director approval",
+      "blockedLineDrawn": true,
+      "statePillOnBlockedRow": null,
+      "unblockedRow": 84,
+      "delta": 13
+    }
+  },
+  "dependencySection": {
+    "dependencies-1440-light": {
+      "section": {
+        "width": 375,
+        "height": 292
+      },
+      "rowHeights": [
+        45,
+        45,
+        44
+      ],
+      "tallestRow": 45,
+      "narrowestBlockerTitle": 208,
+      "smallestTouchTarget": 45
+    },
+    "dependencies-393-light": {
+      "section": {
+        "width": 361,
+        "height": 292
+      },
+      "rowHeights": [
+        45,
+        45,
+        44
+      ],
+      "tallestRow": 45,
+      "narrowestBlockerTitle": 194,
+      "smallestTouchTarget": 45
+    },
+    "dependencies-393-dark": {
+      "section": {
+        "width": 361,
+        "height": 292
+      },
+      "rowHeights": [
+        45,
+        45,
+        44
+      ],
+      "tallestRow": 45,
+      "narrowestBlockerTitle": 194,
+      "smallestTouchTarget": 45
+    },
+    "dependencies-320-light": {
+      "section": {
+        "width": 288,
+        "height": 346
+      },
+      "rowHeights": [
+        72,
+        72,
+        44
+      ],
+      "tallestRow": 72,
+      "narrowestBlockerTitle": 208,
+      "smallestTouchTarget": 45
+    }
+  },
+  "recurrenceEditor": {
+    "recurrence-1440-light": {
+      "editor": {
+        "width": 375,
+        "height": 967
+      },
+      "customForm": {
+        "width": 375,
+        "height": 893
+      },
+      "summary": "The last Friday of every month, moved to the Friday before, 12 times",
+      "smallestTouchTarget": 45
+    },
+    "recurrence-393-light": {
+      "editor": {
+        "width": 361,
+        "height": 1091
+      },
+      "customForm": {
+        "width": 361,
+        "height": 1017
+      },
+      "summary": "The last Friday of every month, moved to the Friday before, 12 times",
+      "smallestTouchTarget": 45
+    },
+    "recurrence-393-dark": {
+      "editor": {
+        "width": 361,
+        "height": 1091
+      },
+      "customForm": {
+        "width": 361,
+        "height": 1017
+      },
+      "summary": "The last Friday of every month, moved to the Friday before, 12 times",
+      "smallestTouchTarget": 45
+    }
+  }
+}

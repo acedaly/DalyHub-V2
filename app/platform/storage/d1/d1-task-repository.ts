@@ -73,7 +73,21 @@ import {
   TaskValidationError,
   addCalendarDays,
   calendarDaysBetween,
-  nextTaskOccurrenceDate,
+  nextTaskOccurrenceStep,
+  planNextTaskOccurrence,
+  EMPTY_TASK_DEPENDENCIES,
+  MAX_DEPENDENCY_DEPTH,
+  MAX_TASK_BLOCKERS,
+  MAX_TASK_BLOCKS,
+  TASK_BLOCKS,
+  TASK_DEPENDENCY_ADDED,
+  TASK_DEPENDENCY_REMOVED,
+  TaskDependencyCycleError,
+  TaskDependencyLimitError,
+  validateTaskDependencyPair,
+  type TaskBlockedSummary,
+  type TaskDependencies,
+  type TaskDependencyEndpoint,
   recurrenceAnchorField,
   resolveTaskRecurrenceRule,
   workspaceTaskFiltersSignature,
@@ -221,6 +235,8 @@ const LINK_RESTORED = "entity_link.restored";
 const SUBJECT_ROLE = "subject";
 /** The Activity subject role of the occurrence a completion produced (TASKS-04). */
 const ROLE_SUCCESSOR = "successor";
+/** TASKS-12 — the Activity subject role of the Task that does the blocking. */
+const ROLE_BLOCKER = "blocker";
 const ROLE_SOURCE = "source";
 const ROLE_TARGET = "target";
 
@@ -444,6 +460,12 @@ function recurrenceRulesEqual(
     a.mode === b.mode &&
     a.anchorDay === b.anchorDay &&
     a.anchorMonth === b.anchorMonth &&
+    // TASKS-12 — the advanced fields are part of the rule's IDENTITY. Leaving
+    // them out would make "ends after 12" an idempotent no-op over "never ends".
+    a.ordinal === b.ordinal &&
+    a.weekendRule === b.weekendRule &&
+    a.endsAfterCount === b.endsAfterCount &&
+    a.endsOnDate === b.endsOnDate &&
     serialiseWeekdays(a.weekdays) === serialiseWeekdays(b.weekdays)
   );
 }
@@ -464,6 +486,11 @@ function describeRecurrence(rule: TaskRecurrenceRule | null): string | null {
     weekdays === null ? "" : `d${weekdays}`,
     rule.anchorDay === null ? "" : `m${rule.anchorDay}`,
     rule.anchorMonth === null ? "" : `y${rule.anchorMonth}`,
+    // TASKS-12 — still calendar data and closed-set tokens only, never free text.
+    rule.ordinal === null ? "" : `o${rule.ordinal}`,
+    rule.weekendRule === "allow" ? "" : `w${rule.weekendRule}`,
+    rule.endsAfterCount === null ? "" : `n${rule.endsAfterCount}`,
+    rule.endsOnDate === null ? "" : `u${rule.endsOnDate}`,
   ]
     .filter((part) => part.length > 0)
     .join(":");
@@ -526,6 +553,20 @@ const CHECKLIST_PROGRESS_MAX_TASKS = 1_500;
  * for.
  */
 const CHECKLIST_ID_CHUNK = 80;
+
+/**
+ * TASKS-12 — the most Tasks one blocked-state read may cover, and how many ids
+ * one statement binds.
+ *
+ * The same two numbers as checklist progress, for the same two reasons: the cap
+ * stops a caller turning a bounded aggregate into an unbounded one, and the chunk
+ * keeps every statement safely under D1's 100-bound-parameter ceiling (the
+ * workspace id and the link type are two of them, so eighty ids is
+ * eighty-two). The statement count is a function of the caller's PAGE, never of
+ * the workspace's size.
+ */
+const BLOCKED_SUMMARY_MAX_TASKS = 1_500;
+const DEPENDENCY_ID_CHUNK = 80;
 
 const TASK_PARENT_SEARCH_LIMIT = 25;
 const TASK_PARENT_SEARCH_MAX = 50;
@@ -1399,8 +1440,9 @@ export class D1TaskRepository implements TaskRepository {
         `INSERT INTO task_recurrence_rules
            (workspace_id, entity_id, entity_type, date_kind, frequency, interval,
             weekdays, anchor_day, anchor_month, mode, series_anchor_date,
+            ordinal, weekend_rule, ends_after_count, ends_on_date,
             series_id, sequence, created_at, updated_at)
-         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         SELECT ?, ?, '${TASK}', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
@@ -1415,6 +1457,10 @@ export class D1TaskRepository implements TaskRepository {
            anchor_month = excluded.anchor_month,
            mode = excluded.mode,
            series_anchor_date = excluded.series_anchor_date,
+           ordinal = excluded.ordinal,
+           weekend_rule = excluded.weekend_rule,
+           ends_after_count = excluded.ends_after_count,
+           ends_on_date = excluded.ends_on_date,
            updated_at = excluded.updated_at`,
       )
       .bind(
@@ -1428,6 +1474,13 @@ export class D1TaskRepository implements TaskRepository {
         rule.anchorMonth,
         rule.mode,
         seriesAnchorDate,
+        // TASKS-12 — the four advanced columns. Written from the VALIDATED rule,
+        // so a value outside the closed set never reaches a column SQLite cannot
+        // constrain (migration 0047 explains why the CHECK lives here).
+        rule.ordinal,
+        rule.weekendRule,
+        rule.endsAfterCount,
+        rule.endsOnDate,
         series.seriesId,
         series.sequence,
         nowTs,
@@ -1981,6 +2034,8 @@ export class D1TaskRepository implements TaskRepository {
     const filterPlannedTo = validateTaskDateBound(filters.plannedTo);
     const filterRecurring =
       typeof filters.recurring === "boolean" ? filters.recurring : undefined;
+    const filterBlocked =
+      typeof filters.blocked === "boolean" ? filters.blocked : undefined;
 
     if (filterPriority !== undefined) {
       if (filterPriority === null) {
@@ -2164,6 +2219,35 @@ export class D1TaskRepository implements TaskRepository {
       whereParts.push(
         filterRecurring ? "rr.entity_id IS NOT NULL" : "rr.entity_id IS NULL",
       );
+    }
+    if (filterBlocked !== undefined) {
+      /*
+       * TASKS-12 — blocked, DERIVED in the predicate itself.
+       *
+       * A correlated EXISTS over the `task.blocks` edges pointing AT this row,
+       * joined to each blocker's own entity and spine record: an edge counts only
+       * while its blocker is alive and incomplete. There is no stored flag, so
+       * this cannot go stale, and `blocked=false` is the exact complement of
+       * `blocked=true` rather than a second query with its own opinion.
+       *
+       * It rides `entity_links_active_target_type_idx`, so it is an index seek per
+       * candidate row rather than a scan, and it adds no join to the outer query —
+       * which is what keeps the page a single bounded statement.
+       */
+      const blockedExists = `EXISTS (
+             SELECT 1 FROM entity_links bl
+             JOIN entities be
+               ON be.workspace_id = bl.workspace_id AND be.id = bl.source_entity_id
+              AND be.type = '${TASK}' AND be.deleted_at IS NULL
+             LEFT JOIN spine_records bs
+               ON bs.workspace_id = be.workspace_id AND bs.entity_id = be.id
+             WHERE bl.workspace_id = ? AND bl.type = ?
+               AND bl.target_entity_id = e.id
+               AND bl.deleted_at IS NULL
+               AND bs.completed_at IS NULL
+           )`;
+      whereParts.push(filterBlocked ? blockedExists : `NOT ${blockedExists}`);
+      params.push(this.#workspaceId, TASK_BLOCKS);
     }
     // Completed visibility is applied LAST and on top of the view, so it can widen
     // (`include` on an execution view) or narrow (`hide` on `all`) without the view
@@ -4096,11 +4180,29 @@ export class D1TaskRepository implements TaskRepository {
     // dragging the whole series along with it.
     const gridAnchorIso =
       current.recurrenceSeries?.scheduleAnchorDate ?? anchorIso;
-    const nextAnchorIso = nextTaskOccurrenceDate(
+    const series = current.recurrenceSeries ?? {
+      seriesId: current.id,
+      sequence: 0,
+      scheduleAnchorDate: null,
+    };
+    /*
+     * TASKS-12 — the ONE authority that decides whether this series continues.
+     *
+     * `planNextTaskOccurrence` applies the end conditions (after N occurrences, on
+     * a date) and the weekend rule together, and returns null when the series has
+     * ENDED — the ordinary, expected outcome of completing the last occurrence of
+     * a bounded routine. The completion still succeeds; it simply creates nothing,
+     * which is also why no phantom successor can exist for an occurrence that will
+     * never be.
+     */
+    const step = planNextTaskOccurrence(
       rule,
+      series,
       gridAnchorIso,
       ownerTodayIso,
     );
+    if (step === null) return null;
+    const nextAnchorIso = step.date;
     // The NON-anchor date keeps its distance from THIS occurrence's anchor, so a task
     // scheduled Monday and due Friday stays a four-day window instead of inheriting a
     // deadline already in the past (or silently losing it).
@@ -4113,11 +4215,6 @@ export class D1TaskRepository implements TaskRepository {
             nextAnchorIso,
             calendarDaysBetween(anchorIso, otherIso),
           );
-    const series = current.recurrenceSeries ?? {
-      seriesId: current.id,
-      sequence: 0,
-      scheduleAnchorDate: null,
-    };
     // The STRUCTURAL parent, read from the active parent link rather than inferred
     // from the derived project/area relations (a Project-parented task also reports an
     // Area, so only the link says which one is structural).
@@ -4156,8 +4253,17 @@ export class D1TaskRepository implements TaskRepository {
       series: {
         seriesId: series.seriesId,
         sequence: series.sequence + 1,
-        // The successor is back ON the grid, whatever this occurrence was moved to.
-        scheduleAnchorDate: null,
+        /*
+         * The successor is back ON the grid, whatever this occurrence was moved to
+         * — EXCEPT when TASKS-12's weekend rule moved the successor itself off it.
+         *
+         * Then the unadjusted schedule date is remembered here, through the SAME
+         * field TASKS-07 added for "change this occurrence", and the step after
+         * this one is computed from the grid. That is what stops "the 1st of every
+         * month, moved to the Friday before" from walking two days earlier every
+         * month until it is a completely different routine.
+         */
+        scheduleAnchorDate: step.gridDate,
       },
       scheduledDate: rule.dateKind === "due" ? shiftedOther : nextAnchorIso,
       dueDate: rule.dateKind === "due" ? nextAnchorIso : shiftedOther,
@@ -4380,7 +4486,15 @@ export class D1TaskRepository implements TaskRepository {
     );
 
     statements.push(
-      this.#insertRecurrenceStatement(plan.id, plan.rule, plan.series, nowTs),
+      this.#insertRecurrenceStatement(
+        plan.id,
+        plan.rule,
+        plan.series,
+        nowTs,
+        // TASKS-12 — the grid the successor's own successor is stepped from, set
+        // only when a weekend rule moved this occurrence off the schedule.
+        plan.series.scheduleAnchorDate,
+      ),
     );
 
     /*
@@ -4664,11 +4778,26 @@ export class D1TaskRepository implements TaskRepository {
     // date if it was moved off it, and never a completion. An after-completion rule
     // steps from the owner's day, which is what "skip this one" means for an
     // interval that restarts when the work is done.
-    const nextIso = nextTaskOccurrenceDate(
+    const step = nextTaskOccurrenceStep(
       move.rule,
       move.gridAnchorIso,
       ownerTodayIso,
     );
+    const nextIso = step.date;
+    /*
+     * TASKS-12 — a skip may not step PAST the series' end date.
+     *
+     * "Ends on 30 September" means there is no occurrence after it, and skipping
+     * the last one into October would invent the very occurrence the end condition
+     * exists to prevent. The count condition is deliberately NOT checked here: a
+     * skip consumes no sequence, so "twelve times" still means twelve.
+     */
+    if (move.rule.endsOnDate !== null && nextIso > move.rule.endsOnDate) {
+      throw new TaskValidationError(
+        "recurrence",
+        "this repeat ends before its next date, so there is nothing to skip to",
+      );
+    }
     if (nextIso === move.anchorIso) {
       return {
         task: move.task,
@@ -4678,20 +4807,26 @@ export class D1TaskRepository implements TaskRepository {
       };
     }
 
-    // A skip puts the occurrence back ON the grid, so any "this occurrence only"
-    // override is spent and cleared.
-    const task = await this.#writeOccurrenceDates(move, nextIso, null, {
-      type: TASK_RECURRENCE_OCCURRENCE_SKIPPED,
-      subjects: [{ entityId, role: SUBJECT_ROLE }],
-      payload: {
-        entityType: TASK,
-        seriesId: move.series.seriesId,
-        sequence: move.series.sequence,
-        dateKind: move.rule.dateKind,
-        skippedFrom: move.anchorIso,
-        nextDate: nextIso,
+    // A skip puts the occurrence back ON the grid — unless TASKS-12's weekend rule
+    // moved the new date off it, in which case the grid is remembered exactly as a
+    // successor's is, so the routine does not drift.
+    const task = await this.#writeOccurrenceDates(
+      move,
+      nextIso,
+      step.gridDate,
+      {
+        type: TASK_RECURRENCE_OCCURRENCE_SKIPPED,
+        subjects: [{ entityId, role: SUBJECT_ROLE }],
+        payload: {
+          entityType: TASK,
+          seriesId: move.series.seriesId,
+          sequence: move.series.sequence,
+          dateKind: move.rule.dateKind,
+          skippedFrom: move.anchorIso,
+          nextDate: nextIso,
+        },
       },
-    });
+    );
     return {
       task,
       changed: true,
@@ -6406,7 +6541,7 @@ export class D1TaskRepository implements TaskRepository {
       ),
     ];
 
-    const results = await this.#runChecklistBatch(statements);
+    const results = await this.#runTaskBatch(statements);
 
     if ((results[0]?.meta?.changes ?? 0) === 0) {
       /*
@@ -6448,7 +6583,7 @@ export class D1TaskRepository implements TaskRepository {
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runTaskBatch([
       // ONE column. A rename cannot disturb completion or order, so two devices
       // renaming two different items — or the same item's tick — never contend.
       this.#db
@@ -6499,7 +6634,7 @@ export class D1TaskRepository implements TaskRepository {
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
     const flag = completed ? 1 : 0;
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runTaskBatch([
       /*
        * ONE row, ONE column, guarded on the value actually changing.
        *
@@ -6550,7 +6685,7 @@ export class D1TaskRepository implements TaskRepository {
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
-    const results = await this.#runChecklistBatch([
+    const results = await this.#runTaskBatch([
       this.#db
         .prepare(
           `DELETE FROM task_checklist_items
@@ -6684,7 +6819,7 @@ export class D1TaskRepository implements TaskRepository {
           order.length,
         ),
     );
-    const results = await this.#runChecklistBatch(statements);
+    const results = await this.#runTaskBatch(statements);
 
     /*
      * At least one row MUST have moved: the unchanged case returned above, so a
@@ -6748,8 +6883,555 @@ export class D1TaskRepository implements TaskRepository {
     return row === null ? null : rowToChecklistItem(row);
   }
 
-  /** Run a checklist write batch, re-typing raw storage failures. */
-  async #runChecklistBatch(
+  /* ---------------------------------------------------------------------- */
+  /* TASKS-12 — dependencies                                                  */
+  /*                                                                          */
+  /* The ONE place a `task.blocks` edge is written. The generic EntityLink     */
+  /* repository refuses the type (RESERVED_TASK_LINK_TYPES), so every          */
+  /* dependency in the workspace passed through these two mutations and every  */
+  /* invariant they enforce.                                                   */
+  /*                                                                          */
+  /* Every invariant is a PREDICATE INSIDE THE WRITE, never a read-then-decide */
+  /* — Task-only live endpoints, the two bounds, and the cycle walk. SQLite    */
+  /* serialises writers and a D1 batch is one transaction, so a statement whose */
+  /* WHERE clause carries the check re-evaluates it against committed state:   */
+  /* two concurrent adds cannot both see nineteen blockers, and two concurrent */
+  /* edges cannot close a cycle between them. A test proves both.              */
+  /* ---------------------------------------------------------------------- */
+
+  async listTaskDependencies(taskId: string): Promise<TaskDependencies> {
+    let entityId: string;
+    try {
+      entityId = validateTaskId(taskId);
+    } catch {
+      // A malformed id names no Task, and a Task that does not exist has no
+      // dependencies. Never an error on a read.
+      return EMPTY_TASK_DEPENDENCIES;
+    }
+    /*
+     * ONE statement for BOTH directions.
+     *
+     * The two halves read the same rows from the two ends the relationship
+     * already has, so "what blocks me" and "what I block" can never be answered
+     * from two different reads that disagree. The counterpart's title and
+     * completion are joined in, so a record with twenty blockers costs one
+     * statement rather than twenty-one.
+     *
+     * A soft-deleted counterpart is excluded by the join: a Task in the trash is
+     * not holding anything up, and it is not being held up either.
+     */
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT 'blocked_by' AS direction,
+                  other.id AS task_id,
+                  other.title AS title,
+                  sr.completed_at AS completed_at
+           FROM entity_links l
+           JOIN entities other
+             ON other.workspace_id = l.workspace_id
+            AND other.id = l.source_entity_id
+            AND other.type = '${TASK}'
+            AND other.deleted_at IS NULL
+           LEFT JOIN spine_records sr
+             ON sr.workspace_id = other.workspace_id AND sr.entity_id = other.id
+           WHERE l.workspace_id = ? AND l.target_entity_id = ?
+             AND l.type = ? AND l.deleted_at IS NULL
+           UNION ALL
+           SELECT 'blocks' AS direction,
+                  other.id AS task_id,
+                  other.title AS title,
+                  sr.completed_at AS completed_at
+           FROM entity_links l
+           JOIN entities other
+             ON other.workspace_id = l.workspace_id
+            AND other.id = l.target_entity_id
+            AND other.type = '${TASK}'
+            AND other.deleted_at IS NULL
+           LEFT JOIN spine_records sr
+             ON sr.workspace_id = other.workspace_id AND sr.entity_id = other.id
+           WHERE l.workspace_id = ? AND l.source_entity_id = ?
+             AND l.type = ? AND l.deleted_at IS NULL
+           ORDER BY direction, title, task_id
+           LIMIT ?`,
+        )
+        .bind(
+          this.#workspaceId,
+          entityId,
+          TASK_BLOCKS,
+          this.#workspaceId,
+          entityId,
+          TASK_BLOCKS,
+          // Both bounds are enforced by the WRITE, so this can only ever be a
+          // backstop -- but a read with no LIMIT is a read that can grow.
+          MAX_TASK_BLOCKERS + MAX_TASK_BLOCKS,
+        ),
+    );
+    const blockedBy: TaskDependencyEndpoint[] = [];
+    const blocks: TaskDependencyEndpoint[] = [];
+    for (const row of (result.results ?? []) as {
+      readonly direction: string;
+      readonly task_id: string;
+      readonly title: string;
+      readonly completed_at: string | null;
+    }[]) {
+      const endpoint: TaskDependencyEndpoint = {
+        taskId: row.task_id,
+        title: row.title,
+        completedAt:
+          row.completed_at === null
+            ? null
+            : fromStorageTimestamp(row.completed_at),
+      };
+      if (row.direction === "blocked_by") blockedBy.push(endpoint);
+      else blocks.push(endpoint);
+    }
+    return { blockedBy, blocks };
+  }
+
+  async listBlockedSummaries(
+    taskIds: readonly string[],
+  ): Promise<ReadonlyMap<string, TaskBlockedSummary>> {
+    const unique: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of taskIds) {
+      if (typeof raw !== "string" || raw.length === 0) continue;
+      if (seen.has(raw)) continue;
+      seen.add(raw);
+      unique.push(raw);
+    }
+    const summaries = new Map<string, TaskBlockedSummary>();
+    // An empty page costs NOTHING, exactly as checklist progress does.
+    if (unique.length === 0) return summaries;
+    if (unique.length > BLOCKED_SUMMARY_MAX_TASKS) {
+      throw new TaskValidationError(
+        "limit",
+        `blocked state is read for at most ${BLOCKED_SUMMARY_MAX_TASKS} tasks at a time`,
+      );
+    }
+
+    /*
+     * ONE aggregate per CHUNK, never one per Task, and never "read every edge
+     * and count in JavaScript".
+     *
+     * The chunk exists only because D1 accepts a finite number of bound
+     * parameters, so the statement count is ceil(pageSize / DEPENDENCY_ID_CHUNK)
+     * — a function of the caller's page, not of how many Tasks or edges the
+     * workspace holds. `task-dependency-query-bounds.test.ts` asserts it.
+     *
+     * The predicate is the DERIVATION: a blocker counts only while its Task is
+     * alive and has no completion. There is no stored flag, so completing the
+     * last blocker unblocks the Task on the very next read and reopening it
+     * blocks the Task again -- with nothing to reconcile.
+     *
+     * MIN(title) is the same blocker every device names, so two clients drawing
+     * "Blocked by X" cannot disagree about which X.
+     */
+    for (let start = 0; start < unique.length; start += DEPENDENCY_ID_CHUNK) {
+      const chunk = unique.slice(start, start + DEPENDENCY_ID_CHUNK);
+      const result = await this.#run(
+        this.#db
+          .prepare(
+            `SELECT l.target_entity_id AS task_id,
+                    COUNT(*) AS blockers,
+                    MIN(blocker.title) AS first_title
+             FROM entity_links l
+             JOIN entities blocker
+               ON blocker.workspace_id = l.workspace_id
+              AND blocker.id = l.source_entity_id
+              AND blocker.type = '${TASK}'
+              AND blocker.deleted_at IS NULL
+             LEFT JOIN spine_records sr
+               ON sr.workspace_id = blocker.workspace_id
+              AND sr.entity_id = blocker.id
+             WHERE l.workspace_id = ?
+               AND l.type = ?
+               AND l.deleted_at IS NULL
+               AND l.target_entity_id IN (${chunk.map(() => "?").join(", ")})
+               AND sr.completed_at IS NULL
+             GROUP BY l.target_entity_id`,
+          )
+          .bind(this.#workspaceId, TASK_BLOCKS, ...chunk),
+      );
+      for (const row of (result.results ?? []) as {
+        readonly task_id: string;
+        readonly blockers: number;
+        readonly first_title: string | null;
+      }[]) {
+        const blockerCount = Number(row.blockers ?? 0);
+        if (blockerCount < 1) continue;
+        summaries.set(row.task_id, {
+          blockerCount,
+          firstBlockerTitle: row.first_title ?? "another task",
+        });
+      }
+    }
+    return summaries;
+  }
+
+  async addTaskDependency(
+    taskId: string,
+    blockerId: string,
+  ): Promise<{ readonly changed: boolean }> {
+    // The pair is (BLOCKER, BLOCKED) — the stored direction — while the method
+    // is addressed by the BLOCKED Task, which is the record the owner is on.
+    const pair = validateTaskDependencyPair(
+      validateTaskId(blockerId),
+      validateTaskId(taskId),
+    );
+    // The BLOCKED Task is the one being changed, so it is the one whose archived
+    // Project makes the record read-only. (The blocker is merely referenced.)
+    await this.#requireWritableTask(pair.blockedId);
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+
+    /*
+     * The edge may already exist, ACTIVE or unlinked. The unique identity index
+     * spans deleted rows (migration 0003), so re-adding a removed dependency must
+     * RESTORE the original relationship rather than insert a second identity --
+     * which is also what keeps one dependency one row in every export.
+     */
+    const existing = await this.#db
+      .prepare(
+        `SELECT id, deleted_at FROM entity_links
+         WHERE workspace_id = ? AND source_entity_id = ? AND target_entity_id = ?
+           AND type = ?`,
+      )
+      .bind(this.#workspaceId, pair.blockerId, pair.blockedId, TASK_BLOCKS)
+      .first<{ readonly id: string; readonly deleted_at: string | null }>();
+    if (existing !== null && existing.deleted_at === null) {
+      // Already there. Idempotent, and deliberately NOT an error: two devices
+      // adding the same blocker both get the state they asked for.
+      return { changed: false };
+    }
+
+    const linkId = existing?.id ?? this.#newEntityId();
+    const guard = this.#dependencyWriteGuard(pair.blockerId, pair.blockedId);
+    const write =
+      existing === null
+        ? this.#db
+            .prepare(
+              `INSERT INTO entity_links
+                 (id, workspace_id, source_entity_id, target_entity_id, type,
+                  created_at, updated_at, deleted_at)
+               SELECT ?, ?, ?, ?, ?, ?, ?, NULL
+               WHERE ${guard.sql}`,
+            )
+            .bind(
+              linkId,
+              this.#workspaceId,
+              pair.blockerId,
+              pair.blockedId,
+              TASK_BLOCKS,
+              nowTs,
+              nowTs,
+              ...guard.params,
+            )
+        : this.#db
+            .prepare(
+              `UPDATE entity_links
+               SET deleted_at = NULL, updated_at = ?
+               WHERE workspace_id = ? AND id = ? AND deleted_at IS NOT NULL
+                 AND ${guard.sql}`,
+            )
+            .bind(nowTs, this.#workspaceId, linkId, ...guard.params);
+
+    const results = await this.#runDependencyWrite([
+      write,
+      // The Activity is guarded on the write's own `changes()`, so a refused
+      // dependency leaves no entry claiming it was added.
+      ...this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        buildActivityWriteModel(
+          {
+            type: TASK_DEPENDENCY_ADDED,
+            subjects: [
+              { entityId: pair.blockedId, role: SUBJECT_ROLE },
+              { entityId: pair.blockerId, role: ROLE_BLOCKER },
+            ],
+            payload: {
+              entityType: TASK,
+              blockerId: pair.blockerId,
+              blockedId: pair.blockedId,
+            },
+          },
+          this.#actor.actor,
+          this.#newActivityId(),
+          now,
+        ),
+      ),
+    ]);
+
+    if (results === "already_linked") {
+      /*
+       * A concurrent request inserted the SAME edge between this method's read
+       * and its write, and the UNIQUE identity index fired. That is the
+       * duplicate backstop doing its job, and the outcome is the one that was
+       * asked for: the dependency exists. Reconciled rather than surfaced,
+       * exactly as the generic link repository reconciles the same race.
+       */
+      return { changed: false };
+    }
+    if ((results[0]?.meta?.changes ?? 0) === 0) {
+      // The statement refused it, and only the statement knows which of its
+      // conditions said no. Diagnosing it costs reads only on the path that has
+      // already failed, and each answer is a sentence rather than a constraint.
+      await this.#explainDependencyRefusal(pair.blockerId, pair.blockedId);
+      // Every known refusal throws above. Reaching here means the row moved under
+      // us (a racer added the same edge first), which is the idempotent outcome.
+      return { changed: false };
+    }
+    return { changed: true };
+  }
+
+  async removeTaskDependency(
+    taskId: string,
+    blockerId: string,
+  ): Promise<{ readonly changed: boolean }> {
+    // The pair is (BLOCKER, BLOCKED) — the stored direction — while the method
+    // is addressed by the BLOCKED Task, which is the record the owner is on.
+    const pair = validateTaskDependencyPair(
+      validateTaskId(blockerId),
+      validateTaskId(taskId),
+    );
+    await this.#requireWritableTask(pair.blockedId);
+
+    const now = this.#clock();
+    const nowTs = toStorageTimestamp(now);
+    const results = await this.#runTaskBatch([
+      /*
+       * UNLINK, never DELETE. The relationship keeps its stable id, so adding the
+       * same dependency back later restores ONE relationship rather than minting
+       * a second identity for the same fact -- the lifecycle every EntityLink has
+       * (ADR-011), reached here through the Task's own authority.
+       */
+      this.#db
+        .prepare(
+          `UPDATE entity_links
+           SET deleted_at = ?, updated_at = ?
+           WHERE workspace_id = ? AND source_entity_id = ? AND target_entity_id = ?
+             AND type = ? AND deleted_at IS NULL`,
+        )
+        .bind(
+          nowTs,
+          nowTs,
+          this.#workspaceId,
+          pair.blockerId,
+          pair.blockedId,
+          TASK_BLOCKS,
+        ),
+      ...this.#recorder.buildAppendStatements(
+        this.#workspaceId,
+        buildActivityWriteModel(
+          {
+            type: TASK_DEPENDENCY_REMOVED,
+            subjects: [
+              { entityId: pair.blockedId, role: SUBJECT_ROLE },
+              { entityId: pair.blockerId, role: ROLE_BLOCKER },
+            ],
+            payload: {
+              entityType: TASK,
+              blockerId: pair.blockerId,
+              blockedId: pair.blockedId,
+            },
+          },
+          this.#actor.actor,
+          this.#newActivityId(),
+          now,
+        ),
+      ),
+    ]);
+    // Removing an edge that is not there is the outcome that was asked for.
+    return { changed: (results[0]?.meta?.changes ?? 0) > 0 };
+  }
+
+  /**
+   * Run a dependency write batch, reconciling the ONE race the guard cannot see.
+   *
+   * Every dependency invariant is a predicate inside the write, so a losing
+   * racer normally just changes no rows. The exception is two requests inserting
+   * the SAME edge at once: both read "no row", both build an insert, and the
+   * second meets `entity_links_identity_idx`. That is the duplicate backstop
+   * firing correctly, and the outcome — the dependency exists — is exactly what
+   * the second request asked for, so it is reconciled here rather than surfaced
+   * as a storage error. Every other failure is re-typed and rethrown.
+   */
+  async #runDependencyWrite(
+    statements: readonly D1PreparedStatement[],
+  ): Promise<D1Result[] | "already_linked"> {
+    try {
+      return await this.#db.batch(statements as D1PreparedStatement[]);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (/UNIQUE constraint failed/i.test(message)) return "already_linked";
+      throw new TaskStorageError(undefined, { cause });
+    }
+  }
+
+  /**
+   * The SQL that decides whether one dependency may exist, as a predicate to be
+   * AND-ed into the write itself.
+   *
+   * Four conditions, in one expression, evaluated inside the same statement (and
+   * therefore the same transaction) as the row it gates:
+   *
+   *   1. the BLOCKER is a live Task in this workspace;
+   *   2. the BLOCKED Task is a live Task in this workspace;
+   *   3. neither bound is reached — counted here, not read first, so two
+   *      concurrent adds at nineteen cannot both succeed;
+   *   4. the blocker is NOT already reachable from the blocked Task by following
+   *      `task.blocks` edges — the bounded cycle walk.
+   *
+   * The walk is a RECURSIVE CTE with an explicit `depth` column and a
+   * `depth < MAX_DEPENDENCY_DEPTH` bound in the recursive term, plus `UNION`
+   * (not `UNION ALL`) so an already-visited Task is never expanded twice. It is
+   * therefore bounded on BOTH axes — breadth by the fan-out limit the same
+   * predicate enforces, depth by the constant — and it terminates even on a graph
+   * that somehow already contained a cycle. Both directions of the walk ride the
+   * `entity_links_active_source_type_idx` partial index, so each level is an index
+   * seek rather than a scan.
+   *
+   * Starting the walk at the BLOCKED Task and looking for the BLOCKER covers the
+   * self-edge (depth 0), the two-node pair (depth 1) and any longer chain with one
+   * rule, rather than three special cases that could disagree.
+   */
+  #dependencyWriteGuard(
+    blockerId: string,
+    blockedId: string,
+  ): { readonly sql: string; readonly params: readonly unknown[] } {
+    const liveTask = `EXISTS (
+             SELECT 1 FROM entities
+             WHERE workspace_id = ? AND id = ? AND type = '${TASK}'
+               AND deleted_at IS NULL
+           )`;
+    const blockerCount = `(SELECT COUNT(*) FROM entity_links held
+              WHERE held.workspace_id = ? AND held.type = ?
+                AND held.target_entity_id = ? AND held.deleted_at IS NULL
+                AND held.source_entity_id <> ?)`;
+    const blocksCount = `(SELECT COUNT(*) FROM entity_links held
+              WHERE held.workspace_id = ? AND held.type = ?
+                AND held.source_entity_id = ? AND held.deleted_at IS NULL
+                AND held.target_entity_id <> ?)`;
+    const reachesBlocker = `EXISTS (
+             WITH RECURSIVE downstream(id, depth) AS (
+               SELECT ?, 0
+               UNION
+               SELECT dep.target_entity_id, downstream.depth + 1
+               FROM entity_links dep
+               JOIN downstream ON dep.source_entity_id = downstream.id
+               WHERE dep.workspace_id = ? AND dep.type = ?
+                 AND dep.deleted_at IS NULL
+                 AND downstream.depth < ${MAX_DEPENDENCY_DEPTH}
+             )
+             SELECT 1 FROM downstream WHERE id = ?
+           )`;
+    return {
+      sql: `${liveTask}
+             AND ${liveTask}
+             AND ${blockerCount} < ${MAX_TASK_BLOCKERS}
+             AND ${blocksCount} < ${MAX_TASK_BLOCKS}
+             AND NOT ${reachesBlocker}`,
+      params: [
+        this.#workspaceId,
+        blockerId,
+        this.#workspaceId,
+        blockedId,
+        // The two counts EXCLUDE the edge being written, so restoring an
+        // unlinked edge at the bound is judged on the other nineteen.
+        this.#workspaceId,
+        TASK_BLOCKS,
+        blockedId,
+        blockerId,
+        this.#workspaceId,
+        TASK_BLOCKS,
+        blockerId,
+        blockedId,
+        blockedId,
+        this.#workspaceId,
+        TASK_BLOCKS,
+        blockerId,
+      ],
+    };
+  }
+
+  /**
+   * Turn a refused dependency write into the sentence that explains it.
+   *
+   * Runs ONLY after a write changed nothing, so the ordinary path pays for none
+   * of it. Each check re-asks one of the guard's conditions on its own; the order
+   * is the order the owner would want to hear them in.
+   */
+  async #explainDependencyRefusal(
+    blockerId: string,
+    blockedId: string,
+  ): Promise<void> {
+    const blocker = await this.getTask(blockerId);
+    if (blocker === null) {
+      // A missing, deleted, non-Task or cross-workspace blocker: all
+      // indistinguishable, disclosing nothing about another workspace.
+      throw new TaskNotFoundError();
+    }
+    const cycle = await this.#db
+      .prepare(
+        `WITH RECURSIVE downstream(id, depth) AS (
+           SELECT ?, 0
+           UNION
+           SELECT dep.target_entity_id, downstream.depth + 1
+           FROM entity_links dep
+           JOIN downstream ON dep.source_entity_id = downstream.id
+           WHERE dep.workspace_id = ? AND dep.type = ?
+             AND dep.deleted_at IS NULL
+             AND downstream.depth < ${MAX_DEPENDENCY_DEPTH}
+         )
+         SELECT 1 AS hit FROM downstream WHERE id = ?`,
+      )
+      .bind(blockedId, this.#workspaceId, TASK_BLOCKS, blockerId)
+      .first<{ readonly hit: number }>();
+    if (cycle !== null) throw new TaskDependencyCycleError();
+
+    const counts = await this.#db
+      .prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM entity_links held
+             WHERE held.workspace_id = ? AND held.type = ?
+               AND held.target_entity_id = ? AND held.deleted_at IS NULL
+               AND held.source_entity_id <> ?) AS blockers,
+           (SELECT COUNT(*) FROM entity_links held
+             WHERE held.workspace_id = ? AND held.type = ?
+               AND held.source_entity_id = ? AND held.deleted_at IS NULL
+               AND held.target_entity_id <> ?) AS blocks`,
+      )
+      .bind(
+        this.#workspaceId,
+        TASK_BLOCKS,
+        blockedId,
+        blockerId,
+        this.#workspaceId,
+        TASK_BLOCKS,
+        blockerId,
+        blockedId,
+      )
+      .first<{ readonly blockers: number; readonly blocks: number }>();
+    if ((counts?.blockers ?? 0) >= MAX_TASK_BLOCKERS) {
+      throw new TaskDependencyLimitError(MAX_TASK_BLOCKERS, "blockers");
+    }
+    if ((counts?.blocks ?? 0) >= MAX_TASK_BLOCKS) {
+      throw new TaskDependencyLimitError(MAX_TASK_BLOCKS, "blocks");
+    }
+    // The blocked Task vanished between the guard and the write.
+    if ((await this.getTask(blockedId)) === null) throw new TaskNotFoundError();
+  }
+
+  /**
+   * Run a small domain write batch, re-typing raw storage failures.
+   *
+   * Shared by the checklist and the dependency mutations — both are narrow,
+   * guarded statement groups that need the same failure translation, and neither
+   * needs the Activity-first coordination `recordAtomicMutation` provides
+   * (each builds its own guarded append statements).
+   */
+  async #runTaskBatch(
     statements: readonly D1PreparedStatement[],
   ): Promise<D1Result[]> {
     try {

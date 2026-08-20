@@ -60,7 +60,11 @@ import {
   selectPriorPeriodFocus,
   type PriorFocusCandidate,
 } from "~/kernel/reviews";
-import type { TaskChecklistProgress, TaskListItem } from "~/kernel/tasks";
+import type {
+  TaskBlockedSummary,
+  TaskChecklistProgress,
+  TaskListItem,
+} from "~/kernel/tasks";
 import {
   findTaskSystemView,
   toWorkspaceFilters,
@@ -82,6 +86,7 @@ import { ownerCalendarIso } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
 import {
   serializeTaskListItem,
+  withBlockedSummary,
   withChecklistProgress,
 } from "~/shared/task-record/task-view";
 import { formatPreferenceDate } from "~/kernel/preferences";
@@ -356,19 +361,35 @@ export async function loadPlanPage(
    * a capability and then withholding its data on one surface would make the same
    * Task read differently depending on where the owner opened it.
    */
+  const pageTaskIds = [
+    ...plannedItems.map((task) => task.id),
+    ...queueResult.items.map((entry) => entry.task.id),
+  ];
   const checklistProgress = await soft(
-    scope.tasks.listChecklistProgress([
-      ...plannedItems.map((task) => task.id),
-      ...queueResult.items.map((entry) => entry.task.id),
-    ]),
+    scope.tasks.listChecklistProgress(pageTaskIds),
     new Map() as ReadonlyMap<string, TaskChecklistProgress>,
+  );
+  /*
+   * TASKS-12 — blocked state for the whole page, read the same way and for the
+   * same reason.
+   *
+   * A blocked Task may still be PLANNED: planning is intent, not proof that the
+   * work can start, so `/plan` never removes or reschedules one. It shows the
+   * state and leaves the owner's week exactly where they put it.
+   */
+  const blockedSummaries = await soft(
+    scope.tasks.listBlockedSummaries(pageTaskIds),
+    new Map() as ReadonlyMap<string, TaskBlockedSummary>,
   );
 
   const days: PlanDay[] = week.days.map((day) => {
     const tasks = plannedItems
       .filter((task) => task.scheduledDate === day.dateIso)
       .map((task) =>
-        withChecklistProgress(serializeTaskListItem(task), checklistProgress),
+        withBlockedSummary(
+          withChecklistProgress(serializeTaskListItem(task), checklistProgress),
+          blockedSummaries,
+        ),
       );
     const schedule = scheduleForDate(scheduleWindow, {
       dateIso: day.dateIso,
@@ -408,7 +429,10 @@ export async function loadPlanPage(
     totals,
     queue: queueResult.items.map((entry) => ({
       ...entry,
-      task: withChecklistProgress(entry.task, checklistProgress),
+      task: withBlockedSummary(
+        withChecklistProgress(entry.task, checklistProgress),
+        blockedSummaries,
+      ),
     })),
     queueTruncated: queueResult.truncated,
     queueSources: [

@@ -880,6 +880,25 @@ export type WorkspaceTaskFilters = {
    * makes for the row's repeat signal, so it costs no additional query.
    */
   readonly recurring?: boolean;
+
+  /* ---- TASKS-12 addition. ------------------------------------------------- */
+
+  /**
+   * Only Tasks that are BLOCKED — that have at least one active `task.blocks`
+   * edge from a Task that is still alive and still incomplete.
+   *
+   * `true` narrows to blocked Tasks and `false` to unblocked ones; absent is no
+   * filter. It is DERIVED, exactly as `dueState` and `plannedState` are: there is
+   * no stored flag to filter on, so completing the last blocker moves a Task out
+   * of `blocked=1` on the very next query and reopening it moves the Task back in
+   * — with nothing to reconcile.
+   *
+   * It is deliberately a FILTER on the existing declarative vocabulary rather
+   * than a new system VIEW. A blocked Task is still an ordinary Task: it belongs
+   * to whichever view its dates and state put it in, and a separate "Blocked"
+   * view would be a second membership model for the same rows.
+   */
+  readonly blocked?: boolean;
 };
 
 /** Options for the bounded, cursor-paginated workspace-wide Tasks query. */

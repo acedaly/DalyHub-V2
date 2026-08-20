@@ -46,6 +46,8 @@ import { Menu, type MenuItem } from "~/shared/ui";
 import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
 import {
   checklistProgressLabel,
+  taskBlockedLabel,
+  type TaskBlockedSummary,
   type TaskChecklistProgress,
   type TaskPriority,
   type TaskRelation,
@@ -95,6 +97,15 @@ export interface TaskRowData {
    * mistaken for the other.
    */
   readonly checklist?: TaskChecklistProgress;
+  /**
+   * TASKS-12 — this Task's BLOCKED state, when the SURFACE projected it.
+   *
+   * Absent means the surface did not read it (and pays nothing for it), which is
+   * deliberately different from "nothing blocks this Task" — both draw nothing,
+   * so a row can never claim a Task is free to start on a surface that did not
+   * ask the question.
+   */
+  readonly blocked?: TaskBlockedSummary;
 }
 
 export interface TaskRowSelection {
@@ -171,9 +182,32 @@ export function TaskRow({
   const due = relativeCalendarDate(task.dueDate, todayIso);
   const overdue = !task.completed && due?.urgency === "overdue";
   const disabled = readOnly || task.completed;
-  const showState = !ROUTINE_STATES.has(task.stateKind);
   const repeat = taskRecurrenceLabel(task.recurrence ?? null);
   const checklist = checklistProgressLabel(task.checklist);
+  /*
+   * TASKS-12 — the blocked reason, and why it REPLACES the status pill.
+   *
+   * "Blocked" on its own is the least useful half of the fact: the owner already
+   * knows the Task has not moved, and what they need is the name of the thing to
+   * chase. So a blocked row states the whole sentence — "Blocked by Get director
+   * approval", or "Blocked by 2 tasks" when naming one would be a half-truth —
+   * and the status column stays empty, because a pill reading "Blocked" beside a
+   * line reading "Blocked by …" is the duplicated label a row cannot afford.
+   *
+   * It sits on the TITLE's own line, beside the checklist figure, so it costs the
+   * row no grid track — and, measured, no HEIGHT at 1440/1280/820, one extra line
+   * at 393/320. Unlike the checklist figure, that phone cost is accepted: see
+   * `task-dependencies.css`. It is TEXT rather than a colour, so the state
+   * survives a monochrome display and a screen reader alike.
+   *
+   * It is drawn ONLY when the shared precedence evaluator actually resolved to
+   * `blocked`. A Task that is both waiting and blocked reads "Waiting" and says
+   * nothing about the blocker — exactly as a completed Task says nothing about
+   * being in progress. One state per row, decided in one place.
+   */
+  const blocked =
+    task.stateKind === "blocked" ? taskBlockedLabel(task.blocked) : null;
+  const showState = !ROUTINE_STATES.has(task.stateKind) && blocked === null;
 
   /*
    * The hold gesture, through the SHARED hook.
@@ -439,6 +473,11 @@ export function TaskRow({
             data-testid="task-row-checklist"
           >
             {checklist}
+          </span>
+        ) : null}
+        {blocked !== null ? (
+          <span className="dh-taskrow__blocked" data-testid="task-row-blocked">
+            {blocked}
           </span>
         ) : null}
         {/* PWA-12 — what this device is still holding, in words. Absent in the

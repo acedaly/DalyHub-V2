@@ -73,6 +73,10 @@ export const TASKS_FILTER_PARAMS: Record<keyof TaskViewFilters, string> = {
   plannedFrom: "plannedFrom",
   plannedTo: "plannedTo",
   recurring: "repeats",
+  // TASKS-12 — `?state=blocked` would collide with the workflow `status` this
+  // collection already has, so the parameter is named after the dimension it
+  // filters, exactly as `repeats` is.
+  blocked: "blocked",
 };
 
 /** The boolean filter keys, which encode as `1` and are absent when off. */
@@ -84,7 +88,7 @@ const BOOLEAN_FILTER_KEYS = ["delegated", "waiting", "someday"] as const;
  * `repeats=0` ("only one-off Tasks") is a real filter, so unlike the boolean keys
  * above an explicit `0` must survive the decode rather than being read as "off".
  */
-const TRISTATE_FILTER_KEYS = ["recurring"] as const;
+const TRISTATE_FILTER_KEYS = ["recurring", "blocked"] as const;
 
 /** The parameters a FILTER reset clears (never the presentation, sort or view). */
 export const TASKS_FILTER_PARAM_NAMES: readonly string[] =

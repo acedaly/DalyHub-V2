@@ -272,7 +272,17 @@
   }
 }
 
+/*
+ * TASKS-12 — the monthly SHAPE fieldset joins the two that were already here.
+ *
+ * It reuses `.dh-recurrence-editor__mode` verbatim rather than introducing a
+ * second radio anatomy: "Day of the month / A named weekday" is the same kind of
+ * choice as "Fixed schedule / After completion", so it is the same control. The
+ * only difference is that these two options carry no help line, which the grid
+ * areas already handle (an absent `help` child collapses its row).
+ */
 .dh-recurrence-editor__modes,
+.dh-recurrence-editor__monthly,
 .dh-recurrence-editor__weekdays {
   display: grid;
   gap: var(--app-space-2);

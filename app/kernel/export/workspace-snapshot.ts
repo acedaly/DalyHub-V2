@@ -468,6 +468,20 @@ export interface SnapshotTaskRecurrenceRule {
   readonly weekdays: string | null;
   readonly anchorDay: number | null;
   readonly anchorMonth: number | null;
+  /**
+   * TASKS-07 — the scheduling mode, and the series grid an occurrence was moved
+   * off. Both columns existed since migration 0037 and were MISSING from this
+   * shape, so an `after_completion` routine came back from a restore as a fixed
+   * schedule and a moved occurrence lost its grid. Fixed with TASKS-12 because it
+   * is data loss in the one path whose whole job is not to lose data.
+   */
+  readonly mode: string;
+  readonly seriesAnchorDate: string | null;
+  /** TASKS-12 — the advanced rule: nth-weekday, weekend handling, end condition. */
+  readonly ordinal: string | null;
+  readonly weekendRule: string;
+  readonly endsAfterCount: number | null;
+  readonly endsOnDate: string | null;
   readonly seriesId: string;
   readonly sequence: number;
   readonly createdAt: IsoInstant;

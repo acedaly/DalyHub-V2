@@ -43,6 +43,7 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { isTaskBlocked, taskBlockedLabel } from "~/kernel/tasks";
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
 import { DrawerTrigger, useDrawer, withDrawerPushed } from "~/shared/drawer";
@@ -321,6 +322,9 @@ function toTaskCardProps(
     timeSector: task.timeSector,
     scheduledDate: task.scheduledDate,
     waiting: task.waiting,
+    // TASKS-12 — through the SAME evaluator every other surface uses, so a
+    // blocked Task reads identically on Today, on /tasks, on /plan and here.
+    blocked: isTaskBlocked(task.blocked),
   });
   const urgency = taskUrgency(task, todayIso);
   // The owner's unconfirmed intent wins over the loader's value while it is in
@@ -341,6 +345,20 @@ function toTaskCardProps(
       id: "priority",
       value: <PriorityIndicator priority={task.priority} />,
       priority: "low",
+    });
+  }
+  /*
+   * TASKS-12 — the blocked reason, as a metadata line rather than as a second
+   * status pill: the card's status already reads "Blocked" from the shared
+   * evaluator, and what this line adds is WHICH task, which is the actionable
+   * half. Drawn only for an open Task, because a completed one is not blocked by
+   * anything any more.
+   */
+  const blockedLabel = completed ? null : taskBlockedLabel(task.blocked);
+  if (blockedLabel !== null) {
+    metadata.push({
+      id: "blocked-by",
+      value: <span data-testid="project-task-blocked">{blockedLabel}</span>,
     });
   }
   if (waiting && task.waiting) {

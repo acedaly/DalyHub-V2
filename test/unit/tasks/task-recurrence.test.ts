@@ -12,6 +12,12 @@ const scheduled = (over: Partial<TaskRecurrenceRule>): TaskRecurrenceRule => ({
   dateKind: "scheduled",
   mode: "fixed",
   weekdays: [],
+  // TASKS-12 — the four advanced fields at their documented "absent" values,
+  // which is exactly the rule every pre-TASKS-12 series already had.
+  ordinal: null,
+  weekendRule: "allow",
+  endsAfterCount: null,
+  endsOnDate: null,
   anchorDay: null,
   anchorMonth: null,
   ...over,

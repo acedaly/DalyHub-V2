@@ -18,6 +18,15 @@
  */
 export const TASK_WAITING_ON = "task.waiting_on";
 
+/*
+ * TASKS-12 — the dependency link type is defined beside the dependency model
+ * (`task-dependencies.ts`) and re-exported here only so the reserved-type set
+ * below can name it. Its meaning, its bounds and the reason it is an EntityLink
+ * rather than a new table all live with the model.
+ */
+export { TASK_BLOCKS } from "./task-dependencies";
+import { TASK_BLOCKS } from "./task-dependencies";
+
 /**
  * The closed set of entity types a task may wait ON. A task can wait on a Person
  * (delegation), a Project/Goal/Area (a body of work reaching a state) or another
@@ -48,6 +57,12 @@ export function isWaitingTargetType(type: string): type is WaitingTargetType {
  */
 export const RESERVED_TASK_LINK_TYPES: ReadonlySet<string> = new Set([
   TASK_WAITING_ON,
+  // TASKS-12 — a dependency edge. Reserved for exactly the reason waiting is:
+  // `task.blocks` carries invariants the generic link repository knows nothing
+  // about (Task-only endpoints, no cycles, a bounded fan-in and fan-out), and the
+  // TaskRepository enforces all of them inside the write. A link the picker could
+  // create would be a second, unchecked way to build the graph.
+  TASK_BLOCKS,
 ]);
 
 /** True when `type` is a reserved task-domain link type. */
@@ -143,3 +158,27 @@ export const DELEGATION_NOTE_MAX_LENGTH = 500;
  * and predictable rather than an unbounded "plan everything".
  */
 export const MAX_PLAN_BATCH_SIZE = 100;
+
+/**
+ * TASKS-12 — the TWO dependency events, and the two that deliberately do not
+ * exist.
+ *
+ * Adding and removing a dependency are DECISIONS the owner made about how work
+ * relates, so they belong in the record's history: each carries the blocked Task
+ * (`subject`) and the blocker (`blocker`) as its two subjects, so the entry reads
+ * as the relationship it is and appears on both Tasks' timelines. The payload
+ * carries the two ids and nothing else — never a title, never free text.
+ *
+ * There is NO `task.blocked` and NO `task.unblocked`. Blocked state is DERIVED
+ * from the edges plus the blockers' completion (see `task-dependencies.ts`), so a
+ * Task becoming unblocked is not an event that happened to it — it is a
+ * consequence of `task.completed` on another Task, which the timeline already
+ * records. Logging the consequence as well would put two entries in history for
+ * one act, and would leave DalyHub with derived facts written into an append-only
+ * log that could then disagree with the data they were derived from. The decision
+ * and its reasoning are recorded in `TASKS_MODULE.md` and ADR-106.
+ */
+export const TASK_DEPENDENCY_ADDED = "task.dependency_added";
+
+/** Activity: a dependency was removed. See {@link TASK_DEPENDENCY_ADDED}. */
+export const TASK_DEPENDENCY_REMOVED = "task.dependency_removed";

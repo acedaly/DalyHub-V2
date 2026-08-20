@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { taskBlockedLabel } from "~/kernel/tasks";
 import {
+  blockedSummaryOf,
   taskDisplayState,
   taskPriorityLabel,
   taskPriorityTag,
@@ -128,5 +130,111 @@ describe("taskDisplayState precedence (ADR-043 §6)", () => {
     const state = taskDisplayState(base);
     expect(state.kind).toBe("inbox");
     expect(state.label).toBe("Unscheduled");
+  });
+});
+
+describe("TASKS-12 — blocked in the ONE precedence evaluator", () => {
+  it("reads Blocked when an incomplete blocker remains", () => {
+    const state = taskDisplayState({ ...base, blocked: true });
+    expect(state.kind).toBe("blocked");
+    expect(state.label).toBe("Blocked");
+    // The WAITING tone, deliberately: blocked and waiting are the same family,
+    // and a second colour for a second flavour of one fact is pill inflation.
+    expect(state.tone).toBe("waiting");
+  });
+
+  it("sits BELOW Waiting — a statement the owner made outranks a derived one", () => {
+    expect(
+      taskDisplayState({
+        ...base,
+        blocked: true,
+        waiting: {
+          since: "2026-08-19T00:00:00.000Z",
+          subject: { kind: "text", note: "Finance" },
+        },
+      }).kind,
+    ).toBe("waiting");
+  });
+
+  it("sits ABOVE On hold, Someday and In progress", () => {
+    for (const over of [
+      { status: "on_hold" as const },
+      { commitmentState: "someday" as const },
+      { status: "in_progress" as const },
+    ]) {
+      expect(taskDisplayState({ ...base, ...over, blocked: true }).kind).toBe(
+        "blocked",
+      );
+    }
+  });
+
+  it("yields to Completed and Cancelled, which are terminal", () => {
+    expect(
+      taskDisplayState({
+        ...base,
+        blocked: true,
+        completedAt: "2026-08-19T00:00:00.000Z",
+      }).kind,
+    ).toBe("completed");
+    expect(
+      taskDisplayState({ ...base, blocked: true, status: "cancelled" }).kind,
+    ).toBe("cancelled");
+  });
+
+  it("is ABSENT-safe: a surface that did not ask gets exactly what it always got", () => {
+    // `blocked` omitted entirely — the shape every pre-TASKS-12 caller passes.
+    expect(
+      taskDisplayState({ ...base, scheduledDate: "2026-08-19" }).kind,
+    ).toBe("planned");
+    expect(taskDisplayState(base).kind).toBe("inbox");
+    // And an explicit false is the same answer, never a third state.
+    expect(taskDisplayState({ ...base, blocked: false }).kind).toBe("inbox");
+  });
+});
+
+describe("TASKS-12 — the one blocked wording", () => {
+  it("NAMES a single blocker and COUNTS several", () => {
+    expect(
+      taskBlockedLabel({ blockerCount: 1, firstBlockerTitle: "Get approval" }),
+    ).toBe("Blocked by Get approval");
+    expect(
+      taskBlockedLabel({ blockerCount: 3, firstBlockerTitle: "Get approval" }),
+    ).toBe("Blocked by 3 tasks");
+  });
+
+  it("says nothing at all when nothing blocks", () => {
+    expect(taskBlockedLabel(null)).toBeNull();
+    expect(taskBlockedLabel(undefined)).toBeNull();
+    expect(
+      taskBlockedLabel({ blockerCount: 0, firstBlockerTitle: "Get approval" }),
+    ).toBeNull();
+  });
+});
+
+describe("TASKS-12 — the record derives its own blocked state the server's way", () => {
+  const done = "2026-08-19T00:00:00.000Z";
+
+  it("counts only INCOMPLETE blockers, and names the first alphabetically", () => {
+    expect(
+      blockedSummaryOf({
+        blockedBy: [
+          { taskId: "t1", title: "Zebra", completedAt: null },
+          { taskId: "t2", title: "Apple", completedAt: null },
+          { taskId: "t3", title: "Alpha", completedAt: done },
+        ],
+        blocks: [],
+      }),
+    ).toEqual({ blockerCount: 2, firstBlockerTitle: "Apple" });
+  });
+
+  it("is null when every blocker is complete, and when there are none", () => {
+    expect(
+      blockedSummaryOf({
+        blockedBy: [{ taskId: "t1", title: "Done", completedAt: done }],
+        blocks: [],
+      }),
+    ).toBeNull();
+    expect(blockedSummaryOf({ blockedBy: [], blocks: [] })).toBeNull();
+    expect(blockedSummaryOf(undefined)).toBeNull();
   });
 });

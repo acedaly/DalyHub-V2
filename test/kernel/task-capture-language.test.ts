@@ -304,6 +304,14 @@ describe("TASKS-11 — a captured sentence becomes a TASKS-07 rule", () => {
       weekdays: [],
       mode: "after_completion",
       dateKind: "scheduled",
+      // TASKS-12 — the advanced fields at their documented absent values, which
+      // is exactly the rule this test authored before they existed.
+      monthlyShape: "day",
+      ordinal: "first",
+      weekendRule: "allow",
+      ends: "never",
+      endsAfterCount: "12",
+      endsOnDate: "",
     });
 
     const fromCapture = await storedRule(captured.taskId);

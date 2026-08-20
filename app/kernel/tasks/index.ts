@@ -112,6 +112,8 @@ export {
   TASK_RECURRENCE_OCCURRENCE_CREATED,
   TASK_RECURRENCE_OCCURRENCE_WITHDRAWN,
   TASK_RECURRENCE_OCCURRENCE_SKIPPED,
+  TASK_DEPENDENCY_ADDED,
+  TASK_DEPENDENCY_REMOVED,
   DELEGATE_TO_MAX_LENGTH,
   DELEGATION_NOTE_MAX_LENGTH,
   MAX_PLAN_BATCH_SIZE,
@@ -120,28 +122,53 @@ export {
   type WaitingTargetType,
 } from "./task-identifiers";
 
+export {
+  EMPTY_TASK_DEPENDENCIES,
+  MAX_DEPENDENCY_DEPTH,
+  MAX_TASK_BLOCKERS,
+  MAX_TASK_BLOCKS,
+  TASK_BLOCKS,
+  isTaskBlocked,
+  taskBlockedLabel,
+  validateTaskDependencyPair,
+  type TaskBlockedSummary,
+  type TaskDependencies,
+  type TaskDependencyEndpoint,
+} from "./task-dependencies";
+
 export type { TaskRepository } from "./task-repository";
 
 export {
   AFTER_COMPLETION_FREQUENCIES,
   DEFAULT_TASK_RECURRENCE_MODE,
+  DEFAULT_TASK_RECURRENCE_WEEKEND_RULE,
+  MAX_TASK_RECURRENCE_COUNT,
   TASK_RECURRENCE_DATE_KINDS,
   TASK_RECURRENCE_FREQUENCIES,
   TASK_RECURRENCE_MODES,
+  TASK_RECURRENCE_ORDINALS,
   TASK_RECURRENCE_SERIES_ID_MAX_LENGTH,
+  TASK_RECURRENCE_WEEKEND_RULES,
+  WEEKEND_RULE_FREQUENCIES,
   addCalendarDays,
   calendarDaysBetween,
   nextTaskOccurrenceDate,
+  nextTaskOccurrenceStep,
+  ordinalWeekdayOfMonth,
+  planNextTaskOccurrence,
   recurrenceAnchorField,
   resolveTaskRecurrenceRule,
   validateTaskRecurrenceRule,
   weekdayOfDate,
+  type TaskOccurrenceStep,
   type TaskRecurrenceDateKind,
   type TaskRecurrenceFrequency,
   type TaskRecurrenceInput,
   type TaskRecurrenceMode,
+  type TaskRecurrenceOrdinal,
   type TaskRecurrenceRule,
   type TaskRecurrenceSeries,
+  type TaskRecurrenceWeekendRule,
 } from "./task-recurrence";
 
 export {
@@ -180,6 +207,8 @@ export {
   TaskProjectArchivedError,
   TaskChecklistItemNotFoundError,
   TaskChecklistFullError,
+  TaskDependencyCycleError,
+  TaskDependencyLimitError,
   type TaskErrorCode,
   type TaskValidationField,
 } from "./task-errors";

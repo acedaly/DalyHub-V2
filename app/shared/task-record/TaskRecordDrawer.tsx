@@ -63,7 +63,9 @@ import { PriorityFlag } from "./PriorityIndicator";
 import { recurrenceFormFields } from "./recurrence-authoring";
 import { TaskRecurrenceEditor } from "./TaskRecurrenceEditor";
 import { UrgencyChip } from "./UrgencyChip";
+import { TaskDependenciesSection } from "./TaskDependenciesSection";
 import { useTaskChecklist } from "./use-task-checklist";
+import { useTaskDependencies } from "./use-task-dependencies";
 import { useTaskParentSearch } from "./use-task-parent-search";
 import {
   isTaskComplete,
@@ -72,6 +74,7 @@ import {
   taskRecurrenceLabel,
   timeSectorLabel,
   type SerializedChecklistItem,
+  type SerializedTaskDependencies,
   type SerializedTaskView,
 } from "./task-view";
 
@@ -180,6 +183,16 @@ type DetailResponse = TaskDetailData | { readonly error: string };
  * literal every render would reset it on every render.
  */
 const NO_CHECKLIST: readonly SerializedChecklistItem[] = [];
+
+/**
+ * The stable empty dependency set, for the same reason {@link NO_CHECKLIST} is a
+ * module constant: `useTaskDependencies` re-seeds on IDENTITY change, so a fresh
+ * literal per render would reset it on every render.
+ */
+const NO_DEPENDENCIES: SerializedTaskDependencies = {
+  blockedBy: [],
+  blocks: [],
+};
 
 export function TaskRecordDrawer({
   taskId,
@@ -312,6 +325,56 @@ export function TaskRecordDrawer({
     loadedChecklist,
     basePath,
     revalidator.revalidate,
+  );
+
+  /*
+   * TASKS-12 — the Task's dependencies, on the same terms as the checklist.
+   *
+   * A hook, so it is called unconditionally above every early return, seeded from
+   * the loader payload with a stable empty value, and `revalidate` is the change
+   * callback for the same reason: the mutation's own answer already carries the
+   * fresh dependency set, and what needs re-reading is the surface BEHIND the
+   * drawer, whose row changes from Planned to Blocked.
+   */
+  const loadedDependencies =
+    data !== null && !("error" in data)
+      ? (data.dependencies ?? NO_DEPENDENCIES)
+      : NO_DEPENDENCIES;
+  const dependencies = useTaskDependencies(
+    taskId,
+    loadedDependencies,
+    basePath,
+    revalidator.revalidate,
+  );
+
+  /**
+   * The dependency picker's candidate search — the Task's OWN endpoint, which
+   * offers Tasks and nothing else. Cycles and bounds are not filtered here: they
+   * are properties of the graph at the moment of the write, and a list that
+   * pretended to know them would be stale the instant another device changed
+   * something (`task-dependency-targets.tsx` states this at length).
+   */
+  const searchDependencyTargets = useCallback(
+    async (
+      query: string,
+      signal: AbortSignal,
+    ): Promise<readonly EntityLinkTargetOption[]> => {
+      const url = new URL(
+        `${detailUrl}/dependency-targets`,
+        window.location.origin,
+      );
+      url.searchParams.set("q", query);
+      const response = await fetch(url, {
+        signal,
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) return [];
+      const body = (await response.json()) as {
+        readonly options?: readonly EntityLinkTargetOption[];
+      };
+      return body.options ?? [];
+    },
+    [detailUrl],
   );
 
   const submitUpdate = useCallback(
@@ -896,6 +959,9 @@ export function TaskRecordDrawer({
     timeSector: task.timeSector,
     scheduledDate: task.scheduledDate,
     waiting: waitingActive ? task.waiting : null,
+    // TASKS-12 — the record's own header pill says Blocked through the SAME
+    // evaluator every row uses, derived from the dependencies it already holds.
+    blocked: dependencies.isBlocked,
   });
   const status = { label: displayState.label, tone: displayState.tone };
   /*
@@ -1232,6 +1298,21 @@ export function TaskRecordDrawer({
                 onSetWaiting={setWaiting}
                 onClear={clearWaiting}
               />
+              {/*
+               * TASKS-12 — the dependencies, directly after the waiting state.
+               *
+               * The two answer the same question — why can this not proceed? —
+               * from the two directions DalyHub models it: waiting is something
+               * the owner asserted, a dependency is another Task's completion.
+               * Putting them together means the whole answer is read in one
+               * place, and it puts both ABOVE the dates, because whether work can
+               * start is a prior question to when it is planned.
+               */}
+              <TaskDependenciesSection
+                dependencies={dependencies}
+                searchTargets={searchDependencyTargets}
+                readOnly={task.deletedAt !== null}
+              />
               <TaskPlanningSection
                 scheduledDate={task.scheduledDate}
                 dueDate={task.dueDate}
@@ -1256,6 +1337,10 @@ export function TaskRecordDrawer({
                 }}
                 onSave={saveRecurrence}
                 disabled={completed}
+                // TASKS-12 — the SERVER-derived owner day (ADR-022), so the end
+                // date's calendar marks the right "today" whatever the browser's
+                // clock says.
+                todayIso={data.todayIso}
               />
             </div>
           ),

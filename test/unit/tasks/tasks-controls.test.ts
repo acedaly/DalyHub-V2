@@ -43,6 +43,10 @@ describe("the declared filter dimensions", () => {
       "created",
       "updated",
       "completed",
+      // SMART-01 and TASKS-12: both directions of a derived dimension, offered
+      // through the SAME declaration as every other filter.
+      "repeats",
+      "blocked",
     ]) {
       expect(byId(id), `missing control group: ${id}`).toBeDefined();
     }
@@ -161,5 +165,37 @@ describe("URL parameter contract", () => {
     expect(byId("completed")?.defaultValue).toBe("default");
     expect(activeFilterCount(groups, params("completed=default"))).toBe(0);
     expect(activeFilterCount(groups, params("completed=only"))).toBe(1);
+  });
+});
+
+describe("TASKS-12 — the blocked dimension", () => {
+  it("offers BOTH directions, and 'any' as the absence of a filter", () => {
+    expect(byId("blocked")?.options.map((option) => option.value)).toEqual([
+      "",
+      "1",
+      "0",
+    ]);
+    expect(byId("blocked")?.options.map((option) => option.label)).toEqual([
+      "Any task",
+      "Blocked only",
+      "Not blocked",
+    ]);
+  });
+
+  it("is a FILTER on the shared vocabulary, never a system view", () => {
+    // The parameter is named after the dimension it filters, exactly as
+    // `repeats` is — a `state=blocked` would have collided with the workflow
+    // status this collection already has.
+    expect(byId("blocked")?.param).toBe("blocked");
+    expect(activeControls(groups, params("?blocked=1"))).toHaveLength(1);
+    expect(activeControls(groups, params("?blocked=1"))[0]?.valueLabel).toBe(
+      "Blocked",
+    );
+    expect(activeControls(groups, params("?blocked=0"))[0]?.valueLabel).toBe(
+      "Not blocked",
+    );
+    // Absent is not a filter, and neither is the "any" value.
+    expect(activeControls(groups, params("?blocked="))).toEqual([]);
+    expect(activeFilterCount(groups, params("?blocked=1"))).toBe(1);
   });
 });

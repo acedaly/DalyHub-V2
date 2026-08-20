@@ -17,6 +17,7 @@ import {
   COMMITMENT_STATES,
   DEFAULT_TASK_DETAILS,
   DEFAULT_TASK_RECURRENCE_MODE,
+  DEFAULT_TASK_RECURRENCE_WEEKEND_RULE,
   isTaskStatus,
   TASK_PRIORITIES,
   TIME_SECTORS,
@@ -153,7 +154,11 @@ export const TASK_DETAIL_COLUMNS = `
   rr.series_id AS recurrence_series_id,
   rr.sequence AS recurrence_sequence,
   rr.mode AS recurrence_mode,
-  rr.series_anchor_date AS recurrence_series_anchor_date`;
+  rr.series_anchor_date AS recurrence_series_anchor_date,
+  rr.ordinal AS recurrence_ordinal,
+  rr.weekend_rule AS recurrence_weekend_rule,
+  rr.ends_after_count AS recurrence_ends_after_count,
+  rr.ends_on_date AS recurrence_ends_on_date`;
 
 /**
  * The `task_recurrence_rules` join every task read uses. Declared HERE, next to the
@@ -316,6 +321,10 @@ function toRecurrence(row: {
   readonly recurrence_anchor_day?: number | null;
   readonly recurrence_anchor_month?: number | null;
   readonly recurrence_mode?: string | null;
+  readonly recurrence_ordinal?: string | null;
+  readonly recurrence_weekend_rule?: string | null;
+  readonly recurrence_ends_after_count?: number | null;
+  readonly recurrence_ends_on_date?: string | null;
 }): TaskRecurrenceRule | null {
   if (
     row.recurrence_frequency === null ||
@@ -340,6 +349,15 @@ function toRecurrence(row: {
         DEFAULT_TASK_RECURRENCE_MODE) as TaskRecurrenceRule["mode"],
       anchorDay: row.recurrence_anchor_day ?? null,
       anchorMonth: row.recurrence_anchor_month ?? null,
+      // TASKS-12 — the four advanced fields. Each has a documented absent value
+      // that reproduces the pre-TASKS-12 rule exactly, so a row written before
+      // migration 0047 reads back as the rule it has always been.
+      ordinal: (row.recurrence_ordinal ??
+        null) as TaskRecurrenceRule["ordinal"],
+      weekendRule: (row.recurrence_weekend_rule ??
+        DEFAULT_TASK_RECURRENCE_WEEKEND_RULE) as TaskRecurrenceRule["weekendRule"],
+      endsAfterCount: row.recurrence_ends_after_count ?? null,
+      endsOnDate: row.recurrence_ends_on_date ?? null,
     });
   } catch {
     throw new CorruptTaskRecordError();

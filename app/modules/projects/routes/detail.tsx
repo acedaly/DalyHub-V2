@@ -28,6 +28,7 @@ import {
   loadProjectKnowledge,
 } from "~/platform/entity-links/project-knowledge";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import type { TaskBlockedSummary } from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { evaluateProjectHealth } from "~/kernel/project-health";
@@ -166,6 +167,17 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     scope.projectSettings.get(projectId),
   ]);
 
+  /*
+   * TASKS-12 — the page's blocked state, in ONE bounded aggregate.
+   *
+   * Read after the page (it needs the ids) and guarded on its own: a Project's
+   * task list must render even when the dependency read does not, and a Project
+   * that cannot show blocked state still shows its work.
+   */
+  const taskBlocked = await scope.tasks
+    .listBlockedSummaries(taskPage.items.map((item) => item.id))
+    .catch(() => new Map() as ReadonlyMap<string, TaskBlockedSummary>);
+
   return {
     // The KEY only. The settings repository has already normalised it, so a key
     // this build no longer recognises arrives as `null` and the Project renders
@@ -177,7 +189,12 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     ),
     progress,
     health,
-    tasks: taskPage.items.map(serializeProjectTask),
+    // TASKS-12 — ONE bounded aggregate for the page's blocked state, guarded on
+    // its own: a Project's task list must render even when the dependency read
+    // does not, and then it simply reads as it did before TASKS-12.
+    tasks: taskPage.items.map((item) =>
+      serializeProjectTask(item, taskBlocked.get(item.id)),
+    ),
     tasksNextCursor: taskPage.nextCursor,
     taskState,
     links,

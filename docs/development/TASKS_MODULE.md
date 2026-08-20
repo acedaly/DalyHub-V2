@@ -2234,3 +2234,196 @@ single comparable field.
 - `test/kernel/task-checklist.test.ts` — the storage guarantees against real D1.
 - `test/kernel/task-checklist-route.test.ts` — the route and the offline replay.
 - `e2e/tasks-checklist.spec.ts` — the journeys, phone, keyboard, axe and offline.
+
+---
+
+## Advanced recurrence and dependencies (TASKS-12)
+
+> Delivered 2026-08-19. Accepted as
+> [ADR-106](../decisions/ARCHITECTURE_DECISIONS.md#adr-106-a-task-dependency-is-a-directed-entitylink-not-a-second-join-model--derived-blocked-state-and-cycle--bound-enforcement-inside-the-write)
+> (dependencies) and
+> [ADR-107](../decisions/ARCHITECTURE_DECISIONS.md#adr-107-advanced-recurrence-widens-a-closed-vocabulary-and-dependencies-are-occurrence-local--one-successor-authority-a-remembered-grid-and-no-relationship-cloning)
+> (recurrence, and how the two meet). Full record:
+> [`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md).
+
+**Recurrence decides WHEN a Task occurrence exists. A dependency decides WHETHER
+an existing Task can proceed.** The two are separate domain concerns and share no
+code: nothing in the dependency model mentions a date, nothing in the recurrence
+model mentions another Task.
+
+### The advanced recurrence rules
+
+Four additive fields on the SAME structured rule (migration `0047`). Still no
+cron, no expression language and no RRULE parser.
+
+| Field | Values | Absent means |
+| --- | --- | --- |
+| `ordinal` | `first` · `second` · `third` · `fourth` · `last` | an ordinary day-of-month monthly rule (`anchor_day` decides) |
+| `weekendRule` | `allow` · `before` · `after` · `skip` | `allow` — every pre-TASKS-12 rule |
+| `endsAfterCount` | 1–999 | the series never ends |
+| `endsOnDate` | an owner-calendar date, INCLUSIVE | the series never ends |
+
+- **Nth weekday.** `ordinal` plus the single weekday in `weekdays`. There is
+  deliberately **no "fifth"**: it exists in only some months, so a rule naming one
+  needs a silent fallback nobody chose. `last` is computed backwards from the
+  month's final day, which is what makes it right in a 28-day February, a 29-day
+  leap February and a 31-day January with no special case. `anchor_day` stays
+  populated (migration 0024's CHECK requires it) and is ignored by the arithmetic.
+- **Multiple weekdays.** Mon/Wed/Fri is ONE rule and ONE series — never three.
+- **End conditions** are mutually exclusive, and the **current occurrence
+  counts**: occurrence number is `sequence + 1`, so a successor exists only while
+  `sequence + 2 <= endsAfterCount`. "Ends after 1" means this one and no more.
+  `endsOnDate` is inclusive and is compared against the date the occurrence
+  actually falls on, after the weekend rule.
+- **The weekend rule** is four OUTCOMES, never a `skip weekends` flag — the phrase
+  means three different things in three different products. Offered only for
+  weekly, monthly and yearly rules. A moved occurrence records its UNADJUSTED grid
+  date in `series_anchor_date` (TASKS-07's field), so the routine cannot drift.
+  Two rules are refused at the boundary because they would produce nothing at all:
+  a weekly rule falling only at weekends under `skip`, named explicitly or implied
+  by the Task's own anchor date.
+
+**One authority.** `planNextTaskOccurrence(rule, series, gridAnchor, ownerDay)`
+decides whether the series continues AND where, and returns `null` when it has
+ended — an ordinary outcome. Completion is its only caller. Today, Planning, the
+Tasks list, the dependency code and every UI component compute nothing.
+
+**Skipping** an occurrence honours the weekend rule and is REFUSED when it would
+step past `endsOnDate`; it consumes no sequence, so a count condition is
+unaffected.
+
+### Dependencies
+
+**One directed EntityLink, `blocker --task.blocks--> blocked`. No new table.**
+The type is RESERVED to the `TaskRepository`, exactly as `task.waiting_on` is, so
+the generic link picker cannot create one.
+
+| Invariant | Enforced by |
+| --- | --- |
+| No cross-workspace edge | the composite endpoint foreign keys (migration 0003) |
+| No self-dependency | the schema CHECK **and** the kernel validator |
+| No duplicate edge | the UNIQUE identity index, which also gives one stable id across remove/re-add |
+| Task-only endpoints | a predicate inside the write |
+| At most 20 blockers, 20 blocked | counts inside the write |
+| No cycles, at any depth | a bounded recursive CTE inside the write |
+
+Every check is a PREDICATE INSIDE THE WRITE, never a read-then-decide, so two
+concurrent adds cannot both pass a bound and two concurrent edges cannot close a
+cycle. The cycle walk carries an explicit `depth < 64` and uses `UNION`, so it
+terminates even on a graph that already contained one.
+
+Two requests adding the SAME edge at once is the one race a predicate cannot see:
+both read "no row" and the second meets the UNIQUE identity index. It is
+RECONCILED to an idempotent no-op — one row, one Activity entry, exactly one
+request reporting a change — rather than surfaced as a storage error.
+
+**Blocked is DERIVED on every read** from the edges plus each blocker's own
+completion. There is no `is_blocked` column: completing the last blocker unblocks,
+**reopening** it blocks again, and a soft-deleted blocker stops blocking — with no
+reconciliation job and nothing to go stale.
+
+**A dependency never moves the owner's plan.** No date, priority, status or
+completion changes on either Task — including a blocked Task due before its
+blocker, which is exactly what a "helpful" scheduler would silently repair. Nor
+does it prevent completion: blocked says what should happen first, not what the
+owner may do.
+
+### Deleted blockers
+
+| Blocker | Blocks? | Edge survives? |
+| --- | --- | --- |
+| Open | **yes** | yes |
+| Complete | no | yes (history is not rewritten) |
+| Soft-deleted | no | **yes** — restoring the Task restores the dependency |
+| Permanently destroyed | n/a | impossible (`ON DELETE RESTRICT`) |
+
+### Where recurrence and dependencies meet
+
+**Dependencies are OCCURRENCE-LOCAL and are never copied to a successor** — in
+all three cases (recurring blocker, recurring dependent, both recurring). An
+occurrence that does not exist yet is a prediction, not work, and the only
+available mappings between two independent series are "by date" (wrong when
+either is completed late) and "by sequence" (wrong when either is skipped). A
+successor arrives with no dependencies, exactly as it arrives with no waiting
+state and no delegation. A series that ENDS creates no successor and therefore no
+edge to one.
+
+TASKS-13's checklist contract is preserved under every new rule: a successor
+inherits titles and order with fresh ids and completion reset, and a completion
+that creates NO successor writes no checklist rows either.
+
+### Blocked on the surfaces
+
+`blocked` joins the ONE display-state precedence evaluator (ADR-043 §6) between
+Waiting and On hold, taking the WAITING tone — no new colour, because blocked is
+a workflow state, not an error.
+
+The shared Task row draws ONE blocked label and it says why: **"Blocked by Get
+director approval"**, or **"Blocked by 2 tasks"** when naming one would be a
+half-truth. It REPLACES the status pill rather than joining it, sits on the
+title's own line (measured: no extra height at 1440/1280/820, one line at
+393/320), and — unlike the checklist figure, which stops below `md` — is drawn at
+every width including the phone.
+
+| Surface | Behaviour |
+| --- | --- |
+| `/tasks` | The blocked line, plus a `blocked` filter (`?blocked=1` / `?blocked=0`) on the existing declarative vocabulary — not a new view |
+| Today | A blocked Task planned for today STAYS there and says why. Never hidden |
+| `/plan` | The same. Planning is intent, not proof of executability; nothing is auto-rescheduled |
+| Projects | The same state through the same evaluator. Project progress is unchanged — a blocked Task is an open Task, and there is no dependency-weighted progress |
+| Search | Unchanged. A dependency is not a record and has no route |
+
+### Activity
+
+`task.dependency_added` and `task.dependency_removed`, each naming the blocked
+Task (`subject`) and the blocker (`blocker`). There is **no `task.blocked` and no
+`task.unblocked`**: a Task becoming unblocked is a consequence of
+`task.completed` on another Task, which the timeline already records, and writing
+derived facts into an append-only log leaves history able to disagree with the
+data it came from.
+
+### Notifications
+
+None. No "now unblocked", no "blocker overdue", no dependency reminders —
+deliberately deferred as a separate product decision about the owner's attention.
+
+### Offline
+
+**Blocked state is carried by the offline snapshot, derived server-side. Adding
+or removing a dependency, and editing a recurrence rule, require a connection**
+(DEBT-170).
+
+A dependency's outcome is a property of the GRAPH at the moment of the write —
+only the server knows whether an edge closes a cycle or meets a bound — so a
+queued dependency would be an intent the device cannot evaluate and might have to
+withdraw. Completing a blocker offline still queues (PWA-12), which leaves a
+documented temporary state: the device knows the blocker is done while the server
+does not, so the dependent may still read as blocked until the completion
+replays. That is server truth arriving late, not a wrong answer.
+
+### Query bounds
+
+| Read | Cost |
+| --- | --- |
+| One Task's dependencies, BOTH directions, with titles and completion | ONE statement |
+| A page's blocked state | ONE statement per chunk of 80 ids |
+| The `blocked` filter | a correlated `EXISTS` in the page's own statement |
+| An empty id list | ZERO statements |
+
+80 rather than 100 because this aggregate binds the workspace id AND the link
+type before the ids, and D1 accepts at most 100 bound parameters.
+
+### Tests
+
+- `test/unit/tasks/task-recurrence-advanced.test.ts` — the calendar arithmetic.
+- `test/unit/tasks/task-dependency-query-bounds.test.ts` — the source-level N+1,
+  bound-parameter, bounded-walk and in-write-guard assertions.
+- `test/kernel/task-recurrence-advanced-storage.test.ts` — the rules through real
+  D1, including the end conditions under concurrent completion.
+- `test/kernel/task-dependencies.test.ts` — the graph guarantees against real D1.
+- `test/kernel/task-dependencies-recurrence.test.ts` — the interaction, in all
+  three cases.
+- `test/kernel/task-dependency-route.test.ts` — the route, its refusals and the
+  advanced recurrence fields at the trusted boundary.
+- `e2e/tasks-dependencies.spec.ts` — the journeys, every surface, phone, keyboard
+  and axe.

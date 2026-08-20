@@ -46,6 +46,7 @@
  */
 
 import type {
+  TaskBlockedSummary,
   TaskChecklistProgress,
   TaskListItem,
   TaskPriority,
@@ -118,9 +119,19 @@ export function toDayTask(
    * the whole page and hands each row its entry.
    */
   progress?: TaskChecklistProgress,
+  /**
+   * TASKS-12 — this Task's BLOCKED state, when the caller read it.
+   *
+   * Supplied for exactly the reason `progress` is, and read from exactly the same
+   * kind of bounded page-wide aggregate. A blocked Task planned for today STAYS
+   * on Today — it was the owner's commitment and hiding it would hide the reason
+   * the day is not moving — so this is what lets the row say why.
+   */
+  blocked?: TaskBlockedSummary,
 ): DayTask {
   return {
     ...serializeTaskListItem(item, progress),
+    ...(blocked ? { blocked } : {}),
     completed: item.completedAt !== null,
     completedDate,
   };

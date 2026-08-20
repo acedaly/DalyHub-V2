@@ -27,11 +27,16 @@
 
 import {
   DEFAULT_TASK_RECURRENCE_MODE,
+  DEFAULT_TASK_RECURRENCE_WEEKEND_RULE,
+  MAX_TASK_RECURRENCE_COUNT,
+  WEEKEND_RULE_FREQUENCIES,
   type TaskRecurrenceDateKind,
   type TaskRecurrenceFrequency,
   type TaskRecurrenceInput,
   type TaskRecurrenceMode,
+  type TaskRecurrenceOrdinal,
   type TaskRecurrenceRule,
+  type TaskRecurrenceWeekendRule,
 } from "~/kernel/tasks";
 
 /**
@@ -72,6 +77,60 @@ export function recurrenceUnitLabel(
   return `${unit}${plural}`;
 }
 
+/**
+ * TASKS-12 — the two MONTHLY shapes, in the owner's words.
+ *
+ * "Day 15" or "Last Friday" — the choice a monthly rule actually presents, and
+ * the only place the ordinal vocabulary appears. A weekly, daily or yearly rule
+ * never sees this control, because there is no choice to make.
+ */
+export const MONTHLY_SHAPES = ["day", "ordinal"] as const;
+export type MonthlyShape = (typeof MONTHLY_SHAPES)[number];
+
+/** The ordinal labels, in the owner's words. */
+export const RECURRENCE_ORDINAL_LABELS: Record<TaskRecurrenceOrdinal, string> =
+  {
+    first: "First",
+    second: "Second",
+    third: "Third",
+    fourth: "Fourth",
+    last: "Last",
+  };
+
+/**
+ * TASKS-12 — the weekend rule, worded as the BEHAVIOUR rather than as a flag.
+ *
+ * There is no "Skip weekends" checkbox anywhere in this product, deliberately:
+ * the phrase names three different behaviours in three different products, and a
+ * checkbox cannot say which one it means. Each option below is a complete
+ * sentence about what will happen, so the owner chooses the outcome rather than
+ * a label.
+ */
+export const RECURRENCE_WEEKEND_LABELS: Record<
+  TaskRecurrenceWeekendRule,
+  string
+> = {
+  allow: "Leave it on the weekend",
+  before: "Move it to the Friday before",
+  after: "Move it to the Monday after",
+  skip: "Skip that occurrence",
+};
+
+/**
+ * TASKS-12 — the three END conditions, in menu order.
+ *
+ * "Never" first because it is what almost every routine is; the other two are
+ * one choice away and each reveals exactly one field.
+ */
+export const RECURRENCE_ENDS = ["never", "after", "on"] as const;
+export type RecurrenceEnd = (typeof RECURRENCE_ENDS)[number];
+
+export const RECURRENCE_END_LABELS: Record<RecurrenceEnd, string> = {
+  never: "Never",
+  after: "After a number of times",
+  on: "On a date",
+};
+
 /** The two scheduling modes, in the owner's words rather than the column's. */
 export const RECURRENCE_MODE_LABELS: Record<TaskRecurrenceMode, string> = {
   fixed: "Keep a fixed schedule",
@@ -98,6 +157,18 @@ export interface RecurrenceDraft {
   readonly mode: TaskRecurrenceMode;
   /** Which of the Task's dates the rule advances. */
   readonly dateKind: TaskRecurrenceDateKind;
+  /** TASKS-12 — which monthly shape: a day of the month, or a named weekday. */
+  readonly monthlyShape: MonthlyShape;
+  /** TASKS-12 — the ordinal, for the `ordinal` monthly shape. */
+  readonly ordinal: TaskRecurrenceOrdinal;
+  /** TASKS-12 — what happens when an occurrence lands at a weekend. */
+  readonly weekendRule: TaskRecurrenceWeekendRule;
+  /** TASKS-12 — which end condition the owner chose. */
+  readonly ends: RecurrenceEnd;
+  /** 1–999. Held as a string because it comes from a numeric text input. */
+  readonly endsAfterCount: string;
+  /** An owner-calendar `YYYY-MM-DD`, or "" when no date is chosen yet. */
+  readonly endsOnDate: string;
 }
 
 export const EMPTY_RECURRENCE_DRAFT: RecurrenceDraft = {
@@ -107,6 +178,14 @@ export const EMPTY_RECURRENCE_DRAFT: RecurrenceDraft = {
   weekdays: [],
   mode: DEFAULT_TASK_RECURRENCE_MODE,
   dateKind: "scheduled",
+  // TASKS-12 — every advanced field starts at the value that reproduces the
+  // pre-TASKS-12 rule exactly, so opening the editor changes nothing.
+  monthlyShape: "day",
+  ordinal: "first",
+  weekendRule: DEFAULT_TASK_RECURRENCE_WEEKEND_RULE,
+  ends: "never",
+  endsAfterCount: "12",
+  endsOnDate: "",
 };
 
 /**
@@ -118,16 +197,35 @@ export const EMPTY_RECURRENCE_DRAFT: RecurrenceDraft = {
  * prevents. An after-completion rule is likewise never a preset, because every preset
  * is a schedule.
  */
-export function presetOf(
-  rule: Pick<
-    TaskRecurrenceRule,
-    "frequency" | "interval" | "weekdays" | "mode"
-  > | null,
-): RecurrencePreset {
+/** The rule shape the authoring layer reads. Every TASKS-12 field is optional. */
+export type AuthoredRule = Pick<
+  TaskRecurrenceRule,
+  "frequency" | "interval" | "weekdays" | "mode"
+> &
+  Partial<
+    Pick<
+      TaskRecurrenceRule,
+      "ordinal" | "weekendRule" | "endsAfterCount" | "endsOnDate"
+    >
+  >;
+
+export function presetOf(rule: AuthoredRule | null): RecurrencePreset {
   if (rule === null) return "none";
   if ((rule.mode ?? "fixed") === "after_completion") return "custom";
   if (rule.weekdays.length > 0) return "custom";
   if (rule.interval !== 1) return "custom";
+  /*
+   * TASKS-12 — an advanced rule is NEVER a preset.
+   *
+   * The strictness is the same one V2.0.1's weekday bug taught: reporting "the
+   * last Friday of every month" as plain "Monthly" would let the next
+   * interaction silently drop the ordinal, and reporting a rule that ends after
+   * twelve times as "Monthly" would let it silently become endless.
+   */
+  if ((rule.ordinal ?? null) !== null) return "custom";
+  if ((rule.weekendRule ?? "allow") !== "allow") return "custom";
+  if ((rule.endsAfterCount ?? null) !== null) return "custom";
+  if ((rule.endsOnDate ?? null) !== null) return "custom";
   switch (rule.frequency) {
     case "day":
       return "daily";
@@ -165,20 +263,28 @@ export function ruleForPreset(
     dateKind,
     mode: "fixed",
     weekdays: [],
+    // TASKS-12 — a preset is the SIMPLE rule by definition, so every advanced
+    // field is explicitly at its absent value. Stated rather than omitted, so
+    // choosing a preset over an advanced rule CLEARS the advanced part instead
+    // of silently keeping half of it.
+    ordinal: null,
+    weekendRule: "allow",
+    endsAfterCount: null,
+    endsOnDate: null,
   };
 }
 
 /** Load a stored rule into the editor's draft, so opening it shows what exists. */
 export function draftFromRule(
-  rule: Pick<
-    TaskRecurrenceRule,
-    "frequency" | "interval" | "weekdays" | "mode" | "dateKind"
-  > | null,
+  rule: (AuthoredRule & Pick<TaskRecurrenceRule, "dateKind">) | null,
   fallbackDateKind: TaskRecurrenceDateKind = "scheduled",
 ): RecurrenceDraft {
   if (rule === null) {
     return { ...EMPTY_RECURRENCE_DRAFT, dateKind: fallbackDateKind };
   }
+  const ordinal = rule.ordinal ?? null;
+  const endsAfterCount = rule.endsAfterCount ?? null;
+  const endsOnDate = rule.endsOnDate ?? null;
   return {
     preset: presetOf(rule),
     // `weekday` (Mon–Fri) has no custom form, so the unit falls back to something
@@ -188,6 +294,17 @@ export function draftFromRule(
     weekdays: [...rule.weekdays],
     mode: rule.mode ?? DEFAULT_TASK_RECURRENCE_MODE,
     dateKind: rule.dateKind,
+    // TASKS-12 — each advanced control opens showing what the rule actually is.
+    monthlyShape: ordinal === null ? "day" : "ordinal",
+    ordinal: ordinal ?? EMPTY_RECURRENCE_DRAFT.ordinal,
+    weekendRule: rule.weekendRule ?? DEFAULT_TASK_RECURRENCE_WEEKEND_RULE,
+    ends:
+      endsAfterCount !== null ? "after" : endsOnDate !== null ? "on" : "never",
+    endsAfterCount:
+      endsAfterCount === null
+        ? EMPTY_RECURRENCE_DRAFT.endsAfterCount
+        : String(endsAfterCount),
+    endsOnDate: endsOnDate ?? "",
   };
 }
 
@@ -216,6 +333,41 @@ export function recurrenceDraftError(draft: RecurrenceDraft): string | null {
   ) {
     return "An after-completion repeat cannot be pinned to particular weekdays.";
   }
+  /*
+   * TASKS-12 — the four refusals the owner can reach from these controls,
+   * each worded as the fix rather than as the rule that was broken. The kernel
+   * checks all of them again at the boundary; this is a courtesy so Save can be
+   * disabled with a reason instead of failing after a round trip.
+   */
+  if (
+    draft.unit === "month" &&
+    draft.monthlyShape === "ordinal" &&
+    draft.weekdays.length !== 1
+  ) {
+    return "Choose one weekday for a monthly repeat on a named weekday.";
+  }
+  if (
+    draft.unit === "week" &&
+    draft.weekendRule === "skip" &&
+    draft.weekdays.length > 0 &&
+    draft.weekdays.every((day) => day === 0 || day === 6)
+  ) {
+    return "This repeat only falls at weekends, so there would be no occurrences left.";
+  }
+  if (draft.ends === "after") {
+    const count = Number(draft.endsAfterCount);
+    if (
+      draft.endsAfterCount.trim().length === 0 ||
+      !Number.isInteger(count) ||
+      count < 1 ||
+      count > MAX_TASK_RECURRENCE_COUNT
+    ) {
+      return `Enter how many times it repeats, from 1 to ${MAX_TASK_RECURRENCE_COUNT}.`;
+    }
+  }
+  if (draft.ends === "on" && !/^\d{4}-\d{2}-\d{2}$/.test(draft.endsOnDate)) {
+    return "Choose the date this repeat ends on.";
+  }
   return null;
 }
 
@@ -237,14 +389,41 @@ export function ruleFromDraft(
   }
   if (recurrenceDraftError(draft) !== null) return undefined;
   const interval = Number(draft.interval);
-  const weekdays =
-    draft.unit === "week" && draft.mode === "fixed" ? draft.weekdays : [];
+  /*
+   * TASKS-12 — the weekday set means two different things, and each is carried
+   * ONLY where the kernel accepts it:
+   *
+   *   - a weekly FIXED schedule takes the whole selected set ("Mon, Wed, Fri"),
+   *     which is ONE rule and one series, never three;
+   *   - a monthly ORDINAL rule takes exactly one weekday (the Friday of "the last
+   *     Friday").
+   *
+   * Everything else drops it, so switching the unit cannot smuggle a set into a
+   * rule the kernel would refuse.
+   */
+  const ordinalRule =
+    draft.unit === "month" && draft.monthlyShape === "ordinal";
+  const weekdays = ordinalRule
+    ? draft.weekdays.slice(0, 1)
+    : draft.unit === "week" && draft.mode === "fixed"
+      ? draft.weekdays
+      : [];
+  const weekendRule = (WEEKEND_RULE_FREQUENCIES as readonly string[]).includes(
+    draft.unit,
+  )
+    ? draft.weekendRule
+    : "allow";
   return {
     frequency: draft.unit,
     interval,
     dateKind: draft.dateKind,
     mode: draft.mode,
     weekdays: [...weekdays].sort((a, b) => a - b),
+    ordinal: ordinalRule && draft.mode === "fixed" ? draft.ordinal : null,
+    weekendRule,
+    endsAfterCount:
+      draft.ends === "after" ? Number(draft.endsAfterCount) : null,
+    endsOnDate: draft.ends === "on" ? draft.endsOnDate : null,
   };
 }
 
@@ -260,5 +439,16 @@ export function recurrenceFormFields(
     dateKind: rule.dateKind,
     mode: rule.mode ?? DEFAULT_TASK_RECURRENCE_MODE,
     weekdays: (rule.weekdays ?? []).join(","),
+    // TASKS-12 — every advanced field is sent as its own named field, and an
+    // absent one means the documented default. Sending "" for a cleared field
+    // rather than omitting it is what makes turning an end condition OFF a real
+    // change rather than an unchanged key the action leaves alone.
+    ordinal: rule.ordinal ?? "",
+    weekendRule: rule.weekendRule ?? DEFAULT_TASK_RECURRENCE_WEEKEND_RULE,
+    endsAfterCount:
+      rule.endsAfterCount === null || rule.endsAfterCount === undefined
+        ? ""
+        : String(rule.endsAfterCount),
+    endsOnDate: rule.endsOnDate ?? "",
   };
 }

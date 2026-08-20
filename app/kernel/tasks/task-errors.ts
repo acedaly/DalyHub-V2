@@ -21,7 +21,11 @@ export type TaskErrorCode =
   | "corrupt"
   | "project_archived"
   | "checklist_item_not_found"
-  | "checklist_full";
+  | "checklist_full"
+  // TASKS-12 (dependencies) — the two refusals that are about the GRAPH rather
+  // than about one input, so a surface can say which one happened.
+  | "dependency_cycle"
+  | "dependency_limit";
 
 /** Base class for every kernel task error. */
 export abstract class TaskError extends Error {
@@ -76,6 +80,9 @@ export type TaskValidationField =
   | "checklistItem"
   | "checklistOrder"
   | "checklist"
+  // TASKS-12 (dependencies). One field, named after the relationship rather than
+  // after either Task, so a refusal lands beside the picker that caused it.
+  | "dependency"
   /**
    * The mutation was rejected because the task is completed (TODAY-04): planning
    * applies to open work only. The id/input are valid — the STATE is not — so this
@@ -185,6 +192,46 @@ export class TaskChecklistFullError extends TaskError {
   constructor(limit: number) {
     super(
       `A checklist holds at most ${limit} items. Remove one, or make this its own Task.`,
+    );
+  }
+}
+
+/**
+ * TASKS-12 — the dependency would create a CYCLE.
+ *
+ * "A blocks B" is refused when B can already reach A by following `task.blocks`
+ * edges, at any depth — which covers the self-edge, the two-node pair and the
+ * long chain with one rule rather than three special cases. The refusal is
+ * SERVER-SIDE and evaluated inside the write, so a hand-made request, a replayed
+ * mutation and a stale UI all meet the same answer.
+ */
+export class TaskDependencyCycleError extends TaskError {
+  readonly code = "dependency_cycle" as const;
+
+  constructor(
+    message = "That would make two tasks wait for each other, so it can’t be added",
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * TASKS-12 — the Task already has as many blockers (or blocks as many Tasks) as
+ * DalyHub allows.
+ *
+ * A refusal with a reason and a suggestion, never a silent drop. The bound is
+ * enforced by the WRITE, so this error is what a request that lost a concurrent
+ * race receives — the same message it would have received had it arrived second
+ * by a minute.
+ */
+export class TaskDependencyLimitError extends TaskError {
+  readonly code = "dependency_limit" as const;
+
+  constructor(limit: number, direction: "blockers" | "blocks") {
+    super(
+      direction === "blockers"
+        ? `A task waits on at most ${limit} others. Remove one, or make this a Project.`
+        : `A task blocks at most ${limit} others. Remove one, or make this a Project.`,
     );
   }
 }

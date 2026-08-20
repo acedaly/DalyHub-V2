@@ -247,3 +247,47 @@ describe("the reset contract", () => {
     expect(TASKS_FILTER_PARAM_NAMES).not.toContain("density");
   });
 });
+
+describe("TASKS-12 — the blocked dimension in the URL", () => {
+  it("round-trips BOTH directions, and writes no residue for absence", () => {
+    for (const blocked of [true, false]) {
+      const decoded = configFromParams(
+        new URLSearchParams(`?blocked=${blocked ? "1" : "0"}`),
+      );
+      expect(decoded.filters.blocked).toBe(blocked);
+      // Encoded back to exactly the parameter it came from.
+      expect(paramsFromConfig(decoded).get("blocked")).toBe(
+        blocked ? "1" : "0",
+      );
+    }
+    // No filter is no parameter — a default must leave no residue in a shared
+    // link, which is what makes two equivalent URLs actually equal.
+    expect(paramsFromConfig(config()).has("blocked")).toBe(false);
+    expect(configFromParams(new URLSearchParams("")).filters.blocked).toBe(
+      undefined,
+    );
+  });
+
+  it("drops an unrecognised value rather than inventing a third state", () => {
+    expect(
+      configFromParams(new URLSearchParams("?blocked=maybe")).filters.blocked,
+    ).toBe(undefined);
+  });
+
+  it("is translated for the repository through the ONE filter translation", () => {
+    expect(
+      toWorkspaceFilters(configFromParams(new URLSearchParams("?blocked=1"))),
+    ).toMatchObject({ blocked: true });
+    expect(
+      toWorkspaceFilters(configFromParams(new URLSearchParams("?blocked=0"))),
+    ).toMatchObject({ blocked: false });
+    expect(
+      "blocked" in
+        toWorkspaceFilters(configFromParams(new URLSearchParams(""))),
+    ).toBe(false);
+  });
+
+  it("is cleared by a filter RESET, like every other filter parameter", () => {
+    expect(TASKS_FILTER_PARAM_NAMES).toContain("blocked");
+  });
+});

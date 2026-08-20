@@ -146,6 +146,17 @@ export interface TaskViewFilters {
   readonly plannedTo?: string;
   /** Only Tasks that repeat (`true`) or only one-off Tasks (`false`). */
   readonly recurring?: boolean;
+  /**
+   * TASKS-12 — only Tasks that are BLOCKED (`true`) or only ones that are not
+   * (`false`).
+   *
+   * A filter on the existing declarative vocabulary rather than a new system
+   * view: a blocked Task is still an ordinary Task and still belongs to whichever
+   * view its dates and state put it in. The state is DERIVED server-side from the
+   * dependency edges and the blockers' own completion, so a saved view named
+   * "Blocked" is always current and never stores a stale answer.
+   */
+  readonly blocked?: boolean;
 }
 
 /** A complete, validated Tasks workspace configuration. */
@@ -338,6 +349,8 @@ export function parseTaskViewConfig(raw: unknown): TaskViewConfig {
   if (plannedTo) filters.plannedTo = plannedTo;
   const recurring = tristate(rawFilters.recurring);
   if (recurring !== undefined) filters.recurring = recurring;
+  const blocked = tristate(rawFilters.blocked);
+  if (blocked !== undefined) filters.blocked = blocked;
 
   return {
     version: TASK_VIEW_CONFIG_VERSION,
@@ -421,4 +434,5 @@ export const TASK_VIEW_FILTER_KEYS = [
   "plannedFrom",
   "plannedTo",
   "recurring",
+  "blocked",
 ] as const satisfies readonly (keyof TaskViewFilters)[];

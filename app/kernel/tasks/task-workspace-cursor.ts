@@ -122,6 +122,11 @@ export function workspaceTaskFiltersSignature(
   if (filters.recurring !== undefined) {
     parts.push(`rc=${filters.recurring ? "1" : "0"}`);
   }
+  // TASKS-12 — bound into the signature exactly like every other filter, so a
+  // page-two cursor cannot survive turning the blocked filter on or off.
+  if (filters.blocked !== undefined) {
+    parts.push(`bl=${filters.blocked ? "1" : "0"}`);
+  }
   return parts.join("&");
 }
 

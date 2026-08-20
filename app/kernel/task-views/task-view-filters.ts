@@ -56,5 +56,8 @@ export function toWorkspaceFilters(
   if (f.plannedFrom) out.plannedFrom = f.plannedFrom;
   if (f.plannedTo) out.plannedTo = f.plannedTo;
   if (f.recurring !== undefined) out.recurring = f.recurring;
+  // TASKS-12 — translated exactly like `recurring`: one declarative dimension,
+  // one parameter, resolved by the repository. No second filter engine.
+  if (f.blocked !== undefined) out.blocked = f.blocked;
   return out;
 }
