@@ -458,6 +458,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         sort: config.sort,
         direction: config.direction,
         todayIso,
+        timezone,
       });
       /*
        * TASKS-13 — checklist progress for the WHOLE grouping, read once.
@@ -497,6 +498,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       direction: config.direction,
       filters,
       todayIso,
+      timezone,
       cursor: cursor ?? undefined,
     });
     // TASKS-13 — ONE bounded aggregate for the page, whatever the page holds.

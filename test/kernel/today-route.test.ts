@@ -564,6 +564,7 @@ describe("TODAY-10 — Today Focus holds the canonical Tasks `today` set", () =>
     const page = await makeTaskRepository(makeContext(WS)).listWorkspaceTasks({
       view: "today",
       todayIso: ownerToday(),
+      timezone: "UTC",
       limit: 100,
     });
     return page.items.map((item) => item.id).sort();
@@ -654,6 +655,7 @@ describe("TODAY-10 — Today Focus holds the canonical Tasks `today` set", () =>
     const all = await repo.listWorkspaceTasks({
       view: "all",
       todayIso: today,
+      timezone: "UTC",
       limit: 100,
     });
     expect(all.items.map((item) => item.id)).toEqual(
@@ -662,6 +664,7 @@ describe("TODAY-10 — Today Focus holds the canonical Tasks `today` set", () =>
     const parked = await repo.listWorkspaceTasks({
       view: "waiting",
       todayIso: today,
+      timezone: "UTC",
       limit: 100,
     });
     expect(parked.items.map((item) => item.id)).toEqual([waiting]);

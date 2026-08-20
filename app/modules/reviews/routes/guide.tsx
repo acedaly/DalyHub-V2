@@ -97,7 +97,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 
   const [workflow, inboxRemaining] = await Promise.all([
     scope.reviews.getWorkflowState(review.id),
-    readReviewInboxRemaining(scope, todayIso),
+    readReviewInboxRemaining(scope, todayIso, preferences.timezone),
   ]);
 
   const progress = deriveWeeklyReviewProgress({
@@ -221,13 +221,12 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       // action and the existing Activity contract — there is no parallel
       // completion flag — but it refuses to complete on the owner's behalf while a
       // required step is neither done nor deliberately acknowledged.
-      const todayIso = ownerCalendarIso(
-        new Date(),
-        (await scope.appPreferences.get(session.user.subject)).timezone,
-      );
+      const timezone = (await scope.appPreferences.get(session.user.subject))
+        .timezone;
+      const todayIso = ownerCalendarIso(new Date(), timezone);
       const [workflow, inboxRemaining] = await Promise.all([
         scope.reviews.getWorkflowState(reviewId),
-        readReviewInboxRemaining(scope, todayIso),
+        readReviewInboxRemaining(scope, todayIso, timezone),
       ]);
       const progress = deriveWeeklyReviewProgress({
         status: review.status,

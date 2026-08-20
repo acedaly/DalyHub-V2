@@ -74,6 +74,7 @@ async function titles(
     ...(extra.limit ? { limit: extra.limit } : {}),
     filters,
     todayIso: TODAY,
+    timezone: "UTC",
   });
   return page.items.map((item) => item.title);
 }
@@ -420,6 +421,7 @@ describe("workspace isolation and cursor safety", () => {
       sort: "scheduled_date",
       limit: 2,
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(page.nextCursor).not.toBeNull();
     await expect(
@@ -432,6 +434,7 @@ describe("workspace isolation and cursor safety", () => {
         limit: 2,
         cursor: page.nextCursor!,
         todayIso: TODAY,
+        timezone: "UTC",
       }),
     ).rejects.toThrow();
   });
@@ -444,6 +447,7 @@ describe("workspace isolation and cursor safety", () => {
       sort: "title",
       limit: 2,
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(page.nextCursor).not.toBeNull();
     await expect(
@@ -454,6 +458,7 @@ describe("workspace isolation and cursor safety", () => {
         limit: 2,
         cursor: page.nextCursor!,
         todayIso: TODAY,
+        timezone: "UTC",
       }),
     ).rejects.toThrow();
   });

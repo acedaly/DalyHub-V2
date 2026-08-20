@@ -56,8 +56,8 @@ export async function readDigestFacts(
   const { now, timeZone, localDate } = input;
   const [attention, dueToday, overdue, scheduleWindow] = await Promise.all([
     readAttentionFacts(scope, { now, timezone: timeZone, todayIso: localDate }),
-    safely(() => countSystemView(scope, "today", localDate), 0),
-    safely(() => countSystemView(scope, "overdue", localDate), 0),
+    safely(() => countSystemView(scope, "today", localDate, timeZone), 0),
+    safely(() => countSystemView(scope, "overdue", localDate, timeZone), 0),
     safely(
       () =>
         loadScheduleWindow(scope, {

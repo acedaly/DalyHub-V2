@@ -132,6 +132,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       // `todayIso` is the ENTRY's day, not the reader's — that is what makes the
       // derived `due_today` state mean "due on the day this entry is about".
       todayIso: dayKey,
+      timezone,
       filters: { dueState: "due_today", completedVisibility: "include" },
       limit: TASK_LIMIT,
     });

@@ -929,6 +929,17 @@ export type ListWorkspaceTasksInput = {
    * Never derived in browser-local code (ADR-022).
    */
   readonly todayIso: string;
+  /**
+   * HARDEN-06C (F-05) — the owner's IANA timezone: the zone `todayIso` was
+   * derived in, and the zone a date-based filter has to be evaluated in.
+   *
+   * REQUIRED, and required for the same reason `todayIso` is: `created_at` and
+   * `updated_at` are UTC instants, so "created today" is only answerable with
+   * the boundary the owner's day actually starts at. Sending the calendar date
+   * without the zone that produced it is what made `Created: Today` silently
+   * omit everything captured before ~10 a.m. in Sydney.
+   */
+  readonly timezone: string;
 };
 
 /** A bounded page of the workspace-wide Tasks collection, with a keyset cursor. */
@@ -1016,6 +1027,13 @@ export type ListWorkspaceTaskGroupsInput = {
   readonly bucketLimit?: number;
   /** The owner's calendar date `YYYY-MM-DD` — drives the `smart` overdue ranking. */
   readonly todayIso: string;
+  /**
+   * HARDEN-06C (F-05) — the owner's IANA timezone, travelling with `todayIso`
+   * for the same reason it does on {@link ListWorkspaceTasksInput}: the grouped
+   * query applies the SAME filters, including the recency windows, whose bounds
+   * are UTC instants derived from an owner-calendar day.
+   */
+  readonly timezone: string;
 };
 
 /**

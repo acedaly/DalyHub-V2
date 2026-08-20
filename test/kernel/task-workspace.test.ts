@@ -157,6 +157,7 @@ describe("listWorkspaceTasks system views", () => {
     const inbox = await repo.listWorkspaceTasks({
       view: "inbox",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const inboxIds = inbox.items.map((i) => i.id);
     expect(inboxIds).toContain(seeded.inbox.id);
@@ -167,6 +168,7 @@ describe("listWorkspaceTasks system views", () => {
     const week = await repo.listWorkspaceTasks({
       view: "this_week",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(week.items.map((i) => i.id)).toEqual([seeded.thisWeek.id]);
   });
@@ -176,17 +178,29 @@ describe("listWorkspaceTasks system views", () => {
     const repo = taskRepo(WS);
     expect(
       (
-        await repo.listWorkspaceTasks({ view: "someday", todayIso: TODAY })
+        await repo.listWorkspaceTasks({
+          view: "someday",
+          todayIso: TODAY,
+          timezone: "UTC",
+        })
       ).items.map((i) => i.id),
     ).toEqual([seeded.someday.id]);
     expect(
       (
-        await repo.listWorkspaceTasks({ view: "cancelled", todayIso: TODAY })
+        await repo.listWorkspaceTasks({
+          view: "cancelled",
+          todayIso: TODAY,
+          timezone: "UTC",
+        })
       ).items.map((i) => i.id),
     ).toEqual([seeded.cancelled.id]);
     expect(
       (
-        await repo.listWorkspaceTasks({ view: "today", todayIso: TODAY })
+        await repo.listWorkspaceTasks({
+          view: "today",
+          todayIso: TODAY,
+          timezone: "UTC",
+        })
       ).items.map((i) => i.id),
     ).toEqual([seeded.scheduledToday.id]);
   });
@@ -194,7 +208,11 @@ describe("listWorkspaceTasks system views", () => {
   it("all returns every non-deleted task", async () => {
     await seedMany(WS);
     const repo = taskRepo(WS);
-    const all = await repo.listWorkspaceTasks({ view: "all", todayIso: TODAY });
+    const all = await repo.listWorkspaceTasks({
+      view: "all",
+      todayIso: TODAY,
+      timezone: "UTC",
+    });
     expect(all.items).toHaveLength(5);
   });
 
@@ -204,6 +222,7 @@ describe("listWorkspaceTasks system views", () => {
     const active = await repo.listWorkspaceTasks({
       view: "active",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const ids = active.items.map((i) => i.id);
     expect(ids).toContain(seeded.inbox.id);
@@ -221,6 +240,7 @@ describe("listWorkspaceTasks system views", () => {
       view: "all",
       filters: { priority: "p1" },
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(p1.items.map((i) => i.id)).toEqual([seeded.thisWeek.id]);
   });
@@ -231,6 +251,7 @@ describe("listWorkspaceTasks system views", () => {
     const page = await other.listWorkspaceTasks({
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(page.items).toHaveLength(0);
   });
@@ -255,6 +276,7 @@ describe("listWorkspaceTasks pagination + cursor", () => {
         sort: "created",
         limit: 3,
         todayIso: TODAY,
+        timezone: "UTC",
         cursor,
       });
       seen.push(...page.items.map((i) => i.id));
@@ -279,6 +301,7 @@ describe("listWorkspaceTasks pagination + cursor", () => {
       view: "all",
       limit: 2,
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(first.nextCursor).not.toBeNull();
     await expect(
@@ -286,6 +309,7 @@ describe("listWorkspaceTasks pagination + cursor", () => {
         view: "inbox",
         limit: 2,
         todayIso: TODAY,
+        timezone: "UTC",
         cursor: first.nextCursor!,
       }),
     ).rejects.toBeInstanceOf(InvalidSpineCursorError);
@@ -435,6 +459,7 @@ describe("createTask (atomic identity + planning)", () => {
     const page = await repo.listWorkspaceTasks({
       view: "inbox",
       todayIso: "2026-07-30",
+      timezone: "UTC",
     });
 
     expect(page.items.map((item) => item.id)).toContain(inbox.id);
@@ -572,6 +597,7 @@ describe("active planning scope excludes parked/blocked work", () => {
     const active = await repo.listWorkspaceTasks({
       view: "active",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const ids = active.items.map((i) => i.id);
     expect(ids).toEqual([plain.id]);
@@ -620,6 +646,7 @@ describe("smart sort — overdue-first", () => {
       view: "all",
       sort: "smart",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(page.items.map((i) => i.id)).toEqual([overdueP4.id, futureP1.id]);
   });
@@ -644,6 +671,7 @@ describe("smart sort — overdue-first", () => {
         view: "all",
         sort: "smart",
         todayIso: TODAY,
+        timezone: "UTC",
       })
     ).items.map((i) => i.id);
     // Overdue band first (P1 older before P2), then the non-overdue band by
@@ -681,6 +709,7 @@ describe("smart sort — overdue-first", () => {
         sort: "smart",
         limit: 2,
         todayIso: TODAY,
+        timezone: "UTC",
         cursor,
       });
       seen.push(...page.items.map((i) => i.id));
@@ -705,6 +734,7 @@ describe("smart sort — overdue-first", () => {
       sort: "smart",
       limit: 2,
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(first.nextCursor).not.toBeNull();
     await expect(
@@ -713,6 +743,7 @@ describe("smart sort — overdue-first", () => {
         sort: "smart",
         limit: 2,
         todayIso: TOMORROW,
+        timezone: "UTC",
         cursor: first.nextCursor!,
       }),
     ).rejects.toBeInstanceOf(InvalidSpineCursorError);
@@ -759,6 +790,7 @@ describe("listWorkspaceTaskGroups", () => {
     const grouping = await repo.listWorkspaceTaskGroups({
       dimension: "priority",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(grouping.dimension).toBe("priority");
     const byKey = new Map(grouping.groups.map((g) => [g.key, g]));
@@ -789,6 +821,7 @@ describe("listWorkspaceTaskGroups", () => {
       dimension: "priority",
       bucketLimit: 1,
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const p1 = grouping.groups.find((g) => g.key === "p1");
     expect(p1?.count).toBe(3); // authoritative — independent of the loaded slice
@@ -805,6 +838,7 @@ describe("listWorkspaceTaskGroups", () => {
     const grouping = await repo.listWorkspaceTaskGroups({
       dimension: "sector",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const byKey = new Map(grouping.groups.map((g) => [g.key, g]));
     expect(byKey.get("this_week")?.count).toBe(2);
@@ -825,6 +859,7 @@ describe("listWorkspaceTaskGroups", () => {
     const grouping = await repo.listWorkspaceTaskGroups({
       dimension: "priority",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const p1 = grouping.groups.find((g) => g.key === "p1");
     expect(p1?.items.map((i) => i.id)).toEqual([overdue.id, future.id]);
@@ -837,6 +872,7 @@ describe("listWorkspaceTaskGroups", () => {
     const grouping = await other.listWorkspaceTaskGroups({
       dimension: "priority",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(grouping.groups).toHaveLength(0);
   });

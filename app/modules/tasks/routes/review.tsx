@@ -51,6 +51,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       view: "inbox",
       limit: REVIEW_PAGE_SIZE,
       todayIso,
+      timezone,
       ...(cursor ? { cursor } : {}),
     });
     return {

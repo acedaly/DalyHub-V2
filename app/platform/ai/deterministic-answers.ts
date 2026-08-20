@@ -13,6 +13,7 @@
  */
 
 import type { WorkspaceScope } from "~/platform/workspaces";
+import { ownerCalendarIso } from "~/shared/datetime";
 
 /** The deterministic intents DalyHub answers itself. A CLOSED set. */
 export const DETERMINISTIC_INTENTS = [
@@ -77,6 +78,13 @@ export async function answerDeterministically(
   scope: WorkspaceScope,
   intent: DeterministicIntent,
   todayIso: string,
+  /**
+   * HARDEN-06C (F-14) — the owner's IANA zone, so a Meeting is dated the day it
+   * happens FOR THEM. `startsAt` is a UTC instant, and slicing its ISO string
+   * gave the assistant a date that could differ by one from the date every
+   * other Meetings surface shows for the same record.
+   */
+  timezone: string,
 ): Promise<DeterministicAnswer | null> {
   try {
     switch (intent) {
@@ -147,7 +155,7 @@ export async function answerDeterministically(
             citations: [],
           };
         }
-        const date = meeting.startsAt.toISOString().slice(0, 10);
+        const date = ownerCalendarIso(meeting.startsAt, timezone);
         return {
           intent,
           summary:

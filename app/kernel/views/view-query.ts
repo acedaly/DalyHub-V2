@@ -54,6 +54,21 @@ export interface CrossViewQueryContext {
    * evaluate them — never by a second implementation.
    */
   readonly calendarIsoOf: (instant: Date) => string;
+  /**
+   * HARDEN-06C (F-05) — the inverse of {@link calendarIsoOf}: the UTC instant at
+   * which an owner-calendar day BEGINS, supplied by the caller from the same
+   * `~/shared/datetime` helpers (`ownerDayStartInstant`).
+   *
+   * The `Created within` / `Updated within` windows used to bind
+   * `${windowStartDay}T00:00:00.000Z` — an owner-calendar day compared against a
+   * UTC instant. For the default Sydney owner that silently dropped the first
+   * ten or eleven hours of the window's first day; west of Greenwich it
+   * silently included several hours of the day before. This is the conversion
+   * that was missing, and it is supplied here rather than computed in the
+   * adapter so X-02's rule holds unchanged: no second definition of "today",
+   * and no timezone logic inside SQL.
+   */
+  readonly dayStartInstantOf: (dayIso: string) => Date;
   /** AREA-03's supporting recent-count lower bound (`createOwnerAlignmentContext`). */
   readonly alignmentRecentWindowStartIso: string;
   /** The scopes this owner may see, after module visibility is applied. */

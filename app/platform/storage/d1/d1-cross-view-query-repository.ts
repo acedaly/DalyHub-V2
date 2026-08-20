@@ -331,16 +331,34 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
       );
     }
 
+    // HARDEN-06C (F-05) — the window's first DAY, as the instant the owner's day
+    // actually begins. See `CrossViewQueryContext.dayStartInstantOf`.
     if (shared.createdWithin) {
       where.push("e.created_at >= ?");
       params.push(
-        `${windowStart(context.todayIso, context.weekStartIso, shared.createdWithin)}T00:00:00.000Z`,
+        context
+          .dayStartInstantOf(
+            windowStart(
+              context.todayIso,
+              context.weekStartIso,
+              shared.createdWithin,
+            ),
+          )
+          .toISOString(),
       );
     }
     if (shared.updatedWithin) {
       where.push("e.updated_at >= ?");
       params.push(
-        `${windowStart(context.todayIso, context.weekStartIso, shared.updatedWithin)}T00:00:00.000Z`,
+        context
+          .dayStartInstantOf(
+            windowStart(
+              context.todayIso,
+              context.weekStartIso,
+              shared.updatedWithin,
+            ),
+          )
+          .toISOString(),
       );
     }
     if (changedSinceIso) {

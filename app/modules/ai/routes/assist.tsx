@@ -88,6 +88,9 @@ async function retrieveFor(
   body: AssistBody,
   ai: Awaited<ReturnType<typeof resolveAiContext>>,
 ) {
+  // HARDEN-06C (F-14) — ONE preference read for the whole branch, so every
+  // cited date is the OWNER's date rather than the runtime's UTC day.
+  const { timezone } = await scope.appPreferences.get(ownerId);
   switch (body.feature) {
     case "meeting-action-extraction":
       return retrieveMeetingEvidence(
@@ -95,6 +98,7 @@ async function retrieveFor(
         body.recordId ?? "",
         ai.limits,
         ai.allowedCategories,
+        timezone,
       );
     case "note-action-extraction":
       return retrieveNoteEvidence(
@@ -102,17 +106,18 @@ async function retrieveFor(
         body.recordId ?? "",
         ai.limits,
         ai.allowedCategories,
+        timezone,
       );
     case "weekly-review-assistant": {
       const review = await scope.reviews.get(body.recordId ?? "");
       if (!review) throw new Response("Not Found", { status: 404 });
-      const preferences = await scope.appPreferences.get(ownerId);
-      const todayIso = ownerCalendarIso(new Date(), preferences.timezone);
+      const todayIso = ownerCalendarIso(new Date(), timezone);
       const facts = await computeWeeklyReviewFacts(
         scope,
         review.periodStart,
         review.periodEnd,
         todayIso,
+        timezone,
       );
       return retrieveWeeklyReviewEvidence(
         scope,
@@ -127,6 +132,7 @@ async function retrieveFor(
         body.question ?? "",
         ai.limits,
         ai.allowedCategories,
+        timezone,
       );
   }
 }
@@ -160,7 +166,12 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (intent !== null) {
         const preferences = await scope.appPreferences.get(ownerId);
         const todayIso = ownerCalendarIso(new Date(), preferences.timezone);
-        const answer = await answerDeterministically(scope, intent, todayIso);
+        const answer = await answerDeterministically(
+          scope,
+          intent,
+          todayIso,
+          preferences.timezone,
+        );
         if (answer !== null) {
           return aiJson({
             ok: true,

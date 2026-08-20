@@ -156,6 +156,7 @@ describe("a checklist item is not a Task", () => {
     const page = await tasks.listWorkspaceTasks({
       view: "all",
       todayIso: "2026-08-18",
+      timezone: "UTC",
     });
     expect(page.items.map((entry) => entry.id)).toEqual([task.id]);
   });

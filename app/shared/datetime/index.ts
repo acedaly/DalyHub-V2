@@ -193,6 +193,42 @@ export function ownerLocalToUtc(local: string, timeZone: string): Date | null {
 }
 
 /**
+ * HARDEN-06C (F-05) — the UTC instant at which an owner-calendar DAY begins.
+ *
+ * The seam this closes is small and was everywhere: `todayIso` and every date
+ * derived from it are the OWNER's calendar days, while `created_at`,
+ * `updated_at` and `completed_at` are UTC instants. Comparing the two directly
+ * — `created_at >= '2026-01-15T00:00:00.000Z'` for an owner whose 15 January
+ * began at `2026-01-14T13:00Z` — silently drops the first ten or eleven hours
+ * of their day, or, west of Greenwich, silently includes several hours of the
+ * previous one.
+ *
+ * There is no new date arithmetic here: it is {@link ownerLocalToUtc} at
+ * midnight, named, so a caller that needs a day boundary as an instant asks for
+ * one instead of concatenating `T00:00:00.000Z` and hoping.
+ *
+ * **Nonexistent midnights.** A handful of zones skip midnight on their DST
+ * transition (America/Santiago, Asia/Beirut and others), so `ownerLocalToUtc`
+ * correctly returns `null` for a local time that does not exist. The day still
+ * begins — an hour later — so the fallback walks forward to the first hour that
+ * DOES exist rather than degrading to UTC midnight, which would be the very bug
+ * this helper is here to remove.
+ */
+export function ownerDayStartInstant(dayIso: string, timeZone: string): Date {
+  for (let hour = 0; hour < 4; hour += 1) {
+    const at = ownerLocalToUtc(
+      `${dayIso}T${String(hour).padStart(2, "0")}:00`,
+      timeZone,
+    );
+    if (at) return at;
+  }
+  // Unreachable for a well-formed date in a real zone (no transition skips four
+  // hours). A malformed `dayIso` lands here, and UTC midnight is then the only
+  // honest answer available.
+  return new Date(`${dayIso}T00:00:00.000Z`);
+}
+
+/**
  * The inverse of {@link ownerLocalToUtc}: a native `datetime-local` wall-clock
  * string for an instant in `timeZone`.
  */

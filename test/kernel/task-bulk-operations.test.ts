@@ -342,6 +342,7 @@ describe("bulk delete is reversible, and destroys nothing", () => {
     // Gone from the collection…
     const active = await tasks.listWorkspaceTasks({
       todayIso: TODAY,
+      timezone: "UTC",
       limit: 50,
       filters: { completedVisibility: "include" },
     });
@@ -364,6 +365,7 @@ describe("bulk delete is reversible, and destroys nothing", () => {
     const deleted = await tasks.listWorkspaceTasks({
       view: "deleted",
       todayIso: TODAY,
+      timezone: "UTC",
       limit: 50,
     });
     expect(deleted.items.map((item) => item.id)).toEqual([inbox[0]!.id]);
@@ -373,6 +375,7 @@ describe("bulk delete is reversible, and destroys nothing", () => {
     const all = await tasks.listWorkspaceTasks({
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
       limit: 50,
     });
     expect(all.items.map((item) => item.id)).not.toContain(inbox[0]!.id);

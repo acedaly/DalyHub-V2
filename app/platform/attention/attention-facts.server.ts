@@ -139,8 +139,9 @@ async function safely<T>(read: () => Promise<T>, fallback: T): Promise<T> {
 export async function readInboxCount(
   scope: WorkspaceScope,
   todayIso: string,
+  timezone: string,
 ): Promise<number> {
-  return countSystemView(scope, "inbox", todayIso);
+  return countSystemView(scope, "inbox", todayIso, timezone);
 }
 
 /** How many open tasks a system view holds, from the canonical grouped read. */
@@ -148,11 +149,14 @@ export async function countSystemView(
   scope: WorkspaceScope,
   view: "inbox" | "today" | "overdue",
   todayIso: string,
+  // HARDEN-06C (F-05) — the zone `todayIso` was derived in travels with it.
+  timezone: string,
 ): Promise<number> {
   const grouped = await scope.tasks.listWorkspaceTaskGroups({
     dimension: "parent",
     view,
     todayIso,
+    timezone,
     bucketLimit: 1,
   });
   return grouped.groups.reduce((total, group) => total + group.count, 0);
@@ -329,7 +333,7 @@ export async function readAttentionFacts(
   },
 ): Promise<AttentionFacts> {
   const [inboxCount, waiting, assets, projects, goals] = await Promise.all([
-    safely(() => readInboxCount(scope, facts.todayIso), 0),
+    safely(() => readInboxCount(scope, facts.todayIso, facts.timezone), 0),
     safely(() => readWaiting(scope, facts.todayIso, facts.timezone), {
       count: 0,
       oldestDays: null,

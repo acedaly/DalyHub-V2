@@ -277,6 +277,7 @@ export async function loadPlanPage(
         sort: "scheduled_date",
         limit: PLAN_LIMITS.plannedTasks,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     ),
@@ -320,6 +321,7 @@ export async function loadPlanPage(
       sort: "scheduled_date",
       limit: PLAN_LIMITS.plannedTasks,
       todayIso,
+      timezone,
     }),
     { items: [] as readonly TaskListItem[], nextCursor: null },
   );
@@ -335,6 +337,7 @@ export async function loadPlanPage(
     scope,
     week,
     todayIso,
+    timezone,
     placedIds,
     source: activeSource,
   });
@@ -522,13 +525,15 @@ async function buildQueue(input: {
   readonly scope: WorkspaceScope;
   readonly week: { readonly startIso: string; readonly endIso: string };
   readonly todayIso: string;
+  /** HARDEN-06C (F-05) — the zone `todayIso` was derived in travels with it. */
+  readonly timezone: string;
   readonly placedIds: ReadonlySet<string>;
   readonly source: ResolvedQueueSource | null;
 }): Promise<{
   readonly items: readonly PlanQueueItem[];
   readonly truncated: boolean;
 }> {
-  const { scope, week, todayIso, placedIds, source } = input;
+  const { scope, week, todayIso, timezone, placedIds, source } = input;
 
   if (source !== null && source.view !== null) {
     const config: TaskViewConfig = source.view.config;
@@ -540,6 +545,7 @@ async function buildQueue(input: {
         direction: config.direction,
         limit: PLAN_LIMITS.queueFromView,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     );
@@ -577,6 +583,7 @@ async function buildQueue(input: {
         sort: "due_date",
         limit: PLAN_LIMITS.queueBand,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     ),
@@ -587,6 +594,7 @@ async function buildQueue(input: {
         sort: "scheduled_date",
         limit: PLAN_LIMITS.queueBand,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     ),
@@ -601,6 +609,7 @@ async function buildQueue(input: {
         sort: "due_date",
         limit: PLAN_LIMITS.queueBand,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     ),
@@ -611,6 +620,7 @@ async function buildQueue(input: {
         sort: "smart",
         limit: PLAN_LIMITS.queueBand,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     ),
@@ -621,6 +631,7 @@ async function buildQueue(input: {
         sort: "smart",
         limit: PLAN_LIMITS.queueBand,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     ),
@@ -716,6 +727,7 @@ async function buildSignals(input: {
         sort: "smart",
         limit: PLAN_LIMITS.nextActionScan,
         todayIso,
+        timezone,
       }),
       { items: [] as readonly TaskListItem[], nextCursor: null },
     ),

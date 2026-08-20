@@ -519,7 +519,7 @@ export async function loadTodayDay(
       today: [],
       completedToday: [],
     }),
-    safely(() => readInboxCount(scope, todayIso), 0),
+    safely(() => readInboxCount(scope, todayIso, timezone), 0),
     safely(() => readAssetAttention(scope, todayIso), {
       items: [],
       trackedAsTasksCount: 0,
