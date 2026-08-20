@@ -31,10 +31,33 @@ import {
   Checkbox,
   IconButton,
   Input,
+  PanelHeading,
   Select,
   Textarea,
   buttonClassName,
 } from "~/shared/ui";
+
+describe("DHDS-03 PanelHeading", () => {
+  it("owns one title and optional supporting line for every depth surface", () => {
+    const { container } = render(
+      <PanelHeading
+        title="Review growth strategy"
+        titleId="panel-title"
+        description="Growth · due today"
+        descriptionId="panel-description"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(
+      "Review growth strategy",
+    );
+    expect(screen.getByText("Growth · due today")).toHaveAttribute(
+      "id",
+      "panel-description",
+    );
+    expect(container.firstElementChild).toHaveClass("dh-panel-heading");
+  });
+});
 
 describe("DS-02 Button", () => {
   it("defaults to a non-submitting button", () => {

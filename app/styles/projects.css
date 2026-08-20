@@ -273,12 +273,6 @@ a.dh-btn {
   overflow: hidden;
 }
 
-.dh-ptable__fill {
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-}
-
 .dh-ptable__percent,
 .dh-ptable__numeric {
   font-variant-numeric: var(--dh-font-numeric);
@@ -296,12 +290,6 @@ a.dh-btn {
 
 .dh-ptable__actions {
   inline-size: 1%;
-}
-
-@media (forced-colors: active) {
-  .dh-ptable__fill {
-    background: CanvasText;
-  }
 }
 
 /* -- The compact Goals section (§5.3) -------------------------------------- */

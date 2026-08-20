@@ -19,8 +19,10 @@ import { useEffect, useRef } from "react";
 import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
+import { CloseIcon } from "~/shared/icons";
+import { IconButton } from "~/shared/ui/IconButton";
+import { PanelHeading } from "~/shared/ui/PanelHeading";
 
-import { CloseGlyph } from "./inspector-icons";
 import type { InspectorRenderResult } from "./inspector-context";
 import type { InspectorResize } from "./use-inspector-resize";
 
@@ -120,30 +122,31 @@ export function Inspector({
         {compact ? null : (
           <div className="dh-inspector__resize" {...resize.handleProps} />
         )}
-        <header className="dh-inspector__header">
-          <div className="dh-inspector__heading">
-            <h2 id={titleId} className="dh-inspector__title">
-              {result.title}
-            </h2>
-            {result.description ? (
-              <p id={descriptionId} className="dh-inspector__description">
-                {result.description}
-              </p>
-            ) : null}
-          </div>
-          <button
+        <header className="dh-inspector__header dh-panel-header">
+          <PanelHeading
+            title={result.title}
+            titleId={titleId}
+            description={result.description}
+            descriptionId={descriptionId}
+            className="dh-inspector__heading"
+            titleClassName="dh-inspector__title"
+            descriptionClassName="dh-inspector__description"
+          />
+          <IconButton
             ref={closeButtonRef}
-            type="button"
-            className="dh-inspector__close"
-            aria-label="Close inspector"
+            className="dh-inspector__close dh-panel-close"
+            icon={<CloseIcon />}
+            label="Close inspector"
             onClick={onRequestClose}
-          >
-            <CloseGlyph />
-          </button>
+          />
         </header>
-        <div className="dh-inspector__body">{result.children}</div>
+        <div className="dh-inspector__body dh-panel-body">
+          {result.children}
+        </div>
         {result.footer ? (
-          <footer className="dh-inspector__footer">{result.footer}</footer>
+          <footer className="dh-inspector__footer dh-panel-footer">
+            {result.footer}
+          </footer>
         ) : null}
       </Container>
     </>

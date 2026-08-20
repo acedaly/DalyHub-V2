@@ -13,14 +13,15 @@
  * product already lives — `?state=`, `?view=`, `?tab=`, the drawer stack. That
  * makes a tabular collection shareable, bookmarkable, Back/Forward-correct and
  * correct on the first server byte, and it means REDESIGN-04 introduces no new
- * persistence mechanism for one toggle (§5.4). Grid is the default, so the
- * collection's canonical URL stays clean.
+ * persistence mechanism for one toggle (§5.4). Grid is the Projects default,
+ * so that collection's canonical URL stays clean; each caller declares its own
+ * default by ordering `allowed`.
  *
  * ── Three presentations, and a collection offers TWO ────────────────────────
  * `list` joined `grid` and `table` when Areas gained a gallery. The three are
  * genuinely different drawings, not synonyms:
  *
- *   `grid`   cards in a wrapping gallery — the default everywhere
+ *   `grid`   cards in a wrapping gallery
  *   `table`  a real table with sortable-shaped COLUMNS (Projects)
  *   `list`   full-width rows separated by hairlines, one identity mark per row
  *            down the left edge (Areas)
@@ -39,22 +40,23 @@ const PRESENTATION_SET: ReadonlySet<string> = new Set(COLLECTION_PRESENTATIONS);
 
 /**
  * Read a presentation from untrusted URL text. Anything unrecognised — absent,
- * misspelled, tampered with — is the default gallery, never an error.
+ * misspelled, tampered with — is the collection's declared default, never an
+ * error. The first allowed presentation is the default.
  *
  * A caller may narrow the result to the presentations IT draws by passing
  * `allowed`. That is what keeps `?present=table` on Areas (which has no table)
- * from rendering nothing: it lands on the gallery, which is what the owner of a
- * mistyped URL wanted.
+ * from rendering nothing: it lands on that collection's first allowed drawing.
  */
 export function parseCollectionPresentation(
   value: string | null | undefined,
   allowed: readonly CollectionPresentation[] = COLLECTION_PRESENTATIONS,
 ): CollectionPresentation {
+  const fallback = allowed[0] ?? "grid";
   if (typeof value !== "string" || !PRESENTATION_SET.has(value)) {
-    return "grid";
+    return fallback;
   }
   const parsed = value as CollectionPresentation;
-  return allowed.includes(parsed) ? parsed : "grid";
+  return allowed.includes(parsed) ? parsed : fallback;
 }
 
 /**

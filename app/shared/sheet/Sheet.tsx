@@ -50,6 +50,8 @@ import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
 import { CloseIcon } from "~/shared/icons";
+import { IconButton } from "~/shared/ui/IconButton";
+import { PanelHeading } from "~/shared/ui/PanelHeading";
 
 /**
  * The open sheets, oldest first. Module-scoped because "which sheet is on top"
@@ -204,29 +206,25 @@ export function Sheet({
    * branches is how a focus-restoration ref quietly starts pointing at the one
    * that is not on screen.
    */
-  const closeControl = (
-    <button
-      type="button"
-      className={
-        closeLabel === undefined
-          ? "dh-sheet__close"
-          : "dh-sheet__close dh-sheet__close--worded"
-      }
-      ref={closeButtonRef}
-      onClick={onClose}
-    >
-      {closeLabel === undefined ? (
-        <>
-          <span aria-hidden="true">
-            <CloseIcon />
-          </span>
-          <span className="dh-visually-hidden">Close</span>
-        </>
-      ) : (
-        closeLabel
-      )}
-    </button>
-  );
+  const closeControl =
+    closeLabel === undefined ? (
+      <IconButton
+        ref={closeButtonRef}
+        className="dh-sheet__close dh-panel-close"
+        icon={<CloseIcon />}
+        label="Close"
+        onClick={onClose}
+      />
+    ) : (
+      <button
+        type="button"
+        className="dh-sheet__close dh-sheet__close--worded dh-panel-close"
+        ref={closeButtonRef}
+        onClick={onClose}
+      >
+        {closeLabel}
+      </button>
+    );
 
   const layer = (
     <div
@@ -252,27 +250,29 @@ export function Sheet({
         {variant === "full" ? null : (
           <div className="dh-sheet__handle" aria-hidden="true" />
         )}
-        <div className="dh-sheet__header" data-close={closePlacement}>
+        <header
+          className="dh-sheet__header dh-panel-header"
+          data-close={closePlacement}
+        >
           {leading ? <div className="dh-sheet__leading">{leading}</div> : null}
           {closePlacement === "leading" ? closeControl : null}
-          <div className="dh-sheet__heading">
-            <h2 id={titleId} className="dh-sheet__title">
-              {title}
-            </h2>
-            {description ? (
-              <p id={descriptionId} className="dh-sheet__description">
-                {description}
-              </p>
-            ) : null}
-          </div>
+          <PanelHeading
+            title={title}
+            titleId={titleId}
+            description={description}
+            descriptionId={descriptionId}
+            className="dh-sheet__heading"
+            titleClassName="dh-sheet__title"
+            descriptionClassName="dh-sheet__description"
+          />
           {trailing ? (
             <div className="dh-sheet__trailing">{trailing}</div>
           ) : null}
           {closePlacement === "trailing" ? closeControl : null}
-        </div>
+        </header>
 
         <div
-          className="dh-sheet__body"
+          className="dh-sheet__body dh-panel-body"
           {...(bodyFocusable
             ? { tabIndex: 0, role: "group", "aria-labelledby": titleId }
             : {})}
@@ -280,7 +280,9 @@ export function Sheet({
           {children}
         </div>
 
-        {footer ? <div className="dh-sheet__footer">{footer}</div> : null}
+        {footer ? (
+          <div className="dh-sheet__footer dh-panel-footer">{footer}</div>
+        ) : null}
       </div>
     </div>
   );

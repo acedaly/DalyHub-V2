@@ -118,5 +118,7 @@ describe("resolveCollectionPresentation", () => {
     expect(parseCollectionPresentation("table", PROJECTS)).toBe("table");
     expect(parseCollectionPresentation(null, PROJECTS)).toBe("grid");
     expect(parseCollectionPresentation("list", PROJECTS)).toBe("grid");
+    expect(parseCollectionPresentation(null, ["list", "grid"])).toBe("list");
+    expect(parseCollectionPresentation("table", ["list", "grid"])).toBe("list");
   });
 });

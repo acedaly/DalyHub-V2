@@ -35,11 +35,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
    * the way the URL asks for. Resolving it in the browser would flash the
    * default and then swap, which is the one thing a shareable view state must
    * not do. Areas offers a gallery and a list; `?present=table` is not one of
-   * its presentations and falls to the gallery rather than rendering nothing.
+   * its presentations and falls to the quieter list rather than rendering
+   * nothing. The first allowed presentation is the module's default.
    */
   const presentation = parseCollectionPresentation(params.get("present"), [
-    "grid",
     "list",
+    "grid",
   ]);
 
   try {

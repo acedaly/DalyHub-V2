@@ -19,10 +19,10 @@
  * So Areas became `EntityRow` in `EntityRowList`: one surface, hairlines
  * between, a column of identity marks down the left edge.
  *
- * ── IDENTITY-01 follow-up: the gallery returns, as the DEFAULT ───────────────
+ * ── IDENTITY-01 follow-up: the gallery remains available ────────────────────
  *
- * The owner asked for Areas to default to a grid, as Projects does. Both of
- * UIX-02's objections were real and one of them has since been answered:
+ * The gallery was restored after UIX-02. Both of UIX-02's objections were real
+ * and one of them has since been answered:
  *
  *   - "An Area was a Project with renamed fields" — no longer true. A Project
  *     card is `.dh-pcard`, bottom-heavy around a progress bar it pins to a
@@ -37,9 +37,10 @@
  *     stops, and an owner who prefers the denser reading keeps it one click
  *     away.
  *
- * So this is a presentation TOGGLE, `?present=`, exactly as Projects has —
- * Grid by default, List beside it. Neither view filters: both draw the same
- * records from the same loader in the same order.
+ * So this is a presentation TOGGLE, `?present=`, exactly as Projects has — but
+ * List is the DHDS default and Grid is the optional recognition-led view.
+ * Neither view filters: both draw the same records from the same loader in the
+ * same order.
  *
  * What did NOT change, and must not — in EITHER presentation:
  *
@@ -96,12 +97,6 @@ import {
 
 export const NEW_AREA_KEY = "new-area";
 
-export interface AreasCollectionViewProps {
-  readonly areas: readonly SerializedAreaListItem[];
-  readonly nextCursor: string | null;
-  readonly failed: boolean;
-}
-
 type AreasPageData = {
   readonly areas: readonly SerializedAreaListItem[];
   readonly nextCursor: string | null;
@@ -111,15 +106,14 @@ type AreasPageData = {
 /**
  * The presentation toggle's two options — a gallery, or the same Areas as rows.
  *
- * Grid is FIRST and is the default: it is what the owner asked for, and it is
- * what Projects does, so the two spine collections now open the same way.
- * `Table` is deliberately absent — Areas has no columns worth a table, and
- * offering one that drew the same three facts in a grid of cells would be a
- * third drawing of one list.
+ * List is FIRST and is the DHDS default: Areas are permanent organising
+ * contexts, so the daily scan benefits from density and calm more than from a
+ * project-like gallery. Grid remains one click away for recognition-led
+ * browsing. `Table` is deliberately absent — Areas has no columns worth one.
  */
 const PRESENTATION_OPTIONS = [
-  { value: "grid", label: "Grid", icon: <GridIcon /> },
   { value: "list", label: "List", icon: <ListIcon /> },
+  { value: "grid", label: "Grid", icon: <GridIcon /> },
 ] as const;
 
 export interface AreasCollectionViewProps {
@@ -428,7 +422,7 @@ export function areasCountLabel(count: number, hasMore: boolean): string {
 function AreasCollection({
   areas,
   nextCursor,
-  presentation = "grid",
+  presentation = "list",
   failed,
 }: AreasCollectionViewProps) {
   const { items, hasMore, loading, loadFailed, loadMore } = useAreaPagination(
@@ -449,8 +443,8 @@ function AreasCollection({
 
   // PX-06: the ONE shared collection loading signal — a same-route navigation
   // shows the shared skeleton instead of leaving the previous list on screen
-  // with no feedback. `presentation="grid"` so the skeleton resembles the card
-  // anatomy that replaces it rather than the row list it no longer is.
+  // with no feedback. The skeleton follows the requested presentation so it
+  // resembles the row or card anatomy that replaces it.
   const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
