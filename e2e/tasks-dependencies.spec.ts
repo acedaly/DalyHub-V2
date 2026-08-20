@@ -27,7 +27,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   ownerToday,
-  taskRow,
+  taskRows,
 } from "./helpers";
 import {
   cleanupAllDependencyTasks,
@@ -50,6 +50,24 @@ function record(page: Page): Locator {
 
 function dependencies(page: Page): Locator {
   return record(page).getByTestId("task-dependencies");
+}
+
+/**
+ * ONE row, matched on its EXACT title.
+ *
+ * The shared `taskRow` helper filters on `hasText`, which is a case-insensitive
+ * SUBSTRING over the row's whole rendered text. These journeys run against the
+ * shared development database, where every other spec's seeded rows are also
+ * present: `meetings.spec.ts` creates "Meetings e2e <run> - book the venue",
+ * which CONTAINS this file's "Book the venue" and made the Blocked-filter
+ * assertion resolve to two rows. The title link carries the product-wide
+ * `Open <title>` accessible name, so asking for that name exactly identifies one
+ * row without this file having to invent titles nothing else could collide with.
+ */
+function depRow(page: Page, title: string): Locator {
+  return taskRows(page).filter({
+    has: page.getByRole("link", { name: `Open ${title}`, exact: true }),
+  });
 }
 
 /** Add one blocker through the record's picker. */
@@ -452,7 +470,7 @@ test.describe("TASKS-12 — blocked state on the shared Task row", () => {
 
   test("appears on the Tasks collection", async ({ page }) => {
     await gotoFixture(page, TASKS_URL);
-    const row = taskRow(page, "Publish the report");
+    const row = depRow(page, "Publish the report");
     await expect(row.getByTestId("task-row-blocked")).toHaveText(
       "Blocked by Get director approval",
     );
@@ -465,7 +483,7 @@ test.describe("TASKS-12 — blocked state on the shared Task row", () => {
     page,
   }) => {
     await gotoFixture(page, "/today");
-    const row = taskRow(page, "Publish the report");
+    const row = depRow(page, "Publish the report");
     await expect(row).toBeVisible();
     await expect(row.getByTestId("task-row-blocked")).toHaveText(
       "Blocked by Get director approval",
@@ -476,7 +494,7 @@ test.describe("TASKS-12 — blocked state on the shared Task row", () => {
     page,
   }) => {
     await gotoFixture(page, "/plan");
-    const row = taskRow(page, "Publish the report");
+    const row = depRow(page, "Publish the report");
     await expect(row).toBeVisible();
     await expect(row.getByTestId("task-row-blocked")).toHaveText(
       "Blocked by Get director approval",
@@ -487,12 +505,12 @@ test.describe("TASKS-12 — blocked state on the shared Task row", () => {
     page,
   }) => {
     await gotoFixture(page, `${TASKS_URL}&blocked=1`);
-    await expect(taskRow(page, "Publish the report")).toBeVisible();
-    await expect(taskRow(page, "Book the venue")).toHaveCount(0);
+    await expect(depRow(page, "Publish the report")).toBeVisible();
+    await expect(depRow(page, "Book the venue")).toHaveCount(0);
 
     await gotoFixture(page, `${TASKS_URL}&blocked=0`);
-    await expect(taskRow(page, "Publish the report")).toHaveCount(0);
-    await expect(taskRow(page, "Book the venue")).toBeVisible();
+    await expect(depRow(page, "Publish the report")).toHaveCount(0);
+    await expect(depRow(page, "Book the venue")).toBeVisible();
   });
 
   test("clears when the blocker is completed and RETURNS when it is reopened", async ({
@@ -506,7 +524,7 @@ test.describe("TASKS-12 — blocked state on the shared Task row", () => {
 
     await gotoFixture(page, TASKS_URL);
     await expect(
-      taskRow(page, "Publish the report").getByTestId("task-row-blocked"),
+      depRow(page, "Publish the report").getByTestId("task-row-blocked"),
     ).toHaveCount(0);
 
     // Reopening the blocker blocks it again — DERIVED, with nothing reconciled.
@@ -518,7 +536,7 @@ test.describe("TASKS-12 — blocked state on the shared Task row", () => {
 
     await gotoFixture(page, TASKS_URL);
     await expect(
-      taskRow(page, "Publish the report").getByTestId("task-row-blocked"),
+      depRow(page, "Publish the report").getByTestId("task-row-blocked"),
     ).toHaveText("Blocked by Get director approval");
   });
 });
@@ -576,7 +594,7 @@ test.describe("TASKS-12 — phone", () => {
     await page.setViewportSize({ width: 320, height: 720 });
     await gotoFixture(page, TASKS_URL);
     await expect(
-      taskRow(page, "Publish the report").getByTestId("task-row-blocked"),
+      depRow(page, "Publish the report").getByTestId("task-row-blocked"),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
