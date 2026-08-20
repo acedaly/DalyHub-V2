@@ -72,7 +72,7 @@ import {
   planningEntryMinutes,
 } from "~/kernel/planning";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
-import { TaskList } from "~/shared/task-record/TaskList";
+import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import { postTaskBulkAction } from "~/shared/task-record/task-inline-edit";
@@ -990,60 +990,55 @@ function PlanQueue({
            */}
           <div className="dh-plan__queue-groups">
             {groups.map((group) => (
-              <section
+              <div
                 key={group.key}
-                className="dh-plan__queue-group"
-                aria-labelledby={`plan-queue-band-${group.key}`}
                 data-testid="plan-queue-group"
                 data-band={group.key}
               >
-                <h3
-                  className="dh-plan__queue-band"
-                  id={`plan-queue-band-${group.key}`}
+                <TaskGroup
+                  className="dh-plan__queue-group"
+                  title={group.label}
+                  count={group.entries.length}
+                  headingLevel={3}
+                  tone={group.key === "overdue" ? "overdue" : "default"}
                 >
-                  {group.label}
-                  <span className="dh-plan__queue-band-count">
-                    {" "}
-                    {group.entries.length}
-                  </span>
                   {/* The rule, in words, for anyone who needs it read out. A
                       view-sourced group has no rule to state — its reason is its
                       name — so it gets no second sentence. */}
                   {group.band === null ? null : (
-                    <span className="dh-visually-hidden">
-                      {" "}
-                      — {PLANNING_QUEUE_BAND_NOTES[group.band]}
-                    </span>
+                    <p className="dh-visually-hidden">
+                      {PLANNING_QUEUE_BAND_NOTES[group.band]}
+                    </p>
                   )}
-                </h3>
-                <TaskList
-                  ariaLabel={group.label}
-                  density={data.density}
-                  className="dh-plan__queue-rows"
-                >
-                  {group.entries.map((entry) => (
-                    <TaskRow
-                      key={entry.task.id}
-                      {...rowProps(entry.task, {
-                        inWeek: false,
-                        // The shared row offers h2 or h3. The band heading above
-                        // is the h3, so a row inside it would ideally be h4 — the
-                        // row does not offer one, and inventing a level here
-                        // would mean forking the shared component over a
-                        // heading. h3 keeps the outline flat inside the group
-                        // rather than wrong.
-                        headingLevel: 3,
-                      })}
-                      selection={{
-                        selected: selected.has(entry.task.id),
-                        onSelectedChange: (on) =>
-                          onToggleSelected(entry.task.id, on),
-                        label: `Select ${entry.task.title} to place on a day`,
-                      }}
-                    />
-                  ))}
-                </TaskList>
-              </section>
+                  <TaskList
+                    ariaLabel={group.label}
+                    density={data.density}
+                    className="dh-plan__queue-rows"
+                  >
+                    {group.entries.map((entry) => (
+                      <TaskRow
+                        key={entry.task.id}
+                        {...rowProps(entry.task, {
+                          inWeek: false,
+                          // The shared row offers h2 or h3. The band heading above
+                          // is the h3, so a row inside it would ideally be h4 — the
+                          // row does not offer one, and inventing a level here
+                          // would mean forking the shared component over a
+                          // heading. h3 keeps the outline flat inside the group
+                          // rather than wrong.
+                          headingLevel: 3,
+                        })}
+                        selection={{
+                          selected: selected.has(entry.task.id),
+                          onSelectedChange: (on) =>
+                            onToggleSelected(entry.task.id, on),
+                          label: `Select ${entry.task.title} to place on a day`,
+                        }}
+                      />
+                    ))}
+                  </TaskList>
+                </TaskGroup>
+              </div>
             ))}
           </div>
 
