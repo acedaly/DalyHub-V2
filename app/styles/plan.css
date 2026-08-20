@@ -715,23 +715,19 @@
 }
 
 /*
- * The REASON, once per group.
+ * The REASON, once per group — the shared TaskGroup contract.
  *
- * A word and a figure, in the same anatomy `TaskGroup` uses for a bucket
- * heading — muted weight, no separator, no coloured pill per band. Repeating it
- * on every row (the first form) drew "Overdue" six times down a 21rem rail.
+ * Plan used to copy the heading/count anatomy locally. It now consumes the same
+ * disclosure, count and spacing as Tasks. The rail only removes the wide-list
+ * inline inset because its own column already supplies that edge.
  */
-.dh-plan__queue-band {
-  margin: 0 0 var(--dh-space-1);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
-  color: var(--dh-color-text);
+.dh-plan__queue-group .dh-taskgroup__header {
+  margin-block-start: 0;
+  padding-inline: 0;
 }
 
-.dh-plan__queue-band-count {
-  color: var(--dh-color-text-muted);
-  font-weight: var(--dh-text-body-weight);
+.dh-plan__queue-group .dh-taskgroup__body {
+  min-width: 0;
 }
 
 /*
