@@ -288,6 +288,18 @@ describe("the header block", () => {
     ).toBeInTheDocument();
   });
 
+  it("summarises the open work without inventing a productivity score", () => {
+    renderScreen(day({ today: [task("a", "Alpha"), task("b", "Beta")] }));
+    expect(
+      screen.getByText("2 tasks need your attention today."),
+    ).toBeInTheDocument();
+  });
+
+  it("treats a clear day as a positive state", () => {
+    renderScreen(day());
+    expect(screen.getByText("Your day is clear.")).toBeInTheDocument();
+  });
+
   it("shows no progress indicator before anything is done", () => {
     renderScreen(day({ today: [task("a", "Alpha"), task("b", "Beta")] }));
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
