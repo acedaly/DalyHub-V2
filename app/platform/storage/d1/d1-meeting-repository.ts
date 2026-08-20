@@ -576,10 +576,22 @@ export class D1MeetingRepository implements MeetingRepository {
     const now = this.#clock(),
       ts = toStorageTimestamp(now);
     const expected = v.expectedUpdatedAt;
+    /*
+     * The entities statement asserts EVERY condition the detail statement does,
+     * so the two can never disagree about whether this write happens.
+     *
+     * `D1Database.batch()` is one transaction, but a CONDITIONAL statement that
+     * matches no row does not fail and therefore does not roll anything back —
+     * so a guard on one statement and not the other is a partial write waiting
+     * to happen. Without the `archived_at IS NULL` half, a meeting archived
+     * between the read above and this write took the new TITLE and none of the
+     * rest, silently. The base-version half is added on the same terms when the
+     * caller quotes one (F-01).
+     */
     const entityGuard =
-      expected === undefined
-        ? ""
-        : ` AND EXISTS (SELECT 1 FROM meeting_details d WHERE d.workspace_id=entities.workspace_id AND d.entity_id=entities.id AND d.archived_at IS NULL AND d.updated_at=?)`;
+      ` AND EXISTS (SELECT 1 FROM meeting_details d` +
+      ` WHERE d.workspace_id=entities.workspace_id AND d.entity_id=entities.id` +
+      ` AND d.archived_at IS NULL${expected === undefined ? "" : " AND d.updated_at=?"})`;
     const detailGuard = expected === undefined ? "" : " AND updated_at=?";
     const results = await this.#db.batch([
       this.#db
@@ -644,7 +656,12 @@ export class D1MeetingRepository implements MeetingRepository {
       }
       throw new MeetingConflictError();
     }
-    return { meeting: (await this.get(id))!, changed: true };
+    // Read back rather than assert: a meeting soft-deleted between the write and
+    // this read is gone, and a non-null assertion there would be a crash where
+    // the calm not-found already exists.
+    const written = await this.get(id);
+    if (!written) throw new MeetingNotFoundError();
+    return { meeting: written, changed: true };
   }
   /**
    * AUDIT-FIX-02 — append one structured item, allocating its ordinal in SQL.
