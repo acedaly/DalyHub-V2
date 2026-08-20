@@ -149,15 +149,68 @@ async function backTo(page: Page, label: string): Promise<void> {
   await moveTo(page, "Back", label);
 }
 
+/**
+ * Wait for THIS step's prompt editor to become the live writing surface.
+ *
+ * Scoped to `.dh-review-guide__prompt` rather than asking the page for any
+ * ready editor: a page-wide `.first()` is satisfied by whichever editor happens
+ * to mount first, which is not necessarily the one the next line asserts over.
+ */
 async function waitForEditor(page: Page): Promise<void> {
-  await expect(page.locator('[data-editor-ready="true"]').first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(
+    page
+      .locator(
+        '.dh-review-guide__prompt .dh-md-editor[data-editor-ready="true"]',
+      )
+      .first(),
+  ).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * The text the live prompt editor is holding.
+ *
+ * F-11 (whole-application audit, 2026-08-20). This used to be
+ * `expect(page.getByText(text)).toBeVisible()`, and that assertion is not safe
+ * over a Markdown editor at ANY speed. `LiveMarkdownEditor` renders the no-JS
+ * `<textarea>` fallback while `!editorReady` and mounts CodeMirror into the
+ * `hidden` container beside it; CodeMirror inserts its DOM — `.cm-line` and the
+ * document text with it — synchronously, and `setEditorReady(true)` only lands
+ * on the NEXT React commit. Between the two the value is in the document twice,
+ * legitimately, and a page-wide text locator resolves to two elements.
+ *
+ * Playwright does not retry a strict-mode violation — MEASURED against 1.62.1
+ * with a fixture that resolves the ambiguity after 1 s: the assertion fails on
+ * its first evaluation with the exact message CI produced, never reaching its
+ * 5 s budget. So the window does not have to be wide to be fatal; it only has
+ * to contain the first poll, which is what a saturated runner arranged on run
+ * 32321840125.
+ *
+ * Asserting the live surface instead is both unambiguous and STRONGER: it says
+ * the owner's text came back into the editor they will keep writing in, not
+ * merely that the string exists somewhere on the page.
+ */
+function promptEditorText(page: Page) {
+  return page.locator(".dh-review-guide__prompt .cm-content").first();
+}
+
+/**
+ * The same contract on the Review RECORD, whose open sections each mount their
+ * own `LiveMarkdownEditor`. Scoped to one named section, and waited on that
+ * section's own readiness — the record renders several editors at once, so a
+ * page-wide text locator here is the F-11 ambiguity multiplied by the section
+ * count rather than merely repeated.
+ */
+async function recordSectionText(page: Page, section: string) {
+  const region = page.getByRole("region", { name: section });
+  await expect(
+    region.locator('.dh-md-editor[data-editor-ready="true"]'),
+  ).toBeVisible({ timeout: 30_000 });
+  return region.locator(".cm-content");
 }
 
 async function writeCurrentPrompt(page: Page, text: string): Promise<void> {
   await waitForEditor(page);
-  const editor = page.locator(".dh-review-guide__prompt .cm-content").first();
+  const editor = promptEditorText(page);
   await editor.click();
   await page.keyboard.insertText(text);
   // Blur commits the autosave; the save state is the assertion, not a timeout.
@@ -314,9 +367,17 @@ test("Journey 2: the Review remembers where the owner stopped, and what they wro
   await expect(page).toHaveURL(/step=reflection/);
   await expect(stepHeading(page, "Reflect")).toBeVisible();
   await waitForEditor(page);
+  await expect(promptEditorText(page)).toContainText(
+    "Halfway through, then interrupted.",
+  );
+  // F-11 regression. The handover is a REPLACEMENT, not an overlap: once the
+  // editor reports ready, the fallback `<textarea>` is gone and exactly one
+  // surface holds the value. If the product ever left both in place, this fails
+  // here — with the cause named — instead of returning as an intermittent
+  // strict-mode violation in whichever assertion happens to look at the text.
   await expect(
-    page.getByText("Halfway through, then interrupted."),
-  ).toBeVisible();
+    page.locator(".dh-review-guide__prompt .dh-md-editor__fallback"),
+  ).toHaveCount(0);
 
   // A bare /guide URL resolves to the same place rather than dead-ending.
   const bare = new URL(page.url());
@@ -486,9 +547,9 @@ test("Journey 5: an existing Review uses its own stored template and is not rewr
   // The pre-existing text is presented, not rewritten.
   await nav.getByRole("button", { name: /Lessons/ }).click();
   await waitForEditor(page);
-  await expect(
-    page.getByText("Written before the guided flow existed."),
-  ).toBeVisible();
+  await expect(promptEditorText(page)).toContainText(
+    "Written before the guided flow existed.",
+  );
 
   /*
    * And the Review's own record still reads as its own after the guided flow
@@ -506,9 +567,9 @@ test("Journey 5: an existing Review uses its own stored template and is not rewr
   await page.goto(reviewUrl);
   await waitForInteractive(page);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
-  await expect(
-    page.getByText("Written before the guided flow existed."),
-  ).toBeVisible();
+  await expect(await recordSectionText(page, "Lessons")).toContainText(
+    "Written before the guided flow existed.",
+  );
 });
 
 /* -------------------------------------------------------------------------- */

@@ -264,8 +264,10 @@ jobs:
       # reported, so one red partition does not hide the state of the others.
       fail-fast: false
       matrix:
-        # TEN partitions, balanced by MEASURED TIME rather than by test count —
-        # HARDEN-04, closing DEBT-128.
+        # TWELVE partitions, balanced by MEASURED TIME rather than by test
+        # count — HARDEN-04, closing DEBT-128; ten until HARDEN-06A raised the
+        # count so the heaviest partition sits back inside its budget with the
+        # measurements finally complete (see `PARTITION_COUNT`).
         #
         # `--shard=n/N` divides the suite by test COUNT, and DalyHub's tests are
         # not equal: MEASURED on runs 31690164253 and 31697528360, shard 6 spent
@@ -278,10 +280,10 @@ jobs:
         # seconds are the ones those runs measured. Every constraint the previous
         # eight-way split was reasoned against still holds and is re-checked in
         # `scripts/e2e-partitions.mjs`: the runner pool saturates past roughly
-        # twelve concurrent jobs (ten start in one wave — measured, all eight of
-        # the old split started within 0.1 min of each other), each partition
+        # twelve concurrent jobs (measured — all eight of the old split started
+        # within 0.1 min of each other, and eighteen queued six), each partition
         # costs ~2.3 min of setup that buys no coverage, and a partition's
-        # BROWSER LIFETIME is now ~14 minutes rather than the ~24 that made
+        # BROWSER LIFETIME is now ~15 minutes rather than the ~24 that made
         # HARDEN-01 wary of fewer, fatter shards.
         #
         # `workers` stays 1, and this is NOT the knob to turn. It was checked
@@ -379,13 +381,51 @@ jobs:
         if: always()
         run: node scripts/e2e-partition-summary.mjs "${{ matrix.partition }}"
 
+      # ALWAYS, green partitions included — HARDEN-06A, closing the mechanism
+      # half of DEBT-157.
+      #
+      # `results.json` is the file `pnpm run e2e:partitions:generate --from`
+      # reads, and until now it travelled only inside `playwright-report/`, which
+      # uploads on failure alone. So the measurements the split depends on could
+      # be refreshed only from partitions that FAILED, and ten spec files across
+      # four merges accumulated a 120 s guess apiece: on run 32321840125 one of
+      # them cost 324 s, p05 exceeded `globalTimeout`, and 33 tests never ran.
+      # A rebalance must not have to wait for an outage to become possible.
+      #
+      # It is its own small artifact rather than a second report upload: the JSON
+      # is a few hundred KB against the report's several MB, so one per
+      # partition costs less than a single report and can be kept
+      # unconditionally. Same action, same
+      # retention, same `e2e-…-${{ matrix.partition }}` naming as the two uploads
+      # below, so which partition produced which numbers is readable from the
+      # artifact list alone.
+      #
+      # `continue-on-error`, deliberately, and ONLY here. The two uploads below
+      # run when the job has already failed, so their strictness costs nothing;
+      # this one runs on a GREEN partition, where a transient artifact-service
+      # failure would otherwise turn a fully passing product gate red. Evidence
+      # collection is best-effort; the product gate is the test run and the
+      # `Partition result` step above, which are not. (A partition that produced
+      # no `results.json` at all is still a hard failure — that check lives in
+      # `scripts/e2e-partition-summary.mjs`, where it belongs, and is unaffected
+      # by whether the upload succeeded.)
+      - name: Upload E2E timing evidence (${{ matrix.partition }})
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ matrix.partition }}
+          path: playwright-report/results.json
+          retention-days: 7
+          if-no-files-found: ignore
+
       # Both uploads are conditioned on the RUN STEP's own outcome, not on
       # `failure()`. `failure()` is false when a job is cancelled — which is what
       # a `timeout-minutes` overrun produces — so a `failure()` condition skips
       # the uploads in the one case where the evidence is most needed.
       # `always()` plus an explicit `outcome != 'success'` uploads on a failed,
       # timed-out or cancelled partition and stays skipped on a green one, so a
-      # successful run produces no artifacts at all.
+      # successful run produces no artifacts beyond the timing evidence above.
       - name: Upload Playwright report (${{ matrix.partition }})
         if: always() && steps.e2e.outcome != 'success'
         uses: actions/upload-artifact@v4

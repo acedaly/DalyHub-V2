@@ -27,8 +27,10 @@
  * finished run's `results.json`, reading the diff, and committing it.
  *
  * Commands:
- *   generate [--from <results.json> …]  rewrite the manifest (optionally
- *                                       refreshing the durations first)
+ *   generate [--from <results.json> [--as <label>] …]
+ *                                       rewrite the manifest (optionally
+ *                                       refreshing the durations, test counts
+ *                                       and provenance first)
  *   check                               fail if the manifest is not what the
  *                                       committed durations and the spec files
  *                                       on disk derive
@@ -52,20 +54,42 @@ const MANIFEST = join(ROOT, "e2e", "partitions.json");
 /**
  * How many partitions the gate runs.
  *
- * TEN, and the number is bounded by the RUNNER POOL rather than by the suite.
- * MEASURED on runs 31675715619, 31690164253 and 31697528360: all eight E2E jobs
- * started within 0.1 min of each other, so eight is not yet contended — but run
- * 31445526789 (eighteen shards) had six jobs QUEUED for 5.5–7.0 minutes, which
- * puts the pool's practical ceiling at roughly twelve concurrent jobs. Ten
- * leaves the margin and still starts in one wave.
+ * TWELVE since HARDEN-06A, and the number is bounded by the RUNNER POOL rather
+ * than by the suite. MEASURED on runs 31675715619, 31690164253 and 31697528360:
+ * all eight E2E jobs started within 0.1 min of each other, so eight is not yet
+ * contended — but run 31445526789 (eighteen shards) had six jobs QUEUED for
+ * 5.5–7.0 minutes, which puts the pool's practical ceiling at roughly twelve
+ * concurrent jobs.
  *
  * It is also bounded from BELOW by the fixed cost of a partition: 0.8 min of
  * checkout, toolchain, artifact download and browser install, plus ~1.5 min of
  * server boot before the first test — 2.3 min per partition that buys no
- * coverage. Ten partitions spend 23 minutes of runner time on setup; eighteen
- * spent 41 and finished no sooner.
+ * coverage. Twelve partitions spend ~28 minutes of runner time on setup;
+ * eighteen spent 41 and finished no sooner.
+ *
+ * ── Why it moved from ten (HARDEN-06A) ──────────────────────────────────────
+ * NOT to make a failing run fit — the split is derived, and this is the only
+ * knob the derivation exposes. With every spec file finally MEASURED the suite
+ * is 165.4 min of test time, and TEN partitions cannot hold that inside a safe
+ * budget: `responsive.spec.ts` takes two partitions of 9.5 min apiece (it is
+ * one generated matrix file and `--shard` is the only way to divide it), which
+ * leaves the other eight carrying 18.3 min each. Derived at each count against
+ * the same measurements, with predicted wall clock as a share of the ceiling:
+ *
+ *   10 → worst 18.3 min · wall 20.5 min · 82%  — OVER MAX_PARTITION_SECONDS
+ *   11 → worst 16.3 min · wall 18.3 min · 73%  — inside, by 0.4 min
+ *   12 → worst 14.7 min · wall 16.4 min · 66%  ← chosen
+ *   13 → worst 13.4 min · wall 15.0 min · 60%  — past the pool's twelve
+ *
+ * Eleven satisfies the ceiling and TWELVE was still taken, for one reason worth
+ * stating: eleven leaves 0.4 min of budget before `check` starts failing, so
+ * the next spec file of any size would force this decision again immediately.
+ * Twelve leaves ~2 min per partition and puts the heaviest back at the
+ * ~70%-of-ceiling target every split since HARDEN-04 has been tuned to. If the
+ * pool does queue a job or two at twelve, that costs WALL CLOCK and nothing
+ * else: a queued job has not started, so it spends none of its `globalTimeout`.
  */
-export const PARTITION_COUNT = 10;
+export const PARTITION_COUNT = 12;
 
 /**
  * The estimate a spec file gets when nothing has measured it yet.
@@ -77,6 +101,59 @@ export const PARTITION_COUNT = 10;
  * lands measures it for real, and `generate --from` replaces the guess.
  */
 export const DEFAULT_SPEC_SECONDS = 120;
+
+/**
+ * Playwright's own ceiling for one partition, in seconds — the `globalTimeout`
+ * `playwright.config.ts` sets in CI. Mirrored here rather than imported because
+ * this file is plain Node and the config is TypeScript; the two are kept honest
+ * by `test/unit/ci/e2e-partitions.test.ts`, which reads the config's source and
+ * fails if the numbers ever disagree.
+ */
+export const GLOBAL_TIMEOUT_SECONDS = 25 * 60;
+
+/**
+ * Wall-clock seconds a partition spends per second of MEASURED test time.
+ *
+ * A partition's budget is the sum of its spec files' measured test durations,
+ * and that is strictly less than the job's elapsed time: `beforeAll`/`afterEach`
+ * fixtures, D1 cleanup, browser context churn and the gaps between tests are all
+ * outside a test's own measured duration. MEASURED on the p08 partition of run
+ * 32321840125 — the one complete partition of that run — 840.5 s of measured
+ * test time took 931.9 s of Playwright wall clock: a factor of 1.109. Rounded UP
+ * to 1.12, because the cost of underestimating this is the failure the whole
+ * mechanism exists to end.
+ */
+export const PARTITION_OVERHEAD_FACTOR = 1.12;
+
+/**
+ * How much of the ceiling a partition's PREDICTED wall clock may occupy.
+ *
+ * 0.75 — the ~70%-of-ceiling target every split since HARDEN-04 has been tuned
+ * to (see `docs/development/SETUP_AND_CI.md` → "Partition budget"), rounded to
+ * the nearest achievable figure at the current partition count. The margin is
+ * not decoration: it absorbs runner-to-runner variance, and run 32321840125
+ * showed the same spec files costing up to 35% more on one runner generation
+ * than another.
+ */
+export const PARTITION_CEILING_UTILISATION = 0.75;
+
+/**
+ * The most MEASURED test time one partition may be budgeted, in seconds.
+ *
+ * Derived, never hand-picked, and deliberately not "whatever today's heaviest
+ * partition happens to be": a ceiling fitted to the current split would move
+ * every time the split did and would have accepted the p05 that could not
+ * finish. 25 min × 0.75 ÷ 1.12 = 16.7 min of measured test time, which predicts
+ * ~18.7 min of wall clock and leaves ~6 min of headroom under `globalTimeout`.
+ *
+ * `check` fails when any committed partition exceeds it. The lever when it does
+ * is `PARTITION_COUNT` (or a genuinely cheaper spec file) — never a bigger
+ * ceiling, which is the one answer HARDEN-04 removed from the table.
+ */
+export const MAX_PARTITION_SECONDS = Math.round(
+  (GLOBAL_TIMEOUT_SECONDS * PARTITION_CEILING_UTILISATION) /
+    PARTITION_OVERHEAD_FACTOR,
+);
 
 /** Spec files the run itself ignores unless a capture variable is set. */
 const CAPTURE_SUFFIX = "-screenshots.spec.ts";
@@ -160,29 +237,64 @@ export function derivePartitions(durations, files, count = PARTITION_COUNT) {
     }));
 }
 
-/** Per-spec-file seconds and test counts from Playwright's JSON report(s). */
-function durationsFromReports(paths) {
-  const totals = new Map();
-  for (const path of paths) {
-    const report = JSON.parse(readFileSync(path, "utf8"));
+/**
+ * Per-spec-file seconds and test counts from Playwright's JSON report(s).
+ *
+ * Accumulated per TEST rather than per file, because both things happen:
+ *
+ *   - a SLICED spec file (`responsive.spec.ts`) is measured across two
+ *     partition reports, each holding half its tests, and its true cost is the
+ *     union of the two — so the reports must add up;
+ *   - the same tests can appear in two reports (a re-run, or a local
+ *     measurement passed alongside the CI run that later measured it), and
+ *     there the second report REPLACES the first rather than doubling it.
+ *
+ * Keying on the test's own identity gets both right. Summing per file got the
+ * first right and the second wrong, silently inflating any spec measured twice.
+ */
+export function durationsFromReports(paths) {
+  return durationsFromReportData(
+    paths.map((path) => JSON.parse(readFileSync(path, "utf8"))),
+  );
+}
+
+/** The same, over already-parsed reports — the shape the unit tests drive. */
+export function durationsFromReportData(reports) {
+  const perFile = new Map();
+  for (const report of reports) {
     const visit = (suite, file) => {
       const current = suite.file
         ? `e2e/${suite.file.replace(/^e2e\//, "")}`
         : file;
       for (const spec of suite.specs ?? []) {
         for (const test of spec.tests ?? []) {
+          let seconds = 0;
+          let executed = false;
+          // A test's own cost includes its retries; `retries: 0` makes that one
+          // result today, and this stays correct if that ever changes.
           for (const result of test.results ?? []) {
             if (typeof result.duration !== "number") continue;
-            const entry = totals.get(current) ?? { seconds: 0, tests: 0 };
-            entry.seconds += result.duration / 1000;
-            entry.tests += 1;
-            totals.set(current, entry);
+            seconds += result.duration / 1000;
+            executed = true;
           }
+          if (!executed) continue;
+          const key =
+            spec.id ??
+            `${current}:${spec.line}:${spec.title}:${test.projectName ?? ""}`;
+          const tests = perFile.get(current) ?? new Map();
+          tests.set(key, seconds);
+          perFile.set(current, tests);
         }
       }
       for (const child of suite.suites ?? []) visit(child, current);
     };
     for (const suite of report.suites ?? []) visit(suite, null);
+  }
+  const totals = new Map();
+  for (const [file, tests] of perFile) {
+    let seconds = 0;
+    for (const value of tests.values()) seconds += value;
+    totals.set(file, { seconds, tests: tests.size });
   }
   return totals;
 }
@@ -213,23 +325,54 @@ function minutes(seconds) {
 
 function commandGenerate(args) {
   const manifest = loadManifest();
+  /*
+   * `--from <results.json>` may be followed by `--as <label>`, which is the
+   * PROVENANCE recorded against every spec file that report measured — the run
+   * it came from, or the local/CI normalisation applied to it.
+   *
+   * The `source` map used to be maintained by hand, and by 2026-08-20 it was
+   * stale in exactly the way the durations were: it had no entry at all for the
+   * ten unmeasured files, and still called several files "local/1.13" that CI
+   * had since measured directly. A provenance record nobody updates is worse
+   * than none, because it reads as evidence. `generate` writes it now, and
+   * `check` requires it.
+   */
   const reports = [];
   for (let index = 0; index < args.length; index += 1) {
-    if (args[index] === "--from") reports.push(args[index + 1]);
+    if (args[index] !== "--from") continue;
+    const path = args[index + 1];
+    const label =
+      args[index + 2] === "--as"
+        ? args[index + 3]
+        : path
+            .split("/")
+            .pop()
+            .replace(/\.json$/, "");
+    reports.push({ path, label });
   }
   const durations = { ...manifest.durations };
   const tests = { ...(manifest.tests ?? {}) };
-  if (reports.length > 0) {
-    for (const [file, entry] of durationsFromReports(reports)) {
-      durations[file] = Math.round(entry.seconds * 10) / 10;
-      tests[file] = entry.tests;
+  const source = { ...(manifest.source ?? {}) };
+  // One accumulation across every report, so a sliced spec file's shards add up.
+  for (const [file, entry] of durationsFromReports(
+    reports.map((report) => report.path),
+  )) {
+    durations[file] = Math.round(entry.seconds * 10) / 10;
+    tests[file] = entry.tests;
+  }
+  // Provenance is per report, last mention winning — which for the two shards
+  // of one sliced file is the same run either way.
+  for (const report of reports) {
+    for (const file of durationsFromReports([report.path]).keys()) {
+      source[file] = report.label;
     }
   }
   const files = listSpecFiles();
-  for (const file of Object.keys(durations)) {
-    if (!files.includes(file)) {
-      delete durations[file];
-      delete tests[file];
+  // A spec file that has been deleted leaves nothing behind in any of the three
+  // maps, so a later `check` cannot trip over a measurement with no spec.
+  for (const map of [durations, tests, source]) {
+    for (const file of Object.keys(map)) {
+      if (!files.includes(file)) delete map[file];
     }
   }
   const partitions = derivePartitions(durations, files).map((partition) => ({
@@ -255,14 +398,36 @@ function commandGenerate(args) {
         .sort()
         .map((file) => [file, tests[file]]),
     ),
+    source: Object.fromEntries(
+      Object.keys(source)
+        .sort()
+        .map((file) => [file, source[file]]),
+    ),
     partitions,
   });
   commandPlan();
+  // Say so loudly rather than leaving it to `check` in CI: a refresh that did
+  // not reach every spec file has produced a manifest that will not pass.
+  const unmeasured = files.filter((file) => durations[file] === undefined);
+  if (unmeasured.length > 0) {
+    console.warn(
+      `\n  ${unmeasured.length} spec file(s) still have NO measured duration and ` +
+        `are sized at the ${DEFAULT_SPEC_SECONDS}s guess. ` +
+        `\`e2e:partitions:check\` will fail until they are measured:`,
+    );
+    for (const file of unmeasured) console.warn(`    ${file}`);
+  }
 }
 
-function commandCheck() {
-  const manifest = loadManifest();
-  const files = listSpecFiles();
+/**
+ * Everything wrong with a manifest, as a list of sentences — pure, and a
+ * function of nothing but the manifest and the spec files on disk.
+ *
+ * Separated from the CLI so the invariants can be exercised against synthetic
+ * manifests (`test/unit/ci/e2e-partitions.test.ts`) rather than only against the
+ * committed one, which by construction is always valid.
+ */
+export function manifestProblems(manifest, files) {
   const problems = [];
 
   const seen = new Map();
@@ -296,6 +461,66 @@ function commandCheck() {
       problems.push(`${spec} is in a partition but does not exist on disk`);
     }
   }
+
+  /*
+   * Every gate spec file must carry a REAL measurement (F-03).
+   *
+   * `derivePartitions` sizes an unmeasured file at `DEFAULT_SPEC_SECONDS` so a
+   * brand-new spec can never be dropped from the gate between the commit that
+   * adds it and the run that measures it. That fallback is a safety net for
+   * DERIVATION; it is not evidence, and the committed manifest is not valid
+   * while it is load-bearing. On run 32321840125 ten of the 111 spec files were
+   * still sized by the guess, one of them (`tasks-dependencies.spec.ts`) cost
+   * 324 s against its 120 s placeholder, and p05 hit `globalTimeout` with 33
+   * tests never executed. The guess had been carried, silently, across four
+   * merges.
+   *
+   * Asked over `listSpecFiles()` — the same canonical discovery the gate itself
+   * runs on — rather than over a second, hand-maintained list, so a spec file
+   * cannot be measured-by-omission.
+   */
+  for (const file of files) {
+    if (manifest.durations[file] === undefined) {
+      problems.push(
+        `${file} has no measured duration — it would be sized at the ` +
+          `${DEFAULT_SPEC_SECONDS}s guess, which is not evidence. Measure it ` +
+          `and refresh: pnpm run e2e:partitions:generate --from <results.json>`,
+      );
+    } else if (manifest.tests?.[file] === undefined) {
+      problems.push(
+        `${file} has a measured duration but no measured test count. Refresh ` +
+          `both from the same run: pnpm run e2e:partitions:generate --from <results.json>`,
+      );
+    } else if (!manifest.source?.[file]) {
+      problems.push(
+        `${file} is measured but says nothing about WHERE the measurement came ` +
+          `from. Re-run the refresh with a label: ` +
+          `pnpm run e2e:partitions:generate --from <results.json> --as <label>`,
+      );
+    }
+  }
+
+  /*
+   * No partition may be budgeted past the derived ceiling (F-03).
+   *
+   * The budget assertion used to live only in the unit test, as a flat "worst
+   * partition under 20 minutes" — which the p05 that could not finish satisfied,
+   * at 19.4 min against a 25-minute `globalTimeout`. It is here now, in the
+   * check CI actually runs, and it is derived from the ceiling rather than
+   * fitted to the current split. See `MAX_PARTITION_SECONDS`.
+   */
+  for (const partition of manifest.partitions) {
+    if (partition.estimateSeconds > MAX_PARTITION_SECONDS) {
+      problems.push(
+        `${partition.name} is budgeted ${minutes(partition.estimateSeconds)} of ` +
+          `measured test time, over the ${minutes(MAX_PARTITION_SECONDS)} ceiling ` +
+          `(${minutes(GLOBAL_TIMEOUT_SECONDS)} globalTimeout × ` +
+          `${PARTITION_CEILING_UTILISATION} ÷ ${PARTITION_OVERHEAD_FACTOR} of ` +
+          `wall-clock overhead). Raise PARTITION_COUNT or make a spec file ` +
+          `cheaper — never the ceiling.`,
+      );
+    }
+  }
   const derived = derivePartitions(manifest.durations, files);
   const shape = (partitions) =>
     JSON.stringify(
@@ -311,6 +536,14 @@ function commandCheck() {
         "Run: pnpm run e2e:partitions:generate",
     );
   }
+
+  return problems;
+}
+
+function commandCheck() {
+  const manifest = loadManifest();
+  const files = listSpecFiles();
+  const problems = manifestProblems(manifest, files);
 
   if (problems.length > 0) {
     console.error("E2E partition manifest is out of date:");
