@@ -594,5 +594,5 @@ time and its zone, the per-source toggles, a calendar's display name — is
 ordinary owner configuration of exactly the kind `owner_app_preferences` and the
 saved views are already exported as. Exporting it by COLUMN rather than omitting
 it by TABLE is the better answer and is a snapshot-schema change; it is recorded
-as **DEBT-177** rather than decided here, and it is the same shape as DEBT-94's
+as **DEBT-176** rather than decided here, and it is the same shape as DEBT-94's
 AI-preferences judgement above.

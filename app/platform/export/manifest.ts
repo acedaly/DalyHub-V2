@@ -89,7 +89,7 @@ export interface ExportManifest {
  * toggles, a calendar's name — should be exported as `owner`-scoped
  * configuration, by column rather than by table, is a separate and open
  * question: it is the same shape as DEBT-94's AI-preferences judgement, and it
- * is recorded as DEBT-177 rather than decided here.
+ * is recorded as DEBT-176 rather than decided here.
  */
 export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Authentication artefacts: Cloudflare Access JWTs, cookies and session state.",

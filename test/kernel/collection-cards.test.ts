@@ -1,6 +1,8 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { ProjectArchiveBlockedError } from "~/kernel/project-settings";
+
 import {
   FakeClock,
   makeAreaRepository,
@@ -197,7 +199,7 @@ describe("Areas collection — exact aggregates", () => {
     // live inside an archived Project.
     await expect(
       makeProjectSettingsRepository(makeContext(WS)).archive(project.id),
-    ).rejects.toThrow(/unfinished tasks/i);
+    ).rejects.toBeInstanceOf(ProjectArchiveBlockedError);
 
     const item = (await makeAreaRepository(makeContext(WS)).listAreas())
       .items[0]!;
