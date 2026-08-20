@@ -53,6 +53,7 @@
 import {
   Fragment,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -153,10 +154,29 @@ export function EditorToolbar({
   history,
 }: EditorToolbarProps) {
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
   // Roving tabindex: exactly one control is a Tab stop; Arrow/Home/End move it.
   // It must always be an ENABLED control — see `ToolbarEntry.enabled`.
   const [activeIndex, setActiveIndex] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [hasHiddenEnd, setHasHiddenEnd] = useState(false);
+
+  /*
+   * DHDS-07 — tell a phone user when more formatting actions exist off-screen.
+   *
+   * The toolbar is intentionally one horizontal row. A partially clipped icon
+   * was its only scroll cue, which disappears entirely at some widths. Measure
+   * the actual scroll geometry and expose a quiet edge fade only while content
+   * remains beyond the trailing edge. The fade carries no interaction or
+   * meaning; every action remains in the toolbar's roving keyboard model.
+   */
+  const updateOverflowCue = useCallback(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+    setHasHiddenEnd(
+      toolbar.scrollLeft + toolbar.clientWidth < toolbar.scrollWidth - 1,
+    );
+  }, []);
 
   /**
    * The Arrow/Home/End handler, reached through a ref.
@@ -404,6 +424,15 @@ export function EditorToolbar({
     registerButton,
   ]);
 
+  useEffect(() => {
+    updateOverflowCue();
+    const toolbar = toolbarRef.current;
+    if (!toolbar || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateOverflowCue);
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, [entries, updateOverflowCue]);
+
   /**
    * The controls, in render order, with their enabled state — and the roving
    * model derived from them.
@@ -468,7 +497,9 @@ export function EditorToolbar({
   let controlIndex = -1;
   return (
     <div
+      ref={toolbarRef}
       className="dh-md-toolbar"
+      data-overflow-end={hasHiddenEnd ? "true" : undefined}
       role="toolbar"
       aria-label={label}
       aria-orientation="horizontal"
@@ -482,6 +513,7 @@ export function EditorToolbar({
        * keyboard rather than silently becoming unreachable.
        */
       tabIndex={enabledIndices.length === 0 ? 0 : undefined}
+      onScroll={updateOverflowCue}
     >
       {entries.map((entry) => {
         if (entry.kind === "separator") {

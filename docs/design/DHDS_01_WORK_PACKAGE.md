@@ -6,6 +6,15 @@
 > defines shared mechanics. If they conflict, stop and resolve the conflict in
 > documentation or an ADR before changing implementation.
 
+**Delivery status (20 August 2026):** Phases 0–5 are implemented. Phase 6's code,
+interaction and documentation sweep is implemented; current-branch screenshot
+recapture remains pending because the execution environment has no working
+Chromium runtime. See
+[`DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md`](DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md)
+for the consumer map, final refinements, regression boundary and exact evidence
+still required. The package is not marked fully done until that capture is
+inspected.
+
 ## Outcome
 
 Make DalyHub feel like one mature, distinctive product capable of competing on
@@ -303,8 +312,11 @@ Migrate patterns in blast-radius order:
 **Implementation record:** items 1–2 are defined and applied across Today,
 Tasks, Inbox, Plan and Schedule in
 [`DHDS_02_ROW_AND_GROUPED_SURFACES_2026_08.md`](DHDS_02_ROW_AND_GROUPED_SURFACES_2026_08.md).
-Panel/drawer/inspector convergence is the next shared-pattern boundary; it is not
-silently bundled into the row pass.
+Items 3–7, their module-consumer map and their regression boundary are recorded
+in
+[`DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md`](DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md).
+Panel convergence remains separate from the row pass in history and evidence;
+the completion record does not rewrite DHDS-02's scope.
 
 Each PR must demonstrate at least two module consumers. A pattern is not shared
 merely because it lives in `app/shared`; it is shared when different modules can
@@ -315,6 +327,11 @@ patterns own layout and interaction contracts; product components own domain
 meaning.
 
 ## Phase 4 — core daily-driver modules
+
+**Implementation status:** shipped. Today, Tasks, Projects, Areas and Goals now
+consume the shared Phase 3 contracts. Current composition authorities and the
+cross-module acceptance map are recorded in
+[`DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md`](DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md#phase-4--core-daily-driver-modules).
 
 ### 4.1 Today
 
@@ -345,6 +362,10 @@ dark for the primary state, plus empty and realistic dense data.
 
 ## Phase 5 — remaining modules
 
+**Implementation status:** shipped by the module-family packages cited below;
+the consolidated authority map is recorded in
+[`DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md`](DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md#phase-5--remaining-modules).
+
 Proceed one coherent module family per PR:
 
 1. **Plan + Schedule** — capacity, commitments and placement; scan-aligned time.
@@ -364,6 +385,11 @@ deferral. “Existing component retained” is not a justification unless the
 component meets the new acceptance criteria.
 
 ## Phase 6 — product sweep
+
+**Implementation status:** code, interaction and documentation sweep complete;
+current-branch visual evidence pending. Do not change this to complete until the
+required browser audit and screenshot set in the completion record are run and
+inspected.
 
 - Capture every collection and representative record at desktop, phone, light
   and dark.

@@ -769,7 +769,7 @@ Both routes reach the same declarations. This is deliberately stricter than it w
 | **Tooltip** | Plain variant: `inverse-surface` pair, `corner-extra-small`, elevation 2, `body-small`, 8px from its trigger and clamped to the viewport. Shown on hover **and** `:focus-visible`. |
 | **Progress** | Linear: `--app-progress-bar-height` (6px since M3X) `corner-full`, `primary` on `secondary-container`. Circular: the shared `ProgressRing` in [`app/shared/charts`](../../app/shared/charts), same tokens; a hero ring passes a thicker stroke. |
 | **Bottom sheet** | Top corners `extra-large`, `surface-container-low`, elevation 1, 32×4 drag handle at `on-surface-variant` 40%. |
-| **Side drawer** | Leading edge `extra-large`, `surface-container-low`, elevation 1, scrim at `scrim` 32%. |
+| **Side drawer** | Neutral raised surface, one quiet leading-edge hairline, overlay elevation and a 32% scrim. It never paints the whole editing surface in the brand tint. |
 
 ---
 
@@ -1081,6 +1081,31 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Rules.** The Drawer is the default way to open any record. It must never lose the user's place. Full-page record views exist only where genuinely warranted (e.g. long-form Note editing).
 **Realised by** the [Shared Drawer (DS-03)](#shared-drawer-ds-03) — the single, entity-agnostic implementation.
 
+### Contextual panel anatomy (DHDS-03)
+
+Drawer, Inspector and Sheet keep their distinct behaviour, but no longer carry
+three versions of the same chrome. They compose one `PanelHeading` and the
+shared `.dh-panel-*` anatomy:
+
+1. one visible `h2`, which is also the surface's accessible name;
+2. at most one supporting line, wired through `aria-describedby`;
+3. contextual header actions only when they earn permanent placement;
+4. one explicit close control — `IconButton` for glyph-only close, or an
+   equally placed worded Cancel where the Sheet action grammar calls for it;
+5. one scrolling body; and
+6. one optional pinned commitment region, separated by a single hairline.
+
+The host still owns the behaviour that makes it the right surface: Drawer owns
+URL history and stacking; Inspector owns docked resize and content reflow; Sheet
+owns transient modal presentation and keyboard-safe mobile geometry. Shared
+anatomy must not become a universal overlay component with modality flags.
+
+On desktop, secondary record actions size to their words. A 420px drawer must
+not contain two 420px secondary buttons. On mobile, the one primary commitment
+may use the pinned region because reachability above the keyboard matters more
+than pointer density. A centred desktop Sheet hides the decorative drag handle;
+it must not advertise a touch gesture it does not implement.
+
 ### Tabs
 **Purpose.** Organise a record's depth into predictable sections without overwhelming the summary.
 **Anatomy.** A consistent tab strip within a record (e.g. Overview · Tasks · Notes · Activity · Settings).
@@ -1093,14 +1118,24 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 **Purpose.** The shared unit for representing an entity in a list, board, or grid.
 **Anatomy.** Entity icon/accent · title · a few meaningful metadata chips · optional progress · quick-action affordances on hover/focus.
 **Behaviour.** Clicking opens the [Drawer](#drawer). Cards support selection, drag (with keyboard equivalent), and inline quick actions. Density is configurable (comfortable/compact).
-**Rules.** **One Card component, configured** — not a bespoke card per module. If a module needs a new card affordance, add it to the shared Card. (This is a top target in [PRODUCT_DEBT](../product/PRODUCT_DEBT.md).)
+**Rules.** **One shared card family, not one mega-component and not one private
+card per module.** `EntityCardGrid` owns gallery collection semantics and
+responsive tracks. `EntityCard` owns the common recognition-led anatomy.
+`ProjectCard` and `AssetCard` are shared product specialisations where the
+domain genuinely changes the layout — a Project pins delivery progress to its
+floor; an Asset leads with obligation and risk. They live in `~/shared/card`,
+consume the same tokens and interaction contracts, and are reusable wherever
+that entity appears. A module-local copy made only to change styling is debt.
 
 **A finished record is struck through — `completed` (TASKS-09).** The opt-in `completed` prop draws a line-through and a quieter title colour, which is exactly the treatment `RecordRow` has drawn since TODAY-02 rather than a second one. Two rules come with it: it is **never colour alone** (the decoration and the colour together), and it is **never the only statement of the fact** — a consumer that sets it also says so in words, through a status pill and an action that reads "Reopen". It is deliberately not derived by the Card from a status value: completion means different things in different modules, and the caller is the one that knows.
 
 **A row may lead the server, but a live region may not (TASKS-09).** Where a collection paints an optimistic change, it patches the record it renders FROM and lets the existing derivations run, so an in-flight row and a reconciled row cannot look different for reasons other than their data. Announcements, activity and any claim of success wait for the server. See [ADR-086](../decisions/ARCHITECTURE_DECISIONS.md#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement).
 
 ### Entity card and its grid (DS-14 Gate D)
-**Purpose.** A record you recognise before you read it — an Area, a Project, a Goal, an Asset — in a responsive grid. It replaces the full-width row card for collections whose records carry identity, where the audit found "the same generic card list" and an Area's whole identity carried by an 8px dot.
+**Purpose.** A record you recognise before you read it — a Project, Goal,
+Asset, or an Area when its optional Grid presentation is selected — in a
+responsive grid. It replaces private gallery implementations; it does not force
+every identity-bearing collection to default to cards.
 **Anatomy.** `EntityCard` in `EntityCardGrid`. Identity container · title · subtitle (the parent context, or a one-line work state) · one status chip · one primary metric · a thin progress bar with its percentage · one wrapping metadata row · an optional footer and overflow menu.
 **Behaviour.** The whole card is one destination: the title is a router `Link` whose `::after` covers the card. The grid is **`auto-fill`** over one token (`--app-entity-card-min-width`) — roughly four columns at ordinary desktop widths, five on a wide monitor, degrading to three, two and one as the width falls — and it is a labelled `<ul>`/`<li>`, so a collection announces how many items it holds. Cards are content-height (`align-items: start`), not stretched to the tallest in the row.
 **Rules.**
@@ -1112,7 +1147,17 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 - **`auto-fill`, never `auto-fit` (DS-16).** The difference only shows when the collection has fewer cards than a row can hold, and there it is decisive: `auto-fit` collapses the empty tracks and stretches the survivors, so two Areas render as two 700px cards on a wide monitor. `auto-fill` keeps the tracks, so a card is the same size whether it has one neighbour or eleven. The column count is a consequence of the available width and that one token — never a breakpoint table.
 - **Metadata is a compact fact GROUP, not a label ladder (DS-16).** Use `CardMetaFact` — glyph, number, noun — instead of `Goals: 2 · Projects: 4 · Tasks: 11`. The glyph is decorative and the noun is beside it, so nothing is carried by an icon alone. A count of **zero is omitted**, never rendered as "0 Projects": an absent dimension is not a fact worth a row on every card. A description or summary line uses `.dh-ecard__summary`, clamped to two lines, so one verbose record cannot make its card twice the height of its neighbours.
 - **Lifecycle lives on the card (DS-16).** Areas and Projects pass the shared [record lifecycle](#record-lifecycle) actions into the card's `overflow` slot, so archiving is reachable from the gallery and not only from inside the record's Settings tab. The overflow is raised above the whole-card link, so opening the menu never navigates.
-- **The three spine collections share ONE gallery (DS-16).** Areas, Projects **and Goals** render `EntityCard` in `EntityCardGrid`. There is no Goals-only grid, no Goals-only card and no Goals-only column rule — a change to `--app-entity-card-min-width` reaches all three at once. Goals' Deleted view uses the same grid too, because switching layouts between two views of one collection makes a filter feel like a different page. A Goal card carries its Area as the context LINE, not as a second link inside a card whose whole surface is already one link.
+- **Recognition-led collections share ONE gallery system (DHDS-04).** Goals
+  render `EntityCard`; Projects render the shared `ProjectCard`; Assets render
+  the shared `AssetCard`; every one sits in `EntityCardGrid`. Areas defaults to
+  `EntityRowList`, but its optional Grid view also uses `EntityCardGrid` and
+  `EntityCard` rather than a private tile. Gallery consumers share
+  collection semantics, boundary, identity resolution, whole-card destination,
+  overflow placement and responsive tracks. Their anatomy differs only where
+  the owner's question differs. There is no module-local grid or column rule —
+  a change to `--app-entity-card-min-width` reaches them together. Lifecycle
+  views keep the same gallery family so changing a filter never feels like
+  changing products.
 
 ### Inline title editing on a Card (TASKS-04)
 **Purpose.** Rename a record from a list without opening it, for collections where renaming is a routine daily act (Tasks).
@@ -1123,7 +1168,7 @@ Each pattern below has: **Purpose**, **Anatomy**, **Behaviour**, and **Rules**. 
 ### Shared writing surface (EDIT-01)
 **Purpose.** ONE long-form editor for every surface that holds real prose — Notes, the Diary body and capture, Meeting agenda and notes, Reviews and a Task's description. It should feel like Gmail or Docs: compact, embedded, familiar — not like a form panel bolted onto a page. It is the **only** long-form control: `~/shared/forms` deliberately exports none ([ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant)).
 **Anatomy.** [`app/shared/markdown-editor`](../../app/shared/markdown-editor), in layers: the pure Markdown-source `markdown-transforms` · the `formatting-actions` catalogue (id, accessible name, glyph, group, shortcut) · the pure `formatting-state` active-format derivation · `editor-setup` (the CodeMirror extension set) · `EditorToolbar` · `LiveMarkdownEditor` (the writing surface, its SSR/no-JS `<textarea>` fallback, and the Read mode that renders through the ONE FND-08 pipeline) · `MarkdownEditorField`, the DS-06-shaped wrapper that lets an explicit-save FORM host the same surface with a real label row, help and error slot.
-**Behaviour.** The editor's document **is** the Markdown source, byte for byte — there is no rich-text document model and no second parser or sanitiser. The toolbar is a compact icon row **attached** to the writing surface (they share one outline), grouped by hairline separators, with `aria-pressed` derived from the source at the selection and real enabled state on undo/redo. `density="compact"` trims the chrome for an editor embedded in a record body; `comfortable` is the editor-first workspace.
+**Behaviour.** The editor's document **is** the Markdown source, byte for byte — there is no rich-text document model and no second parser or sanitiser. The toolbar is a compact icon row **attached** to the writing surface (they share one outline), grouped by hairline separators, with `aria-pressed` derived from the source at the selection and real enabled state on undo/redo. When actions continue beyond a phone's trailing edge, a measured fade signals that the row scrolls; it disappears at the end and never intercepts input. `density="compact"` trims the chrome for an editor embedded in a record body; `comfortable` is the editor-first workspace.
 **Rules.**
 - **The canonical format decides what the toolbar may offer.** Every control must round-trip through the stored Markdown and the sanitising renderer. Strikethrough is offered because `remark-gfm`'s `delete` node survives sanitisation; **underline is not**, because CommonMark and GFM have no underline node and the only way to produce one is raw `<u>`, which the renderer strips. A control that silently does nothing is worse than an absent one.
 - **Icons carry the drawing; `aria-label` carries the word.** Nothing is icon-only to assistive tech, every control composes the [shared tooltip](#tooltip-m3-tip) — which names what it does and shows its shortcut on hover *and* on keyboard focus — and active state is `aria-pressed` **plus** a filled container, never a tint alone. This toolbar is the tooltip primitive's reference adoption; no control here carries a browser `title`.
@@ -1567,6 +1612,8 @@ These replaced four private copies at three different gaps (the Task Drawer's `_
 ## Shared Drawer (DS-03)
 
 The [Drawer](#drawer) pattern above is realised by ONE reusable, entity-agnostic overlay: the **Shared Drawer** ([DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer)), in [`app/shared/drawer`](../../app/shared/drawer). It opens any record over the current page without losing the user's place, is deep-linkable and stackable, and **hosts the [DS-02 Record Layout](#shared-record-layout-ds-02)** rather than inventing a second record presentation. It knows nothing about any entity, D1, workspaces or module routes — callers pass an opaque key and a render function. It builds entirely on [DS-01 tokens](#design-tokens-ds-01) (z-index, elevation, motion, colour, spacing) and is accepted in [ADR-018](../decisions/ARCHITECTURE_DECISIONS.md#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated).
+
+Its visible chrome follows the [DHDS-03 contextual panel anatomy](#contextual-panel-anatomy-dhds-03): the same heading, title/supporting-line hierarchy, close treatment, scrolling-body contract and optional pinned commitment region as Inspector and Sheet. Behaviour remains surface-specific; chrome does not.
 
 ### Purpose
 
@@ -2146,6 +2193,9 @@ The product-wide interaction layer every module inherits: **notifications, undo,
 - **The standard depth-editing surface.** [`app/shared/inspector`](../../app/shared/inspector). A surface mounts `InspectorProvider` and supplies `renderInspector(entry)` (the DS-03 `renderDrawer` contract); open state lives in the URL (`?inspector=<key>`, deep-linkable). No module builds its own edit drawer.
 - **Two presentations.** Desktop: a **non-modal, resizable** right-side `complementary` panel (keyboard + pointer resize, persisted width; content reflows so it is never covered; the page stays interactive for bulk/multi-select). Mobile: a **modal sheet** — focus-trapped, inert background, scroll-locked — **reusing the DS-03 focus/inert/scroll-lock hooks** (no second focus-trap). Focus moves in on open and restores on close in both.
 - **Edits via DS-06.** The Inspector body is built from shared form controls with optimistic field-by-field autosave. Depth here; essentials in the Summary/Drawer — never duplicate the control.
+- **Chrome via DHDS-03.** The Inspector consumes the same `PanelHeading`, body
+  and footer grammar as Drawer and Sheet. Docking and resizing do not justify a
+  second title scale, close button or section rhythm.
 
 **Extension rules.** Use `useFeedback()` for any feedback — never a bespoke toast/banner or a second overlay system. Use the Inspector (not a new drawer) for any record editing. Keep the public API small; do not export internal timing/queue/focus machinery.
 
@@ -2332,13 +2382,18 @@ filters (selects · tags · chips)
 
 | `?present=` | What it draws | Who draws it |
 | --- | --- | --- |
-| `grid` | cards in a wrapping gallery | every collection; the default |
+| `grid` | cards in a wrapping gallery | Projects, Goals, Assets and optional Areas |
 | `table` | a real `<table>` with `<th scope="col">` columns and row headers | Projects |
 | `list` | full-width rows separated by hairlines, one identity mark per row | Areas |
 
 The 16 August 2026 audit read Projects' "Table" beside Areas' "List" as one control saying two words, and asked for one word product-wide. **It is the opposite**: two controls, correctly named, for two different presentations. Projects' second view is a real table — columns with headers, which is what makes it scannable and what `ProjectsTable` documents as its reason for being a `<table>` rather than divs. Areas' is a row list with no columns at all. Renaming either would make a label describe something the page does not draw, which §7 ("speak in the user's nouns") forbids more strongly than it asks for uniformity.
 
-What IS uniform, and must stay so: the control (`ViewSwitcher`), the param (`?present=`), the slot (the control row's trailing edge), the first option (`grid`, always the default) and the accessible-name pattern ("Project layout", "Area layout"). **A fourth word needs a fourth drawing**, and belongs in the table above before it appears in a module.
+What IS uniform, and must stay so: the control (`ViewSwitcher`), the param
+(`?present=`), the slot (the control row's trailing edge), and the
+accessible-name pattern ("Project layout", "Area layout"). The first allowed
+option is that module's declared default: Projects opens on Grid; Areas opens on
+List. **A fourth word needs a fourth drawing**, and belongs in the table above
+before it appears in a module.
 
 **A large collection may DEFAULT to a different presentation** ([ADR-100](../decisions/ARCHITECTURE_DECISIONS.md#adr-100-a-collections-default-presentation-follows-its-size--the-table-at-forty-projects-and-an-explicit-choice-that-is-never-overridden)). `resolveCollectionPresentation` is the one rule: above `COLLECTION_TABLE_DEFAULT_THRESHOLD` records in the CURRENT scope, the collection opens in its "large" presentation instead of its default — and an explicit `?present=` always wins, at every size. Projects opts in at forty. A collection that wants this passes its own `allowed` and `large`; it never re-derives the arithmetic.
 
@@ -2358,7 +2413,11 @@ Two consequences a new list must carry with it: the hairline goes on `li + li` (
 
 **The one recorded exception is a record's TAB PANEL, and it is not this rule's business.** A Project's task list sits inside `.record-tabs__panel`, which looks like a bordered card around a list and is not one: it is the record layout's own surface, drawn identically behind Overview, Links, Activity and Settings on every record in the product, and joined to the tab strip above it (M3-INT, `record-layout.css`). Taking it away for one tab of one record would make that tab the odd one out among its own siblings — a larger inconsistency than the one it would fix. RECORD-01 already defines the deliberate opt-out, `data-surface="plain"`, and states its condition precisely: *a panel whose content already IS a surface does not draw a second* (the Note editor, which draws its own outline). A task list is not already a surface, so it does not meet that condition and keeps the panel.
 
-**A module shows only what it needs.** Consistency here is placement and hierarchy, not content: Meetings and Tasks deliberately have no page-level create and pass nothing rather than filling the slot, and Areas has no view switcher because it has one view.
+**A module shows only what it needs.** Consistency here is placement and
+hierarchy, not content: Meetings and Tasks deliberately have no page-level
+create and pass nothing rather than filling the slot. Areas exposes List/Grid
+because both are intentional drawings of the same records; it does not invent a
+Table merely to match Projects.
 
 **Responsive composition changes on purpose.** Above `md` the header is one row whose title block GROWS (`flex: 1 1 auto` with `min-inline-size: 0`) and whose controls do not — the fix for headers that wrapped while hundreds of pixels of laptop width sat unused. Below `md` it becomes a two-row grid rather than a wrapping flex row, because wrapping lets whatever happens to fit decide the composition:
 
@@ -2391,7 +2450,9 @@ The test is whether the control can be *unset*. "Which Area?" can be Any — a f
 - **Icons are opt-in and decorative.** Use one only where it genuinely aids recognition (List/Gallery); an `iconOnly` switcher keeps a visually-hidden label as its accessible NAME and composes the shared [Tooltip](#tooltip-m3-tip) to describe it on hover *and* keyboard focus. On a selected icon-only segment the check REPLACES the icon in the same box, per M3 — so selection stays a shape and geometry still does not move.
 - **Keyboard is the native one.** Links and buttons behave exactly as they announce themselves; no roving model is invented for a control that does not need one.
 
-**Adopted by** Tasks (layout), Projects, Goals, Notes (lifecycle mode), People (scope + an icon-only List/Gallery), Meetings, Assets, Reviews (scope) and Diary (Day/Timeline). Areas has one view and therefore no switcher.
+**Adopted by** Tasks (layout), Projects, Areas (List/Grid), Goals, Notes
+(lifecycle mode), People (scope + an icon-only List/Gallery), Meetings, Assets,
+Reviews (scope) and Diary (Day/Timeline).
 
 ### User Menu (PX-02)
 

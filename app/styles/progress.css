@@ -91,7 +91,6 @@
 .dh-pcard__fill,
 .dh-ecard__progress-fill,
 .dh-mrow__fill,
-.dh-ptable__fill,
 .dh-scard__progress-fill {
   background: var(--dh-color-meter-neutral);
 }
@@ -102,7 +101,6 @@
     .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
-    .dh-ptable__fill,
     .dh-scard__progress-fill
   ) {
   background: var(--dh-color-meter-success);
@@ -114,7 +112,6 @@
     .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
-    .dh-ptable__fill,
     .dh-scard__progress-fill
   ) {
   background: var(--dh-color-meter-info);
@@ -126,7 +123,6 @@
     .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
-    .dh-ptable__fill,
     .dh-scard__progress-fill
   ) {
   background: var(--dh-color-meter-warning);
@@ -138,7 +134,6 @@
     .dh-pcard__fill,
     .dh-ecard__progress-fill,
     .dh-mrow__fill,
-    .dh-ptable__fill,
     .dh-scard__progress-fill
   ) {
   background: var(--dh-color-meter-danger);

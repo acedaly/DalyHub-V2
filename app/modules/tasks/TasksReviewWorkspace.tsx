@@ -164,9 +164,11 @@ export function TasksReviewWorkspace({
       title="Review Inbox"
       subtitle={subtitle}
       primaryAction={
-        <Link className="dh-btn dh-btn--secondary" to={backToTasks}>
-          Back to Tasks
-        </Link>
+        total === 0 && !data.failed ? undefined : (
+          <Link className="dh-btn dh-btn--secondary" to={backToTasks}>
+            Back to Tasks
+          </Link>
+        )
       }
     >
       <p className="dh-visually-hidden" role="status">

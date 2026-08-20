@@ -884,3 +884,60 @@
     animation: none;
   }
 }
+/* -------------------------------------------------------------------------- */
+/* DHDS-03 — contextual panel anatomy                                         */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Drawer, Inspector and Sheet have different navigation and modality rules,
+ * but their chrome reads the same: heading, optional context, close; one
+ * scrolling body; one pinned commitment region. These classes own only that
+ * shared anatomy. Each host still owns placement, width, motion and safe-area
+ * geometry.
+ */
+.dh-panel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--dh-space-3);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+}
+
+.dh-panel-heading {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.dh-panel-heading__title {
+  margin: 0;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-section-title-size);
+  font-weight: var(--dh-text-section-title-weight);
+  line-height: var(--dh-text-section-title-line-height);
+  overflow-wrap: anywhere;
+}
+
+.dh-panel-heading__description {
+  margin: var(--dh-space-1) 0 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  overflow-wrap: anywhere;
+}
+
+.dh-panel-close {
+  flex: none;
+}
+
+.dh-panel-body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dh-panel-footer {
+  flex: none;
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+  background: var(--dh-color-surface);
+}

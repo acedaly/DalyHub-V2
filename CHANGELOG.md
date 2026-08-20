@@ -1,5 +1,13 @@
 # Changelog
 
+- Completed the remaining DHDS shared-pattern convergence: Drawer, Inspector
+  and Sheet now share one panel heading/body/footer grammar; Projects table
+  progress uses the canonical progress primitive; the mobile editor signals
+  off-screen formatting controls; desktop dialogs no longer advertise a false
+  drag gesture; and Review Inbox no longer repeats its exit action. Added a
+  cross-module regression boundary and corrected the design-system description
+  of the shipped card family.
+
 - Unified DalyHub's dense working rows: Task metadata now reads **when, where,
   importance** in the same order visually and to assistive technology; secondary
   actions stay quiet until hover/focus on desktop while remaining visible on

@@ -16,23 +16,12 @@
 
 import { useEffect, useId, useRef } from "react";
 
+import { CloseIcon } from "~/shared/icons";
+import { IconButton } from "~/shared/ui/IconButton";
+import { PanelHeading } from "~/shared/ui/PanelHeading";
+
 import { useDrawerFocus } from "./use-drawer-focus";
 import type { DrawerEntry, DrawerRenderResult } from "./types";
-
-/** A small close glyph; the accessible name is on the button, so this is hidden. */
-function CloseGlyph() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        d="M4 4l8 8M12 4l-8 8"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
-  );
-}
 
 /** The coherent fallback shown when a deep link resolves to no known record. */
 function DrawerNotFound() {
@@ -118,37 +107,36 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
       inert={!isTop ? true : undefined}
       tabIndex={-1}
     >
-      <div className="drawer__header">
-        <div className="drawer__heading">
-          <h2 id={titleId} className="drawer__title">
-            {title}
-          </h2>
-          {description !== undefined && (
-            <p id={descriptionId} className="drawer__description">
-              {description}
-            </p>
-          )}
-        </div>
+      <header className="drawer__header dh-panel-header">
+        <PanelHeading
+          title={title}
+          titleId={titleId}
+          description={description}
+          descriptionId={descriptionId}
+          className="drawer__heading"
+          titleClassName="drawer__title"
+          descriptionClassName="drawer__description"
+        />
         {headerActions !== undefined && (
           <div className="drawer__header-actions">{headerActions}</div>
         )}
-        <button
+        <IconButton
           ref={closeButtonRef}
-          type="button"
-          className="drawer__close"
-          aria-label="Close"
+          className="drawer__close dh-panel-close"
+          icon={<CloseIcon />}
+          label="Close"
           onClick={onClose}
-        >
-          <CloseGlyph />
-        </button>
-      </div>
-      <div className="drawer__body">
+        />
+      </header>
+      <div className="drawer__body dh-panel-body">
         {result === null ? <DrawerNotFound /> : result.children}
       </div>
       {stickyActions !== undefined && (
         // Pinned OUTSIDE the scrolling body so it never scrolls away, and
         // keyboard-safe by construction (see drawer.css).
-        <div className="drawer__sticky-actions">{stickyActions}</div>
+        <div className="drawer__sticky-actions dh-panel-footer">
+          {stickyActions}
+        </div>
       )}
     </div>
   );

@@ -40,7 +40,7 @@ import {
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
-import { meterStatusAttribute, meterStatusFromTone } from "~/shared/progress";
+import { ProgressTrack, meterStatusFromTone } from "~/shared/progress";
 
 import type { ProjectCardData } from "./project-view";
 
@@ -157,25 +157,13 @@ function ProjectTableRow({
         <span className="dh-ptable__progress-inner">
           {card.progress.has ? (
             <>
-              <span
+              <ProgressTrack
                 className="dh-ptable__track"
-                // POLISH-01 — the same status the row's attention line states,
-                // so the table and the gallery card paint one verdict.
-                {...meterStatusAttribute(
-                  meterStatusFromTone(card.attention.tone),
-                )}
-                role="progressbar"
-                aria-valuenow={card.progress.percent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuetext={`${card.progress.percent}% — ${card.progress.summary} complete`}
-                aria-label={`${card.title} progress`}
-              >
-                <span
-                  className="dh-ptable__fill"
-                  style={{ inlineSize: `${card.progress.percent}%` }}
-                />
-              </span>
+                label={`${card.title} progress`}
+                percent={card.progress.percent}
+                valueText={`${card.progress.summary} complete`}
+                status={meterStatusFromTone(card.attention.tone)}
+              />
               <span className="dh-ptable__percent">
                 {card.progress.percent}%
               </span>

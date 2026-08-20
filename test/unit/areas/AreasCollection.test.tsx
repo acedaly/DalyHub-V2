@@ -37,7 +37,7 @@ function renderCollection(
   opts: {
     nextCursor?: string | null;
     failed?: boolean;
-    /** Omitted means the product's own default, which is the GRID. */
+    /** Omitted means the product's own default, which is the LIST. */
     presentation?: CollectionPresentation;
   } = {},
 ) {
@@ -99,8 +99,7 @@ describe("Areas collection", () => {
      * which is the fact that actually matters and the only one true of both
      * presentations.
      */
-    expect(within(card).getByText("3")).toBeInTheDocument();
-    expect(within(card).getByText(/open tasks/)).toBeInTheDocument();
+    expect(within(card).getByText("3 open tasks")).toBeInTheDocument();
     expect(within(card).queryByRole("progressbar")).not.toBeInTheDocument();
     expect(screen.getByText("1 Area")).toBeInTheDocument();
   });
@@ -240,19 +239,18 @@ describe("Areas collection", () => {
  * card with renamed fields, and the cards were mostly empty. The first no longer
  * holds — a Project card is `.dh-pcard`, bottom-heavy around a progress bar, and
  * an Area card is `.dh-ecard` with no bar at all — so the gallery returned as
- * the DEFAULT. The second still partly holds, which is why the list survives
- * beside it rather than being deleted.
+ * an OPTION. The second still partly holds, so the denser list is the default.
  */
 describe("Areas presentations", () => {
-  it("DEFAULTS to the gallery grid, as Projects does", () => {
+  it("DEFAULTS to the quieter shared row list", () => {
     const { container } = renderCollection([area(), area({ id: "a2" })]);
-    const grid = container.querySelector(".dh-ecard-grid");
-    expect(grid).not.toBeNull();
-    expect(container.querySelector(".dh-erow-list")).toBeNull();
+    expect(container.querySelector(".dh-ecard-grid")).toBeNull();
+    const list = container.querySelector(".dh-erow-list");
+    expect(list).not.toBeNull();
     // A labelled list, so a screen reader is told what it is before reading it.
-    expect(grid?.tagName).toBe("UL");
-    expect(grid?.getAttribute("aria-label")).toBe("Areas");
-    expect(grid?.querySelectorAll(":scope > li").length).toBe(2);
+    expect(list?.tagName).toBe("UL");
+    expect(list?.getAttribute("aria-label")).toBe("Areas");
+    expect(list?.querySelectorAll(":scope > li").length).toBe(2);
   });
 
   it("draws NO progress bar in either presentation, because Areas never complete", () => {
@@ -290,9 +288,9 @@ describe("Areas presentations", () => {
     // required. Neither changes WHICH records are shown.
     const grid = screen.getByRole("link", { name: /Grid/ });
     const list = screen.getByRole("link", { name: /List/ });
-    expect(grid).toHaveAttribute("aria-current", "true");
-    expect(list).not.toHaveAttribute("aria-current");
-    expect(list.getAttribute("href")).toContain("present=list");
+    expect(list).toHaveAttribute("aria-current", "true");
+    expect(grid).not.toHaveAttribute("aria-current");
+    expect(grid.getAttribute("href")).toContain("present=grid");
   });
 
   it("states counts as one relationship line with their nouns beside them", () => {

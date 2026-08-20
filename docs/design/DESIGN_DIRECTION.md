@@ -367,6 +367,27 @@ from Card + Chip + Button + Container:
 - **Timeline** — Today, Schedule, history and activity;
 - **Editor** — Notes, Diary and rich descriptions.
 
+### Contextual depth surfaces
+
+Drawer, Inspector and Sheet are different behaviours expressed through one
+panel grammar. Every host uses the same title hierarchy: one title, at most one
+short supporting line, a consistently placed close action, one scrolling body
+and an optional pinned commitment region for Save/Confirm actions. Do not place
+a second page header, duplicate title or decorative toolbar inside that frame.
+
+The host determines interaction, not appearance:
+
+- a **Drawer** preserves page context, URL history and stacked record depth;
+- an **Inspector** keeps the page interactive on desktop and supports docked
+  resizing, becoming modal only when the viewport requires it;
+- a **Sheet** handles short transient choices and actions, bottom-anchored on a
+  phone and presented as a centred dialog on larger screens.
+
+Do not show a drag handle on a centred desktop dialog, imitate a mobile gesture
+where none exists or create module-specific panel chrome. Use `PanelHeading`,
+the `.dh-panel-*` anatomy and the shared close/action primitives. Content and
+behaviour may vary; spacing, hierarchy and interaction affordances may not.
+
 Typography and spacing carry most hierarchy. Corners are moderately rounded,
 never cartoonish. Shadows are rare. Borders are subtle. Icons are consistent
 and purposeful.

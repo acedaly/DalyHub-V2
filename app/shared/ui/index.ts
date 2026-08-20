@@ -102,6 +102,7 @@ export {
   type CardPadding,
   type CardVariant,
 } from "./Card";
+export { PanelHeading, type PanelHeadingProps } from "./PanelHeading";
 
 /* ── Overlays ─────────────────────────────────────────────────────────────── */
 

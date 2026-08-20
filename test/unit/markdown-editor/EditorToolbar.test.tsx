@@ -140,6 +140,23 @@ describe("EditorToolbar", () => {
     bold.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
   });
+
+  it("shows a trailing continuation cue only while actions remain off-screen", () => {
+    render(<EditorToolbar onAction={vi.fn()} />);
+    const toolbar = screen.getByRole("toolbar");
+    Object.defineProperties(toolbar, {
+      clientWidth: { configurable: true, value: 100 },
+      scrollWidth: { configurable: true, value: 300 },
+      scrollLeft: { configurable: true, writable: true, value: 0 },
+    });
+
+    fireEvent.scroll(toolbar);
+    expect(toolbar).toHaveAttribute("data-overflow-end", "true");
+
+    toolbar.scrollLeft = 200;
+    fireEvent.scroll(toolbar);
+    expect(toolbar).not.toHaveAttribute("data-overflow-end");
+  });
 });
 
 /**

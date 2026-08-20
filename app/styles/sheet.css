@@ -279,6 +279,13 @@
 /* -------------------------------------------------------------------------- */
 
 @media (min-width: 48.0625rem) {
+  /* A drag handle describes touch manipulation. The centred desktop dialog is
+   * closed by its explicit control and must not advertise a gesture it does not
+   * implement. */
+  .dh-sheet__handle {
+    display: none;
+  }
+
   .dh-sheet,
   .dh-sheet[data-variant="full"] {
     inset: auto;
