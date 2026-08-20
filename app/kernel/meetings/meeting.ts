@@ -111,6 +111,22 @@ export interface Meeting extends EntityRecord<"meeting"> {
    * (an operational label) and `archivedAt` (a reversible collection state).
    */
   readonly heldAt: Date | null;
+  /**
+   * HARDEN-06B — the version of this Meeting's own detail row, and the token a
+   * whole-document save quotes as the state it was written against (F-01).
+   *
+   * Deliberately distinct from {@link EntityRecord.updatedAt}, which is the
+   * LATER of the entity's and the detail row's timestamps and therefore a
+   * derived display value. A compare-and-set needs the exact stored value the
+   * guard compares, which is this one — the same relationship
+   * `NoteDetails.contentUpdatedAt` has to a Note.
+   *
+   * It moves on ANY detail write (agenda, notes, times, status, archive, held),
+   * not only a content write. That is conservative on purpose: a save based on
+   * a meeting that has since changed in any way is worth asking about, and the
+   * owner is asked rather than overruled.
+   */
+  readonly detailsUpdatedAt: Date;
   readonly items: readonly MeetingItem[];
 }
 
@@ -136,6 +152,21 @@ export interface UpdateMeetingInput {
   readonly status?: MeetingStatus;
   readonly agendaMarkdown?: string;
   readonly notesMarkdown?: string;
+  /**
+   * HARDEN-06B (F-01) — the {@link Meeting.detailsUpdatedAt} this edit was
+   * written against, as an ISO-8601 instant.
+   *
+   * Supplying it makes the write a COMPARE-AND-SET: it commits only while the
+   * stored meeting is still the one this edit was based on, and raises
+   * {@link MeetingConflictError} once another tab or device has written since.
+   * The precondition is evaluated INSIDE the write statements, so nothing can
+   * slip between a check and the update.
+   *
+   * Omitting it keeps the previous last-write-wins behaviour exactly, which is
+   * what every non-document mutation (status, attendee, times) still does — a
+   * field-scoped patch has no whole document to destroy.
+   */
+  readonly expectedUpdatedAt?: string;
 }
 
 export interface MeetingPage {

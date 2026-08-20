@@ -110,6 +110,25 @@ export class MeetingItemConflictError extends Error {
   }
 }
 
+/**
+ * HARDEN-06B (F-01) — the write was refused because the stored Meeting moved on
+ * since the caller read it.
+ *
+ * It is an EXPECTED outcome — "this meeting changed elsewhere" — never an
+ * infrastructure failure, and never a silent success: the newer stored agenda
+ * and notes are intact and the caller's text is still theirs to keep. Mirrors
+ * `NoteDetailsConflictError`, whose reasoning applies unchanged: Markdown has
+ * no deterministic safe merge, and a wrong merge produces text neither person
+ * wrote, so the write refuses rather than merges.
+ */
+export class MeetingConflictError extends Error {
+  readonly code = "conflict" as const;
+  constructor() {
+    super("This meeting changed somewhere else. Nothing has been overwritten.");
+    this.name = "MeetingConflictError";
+  }
+}
+
 export interface MeetingRepository {
   create(input: CreateMeetingInput): Promise<Meeting>;
   get(id: string): Promise<Meeting | null>;
@@ -162,6 +181,18 @@ export interface MeetingRepository {
     /** Page size, clamped to a safe maximum. */
     readonly limit?: number;
   }): Promise<readonly MeetingSearchHit[]>;
+  /**
+   * Apply a PARTIAL patch to the meeting: only the keys present in `input` are
+   * changed, and an unchanged result writes nothing and appends no Activity.
+   *
+   * HARDEN-06B (F-01) — supply `input.expectedUpdatedAt` (the
+   * {@link Meeting.detailsUpdatedAt} the editor loaded) to make the write a
+   * compare-and-set. The precondition is folded into the write statements
+   * themselves, so nothing can slip between a check and the update, and a stale
+   * write raises {@link MeetingConflictError} with the stored meeting untouched.
+   * A save that asks for exactly the stored state is still the idempotent no-op
+   * it always was — agreeing with the current text cannot lose anyone's writing.
+   */
   update(
     id: string,
     input: UpdateMeetingInput,

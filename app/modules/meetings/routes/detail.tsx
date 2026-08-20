@@ -53,6 +53,7 @@ import { utcToOwnerLocal } from "~/shared/datetime";
 import { MeetingCaptureBar } from "../MeetingCaptureBar";
 import { MeetingContextRow } from "../MeetingContextRow";
 import { MeetingMarkdown } from "../MeetingMarkdown";
+import type { MeetingConflictResponse } from "./mutate";
 import {
   DIRECT_FOLLOW_UP_DRAWER_KEY,
   MeetingFollowUpFormHost,
@@ -465,18 +466,67 @@ function MeetingRecord({
         pending !== null && pending.startsWith(m.notesMarkdown)
           ? pending
           : m.notesMarkdown;
-      const existing = base.trimEnd();
-      const next = existing.length > 0 ? `${existing}\n\n${line}` : line;
 
-      pendingNotesRef.current = next;
-      const ok = await post({ intent: "update", notesMarkdown: next });
-      if (!ok) {
+      /*
+       * HARDEN-06B (F-01) — the append quotes the version it read, and RETRIES
+       * on refusal instead of failing.
+       *
+       * An append is the one whole-document write that HAS a deterministic safe
+       * merge: adding a line to whatever the notes currently are produces text
+       * that keeps both writers' words, which is exactly why the editor refuses
+       * and this does not. The refusal answers with the newer stored notes, so
+       * the retry appends onto those. Bounded to one retry — a second refusal
+       * means a third writer is active, and reporting the failure honestly is
+       * better than looping while the owner waits.
+       */
+      const attempt = async (
+        onto: string,
+        expectedUpdatedAt: string,
+      ): Promise<
+        | { readonly ok: true; readonly written: string }
+        | { readonly ok: false; readonly conflict?: MeetingConflictResponse }
+      > => {
+        const existing = onto.trimEnd();
+        const next = existing.length > 0 ? `${existing}\n\n${line}` : line;
+        const f = new FormData();
+        f.set("intent", "update");
+        f.set("notesMarkdown", next);
+        f.set("expectedUpdatedAt", expectedUpdatedAt);
+        try {
+          const response = await fetch(`/meeting/${m.id}/mutate`, {
+            method: "POST",
+            body: f,
+          });
+          if (response.ok) return { ok: true, written: next };
+          if (response.status === 409) {
+            const data = (await response.json()) as MeetingConflictResponse & {
+              readonly conflict?: boolean;
+            };
+            if (data.conflict === true) return { ok: false, conflict: data };
+          }
+          return { ok: false };
+        } catch {
+          return { ok: false };
+        }
+      };
+
+      let result = await attempt(base, m.detailsUpdatedAt);
+      if (!result.ok && result.conflict) {
+        result = await attempt(
+          result.conflict.serverNotesMarkdown,
+          result.conflict.detailsUpdatedAt ?? m.detailsUpdatedAt,
+        );
+      }
+      if (!result.ok) {
         // A failed append must not become the base for the next one.
         pendingNotesRef.current = pending;
+        return false;
       }
-      return ok;
+      pendingNotesRef.current = result.written;
+      r.revalidate();
+      return true;
     },
-    [m.notesMarkdown, post],
+    [m.detailsUpdatedAt, m.id, m.notesMarkdown, r],
   );
 
   const itemSection = (
@@ -683,6 +733,7 @@ function MeetingRecord({
                         field="agendaMarkdown"
                         label="Agenda"
                         initial={m.agendaMarkdown}
+                        version={m.detailsUpdatedAt}
                         onSaved={() => r.revalidate()}
                         readOnly={readOnly}
                       />
@@ -696,6 +747,7 @@ function MeetingRecord({
                         field="notesMarkdown"
                         label="Notes"
                         initial={m.notesMarkdown}
+                        version={m.detailsUpdatedAt}
                         onSaved={() => r.revalidate()}
                         readOnly={readOnly}
                       />
