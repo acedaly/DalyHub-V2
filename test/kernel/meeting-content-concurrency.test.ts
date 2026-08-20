@@ -314,3 +314,48 @@ describe("POST /meeting/:meetingId/mutate — the refused save's 409", () => {
     expect((await writer().get(meeting.id))?.status).toBe("completed");
   });
 });
+
+/**
+ * HARDEN-06F — a continuous writing session must not conflict with ITSELF.
+ *
+ * Raised by an automated review of #208 and confirmed here before it was fixed.
+ *
+ * `useAutosaveField` coalesces edits made while a save is in flight and
+ * dispatches the coalesced draft the moment that save RESOLVES. So the second
+ * save leaves before any route revalidation can land, and it quotes whatever
+ * base version the editor is still holding. If the success response does not
+ * carry the version the write just produced, that base is stale by
+ * construction — and the owner is shown "Changed elsewhere" for a change THIS
+ * editor made, in the ordinary single-writer case.
+ *
+ * `NoteContentForm` had this right and says why: "keep quoting a current base
+ * so a long writing session does not conflict with its own previous save." The
+ * Meetings route returned a bare `{ ok: true }`, so there was nothing to keep.
+ */
+describe("HARDEN-06F — the success response carries the version it produced", () => {
+  it("lets a second save quote the version the FIRST response returned", async () => {
+    const meeting = await newMeeting();
+
+    const first = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Typing…",
+      expectedUpdatedAt: meeting.version,
+    });
+    expect(first.status).toBe(200);
+    // Without this the editor has no current base to quote, and the sentence
+    // below is the whole defect: it cannot save again without a round trip it
+    // has no way to wait for.
+    expect(typeof first.body.detailsUpdatedAt).toBe("string");
+    expect(first.body.detailsUpdatedAt).not.toBe(meeting.version);
+
+    const second = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Typing… and still typing.",
+      expectedUpdatedAt: String(first.body.detailsUpdatedAt),
+    });
+    expect(second.status).toBe(200);
+    expect((await writer().get(meeting.id))?.notesMarkdown).toBe(
+      "Typing… and still typing.",
+    );
+  });
+});

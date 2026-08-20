@@ -43,6 +43,17 @@ export interface MarkHeldResponse {
  * routes into the shared `RemoteChangeBanner` reconciliation instead of a retry
  * the server would refuse again for the same good reason.
  */
+/**
+ * HARDEN-06F — the body a SUCCESSFUL whole-document save answers with.
+ *
+ * `detailsUpdatedAt` is the version this write produced, so a long writing
+ * session keeps quoting a current base rather than the one it first loaded.
+ */
+export interface MeetingUpdateResponse {
+  readonly ok: true;
+  readonly detailsUpdatedAt: string;
+}
+
 export interface MeetingConflictResponse {
   readonly ok: false;
   readonly conflict: true;
@@ -190,12 +201,28 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         }
         changes.endsAt = endsAt ? endsAt.toISOString() : null;
       }
-      await scope.meetings.update(
+      const saved = await scope.meetings.update(
         id,
         expectedUpdatedAt === undefined
           ? changes
           : { ...changes, expectedUpdatedAt },
       );
+      /*
+       * HARDEN-06F — the success answer carries the version it produced.
+       *
+       * `useAutosaveField` coalesces edits made during a save and dispatches the
+       * coalesced draft the moment that save RESOLVES — before any route
+       * revalidation can land. So an editor that cannot learn its new base
+       * version from this response is holding a stale one by construction, and
+       * its very next save is refused: "Changed elsewhere" for a change the
+       * SAME editor just made. `NoteContentForm` had this right and says why —
+       * "keep quoting a current base so a long writing session does not
+       * conflict with its own previous save".
+       */
+      return Response.json({
+        ok: true,
+        detailsUpdatedAt: saved.meeting.detailsUpdatedAt.toISOString(),
+      } satisfies MeetingUpdateResponse);
     }
     return Response.json({ ok: true });
   } catch (cause) {

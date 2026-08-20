@@ -279,6 +279,94 @@ test("a SECOND real tab is the other writer, and neither loses its words", async
   }
 });
 
+test("a continuous writing session never REFUSES its own next save", async ({
+  page,
+}) => {
+  /*
+   * HARDEN-06F. The two journeys above each make ONE save per editor, which is
+   * exactly why they did not catch this: `useAutosaveField` coalesces edits
+   * made while a save is in flight and dispatches the coalesced draft the
+   * instant that save resolves — before any revalidation can land. An editor
+   * that could not learn its new base version from the SUCCESS response was
+   * therefore holding a stale one by construction, and its very own next save
+   * came back `409`. Raised by an automated review of #208.
+   *
+   * The first POST is HELD so the "kept typing through the save" window is a
+   * fact rather than a race. Watching for the transient "Saving…" label instead
+   * would be sampling: on a local server that state can be gone in under a
+   * frame, which is the unsafe-assertion shape HARDEN-06A removed from
+   * `reviews-guided`.
+   *
+   * What this asserts is the SERVER outcome — every save accepted, every
+   * sentence stored. It deliberately does NOT assert that the reconciliation
+   * banner stays away: a revalidation is a round trip, so the loader can still
+   * hand the coordinator text this editor has already written past, and it is
+   * parked as if it were somebody else's. That is a property of the shared
+   * `serverValue` contract rather than of this fix, it predates it, it affects
+   * the Note body identically, and it is DEBT-177 — not something to paper over
+   * in an assertion here.
+   */
+  const title = uniqueMeetingTitle("self-conflict");
+  const meetingUrl = await createMeeting(page, title);
+  await openNotebook(page);
+
+  const statuses: number[] = [];
+  let saves = 0;
+  await page.route("**/mutate", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    saves += 1;
+    // Only the FIRST save is held — long enough to type through, short enough
+    // that the journey does not become a wait.
+    if (saves === 1) await new Promise((settle) => setTimeout(settle, 2500));
+    await route.continue();
+  });
+  page.on("response", (response) => {
+    if (
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname.endsWith("/mutate")
+    ) {
+      statuses.push(response.status());
+    }
+  });
+
+  const group = await waitForEditor(page, "Notes");
+  await group.locator(".cm-content").click();
+  await page.keyboard.type("First sentence of a long note.");
+
+  // Wait for the debounce to have dispatched the first save, then keep typing
+  // while it is still in flight — the coordinator coalesces this into a second
+  // save that leaves the moment the first resolves.
+  await expect.poll(() => saves, { timeout: 15_000 }).toBeGreaterThan(0);
+  await page.keyboard.type(
+    " Second sentence, typed while the first was saving.",
+  );
+  await page.keyboard.type(" Third sentence, still going.");
+  await blurEditor(page, "Notes");
+
+  await expect(page.getByText("Saved").first()).toBeVisible({
+    timeout: 30_000,
+  });
+  // More than one save genuinely happened — otherwise this proves nothing —
+  // and NOT ONE of them was refused. Before the fix the second was a `409`.
+  await expect
+    .poll(() => statuses.length, { timeout: 15_000 })
+    .toBeGreaterThan(1);
+  expect(statuses).not.toContain(409);
+
+  await page.unroute("**/mutate");
+
+  // And every sentence is on the server, not just the first.
+  await gotoFixture(page, meetingUrl);
+  await openNotebook(page);
+  const stored = await readVisible(page, "Notes");
+  expect(stored).toContain("First sentence");
+  expect(stored).toContain("Second sentence");
+  expect(stored).toContain("Third sentence");
+});
+
 test("clearing the notes to empty actually empties them", async ({ page }) => {
   // HARDEN-06B — the route coerced an empty submission to `null`, which the
   // repository's merge reads as "not supplied", so select-all-delete-save

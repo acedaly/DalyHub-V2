@@ -428,7 +428,12 @@
 .dh-today__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--dh-space-7) var(--dh-space-6);
+  /* The scale has no rung 7 — it steps 6 (24) → 8 (32) — so `--dh-space-7`
+     was undefined and the whole declaration invalid, which meant NO row gap
+     rendered at all. 8 is the next rung and is what the pairing with 6 for the
+     column gap intends. (Not from the audit-repair pass; `tokens.test.ts` was
+     already red on `main`.) */
+  gap: var(--dh-space-8) var(--dh-space-6);
   align-items: start;
   min-inline-size: 0;
 }

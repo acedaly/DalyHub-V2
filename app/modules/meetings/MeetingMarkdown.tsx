@@ -70,13 +70,20 @@ function isNewerVersion(candidate: string | null, against: string): boolean {
   return candidate !== null && candidate > against;
 }
 
-/** The `409` body `meetings/routes/mutate.tsx` answers a refused save with. */
+/**
+ * What `meetings/routes/mutate.tsx` answers a whole-document save with — the
+ * `200` and the `409` read through one shape, because this callback has to
+ * branch on which arrived.
+ *
+ * `detailsUpdatedAt` is on BOTH: on success it is the version this write
+ * produced, and on a refusal it is the version the newer stored text is at.
+ */
 type MeetingMutationResponse = {
   readonly ok?: boolean;
+  readonly detailsUpdatedAt?: string | null;
   readonly conflict?: boolean;
   readonly serverAgendaMarkdown?: string;
   readonly serverNotesMarkdown?: string;
-  readonly detailsUpdatedAt?: string | null;
 };
 
 /**
@@ -157,6 +164,23 @@ function MeetingMarkdownEditor({
         throw new Error("save rejected");
       }
       if (r.ok && data.ok === true) {
+        /*
+         * HARDEN-06F — our text IS the stored text now, so quote the version
+         * this write produced.
+         *
+         * The coordinator dispatches a coalesced draft the instant this
+         * resolves, well before `onSaved()`'s revalidation can land. Without
+         * advancing here, that next save quotes a base the server has already
+         * moved past and is refused — "Changed elsewhere" for a change THIS
+         * editor made, in the ordinary single-writer case. It only ever moves
+         * forward, so a revalidation landing later cannot restore a base we
+         * have already written past.
+         */
+        if (
+          isNewerVersion(data.detailsUpdatedAt ?? null, baseVersion.current)
+        ) {
+          baseVersion.current = data.detailsUpdatedAt!;
+        }
         onSaved();
         return;
       }

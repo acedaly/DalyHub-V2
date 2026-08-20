@@ -11,7 +11,9 @@
 >
 > This is not V2.4 and it is not another audit. It is the sequence §26 of the
 > audit specified, HARDEN-06B through 06E, delivered on one branch because each
-> slice is small and they share a documentation and debt reconciliation.
+> slice is small and they share a documentation and debt reconciliation — plus
+> **HARDEN-06F**, the follow-up that repaired a defect this pass itself
+> introduced into F-01's fix (§2).
 
 ---
 
@@ -35,14 +37,19 @@
 | **F-14** — the AI's weekly-review facts group by UTC day | P3 | **Fixed** — `4c72ff6` |
 | **F-15** — two load-bearing code comments are now false | P3 | **Fixed** — `fa27c50` |
 | **N-01** — a Meeting's agenda or notes cannot be cleared to empty | P2 (new) | **Fixed** — `3564050` |
+| **N-02** — F-01's own repair made a continuous writing session refuse its next save | P2 (new) | **Fixed** — HARDEN-06F |
 
 **Counts.** P0 fixed: **1**. P1 fixed: **1** (a second, F-03, was already fixed
 on `main`). P2 fixed: **7** (F-04, F-05, F-06, F-07, F-08, F-09, N-01), of which
 one — F-09 — is fixed in the half that makes the figure correct and deferred in
 the half that makes the class unrepeatable. P2 fixed in part: **1** (F-10). P3
 fixed: **4** (F-12, F-13, F-14, F-15). Rejected: **0**. Deferred: **2** halves,
-as DEBT-175 and DEBT-176. Newly discovered: **1** (N-01), fixed in the same
-commit as the finding whose code path it shares.
+as DEBT-175 and DEBT-176, plus one behaviour split out as DEBT-177. Newly
+discovered: **2** — N-01, fixed in the same commit as the finding whose code
+path it shares, and **N-02, a defect in F-01's own repair**, fixed by
+HARDEN-06F (§2) after an automated review of the merged PR found it. Counting
+N-02 among the fixes rather than quietly folding it into F-01 is the point: this
+pass introduced it.
 
 Every finding was re-derived against the current tree before it was touched.
 None was rejected: all thirteen still-open findings reproduced.
@@ -314,6 +321,46 @@ None was rejected: all thirteen still-open findings reproduced.
   shared row; TODAY-TASK-01 adopted it. The Project's task list is now the only
   one left, and the comment says so and points at DEBT-175.
 
+### HARDEN-06F — the follow-up F-01's own repair needed
+
+Raised by an automated review of the merged PR, confirmed here, and fixed on the
+same terms as everything above: reproduce first, then repair, then a test that
+fails without it.
+
+- **Root cause.** `useAutosaveField` coalesces edits made while a save is in
+  flight and dispatches the coalesced draft the INSTANT that save resolves —
+  before `onSaved()`'s revalidation can land. The Meetings mutation route
+  answered a bare `{ ok: true }`, so the editor had no way to learn the version
+  its own write had just produced. Its next save therefore quoted a base the
+  server had already moved past and came back `409`: **"Changed elsewhere" for a
+  change the same editor made, on the one device the owner was sitting at.**
+  Typing without pausing is the ordinary case, so F-01's repair made the
+  single-writer path worse while fixing the multi-writer one.
+- **Where it came from.** `NoteContentForm` had this right and says why in as
+  many words — *"keep quoting a current base so a long writing session does not
+  conflict with its own previous save"*. F-01 copied the conflict half of the
+  Notes precedent and not the success half. That is the audit's own theme
+  arriving inside its repair.
+- **Implementation.** The route returns `detailsUpdatedAt` on success
+  (`MeetingUpdateResponse`), and the editor advances its base from it — forward
+  only, so a revalidation landing later cannot restore a base already written
+  past.
+- **Tests.** A route case in `meeting-content-concurrency.test.ts` (a second
+  save quoting the version the FIRST response returned succeeds) and a browser
+  journey, *"a continuous writing session never REFUSES its own next save"*,
+  which HOLDS the first POST so the typed-through-the-save window is a fact
+  rather than a race. Both fail with the advance removed.
+- **What was attempted and reverted, deliberately.** A further refinement —
+  suppressing a loader value that is not strictly newer than the version the
+  editor has written past — looked right and was wrong: after the owner adopts a
+  remote version, the editor's own last-written text is stale, so the guard
+  handed back pre-adoption text and reverted what they had just adopted. The
+  two-writer journey caught it immediately and it was reverted rather than
+  patched. What remains is a cosmetic banner on a lagging revalidation, it
+  affects the Note body identically, it loses nothing, and it is **DEBT-177**
+  with the failed approach recorded in the entry so the next attempt does not
+  repeat it.
+
 ---
 
 ## 3. Rejected findings
@@ -339,6 +386,7 @@ already fixed by HARDEN-06A and are recorded as such rather than re-attempted.
 | New | Severity | Disposition |
 | --- | --- | --- |
 | **N-01** — a Meeting's agenda or notes cannot be cleared to empty; the save reports success and changes nothing | P2 | **Fixed in this branch**, in the same commit as F-01 — it is the same three lines of the same route, and leaving it would have meant shipping a known "accepted and did not happen" defect in a pass whose subject is exactly that. |
+| **N-02** — F-01's repair made a continuous writing session refuse its own next save with a `409` | P2 | **Fixed by HARDEN-06F** (§2). Found by an automated review of the merged PR, not by this pass's own tests — which is worth recording: every journey written for F-01 made ONE save per editor, and the defect needs two. |
 
 No other new defect was found. Two near-misses were checked and are NOT defects:
 `goal-alignment.ts`'s UTC window (documented as an approximation on a count that

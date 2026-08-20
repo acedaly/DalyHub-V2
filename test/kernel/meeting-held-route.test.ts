@@ -242,7 +242,11 @@ describe("POST /meeting/:meetingId/mutate — mark_held", () => {
     const { status, body } = await mutate(meeting.id, { intent: "mark_HELD" });
 
     expect(status).toBe(200);
-    expect(body).toEqual({ ok: true });
+    // Asserted by MEANING rather than by the exact object: this case is about an
+    // unknown intent falling through to the ordinary detail update and NOT
+    // marking the meeting held. HARDEN-06F added `detailsUpdatedAt` to that
+    // path's success body — a field this test is not about.
+    expect(body.ok).toBe(true);
     expect(await countActivitiesOfType(MEETING_HELD)).toBe(0);
     expect((await meetings.get(meeting.id))?.heldAt).toBeNull();
   });
