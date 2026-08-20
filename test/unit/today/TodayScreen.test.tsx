@@ -307,6 +307,63 @@ describe("the header block", () => {
   });
 });
 
+describe("TODAY-12: decision-first command centre", () => {
+  it("separates the first open task into Now without duplicating it", () => {
+    renderScreen(
+      day({
+        overdue: [
+          task("o1", "Oldest promise", { dueDate: "2026-08-01" }),
+          task("o2", "Another late task", { dueDate: "2026-08-02" }),
+        ],
+      }),
+    );
+    const now = screen.getByTestId("today-now");
+    expect(within(now).getByText("Oldest promise")).toBeVisible();
+    expect(screen.getAllByText("Oldest promise")).toHaveLength(1);
+    expect(
+      within(timelineSection()).getByText("Another late task"),
+    ).toBeVisible();
+  });
+
+  it("surfaces the next real meeting beside the decision", () => {
+    renderScreen(
+      day({
+        today: [task("a", "Alpha")],
+        meetings: [
+          meeting("m1", "Design review", "09:30", {
+            context: "Studio",
+            upcoming: true,
+          }),
+        ],
+      }),
+    );
+    const next = screen.getByTestId("today-next");
+    expect(within(next).getByText("09:30")).toBeVisible();
+    expect(
+      within(next).getByRole("link", { name: /Design review/ }),
+    ).toHaveAttribute("href", "/meeting/m1");
+  });
+
+  it("puts weekly reporting after the day's work", () => {
+    const { container } = renderScreen(
+      day({
+        today: [task("a", "Alpha")],
+        activityTrend: {
+          days: [],
+          totalCompleted: 4,
+          totalCreated: 2,
+          previousCompleted: 3,
+        },
+      }),
+    );
+    const grid = container.querySelector(".dh-today__grid")!;
+    const children = [...grid.children];
+    expect(
+      children.indexOf(screen.getByTestId("today-summary")),
+    ).toBeGreaterThan(children.indexOf(screen.getByTestId("today-plan")));
+  });
+});
+
 /*
  * The WEEK's measures.
  *
@@ -443,8 +500,8 @@ describe("the day timeline", () => {
   it("omits the Meetings section entirely when there are none", () => {
     renderScreen(day({ today: [task("a", "Alpha")] }));
     expect(
-      within(timelineSection()).getByText("Due today"),
-    ).toBeInTheDocument();
+      within(screen.getByTestId("today-now")).getByText("Alpha"),
+    ).toBeVisible();
     expect(screen.queryByText("Meetings")).not.toBeInTheDocument();
   });
 
@@ -486,7 +543,7 @@ describe("the day timeline", () => {
 
   it("never prints a time beside a task", () => {
     const { container } = renderScreen(day({ today: [task("a", "Alpha")] }));
-    const row = within(timelineSection()).getByText("Alpha").closest("li")!;
+    const row = screen.getByText("Alpha").closest("li")!;
     expect(row.querySelector(".dh-taskrow__time")).toBeNull();
     expect(container.textContent).not.toMatch(/Morning|Afternoon/);
   });
@@ -509,7 +566,7 @@ describe("the day timeline", () => {
      * That is why adopting the shared row cost the plan no facts: this was the
      * last one that looked bespoke, and it was the same fact said twice.
      */
-    const row = within(timelineSection()).getByText("Late").closest("li")!;
+    const row = screen.getByText("Late").closest("li")!;
     const date = within(row).getByTestId("task-row-due-date");
     expect(date.textContent).toContain("3 days ago");
     expect(row.getAttribute("data-overdue")).toBe("true");
@@ -523,7 +580,7 @@ describe("the day timeline", () => {
         ),
       }),
     );
-    expect(within(timelineSection()).getAllByText(/^Late /)).toHaveLength(3);
+    expect(screen.getAllByText(/^Late /)).toHaveLength(3);
     expect(
       screen.getByRole("link", { name: "+3 more overdue" }),
     ).toHaveAttribute("href", "/tasks?system=overdue");
@@ -597,7 +654,12 @@ describe("the day timeline", () => {
       }),
     );
     const surface = container.querySelector(".dh-today")!;
-    const roles = ["dh-today__head", "dh-today__summary", "dh-today__timeline"];
+    const roles = [
+      "dh-today__head",
+      "dh-today__now",
+      "dh-today__timeline",
+      "dh-today__summary",
+    ];
     const blocks = [...surface.querySelectorAll("*")]
       .map((node) => roles.find((role) => node.classList.contains(role)))
       .filter((role): role is string => role !== undefined);
@@ -610,13 +672,10 @@ describe("the day timeline", () => {
     );
     expect(beforeGrid).toHaveLength(1); // the one heading area
 
-    // The measures are the grid's first cell and the day's own plan its second,
-    // ahead of Schedule.
-    expect(grid.children[0]?.className).toContain("dh-today__summary");
+    // The first decision is the Now task; reporting follows the work.
+    expect(grid.children[0]?.className).toContain("dh-today__now");
     expect(grid.children[1]?.className).toContain("dh-today__timeline");
-    // The first row inside it is the overdue one — and it is the SHARED task
-    // row (DEBT-143), not a Today-private one.
-    const firstRow = container.querySelector(".dh-today__timeline .dh-taskrow");
+    const firstRow = container.querySelector(".dh-today__now .dh-taskrow");
     expect(firstRow?.textContent).toContain("Late");
   });
 });
@@ -639,7 +698,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     const labels = [
       ...timelineSection().querySelectorAll(".dh-day-section__label"),
     ].map((node) => node.textContent);
-    expect(labels).toEqual(["Overdue", "Due today", "Planned today"]);
+    expect(labels).toEqual(["Due today", "Planned today"]);
   });
 
   it("draws only the bands that hold work — no empty heading", () => {
@@ -647,14 +706,18 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     const labels = [
       ...timelineSection().querySelectorAll(".dh-day-section__label"),
     ].map((node) => node.textContent);
-    expect(labels).toEqual(["Due today"]);
+    expect(labels).toEqual([]);
+    expect(
+      within(screen.getByTestId("today-now")).getByText("Deadline"),
+    ).toBeVisible();
   });
 
   it("puts a task that is BOTH due and planned today in ONE band, once", () => {
     renderScreen(day({ today: [task("b", "Both", { scheduledDate: TODAY })] }));
-    const panel = timelineSection();
-    expect(within(panel).getAllByText("Both")).toHaveLength(1);
-    expect(within(panel).queryByText("Planned today")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Both")).toHaveLength(1);
+    expect(
+      within(timelineSection()).queryByText("Planned today"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the Project on the row — the band carries the date meaning", () => {
@@ -667,7 +730,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
         ],
       }),
     );
-    const row = within(timelineSection()).getByText("Deadline").closest("li")!;
+    const row = screen.getByText("Deadline").closest("li")!;
     expect(within(row).getByText("Kitchen renovation")).toBeInTheDocument();
   });
 
@@ -680,7 +743,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
         ],
       }),
     );
-    const urgent = within(timelineSection()).getByText("Urgent").closest("li")!;
+    const urgent = screen.getByText("Urgent").closest("li")!;
     expect(urgent.querySelector(".dh-priority")).toHaveAttribute(
       "aria-label",
       "Priority 1",
@@ -694,9 +757,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
      * column ragged down a panel whose whole value is that it scans in one
      * pass. Grey on grey is quiet enough that P4 does not compete.
      */
-    const plain = within(timelineSection())
-      .getByText("Untriaged")
-      .closest("li")!;
+    const plain = screen.getByText("Untriaged").closest("li")!;
     expect(plain.querySelector(".dh-priority")).toHaveAttribute(
       "aria-label",
       "Priority 4",
@@ -714,7 +775,7 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
       }),
     );
     const titles = [
-      ...timelineSection().querySelectorAll(".dh-taskrow__title"),
+      ...document.querySelectorAll(".dh-today .dh-taskrow__title"),
     ].map((node) => node.textContent);
     expect(titles).toEqual(["Zebra", "Aardvark"]);
   });
@@ -729,6 +790,9 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     );
     expect(
       timelineSection().querySelectorAll(".dh-taskrow__title"),
+    ).toHaveLength(7);
+    expect(
+      document.querySelectorAll(".dh-today .dh-taskrow__title"),
     ).toHaveLength(8);
     expect(
       screen.getByRole("link", { name: "View all 14 tasks for today" }),
@@ -799,29 +863,27 @@ describe("TODAY-10: the Focus panel says WHY each task is there", () => {
     expect(link).toHaveAttribute("href", "/tasks?system=today");
   });
 
-  it("does not move a row between bands when it is ticked", () => {
+  it("promotes the next task and keeps the completed task recoverable", () => {
     renderScreen(
       day({
         overdue: [task("o", "Late", { dueDate: "2026-08-01" })],
         today: [task("a", "Alpha")],
       }),
     );
-    const bandOf = (title: string) =>
-      within(timelineSection())
-        .getByText(title)
-        .closest(".dh-day-section")!
-        .querySelector(".dh-day-section__label")!.textContent;
-
-    expect(bandOf("Late")).toBe("Overdue");
+    expect(
+      within(screen.getByTestId("today-now")).getByText("Late"),
+    ).toBeVisible();
     fireEvent.click(screen.getByRole("checkbox", { name: "Complete Late" }));
     expect(postTaskRecordActionOffline).toHaveBeenCalledWith(
       "o",
       { intent: "complete" },
       { operation: "complete" },
     );
-    // Still under Overdue, dimmed — not fifteen rows down under "Due today".
-    expect(bandOf("Late")).toBe("Overdue");
-    // And the overdue FIGURE stops counting it, because it is done.
+    expect(
+      within(screen.getByTestId("today-now")).getByText("Alpha"),
+    ).toBeVisible();
+    expect(screen.getByText("Completed · 1")).toBeInTheDocument();
+    expect(screen.getByText("Late")).toBeInTheDocument();
     expect(screen.queryByTestId("today-stat-overdue")).not.toBeInTheDocument();
   });
 });
@@ -1370,35 +1432,12 @@ describe("CONVERGE-01 §1: the Insights panel is deleted", () => {
   });
 });
 
-describe("TODAY-11: the Quick capture card", () => {
-  it("offers the REAL capture kinds, and no invented ones", () => {
+describe("TODAY-12: capture stays global and contextual", () => {
+  it("does not duplicate the global multi-type Capture surface", () => {
     renderScreen(day());
-    const panel = screen.getByTestId("today-capture");
-    for (const label of ["Task", "Note", "Diary", "Meeting"]) {
-      expect(within(panel).getByRole("button", { name: label })).toBeVisible();
-    }
-    /*
-     * The mockup's other two chips are not capture types at all. "Reminder" has
-     * no field and no delivery channel (DEBT-57); "Upload" has no attachments
-     * (DEBT-35). Neither is drawn, and neither may appear later without the
-     * capability arriving first.
-     */
-    expect(
-      within(panel).queryByRole("button", { name: /reminder/i }),
-    ).toBeNull();
-    expect(within(panel).queryByRole("button", { name: /upload/i })).toBeNull();
-  });
-
-  it("is a control that LOOKS like a field, not a second capture form", () => {
-    renderScreen(day());
-    // A real input here would be a second capture implementation beside the
-    // shared sheet that already owns parsing, validation and error recovery.
+    expect(screen.queryByTestId("today-capture")).toBeNull();
+    expect(screen.queryByTestId("today-capture-field")).toBeNull();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-    expect(screen.getByTestId("today-capture-field").tagName).toBe("BUTTON");
-    // Its label is real text and is its accessible name.
-    expect(
-      screen.getByRole("button", { name: "Capture a task, note or idea" }),
-    ).toBeVisible();
   });
 
   it("still has no search field of its own — the shell carries search", () => {
@@ -1475,7 +1514,7 @@ describe("TODAY-11: the plan's rows", () => {
         week: weekWith(TODAY, [scheduleEntry("m1", "Standup", "09:30")]),
       }),
     );
-    const row = within(timelineSection()).getByText("Alpha").closest("li")!;
+    const row = screen.getByText("Alpha").closest("li")!;
     expect(row.querySelector(".dh-taskrow__time")).toBeNull();
     expect(row.textContent).not.toMatch(/\d{1,2}:\d{2}/);
     // The time that IS real — a meeting's — is in the Schedule panel beside it.
@@ -1505,7 +1544,7 @@ describe("TODAY-11: the plan's rows", () => {
      * It is now the same editable cell `/tasks` draws: the name is there, and so
      * is the ability to re-file the task without leaving the day.
      */
-    const row = within(timelineSection()).getByText("Deadline").closest("li")!;
+    const row = screen.getByText("Deadline").closest("li")!;
     const parent = within(row).getByTestId("task-row-parent");
     expect(parent.textContent).toContain("Kitchen renovation");
     expect(parent.querySelector("button")).not.toBeNull();

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Refined Today into a decision-first command centre: one canonical Now task,
+  the next real Meeting, a shorter active plan, collapsed completed work and
+  weekly reporting below the day's decisions.
+
 - Converged every module on the approved DalyHub command-centre finish: tighter
   navigation and page rhythm, quieter controls, one outlined card family,
   cleaner record surfaces, and matching desktop/mobile chrome.

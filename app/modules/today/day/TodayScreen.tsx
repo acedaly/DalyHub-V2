@@ -120,10 +120,7 @@ import { ProgressTrack } from "~/shared/progress";
 import {
   AssetIcon,
   CheckCircleIcon,
-  DiaryIcon,
   GoalIcon,
-  MeetingIcon,
-  NoteIcon,
   PlusIcon,
   ProjectIcon,
   ReflectionIcon,
@@ -154,6 +151,7 @@ import {
   focusTodaySlice,
   greetingFor,
   dayPartForHour,
+  nextUp,
   overdueSlice,
   tasksForTodayCount,
   type DayTask,
@@ -325,6 +323,74 @@ function PlanBand({
         {children}
       </TaskList>
     </div>
+  );
+}
+
+function NowTaskPanel({
+  task,
+  rowProps,
+  href,
+  overdue,
+}: {
+  readonly task: DayTask;
+  readonly rowProps: (task: DayTask) => TaskRowProps;
+  readonly href: string;
+  readonly overdue: boolean;
+}) {
+  return (
+    <section
+      className="dh-today__panel dh-today__panel--card dh-today__now"
+      aria-labelledby="today-now-heading"
+      data-testid="today-now"
+      data-overdue={overdue ? "true" : undefined}
+    >
+      <div className="dh-today__panel-head">
+        <h2 className="dh-today__now-label" id="today-now-heading">
+          Now
+        </h2>
+      </div>
+      <TaskList ariaLabel="Now task">
+        <TaskRow {...rowProps(task)} />
+      </TaskList>
+      <p className="dh-today__panel-foot dh-today__now-foot">
+        <Link className="dh-btn dh-btn--primary" to={href}>
+          Open task
+        </Link>
+      </p>
+    </section>
+  );
+}
+
+function NextUpPanel({
+  meeting,
+}: {
+  readonly meeting: Extract<ReturnType<typeof nextUp>, { kind: "meeting" }>;
+}) {
+  return (
+    <section
+      className="dh-today__panel dh-today__next"
+      aria-labelledby="today-next-heading"
+      data-testid="today-next"
+    >
+      <div className="dh-today__panel-head">
+        <h2 className="dh-today__panel-title" id="today-next-heading">
+          Next up
+        </h2>
+      </div>
+      <Link
+        className="dh-today__next-link"
+        to={`/meeting/${encodeURIComponent(meeting.id)}`}
+      >
+        <span className="dh-today__next-time">{meeting.timeLabel}</span>
+        <span className="dh-today__next-copy">
+          <strong>{meeting.title}</strong>
+          {meeting.context === null ? null : <span>{meeting.context}</span>}
+        </span>
+        <span className="dh-today__next-arrow" aria-hidden="true">
+          ›
+        </span>
+      </Link>
+    </section>
   );
 }
 
@@ -717,89 +783,6 @@ function SchedulePanel({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Quick capture                                                               */
-/* -------------------------------------------------------------------------- */
-
-/** The capture kinds this card offers. Every one is a REAL `CaptureType`. */
-const CAPTURE_CHIPS: readonly {
-  readonly type: CaptureType;
-  readonly label: string;
-  readonly icon: React.ReactNode;
-}[] = [
-  { type: "task", label: "Task", icon: <TaskIcon /> },
-  { type: "note", label: "Note", icon: <NoteIcon /> },
-  { type: "diary", label: "Diary", icon: <DiaryIcon /> },
-  { type: "meeting", label: "Meeting", icon: <MeetingIcon /> },
-];
-
-/**
- * TODAY-11 — the Quick capture card.
- *
- * ── Why the "field" is a button ─────────────────────────────────────────────
- * The mockup draws a text input. A real one here would be a SECOND capture
- * implementation — its own parsing, its own validation, its own error recovery —
- * beside the shared sheet that already owns all three, and DEBT-51 exists
- * because the product has been down that road once already with the Tasks
- * quick-add row. So this is a control that LOOKS like a field and opens the
- * shared sheet, which is exactly what `DesktopTopBar` does for search and for
- * the same stated reason. Its label is real text and is its accessible name.
- *
- * ── Why these four chips ────────────────────────────────────────────────────
- * They are four of the five members of `CAPTURE_TYPES`. **Asset** is left off
- * this card rather than omitted from the product: it is genuinely rarer, the
- * card has four slots at 390px, and the chooser is one tap away through the
- * field. The mockup's other two chips are not capture types at all —
- * **Reminder** has no field and no delivery channel (DEBT-57) and **Upload** has
- * no attachments (DEBT-35) — so neither is drawn.
- */
-function QuickCaptureCard() {
-  const chooser = useCaptureOpener();
-  const capture = useCapture();
-  if (!chooser.available) return null;
-  return (
-    <section
-      className="dh-today__panel dh-today__capture"
-      aria-labelledby="today-capture-heading"
-      data-testid="today-capture"
-    >
-      <div className="dh-today__panel-head">
-        <h2 className="dh-today__panel-title" id="today-capture-heading">
-          Quick capture
-        </h2>
-      </div>
-      <button
-        type="button"
-        className="dh-today__capture-field md-state-layer"
-        data-testid="today-capture-field"
-        onClick={(event) => chooser.open(event.currentTarget)}
-      >
-        <span className="dh-today__capture-field-icon" aria-hidden="true">
-          <PlusIcon />
-        </span>
-        Capture a task, note or idea
-      </button>
-      <ul className="dh-today__capture-chips">
-        {CAPTURE_CHIPS.map((chip) => (
-          <li key={chip.type}>
-            <button
-              type="button"
-              className="dh-today__capture-chip md-state-layer"
-              data-capture-type={chip.type}
-              onClick={(event) =>
-                capture?.openCapture(chip.type, event.currentTarget)
-              }
-            >
-              <span aria-hidden="true">{chip.icon}</span>
-              {chip.label}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /* Daily reflection                                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -943,6 +926,24 @@ export function TodayScreen({
   const todayCount = tasksForTodayCount(buckets, data.todayIso);
   const overdue = overdueSlice(buckets.overdue);
   const plan = focusTodaySlice(buckets);
+  const nowTask =
+    buckets.overdue.find((task) => !task.completed) ??
+    buckets.today.find((task) => !task.completed) ??
+    null;
+  const next = nextUp({ meetings: data.meetings, buckets });
+  const nextMeeting = next?.kind === "meeting" ? next : null;
+  const remainingOverdue = overdue.shown.filter(
+    (task) => !task.completed && task.id !== nowTask?.id,
+  );
+  const remainingDueToday = plan.dueToday.filter(
+    (task) => !task.completed && task.id !== nowTask?.id,
+  );
+  const remainingPlannedToday = plan.plannedToday.filter(
+    (task) => !task.completed && task.id !== nowTask?.id,
+  );
+  const completedTasks = [...buckets.overdue, ...buckets.today].filter(
+    (task) => task.completed,
+  );
   const greeting = greetingFor(dayPartForHour(data.hour), data.ownerName);
   const openTodayCount =
     buckets.overdue.filter((task) => !task.completed).length +
@@ -1068,20 +1069,17 @@ export function TodayScreen({
        * and final home.
        *
        * ── The header's "+ Add task" is deliberately GONE ─────────────────────
-       * CONVERGE-01 §1 / MOBILE-02 §5. Today carried FIVE doors onto the same
-       * capture sheet: the shell's global `+`, this header button, the ghost
-       * "Add task" at the foot of the plan, the Quick capture card and the phone
-       * FAB. This one was the only one that opened `capture.openCapture("task")`
+       * Today carried several doors onto the same capture sheet. This one was
+       * the only one that opened `capture.openCapture("task")`
        * with no context the foot's control does not also have — the same sheet,
        * on the same panel, from a spot the eye passes on the way to the day —
        * and on a phone it was a full-width primary button sitting between the
        * greeting and the first task, which is a large part of the 55.7% of the
        * first viewport measured before this pass.
        *
-       * Removing it costs nothing and is the ONE of the five that is pure
-       * duplication: the global capture stays (shell `+`, `C`, the FAB), the
-       * contextual one stays at the foot of the plan where the list ends, and
-       * Quick capture stays because it is the multi-TYPE door.
+       * Global Capture stays (shell `+`, `C`, the FAB), and the contextual one
+       * stays at the foot of the plan where the list ends. TODAY-12 also removes
+       * the duplicate page-level multi-type Capture panel.
        */}
       {/*
        * TODAY-TASK-01 §B3 — ONE heading AREA, not three vertical beats.
@@ -1103,10 +1101,8 @@ export function TodayScreen({
        * and final home.
        *
        * ── The header's "+ Add task" is deliberately GONE ─────────────────────
-       * CONVERGE-01 §1 / MOBILE-02 §5. Today carried FIVE doors onto the same
-       * capture sheet: the shell's global `+`, this header button, the ghost
-       * "Add task" at the foot of the plan, the Quick capture card and the phone
-       * FAB. This one was the only one that opened `capture.openCapture("task")`
+       * Today carried several doors onto the same capture sheet. This one was
+       * the only one that opened `capture.openCapture("task")`
        * with no context the foot's control does not also have, and on a phone it
        * was a full-width primary button sitting between the greeting and the
        * first task.
@@ -1166,6 +1162,15 @@ export function TodayScreen({
        */}
       <div
         className="dh-today__grid"
+        data-now-context={
+          nowTask !== null && nextMeeting !== null
+            ? "both"
+            : nowTask !== null
+              ? "now"
+              : nextMeeting !== null
+                ? "next"
+                : "none"
+        }
         /* Which of the two support panels exist, so the grid can give a lone
            survivor the full twelve tracks instead of leaving five columns of
            hole beside it. The pair is data-conditional, so its spans are too. */
@@ -1179,9 +1184,19 @@ export function TodayScreen({
                 : "none"
         }
       >
-        {/* §3.1 — the stat rank stays at the top, now as the grid's own first
-            row rather than as a flex strip above it. See `TodayStatRank`. */}
-        <TodayStatRank trend={data.activityTrend} goals={data.goals} />
+        {nowTask === null ? null : (
+          <NowTaskPanel
+            task={nowTask}
+            rowProps={rowProps}
+            overdue={buckets.overdue.some((task) => task.id === nowTask.id)}
+            href={`?${withDrawerPushed(
+              searchParams,
+              `task:${nowTask.id}`,
+            ).toString()}`}
+          />
+        )}
+
+        {nextMeeting === null ? null : <NextUpPanel meeting={nextMeeting} />}
 
         <section
           className="dh-today__panel dh-today__panel--card dh-today__timeline"
@@ -1225,7 +1240,7 @@ export function TodayScreen({
               <PlanBand
                 label="Overdue"
                 tone="overdue"
-                tasks={overdue.shown}
+                tasks={remainingOverdue}
                 rowProps={rowProps}
               >
                 {/* The remainder row is NOT a task row: it carries no completion
@@ -1257,19 +1272,33 @@ export function TodayScreen({
                */}
               <PlanBand
                 label="Due today"
-                tasks={plan.dueToday}
+                tasks={remainingDueToday}
                 rowProps={rowProps}
               />
               <PlanBand
                 label="Planned today"
-                tasks={plan.plannedToday}
+                tasks={remainingPlannedToday}
                 rowProps={rowProps}
               />
+
+              {completedTasks.length > 0 ? (
+                <details className="dh-today__completed">
+                  <summary>Completed · {completedTasks.length}</summary>
+                  <TaskList ariaLabel="Completed today tasks">
+                    {completedTasks.map((task) => (
+                      <TaskRow key={task.id} {...rowProps(task)} />
+                    ))}
+                  </TaskList>
+                </details>
+              ) : null}
 
               {/* Overdue work but nothing actually ON today is a real and
                   distinct state, and a panel that just stopped after the
                   slipped rows implied the day was full. */}
-              {buckets.today.length === 0 ? (
+              {remainingOverdue.length === 0 &&
+              remainingDueToday.length === 0 &&
+              remainingPlannedToday.length === 0 &&
+              completedTasks.length === 0 ? (
                 <p className="dh-today__quiet">Nothing else planned today.</p>
               ) : null}
             </div>
@@ -1322,6 +1351,8 @@ export function TodayScreen({
           todayIso={data.todayIso}
         />
 
+        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
+
         {/*
          * ── The DECISION row ─────────────────────────────────────────────────
          * What has gone wrong, and what to pick up next. The audit moves this
@@ -1369,6 +1400,8 @@ export function TodayScreen({
             </ul>
           </section>
         ) : null}
+
+        <TodayStatRank trend={data.activityTrend} goals={data.goals} />
 
         {/* Absent entirely when no project has open work — "continue working"
             on a project with nothing left to do is not a suggestion. */}
@@ -1422,18 +1455,8 @@ export function TodayScreen({
           </section>
         ) : null}
 
-        {/*
-         * ── The SLOW row ─────────────────────────────────────────────────────
-         * The long game, and the two doorways that close the day. Goal progress
-         * takes the wider track because it is a rail of records; capture and
-         * reflection share the narrower one as a single supporting column, which
-         * is what the audit asks for and what they already were.
-         */}
-        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
-        <div className="dh-today__stack">
-          <QuickCaptureCard />
-          <ReflectionCard reflection={data.reflection} />
-        </div>
+        {/* Reflection closes the day without competing with the work above. */}
+        <ReflectionCard reflection={data.reflection} />
       </div>
 
       {/* The one line the page ends on when the WHOLE page is clear — no day,

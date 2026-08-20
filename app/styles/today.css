@@ -433,6 +433,105 @@
   min-inline-size: 0;
 }
 
+/* TODAY-12 — decision-first composition. The first row is the one decision the
+ * owner can act on now and the next fixed commitment; reporting follows work. */
+.dh-today__now {
+  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-accent);
+}
+
+.dh-today__now[data-overdue="true"] {
+  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-overdue);
+}
+
+.dh-today__now-label {
+  margin: 0;
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-today__now[data-overdue="true"] .dh-today__now-label {
+  color: var(--dh-color-overdue);
+}
+
+.dh-today__now-foot {
+  justify-content: flex-end;
+}
+
+.dh-today__next {
+  padding: var(--dh-space-5);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+}
+
+.dh-today__next-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--dh-space-4);
+  min-block-size: var(--app-touch-target-min);
+  color: var(--dh-color-text);
+  text-decoration: none;
+}
+
+.dh-today__next-time {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-body-size);
+  font-weight: var(--dh-text-label-weight);
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+.dh-today__next-copy {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+}
+
+.dh-today__next-copy strong {
+  overflow: hidden;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-body-size);
+  font-weight: var(--dh-text-row-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-today__next-arrow {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-section-title-size);
+}
+
+.dh-today__completed {
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-today__completed > summary {
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--dh-space-5);
+  display: flex;
+  align-items: center;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  font-weight: var(--dh-text-label-weight);
+  cursor: pointer;
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+.dh-today__completed > summary::before {
+  content: "›";
+  margin-inline-end: var(--dh-space-2);
+  transform: rotate(0deg);
+  transition: transform var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-today__completed[open] > summary::before {
+  transform: rotate(90deg);
+}
+
 /* Two panels stacked inside ONE cell of the context rank (capture, then
  * reflection), which is how the mockup draws its right-hand column. */
 .dh-today__stack {
@@ -459,6 +558,28 @@
   /* The strip of measures owns the full width and splits it three ways: the
      audit's 4 · 4 · 4. */
   .dh-today__summary {
+    grid-column: span 12;
+  }
+
+  .dh-today__now,
+  .dh-today__timeline,
+  .dh-today__goals {
+    grid-column: span 8;
+  }
+
+  .dh-today__next,
+  .dh-today__schedule,
+  .dh-today__attention {
+    grid-column: span 4;
+  }
+
+  .dh-today__continue,
+  .dh-today__reflection {
+    grid-column: span 6;
+  }
+
+  .dh-today__grid[data-now-context="now"] .dh-today__now,
+  .dh-today__grid[data-now-context="next"] .dh-today__next {
     grid-column: span 12;
   }
 
@@ -548,6 +669,44 @@
   .dh-today__continue,
   .dh-today__stack {
     grid-column: span 4;
+  }
+}
+
+/* TODAY-12 is the later composition decision: Now/plan/goals own the working
+ * measure; fixed commitments and exceptions form the context rail. */
+@container today (min-width: 52rem) {
+  .dh-today__now,
+  .dh-today__timeline,
+  .dh-today__goals {
+    grid-column: span 8;
+  }
+
+  .dh-today__next,
+  .dh-today__schedule,
+  .dh-today__attention,
+  .dh-today__grid[data-support="attention"] .dh-today__attention {
+    grid-column: span 4;
+  }
+
+  .dh-today__continue,
+  .dh-today__reflection,
+  .dh-today__grid[data-support="continue"] .dh-today__continue {
+    grid-column: span 6;
+  }
+
+  .dh-today__grid[data-now-context="now"] .dh-today__now,
+  .dh-today__grid[data-now-context="next"] .dh-today__next {
+    grid-column: span 12;
+  }
+}
+
+@container today (max-width: 33.999rem) {
+  .dh-today__now-foot .dh-btn {
+    inline-size: 100%;
+  }
+
+  .dh-today__next {
+    padding: var(--dh-space-4);
   }
 }
 
