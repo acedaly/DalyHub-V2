@@ -300,6 +300,12 @@ Migrate patterns in blast-radius order:
 6. Timeline.
 7. Editor.
 
+**Implementation record:** items 1–2 are defined and applied across Today,
+Tasks, Inbox, Plan and Schedule in
+[`DHDS_02_ROW_AND_GROUPED_SURFACES_2026_08.md`](DHDS_02_ROW_AND_GROUPED_SURFACES_2026_08.md).
+Panel/drawer/inspector convergence is the next shared-pattern boundary; it is not
+silently bundled into the row pass.
+
 Each PR must demonstrate at least two module consumers. A pattern is not shared
 merely because it lives in `app/shared`; it is shared when different modules can
 compose it without private visual overrides.

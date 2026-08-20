@@ -184,6 +184,20 @@ thumb-driven daily interface — never a desktop layout squeezed into a narrow
 viewport. Primary actions must remain reachable and touch targets must retain
 their accessibility floor.
 
+### Repeated-row rule
+
+Every dense row follows the same interaction grammar: primary content owns the
+width; metadata is ordered by the decision it supports; secondary actions wait
+until engagement on a pointer and remain explicit on touch. Hidden actions stay
+keyboard reachable and must not intercept pointer input. A module may specialise
+the lead object (completion, time, avatar, entity mark), but may not rebuild hover,
+focus, touch or forced-colour behaviour locally.
+
+Task metadata is always **when → where → how important** in both DOM and visual
+order. Grouped Task collections use one disclosure/name/count pattern across
+Tasks and Plan. These are product semantics, not screenshot styling; a new task
+surface inherits them before adding module-specific composition.
+
 ## System-wide semantics
 
 Priority colour and language are identical everywhere:

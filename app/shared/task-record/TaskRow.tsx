@@ -267,6 +267,7 @@ export function TaskRow({
   return (
     <li
       className="dh-taskrow"
+      data-dh-action-context="true"
       data-testid="task-row"
       data-completed={task.completed ? "true" : undefined}
       data-overdue={overdue ? "true" : undefined}
@@ -498,19 +499,6 @@ export function TaskRow({
        * compositions, no duplicated markup and nothing to keep in step.
        */}
       <span className="dh-taskrow__meta">
-        <span className="dh-taskrow__cell dh-taskrow__cell--project">
-          <InlineTaskParent
-            taskId={task.id}
-            title={task.title}
-            parent={task.parent}
-            options={parents}
-            onSaved={onInlineSave}
-            disabled={disabled}
-            {...(onSearchParents && !disabled
-              ? { onSearchAll: onSearchParents }
-              : {})}
-          />
-        </span>
         {/*
          * The DATE cell — one column, two strictly separate fields.
          *
@@ -558,6 +546,19 @@ export function TaskRow({
             />
           )}
         </span>
+        <span className="dh-taskrow__cell dh-taskrow__cell--project">
+          <InlineTaskParent
+            taskId={task.id}
+            title={task.title}
+            parent={task.parent}
+            options={parents}
+            onSaved={onInlineSave}
+            disabled={disabled}
+            {...(onSearchParents && !disabled
+              ? { onSearchAll: onSearchParents }
+              : {})}
+          />
+        </span>
         <span className="dh-taskrow__cell dh-taskrow__cell--priority">
           <InlineTaskPriority
             taskId={task.id}
@@ -585,7 +586,7 @@ export function TaskRow({
           // The product-wide wording for a row's long tail, so one phrase
           // names this control everywhere it appears.
           label={`More actions for ${task.title}`}
-          triggerClassName="dh-taskrow__overflow"
+          triggerClassName="dh-taskrow__overflow dh-action-reveal"
           items={overflowActions as MenuItem[]}
         />
       </span>

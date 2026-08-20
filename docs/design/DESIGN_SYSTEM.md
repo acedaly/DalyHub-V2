@@ -285,6 +285,30 @@ another:
 Never card-inside-card. `.dh-card-collection--list` already stands its container
 down when it is nested, and Today's panels forbid it outright.
 
+### Dense row and grouped-list contract (DHDS-02)
+
+Dense operational rows share a reading grammar even when their domain anatomy
+differs. The flexible primary content comes first; metadata follows in decision
+order; exceptional state is explicit; one secondary action cluster trails. For
+Tasks the canonical sequence is **when → where → importance → exceptional
+state** in both the DOM and the visual grid. A responsive composition may wrap
+those facts onto a second line but may not reorder them only with CSS.
+
+Secondary row actions opt into the shared contextual-action contract: hidden at
+rest on a hover-capable pointer, revealed by row hover or keyboard focus, and
+always visible on touch and in forced colours. Opacity preserves layout and
+accessibility; disabled pointer events prevent an invisible control intercepting
+a click. Module CSS may position the control, but `base.css` alone owns its
+visibility states.
+
+For grouped Tasks, `TaskGroup` owns disclosure, heading, authoritative count and
+optional “View all”. The parent owns layout; the child `TaskList` owns density
+and responsive row composition. Tasks and Weekly Planning consume this same
+contract. Do not copy the anatomy into module-local heading/count markup.
+
+See [`DHDS_02_ROW_AND_GROUPED_SURFACES_2026_08.md`](DHDS_02_ROW_AND_GROUPED_SURFACES_2026_08.md)
+for the implemented anatomy, responsive rules, consumers and acceptance checks.
+
 ### Desktop composition rules
 
 - **The sidebar does not compete.** Monochrome glyphs, a `secondary-container`
