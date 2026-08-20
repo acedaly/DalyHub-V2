@@ -628,6 +628,14 @@ checkbox never becomes checked, so Playwright retries to timeout. Not motion, an
 not introduced here. They are not fixed in this branch because doing so is a
 different investigation; they are recorded in `PRODUCT_DEBT.md`.
 
+An eighth — `tasks-collection.spec.ts` → "removes one of two applied filters and
+leaves the other" — behaves differently and was checked separately, because it
+exercises the collection popover this phase gave a reveal to. It **passes in
+isolation** against a freshly seeded database (9.6s) and **fails when run after
+another spec**, on this branch and on the merge-base alike. That is DEBT-173's
+signature (specs asserting against the shared workspace's accumulated state)
+rather than anything the anchored reveal did.
+
 The **full** E2E gate was not run in this environment — it is a 176-minute,
 twelve-partition suite. The partitions manifest was regenerated from a real
 measurement of the new spec (44.3s, 13 tests) rather than the 120s default guess.
