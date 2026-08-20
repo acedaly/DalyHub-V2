@@ -373,10 +373,22 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
             WHERE workspace_id = ? AND id = ? AND type = '${PROJECT}' AND deleted_at IS NULL`;
   }
 
-  /** Reusable NOT-EXISTS target: an active, incomplete direct child Task of this
+  /**
+   * Reusable NOT-EXISTS target: an active, OUTSTANDING direct child Task of this
    * project. Soft-deleted Tasks, Tasks in another workspace and Tasks under a
    * DIFFERENT project can never match (the join is workspace- and link-target-
-   * scoped). Binds `(workspaceId, id)` at its embedding site. */
+   * scoped). Binds `(workspaceId, id)` at its embedding site.
+   *
+   * HARDEN-06C (F-08) — `cancelled` and `someday` work is excluded, for the
+   * reason `#CARRY_OVER_PREDICATE`, the overdue rule and `countOverdueAtPeriodEnd`
+   * all record: a Task the owner has parked or dropped is not an unfinished
+   * commitment. This guard predated that vocabulary being treated as "not
+   * outstanding" everywhere else and was never reconciled with it, so a Project
+   * whose leftover work was CANCELLED — DalyHub's documented way to remove a Task
+   * (ADR-053 §8) — could never be archived. The owner's only remedies were to
+   * un-cancel and complete work they deliberately did not do, falsifying their own
+   * history, or to move it to another Project.
+   */
   get #unfinishedDirectTaskExistsSql(): string {
     return `SELECT 1 FROM entity_links l
             JOIN entities e
@@ -385,8 +397,12 @@ export class D1ProjectSettingsRepository implements ProjectSettingsRepository {
             JOIN spine_records s
               ON s.workspace_id = e.workspace_id AND s.entity_id = e.id
                  AND s.completed_at IS NULL
+            LEFT JOIN task_details td
+              ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
             WHERE l.workspace_id = ? AND l.target_entity_id = ?
-              AND l.type = '${TASK_BELONGS_TO_PROJECT}' AND l.deleted_at IS NULL`;
+              AND l.type = '${TASK_BELONGS_TO_PROJECT}' AND l.deleted_at IS NULL
+              AND COALESCE(td.status, 'todo') <> 'cancelled'
+              AND COALESCE(td.commitment_state, 'active') <> 'someday'`;
   }
 
   async #require(id: string): Promise<ProjectSettingsRecord> {

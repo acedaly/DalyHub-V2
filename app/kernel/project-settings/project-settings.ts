@@ -77,11 +77,21 @@ export class ProjectSettingsNotFoundError extends Error {
     this.name = "ProjectSettingsNotFoundError";
   }
 }
+/**
+ * Archiving was refused because the Project still holds OUTSTANDING work.
+ *
+ * HARDEN-06C (F-08) — "outstanding" is the product's own vocabulary and not
+ * merely "not completed": cancelled and Someday Tasks are parked or dropped
+ * decisions, not commitments, and the guard now agrees with `listCarryOverTasks`,
+ * the overdue rule and `countOverdueAtPeriodEnd` about that. The message names
+ * what actually blocks it, so the owner is not sent to complete a Task they
+ * deliberately did not do.
+ */
 export class ProjectArchiveBlockedError extends Error {
   readonly code = "archive_blocked" as const;
   constructor() {
     super(
-      "Complete or move the unfinished tasks before archiving this project.",
+      "This project still has open tasks. Complete, cancel or move them before archiving it.",
     );
     this.name = "ProjectArchiveBlockedError";
   }

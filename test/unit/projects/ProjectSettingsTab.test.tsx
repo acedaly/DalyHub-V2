@@ -229,7 +229,7 @@ describe("ProjectSettingsTab", () => {
       const onArchive = vi.fn(() =>
         Promise.reject(
           new Error(
-            "Complete or move the unfinished tasks before archiving this project.",
+            "This project still has open tasks. Complete, cancel or move them before archiving it.",
           ),
         ),
       );
@@ -241,7 +241,7 @@ describe("ProjectSettingsTab", () => {
       await waitFor(() =>
         expect(
           screen.getByText(
-            "Complete or move the unfinished tasks before archiving this project.",
+            "This project still has open tasks. Complete, cancel or move them before archiving it.",
           ),
         ).toBeInTheDocument(),
       );

@@ -20,7 +20,9 @@
  *
  *   - completions come from the append-only Activity stream, counted distinct
  *     per record, so they are exact for any past range as well as the current
- *     one — the same guarantee `review-insights` documents;
+ *     one — the same guarantee `review-insights` documents, and it holds after
+ *     a completed record is later deleted (HARDEN-06C, F-07): what happened
+ *     during a week does not change because the owner tidied up afterwards;
  *   - the distribution resolves each completed Task's Area through the CURRENT
  *     spine links, which is a documented approximation the surface states out
  *     loud rather than hiding;

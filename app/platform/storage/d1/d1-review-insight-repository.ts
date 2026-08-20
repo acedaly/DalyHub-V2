@@ -142,6 +142,27 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
   /* (1) Historical completions — exact, from the Activity stream            */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * HARDEN-06C (F-07) — the count is of EVENTS, not of surviving records.
+   *
+   * This scan used to join `entities … AND e.deleted_at IS NULL`, so a
+   * soft-deleted record silently left every historical bucket: a weekly Review
+   * that said "3 Tasks completed" said "2" after the owner tidied up, and the
+   * Analytics trend moved with it. That contradicted the guarantee this
+   * repository's own contract makes one layer up — exact for every period, past
+   * or present, because completion events are never rewritten.
+   *
+   * The join REMAINS, because `e.type` is what stops a `project.completed` event
+   * that also names its Area being counted as an Area completion; only the
+   * liveness predicate is gone. A soft-deleted record keeps its `entities` row,
+   * and the one path that removes the row (an EMPTY Area's permanent deletion)
+   * removes its `activity_subjects` in the same batch — so a record with no row
+   * has no events either, and nothing is double-counted or orphaned.
+   *
+   * `listPeriodContributions` deliberately KEEPS its liveness predicate: it
+   * groups completions by living Project/Goal/Area ancestry, which a deleted
+   * record does not have. The two answer different questions.
+   */
   async countPeriodCompletions(
     requests: readonly PeriodCountRequest[],
   ): Promise<readonly PeriodCountResult[]> {
@@ -196,7 +217,6 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
              ON s.workspace_id = a.workspace_id AND s.activity_id = a.id
            JOIN entities e
              ON e.workspace_id = s.workspace_id AND e.id = s.entity_id
-                AND e.deleted_at IS NULL
            WHERE a.workspace_id = ?
              AND a.type IN ('${TASK_COMPLETED}', '${PROJECT_COMPLETED}', '${GOAL_COMPLETED}')
              AND a.occurred_at >= ? AND a.occurred_at < ?
