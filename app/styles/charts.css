@@ -64,12 +64,12 @@
  * headline states — it is simply no longer twice the line's own weight.
  */
 .dh-linechart__line {
-  stroke: var(--md-sys-color-primary);
+  stroke: var(--dh-color-accent);
   stroke-width: 1.5;
 }
 
 .dh-linechart__point {
-  stroke: var(--md-sys-color-primary);
+  stroke: var(--dh-color-accent);
   stroke-width: 3;
 }
 
@@ -167,7 +167,7 @@
   flex-wrap: wrap;
   gap: var(--app-space-1) var(--app-space-3);
   justify-content: space-between;
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   min-inline-size: 0;
 }
@@ -179,7 +179,7 @@
 
 .dh-linechart__summary {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
@@ -198,7 +198,7 @@
  */
 .dh-linechart__frame {
   position: relative;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   min-inline-size: 0;
 }
 
@@ -215,14 +215,14 @@
   inset-inline-end: 0;
   transform: translateY(-50%);
   padding-inline: var(--app-space-1);
-  font-size: var(--md-sys-typescale-label-small-size);
-  line-height: var(--md-sys-typescale-label-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   font-variant-numeric: tabular-nums;
   color: var(--dh-color-text-muted);
   /* A sliver of the surface behind the text, so the dashed rule does not run
    * through the glyphs. */
   background: var(--dh-color-surface);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   pointer-events: none;
   white-space: nowrap;
 }
@@ -233,7 +233,7 @@
  * competes with the line it is there to support.
  */
 .dh-linechart__grid {
-  stroke: var(--md-sys-color-outline-variant);
+  stroke: var(--dh-color-border);
   stroke-width: 1;
   opacity: 0.65;
 }
@@ -267,7 +267,7 @@
 
 /* The selected reading, while pointing at or arrowing through the chart. */
 .dh-linechart__point[data-selected="true"] {
-  stroke: var(--md-sys-color-primary);
+  stroke: var(--dh-color-accent);
   stroke-width: 8;
 }
 
@@ -278,7 +278,7 @@
 .dh-linechart__readout {
   margin: 0;
   min-block-size: 1.5em;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-variant-numeric: tabular-nums;
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
@@ -333,13 +333,13 @@
 }
 
 .dh-spark__line {
-  stroke: var(--md-sys-color-primary);
+  stroke: var(--dh-color-accent);
   stroke-width: 1.5;
   opacity: 0.85;
 }
 
 .dh-spark__end {
-  stroke: var(--md-sys-color-primary);
+  stroke: var(--dh-color-accent);
   stroke-width: 4.5;
 }
 
@@ -385,7 +385,7 @@
   flex-wrap: wrap;
   gap: var(--app-space-3);
   margin: 0;
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -400,16 +400,16 @@
   content: "";
   inline-size: 0.625rem;
   block-size: 0.625rem;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   background: currentcolor;
 }
 
 .dh-cbars__key--primary::before {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 .dh-cbars__key--secondary::before {
-  background: var(--md-sys-color-tertiary);
+  background: var(--dh-color-info);
 }
 
 .dh-cbars__plot {
@@ -419,11 +419,11 @@
 }
 
 .dh-cbars__bar--primary {
-  fill: var(--md-sys-color-primary);
+  fill: var(--dh-color-accent);
 }
 
 .dh-cbars__bar--secondary {
-  fill: var(--md-sys-color-tertiary);
+  fill: var(--dh-color-info);
 }
 
 @media (forced-colors: active) {
@@ -470,7 +470,7 @@
   display: inline-flex;
   justify-content: center;
   gap: var(--dh-space-1);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   font-variant-numeric: var(--dh-font-numeric);
 }
@@ -490,7 +490,7 @@
 }
 
 .dh-cbars__label {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }

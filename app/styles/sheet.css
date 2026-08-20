@@ -29,8 +29,7 @@
   position: absolute;
   inset: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
-  animation: dh-sheet-scrim-in var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-standard);
+  animation: dh-sheet-scrim-in var(--dh-motion-base) var(--dh-ease-standard);
 }
 
 .dh-sheet {
@@ -51,12 +50,11 @@
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);
   /* The M3 bottom sheet rounds its TOP corners only. */
-  border-top-left-radius: var(--md-sys-shape-corner-extra-large);
-  border-top-right-radius: var(--md-sys-shape-corner-extra-large);
+  border-top-left-radius: var(--dh-radius-xl);
+  border-top-right-radius: var(--dh-radius-xl);
   border: none;
-  box-shadow: var(--md-sys-elevation-1);
-  animation: dh-sheet-in var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-emphasized);
+  box-shadow: var(--dh-elevation-raised);
+  animation: dh-sheet-in var(--dh-motion-base) var(--dh-ease-emphasized);
 }
 
 /* The `full` variant is for longer capture flows, where a half sheet would make
@@ -78,7 +76,7 @@
   inline-size: 2rem;
   block-size: 4px;
   margin-block: var(--app-space-2) var(--app-space-1);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: color-mix(in srgb, var(--dh-color-text-muted) 40%, transparent);
 }
 
@@ -107,8 +105,7 @@
     var(--app-space-3);
   padding-inline-start: max(var(--app-space-4), var(--app-safe-area-left));
   padding-inline-end: max(var(--app-space-4), var(--app-safe-area-right));
-  border-bottom: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-sheet__heading {
@@ -118,7 +115,7 @@
 
 .dh-sheet__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 500;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -126,7 +123,7 @@
 
 .dh-sheet__description {
   margin: var(--app-space-1) 0 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -144,9 +141,9 @@
   padding: var(--app-space-1) var(--app-space-2);
   border: none;
   background: transparent;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   cursor: pointer;
 }
 
@@ -164,7 +161,7 @@
   min-inline-size: var(--app-touch-target-min);
   min-block-size: var(--app-touch-target-min);
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   background: transparent;
   color: var(--dh-color-text-muted);
   cursor: pointer;
@@ -199,8 +196,7 @@
   padding-inline-start: max(var(--app-space-4), var(--app-safe-area-left));
   padding-inline-end: max(var(--app-space-4), var(--app-safe-area-right));
   padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface-raised);
 }
 
@@ -221,15 +217,14 @@
   inline-size: 100%;
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);
   font: inherit;
   text-align: start;
   cursor: pointer;
-  transition: background-color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: background-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-sheet-option:hover {
@@ -237,7 +232,7 @@
 }
 
 .dh-sheet-option[aria-pressed="true"] {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
   background: var(--dh-color-accent-subtle);
 }
 
@@ -248,7 +243,7 @@
 .dh-sheet-option__icon {
   display: inline-flex;
   flex: none;
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--dh-text-metric-size);
   line-height: 0;
 }
 
@@ -261,11 +256,11 @@
 }
 
 .dh-sheet-option__label {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
 }
 
 .dh-sheet-option__description {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -276,7 +271,7 @@
   inline-size: 1rem;
   display: inline-flex;
   justify-content: center;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -293,9 +288,8 @@
     inline-size: min(var(--app-width-narrow), calc(100vw - var(--app-space-8)));
     block-size: auto;
     max-block-size: min(85dvh, 48rem);
-    border-radius: var(--md-sys-shape-corner-large);
-    border: var(--app-border-width-thin) solid
-      var(--md-sys-color-outline-variant);
+    border-radius: var(--dh-radius-lg);
+    border: var(--app-border-width-thin) solid var(--dh-color-border);
     animation-name: dh-sheet-dialog-in;
   }
 }
@@ -355,7 +349,7 @@
 }
 
 .dh-sheet__header[data-close="leading"] .dh-sheet__title {
-  font-size: var(--md-sys-typescale-title-small-size);
+  font-size: var(--dh-text-compact-title-size);
   font-weight: 600;
 }
 
@@ -369,7 +363,7 @@
 .dh-sheet__close--worded {
   padding-inline: var(--app-space-2);
   font: inherit;
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -395,11 +389,11 @@
   min-inline-size: var(--app-touch-target-min);
   padding-inline: var(--app-space-2);
   border: none;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   background: transparent;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   font: inherit;
-  font-size: var(--md-sys-typescale-label-large-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 600;
   cursor: pointer;
 }

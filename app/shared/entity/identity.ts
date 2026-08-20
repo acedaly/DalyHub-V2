@@ -66,13 +66,13 @@ export interface EntityIdentity {
   readonly accentVar: string;
 }
 
-/** Build the `--md-sys-color-entity-<type>` custom-property name for a type.
+/** Build the public DalyHub entity-colour property name for a type.
  *
- * M3-01: the accent is a generated M3 custom colour, so it lives in the system
- * colour namespace with the rest of the scheme and comes with a full
- * `on-colour` / `container` / `on-container` quartet beside it (ADR-074). */
+ * Generated scheme machinery remains private beneath this alias. Product code
+ * names the stable meaning it needs and is therefore independent of the colour
+ * generator that supplies the value. */
 export function entityAccentVar(type: EntityType): string {
-  return `--md-sys-color-entity-${type}`;
+  return `--dh-color-entity-${type}`;
 }
 
 /** A CSS `var()` reference to the entity accent, for inline style consumption. */

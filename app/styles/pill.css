@@ -66,10 +66,10 @@
   border-radius: var(--dh-radius-sm);
   padding-inline: var(--app-space-2);
   font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
   white-space: nowrap;
   text-decoration: none;
 }

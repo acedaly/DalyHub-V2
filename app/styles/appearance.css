@@ -43,10 +43,10 @@
 .dh-appearance__legend {
   padding: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  font-weight: var(--md-sys-typescale-label-medium-weight);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
   text-transform: none;
 }
 
@@ -66,7 +66,7 @@
   min-block-size: var(--app-touch-target-min);
   padding-inline: var(--app-space-3);
   padding-block: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   color: var(--dh-color-text);
   cursor: pointer;
 }
@@ -104,7 +104,7 @@
   inline-size: 1rem;
   block-size: 1rem;
   margin: 0;
-  accent-color: var(--md-sys-color-primary);
+  accent-color: var(--dh-color-accent);
   cursor: pointer;
 }
 
@@ -112,7 +112,7 @@
  * glance and traces the target the pointer user is aiming at. The base
  * `:focus-visible` rule still supplies the colour and width. */
 .dh-appearance__option:has(.dh-appearance__input:focus-visible) {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;
 }
 
@@ -137,16 +137,16 @@
 }
 
 .dh-appearance__label {
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
-  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  font-size: var(--dh-text-lead-size);
+  line-height: var(--dh-text-lead-line-height);
+  letter-spacing: var(--dh-text-body-tracking);
 }
 
 .dh-appearance__description {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
   text-wrap: pretty;
 }
 
@@ -171,8 +171,8 @@
 }
 
 .dh-appearance--menu .dh-appearance__label {
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -186,7 +186,7 @@
 .dh-appearance--settings .dh-appearance__option {
   align-items: flex-start;
   padding-block: var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
 }
 
 /* The radio and the glyph sit on the first LINE of a two-line row rather than
@@ -249,7 +249,7 @@
 .dh-scheme__swatch {
   inline-size: 0.75rem;
   block-size: 0.75rem;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   /* A hairline, so a swatch whose colour is close to the surface it sits on is
    * still a legible shape rather than an invisible circle. */
   border: var(--app-border-width-thin) solid var(--dh-color-border);

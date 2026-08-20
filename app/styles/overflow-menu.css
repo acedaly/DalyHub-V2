@@ -59,7 +59,7 @@
 
 .dh-overflow-menu__glyph {
   display: inline-flex;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   line-height: 1;
 }
 

@@ -31,7 +31,7 @@
   min-block-size: 3.5rem;
   padding: var(--app-space-2) var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
   font: inherit;
@@ -64,8 +64,8 @@
 
 .dh-icon-picker__change {
   flex: none;
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-label-large-size);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
 }
 
@@ -111,7 +111,7 @@
   gap: var(--app-space-3);
   margin: 0;
   padding: var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface-subtle);
 }
 
@@ -123,7 +123,7 @@
 .dh-icon-picker__selected-note {
   display: block;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-icon-picker__search {
@@ -132,7 +132,7 @@
   gap: var(--app-space-2);
   padding-inline: var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-surface);
 }
 
@@ -158,14 +158,14 @@
 
 /* The focus ring belongs to the whole pill, not to the bare input inside it. */
 .dh-icon-picker__search:focus-within {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;
 }
 
 .dh-icon-picker__category-title {
   margin: 0 0 var(--app-space-2);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-title-small-size);
+  font-size: var(--dh-text-compact-title-size);
   font-weight: 500;
 }
 
@@ -196,7 +196,7 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-1);
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface-subtle);
   color: var(--dh-color-text);
   font: inherit;
@@ -217,7 +217,7 @@
 }
 
 .dh-icon-picker__option-label {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.2;
   text-align: center;
   overflow-wrap: anywhere;
@@ -228,7 +228,7 @@
  * shape, or without either (AGENTS.md §15). `aria-pressed` carries it to
  * assistive technology. */
 .dh-icon-picker__option[data-selected="true"] {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
   border-width: var(--app-border-width-thick);
   background: var(--dh-color-accent-subtle);
   color: var(--dh-color-text-on-accent-subtle);

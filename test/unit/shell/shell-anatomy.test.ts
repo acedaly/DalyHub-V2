@@ -109,7 +109,7 @@ describe("DS-03 the rail", () => {
 
   it("draws no stadium on any CONTROL in the frame", () => {
     /*
-     * D33 — no button, field, navigation row or icon control is `corner-full`.
+     * D33 — no button, field, navigation row or icon control is pill-shaped.
      * DS-02 §8 listed the shell's stadiums as debt #3 and handed them here; this
      * is the assertion that they do not come back. Retired in DS-03: the search
      * capsule, the create pill, the sheet's two 56px search entries, the skip
@@ -129,7 +129,7 @@ describe("DS-03 the rail", () => {
      */
     const stadiums = shellRules()
       .split("}")
-      .filter((rule) => rule.includes("--md-sys-shape-corner-full"))
+      .filter((rule) => rule.includes("--dh-radius-pill"))
       .map((rule) =>
         rule.slice(0, rule.indexOf("{")).trim().replace(/\s+/g, " "),
       );

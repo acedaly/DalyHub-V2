@@ -22,10 +22,10 @@
   gap: var(--app-space-1);
   padding: 0 var(--app-space-2);
   min-height: var(--app-space-5);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
-  border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--dh-radius-pill);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   color: var(--dh-color-text-muted);
   background: var(--dh-color-surface);
   white-space: nowrap;
@@ -34,34 +34,34 @@
 .dh-health__dot {
   width: var(--app-space-2);
   height: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: currentColor;
   flex: none;
 }
 
 .dh-health__pill[data-tone="success"] {
-  color: var(--md-sys-color-on-success-container);
-  background: var(--md-sys-color-success-container);
+  color: var(--dh-color-text-on-success-subtle);
+  background: var(--dh-color-success-subtle);
   border-color: transparent;
 }
 .dh-health__pill[data-tone="warning"] {
-  color: var(--md-sys-color-on-warning-container);
-  background: var(--md-sys-color-warning-container);
+  color: var(--dh-color-text-on-warning-subtle);
+  background: var(--dh-color-warning-subtle);
   border-color: transparent;
 }
 .dh-health__pill[data-tone="danger"] {
-  color: var(--md-sys-color-on-error-container);
-  background: var(--md-sys-color-error-container);
+  color: var(--dh-color-text-on-danger-subtle);
+  background: var(--dh-color-danger-subtle);
   border-color: transparent;
 }
 .dh-health__pill[data-tone="info"] {
-  color: var(--md-sys-color-on-info-container);
-  background: var(--md-sys-color-info-container);
+  color: var(--dh-color-text-on-info-subtle);
+  background: var(--dh-color-info-subtle);
   border-color: transparent;
 }
 
 .dh-health__reason {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -93,7 +93,7 @@
 .dh-health-panel__reason {
   position: relative;
   padding-inline-start: var(--app-space-4);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
@@ -105,14 +105,14 @@
   inset-block-start: 0.55em;
   width: var(--app-space-2);
   height: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-border-strong);
 }
 .dh-health-panel__reason[data-tone="success"]::before {
   background: var(--dh-color-success);
 }
 .dh-health-panel__reason[data-tone="info"]::before {
-  background: var(--md-sys-color-info);
+  background: var(--dh-color-info);
 }
 .dh-health-panel__reason[data-tone="warning"]::before {
   background: var(--dh-color-warning);
@@ -136,13 +136,13 @@
 }
 
 .dh-health-panel__fact dt {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-health-panel__fact dd {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }

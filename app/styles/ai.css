@@ -39,7 +39,7 @@
    * supporting line is capped and sits at the subtitle rung. */
   max-inline-size: var(--app-width-prose);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -51,7 +51,7 @@
 }
 
 .dh-ask__label {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
@@ -63,14 +63,14 @@
   font: inherit;
   color: var(--dh-color-text);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   resize: vertical;
 }
 
 .dh-ask__input:focus-visible,
 .dh-ai-review__proposal :is(input, select):focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-1);
 }
 
@@ -89,14 +89,14 @@
   background: var(--dh-color-surface);
   /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
   border: none;
-  border-radius: var(--md-sys-shape-corner-large);
+  border-radius: var(--dh-radius-lg);
 }
 
 /* A label, never a colour: the classification is readable without colour. */
 .dh-ask__badge,
 .dh-ask__classification {
   margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -127,13 +127,13 @@
   list-style: disc;
   padding-inline-start: var(--app-space-5);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-ask__subheading,
 .dh-ai-review__heading {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
@@ -151,7 +151,7 @@
   padding: var(--app-space-3) var(--app-space-4);
   /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
   border: none;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-bg-sunken);
 }
 
@@ -169,7 +169,7 @@
 .dh-ai__notice {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -194,22 +194,22 @@
   gap: var(--app-space-2);
   padding: var(--app-space-2) var(--app-space-3);
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-outline-variant);
+    var(--dh-color-border);
   background: var(--dh-color-bg-sunken);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   min-width: 0;
 }
 
 .dh-ai__citation-kind,
 .dh-ai__citation-date {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .dh-ai__citation-link {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
@@ -217,21 +217,20 @@
 
 .dh-ai__citation-excerpt {
   flex-basis: 100%;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
 .dh-ai__details {
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
   padding-top: var(--app-space-3);
 }
 
 .dh-ai__details-summary {
   cursor: pointer;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   /* A 44px target without a fixed height: padding keeps it comfortable at every
      text size, including OS text scaling. */
@@ -242,7 +241,7 @@
 }
 
 .dh-ai__details-summary:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-1);
 }
 
@@ -250,7 +249,7 @@
   margin: 0;
   display: grid;
   gap: var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-ai__details-list > div {
@@ -287,7 +286,7 @@
 .dh-ai-review__confidence {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.65;
 }
 
@@ -315,7 +314,7 @@
   background: var(--dh-color-surface);
   /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
   border: none;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   min-width: 0;
 }
 
@@ -342,7 +341,7 @@
 }
 
 .dh-ai-review__label {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -356,8 +355,8 @@
   font: inherit;
   color: var(--dh-color-text);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
 }
 
 /* AI-02 — a proposed Note's body. Editable in place, and tall enough to read a
@@ -371,7 +370,7 @@
 
 /* The link to a Note the owner just kept. */
 .dh-ai-review__created {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   min-height: var(--app-touch-target-min);
   display: inline-flex;
   align-items: center;
@@ -395,8 +394,7 @@
   flex-wrap: wrap;
   gap: var(--app-space-3);
   padding-top: var(--app-space-3);
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
 }
 
 .dh-ai-review__actions .dh-btn {

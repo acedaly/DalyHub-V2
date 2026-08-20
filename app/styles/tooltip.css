@@ -35,8 +35,8 @@
    * appearances without either needing a rule of its own, and no `--dh-*` name
    * publishes it. DS-08 decides whether it earns one. */
   border-radius: var(--dh-radius-sm);
-  background: var(--md-sys-color-inverse-surface);
-  color: var(--md-sys-color-inverse-on-surface);
+  background: var(--dh-color-overlay);
+  color: var(--dh-color-text-on-overlay);
   box-shadow: var(--dh-elevation-overlay);
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
@@ -64,8 +64,8 @@
   flex: 0 0 auto;
   padding-inline: var(--app-space-1);
   border: var(--app-border-width-thin) solid
-    color-mix(in srgb, var(--md-sys-color-inverse-on-surface) 40%, transparent);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+    color-mix(in srgb, var(--dh-color-text-on-overlay) 40%, transparent);
+  border-radius: var(--dh-radius-sm);
   font: inherit;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

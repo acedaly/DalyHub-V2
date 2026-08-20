@@ -16,5 +16,5 @@
 .dh-load-more__error {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }

@@ -88,10 +88,10 @@
  */
 .dh-dcard--expressive {
   position: relative;
-  background: var(--app-hero-wash), var(--md-app-color-surface-expressive);
+  background: var(--app-hero-wash), var(--dh-color-surface-expressive);
   border-radius: var(--app-shape-hero);
   box-shadow: var(--app-elevation-raised);
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   overflow: hidden;
 }
 
@@ -276,7 +276,7 @@
   border-radius: var(--dh-radius-md);
   font-size: var(--app-entity-icon-size);
   line-height: 0;
-  background: var(--md-sys-color-surface-container-high);
+  background: var(--dh-color-surface-quiet);
   color: var(--dh-color-text-muted);
 }
 
@@ -285,16 +285,16 @@
   color: var(--dh-color-text-on-accent-subtle);
 }
 .dh-metric--success .dh-metric__icon {
-  background: var(--md-sys-color-success-container);
-  color: var(--md-sys-color-on-success-container);
+  background: var(--dh-color-success-subtle);
+  color: var(--dh-color-text-on-success-subtle);
 }
 .dh-metric--warning .dh-metric__icon {
-  background: var(--md-sys-color-warning-container);
-  color: var(--md-sys-color-on-warning-container);
+  background: var(--dh-color-warning-subtle);
+  color: var(--dh-color-text-on-warning-subtle);
 }
 .dh-metric--danger .dh-metric__icon {
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 /* `headline-small` at 500: the figure is the loudest thing in the tile, and
@@ -469,7 +469,7 @@
 }
 
 .dh-row--selected {
-  background: var(--md-sys-color-secondary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 /* A phone gives the title the width and lets the metadata wrap beneath it —
@@ -1273,7 +1273,7 @@
   font-size: var(--dh-text-metric-size);
   line-height: var(--dh-text-metric-line-height);
   font-weight: var(--dh-text-metric-weight);
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1292,7 +1292,7 @@
   font-weight: var(--dh-text-label-weight);
   /* Quieter than the headline but still on the expressive pair, so it never
    * drops below AA on the tinted surface the way a `variant` role would. */
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   opacity: 0.8;
 }
 
@@ -1313,7 +1313,7 @@
   font-size: var(--dh-text-metric-size);
   line-height: var(--dh-text-metric-line-height);
   font-weight: var(--dh-text-metric-weight);
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
@@ -1322,7 +1322,7 @@
   margin: 0;
   font-size: var(--dh-text-row-size);
   line-height: var(--dh-text-row-line-height);
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   opacity: 0.86;
   font-variant-numeric: tabular-nums;
 }
@@ -1358,7 +1358,7 @@
   font-size: var(--dh-text-metric-size);
   line-height: var(--dh-text-metric-line-height);
   font-weight: var(--dh-text-metric-weight);
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1376,7 +1376,7 @@
   display: block;
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   opacity: 0.86;
 }
 
@@ -1399,7 +1399,7 @@
   min-inline-size: 0;
   font-size: var(--dh-text-row-size);
   line-height: var(--dh-text-row-line-height);
-  color: var(--md-app-color-on-surface-expressive);
+  color: var(--dh-color-text-on-expressive);
   opacity: 0.86;
 }
 
@@ -1475,7 +1475,7 @@
 
 /* The tinted tone: the brand, at half the hero's strength. */
 .dh-scard--expressive {
-  background: var(--md-app-color-surface-supporting);
+  background: var(--dh-color-surface-supporting);
 }
 
 /*
@@ -2418,7 +2418,7 @@
 }
 
 .dh-pcard__meta-fact[data-tone="warning"] {
-  color: var(--md-sys-color-state-due-soon);
+  color: var(--dh-color-state-due-soon);
 }
 
 /*
@@ -2448,13 +2448,13 @@
   background: var(--dh-color-overdue);
 }
 .dh-pcard__meta[data-tone="warning"] .dh-pcard__dot {
-  background: var(--md-sys-color-state-due-soon);
+  background: var(--dh-color-state-due-soon);
 }
 .dh-pcard__meta[data-tone="success"] .dh-pcard__dot {
   background: var(--dh-color-success);
 }
 .dh-pcard__meta[data-tone="info"] .dh-pcard__dot {
-  background: var(--md-sys-color-info);
+  background: var(--dh-color-info);
 }
 
 /* The one trailing fact, pushed to the line's end. */
@@ -3252,7 +3252,7 @@
  * simply stops outweighing the connection line beside it.
  */
 .dh-prow__rhythm[data-quiet="true"] .dh-prow__rhythm-state {
-  font-weight: var(--md-sys-typescale-body-small-weight);
+  font-weight: var(--dh-text-meta-weight);
   color: var(--dh-color-text-muted);
 }
 

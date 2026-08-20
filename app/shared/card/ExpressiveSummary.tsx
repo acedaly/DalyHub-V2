@@ -130,7 +130,7 @@ export function ExpressiveSummary({
               label={ring.label}
               size={88}
               thickness={8}
-              color="var(--md-sys-color-primary)"
+              color="var(--dh-color-accent)"
             >
               <span className="dh-summary__ring-value">{ring.centre}</span>
             </ProgressRing>

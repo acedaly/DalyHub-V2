@@ -40,8 +40,7 @@
   inset: 0;
   background: transparent;
   pointer-events: auto;
-  animation: drawer-backdrop-in var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-standard);
+  animation: drawer-backdrop-in var(--dh-motion-base) var(--dh-ease-standard);
 }
 
 @media (max-width: 48rem) {
@@ -113,10 +112,8 @@
   border-inline-start: var(--dh-border-width) solid var(--dh-color-border);
   box-shadow: var(--dh-elevation-overlay);
   pointer-events: auto;
-  animation: drawer-slide-in var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-emphasized);
-  transition: transform var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-standard);
+  animation: drawer-slide-in var(--dh-motion-base) var(--dh-ease-emphasized);
+  transition: transform var(--dh-motion-base) var(--dh-ease-standard);
 }
 
 .drawer[data-size="wide"] {
@@ -150,8 +147,7 @@
   padding: max(var(--app-space-4), var(--app-safe-area-top)) var(--app-space-5)
     var(--app-space-4);
   padding-inline-end: max(var(--app-space-5), var(--app-safe-area-right));
-  border-bottom: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface);
 }
 
@@ -162,7 +158,7 @@
 
 .drawer__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 500;
   line-height: 1.35;
   letter-spacing: -0.01em;
@@ -172,7 +168,7 @@
 
 .drawer__description {
   margin: var(--app-space-1) 0 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -189,10 +185,9 @@
   color: var(--dh-color-text-muted);
   background: transparent;
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   cursor: pointer;
-  transition: background-color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: background-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .drawer__close:hover {
@@ -227,7 +222,7 @@
 
 .drawer-empty__title {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
   color: var(--dh-color-text);
 }
@@ -267,8 +262,7 @@
   padding-inline-start: max(var(--app-space-5), var(--app-safe-area-left));
   padding-inline-end: max(var(--app-space-5), var(--app-safe-area-right));
   padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface);
 }
 
@@ -321,7 +315,7 @@
   }
 
   .drawer__title {
-    font-size: var(--md-sys-typescale-body-large-size);
+    font-size: var(--dh-text-lead-size);
     /* A long title wraps to at most two lines and then ellipses, so it can never
      * push the Close control off the screen. */
     display: -webkit-box;

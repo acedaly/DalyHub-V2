@@ -25,7 +25,7 @@
 .dh-entity-icon--badge {
   inline-size: 1.75rem;
   block-size: 1.75rem;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: color-mix(in srgb, currentColor 12%, transparent);
   border: var(--app-border-width-thin) solid
     color-mix(in srgb, currentColor 26%, transparent);
@@ -182,7 +182,7 @@
   flex: none;
   inline-size: var(--app-entity-icon-container-size);
   block-size: var(--app-entity-icon-container-size);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   background: color-mix(
     in srgb,
     var(--app-tone-container) var(--app-tint-strength-identity),

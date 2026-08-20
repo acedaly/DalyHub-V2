@@ -17,7 +17,7 @@
 
 .dh-design-search h1 {
   margin: 0;
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   color: var(--dh-color-text);
 }
 
@@ -29,7 +29,7 @@
 
 .dh-design-search__hint {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-design-search__actions {
@@ -43,8 +43,8 @@
   padding: 0 var(--app-space-4);
   color: var(--dh-color-text);
   background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   font-weight: 500;
   cursor: pointer;
 }
@@ -60,5 +60,5 @@
   font-size: 0.9em;
   padding: 0 var(--app-space-1);
   background: var(--dh-color-bg-sunken);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
 }

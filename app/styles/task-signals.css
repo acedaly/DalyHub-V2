@@ -32,8 +32,8 @@
  * on. One object now, and it is the concepts'.
  *
  * The FOREGROUND is the priority's own role rather than its `on-*-container`
- * pair, because there is no container left to be "on": `--md-sys-color-priority-
- * p1` is generated as a text-legible tone and `contrast.test.ts` asserts it
+ * pair, because there is no container left to be "on": the P1 priority role is
+ * generated as a text-legible tone and `contrast.test.ts` asserts it
  * against the surface ladder.
  *
  * Colour stays reinforcement only (AGENTS.md §15): the tag carries the meaning
@@ -117,11 +117,11 @@
   gap: var(--app-space-1);
   padding: 0 var(--app-space-2);
   min-height: var(--app-space-5);
-  border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--dh-radius-pill);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -150,7 +150,7 @@
   color: var(--dh-color-overdue);
   background: color-mix(
     in srgb,
-    var(--md-sys-color-state-overdue-container) var(--app-tint-strength-state),
+    var(--dh-color-state-overdue-subtle) var(--app-tint-strength-state),
     var(--dh-color-surface)
   );
   border-color: transparent;
@@ -158,24 +158,24 @@
 }
 /* Due soon — approaching, worth noticing, not yet late. Same treatment. */
 .dh-urgency[data-tone="warning"] {
-  color: var(--md-sys-color-state-due-soon);
+  color: var(--dh-color-state-due-soon);
   background: color-mix(
     in srgb,
-    var(--md-sys-color-state-due-soon-container) var(--app-tint-strength-state),
+    var(--dh-color-state-due-soon-subtle) var(--app-tint-strength-state),
     var(--dh-color-surface)
   );
   border-color: transparent;
   font-weight: 500;
 }
 .dh-urgency[data-tone="info"] {
-  color: var(--md-sys-color-on-info-container);
-  background: var(--md-sys-color-info-container);
+  color: var(--dh-color-text-on-info-subtle);
+  background: var(--dh-color-info-subtle);
   border-color: transparent;
 }
 .dh-urgency[data-tone="neutral"] {
   color: var(--dh-color-text-muted);
   background: var(--dh-color-surface);
-  border-color: var(--md-sys-color-outline-variant);
+  border-color: var(--dh-color-border);
 }
 
 /* ========================================================================== */
@@ -239,10 +239,8 @@
   background: transparent;
   cursor: pointer;
   transition:
-    background-color var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard),
-    border-color var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard);
+    background-color var(--dh-motion-instant) var(--dh-ease-standard),
+    border-color var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 /* The tick is drawn, not a glyph: one clip-path, no font dependency, and it
@@ -252,15 +250,14 @@
   inline-size: 0.625rem;
   block-size: 0.625rem;
   transform: scale(0);
-  transition: transform var(--md-sys-motion-duration-short3)
-    var(--md-sys-motion-easing-emphasized-decelerate);
+  transition: transform var(--dh-motion-instant) var(--dh-ease-enter);
   background: var(--dh-color-text-on-accent);
   clip-path: polygon(14% 44%, 0 60%, 39% 100%, 100% 16%, 85% 0, 39% 70%);
 }
 
 .dh-check-circle:checked {
-  border-color: var(--md-sys-color-primary);
-  background: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent);
 }
 
 .dh-check-circle:checked::before {
@@ -268,7 +265,7 @@
 }
 
 .dh-check-circle:hover {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
 }
 
 /*

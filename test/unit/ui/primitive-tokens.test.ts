@@ -6,12 +6,8 @@
  * primitives". A path nothing enforces is a convention, and the whole point of
  * DS-01 was that a convention is what the product already had.
  *
- * So this file holds `ui.css` — the one stylesheet written entirely in the
- * DalyHub vocabulary — to that standard, with two deliberate, NAMED exceptions
- * rather than a vague allowance. It does not police the other 78 stylesheets:
- * DS-01 §9 is explicit that a file speaking both vocabularies during the
- * migration is expected rather than debt, and DS-02's brief rules out a global
- * token migration.
+ * So this file holds `ui.css` to the same boundary now enforced across every
+ * product stylesheet by `pnpm dhds:check`.
  */
 
 import { readFileSync } from "node:fs";
@@ -38,19 +34,6 @@ const PERMITTED_FOREIGN_TOKENS = [
   // would create a second thing to keep in step with iOS. DS-08 decides where
   // it finally lives.
   "--app-field-font-size-compact",
-  // The badge's four status CONTAINER pairs. The DalyHub layer publishes
-  // `--dh-color-success` / `-warning` / `-danger` as ROLE colours; a container
-  // pair is a second value each, and eight more published names whose only
-  // consumer is one block. DS-01 §2.3 declined to flatten data vocabularies for
-  // the same reason.
-  "--md-sys-color-success-container",
-  "--md-sys-color-on-success-container",
-  "--md-sys-color-warning-container",
-  "--md-sys-color-on-warning-container",
-  "--md-sys-color-error-container",
-  "--md-sys-color-on-error-container",
-  "--md-sys-color-info-container",
-  "--md-sys-color-on-info-container",
 ];
 
 describe("DS-02 the primitive stylesheet consumes the DalyHub layer", () => {

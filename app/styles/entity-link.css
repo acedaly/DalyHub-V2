@@ -22,9 +22,9 @@
 }
 
 .dh-entity-link {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   text-decoration: none;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
 }
 
 /* The leading entity glyph: decorative, subordinate to the label, and sized to
@@ -39,7 +39,7 @@
 }
 
 .dh-entity-link:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;
   text-decoration: underline;
 }
@@ -68,7 +68,7 @@
 }
 
 .dh-entity-relationship__kind {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 

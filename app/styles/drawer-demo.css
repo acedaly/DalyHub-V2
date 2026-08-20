@@ -15,14 +15,14 @@
 }
 
 .drawer-demo__header h1 {
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   line-height: 1.2;
   letter-spacing: -0.01em;
   margin: 0 0 var(--app-space-2);
 }
 
 .drawer-demo__lead {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   color: var(--dh-color-text-muted);
   margin: 0 0 var(--app-space-6);
   max-width: var(--app-width-prose);
@@ -37,8 +37,8 @@
   padding: var(--app-space-4);
   margin-bottom: var(--app-space-6);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
 }
 
 .drawer-demo__field {
@@ -48,7 +48,7 @@
 }
 
 .drawer-demo__field label {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -60,7 +60,7 @@
   color: var(--dh-color-text);
   background: var(--dh-color-surface-raised);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
 }
 
 .drawer-demo__button {
@@ -69,14 +69,14 @@
   font: inherit;
   font-weight: 500;
   color: var(--dh-color-text);
-  background: var(--md-sys-color-secondary-container);
+  background: var(--dh-color-accent-subtle);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 
 .drawer-demo__button:hover {
-  background: var(--md-sys-color-secondary-container);
+  background: var(--dh-color-accent-subtle);
 }
 
 /* The record list on the background page: each item opens a drawer. */
@@ -94,10 +94,9 @@
   color: var(--dh-color-text);
   text-decoration: none;
   background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
-  transition: border-color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  transition: border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .drawer-demo__card:hover {
@@ -107,15 +106,15 @@
 
 .drawer-demo__card-type {
   display: block;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 .drawer-demo__card-title {
   display: block;
   margin-top: var(--app-space-1);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
 }
 
@@ -153,16 +152,16 @@
   align-items: center;
   min-height: var(--app-control-height-md);
   padding: 0 var(--app-space-3);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-on-accent);
   text-decoration: none;
-  background: var(--md-sys-color-primary);
-  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--dh-color-accent);
+  border-radius: var(--dh-radius-control);
 }
 
 .drawer-demo-link:hover {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 .drawer-demo-guard {
@@ -170,7 +169,7 @@
   align-items: center;
   gap: var(--app-space-2);
   margin-bottom: var(--app-space-4);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -185,7 +184,7 @@
 .drawer-demo-longlist li {
   padding: var(--app-space-3);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
   color: var(--dh-color-text-muted);
 }

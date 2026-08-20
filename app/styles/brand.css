@@ -64,21 +64,21 @@
 }
 
 .dh-brand-lockup--md .dh-brand-lockup__name {
-  font-size: var(--md-sys-typescale-title-large-size);
+  font-size: var(--dh-text-metric-size);
 }
 
 .dh-brand-lockup--lg .dh-brand-lockup__name {
-  font-size: var(--md-sys-typescale-headline-large-size);
+  font-size: var(--dh-text-display-size);
 }
 
 .dh-brand-lockup__tagline {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.2;
 }
 
 .dh-brand-lockup--lg .dh-brand-lockup__tagline {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
 }
 
 /* BRAND-01 — About leads with the lockup and then states the page's own
