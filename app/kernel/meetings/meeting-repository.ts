@@ -192,11 +192,19 @@ export interface MeetingRepository {
    * write raises {@link MeetingConflictError} with the stored meeting untouched.
    * A save that asks for exactly the stored state is still the idempotent no-op
    * it always was — agreeing with the current text cannot lose anyone's writing.
+   *
+   * HARDEN-06G — `version` is the base an editor should quote on its NEXT save:
+   * the version this call left the document at. It is deliberately a separate
+   * fact from `meeting.detailsUpdatedAt`, which is whatever the returned read
+   * observed. The two differ exactly when another writer committed between this
+   * write and that read, and in that case only `version` is safe to quote — the
+   * observed one would let this editor's next compare-and-set pass against a
+   * document it never saw, replacing the other writer's text silently.
    */
   update(
     id: string,
     input: UpdateMeetingInput,
-  ): Promise<{ meeting: Meeting; changed: boolean }>;
+  ): Promise<{ meeting: Meeting; changed: boolean; version: string }>;
   /**
    * Append one structured item of `kind` to this meeting, and its `meeting.updated`
    * Activity, in ONE atomic batch.

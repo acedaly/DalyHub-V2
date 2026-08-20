@@ -12,8 +12,8 @@
 > This is not V2.4 and it is not another audit. It is the sequence §26 of the
 > audit specified, HARDEN-06B through 06E, delivered on one branch because each
 > slice is small and they share a documentation and debt reconciliation — plus
-> **HARDEN-06F**, the follow-up that repaired a defect this pass itself
-> introduced into F-01's fix (§2).
+> **HARDEN-06F** and **HARDEN-06G**, the two follow-ups that repaired defects
+> this pass itself introduced into F-01's fix (§2).
 
 ---
 
@@ -38,18 +38,20 @@
 | **F-15** — two load-bearing code comments are now false | P3 | **Fixed** — `fa27c50` |
 | **N-01** — a Meeting's agenda or notes cannot be cleared to empty | P2 (new) | **Fixed** — `3564050` |
 | **N-02** — F-01's own repair made a continuous writing session refuse its next save | P2 (new) | **Fixed** — HARDEN-06F |
+| **N-03** — the version handed back was the read-back's, so a writer who got in between could be overwritten | P1 (new) | **Fixed** — HARDEN-06G |
 
-**Counts.** P0 fixed: **1**. P1 fixed: **1** (a second, F-03, was already fixed
-on `main`). P2 fixed: **7** (F-04, F-05, F-06, F-07, F-08, F-09, N-01), of which
-one — F-09 — is fixed in the half that makes the figure correct and deferred in
-the half that makes the class unrepeatable. P2 fixed in part: **1** (F-10). P3
-fixed: **4** (F-12, F-13, F-14, F-15). Rejected: **0**. Deferred: **2** halves,
-as DEBT-175 and DEBT-176, plus one behaviour split out as DEBT-177. Newly
-discovered: **2** — N-01, fixed in the same commit as the finding whose code
-path it shares, and **N-02, a defect in F-01's own repair**, fixed by
-HARDEN-06F (§2) after an automated review of the merged PR found it. Counting
-N-02 among the fixes rather than quietly folding it into F-01 is the point: this
-pass introduced it.
+**Counts.** P0 fixed: **1**. P1 fixed: **2** (F-02 and N-03; a third, F-03, was
+already fixed on `main`). P2 fixed: **8** (F-04, F-05, F-06, F-07, F-08, F-09,
+N-01, N-02), of which one — F-09 — is fixed in the half that makes the figure
+correct and deferred in the half that makes the class unrepeatable. P2 fixed in
+part: **1** (F-10). P3 fixed: **4** (F-12, F-13, F-14, F-15). Rejected: **0**.
+Deferred: **2** halves, as DEBT-175 and DEBT-176, plus one behaviour split out
+as DEBT-177. Newly discovered: **3** — N-01, fixed in the same commit as the
+finding whose code path it shares, and **N-02 and N-03, both defects in F-01's
+own repair**, fixed by HARDEN-06F and HARDEN-06G (§2) after automated reviews of
+the two PRs found them. Counting them among the fixes rather than quietly
+folding them into F-01 is the point: this pass introduced them, and the second
+one — a lost update — is the very class F-01 exists to close.
 
 Every finding was re-derived against the current tree before it was touched.
 None was rejected: all thirteen still-open findings reproduced.
@@ -361,6 +363,44 @@ fails without it.
   with the failed approach recorded in the entry so the next attempt does not
   repeat it.
 
+### HARDEN-06G — the version F-01's repair handed back could be somebody else's
+
+Raised by an automated review of the HARDEN-06F PR, reproduced here before it
+was touched, and the most serious thing this pass found in its own work: it is a
+**lost update**, the exact class F-01 exists to close, reintroduced by the answer
+to it.
+
+- **Root cause.** `update()` commits its compare-and-set in a `batch()` and then
+  reads the meeting back in a SEPARATE statement. A second writer that commits
+  between the two is read as though it were us, and HARDEN-06F handed that
+  version to the editor as its new base. The editor then advanced past a
+  document it had never seen; its next compare-and-set matched, and the other
+  writer's paragraphs were replaced with no conflict, no banner and no trace.
+  Reaching it needs only the ordinary case — typing straight through a save
+  while a second tab saves once.
+- **Why the read-back is not the version.** They are two different facts. The
+  read-back is *the current stored state*, which is what a caller wanting the
+  meeting should get. The base an editor may quote next is *the version this
+  write produced*, which only this call knows. `update()` now returns both:
+  `meeting` unchanged in meaning, and a separate `version` — the timestamp the
+  write itself wrote. When another writer got in between, the two differ, the
+  next save is refused as the conflict it genuinely is, and the owner is offered
+  both versions.
+- **Implementation.** `MeetingRepository.update` returns
+  `{ meeting, changed, version }`; the D1 adapter returns its own `ts` on the
+  written path and the observed version on the two no-op paths (nothing was
+  written, so the stored version IS the right base). The route answers with
+  `saved.version`.
+- **Test.** `meeting-content-concurrency.test.ts` — *"refuses the next save
+  instead of overwriting the writer who got in between"*. The interleave is
+  **injected, not raced**: the D1 handle the first writer uses runs the second
+  writer's entire save at the moment the read-back begins, so the window is a
+  fact rather than a timing accident, and the second writer quotes the first
+  writer's committed version — a legitimate next-in-line save, not a race.
+  Proven both ways: with the read-back's version returned instead, the test
+  fails on the version assertion, and with that assertion removed it fails on
+  the consequence — the second writer's paragraph is destroyed.
+
 ---
 
 ## 3. Rejected findings
@@ -387,6 +427,7 @@ already fixed by HARDEN-06A and are recorded as such rather than re-attempted.
 | --- | --- | --- |
 | **N-01** — a Meeting's agenda or notes cannot be cleared to empty; the save reports success and changes nothing | P2 | **Fixed in this branch**, in the same commit as F-01 — it is the same three lines of the same route, and leaving it would have meant shipping a known "accepted and did not happen" defect in a pass whose subject is exactly that. |
 | **N-02** — F-01's repair made a continuous writing session refuse its own next save with a `409` | P2 | **Fixed by HARDEN-06F** (§2). Found by an automated review of the merged PR, not by this pass's own tests — which is worth recording: every journey written for F-01 made ONE save per editor, and the defect needs two. |
+| **N-03** — the version returned on success was the read-back's, so an editor could advance past a document it never saw and overwrite the writer who got in between | **P1** | **Fixed by HARDEN-06G** (§2). Found by an automated review of the HARDEN-06F PR. A **lost update** — the class F-01 exists to close — reachable through F-01's own repair, and again not caught by this pass's own tests: reproducing it needs a writer to commit inside the window between the batch and the read-back, which no journey could produce by timing alone. The regression test injects that window rather than racing for it. |
 
 No other new defect was found. Two near-misses were checked and are NOT defects:
 `goal-alignment.ts`'s UTC window (documented as an approximation on a count that
@@ -441,7 +482,9 @@ the entry.
   cause — *a correct fix made in one module never became a rule* — and that is
   the thing worth remembering.
 - **Kernel contracts changed:** `Meeting` gains `detailsUpdatedAt`;
-  `UpdateMeetingInput` gains `expectedUpdatedAt`; `ListWorkspaceTasksInput` and
+  `UpdateMeetingInput` gains `expectedUpdatedAt`; `MeetingRepository.update`
+  returns a `version` — the version THAT write produced, which is a different
+  fact from the version its read-back observed (HARDEN-06G); `ListWorkspaceTasksInput` and
   `ListWorkspaceTaskGroupsInput` gain a REQUIRED `timezone`;
   `CrossViewQueryContext` gains `dayStartInstantOf`; `MeetingConflictError` is a
   new typed error.

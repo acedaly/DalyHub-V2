@@ -572,7 +572,12 @@ export class D1MeetingRepository implements MeetingRepository {
     // The stored meeting already IS this meeting. Nobody's writing can be lost
     // by agreeing, so a stale base version is not a conflict here — the same
     // rule `NoteDetailsRepository.update` applies to identical content.
-    if (same) return { meeting: current, changed: false };
+    if (same)
+      return {
+        meeting: current,
+        changed: false,
+        version: current.detailsUpdatedAt.toISOString(),
+      };
     const now = this.#clock(),
       ts = toStorageTimestamp(now);
     const expected = v.expectedUpdatedAt;
@@ -652,7 +657,11 @@ export class D1MeetingRepository implements MeetingRepository {
         refreshed.mode === merged.mode &&
         refreshed.meetingUrl === merged.meetingUrl
       ) {
-        return { meeting: refreshed, changed: false };
+        return {
+          meeting: refreshed,
+          changed: false,
+          version: refreshed.detailsUpdatedAt.toISOString(),
+        };
       }
       throw new MeetingConflictError();
     }
@@ -661,7 +670,25 @@ export class D1MeetingRepository implements MeetingRepository {
     // the calm not-found already exists.
     const written = await this.get(id);
     if (!written) throw new MeetingNotFoundError();
-    return { meeting: written, changed: true };
+    /*
+     * HARDEN-06G — `version` is the version THIS write produced (`ts`), not the
+     * one the read-back happened to see.
+     *
+     * The read-back is a separate statement from the batch, so a second writer
+     * committing in that window is read here as if it were ours. Handing that
+     * version back would be worse than handing back nothing: the editor would
+     * advance its base to the OTHER writer's version, its next compare-and-set
+     * would pass against a document it never saw, and the other writer's
+     * paragraphs would be replaced silently — precisely the lost update F-01
+     * exists to prevent, reintroduced by the answer to it.
+     *
+     * Quoting our own `ts` instead makes that case fail loudly and correctly:
+     * the base no longer matches the stored row, so the next save is refused as
+     * the conflict it is and the owner is offered both versions. `meeting`
+     * stays the honest current state — the two are different facts and the
+     * caller that needs the base version asks for the base version.
+     */
+    return { meeting: written, changed: true, version: ts };
   }
   /**
    * AUDIT-FIX-02 — append one structured item, allocating its ordinal in SQL.

@@ -218,10 +218,17 @@ export async function action({ request, context, params }: Route.ActionArgs) {
        * SAME editor just made. `NoteContentForm` had this right and says why —
        * "keep quoting a current base so a long writing session does not
        * conflict with its own previous save".
+       *
+       * HARDEN-06G — `saved.version`, NOT `saved.meeting.detailsUpdatedAt`.
+       * The meeting is the state a read observed after the write; the version
+       * is the one this write produced. They differ exactly when another writer
+       * committed in between, and answering with the observed one would let
+       * this editor's next save pass against a document it never saw and
+       * replace that writer's text silently.
        */
       return Response.json({
         ok: true,
-        detailsUpdatedAt: saved.meeting.detailsUpdatedAt.toISOString(),
+        detailsUpdatedAt: saved.version,
       } satisfies MeetingUpdateResponse);
     }
     return Response.json({ ok: true });

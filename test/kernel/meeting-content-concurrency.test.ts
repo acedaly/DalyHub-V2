@@ -23,12 +23,14 @@
  * built on.
  */
 
+import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { RouterContextProvider } from "react-router";
 
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { MEETING_UPDATED, MeetingConflictError } from "~/kernel/meetings";
 import { setAuthenticatedSession } from "~/platform/request";
+import { createMeetingRepository } from "~/platform/storage/d1";
 import { action as meetingMutate } from "~/modules/meetings/routes/mutate";
 
 import {
@@ -356,6 +358,142 @@ describe("HARDEN-06F — the success response carries the version it produced", 
     expect(second.status).toBe(200);
     expect((await writer().get(meeting.id))?.notesMarkdown).toBe(
       "Typing… and still typing.",
+    );
+  });
+});
+
+/**
+ * HARDEN-06G — the version handed back must be the version THIS write produced.
+ *
+ * Raised by an automated review of #212 and confirmed here before it was fixed,
+ * because HARDEN-06F's own answer created it: `update` reads the meeting back
+ * after its batch, and that read is a SEPARATE statement. A second writer that
+ * commits in the window between them is read as though it were us.
+ *
+ * Handing that version to the editor is worse than handing back nothing. The
+ * editor advances its base to the other writer's version; its next
+ * compare-and-set then passes against a document it never saw; and the other
+ * writer's paragraphs are replaced with no conflict, no banner and no trace —
+ * exactly the lost update F-01 exists to prevent, reintroduced by the answer to
+ * it, and reachable in the ordinary case of typing straight through a save.
+ *
+ * The interleave below is injected rather than raced, so the window is a fact
+ * and not a timing accident: the D1 handle this writer uses runs the OTHER
+ * writer's whole save at the moment the read-back begins.
+ */
+describe("HARDEN-06G — the returned version is this write's, not a later one's", () => {
+  /**
+   * `env.DB` with one hook: the first read issued AFTER a `batch()` commits runs
+   * `during()` to completion first. Statements are unwrapped again before they
+   * reach the real `batch`, so D1 only ever sees its own objects.
+   */
+  function interleavingDb(during: () => Promise<void>): typeof env.DB {
+    type Statement = ReturnType<typeof env.DB.prepare>;
+    const originals = new WeakMap<Statement, Statement>();
+    let armed = false;
+    let fired = false;
+    const wrap = (statement: Statement): Statement => {
+      const proxy = new Proxy(statement, {
+        get(target, property) {
+          if (property === "bind") {
+            return (...args: unknown[]) =>
+              wrap((target.bind as (...a: unknown[]) => Statement)(...args));
+          }
+          const value = Reflect.get(target, property, target);
+          if (typeof value !== "function") return value;
+          if (
+            property === "first" ||
+            property === "all" ||
+            property === "raw"
+          ) {
+            return async (...args: unknown[]) => {
+              if (armed && !fired) {
+                fired = true;
+                await during();
+              }
+              return (value as (...a: unknown[]) => unknown).apply(
+                target,
+                args,
+              );
+            };
+          }
+          return (value as (...a: unknown[]) => unknown).bind(target);
+        },
+      }) as Statement;
+      originals.set(proxy, statement);
+      return proxy;
+    };
+    return new Proxy(env.DB, {
+      get(target, property) {
+        if (property === "prepare") {
+          return (sql: string) => wrap(target.prepare(sql));
+        }
+        if (property === "batch") {
+          return async (statements: Statement[]) => {
+            const result = await target.batch(
+              statements.map((s) => originals.get(s) ?? s),
+            );
+            armed = true;
+            return result;
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function"
+          ? (value as (...a: unknown[]) => unknown).bind(target)
+          : value;
+      },
+    }) as typeof env.DB;
+  }
+
+  it("refuses the next save instead of overwriting the writer who got in between", async () => {
+    const meeting = await newMeeting();
+
+    // Bob revalidates AFTER Ada's write has committed — so he quotes Ada's
+    // version and his own save is entirely legitimate. He is not racing Ada;
+    // he is the next writer in line.
+    const interleave = async () => {
+      const seen = await writer("2026-08-20T00:00:01.000Z").get(meeting.id);
+      expect(seen?.notesMarkdown).toBe("Ada's paragraph.");
+      await writer("2026-08-20T00:00:02.000Z").update(meeting.id, {
+        notesMarkdown: "Ada's paragraph.\n\nBob's paragraph.",
+        expectedUpdatedAt: seen!.detailsUpdatedAt.toISOString(),
+      });
+    };
+
+    const ada = createMeetingRepository(
+      interleavingDb(interleave),
+      makeContext(WS),
+      {
+        clock: new FakeClock("2026-08-20T00:00:00.000Z").now,
+        activityIdGenerator: nextActivityId,
+      },
+    );
+    const written = await ada.update(meeting.id, {
+      notesMarkdown: "Ada's paragraph.",
+      expectedUpdatedAt: meeting.version,
+    });
+
+    // The read-back saw Bob's document. That is honest — it IS the stored state.
+    expect(written.meeting.notesMarkdown).toBe(
+      "Ada's paragraph.\n\nBob's paragraph.",
+    );
+    // …but the version Ada may quote next is Ada's own, not Bob's.
+    expect(written.version).toBe("2026-08-20T00:00:00.000Z");
+    expect(written.version).not.toBe(
+      written.meeting.detailsUpdatedAt.toISOString(),
+    );
+
+    // The whole point: Ada's coalesced next save is REFUSED, so Bob's paragraph
+    // survives. Quoting the read-back's version instead would have let this
+    // through and destroyed it.
+    await expect(
+      writer("2026-08-20T00:00:03.000Z").update(meeting.id, {
+        notesMarkdown: "Ada's paragraph, continued.",
+        expectedUpdatedAt: written.version,
+      }),
+    ).rejects.toBeInstanceOf(MeetingConflictError);
+    expect((await writer().get(meeting.id))?.notesMarkdown).toBe(
+      "Ada's paragraph.\n\nBob's paragraph.",
     );
   });
 });
