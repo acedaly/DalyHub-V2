@@ -952,3 +952,45 @@ pre {
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Contextual row actions                                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * One product-wide reveal contract for secondary actions on dense rows.
+ *
+ * The action remains in the DOM and in layout at all times: hiding it with
+ * opacity preserves column alignment and keyboard/screen-reader access. A
+ * pointer reveals it when the row is engaged; a touch-first device draws it
+ * permanently because hover does not exist there. Consumers opt in by placing
+ * `data-dh-action-context="true"` on the row and `dh-action-reveal` on the
+ * trailing action container.
+ */
+.dh-action-reveal {
+  opacity: 1;
+  transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+@media (hover: hover) {
+  [data-dh-action-context="true"] .dh-action-reveal {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  [data-dh-action-context="true"]:hover .dh-action-reveal,
+  [data-dh-action-context="true"]:focus-within .dh-action-reveal,
+  .dh-action-reveal:focus-within,
+  .dh-action-reveal[aria-expanded="true"],
+  .dh-action-reveal:has([aria-expanded="true"]) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .dh-action-reveal {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

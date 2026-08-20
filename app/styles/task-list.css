@@ -135,9 +135,9 @@
 
 .dh-tasklist {
   /*
-   * The shared column grid. ONE declaration, inherited by the header row and by
-   * every task row, which is the entire mechanism that makes the columns line
-   * up. The order is the concept's: lead, task, project, due, priority, status,
+   * The shared column grid. ONE declaration, inherited by every task row, which
+   * is the entire mechanism that makes the columns line up. The order answers
+   * the owner's scan questions: lead, task, when, where, importance, state,
    * actions.
    *
    * The title is `minmax(0, 1fr)` — `0` and not `auto`, so a long title
@@ -146,25 +146,14 @@
    * neither is allowed to break the row).
    */
   /*
-   * The order is DATE, then PRIORITY, then project.
-   *
-   * After the title, WHEN comes before WHERE — that much was already right. What
-   * was wrong is what came next: a 10.5rem project column sat between the date
-   * and the priority, so the two facts that decide whether a row needs acting on
-   * TODAY were held apart by the one that does not. The reference list runs
-   * `title · date · priority · project`, and reading it confirms why — date and
-   * flag form a single urgency cluster the eye takes in at once, and the project
-   * is context you consult afterwards.
-   *
-   * The DOM order is unchanged (cells keep their source positions and are placed
-   * by `grid-column`, with `order` handling the phone's flex composition), so
-   * nothing about the accessible reading order moves.
-   *
-   * Priority widened from 4.5rem to 5rem now that the tag is drawn for every
-   * level rather than suppressed for P4, and project gave up the difference.
+   * Date, Project/Area and Priority appear in the same order in the DOM, the
+   * desktop grid and the phone's second line: **when → where → importance**.
+   * That makes the visual scan and accessible reading order agree, and stops a
+   * CSS-only rearrangement from telling a sighted and non-sighted owner two
+   * different stories about the same task.
    */
   --taskrow-lead: auto;
-  --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 7rem 5rem 10rem 6.5rem
+  --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 7rem 10rem 5rem 6.5rem
     1.75rem;
 
   display: flex;
@@ -463,12 +452,12 @@
   grid-row: 1;
 }
 
-.dh-taskrow__cell--priority {
+.dh-taskrow__cell--project {
   grid-column: 4;
   grid-row: 1;
 }
 
-.dh-taskrow__cell--project {
+.dh-taskrow__cell--priority {
   grid-column: 5;
   grid-row: 1;
 }
@@ -546,31 +535,7 @@
   justify-content: flex-end;
 }
 
-/*
- * ONE trailing control, and it is held back until the row is engaged with (§26).
- *
- * On a pointer device it appears on hover or when anything in the row takes
- * focus; on touch, where there is no hover, it is always drawn. It is never
- * removed from the accessibility tree — `opacity` and not `display`, so a
- * screen reader and the keyboard reach it on a row that was never hovered.
- */
-.dh-taskrow__overflow {
-  opacity: 1;
-  transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-@media (hover: hover) {
-  .dh-taskrow__overflow {
-    opacity: 0;
-  }
-
-  .dh-taskrow:hover .dh-taskrow__overflow,
-  .dh-taskrow:focus-within .dh-taskrow__overflow,
-  .dh-taskrow__overflow:focus-visible,
-  .dh-taskrow__overflow[aria-expanded="true"] {
-    opacity: 1;
-  }
-}
+/* The shared `.dh-action-reveal` contract in `base.css` owns visibility. */
 
 /* -------------------------------------------------------------------------- */
 /* The inline editors, ON a row                                                */
@@ -1129,7 +1094,7 @@
    * the priority column stops hoarding 88 of them.
    */
   .dh-taskrow {
-    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6.5rem 4.5rem 9rem
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6.5rem 9rem 4.5rem
       1.75rem;
   }
 
@@ -1144,7 +1109,7 @@
 
 @container tasklist (max-width: 44rem) {
   .dh-taskrow {
-    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6rem 4rem 7rem 1.75rem;
+    --taskrow-columns: var(--taskrow-lead) minmax(0, 1fr) 6rem 7rem 4rem 1.75rem;
   }
 }
 
@@ -1784,7 +1749,9 @@
 }
 
 .dh-tasklist--cards .dh-taskrow:hover .dh-taskrow__actions,
-.dh-tasklist--cards .dh-taskrow:focus-within .dh-taskrow__actions {
+.dh-tasklist--cards .dh-taskrow:focus-within .dh-taskrow__actions,
+.dh-tasklist--cards
+  .dh-taskrow__actions:has(.dh-taskrow__overflow[aria-expanded="true"]) {
   opacity: 1;
 }
 

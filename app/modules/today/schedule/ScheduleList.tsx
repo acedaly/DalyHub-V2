@@ -181,6 +181,9 @@ function ScheduleRow({
   return (
     <li
       className="dh-day-row dh-schedule__row"
+      data-dh-action-context={
+        entry.kind === "event" && entry.meetingId !== null ? "true" : undefined
+      }
       data-state={entry.relative}
       data-cancelled={entry.cancelled ? "true" : undefined}
       data-testid="schedule-row"
@@ -230,18 +233,19 @@ function ScheduleRow({
               .join(" · ")}
           </span>
         )}
-        {/* The ONE inline affordance, and only when a Meeting genuinely exists.
-            Everything else about the event is in its detail sheet. */}
-        {entry.kind === "event" && entry.meetingId !== null ? (
-          <Link
-            className="dh-schedule__action"
-            to={`/meeting/${encodeURIComponent(entry.meetingId)}`}
-          >
-            Open notes
-            <span className="dh-visually-hidden">{` for ${entry.title}`}</span>
-          </Link>
-        ) : null}
       </span>
+      {/* The ONE trailing affordance, and only when a Meeting genuinely exists.
+          It shares the row action-reveal contract with Tasks and directories:
+          contextual on a pointer, persistent on touch, always keyboard-reachable. */}
+      {entry.kind === "event" && entry.meetingId !== null ? (
+        <Link
+          className="dh-schedule__action dh-action-reveal"
+          to={`/meeting/${encodeURIComponent(entry.meetingId)}`}
+        >
+          Open notes
+          <span className="dh-visually-hidden">{` for ${entry.title}`}</span>
+        </Link>
+      ) : null}
     </li>
   );
 }

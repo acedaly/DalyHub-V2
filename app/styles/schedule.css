@@ -48,6 +48,7 @@
 /* -------------------------------------------------------------------------- */
 
 .dh-schedule__row {
+  position: relative;
   /* Top-aligned, so the time block stays level with the title's first line
      rather than centring against a two-line stack. */
   align-items: start;
@@ -203,7 +204,8 @@
 
 /* The row's one inline affordance, present only once a Meeting exists. */
 .dh-schedule__action {
-  align-self: start;
+  flex: none;
+  margin-inline-start: auto;
   color: var(--dh-color-accent);
   font-size: var(--dh-text-label-size);
   line-height: var(--dh-text-label-line-height);
@@ -211,11 +213,26 @@
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  align-self: start;
 }
 
 .dh-schedule__action:hover {
   text-decoration: underline;
+}
+
+/*
+ * A pointer does not permanently tax the title for a secondary action. The
+ * action sits over the row's quiet trailing edge and receives an opaque ground
+ * when revealed; touch keeps it in normal flow because it must remain visible.
+ */
+@media (hover: hover) {
+  .dh-schedule__action {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    min-block-size: var(--dh-row-height);
+    padding-inline-start: var(--app-space-4);
+    background: var(--dh-color-surface);
+  }
 }
 
 /*
