@@ -89,7 +89,12 @@ export function RecordRow({
     .join(" ");
 
   return (
-    <li className={classes} data-testid={testId} aria-current={undefined}>
+    <li
+      className={classes}
+      data-dh-action-context={actions ? "true" : undefined}
+      data-testid={testId}
+      aria-current={undefined}
+    >
       {lead ? <div className="dh-row__lead">{lead}</div> : null}
 
       <div className="dh-row__body">
@@ -115,7 +120,9 @@ export function RecordRow({
 
       {meta ? <div className="dh-row__meta">{meta}</div> : null}
       {status ? <div className="dh-row__status">{status}</div> : null}
-      {actions ? <div className="dh-row__actions">{actions}</div> : null}
+      {actions ? (
+        <div className="dh-row__actions dh-action-reveal">{actions}</div>
+      ) : null}
     </li>
   );
 }
