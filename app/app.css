@@ -172,5 +172,8 @@
 /* M3-TIP — the ONE shared tooltip. Near the end of the cascade because it is an
  * overlay every other surface can raise, and it must sit above them all. */
 @import "./styles/tooltip.css";
+/* PREMIUM-01 — the reference-led product finish. Imported after every module so
+ * it can converge shared surfaces without module-specific specificity wars. */
+@import "./styles/premium.css";
 /* Last: the print stylesheet hides all on-screen chrome, so it must win. */
 @import "./styles/print.css";

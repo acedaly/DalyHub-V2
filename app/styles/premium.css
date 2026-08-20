@@ -1,0 +1,316 @@
+/*
+ * PREMIUM-01 — the reference-led DalyHub finish.
+ *
+ * This file owns no module rules and introduces no new colour. It changes the
+ * shared silhouettes every module already composes: frame, page heading,
+ * collection, card, record surface, field and phone chrome. Keeping the pass at
+ * these seams is what makes a Project, Goal, Note, Person, Asset and Review feel
+ * like one product rather than eight individually styled screens.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Frame and navigation                                                       */
+/* -------------------------------------------------------------------------- */
+
+.dh-app {
+  background: var(--dh-color-bg);
+}
+
+.dh-sidebar--rail {
+  padding: var(--dh-space-4) var(--dh-space-3) var(--dh-space-3);
+}
+
+.dh-sidebar__brand {
+  min-block-size: var(--dh-shell-bar-height);
+  padding-inline: var(--dh-space-2);
+  padding-block-end: var(--dh-space-4);
+}
+
+.dh-sidebar__capture {
+  margin-block-end: var(--dh-space-3);
+  justify-content: flex-start;
+}
+
+@media (min-width: 48rem) and (max-width: 63.9375rem) {
+  .dh-sidebar__capture {
+    inline-size: var(--dh-control-height);
+    padding-inline: 0;
+    justify-content: center;
+    font-size: 0;
+  }
+}
+
+.dh-nav {
+  gap: var(--dh-space-1);
+}
+
+.dh-nav__link {
+  border-radius: var(--dh-radius-sm);
+  font-weight: var(--dh-text-row-weight);
+}
+
+.dh-nav__link[aria-current="page"] {
+  font-weight: var(--dh-text-label-weight);
+  box-shadow: inset var(--dh-border-width) 0 0 var(--dh-color-accent);
+}
+
+.dh-nav__group-heading {
+  margin-block-start: var(--dh-space-4);
+  padding-inline: var(--dh-space-2);
+  color: var(--dh-color-rail-text-muted);
+  font-size: var(--dh-text-meta-size);
+  font-weight: var(--dh-text-label-weight);
+  text-transform: none;
+}
+
+.dh-sidebar__account {
+  padding-block-start: var(--dh-space-3);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-rail-border);
+}
+
+.dh-topbar {
+  border-block-end: var(--dh-border-width) solid var(--dh-color-divider);
+  box-shadow: none;
+}
+
+.dh-topbar__search {
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-subtle);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Page and collection hierarchy                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-pane-header {
+  padding-block: var(--dh-space-6) var(--dh-space-4);
+}
+
+.dh-pane-header__title {
+  letter-spacing: -0.015em;
+}
+
+.dh-pane-header__subtitle,
+.dh-pane-header__meta {
+  max-inline-size: var(--app-width-prose);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-collection__filters {
+  gap: var(--dh-space-2);
+  padding-block-end: var(--dh-space-4);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-collection__content {
+  padding-block-start: var(--dh-space-6);
+}
+
+.dh-collection--flat .dh-collection__content {
+  padding-block-start: var(--dh-space-4);
+}
+
+.dh-collection-toolbar {
+  align-items: center;
+  padding: var(--dh-space-3) var(--dh-space-4);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-subtle);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Controls                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dh-btn {
+  border-radius: var(--dh-radius-sm);
+  font-weight: var(--dh-text-label-weight);
+  box-shadow: none;
+}
+
+.dh-btn--primary {
+  box-shadow: none;
+}
+
+.dh-input,
+.dh-select-trigger,
+.dh-combobox__input,
+.dh-tags {
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface);
+}
+
+.dh-field__label-text {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-viewtabs,
+.dh-segmented {
+  border-radius: var(--dh-radius-sm);
+}
+
+/* -------------------------------------------------------------------------- */
+/* One premium card language across every record family                       */
+/* -------------------------------------------------------------------------- */
+
+.dh-card,
+.dh-ecard,
+.dh-pcard,
+.dh-acard,
+.dh-rcard {
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  box-shadow: none;
+}
+
+.dh-card:hover:has(a, button),
+.dh-ecard--interactive:hover,
+.dh-pcard:hover,
+.dh-acard:hover,
+.dh-rcard:hover {
+  border-color: var(--dh-color-border-strong);
+  box-shadow: var(--dh-elevation-raised);
+}
+
+.dh-ecard-grid {
+  gap: var(--dh-space-4);
+}
+
+.dh-ecard,
+.dh-pcard,
+.dh-acard,
+.dh-rcard {
+  padding: var(--dh-space-5);
+}
+
+.dh-ecard__title,
+.dh-pcard__title,
+.dh-acard__title,
+.dh-rcard__title {
+  letter-spacing: -0.01em;
+}
+
+.dh-ecard__status,
+.dh-card__status {
+  border-radius: var(--dh-radius-sm);
+}
+
+/* Flat collections keep the reference's dense, hairline-separated rows. */
+.dh-mrow-list {
+  border-block: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-mrow {
+  border-radius: 0;
+}
+
+.dh-mrow:hover {
+  background: var(--dh-color-surface-subtle);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Record pages                                                               */
+/* -------------------------------------------------------------------------- */
+
+.record-layout,
+.dh-record-layout {
+  max-inline-size: calc(var(--app-width-wide) + 2 * var(--app-page-padding));
+}
+
+.record-tabs__panel,
+.dh-record-summary-bar {
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface);
+  box-shadow: none;
+}
+
+.dh-record-summary-bar {
+  padding: var(--dh-space-5);
+}
+
+.dh-record-section + .dh-record-section {
+  padding-block-start: var(--dh-space-6);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-record-toolbar {
+  gap: var(--dh-space-2);
+  padding-block: var(--dh-space-3);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Today command centre                                                       */
+/* -------------------------------------------------------------------------- */
+
+.dh-today__summary {
+  border-radius: var(--dh-radius-sm);
+}
+
+.dh-today__timeline {
+  border-radius: var(--dh-radius-md);
+}
+
+.dh-today__panel-title,
+.dh-day-section__label {
+  letter-spacing: -0.01em;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phone                                                                      */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 47.99rem) {
+  .dh-mobilebar {
+    border-block-end: var(--dh-border-width) solid var(--dh-color-divider);
+    box-shadow: none;
+  }
+
+  .dh-bottomnav {
+    border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+    box-shadow: none;
+  }
+
+  .dh-bottomnav__control,
+  .dh-bottomnav__control--capture {
+    border-radius: var(--dh-radius-sm);
+  }
+
+  .dh-pane-header {
+    padding-block: var(--dh-space-4) var(--dh-space-3);
+  }
+
+  .dh-collection__content {
+    padding-block-start: var(--dh-space-4);
+  }
+
+  .dh-collection-toolbar {
+    padding: var(--dh-space-3);
+  }
+
+  .dh-ecard-grid {
+    gap: var(--dh-space-3);
+  }
+
+  .dh-ecard,
+  .dh-pcard,
+  .dh-acard,
+  .dh-rcard {
+    padding: var(--dh-space-4);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dh-card,
+  .dh-ecard,
+  .dh-pcard,
+  .dh-acard,
+  .dh-rcard {
+    transition:
+      border-color var(--dh-motion-fast) var(--dh-ease-standard),
+      box-shadow var(--dh-motion-fast) var(--dh-ease-standard),
+      background-color var(--dh-motion-fast) var(--dh-ease-standard);
+  }
+}
