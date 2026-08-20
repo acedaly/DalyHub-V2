@@ -308,7 +308,7 @@ a.dh-habit-row__title:hover {
 .dh-habit-summary {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-6);
+  gap: var(--app-space-4);
   min-inline-size: 0;
 }
 
@@ -837,7 +837,7 @@ a.dh-habit-row__title:hover {
   gap: var(--app-space-4);
   padding: var(--app-space-4);
   border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
 }
 

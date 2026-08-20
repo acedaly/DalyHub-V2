@@ -54,6 +54,7 @@ import { Link } from "react-router";
 
 import { AccentIcon } from "~/shared/entity";
 import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
+import { goalProgressStatusLabel } from "~/shared/goal-progress";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { GoalMeasurementSection } from "./GoalMeasurementSection";
@@ -81,6 +82,9 @@ export function GoalWorkspacePane({
   const targetDate = details.targetDate
     ? (formatCalendarDate(details.targetDate) ?? details.targetDate)
     : null;
+  const nextStage = [...detail.milestones]
+    .sort((left, right) => left.position - right.position)
+    .find((milestone) => !milestone.completed);
 
   /*
    * The context line — "Health · Target by 31 Dec 2025".
@@ -142,6 +146,19 @@ export function GoalWorkspacePane({
          */}
         <AlignmentIndicator alignment={alignment} />
       </header>
+
+      <section className="dh-goalpane__focus" aria-label="Goal focus">
+        <p className="dh-goalpane__focus-state">
+          <span>Current status</span>
+          <strong>{goalProgressStatusLabel(progress.status)}</strong>
+        </p>
+        {nextStage ? (
+          <p className="dh-goalpane__focus-next">
+            <span>Next stage</span>
+            <strong>{nextStage.title}</strong>
+          </p>
+        ) : null}
+      </section>
 
       {/*
        * The trio, the chart with its dotted path to the target, the pace band

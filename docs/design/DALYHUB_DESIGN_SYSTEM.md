@@ -1,5 +1,11 @@
 # The DalyHub Design System
 
+> **Start with [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md).** It is the
+> product-level brief: the intended character, interaction model and module
+> direction. This document turns that direction into enforceable design-system
+> policy. Existing concept images illustrate the direction; they do not outrank
+> it.
+>
 > **This document is the specification.** DalyHub has its own product design
 > system, and it is the authority for what the application looks like, how dense
 > it is, how it behaves on a desktop and how it adapts to a phone.

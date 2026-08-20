@@ -25,7 +25,7 @@
  */
 .dh-schedule__nav {
   margin-block-start: calc(-1 * var(--app-space-2));
-  margin-block-end: var(--app-space-4);
+  margin-block-end: var(--app-space-3);
 }
 
 /*

@@ -985,6 +985,47 @@
   color: var(--dh-color-text-muted);
 }
 
+/* The selected Goal answers the two daily-driver questions before the chart:
+ * how is it going, and what is the next concrete stage? This is an open band,
+ * not another card inside the detail card. */
+.dh-goalpane__focus {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--dh-space-4);
+  padding-block: var(--dh-space-4);
+  border-block: var(--dh-border-width) solid var(--dh-color-divider);
+}
+
+.dh-goalpane__focus-state,
+.dh-goalpane__focus-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-1);
+  min-inline-size: 0;
+  margin: 0;
+}
+
+.dh-goalpane__focus span {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+.dh-goalpane__focus strong {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  font-weight: var(--dh-text-label-weight);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 32rem) {
+  .dh-goalpane__focus {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dh-space-3);
+  }
+}
+
 /* -- Linked projects (§6.2) ------------------------------------------------ */
 
 .dh-goalchips {

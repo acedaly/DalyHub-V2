@@ -571,6 +571,7 @@ function ProjectsCollection({
   const isReloading = useCollectionLoading();
   return (
     <CollectionLayout
+      className="dh-collection--projects"
       isLoading={isReloading}
       title="Projects"
       subtitle={subtitle}

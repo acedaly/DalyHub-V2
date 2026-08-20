@@ -89,10 +89,14 @@
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2);
   align-items: center;
   min-inline-size: 0;
   max-inline-size: 100%;
+  padding: var(--app-space-3) var(--app-space-4);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-subtle);
 }
 
 /*
