@@ -40,9 +40,11 @@
  * parameterised so the persistent and overlay instances never collide on a DOM id.
  */
 
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 
-import { CloseIcon } from "~/shared/icons";
+import { useCapture } from "~/shared/capture";
+import { CloseIcon, PlusIcon } from "~/shared/icons";
+import { Button } from "~/shared/ui";
 
 import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
@@ -98,6 +100,8 @@ export function Sidebar({
   onOpenSearch,
   onOpenCommand,
 }: SidebarProps) {
+  const capture = useCapture();
+  const captureRef = useRef<HTMLButtonElement>(null);
   return (
     /*
      * The DRAWER is the `navigation` landmark, not just the list inside it.
@@ -125,6 +129,22 @@ export function Sidebar({
       ) : null}
 
       <SidebarBrand workspaceName={workspaceName} />
+      {variant === "rail" && capture ? (
+        <Button
+          ref={captureRef}
+          variant="primary"
+          block
+          icon={<PlusIcon />}
+          className="dh-sidebar__capture"
+          onClick={() => {
+            if (captureRef.current) {
+              capture.openCapture(undefined, captureRef.current);
+            }
+          }}
+        >
+          Capture
+        </Button>
+      ) : null}
       {variant === "overlay" ? (
         <SidebarSearch
           onOpenSearch={onOpenSearch}

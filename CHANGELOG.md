@@ -1,5 +1,9 @@
 # Changelog
 
+- Converged every module on the approved DalyHub command-centre finish: tighter
+  navigation and page rhythm, quieter controls, one outlined card family,
+  cleaner record surfaces, and matching desktop/mobile chrome.
+
 - Refined Today into a clearer command centre: an honest live day summary,
   stronger task-first hierarchy, one bounded measure strip, and a quieter
   supporting rail across desktop and phone.
