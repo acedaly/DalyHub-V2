@@ -4,6 +4,10 @@
   brief for coding agents, including system-wide interaction rules,
   module-specific direction and a practical completion checklist.
 
+- Expanded the design direction with explicit desktop/mobile compositions,
+  competitive quality standards and measurable density guidance, and added the
+  staged `DHDS_01_WORK_PACKAGE.md` implementation package.
+
 - Tightened the daily-work surfaces after production review: Today now uses a
   compact current-task row, bounded supporting regions, smaller gaps and a
   collapsed weekly KPI strip; Tasks has a denser capture/list transition;
