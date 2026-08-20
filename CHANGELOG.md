@@ -17,6 +17,74 @@ no version number to group them under.
 
 ---
 
+## Things that quietly went wrong, put right
+
+A whole-application audit went looking for defects across every module. This is
+what it found and what changed on screen. Most of it you will only notice by its
+absence.
+
+**Two people can no longer overwrite each other's meeting notes.** If a meeting
+was open on your laptop and your phone, whichever saved second used to silently
+replace everything the other had written — with no warning and no way to get it
+back. Now a save that was written against text somebody else has since changed is
+refused: your draft stays exactly where you left it, the newer version stays
+safe, and a small banner offers you the choice — _load the newer version_ or
+_keep mine_. It is the same banner Notes has had for a while, doing the same job.
+
+**A note captured from the meeting capture bar now appears in an editor you
+already have open**, instead of waiting for the next reload.
+
+**You can clear a meeting's agenda or notes.** Deleting everything and saving used
+to report success and change nothing; the old text came back the next time you
+opened the meeting.
+
+**Restore accepts the backups you already have.** Any DalyHub export taken before
+18 August was being refused as "malformed" — it was not; it was simply older than
+one of the things DalyHub now stores. Recovery works on your existing archives.
+
+**"Created: Today" means today, where you are.** The Tasks and Views date filters
+were comparing your calendar day against UTC, so in Sydney _Created: Today_
+silently left out everything captured before about ten in the morning. The same
+correction reaches the assistant, which could report a different "tasks completed
+this week" from the Review it was describing.
+
+**Deleting a view actually deletes it.** Confirming _Delete view_ and navigating
+away immediately used to cancel the request in flight, leaving the view there with
+nothing said. The dialog now waits for the answer, says _Deleting…_ while it does,
+and tells you if it was refused. Saving, renaming and updating a view behave the
+same way.
+
+**Editing a meeting is no longer "seeing" the people in it.** Typing up one
+meeting reported eleven interactions with each attendee, and fixing a typo in an
+old meeting's title reset _last interaction_ to today — which quietly removed the
+follow-up nudge for someone you had not actually spoken to in months. A meeting
+counts once, and tidying up a record is not contact. Your interaction totals may
+read lower than they did; the old numbers were wrong.
+
+**A finished week stays finished.** A Weekly Review that said "3 tasks completed"
+used to say "2" once you tidied up and deleted one of them. What happened during a
+week no longer changes because of what you do afterwards.
+
+**A project whose leftover work was cancelled can be archived.** DalyHub's way to
+drop a task is _Cancel_ — and then the project refused to archive, telling you to
+"complete or move the unfinished tasks". Cancelled and Someday work is not
+unfinished work, and the message now says what actually blocks it.
+
+**Checklist progress shows on a project's task list.** The same task showed
+"2 of 5" everywhere except inside its own project, which is where you work from.
+
+**Your export says what it does not contain.** Notification settings, the
+notification history and your subscribed calendars are deliberately left out of a
+backup — each holds a credential or a private feed address. That was true before;
+it just was not written down anywhere, so a restored workspace came back missing
+them with no explanation. The archive's manifest now names all three and says what
+you will need to set up again.
+
+**Changing a habit's cadence works after you travel west.** It used to fail with
+an unexplained error until your local date caught up.
+
+---
+
 ## Repeats that match how you actually work, and tasks that can wait for each other
 
 **Two things arrived together, and they answer two different questions.** A

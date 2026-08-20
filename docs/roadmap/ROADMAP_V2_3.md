@@ -502,6 +502,22 @@ module behaviour: [`TASKS_MODULE.md`](../development/TASKS_MODULE.md#advanced-re
 above. The list below records what this theme deliberately did NOT add; a new
 item belongs in a new roadmap document with its own decision, not appended here.
 
+**Two hardening passes have landed on top of the closed theme, and neither is a
+V2.3 item.** They are recorded here only so the next reader knows the state
+V2.3 actually shipped in:
+
+- [HARDEN-06A](../product/HARDEN_06A_FINISHING_E2E_GATE_2026_08.md) (2026-08-20) —
+  the E2E gate finishes again. Twelve partitions, every spec file measured, F-03
+  and F-11 closed.
+- [HARDEN-06B…06E](../product/DALYHUB_WHOLE_APP_REPAIR_2026_08.md) (2026-08-20) —
+  the repair pass for the
+  [whole-application audit](../product/DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md).
+  One P0 (a Meeting's notes could be silently destroyed by a second writer), one
+  P1 (Restore refused every archive older than two days) and eleven more, plus
+  [ADR-108](../decisions/ARCHITECTURE_DECISIONS.md) — the three product-wide rules
+  the audit found were per-module conventions. No migration and no persisted-model
+  change.
+
 ---
 
 ## What PLAN-01 + SMART-01 deliberately did NOT add
@@ -546,5 +562,7 @@ model.
 - [ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) — a Habit is a behaviour, not a recurring Task
 - [ADR-101](../decisions/ARCHITECTURE_DECISIONS.md#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers) — the accepted decision
 - [`TASKS_MODULE.md`](../development/TASKS_MODULE.md) — the Tasks module's full behaviour
+- [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](../product/DALYHUB_WHOLE_APP_REPAIR_2026_08.md) — the hardening pass that repaired the whole-application audit on top of this closed theme
+- [ADR-108](../decisions/ARCHITECTURE_DECISIONS.md#adr-108-three-product-wide-rules-the-whole-application-audit-found-were-per-module-conventions--a-base-version-on-every-whole-document-write-an-owner-day-that-never-travels-without-its-zone-and-maintenance-that-is-not-contact) — the three rules that pass turned from per-module conventions into rules
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — what is still owed
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — the shared patterns this used and added

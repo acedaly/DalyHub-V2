@@ -4271,3 +4271,105 @@ defect found and fixed here, with regression coverage.
 
 The full record is
 [`TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md`](../design/TASKS_12_ADVANCED_RECURRENCE_DEPENDENCIES_2026_08.md).
+
+---
+
+## ADR-108: Three product-wide rules the whole-application audit found were per-module conventions — a base version on every whole-document write, an owner day that never travels without its zone, and maintenance that is not contact
+
+**Date:** 2026-08-20 · **Status:** Accepted · **Item:** HARDEN-06B…06E (the whole-application audit repair pass)
+
+**Context.** The
+[whole-application bug audit](../product/DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md)
+found fifteen defects and one theme running through the worst of them: *a correct
+fix was made in one module and never became a rule the next module had to
+follow.* Three separate findings turned out to be the same failure of process.
+
+- **F-01 (P0).** REVIEW-02 gave Review sections a base-version precondition;
+  AUDIT-08 gave the Note body the same one and routed its refusal into the shared
+  reconciliation banner. Meetings received neither, and its Notebook autosaves a
+  WHOLE document — so two writers on one Meeting meant one of them lost
+  everything they had written, with no trace (`meeting.updated` carries an empty
+  payload) and no recovery. Nothing failed, because nothing was checked.
+- **F-05 / F-14.** `ownerCalendarIso(now, timezone)` produces the owner's day and
+  `created_at` / `completed_at` are UTC instants, and five read paths compared the
+  two directly by concatenating `T00:00:00.000Z` onto a calendar date. For the
+  default Sydney owner, `Created: Today` silently omitted everything captured
+  before ~10 a.m. The comment beside the worst instance described being "free of
+  any timezone conversion" as the design.
+- **F-06.** The People module reasoned carefully about the Person's own record —
+  *"editing someone's phone number is not seeing them"* — and then counted every
+  LINKED record's maintenance event as contact. Ten debounced autosaves of one
+  meeting reported eleven interactions; correcting a typo in a six-month-old
+  meeting's title moved `lastInteractionAt` to today and removed the follow-up
+  signal.
+
+Each was individually a small fix. What the audit asked for, and what this ADR
+records, is that each becomes a RULE, because the next module will otherwise
+repeat it. The three are recorded together because they share one cause and one
+answer, not because they are one mechanism.
+
+**Decision.**
+
+1. **Every whole-document autosaving field carries a base version, and the
+   server refuses rather than merges.** A field whose editor holds the entire
+   document and writes it in full must quote the version it was written against,
+   and the write must fold that precondition into the SAME statement — never a
+   read followed by an unguarded update. A stale write is a typed conflict, the
+   route answers `409` with the newer stored text, and the refusal is routed into
+   the ONE shared `RemoteChangeBanner`: load the newer version, or keep mine.
+   There is no automatic prose merge, for ADR-064's reason unchanged — a wrong
+   merge produces text neither person wrote.
+
+   Two corollaries, both of which cost a defect to learn. A write that spans
+   two tables (a Meeting's title is in `entities`, its documents in
+   `meeting_details`) carries the precondition on BOTH statements, or a refused
+   save still applies half of itself. And an APPEND is the one whole-document
+   write that has a deterministic safe merge, so the phone capture bar retries
+   onto the newer text instead of refusing — merging where it can, refusing
+   where it cannot.
+
+2. **An owner-calendar day is converted to an instant at ONE named boundary, and
+   `todayIso` never travels without the zone that produced it.**
+   `ownerDayStartInstant(dayIso, timeZone)` is that boundary
+   (`~/shared/datetime`); it is `ownerLocalToUtc` at midnight, with an explicit
+   answer for the zones that skip midnight on a DST transition. Correspondingly,
+   `ListWorkspaceTasksInput` and `ListWorkspaceTaskGroupsInput` now REQUIRE
+   `timezone` beside `todayIso`, and `CrossViewQueryContext` gained
+   `dayStartInstantOf` as the inverse of the `calendarIsoOf` it already carried.
+   A calendar date without its zone is an incomplete fact, and that
+   incompleteness IS the defect — making the field required is what stops the
+   next filter repeating it, at the cost of a parameter on reads that do not
+   need it.
+
+3. **An interaction with a Person is a record's CREATION or an explicit contact
+   or commitment event — never its later maintenance.** `meeting.updated`,
+   `diary_entry.updated` and `note.content_updated` leave
+   `INTERACTION_ACTIVITY_TYPES`; `entity.created`, `meeting.created`,
+   `meeting.held`, the two follow-through types, `task.completed`,
+   `task.reopened`, `review.created` and `review.completed` stay. This is the
+   module's own rule applied one level out, and nothing an owner genuinely did
+   with a person became invisible — only the autosaves did.
+
+**Alternatives rejected.** *Counting interactions by distinct owner-calendar day
+everywhere the figure is shown* — a smaller change that also fixes the inflation,
+rejected because it leaves `lastInteractionAt`, an instant, still moved by a typo
+correction, and because it answers "how do we count it" rather than "what is it".
+*A revision history or a CRDT for Meetings* — rejected as far larger than the
+defect and than ADR-064's settled position. *Making `timezone` optional with a
+UTC default* — rejected: it is precisely the shape that let five call sites be
+wrong, and a default that is right for one owner and wrong for the rest is worse
+than a required parameter. *An ADR per finding* — rejected: three records
+describing one process failure would hide the thing worth remembering.
+
+**Consequences.** No migration and no persisted-model change: every precondition
+is over a column that already existed. `Meeting` gains a `detailsUpdatedAt`
+field, distinct from the derived `updatedAt`, because a compare-and-set must
+compare the exact stored value the guard compares. Roughly twenty `listWorkspaceTasks`
+call sites gained a `timezone` argument, several of them by threading it through
+a helper that had taken `todayIso` alone. The People module's headline
+"Total interactions" figure will read LOWER than it did for workspaces with
+edited meetings — the previous number was wrong, and the module says what the
+figure counts.
+
+The full record is
+[`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](../product/DALYHUB_WHOLE_APP_REPAIR_2026_08.md).

@@ -229,6 +229,42 @@ The state change and its Activity event are **one atomic, self-guarding write** 
 
 Errors fail closed and disclose nothing: `MeetingNotFoundError` (missing, soft-deleted, wrong type or another workspace — all indistinguishable) → `404`; `MeetingArchivedError` → `409` with the recovery named. Both now live in the kernel beside the contract that throws them, and `~/platform/meetings` re-exports them so MEET-02's importers are unaffected.
 
+### Concurrent writes to the agenda and the notes (HARDEN-06B, F-01)
+
+The agenda and notes are **whole documents** that the Notebook autosaves in full,
+and until 2026-08-20 the write had no precondition at all. Two writers on one
+Meeting — a laptop and a phone, two tabs, the capture bar and an open Notebook —
+and whichever saved second silently replaced the other's paragraphs. Nothing
+failed, nothing was announced, and the text was unrecoverable: there is no
+revision history and `meeting.updated` is appended with an EMPTY payload.
+
+The repair copies, verbatim, the shape `NoteDetailsRepository.update` has shipped
+since AUDIT-08 and `ReviewRepository.updateSection` since REVIEW-02.
+
+| Piece | What it is |
+| --- | --- |
+| `Meeting.detailsUpdatedAt` | The version token. Deliberately DISTINCT from `updatedAt`, which is the later of the entity's and the detail row's timestamps and therefore a derived display value — a compare-and-set must compare the exact stored value the guard compares. |
+| `UpdateMeetingInput.expectedUpdatedAt` | The version the caller read. Its PRESENCE opts in, so every mutation that patches a field (status, attendee, times) behaves exactly as it did. |
+| The predicate | `AND updated_at = ?`, folded into the write statements themselves, so nothing can slip between a check and an update. It is on **both** domain statements: the title lives in `entities` and the rest in `meeting_details`, and a refused save must change NEITHER. The entities statement is ordered first so it still sees the pre-write detail version. |
+| The refusal | `MeetingConflictError` → the route answers **`409`** carrying the newer stored agenda and notes. Never a `500`: nothing failed. The response never echoes the submitted draft — that text never left the editor. |
+| The editor | `MeetingMarkdown` quotes its base on every save and feeds a refusal into the shared `RemoteChangeBanner`: *load the newer version*, or *keep mine*. One reconciliation contract in the product, not a Meetings-only second one. There is deliberately no automatic Markdown merge (ADR-064). |
+
+Two rules worth carrying to the next module, both learned here:
+
+- **An unparseable version is REFUSED (`400`), never degraded to "no
+  precondition".** A guard with an opt-out is not a guard, and a `400` costs the
+  owner nothing — their draft never left the editor.
+- **Agreeing is not a conflict.** A save asking for exactly the stored state is
+  the idempotent no-op it always was, whatever version it quotes: nobody's
+  writing can be lost by agreeing.
+
+Separately, the mutation route used to coerce an empty `agendaMarkdown` /
+`notesMarkdown` to `null`, which the repository's merge reads as "not supplied" —
+so **clearing a meeting's notes reported success and changed nothing**, and the
+old text returned on the next reload. The two document fields are now copied
+verbatim; the coercion is right for a field with a meaningful "unset" (a
+location, a link) and wrong for a document.
+
 ### Privacy rules
 
 The `meeting.held` payload carries **structural metadata only** — `source`, the meeting's `startsAt` instant, its `timezone`, `attendeeCount`, `attendeesRecorded` and (when capped) `attendeesTruncated`. Never agenda Markdown, meeting notes, decision text, outcome text, task titles, a Person's contact details or a Person's notes.
@@ -394,12 +430,18 @@ A note is **appended**, never overwritten, so a capture during a meeting can nev
 destroy notes already written. A failed capture keeps the text on screen. Saves
 and failures are announced through a live region.
 
-A captured **note** is written to the canonical field, but an editor that is
-already open does not show it until the record is loaded again: the autosave field
-owns its draft and does not adopt server changes underneath a writer. That is
-[DEBT-47](../product/PRODUCT_DEBT.md#-debt-47--an-open-autosave-editor-does-not-adopt-a-server-side-change-to-its-field--p2),
-recorded rather than patched, because adopting external values safely is a change
-to the shared DS-06 autosave contract.
+**The append quotes the version it read, and RETRIES on refusal** (HARDEN-06B).
+An append is the one whole-document write that HAS a deterministic safe merge —
+adding a line to whatever the notes currently are keeps both writers' words — so
+where the editor refuses (below), this one re-appends onto the newer text and
+tries again, once. A second refusal means a third writer is active, and the
+capture reports the failure honestly rather than looping while the owner waits.
+
+A captured **note** now also appears in an editor that is already open, because
+`MeetingMarkdown` passes `serverValue` and the record revalidates on the capture's
+own success: the shared DS-06 reconciliation contract ADOPTS the change while the
+editor is clean and OFFERS it through the `RemoteChangeBanner` while it is dirty.
+That closes [DEBT-47](../product/PRODUCT_DEBT.md#-debt-47--an-open-autosave-editor-does-not-adopt-a-server-side-change-to-its-field--p2--resolved-2026-08-20).
 
 **Focus across a save is part of the contract, not polish.** The field is disabled
 while a save is in flight, and a browser blurs a disabled element — so it is
