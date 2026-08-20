@@ -70,24 +70,25 @@ const MANIFEST = join(ROOT, "e2e", "partitions.json");
  * ── Why it moved from ten (HARDEN-06A) ──────────────────────────────────────
  * NOT to make a failing run fit — the split is derived, and this is the only
  * knob the derivation exposes. With every spec file finally MEASURED the suite
- * is 165.4 min of test time, and TEN partitions cannot hold that inside a safe
- * budget: `responsive.spec.ts` takes two partitions of 9.5 min apiece (it is
- * one generated matrix file and `--shard` is the only way to divide it), which
- * leaves the other eight carrying 18.3 min each. Derived at each count against
- * the same measurements, with predicted wall clock as a share of the ceiling:
+ * is 175.1 min of test time, and TEN partitions cannot hold that inside a safe
+ * budget: `responsive.spec.ts` is one generated matrix file, `--shard` is the
+ * only way to divide it, and it takes two partitions of 11.8 min apiece —
+ * leaving the other eight carrying 19.0 min each. Derived at each count against
+ * run 32333645709's measurements, with predicted wall clock as a share of the
+ * ceiling:
  *
- *   10 → worst 18.3 min · wall 20.5 min · 82%  — OVER MAX_PARTITION_SECONDS
- *   11 → worst 16.3 min · wall 18.3 min · 73%  — inside, by 0.4 min
- *   12 → worst 14.7 min · wall 16.4 min · 66%  ← chosen
- *   13 → worst 13.4 min · wall 15.0 min · 60%  — past the pool's twelve
+ *   10 → worst 19.0 min · wall 21.3 min · 85%  — OVER MAX_PARTITION_SECONDS
+ *   11 → worst 16.9 min · wall 18.9 min · 76%  — OVER, by 0.2 min
+ *   12 → worst 15.2 min · wall 17.0 min · 68%  ← chosen
+ *   13 → worst 13.8 min · wall 15.5 min · 62%  — past the pool's twelve
  *
- * Eleven satisfies the ceiling and TWELVE was still taken, for one reason worth
- * stating: eleven leaves 0.4 min of budget before `check` starts failing, so
- * the next spec file of any size would force this decision again immediately.
- * Twelve leaves ~2 min per partition and puts the heaviest back at the
- * ~70%-of-ceiling target every split since HARDEN-04 has been tuned to. If the
- * pool does queue a job or two at twelve, that costs WALL CLOCK and nothing
- * else: a queued job has not started, so it spends none of its `globalTimeout`.
+ * Twelve is the FIRST count that satisfies `MAX_PARTITION_SECONDS`, and it puts
+ * the heaviest partition back at the ~70%-of-ceiling target every split since
+ * HARDEN-04 has been tuned to. It is also the pool's own measured ceiling, and
+ * run 32333645709 confirmed it is not contended: all twelve E2E jobs started
+ * within ONE SECOND of each other, none queued. If a future run does queue a
+ * job, that costs WALL CLOCK and nothing else — a queued job has not started,
+ * so it spends none of its `globalTimeout`.
  */
 export const PARTITION_COUNT = 12;
 
@@ -117,11 +118,16 @@ export const GLOBAL_TIMEOUT_SECONDS = 25 * 60;
  * A partition's budget is the sum of its spec files' measured test durations,
  * and that is strictly less than the job's elapsed time: `beforeAll`/`afterEach`
  * fixtures, D1 cleanup, browser context churn and the gaps between tests are all
- * outside a test's own measured duration. MEASURED on the p08 partition of run
- * 32321840125 — the one complete partition of that run — 840.5 s of measured
- * test time took 931.9 s of Playwright wall clock: a factor of 1.109. Rounded UP
- * to 1.12, because the cost of underestimating this is the failure the whole
- * mechanism exists to end.
+ * outside a test's own measured duration.
+ *
+ * MEASURED across all TWELVE partitions of run 32333645709 — 175.1 min of test
+ * time in 195.0 min of Playwright wall clock — the factor is **1.114** overall
+ * and ranges 1.094 … 1.131 per partition. 1.12 is the mean, rounded up, and the
+ * spread above it is carried by `PARTITION_CEILING_UTILISATION` rather than by
+ * inflating this number: a mean here and a margin there is legible, whereas
+ * padding both hides how much slack there actually is. First estimated at 1.109
+ * from the single complete partition of run 32321840125, and the twelve-way
+ * measurement agreed with it.
  */
 export const PARTITION_OVERHEAD_FACTOR = 1.12;
 
@@ -129,11 +135,12 @@ export const PARTITION_OVERHEAD_FACTOR = 1.12;
  * How much of the ceiling a partition's PREDICTED wall clock may occupy.
  *
  * 0.75 — the ~70%-of-ceiling target every split since HARDEN-04 has been tuned
- * to (see `docs/development/SETUP_AND_CI.md` → "Partition budget"), rounded to
- * the nearest achievable figure at the current partition count. The margin is
- * not decoration: it absorbs runner-to-runner variance, and run 32321840125
- * showed the same spec files costing up to 35% more on one runner generation
- * than another.
+ * to (see `docs/development/SETUP_AND_CI.md` → "Partition budget"). The margin
+ * is not decoration and it is not theoretical: run 32321840125 showed the same
+ * spec files costing up to 35% more on one runner generation than another, and
+ * run 32333645709 measured 175.1 min of test time against a manifest that said
+ * 165.4 — 6% of drift in a single run. A quarter of the ceiling is what absorbs
+ * that without a partition ever reaching `globalTimeout`.
  */
 export const PARTITION_CEILING_UTILISATION = 0.75;
 

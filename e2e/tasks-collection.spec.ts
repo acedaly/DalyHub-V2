@@ -757,16 +757,28 @@ test.describe("TASKS-03 — Today integration", () => {
     await expect(taskRow(page, title)).toHaveCount(0);
   });
 
-  test("choosing a DEFAULT Tasks view does not change the Today dashboard", async ({
-    page,
-  }) => {
+  /*
+   * Its own `describe` for one reason: the restore has to be an `afterEach`.
+   *
+   * The default Tasks view is OWNER-LEVEL state — a bare `/tasks` honours it —
+   * so a spec that sets it owes the workspace the same state back WHATEVER
+   * happens to the test. It used to be the last line of the test, and on CI run
+   * 32333645709 that turned one failure into six: this test failed at the
+   * dashboard comparison, never reached the restore, and left `Waiting` as the
+   * owner's default. Every `today-task-convergence` journey that then navigated
+   * to a bare `/tasks` found a filtered collection with no row of its own, and
+   * five innocent tests were reported as failures of their own code. An
+   * `afterEach` runs on a failure and on a timeout alike; a last line runs on
+   * neither.
+   */
+  test.describe("the default Tasks view", () => {
     /**
      * Click the switcher's set-default item, whichever of its two labels it is
      * currently showing. The control is one item that toggles between "make this
      * the default" and "clear the default", so a spec that hard-coded one label
      * would depend on the state a previous run left behind.
      */
-    const toggleDefault = async () => {
+    const toggleDefault = async (page: Page) => {
       await page.getByRole("button", { name: "Manage Tasks views" }).click();
       await page
         .getByRole("menuitem", { name: /the default|Clear default/ })
@@ -779,42 +791,96 @@ test.describe("TASKS-03 — Today integration", () => {
       ).toBeAttached();
     };
 
-    // Start from a known state: no default.
-    await gotoFixture(page, "/tasks");
-    if (
-      await page
-        .getByTestId("tasks-view-trigger")
-        .locator("..")
-        .getByText("Default")
-        .count()
-    ) {
-      await toggleDefault();
-    }
+    /**
+     * Put the workspace back to "no default Tasks view", from any state.
+     *
+     * Asked of the MENU ITEM's own label rather than of a "Default" badge beside
+     * the trigger: that badge is rendered inside the switcher's dropdown panel,
+     * against the row of whichever view carries it, so it is simply absent while
+     * the panel is closed. A check that reads it therefore answers "no default"
+     * every time, which is a cleanup that silently does nothing. On a bare
+     * `/tasks` the item reads `Clear default …` when a default is stored and
+     * `Make “…” the default` when none is, and that distinction is real.
+     */
+    const clearDefault = async (page: Page) => {
+      await gotoFixture(page, "/tasks");
+      await page.getByRole("button", { name: "Manage Tasks views" }).click();
+      const clear = page.getByRole("menuitem", { name: /^Clear default/ });
+      if (await clear.count()) {
+        await clear.click();
+        await expect(
+          page.getByText(/Default Tasks view cleared\./),
+        ).toBeAttached();
+        return;
+      }
+      // Nothing stored — leave the menu as we found it.
+      await page.keyboard.press("Escape");
+    };
 
-    // Capture Today's own content before touching any Tasks preference.
-    await gotoFixture(page, "/today");
-    const before = await page.locator("main").innerText();
+    test.beforeEach(async ({ page }) => {
+      await clearDefault(page);
+    });
 
-    // Make a narrow built-in view the default for /tasks.
-    await gotoFixture(page, "/tasks?system=waiting");
-    await toggleDefault();
-    await gotoFixture(page, "/tasks");
-    await expect(page.getByTestId("tasks-view-trigger")).toContainText(
-      "Waiting",
-    );
+    test.afterEach(async ({ page }) => {
+      try {
+        await clearDefault(page);
+      } catch {
+        // Best-effort, deliberately: a cleanup that throws would REPLACE the
+        // failure the test actually found, which is the opposite of what this
+        // hook is for.
+      }
+    });
 
-    // Today is unmoved: the Tasks default is a Tasks preference, not a
-    // redefinition of what Today shows.
-    await gotoFixture(page, "/today");
-    expect(await page.locator("main").innerText()).toBe(before);
+    test("choosing a DEFAULT Tasks view does not change the Today dashboard", async ({
+      page,
+    }) => {
+      /**
+       * Today's own content, WITHOUT the shell's connection live region.
+       *
+       * `main` opens with `ConnectionStatus`, whose `role="status"` live region
+       * carries an announcement that settles asynchronously — "Online. Not
+       * stored offline yet." once the offline provider has looked, and it is
+       * correct for it to say so. Comparing raw `main.innerText()` across two
+       * visits therefore compares the dashboard AND a transient announcement
+       * that has nothing to do with a Tasks preference. CI run 32333645709
+       * caught it doing exactly that: the two snapshots differed by that one
+       * line and by nothing else.
+       *
+       * Excluding the live region — and only the live region — keeps the
+       * assertion at full strength over everything the claim is about.
+       */
+      const todayContent = () =>
+        page.locator("main").evaluate((el) =>
+          Array.from(el.children)
+            .filter((child) => !child.matches('[role="status"]'))
+            .map((child) => (child as HTMLElement).innerText)
+            .join("\n"),
+        );
 
-    // Restore, so the preference does not leak into another spec.
-    await gotoFixture(page, "/tasks");
-    await toggleDefault();
-    await gotoFixture(page, "/tasks");
-    await expect(page.getByTestId("tasks-view-trigger")).toContainText(
-      "All active",
-    );
+      // Capture Today's own content before touching any Tasks preference.
+      await gotoFixture(page, "/today");
+      const before = await todayContent();
+
+      // Make a narrow built-in view the default for /tasks.
+      await gotoFixture(page, "/tasks?system=waiting");
+      await toggleDefault(page);
+      await gotoFixture(page, "/tasks");
+      await expect(page.getByTestId("tasks-view-trigger")).toContainText(
+        "Waiting",
+      );
+
+      // Today is unmoved: the Tasks default is a Tasks preference, not a
+      // redefinition of what Today shows.
+      await gotoFixture(page, "/today");
+      expect(await todayContent()).toBe(before);
+
+      // And the restore is real, not merely attempted by the hook below.
+      await clearDefault(page);
+      await gotoFixture(page, "/tasks");
+      await expect(page.getByTestId("tasks-view-trigger")).toContainText(
+        "All active",
+      );
+    });
   });
 });
 

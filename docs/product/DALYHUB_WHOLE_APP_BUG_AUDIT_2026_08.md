@@ -356,20 +356,30 @@ consequence; it is P2 there and should be re-rated.
 
 **Disposition — FIXED by [HARDEN-06A](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md)
 (2026-08-20).** Re-derived from run `32321840125`'s own p05 and p08 artefacts rather
-than from this document: `tasks-dependencies.spec.ts` **323.7 s** against its 120 s
-guess and `accessibility.spec.ts` **516.3 s** against 446.3 are confirmed, and the
-manifest was found wrong in the other direction too (`tasks-v22-daily-driver` −35%,
-`pwa-offline-tasks` −45%), which is why the imbalance had gone unnoticed. p05's
-thirteen files were budgeted 19.4 min and cost **22.9 min of measured test time**
-before any overhead — it could not have finished. All ten unmeasured files now carry
-a measured duration, a measured test count and a recorded source; two materially
-stale estimates were re-measured with them. `e2e:partitions:check` fails while any
-gate spec on disk lacks one, asked over the same `listSpecFiles()` discovery the gate
-partitions on, and it also enforces a partition ceiling **derived** from
-`globalTimeout` instead of the flat "under 20 minutes" the failing p05 satisfied.
-Ten partitions became twelve — the derivation's only knob — so the heaviest is
-**14.7 min**, 66% of the ceiling against the 87% it was at. `globalTimeout`,
-`workers`, the algorithm and the manifest schema are all unchanged.
+than from this document. The diagnosis holds — p05's thirteen files were budgeted
+19.4 min and cost **22.9 min of measured test time** before any wall-clock overhead,
+so it could not have finished — and one thing this document did not say came out of
+the same artefacts: the manifest was wrong in **both** directions
+(`tasks-v22-daily-driver` −35%, `pwa-offline-tasks` −45% as well as
+`tasks-dependencies` 2.7× low), which is why the imbalance survived four merges. The
+over-estimates hid the under-estimates, so the total looked stable while the
+distribution did not.
+
+All 111 spec files now carry a measured duration, a measured test count and a
+recorded source, and every one of those measurements comes from **one CI run**
+(`32333645709`) rather than from a mixture. `e2e:partitions:check` fails while any
+gate spec on disk lacks one — asked over the same `listSpecFiles()` discovery the
+gate partitions on — and it also enforces a partition ceiling **derived** from
+`globalTimeout` instead of the flat "under 20 minutes" the failing p05 satisfied at
+19.4 min. Ten partitions became twelve, the derivation's only knob, so the heaviest
+is **15.2 min**: 68% of the ceiling against the 87% it was at.
+
+**Verified, not asserted.** Run `32333645709` collected **1847 tests and executed
+1847, with none left unexecuted**, across twelve partitions that all started (within
+one second of each other) and all finished; the worst spent 74% of `globalTimeout`.
+This finding's headline number — 33 tests that had never run — is zero.
+`globalTimeout`, `workers`, the algorithm and the manifest schema are all
+unchanged.
 
 ---
 
@@ -835,7 +845,21 @@ file came out of the fix: `waitForEditor` was page-wide and could be satisfied b
 different editor, and **Journey 5 carried the same unsafe assertion twice** — once on
 the guide step and once on the Review record, where every open section mounts its own
 editor. A regression assertion now pins the contract that made the ambiguity
-possible: once the editor reports ready, the fallback `<textarea>` is gone.
+possible: once the editor reports ready, the fallback `<textarea>` is gone. All six
+journeys were then run three times over, green every time.
+
+**A third instance of the same shape, found by the re-derived split.** Putting
+`tasks-collection.spec.ts` and `today-task-convergence.spec.ts` in one partition for
+the first time produced six failures from one cause on run `32333645709`:
+`tasks-collection.spec.ts:760` compares Today's whole `main.innerText()`, which
+opens with the shell's `role="status"` live region, and the two snapshots differed
+by the line *"Online. Not stored offline yet."* and nothing else — after which the
+test's restore of the owner's DEFAULT TASKS VIEW, written as its last line rather
+than as an `afterEach`, never ran, and five `today-task-convergence` journeys that
+navigate to a bare `/tasks` were reported as failures of their own code. Both halves
+are fixed. The durable rule is worth naming beside F-11's: **a spec that mutates
+owner-level state has to hand it back whatever happens to it**, and one real defect
+reported as six is the same class of untruth as a test that never runs.
 
 ### F-12 — The Activity kernel permits a 101-bound-parameter statement — **P3** (latent)
 
@@ -1402,11 +1426,14 @@ In this order, because each step makes the next one measurable.
 Reproduced verbatim in §2. Summary: **all local gates green; CI red on `main` with two
 failing partitions and 33 unexecuted tests.**
 
-**Since HARDEN-06A (2026-08-20):** the 33 unexecuted tests are gone — every partition
-is budgeted well inside the ceiling and the manifest is measured rather than guessed —
-and `reviews-guided.spec.ts` is fixed. The remaining red is **p08's F-04**, which is a
-real product defect and belongs to HARDEN-06D by the sequence in §26; HARDEN-06A
-deliberately did not touch it. Per-run evidence is in
+**Since HARDEN-06A (2026-08-20):** measured on run `32333645709`, **1847 tests
+collected and 1847 executed, none left unexecuted**, across twelve partitions that
+all started and all finished, the worst at 74% of `globalTimeout`. The 33 unexecuted
+tests are gone, `reviews-guided.spec.ts` is fixed, and a third assertion of the same
+shape was found and fixed with it. **F-04** remains, and is deliberately untouched:
+it is a real product defect belonging to HARDEN-06D by the sequence in §26, and it
+is intermittent — it failed p08 on `main`'s run and passed on this one, which is
+itself evidence for its classification as a race. Per-run evidence is in
 [`HARDEN_06A_FINISHING_E2E_GATE_2026_08.md` §6](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md#6-ci-evidence).
 
 ---

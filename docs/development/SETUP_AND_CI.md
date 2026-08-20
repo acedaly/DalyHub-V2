@@ -176,9 +176,10 @@ with **33 tests never executed**.
 **The budget ceiling is derived, and it is checked where CI can see it.** A
 partition may be budgeted at most `MAX_PARTITION_SECONDS` of measured test time —
 `globalTimeout × 0.75 ÷ 1.12`, where 1.12 is the MEASURED wall-clock cost of a
-second of test time (p08 of run `32321840125`: 840.5 s of tests in 931.9 s of
-Playwright wall clock). The ceiling used to live only in the unit test, as a flat
-"under 20 minutes", which the p05 that could not finish satisfied at 19.4 min.
+second of test time (run `32333645709`, all twelve partitions: 195.0 min of wall
+clock over 175.1 min of tests — 1.114 overall, 1.094–1.131 per partition). The
+ceiling used to live only in the unit test, as a flat "under 20 minutes", which
+the p05 that could not finish satisfied at 19.4 min.
 When a partition exceeds it the lever is `PARTITION_COUNT`, or a genuinely
 cheaper spec file — never a larger `globalTimeout`.
 
@@ -192,23 +193,23 @@ first test — 2.3 min per partition that buys no coverage.
 It was **ten** from HARDEN-04 until HARDEN-06A, and the count is the one knob
 the derivation exposes — so it is what moved when the measurements were finally
 complete. `responsive.spec.ts` is a single generated matrix file, so `--shard`
-is the only way to divide it and it consumes two partitions at 9.5 min each;
-that left the other eight carrying **18.3 min** apiece of the suite's 165.4 min,
-a predicted 20.5 min of wall clock and 82% of the ceiling. Derived at each count
-against the same measurements, as predicted wall clock against the ceiling:
-**10 →** 20.5 min (82%, over `MAX_PARTITION_SECONDS`) · **11 →** 18.3 min (73%) ·
-**12 →** 16.4 min (68%) · **13 →** 15.0 min (60%, past the pool's twelve).
-Eleven fits and twelve was still taken: eleven leaves 0.4 min of budget before
-`check` starts failing, so the next spec file of any size would force the
-decision again. Twelve leaves ~2 min per partition and restores the
-~70%-of-ceiling target against Playwright's **unchanged** 25-minute
-`globalTimeout`. A queued job costs wall clock only: it has not started, so it
-spends none of its `globalTimeout`.
+is the only way to divide it and it consumes two partitions at 11.8 min each;
+that left the other eight carrying **19.0 min** apiece of the suite's 175.1 min,
+a predicted 21.3 min of wall clock and 85% of the ceiling. Derived at each count
+against run `32333645709`'s measurements, as predicted wall clock against the
+ceiling: **10 →** 21.3 min (85%, over `MAX_PARTITION_SECONDS`) · **11 →**
+18.9 min (76%, also over) · **12 →** 17.0 min (68%) · **13 →** 15.5 min (62%,
+past the pool's twelve). Twelve is the first count that fits, and it restores
+the ~70%-of-ceiling target against Playwright's **unchanged** 25-minute
+`globalTimeout`. Run `32333645709` also confirmed twelve is not contended: all
+twelve E2E jobs started within **one second** of each other, none queued. A
+queued job would cost wall clock only — it has not started, so it spends none of
+its `globalTimeout`.
 
 **Browser lifetime is a sizing variable too, not just minutes.** Fewer, fatter
 shards give each shard's one long-lived Chromium more to survive, which is the
 axis [DEBT-125](../product/PRODUCT_DEBT.md) is about; twelve partitions hold ~15
-minutes and ~140 tests each, against the ~24 minutes and ~190 tests of the
+minutes and ~150 tests each, against the ~24 minutes and ~190 tests of the
 eight-way split. See `scripts/measure-e2e-browser-rss.mjs` for how to measure it.
 
 Each partition:
