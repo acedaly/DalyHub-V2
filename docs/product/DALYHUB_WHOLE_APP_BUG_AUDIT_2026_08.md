@@ -1427,9 +1427,17 @@ In this order, because each step makes the next one measurable.
 Reproduced verbatim in §2. Summary: **all local gates green; CI red on `main` with two
 failing partitions and 33 unexecuted tests.**
 
-**Since HARDEN-06A (2026-08-20):** on run `32338241602`, **1847 tests collected,
-1847 executed, 0 failed, none left unexecuted**, across twelve partitions that all
-started and all finished, the worst at 76% of `globalTimeout` — **CI Gate green**.
+**Since HARDEN-06A (2026-08-20), stated as two separate results because they are
+two separate results.** Across three twelve-partition runs (`32333645709`,
+`32338241602`, `32340347468`), **36 of 36 partitions started, finished and executed
+every test they collected — 5541 dispatched, 5541 executed, none unexecuted, none
+reaching `globalTimeout`.** That is F-03 closed. But the gate is **not** reliably
+green: runs `32338241602` and `32340347468` are the same executable tree, and the
+first failed nothing while the second failed four unrelated tests in four
+partitions. None of the four is F-03 or F-11; two are shared-workspace state
+dependence (**DEBT-173**, raised by HARDEN-06A) and one is the ordinary
+intermittency **DEBT-125** has named since August 11. On the green run the worst
+partition sat at 76% of `globalTimeout`.
 The 33 unexecuted tests are gone, `reviews-guided.spec.ts` is fixed, and a third
 assertion of the same shape was found and fixed with it. **F-04** remains and is
 deliberately untouched: it is a real product defect belonging to HARDEN-06D by the

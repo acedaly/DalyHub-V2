@@ -393,15 +393,43 @@ there partition by partition rather than by the green tick.
 
 ## 6. CI evidence
 
-Two twelve-partition runs, both read out of their own `results.json` partition by
-partition rather than off the green tick.
+Three twelve-partition runs, each read out of its own `results.json` partition by
+partition rather than off the tick.
 
 | | Run | Head | Result |
 | --- | --- | --- | --- |
-| **Diagnostic** | [`32333645709`](https://github.com/acedaly/DalyHub-V2/actions/runs/32333645709) | `bf38e35` | 1847/1847 executed · 6 failed (one cause) · **it is the run the manifest was then re-derived from** |
-| **Authoritative** | [`32338241602`](https://github.com/acedaly/DalyHub-V2/actions/runs/32338241602) | `1f3bc26` | 1847/1847 executed · **0 failed** · **CI Gate green** |
+| **A — diagnostic** | [`32333645709`](https://github.com/acedaly/DalyHub-V2/actions/runs/32333645709) | `bf38e35` | 1847/1847 executed · 6 failed (one cause) · **the run the manifest was re-derived from** |
+| **B — confirming** | [`32338241602`](https://github.com/acedaly/DalyHub-V2/actions/runs/32338241602) | `1f3bc26` | 1847/1847 executed · **0 failed** · **CI Gate green** |
+| **C — same tree** | [`32340347468`](https://github.com/acedaly/DalyHub-V2/actions/runs/32340347468) | `b3133e5` (docs-only on top of B) | 1847/1847 executed · **4 failed, in four partitions, on four unrelated tests** · CI Gate red |
 
-### 6.0 The authoritative run — `32338241602`
+### What these three runs do and do not establish
+
+They have to be read together, and the honest reading is two separate results:
+
+**Established, on all three runs and without exception — this is what F-03 was.**
+**36 of 36 partitions started, finished and executed every test they collected.**
+5541 tests dispatched across the three runs, **5541 executed, none left
+unexecuted, none reaching `globalTimeout`.** Against `main`'s p05 — which
+exceeded the ceiling with 33 tests that never ran — that is the finding closed,
+and it is closed robustly rather than once.
+
+**NOT established: that the gate is now reliably green.** Runs B and C are the
+same executable tree. B failed nothing; C failed four tests in four partitions —
+`tasks-journey.spec.ts:379`, `iphone-daily-driver.spec.ts:185`,
+`notes.spec.ts:424`, and one in p10 not individually diagnosed. None of them is
+F-03, F-11, or anything this PR touched. Two are specs asserting against the
+shared workspace's accumulated state, which a re-derived split reshuffles — now
+[DEBT-173](PRODUCT_DEBT.md). One is an ordinary timing race, which is
+[DEBT-125](PRODUCT_DEBT.md), the entry that has always been named *"`main`'s E2E
+suite is red for reasons unrelated to the change that finds it"*.
+
+**This document does not claim HARDEN-06A made `main` green.** It claims the gate
+can now finish and tell the truth about what it ran — which is what makes the
+remaining flakiness visible and diagnosable instead of hidden behind a timeout.
+DEBT-125's heading said *"the suite still cannot finish"*; that half is met, and
+the half it is actually named for is not, with C as fresh evidence.
+
+### 6.0 Run B — `32338241602`, the run with the committed manifest
 
 | | |
 | --- | ---: |
@@ -529,7 +557,46 @@ Worth stating plainly: one real defect being reported as six, five of them in an
 innocent file, is the same class of problem as 33 tests never running. A gate that
 misattributes is not telling the truth either.
 
-### 6.4 F-04, which is not fixed here
+### 6.4 Run C, and why it is in this document rather than out of it
+
+Run C is the same executable tree as run B with three Markdown files changed on
+top. It had four red partitions. It is recorded here in full because a document
+that reported only run B would be doing the thing this whole slice exists to
+stop: presenting one favourable sample as the state of the world.
+
+| Partition | Collected | Executed | Never ran | Failed |
+| --- | ---: | ---: | ---: | --- |
+| p02 | 116 | 116 | **0** | `tasks-journey.spec.ts:379` — a reopened P1 task absent from a bounded `Priority 1` band |
+| p07 | 152 | 152 | **0** | `iphone-daily-driver.spec.ts:185` — the sheet's last row 853.85 px against an 845 px limit |
+| p08 | 102 | 102 | **0** | `notes.spec.ts:424` — the unsaved-changes guard dialog did not appear in 5 s |
+| p10 | — | — | **0** | not individually diagnosed |
+| the other eight | — | — | **0** | none |
+
+Every one of the twelve still executed everything it collected. The two
+diagnosed shapes:
+
+- **p02 and p07 depend on the shared workspace's accumulated state.**
+  `iphone-daily-driver` opens the overflow menu of *whichever task is first* on a
+  bare `/tasks`, so how many rows that menu has — and whether the last one clears
+  the viewport — is decided by what earlier specs in the partition created.
+  `tasks-journey` asks for its task inside a bounded band whose occupancy is
+  decided the same way. Re-deriving the split changes which specs precede which,
+  so it changes the answer without any product change. **[DEBT-173](PRODUCT_DEBT.md).**
+- **p08 is a plain timing race** and is [DEBT-125](PRODUCT_DEBT.md), the entry
+  that has carried this exact concern since 2026-08-11.
+
+Neither is fixed here, and the reason is not convenience: DEBT-173 is a per-spec
+fixture repair across roughly 111 files, and DEBT-125 is the suite-wide
+intermittency that HARDEN-01 through HARDEN-05 have each taken a bite of. Both
+are outside a slice whose stated scope is F-03 and F-11 — and whose stated
+non-goals include exactly the "make the red go away" moves (retries, skips,
+weakened assertions) that would hide them.
+
+What HARDEN-06A does change about them is that they are now *visible and
+attributable*. On `main`'s p05 all of this was behind a timeout: 33 tests with no
+result, and no way to tell an intermittent failure from a test that never ran.
+
+### 6.5 F-04, which is not fixed here
 
 `plan-smart-lists.spec.ts:121` — **F-04**, the deleted saved view that is still
 listed — failed on `main`'s run `32321840125` and **passed on both** of this
@@ -549,6 +616,13 @@ owes the fix.
 **In:** E2E timing and partition correctness, partition validation, the F-11
 regression fix, CI timing evidence, and the tests and documentation those need.
 
+**The one temptation refused, named explicitly.** Run C is red on four flaky
+tests, and the fastest way to a green tick would have been `retries: 1`. That is
+first on the audit's non-goal list and first on this repository's, for the reason
+[DEBT-125](PRODUCT_DEBT.md) states in its own words — *"a retry would have hidden
+this outright"*. HARDEN-06A is a slice about the gate telling the truth; buying a
+green tick with a retry would have inverted it. `retries` is still 0.
+
 **Deliberately out**, and each already has a home:
 
 - **F-04** — the deleted saved view is still listed (`plan-smart-lists.spec.ts:121`).
@@ -564,6 +638,11 @@ regression fix, CI timing evidence, and the tests and documentation those need.
   four deliberate skips include it, exactly as the entry says. It needs a fixture
   change with a blast radius across partitions, which is not a change to make in
   the pass that is trying to establish the twelve are green.
+- **The residual flakiness run C exposed**, raised as
+  [DEBT-173](PRODUCT_DEBT.md) (specs asserting against the shared workspace's
+  accumulated state) and added as fresh evidence to
+  [DEBT-125](PRODUCT_DEBT.md) (ordinary intermittency). Both are per-spec repairs
+  across the suite; neither is F-03 or F-11. See §6.4.
 - **A new observation against [DEBT-159](PRODUCT_DEBT.md), recorded there rather
   than fixed here.** `tasks-collection.spec.ts:298` — which removes exactly ONE
   filter chip — fails 4/4 from a freshly seeded local D1 on this sandbox, landing
