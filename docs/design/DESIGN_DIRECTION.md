@@ -87,6 +87,85 @@ Prefer:
 Whitespace is useful only when it clarifies grouping or priority. Large blank
 regions inside sparse cards are not premium; they are wasted space.
 
+## Reference composition
+
+The approved mockups establish a recognisable DalyHub composition. They are not
+pixel-perfect templates, but an implementation that materially departs from
+these proportions must explain why.
+
+### Desktop frame
+
+- A quiet navigation rail occupies roughly 14–16% of a 1440px desktop canvas.
+  It contains the connected D identity, one prominent Capture action, search,
+  grouped destinations and the owner account at the bottom. It is navigation,
+  not a second dashboard.
+- The top utility bar is compact and aligned to the content origin. Search is
+  the dominant utility; help, notifications and creation remain secondary.
+- The working canvas uses a readable maximum width rather than stretching rows
+  across an ultrawide display. On Today, the useful desktop composition is a
+  main action column of approximately two-thirds and a supporting context rail
+  of approximately one-third.
+- The main column owns tasks and the current decision. The context rail owns
+  schedule, habits and light progress context. Supporting content must never
+  interrupt the task sequence merely to balance a grid.
+- Page headers are shallow. Date, title, one sentence of context and one primary
+  action should not consume a quarter of the viewport.
+- Vertical rhythm is compact: related controls sit close together; major
+  regions receive a clear but not theatrical break. Repeated 24–32px gaps
+  between every object are a warning sign.
+
+### Mobile frame
+
+- Mobile is a single-column command surface with no desktop sidebar and no
+  squeezed context rail.
+- The compact header carries the D mark, date/context, owner identity and one
+  creation affordance. It does not repeat the desktop page header verbatim.
+- Bottom navigation contains the daily destinations, with Capture as the clear
+  central action. Labels remain visible; icon-only primary navigation is not
+  acceptable.
+- The first viewport answers “what do I do now?” before showing analytics,
+  history or broad system status.
+- Supporting cards may become a horizontal glance strip only when each card is
+  independently understandable and the strip does not hide a required action.
+- Sheets, drawers and menus respect one-handed reach. Save/confirm actions stay
+  visible above the software keyboard and do not require scrolling to the end
+  of a long form.
+
+### Surface and row measurements
+
+These are target bands, not invitations to hard-code values outside the token
+system:
+
+| Element | Desktop target | Touch target | Principle |
+| --- | --- | --- | --- |
+| Navigation destination | 36–40px visual row | At least 44px hit area | Dense navigation without sacrificing access |
+| Task/list row | 40–48px when single-line | At least 44px hit area | More work visible, no cramped text |
+| Standard control | 36–40px | At least 44px hit area | Compact on pointer, safe on touch |
+| Card corner | 10–14px | Same | Moderately rounded, never toy-like |
+| Card padding | 14–20px | 16–20px | Enough air, no empty stage |
+| Major section gap | 16–24px | 16–20px | Rhythm without fragmentation |
+| Row divider | One quiet hairline | One quiet hairline | Structure without table-grid noise |
+
+Shadows are reserved for objects that physically float above the canvas:
+menus, popovers, drawers and drag previews. Stationary cards use a subtle border
+or a small surface-value change, not both plus a shadow.
+
+## Competitive quality bar
+
+DalyHub competes with mature products, but it should not imitate their skin.
+
+| Reference | Standard to match | What DalyHub must do better |
+| --- | --- | --- |
+| Todoist | Capture speed, task-list clarity, keyboard fluency and low-friction scheduling | Connect daily action to Goals, Projects, People, Meetings and reflection without slowing capture |
+| Notion | Information confidence, flexible content and polished empty/loading states | Provide stronger defaults, less configuration and clearer action hierarchy |
+| Griply | Visible goal progress and linkage between goals, habits and tasks | Avoid gamification clutter and keep daily execution faster |
+| Things | Restraint, typography, calm grouping and delightful detail | Work across a deeper connected life model and web/PWA environments |
+| Apple productivity apps | Platform-quality spacing, focus and touch behaviour | Preserve power-user density and cross-module relationships |
+
+Comparable quality means more than looking polished with seeded data. A screen
+must remain composed with an empty account, realistic long titles, overdue work,
+ten or more rows, dark appearance, 320px width, keyboard focus and coarse touch.
+
 ## Interaction model
 
 Todoist is the strongest interaction reference. DalyHub's best interactions are
@@ -134,6 +213,23 @@ they help make a decision. They must not become an endless equal-weight widget
 grid. Weekly reporting belongs below or behind disclosure, not above today's
 work.
 
+The approved desktop structure is:
+
+1. Compact date, greeting and one-sentence day summary.
+2. A restrained progress summary, only when it helps frame the day.
+3. **Now** — one recommended task with the strongest hierarchy and a Focus
+   action where supported. Never a giant empty hero card.
+4. **Next** — a short, ordered working list with inline completion and quick add.
+5. **Later** — lighter tasks and events that should not compete with Now.
+6. A right rail containing the agenda first, then today's Habits and one compact
+   momentum/progress insight.
+7. Goals, Projects needing attention, reflection and weekly reporting below the
+   decision surface or inside progressive disclosure.
+
+On mobile, Now, Next and Later remain in that order. Agenda becomes an inline
+section after the active task plan. Habits and momentum become compact glance
+surfaces below it. The phone must not show a miniature two-column desktop.
+
 ### Tasks — almost utilitarian
 
 Tasks is the least decorated module. One clean list, clear groups, compact
@@ -141,6 +237,12 @@ rows, strong title hierarchy and secondary date/project/recurrence metadata.
 Priority uses a small amount of consistent colour. Row actions appear on demand.
 Quick Add is immediate and forgiving. The list is the benchmark for density
 across every module that renders tasks.
+
+Rows align completion, title, date, project and priority to stable scan axes on
+desktop. Metadata order follows the owner's questions: **when → where → how
+important**. Completed work recedes or collapses. Bulk selection is a mode, not
+permanent checkbox-and-toolbar chrome. Board and calendar views reuse canonical
+task semantics rather than inventing visually unrelated task cards.
 
 ### Plan and Schedule — time made legible
 
@@ -158,6 +260,13 @@ CRUD records. Areas are more permanent and quieter; their row-led presentation
 teaches the taxonomy without explanation. Do not make Areas and Projects
 visually identical merely for component reuse.
 
+A Project gallery item communicates, in order: identity, name, condition,
+meaningful progress and the next action. If no trustworthy progress exists, do
+not fabricate a percentage to fill the card. Project detail opens with outcome,
+status and next action before activity history or settings. Areas use a quieter
+row/list treatment with roll-up counts and momentum; they are contexts, not
+finite work packages.
+
 ### Goals — connected progress
 
 Goals are aspirational without becoming motivational theatre. A Goal should
@@ -165,6 +274,11 @@ quickly communicate its current reading, target, trajectory, status and next
 incomplete milestone. Then it shows the Projects, Habits and Tasks driving it.
 The useful model is **Goal ← Projects/Habits ← Tasks/actions**, not a Goal page
 followed by disconnected fields.
+
+The visual signature is a compact metric and trajectory, not a giant percentage
+ring surrounded by empty space. A measurable Goal shows current reading, target,
+direction, status and next incomplete milestone together. An unmeasured Goal
+uses milestone state and linked work honestly instead of displaying “0%”.
 
 ### Habits — routines without gamification
 
@@ -206,6 +320,11 @@ annotations and narrative insight with minimal borders. Prefer “27 tasks
 completed, 18% more than last week” plus a trend and explanation over isolated
 metric cards. It should explain the system back to the owner without pretending
 that every upward number is good.
+
+Every chart requires a question, comparison and readable annotation. Legends,
+axes and tooltips use plain language. Colour series remain distinguishable in
+both appearances and are not confused with P1, overdue, warning or success.
+Four disconnected KPI cards followed by generic charts do not meet this bar.
 
 ### Views, Search and Inbox — operational utilities
 

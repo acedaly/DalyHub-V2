@@ -32,6 +32,7 @@ If you ever feel you need a long prompt to do a piece of work, that is a **docum
 | [`docs/product/PRODUCT_PRINCIPLES.md`](docs/product/PRODUCT_PRINCIPLES.md) | What is DalyHub, why does it exist, and how should it feel? |
 | [`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) | What are we building next, and in what order? |
 | [`docs/design/DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) | What should the finished product feel like, and how should each module express that direction? |
+| [`docs/design/DHDS_01_WORK_PACKAGE.md`](docs/design/DHDS_01_WORK_PACKAGE.md) | How do we deliver the DalyHub-native design direction in staged, measurable implementation work? |
 | [`docs/design/DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) | What is DalyHub's design philosophy, and where does it deliberately depart from Material? |
 | [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) | What are the shared interaction patterns every module reuses? |
 | [`docs/governance/OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md) | When and how do we reuse open-source code, and how do we handle licensing? |
