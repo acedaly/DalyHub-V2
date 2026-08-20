@@ -53,6 +53,16 @@ const ACTIVITY_COLUMNS =
 const ACTIVITY_COLUMNS_A =
   "a.id, a.workspace_id, a.type, a.actor_type, a.actor_id, a.occurred_at, a.payload_json";
 
+/**
+ * The per-query id chunk size for the page's subject read (HARDEN-06D, F-12).
+ *
+ * D1 caps bound variables at 100 per statement and the read binds the ids plus one
+ * `workspace_id`, so `MAX_ACTIVITY_PAGE_SIZE` (100) produced 101 and D1 refused it.
+ * 90 is the same constant `d1-entity-repository.ts` uses for the same reason, and
+ * it still resolves an ordinary page in a single read.
+ */
+const SUBJECT_ID_CHUNK_SIZE = 90;
+
 export class D1ActivityRepository implements ActivityRepository {
   readonly #db: D1Database;
   readonly #workspaceId: string;
@@ -276,6 +286,22 @@ export class D1ActivityRepository implements ActivityRepository {
 
   /** Fetch every subject row for a set of activity ids in ONE query (no N+1),
    * grouped by activity id. */
+  /**
+   * HARDEN-06D (F-12) — the subject read is CHUNKED, because the kernel's own
+   * validated maximum produced a statement D1 refuses.
+   *
+   * `MAX_ACTIVITY_PAGE_SIZE` is 100 and this binds `workspace_id` plus one id per
+   * page row — 101 bound parameters at the maximum, against D1's ceiling of 100
+   * (`D1_ERROR: too many SQL variables`, measured). No product caller reaches it
+   * today: every one passes 30 or fewer, and Settings passes 8. But a limit the
+   * validator ACCEPTS must not be a limit the storage refuses, and it is the same
+   * trap TASKS-13 fell into at 100 checklist ids.
+   *
+   * Chunked rather than capped, so `MAX_ACTIVITY_PAGE_SIZE` stays a product
+   * decision instead of being quietly lowered to suit a storage limit — the same
+   * choice `d1-entity-repository.ts` made at `GET_BY_IDS_CHUNK_SIZE = 90`, with
+   * the same constant, for the same reason.
+   */
   async #fetchSubjects(
     activityIds: readonly string[],
   ): Promise<Map<string, ActivitySubjectRow[]>> {
@@ -283,23 +309,30 @@ export class D1ActivityRepository implements ActivityRepository {
     if (activityIds.length === 0) {
       return grouped;
     }
-    const placeholders = activityIds.map(() => "?").join(", ");
-    const rows = await this.#allSubjects(
-      this.#db
-        .prepare(
-          `SELECT workspace_id, activity_id, entity_id, role
-           FROM activity_subjects
-           WHERE workspace_id = ? AND activity_id IN (${placeholders})
-           ORDER BY activity_id, role, entity_id`,
-        )
-        .bind(this.#workspaceId, ...activityIds),
-    );
-    for (const row of rows) {
-      const bucket = grouped.get(row.activity_id);
-      if (bucket) {
-        bucket.push(row);
-      } else {
-        grouped.set(row.activity_id, [row]);
+    for (
+      let start = 0;
+      start < activityIds.length;
+      start += SUBJECT_ID_CHUNK_SIZE
+    ) {
+      const chunk = activityIds.slice(start, start + SUBJECT_ID_CHUNK_SIZE);
+      const placeholders = chunk.map(() => "?").join(", ");
+      const rows = await this.#allSubjects(
+        this.#db
+          .prepare(
+            `SELECT workspace_id, activity_id, entity_id, role
+             FROM activity_subjects
+             WHERE workspace_id = ? AND activity_id IN (${placeholders})
+             ORDER BY activity_id, role, entity_id`,
+          )
+          .bind(this.#workspaceId, ...chunk),
+      );
+      for (const row of rows) {
+        const bucket = grouped.get(row.activity_id);
+        if (bucket) {
+          bucket.push(row);
+        } else {
+          grouped.set(row.activity_id, [row]);
+        }
       }
     }
     return grouped;

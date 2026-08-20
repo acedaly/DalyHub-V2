@@ -550,6 +550,48 @@ describe("changing a schedule", () => {
     expect(first.habit.versions[0]!.effectiveFrom).toBe("2026-08-19");
   });
 
+  /*
+   * HARDEN-06D (F-13) — the owner's calendar day can move BACKWARDS.
+   *
+   * A westward timezone-preference change (or travel) makes `todayIso` EARLIER
+   * than the day the version in force begins on. Closing that version at
+   * `todayIso − 1` then produces `effective_to < effective_from`, which the
+   * schema's own `habit_schedules_ordered` CHECK refuses — correctly. The
+   * application half was missing: the owner saw "A habit storage error
+   * occurred." and could not change that Habit's cadence at all until their
+   * local date caught up.
+   */
+  it("amends a version that has not begun yet when the owner's day moves backwards", async () => {
+    // Sydney: 2026-08-19. The first schedule version therefore starts then.
+    const sydney = repo(WS, {
+      ownerTimeZone: async () => "Australia/Sydney",
+    });
+    const habit = await sydney.create({
+      title: "Read",
+      schedule: { kind: "daily" },
+    });
+    expect(habit.versions[0]!.effectiveFrom).toBe("2026-08-19");
+
+    // The owner flies to Los Angeles and changes their timezone preference. At
+    // the same instant, their calendar day is now 2026-08-18.
+    const losAngeles = repo(WS, {
+      ownerTimeZone: async () => "America/Los_Angeles",
+    });
+    const result = await losAngeles.changeSchedule(habit.id, {
+      kind: "weekdays",
+      weekdays: [1, 2, 3, 4, 5],
+    });
+
+    expect(result).toMatchObject({ outcome: "amended", changed: true });
+    // One version, still starting on the day it started: nothing is rewritten,
+    // and the chain stays contiguous.
+    expect(result.habit.versions).toHaveLength(1);
+    expect(result.habit.versions[0]!.effectiveFrom).toBe("2026-08-19");
+    expect(result.habit.versions[0]!.schedule).toMatchObject({
+      kind: "weekdays",
+    });
+  });
+
   it("does nothing when the requested schedule is already in force", async () => {
     const habits = repo();
     const habit = await habits.create({

@@ -834,7 +834,7 @@ export class D1HabitRepository implements HabitRepository {
 
     /*
      * Two shapes, and which one applies is decided by ONE question: does the
-     * version in force already begin today?
+     * version in force already begin today OR LATER?
      *
      *   - it does → the owner is correcting a cadence they set this morning, so
      *     the version is AMENDED in place. Opening a second version for the same
@@ -843,9 +843,24 @@ export class D1HabitRepository implements HabitRepository {
      *   - it does not → the version is CLOSED at yesterday and a new one opened
      *     today. Every day before today keeps the schedule it actually had,
      *     which is the whole reason this table is versioned.
+     *
+     * HARDEN-06D (F-13) — "or later" is what this used to miss, and the owner
+     * paid for it with an unexplained failure.
+     *
+     * `todayIso` is the OWNER's calendar day, so it can move BACKWARDS: a
+     * westward timezone-preference change, or travel. When it does, the version
+     * in force begins on a day that is still in their future, closing it at
+     * `todayIso − 1` produces `effective_to < effective_from`, and the schema's
+     * own `habit_schedules_ordered` CHECK refuses the write — correctly; the
+     * chain cannot be corrupted, and that is the important half. The missing
+     * half was the application's: the owner saw "A habit storage error occurred."
+     * and could not change that Habit's cadence at all until their local date
+     * caught up. Amending covers it exactly, and rewrites no history: the
+     * version being corrected has not started for them yet.
      */
-    const amending = version !== null && version.effectiveFrom === todayIso;
+    const amending = version !== null && version.effectiveFrom >= todayIso;
     const scheduleId = amending ? version.id : this.#newId();
+    const effectiveFrom = amending ? version.effectiveFrom : todayIso;
     const extra: D1PreparedStatement[] = [];
 
     const domainStatement = this.#db
@@ -911,7 +926,10 @@ export class D1HabitRepository implements HabitRepository {
       {
         type: HABIT_SCHEDULE_CHANGED,
         subjects: [{ entityId: habitId, role: SUBJECT_ROLE }],
-        payload: { kind: columns.kind, effectiveFrom: todayIso },
+        // The version's OWN start day, which is `todayIso` in every ordinary
+        // case and the existing version's day when amending one that has not
+        // begun for the owner yet (F-13).
+        payload: { kind: columns.kind, effectiveFrom },
       },
       now,
       extra,

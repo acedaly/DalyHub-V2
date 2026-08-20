@@ -22,10 +22,27 @@
  * Every management action posts to the collection's canonical saved-view route;
  * nothing here writes storage. Deleting asks for confirmation through the shared
  * DS-10b `ConfirmationDialog` — the one confirmation surface in the product.
+ *
+ * ## HARDEN-06D (F-04) — a management action is AWAITED
+ *
+ * These mutations used to leave through a bare, un-awaited `fetcher.submit`,
+ * and both callers closed their own UI on the next line. That defeated the
+ * shared dialog's whole contract: its single-flight phase, its `busyLabel` and
+ * its inline error could never engage, and — worse — an owner who confirmed
+ * "Delete view" and navigated immediately took the in-flight request with them.
+ * The view was still there, and nothing said so. The naming form did the same
+ * on save, rename and duplicate.
+ *
+ * Every mutation now goes through one awaited `post` that RESOLVES WITH THE
+ * SERVER'S ANSWER, in the shape `ProjectTemplateRecord` and the other eight
+ * `ConfirmationDialog` consumers already use. `onConfirm` throws on refusal, so
+ * the dialog stays open with the reason; the naming form keeps its input open
+ * for the same reason. There is no fetcher left to be destroyed by a
+ * navigation.
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Link, useFetcher, useRevalidator } from "react-router";
+import { Link, useRevalidator } from "react-router";
 
 import { ConfirmationDialog } from "~/shared/settings";
 import { OverflowMenu } from "~/shared/overflow-menu";
@@ -105,15 +122,14 @@ export function SavedViewSwitcher({
   classPrefix,
   testIdPrefix,
 }: SavedViewSwitcherProps) {
-  const fetcher = useFetcher<SavedViewActionResult>();
   const revalidator = useRevalidator();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SavedViewOption | null>(
     null,
   );
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const settled = useRef<SavedViewActionResult | null>(null);
   const listId = useId();
   const nameId = useId();
 
@@ -125,28 +141,46 @@ export function SavedViewSwitcher({
     .filter((view): view is SavedViewOption => view !== undefined);
   const systemViews = views.filter((view) => view.kind === "system");
   const userViews = views.filter((view) => view.kind === "user");
-  const busy = fetcher.state !== "idle";
-
-  // Announce every outcome — success AND failure — through one polite live region,
-  // so a keyboard or screen-reader user learns what happened without hunting.
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) return;
-    if (settled.current === fetcher.data) return;
-    settled.current = fetcher.data;
-    setStatus(
-      (fetcher.data.ok ? fetcher.data.message : fetcher.data.formError) ?? null,
-    );
-    if (fetcher.data.ok) revalidator.revalidate();
-  }, [fetcher.state, fetcher.data, revalidator]);
-
-  const submit = useCallback(
-    (fields: Record<string, string>) => {
+  /**
+   * Post one management intent and RESOLVE WITH THE ANSWER.
+   *
+   * Every outcome — success and failure — is announced through the one polite
+   * live region, so a keyboard or screen-reader user learns what happened
+   * without hunting; a success also revalidates, so the panel's list is the
+   * server's list. The returned result is what lets the confirmation dialog and
+   * the naming form decide whether to close.
+   */
+  const post = useCallback(
+    async (fields: Record<string, string>): Promise<SavedViewActionResult> => {
       const body = new FormData();
       for (const [key, value] of Object.entries(fields)) body.set(key, value);
       body.set("query", currentQuery);
-      fetcher.submit(body, { method: "post", action: actionPath });
+      setBusy(true);
+      let result: SavedViewActionResult;
+      try {
+        const response = await fetch(actionPath, { method: "post", body });
+        result = (await response.json()) as SavedViewActionResult;
+      } catch {
+        result = {
+          ok: false,
+          formError: "That couldn’t be saved. Please try again.",
+        };
+      } finally {
+        setBusy(false);
+      }
+      setStatus((result.ok ? result.message : result.formError) ?? null);
+      if (result.ok) revalidator.revalidate();
+      return result;
     },
-    [fetcher, currentQuery, actionPath],
+    [currentQuery, actionPath, revalidator],
+  );
+
+  /** The intents with no confirmation step of their own: fire, report, done. */
+  const submit = useCallback(
+    (fields: Record<string, string>) => {
+      void post(fields);
+    },
+    [post],
   );
 
   // Naming a view is one short string, so it is asked for INLINE — a labelled
@@ -360,12 +394,17 @@ export function SavedViewSwitcher({
                   setStatus("Give this view a name.");
                   return;
                 }
-                submit({
+                // HARDEN-06D (F-04) — the form closes only once the server has
+                // answered, and stays open (with the reason in the live region)
+                // when it refuses. Closing on submit is what let a navigation
+                // destroy the request with nothing said.
+                void post({
                   intent: naming.intent,
                   name,
                   ...(naming.viewId ? { viewId: naming.viewId } : {}),
+                }).then((result) => {
+                  if (result.ok) setNaming(null);
                 });
-                setNaming(null);
               }}
               /* Escape cancels naming without leaving the panel. It is bound on
                  the INPUT (a real interactive element) rather than the form, so the
@@ -452,8 +491,18 @@ export function SavedViewSwitcher({
         opener={triggerRef.current}
         onClose={() => setPendingDelete(null)}
         onConfirm={async () => {
-          if (pendingDelete)
-            submit({ intent: "delete", viewId: pendingDelete.id });
+          if (!pendingDelete) return;
+          const result = await post({
+            intent: "delete",
+            viewId: pendingDelete.id,
+          });
+          // Thrown, not swallowed: the dialog shows it inline and stays open to
+          // retry, which is what its contract asks for.
+          if (!result.ok) {
+            throw new Error(
+              result.formError ?? "That couldn’t be deleted. Please try again.",
+            );
+          }
           setPendingDelete(null);
         }}
         title={`Delete “${pendingDelete?.name ?? ""}”?`}

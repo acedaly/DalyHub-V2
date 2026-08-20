@@ -100,7 +100,35 @@ const DAYS_PER_MONTH = 30.436_875;
  *   - every `entity_link.*` type — relationship bookkeeping, not a moment;
  *   - `entity.updated` — a rename;
  *   - `entity.deleted` / `entity.restored` — tidying up;
- *   - archive / restore / status-change types — filing, not contact.
+ *   - archive / restore / status-change types — filing, not contact;
+ *   - **HARDEN-06D (F-06)** — every `*.updated` / `*.content_updated` type on a
+ *     LINKED record: `meeting.updated`, `diary_entry.updated` and
+ *     `note.content_updated`.
+ *
+ * That last exclusion is this rule applied ONE LEVEL OUT, and it took a defect to
+ * see that it belonged there. The vocabulary reasoned carefully about the
+ * Person's own record — editing someone's phone number is not seeing them — and
+ * then treated every linked record's maintenance event as contact. Two
+ * consequences followed, both reproduced:
+ *
+ *   - one meeting, typed up in ten debounced autosaves, reported "Total
+ *     interactions: 11 · across 1 day". `meeting.updated` fires for every
+ *     keystroke batch in the agenda or notes editor;
+ *   - fixing a typo in a six-month-old meeting's TITLE moved `lastInteractionAt`
+ *     to today, which flipped the Person out of `due_for_follow_up` /
+ *     `out_of_touch` and removed the follow-up signal entirely.
+ *
+ * The durable rule is now stated once: **a record's CREATION and the product's
+ * explicit contact and commitment events are the moments; editing a record
+ * afterwards is maintenance.** A meeting still counts through `meeting.created`
+ * and, far more strongly, `meeting.held`; a diary entry through
+ * `diary_entry.created`; a note through its `entity.created`. Nothing an owner
+ * genuinely did with a person became invisible — only the autosaves did.
+ *
+ * The cadence arithmetic never had this problem (it reduces its sample to
+ * DISTINCT owner-calendar days, so ten saves in one day were always one day). It
+ * was `totalInteractions`, an exact event count, and `lastInteractionAt`, an
+ * instant, that carried it.
  *
  * Each moment is counted exactly ONCE: modules with their own repository emit only
  * their own creation event (`meeting.created`, `diary_entry.created`,
@@ -121,13 +149,10 @@ const DAYS_PER_MONTH = 30.436_875;
 export const INTERACTION_ACTIVITY_TYPES = [
   "entity.created",
   "diary_entry.created",
-  "diary_entry.updated",
   "meeting.created",
   "meeting.held",
-  "meeting.updated",
   "meeting.item_converted_to_task",
   "meeting.follow_up_created",
-  "note.content_updated",
   "task.completed",
   "task.reopened",
   "review.created",

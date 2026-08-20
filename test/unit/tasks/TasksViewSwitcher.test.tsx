@@ -10,7 +10,7 @@
 
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TasksViewSwitcher } from "~/modules/tasks/TasksViewSwitcher";
 import type { TasksViewOption } from "~/modules/tasks/tasks-contract";
@@ -186,5 +186,128 @@ describe("management actions", () => {
     );
     expect(screen.getByText(/Your tasks are not affected/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Delete view" })).toBeTruthy();
+  });
+});
+
+/**
+ * HARDEN-06D (F-04) — a management action is awaited, and its refusal is shown.
+ *
+ * Every mutation used to leave through a bare, un-awaited `fetcher.submit`, and
+ * both callers closed their own UI on the next line. The confirmation dialog's
+ * single-flight phase, its `busyLabel` and its inline error could therefore
+ * never engage, and an owner who confirmed "Delete view" and navigated
+ * immediately took the in-flight request with them — the view was still there,
+ * and nothing said so. It was CI p08's intermittent failure.
+ */
+describe("HARDEN-06D — a management action is awaited", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A POST that does not answer until the test lets it. */
+  function heldFetch() {
+    let release!: (result: unknown) => void;
+    const held = new Promise<unknown>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      const body = await held;
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    return { release, calls };
+  }
+
+  it("keeps the delete dialog open, and busy, until the server answers", async () => {
+    const { release, calls } = heldFetch();
+    renderSwitcher();
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Delete/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: /Delete/ })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete view" }));
+
+    // The request is out, the dialog is still up, and it says what it is doing.
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toBe("/tasks/views");
+    expect(screen.getByRole("dialog", { name: /Delete/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Deleting…" })).toBeTruthy();
+
+    release({ kind: "view", ok: true, viewId: "v-mine", message: "Deleted." });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: /Delete/ })).toBeNull(),
+    );
+  });
+
+  it("keeps the dialog open, with the reason, when the server refuses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      async () =>
+        new Response(
+          JSON.stringify({
+            kind: "view",
+            ok: false,
+            formError: "That view no longer exists.",
+          }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        ),
+    );
+    renderSwitcher();
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Delete/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: /Delete/ })).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete view" }));
+
+    // Twice, and both are right: the dialog's own inline alert (so it is
+    // beside the retry) and the switcher's polite live region (so a screen
+    // reader hears it without hunting).
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "That view no longer exists.",
+      ),
+    );
+    expect(screen.getByRole("dialog", { name: /Delete/ })).toBeTruthy();
+  });
+
+  it("keeps the naming form open when the save is refused", async () => {
+    vi.stubGlobal(
+      "fetch",
+      async () =>
+        new Response(
+          JSON.stringify({
+            kind: "view",
+            ok: false,
+            formError: "A view with that name already exists.",
+          }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        ),
+    );
+    renderSwitcher();
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /Save as new view/ }));
+    await waitFor(() =>
+      expect(screen.getByTestId("tasks-view-name-input")).toBeTruthy(),
+    );
+    fireEvent.change(screen.getByTestId("tasks-view-name-input"), {
+      target: { value: "Deep work" },
+    });
+    fireEvent.submit(
+      screen.getByTestId("tasks-view-name-input").closest("form")!,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("A view with that name already exists."),
+      ).toBeTruthy(),
+    );
+    // The owner's typing is still there to correct, not thrown away.
+    expect(screen.getByTestId("tasks-view-name-input")).toBeTruthy();
   });
 });

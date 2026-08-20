@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   ActivitySubjectUnavailableError,
   InvalidActivityCursorError,
+  MAX_ACTIVITY_PAGE_SIZE,
 } from "~/kernel/activity";
 import { createActivityRepository } from "~/platform/storage/d1";
 import {
@@ -188,6 +189,29 @@ describe("Activity queries", () => {
     await repo.listForEntity(ids[0]!, { limit: 100 });
     // Three: anchor existence check, activities page, all subjects.
     expect(counting.prepareCount()).toBe(3);
+  });
+
+  /*
+   * HARDEN-06D (F-12) — the kernel's own validated maximum must not produce a
+   * statement D1 refuses.
+   *
+   * `MAX_ACTIVITY_PAGE_SIZE` is 100 and the subject read bound `workspace_id`
+   * plus one id per page row — 101 bound parameters, against D1's ceiling of
+   * exactly 100 (`D1_ERROR: too many SQL variables`, measured). No product
+   * caller reaches it today (every one passes 30 or fewer, Settings 8), so this
+   * was latent — and it is the same trap TASKS-13 fell into at 100 checklist
+   * ids. The read is now chunked at 90, so the limit the validator accepts is a
+   * limit the storage can serve.
+   */
+  it("serves a FULL page at the kernel's own maximum page size", async () => {
+    await createN(MAX_ACTIVITY_PAGE_SIZE);
+    const page = await activity.listForWorkspace({
+      limit: MAX_ACTIVITY_PAGE_SIZE,
+    });
+    expect(page.items).toHaveLength(MAX_ACTIVITY_PAGE_SIZE);
+    // Every event still carries its subject: chunking must not lose a row at a
+    // boundary.
+    expect(page.items.every((item) => item.subjects.length > 0)).toBe(true);
   });
 
   it("rejects malformed and cross-scope cursors through the repository", async () => {
