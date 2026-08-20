@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   FORBIDDEN_EXPORT_KEY_PATTERN,
+  SNAPSHOT_COLLECTION_ORDER,
+  SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS,
   INFRASTRUCTURE_KEY_HINTS,
   SNAPSHOT_SCHEMA_NAME,
   SnapshotValidationError,
@@ -18,6 +20,7 @@ import {
   isIsoDate,
   isIsoInstant,
   validateWorkspaceSnapshot,
+  type SnapshotCollection,
   type WorkspaceSnapshotV1,
 } from "~/kernel/export";
 
@@ -256,6 +259,98 @@ describe("guided-review workflow state in a snapshot", () => {
       path: "records.reviewSections",
       message: "must be an array",
     });
+  });
+
+  /*
+   * HARDEN-06B (F-02) — the contract as an INVARIANT over the collection list,
+   * not as two hard-coded names.
+   *
+   * The test above named `reviewWorkflowState` and `reviewStepAcknowledgements`
+   * and nothing else, so when TASKS-13 added `taskChecklistItems` to
+   * `SNAPSHOT_COLLECTION_ORDER` and both D1 repositories but not to the opt-in
+   * list, nothing failed — and every archive an owner had exported between
+   * HARDEN-01 and TASKS-13 was refused by Restore with
+   * `records.taskChecklistItems must be an array`. The list's own comment says
+   * "add to this list in the SAME change that adds a collection"; this is what
+   * makes forgetting impossible rather than merely discouraged.
+   *
+   * `REQUIRED_SINCE_SCHEMA_VERSION_2` is the explicit, deliberate other half: a
+   * collection that has existed since the current `SNAPSHOT_SCHEMA_VERSION` was
+   * set, so no archive declaring version 2 can legitimately lack it. Adding a
+   * NEW collection to that list instead of to the opt-in list is a decision to
+   * invalidate existing archives, and would have to bump the schema version.
+   */
+  const REQUIRED_SINCE_SCHEMA_VERSION_2: readonly SnapshotCollection[] = [
+    "entities",
+    "spineRecords",
+    "areaDetails",
+    "goalDetails",
+    "projectDetails",
+    "taskDetails",
+    "taskRecurrenceRules",
+    "noteDetails",
+    "diaryEntryDetails",
+    "personDetails",
+    "meetingDetails",
+    "meetingItems",
+    "meetingItemTasks",
+    "assetDetails",
+    "assetEvents",
+    "assetObligations",
+    "reviewDetails",
+    "reviewSections",
+    "entityLinks",
+    "activities",
+    "activitySubjects",
+  ];
+
+  it("classifies every snapshot collection as optional-on-read or required", () => {
+    const unclassified = SNAPSHOT_COLLECTION_ORDER.filter(
+      (collection) =>
+        !SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS.includes(collection) &&
+        !REQUIRED_SINCE_SCHEMA_VERSION_2.includes(collection),
+    );
+    expect(
+      unclassified,
+      "Every snapshot collection must be either opted in as optional-on-read " +
+        "(the ordinary case, for a collection added after the schema version " +
+        "was last set) or listed here as required since schema version 2 (a " +
+        "deliberate decision to refuse the archives owners already hold).",
+    ).toEqual([]);
+  });
+
+  it.each(SNAPSHOT_COLLECTION_ORDER)(
+    "never refuses an archive merely for having no %s key",
+    (collection) => {
+      const snapshot = mutable(makeSnapshot());
+      delete (snapshot.records as Record<string, unknown>)[collection];
+      const structural = validateWorkspaceSnapshot(snapshot).filter(
+        (issue) =>
+          issue.path === `records.${collection}` &&
+          issue.message === "must be an array",
+      );
+      if (SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS.includes(collection)) {
+        // Tolerated, and normalised in place so every consumer downstream can
+        // assume the collection exists. (Rows in a LATER collection that pointed
+        // into this one are still reported — that is referential integrity
+        // doing its job, and a genuinely older archive has neither.)
+        expect(structural).toEqual([]);
+        expect(snapshot.records[collection]).toEqual([]);
+      } else {
+        expect(structural).toHaveLength(1);
+      }
+    },
+  );
+
+  it("accepts an archive written before EVERY optional collection existed", () => {
+    const snapshot = mutable(makeSnapshot());
+    for (const collection of SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS) {
+      delete (snapshot.records as Record<string, unknown>)[collection];
+    }
+    expect(validateWorkspaceSnapshot(snapshot)).toEqual([]);
+    for (const collection of SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS) {
+      expect(snapshot.records[collection]).toEqual([]);
+    }
   });
 
   it("still rejects an optional collection present but malformed", () => {

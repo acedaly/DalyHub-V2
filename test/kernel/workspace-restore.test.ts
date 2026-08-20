@@ -44,6 +44,9 @@ import {
 import {
   buildStructuredExportArchive,
   buildWorkspaceSnapshot,
+  createZipArchive,
+  sha256Hex,
+  textEntry,
 } from "~/platform/export";
 import {
   acknowledgeSafetyBackup,
@@ -51,6 +54,7 @@ import {
   createSafetyBackup,
   prepareRestore,
   readBackupArchive,
+  readZipArchive,
   type RestoreDependencies,
 } from "~/platform/restore";
 import {
@@ -727,6 +731,58 @@ describe("workspace backup and restore (D1)", () => {
       ),
     ).rejects.toThrow(RestoreRejectedError);
     expect(await countRecords(TARGET)).toBe(0);
+  });
+
+  /*
+   * HARDEN-06B (F-02) — the archive an owner already holds.
+   *
+   * Between HARDEN-01 (when `schemaVersion` became 2) and TASKS-13, every
+   * export declared the CURRENT schema version, so the version gate below
+   * accepted it — and the validator then refused it as structurally invalid
+   * because `taskChecklistItems` had been added to the collection order and to
+   * both D1 repositories, but not to the optional-on-read list. The owner was
+   * told their backup was malformed. It was not; it was simply older than a
+   * collection, and "the normal recovery path is the DalyHub backup" was broken
+   * for every archive more than two days old.
+   *
+   * This drives the WHOLE reader — a genuine ZIP with recomputed checksums,
+   * through `prepareRestore` — rather than the validator alone, because the
+   * validator is only where it failed, not what the owner does.
+   */
+  it("accepts an archive exported before a collection existed", async () => {
+    await ensureWorkspace(TARGET);
+    /*
+     * DalyHub's CURRENT writer always emits every collection, so the older file
+     * is reconstructed from a real archive: the snapshot entry is rewritten
+     * without the key and `CHECKSUMS.txt` recomputed over the bytes actually
+     * present, which is exactly what an archive written by the older writer
+     * looks like — a valid, checksum-clean ZIP declaring `schemaVersion: 2`.
+     */
+    const older = structuredClone(source) as unknown as {
+      records: Record<string, unknown>;
+    };
+    delete older.records.taskChecklistItems;
+    const current = await buildStructuredExportArchive(source);
+    const rewritten = (await readZipArchive(current.bytes)).map((entry) =>
+      entry.path === "dalyhub-snapshot.json"
+        ? textEntry(entry.path, `${JSON.stringify(older, null, 2)}\n`)
+        : { path: entry.path, data: entry.data },
+    );
+    const checksums: string[] = [];
+    for (const entry of rewritten) {
+      if (entry.path === "CHECKSUMS.txt") continue;
+      checksums.push(`${await sha256Hex(entry.data)}  ${entry.path}`);
+    }
+    const archived = await createZipArchive(
+      [
+        ...rewritten.filter((entry) => entry.path !== "CHECKSUMS.txt"),
+        textEntry("CHECKSUMS.txt", `${checksums.sort().join("\n")}\n`),
+      ].sort((a, b) => (a.path < b.path ? -1 : 1)),
+      new Date(source.meta.exportedAt),
+    );
+
+    const preview = await prepareRestore(dependencies(TARGET), archived);
+    expect(preview.operationId).toBeTruthy();
   });
 
   it("refuses a snapshot version it cannot read", async () => {
