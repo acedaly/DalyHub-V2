@@ -39,19 +39,27 @@
 | **N-01** — a Meeting's agenda or notes cannot be cleared to empty | P2 (new) | **Fixed** — `3564050` |
 | **N-02** — F-01's own repair made a continuous writing session refuse its next save | P2 (new) | **Fixed** — HARDEN-06F |
 | **N-03** — the version handed back was the read-back's, so a writer who got in between could be overwritten | P1 (new) | **Fixed** — HARDEN-06G |
+| **N-04** — completing a Task from Today does not round-trip | P1 (new) | **Reported, not fixed** — it is `main`'s, not this branch's (§8) |
+| **N-05** — the Assets lifecycle journey does not fit its own timeout | P2 (new) | **Reported, not fixed** — **DEBT-178** (§8) |
 
 **Counts.** P0 fixed: **1**. P1 fixed: **2** (F-02 and N-03; a third, F-03, was
-already fixed on `main`). P2 fixed: **8** (F-04, F-05, F-06, F-07, F-08, F-09,
-N-01, N-02), of which one — F-09 — is fixed in the half that makes the figure
-correct and deferred in the half that makes the class unrepeatable. P2 fixed in
-part: **1** (F-10). P3 fixed: **4** (F-12, F-13, F-14, F-15). Rejected: **0**.
-Deferred: **2** halves, as DEBT-175 and DEBT-176, plus one behaviour split out
-as DEBT-177. Newly discovered: **3** — N-01, fixed in the same commit as the
-finding whose code path it shares, and **N-02 and N-03, both defects in F-01's
-own repair**, fixed by HARDEN-06F and HARDEN-06G (§2) after automated reviews of
-the two PRs found them. Counting them among the fixes rather than quietly
-folding them into F-01 is the point: this pass introduced them, and the second
-one — a lost update — is the very class F-01 exists to close.
+already fixed on `main` — and has since reopened by another route, §8). P2
+fixed: **8** (F-04, F-05, F-06, F-07, F-08, F-09, N-01, N-02), of which one —
+F-09 — is fixed in the half that makes the figure correct and deferred in the
+half that makes the class unrepeatable. P2 fixed in part: **1** (F-10). P3
+fixed: **4** (F-12, F-13, F-14, F-15). **Rejected: 0.** Deferred: **2** halves,
+as DEBT-175 and DEBT-176, plus one behaviour split out as DEBT-177.
+
+**Newly discovered: 5** — three fixed, two reported and deliberately left. N-01
+was fixed in the same commit as the finding whose code path it shares. **N-02
+and N-03 are both defects in F-01's own repair**, fixed by HARDEN-06F and
+HARDEN-06G (§2) after automated reviews of the two PRs found them; counting them
+among the fixes rather than folding them quietly into F-01 is the point, because
+this pass introduced them, and the second — a lost update — is the very class
+F-01 exists to close. **N-04 and N-05 are not this branch's** and are not
+repaired here: N-05 is a test that does not fit its own timeout (DEBT-178), and
+**N-04 is a P1 product defect on `main` — completing a Task from Today does not
+round-trip — which is the largest open risk this report carries.**
 
 Every finding was re-derived against the current tree before it was touched.
 None was rejected: all thirteen still-open findings reproduced.
@@ -428,7 +436,12 @@ already fixed by HARDEN-06A and are recorded as such rather than re-attempted.
 | **N-01** — a Meeting's agenda or notes cannot be cleared to empty; the save reports success and changes nothing | P2 | **Fixed in this branch**, in the same commit as F-01 — it is the same three lines of the same route, and leaving it would have meant shipping a known "accepted and did not happen" defect in a pass whose subject is exactly that. |
 | **N-02** — F-01's repair made a continuous writing session refuse its own next save with a `409` | P2 | **Fixed by HARDEN-06F** (§2). Found by an automated review of the merged PR, not by this pass's own tests — which is worth recording: every journey written for F-01 made ONE save per editor, and the defect needs two. |
 | **N-03** — the version returned on success was the read-back's, so an editor could advance past a document it never saw and overwrite the writer who got in between | **P1** | **Fixed by HARDEN-06G** (§2). Found by an automated review of the HARDEN-06F PR. A **lost update** — the class F-01 exists to close — reachable through F-01's own repair, and again not caught by this pass's own tests: reproducing it needs a writer to commit inside the window between the batch and the read-back, which no journey could produce by timing alone. The regression test injects that window rather than racing for it. |
+| **N-04** — completing a Task from Today does not round-trip; three specs fail on it, on `main`, since #207 | **P1** | **NOT fixed here** — reproduced and located in §8, but it belongs to the Today/design-convergence programme (#205–#211), not to this pass. Repairing another change's regression inside a correctness pass would make both unreviewable. It is the single largest open risk this branch reports. |
+| **N-05** — `assets.spec.ts:65` does not fit its own 30 s budget, so a partition goes red on runner speed | P2 | **NOT fixed here** — proven to be the test's, not any branch's, by reproducing it on a local checkout of `de1f0b5`. Raised as **DEBT-178** with the four measured durations and an explicit prohibition on "raise the timeout" as the repair. |
 
+N-04 and N-05 were found by running the full gate and reading its logs against
+the base branch's own, which is the only way either could have been found: in a
+bare failure list both look like this branch's regressions, and neither is one.
 No other new defect was found. Two near-misses were checked and are NOT defects:
 `goal-alignment.ts`'s UTC window (documented as an approximation on a count that
 cannot flip a classification) and the offline mutation queue's field vocabulary
@@ -473,7 +486,86 @@ the entry.
 
 ---
 
-## 8. Architecture
+## 8. The gate
+
+Measured, not asserted. Every number below is from a run whose log was read.
+
+### Local, on the merged tree
+
+```
+pnpm run format:check          exit 0
+pnpm run lint                  exit 0
+pnpm run typecheck             exit 0
+pnpm run e2e:partitions:check  exit 0   112 spec files across 12 partitions, heaviest 15.2 min
+pnpm run test:unit             437 files · 6200 tests · 0 failed
+pnpm run test:kernel           178 files · 2841 tests · 0 failed
+```
+
+### CI, and the base it must be read against
+
+`main` was red before this branch's repairs merged, is red now, and is red for
+reasons this branch does not touch. Comparing by **spec file and line** rather
+than by partition, because the partition manifest was re-measured in between and
+the assignments moved:
+
+| Run | Head | Unit | Kernel | E2E failures |
+| --- | --- | --- | --- | --- |
+| `main` before this pass merged | `b2fb99e` (#207) | green | green | **11** |
+| `main`, this branch's base | `de1f0b5` (#211) | green | green | **16** |
+| This branch | `d403350` | green | green | **15** |
+
+Every one of the 15 also fails on `de1f0b5`. Two that fail on `de1f0b5` PASSED
+here (`identity.spec.ts:124`, `tasks-collection.spec.ts:298`), which is the base
+branch's own intermittency, not a repair. **The delta this branch contributes to
+the E2E gate is zero.** No test was skipped, no assertion loosened, no axe rule
+excluded, no timeout raised, and every partition reported `tests NEVER EXECUTED
+0` and `completed yes`.
+
+Partition durations on this branch: p01 17.5 · p02 19.4 · p03 17.2 · p04 19.0 ·
+p05 17.7 · p06 16.5 · p07 17.5 · p08 17.7 · p09 19.0 · p10 17.7 · p11 13.5 ·
+p12 13.3 minutes. **Every partition overran its 15.2 min budget** (11.8 for the
+two slices) — on `de1f0b5` too, at 13.0–18.8. The manifest's measurements were
+taken on faster runners than the ones serving today, which is the same fact
+DEBT-178 records from the other end.
+
+### What is actually failing, and whose it is
+
+Three separate specs fail on one behaviour, and it is not cosmetic:
+
+| Spec | Since |
+| --- | --- |
+| `today.spec.ts:262` — ticking a task on Today completes it in Tasks too | `b2fb99e` |
+| `today-focus.spec.ts:243` — completes a Task from Today, once, and both surfaces follow | `b2fb99e` |
+| `today-task-convergence.spec.ts:165` — completes and reopens, and `/tasks` agrees both times | `b2fb99e` |
+
+The trace shows the click landing — *"click action done, navigations have
+finished"* — and the checkbox never becoming *Reopen*. **Completing a Task from
+Today does not round-trip on `main`.** That is a P1 product defect belonging to
+the Today/design-convergence work of #205–#211; it is recorded here because a
+repair pass that noticed it and said nothing would be worth less than no pass at
+all, and it is NOT repaired here because it is a different change with a
+different owner.
+
+The remainder are `visual-system`, `non-diary-audit`, `record-anatomy`,
+`identity`, `command-palette`, `goal-measurement`, `tasks-collection`,
+`iphone-daily-driver` and `today.spec.ts` §§122/398/432 — the same programme.
+
+One failure needed proving rather than asserting: `assets.spec.ts:65` failed
+here and passed on `de1f0b5`'s CI run, which looks like a regression and is not
+one. It was reproduced **on a local checkout of `de1f0b5` itself**, where it
+also fails, at 32.4 s against a 30 s budget. It is DEBT-178: a journey that does
+not fit its own timeout. It was not retried to make it pass and its timeout was
+not raised.
+
+### The honest reading
+
+**Unit and kernel are green and are this pass's own work. The E2E gate is red,
+and this branch neither caused nor can fix that.** F-03 — *"`main` is red"* —
+which HARDEN-06A closed six days ago, is open again by a different route.
+
+---
+
+## 9. Architecture
 
 - **ADR-108** was added: the three product-wide rules this pass turns from
   per-module conventions into rules (a base version on every whole-document
@@ -493,7 +585,7 @@ the entry.
 
 ---
 
-## 9. Related documents
+## 10. Related documents
 
 - [`DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md`](DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md) — the audit this repairs
 - [`HARDEN_06A_FINISHING_E2E_GATE_2026_08.md`](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md) — F-03 and F-11, fixed before this branch
