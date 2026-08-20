@@ -370,13 +370,17 @@ dispatching.
 | `pnpm run test:kernel` | pass |
 | `pnpm run build` | pass |
 
-Targeted E2E, on this sandbox against the production build:
+Targeted E2E, on this sandbox against the production build (the authoritative
+twelve-partition result is CI's own — §6):
 
 - **`reviews-guided.spec.ts` × 3** — the F-11 fix, run repeatedly to establish it is
   deterministic rather than merely passing once.
 - **171 tests across the ten re-measured spec files and eight calibration files**,
   and **43 + 61 more** in the two calibration runs — every one of them green, which
   is what makes the measurements usable as well as the specs.
+- **`tasks-collection.spec.ts` + `today-task-convergence.spec.ts` together, from a
+  freshly migrated and seeded local D1** — the exact pairing that produced the six
+  failures in §6.3: 40 passed, and the failures are gone.
 - The Playwright strict-mode fixture in §1.2, which is what turned F-11's "one
   frame" from an inference into a measurement.
 
@@ -389,13 +393,64 @@ there partition by partition rather than by the green tick.
 
 ## 6. CI evidence
 
-**Run [`32333645709`](https://github.com/acedaly/DalyHub-V2/actions/runs/32333645709)**
-(`bf38e35`), the twelve-partition gate, read partition by partition rather than by
-the green tick.
+Two twelve-partition runs, both read out of their own `results.json` partition by
+partition rather than off the green tick.
 
-### 6.1 Did every intended test run?
+| | Run | Head | Result |
+| --- | --- | --- | --- |
+| **Diagnostic** | [`32333645709`](https://github.com/acedaly/DalyHub-V2/actions/runs/32333645709) | `bf38e35` | 1847/1847 executed · 6 failed (one cause) · **it is the run the manifest was then re-derived from** |
+| **Authoritative** | [`32338241602`](https://github.com/acedaly/DalyHub-V2/actions/runs/32338241602) | `1f3bc26` | 1847/1847 executed · **0 failed** · **CI Gate green** |
 
-**Yes.** Counted out of the twelve `results.json`, not out of the job summaries:
+### 6.0 The authoritative run — `32338241602`
+
+| | |
+| --- | ---: |
+| Tests collected | **1847** |
+| Tests executed | **1847** |
+| Passed | 1843 |
+| **Failed** | **0** |
+| Deliberately skipped (a `test.skip` the suite meant) | 4 |
+| **Left unexecuted** | **0** |
+| Partitions started / finished / timed out | **12 / 12 / 0** |
+| Worst partition elapsed | **19.1 min — 76% of `globalTimeout`** |
+| Lightest partition elapsed | 11.0 min (44%) |
+
+| Partition | Collected | Executed | Failed | Never ran | Budget | Elapsed | % of ceiling |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| p01 | 233 | 233 | 0 | 0 | 15.2 min | **19.1 min** | **76%** |
+| p02 | 116 | 116 | 0 | 0 | 15.2 min | 14.2 min | 57% |
+| p03 | 117 | 117 | 0 | 0 | 15.2 min | 17.5 min | 70% |
+| p04 | 124 | 124 | 0 | 0 | 15.2 min | 17.1 min | 68% |
+| p05 | 133 | 133 | 0 | 0 | 15.2 min | 17.7 min | 71% |
+| p06 | 120 | 120 | 0 | 0 | 15.2 min | 17.0 min | 68% |
+| p07 | 152 | 152 | 0 | 0 | 15.1 min | 18.0 min | 72% |
+| p08 | 102 | 102 | 0 | 0 | 15.1 min | 14.5 min | 58% |
+| p09 | 110 | 110 | 0 | 0 | 15.1 min | 16.9 min | 67% |
+| p10 | 121 | 121 | 0 | 0 | 15.1 min | 16.9 min | 68% |
+| p11 | 260 | 260 | 0 | 0 | 11.8 min | 13.5 min | 54% |
+| p12 | 259 | 259 | 0 | 0 | 11.8 min | 11.0 min | 44% |
+
+**The manifest predicted this run to within 0.9%**: 175.1 min of budget against
+173.6 min of measured test time. On the previous run, whose manifest still mixed
+sources, the same comparison was 6% out. That is what a manifest measured on one
+run buys.
+
+**The overhead factor held for a second time**: 193.2 min of wall clock over
+173.6 min of tests — **1.113**, against 1.114 on the previous run and the 1.12 the
+ceiling is derived from. Two independent twelve-partition samples agreeing to
+0.1% is a firmer basis than the single partition it started as.
+
+Worth stating rather than glossing: the committed **budget** spread is
+worst/mean 1.04, and the **elapsed** spread on this run was 1.13. They are not the
+same quantity and were never going to match — per-partition wall-clock overhead
+ranged 1.093 to 1.134, and runner speed varies on top of that. The aggregate
+prediction is accurate; the per-partition scatter is exactly what the 25%
+utilisation margin exists to absorb, and at a worst case of 76% it absorbed it
+with 5.9 minutes to spare.
+
+### 6.1 The diagnostic run — `32333645709` — and what it found
+
+Counted out of its twelve `results.json`, not out of the job summaries:
 
 | | |
 | --- | ---: |
@@ -406,9 +461,8 @@ the green tick.
 | Deliberately skipped (a `test.skip` the suite meant) | 4 |
 | **Left unexecuted** | **0** |
 
-Against `main`'s 33 unexecuted tests in one partition, that is the finding closed.
 Every partition started, every partition finished, and none reached
-`globalTimeout`.
+`globalTimeout` — but six tests failed, and finding out why is what §6.3 is.
 
 | Partition | Collected | Executed | Never ran | Budget | Elapsed | % of ceiling |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -426,9 +480,9 @@ Every partition started, every partition finished, and none reached
 | p12 | 259 | 259 | 0 | 9.5 min | 12.9 min | 52% |
 
 The worst partition spent **74%** of the ceiling, with 6.4 minutes unspent. The
-budgets in that table are the ones the run was dispatched with; the manifest was
-re-derived from the run afterwards, which is why they no longer match the split in
-§3.
+budgets in that table are the ones this run was dispatched with — the interim
+split of §4 — because the manifest was re-derived FROM this run afterwards. That
+is why they do not match §3, and it is the point: this run is the measurement.
 
 ### 6.2 Did the mechanisms work?
 
@@ -475,15 +529,20 @@ Worth stating plainly: one real defect being reported as six, five of them in an
 innocent file, is the same class of problem as 33 tests never running. A gate that
 misattributes is not telling the truth either.
 
-### 6.4 What is still red, deliberately
+### 6.4 F-04, which is not fixed here
 
 `plan-smart-lists.spec.ts:121` — **F-04**, the deleted saved view that is still
-listed — passed on this run and failed on `main`'s. It is a race in product code
-(the delete is fire-and-forget and the dialog closes as if it succeeded), it is a
-**real product defect** rather than a harness one, and the audit assigns it to
-**HARDEN-06D**. Fixing it here would be exactly the saved-view mutation work this
-slice is not. It is named rather than quietly carried, and its intermittency is
-itself evidence for the audit's classification.
+listed — failed on `main`'s run `32321840125` and **passed on both** of this
+branch's runs. It is a race in product code (the delete is fire-and-forget and the
+dialog closes as if it succeeded), it is a **real product defect** rather than a
+harness one, and the audit assigns it to **HARDEN-06D**. Fixing it here would be
+exactly the saved-view mutation work this slice is not.
+
+Its passing twice is not evidence that it is fixed, and this document does not
+claim the gate is green because the product is now correct where F-04 is
+concerned. It is a race; a race that passes twice is a race. The honest reading is
+that HARDEN-06A's runs did not happen to hit the window, and HARDEN-06D still
+owes the fix.
 
 ## 7. Scope discipline
 

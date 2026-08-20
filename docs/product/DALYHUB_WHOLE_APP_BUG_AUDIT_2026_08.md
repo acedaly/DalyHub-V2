@@ -374,12 +374,13 @@ gate partitions on — and it also enforces a partition ceiling **derived** from
 19.4 min. Ten partitions became twelve, the derivation's only knob, so the heaviest
 is **15.2 min**: 68% of the ceiling against the 87% it was at.
 
-**Verified, not asserted.** Run `32333645709` collected **1847 tests and executed
-1847, with none left unexecuted**, across twelve partitions that all started (within
-one second of each other) and all finished; the worst spent 74% of `globalTimeout`.
-This finding's headline number — 33 tests that had never run — is zero.
-`globalTimeout`, `workers`, the algorithm and the manifest schema are all
-unchanged.
+**Verified, not asserted, on two twelve-partition runs.** Run `32333645709` (the
+one the manifest was then re-derived from) collected **1847 tests and executed
+1847**; run `32338241602`, with the re-derived manifest, did the same and **failed
+none of them** — **CI Gate green**, twelve partitions started and finished, worst at
+76% of `globalTimeout`. This finding's headline number — 33 tests that had never
+run — is zero on both. `globalTimeout`, `workers`, the algorithm and the manifest
+schema are all unchanged.
 
 ---
 
@@ -1426,14 +1427,15 @@ In this order, because each step makes the next one measurable.
 Reproduced verbatim in §2. Summary: **all local gates green; CI red on `main` with two
 failing partitions and 33 unexecuted tests.**
 
-**Since HARDEN-06A (2026-08-20):** measured on run `32333645709`, **1847 tests
-collected and 1847 executed, none left unexecuted**, across twelve partitions that
-all started and all finished, the worst at 74% of `globalTimeout`. The 33 unexecuted
-tests are gone, `reviews-guided.spec.ts` is fixed, and a third assertion of the same
-shape was found and fixed with it. **F-04** remains, and is deliberately untouched:
-it is a real product defect belonging to HARDEN-06D by the sequence in §26, and it
-is intermittent — it failed p08 on `main`'s run and passed on this one, which is
-itself evidence for its classification as a race. Per-run evidence is in
+**Since HARDEN-06A (2026-08-20):** on run `32338241602`, **1847 tests collected,
+1847 executed, 0 failed, none left unexecuted**, across twelve partitions that all
+started and all finished, the worst at 76% of `globalTimeout` — **CI Gate green**.
+The 33 unexecuted tests are gone, `reviews-guided.spec.ts` is fixed, and a third
+assertion of the same shape was found and fixed with it. **F-04** remains and is
+deliberately untouched: it is a real product defect belonging to HARDEN-06D by the
+sequence in §26. It failed p08 on `main`'s run and passed on both of HARDEN-06A's,
+which is evidence for its classification as a race and **not** evidence that it is
+fixed. Per-run evidence is in
 [`HARDEN_06A_FINISHING_E2E_GATE_2026_08.md` §6](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md#6-ci-evidence).
 
 ---
