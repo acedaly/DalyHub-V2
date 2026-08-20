@@ -37,7 +37,7 @@ import {
   type ViewScope,
 } from "~/kernel/views";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
-import { ownerCalendarIso } from "~/shared/datetime";
+import { ownerCalendarIso, ownerDayStartInstant } from "~/shared/datetime";
 
 import type { Route } from "./+types/index";
 import { ViewsWorkspace } from "../ViewsWorkspace";
@@ -202,6 +202,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     weekStartIso: week.start,
     weekEndIso: week.end,
     calendarIsoOf: (instant) => ownerCalendarIso(instant, preferences.timezone),
+    dayStartInstantOf: (dayIso) =>
+      ownerDayStartInstant(dayIso, preferences.timezone),
     alignmentRecentWindowStartIso: alignment.recentWindowStartIso,
     availableScopes: available,
   });

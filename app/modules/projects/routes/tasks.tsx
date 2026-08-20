@@ -19,7 +19,7 @@
 import { env } from "cloudflare:workers";
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
-import type { TaskBlockedSummary } from "~/kernel/tasks";
+import type { TaskBlockedSummary, TaskChecklistProgress } from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -69,9 +69,19 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     const blocked = await scope.tasks
       .listBlockedSummaries(page.items.map((item) => item.id))
       .catch(() => new Map() as ReadonlyMap<string, TaskBlockedSummary>);
+    // TASKS-13 / HARDEN-06E (F-09) — and ONE for the page's checklist figures,
+    // on exactly the same terms: a figure that cannot be read costs the figure,
+    // never the page.
+    const checklist = await scope.tasks
+      .listChecklistProgress(page.items.map((item) => item.id))
+      .catch(() => new Map() as ReadonlyMap<string, TaskChecklistProgress>);
     return json({
       tasks: page.items.map((item) =>
-        serializeProjectTask(item, blocked.get(item.id)),
+        serializeProjectTask(
+          item,
+          blocked.get(item.id),
+          checklist.get(item.id),
+        ),
       ),
       nextCursor: page.nextCursor,
     } satisfies ProjectTasksPageData);

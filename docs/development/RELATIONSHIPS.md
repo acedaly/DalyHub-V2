@@ -475,15 +475,35 @@ load-bearing, not incidental — it is the honesty rule PEOPLE-03 was blocked on
 
 `INTERACTION_ACTIVITY_TYPES` (in the relationships kernel) is a **trusted, narrow
 vocabulary**, evaluated over a Person's linked records and over the Person as a
-subject. It admits substantive creation and progress events — a meeting created,
-**held** or written up, a diary entry, a note's content, a commitment completed, a
-review. It excludes, deliberately:
+subject. The rule it encodes, in one sentence: **a record's CREATION and the
+product's explicit contact and commitment events are the moments; editing a record
+afterwards is maintenance.** So it admits a meeting created or **held**, a diary
+entry, a note, a commitment completed or reopened, and a review created or
+completed. It excludes, deliberately:
 
 - every `person.*` type — record maintenance on the contact card is not contact;
 - every `entity_link.*` type — relationship bookkeeping is not a moment;
 - `entity.updated` — a rename;
 - `entity.deleted` / `entity.restored` — tidying;
-- archive / restore / status-change types — filing.
+- archive / restore / status-change types — filing;
+- **every `*.updated` / `*.content_updated` type on a LINKED record** —
+  `meeting.updated`, `diary_entry.updated` and `note.content_updated`.
+
+**That last exclusion is HARDEN-06D (2026-08-20), and it took a defect to see that
+it belonged there.** The vocabulary reasoned carefully about the Person's own
+record and then treated every linked record's maintenance event as contact. Two
+consequences followed, both reproduced against real D1: one meeting typed up in
+ten debounced autosaves reported *"Total interactions: 11 · across 1 day"*, because
+`meeting.updated` fires for every keystroke batch in the agenda or notes editor;
+and correcting a typo in a six-month-old meeting's TITLE moved `lastInteractionAt`
+to today, which flipped the Person out of `due_for_follow_up` / `out_of_touch` and
+removed the follow-up signal. Nothing an owner genuinely did with a person became
+invisible when those three types left — only the autosaves did. The cadence
+arithmetic never had the problem (it reduces its sample to DISTINCT owner-calendar
+days); it was `totalInteractions`, an exact event count, and `lastInteractionAt`,
+an instant, that carried it. See
+[F-06](../product/DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md#f-06--editing-a-meeting-counts-as-an-interaction-with-every-attendee--p2)
+and [ADR-108](../decisions/ARCHITECTURE_DECISIONS.md#adr-108-three-product-wide-rules-the-whole-application-audit-found-were-per-module-conventions--a-base-version-on-every-whole-document-write-an-owner-day-that-never-travels-without-its-zone-and-maintenance-that-is-not-contact).
 
 Each moment counts exactly once: a module with its own repository emits only its own
 creation event (`meeting.created`, `diary_entry.created`, `review.created`), and

@@ -14,6 +14,7 @@ import {
   makeContext,
   makeProjectSettingsRepository,
   makeSpineRepository,
+  makeTaskRepository,
   resetTables,
   sequentialIds,
 } from "./support";
@@ -32,6 +33,13 @@ function spine(prefix = "s") {
   return makeSpineRepository(makeContext(WS), {
     clock: new FakeClock().now,
     idGenerator: sequentialIds(prefix),
+  });
+}
+
+function tasks() {
+  return makeTaskRepository(makeContext(WS), {
+    clock: new FakeClock().now,
+    idGenerator: sequentialIds("t"),
   });
 }
 
@@ -243,6 +251,56 @@ describe("archive", () => {
     );
     expect(await countActivitiesOfType("project.archived")).toBe(0);
     expect(await countProjectDetailRows()).toBe(0);
+  });
+
+  /*
+   * HARDEN-06C (F-08) — parked and dropped work is not an unfinished commitment.
+   *
+   * DalyHub's documented way to remove a Task is CANCEL (ADR-053 §8), and
+   * `listCarryOverTasks`, the overdue rule and `countOverdueAtPeriodEnd` all
+   * exclude `cancelled` and `someday` for exactly that reason. The archive guard
+   * predated that vocabulary and asked only `completed_at IS NULL`, so a Project
+   * whose leftover work had been cancelled could never be archived: the owner's
+   * only remedies were to un-cancel and complete a Task they deliberately did
+   * not do, or to move it to another Project.
+   */
+  it("a cancelled task does not block archive", async () => {
+    const sp = spine();
+    const project = await seedProject(sp);
+    const task = await sp.createTask({
+      title: "Dropped",
+      parent: { kind: "project", id: project.id },
+    });
+    await tasks().updateTask(task.id, { status: "cancelled" });
+
+    const result = await settings().archive(project.id);
+    expect(result.changed).toBe(true);
+  });
+
+  it("a Someday task does not block archive", async () => {
+    const sp = spine();
+    const project = await seedProject(sp);
+    const task = await sp.createTask({
+      title: "Parked",
+      parent: { kind: "project", id: project.id },
+    });
+    await tasks().updateTask(task.id, { commitmentState: "someday" });
+
+    const result = await settings().archive(project.id);
+    expect(result.changed).toBe(true);
+  });
+
+  it("an open task still blocks archive, and the refusal names what to do", async () => {
+    const sp = spine();
+    const project = await seedProject(sp);
+    await sp.createTask({
+      title: "Genuinely outstanding",
+      parent: { kind: "project", id: project.id },
+    });
+
+    await expect(settings().archive(project.id)).rejects.toThrow(
+      /Complete, cancel or move them/,
+    );
   });
 
   it("soft-deleted tasks do not block archive", async () => {

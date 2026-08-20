@@ -268,8 +268,16 @@ function ArchiveGroup({
                 You can restore it at any time from the Archived Projects
                 collection.
               </li>
+              {/*
+                HARDEN-06C (F-08) — the same three verbs the refusal uses.
+                This said "complete or move them first", which sent an owner to
+                complete work they had deliberately CANCELLED: the guard counted
+                a cancelled or Someday Task as unfinished, and the copy repeated
+                that. Both now agree with the rest of the product that parked or
+                dropped work is not an outstanding commitment.
+              */}
               <li>
-                If it has unfinished tasks directly under it, complete or move
+                If it has open tasks directly under it, complete, cancel or move
                 them first — archiving is blocked while any remain.
               </li>
             </ul>

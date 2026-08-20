@@ -184,6 +184,10 @@ export function serializeMeeting(m: Meeting) {
     endsAt: m.endsAt?.toISOString() ?? null,
     archivedAt: m.archivedAt?.toISOString() ?? null,
     heldAt: m.heldAt?.toISOString() ?? null,
+    // HARDEN-06B (F-01) — the base version the Notebook editor quotes on every
+    // autosave, so the server can refuse a save written against text that has
+    // since changed elsewhere.
+    detailsUpdatedAt: m.detailsUpdatedAt.toISOString(),
     items: m.items.map((i) => ({
       ...i,
       createdAt: i.createdAt.toISOString(),

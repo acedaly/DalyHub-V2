@@ -72,7 +72,25 @@ export interface ExportManifest {
   readonly files: readonly ManifestFile[];
 }
 
-/** The categories an export never carries, named so the omission is explicit. */
+/**
+ * The categories an export never carries, named so the omission is explicit.
+ *
+ * This list is the archive's own statement of what it does NOT hold, and the
+ * export contract's promise is that an omission "is reported in `limitations`
+ * and in the manifest, never silently". HARDEN-06E (F-10) added the last three
+ * entries: notification settings, the notification ledger and the subscribed
+ * calendars had all left the snapshot with nothing said, so a restored workspace
+ * came back with notifications off, the digest time and its zone gone, the
+ * per-source toggles gone and every subscribed calendar gone — and the manifest
+ * did not say so. Excluding the ROWS is defensible (each of those tables holds a
+ * credential or a sealed feed URL); excluding them without saying so was not.
+ *
+ * Whether the NON-SECRET half — the digest time, its zone, the per-source
+ * toggles, a calendar's name — should be exported as `owner`-scoped
+ * configuration, by column rather than by table, is a separate and open
+ * question: it is the same shape as DEBT-94's AI-preferences judgement, and it
+ * is recorded as DEBT-176 rather than decided here.
+ */
 export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Authentication artefacts: Cloudflare Access JWTs, cookies and session state.",
   "Credentials of any kind: no password, token, API key or provider secret.",
@@ -83,6 +101,9 @@ export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Application logs and test fixtures.",
   "Rendered HTML: Markdown is exported as its canonical source.",
   "File attachments: DalyHub stores none.",
+  "Notification settings: the delivery channel, the digest time and its zone, and the per-source toggles. The row holds Pushover credentials, so it is omitted whole; a restored workspace starts with notifications off and the defaults.",
+  "The notification ledger: what was sent and delivered. It is a record of how the system was operated, not anything the owner authored — the same rule the AI usage ledger follows.",
+  "Calendar sources and the events read from them: a subscribed feed's sealed URL is a credential, and the events themselves belong to the calendar that publishes them. A restored workspace subscribes to nothing until the owner adds the feeds again.",
 ];
 
 /**

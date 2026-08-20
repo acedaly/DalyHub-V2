@@ -195,8 +195,12 @@ describe("completing late under each mode", () => {
     // batch each get the successor their own rule describes.
     const { area } = await seedTask(WS, "2026-08-03", "Weekly planning");
     const tasks = taskRepo(WS);
-    const fixed = (await tasks.listWorkspaceTasks({ todayIso: "2026-08-01" }))
-      .items[0]!;
+    const fixed = (
+      await tasks.listWorkspaceTasks({
+        todayIso: "2026-08-01",
+        timezone: "UTC",
+      })
+    ).items[0]!;
     await tasks.setTaskRecurrence(fixed.id, {
       frequency: "day",
       dateKind: "scheduled",
@@ -236,6 +240,7 @@ describe("completing late under each mode", () => {
     // Exactly one successor per SERIES, and none for the one-off task.
     const live = await tasks.listWorkspaceTasks({
       todayIso: "2026-08-06",
+      timezone: "UTC",
       limit: 50,
       filters: { completedVisibility: "include" },
     });

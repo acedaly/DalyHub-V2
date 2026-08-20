@@ -79,6 +79,13 @@ export interface ReviewInsightRepository {
    * ago just as truthfully as for the current one. Distinct per record, so a
    * Task completed, reopened and completed again inside one period counts once.
    *
+   * HARDEN-06C (F-07) — and it counts the record's LATER FATE out of the
+   * question. Deleting a completed Task does not change what happened during
+   * the week the owner completed it, so a closed Review's figures no longer
+   * move when they tidy up. The adapter's own comment records how. (The
+   * `overdue` reading below is a different question and says so explicitly:
+   * it is the state of records that still exist.)
+   *
    * One grouped statement regardless of how many periods are requested (capped
    * at `MAX_TREND_PERIODS`); an empty request list performs no read at all.
    */

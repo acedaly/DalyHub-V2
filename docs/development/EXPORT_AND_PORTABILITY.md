@@ -553,3 +553,46 @@ which is a principle and which is a judgement call.
 Accepted proposals are ordinary records — Tasks and EntityLinks — and export
 exactly as they always have. Nothing marks them as AI-originated, because after
 the owner has reviewed and accepted them they are simply the owner's records.
+
+
+## Notifications and calendars (HARDEN-06E, 2026-08-20)
+
+**Also a deliberate decision, and until HARDEN-06E an undocumented one.** Three
+more groups of tables are absent from the snapshot, and NONE of them was named
+in `EXPORT_EXCLUSIONS`. A restored workspace therefore came back with
+notifications off, the digest time and its zone gone, the per-source toggles
+gone and every subscribed calendar gone — while this document's own contract
+promises that either is *"reported in `limitations` and in the manifest, never
+silently"*. That was the defect (whole-application audit, F-10): not the
+omission, the silence.
+
+| Table | In the snapshot? | Named in `EXPORT_EXCLUSIONS`? |
+| --- | --- | --- |
+| `notification_settings` | no | **yes, since HARDEN-06E** |
+| `notifications`, `notification_deliveries` | no | **yes, since HARDEN-06E** |
+| `calendar_sources`, `external_calendar_events`, `external_calendar_meeting_links` | no | **yes, since HARDEN-06E** |
+
+Why each one is out, stated separately because the reasons differ:
+
+- **`notification_settings` holds a credential.** `pushover_user_key` and
+  `pushover_app_token` are in the same row as the digest time and the per-source
+  toggles, so the row is omitted whole rather than partially — the same rule
+  "Credentials of any kind" already states. A restored workspace starts with
+  notifications off and the defaults.
+- **The notification ledger is excluded on principle.** `notifications` and
+  `notification_deliveries` record what the system SENT and whether it arrived.
+  That is operational metadata about how the system was run, not anything the
+  owner authored — exactly the standing `ai_usage_requests` has above.
+- **A calendar source holds a sealed feed URL,** which is a credential in
+  everything but name: anyone holding it can read the calendar. The events
+  themselves belong to the calendar that publishes them and are re-read on the
+  next sync, so exporting a copy would be exporting someone else's data with a
+  staleness date attached.
+
+**What is still open.** The NON-SECRET half of two of those tables — the digest
+time and its zone, the per-source toggles, a calendar's display name — is
+ordinary owner configuration of exactly the kind `owner_app_preferences` and the
+saved views are already exported as. Exporting it by COLUMN rather than omitting
+it by TABLE is the better answer and is a snapshot-schema change; it is recorded
+as **DEBT-176** rather than decided here, and it is the same shape as DEBT-94's
+AI-preferences judgement above.

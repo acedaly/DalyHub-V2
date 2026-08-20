@@ -285,6 +285,42 @@ describe("period completion counts", () => {
     expect(current.tasksCompleted).toBe(1);
   });
 
+  /*
+   * HARDEN-06C (F-07) — a closed period is a record of a period.
+   *
+   * The completions scan joined `entities … AND e.deleted_at IS NULL`, so a
+   * soft-deleted record silently left every historical bucket: a weekly Review
+   * that said "3 Tasks completed" said "2" once the owner tidied up, and the
+   * Analytics trend moved with it — while `analytics.ts` and REVIEW-03 both
+   * stated the opposite guarantee in as many words.
+   */
+  it("does not change a closed period's count when a completed Task is later deleted", async () => {
+    const context = makeContext(WS);
+    const tasks = makeTaskRepository(context, {
+      clock: new FakeClock(IN_PERIOD_INSTANT).now,
+    });
+    const kept = await tasks.createTask({ title: "Kept" });
+    const removed = await tasks.createTask({ title: "Tidied up later" });
+    await tasks.completeTask(kept.id);
+    await tasks.completeTask(removed.id);
+
+    const repo = makeReviewInsightRepository(context);
+    const before = await repo.countPeriodCompletions([
+      { key: "current", window: WINDOW },
+    ]);
+    expect(before[0]!.tasksCompleted).toBe(2);
+
+    // Three weeks later, from the bulk bar on `/tasks`.
+    await makeTaskRepository(context, {
+      clock: new FakeClock("2026-08-20T09:00:00.000Z").now,
+    }).deleteTasks([removed.id]);
+
+    const after = await repo.countPeriodCompletions([
+      { key: "current", window: WINDOW },
+    ]);
+    expect(after[0]!.tasksCompleted).toBe(2);
+  });
+
   it("counts Project and Goal completions under their own headings", async () => {
     const context = makeContext(WS);
     const spine = makeSpineRepository(context, {

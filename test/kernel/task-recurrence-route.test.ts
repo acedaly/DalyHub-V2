@@ -177,6 +177,7 @@ describe("route: recurrence on create", () => {
 
     const page = await taskRepo().listWorkspaceTasks({
       todayIso: "2026-07-30",
+      timezone: "UTC",
     });
     expect(page.items.some((item) => item.title === "Impossible repeat")).toBe(
       false,

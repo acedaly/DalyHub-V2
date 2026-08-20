@@ -27,6 +27,7 @@ import {
   type PrivacyCategory,
 } from "~/kernel/ai";
 import type { WorkspaceScope } from "~/platform/workspaces";
+import { ownerCalendarIso } from "~/shared/datetime";
 
 /** The candidate ids a feature is allowed to reference in its proposals. */
 export interface CandidateSets {
@@ -61,10 +62,20 @@ const PAGE = {
   searchPerProvider: 12,
 } as const;
 
-/** Turn a `Date` into an ISO calendar date, or `null`. */
-function isoDate(value: Date | null | undefined): string | null {
+/**
+ * Turn a `Date` into the OWNER's ISO calendar date, or `null`.
+ *
+ * HARDEN-06C (F-14) — it used to slice the UTC ISO string, so a citation could
+ * be dated a day away from the date every other DalyHub surface shows for the
+ * same record. An assistant that disagrees with the product about when
+ * something happened is worse than one that says nothing.
+ */
+function isoDate(
+  value: Date | null | undefined,
+  timezone: string,
+): string | null {
   return value instanceof Date && !Number.isNaN(value.getTime())
-    ? value.toISOString().slice(0, 10)
+    ? ownerCalendarIso(value, timezone)
     : null;
 }
 
@@ -87,6 +98,8 @@ export async function retrieveMeetingEvidence(
   meetingId: string,
   limits: EvidenceLimits,
   allowed: ReadonlySet<PrivacyCategory>,
+  /** HARDEN-06C (F-14) — the owner's zone, so a cited date is THEIR date. */
+  timezone: string,
 ): Promise<RetrievalResult> {
   const meeting = await scope.meetings.get(meetingId);
   if (!meeting) {
@@ -98,7 +111,7 @@ export async function retrieveMeetingEvidence(
   }
 
   const candidates: EvidenceCandidate[] = [];
-  const date = isoDate(meeting.startsAt);
+  const date = isoDate(meeting.startsAt, timezone);
   const updatedAt = isoInstant(meeting.updatedAt);
 
   // Rank 0 — the record the owner is looking at. Always first.
@@ -167,6 +180,8 @@ export async function retrieveNoteEvidence(
   noteId: string,
   limits: EvidenceLimits,
   allowed: ReadonlySet<PrivacyCategory>,
+  /** HARDEN-06C (F-14) — the owner's zone, so a cited date is THEIR date. */
+  timezone: string,
 ): Promise<RetrievalResult> {
   const entity = await scope.entities.getById(noteId);
   if (!entity || entity.type !== "note") {
@@ -185,7 +200,7 @@ export async function retrieveNoteEvidence(
       kind: "note",
       entityId: entity.id,
       title: entity.title,
-      date: isoDate(entity.updatedAt),
+      date: isoDate(entity.updatedAt, timezone),
       href: `/notes/${entity.id}`,
       text: content,
       category: "general",
@@ -330,6 +345,8 @@ export async function retrieveAnswerEvidence(
   question: string,
   limits: EvidenceLimits,
   allowed: ReadonlySet<PrivacyCategory>,
+  /** HARDEN-06C (F-14) — the owner's zone, so a cited date is THEIR date. */
+  timezone: string,
 ): Promise<RetrievalResult> {
   const terms = searchTerms(question);
   if (terms.length === 0) {
@@ -362,7 +379,7 @@ export async function retrieveAnswerEvidence(
       kind: "note",
       entityId: note.id,
       title: note.title,
-      date: isoDate(note.updatedAt),
+      date: isoDate(note.updatedAt, timezone),
       href: `/notes/${note.id}`,
       text: note.excerpt.length > 0 ? note.excerpt : note.title,
       category: "general",
@@ -376,7 +393,8 @@ export async function retrieveAnswerEvidence(
       kind: "task",
       entityId: task.id,
       title: task.title,
-      date: task.dueDate ?? task.scheduledDate ?? isoDate(task.updatedAt),
+      date:
+        task.dueDate ?? task.scheduledDate ?? isoDate(task.updatedAt, timezone),
       href: `/tasks?task=${task.id}`,
       text: `Task: ${task.title}${parent}. Status ${task.status}${
         task.dueDate ? `, due ${task.dueDate}` : ""
@@ -391,11 +409,11 @@ export async function retrieveAnswerEvidence(
       kind: "meeting",
       entityId: meeting.id,
       title: meeting.title,
-      date: isoDate(meeting.startsAt),
+      date: isoDate(meeting.startsAt, timezone),
       href: `/meetings/${meeting.id}`,
       text: `Meeting: ${meeting.title}${
         meeting.location ? ` at ${meeting.location}` : ""
-      } on ${isoDate(meeting.startsAt) ?? "an unrecorded date"}.`,
+      } on ${isoDate(meeting.startsAt, timezone) ?? "an unrecorded date"}.`,
       category: "general",
       updatedAt: isoInstant(meeting.startsAt),
       rank: 15 + index,

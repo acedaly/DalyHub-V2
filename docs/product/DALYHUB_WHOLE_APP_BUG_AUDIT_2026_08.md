@@ -1350,7 +1350,17 @@ In this order, because each step makes the next one measurable.
 - **Dependencies:** none. **Do first.**
 - **Non-goals:** raising `globalTimeout`; changing `workers`; re-designing the split.
 
-### HARDEN-06B — Authored content and recovery
+### HARDEN-06B — Authored content and recovery — ☑ DELIVERED 2026-08-20
+
+> Record: [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](DALYHUB_WHOLE_APP_REPAIR_2026_08.md).
+> Delivered as scoped (F-01 (P0), F-02 (P1)), on one branch with 06B…06E together because
+> each slice is small and they share one documentation and debt reconciliation.
+> See the repair record for what each fix's ROOT CAUSE turned out to be, the two
+> product decisions taken where this document offered a choice (F-06 and F-07),
+> the halves deliberately deferred (F-09's `TaskRow` adoption as DEBT-175,
+> F-10's column-scoped export as DEBT-176), and the one defect found while
+> reproducing F-01 and fixed with it (a Meeting's documents could not be cleared
+> to empty).
 
 - **Defects:** F-01 (P0), F-02 (P1).
 - **Why together:** both are "the owner cannot get this back", both have an exact
@@ -1369,7 +1379,17 @@ In this order, because each step makes the next one measurable.
 - **Non-goals:** revision history; automatic prose merging; a CRDT; changing the
   snapshot schema version.
 
-### HARDEN-06C — Dates, counts and lifecycle
+### HARDEN-06C — Dates, counts and lifecycle — ☑ DELIVERED 2026-08-20
+
+> Record: [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](DALYHUB_WHOLE_APP_REPAIR_2026_08.md).
+> Delivered as scoped (F-05, F-07, F-08, F-14), on one branch with 06B…06E together because
+> each slice is small and they share one documentation and debt reconciliation.
+> See the repair record for what each fix's ROOT CAUSE turned out to be, the two
+> product decisions taken where this document offered a choice (F-06 and F-07),
+> the halves deliberately deferred (F-09's `TaskRow` adoption as DEBT-175,
+> F-10's column-scoped export as DEBT-176), and the one defect found while
+> reproducing F-01 and fixed with it (a Meeting's documents could not be cleared
+> to empty).
 
 - **Defects:** F-05, F-07, F-08, F-14.
 - **Why together:** all four are one seam — an owner-local day used where an instant
@@ -1387,7 +1407,17 @@ In this order, because each step makes the next one measurable.
 - **Non-goals:** a history table for due dates or spine links; changing what "overdue"
   means.
 
-### HARDEN-06D — Mutations that silently do not happen
+### HARDEN-06D — Mutations that silently do not happen — ☑ DELIVERED 2026-08-20
+
+> Record: [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](DALYHUB_WHOLE_APP_REPAIR_2026_08.md).
+> Delivered as scoped (F-04, F-06, F-12, F-13), on one branch with 06B…06E together because
+> each slice is small and they share one documentation and debt reconciliation.
+> See the repair record for what each fix's ROOT CAUSE turned out to be, the two
+> product decisions taken where this document offered a choice (F-06 and F-07),
+> the halves deliberately deferred (F-09's `TaskRow` adoption as DEBT-175,
+> F-10's column-scoped export as DEBT-176), and the one defect found while
+> reproducing F-01 and fixed with it (a Meeting's documents could not be cleared
+> to empty).
 
 - **Defects:** F-04, F-06, F-12, F-13.
 - **Why together:** each is an action the product accepts and then does not perform,
@@ -1405,7 +1435,17 @@ In this order, because each step makes the next one measurable.
 - **Non-goals:** rewriting the chip row as imperative writes (DEBT-159's own entry
   explains why that trade is worse).
 
-### HARDEN-06E — Projection completeness and debt reconciliation
+### HARDEN-06E — Projection completeness and debt reconciliation — ☑ DELIVERED 2026-08-20
+
+> Record: [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](DALYHUB_WHOLE_APP_REPAIR_2026_08.md).
+> Delivered as scoped (F-09, F-10, F-15), on one branch with 06B…06E together because
+> each slice is small and they share one documentation and debt reconciliation.
+> See the repair record for what each fix's ROOT CAUSE turned out to be, the two
+> product decisions taken where this document offered a choice (F-06 and F-07),
+> the halves deliberately deferred (F-09's `TaskRow` adoption as DEBT-175,
+> F-10's column-scoped export as DEBT-176), and the one defect found while
+> reproducing F-01 and fixed with it (a Meeting's documents could not be cleared
+> to empty).
 
 - **Defects:** F-09, F-10, F-15, plus the DEBT-47 / DEBT-157 re-ratings and the new
   entries in §24.
@@ -1502,6 +1542,13 @@ Everything else in this document can be scheduled.
 
 > **V2.4 should wait until the full hardening sequence (HARDEN-06A … HARDEN-06E) is
 > complete.**
+>
+> **Status, 2026-08-20:** the sequence IS complete. HARDEN-06A closed F-03 and
+> F-11; HARDEN-06B…06E closed every remaining finding or recorded the half it
+> deferred, and turned the three that shared a cause into rules
+> ([ADR-108](../decisions/ARCHITECTURE_DECISIONS.md)). The repair record,
+> including its own gate results and recommendation, is
+> [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](DALYHUB_WHOLE_APP_REPAIR_2026_08.md).
 
 Not because the P2s are individually blocking — they are not — but because F-01,
 F-02 and F-06 are all the same failure of process rather than of code: a correct fix

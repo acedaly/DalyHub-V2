@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import {
+  RemoteChangeBanner,
   SaveStatusIndicator,
   UnsavedChangesGuard,
   useAutosaveField,
@@ -24,6 +25,7 @@ export function MeetingMarkdown({
   field,
   label,
   initial,
+  version,
   onSaved,
   readOnly = false,
 }: {
@@ -31,6 +33,12 @@ export function MeetingMarkdown({
   field: "agendaMarkdown" | "notesMarkdown";
   label: string;
   initial: string;
+  /**
+   * HARDEN-06B (F-01) — the meeting's `detailsUpdatedAt`, as the loader
+   * serialised it: the version `initial` came from, and therefore the version
+   * every save quotes.
+   */
+  version: string;
   onSaved: () => void;
   readOnly?: boolean;
 }) {
@@ -45,51 +53,177 @@ export function MeetingMarkdown({
       field={field}
       label={label}
       initial={initial}
+      version={version}
       onSaved={onSaved}
     />
   );
 }
 
+/**
+ * HARDEN-06B (F-01) — is `candidate` a strictly newer version than `against`?
+ * Both are the server's own ISO-8601 UTC timestamps, so lexicographic order IS
+ * chronological order. The same helper `NoteContentForm` uses, for the same
+ * reason: the value handed to the coordinator must only ever move forward, or a
+ * clean editor could silently adopt older text.
+ */
+function isNewerVersion(candidate: string | null, against: string): boolean {
+  return candidate !== null && candidate > against;
+}
+
+/** The `409` body `meetings/routes/mutate.tsx` answers a refused save with. */
+type MeetingMutationResponse = {
+  readonly ok?: boolean;
+  readonly conflict?: boolean;
+  readonly serverAgendaMarkdown?: string;
+  readonly serverNotesMarkdown?: string;
+  readonly detailsUpdatedAt?: string | null;
+};
+
+/**
+ * HARDEN-06B (F-01) — the editing half, and the reason this file changed.
+ *
+ * The agenda and notes are WHOLE documents that autosave in full, so before
+ * this every save was a blind last-write-wins: two tabs, or a laptop and a
+ * phone, and whichever saved second silently replaced the other's paragraphs
+ * with no trace and no recovery (`meeting.updated` carries an empty payload).
+ *
+ * Two mechanisms close it, and they are the two the Note body already uses —
+ * deliberately, so there is ONE reconciliation contract in the product rather
+ * than a Meetings-only second one:
+ *
+ *   - `serverValue` opts into the shared DS-06 reconciliation: a change made
+ *     elsewhere is ADOPTED while this editor is clean and OFFERED (never
+ *     applied, never lost) while it is dirty.
+ *   - every save quotes the version it was written against, so when nothing
+ *     revalidated between load and save the SERVER refuses rather than
+ *     overwrites, and that refusal lands in the same banner.
+ */
 function MeetingMarkdownEditor({
   meetingId,
   field,
   label,
   initial,
+  version,
   onSaved,
 }: {
   meetingId: string;
   field: "agendaMarkdown" | "notesMarkdown";
   label: string;
   initial: string;
+  version: string;
   onSaved: () => void;
 }) {
+  /*
+   * The version this editor's committed text came from. A ref, not state,
+   * because `onSave` must read it without being re-created mid-save. It only
+   * ever moves FORWARD, and only from an authority: a newer loader value this
+   * editor has taken on, or the version a refused save came back with — and
+   * then only once the owner has answered the banner. Advancing it on refusal
+   * alone would make the very next save succeed silently, which is the
+   * overwrite this whole mechanism exists to stop.
+   */
+  const baseVersion = useRef(version);
+  const [refused, setRefused] = useState<{
+    readonly text: string;
+    readonly version: string | null;
+  } | null>(null);
+
+  // A refused save is fresher than the last loader value BY DEFINITION — it is
+  // why the save was refused — so it wins until the loader catches up.
+  const refusedIsNewer =
+    refused !== null && isNewerVersion(refused.version, version);
+  const serverText = refusedIsNewer ? refused.text : initial;
+  const serverVersion = refusedIsNewer ? refused.version! : version;
+
   const a = useAutosaveField({
     initialValue: initial,
+    serverValue: serverText,
     debounceMs: 1200,
     onSave: async (value, signal) => {
       const b = new FormData();
       b.set("intent", "update");
       b.set(field, value);
+      // Always sent, so the server always has a precondition to check.
+      b.set("expectedUpdatedAt", baseVersion.current);
       const r = await fetch(`/meeting/${meetingId}/mutate`, {
         method: "POST",
         body: b,
         signal,
       });
-      if (!r.ok || ((await r.json()) as { ok: boolean }).ok !== true)
+      let data: MeetingMutationResponse;
+      try {
+        data = (await r.json()) as MeetingMutationResponse;
+      } catch {
         throw new Error("save rejected");
-      onSaved();
+      }
+      if (r.ok && data.ok === true) {
+        onSaved();
+        return;
+      }
+      if (r.status === 409 && data.conflict === true) {
+        /*
+         * Refused. The draft is still in the editor (the coordinator keeps it
+         * and returns to `unsaved`) and the newer stored text is still on the
+         * server, so nothing is lost in either direction and the owner picks.
+         */
+        setRefused({
+          text:
+            (field === "agendaMarkdown"
+              ? data.serverAgendaMarkdown
+              : data.serverNotesMarkdown) ?? "",
+          version: data.detailsUpdatedAt ?? null,
+        });
+        // Bring the record's other surfaces up to date with the change that was
+        // just discovered; this editor's own text is untouched by it.
+        onSaved();
+        return { outcome: "conflict" as const };
+      }
+      throw new Error("save rejected");
     },
   });
+
+  /*
+   * Keep the quoted base in step with the text this editor actually holds. It
+   * advances only while nothing is parked for the owner to decide on — which is
+   * exactly when the coordinator has adopted the server's version silently (a
+   * clean editor takes it) or the owner has answered the banner. While a change
+   * is parked, the base stays put, so a save attempted before they answer is
+   * refused again rather than quietly winning.
+   */
+  const remoteParked = a.remoteValue !== null;
+  useEffect(() => {
+    if (remoteParked) return;
+    if (isNewerVersion(serverVersion, baseVersion.current)) {
+      baseVersion.current = serverVersion;
+    }
+  }, [serverVersion, remoteParked]);
+
   return (
     <>
       <UnsavedChangesGuard
         when={["unsaved", "saving", "error"].includes(a.status)}
       />
+      {a.remoteValue !== null ? (
+        <RemoteChangeBanner
+          what={`This meeting’s ${label.toLowerCase()}`}
+          saving={a.status === "saving"}
+          onAdopt={a.adoptRemote}
+          onDismiss={a.dismissRemote}
+        />
+      ) : null}
       <LiveMarkdownEditor
         label={label}
         value={a.value}
         onChange={a.onChange}
-        onBlur={a.onBlur}
+        /*
+         * While a change is parked, a blur does not attempt a save: the base is
+         * deliberately held until the owner answers, so such a save is CERTAIN
+         * to be refused — and it would disable the banner's own buttons for its
+         * duration, right as the owner reaches for them.
+         */
+        onBlur={() => {
+          if (a.remoteValue === null) a.onBlur();
+        }}
         placeholder={
           label === "Agenda"
             ? "What should this meeting cover?"

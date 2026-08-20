@@ -319,7 +319,16 @@ test.describe("PROJ-06 — mobile Projects", () => {
     await expectNoAxeViolations(page);
     await expectNoHorizontalOverflow(page);
     await confirm.getByRole("button", { name: "Archive project" }).click();
-    await expect(confirm.getByRole("alert")).toContainText(/unfinished tasks/i);
+    /*
+     * The refusal is asserted by what it TELLS THE OWNER TO DO, not by a
+     * sentence. It used to pin the phrase "unfinished tasks", which HARDEN-06C
+     * changed for a reason the wording itself carries: cancelled and Someday
+     * work is not unfinished work, so the message now names the three things
+     * that actually clear the block.
+     */
+    const refusal = confirm.getByRole("alert");
+    await expect(refusal).toContainText(/open tasks/i);
+    await expect(refusal).toContainText(/cancel/i);
     await expect(
       page.getByRole("button", { name: "Complete project" }),
     ).toBeVisible();

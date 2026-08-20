@@ -57,6 +57,9 @@ const context: CrossViewQueryContext = {
   weekStartIso: WEEK_START,
   weekEndIso: WEEK_END,
   calendarIsoOf: (instant) => instant.toISOString().slice(0, 10),
+  // This suite's owner IS in UTC, so the day boundary is UTC midnight — stated
+  // explicitly rather than assumed, which is what F-05 was about.
+  dayStartInstantOf: (dayIso) => new Date(`${dayIso}T00:00:00.000Z`),
   alignmentRecentWindowStartIso: ts("2026-07-25"),
   availableScopes: [...VIEW_SCOPES],
 };

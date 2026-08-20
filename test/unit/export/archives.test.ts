@@ -133,6 +133,31 @@ describe("buildExportManifest", () => {
     expect(manifest.excluded.join(" ")).toContain("subject identifier");
   });
 
+  /*
+   * HARDEN-06E (F-10) — an omission the manifest does not name is a silent one.
+   *
+   * Notification settings, the notification ledger and the subscribed calendars
+   * all left the snapshot with nothing said, so a restored workspace came back
+   * with notifications off, the digest time and its zone gone, the per-source
+   * toggles gone and every calendar gone — while the export contract promises
+   * that either is "reported in `limitations` and in the manifest, never
+   * silently".
+   */
+  it("names the notification and calendar omissions too", () => {
+    const excluded = manifest.excluded.join(" ");
+    expect(excluded).toContain("Notification settings");
+    expect(excluded).toContain("notification ledger");
+    expect(excluded).toContain("Calendar sources");
+  });
+
+  it("says what a restored workspace comes back WITHOUT", () => {
+    // Not just the table names: the sentence an owner reads has to tell them
+    // what they will have to set up again.
+    const excluded = manifest.excluded.join(" ");
+    expect(excluded).toContain("notifications off");
+    expect(excluded).toContain("subscribes to nothing");
+  });
+
   it("carries the file list it was given", () => {
     expect(manifest.files).toEqual([
       { path: "README.md", bytes: 10, sha256: "abc" },

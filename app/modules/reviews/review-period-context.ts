@@ -46,11 +46,13 @@ export async function loadReviewPeriodContext(
       view: "completed",
       limit: 50,
       todayIso: input.today,
+      timezone: input.timezone,
     }),
     scope.tasks.listWorkspaceTasks({
       view: "overdue",
       limit: 50,
       todayIso: input.today,
+      timezone: input.timezone,
     }),
     scope.diary.list({ order: "newest", limit: 50 }),
     scope.meetings.list({ view: "recent", limit: 50 }),

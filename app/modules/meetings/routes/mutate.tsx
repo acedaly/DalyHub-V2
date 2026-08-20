@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import {
   MEETING_ATTENDEE_LINK,
   MeetingArchivedError,
+  MeetingConflictError,
   MeetingItemConflictError,
   MeetingNotFoundError,
   MeetingStorageError,
@@ -32,6 +33,23 @@ export interface MarkHeldResponse {
   readonly heldAt: string;
   readonly attendeeCount: number;
   readonly attendeesRecorded: number;
+}
+
+/**
+ * HARDEN-06B (F-01) — the body a refused whole-document save answers with.
+ *
+ * `conflict` is the discriminator the Notebook editor keys on: it is neither a
+ * success (nothing was persisted) nor an error (nothing malfunctioned), so it
+ * routes into the shared `RemoteChangeBanner` reconciliation instead of a retry
+ * the server would refuse again for the same good reason.
+ */
+export interface MeetingConflictResponse {
+  readonly ok: false;
+  readonly conflict: true;
+  readonly error: string;
+  readonly serverAgendaMarkdown: string;
+  readonly serverNotesMarkdown: string;
+  readonly detailsUpdatedAt: string | null;
 }
 
 export async function action({ request, context, params }: Route.ActionArgs) {
@@ -121,10 +139,32 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         "mode",
         "meetingUrl",
         "status",
-        "agendaMarkdown",
-        "notesMarkdown",
       ])
         if (f.has(k)) changes[k] = String(f.get(k) ?? "") || null;
+      /*
+       * HARDEN-06B — the two authored-document fields are copied VERBATIM,
+       * including the empty string.
+       *
+       * They used to go through the same `|| null` coercion as the scalar
+       * fields above, and the repository's merge reads `null` as "not supplied"
+       * — so clearing a meeting's agenda or notes reported success and changed
+       * nothing, and the old text came back on the next reload. Emptying a
+       * document is a legitimate edit; only a field with a meaningful "unset"
+       * (a location, a link) wants the coercion.
+       */
+      for (const k of ["agendaMarkdown", "notesMarkdown"])
+        if (f.has(k)) changes[k] = String(f.get(k) ?? "");
+      /*
+       * HARDEN-06B (F-01) — the version this edit was written against.
+       *
+       * Its PRESENCE opts the caller in, so every submission that does not send
+       * it behaves exactly as before. An unparseable value is refused by the
+       * kernel validator and answered as a `400`, never degraded to "no
+       * precondition" — a guard with an opt-out is not a guard.
+       */
+      const expectedUpdatedAt = f.has("expectedUpdatedAt")
+        ? String(f.get("expectedUpdatedAt") ?? "")
+        : undefined;
       const timezone = String(changes.timezone ?? "") || preferences.timezone;
       if (f.has("startsAtLocal")) {
         const startsAt = ownerLocalToUtc(
@@ -150,13 +190,40 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         }
         changes.endsAt = endsAt ? endsAt.toISOString() : null;
       }
-      await scope.meetings.update(id, changes);
+      await scope.meetings.update(
+        id,
+        expectedUpdatedAt === undefined
+          ? changes
+          : { ...changes, expectedUpdatedAt },
+      );
     }
     return Response.json({ ok: true });
   } catch (cause) {
     // Calm, non-disclosing errors: the archived case is the one a user can act on,
     // so it is named. Everything else stays generic — no storage detail, no ids,
     // no meeting content (AGENTS.md §17).
+    /*
+     * HARDEN-06B (F-01) — an EXPECTED concurrency outcome, answered as `409`
+     * with the newer stored documents so the editor can offer them without a
+     * second round trip. Not a `500`: nothing failed, and nothing was written.
+     * The response deliberately does not echo the submitted draft — that text
+     * never left the editor, and the stored text was never touched, so both
+     * versions still exist and the owner chooses between them.
+     */
+    if (cause instanceof MeetingConflictError) {
+      const stored = await scope.meetings.get(id);
+      return Response.json(
+        {
+          ok: false,
+          conflict: true,
+          error: cause.message,
+          serverAgendaMarkdown: stored?.agendaMarkdown ?? "",
+          serverNotesMarkdown: stored?.notesMarkdown ?? "",
+          detailsUpdatedAt: stored?.detailsUpdatedAt.toISOString() ?? null,
+        } satisfies MeetingConflictResponse,
+        { status: 409 },
+      );
+    }
     if (cause instanceof MeetingArchivedError) {
       return Response.json(
         { ok: false, error: cause.message },

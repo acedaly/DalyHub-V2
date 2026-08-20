@@ -94,6 +94,7 @@ async function inboxCount(tasks: ReturnType<typeof taskRepo>): Promise<number> {
     dimension: "parent",
     view: "inbox",
     todayIso: TODAY,
+    timezone: "UTC",
     bucketLimit: 1,
   });
   return grouped.groups.reduce((total, group) => total + group.count, 0);
@@ -122,6 +123,7 @@ describe("the Inbox query means active, unassigned Tasks", () => {
     const page = await tasks.listWorkspaceTasks({
       view: "inbox",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const ids = page.items.map((item) => item.id);
     expect(ids).toContain(unassigned.id);
@@ -141,6 +143,7 @@ describe("the Inbox query means active, unassigned Tasks", () => {
     const page = await tasks.listWorkspaceTasks({
       view: "inbox",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const ids = page.items.map((item) => item.id);
     expect(ids).toEqual([open.id]);
@@ -175,7 +178,10 @@ describe("the Inbox query means active, unassigned Tasks", () => {
   it("reports an Unassigned Task with a null parent in the collection projection", async () => {
     const tasks = taskRepo(WS);
     const task = await tasks.createTask({ title: "No parent yet" });
-    const page = await tasks.listWorkspaceTasks({ todayIso: TODAY });
+    const page = await tasks.listWorkspaceTasks({
+      todayIso: TODAY,
+      timezone: "UTC",
+    });
     const row = page.items.find((item) => item.id === task.id);
     expect(row?.parent).toBeNull();
   });
@@ -192,12 +198,14 @@ describe("the Inbox query means active, unassigned Tasks", () => {
     const none = await tasks.listWorkspaceTasks({
       filters: { parentKind: "none" },
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(none.items.map((item) => item.id)).toEqual([unassigned.id]);
 
     const inProject = await tasks.listWorkspaceTasks({
       filters: { parentKind: "project" },
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(inProject.items.map((item) => item.id)).toEqual([assigned.id]);
   });
@@ -215,6 +223,7 @@ describe("the Inbox query means active, unassigned Tasks", () => {
     const grouped = await tasks.listWorkspaceTaskGroups({
       dimension: "parent",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const none = grouped.groups.find((group) => group.key === "__none");
     expect(none?.count).toBe(2);
@@ -505,6 +514,7 @@ describe("Today and /tasks agree about what is active work (DEBT-37)", () => {
     const todayView = await tasks.listWorkspaceTasks({
       view: "today",
       todayIso: TODAY,
+      timezone: "UTC",
     });
 
     const planningIds = planning.items.map((item) => item.id);
@@ -529,6 +539,7 @@ describe("Today and /tasks agree about what is active work (DEBT-37)", () => {
     const collection = await seeded.tasks.listWorkspaceTasks({
       view: "active",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const collectionActive = new Set(collection.items.map((item) => item.id));
 

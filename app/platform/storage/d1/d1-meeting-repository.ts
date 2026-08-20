@@ -23,6 +23,7 @@ import {
   MEETING_RESTORED,
   MEETING_UPDATED,
   MeetingArchivedError,
+  MeetingConflictError,
   MeetingItemConflictError,
   MeetingStorageError,
   MeetingValidationError,
@@ -507,6 +508,28 @@ export class D1MeetingRepository implements MeetingRepository {
       startsAt: fromStorageTimestamp(row.starts_at),
     }));
   }
+  /**
+   * HARDEN-06B (F-01) — a partial patch, optionally as a COMPARE-AND-SET.
+   *
+   * The defect this replaces: `agenda_markdown` and `notes_markdown` are WHOLE
+   * documents that the Notebook editor autosaves in full, and the write was an
+   * unconditional UPDATE. Two writers on one meeting — a laptop and a phone, two
+   * tabs, the capture bar and an open editor — meant whichever saved second
+   * silently replaced the other's paragraphs, and `meeting.updated` carries an
+   * empty payload, so the lost text existed nowhere.
+   *
+   * `input.expectedUpdatedAt` is the {@link Meeting.detailsUpdatedAt} the caller
+   * read. Quoting it adds `AND d.updated_at = ?` to BOTH domain statements —
+   * folded into the writes themselves, exactly as `note_details` does, so no
+   * window exists between a check and an update. Both statements carry it
+   * because the title lives in `entities` and the rest in `meeting_details`: a
+   * refused save must change neither, and the entities statement is ordered
+   * first so it still sees the pre-write detail version.
+   *
+   * The Activity append is already guarded on the detail statement's
+   * `changes()`, so a refused write appends nothing — never a `meeting.updated`
+   * for a change that did not happen.
+   */
   async update(id: string, input: UpdateMeetingInput) {
     const current = await this.get(id);
     if (!current || current.archivedAt) throw new Error("Meeting not found");
@@ -546,18 +569,46 @@ export class D1MeetingRepository implements MeetingRepository {
         agendaMarkdown: current.agendaMarkdown,
         notesMarkdown: current.notesMarkdown,
       });
+    // The stored meeting already IS this meeting. Nobody's writing can be lost
+    // by agreeing, so a stale base version is not a conflict here — the same
+    // rule `NoteDetailsRepository.update` applies to identical content.
     if (same) return { meeting: current, changed: false };
     const now = this.#clock(),
       ts = toStorageTimestamp(now);
-    await this.#db.batch([
+    const expected = v.expectedUpdatedAt;
+    /*
+     * The entities statement asserts EVERY condition the detail statement does,
+     * so the two can never disagree about whether this write happens.
+     *
+     * `D1Database.batch()` is one transaction, but a CONDITIONAL statement that
+     * matches no row does not fail and therefore does not roll anything back —
+     * so a guard on one statement and not the other is a partial write waiting
+     * to happen. Without the `archived_at IS NULL` half, a meeting archived
+     * between the read above and this write took the new TITLE and none of the
+     * rest, silently. The base-version half is added on the same terms when the
+     * caller quotes one (F-01).
+     */
+    const entityGuard =
+      ` AND EXISTS (SELECT 1 FROM meeting_details d` +
+      ` WHERE d.workspace_id=entities.workspace_id AND d.entity_id=entities.id` +
+      ` AND d.archived_at IS NULL${expected === undefined ? "" : " AND d.updated_at=?"})`;
+    const detailGuard = expected === undefined ? "" : " AND updated_at=?";
+    const results = await this.#db.batch([
       this.#db
         .prepare(
-          "UPDATE entities SET title=?,updated_at=? WHERE workspace_id=? AND id=? AND type=? AND deleted_at IS NULL",
+          `UPDATE entities SET title=?,updated_at=? WHERE workspace_id=? AND id=? AND type=? AND deleted_at IS NULL${entityGuard}`,
         )
-        .bind(merged.title, ts, this.#workspaceId, id, MEETING_ENTITY_TYPE),
+        .bind(
+          merged.title,
+          ts,
+          this.#workspaceId,
+          id,
+          MEETING_ENTITY_TYPE,
+          ...(expected === undefined ? [] : [expected]),
+        ),
       this.#db
         .prepare(
-          "UPDATE meeting_details SET starts_at=?,ends_at=?,timezone=?,location=?,mode=?,meeting_url=?,status=?,agenda_markdown=?,notes_markdown=?,updated_at=? WHERE workspace_id=? AND entity_id=? AND archived_at IS NULL",
+          `UPDATE meeting_details SET starts_at=?,ends_at=?,timezone=?,location=?,mode=?,meeting_url=?,status=?,agenda_markdown=?,notes_markdown=?,updated_at=? WHERE workspace_id=? AND entity_id=? AND archived_at IS NULL${detailGuard}`,
         )
         .bind(
           merged.startsAt,
@@ -572,10 +623,45 @@ export class D1MeetingRepository implements MeetingRepository {
           ts,
           this.#workspaceId,
           id,
+          ...(expected === undefined ? [] : [expected]),
         ),
       ...this.#event(MEETING_UPDATED, id, now),
     ]);
-    return { meeting: (await this.get(id))!, changed: true };
+    if ((results[1]?.meta?.changes ?? 0) === 0) {
+      /*
+       * The detail write matched no row. Two causes look identical from here,
+       * so reconcile honestly rather than assume the read above still holds:
+       * the meeting became unavailable (deleted or archived) between the read
+       * and the write, or the quoted base version refused a stale save.
+       *
+       * A re-read that already carries exactly the state this call asked for is
+       * a concurrent duplicate of this same submission — an idempotent no-op,
+       * not a conflict, and not a second Activity event.
+       */
+      const refreshed = await this.get(id);
+      if (!refreshed || refreshed.archivedAt) throw new MeetingNotFoundError();
+      if (
+        refreshed.title === merged.title &&
+        refreshed.agendaMarkdown === merged.agendaMarkdown &&
+        refreshed.notesMarkdown === merged.notesMarkdown &&
+        refreshed.status === merged.status &&
+        refreshed.startsAt.toISOString() === merged.startsAt &&
+        (refreshed.endsAt?.toISOString() ?? null) === merged.endsAt &&
+        refreshed.timezone === merged.timezone &&
+        refreshed.location === merged.location &&
+        refreshed.mode === merged.mode &&
+        refreshed.meetingUrl === merged.meetingUrl
+      ) {
+        return { meeting: refreshed, changed: false };
+      }
+      throw new MeetingConflictError();
+    }
+    // Read back rather than assert: a meeting soft-deleted between the write and
+    // this read is gone, and a non-null assertion there would be a crash where
+    // the calm not-found already exists.
+    const written = await this.get(id);
+    if (!written) throw new MeetingNotFoundError();
+    return { meeting: written, changed: true };
   }
   /**
    * AUDIT-FIX-02 — append one structured item, allocating its ordinal in SQL.
@@ -1213,6 +1299,10 @@ export class D1MeetingRepository implements MeetingRepository {
       notesMarkdown: r.notes_markdown,
       archivedAt: r.archived_at ? fromStorageTimestamp(r.archived_at) : null,
       heldAt: r.held_at ? fromStorageTimestamp(r.held_at) : null,
+      // HARDEN-06B (F-01) — the detail row's own version, unmixed with the
+      // entity's. `updatedAt` above is the later of the two and is a display
+      // value; this is the exact stored value a compare-and-set compares.
+      detailsUpdatedAt: fromStorageTimestamp(r.detail_updated_at),
       items,
     };
   }

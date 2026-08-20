@@ -114,6 +114,7 @@ async function liveTasksTitled(ws: string, title: string) {
   const page = await tasks.listWorkspaceTasks({
     limit: 50,
     todayIso: "2026-07-20",
+    timezone: "UTC",
     filters: { completedVisibility: "include" },
   });
   return page.items.filter((item) => item.title === title);
@@ -228,6 +229,7 @@ describe("recurrence persistence, update and removal", () => {
     const page = await tasks.listWorkspaceTasks({
       limit: 25,
       todayIso: "2026-07-20",
+      timezone: "UTC",
     });
     const row = page.items.find((item) => item.id === task.id);
     expect(row?.recurrence).toMatchObject({ frequency: "week" });
@@ -350,6 +352,7 @@ describe("recurrence persistence, update and removal", () => {
     const page = await tasks.listWorkspaceTasks({
       limit: 25,
       todayIso: "2026-07-20",
+      timezone: "UTC",
     });
     expect(page.items.some((item) => item.title === "Impossible repeat")).toBe(
       false,
@@ -502,6 +505,7 @@ describe("completion creates exactly one successor", () => {
     const page = await tasks.listWorkspaceTasks({
       limit: 50,
       todayIso: "2026-07-20",
+      timezone: "UTC",
       filters: { completedVisibility: "include" },
     });
     const occurrences = page.items.filter(
@@ -585,6 +589,7 @@ describe("completion creates exactly one successor", () => {
     const page = await tasks.listWorkspaceTasks({
       limit: 50,
       todayIso: "2026-07-20",
+      timezone: "UTC",
     });
     const occurrences = page.items.filter(
       (item) => item.title === "Water the garden",

@@ -311,8 +311,10 @@ export interface ReviewGuideContextInput {
 export async function readReviewInboxRemaining(
   scope: WorkspaceScope,
   todayIso: string,
+  // HARDEN-06C (F-05) — the zone `todayIso` was derived in travels with it.
+  timezone: string,
 ): Promise<number | null> {
-  return readInboxRemaining(scope, todayIso);
+  return readInboxRemaining(scope, todayIso, timezone);
 }
 
 /** The step-specific payload, once the step has been resolved. */
@@ -374,7 +376,11 @@ export async function loadReviewGuideContext(
   scope: WorkspaceScope,
   input: ReviewGuideContextInput,
 ): Promise<ReviewGuideContext> {
-  const inboxRemaining = await readReviewInboxRemaining(scope, input.todayIso);
+  const inboxRemaining = await readReviewInboxRemaining(
+    scope,
+    input.todayIso,
+    input.timezone,
+  );
   return {
     inboxRemaining,
     stepData: await loadReviewGuideStepData(scope, input, inboxRemaining),
@@ -390,6 +396,7 @@ export async function loadReviewGuideContext(
 async function readInboxRemaining(
   scope: WorkspaceScope,
   todayIso: string,
+  timezone: string,
 ): Promise<number | null> {
   try {
     const grouping = await scope.tasks.listWorkspaceTaskGroups({
@@ -397,6 +404,7 @@ async function readInboxRemaining(
       view: "inbox",
       bucketLimit: 1,
       todayIso,
+      timezone,
     });
     return grouping.groups.reduce((total, group) => total + group.count, 0);
   } catch {
@@ -414,6 +422,7 @@ async function readInbox(
       view: "inbox",
       limit: REVIEW_GUIDE_LIMITS.inboxPage,
       todayIso: input.todayIso,
+      timezone: input.timezone,
     });
     return {
       tasks: page.items.map((item) => serializeTaskListItem(item)),
@@ -489,11 +498,13 @@ async function readProjects(
         sort: "smart",
         limit: REVIEW_GUIDE_LIMITS.nextActionScan,
         todayIso,
+        timezone,
       }),
       scope.tasks.listWorkspaceTasks({
         view: "completed",
         limit: REVIEW_GUIDE_LIMITS.periodRecords,
         todayIso,
+        timezone,
       }),
     ]);
 

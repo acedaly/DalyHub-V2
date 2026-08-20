@@ -63,6 +63,24 @@ function url(value: string | null | undefined): string | null {
  */
 export const MEETING_TITLE_MAX_LENGTH = 240;
 
+/**
+ * HARDEN-06B (F-01) — normalise a quoted base version to the exact stored form,
+ * so the compare-and-set predicate compares like with like.
+ *
+ * The message names the recovery rather than the format: a version token is
+ * never typed by a person, so "this is not a date" would be advice nobody can
+ * act on. Reloading the record is the only thing that fixes it.
+ */
+function version(value: string): string {
+  const at = new Date(value);
+  if (!value || Number.isNaN(at.valueOf()))
+    throw new MeetingValidationError(
+      "expectedUpdatedAt",
+      "Reload this meeting before saving.",
+    );
+  return at.toISOString();
+}
+
 function markdown(value: string, field: string): string {
   if (new TextEncoder().encode(value).length > MARKDOWN_SOURCE_MAX_BYTES)
     throw new MeetingValidationError(field, "This content is too large.");
@@ -135,5 +153,18 @@ export function validateUpdateMeeting(input: UpdateMeetingInput) {
       input.notesMarkdown === undefined
         ? undefined
         : markdown(input.notesMarkdown, "notesMarkdown"),
+    /*
+     * HARDEN-06B (F-01) — the base version, normalised to the exact stored
+     * form so the SQL predicate compares like with like.
+     *
+     * An unparseable value is REFUSED rather than degraded to "no
+     * precondition": a guard with an opt-out is not a guard, and degrading it
+     * would hand a stale client a way to skip the compare-and-set and destroy
+     * the newer stored text — which is the loss this mechanism exists to stop.
+     */
+    expectedUpdatedAt:
+      input.expectedUpdatedAt === undefined
+        ? undefined
+        : version(input.expectedUpdatedAt),
   };
 }

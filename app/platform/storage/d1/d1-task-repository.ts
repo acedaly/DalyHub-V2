@@ -190,6 +190,7 @@ import {
 } from "~/kernel/tasks";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
+import { ownerDayStartInstant } from "~/shared/datetime";
 
 import {
   fromStorageTimestamp,
@@ -1977,6 +1978,7 @@ export class D1TaskRepository implements TaskRepository {
     view: string,
     filters: WorkspaceTaskFilters,
     todayIso: string,
+    timezone: string,
   ): { whereParts: string[]; params: (string | number)[] } {
     const whereParts: string[] = [];
     const params: (string | number)[] = [];
@@ -2155,19 +2157,38 @@ export class D1TaskRepository implements TaskRepository {
       whereParts.push(`(${WORKSPACE_GROUP_BUCKET_EXPR.planned}) = ?`);
       params.push(filterPlannedState);
     }
+    /*
+     * HARDEN-06C (F-05) — the window's start DAY, as the instant the owner's day
+     * actually begins.
+     *
+     * This used to bind `${windowStart}T00:00:00.000Z` and the comment beside it
+     * described being "free of any timezone conversion" as the design. That is
+     * exactly what made it wrong: `todayIso` is the OWNER's calendar day
+     * (`ownerCalendarIso(now, preferences.timezone)`) and `created_at` is a UTC
+     * instant, so for the default Sydney owner `Created: Today` silently omitted
+     * everything captured before ~10 or 11 a.m. local — up to half the working
+     * day — and for a negative-offset owner it included several hours of
+     * yesterday instead.
+     *
+     * The conversion is still done ONCE, outside SQL, and the result is still a
+     * single bound instant compared with `>=`, so the index use is unchanged.
+     */
     if (filterCreatedWithin !== undefined) {
-      // `created_at` is a full ISO timestamp; comparing against the window's start
-      // DAY (as a date-only prefix boundary) keeps the comparison index-friendly
-      // and free of any timezone conversion.
       whereParts.push("e.created_at >= ?");
       params.push(
-        `${recencyWindowStart(todayIso, filterCreatedWithin)}T00:00:00.000Z`,
+        ownerDayStartInstant(
+          recencyWindowStart(todayIso, filterCreatedWithin),
+          timezone,
+        ).toISOString(),
       );
     }
     if (filterUpdatedWithin !== undefined) {
       whereParts.push("e.updated_at >= ?");
       params.push(
-        `${recencyWindowStart(todayIso, filterUpdatedWithin)}T00:00:00.000Z`,
+        ownerDayStartInstant(
+          recencyWindowStart(todayIso, filterUpdatedWithin),
+          timezone,
+        ).toISOString(),
       );
     }
     if (filterPriorities !== undefined) {
@@ -2286,6 +2307,7 @@ export class D1TaskRepository implements TaskRepository {
       view,
       filters,
       todayIso,
+      input.timezone,
     );
 
     // Keyset cursor over (sort_value <dir>, created_at ASC, id ASC).
@@ -2398,6 +2420,7 @@ export class D1TaskRepository implements TaskRepository {
       view,
       filters,
       todayIso,
+      input.timezone,
     );
     const whereSql =
       whereParts.length > 0 ? ` AND ${whereParts.join(" AND ")}` : "";

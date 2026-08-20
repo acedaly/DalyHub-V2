@@ -583,7 +583,7 @@ describe("POST /projects/:projectId/mutate — PROJ-05 settings intents", () => 
         ok: false,
         outcome: "blocked",
         message:
-          "Complete or move the unfinished tasks before archiving this project.",
+          "This project still has open tasks. Complete, cancel or move them before archiving it.",
       });
 
       // Never claims archived; settings/updatedAt unchanged.

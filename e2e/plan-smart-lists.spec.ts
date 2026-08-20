@@ -179,6 +179,58 @@ test("a saved view survives a reload, a rename and an edit, and then deletes", a
   ).toHaveCount(0);
 });
 
+/**
+ * HARDEN-06D (F-04) — the delete is AWAITED, so navigating away cannot destroy it.
+ *
+ * The lifecycle journey above caught this defect by accident, intermittently: it
+ * navigates immediately after confirming, and on a fast runner the POST won the
+ * race. This makes the race deterministic by holding the POST, which is the only
+ * way to assert the property rather than to sample it.
+ *
+ * Before the fix, the confirmation dialog closed the instant `onConfirm`
+ * resolved — which it did before the request was even sent — and the document
+ * navigation then destroyed the in-flight fetcher. The view was still there, and
+ * nothing said so.
+ */
+test("holding the delete POST keeps the dialog up, and the view is really gone", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+
+  await gotoFixture(page, "/tasks?system=open&priority=p1,p2");
+  await saveCurrentView(page, VIEW);
+
+  // The server answers, slowly. A user can navigate inside this window.
+  await page.route("**/tasks/views", async (route) => {
+    if (route.request().method() === "POST") {
+      await new Promise((settle) => setTimeout(settle, 2000));
+    }
+    await route.continue();
+  });
+
+  await page.getByRole("button", { name: "Manage Tasks views" }).click();
+  await page
+    .getByRole("menuitem", { name: new RegExp(`Delete “${VIEW}`) })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Delete view" }).click();
+
+  // The dialog stays up and says what it is doing — its documented contract,
+  // which an un-awaited action could never engage.
+  await expect(dialog.getByRole("button", { name: "Deleting…" })).toBeVisible();
+  await expect(dialog).toBeVisible();
+
+  // Once it settles, the dialog closes and the view is genuinely gone from the
+  // SERVER, read back through a fresh navigation.
+  await expect(dialog).toBeHidden({ timeout: 30_000 });
+  await page.unroute("**/tasks/views");
+  await gotoFixture(page, "/tasks");
+  await page.getByTestId("tasks-view-trigger").click();
+  await expect(
+    page.getByTestId("tasks-view-panel").getByRole("link", { name: VIEW }),
+  ).toHaveCount(0);
+});
+
 test("a saved view is offered as the PLANNING QUEUE's source", async ({
   page,
 }) => {

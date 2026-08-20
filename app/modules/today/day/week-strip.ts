@@ -17,9 +17,16 @@
  *
  * ── The week starts on Monday ───────────────────────────────────────────────
  * The mockup draws `MON TUE WED THU FRI SAT SUN`, and that is the week an
- * en-AU owner reads. It is a constant here rather than a preference: DalyHub has
- * no first-day-of-week setting, and inventing one to serve a strip would be the
- * feature creep this pass is told to avoid.
+ * en-AU owner reads.
+ *
+ * It is a constant here rather than a preference, and HARDEN-06E (F-15)
+ * corrected the reason. This comment used to say "DalyHub has no
+ * first-day-of-week setting", which stopped being true before PLAN-01: the
+ * preference exists, and `/plan`, `/habits` and a weekly Review all resolve
+ * their week through it. So the constant is now what it actually is — an
+ * OUTSTANDING inconsistency rather than a settled decision, recorded as
+ * DEBT-152 / DEBT-154 — and this file no longer states a fact that would stop
+ * the next reader from fixing it.
  *
  * ── Dates are dates ─────────────────────────────────────────────────────────
  * Every value below is a wall-calendar `YYYY-MM-DD` string, stepped as an

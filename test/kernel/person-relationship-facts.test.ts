@@ -569,6 +569,52 @@ describe("MEET-03 integration — a held meeting is the strongest interaction", 
     expect(after.lastInteractionAt).not.toBeNull();
   });
 
+  /*
+   * HARDEN-06D (F-06) — record maintenance on a LINKED record is not contact
+   * either.
+   *
+   * `INTERACTION_ACTIVITY_TYPES` reasoned carefully about the Person's own record
+   * (the test below) and then treated every linked record's `updated` event as a
+   * moment. `meeting.updated` fires for a title correction, a time fix, and every
+   * debounced keystroke batch in the agenda or notes editor.
+   */
+  it("counts a meeting typed up in ten autosaves as ONE interaction", async () => {
+    const w = world(WS);
+    const person = await w.people.create({ title: "Ada" });
+    const meeting = await makeMeeting(w, "Weekly sync");
+    await link(w, meeting.id, person.id, "meeting.attendee");
+
+    for (let save = 1; save <= 10; save += 1) {
+      w.clock.advance(90_000);
+      await w.meetings.update(meeting.id, {
+        notesMarkdown: `Paragraph ${save}.`,
+      });
+    }
+
+    const facts = await w.relationships.getPersonRelationshipFacts(person.id);
+    // One meeting, one moment: `meeting.created`. It used to report eleven.
+    expect(facts.totalInteractions).toBe(1);
+  });
+
+  it("does not move `lastInteractionAt` when an old meeting's title is corrected", async () => {
+    const w = world(WS, "2026-01-01T00:00:00.000Z");
+    const person = await w.people.create({ title: "Ada" });
+    const meeting = await makeMeeting(w, "Kickoff");
+    await link(w, meeting.id, person.id, "meeting.attendee");
+    const before = await w.relationships.getPersonRelationshipFacts(person.id);
+    expect(before.lastInteractionAt).not.toBeNull();
+
+    // Six months later, the owner fixes a typo in the title.
+    w.clock.advance(180 * 24 * 60 * 60 * 1000);
+    await w.meetings.update(meeting.id, { title: "Kick-off" });
+
+    const after = await w.relationships.getPersonRelationshipFacts(person.id);
+    // Record maintenance is not contact, so the follow-up signal survives it.
+    expect(after.lastInteractionAt?.toISOString()).toBe(
+      before.lastInteractionAt?.toISOString(),
+    );
+  });
+
   it("still never counts an edit to the Person's own contact card", async () => {
     const w = world(WS);
     const person = await w.people.create({ title: "Ada" });

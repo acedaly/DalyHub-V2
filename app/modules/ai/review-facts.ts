@@ -9,6 +9,7 @@
 
 import type { WeeklyReviewFacts } from "~/platform/ai";
 import type { WorkspaceScope } from "~/platform/workspaces";
+import { ownerCalendarIso } from "~/shared/datetime";
 
 /** How many rows any single read here may return. */
 const LIMIT = 200;
@@ -25,6 +26,18 @@ export async function computeWeeklyReviewFacts(
   periodStart: string,
   periodEnd: string,
   todayIso: string,
+  /**
+   * HARDEN-06C (F-14) — the owner's IANA zone, so a completion is placed on the
+   * day the OWNER completed it.
+   *
+   * `periodStart`/`periodEnd` are the Review's own owner-calendar dates while
+   * `completedAt` and `startsAt` are UTC instants, and this filter used to
+   * compare the two directly. For the default Sydney owner the assistant could
+   * therefore report a different "tasks completed this week" from the Review it
+   * was describing, at both boundaries — a number the owner cannot reconcile
+   * with the record in front of them, which is worse than no number at all.
+   */
+  timezone: string,
 ): Promise<WeeklyReviewFacts> {
   const [openTasks, planning, meetings] = await Promise.all([
     safe(() => scope.tasks.listTasks({ limit: LIMIT })),
@@ -52,11 +65,11 @@ export async function computeWeeklyReviewFacts(
   );
   const completedInPeriod = (planning?.items ?? []).filter((task) => {
     if (task.completedAt === null) return false;
-    const day = task.completedAt.toISOString().slice(0, 10);
+    const day = ownerCalendarIso(task.completedAt, timezone);
     return day >= periodStart && day <= periodEnd;
   });
   const meetingsInPeriod = (meetings?.items ?? []).filter((meeting) => {
-    const day = meeting.startsAt.toISOString().slice(0, 10);
+    const day = ownerCalendarIso(meeting.startsAt, timezone);
     return day >= periodStart && day <= periodEnd;
   });
 

@@ -311,7 +311,7 @@ describe("workspace isolation", () => {
     const review = await weeklyReview();
     const scope = scopeFor();
 
-    expect(await readReviewInboxRemaining(scope, TODAY)).toBe(2);
+    expect(await readReviewInboxRemaining(scope, TODAY, "UTC")).toBe(2);
 
     const projects = await loadReviewGuideStepData(
       scope,
@@ -490,7 +490,7 @@ describe("an empty workspace", () => {
   it("returns calm zeroes for every step rather than failing", async () => {
     const review = await weeklyReview();
     const scope = scopeFor();
-    expect(await readReviewInboxRemaining(scope, TODAY)).toBe(0);
+    expect(await readReviewInboxRemaining(scope, TODAY, "UTC")).toBe(0);
 
     for (const stepId of [
       "overview",

@@ -972,6 +972,16 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
     "projectTemplateDetails",
     "projectTemplateTasks",
     "projectTemplateChecklistItems",
+    /*
+     * TASKS-13 — added with Task checklists, and MISSED HERE at the time
+     * (HARDEN-06B, F-01/F-02). Between HARDEN-01, when `schemaVersion` became 2,
+     * and TASKS-13, every archive an owner exported declares the CURRENT schema
+     * version — so the version gate accepts it and the validator then refused it
+     * as structurally invalid, telling the owner their backup was malformed when
+     * it was simply older than a collection. Restore is documented as the normal
+     * recovery path; it has to accept the archives owners already have.
+     */
+    "taskChecklistItems",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [

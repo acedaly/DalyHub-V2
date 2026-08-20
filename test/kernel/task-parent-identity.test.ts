@@ -93,7 +93,10 @@ describe("DEBT-144 — the parent relation carries the parent's identity", () =>
       await tasks.listPlanningTasks({ todayIso: "2026-08-17" })
     ).items.find((item) => item.id === underProject.id);
     const fromTasks = (
-      await tasks.listWorkspaceTasks({ todayIso: "2026-08-17" })
+      await tasks.listWorkspaceTasks({
+        todayIso: "2026-08-17",
+        timezone: "UTC",
+      })
     ).items.find((item) => item.id === underProject.id);
     const fromProject = (await tasks.listProjectTasks(project.id)).items.find(
       (item) => item.id === underProject.id,
@@ -125,7 +128,10 @@ describe("DEBT-144 — the parent relation carries the parent's identity", () =>
     });
 
     const parent = (
-      await taskRepo().listWorkspaceTasks({ todayIso: "2026-08-17" })
+      await taskRepo().listWorkspaceTasks({
+        todayIso: "2026-08-17",
+        timezone: "UTC",
+      })
     ).items.find((item) => item.id === task.id)?.parent;
 
     // Ranks are 0-based within a TYPE and ordered by creation, which is what
@@ -164,7 +170,10 @@ describe("DEBT-144 — the parent relation carries the parent's identity", () =>
     });
 
     const items = (
-      await taskRepo().listWorkspaceTasks({ todayIso: "2026-08-17" })
+      await taskRepo().listWorkspaceTasks({
+        todayIso: "2026-08-17",
+        timezone: "UTC",
+      })
     ).items;
     const rankOf = (id: string) =>
       items.find((item) => item.id === id)?.parent?.colourRank;
@@ -224,7 +233,10 @@ describe("DEBT-144 — the parent relation carries the parent's identity", () =>
       (option) => option.id === project.id,
     );
     const relation = (
-      await tasks.listWorkspaceTasks({ todayIso: "2026-08-17" })
+      await tasks.listWorkspaceTasks({
+        todayIso: "2026-08-17",
+        timezone: "UTC",
+      })
     ).items.find((item) => item.id === task.id)?.parent;
 
     expect(candidate).toMatchObject({

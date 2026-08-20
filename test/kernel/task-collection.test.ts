@@ -74,6 +74,7 @@ async function titles(
     ...(extra.limit ? { limit: extra.limit } : {}),
     filters,
     todayIso: TODAY,
+    timezone: "UTC",
   });
   return page.items.map((item) => item.title);
 }
@@ -493,6 +494,7 @@ describe("sorting", () => {
       view: "all",
       sort: "parent",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const parents = asc.items.map((item) => item.parent?.title ?? null);
     const firstNull = parents.indexOf(null);
@@ -528,6 +530,7 @@ describe("sorting", () => {
         direction: "desc",
         filters: { completedVisibility: "hide" },
         todayIso: TODAY,
+        timezone: "UTC",
         limit: 3,
         ...(cursor ? { cursor } : {}),
       });
@@ -546,6 +549,7 @@ describe("server-authoritative grouping", () => {
       dimension: "priority",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
       bucketLimit: 1,
     });
     const p1 = grouping.groups.find((g) => g.key === "p1");
@@ -563,6 +567,7 @@ describe("server-authoritative grouping", () => {
       view: "all",
       filters,
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const grouped = grouping.groups.reduce((n, g) => n + g.count, 0);
     const flat = await titles(repo, filters);
@@ -577,6 +582,7 @@ describe("server-authoritative grouping", () => {
       dimension: "due_state",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const byKey = new Map(grouping.groups.map((g) => [g.key, g.count]));
     expect(byKey.get("overdue")).toBe(1);
@@ -595,6 +601,7 @@ describe("server-authoritative grouping", () => {
       dimension: "due_state",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     for (const group of grouping.groups) {
       const drilled = await titles(
@@ -612,6 +619,7 @@ describe("server-authoritative grouping", () => {
       dimension: "status",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const byKey = new Map(grouping.groups.map((g) => [g.key, g.count]));
     expect(byKey.get("completed")).toBe(1);
@@ -624,6 +632,7 @@ describe("server-authoritative grouping", () => {
       dimension: "parent",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const labels = grouping.groups
       .map((g) => g.label)
@@ -638,6 +647,7 @@ describe("server-authoritative grouping", () => {
       dimension: "delegate",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const byKey = new Map(grouping.groups.map((g) => [g.key, g]));
     expect(byKey.get("Sam")?.label).toBe("Sam");
@@ -650,6 +660,7 @@ describe("server-authoritative grouping", () => {
     const grouping = await repo.listWorkspaceTaskGroups({
       dimension: "sector",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     const total = grouping.groups.reduce((n, g) => n + g.count, 0);
     const active = await titles(repo, {}, { view: "active" });
@@ -681,6 +692,7 @@ describe("server-authoritative grouping", () => {
       dimension: "parent",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(grouping.groups.length).toBeLessThanOrEqual(24);
     // The LARGEST buckets survive, so what is dropped is the tail rather than an
@@ -695,6 +707,7 @@ describe("server-authoritative grouping", () => {
       dimension: "priority",
       view: "all",
       todayIso: TODAY,
+      timezone: "UTC",
     });
     expect(grouping.groups).toEqual([]);
   });
@@ -706,6 +719,7 @@ describe("server-authoritative grouping", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- boundary test.
         dimension: "priority; DROP TABLE entities" as any,
         todayIso: TODAY,
+        timezone: "UTC",
       }),
     ).rejects.toThrow(/dimension/);
   });
