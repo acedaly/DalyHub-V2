@@ -198,6 +198,50 @@ order. Grouped Task collections use one disclosure/name/count pattern across
 Tasks and Plan. These are product semantics, not screenshot styling; a new task
 surface inherits them before adding module-specific composition.
 
+### Motion grammar (DHDS-08)
+
+> **Motion explains what changed, where something came from, where it went, or
+> what has focus. It is never decoration for its own sake.**
+
+DalyHub should feel responsive, physical and coherent, but never busy. The
+target is Things, Todoist, Craft and Apple productivity software — not playful
+consumer apps, animated marketing sites, stock Material motion, spring-heavy
+interfaces or dashboards whose widgets are always moving. A user should mostly
+stop noticing the animation and simply perceive that the product is
+exceptionally well made.
+
+**Four levels, and every animation belongs to exactly one.** Level 0 no motion —
+text updates, corrections, autosave, background refreshes; *not everything
+deserves animation*. Level 1 interaction feedback — hover, press, focus,
+selected, checked; very fast and restrained. Level 2 contextual reveal — menus,
+popovers, tooltips, inline editors, disclosures, toasts, sheets; these visually
+relate to the control that caused them. Level 3 meaningful structural transition
+— completing, opening contextual depth, the next Today task taking the Now
+position; used sparingly, and never past ~260ms.
+
+**One vocabulary governs it.** Five semantic durations and four curves in
+`tokens.css`; one grammar of named behaviours in `app/styles/motion.css`. A
+surface *names* a motion; it never authors one. A duration, a curve, a distance
+or an entrance written into a module stylesheet is a bug — a second motion system
+inside one module is exactly the divergence this sequence exists to end.
+
+**Non-negotiable.** No route or page transitions; navigation is immediate. No
+spring physics, no bounce, no confetti, no theatrical completion, no hover that
+is a scale transform, no animation added because CSS makes it easy, and no
+animation dependency without compelling evidence the existing stack cannot do
+the job. Interaction feedback must never introduce layout shift: an affordance
+that appears must already occupy its geometry.
+
+**Reduced motion is a positive contract**, not a global multiplier. Structural
+travel is *removed* rather than accelerated; opacity is kept so a surface still
+reads as arriving; and nothing depends on animation to convey meaning —
+completion still completes, panels still open, disclosures still show their
+state, progress still updates.
+
+The full specification, the deliberate static exceptions and the deferred work
+are in
+[`DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md`](DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md).
+
 ## System-wide semantics
 
 Priority colour and language are identical everywhere:

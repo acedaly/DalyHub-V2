@@ -436,22 +436,42 @@ from the generic duplicate a previous pass removed.
 
 ### Motion
 
-The expressive motion budget, in full:
+**DHDS-08 is the authority.** The vocabulary lives in `tokens.css`, the grammar
+in [`app/styles/motion.css`](../../app/styles/motion.css), and the full
+specification — the hierarchy, the reduced-motion contract, what is deliberately
+static and why — is
+[`DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md`](DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md).
 
-| Where | What |
-| --- | --- |
-| Interactive entity card, hover | Elevation to `--app-elevation-raised` + `translateY(-1px)`, `short3` |
-| Interactive supporting surface, hover | The same lift, so a Level 2 surface responds like the cards it sits beside |
-| Progress fill | Width, `medium2`, standard easing — on the entity card, the supporting surface and the hero ring alike |
-| A disclosure's marker | Rotation, `short3`, standard easing — the state it reports is also in the element's own `open` |
-| Ticking a task on Today | The title's colour, `short4`, standard easing — the strike-through and the checkbox still carry the state |
-| Selection, filters, tabs | The existing state-layer and container changes |
-| Sheets, drawers, the FAB | Their existing M3 transitions |
+> Motion explains what changed, where something came from, where it went, or
+> what has focus. It is never decoration.
 
-Nothing animates on load. There is no parallax, no animated background, no
-decorative bounce and still no ripple. `prefers-reduced-motion` zeroes every
-transition through the one global rule in `base.css`, and no meaning is carried
-by motion alone.
+**Four levels.** Level 0 no motion (text updates, autosave, background refresh —
+not everything deserves animation). Level 1 interaction feedback,
+`--dh-motion-instant` (90ms). Level 2 contextual reveal, `--dh-motion-fast`
+(150ms) / `--dh-motion-base` (200ms). Level 3 meaningful structural transition,
+`--dh-motion-deliberate` (260ms) — the ceiling.
+
+**Five duration rungs, two loop periods, four curves**, named for what they are
+FOR. Leaving is faster than arriving everywhere: `--dh-motion-exit` is 140ms on
+`--dh-ease-exit`. No curve overshoots; there is no spring, no bounce and no
+pressed transform in the product.
+
+**A surface names a motion; it does not author one.** `.dh-motion-scrim`,
+`.dh-motion-reveal` (anchored menus, popovers, tooltips), `.dh-motion-lift`
+(centred modals), `.dh-motion-edge-inline` / `-block` (panels and sheets),
+`.dh-action-reveal` (the row affordance contract), `.dh-disclosure` (+ its
+marker), `.dh-complete-strike` / `-recede` (task completion), `.dh-motion-succeed`
+(Today's Now succession). A duration, a curve, a distance or an entrance written
+into a module stylesheet is a bug, and four tests refuse one.
+
+Nothing animates on load. There are no route transitions, no staggered row
+entrances, no parallax, no animated background, no decorative bounce and still no
+ripple. **No animation dependency**, asserted by test.
+
+Reduced motion is a positive contract, not a global multiplier: structural travel
+is *removed* rather than accelerated, opacity is kept so a surface still reads as
+arriving, and every state a motion communicated is still communicated — completion
+still completes, panels still open, disclosures still show their state.
 
 ### Responsive behaviour
 
