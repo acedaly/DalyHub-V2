@@ -98,6 +98,7 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     // was never hovered.
     const overflow = row.locator(".dh-taskrow__overflow");
     await expect(overflow).toHaveCSS("opacity", "0");
+    await expect(overflow).toHaveCSS("pointer-events", "none");
     await expect(overflow).toHaveAttribute("aria-haspopup", /menu|true/);
 
     const carets = row.locator(".dh-inline-select__caret");
@@ -115,6 +116,12 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
       mainBox.width / rowBox.width,
       "the title should own the row's flexible width",
     ).toBeGreaterThan(0.3);
+
+    // DHDS-02 — DOM and visual scan order agree: when, where, importance,
+    // exceptional state. A CSS-only reorder would make these origins descend
+    // or cross even though the row still looked superficially aligned.
+    const origins = await columnOrigins(row);
+    expect(origins).toEqual([...origins].sort((a, b) => a - b));
   });
 
   test("hover reveals actions inside the row without moving anything, over an opaque surface", async ({
@@ -133,6 +140,7 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     const overflow = row.locator(".dh-taskrow__overflow");
     await expect(overflow).toBeVisible();
     await expect(overflow).toHaveCSS("opacity", "1");
+    await expect(overflow).toHaveCSS("pointer-events", "auto");
 
     // CONTROL-01 §6 — the reveal is opacity ONLY. The row does not resize, the
     // title does not narrow, and no metadata column is shoved sideways, because
