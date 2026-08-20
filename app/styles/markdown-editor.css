@@ -104,7 +104,7 @@
 .dh-md-editor__reading-note {
   padding-inline: var(--app-space-2);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
 }
 
@@ -117,18 +117,16 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: transparent;
   color: var(--dh-color-text-muted);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   cursor: pointer;
   transition:
-    background-color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard),
-    color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard);
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
+    color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 /* The fill is the shared state layer (M3-INT, `base.css`); the colour lift is
@@ -138,8 +136,8 @@
 }
 
 .dh-md-editor__mode-toggle[aria-pressed="true"] {
-  color: var(--md-sys-color-on-secondary-container);
-  background: var(--md-sys-color-secondary-container);
+  color: var(--dh-color-text);
+  background: var(--dh-color-accent-subtle);
 }
 
 /* ------------------------------------------------------------------------- *
@@ -172,7 +170,7 @@
   inline-size: var(--app-border-width-thin);
   block-size: var(--app-space-5);
   margin-inline: var(--app-space-1);
-  background: var(--md-sys-color-outline-variant);
+  background: var(--dh-color-border);
 }
 
 .dh-md-toolbar__button {
@@ -190,19 +188,17 @@
   min-inline-size: var(--app-touch-target-min);
   padding: 0;
   border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: transparent;
   color: var(--dh-color-text-muted);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   line-height: 0;
   cursor: pointer;
   scroll-snap-align: start;
   transition:
-    background-color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard),
-    color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard);
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
+    color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-md-toolbar__button .dh-icon {
@@ -223,8 +219,8 @@
  * alone would be colour-only, and a screen-reader user would have nothing. */
 .dh-md-toolbar__button[aria-pressed="true"],
 .dh-md-toolbar__button[aria-expanded="true"] {
-  color: var(--md-sys-color-on-secondary-container);
-  background: var(--md-sys-color-secondary-container);
+  color: var(--dh-color-text);
+  background: var(--dh-color-accent-subtle);
 }
 
 .dh-md-toolbar__button:disabled {
@@ -257,7 +253,7 @@
   background: transparent;
   color: var(--dh-color-text);
   font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   line-height: 1.65;
   resize: vertical;
 }
@@ -283,7 +279,7 @@
  * this only has to quieten the writing surface itself. */
 .dh-md-editor[data-disabled="true"] .dh-md-editor__fallback,
 .dh-md-editor[data-disabled="true"] .dh-md-editor__cm {
-  opacity: var(--md-sys-state-disabled-content-opacity);
+  opacity: var(--dh-state-disabled-content-opacity);
   cursor: not-allowed;
 }
 
@@ -299,7 +295,7 @@
  * as the product's own ring, offset off the text rather than sitting on a
  * border that is no longer there. */
 .dh-md-editor__cm:focus-within {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-1);
   border-radius: var(--app-shape-supporting);
 }
@@ -308,7 +304,7 @@
   background: transparent;
   color: var(--dh-color-text);
   font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   max-block-size: 70vh;
 }
 
@@ -364,7 +360,7 @@
  */
 .dh-md-editor__cm .cm-content {
   padding: var(--app-space-5) var(--app-space-4) var(--app-space-10);
-  caret-color: var(--md-sys-color-primary);
+  caret-color: var(--dh-color-accent);
 }
 
 .dh-md-editor__cm .cm-cursor,
@@ -433,11 +429,11 @@
   font-family: var(--md-ref-typeface-mono);
   font-size: 0.9em;
   padding: 0 var(--app-space-1);
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   background: var(--dh-color-bg-sunken);
 }
 .dh-md-editor__cm .cm-dh-link {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   text-decoration: underline;
 }
 
@@ -452,27 +448,27 @@
 .dh-md-editor__cm .cm-dh-callout {
   padding: var(--app-space-1) var(--app-space-3);
   border-inline-start: var(--app-border-width-thick) solid
-    var(--md-sys-color-on-info-container);
-  background: var(--md-sys-color-info-container);
-  color: var(--md-sys-color-on-info-container);
+    var(--dh-color-text-on-info-subtle);
+  background: var(--dh-color-info-subtle);
+  color: var(--dh-color-text-on-info-subtle);
 }
 .dh-md-editor__cm .cm-dh-callout-warning,
 .dh-md-editor__cm .cm-dh-callout-caution {
-  border-inline-start-color: var(--md-sys-color-on-warning-container);
-  background: var(--md-sys-color-warning-container);
-  color: var(--md-sys-color-on-warning-container);
+  border-inline-start-color: var(--dh-color-text-on-warning-subtle);
+  background: var(--dh-color-warning-subtle);
+  color: var(--dh-color-text-on-warning-subtle);
 }
 .dh-md-editor__cm .cm-dh-callout-danger,
 .dh-md-editor__cm .cm-dh-callout-error {
-  border-inline-start-color: var(--md-sys-color-on-error-container);
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
+  border-inline-start-color: var(--dh-color-text-on-danger-subtle);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 .dh-md-editor__cm .cm-dh-callout-tip,
 .dh-md-editor__cm .cm-dh-callout-success {
-  border-inline-start-color: var(--md-sys-color-on-success-container);
-  background: var(--md-sys-color-success-container);
-  color: var(--md-sys-color-on-success-container);
+  border-inline-start-color: var(--dh-color-text-on-success-subtle);
+  background: var(--dh-color-success-subtle);
+  color: var(--dh-color-text-on-success-subtle);
 }
 
 .dh-md-editor__cm .cm-dh-code-block {
@@ -501,7 +497,7 @@
   block-size: 1em;
   margin: 0;
   cursor: pointer;
-  accent-color: var(--md-sys-color-primary);
+  accent-color: var(--dh-color-accent);
 }
 
 /* Non-fetching image placeholder. */
@@ -511,10 +507,10 @@
   gap: var(--app-space-1);
   padding: 0 var(--app-space-2);
   border: var(--app-border-width-thin) dashed var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: var(--dh-color-bg-sunken);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* Rendered GFM table widget. */
@@ -526,12 +522,12 @@
   border-collapse: collapse;
   inline-size: max-content;
   max-inline-size: 100%;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 .dh-md-editor__cm .cm-dh-table th,
 .dh-md-editor__cm .cm-dh-table td {
   padding: var(--app-space-1) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   text-align: start;
 }
 .dh-md-editor__cm .cm-dh-table th {
@@ -582,15 +578,15 @@
 .dh-md-editor__help {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 .dh-md-editor__error {
   display: flex;
   align-items: center;
   gap: var(--app-space-1);
   margin: 0;
-  color: var(--md-sys-color-on-error-container);
-  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--dh-color-text-on-danger-subtle);
+  font-size: var(--dh-text-meta-size);
 }
 .dh-md-editor__error-icon {
   font-weight: 500;
@@ -642,14 +638,13 @@
   flex-direction: column;
   gap: var(--app-space-2);
   padding: var(--app-space-3);
-  border-block-end: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-bg-sunken);
 }
 
 .dh-record-link-picker__label {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
 }
 
@@ -657,7 +652,7 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
   font: inherit;
@@ -683,7 +678,7 @@
   gap: var(--app-space-2);
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 
@@ -691,7 +686,7 @@
  * never colour alone (AGENTS.md §15). */
 .dh-record-link-picker__option[data-active="true"] {
   background: var(--dh-color-surface-raised);
-  box-shadow: inset var(--app-space-1) 0 0 0 var(--md-sys-color-primary);
+  box-shadow: inset var(--app-space-1) 0 0 0 var(--dh-color-accent);
 }
 
 .dh-record-link-picker__icon {
@@ -714,14 +709,14 @@
 .dh-record-link-picker__type {
   flex: 0 0 auto;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   letter-spacing: 0.04em;
 }
 
 .dh-record-link-picker__status {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-record-link-picker__actions {
@@ -765,11 +760,11 @@
 
 .dh-note-body .dh-md-editor__cm .cm-content {
   font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
 }
 
 .dh-note-body .dh-md-editor__cm .cm-scroller {
-  line-height: var(--md-sys-typescale-body-large-line-height);
+  line-height: var(--dh-text-lead-line-height);
 }
 
 /* Reading mode renders the same note through the FND-08 pipeline rather than
@@ -793,6 +788,6 @@
  */
 .dh-note-body .dh-md-editor__reading {
   font-family: var(--md-ref-typeface-plain);
-  font-size: var(--md-sys-typescale-body-large-size);
-  line-height: var(--md-sys-typescale-body-large-line-height);
+  font-size: var(--dh-text-lead-size);
+  line-height: var(--dh-text-lead-line-height);
 }

@@ -11,8 +11,8 @@
   display: inline-flex;
   gap: var(--app-space-px);
   padding: var(--app-space-px);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
   background: var(--dh-color-surface);
 }
 
@@ -23,17 +23,17 @@
   min-inline-size: var(--app-control-height-md);
   min-block-size: var(--app-control-height-md);
   border: none;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   background: transparent;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   cursor: pointer;
 }
 
 .dh-view-switcher__option[aria-pressed="true"] {
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);
-  box-shadow: var(--md-sys-elevation-1);
+  box-shadow: var(--dh-elevation-raised);
 }
 
 .dh-demo-primary,
@@ -43,20 +43,20 @@
   gap: var(--app-space-1);
   min-height: var(--app-control-height-md);
   padding: 0 var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   cursor: pointer;
 }
 
 .dh-demo-primary {
   border: none;
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
 }
 
 .dh-demo-primary:hover {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 .dh-demo-secondary {
@@ -76,14 +76,14 @@
   display: flex;
   gap: var(--app-space-3);
   align-items: center;
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
   padding: var(--app-space-1) var(--app-space-3);
   margin: 0;
 }
 
 .dh-demo-states legend {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -91,7 +91,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-1);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-demo-bulkbar {

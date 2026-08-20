@@ -56,7 +56,7 @@ export function ProgressRing({
   label,
   size = 120,
   thickness = 4,
-  color = "var(--md-sys-color-primary)",
+  color = "var(--dh-color-accent)",
   children,
 }: ProgressRingProps) {
   const fraction = clampFraction(value);

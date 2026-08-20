@@ -1193,7 +1193,7 @@
   margin-block-start: 0.4375rem;
   margin-inline: calc((1.25rem - 0.5rem) / 2);
   border-radius: var(--dh-radius-pill);
-  background: var(--md-sys-color-entity-meeting);
+  background: var(--dh-color-entity-meeting);
 }
 
 @media (forced-colors: active) {
@@ -1287,8 +1287,8 @@
   inline-size: 2rem;
   block-size: 2rem;
   border-radius: var(--dh-radius-pill);
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--dh-color-surface-selected);
+  color: var(--dh-color-text);
   font-size: var(--dh-text-label-size);
   font-weight: var(--dh-text-label-weight);
 }

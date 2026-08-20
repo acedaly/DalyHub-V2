@@ -72,16 +72,16 @@
 
 .dh-schedule__time-start {
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
 }
 
 .dh-schedule__time-end {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
-  line-height: var(--md-sys-typescale-label-small-line-height);
-  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
 }
 
 /*
@@ -99,31 +99,31 @@
   /* Optically centred against the title's first line box. */
   margin-block-start: 0.4375rem;
   margin-inline: calc((1.25rem - 0.5rem) / 2);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-border-strong);
 }
 
 .dh-schedule__mark[data-kind="meeting"] {
-  background: var(--md-sys-color-entity-meeting);
+  background: var(--dh-color-entity-meeting);
 }
 
 .dh-schedule__mark[data-accent="1"] {
-  background: var(--md-sys-color-accent-violet);
+  background: var(--dh-color-accent-violet);
 }
 .dh-schedule__mark[data-accent="2"] {
-  background: var(--md-sys-color-accent-blue);
+  background: var(--dh-color-accent-blue);
 }
 .dh-schedule__mark[data-accent="3"] {
-  background: var(--md-sys-color-accent-green);
+  background: var(--dh-color-accent-green);
 }
 .dh-schedule__mark[data-accent="4"] {
-  background: var(--md-sys-color-accent-amber);
+  background: var(--dh-color-accent-amber);
 }
 .dh-schedule__mark[data-accent="5"] {
-  background: var(--md-sys-color-accent-teal);
+  background: var(--dh-color-accent-teal);
 }
 .dh-schedule__mark[data-accent="6"] {
-  background: var(--md-sys-color-accent-coral);
+  background: var(--dh-color-accent-coral);
 }
 
 @media (forced-colors: active) {
@@ -151,12 +151,12 @@
 .dh-schedule__state {
   flex: none;
   padding-inline: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
-  font-size: var(--md-sys-typescale-label-small-size);
-  line-height: calc(var(--md-sys-typescale-label-small-line-height) + 0.25rem);
-  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
+  line-height: calc(var(--dh-text-meta-line-height) + 0.25rem);
+  letter-spacing: var(--dh-text-meta-tracking);
   text-transform: uppercase;
-  background: var(--md-sys-color-surface-container-high);
+  background: var(--dh-color-surface-quiet);
   color: var(--dh-color-text-muted);
 }
 
@@ -166,13 +166,13 @@
 }
 
 .dh-schedule__state[data-state="next"] {
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text);
 }
 
 .dh-schedule__state[data-state="cancelled"] {
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 /* A row already finished recedes; it is still there, because the day happened. */
@@ -204,10 +204,10 @@
 /* The row's one inline affordance, present only once a Meeting exists. */
 .dh-schedule__action {
   align-self: start;
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  letter-spacing: var(--dh-text-label-tracking);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -286,17 +286,17 @@
 .dh-upcoming__relative {
   margin-inline-start: auto;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  letter-spacing: var(--dh-text-label-tracking);
 }
 
 .dh-upcoming__tasks {
   margin-block-start: var(--app-space-3);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -322,17 +322,17 @@
 
 .dh-event-detail__fact dt {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  letter-spacing: var(--dh-text-label-tracking);
 }
 
 .dh-event-detail__fact dd {
   margin: 0;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  letter-spacing: var(--dh-text-body-tracking);
   /* An external location can be long and is untrusted text; it wraps rather
      than overflowing, and the row it came from already truncated it. */
   overflow-wrap: anywhere;
@@ -347,16 +347,16 @@
 .dh-event-detail__error {
   margin: 0;
   color: var(--dh-color-danger);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
 }
 
 .dh-event-detail__note {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
-  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  letter-spacing: var(--dh-text-meta-tracking);
 }
 
 /* -------------------------------------------------------------------------- */

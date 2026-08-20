@@ -20,7 +20,7 @@
   align-items: flex-start;
   gap: var(--app-space-2) var(--app-space-3);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
 }
@@ -43,7 +43,7 @@
   flex-wrap: wrap;
   gap: var(--app-space-2);
   align-items: center;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -52,9 +52,9 @@
   align-items: center;
   padding: 0 var(--app-space-2);
   min-block-size: 1.5rem;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
 }
 
@@ -79,7 +79,7 @@
 
 .dh-follow-up-group__count {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 400;
 }
 
@@ -103,8 +103,8 @@
   align-items: center;
   gap: var(--app-space-2) var(--app-space-3);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-full);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
 }
 
 .dh-follow-up-row__title {
@@ -114,7 +114,7 @@
 }
 
 .dh-follow-up-row__state {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   white-space: nowrap;
 }
@@ -164,11 +164,9 @@
   padding-inline-end: max(var(--app-page-padding), var(--app-safe-area-right));
   padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
   background: var(--dh-color-surface);
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
-  box-shadow: var(--md-sys-elevation-2);
-  transition: bottom var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
+  box-shadow: var(--dh-elevation-overlay);
+  transition: bottom var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 /* When the keyboard is up the safe-area padding is meaningless (the home
@@ -196,11 +194,11 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-1) var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   cursor: pointer;
 }
@@ -221,7 +219,7 @@
  * thing on the record.
  */
 .dh-meeting-capturebar__type {
-  border-color: var(--md-sys-color-outline-variant);
+  border-color: var(--dh-color-border);
   color: var(--dh-color-text-muted);
 }
 
@@ -252,7 +250,7 @@
  * the input the user is typing into. */
 .dh-meeting-capturebar__status {
   margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -430,10 +428,10 @@
   inline-size: var(--app-space-5);
   block-size: var(--app-space-5);
   flex: 0 0 auto;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-bg-sunken);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0;
@@ -484,7 +482,7 @@
   padding-block-end: var(--app-space-1);
   border-block-end: var(--app-border-width-thin) solid var(--dh-color-border);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -543,7 +541,7 @@
 }
 
 .dh-meeting-items .dh-meeting-item__text {
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   line-height: 1.5;
   color: var(--dh-color-text);
 }
@@ -569,8 +567,7 @@
 @media (hover: hover) and (pointer: fine) {
   .dh-meeting-items .dh-meeting-item__actions {
     opacity: 0;
-    transition: opacity var(--md-sys-motion-duration-short3)
-      var(--md-sys-motion-easing-standard);
+    transition: opacity var(--dh-motion-instant) var(--dh-ease-standard);
   }
 
   .dh-meeting-items .dh-meeting-item:hover .dh-meeting-item__actions,
@@ -709,7 +706,7 @@
   min-inline-size: 0;
   padding: var(--app-space-3);
   margin-inline: calc(-1 * var(--app-space-3));
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   color: inherit;
   text-decoration: none;
 }
@@ -725,7 +722,7 @@
   flex: 0 0 auto;
   inline-size: 5rem;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   font-variant-numeric: tabular-nums;
 }
 
@@ -737,8 +734,8 @@
  */
 .dh-meetings-list__zone {
   display: block;
-  font-size: var(--md-sys-typescale-label-small-size);
-  line-height: var(--md-sys-typescale-label-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   overflow-wrap: anywhere;
 }
 
@@ -770,7 +767,7 @@
   gap: var(--app-space-1) var(--app-space-3);
   margin-block-start: var(--app-space-px);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* Status appears only when it is NOT what the view already implies, so it reads
@@ -796,7 +793,7 @@
     display: block;
     inline-size: auto;
     margin-block-end: var(--app-space-px);
-    font-size: var(--md-sys-typescale-body-small-size);
+    font-size: var(--dh-text-meta-size);
   }
 
   /* The time line is now full width, so the zone rides beside it rather than

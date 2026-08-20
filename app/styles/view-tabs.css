@@ -105,8 +105,8 @@
  * filter's type must be no larger than the tabs'.
  */
 .dh-record-toolbar .dh-viewtabs__tab {
-  font-size: var(--md-sys-typescale-label-medium-size);
-  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -146,7 +146,7 @@
     padding-inline: var(--app-space-4);
     border-block-end: 0;
     background: none;
-    font-size: var(--md-sys-typescale-label-medium-size);
+    font-size: var(--dh-text-label-size);
   }
 
   /*

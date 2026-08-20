@@ -1,5 +1,9 @@
 # Changelog
 
+- Added the first DHDS implementation ratchet: product styles may reduce but no
+  longer increase their direct dependency on Material machinery tokens; Today,
+  Goals and Habits now consume DalyHub semantic colour roles directly.
+
 - Established `docs/design/DESIGN_DIRECTION.md` as the product-level UI/UX
   brief for coding agents, including system-wide interaction rules,
   module-specific direction and a practical completion checklist.

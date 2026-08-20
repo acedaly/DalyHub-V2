@@ -4,7 +4,7 @@
  * The stylesheet for `app/shared/ui/`. Every value in this file is a
  * `--dh-*` token: this is the first file in the product written entirely in
  * DalyHub's own vocabulary, and it is the approved consumption path DS-02 was
- * asked to establish. No `--md-sys-*`, no `--app-*`, no raw pixel, no hex.
+ * asked to establish. No machinery tokens, no `--app-*`, no raw pixel, no hex.
  *
  * ── What DS-02 changed about how these look, and why ─────────────────────────
  *
@@ -689,23 +689,23 @@
 }
 
 :is(.dh-badge, .dh-pill)[data-tone="success"] {
-  background: var(--md-sys-color-success-container);
-  color: var(--md-sys-color-on-success-container);
+  background: var(--dh-color-success-subtle);
+  color: var(--dh-color-text-on-success-subtle);
 }
 
 :is(.dh-badge, .dh-pill)[data-tone="warning"] {
-  background: var(--md-sys-color-warning-container);
-  color: var(--md-sys-color-on-warning-container);
+  background: var(--dh-color-warning-subtle);
+  color: var(--dh-color-text-on-warning-subtle);
 }
 
 :is(.dh-badge, .dh-pill)[data-tone="danger"] {
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 :is(.dh-badge, .dh-pill)[data-tone="info"] {
-  background: var(--md-sys-color-info-container);
-  color: var(--md-sys-color-on-info-container);
+  background: var(--dh-color-info-subtle);
+  color: var(--dh-color-text-on-info-subtle);
 }
 
 /*

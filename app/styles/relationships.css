@@ -26,10 +26,10 @@
   gap: var(--app-space-1);
   padding: 0 var(--app-space-2);
   min-height: var(--app-space-5);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
-  border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--dh-radius-pill);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   color: var(--dh-color-text-muted);
   background: var(--dh-color-surface);
   white-space: nowrap;
@@ -38,24 +38,24 @@
 .dh-stay-in-touch__dot {
   width: var(--app-space-2);
   height: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: currentColor;
   flex: none;
 }
 
 .dh-stay-in-touch__pill[data-tone="success"] {
-  color: var(--md-sys-color-on-success-container);
-  background: var(--md-sys-color-success-container);
+  color: var(--dh-color-text-on-success-subtle);
+  background: var(--dh-color-success-subtle);
   border-color: transparent;
 }
 .dh-stay-in-touch__pill[data-tone="info"] {
-  color: var(--md-sys-color-on-info-container);
-  background: var(--md-sys-color-info-container);
+  color: var(--dh-color-text-on-info-subtle);
+  background: var(--dh-color-info-subtle);
   border-color: transparent;
 }
 
 .dh-stay-in-touch__reason {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -87,7 +87,7 @@
 .dh-stay-in-touch-panel__reason {
   position: relative;
   padding-inline-start: var(--app-space-4);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
@@ -99,14 +99,14 @@
   inset-block-start: 0.55em;
   width: var(--app-space-2);
   height: var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-border-strong);
 }
 .dh-stay-in-touch-panel__reason[data-tone="success"]::before {
   background: var(--dh-color-success);
 }
 .dh-stay-in-touch-panel__reason[data-tone="info"]::before {
-  background: var(--md-sys-color-info);
+  background: var(--dh-color-info);
 }
 
 .dh-stay-in-touch-panel__facts {
@@ -124,20 +124,20 @@
 }
 
 .dh-stay-in-touch-panel__fact dt {
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-stay-in-touch-panel__fact dd {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
 
 .dh-stay-in-touch-panel__note {
   margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }

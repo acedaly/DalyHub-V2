@@ -58,7 +58,7 @@
   min-inline-size: 0;
   padding: var(--app-space-2) var(--app-space-3);
   margin-inline: calc(-1 * var(--app-space-3));
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   color: inherit;
   text-decoration: none;
 }
@@ -76,7 +76,7 @@
 .dh-notes-list__title {
   display: block;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-title-medium-size);
+  font-size: var(--dh-text-section-title-size);
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: -0.005em;
@@ -102,8 +102,8 @@
   margin-block-start: var(--app-space-px);
   min-inline-size: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
 }
 
 /*
@@ -153,7 +153,7 @@
   align-items: baseline;
   gap: var(--app-space-3);
   flex: 0 0 auto;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* The chips' own container is the shared `.dh-tagchip-list`; this only bounds
@@ -313,7 +313,7 @@
 .dh-notes-rail__item {
   display: block;
   padding: var(--app-space-2) var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--dh-radius-md);
   color: inherit;
   text-decoration: none;
   min-inline-size: 0;
@@ -322,7 +322,7 @@
 .dh-notes-rail__title {
   display: block;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   font-weight: 600;
   line-height: 1.35;
   /* §6/§52 — one line. A rail of three-line titles is a list of paragraphs. */
@@ -339,8 +339,8 @@
   gap: var(--app-space-2);
   margin-block-start: var(--app-space-px);
   min-inline-size: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   color: var(--dh-color-text-muted);
 }
 
@@ -413,8 +413,8 @@
   flex: 0 0 auto;
   padding: var(--app-space-2) var(--app-space-3);
   border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   text-decoration: none;
 }

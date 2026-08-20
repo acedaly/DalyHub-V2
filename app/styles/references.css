@@ -33,8 +33,8 @@
   align-items: flex-start;
   gap: var(--app-space-3);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
   /* A long unbroken title (a URL, an id) wraps instead of widening the row. */
   min-width: 0;
@@ -64,10 +64,10 @@
 }
 
 .dh-reference__state {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-small);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
   padding: 0 var(--app-space-2);
 }
 
@@ -76,12 +76,12 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
 .dh-reference__context {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
   display: -webkit-box;
@@ -99,7 +99,7 @@
 
 .dh-reference-group__heading {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -120,13 +120,13 @@
 
 .dh-note-references__heading {
   margin: 0 0 var(--app-space-2);
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
 }
 
 .dh-note-references__help {
   margin: 0 0 var(--app-space-3);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   max-width: var(--app-width-prose);
 }
@@ -146,7 +146,7 @@
   align-items: center;
   gap: var(--app-space-2);
   margin-block-end: var(--app-space-3);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-note-references__filter select {
@@ -154,11 +154,11 @@
   max-inline-size: 100%;
   padding: var(--app-space-1) var(--app-space-2);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: var(--dh-color-surface);
   color: var(--dh-color-text);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -234,7 +234,7 @@
 .dh-notes-filters__label {
   flex: 0 0 auto;
   white-space: nowrap;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -270,7 +270,7 @@
   align-items: center;
   min-height: var(--app-touch-target-min);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /*
@@ -293,8 +293,8 @@
   padding-inline: var(--app-space-3);
   border-radius: var(--app-shape-control);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-large-size);
-  font-weight: var(--md-sys-typescale-label-large-weight);
+  font-size: var(--dh-text-label-size);
+  font-weight: var(--dh-text-label-weight);
   cursor: pointer;
   list-style: none;
 }
@@ -312,8 +312,7 @@
   border-block-end: var(--app-border-width-thick) solid currentColor;
   rotate: 45deg;
   translate: 0 -0.125rem;
-  transition: rotate var(--md-sys-motion-duration-short3)
-    var(--md-sys-motion-easing-standard);
+  transition: rotate var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 .dh-notes-filters__more[open] .dh-notes-filters__more-summary::after {
@@ -347,13 +346,13 @@
 
 .dh-project-knowledge__heading {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   font-weight: 500;
 }
 
 .dh-project-knowledge__help {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
   max-width: var(--app-width-prose);
 }

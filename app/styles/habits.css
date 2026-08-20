@@ -271,8 +271,8 @@ a.dh-habit-row__title:hover {
  * technology reads.
  */
 .dh-toggle-group__option[data-checked] {
-  background: var(--md-sys-color-primary);
-  border-color: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
+  border-color: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
   font-weight: 600;
 }
@@ -291,7 +291,7 @@ a.dh-habit-row__title:hover {
 }
 
 .dh-toggle-group__option:hover {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
 }
 
 @media (forced-colors: active) {
@@ -435,7 +435,7 @@ a.dh-habit-row__title:hover {
 
 /* Done — the completion colour, and the ONLY filled square in the grid. */
 .dh-habit-history__day[data-state="completed"] {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 /*
@@ -770,7 +770,7 @@ a.dh-habit-row__title:hover {
 }
 
 .dh-habit-week__day[data-state="completed"] {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 /* Scheduled and not checked in. A ring, not a filled dot, and NOT red: the fact

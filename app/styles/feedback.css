@@ -69,9 +69,9 @@
   border: 0;
   background: transparent;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   padding: var(--app-space-1) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 
@@ -114,14 +114,13 @@
   gap: var(--app-space-3);
   padding: var(--app-space-3) var(--app-space-3) var(--app-space-3)
     var(--app-space-4);
-  background: var(--md-sys-color-inverse-surface);
-  color: var(--md-sys-color-inverse-on-surface);
+  background: var(--dh-color-overlay);
+  color: var(--dh-color-text-on-overlay);
   border: none;
-  border-left: 3px solid var(--md-sys-color-inverse-on-surface);
-  border-radius: var(--md-sys-shape-corner-extra-small);
-  box-shadow: var(--md-sys-elevation-3);
-  animation: dh-toast-in var(--md-sys-motion-duration-medium2)
-    var(--md-sys-motion-easing-emphasized);
+  border-left: 3px solid var(--dh-color-text-on-overlay);
+  border-radius: var(--dh-radius-sm);
+  box-shadow: var(--dh-elevation-modal);
+  animation: dh-toast-in var(--dh-motion-base) var(--dh-ease-emphasized);
 }
 
 /* The tone edge is painted with the tone's CONTAINER, not its base colour: the
@@ -130,17 +129,17 @@
  * light end of each ramp in the light scheme — read clearly. */
 .dh-toast[data-kind="success"],
 .dh-toast[data-status="success"] {
-  border-left-color: var(--md-sys-color-success-container);
+  border-left-color: var(--dh-color-success-subtle);
 }
 .dh-toast[data-kind="info"] {
-  border-left-color: var(--md-sys-color-info-container);
+  border-left-color: var(--dh-color-info-subtle);
 }
 .dh-toast[data-kind="warning"] {
-  border-left-color: var(--md-sys-color-warning-container);
+  border-left-color: var(--dh-color-warning-subtle);
 }
 .dh-toast[data-kind="error"],
 .dh-toast[data-status="failure"] {
-  border-left-color: var(--md-sys-color-error-container);
+  border-left-color: var(--dh-color-danger-subtle);
 }
 
 .dh-toast__icon {
@@ -151,21 +150,21 @@
 }
 .dh-toast__icon[data-kind="success"],
 .dh-toast__icon[data-status="success"] {
-  color: var(--md-sys-color-success-container);
+  color: var(--dh-color-success-subtle);
 }
 .dh-toast__icon[data-kind="info"] {
-  color: var(--md-sys-color-info-container);
+  color: var(--dh-color-info-subtle);
 }
 .dh-toast__icon[data-kind="warning"] {
-  color: var(--md-sys-color-warning-container);
+  color: var(--dh-color-warning-subtle);
 }
 .dh-toast__icon[data-kind="error"],
 .dh-toast__icon[data-status="failure"] {
-  color: var(--md-sys-color-error-container);
+  color: var(--dh-color-danger-subtle);
 }
 .dh-toast__icon[data-status="pending"],
 .dh-toast__icon[data-status="running"] {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 .dh-toast__body {
@@ -176,16 +175,16 @@
  * weight so a two-line snackbar still has a hierarchy. */
 .dh-toast__title {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  letter-spacing: var(--dh-text-body-tracking);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 
 .dh-toast__count {
   margin-left: var(--app-space-2);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   opacity: 0.8;
   font-variant-numeric: tabular-nums;
@@ -193,9 +192,9 @@
 
 .dh-toast__message {
   margin: var(--app-space-1) 0 0;
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
-  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  letter-spacing: var(--dh-text-body-tracking);
   /* Everything inside a snackbar takes `inverse-on-surface`; the secondary text
    * steps back with opacity rather than with a second colour, because there is
    * no inverse `on-surface-variant` and inventing one would be a token the
@@ -223,14 +222,14 @@
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--md-sys-color-inverse-primary);
-  font-size: var(--md-sys-typescale-label-large-size);
-  line-height: var(--md-sys-typescale-label-large-line-height);
-  font-weight: var(--md-sys-typescale-label-large-weight);
-  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  color: var(--dh-color-accent-subtle);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
   min-height: var(--app-touch-target-min);
   padding-inline: var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -250,7 +249,7 @@
   justify-content: center;
   min-width: var(--app-touch-target-min);
   min-height: var(--app-touch-target-min);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   cursor: pointer;
 }
 .dh-toast__close:hover {

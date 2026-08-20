@@ -34,14 +34,14 @@
   gap: var(--app-space-1);
   align-items: baseline;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   /* Never truncated: a half-shown timestamp is worse than a wrapped one. */
   overflow-wrap: anywhere;
 }
 
 .dh-backup-fact__note {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -63,8 +63,8 @@
   flex-direction: column;
   gap: var(--app-space-2);
   padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
 }
 
@@ -79,7 +79,7 @@
 
 .dh-backup-history__when {
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   font-weight: 500;
 }
 
@@ -100,24 +100,24 @@
 .dh-backup-history__fact dt {
   min-inline-size: 4.5rem;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
 }
 
 .dh-backup-history__fact dd {
   margin: 0;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /* The canned failure sentence. Tone is carried by the pill above; this is text. */
 .dh-backup-history__message {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-backup-history__details {
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-backup-history__details summary {
@@ -132,10 +132,10 @@
  * identical across this section and the rest of Settings. */
 .dh-backup-history__details summary:focus-visible {
   outline: none;
-  border-radius: var(--md-sys-shape-corner-extra-small);
+  border-radius: var(--dh-radius-sm);
   box-shadow:
     0 0 0 2px var(--dh-color-surface),
-    0 0 0 4px var(--md-sys-color-primary);
+    0 0 0 4px var(--dh-color-accent);
 }
 
 /* The one value allowed to break mid-token: a long storage path, hidden by

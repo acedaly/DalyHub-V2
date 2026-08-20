@@ -20,7 +20,7 @@
  * It is shown, never hidden, so the user always knows where a capture lands. */
 .dh-capture-parent {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -35,11 +35,11 @@
   gap: var(--app-space-2);
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
   background: var(--dh-color-surface);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-capture-context > .dh-entity-icon {
@@ -54,7 +54,7 @@
 }
 
 .dh-capture-context__fixed {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -63,9 +63,9 @@
   padding: 0 var(--app-space-2);
   border: 0;
   background: transparent;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   cursor: pointer;
 }
 
@@ -84,8 +84,8 @@
   align-items: center;
   min-block-size: var(--app-touch-target-min);
   padding: 0 var(--app-space-2);
-  color: var(--md-sys-color-primary);
-  font-size: var(--md-sys-typescale-body-small-size);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -101,7 +101,7 @@
 }
 
 .dh-capture-chips__label {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -121,14 +121,13 @@
   min-block-size: var(--app-touch-target-min);
   padding: var(--app-space-2) var(--app-space-3);
   border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-surface-raised);
   color: var(--dh-color-text);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   cursor: pointer;
-  transition: background-color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: background-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .dh-capture-chip:hover {
@@ -137,10 +136,10 @@
 
 /* Selected: aria-pressed (semantic) + accent border + weight — never colour alone. */
 .dh-capture-chip[aria-pressed="true"] {
-  border-color: var(--md-sys-color-primary);
+  border-color: var(--dh-color-accent);
   background: var(--dh-color-accent-subtle);
   font-weight: 500;
-  box-shadow: inset 0 0 0 1px var(--md-sys-color-primary);
+  box-shadow: inset 0 0 0 1px var(--dh-color-accent);
 }
 
 .dh-capture-chip__icon {
@@ -165,8 +164,7 @@
   margin: 0 calc(-1 * var(--app-space-4)) calc(-1 * var(--app-space-4));
   padding: var(--app-space-3) var(--app-space-4);
   padding-bottom: max(var(--app-space-3), var(--app-safe-area-bottom));
-  border-top: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-top: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface-raised);
 }
 
@@ -197,7 +195,7 @@
 
 .dh-capture-result__message {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-large-size);
+  font-size: var(--dh-text-lead-size);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
@@ -267,8 +265,8 @@
   padding-inline: 0;
   border-color: transparent;
   background: transparent;
-  font-size: var(--md-sys-typescale-title-medium-size);
-  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
 }
 
 /* The shared focus ring is left exactly as it is — a borderless RESTING state
@@ -325,7 +323,7 @@
   margin: 0;
   flex: none;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 400;
 }
 
@@ -383,7 +381,7 @@
 .dh-capture-row__name {
   flex: none;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 /*

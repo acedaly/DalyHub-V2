@@ -697,8 +697,8 @@
 
 .dh-measure-unit[data-selected="true"] {
   border-color: var(--dh-color-accent);
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
+  background: var(--dh-color-surface-selected);
+  color: var(--dh-color-text);
 }
 
 /* The inferred direction, stated back in words so it can be checked without

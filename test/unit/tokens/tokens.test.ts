@@ -491,8 +491,6 @@ describe("the retired seven-theme mechanism has not come back", () => {
   it("honours prefers-reduced-motion in the base styles", () => {
     const baseCss = readAppFile("styles/base.css");
     expect(baseCss).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(baseCss).toMatch(
-      /transition-duration:\s*var\(--md-sys-motion-duration-none\)/,
-    );
+    expect(baseCss).toMatch(/transition-duration:\s*var\(--dh-motion-none\)/);
   });
 });

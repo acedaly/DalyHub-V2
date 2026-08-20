@@ -60,7 +60,7 @@
   gap: var(--app-space-1) var(--app-space-2);
   margin: 0;
   padding: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text-muted);
 }
 
@@ -89,7 +89,7 @@
 }
 
 .record-breadcrumb a:hover {
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   text-decoration: underline;
 }
 
@@ -129,7 +129,7 @@
   align-self: center;
   font-size: 1.375rem;
   line-height: 1;
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
 }
 
 .record-header__titlerow {
@@ -147,7 +147,7 @@
  */
 .record-title {
   margin: 0;
-  font-size: var(--md-sys-typescale-headline-small-size);
+  font-size: var(--dh-text-page-title-size);
   line-height: 1.2;
   letter-spacing: -0.01em;
   font-weight: 500;
@@ -200,11 +200,11 @@
   align-items: center;
   gap: var(--app-space-1);
   padding: var(--app-space-px) var(--app-space-2);
-  border-radius: var(--md-sys-shape-corner-full);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
+  border-radius: var(--dh-radius-pill);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
   background: var(--dh-color-surface);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -212,82 +212,82 @@
 .record-status__dot {
   width: 0.5rem;
   height: 0.5rem;
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-text-muted);
   flex: none;
 }
 
 .record-status[data-tone="accent"] {
   background: var(--dh-color-accent-subtle);
-  color: var(--md-sys-color-primary);
+  color: var(--dh-color-accent);
   border-color: var(--dh-color-accent-subtle);
 }
 .record-status[data-tone="accent"] .record-status__dot {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
 }
 
 .record-status[data-tone="success"] {
-  background: var(--md-sys-color-success-container);
-  color: var(--md-sys-color-on-success-container);
-  border-color: var(--md-sys-color-success-container);
+  background: var(--dh-color-success-subtle);
+  color: var(--dh-color-text-on-success-subtle);
+  border-color: var(--dh-color-success-subtle);
 }
 .record-status[data-tone="success"] .record-status__dot {
   background: var(--dh-color-success);
 }
 
 .record-status[data-tone="warning"] {
-  background: var(--md-sys-color-warning-container);
-  color: var(--md-sys-color-on-warning-container);
-  border-color: var(--md-sys-color-warning-container);
+  background: var(--dh-color-warning-subtle);
+  color: var(--dh-color-text-on-warning-subtle);
+  border-color: var(--dh-color-warning-subtle);
 }
 .record-status[data-tone="warning"] .record-status__dot {
   background: var(--dh-color-warning);
 }
 
 .record-status[data-tone="danger"] {
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
-  border-color: var(--md-sys-color-error-container);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
+  border-color: var(--dh-color-danger-subtle);
 }
 .record-status[data-tone="danger"] .record-status__dot {
   background: var(--dh-color-danger);
 }
 
 .record-status[data-tone="info"] {
-  background: var(--md-sys-color-info-container);
-  color: var(--md-sys-color-on-info-container);
-  border-color: var(--md-sys-color-info-container);
+  background: var(--dh-color-info-subtle);
+  color: var(--dh-color-text-on-info-subtle);
+  border-color: var(--dh-color-info-subtle);
 }
 .record-status[data-tone="info"] .record-status__dot {
-  background: var(--md-sys-color-info);
+  background: var(--dh-color-info);
 }
 
 /* THEME-01 lifecycle tones — completed / waiting / on-hold carry their own tokens
  * rather than borrowing success / warning / neutral, so a theme can say "paused"
  * without changing what a real warning looks like. */
 .record-status[data-tone="completed"] {
-  background: var(--md-sys-color-state-completed-container);
-  color: var(--md-sys-color-on-state-completed-container);
-  border-color: var(--md-sys-color-state-completed-container);
+  background: var(--dh-color-state-completed-subtle);
+  color: var(--dh-color-text-on-completed-subtle);
+  border-color: var(--dh-color-state-completed-subtle);
 }
 .record-status[data-tone="completed"] .record-status__dot {
-  background: var(--md-sys-color-state-completed);
+  background: var(--dh-color-state-completed);
 }
 .record-status[data-tone="waiting"] {
-  background: var(--md-sys-color-state-waiting-container);
-  color: var(--md-sys-color-on-state-waiting-container);
-  border-color: var(--md-sys-color-state-waiting-container);
+  background: var(--dh-color-state-waiting-subtle);
+  color: var(--dh-color-text-on-waiting-subtle);
+  border-color: var(--dh-color-state-waiting-subtle);
 }
 .record-status[data-tone="waiting"] .record-status__dot {
-  background: var(--md-sys-color-state-waiting);
+  background: var(--dh-color-state-waiting);
 }
 .record-status[data-tone="on-hold"] {
-  background: var(--md-sys-color-state-on-hold-container);
-  color: var(--md-sys-color-on-state-on-hold-container);
-  border-color: var(--md-sys-color-state-on-hold-container);
+  background: var(--dh-color-state-on-hold-subtle);
+  color: var(--dh-color-text-on-hold-subtle);
+  border-color: var(--dh-color-state-on-hold-subtle);
 }
 .record-status[data-tone="on-hold"] .record-status__dot {
-  background: var(--md-sys-color-state-on-hold);
+  background: var(--dh-color-state-on-hold);
 }
 
 /* Actions: wrap onto their own line on narrow containers rather than disappear. */
@@ -306,20 +306,18 @@
   gap: var(--app-space-2);
   min-height: var(--app-control-height-md);
   padding: 0 var(--app-space-3);
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   border: var(--app-border-width-thin) solid transparent;
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background-color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard),
-    border-color var(--md-sys-motion-duration-short4)
-      var(--md-sys-motion-easing-standard);
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
+    border-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 /*
@@ -334,7 +332,7 @@
  * states in the bargain — it previously had none.
  */
 .record-action--primary {
-  background: var(--md-sys-color-primary);
+  background: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
 }
 
@@ -392,7 +390,7 @@
   margin: 0;
   padding: 0;
   min-width: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.4;
 }
 
@@ -444,8 +442,8 @@
   gap: var(--app-space-4);
   padding: var(--app-space-5);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
   min-width: 0;
 }
 
@@ -499,14 +497,14 @@
  * shouting.
  */
 .record-summary__meta-item dt {
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 400;
   color: var(--dh-color-text-muted);
 }
 
 .record-summary__meta-item dd {
   margin: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
   overflow-wrap: anywhere;
 }
@@ -539,8 +537,7 @@
   display: flex;
   align-items: stretch;
   gap: var(--app-space-1);
-  border-bottom: var(--app-border-width-thin) solid
-    var(--md-sys-color-outline-variant);
+  border-bottom: var(--app-border-width-thin) solid var(--dh-color-border);
   min-width: 0;
 }
 
@@ -575,12 +572,11 @@
   background: none;
   color: var(--dh-color-text-muted);
   font: inherit;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--md-sys-motion-duration-short4)
-    var(--md-sys-motion-easing-standard);
+  transition: color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
 .record-tab:hover {
@@ -591,7 +587,7 @@
 .record-tab[data-active="true"] {
   color: var(--dh-color-text);
   font-weight: 500;
-  border-bottom-color: var(--md-sys-color-primary);
+  border-bottom-color: var(--dh-color-accent);
 }
 
 .record-tab[data-disabled="true"] {
@@ -605,10 +601,10 @@
   justify-content: center;
   min-width: 1.25rem;
   padding: 0 var(--app-space-1);
-  border-radius: var(--md-sys-shape-corner-full);
+  border-radius: var(--dh-radius-pill);
   background: var(--dh-color-bg-sunken);
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-label-small-size);
+  font-size: var(--dh-text-meta-size);
   font-weight: 500;
 }
 
@@ -629,8 +625,8 @@
   min-width: 0;
   padding: var(--app-space-5);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
 }
 
 /*
@@ -675,7 +671,7 @@
 }
 
 .record-tabs__panel:focus-visible {
-  outline: var(--app-border-width-thick) solid var(--md-sys-color-primary);
+  outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;
 }
 
@@ -723,11 +719,11 @@
 
 .record-content__error {
   padding: var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-error-container);
+  border: var(--app-border-width-thin) solid var(--dh-color-danger-subtle);
   border-left: var(--app-border-width-thick) solid var(--dh-color-danger);
-  border-radius: var(--md-sys-shape-corner-medium);
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
 }
 
 .record-content__error-message {
@@ -737,9 +733,8 @@
 .record-content__empty {
   padding: var(--app-space-8) var(--app-space-4);
   text-align: center;
-  border: var(--app-border-width-thin) dashed
-    var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border: var(--app-border-width-thin) dashed var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
 }
 
 .record-content__loading {
@@ -756,7 +751,7 @@
 
 .record-skeleton__line {
   height: 0.75rem;
-  border-radius: var(--md-sys-shape-corner-small);
+  border-radius: var(--dh-radius-control);
   background: linear-gradient(
     90deg,
     var(--dh-color-bg-sunken) 0%,
@@ -764,8 +759,8 @@
     var(--dh-color-bg-sunken) 100%
   );
   background-size: 200% 100%;
-  animation: record-skeleton-shimmer var(--md-sys-motion-duration-long2) linear
-    infinite alternate;
+  animation: record-skeleton-shimmer var(--dh-motion-slow) linear infinite
+    alternate;
 }
 
 .record-skeleton__line--title {
@@ -838,14 +833,14 @@
   /* Long titles WRAP (never truncate — a record's name is essential) but do not
    * push the actions off-screen, because the actions already wrap below. */
   .record-header__title {
-    font-size: var(--md-sys-typescale-title-medium-size);
+    font-size: var(--dh-text-section-title-size);
     overflow-wrap: anywhere;
   }
 
   /* The context line tightens further on a phone but stays one wrapped line. */
   .record-header__context {
     gap: var(--app-space-1) var(--app-space-2);
-    font-size: var(--md-sys-typescale-label-medium-size);
+    font-size: var(--dh-text-label-size);
   }
 
   /* An empty context line must not reserve vertical space on a phone. */
@@ -884,7 +879,7 @@
    * the record. */
   .record-tab {
     padding: 0 var(--app-space-2);
-    font-size: var(--md-sys-typescale-body-small-size);
+    font-size: var(--dh-text-meta-size);
     /*
      * MOBILE-01 (iPhone daily driver) — a short label still gets a target.
      *
@@ -929,7 +924,7 @@
 /* A section's eyebrow label. Restrained, uppercase, never the record heading. */
 .dh-record-section__label {
   margin: 0;
-  font-size: var(--md-sys-typescale-label-medium-size);
+  font-size: var(--dh-text-label-size);
   font-weight: 500;
   color: var(--dh-color-text-muted);
 }
@@ -962,8 +957,8 @@
 .dh-record-summary-bar__note {
   margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-medium-size);
-  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
 }
 
 /* Progress and state read as ONE statement, so they share a row and only wrap
@@ -995,8 +990,8 @@
 }
 
 .dh-record-summary-bar__progress .dh-progress__label {
-  font-size: var(--md-sys-typescale-body-small-size);
-  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
   font-weight: 500;
   letter-spacing: normal;
   color: var(--dh-color-text-muted);
@@ -1018,7 +1013,7 @@
   margin: 0;
   padding: 0;
   min-inline-size: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.4;
   color: var(--dh-color-text-muted);
 }
@@ -1054,7 +1049,7 @@
   gap: var(--app-space-1) var(--app-space-2);
   margin: 0;
   min-inline-size: 0;
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
   line-height: 1.4;
 }
 
@@ -1108,13 +1103,13 @@
 
 .dh-record-details__item dt {
   color: var(--dh-color-text-muted);
-  font-size: var(--md-sys-typescale-body-small-size);
+  font-size: var(--dh-text-meta-size);
 }
 
 .dh-record-details__item dd {
   margin: 0;
   color: var(--dh-color-text);
-  font-size: var(--md-sys-typescale-body-medium-size);
+  font-size: var(--dh-text-body-size);
   overflow-wrap: anywhere;
 }
 
@@ -1187,8 +1182,8 @@
   gap: var(--app-space-4);
   padding: var(--app-space-5);
   background: var(--dh-color-surface);
-  border: var(--app-border-width-thin) solid var(--md-sys-color-outline-variant);
-  border-radius: var(--md-sys-shape-corner-large);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
 }
 
 .dh-record-summary-bar__description {
