@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 89050)
-Total output lines: 3295
-
 # DESIGN_SYSTEM.md — The DalyHub Shared Interaction Language
 
 > The catalogue of shared patterns every module reuses. DalyHub's coherence comes from the fact that a task, a project, a person, and a note all *behave the same way*. This document is that contract.
@@ -1190,7 +1187,1059 @@ document column, its title and its one context line) · the module compositions 
 
 ### Inline editing (DS-16)
 **Purpose.** Change a commonly-edited value where it is shown, instead of routing every small correction through a modal, a drawer or a dedicated edit page.
-**Anatomy.** [`app/shared/inline-edit`](../../app/shared/inline-edit): one pure state machine (`inline-edit-model`) · one hook (`useInlineEdit`, which owns the async …39050 tokens truncated….
+**Anatomy.** [`app/shared/inline-edit`](../../app/shared/inline-edit): one pure state machine (`inline-edit-model`) · one hook (`useInlineEdit`, which owns the async submission, the superseded-reply guard and focus) · one read affordance and editing frame (`InlineEditShell`) · the shared [anchored overlay](#anchored-overlay-edit-03) for anything that floats (`~/shared/anchored`) · three typed fields — `InlineTextField` (single-line, or `multiline` for plain text whose line breaks matter), `InlineSelectField` (an anchored WAI-ARIA menu button) and `InlineDateField` (an anchored `dialog` around the DalyHub date picker — the product's presets, `CalendarGrid`, and a No date command; **not** a native `<input type="date">`, which put a browser-drawn `dd/mm/yyyy` skeleton inside a popover styled to the pixel. The shared form `DateField` keeps the native input: a long form of dates is where the platform control is still right). There is deliberately **no** inline Markdown field: long-form is editor-first (see [shared writing surface](#shared-writing-surface-edit-01)), so inline editing covers short values and closed vocabularies only.
+**Behaviour.** A simple text field: activate the value, Enter saves, Escape cancels, blur saves. A multiline plain-text field: explicit **Save**/**Cancel** plus ⌘/Ctrl+Enter, blur does **not** save, and Escape cancels *only* while the draft is untouched. A select or date: a compact anchored popover with roving focus, Escape-to-close and focus returned to the trigger.
+
+**Adoption (EDIT-02).** Every canonical record edits its title this way — Areas, Projects, Goals, Notes, People, Assets, Meetings and Tasks — and the dedicated `Rename` action, its Drawer form and its Settings-tab twin are gone from all of them. A Goal's target date and definition of done, and a Task's priority, scheduled date and due date, are edited on the record too. What deliberately did **not** move: multi-field configuration with real interdependencies (a Meeting's start/end/timezone, a Task's delegation and recurrence, a Project's Settings tab), multi-value controls (a Note's tags) and every destructive workflow.
+
+**Adoption on a COLLECTION ROW (TASKS-05).** The same four fields now edit in place on an ordinary `/tasks` row — priority, due date, planned date and the structural Project/Area — by putting the inline field in the [Card's `metadata` slot](#shared-cards-ds-04). This is the pattern to copy when a collection's whole point is throughput, and it comes with three obligations:
+
+- **the read state must be what the row already showed.** If adopting inline editing makes a row visually noisier, it has been adopted wrongly;
+- **whatever the row can now do, the row's overflow menu must stop doing.** TASKS-05 removed nine menu entries that had become duplicates. A menu item six pixels from the control it duplicates is not a second affordance, it is a second place to keep in step;
+- **one seam to the server, shared.** DS-16 wants a promise-returning `onSave` and a router fetcher is fire-and-forget, so a module needs one small adapter (Tasks: `task-inline-edit.ts`) that POSTs to its canonical routes and returns the SERVER's answer. One adapter per module, never one per surface.
+
+A **multi-field composition** still does not belong inline. A Task's recurrence is the worked example: the unit, the interval, the weekdays and the scheduling mode only mean anything together, so they compose in the shared `TaskRecurrenceEditor` and the row shows a read-only signal instead.
+**Rules.**
+- **Never silently lose an attempted edit.** A refused save keeps the editor open holding exactly what was typed, with the server's message beside it. This is the reason the module exists; it is not optional per field.
+- **No optimistic application on a refusal.** Where rollback cannot be made reliable, show a subtle pending state and apply the confirmed value after success — never a value the server has not accepted.
+- **The FIELD is the affordance, not a pencil.** The value is a real `<button>`; pointer hover and keyboard `:focus-visible` get the *same* restrained container, so the affordance is never hover-only. An empty value states its invitation. A **read-only** value renders as plain text with no container and no tab stop — a value that cannot be changed must not look like one that can.
+- **One explicit `Edit <field>` control, for a `variant="block"` value.** Rendered block content carries its own links; nesting them in a `<button>` is invalid HTML and produces exactly the nested-interactive defect this pattern exists to remove. So `variant="block"` renders content plainly with one small, permanently visible, field-named Edit control. (No inline field uses it for Markdown any more — long-form is editor-first — but the variant and the rule stay, because the invalid-nesting problem belongs to block content generally.)
+- **Server integrity is untouched.** `onSave` posts to the module's own trusted action. Authentication, workspace scoping, domain validation, relationship constraints and Activity all stay server-side; nothing here writes a column. Prefer a **focused** intent (`rename`, `set_status`, `set_target_date`) over resubmitting a whole record, so an inline edit can never overwrite a concurrent change to an unrelated field.
+- **A form that keeps a field the record now edits is a bug (EDIT-02).** Once a value is editable in place, the whole-record form beside it must stop carrying that key, and its handler must treat an absent key as *unchanged* rather than filling in a default. Otherwise pressing **Save changes** silently reverts whatever was edited inline while the form was open — which is the same defect as an unfocused intent, arriving from the other direction.
+- **An OPTIONAL select starts empty; it does not preselect "No …" (EDIT-02).** `options` carries real values only. An unset field renders `emptyLabel` in the shell's quiet empty style, and clearing — where the model permits it — is one command, separated by a hairline, at the END of the same menu, present only when there is something to clear. `Current value → New value` is always open-choose-done: no field may require clearing before a different value can be chosen. Selection is carried by `aria-checked` **and** the M3 selected container, never by the fill alone.
+- **An anchored surface lives in the OVERLAY LAYER, never inside the field (EDIT-03).** The select menu and the date popover are portalled and placed by [`~/shared/anchored`](#anchored-overlay-edit-03). An inline field is most valuable exactly where its container clips — a list row — so a `position: absolute` popover inside it is a control that can be opened and not used. No inline surface may produce a page-level horizontal scrollbar at 320px, and no inline surface may be sized by the column it happens to sit in.
+- **Below `md`, a select and a date editor are SHEETS (EDIT-03).** A 28px menu item anchored to a 28px trigger is a desktop idea, and a phone has no hover to reveal it with. `InlineSelectField` and `InlineDateField` render the shared [phone sheet](#mobile-platform-mobile-01) instead — the same primitive the compact `SelectField`, Quick Capture and the collection's sort/density choices use — with the same vocabulary, the same ordering and the same separated clear command as the desktop menu. One field, two presentations; never two controls.
+- **A date editor offers the product's one-press dates, and never invents them.** `shortcuts` is supplied by the caller, from the single place that derives them (`taskDateShortcuts` → Today / Tomorrow / Next week). The owner's calendar day is a server fact ([ADR-022](../decisions/ARCHITECTURE_DECISIONS.md)); a surface that cannot name one shows the picker and the commands alone rather than a "Today" guessed from the browser clock.
+- **Short/simple text inline; long-form on the writing surface.** A three-word description does not get a 256px editor and a formatting toolbar for syntax the column cannot hold. Use `InlineTextField` for plain values (`multiline` when the line breaks are significant, as in a Goal's definition of done); a genuinely Markdown-backed field belongs on the [shared writing surface](#shared-writing-surface-edit-01), which is where the owner writes it rather than a place they activate.
+
+### Health signal (PROJ-02)
+**Purpose.** A restrained, reusable presentation of a **derived** record health state (PROJ-02, [ADR-035](../decisions/ARCHITECTURE_DECISIONS.md#adr-035-project-health--a-derived-non-persisted-signal-over-the-spine-tasks-and-activity)) — calm, honest, explained.
+**Anatomy.** A toned **pill** (`HealthIndicator`: a decorative dot + state label + optional primary reason) for the Card `metadata` slot and record header; a **`ProjectHealthPanel`** (state pill + a de-duplicated reason list + a supporting-facts `dl`) for the record Summary. Tones are a strict subset of the shared vocabulary (`neutral`/`success`/`info`/`warning`/`danger`).
+**Behaviour.** Health is evaluated server-side and rendered as text — it refreshes through the normal loader revalidation, never a cached column. Stronger tones (`danger`/`warning`) are reserved for genuinely overdue or blocked work; ordinary inactivity is calm (`info`), never an aggressive red.
+**Rules.** Meaning is **always** text + tone, never colour alone. Reuse the shared components — do **not** add a second project-card component or invent status vocabulary that competes with open/completed or task status. Free-text waiting subjects are never surfaced.
+
+### Stay-in-touch signal (PEOPLE-03)
+**Purpose.** A restrained, reusable presentation of a **derived** relationship state (PEOPLE-03, [ADR-056](../decisions/ARCHITECTURE_DECISIONS.md#adr-056-relationship-intelligence--a-derived-non-persisted-projection-over-links-and-the-one-activity-stream)) — calm, honest, explained, and never a nudge.
+**Anatomy.** A toned **pill** (`StayInTouchIndicator`: a decorative dot + state label + optional primary reason) for the Card `metadata` slot and the Record header; a **`StayInTouchPanel`** (state pill + reason list + a cadence-facts `dl`) for the record Summary. The vocabulary is `No shared history yet` · `Recently connected` · `In touch` · `Due for follow-up` · `It’s been a while`.
+**Behaviour.** Evaluated server-side and rendered as text; it refreshes through ordinary loader revalidation, never a cached column. The tone set is deliberately narrower than [Health](#health-signal-proj-02)'s — `neutral`/`success`/`info` only. There is **no `warning` and no `danger`**: a relationship is never an error state.
+**Rules.** *Care, not a CRM* ([AGENTS.md §5](../../AGENTS.md#5-relationship-philosophy)): no scores, streaks, badges or percentages; a long silence is stated once, with its date, never as a failure. Meaning is **always** text + tone, never colour alone. Reuse the shared components — a collection card and a record must never grow two different pills. Do not add notifications to this pattern; it exposes the calculated state only.
+
+### Task signals (TASKS-02)
+**Purpose.** A shared, calm presentation of a task's **priority** and **urgency** on every task-bearing surface (Today, Projects, Tasks, the Drawer), kept as separable slots from the display-state pill so a card never becomes a wall of coloured badges (TASKS-02, [DEBT-27](../product/PRODUCT_DEBT.md)/[DEBT-28](../product/PRODUCT_DEBT.md)).
+**Anatomy.** A `PriorityIndicator` (the short "P1"–"P4" tag + a coloured dot; the full Eisenhower action word — "Do"…"Delete / Review" — is carried for assistive tech) and an `UrgencyChip` (**Overdue** / **Due today** / **Scheduled today** / a future Due or Scheduled date — icon + word). Both live in the Card `metadata` slot; the display-state stays the Card `status` pill. Driven by the canonical `taskPriorityTag`/`taskUrgency` derivations — one vocabulary everywhere.
+**Behaviour.** Priority ≠ urgency ≠ display-state — three separable slots. Colour and icon are **reinforcement only**; the tag/word always carries the meaning. Untriaged priority renders nothing in lists (opt-in "No priority" in the Drawer); no due/scheduled date renders no chip. Overdue is resolved against the owner's server-derived calendar day (ADR-022), never browser-local time.
+**Rules.** Meaning is **always** text, never colour alone — "Overdue" is a word, not a red date; "due today" is distinguishable from a future due date. Use `taskDisplayState` (the single evaluator) for state — the legacy `taskDisplayStatus` was retired. Never invent a second priority/urgency vocabulary or a `TaskCard`; render these shared components in the one Card.
+
+### Habit rhythm (HABITS-01)
+**Purpose.** Show where a recurring behaviour stands **right now** and **lately**, without inventing a score, a streak or a scolding (HABITS-01, [ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks)).
+**Anatomy.** A `HabitRow` — a leading one-tap check control (the shared `.dh-check-circle-target`, a real checkbox, or a quiet resting dot on a day the Habit is not asked for), the title, a meta line (`schedule · Area or Goal`), and a state column carrying **today** ("Done", "Not yet", "Not scheduled") and **this week** ("2 of 3 this week"). A `HabitHistoryStrip` for the record: a real `<table>` of the recent window with row and column headers, one cell per day, each cell carrying a hidden sentence ("Tuesday 11 August — completed"), plus a printed key.
+**Behaviour.** Three measurements only — *today*, *this week*, *recent consistency* ("9 of 12 weeks") — every one of them a fraction of what the schedule **actually asked for** on the days it asked. A day the Habit is not scheduled is never a miss; a day still in the future is never incomplete; a week the owner had not yet started the Habit is not in the denominator. Check-in is idempotent and reversible, and the row's state re-reads from the server after the mutation rather than trusting the tap.
+**Rules.** **No manufactured streaks**: no flame, no consecutive-day count, no broken-streak warning, no confetti, no loss-aversion language, no "you failed". Restraint is the point — a Habit is a row, not a dashboard card, and it never grows a progress ring. The history strip is a **calendar the owner can read**, not a contribution graph: it stays a table, every cell has a textual equivalent, and colour never carries the meaning alone. A Habit measurement never contributes to Task counts, Project progress or a Goal's percentage.
+
+### Timeline
+**Purpose.** Show an entity's history in chronological order — the "what happened, when" of any record.
+**Anatomy.** A vertical, time-ordered stream of events rendered from the [shared Activity model](../../AGENTS.md#96-shared-activity-model).
+**Behaviour.** Grouped by day; virtualised for length; filterable by event type. Events link to the entities they reference.
+**Rules.** Timeline renders the *shared Activity model* — it never invents its own event source. Same event → same rendering everywhere.
+
+### Activity Feed
+**Purpose.** The cross-entity, system-wide stream — "what's been happening across everything," versus the [Timeline](#timeline)'s single-record view.
+**Anatomy.** Same event rendering as Timeline, aggregated across a workspace or a scope (a Project's activity, the whole workspace's activity).
+**Behaviour.** Filterable, groupable, virtualised. Respects [workspace isolation](../../AGENTS.md#94-workspace-isolation).
+**Rules.** Timeline (one record) and Activity Feed (many records) are the same component at different scopes — do not fork them.
+
+### Inspector
+**Purpose.** Edit the full detail of a record or a selection — the "properties panel" for power editing. Built as DS-10 ([`app/shared/inspector`](../../app/shared/inspector)); see [Global Interaction Layer](#global-interaction-layer-ds-10).
+**Anatomy.** A structured panel of all editable fields, grouped, using shared [Form](#forms) controls. URL-driven (`?inspector=<key>`, deep-linkable); a surface supplies `renderInspector(entry)` — the [Drawer](#drawer)'s `renderDrawer` contract — so **no module builds its own edit drawer**.
+**Behaviour.** A **non-modal, resizable** right-side panel on desktop (content reflows so it is never covered; the page stays interactive for bulk/multi-select) and a **modal sheet** on mobile, reusing the DS-03 focus/inert/scroll-lock hooks (no second focus-trap). Saves optimistically field-by-field via DS-06 autosave.
+**Rules.** The Inspector is for *depth*; the [Summary Panel](#summary-panel) is for *essentials*. Never duplicate field controls between them — share the control. See [ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector).
+
+### Settings
+**Purpose.** A consistent surface for configuration, at every scope (app, workspace, module, single record).
+**Anatomy.** Grouped sections · label + description + control per setting · immediate or explicitly-saved changes with clear feedback.
+**Behaviour.** Same layout whether you're configuring the app or one Project. Dangerous settings are visually separated and confirmed.
+**Rules.** Settings is always the last [Tab](#tabs)/section. Same setting type → same control. No bespoke settings screens.
+**Realised by** the [Settings layout (DS-10b)](#settings-layout-ds-10b) — the single, entity-agnostic implementation.
+
+### Filters
+**Purpose.** Narrow any collection (tasks, cards, activity) using a consistent control.
+**Anatomy.** A filter bar: add-filter control · active filter chips · clear-all · optional saved views.
+**Behaviour.** Filters compose (AND/OR where meaningful), reflect in the URL (shareable/restorable), and persist as saved views. Filtering is instant.
+**Rules.** **One filter system** across the product — Today, Projects, Search, and every list use it. Inconsistent per-module filters are known [debt](../product/PRODUCT_DEBT.md).
+
+### Search
+**Purpose.** Find anything, from anywhere, fast.
+**Anatomy.** A unified search surface ([`app/shared/search`](../../app/shared/search)) — a WAI-ARIA combobox controlling a grouped `listbox`, with entity icon/accent, title, safe subtitle/preview, optional compact signals, `<mark>` highlighting, a result count, and idle/loading/empty/partial/error+retry states. Empty-query Search may show a device-local **Recent** group (max eight, clearable, privacy-stripped). Opened by the PX-02 sidebar Search affordance and the `/` shortcut; mounted once at the app-shell boundary and lazy-loaded.
+**Behaviour.** Fuzzy, incremental, keyboard-navigable (↑/↓ wrap, Home/End, Enter, Escape). Scoped by [workspace](../../AGENTS.md#94-workspace-isolation) server-side. Results **group primarily by entity type** (module fallback otherwise) and **open in the [Drawer](#drawer)** over their home surface, preserving unrelated URL state. Incremental search debounces and **immediately** invalidates the in-flight request when the query changes (a generation guard, so a stale response can never overwrite newer input); each provider runs under a bounded deadline with a cancellation signal, so a hung provider never stalls healthy results; a partial provider failure still shows healthy results; a total failure is a calm retryable state; and the browser validates the endpoint's response before rendering it. Local matches return under the [performance budget](../../AGENTS.md#16-performance-expectations).
+**Contract.** A module contributes a **search provider** through the [module registry](../../AGENTS.md#92-module-registry) (`ModuleRegistry.listSearchProviders()`) — search is never re-implemented per module. A result declares **how it opens** via a validated `SearchResultTarget` (`{ kind: "drawer"; drawerKey; canonicalPath? } | { kind: "route"; to }`), so the shared surface never parses product routes or ids and unsafe targets are rejected at the boundary. Optional `signals` are generic serialisable facts (no React nodes); the surface may render known signals through existing shared presentation, e.g. Task priority via `PriorityIndicator` and urgency via `UrgencyChip`. Ranking is deterministic and tiered (exact → prefix → token → subtitle → fuzzy; provider score only as a normalised tie-breaker). Highlighting uses text segments + `<mark>` — never raw HTML. Search is **not** the [Command Palette](#command-palette) (DS-09): it runs no commands, never claims `⌘K`, and stores no remote search history. See [ADR-023](../decisions/ARCHITECTURE_DECISIONS.md#adr-023-shared-search--registry-driven-providers-runtime-orchestration-and-safe-navigation) and [`SHARED_SEARCH.md`](../development/SHARED_SEARCH.md).
+
+### Command Palette
+**Purpose.** The keyboard shell of the OS — do anything by typing (`⌘K` / `Ctrl+K`).
+**Anatomy.** A modal command surface ([`app/shared/commands`](../../app/shared/commands)) — a WAI-ARIA combobox controlling a grouped `listbox` that merges, without confusing them, contextual actions, registered navigation/executable commands and DS-08 record [Search](#search) results, with title `<mark>` highlighting, right-aligned shortcut hints (decorative), a live status region, and idle / pending / inline-success / inline-failure+retry / empty / catalogue-error states. Opened by the PX-02 sidebar Command Palette affordance and the global `Mod+K`; mounted once at the app-shell boundary and lazy-loaded; reuses the DS-03 focus/inert/scroll-lock hooks (no second focus-trap) and sits above the Drawer.
+**Behaviour.** Context-aware (contextual actions from the current surface/Drawer rank first; a command on the current module ranks higher), fully keyboard-driven (↑/↓ wrap, Home/End, Enter, Escape), fuzzy-matched, with a restrained suggested/recent set on an empty query (recents are session-only, never persisted). Search and the palette are mutually exclusive.
+**Contract.** A module contributes a **command** through the [module registry](../../AGENTS.md#92-module-registry): a `navigate` command (a declarative, validated target) or an `execute` command (a server handler). Navigation runs on the client; an executable command runs once through the authenticated `POST /commands/:commandId` boundary and returns a typed, safe outcome — the browser receives serialisable metadata only, never a handler. Modules register commands from day one; they may add but never reassign the reserved keyboard vocabulary (`Mod+K`, `/`, …). See [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action) and [`COMMAND_PALETTE.md`](../development/COMMAND_PALETTE.md). This is the backbone of the [keyboard-first](../../AGENTS.md#7-interaction-philosophy) product.
+
+### Keyboard reference (UX-01)
+**Purpose.** One answer to "what can I press here?", reachable from the keyboard on every screen.
+**Anatomy.** ONE catalogue ([`app/shared/commands/shortcut-reference.ts`](../../app/shared/commands/shortcut-reference.ts)) rendered by ONE component (`KeyboardShortcutsReference`) — grouped `<kbd>` keys beside a text description, so no meaning is carried by an unlabelled glyph or by colour. Each group declares its `scope` (`global` or a surface), so a host presents only what genuinely applies where the owner is.
+**Behaviour.** `?` opens it anywhere. The app shell registers that binding through the SAME one shared dispatcher as a **fallback** — a new lowest-precedence tier appended after contextual and registered bindings — so a surface that hosts its own reference keeps ownership of the key. Today does: there the reference belongs inside the Drawer *stack*, which is what makes a task drawer beneath it stop owning the task shortcuts. Everywhere else the shell opens it in the shared [Sheet](#shared-drawer-ds-03). Like every ordinary character shortcut it is suppressed while the owner is typing.
+**Rules.** Never write a second copy of the shortcut list, and never state a shortcut in the reference that does not work where the reference is being shown. A **read-only** Sheet must set `bodyFocusable` so its scroll container is keyboard-reachable (WCAG 2.1.1) — sheets with focusable content do not need it.
+
+### Quick Actions
+**Purpose.** The two or three most frequent actions on an entity, available without opening it.
+**Anatomy.** Inline affordances on [Cards](#cards) and [Record Headers](#record-header) (complete, reschedule, link, assign) plus contextual keyboard shortcuts, projected from ONE shared `AppAction` ([`app/shared/commands/action.ts`](../../app/shared/commands/action.ts)) so the same action instance appears as a Card action, a Record Header action, a Command Palette command and a keyboard action.
+**Behaviour.** Optimistic and reversible (prefer [undo](#success-feedback) over confirm dialogs). One identity, one execution path: pointer and keyboard call the same handler; pending blocks a duplicate activation; disabled and unavailable stay distinct; every action has a text-based accessible name.
+**Contract.** A curated few live on the surface; the long tail lives in the [Command Palette](#command-palette). Persistent mutations still go through an authorised server action — the client context is never treated as authority. See [ADR-024](../decisions/ARCHITECTURE_DECISIONS.md#adr-024-command-palette--quick-actions--command-kinds-trusted-catalogue-authenticated-execution-and-one-shared-action).
+
+### Overflow menu
+**Purpose.** The conventional, single home for a record's **secondary and destructive** actions, so "where do I archive or delete this?" has one answer everywhere.
+**Anatomy.** A ⋯ menu button on the [Record Header](#record-header) (always last in the action row) and on the [Card](#cards) (in its action group), opening one list of labelled items with optional leading glyphs, a decorative group separator, and a `danger` tone for destructive items.
+**Behaviour.** A WAI-ARIA menu button, not a modal: `aria-haspopup="menu"` + `aria-expanded`, arrow/Home/End navigation with roving focus, Escape closing only the menu and restoring focus, Tab and outside-pointer dismissal. A blocked action stays **visible and disabled with an explanation** rather than disappearing.
+**Rules.** Exactly one primary action stays in the header; everything else belongs here or in the [Command Palette](#command-palette). Meaning is always the item's wording — tone and glyph are reinforcement. Never build a second menu.
+**Realised by** the [Shared overflow menu (DS-12)](#shared-overflow-menu-ds-12).
+
+### Tooltip (M3-TIP)
+**Purpose.** ONE way to explain a control whose meaning is carried by a glyph — and, where the control has one, to show its keyboard shortcut to the person most likely to want it.
+**Anatomy.** [`app/shared/tooltip`](../../app/shared/tooltip): a `Tooltip` render-prop component (no wrapper element — it attaches to the trigger by ref, so adopting it changes no layout) rendering a portalled `role="tooltip"` with the supporting text and an optional `<kbd>` shortcut chip, formatted by the ONE shared shortcut formatter (`~/shared/commands/shortcut`).
+**Behaviour.** Opens on pointer hover after a short intent delay and on `:focus-visible`; closes on pointer leave, blur, pointer press and Escape. Associated with its trigger by `aria-describedby` while shown. Never focusable, never a Tab stop, never a focus trap, `pointer-events: none` so it cannot intercept a click. Positioned `fixed` from the trigger's measured rect, flipped and clamped to the viewport so an edge control never produces horizontal overflow. Motion honours `prefers-reduced-motion`; forced colours get a real border rather than the fill.
+**Rules.**
+- **A tooltip describes; it never NAMES.** Every adopter keeps its own `aria-label` or visually-hidden text. A description is not announced by every assistive technology, so a control named only by its tooltip is a control with no name.
+- **It replaces `title` on controls that need explaining, and only those.** A control with visible text does not get a tooltip to raise a migration count; `title` remains legitimate for genuinely supplementary detail beside a labelled control.
+- **It does not open on a touch tap.** Touch has no hover state, and a tooltip over the surface a tap just opened is in the way.
+- **Escape yields to the layer above it.** Propagation is stopped only when the trigger itself holds focus, so a stale hover tooltip can never swallow the Escape that closes a Drawer.
+**Adopted by** the [shared writing surface](#shared-writing-surface-edit-01)'s toolbar (the reference adoption), the [overflow menu](#overflow-menu)'s ⋯ trigger, the shell's top-bar icon controls, the account menu's compact trigger, the phone bar's Back/Search, the capture FAB and icon-only [card](#cards) actions. Deliberately **not** the account menu's full trigger, which already shows the name in text.
+**Not** the [Hover Card](#linked-items--hover-card) — that is a rich, asynchronously loaded summary of a linked record, and it stays its own component.
+
+### Anchored overlay (EDIT-03)
+**Purpose.** ONE way to float a surface beside the control that opened it — a menu, a listbox, a small popover — so that no parent's layout can decide whether the owner gets to see their choices.
+**Anatomy.** [`app/shared/anchored`](../../app/shared/anchored): `AnchoredSurface` (a portal onto `<body>` holding one `position: fixed` box, measured from the trigger) and `anchored-placement` (the pure geometry — block side, height clamp and inline slide — with no React and no DOM in it).
+**Behaviour.** Prefers the space below the trigger; flips above when that side cannot hold the surface whole; clamps its height and scrolls internally when neither side can; slides along the inline axis to stay inside an 8px viewport margin; re-measures on scroll and resize. It carries **no** role, no ARIA and no keyboard handling — a menu, a listbox and a dialog need different ones and the host supplies them. What it does own is dismissal on an outside pointer press, where "inside" correctly includes the trigger.
+**Rules.**
+- **A surface that must escape its parents belongs in the overlay layer, not in the row.** `position: absolute` is still clipped by an ancestor's `overflow`, and `position: fixed` is still trapped by an ancestor's `transform`. A DalyHub task row has both — it hides its overflow so the swipe tray can slide underneath, and the swipe surface is translated — and both are load-bearing. This is the whole reason the layer exists: the inline editors were painting a 45px sliver of a 305px menu, showing the owner the value they already had and none of the alternatives.
+- **It sits ABOVE the modal rung** (`--app-z-anchored`, 1350). These surfaces are opened from inside other layers — the Task record Drawer edits its priority with one — so a dropdown-rung popover portalled to `<body>` would render behind the surface that opened it. Toasts and tooltips still outrank it.
+- **Hidden-until-placed is `opacity`, never `visibility`.** A `visibility: hidden` subtree is not focusable, and a menu moves focus onto its current item in the effect after the commit the guard applies in — so the paint guard silently turned a keyboard-complete control into a mouse-only one.
+- **Below `md`, prefer the [phone sheet](#mobile-platform-mobile-01).** A 28px menu item anchored to a 28px trigger is a desktop idea. The layer will happily place one on a phone; that does not make it the right presentation.
+**Adopted by** the [inline select and date fields](#inline-editing-ds-16). The DS-12 [overflow menu](#shared-overflow-menu-ds-12) shares the block geometry but keeps its own absolute anchoring, because its hosts already grant it the overflow it needs.
+
+### Record lifecycle
+**Purpose.** One vocabulary and one interaction for Archive / Restore / Delete, on every entity.
+**Anatomy.** Lifecycle items in the Record Header [overflow](#overflow-menu), in a fixed order (module actions · Archive **or** Restore · Delete), plus — where a module has more to explain — the same actions in its final **Settings** tab.
+**Behaviour.** Friction scales with reversibility: a reversible soft-delete is one click with an [Undo](#success-feedback) toast and a durable "Deleted" collection view; an irreversible permanent delete requires a typed confirmation of the record's exact name. A blocked delete explains its precondition and offers no bypass. Nothing ever cascades.
+**Rules.** Labels are **derived**, never written per module. Settings-tab controls may exist, but must never be the *only* entry point.
+**Realised by** the [Shared record lifecycle (PX-04)](#shared-record-lifecycle-px-04).
+
+### Forms
+**Purpose.** Create and edit entities consistently and forgivingly.
+**Anatomy.** Shared field controls (text, markdown, date, select, entity-link picker, tags) · inline labels + help · inline validation · clear submit/cancel.
+**Behaviour.** Validate on blur and submit with specific, recoverable messages. Autosave where it fits; explicit save where commitment matters. Never lose entered data on error or navigation.
+**Boolean controls — checkbox or switch, chosen by MEANING.** A **switch** ([`~/shared/forms/Switch`](../../app/shared/forms/Switch.tsx)) turns a setting on or off and takes effect immediately; a **checkbox** selects an item within a set, and a set of them is usually committed by a Save or acted on by a bulk action. DalyHub's preference toggles are switches; its selection, bulk-action, acknowledgement and multi-select controls are checkboxes and stay checkboxes. There is ONE switch: it is a real `<input type="checkbox">` with `role="switch"` on top — never a `div` with `aria-checked`, which re-implements (badly) the checked state, Space, the label association, form participation, `:disabled` and forced colours. Its state is never colour alone: the thumb moves *and* the selected thumb carries a check.
+
+**Rules.** **One control per field type**, product-wide. The entity-link picker is the shared way to create [EntityLinks](../../AGENTS.md#95-entitylinks). Multiple save patterns are known [debt](../product/PRODUCT_DEBT.md) — converge on this.
+
+**Selection controls (DS-16).** Four rules, audited product-wide in [`SELECTION_CONTROL_AUDIT_2026_08.md`](../product/SELECTION_CONTROL_AUDIT_2026_08.md):
+- **An optional field defaults to genuinely empty** — the empty string, rendering as the placeholder and submitting as absent. Never a pre-selected first option, never a sentinel.
+- **A placeholder is an attribute, never an option.** `{ value: "", label: "Choose a type…" }` in an options list is arrowable, announced as an option, and "selects" a non-value that validation then has to reject. `SelectField` renders a real `placeholder`; put the prompt there, where it cannot be picked.
+- **An existing selection is replaceable directly.** A single-select reflects its chosen label into the input; that text is a *reflection*, not a query, until the user actually types. Reopening a field that has a value offers the WHOLE list — requiring a clear first is a step no user discovers.
+- **One select presentation, product-wide.** Every application-style select — a Settings row, a record's Settings tab, a create form — is the shared `SelectField` combobox. A **native `<select>` is retained only in FILTER BARS** (Notes, Diary, Reviews, Assets, Tasks), which is a deliberate exception with a real reason: a filter row is a dense strip of several controls that must stay operable on a phone with no JavaScript, and the native control is more robust and better on mobile there. That is the whole list of exceptions; anywhere else, a native select in an application surface is the divergence the August 2026 audit recorded as finding 6.
+- **One control, two presentations (ASSET-03).** A single-select with a long vocabulary may opt in to `SelectField sheetOnCompact`: below `md` the field renders a 44px trigger that opens the shared [phone `Sheet`](#the-shared-sheet) of large option rows, and above it stays the combobox. This is not a second select — same value, options, label, help, error and `controlRef` — and it is **opt-in**, so a field that is fine as a combobox on a phone stays exactly as it is. Reach for it when an anchored 16rem listbox under an open keyboard is the wrong way to ask the question (the Asset type's thirteen categories are the first case). An option's `group` is PRESENTATION: it draws headings in that sheet, and is never stored, submitted or validated.
+- **The error summary is a POST-SUBMIT affordance.** `FormErrorSummary` names everything that went wrong and jumps to it; it belongs after a failed submit, not after the first blur of a field the owner never touched. Rendering it on blur inserts a block ABOVE the fields, which on a phone slides the control being tapped out from under the thumb between finger-down and finger-up. Gate it on `form.submit.status === "error"`; the field's own inline error still appears on blur, beside the field, where it moves nothing being aimed at. The New Asset form does this today and other forms have yet to converge.
+- **A short, familiar, multiple-choice set is a TOGGLE GROUP, not a multi-select (HABITS-01).** [`ToggleGroupField`](../../app/shared/forms/ToggleGroupField.tsx) renders a labelled `role="group"` of real `<input type="checkbox">` controls styled as wrapping pill toggles — the whole vocabulary visible, no tap to open, no list to scroll, and it wraps rather than scrolls on a phone. Reach for it when the set is **small and already known** (the seven days of the week are the first case); reach for `SelectField multiple` when it is long or unfamiliar. Every toggle is a genuine checkbox, so Space, the label association, form participation, `:disabled` and forced colours all come from the platform — never a `div` with `aria-pressed`. Each toggle carries an `accessibleLabel` so an abbreviated face ("Mon") is announced in full ("Monday"), the target floor is 44px on a coarse pointer, and selection is a border + tone + the checkbox's own state, never colour alone. **Do not hand-build a row of small letter circles** — that is the pattern this control exists to prevent.
+- **"None" that is a domain STATE keeps its own words.** "No priority", "No sector", "Does not repeat" and "Not set" are decisions the system reasons about, not absences. They stay in the list, and they are never relabelled to a prompt or collapsed into the placeholder. The audit lists every one.
+
+### Success Feedback
+**Purpose.** Confirm an action landed, quietly. Built as the DS-10 [Feedback platform](#global-interaction-layer-ds-10) ([`app/shared/feedback`](../../app/shared/feedback)) — modules call `useFeedback().notifySuccess(...)`/`notifyUndo(...)`, never render a toast themselves.
+**Anatomy.** A brief toast/inline confirmation, ideally carrying an **Undo**.
+**Behaviour.** Non-blocking, auto-dismissing (success/info linger briefly, warnings longer, errors are sticky), coalescing (repeats with a `dedupeKey` merge — no spam), pause on focus or on hovering a toast's controls, announced to assistive tech via ARIA live regions. Optimistic — the UI already reflects the change; the toast confirms and offers reversal. **Non-blocking is literal:** the notification region is transparent to the pointer everywhere except its own controls, so a toast can never absorb a click meant for the page beneath it (see [Feedback](#feedback-platform)).
+**Rules.** Prefer undo over up-front confirmation. Don't celebrate the mundane — feedback is calm, not confetti (see [product feelings](../product/PRODUCT_PRINCIPLES.md#how-users-should-feel)). One implementation for the whole app; no module owns a notification implementation.
+
+### Error Feedback
+**Purpose.** Explain what went wrong and how to recover — never dead-end the user.
+**Anatomy.** Inline (field-level) for validation; toast/banner for operation failures; a full-page state only for whole-view failures — always with a retry/next step.
+**Behaviour.** Specific and human ("Couldn't save — you're offline. We'll retry."), never a raw code. Preserves the user's input. Announced to assistive tech.
+**Rules.** Every error names a recovery. No silent failures; no blame; no jargon.
+
+### Loading
+**Purpose.** Communicate progress without blocking or flashing.
+**Anatomy.** Skeletons that mirror the final layout for content; inline spinners only for small in-place waits; optimistic UI for user-initiated changes.
+**Behaviour.** Content streams in progressively (see [performance](../../AGENTS.md#16-performance-expectations)). Avoid layout shift; avoid spinner-blocked blank screens.
+**Rules.** Prefer skeletons over spinners; prefer optimistic over loading. Never block the whole screen for partial data.
+
+### Collection pagination (UX-01)
+**Purpose.** Reach the rest of a collection without losing your place.
+**Anatomy.** ONE hook ([`useKeysetPagination`](../../app/shared/load-more/useKeysetPagination.ts)) plus the shared `LoadMore` button. A collection supplies its first page, its cursor, the path the next page is fetched from, and how to read the page out of that route's loader data.
+**Behaviour.** Pages **accumulate in place** — never a navigation that replaces the list, and never automatic infinite scroll as the only path. A record straddling a page boundary appears once. A scope change (filter, view, lifecycle segment) restarts the accumulation, and **a page is consumed only if it was asked for since the current scope began**, so a revalidated response from a scope the owner has left can never be appended on top of a fresh first page. A failed page is a retryable state that does **not** advance the cursor.
+**Rules.** Never write a second paginator. The path a later page is requested from must carry the same scope the cursor was issued for. The label says what the control does: a control that navigates is not a "Load more".
+
+### Empty States
+**Purpose.** Turn "nothing here yet" into "here's the next action."
+**Anatomy.** A short, warm explanation of what belongs here · the primary action to create the first one · optional example/illustration.
+**Behaviour.** Distinguishes *empty* (no data yet — teach + invite) from *filtered-empty* (no matches — offer to clear filters). Contextual to the module.
+**Rules.** No dead-end empty states. Every one teaches the next step (see [UX philosophy](../../AGENTS.md#6-ux-philosophy)).
+
+### Two-column working surface (Today)
+
+**Purpose.** Put the thing the owner acts on beside the thing they need to know about, without either becoming a widget system.
+**Anatomy.** Two containers — a PRIMARY column carrying the work (~62%) and a RAIL carrying what needs attention (~360px at 1440) — each ONE tonal surface holding plain rows. No cards inside them, no nesting, no per-widget chrome.
+**Behaviour.** The columns are a container-query grid, so they respond to the PANE's width rather than the viewport's. Below the threshold the rail stacks under the primary column in DOM order, so the narrow layout is the wide one unwrapped rather than a second arrangement to keep in step. A section with nothing to show renders nothing at all — never an empty container holding a gap open.
+**Rules.** The rail holds only what the primary column does NOT show; anything appearing in both is one fact painted twice. There is no personalisation, no reordering and no hide/show — an arrangement the owner has to maintain is a second product to keep coherent. This pattern replaced the POLISH-02 hero/primary/secondary REGION model and its fourteen-widget catalogue, together with the at-a-glance stat rail those regions carried: a fixed track of six tiles is a good component and was the wrong answer, because on an ordinary day four of the six read `0`. See [The Today screen](#the-today-screen).
+
+### Bounded section preview (POLISH-02)
+**Purpose.** Let a landing surface show a band of a large collection without becoming that collection.
+**Anatomy.** A section heading carrying the **true** total, a bounded slice of rows, and one "View all *N*" link in the heading row pointing at the same records in their canonical collection view.
+**Behaviour.** Only *discretionary* bands are previewed. Anything the owner has committed to — today's tasks, overdue work — is never truncated *below a bound generous enough that an ordinary day never meets it*: a commitment you can only see by following a link is one the product has hidden, but a dashboard that draws fifty rows has stopped being a dashboard. Today is the one surface that carries such a bound, and it states both halves — 3 overdue rows plus "+n more overdue", and 8 of the day's own rows plus "View all N tasks for today", where N is the true size of the view the link goes to. Any keyboard/roving model over the section is built from the **rendered** slice, so an arrow key can never travel to a row that is not on the page.
+**Rules.** The heading count is the total, not the slice. The link goes in the heading row, not after the rows — inside a roving collection a control placed after the last card sits between the owner and the exit from a long list. Never truncate silently.
+
+### Guided step flow (REVIEW-02)
+
+An ordered, resumable pass over ONE record: a canonical step registry, the step in the URL, a desktop rail, a phone stepper, and progress stated as a position. See [Guided step flow](#guided-step-flow-review-02--review-04).
+
+---
+
+## Shared Record Layout (DS-02)
+
+The [Record Header](#record-header), [Summary Panel](#summary-panel) and [Tabs](#tabs) patterns above are realised by ONE reusable, entity-agnostic scaffold: the **Shared Record Layout** ([DS-02](../roadmap/ROADMAP_V2.md#-ds-02--shared-record-layout-header--summary--tabs)), in [`app/shared/record-layout`](../../app/shared/record-layout). Every record view (Area, Goal, Project, Task, Person, Note, …) composes it — there are no bespoke record scaffolds. It builds entirely on [DS-01 tokens](#design-tokens-ds-01); it owns structure and accessibility, not values.
+
+### Anatomy
+
+**This is the canonical record-screen anatomy (RECORD-01, PR #131).** Every
+first-class record — Area, Goal, Project, Note, Meeting, Person, Asset, Review
+and the Task record in its Drawer — is built to it. Module-specific *content*
+stays module-specific; the order, the tiers and the weights do not.
+
+```
+<article aria-labelledby=title>          ← labelled landmark, titled by its heading
+  RecordHeader
+    ├ breadcrumb            where this record lives
+    ├ identity (ONE row)    entity glyph · title · status pill · actions · ⋯
+    └ context line          1–3 current-state facts, tight under the identity
+  RecordSummaryBar   (optional)  ← the compact derived-state band: meter · state
+  · signals · facts                 chip · signal line · quiet context line
+  — or —
+  RecordSummary      (optional)  ← the DS-02 card, for a summary that is PROSE
+  RecordTabs         (optional)  ← tablist + panels; the active panel IS the content
+    └ RecordContent            ← predictable padding/width + loading/empty/error
+```
+
+A record declares **one** summary region. `summaryBar` is what most records
+want, because most records' summaries are derived state; `summary` is the card,
+for the minority carrying real prose. Supplying both renders the band — two
+summary regions above one tab strip is the stacked-containers problem M3-INT set
+out to remove. A band that itself carries prose (`description`) takes the card
+surface, following the same "a container is earned" rule.
+
+When no tabs are supplied, the content region is the layout's `children` wrapped in a padded container. `RecordContent` is independently reusable and can appear inside any tab panel.
+
+### The record contract
+
+**Headers.** Title dominant, status adjacent, no empty band between the title
+and the tabs. Drop the entity-type label wherever the breadcrumb already carries
+it; keep a genuinely informative **subtype** (an Asset's "Vehicle"), which
+renders as the first entry of the context line. The entity glyph stays on every
+record and keeps its `record-type__icon` hook, which is where a record's chosen
+identity colour lives.
+
+**Metadata tiers.** A fact appears in exactly one of them:
+
+| Tier | Where | Example |
+| --- | --- | --- |
+| Current state | context line / summary band | health, next obligation, progress, target date |
+| Secondary context | context line, quiet | Area, Goal, organisation and role |
+| Administrative | **Settings → Record details** | Created, Updated, raw State, template ids |
+
+Nothing is deleted — demoted metadata lands in a `RecordDetails` list inside the
+record's Settings tab. A record with no Settings tab puts it later in the record
+(the Goal's is the band's trailing `facts` line); adding a Settings tab purely
+to host timestamps is an information-architecture change, not a layout one.
+
+**Working content — the fold anchor.** At **1280×800**, with the header and tabs
+rendered, the first row of a record's working content is visible without
+scrolling. Notes show the editor with at least three lines; Meetings keep
+meeting content readable with the capture strip present. Guarded by
+[`e2e/record-anatomy.spec.ts`](../../e2e/record-anatomy.spec.ts).
+
+**Surfaces.** The tab panel is one surface. Sections inside it separate with
+spacing and typography, not a second outline. A tab whose content already brings
+its own single surface declares `surface: "plain"` so the record never draws a
+frame inside a frame — the Note's writing surface is the case this exists for.
+
+**Tabs and filters.** Tabs are `RecordTabs` everywhere: one typography, one
+indicator, one focus behaviour, and no wrapping at laptop widths. Filters are
+**visually subordinate** — `~/shared/segmented-filter` renders the shared
+segmented control at a reduced weight for exactly this reason. Tab = *where am
+I*; filter = *which subset*; the louder control answers the bigger question.
+
+**Empty states.** A record-level absence is `EmptyState size="inline"`: one calm
+line, left-aligned, no icon and no card. The icon + headline + description +
+button treatment is the **collection** state, where it teaches a first-time
+owner something they do not know.
+
+**Actions.** Ending a record (Complete, Archive) is a lifecycle action, not the
+surface's most likely next step, so it takes the low-emphasis treatment. A
+control is rendered only where the data behind it exists — a disabled "Call" on
+a person with no number is a control that can never do anything, and belongs
+absent rather than greyed out.
+
+**Local creation vs the global +.** A local create action survives only where
+context materially matters *and* it beats the global +. Contextual defaults are
+implemented only where they amount to passing an existing route param or prop
+through the existing capture architecture; anything needing more is skipped and
+recorded in [PRODUCT_DEBT](../product/PRODUCT_DEBT.md). Never two mechanisms for
+one outcome.
+
+**The shared tab toolbar.** `.dh-record-toolbar` is the row at the top of a tab
+panel: the subordinate filter on the leading edge, the tab's own local action
+(and its overflow) on the trailing edge. One class, so a record's toolbar sits
+at the same height and the same edges whichever record it is.
+
+### Supported configuration
+
+- **Header:** `title` (required) · `titleId`/`headingLevel` · `typeLabel` · `icon` · `status {label, tone}` · `breadcrumb[]` · `metadata[]` · `primaryAction` · `secondaryActions[]`. Every region is optional except the title and is omitted entirely when absent.
+- **Actions** (`RecordAction`): `label` (also the accessible name unless `ariaLabel` overrides) · `href` (renders a link) or `onSelect` (renders a button) · `variant` (`primary`/`secondary`) · `disabled`.
+- **Summary band** (`RecordSummaryBarProps`): `description` (prose; earns the card surface) · `progress` · `state` · `signals[]` · `facts[]` · `note` · `label`. Hard budget: one meter, one state chip, one signal line, one context line — anything more belongs in a tab.
+- **Summary card** (`RecordSummaryProps`): `description` · `metadata[]` · `emptyLabel`. Requested-but-empty shows a calm empty state.
+- **Record details** (`RecordDetails`): the Settings-tab home for demoted administrative metadata. `recordTimestampItems(createdAt, updatedAt)` formats the pair every record has, and omits an absent one rather than rendering an em dash.
+- **Tabs** (`RecordTab`): `id` · `label` · `content` · `disabled` (visible, not selectable) · `hidden` (omitted) · `badge` (decorative) · `surface` (`panel` default, or `plain` for content that brings its own). Controlled (`activeTabId` + `onTabChange`) or uncontrolled (`defaultTabId`); wire `onTabChange` to a URL param for deep-linking.
+
+**Mobile/touch contract.** Header actions wrap onto additional rows rather than
+disappearing or forcing width, and on coarse-pointer/touch devices every
+`RecordAction` uses the shared 44px touch-target floor. Long action labels wrap the
+header region, not the document. Each breadcrumb crumb is plain inline flow (not
+`inline-flex`): a long parent label (e.g. an Area title above a Goal) wraps across
+several lines on a narrow phone with its "/" separator staying attached to the
+first line, rather than a flex layout centring the separator against the whole
+wrapped block (fixed by AREA-04, see
+[`AREAS_MODULE.md`](../development/AREAS_MODULE.md#mobile-area-04)).
+- **Content** (`RecordContentProps`): `isLoading` · `isEmpty` · `error` · `loadingSlot`/`emptySlot`/`errorSlot` overrides · `label`. Precedence: error → loading → empty → children.
+
+### Responsive behaviour
+
+The layout is a **container-query context** (`container-type: inline-size`), so it adapts to the width of its container — the main region today, a [Drawer](#drawer) in DS-03 tomorrow — not the viewport. With `min-width: 0`, wrapping metadata, `overflow-wrap: anywhere` on titles/descriptions and a horizontally-scrollable tab strip, there is **no horizontal page overflow from 320px up**. On a narrow container, header actions take the full width beneath the title and grow to a comfortable target rather than disappearing.
+
+### Surface & boundaries
+
+A canonical record reads as ONE contained workspace, clearly bounded from the
+application canvas — never content dissolving into the page. The boundary is owned
+by the shared layout (`app/styles/record-layout.css`), on DS-01 tokens only, so
+every consumer (Area, Goal, Project, Note, Task) gets it identically:
+
+- The record has deliberate **spacing from the global left navigation** and the top
+  of the pane (`.record-layout` padding, `--app-space-6`/`--app-gutter`), suppressed
+  inside a Drawer where the drawer body already provides its own padding.
+- The **summary** and the **active tab panel / no-tabs content region** share ONE
+  contained surface treatment: `--md-app-color-surface-card` fill,
+  `--md-sys-shape-corner-large` and elevation 1 — so the tab content no longer
+  blends into the canvas, in both appearances, in every colour scheme.
+- **No doubled / stacked-card borders.** Cards inside a tab sit on
+  `--md-app-color-surface-raised` (one shade above the panel), so nested cards stay
+  distinct without a second concentric border; a state slot that carries its own
+  border (empty/error) drops it when nested directly inside the contained surface.
+  The result is a bounded record, not a stack of rounded cards inside rounded cards.
+- Existing container-query behaviour is unchanged; the record remains uncluttered
+  and free of horizontal overflow at 320px, and mobile is not "boxed in".
+
+### Record content sections (PX-06)
+
+Inside a tab panel, sections share ONE vertical rhythm (`app/styles/record-layout.css`), so a Task, a Project, a Meeting and a Review breathe identically:
+
+- **`.dh-record-stack`** — the stack of sections inside a panel.
+- **`.dh-record-section`** — one section within it.
+- **`.dh-record-section__label`** — a restrained uppercase eyebrow (never the record heading).
+- **`.dh-record-muted`** — calm supporting/absent-state prose.
+
+These replaced four private copies at three different gaps (the Task Drawer's `__links`/`__section`, which the Project links tab borrowed *by class name*, plus `dh-meeting-section` and `dh-review-tab-stack`). A module adds only what is genuinely its own on top.
+
+### Accessibility
+
+- **Landmarks & outline:** the record is an `article` labelled by its heading; the heading level is configurable so the surrounding page keeps a correct outline.
+- **Tabs:** the WAI-ARIA Tabs pattern — `role="tablist"`/`tab`/`tabpanel`, roving `tabindex`, `ArrowLeft/Right`/`Home`/`End` navigation that skips disabled tabs, and panels linked with `aria-labelledby`. The active tab is signalled by `aria-selected` **and** weight + an underline bar — **never colour alone**.
+- **Actions** always carry an accessible name; icon/terse labels use `ariaLabel`. **Focus** is visible on every control via the DS-01 focus ring. The loading region sets `aria-busy`; the error slot is a `role="alert"`. Motion (the skeleton shimmer) honours reduced-motion.
+
+### Correct vs incorrect usage
+
+- ✅ Compose a record from `RecordLayout`, passing plain typed data; put depth in `tabs`, essentials in `summary`.
+- ✅ Convey status with a `tone` **and** its label; give every action a real name.
+- ❌ Build a bespoke header/tab strip for a module, or restyle the layout with one-off CSS instead of extending tokens.
+- ❌ Encode meaning in colour alone (a red pill with no label), or use `RecordContent` error text without a recovery.
+- ❌ Bake entity-specific logic into the layout — it stays entity-agnostic; entity behaviour lives in the module.
+
+---
+
+## Shared Drawer (DS-03)
+
+The [Drawer](#drawer) pattern above is realised by ONE reusable, entity-agnostic overlay: the **Shared Drawer** ([DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer)), in [`app/shared/drawer`](../../app/shared/drawer). It opens any record over the current page without losing the user's place, is deep-linkable and stackable, and **hosts the [DS-02 Record Layout](#shared-record-layout-ds-02)** rather than inventing a second record presentation. It knows nothing about any entity, D1, workspaces or module routes — callers pass an opaque key and a render function. It builds entirely on [DS-01 tokens](#design-tokens-ds-01) (z-index, elevation, motion, colour, spacing) and is accepted in [ADR-018](../decisions/ARCHITECTURE_DECISIONS.md#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated).
+
+### Purpose
+
+Open a record *in context* — click a task in Today and it slides in over the page, which stays visible and keeps its state. The Drawer is the **default** way to open any record; full-page record views exist only where genuinely warranted (e.g. long-form Note editing). It must never lose the user's place.
+
+### Public anatomy
+
+```
+DrawerProvider (mount once, wraps the page)   ← owns the URL stack, focus, inertness, scroll lock
+  ├ renderDrawer(entry) → { title, description?, children, size?, preventClose?, initialFocusRef? } | null
+  ├ <the page>                                 ← rendered inert while a drawer is open
+  └ DrawerStack (only while open)              ← viewport-fixed sibling; scrim + one panel per level
+       └ Drawer (per level)                    ← role=dialog, aria-modal on top only
+            ├ header: title (accessible name) + optional description + always-present Close
+            └ body: children  ← a DS-02 RecordLayout (scrolls independently)
+
+useDrawer() → { entries, depth, isOpen, topKey, openDrawer, replaceDrawer, closeDrawer, closeAll }
+DrawerTrigger drawerKey=…   ← a link that opens a key (shareable href + SPA open)
+DrawerClose                 ← an in-content close control
+```
+
+Internal panel/stack/focus-trap/scroll-lock/inert machinery is **not** exported — callers never manage focus traps, portals, history entries or z-index.
+
+### URL & deep-link model
+
+The open stack lives entirely in the URL as a repeated `drawer` search parameter, backmost first:
+
+```
+/projects?status=active&drawer=project%3Aalpha&drawer=goal%3Anorth-star
+```
+
+The rendered stack is a **pure function of the URL**, so refresh, a copied link and Back/Forward all restore the same state — Drawer state is never held in ephemeral location state that a refresh would drop. Keys are opaque, URL-safe tokens; the `<kind>:<id>` shape is a *consumer* convention, never parsed by the Drawer. Every transform preserves unrelated query parameters. A **direct deep link** to a drawer URL renders server-side and coherently even with no background-location state; an unknown key yields a built-in, accessible not-found panel rather than a blank overlay.
+
+### Stack model
+
+- Opening pushes **one** history entry; re-opening the current top is a no-op (never a duplicate level).
+- Each nested drawer gets its own history entry; levels are keyed by **stack depth _and_ record key**, so opening a higher drawer **never remounts** the ones beneath it (their selected tab, scroll position and local state survive), while **replacing** the record at a depth (same depth, new key) **does** remount that level — so record-local state and mount-only initial focus never leak from a replaced record into its replacement.
+- Only the **top** drawer is interactive; lower levels are `inert`. Stack order maps to z-index via DS-01 tokens.
+- A generous depth cap replaces further pushes with a top-replace to bound pathological loops without limiting normal use.
+
+### Desktop & mobile presentation
+
+- **Desktop/laptop:** a calm side sheet entering from the right; the underlying page stays visible behind a restrained scrim; width fits a full Record Layout (`default`, or `wide`); the top drawer is visually distinct from prior levels; the panel never forces the document wider.
+- **Narrow/mobile:** a full-height, (near-)full-width sheet that respects safe-area insets, is usable at 320px, and introduces no horizontal page overflow. The DS-02 actions and tab strip stay reachable.
+- **Motion:** quick, restrained enter using DS-01 duration/easing tokens; instant under `prefers-reduced-motion`. No animation is required to understand the Drawer.
+
+### Focus, background inertness & scroll
+
+- **Focus:** on open, focus moves into the drawer — an explicit `initialFocusRef`, else the close button, else the first control. Tab/Shift+Tab are trapped and wrap. On close, focus returns to the opener when it still exists, else a safe fallback (never lost to `<body>`).
+- **Background inertness:** while a modal drawer is open, everything outside the top panel — the underlying page *and* the app shell — is `inert`, so it is unreachable by keyboard or assistive tech. Nested drawers never expose the level beneath. The top drawer is a `role="dialog"` with `aria-modal`, an accessible name (its title) and an optional `aria-describedby` description; the close control always has an accessible name.
+- **Escape & history:** Escape and the close button close **only the top** level (unless `preventClose` is set). Closing is *provenance-aware* (ADR-018 §18.2): a level the Drawer itself opened closes with browser **Back** (so Forward restores it); a directly deep-linked, copied-link or refreshed level instead has **only its top drawer parameter removed in place**, preserving the pathname, hash and unrelated query parameters — so closing a shared drawer link never navigates you to a different page. Browser Back closes the top; Forward restores an opener-pushed level; navigating to another page exits the stack. Closing is **idempotent per history entry**: because a Back-based close does not land synchronously, a second close request arriving before it does (Escape pressed twice quickly, Escape racing the close button) is ignored rather than popping a second time — so a repeated Escape closes the drawer and stops, never carrying the user off the record they were on. The guard is released as soon as the browser leaves that entry, including when **Forward restores it** (which re-enters the original entry under its original key), so a restored level is always closable again.
+- **Body scroll:** page scrolling is locked while open (the drawer body scrolls independently, with the header/close always reachable); the underlying scroll **position** is preserved by path-keyed `ScrollRestoration` (ADR-018 §18.6), so a drawer never moves the page.
+- State is never communicated by colour alone; focus uses the DS-01 focus ring; behaviour holds at 200% zoom.
+
+### Integrating a RecordLayout
+
+```tsx
+<DrawerProvider
+  renderDrawer={(entry) => {
+    const record = lookup(entry.key);          // caller maps key → data (or null)
+    if (!record) return null;                  // → graceful not-found panel
+    return {
+      title: record.title,                     // the dialog's accessible name
+      description: `${record.type} record`,
+      size: record.type === "note" ? "wide" : "default",
+      children: (
+        <RecordLayout title={record.title} headingLevel={3} typeLabel={record.type} …>
+          {/* related records open a stacked drawer */}
+          <DrawerTrigger drawerKey={`goal:${record.goalId}`}>Open goal</DrawerTrigger>
+        </RecordLayout>
+      ),
+    };
+  }}
+>
+  <Page />
+</DrawerProvider>
+
+// Anywhere inside the provider:
+const { openDrawer } = useDrawer();
+openDrawer(`task:${id}`);   // or <DrawerTrigger drawerKey={`task:${id}`}>…</DrawerTrigger>
+```
+
+### Correct vs incorrect usage
+
+- ✅ Mount **one** `DrawerProvider` per surface; open records by key with `useDrawer`/`DrawerTrigger`; host a `RecordLayout` as the drawer body.
+- ✅ Let the Drawer own focus, inertness, scroll-lock and history; return `null` from `renderDrawer` for unknown keys.
+- ✅ Use `size="wide"` only when a record genuinely needs it; use `preventClose` for unsaved-state guarding of the in-app affordances.
+- ❌ Build a bespoke modal/overlay, add a drawer/modal dependency, or duplicate the record scaffold inside a drawer.
+- ❌ Hold drawer state in component booleans or ephemeral location state (breaks refresh/deep links), or parse entity meaning out of the key.
+- ❌ Manage focus traps, portals, z-index or history entries by hand, or convey state by colour alone.
+
+### Extension rules
+
+Add a `size` variant, a stack-metadata field or a presentation option to the shared Drawer only when a real record needs it, and document it here — never fork the Drawer per module. Real product record routes (replacing the fixture's `<kind>:<id>` keys) arrive when a module first adopts the Drawer; DS-03 ships the mechanism and a development fixture only.
+
+---
+
+## Shared Cards (DS-04)
+
+The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic component: the **Shared Card** ([DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards)), in [`app/shared/card`](../../app/shared/card). Every entity type — Area, Goal, Project, Task, Person, Note, … — renders through this one Card configured with data. There is **no** `TaskCard`/`ProjectCard`/`GoalCard`/`PersonCard`/`NoteCard`; a bespoke per-module card is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. **The one documented exception is the task ROW** ([below](#the-task-row-ds-04-2026-08)), which is not a card and does not try to be: it is a column grid, and the rule it establishes is that a product component is legitimate when the generic one cannot express the LAYOUT — never when it merely wants different styling. The Card builds entirely on [DS-01 tokens](#design-tokens-ds-01) (card.css) and opens records through the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
+
+**Purpose.** The shared unit for representing an entity in a list, board or grid, with selection, quick actions, density and an accessible primary open action — configured, never forked.
+
+**Entity-agnostic rule.** The Card knows nothing about D1, repositories, workspaces, the Area hierarchy, Project/Task rules, real routes, module loaders or Cloudflare bindings. It accepts generic presentation concepts only (a `typeLabel`, an `icon`, a `tone`), so entity-specific business rules stay in the future modules that configure it.
+
+**Anatomy.**
+
+```
+<article aria-labelledby=title>                 ← labelled, NON-interactive card landmark
+  [reorderHandle]  (from ReorderableCardCollection)
+  [selection]      ← native checkbox; never opens the record
+  body
+    ├ type row: entity icon (decorative) + type label · status pill (tone + label)
+    ├ title      ← the PRIMARY OPEN TARGET: a real link and/or button
+    ├ subtitle / context (parent label) / due-or-date label
+    ├ progress   ← role=progressbar with an accessible text equivalent
+    └ metadata[] ← a small, wrapping, typed collection
+  actions        ← quick actions + optional overflow; reveal on hover/focus, always
+                   reachable by keyboard and on touch; each stops propagation
+```
+
+**Typed public contract.** `CardProps` (see [`app/shared/card/types.ts`](../../app/shared/card/types.ts)): stable `id` · `title` (required) · `typeLabel`/`icon`/`accent` · `subtitle` · `status {label, tone}` · `metadata[]` · `progress {value, max?, label?}` · `context {label, href?}` · `dateLabel {label, tone?}` · `selection {selected, onSelectedChange, disabled?, label?}` · `quickActions[]` · `overflowAction` · `onLongPress` · `href` and/or `onOpen` + `openAriaLabel` · `density` · `presentation` · `rovingTabIndex` · `reorderHandle`.
+
+**Editable values in the metadata slot (TASKS-05).** A `metadata[]` entry's `value` is a `ReactNode`, so a module may put a [DS-16 inline field](#inline-editing-ds-16) there and make the value itself the control — which is how a Task row edits its priority, its two dates and its parent without opening the record. Two rules make this safe to copy: the READ state must be exactly what the row would have shown anyway (no new chrome, no pencil beside every value), and the empty state must be a short, quiet invitation that names the field ("No due date", "Unassigned") rather than a zero-height target. Do **not** put an inline field in `title` — the title is the card's primary open control, and replacing it permanently would take the record away; use `titleEditor` for a transient rename instead.
+
+**Range selection (`onSelectedChange(selected, modifiers)`).** The Card REPORTS whether Shift was held; it never interprets it. Only the collection knows what order its rows are in, and a range is "everything between these two rows" in DISPLAY order. A consumer that ignores the second argument behaves exactly as before.
+
+**Touch long press (`onLongPress`, TASKS-08).** An optional hold-to-select gesture, gated on the same touch-first media query as the swipe tray, armed only on the card surface (never a nested control), cancelled by any drift, and suppressing the click the hold would otherwise also produce. It is inert unless supplied and inert on a pointer device. It is an **accelerator**: a consumer that wires it MUST also expose an ordinary labelled selection control — the Card's own checkbox, plus a visible selection toggle on the collection — because a gesture has no keyboard or assistive-technology equivalent.
+
+**Primary open action & Drawer integration.** Activating the title opens the record in the [DS-03 Drawer](#shared-drawer-ds-03) — but the Card does **not** own Drawer state or parse drawer keys. Provide `href` (a shareable link, e.g. a drawer deep link), `onOpen` (an SPA callback), or **both**: an unmodified click opens via `onOpen`; a modified/middle click follows the `href` (open in a new tab). Mouse and keyboard both open; the target always has an accessible name; there is no inaccessible `div onClick` and no nested-interactive violation (the card root is a plain `article`). Opening a Drawer from a filtered collection preserves the active filter query parameters (they live in different URL parameters — [DS-07](#shared-filters-ds-07) `f`/`fmode`/`fv` vs DS-03 `drawer`).
+
+**Selection.** Controlled and native: a real checkbox with an accessible name, a change callback, keyboard operation, and a selected state conveyed by the checked checkbox **and** a border/surface cue — never colour alone. Selection never opens the record, remains visible in both densities, and does not depend on hover (reachable on touch). Bulk mutations/Inspector are out of scope (later items).
+
+**Quick actions.** A curated two or three per card (the long tail lives in the overflow or [Command Palette](#command-palette)). Each is a button or link with a stable id, a visible label or explicit `ariaLabel`, optional icon, disabled and generic `pending` states, and optional shortcut/description metadata. Actions reveal on hover/focus for pointer/keyboard and are always reachable on touch; they stop propagation so they never open the card; disabled/pending actions cannot fire; meaning is never icon- or colour-only. The Card implements **no** optimistic mutation or Undo (DS-10) and hard-codes **no** Task-specific action.
+
+Two rules the August 2026 UI quality audit made explicit (UIQ-001/UIQ-002), because their absence produced the audit's two worst desktop defects:
+
+- **Concealed actions are absent to the pointer, present to the keyboard.** On a hover-capable fine pointer the revealed rail **overlays** the list row's trailing edge on the row's own surface colour — it is never an in-flow sibling whose invisible reserved width squeezes the title and metadata (that reservation cost Today a third of every row). While concealed it is `pointer-events: none`, so nothing invisible is ever hit-testable — and deliberately **not** `visibility: hidden`, which would also make the buttons unfocusable and drop them from the accessibility tree; Tab reaching a concealed action is itself what reveals the rail (`:focus-within`). Geometry is stable because nothing is reserved and nothing reflows. On touch the rail stays in flow and always visible — there the space is genuinely used.
+- **The surface over the swipe tray stays opaque.** Row hover/selected states mix their tint over `--md-app-color-surface-card`, never over `transparent`: the tray behind the surface relies on the surface covering it, and a translucent state uncovered it on every desktop hover.
+
+**Progress & metadata.** Progress takes a bounded `value` against `max` (default 1), normalises invalid/NaN/negative/over-max input safely, and exposes `role="progressbar"` with `aria-valuetext` plus visible text — understandable without colour, correct at zero and complete. Metadata is a small typed collection that wraps safely, stays readable in compact mode, handles long unbroken strings (`overflow-wrap: anywhere`), and never turns the card into a miniature record page.
+
+**Density, list/board/grid.** `density` is `comfortable` or `compact`; `presentation` is `list`, `board` or `grid` — the **same** component in all three. Presentation changes spacing/placement but never removes essential information or actions. At 320px there is no horizontal document overflow, title/metadata wrap, selection and quick actions stay reachable, touch targets meet the 44px token, and the open action stays obvious.
+
+**Roving-focus membership (`rovingTabIndex`).** For a keyboard-navigable collection (a surface where Arrow keys move a single focus across many cards — e.g. the Today task list, TODAY-05), the optional `rovingTabIndex` prop is applied to **only the card's primary open control** (`0` for the active card, `-1` for the rest), so the collection is a single composite widget with **exactly one tab stop**: Tab enters once and lands on the current card, Arrow keys move between cards, Tab/Shift+Tab leave/re-enter. The card's SECONDARY controls (selection checkbox, quick/overflow actions) are always removed from the tab order (`tabindex="-1"`) while roving is active — Tab never stops on them — yet stay operable by pointer and by keyboard through the collection's own model (Space selects the focused card) and the shared contextual commands / Command Palette (every action has a keyboard equivalent). Undefined (the default) leaves natural tab behaviour unchanged, so every existing consumer is untouched. This is the accessible roving-`tabindex` composite (like RecordTabs) rather than a `listbox`/`aria-activedescendant` widget — correct here because a card legitimately contains interactive children, which a listbox option may not.
+
+**Reorder model & keyboard equivalent.** DESIGN_SYSTEM requires drag with a keyboard equivalent. `ReorderableCardCollection` (with `CardReorderHandle`) provides both over the browser platform — Pointer Events + keyboard — with **no drag-and-drop dependency**. Pointer users grab the handle and drag; keyboard users focus the handle, press Enter/Space to pick up, Arrow Up/Down to move, Enter/Space to drop, Escape to cancel (restoring order). The handle has an accessible name; position/movement are announced via a live region; reordering **emits intent** (`onReorder(nextIds, detail)`) rather than mutating business data (no hidden database update); non-reorderable cards are pinned and cannot move. The **permutation guarantee** is enforced by capturing the committed collection (id order + pinned set) when the drag begins and cancelling cleanly if *anything* changes before drop — an item added, removed, reordered externally, or flipped between reorderable and pinned — so `onReorder` never emits a deleted id, omits a new one, or violates the current order; focus stays predictable. It works in both densities and does not rely on tiny touch targets. **Reorder is list presentation only** for now: pointer targeting is one-dimensional (vertical), which is correct for a single-column list but not a multi-column grid — a genuine two-dimensional grid reorder is deferred to a later item. `CardCollection` is the plain (non-reorderable) container for list/board/grid; grid and board layouts use it and do **not** offer drag.
+
+**Accessibility.** Semantic card structure (`article` + heading); accessible primary open action with visible focus; native, labelled selection; keyboard-accessible quick actions that are never hover-only; status/date as text (not colour alone); labelled/valued progress; a keyboard-operable, announced reorder handle; logical tab order; no nested-button/link violations. The title heading level is configurable via **`headingLevel`** (2 | 3 | 4, default 3) so cards nest correctly under the surrounding heading — a Collection pane header at `h1` renders its cards at `h2`, a card under an `h2` section at `h3` — keeping the document's heading outline valid with no skipped levels (DS-11).
+
+**Correct vs incorrect usage.**
+
+- ✅ Configure ONE `Card` with plain typed data for any entity; give the title an `href`/`onOpen` that opens the DS-03 Drawer; keep quick actions a curated few.
+- ✅ Use `ReorderableCardCollection` for accessible reorder and let it emit intent; treat progress/status/date as text-bearing.
+- ❌ Build a `TaskCard`/`ProjectCard`/… or bake entity/business logic into the Card; make the whole card a single click target (`div onClick`) or nest interactive controls; convey selection/status by colour alone; hide quick actions from touch; mutate data inside a reorder.
+
+**Extension rules.** Add an affordance to the **one** shared Card (and document it here) only when a real entity needs it; never fork per module. Real product card usages arrive when a module first adopts DS-04 — this ships the component plus a development fixture only.
+
+---
+
+## The task ROW (DS-04, 2026-08)
+
+The `/tasks` workspace does not render tasks as [Cards](#shared-cards-ds-04). It renders a **row** — `TaskRow` / `TaskList` / `TaskGroup` in [`app/shared/task-record/`](../../app/shared/task-record/) — accepted in [ADR-095](../decisions/ARCHITECTURE_DECISIONS.md#adr-095-the-task-row--a-product-component-over-the-generic-card-one-column-grid-and-container-queries-as-the-responsive-authority-for-a-list) and specified in [`DS_04_TASKS_REDESIGN_2026_08.md`](DS_04_TASKS_REDESIGN_2026_08.md).
+
+**Why this is not a forked card.** The Card lays its metadata out as a wrapping flex RUN. A task list is a COLUMN GRID: a date column only reads as a column because every date in it starts at the same x, and no amount of styling makes a flex run do that. The distinction is structural, which is what makes the exception a rule rather than a precedent for "my module wants different padding".
+
+**Anatomy.**
+
+```
+<div class="dh-tasklist" data-dh-density="compact|default">  ← the owner's density; declares --taskrow-columns; a query CONTAINER
+  <div class="dh-tasklist__columns" aria-hidden>        ← Task · Project · Due · Priority · Status
+  <ul class="dh-tasklist__rows" aria-label>             ← real list semantics
+    <li class="dh-taskrow">                             ← no surface: a hairline, a hover wash
+      lead     [select?] [completion circle]
+      main     <h2|h3> title link · repeat/sync signals
+      meta     project · due · priority · status        ← display:contents on desktop, flex on a phone
+      actions  overflow menu (hover/focus; always on touch)
+```
+
+**The rules a task-bearing surface inherits.**
+
+1. **The title is the only flexible column.** `minmax(0, 1fr)`, so it truncates inside its track. Metadata yields before the title does — status first, then priority, then project.
+2. **Hierarchy is the metadata being quieter, never the title being louder.** The title takes `--dh-text-row-*` at the ROW weight; cells take `--dh-text-meta-*` in the muted role.
+3. **One bounded coloured container per row**, and only where the fact appears nowhere else. Project is a dot; a date is text; priority is a dot and a tag.
+4. **The row's height is the completion control's target.** No block padding on top of it.
+5. **Breakpoints are the LIST's width.** `container-type: inline-size`, and the template is re-declared on `.dh-tasklist__columns, .dh-taskrow` inside each query — a container query can never style its own container.
+6. **Quiet is a property of the paint.** An affordance may be invisible until hover; it may never be smaller than 24×24.
+7. **The row owns no authority.** Every edit is a shared control posting a canonical intent.
+
+**Adoption.** DS-04 wired it into `/tasks` only. [TODAY-TASK-01](TODAY_TASK_01_ONE_TASK_ROW_2026_08.md) added **Today's plan** as its second caller and closed [DEBT-143](../product/PRODUCT_DEBT.md) with it — Today's private row is deleted, and the module declares no `.dh-today .dh-taskrow` structural override. Projects and search still render Cards ([DEBT-128](../product/PRODUCT_DEBT.md)).
+
+**What a second caller supplies, and what it must NOT.** The row asks for data plus callbacks and nothing else. A new caller supplies:
+
+| It supplies | From |
+|---|---|
+| `task` | `toTaskRowProjection(item)` — the SHARED display projection ([`task-view.ts`](../../app/shared/task-record/task-view.ts)). Never a hand-rolled derivation of the display state, the completion flag or the waiting flag. |
+| `parents` | ONE bounded `searchTaskParents({ limit })` in its loader. Never a query per row, never the whole workspace. |
+| `overflowActions` | `buildTaskRowActions(task, handlers, { readOnly })` ([`task-row-actions.tsx`](../../app/shared/task-record/task-row-actions.tsx)) — the shared SET. A caller omits an item by passing no handler for it, and states why; it never assembles a menu of its own. |
+| the callbacks | Its own host, posting the canonical intents through [`task-inline-edit.ts`](../../app/shared/task-record/task-inline-edit.ts) to `POST /tasks/:id` and `POST /tasks/bulk`. **A surface never gets a mutation endpoint of its own.** |
+
+It must not add a Today-shaped (or Projects-shaped) column, a per-surface stylesheet override of the grid, or a second optimistic applier — `applyTaskListItemPatch` is shared and generic over the record type for exactly that reason.
+
+**Two-caller rule for the ladder.** The responsive template is the LIST's, and both callers run it at different widths — `/tasks` at ~56rem+, Today's plan at ~38–44rem, both at ~21rem on a phone. A width that only one caller reaches is still a shared rung: TODAY-TASK-01 found the ≤56rem and ≤44rem rungs carrying track widths from before FINAL-UI swapped the date and project columns, which was a wide gap on `/tasks` and a one-letter project name on Today. Fix the rung, never the caller.
+
+## Shared overflow menu (DS-12)
+
+The [Overflow menu](#overflow-menu) pattern is realised by ONE reusable, entity-agnostic component: the **Shared overflow menu** ([DS-12](../roadmap/ROADMAP_V2.md#-ds-12--record-header-overflow-menu--card-overflow-action)), in [`app/shared/overflow-menu`](../../app/shared/overflow-menu). The [DS-02 Record Header](#shared-record-layout-ds-02) and the [DS-04 Card](#shared-cards-ds-04) render the SAME component with the SAME item model, so a secondary or destructive action looks, reads and behaves identically wherever it appears. Accepted in [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+**Purpose.** Give the product one conventional home for the long tail of record actions — above all Archive / Restore / Delete — instead of a per-module invention (a header button here, a Settings sub-tab there, nothing at all somewhere else).
+
+**Item model.** `OverflowMenuItem` ([`types.ts`](../../app/shared/overflow-menu/types.ts)) is the `RecordAction`/`CardAction` shape plus the two things a menu needs and a button row does not: a `tone` (`default` | `danger`) and a `separatorBefore` group break. Fields: `id` · `label` · `ariaLabel` · `icon` · `description` · `href` **or** `onSelect` · `disabled` · `pending` · `tone` · `separatorBefore`.
+
+**Anatomy.**
+
+```
+<div class=dh-overflow-menu>
+  <button aria-haspopup="menu" aria-expanded aria-controls aria-label="More actions for <record>">⋯</button>
+  <div role="menu" aria-labelledby=trigger>            ← only while open
+    <button|a role="menuitem">  icon? · label · description?
+```
+
+**Behaviour.** A WAI-ARIA **menu button**, deliberately **non-modal**: it adds no second focus-trap, makes nothing inert and locks no scroll (so it composes inside a Drawer, an Inspector or a Card without fighting them). Click/Enter/Space/ArrowDown open with the first item focused; ArrowUp opens with the last. Arrow keys wrap; Home/End jump. **Escape closes only this menu** (the event is stopped, so an enclosing Drawer never also closes) and restores focus to the trigger; Tab leaves naturally; an outside pointer press dismisses. A disabled or `pending` item cannot fire.
+
+**Two presentations, one implementation (MOBILE-01, iPhone daily driver).** Above `md` the panel is the anchored, measured surface described above. Below `md` the SAME items — same order, same ids, same `role="menu"` / `role="menuitem"` semantics, same roving tabindex, same keyboard contract — render inside the [shared Sheet](#the-shared-sheet), and the panel carries `data-presentation="sheet"`. The trigger's `aria-haspopup` follows the presentation (`dialog` on a phone, `menu` otherwise); a `menu` inside a `dialog` is valid ARIA, and keeping it is what lets one component serve both surfaces rather than forking into two item lists. Only the two behaviours that belong to the anchored presentation are switched off in sheet mode: the measured flip/clamp placement, and outside-pointer dismissal — the latter *must* be, because the sheet is portalled to `<body>`, so a tap on one of its own items is "outside the trigger's container".
+
+Why: the anchored panel measured **208px wide at a 390px viewport**, with three of six actions wrapping onto two and three lines, which is the "tiny popover inside a 320–430px layout" the [shared Sheet](#the-shared-sheet) rules forbid. Do **not** answer a narrow-viewport menu with a module-specific overlay; this is where the phone answer lives.
+
+**Activation order is load-bearing.** Choosing a button item **closes the menu and focuses the persistent ⋯ trigger FIRST, then runs the handler** — so a handler that opens a dialog (every lifecycle action does) sees a live `document.activeElement` to return focus to when that dialog closes. Running the handler first would hand the dialog the menu item that is about to unmount, and cancelling would drop the keyboard user at the top of the page. A link item is exempt: it is about to navigate, so pulling focus back would fight the navigation.
+
+**Accessibility.** The trigger always names the record it acts on (`More actions for <title>`) so several card menus on one page stay distinguishable. An item's `description` is rendered inside the item but referenced via `aria-describedby` and kept out of the accessible *name*. Destructive items carry `tone="danger"` **and** the word "Delete" — never colour alone. Touch targets meet the 44px token.
+
+**Card integration.** `CardProps.overflowActions` is the contract; the legacy single `overflowAction` is normalised into the same one-item menu, so there is exactly ONE overflow rendering. A swipe-enabled card un-clips itself only while its menu is open, so the panel is never cut off.
+
+**Correct vs incorrect usage.**
+
+- ✅ Pass `overflowActions` to `RecordLayout` (or a `Card`) and let the shared menu render it; keep exactly one primary action in the header.
+- ✅ Keep a blocked action visible and disabled with a `description` explaining the precondition.
+- ❌ Build a second menu/popover; put a destructive action only in a Settings sub-tab; convey "destructive" with colour alone; hide an action the user is allowed to learn about.
+
+**Viewport placement (UIQ-021).** The panel is placed WITHIN the viewport, using the same philosophy the shared [Tooltip](#tooltip-m3-tip) already uses — measure the trigger's viewport rect, flip, clamp against a small edge margin — applied to a surface that has real height. It used to be `top: 100%` and nothing else, so a long menu (a Tasks row carries about twelve items ≈ 713px) opened low on the screen simply ran off the bottom and the page had to be scrolled to reach its last item.
+
+The decision is a pure function ([`menu-placement.ts`](../../app/shared/overflow-menu/menu-placement.ts), no React, no DOM — the `swipe-model` precedent), so it is unit-testable as plain numbers:
+
+1. prefer the ordinary below-trigger placement when the whole menu fits;
+2. flip above when the whole menu fits there instead;
+3. when neither side can contain it, take the larger side and CLAMP the height to it — the panel then scrolls its own items, rather than the page scrolling around it;
+4. keep an 8px margin from every viewport edge, and shift inline so a menu near the leading or trailing edge stays fully readable;
+5. never clamp below a usable height — on a very short viewport the margin yields instead, because a menu clamped to nothing is a menu nobody can use.
+
+`data-side` and the clamp are **presentation only**. Flipping and clamping change no keyboard semantics, no item order and no focus behaviour: a menu that opens upward is navigated exactly like one that opens down, Home/End still reach the ends, and the scroll container brings the focused item into view. There is no positioning dependency — the panel stays absolutely positioned against its trigger and only switches which edge it anchors to. The measurement re-runs on scroll and resize, because the menu is deliberately non-modal and the page behind it still moves.
+
+**Extension rules.** Add an affordance to the one shared menu (and document it here) only when a real record needs it. Never fork per module.
+
+---
+
+## Shared record lifecycle (PX-04)
+
+The [Record lifecycle](#record-lifecycle) pattern is realised by ONE hook and ONE vocabulary ([PX-04](../roadmap/ROADMAP_V2.md#-px-04--lifecycle--destructive-action-consistency)), in [`app/shared/record-lifecycle`](../../app/shared/record-lifecycle). Every record composes it, so "how do I remove this?" has the same answer, in the same place, in the same words, on every entity. Accepted in [ADR-053](../decisions/ARCHITECTURE_DECISIONS.md#adr-053-the-shared-overflow-menu-and-one-record-lifecycle-vocabulary).
+
+### One vocabulary
+
+`lifecycle-copy.ts` derives every label from ONE input — the entity type — through the PX-02 [`ENTITY_IDENTITY`](#entity-identity-px-02) map. A module never writes a lifecycle label:
+
+| Act | Menu label | Confirmation | Recovery |
+|---|---|---|---|
+| **Archive** | `Archive <Entity>` | a plain confirm naming the consequence | Restore, any time |
+| **Restore** | `Restore <Entity>` | a plain confirm | — |
+| **Delete** (reversible) | `Delete <Entity>` | **none** — friction would be noise | an **Undo** toast, plus a durable "Deleted" collection view |
+| **Delete permanently** | `Delete <Entity> permanently` | a **typed confirmation** of the record's exact title | none — and it says so |
+
+Success messages (`<Entity> archived` / `restored` / `deleted`) come from the same module, so the Settings tab and the header overflow can never drift apart.
+
+### The hook
+
+`useRecordLifecycle({ entityType, title, archived?, onArchive?, onRestore?, onDelete?, deleteMode?, deleteBlockedReason?, pending?, leadingItems?, notifyOnSuccess? })` returns `{ overflowActions, dialogs }`:
+
+- `overflowActions` goes straight to `RecordLayout`'s `overflowActions` (or a Card's), always ordered **module items → Archive/Restore → Delete**, with one decorative separator before the lifecycle group.
+- `dialogs` is rendered inside the record; it hosts the DS-10b [`ConfirmationDialog`](#settings-layout-ds-10b) — no second focus-trap, no second confirmation modal.
+- The hook owns **presentation only**. A module supplies async callbacks that post to its own trusted route; the server stays the authority. A **rejected callback keeps the dialog open with an inline error and a retry** — a lifecycle action never closes as though it worked. On the reversible path (which fires without awaiting) a rejection is caught rather than left unhandled.
+- `deleteBlockedReason` renders Delete **visible but disabled** with the precondition spelled out (e.g. "Move or remove everything inside this Area first"), so a capability is never silently hidden.
+
+### Reversible removal, shared
+
+`useReversibleDelete` is the Notes pattern ([ADR-042](../decisions/ARCHITECTURE_DECISIONS.md#adr-042--notes-autosave-adaptation-and-the-first-generic-record-lifecycle-soft-deleterestore-ui-pattern)) generalised: one deliberate click → a REAL server soft-delete → a redirect back to the collection → an **Undo** toast whose handler calls the mirror `restore` intent. `useCollectionRestore` is the other half — the one-click restore, with in-flight bookkeeping, that a "Deleted" collection view needs. Notes, Goals and Diary all run on these; no module re-implements them.
+
+Two rules the hook enforces so removal stays trustworthy when the network does not:
+
+- **A rejected request always clears its pending state** (a `finally`, not a happy path). Otherwise a fetch fault or a non-JSON response would leave the record's Delete action disabled until a page reload.
+- **The route's own recovery message wins.** `post` may return a bare `boolean` or `{ ok, error }`; when the route already explained what to do first ("This Goal still has active Projects…"), that sentence reaches the user instead of a generic "try again" they cannot act on.
+
+**A "Deleted" view paginates.** It is the durable path back, so it must not become a dead end of its own: the view carries `state=deleted` through every page rather than borrowing the active collection's paginator, whose cursor belongs to a different scope.
+
+### Where the actions live
+
+The **Record Header overflow is the primary entry point on every record**. A module may *also* keep a Settings tab (where there is genuinely more to explain — dependency counts, workflow status, blocked-delete detail), but Settings is never the only way in. The two surfaces share the same handlers and the same wording.
+
+**Current coverage.** Area (archive/restore + permanent delete, gated by the spine dependency guard) · Goal (reversible delete + Undo + a Deleted view) · Project (archive/restore) · Note (reversible delete + Undo + a Deleted view) · Diary entry (reversible delete + Undo) · Person, Asset, Review (archive/restore + permanent delete) · Meeting (archive/restore). **Task is deliberately excluded**: a Task's removal semantic is **Cancel** (a first-class display state), and a Task lives inside its Project's lifecycle — adding a second removal concept would muddy rather than unify. That exclusion is a decision, not an omission.
+
+---
+
+## Shared Filters (DS-07)
+
+The [Filters](#filters) pattern above is realised by ONE reusable, entity-agnostic system: the **Shared Filters** ([DS-07](../roadmap/ROADMAP_V2.md#-ds-07--shared-filters)), in [`app/shared/filters`](../../app/shared/filters). One filter system drives **every** collection — Today, Projects, Search and all lists — never a per-module filter bar. Its **pure model** (definitions, expressions, operators, evaluator, URL codec, saved-view data, display formatting) imports no React and is re-exported from a dedicated entry [`app/shared/filters/model`](../../app/shared/filters/model.ts), so a server-backed module can translate a filter expression into its own query layer without resolving any React or UI code (an import guard test enforces this). The React UI is exported separately from `~/shared/filters`. It builds on [DS-01 tokens](#design-tokens-ds-01) and its URL contract composes cleanly with the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
+
+**Purpose.** Narrow any collection with a consistent, URL-backed control — the reusable "collection language" a module consumes by registering typed fields and supplying records.
+
+> **Which filter model does a new collection use? (X-02, one sentence, no qualification.)**
+> A collection that filters records **in the browser** — over supplied records, a fixture set, or a page it already holds — uses DS-07's `FilterExpression`, described below.
+> A collection whose filters are executed **by a repository**, and *any* collection with **saved views**, uses the declarative view configuration in [`app/kernel/views`](../../app/kernel/views) ([ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract), [`VIEWS_MODULE.md`](../development/VIEWS_MODULE.md)).
+>
+> The distinction is not stylistic. A `FilterExpression` names a FIELD and an OPERATOR, which is exactly right for a client-side evaluator and exactly wrong to persist — a stored view able to name a repository field is a persisted injection surface. The view configuration names DIMENSIONS from closed sets and lets the repository choose the predicate, which is what makes it safe to store and to restore from an untrusted URL. Today DS-07 drives the Activity feed and the design fixtures; Tasks and the cross-module `/views` surface use the view configuration. This is the whole of what [DEBT-49](../product/PRODUCT_DEBT.md#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3--resolved-2026-08-08-x-02) asked for, and there is no third model.
+
+**Filter-definition contract.** A module registers `FilterFieldDefinition[]` ([`app/shared/filters/types.ts`](../../app/shared/filters/types.ts)): field `id` · `label` · `type` (value type) · optional `operators` override · `options` (enum/reference/multi-enum) · `allowMultipleClauses` · a client-side `accessor` (for local/fixture evaluation) · optional `formatValue` (chip display). Nothing here is business logic, and nothing here is React — the field definition stays framework-free. Custom value-control rendering (the seam DS-06 shared form controls plug into) is a **UI-only** concern: a consumer supplies a `FilterValueControls` registry (field id → renderer, from [`app/shared/filters/value-controls.ts`](../../app/shared/filters/value-controls.ts)) to the `FilterBar`, keeping React out of the model.
+
+**Expression model.** A bounded, non-recursive `FilterExpression = { mode: "and" | "or"; clauses: FilterClause[] }`; each `FilterClause` is `{ id, field, operator, value? }`. It is serialisable, comparable (`expressionsEqual`, ignoring clause ids) and validated against the registered definitions — deliberately **not** a general query language or a recursive builder. Clause `id` is stable identity for React keys/focus/editing and is **not** part of the serialised URL.
+
+**Generic value types & operators.** Value types: `text`, `boolean`, `enum`, `number`, `date`, `reference`, `multi-enum`. Operators are value-type appropriate (`OPERATORS_BY_TYPE`), so nonsensical combinations cannot be built:
+
+| Type | Operators |
+|---|---|
+| text | contains · does not contain · equals · is empty · is not empty |
+| enum / reference | is · is not · is any of · is none of · is empty · is not empty |
+| multi-enum | is any of · is none of · is empty · is not empty |
+| number / progress | equals · greater than · less than · between · is empty · is not empty |
+| date | on · before · after · between · is empty · is not empty |
+| boolean | is true · is false |
+
+Each operator declares a value **arity** (`none`/`scalar`/`list`/`range`), so no-value operators show no value control and an invalid clause cannot be applied. The client-side evaluator (`matchesExpression`/`filterRecords`) is pure and deterministic: it handles missing/null values, compares dates by UTC calendar day (stable across timezone/UTC boundaries), leaves source data unmodified, and drops invalid clauses rather than throwing.
+
+**Type-appropriate validation.** Validation enforces the field's declared value **type**, not just operator arity, so a clause restored from an untrusted URL cannot slip through with an inappropriate value: text requires a non-empty string; number requires a finite number (rejecting `NaN`/`±Infinity`, empty strings and arbitrary text; ranges require two finite numeric strings); date requires strict `YYYY-MM-DD` calendar dates (rejecting impossible dates, timestamps, booleans and numbers; ranges require two valid dates); enum/reference require string scalars and non-empty string lists; multi-enum membership requires non-empty string arrays; boolean uses no-value `is_true`/`is_false`. For enum/reference/multi-enum, **unknown option values are retained** for forward compatibility (a field's `options` may be partial or lazily loaded, and a saved view must not break when the option list changes) — only the value *type* is enforced. A field's `operators` override may only **narrow** the type's default set; a widening override is a field-definition bug that throws in development and is clamped to the safe intersection in production.
+
+**AND/OR rules.** A single `mode` composes all clauses with AND (default) or OR (offered when it is meaningful — more than one clause). AND requires every clause; OR requires at least one; an empty expression matches everything. AND/OR is presented as a labelled radio group — understandable without colour.
+
+**URL contract.** Filters live in the URL, never only in component state (`useFilterUrlState`). The encoding is **repeated, versioned and safely encoded** — not one opaque JSON blob:
+
+```
+/tasks?status=active&fv=1&f=status%3Ais%3A%22open%22&f=title%3Acontains%3A%22hi%22&fmode=or
+```
+
+- `fv` — a format version (forward-compatible; an unknown version is ignored wholesale).
+- `f` — one per clause: `field:operator` for no-value operators, else `field:operator:<json-value>` (a small per-clause JSON scalar/array/range — correct for punctuation, spaces, Unicode and URL-reserved characters, and deterministic for our fixed value shapes).
+- `fmode` — present only for `or` (AND adds no state).
+
+Active filters survive refresh and copied links; Back/Forward restores prior states; unrelated parameters — including DS-03's repeated `drawer` parameters — are preserved, and opening/closing a Drawer preserves filters; filter changes don't reset scroll unnecessarily; empty filters remove all URL residue; equivalent states produce deterministic URLs; duplicate/single-valued fields have defined behaviour; clause count and encoded size are bounded.
+
+**Malformed / deep-link behaviour.** Decoding is total and defensive: there is **no `eval`, no `Function`, no unsafe deserialisation** — only bounded `JSON.parse` in a `try/catch`. Malformed values, unknown fields/operators, oversized clauses and excess clauses are dropped safely (`sanitiseExpression`); an unknown version yields an empty expression; a hostile or huge URL is rejected/truncated rather than trusted.
+
+**Filter Bar anatomy.** One reusable `FilterBar`: Add-filter (a focus-managed popover), active chips (edit + labelled remove), Clear-all, an AND/OR mode control (when meaningful), an optional result count (announced via a polite live region), and an optional saved-view selector with a modified indicator; it wraps/scrolls responsively and stays usable at 320px.
+
+**Chips.** Each chip shows readable field/operator/value text (option labels for enums, not raw values), is its own edit trigger, and carries a separately-labelled remove control; state is never colour-only.
+
+**Add/edit flow.** Choose field → choose a valid operator → enter/choose a value where required → apply; then edit or remove the chip. Changing the field resets incompatible operator/value state; no-value operators show no value control; invalid clauses can't be applied (with a clear message); cancelling leaves the filter unchanged; editing preserves the clause's stable identity; no entered value is silently discarded. Controls are restrained native elements until DS-06 replaces them behind the same contract.
+
+**Saved-view adapter contract.** Storage-agnostic (`SavedViewAdapter`): `views` · `activeViewId` · `onSelect`/`onSaveRequested`/`onUpdateRequested`/`onDeleteRequested`. A `SavedView` is `{ id, name, expression, description?, createdAt?, updatedAt? }`. The Filter Bar exposes exactly these interactions — select, save-as, update and delete; it advertises **no** rename callback because it has no rename interaction yet (a saved-view *management* surface, incl. rename, arrives with X-02), keeping the contract honest. DS-07 **does not persist** saved views (no D1, no migration); a consumer supplies them (a fixture may hold them in memory). `isViewModified` compares the current expression to the active view; a view referencing an obsolete field fails gracefully (the obsolete clause sanitises away).
+
+**Filtered-empty behaviour.** `FilterEmptyState` distinguishes *filtered-empty* (active filters match nothing → a clear-filters recovery, never a dead end) from *genuinely empty* (no records → teach the next action).
+
+**Responsive & accessibility.** Every control has an accessible name; the menu/editor is keyboard-complete with correct focus management; Escape dismisses only the current editor; chips expose readable names and accessible removal; result-count changes are announced without excessive chatter; filtered-empty offers recovery; AND/OR reads without colour; touch targets meet the token; the bar works at 320px and 200% zoom, and long values wrap without page overflow.
+
+**Correct vs incorrect usage.**
+
+- ✅ Register typed field definitions and supply records; bind the expression to the URL with `useFilterUrlState`; render filtered records through the one DS-04 Card; use `FilterEmptyState` for the two empty states.
+- ✅ Keep the model pure (evaluate/serialise without React); rely on the versioned repeated-parameter URL encoding.
+- ❌ Build a per-module filter bar or hard-code Task/Project/Goal logic in the model; hold filter state only in component state; encode the whole state as one opaque JSON blob; expose nonsensical operator/value combinations; persist saved views to D1 here.
+
+**Extension rules.** Add a value type/operator or a bar affordance to the **one** shared system (and document it here), never a per-module fork. Real product filter usages and server-side/saved-view persistence arrive with later items (Today, Projects, X-02) — this ships the system plus a development fixture only.
+
+**Relationship to the TASKS-03 Tasks configuration (read this before adding a saved-view store).** DS-07's `FilterExpression` is a CLIENT-side clause builder and evaluator: an arbitrary field/operator/value expression, evaluated in the browser over supplied records. That is exactly right for a local collection, and exactly wrong to persist — a stored expression can name a repository field, so persisting one is persisting an injection surface. Tasks therefore stores a different thing: a **declarative configuration** that names filter DIMENSIONS from closed sets and no operators at all, which the repository maps to its own trusted predicates ([ADR-059](../decisions/ARCHITECTURE_DECISIONS.md#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration)). Both are legitimate; they answer different questions. Having two is honest but not free, and generalising the declarative contract to the other collections is recorded as [DEBT-49](../product/PRODUCT_DEBT.md#-debt-49--two-filter-models-coexist-ds-07-expressions-and-the-tasks-declarative-configuration--p3) rather than pretended away.
+
+---
+
+## Shared Timeline & Activity Feed (DS-05)
+
+The [Timeline](#timeline) and [Activity Feed](#activity-feed) patterns above are realised by ONE reusable, entity-agnostic system: the **Shared Timeline & Activity Feed** ([DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed)), in [`app/shared/activity-feed`](../../app/shared/activity-feed). A record-scoped Timeline and a workspace/scope Activity Feed are **two configurations of the same component**, never forked. It renders the [shared Activity model](../../AGENTS.md#96-shared-activity-model) (FND-05) and invents no event source. It builds on [DS-01 tokens](#design-tokens-ds-01), reuses the [DS-03 Drawer](#shared-drawer-ds-03) for opening entities, the [DS-07 Filters](#shared-filters-ds-07) for filtering, and the PX-02 [EmptyState](#empty-state-px-02)/[Skeleton](#loading-states-px-02)/[Entity Identity](#entity-identity-px-02); it is accepted in [ADR-021](../decisions/ARCHITECTURE_DECISIONS.md#adr-021-the-shared-timeline--activity-feed--one-renderer-one-presentation-view-model-in-house-virtualisation).
+
+**Purpose.** Show "what happened, when" — for one record (Timeline, suitable for the Activity tab of the [DS-02 Record Layout](#shared-record-layout-ds-02)) and across a workspace or scope (Activity Feed) — as calm, dense, chronological, filterable, virtualised history.
+
+**One renderer, two configurations.** `ActivityStream` is the single renderer; `Timeline` (`scope="timeline"`) and `ActivityFeed` (`scope="feed"`) are thin presets. They differ only in the `loadPage` they receive (a Timeline's loader calls `activity.listForEntity(entityId, …)` — or, for a record whose history IS its relationships, `activity.listForEntities(anchorIds, …)`, still one Timeline over one stream; a Feed's calls `activity.listForWorkspace(…)`) and their accessible label. Grouping, the event item, filtering, pagination and virtualisation are shared by construction — there is **no** separate Timeline/Feed item or list.
+
+**Public contract (entity-agnostic).** The component API exposes **no** D1, Cloudflare bindings, repository internals, cursor internals or workspace-selection controls. `ActivityStream` takes an opaque `loadPage(cursor) → { items, nextCursor, hasMore }` loader, an `ariaLabel`, an optional `formatter`, optional DS-07 `filterFields`/`filterExpression`/`onClearFilters`, an optional `renderEntityLink`, and virtualisation/height knobs. The route owns the `resolveWorkspaceScope(env).activity` call and the record→item mapping behind the loader; the **trusted workspace boundary is fixed server-side** and is never selected or overridden by client input through the component.
+
+**One presentation view-model.** `toActivityItem(record, options)` (React-free, re-exported from [`~/shared/activity-feed/model`](../../app/shared/activity-feed/model.ts)) is the single boundary mapping a kernel `ActivityRecord` → a renderable `ActivityItem`. It **preserves** the branded `ActivityType`, the open validated-string actor/subject fields, the UTC `occurredAt` and the validated `payload` unchanged (no `any`), attaches each subject's resolved entity identity (resolved in **one batch** by the caller — the UI never fetches per item, so no N+1), and selects a primary subject deterministically (the Timeline anchor first). It preserves activity id (the dedup/merge key), activity type, timestamp, trusted actor, subjects and their roles, payload, and referenced-entity identity where available.
+
+**Actor presentation (IDENT-01).** One shared `ActivityActorName` renders "who did this" on **every** activity surface — the workspace feed, every record Timeline, Diary, People, compact widgets and mobile — so the treatment never drifts. It shows the resolved display name with a small initials chip; the chip is `aria-hidden` (it duplicates the adjacent name) and is omitted for non-person actors, so `System` and `Unknown user` never read as someone. The name itself comes from the ONE canonical rule in `~/kernel/identity`: linked Person/profile name → workspace-member name → provider display name → verified email → `System` for genuine automated activity → `Unknown user` where an identity genuinely cannot be recovered. There is **no** anonymous placeholder — "Someone" does not exist in the product and a test fails the build if it reappears. The presentation view-model carries the label, initials and actor kind but **never** the actor's id: it is an authentication subject, and the item is serialised to the browser. See [`IDENTITY_AND_ACTORS.md`](../development/IDENTITY_AND_ACTORS.md).
+
+**Event fallback rules.** A per-type `ActivityTypeDescriptor` is the only place a specific event gets a specialised rendering; the seven kernel-reserved lifecycle types (`entity.created/updated/deleted/restored`, `entity_link.created/unlinked/restored`) ship defaults, and modules register their own via `createActivityDescriptorMap`. There is **no** large product switch over Tasks/Projects/Goals/Areas/People/Notes/Diary. A **cross-module** surface must build its map with `buildWorkspaceActivityDescriptors` — kernel defaults → every module manifest's declared labels (FND-06) → the shared curated cross-module set — rather than a partial hand-maintained list, which is what previously made fully-registered events read as unrecognised; a test fails if any registered or kernel-persistable type loses its renderer. An unregistered or newly-invented type uses a conservative generic fallback that: stays readable; shows the humanised event type safely (the RAW dotted type is a development-only diagnostic, never production UI); shows the actor, the time and available subjects; **never crashes on an unfamiliar payload**; and **never dumps raw unbounded JSON** — the payload summariser emits only a bounded set of primitive top-level fields and skips nested objects/arrays entirely.
+
+**Event item.** One shared `ActivityEventItem` renders every event: an entity marker (the [Entity Identity](#entity-identity-px-02) icon/accent where the event has an entity type, else a tone dot), an actor + action description with inline entity links, a semantic `<time datetime>` (short time-of-day, full timestamp as the title), optional restrained metadata and a safe payload-derived summary. It is calm and dense with **no heavy card border around every event**, long names/descriptions wrap (`overflow-wrap: anywhere`), meaning is **never colour-only** (every event has a text description and a time), and it is memoised so one item changing does not rerender the list.
+
+**Grouping & ordering.** Events are totally ordered **newest-first by `(occurredAt, id)`** with `id`-descending tie-breaking (matching the kernel's `ORDER BY occurred_at DESC, id DESC`), grouped by **UTC calendar day** (stable buckets regardless of viewer timezone), and flattened to heading+item rows so one windowed list keeps day headings correctly associated. All day/time formatting flows through ONE `ActivityDateFormatter` (the central date seam) that formats **manually against UTC getters** with fixed month/weekday tables — **not `Intl`** — so server and client render byte-identical text (hydration-safe); relative "Today"/"Yesterday" are opt-in via a caller-threaded reference instant. Day headings are sticky, real `h2`/`h3`/`h4` headings that stay in the accessibility tree (correct outline, labelled day group); timestamps are semantic `<time>`.
+
+**Filtering (reuses DS-07).** DS-05 builds no timeline-only filter UI. `createActivityFilterFields` produces DS-07 `FilterFieldDefinition`s over the `ActivityItem` view-model — at minimum **event type**, plus **actor type**, **referenced entity type** and **date** — handed to the shared [`FilterBar`](#shared-filters-ds-07). A module may also register its OWN DS-07 field over the same view-model when a coarser, more human control fits its surface better (the Person Timeline's relationship categories, [PEOPLE-02](../roadmap/ROADMAP_V2.md#-people-02--relationship-timeline)) — that is ordinary DS-07 adoption, not a DS-05 fork, provided the accessor stays pure and adds no operator. The DS-07 evaluator matches over loaded items, and filter state follows the DS-07 URL contract, preserving unrelated params **including the DS-03 `drawer` params**. It adds no product-specific operator and does not expand DS-07.
+
+**Entity destinations (reuses DS-03 and the shared destination map).** A referenced entity opens **wherever that record type actually opens**, resolved by the ONE shared `entityDestination` helper ([Entity Identity](#entity-identity-px-02)): a Task through the [DS-03 Drawer](#shared-drawer-ds-03) over the current context, every other routable record through its canonical record route. A loader may still supply an explicit `drawerKey` and it wins. **No bespoke modal, no second drawer**, filters and page context preserved, keyboard-accessible. An entity that is deleted, inaccessible or has no implemented destination degrades to calm non-link text and discloses nothing (no cross-workspace leakage). *(Before PEOPLE-03 only an explicit `drawerKey` produced a link, so every timeline could open Tasks and nothing else — a Person's relationship history named the meeting or note an event came from but gave no way to open it.)*
+
+**Pagination.** The stream integrates cursor-based paging: initial load, next cursor, load another page, end-of-feed, retry after failure, **deduplication by stable activity id** and deterministic page merging. Retrieval uses an accessible **Load more** control (not automatic infinite scroll as the only path); there are no unbounded "load everything" queries.
+
+**Virtualisation.** Long streams are virtualised by a small **in-house** pure `computeWindow` core plus a measurement hook inside a **bounded scroll region** — **no data-grid dependency**. Only rows near the viewport render, positioned by measured offsets with top/bottom spacers that keep total scroll height stable, so variable-height content does not overlap or jump, day headings stay associated, and **loading more never resets the user's position** (new items append below). Mapping/grouping/filtering are memoised so they do not rerun unnecessarily, and no N+1 entity lookup is introduced.
+
+**States.** Reusing the shared components: initial loading (Skeleton), genuinely-empty (EmptyState), filtered-empty (DS-07 `FilterEmptyState` with a clear-filters recovery), loading-more, page-load failure with retry (the `role="alert"` convention), end-of-feed, unknown-event-type (the safe fallback) and unresolved-subject.
+
+**Accessibility.** WCAG 2.2 AA: a `role="feed"` region with an accessible name and `aria-busy`; articles with `aria-posinset`/`aria-setsize`; accessible day-group headings (real `h3` in the a11y tree); a logical heading hierarchy; semantic `<time>`; visible focus on keyboard-accessible entity links and controls; a polite live-region announcement of newly-loaded events; non-colour event meaning; adequate touch targets; correct behaviour at 320px and 200% zoom; and reduced-motion compliance. Virtualisation preserves keyboard and screen-reader usability.
+
+**Responsive behaviour.** Calm and dense on desktop, no horizontal overflow from 320px up (metadata wraps, long tokens break), touch targets meet the 44px token, and light/dark parity comes from the semantic token maps. In narrow containers, the event timestamp collapses below the event body so long activity copy and time labels never compete for a third column or widen the page.
+
+**Correct vs incorrect usage.**
+
+- ✅ Drop a `Timeline` into a DS-02 Activity tab, or an `ActivityFeed` into a workspace surface, by supplying one `loadPage` and (optionally) descriptors + a batch entity resolver; register your module's event descriptors; filter via DS-07 fields; open entities via DS-03.
+- ✅ Keep the mapping/model pure; let the route own the repository call and trusted scope behind the loader.
+- ❌ Fork a separate Timeline and Feed; pass a repository/D1/binding into the component; build a product switch over entity/event types; dump raw payload JSON; add a virtualisation or drawer/modal dependency; select the workspace from client input; convey event meaning by colour alone.
+
+**Extension rules.** A new module renders its event types by **registering descriptors** (and, if needed, adding filter options) — never by editing DS-05. Add a value type/affordance to the shared system only when a real surface needs it, and document it here; never fork per module. Real product Timelines/Feeds arrive when a module adopts DS-05 (e.g. [PROJ-04](../roadmap/ROADMAP_V2.md#-proj-04--activity)); DS-05 ships the system plus a development fixture only. See [`ACTIVITY_TIMELINE.md`](../development/ACTIVITY_TIMELINE.md).
+
+---
+
+## Shared summary cards (DS-13)
+
+The at-a-glance aggregates a record's [Summary Panel](#summary-panel) shows are realised by ONE reusable, entity-agnostic grid: **Shared summary cards** ([DS-13](../roadmap/ROADMAP_V2.md#-ds-13--shared-summary-cards)), in [`app/shared/summary-cards`](../../app/shared/summary-cards). Introduced by [PEOPLE-03](../roadmap/ROADMAP_V2.md#-people-03--stay-in-touch-signals), which needed "one fact per tile" for a Person's relationship summary and found three near-identical hand-rolled versions already in the product (Projects, Assets, Today's widgets) — the shape [DEBT-01](../product/PRODUCT_DEBT.md#-debt-01--duplicate-card-implementations-per-module--p2) warns about.
+
+**Purpose.** Present a small set of already-derived facts — a label, a value, an optional supporting detail — so a record answers its headline questions without a click, and so **no aggregate dead-ends on a number**.
+
+**Anatomy.** A responsive grid (`auto-fill` + `minmax`, reflowing to a single column) of tiles. Each tile carries: an uppercase **label** (what the value is), the **value**, an optional **detail** line, an optional decorative icon, and an optional `tone` (`neutral`/`success`/`info`) that tints the value only.
+
+**Navigation.** A tile with an `href` becomes **ONE link for the whole card** — never a card wrapping a separate link, which would give one target two tab stops. Its accessible name defaults to `"<label>: <value>"`, so a screen-reader user hears what they are following before they follow it.
+
+**Semantics.** The grid is a `<ul>` of `<li>`s with an accessible name (`label`, or `labelledBy` pointing at a visible heading), so assistive tech announces "list, N items". The label always states the meaning; colour never carries it. Every tile clears the shared 44px touch target (`--app-control-height-lg`) at every width, and the grid never produces horizontal overflow from 320px up (DS-11).
+
+**Boundaries.** DS-13 lays out; it does **not** fetch, derive, format or decide. Callers pass already-derived, already-formatted strings — a loader evaluates the model server-side (see [Health](#health-signal-proj-02) and [Stay-in-touch](#stay-in-touch-signal-people-03)) and a pure module view-model maps it to `SummaryCardItem[]`.
+
+**Correct vs incorrect usage.**
+
+- ✅ Compose a Summary region as a heading + `SummaryCards` with `labelledBy` pointing at it; give each aggregate a destination in the surface that opens the records behind it.
+- ✅ Omit a card whose count is zero when the absence reads better as an invitation than as a scoreboard entry — but always keep the cards whose absence IS the answer.
+- ❌ Fork a module-specific stat grid; compute or format inside the component; nest an extra link inside a linked tile; convey meaning by tone alone; render a `0` for every empty aggregate.
+
+**Extension rules.** Add a slot to the shared component when a real surface needs it, and document it here — never a per-module variant. The tone vocabulary stays a strict subset of the shared one.
+
+---
+
+## Shared Forms & field controls (DS-06)
+
+The [Forms](#forms) pattern above is realised by ONE reusable, **entity-agnostic** forms system (the **Shared Forms** system, [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls), in [`app/shared/forms`](../../app/shared/forms)). There is no `TaskForm`/`ProjectForm`/`NoteForm`: consumers supply typed values, field definitions, validation and persistence callbacks and compose the shared controls, the form host and the declared save model. The shared UI knows nothing of Tasks/Projects/Goals/Areas/People/Notes, D1/SQL, workspace selection, routes, product modules or a central entity-type switch — server loaders/actions keep the trusted workspace scope and data access. It builds entirely on [DS-01 tokens](#design-tokens-ds-01), renders Markdown through the [FND-08 pipeline](../development/MARKDOWN_PIPELINE.md), creates relationships through the [FND-04 EntityLink kernel](../../AGENTS.md#95-entitylinks), and is accepted in [ADR-022](../decisions/ARCHITECTURE_DECISIONS.md#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker).
+
+**The control baseline (UIX-06).** Height, padding, surface, border, corner and — for a `<select>` — the disclosure chevron are stated ONCE, at the element, in [`base.css`](../../app/styles/base.css), for every native `input`/`select`/`textarea` whether or not a module reached for a shared field. The rung is `--app-control-height-lg` on `--app-shape-control`, which is the rung `.dh-btn` takes, so a field and the button beside it in a filter row are the same object. A module never restates it: three local copies existed before UIX-06 and all three had drifted.
+
+A `<select>` is **repainted, never replaced** (D31): `appearance: none` changes only how the closed control is painted, so the platform picker on touch, the native keyboard behaviour, the assistive-technology semantics and the no-JS form submit are all preserved. The chevron is a gradient pair rather than an asset, so it takes `currentColor` and is correct in both appearances and in forced colours by construction. **A class that sets the `background` SHORTHAND on a select clears it** — set `background-color`.
+
+**Public anatomy.** A small, typed surface (`app/shared/forms/index.ts`), plus a **React-free model** entry ([`~/shared/forms/model`](../../app/shared/forms/model.ts)) imported by non-UI code:
+
+```text
+Form            <form> wrapper (owns nothing but layout + aria-busy)
+  FormErrorSummary   assertive summary; links/focuses each invalid field
+  FormSection / FieldGroup   grouped fields (fieldset/legend semantics)
+  Field         shared anatomy: label · required/optional cue · help · error
+    <control>   TextField · DateField · SelectField ·
+                ToggleGroupField · TagsField · BooleanField ·
+                EntityLinkPicker
+  FormActions   explicit Save / Cancel (FormButton: pending + disabled)
+  SaveStatusIndicator   calm autosave status (Unsaved/Saving/Saved/Couldn't save)
+```
+
+**Field contract.** Every control accepts the same anatomy + binding props (`label`, `value`, `onChange`, `onBlur`, `error`, `help`, `required`, `disabled`, `readOnly`, `id`, `controlRef`), so a control is usable standalone or bound to a form host (`<TextField {...form.field("title")} />`). `Field` builds a consistent, accessible layout: a stable control id and derived description ids, a **visible** label, an explicit **required/optional** cue (words, never colour), optional help, the current validation message, correct `aria-describedby`/`aria-invalid`/`aria-errormessage`, full-width narrow-container-safe layout, and semantically distinct **disabled vs read-only**. User input is never trimmed or mutated unless the field contract asks for it.
+
+**Controls (one per field type).** **Text** (single/multi-line, optional length readout, real `maxLength`, correct `autocomplete`). **Markdown source** (edits FND-08 source, preserved verbatim; a safe preview through the ONE `MarkdownContent` sink — no second parser, no new HTML sink; not the Notes editor). **Date** (unambiguous date-only + UTC datetime; see below). **Select** (single or multi; accessible editable combobox/listbox; client filter or async `onSearch`/`loading`; a stale/unavailable value is shown and labelled, never a crash). **Toggle group** (HABITS-01 — a small, already-familiar closed set, several of which may be on at once: real checkboxes in a labelled `role="group"`, painted as wrapping pill toggles, each with its own `accessibleLabel` so an abbreviated face is announced in full; the whole vocabulary is visible with nothing to open, and it wraps rather than scrolls on a phone. `SelectField multiple` remains the answer for a long or unfamiliar set — see [Selection controls](#forms)). **Tags** (controlled string collection; keyboard add/remove; normalisation, duplicate prevention, configurable limits; no tags database). **Boolean** (native checkbox or switch; clickable label; never colour-only). **Entity-link picker** (below).
+
+**Validation.** Predictable and layered: synchronous field validators (first failure wins), optional async/server validation, validation **on blur** and **on explicit submit**, form-level and field-level errors with specific, recovery-oriented messages. A submit is **blocked while any value is invalid**; the first invalid field is **focused** after a failed submit; **every entered value is preserved** when validation or persistence fails; stale async responses are ignored; the **server is authoritative** (server field/form errors are shown even when client validation passed). Raw exceptions, database errors, stack traces and opaque codes are never surfaced. The error summary is an assertive live region that links/focuses the relevant field.
+
+**Explicit save.** `useForm` for surfaces where commitment matters: clear **Save**/**Cancel**, dirty-state tracking (honouring per-field `isEqual`), disabled/pending behaviour that **prevents duplicate submits**, keyboard submission, server errors that preserve the complete draft, and a Cancel that restores the last committed value. A submission commits its own **immutable snapshot** as the new baseline, so an edit made while the save is in flight stays dirty and is never silently discarded; a reset or unmount cleanly abandons an in-flight submission.
+
+**Autosave.** `useAutosaveField` for field-by-field editing: a **documented, deterministic trigger** (a restrained debounce and/or a valid blur), calm and visible `Unsaved`/`Saving`/`Saved`/`Couldn’t save` states (announced politely, no per-keystroke toast), stale responses that cannot overwrite newer edits, overlapping saves that are **sequenced/coalesced to the latest** value, failed saves that keep the user's latest input with an explicit **Retry**, and no save while invalid. The user can always predict when a value is committed.
+
+**Navigation safety.** While an explicit form is dirty, both in-app navigation (via `UnsavedChangesGuard` → an accessible modal confirm) and full-page unload (the browser prompt) are intercepted, so a draft is never silently discarded. Because a DS-03 [Drawer](#shared-drawer-ds-03) close/replace is a same-pathname, `drawer`-search-param navigation, a form hosted in a drawer passes its `drawerKey`: the guard then blocks any navigation that removes that drawer level (close, Escape, Back, `closeDrawer`, `replaceDrawer`, param removal, replacing the top record) while allowing harmless changes (a deeper drawer pushed on top, an unrelated filter). The confirm is a real modal: `inert` background, Tab/Shift+Tab trapped, initial focus on Stay, Escape chooses Stay, focus restored to the initiating control on Stay.
+
+**Markdown.** DS-06 has **no** Markdown control of its own, and `~/shared/forms` exports none (DOC-EDITOR-01 / [ADR-084](../decisions/ARCHITECTURE_DECISIONS.md#adr-084-long-form-markdown-is-edited-on-a-permanent-shared-writing-surface--there-is-no-read-then-activate-variant)). A form that needs a Markdown field uses `MarkdownEditorField` from [`~/shared/markdown-editor`](#shared-writing-surface-edit-01) — the shared writing surface wearing this field anatomy. It lives outside the forms barrel on purpose: that barrel is imported by nearly every route, and a route rendering one text input should not pull the editor into its bundle. The control this replaced (a source textarea plus a "Show preview" disclosure) had no product consumer left and is deleted; "short Markdown" is still Markdown, and the surface's `compact` density is that case.
+
+**Writing editor (live Markdown).** `~/shared/markdown-editor`'s `LiveMarkdownEditor` ([NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor), [ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline)) is the ONE writing-first editor for long-form Markdown records (Notes now; the Diary body is the intended second consumer). It styles the Markdown **source as it is typed** (Obsidian-style Live Preview — headings grow, emphasis/code style, task items become checkboxes, thematic breaks and tables render), revealing the raw source the instant the caret enters a construct (Live Preview, **not** WYSIWYG). Load-bearing rules a consumer must not break: the editor's document IS the Markdown source, byte-for-byte (`onChange` emits exactly that); it renders **no** HTML itself and adds **no** second parser/sanitiser/HTML sink — the FND-08 `MarkdownContent` stays the only sink, and the unobtrusive **Read** toggle renders through it; there is **no** persistent Source/Split/Preview and **no** rich-text/proprietary document model. It composes DS-06 autosave (`useAutosaveField`, `SaveStatusIndicator`, `UnsavedChangesGuard`) rather than a second save engine, exposes the shared roving-tabindex formatting `EditorToolbar` and editor-scoped keyboard shortcuts (never rebinding the reserved global `⌘K`/`/`), is styled only through DS-01 tokens, and degrades to an accessible controlled `<textarea>` on the server / without JavaScript.
+
+**Button sizes.** `FormButton` renders one shared `.dh-btn` in the M3 variants — filled (`--primary`), tonal (`--secondary`), outlined (`--outlined`), text (`--ghost`) and error-filled (`--danger`). ASSET-02 added ONE size modifier, **`.dh-btn--sm`**, for dense action rows — an Asset obligation's Complete / Edit / Create task / Hold / Dismiss group, a history entry's Edit / Remove. It reduces the horizontal padding and the type size **only**: `min-block-size` stays at `--app-control-height-lg`, so a "small" button is still a 44px touch target. **Compact must never mean unreachable on a phone** (AGENTS.md §15, WCAG 2.2 §2.5.8). There is no `--lg`, no `--xs`, and no per-module button size.
+
+**Numeric keypads.** `TextField` accepts `inputMode="decimal"` alongside `numeric`, so a money field offers a decimal-point keypad on a phone while a meter reading offers a whole-number one. The attribute is a keyboard hint, never a validation: the boundary is still the authority.
+
+**Dates.** A date-only value is the literal ISO `YYYY-MM-DD` string, validated and compared as integers and **never routed through `Date`**, so it cannot shift by timezone. A datetime value is an ISO-8601 UTC instant; the control edits the UTC wall-clock explicitly (labelled). A zone-less wall-clock time is deliberately not a field type.
+
+**Entity-link picker.** ONE entity-agnostic picker for creating and managing [FND-04 EntityLinks](../../AGENTS.md#95-entitylinks). It takes typed configuration (anchor entity, permitted target types, link-type descriptors, direction, single/multiple, an async workspace-scoped `searchTargets` loader, existing links, and `onLink`/`onUnlink` callbacks) and **never imports D1, bindings or repositories**. That client configuration is **presentation only**: the AUTHORITY is a server-supplied `EntityLinkPickerPolicy` enforced by `createLinkWithPolicy` in the server service ([`app/platform/entity-links`](../../app/platform/entity-links)), which validates the untrusted `targetId`/`linkType`/`direction` (allowed direction, permitted link type, allowed target entity type, no self-link, anchor/target accessible, single-selection limit) before delegating to the existing FND-04 repository (workspace scope + Activity actor stay server-side, reserved spine types refused) and returns a typed, safe outcome — never a raw repository error. No second relationship model, no migration. The picker excludes the anchor from its own results, prevents duplicate active links, de-duplicates, bounds result sizes, serialises its create/remove actions, handles deleted/stale/inaccessible targets calmly, keeps kernel identifiers while showing user-language labels, and never leaks an inaccessible entity's title. Its `searchTargets` contract lets [DS-08](../roadmap/ROADMAP_V2.md#-ds-08--shared-search) supply real search later without replacing the picker.
+
+**Accessibility.** WCAG 2.2 AA: every field has an accessible name; errors and save-status changes are announced via live regions; all controls are keyboard-complete (including the combobox/listbox and tag add/remove); logical focus order and visible focus; first-invalid-field focus on failed submit; 44px touch targets; no colour-only state; disabled and read-only are semantically distinguishable. On touch/coarse-pointer devices, text inputs, comboboxes, clear/remove buttons, link-picker controls and retry buttons lift to the shared touch-target floor.
+
+**Responsive behaviour.** Controls are full-width and safe from 320px up (no horizontal overflow), usable at 200% zoom, and correct in light and dark; motion honours `prefers-reduced-motion`.
+
+**Correct vs incorrect usage.**
+- ✅ Compose shared controls + `useForm` (explicit) or `useAutosaveField` (autosave), passing validators and a persistence callback; declare the save mode explicitly; relate records with `EntityLinkPicker` wired to a loader/action over the picker service; validate again at the server boundary.
+- ❌ Build a bespoke per-entity form or a one-off field control; infer the save mode; import D1/a repository into a shared control; render Markdown through a second parser or a new HTML sink; round-trip a calendar date through `Date`; convey required/invalid/saved state by colour alone; leak a raw server error to the user.
+
+**Extension rules.** Add a field type or affordance to the **one** shared system (and document it here) only when an existing repository requirement makes it clearly necessary — never fork per module, never add a second control for a field type. Keep the public API small; do not export internal state-machine/timing/focus machinery. Real product forms adopt DS-06 as-is; long-form Markdown records use the [Writing editor](#shared-forms--field-controls-ds-06) (`~/shared/markdown-editor`), which composes DS-06 autosave rather than forking it. DS-06 ships the system plus a development fixture only. See [`SHARED_FORMS.md`](../development/SHARED_FORMS.md).
+
+---
+
+## Linked Items & Hover Card
+
+The **Universal Relationship System** realises "everything is connected"
+([`AGENTS.md §2`](../../AGENTS.md#2-product-philosophy)) as ONE reusable surface,
+in [`app/shared/linked-items`](../../app/shared/linked-items) — there is no
+`ProjectLinksTab`/`PersonLinkedTab`/bespoke-per-module linked list; a hand-rolled
+one is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. Accepted in
+[ADR-047](../decisions/ARCHITECTURE_DECISIONS.md#adr-047-the-universal-relationship-system--one-shared-linked-items-surface-a-generic-links-endpoint-wiki-links-and-linked-boosting); full guide: [`RELATIONSHIPS.md`](../development/RELATIONSHIPS.md).
+
+**Linked Items section.** Every record's detail page mounts `LinkedItemsTab`
+(anchor id + type). It renders the record's related items grouped by kind — each a
+navigable [EntityLink](#cards) wrapped in a **Hover Card** — with a Remove control
+for the generic links the user owns, and the shared DS-06 [EntityLinkPicker](#shared-forms--field-controls-ds-06)
+as the **search-to-add** affordance. It builds on the FND-04 EntityLink kernel and
+the DS-06 policy service through the one shared `/links` endpoint; it never adds a
+second relationship model or a per-module link route. Add/remove are **optimistic**
+with a DS-10 **Undo** toast, **offline-aware**, and keyboard-complete; structural
+spine links are shown by the hierarchy, not here.
+
+**References — reading the graph directionally (NOTES-02).** Linked Items answers
+*what is this related to?* as one editable list. A knowledge record needs a second
+question answered: **who points at me, and who do I point at.** That is
+[`app/shared/references`](../../app/shared/references) — a separate, isolated
+shared contract that READS the same FND-04 graph; it never creates or removes a
+relationship, and Linked Items stays the one place relationships are edited. Use
+it whenever a record's own detail page should distinguish the two directions.
+
+- **Backlinks and Outgoing links are separate surfaces, never one merged list.**
+  Merging them produces an ambiguous "related" pile that answers neither question.
+- **A backlink is an explicit typed relationship or a supported entity reference
+  — never a text coincidence.** Writing a record's title in prose creates nothing.
+  Say so in the surface, not only in the docs.
+- **`ReferenceList` is the one row treatment**: the counterpart's identity glyph
+  (decorative), its **type in words**, the **relationship name in words**, an
+  optional bounded **context** line, the linked date, and the title as the shared
+  navigable `EntityLink`. Archive state is a **word**, never colour or a glyph
+  alone. Grouping by counterpart type is opt-in, in first-seen order.
+- **Context is bounded, deterministic and safe**: block-scoped, syntax-free,
+  truncated with an explicit ellipsis, and absent rather than guessed when the
+  source type cannot supply it.
+
+**Command Palette.** Mounting the tab registers a `⌘K` **navigate** action ("Link a
+record to this …") that opens the Linked tab — a navigation action, never a
+focus-moving `run` ([`COMMAND_PALETTE.md`](../development/COMMAND_PALETTE.md)).
+
+**Hover Card.** `HoverCard` shows a linked record's summary on pointer hover **and**
+keyboard focus (never hover-only). It is a non-interactive `role="tooltip"`
+associated with its trigger via `aria-describedby`, opens after a short intent
+delay, closes on blur/pointer-leave/Escape, lazily fetches its summary once, and
+respects `prefers-reduced-motion`. Summaries carry only non-sensitive structural
+metadata — safe for People and Diary.
+
+**Wiki links.** Markdown supports inline `[[Title]]` / `[[Title|Alias]]`, rendered
+through the ONE FND-08 pipeline (a pure transform → an internal resolver link — no
+second parser or HTML sink) and resolved to a record at navigation time. See
+[`RELATIONSHIPS.md`](../development/RELATIONSHIPS.md).
+
+**Extension rules.** Add an affordance to the one shared system (and document it
+here) only when a real record needs it; never fork the section, hover card, or link
+endpoint per module. Linked meetings/notes/etc. become navigable by extending the
+shared `entityDestination`, never a per-module route `switch`.
+
+---
+
+## Global Interaction Layer (DS-10)
+
+The product-wide interaction layer every module inherits: **notifications, undo, background operations** (one Feedback platform) and the shared **Inspector**. There is **one implementation for the entire application** — no module renders a toast or builds its own edit drawer. Accepted via [ADR-025](../decisions/ARCHITECTURE_DECISIONS.md#adr-025-the-global-interaction-layer--feedback-platform-notifications-undo-background-operations-and-the-shared-inspector). Full guide: [`FEEDBACK_AND_INSPECTOR.md`](../development/FEEDBACK_AND_INSPECTOR.md).
+
+### Feedback platform
+
+- **The hidden API.** Modules call `useFeedback()` ([`app/shared/feedback`](../../app/shared/feedback)) — `notifySuccess/notifyInfo/notifyWarning/notifyError`, `notifyUndo`, `runOperation`, `dismiss`. The queue, timers, live regions and operation tray are completely hidden. `FeedbackProvider` is mounted once at the AppShell boundary.
+- **Calm notifications.** Four tones (icon + text, never colour alone). Repeats with a `dedupeKey` **coalesce** (count bumps) instead of stacking — no toast spam. Auto-dismiss is per-tone (success/info brief, warnings longer, **errors sticky**); the stack is bounded (oldest auto-dismissing entry retired first, never a sticky error); **focus, or hovering a toast's controls, pauses** dismissal.
+- **Never intercepts a click.** The region is `position: fixed` over the bottom-right of the page — exactly where record lifecycle actions live — so **nothing in it takes pointer input except its own controls** (dismiss-all, a toast's action, a toast's close). Toasts stay visible and their controls stay operable; every other pixel passes the click through. A shared surface that overlays the page must never make the page unusable beneath it.
+- **Undo is a platform capability.** `notifyUndo(title, { onUndo, onExpire? })` raises a success toast with a time-boxed Undo. Choosing Undo runs the reverse handler; letting it expire OR dismissing early runs the commit handler (dismissing an optimistic action commits it). Every reversible action (delete/archive/complete/move/close/dismiss) uses this — never per-module undo.
+- **One background-operation lifecycle.** `runOperation({ label, run, cancellable?, retryable?, successMessage? })` drives pending → running → success | failure with **retry** and **cancellation** (a real `AbortSignal` passed to `run`) — for AI, imports, exports, sync and future integrations.
+- **Accessibility.** Two visually-hidden ARIA live regions (polite for success/info, assertive for warning/error) announce feedback, using bare `aria-live` so they never shadow other `status`/`alert` regions. A caller may pass `announce: false` only when it has already written the same committed outcome to a module live region that remains mounted; the visible notification still renders. 44px targets, keyboard-operable actions, reduced-motion honoured, anchored so it never covers primary UI (bottom-right desktop, bottom safe-area mobile).
+
+### Inspector
+
+- **The standard depth-editing surface.** [`app/shared/inspector`](../../app/shared/inspector). A surface mounts `InspectorProvider` and supplies `renderInspector(entry)` (the DS-03 `renderDrawer` contract); open state lives in the URL (`?inspector=<key>`, deep-linkable). No module builds its own edit drawer.
+- **Two presentations.** Desktop: a **non-modal, resizable** right-side `complementary` panel (keyboard + pointer resize, persisted width; content reflows so it is never covered; the page stays interactive for bulk/multi-select). Mobile: a **modal sheet** — focus-trapped, inert background, scroll-locked — **reusing the DS-03 focus/inert/scroll-lock hooks** (no second focus-trap). Focus moves in on open and restores on close in both.
+- **Edits via DS-06.** The Inspector body is built from shared form controls with optimistic field-by-field autosave. Depth here; essentials in the Summary/Drawer — never duplicate the control.
+
+**Extension rules.** Use `useFeedback()` for any feedback — never a bespoke toast/banner or a second overlay system. Use the Inspector (not a new drawer) for any record editing. Keep the public API small; do not export internal timing/queue/focus machinery.
+
+---
+
+## Settings layout (DS-10b)
+
+ONE entity-agnostic Settings surface every module composes for **application,
+workspace, module and record-level** settings, and for the final **Settings**
+tab/section of a record Inspector or Drawer ([`app/shared/settings`](../../app/shared/settings)). There is **no bespoke settings screen**. Accepted via [ADR-026](../decisions/ARCHITECTURE_DECISIONS.md#adr-026-shared-settings-layout--composition-primitives-declared-change-behaviour-and-the-dangerous-action-contract). Full guide: [`SETTINGS_LAYOUT.md`](../development/SETTINGS_LAYOUT.md).
+
+### Structure
+
+- **`SettingsLayout`** — the surface root: an accessible `region`, an optional
+  heading + description (omit it when the host supplies the title — a Drawer,
+  the Inspector, or a record tab), and calm rhythm between groups. It is a
+  **container-query** surface: it adapts to its own width, so the same layout is
+  correct in a full route and in a 320px Drawer.
+- **`SettingsGroup`** — a labelled section. `tone="danger"` renders the
+  visually-separated dangerous region (bordered/tinted card + warning glyph);
+  the differentiation is carried by heading text, icon **and** border — never
+  colour alone.
+- **Mobile confirmations.** Confirmation dialogs respect safe-area insets, scroll
+  internally on short phones, and stack their actions into full-width touch targets
+  below 30rem. Dangerous actions keep the same confirmation friction on mobile;
+  they are never hidden behind a gesture-only shortcut.
+- **`SettingsRow`** — one setting: label · supporting description · control area ·
+  optional status/help line, side-by-side when there is room and stacked when
+  narrow (no horizontal overflow, no clipped text). It accepts any accessible
+  control — a bare native switch/select (named by the row via
+  `aria-labelledby`/`aria-describedby` through a render-prop), a DS-06 field, a
+  button, or a custom module control — with no double-labelling.
+
+### Change behaviour (declared, not invented)
+
+- **Immediate** (apply on change): `useImmediateSetting` — optimistic value,
+  single-flight with coalesce-to-latest, stale-response rejection,
+  **revert-on-failure**, success/error through the DS-10 Feedback platform. For a
+  toggle/select that applies at once.
+- **Autosave** (quiet, keep-the-draft): DS-06 `useAutosaveField` + inline
+  `SaveStatusIndicator`.
+- **Explicit-save** (dirty draft + Save/Cancel): DS-06 `useForm` — pristine ·
+  dirty · validating · saving · saved · save-failed · retry · reset/revert, with
+  duplicate-submit prevention and first-invalid focus.
+
+DS-10b adds **no** second form engine, validation system, autosave hook,
+dirty-state model, toast system, overlay or focus-trap, and no settings registry.
+
+### Dangerous actions
+
+`DangerousAction` (and the reusable `ConfirmationDialog`) provide the destructive
+pattern: visual separation, clear consequence text, a deliberate confirmation with
+optional **typed confirmation** (an exact phrase, e.g. `DELETE`), disabled/loading
+states, an inline `alert` on failure with **retry**, duplicate-submission
+prevention, cancellation, and shared Feedback for success. The dialog is a WAI-ARIA
+modal **reusing the DS-03 focus/inert/scroll-lock hooks** (no second focus-trap);
+initial focus goes to the typed input or the safe Cancel button (never the
+destructive one), and focus is restored to the trigger on close. It is the
+presentation/interaction contract only — it encodes no product deletion/archive
+rule.
+
+**Extension rules.** Compose these primitives for any settings surface at any
+scope — never a bespoke settings screen. Reuse DS-06 for save behaviour and the
+DS-10 Feedback platform for confirmation; never build a second confirmation modal
+or toast. Keep product rules (what a setting persists, what a destructive action
+does) in the adopting module.
+
+---
+
+## Application Frame (PX-02)
+
+The shared patterns above are composed by ONE application frame ([PX-02](../roadmap/ROADMAP_V2.md#-px-02--product-frame), [`app/shared/shell`](../../app/shared/shell)), accepted in [ADR-020](../decisions/ARCHITECTURE_DECISIONS.md#adr-020-the-application-frame--sidebar-shell-pane-collection-layout-and-entity-identity). It replaces FND-09's website-like top bar with a premium application silhouette and is the frame **every future module inherits** — it must feel like Linear/Craft/Raycast/Things, not a website. The frame implements the composition contract in [`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md) (which governs feel; this document governs each part's anatomy). It builds entirely on [DS-01 tokens](#design-tokens-ds-01), reuses DS-02…04/DS-07 unchanged, and adds **no runtime dependency**.
+
+### The frame
+
+```
+╔══════════════╤═══════════════════════════════════════════════╗
+║ ◆ DalyHub    │ [ ⌕ Search DalyHub    / ]      ⌘  ?   [ + New ]║  56px bar
+║ ░░░░░░░░░░░░ ├───────────────────────────────────────────────┤
+║ ▪ Today      │  Page title · count            [view] [ + ]   │  ← one origin:
+║ ⬢ Areas      │  FilterBar (sticky, when a collection)        │    rail + gutter
+║ ◎ Goals      ├───────────────────────────────────────────────┤
+║ ▚ Projects   │                                               │
+║ ⦿ Tasks      │   pane content (the document scrolls)         │
+║              │                                               │
+║ ▤ Notes      │                                               │
+║ … (spacer)   │                                               │
+║ ──────────── │                                               │
+║ (A) Owner  ▾ │                                               │
+╚══════════════╧═══════════════════════════════════════════════╝
+  ↑ THE RAIL — dark in BOTH appearances (D35), 216px, 36px rows.
+    ░ = the current destination: a violet block + weight + foreground
+    step + aria-current. Never colour alone.
+  Rail: --dh-color-rail / --dh-color-rail-text.  Pane: --dh-color-bg.
   Grid: var(--dh-shell-rail-width) 1fr.
 ```
 
