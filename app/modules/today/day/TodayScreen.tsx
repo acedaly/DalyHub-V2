@@ -347,9 +347,29 @@ function NowTaskPanel({
           Now
         </h2>
       </div>
-      <TaskList ariaLabel="Now task">
-        <TaskRow {...rowProps(task)} />
-      </TaskList>
+      {/*
+       * DHDS-08 §8 — Today CONTINUITY.
+       *
+       * When the Now task is completed and another becomes the next recommended
+       * action, the replacement crossfades INTO THE SAME POSITION rather than
+       * the composition re-rendering under the owner. The panel, its heading and
+       * everything around it hold still; only the task inside changes. The
+       * reading is "I finished that — this is what comes next", which is the one
+       * thing this position is for.
+       *
+       * `key` on the task's id is what makes that honest: React remounts this
+       * subtree only when the Now task ACTUALLY changed, so the crossfade can
+       * never replay on an incidental re-render (§13). A revalidation that
+       * returns the same task re-renders it in place with no motion at all.
+       *
+       * It is a fade and deliberately not a slide: the POSITION carries the
+       * meaning, so the position must not move. §8 rules out the carousel.
+       */}
+      <div key={task.id} className="dh-motion-succeed">
+        <TaskList ariaLabel="Now task">
+          <TaskRow {...rowProps(task)} />
+        </TaskList>
+      </div>
     </section>
   );
 }

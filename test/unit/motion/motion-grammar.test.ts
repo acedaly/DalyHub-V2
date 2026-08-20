@@ -248,8 +248,15 @@ describe("DHDS-08 — the reduced-motion contract", () => {
     // `opacity: 0` rather than stranded at a translate it can never leave.
     expect(text).toContain("animation-name: dh-fade-in");
     expect(text).toContain("animation-name: dh-fade-out");
-    // The pressed transform is physicality with no semantic content.
-    expect(text).toContain("transform: none");
+  });
+
+  it("publishes no pressed transform to have to remove", () => {
+    // §5 — a DalyHub control answers a press with a value change. There is no
+    // shared scale, so reduced motion has nothing to undo; the absence is the
+    // decision, and it is recorded at the Level 1 banner in `motion.css`.
+    const rules = motionCss.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(rules).not.toMatch(/\.dh-press[\s,{]/);
+    expect(rules).not.toMatch(/transform:\s*scale\(0\.9/);
   });
 
   it("keeps the global floor that zeroes every duration", () => {

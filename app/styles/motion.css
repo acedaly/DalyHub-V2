@@ -22,17 +22,17 @@
  *   LEVEL 1 — interaction feedback. `--dh-motion-instant`.
  *     Hover, press, focus, selected, checked. Owned by the components
  *     themselves (`ui.css`, `task-signals.css`), because the thing that
- *     changes is a colour on a specific control. The only shared piece is
- *     `.dh-press`, below.
+ *     changes is a colour on a specific control. There is deliberately no
+ *     shared piece — see the note in the Level 1 section below.
  *
  *   LEVEL 2 — contextual reveal. `--dh-motion-fast` / `--dh-motion-base`.
- *     Menus, popovers, tooltips, toasts, sheets, inline editors, contextual
- *     action reveal. `.dh-motion-reveal`, `.dh-motion-lift`,
- *     `.dh-motion-edge-*`, `.dh-motion-scrim`, `.dh-action-reveal`.
+ *     Menus, popovers, tooltips, toasts, sheets and the contextual action
+ *     reveal. `.dh-motion-reveal`, `.dh-motion-lift`, `.dh-motion-edge-*`,
+ *     `.dh-motion-scrim`, `.dh-action-reveal`.
  *
  *   LEVEL 3 — meaningful structural transition. `--dh-motion-deliberate`.
- *     Completing a task, a row leaving, a disclosure opening, the next Today
- *     task taking the Now position. `.dh-disclosure`, `.dh-completing`.
+ *     Completing a task, a disclosure opening, the next Today task taking the
+ *     Now position. `.dh-disclosure`, `.dh-complete-*`, `.dh-motion-succeed`.
  *
  * ── Why keyframes rather than transitions for the overlays ──────────────────
  * A transition needs two states and something to change between them. An
@@ -312,25 +312,25 @@
 /* ========================================================================== */
 
 /*
- * The ONE pressed transform in DalyHub, and it is opt-in.
+ * There is no pressed TRANSFORM in DalyHub, and that is the decision rather
+ * than an omission.
  *
- * §5 is explicit that most controls should communicate press through a value
- * change alone, and every DalyHub control does: `ui.css` transitions
- * background, border and colour at `--dh-motion-instant` on `:active`. This
- * class exists for the handful of surfaces where the object being pressed IS
- * the affordance — a card the whole of which is a target, a tile — and even
- * there the effect is 0.5%, not the generic `scale(0.95)` §5 names.
+ * Every DalyHub control already answers a press where it counts: `ui.css`
+ * transitions background, border and colour at `--dh-motion-instant` on
+ * `:active`, so the control changes value under the finger. DHDS-08 considered
+ * publishing a `.dh-press` scale for the handful of surfaces where the object
+ * being pressed IS the affordance — a whole card, a tile — and did not ship it,
+ * because on inspection every such surface in the product already reads
+ * correctly without one, and a class with no consumer is an invitation to find
+ * one.
  *
- * `scale()` on a composited layer, never `width`/`padding`, so a press can
- * never move a neighbour. Sub-pixel by design: at a 300px card this is 1.5px.
+ * §5 is the standing rule this encodes: most controls can communicate press
+ * through a value change alone, and the generic `transform: scale(0.95)`
+ * applied everywhere is exactly what DalyHub must not look like. If a future
+ * surface genuinely needs a physical response, it belongs here, it is
+ * nearly imperceptible, and it uses `scale()` on a composited layer so it can
+ * never move a neighbour.
  */
-.dh-press {
-  transition: transform var(--dh-motion-instant) var(--dh-ease-standard);
-}
-
-.dh-press:active:not(:disabled, [aria-disabled="true"]) {
-  transform: scale(0.995);
-}
 
 /* ========================================================================== */
 /* Level 2 — the ROW REVEAL grammar                                            */
@@ -522,34 +522,33 @@
 }
 
 /*
- * A row LEAVING a surface that removes completed work.
+ * A row LEAVING a surface that removes completed work — DEFERRED, deliberately.
  *
- * Collapsing the row's own grid track is what makes the neighbours close the
- * gap rather than jump into it, and it is the same mechanism as disclosure for
- * the same reason. The host wraps the row and drives `data-dh-leaving`; the
- * React side of the timing is `usePresence` in `app/shared/motion`.
+ * Steps 6 and 7 of the sequence above (the row departs; the neighbours close
+ * the gap) are not implemented, and this is the record of why rather than an
+ * oversight.
  *
- * Where a surface KEEPS completed work visible — a Completed section, a
- * project's history — none of this applies: the row simply becomes a completed
- * row, and animating it out of existence would be a lie about what happened.
+ * The mechanism is not the hard part: collapsing the row's own grid track is
+ * the same transition disclosure uses, and `useLeavingRecords` already does the
+ * list-level bookkeeping for toasts. Two things are:
+ *
+ *   1. FOCUS. The control the owner just clicked is inside the row that is
+ *      about to go. Holding the row for 260ms while it is `inert` moves focus
+ *      to `<body>` for a quarter of a second, and deciding where it should land
+ *      instead (the next row? the list? the toast's Undo?) is a real
+ *      interaction decision, not a motion one. §19 forbids guessing.
+ *   2. The surfaces DISAGREE about what completion means. `/tasks` in its
+ *      All-active view removes the row; a Completed section keeps it; a
+ *      Project's history keeps it forever. Animating a row out of existence on
+ *      a surface that did not remove it would be a lie about what happened, so
+ *      the departure has to be opted into per surface — which is a wider change
+ *      than DHDS-08's grammar pass should make on its own.
+ *
+ * Until then a completed row on a removing surface disappears on the next
+ * revalidation, exactly as it did before DHDS-08, and the Undo toast is what
+ * carries the continuity. Recorded in `PRODUCT_DEBT.md` and in the DHDS-08
+ * record; it belongs with DHDS-11's object-continuity work.
  */
-.dh-complete-leave {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition:
-    grid-template-rows var(--dh-motion-deliberate) var(--dh-ease-emphasized),
-    opacity var(--dh-motion-exit) var(--dh-ease-exit);
-}
-
-.dh-complete-leave > * {
-  min-block-size: 0;
-  overflow: hidden;
-}
-
-.dh-complete-leave[data-dh-leaving="true"] {
-  grid-template-rows: 0fr;
-  opacity: 0;
-}
 
 /* ========================================================================== */
 /* Level 3 — CONTINUITY (Today)                                                */
@@ -575,17 +574,21 @@
 /* ========================================================================== */
 
 /*
- * Skeleton → real content resolves rather than flashes.
+ * Skeleton → content is NOT animated, and DHDS-08 audited it before deciding
+ * that.
  *
- * One crossfade on the CONTAINER, never a stagger on the rows. A cascading
- * dashboard reveal is a landing-page gesture (§14), and a working application
- * that replays it on every navigation is a working application that feels slow.
- * Deliberately short, and deliberately opacity-only: content that slides into
- * place on arrival is content whose position you cannot trust.
+ * §14 asks that loading resolve cleanly rather than flash. The reason nothing
+ * is published here is that DalyHub's loading already does: React Router keeps
+ * the current page rendered while the next one's data is in flight, so an
+ * ordinary navigation never blanks and never replays a skeleton; the skeleton
+ * shows on a genuine first load, where there is no previous content to
+ * crossfade FROM. Adding a fade there would delay content the owner is waiting
+ * for in order to animate its absence.
+ *
+ * What §14 rules out is scrupulously absent and stays absent: no staggered row
+ * entrances, no cascading dashboard reveal, and no blanking of useful UI to
+ * replay a loading animation.
  */
-.dh-motion-arrive {
-  animation: dh-fade-in var(--dh-motion-fast) var(--dh-ease-standard);
-}
 
 /* ========================================================================== */
 /* THE REDUCED-MOTION CONTRACT                                                 */
@@ -651,16 +654,13 @@
     animation-name: dh-fade-out;
   }
 
-  /* A press is physicality with no semantic content. It goes. */
-  .dh-press:active:not(:disabled, [aria-disabled="true"]) {
-    transform: none;
-  }
-
   /*
-   * Disclosure and completion keep their END states and lose their travel: the
-   * region is open or closed, the strike is drawn or not, the leaving row is
-   * gone. The global rule zeroes the duration; these need no override, and
-   * they are named here so the next reader knows that was checked rather than
-   * missed.
+   * Disclosure, completion and the Today succession keep their END states and
+   * lose only their duration: the region is open or closed, the strike is drawn
+   * or it is not, the next task is in the Now position. None of the three
+   * travels, so none of them needs an override here — they are named so the next
+   * reader knows that was checked rather than missed.
+   *
+   * There is no pressed transform in the product to remove (see Level 1 above).
    */
 }
