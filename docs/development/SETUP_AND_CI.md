@@ -107,7 +107,7 @@ opening a job:
 | **Static** | `format:check` → `lint` → `typecheck` → `scheme:check` → `icons:check` | the source does not meet the repository's own rules |
 | **Unit** | `pnpm run test:unit`, then `pnpm run test:kernel` (real Workers runtime + local D1) | application or kernel logic is wrong |
 | **Build** | `pnpm run build`, `wrangler deploy --dry-run` against the generated config, then uploads `build/` as the `production-build` artifact | it does not build, or it would not deploy |
-| **E2E p01…p10** | A **ten-way** matrix, one job per time-balanced partition of the suite; each downloads the `production-build` artifact and runs its own spec files on its own runner | the product misbehaves in a real browser — or a partition did not finish, which the job says in those words |
+| **E2E p01…p12** | A **twelve-way** matrix, one job per time-balanced partition of the suite; each downloads the `production-build` artifact and runs its own spec files on its own runner | the product misbehaves in a real browser — or a partition did not finish, which the job says in those words |
 | **CI Gate** | Depends on every job above; the one stable required check (see below) | something above is not green |
 
 `Static` and `Scope` have no `if:`, so they always run. `Unit`, `Build` and the
@@ -149,7 +149,7 @@ checked, exactly like the generated colour scheme and the icon assets:
 | Command | What it does |
 | --- | --- |
 | `pnpm run e2e:partitions` | prints the split with its estimates |
-| `pnpm run e2e:partitions:check` | fails if the manifest is not what the committed durations derive, or if any spec file on disk belongs to no partition (run by **Static**) |
+| `pnpm run e2e:partitions:check` | fails if the manifest is not what the committed durations derive, if any spec file on disk belongs to no partition, if any spec file on disk has **no measured duration or test count**, or if any partition is budgeted past the ceiling (run by **Static**) |
 | `pnpm run e2e:partitions:generate` | re-derives it; `--from playwright-report/results.json` refreshes the durations from a finished run first |
 | `pnpm run e2e:gate` | runs every partition locally, in sequence, exactly as CI runs them |
 
@@ -162,19 +162,54 @@ where a test's count genuinely is its cost. A brand-new spec file with no
 measurement is sized pessimistically at 120 s until a run measures it — it can
 never be silently left out, because `check` fails first.
 
-**Ten partitions, and the number is bounded from both ends.** Above, by the
+**And the guess is not allowed to survive the merge (HARDEN-06A).** The 120 s
+fallback exists so a spec file added between two runs still lands in a partition;
+it is a safety net for DERIVATION, and it is not evidence. `check` therefore also
+fails while any spec file on disk has no measured duration, asked over the same
+`listSpecFiles()` discovery the gate itself runs on rather than a second list
+somebody has to remember to update. That invariant is the direct answer to F-03:
+ten of the 111 spec files had been carried on the guess across four merges, one
+of them (`tasks-dependencies.spec.ts`) cost **324 s against its 120 s
+placeholder**, and on run `32321840125` partition p05 exceeded `globalTimeout`
+with **33 tests never executed**.
+
+**The budget ceiling is derived, and it is checked where CI can see it.** A
+partition may be budgeted at most `MAX_PARTITION_SECONDS` of measured test time —
+`globalTimeout × 0.75 ÷ 1.12`, where 1.12 is the MEASURED wall-clock cost of a
+second of test time (run `32333645709`, all twelve partitions: 195.0 min of wall
+clock over 175.1 min of tests — 1.114 overall, 1.094–1.131 per partition). The
+ceiling used to live only in the unit test, as a flat "under 20 minutes", which
+the p05 that could not finish satisfied at 19.4 min.
+When a partition exceeds it the lever is `PARTITION_COUNT`, or a genuinely
+cheaper spec file — never a larger `globalTimeout`.
+
+**Twelve partitions, and the number is bounded from both ends.** Above, by the
 runner pool: on run `31445526789` six of eighteen shards sat QUEUED for 5.5–7.0
 minutes, so past roughly twelve concurrent jobs the pool saturates and extra
 jobs buy no wall-clock. Below, by setup cost: MEASURED at ~0.8 min of
 checkout/toolchain/artifact/browser plus ~1.5 min of server boot before the
-first test — 2.3 min per partition that buys no coverage. Ten start in one wave
-and leave the heaviest partition at ~15.6 minutes of measured test time against
-Playwright's **unchanged** 25-minute `globalTimeout`.
+first test — 2.3 min per partition that buys no coverage.
+
+It was **ten** from HARDEN-04 until HARDEN-06A, and the count is the one knob
+the derivation exposes — so it is what moved when the measurements were finally
+complete. `responsive.spec.ts` is a single generated matrix file, so `--shard`
+is the only way to divide it and it consumes two partitions at 11.8 min each;
+that left the other eight carrying **19.0 min** apiece of the suite's 175.1 min,
+a predicted 21.3 min of wall clock and 85% of the ceiling. Derived at each count
+against run `32333645709`'s measurements, as predicted wall clock against the
+ceiling: **10 →** 21.3 min (85%, over `MAX_PARTITION_SECONDS`) · **11 →**
+18.9 min (76%, also over) · **12 →** 17.0 min (68%) · **13 →** 15.5 min (62%,
+past the pool's twelve). Twelve is the first count that fits, and it restores
+the ~70%-of-ceiling target against Playwright's **unchanged** 25-minute
+`globalTimeout`. Run `32333645709` also confirmed twelve is not contended: all
+twelve E2E jobs started within **one second** of each other, none queued. A
+queued job would cost wall clock only — it has not started, so it spends none of
+its `globalTimeout`.
 
 **Browser lifetime is a sizing variable too, not just minutes.** Fewer, fatter
 shards give each shard's one long-lived Chromium more to survive, which is the
-axis [DEBT-125](../product/PRODUCT_DEBT.md) is about; ten partitions hold ~14
-minutes and ~160 tests each, against the ~24 minutes and ~190 tests of the
+axis [DEBT-125](../product/PRODUCT_DEBT.md) is about; twelve partitions hold ~15
+minutes and ~150 tests each, against the ~24 minutes and ~190 tests of the
 eight-way split. See `scripts/measure-e2e-browser-rss.mjs` for how to measure it.
 
 Each partition:
@@ -260,7 +295,8 @@ artefacts at all and were invisible unless someone read the raw log
    against measured TIME rather than test count.** Three became five here; five
    later became seven, ten, fourteen and eighteen; #158 cut it to **eight** on
    the queueing measurement above; HARDEN-04 replaced count-based sharding
-   altogether with the ten-way measured partition described above, because the
+   altogether with the measured partition described above (ten, then twelve
+   after HARDEN-06A), because the
    evidence below is what a count-based split looks like when it fails. The
    tables in this item are kept as that evidence: they are what established the
    ~70%-of-ceiling target every later split has been tuned to, and what proved
@@ -326,17 +362,33 @@ artefacts at all and were invisible unless someone read the raw log
    job (install, browser, artifact download, servers, teardown), not the
    mechanism that bounds the tests. `globalTimeout` is unset outside CI so a
    full local suite run in one process is never killed mid-way.
-3. **Artefacts upload on any non-success.** Both upload steps are conditioned on
+3. **Artefacts upload on any non-success, and the TIMING evidence uploads
+   always.** The report and trace uploads are conditioned on
    `always() && steps.e2e.outcome != 'success'` rather than `failure()`, so a
    failed, timed-out or cancelled shard still publishes what it has, while a
-   green shard uploads nothing.
+   green shard publishes no multi-megabyte report.
+
+   `playwright-report/results.json` is different, and HARDEN-06A separated it:
+   it is a few hundred KB, it is the only input
+   `e2e:partitions:generate --from` has, and it now travels out of **every**
+   partition as `e2e-results-<partition>`, green or red. While it rode inside the
+   failure-only report upload the split's own measurements could be refreshed
+   only from a partition that had FAILED — which is
+   [DEBT-157](../product/PRODUCT_DEBT.md), and F-03 is what it decayed into. That
+   one step carries `continue-on-error: true`, deliberately and only there: it
+   runs on green partitions, so a transient artifact-service failure would
+   otherwise turn a passing product gate red. Evidence collection is best-effort;
+   the test run and the `Partition result` step are not, and a partition that
+   produced no `results.json` at all is still a hard failure inside
+   `scripts/e2e-partition-summary.mjs`.
 
 Slow tests stay visible rather than being absorbed by the larger budget:
 `reportSlowTests` prints a slow-file summary at the end of **every** run, the
 `list` reporter prints each individual test's duration, and CI adds a `json`
 reporter writing `playwright-report/results.json` so per-test durations are
 machine-readable. Revisiting the split is now that file plus one command:
-download a run's `playwright-report` artifacts and run
+download a run's `e2e-results-*` artifacts — one per partition, from any run,
+green or red — and run
 `pnpm run e2e:partitions:generate --from <each results.json>`, then read the diff.
 The partition count itself lives in `scripts/e2e-partitions.mjs`
 (`PARTITION_COUNT`), and the constraints any change to it must respect are in the

@@ -354,6 +354,34 @@ merge silently.
 **Existing debt.** **DEBT-157** covers the mechanism exactly and predicted this
 consequence; it is P2 there and should be re-rated.
 
+**Disposition — FIXED by [HARDEN-06A](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md)
+(2026-08-20).** Re-derived from run `32321840125`'s own p05 and p08 artefacts rather
+than from this document. The diagnosis holds — p05's thirteen files were budgeted
+19.4 min and cost **22.9 min of measured test time** before any wall-clock overhead,
+so it could not have finished — and one thing this document did not say came out of
+the same artefacts: the manifest was wrong in **both** directions
+(`tasks-v22-daily-driver` −35%, `pwa-offline-tasks` −45% as well as
+`tasks-dependencies` 2.7× low), which is why the imbalance survived four merges. The
+over-estimates hid the under-estimates, so the total looked stable while the
+distribution did not.
+
+All 111 spec files now carry a measured duration, a measured test count and a
+recorded source, and every one of those measurements comes from **one CI run**
+(`32333645709`) rather than from a mixture. `e2e:partitions:check` fails while any
+gate spec on disk lacks one — asked over the same `listSpecFiles()` discovery the
+gate partitions on — and it also enforces a partition ceiling **derived** from
+`globalTimeout` instead of the flat "under 20 minutes" the failing p05 satisfied at
+19.4 min. Ten partitions became twelve, the derivation's only knob, so the heaviest
+is **15.2 min**: 68% of the ceiling against the 87% it was at.
+
+**Verified, not asserted, on two twelve-partition runs.** Run `32333645709` (the
+one the manifest was then re-derived from) collected **1847 tests and executed
+1847**; run `32338241602`, with the re-derived manifest, did the same and **failed
+none of them** — **CI Gate green**, twelve partitions started and finished, worst at
+76% of `globalTimeout`. This finding's headline number — 33 tests that had never
+run — is zero on both. `globalTimeout`, `workers`, the algorithm and the manifest
+schema are all unchanged.
+
 ---
 
 ## 6. P2 findings
@@ -801,6 +829,39 @@ Fix by asserting the control rather than the text
 (`getByRole("textbox", { name: "Overall reflection" })` → `toHaveValue(...)`), which
 is what the same file does elsewhere.
 
+**Disposition — FIXED by [HARDEN-06A](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md)
+(2026-08-20), and the "one frame" reasoning above was tested rather than inherited.**
+A fixture reproducing the two-element DOM and resolving it after 1 s, driven by this
+repository's own Playwright 1.62.1, fails **immediately** with this finding's exact
+message: Playwright does not retry a strict-mode violation, so the assertion never
+reaches its own 5 s budget. The window therefore does not need to be wide to be
+fatal, only to contain the FIRST evaluation — which confirms the classification
+(harness defect, category 4) and shows the assertion was unsafe at any speed rather
+than only on a saturated runner. The fix asserts the live surface
+(`.dh-review-guide__prompt .cm-content` → `toContainText`) rather than
+`toHaveValue` on the fallback, because the fallback is exactly the element that is
+*gone* once the editor is ready; that is also the shape `notes-knowledge.spec.ts`,
+`notes.spec.ts` and `forms.spec.ts` already use. Three further problems in the same
+file came out of the fix: `waitForEditor` was page-wide and could be satisfied by a
+different editor, and **Journey 5 carried the same unsafe assertion twice** — once on
+the guide step and once on the Review record, where every open section mounts its own
+editor. A regression assertion now pins the contract that made the ambiguity
+possible: once the editor reports ready, the fallback `<textarea>` is gone. All six
+journeys were then run three times over, green every time.
+
+**A third instance of the same shape, found by the re-derived split.** Putting
+`tasks-collection.spec.ts` and `today-task-convergence.spec.ts` in one partition for
+the first time produced six failures from one cause on run `32333645709`:
+`tasks-collection.spec.ts:760` compares Today's whole `main.innerText()`, which
+opens with the shell's `role="status"` live region, and the two snapshots differed
+by the line *"Online. Not stored offline yet."* and nothing else — after which the
+test's restore of the owner's DEFAULT TASKS VIEW, written as its last line rather
+than as an `afterEach`, never ran, and five `today-task-convergence` journeys that
+navigate to a bare `/tasks` were reported as failures of their own code. Both halves
+are fixed. The durable rule is worth naming beside F-11's: **a spec that mutates
+owner-level state has to hand it back whatever happens to it**, and one real defect
+reported as six is the same class of untruth as a test that never runs.
+
 ### F-12 — The Activity kernel permits a 101-bound-parameter statement — **P3** (latent)
 
 `ActivityRepository`'s `MAX_ACTIVITY_PAGE_SIZE` is **100**, and
@@ -1136,8 +1197,8 @@ Classified per the brief.
 | Failure | Category |
 | --- | --- |
 | p08 · `plan-smart-lists.spec.ts:179` — the deleted view is still listed | **1 — real product defect** (F-04). The test races the product in exactly the way a user can. |
-| p05 · partition did not complete, 33 tests never ran | **4 — harness defect** (F-03): a manifest with ten guessed durations, one of them 2.7× low. |
-| p05 · `reviews-guided.spec.ts:319` — strict-mode violation | **4 — harness defect** (F-11): a text assertion over a one-frame editor handover, exposed by the overrun. |
+| p05 · partition did not complete, 33 tests never ran | **4 — harness defect** (F-03): a manifest with ten guessed durations, one of them 2.7× low. **Fixed by HARDEN-06A.** |
+| p05 · `reviews-guided.spec.ts:319` — strict-mode violation | **4 — harness defect** (F-11): a text assertion over a one-frame editor handover, exposed by the overrun. **Fixed by HARDEN-06A**, which also measured that a strict-mode violation is never retried, so the assertion was unsafe at any speed. |
 
 Audited properties of the suite itself:
 
@@ -1264,7 +1325,17 @@ In this order, because each step makes the next one measurable.
 
 ## 27. Proposed PR slices
 
-### HARDEN-06A — A finishing E2E gate
+### HARDEN-06A — A finishing E2E gate — ☑ DELIVERED 2026-08-20
+
+> Record: [`HARDEN_06A_FINISHING_E2E_GATE_2026_08.md`](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md).
+> Delivered as scoped, plus three things reading the code turned up that the finding
+> did not name: the same unsafe assertion twice more in `reviews-guided.spec.ts`, a
+> `durationsFromReports` that double-counted a spec file appearing in two reports,
+> and a hand-maintained `source` map that had decayed exactly as the durations had.
+> The partition COUNT moved 10 → 12 — the derivation's only knob, and the smallest
+> authority that gets the heaviest partition back inside a budget derived from
+> `globalTimeout` rather than fitted to the split. `globalTimeout`, `workers` and the
+> partition algorithm are untouched.
 
 - **Defects:** F-03, F-11.
 - **Why together:** both are about the suite reporting truthfully; the second is
@@ -1356,6 +1427,25 @@ In this order, because each step makes the next one measurable.
 Reproduced verbatim in §2. Summary: **all local gates green; CI red on `main` with two
 failing partitions and 33 unexecuted tests.**
 
+**Since HARDEN-06A (2026-08-20), stated as two separate results because they are
+two separate results.** Across three twelve-partition runs (`32333645709`,
+`32338241602`, `32340347468`), **36 of 36 partitions started, finished and executed
+every test they collected — 5541 dispatched, 5541 executed, none unexecuted, none
+reaching `globalTimeout`.** That is F-03 closed. But the gate is **not** reliably
+green: runs `32338241602` and `32340347468` are the same executable tree, and the
+first failed nothing while the second failed four unrelated tests in four
+partitions. None of the four is F-03 or F-11; two are shared-workspace state
+dependence (**DEBT-173**, raised by HARDEN-06A) and one is the ordinary
+intermittency **DEBT-125** has named since August 11. On the green run the worst
+partition sat at 76% of `globalTimeout`.
+The 33 unexecuted tests are gone, `reviews-guided.spec.ts` is fixed, and a third
+assertion of the same shape was found and fixed with it. **F-04** remains and is
+deliberately untouched: it is a real product defect belonging to HARDEN-06D by the
+sequence in §26. It failed p08 on `main`'s run and passed on both of HARDEN-06A's,
+which is evidence for its classification as a race and **not** evidence that it is
+fixed. Per-run evidence is in
+[`HARDEN_06A_FINISHING_E2E_GATE_2026_08.md` §6](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md#6-ci-evidence).
+
 ---
 
 ## 29. Remaining uncertainty
@@ -1429,6 +1519,7 @@ is what makes V2.4 safe to start.
 - [`PRODUCT_DEBT.md`](PRODUCT_DEBT.md) — the register this audit reconciles against
 - [`ARCHITECTURE_DECISIONS.md`](../decisions/ARCHITECTURE_DECISIONS.md) — ADR-001…ADR-107
 - [`EXPORT_AND_PORTABILITY.md`](../development/EXPORT_AND_PORTABILITY.md) · [`BACKUP_AND_RESTORE.md`](../development/BACKUP_AND_RESTORE.md) — F-02, F-10
+- [`HARDEN_06A_FINISHING_E2E_GATE_2026_08.md`](HARDEN_06A_FINISHING_E2E_GATE_2026_08.md) — the F-03/F-11 repair and the re-derived split
 - [`SETUP_AND_CI.md`](../development/SETUP_AND_CI.md) — the E2E partition mechanism, F-03
 - [`MEETINGS_MODULE.md`](../development/MEETINGS_MODULE.md) · [`NOTES_PERSISTENCE.md`](../development/NOTES_PERSISTENCE.md) — F-01 and the precedent it should copy
 - [`PEOPLE_MODULE.md`](../development/PEOPLE_MODULE.md) · [`RELATIONSHIPS.md`](../development/RELATIONSHIPS.md) — F-06

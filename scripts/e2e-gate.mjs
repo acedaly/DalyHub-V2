@@ -3,7 +3,7 @@
  * Run the WHOLE E2E gate locally, partition by partition, exactly the way CI
  * runs it (HARDEN-04).
  *
- * CI runs the ten partitions concurrently on ten runners; this runs them in
+ * CI runs the partitions concurrently, one runner each; this runs them in
  * sequence in one place, which is the only way a person can answer "does the
  * complete intended suite pass, and did every test in it actually execute?"
  * before pushing. It uses the same manifest, the same Playwright arguments and
