@@ -38,6 +38,7 @@ import type {
 import type { CompletionRollup } from "~/kernel/spine";
 import type {
   TaskBlockedSummary,
+  TaskChecklistProgress,
   CommitmentState,
   TaskListItem,
   TaskPriority,
@@ -629,6 +630,21 @@ export interface SerializedProjectTask {
    * There is deliberately no dependency-weighted progress anywhere in DalyHub.
    */
   readonly blocked?: TaskBlockedSummary;
+  /**
+   * TASKS-13 — this Task's checklist progress, on the same terms as `blocked`.
+   *
+   * HARDEN-06E (F-09) — it was missing here, and only here. The same Task showed
+   * "2 of 5" on `/tasks`, `/today` and `/plan` and nothing at all inside its own
+   * Project's Tasks tab, which is the surface an owner works a Project FROM. The
+   * invariant is that one Task means one Task wherever it is viewed;
+   * `TaskRowProjection` making the field optional is a sound performance
+   * contract and an unsound consistency one, because it makes the absence
+   * invisible.
+   *
+   * `undefined` means the loader did not project it, which stays deliberately
+   * different from `{ total: 0 }` — a Task with no checklist at all.
+   */
+  readonly checklist?: TaskChecklistProgress;
 }
 
 /** Serialise a kernel `TaskListItem` for a project's task list (Dates → ISO). */
@@ -636,6 +652,8 @@ export function serializeProjectTask(
   item: TaskListItem,
   /** TASKS-12 — this Task's entry from the page's ONE bounded aggregate. */
   blocked?: TaskBlockedSummary,
+  /** TASKS-13 — this Task's entry from the page's other bounded aggregate. */
+  checklist?: TaskChecklistProgress,
 ): SerializedProjectTask {
   return {
     id: item.id,
@@ -649,6 +667,7 @@ export function serializeProjectTask(
     commitmentState: item.commitmentState,
     waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
     ...(blocked ? { blocked } : {}),
+    ...(checklist ? { checklist } : {}),
   };
 }
 

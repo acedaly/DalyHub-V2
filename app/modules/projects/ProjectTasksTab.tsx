@@ -43,7 +43,11 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { isTaskBlocked, taskBlockedLabel } from "~/kernel/tasks";
+import {
+  checklistProgressLabel,
+  isTaskBlocked,
+  taskBlockedLabel,
+} from "~/kernel/tasks";
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
 import { DrawerTrigger, useDrawer, withDrawerPushed } from "~/shared/drawer";
@@ -359,6 +363,24 @@ function toTaskCardProps(
     metadata.push({
       id: "blocked-by",
       value: <span data-testid="project-task-blocked">{blockedLabel}</span>,
+    });
+  }
+  /*
+   * TASKS-13 / HARDEN-06E (F-09) — the checklist figure, in the ONE wording the
+   * product uses for it (`checklistProgressLabel`, "2 of 5").
+   *
+   * It was missing here and only here, on the surface an owner works a Project
+   * FROM: the same Task showed its steps on `/tasks`, `/today` and `/plan` and
+   * nothing at all in its own Project. `null` covers both "the loader did not
+   * project it" and "this Task has no checklist", which is exactly the absence
+   * rule the rest of this row follows.
+   */
+  const checklistLabel = checklistProgressLabel(task.checklist);
+  if (checklistLabel !== null) {
+    metadata.push({
+      id: "checklist",
+      value: <span data-testid="project-task-checklist">{checklistLabel}</span>,
+      priority: "low",
     });
   }
   if (waiting && task.waiting) {

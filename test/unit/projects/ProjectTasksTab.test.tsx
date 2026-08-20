@@ -400,3 +400,45 @@ describe("Project Tasks tab — reconcile after a mutation", () => {
     expect(screen.getByText("Bravo task")).toBeInTheDocument();
   });
 });
+
+/**
+ * HARDEN-06E (F-09) — the checklist figure, in the ONE wording the product uses.
+ *
+ * The Project's Tasks tab was the only task-bearing surface that drew nothing:
+ * the same Task showed "2 of 5" on `/tasks`, `/today` and `/plan` and had no
+ * steps at all here, on the surface an owner works a Project from.
+ */
+describe("checklist progress on a project's task row", () => {
+  it("shows the same '1 of 3' the other surfaces show", () => {
+    renderTab(
+      {
+        tasks: [task({ checklist: { total: 3, completed: 1 } })],
+        nextCursor: null,
+      },
+      () => ({ tasks: [], nextCursor: null }),
+    );
+    expect(screen.getByTestId("project-task-checklist").textContent).toBe(
+      "1 of 3",
+    );
+  });
+
+  it("draws nothing for a Task with no checklist, and nothing for one the loader did not project", () => {
+    renderTab(
+      {
+        tasks: [
+          task({
+            id: "t1",
+            title: "Empty",
+            checklist: { total: 0, completed: 0 },
+          }),
+          task({ id: "t2", title: "Unprojected" }),
+        ],
+        nextCursor: null,
+      },
+      () => ({ tasks: [], nextCursor: null }),
+    );
+    // The absence rule: a dimension that was not used prints nothing, and
+    // "0 of 0" is never shown.
+    expect(screen.queryByTestId("project-task-checklist")).toBeNull();
+  });
+});

@@ -74,9 +74,12 @@ export const RESPONSIVE_VIEWPORTS = [
  * always a statement about the CARD rather than about the task, and would have
  * had to be re-decided in six files.
  *
- * Every task-bearing surface that has NOT adopted the row — Today, a Project's
- * task list — still renders cards, and those specs still say `article`, which is
- * correct: they are asking about a different component.
+ * A Project's task list is the LAST task-bearing surface that has not adopted
+ * the row; it still renders cards, and its specs still say `article`, which is
+ * correct — they are asking about a different component. (This comment used to
+ * name Today alongside it. TODAY-TASK-01 adopted the shared row there, so the
+ * sentence had been false since; corrected by HARDEN-06E, F-15. The remaining
+ * fork is DEBT-176.)
  */
 export function taskRows(scope: Page | Locator): Locator {
   return scope.locator("[data-testid='task-row']");

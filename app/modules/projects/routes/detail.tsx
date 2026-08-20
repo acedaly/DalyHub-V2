@@ -28,7 +28,7 @@ import {
   loadProjectKnowledge,
 } from "~/platform/entity-links/project-knowledge";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
-import type { TaskBlockedSummary } from "~/kernel/tasks";
+import type { TaskBlockedSummary, TaskChecklistProgress } from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { evaluateProjectHealth } from "~/kernel/project-health";
@@ -178,6 +178,18 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     .listBlockedSummaries(taskPage.items.map((item) => item.id))
     .catch(() => new Map() as ReadonlyMap<string, TaskBlockedSummary>);
 
+  /*
+   * TASKS-13 / HARDEN-06E (F-09) — the page's checklist figures, in ONE bounded
+   * aggregate, on exactly the same terms.
+   *
+   * It was absent here and only here: the same Task showed "2 of 5" on `/tasks`,
+   * `/today` and `/plan` and nothing at all on the surface an owner works a
+   * Project FROM. One Task means one Task wherever it is viewed.
+   */
+  const taskChecklist = await scope.tasks
+    .listChecklistProgress(taskPage.items.map((item) => item.id))
+    .catch(() => new Map() as ReadonlyMap<string, TaskChecklistProgress>);
+
   return {
     // The KEY only. The settings repository has already normalised it, so a key
     // this build no longer recognises arrives as `null` and the Project renders
@@ -193,7 +205,11 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     // its own: a Project's task list must render even when the dependency read
     // does not, and then it simply reads as it did before TASKS-12.
     tasks: taskPage.items.map((item) =>
-      serializeProjectTask(item, taskBlocked.get(item.id)),
+      serializeProjectTask(
+        item,
+        taskBlocked.get(item.id),
+        taskChecklist.get(item.id),
+      ),
     ),
     tasksNextCursor: taskPage.nextCursor,
     taskState,
