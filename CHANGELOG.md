@@ -1,5 +1,9 @@
 # Changelog
 
+- Refined Today into a clearer command centre: an honest live day summary,
+  stronger task-first hierarchy, one bounded measure strip, and a quieter
+  supporting rail across desktop and phone.
+
 All notable owner-facing changes to DalyHub.
 
 This file is written for the person using DalyHub, not for the person building it

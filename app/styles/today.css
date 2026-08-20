@@ -43,7 +43,7 @@
   container-name: today;
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-5);
+  gap: var(--dh-space-6);
   padding: var(--app-space-6) var(--app-page-padding) var(--app-space-8);
   /*
    * The dashboard measure. Wider than the standard collection cap because this
@@ -105,7 +105,7 @@
 .dh-today__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
   /* The row gap is what a WRAPPED rail pays; the column gap keeps the rail off
      the greeting's descenders on a wide screen. */
@@ -114,6 +114,8 @@
 
 .dh-today__identity {
   min-inline-size: 0;
+  display: grid;
+  gap: var(--dh-space-1);
 }
 
 /*
@@ -157,8 +159,11 @@
   grid-template-columns: minmax(0, 1fr);
   gap: var(--dh-space-3);
   margin: 0;
-  padding: 0;
+  padding: var(--dh-space-4) var(--dh-space-5);
   list-style: none;
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-surface-subtle);
 }
 
 /*
@@ -340,10 +345,19 @@
 }
 
 .dh-today__date {
-  margin: var(--app-space-1) 0 0;
+  margin: 0;
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  text-transform: uppercase;
+}
+
+.dh-today__status {
+  margin: 0;
   color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -414,7 +428,7 @@
 .dh-today__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--app-space-5);
+  gap: var(--dh-space-7) var(--dh-space-6);
   align-items: start;
   min-inline-size: 0;
 }
@@ -600,10 +614,23 @@
  *     has a margin; only the rules cross it.
  */
 .dh-today__panel--card {
-  padding-block: var(--dh-space-4);
+  padding-block: var(--dh-space-5);
   border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
+  border-radius: var(--dh-radius-lg);
   background: var(--dh-color-surface);
+}
+
+.dh-today__timeline {
+  box-shadow: inset var(--dh-border-width) 0 0 var(--dh-color-accent);
+}
+
+@container today (min-width: 52rem) {
+  .dh-today__schedule,
+  .dh-today__continue,
+  .dh-today__stack {
+    padding-inline-start: var(--dh-space-5);
+    border-inline-start: var(--dh-border-width) solid var(--dh-color-divider);
+  }
 }
 
 .dh-today__panel--card > :where(.dh-today__panel-head, .dh-today__panel-foot),
@@ -1174,7 +1201,19 @@
   }
 
   .dh-today__panel {
-    padding: var(--app-space-4);
+    padding: var(--dh-space-4);
+  }
+
+  .dh-today__head {
+    align-items: flex-start;
+  }
+
+  .dh-today__head .dh-schedule__nav {
+    inline-size: 100%;
+  }
+
+  .dh-today__summary {
+    padding: var(--dh-space-3) var(--dh-space-4);
   }
 
   /* The greeting steps down one rung so it does not take a third of a phone

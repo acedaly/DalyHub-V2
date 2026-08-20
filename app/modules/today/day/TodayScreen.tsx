@@ -944,6 +944,15 @@ export function TodayScreen({
   const overdue = overdueSlice(buckets.overdue);
   const plan = focusTodaySlice(buckets);
   const greeting = greetingFor(dayPartForHour(data.hour), data.ownerName);
+  const openTodayCount =
+    buckets.overdue.filter((task) => !task.completed).length +
+    buckets.today.filter((task) => !task.completed).length;
+  const attentionSummary =
+    openTodayCount === 0
+      ? "Your day is clear."
+      : openTodayCount === 1
+        ? "One task needs your attention today."
+        : `${openTodayCount} tasks need your attention today.`;
 
   /*
    * The ONE contextual command Today registers: `?` opens the keyboard
@@ -1104,8 +1113,11 @@ export function TodayScreen({
        */}
       <header className="dh-today__head">
         <div className="dh-today__identity">
-          <h1 className="dh-today__greeting">{greeting}</h1>
           <p className="dh-today__date">{data.dateLong}</p>
+          <h1 className="dh-today__greeting">{greeting}</h1>
+          <p className="dh-today__status" aria-live="polite">
+            {attentionSummary}
+          </p>
         </div>
         {/* CAL-02 — the three daily surfaces. It survives TODAY-11 because the
             Schedule panel's week strip navigates the SCHEDULE's day, while
