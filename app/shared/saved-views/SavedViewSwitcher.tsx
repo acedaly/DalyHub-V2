@@ -125,7 +125,9 @@ export function SavedViewSwitcher({
   const revalidator = useRevalidator();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // A COUNT, not a flag: two overlapping posts must not have the first to
+  // finish re-enable the menu while the second is still in flight.
+  const [inFlight, setInFlight] = useState(0);
   const [pendingDelete, setPendingDelete] = useState<SavedViewOption | null>(
     null,
   );
@@ -141,6 +143,7 @@ export function SavedViewSwitcher({
     .filter((view): view is SavedViewOption => view !== undefined);
   const systemViews = views.filter((view) => view.kind === "system");
   const userViews = views.filter((view) => view.kind === "user");
+  const busy = inFlight > 0;
   /**
    * Post one management intent and RESOLVE WITH THE ANSWER.
    *
@@ -155,7 +158,7 @@ export function SavedViewSwitcher({
       const body = new FormData();
       for (const [key, value] of Object.entries(fields)) body.set(key, value);
       body.set("query", currentQuery);
-      setBusy(true);
+      setInFlight((count) => count + 1);
       let result: SavedViewActionResult;
       try {
         const response = await fetch(actionPath, { method: "post", body });
@@ -166,7 +169,7 @@ export function SavedViewSwitcher({
           formError: "That couldn’t be saved. Please try again.",
         };
       } finally {
-        setBusy(false);
+        setInFlight((count) => count - 1);
       }
       setStatus((result.ok ? result.message : result.formError) ?? null);
       if (result.ok) revalidator.revalidate();

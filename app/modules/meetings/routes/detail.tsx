@@ -478,6 +478,13 @@ function MeetingRecord({
        * the retry appends onto those. Bounded to one retry — a second refusal
        * means a third writer is active, and reporting the failure honestly is
        * better than looping while the owner waits.
+       *
+       * The remembered value is now committed only AFTER a successful write,
+       * where it used to be written optimistically. Two captures in quick
+       * succession — what the bar is FOR — therefore cost the second one a
+       * refusal and a retry rather than being merged locally, and both notes
+       * survive because the SERVER arbitrates instead of this component
+       * guessing. A failed append still never becomes the base for the next.
        */
       const attempt = async (
         onto: string,
@@ -499,10 +506,12 @@ function MeetingRecord({
           });
           if (response.ok) return { ok: true, written: next };
           if (response.status === 409) {
-            const data = (await response.json()) as MeetingConflictResponse & {
-              readonly conflict?: boolean;
-            };
-            if (data.conflict === true) return { ok: false, conflict: data };
+            const data = (await response.json()) as Partial<
+              Record<keyof MeetingConflictResponse, unknown>
+            >;
+            if (data.conflict === true) {
+              return { ok: false, conflict: data as MeetingConflictResponse };
+            }
           }
           return { ok: false };
         } catch {
