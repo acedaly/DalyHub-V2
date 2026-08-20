@@ -232,6 +232,48 @@ test.describe("DHDS-08 — disclosure shows its state", () => {
     await expect(region).toHaveAttribute("data-dh-open", "true");
     await expect(region.locator(".dh-disclosure__content")).toBeVisible();
   });
+
+  test("the collapsing region refuses focus from the click, not from the end of the transition", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks");
+    const disclosure = page.locator(".dh-taskgroup__disclosure").first();
+    if ((await disclosure.count()) === 0) {
+      test.skip(true, "this fixture renders no grouped task sections");
+    }
+    const content = page.locator(".dh-disclosure__content").first();
+
+    // Open: the rows are ordinary interactive content.
+    await expect(content).not.toHaveAttribute("inert", /.*/);
+
+    /*
+     * Collapsing paints the rows for ~200ms so the region can transition shut.
+     * That must not leave them reachable: `aria-expanded` already says the
+     * section is closed, so tabbing straight after the click must not land
+     * inside it, and assistive technology must not see it either. `inert` is
+     * keyed on the collapse itself rather than on the end of the animation —
+     * motion may never delay or obscure what a control has already reported.
+     */
+    await disclosure.click();
+    await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    // Asserted while the region is still painted, so this genuinely covers the
+    // transition window rather than the settled state.
+    await expect(content).toHaveAttribute("inert", /.*/);
+
+    const focusRefused = await content.evaluate((element) => {
+      const target = element.querySelector<HTMLElement>(
+        "a[href], button, input",
+      );
+      if (target === null) return null;
+      target.focus();
+      return !element.contains(document.activeElement);
+    });
+    if (focusRefused !== null) expect(focusRefused).toBe(true);
+
+    // Expanding restores it immediately — the reverse is not over-restricted.
+    await disclosure.click();
+    await expect(content).not.toHaveAttribute("inert", /.*/);
+  });
 });
 
 test.describe("DHDS-08 — floating surfaces share the grammar", () => {

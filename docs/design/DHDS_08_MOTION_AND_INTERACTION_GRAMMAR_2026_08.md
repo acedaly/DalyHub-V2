@@ -119,6 +119,28 @@ itself — `--app-motion-edge-from` and `--app-motion-edge-fade`. They carry the
 closed (defined in `tokens.css` and nowhere else, asserted by test), and a role
 every panel redefines locally is machinery rather than vocabulary.
 
+### The layer aliases; it does not author
+
+`AGENTS.md` §9: *"nothing in the layer is authored (every value is a `var()` onto
+an existing token)"*. Every role in the tables above is a `var()` alias; the
+authored numbers live in an `--app-motion-*` machinery block beside the
+contextual pair.
+
+They are `--app-` rather than `--md-sys-` because the prefix table means what it
+says — `--app-` owns "structural values M3 does not own", and M3 genuinely does
+not own these: its ramp contains no 90ms, no 140ms and no 260ms, and its curve
+set contains no `cubic-bezier(0.3, 0, 0, 1)`. Pinning DalyHub's five rungs to
+positions in M3's twelve-rung ramp would make the vocabulary M3's again by the
+back door, which is the thing DHDS-08 exists to undo. Three of the four curves
+happen to coincide with an M3 curve to the digit; they are still authored here,
+because the agreement is a coincidence of good taste rather than a dependency.
+
+**This was caught in review.** The first version of DHDS-08 replaced the old
+(degenerate) aliases with literal durations and curves, putting a second source
+of truth for motion values inside the public vocabulary. Two tests now ratchet
+it: every motion role must *declare* a `var()` onto `--app-` or `--md-`, and
+every one must *resolve* to a real authored value.
+
 ### Why five rungs and not the M3 ramp
 
 M3 publishes twelve durations from 50ms to 600ms. Twelve rungs is not a
@@ -427,6 +449,16 @@ removal-timing problem [`usePresence`](../../app/shared/motion/use-presence.ts)
 exists for. Under reduced motion it arrives immediately and the behaviour is
 identical to before.
 
+**Interaction goes on the click; only the pixels wait.** Painting the rows for
+200ms so the region can close opened a window in which `aria-expanded` and
+`data-dh-open` both said `false` while the subtree was still focusable and still
+in the accessibility tree — so tabbing straight after a collapse landed inside
+content the control had just declared closed. `inert` is therefore keyed on
+`collapsed` rather than on the end of the transition. **This was caught in
+review**, and is covered by a browser test that asserts focus is refused *while
+the region is still painted*, so it genuinely exercises the transition window.
+Motion may never delay or obscure what a control has already reported.
+
 Cost, stated honestly: this animates a grid track, which is layout, not
 composite. It is bounded — one region at a time, at 200ms — and the comprehension
 it buys is the Level 3 test. Repeated opening and closing stays fast.
@@ -506,7 +538,7 @@ Small defects, each of the class that heavily affects perceived quality:
 
 ## 18. Testing
 
-### `test/unit/motion/motion-grammar.test.ts` — 26 assertions
+### `test/unit/motion/motion-grammar.test.ts` — 28 assertions
 
 Contract tests over the stylesheets. What is worth protecting is not any
 particular 4px; it is that there is exactly **one** place a duration, a curve, a
@@ -526,6 +558,8 @@ was a copy.
   title surfaces, and no host uses the `text-decoration` shorthand on one;
 - disclosure opens to intrinsic height with no `max-height`, and the canonical
   grouped section uses it;
+- every motion role **aliases** rather than authors, and every one resolves to a
+  real value;
 - the JavaScript duration mirror matches the stylesheet and mirrors **only** the
   durations that drive removal;
 - **no animation dependency** (Framer Motion, Motion One, react-spring, GSAP,
@@ -533,15 +567,16 @@ was a copy.
 - **no `will-change`** anywhere;
 - **no route transition** anywhere.
 
-### `e2e/motion.spec.ts` — 13 tests, all passing
+### `e2e/motion.spec.ts` — 14 tests, all passing
 
 State- and event-driven; no sleeps, because nothing in DalyHub is gated on an
 animation. Covers the vocabulary resolving in a real engine, the state rung on a
 control with no resting scale, the row title not moving when the `…` appears,
 keyboard reach, the strike's resting state, completion not resizing the row,
-disclosure both ways, the palette and anchored layer naming the shared grammar
-and being operable at once, the full reduced-motion contract, and navigation
-playing no page transition.
+disclosure both ways, a collapsing region refusing focus *while it is still
+painted*, the palette and anchored layer naming the shared grammar and being
+operable at once, the full reduced-motion contract, and navigation playing no
+page transition.
 
 ### Existing coverage preserved
 
@@ -572,7 +607,7 @@ drift apart.
 | `pnpm run test:unit` | **6234 passed**, 0 failed |
 | `pnpm run test:kernel` | pass |
 | `pnpm run e2e:partitions:check` | pass — 113 spec files, 12 partitions |
-| `e2e/motion.spec.ts` | **13 passed** |
+| `e2e/motion.spec.ts` | **14 passed** |
 | `e2e/dhds-08-motion-screenshots.spec.ts` | **22 passed**, 48 frames |
 | `e2e/drawer` `feedback` `tooltip` `command-palette` | 61 passed, 1 failed *(pre-existing)* |
 | `e2e/today` `today-focus` `today-mobile` `tasks` | 32 passed, 6 failed *(pre-existing)* |

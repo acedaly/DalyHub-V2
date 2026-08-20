@@ -52,11 +52,26 @@ function appFiles(): readonly string[] {
   return out;
 }
 
-/** Read one `:root`-level token's declared value out of `tokens.css`. */
-function tokenValue(name: string): string {
+/** One token's DECLARED value — which for a `--dh-*` role is a `var()`. */
+function declaredValue(name: string): string {
   const match = new RegExp(`--${name}:\\s*([^;]+);`).exec(tokensCss);
   if (match === null) throw new Error(`--${name} is not defined in tokens.css`);
   return match[1].trim();
+}
+
+/**
+ * A token's RESOLVED value, following `var()` aliases to the authored number.
+ *
+ * The `--dh-*` layer authors nothing (`AGENTS.md` §9): every role is a `var()`
+ * onto a machinery token, so a test that wants to reason about 90ms has to
+ * resolve the chain the browser would. Bounded, because a cycle here is a
+ * stylesheet bug rather than something to loop on.
+ */
+function tokenValue(name: string, depth = 0): string {
+  if (depth > 8) throw new Error(`--${name} does not resolve to a value`);
+  const value = declaredValue(name);
+  const alias = /^var\(\s*--([\w-]+)\s*\)$/.exec(value);
+  return alias === null ? value : tokenValue(alias[1], depth + 1);
 }
 
 describe("DHDS-08 — the duration vocabulary", () => {
@@ -115,6 +130,52 @@ describe("DHDS-08 — the duration vocabulary", () => {
     const ms = (name: string) => Number.parseInt(tokenValue(name), 10);
     expect(ms("dh-motion-spinner")).toBeGreaterThan(ms("dh-motion-deliberate"));
     expect(ms("dh-motion-shimmer")).toBeGreaterThan(ms("dh-motion-deliberate"));
+  });
+});
+
+describe("DHDS-08 — the layer aliases, it does not author", () => {
+  /*
+   * `AGENTS.md` §9: "nothing in the layer is authored (every value is a `var()`
+   * onto an existing token)". DHDS-08 briefly broke this — it replaced the old
+   * (degenerate) aliases with literal durations and curves, which put a second
+   * source of truth for motion values inside the public vocabulary. Caught in
+   * review; this is the ratchet so it cannot come back.
+   *
+   * The authored values live in the `--app-motion-*` machinery block, because
+   * `--app-` owns the structural values M3 does not own — and M3's ramp
+   * genuinely contains no 90ms, no 140ms and no 260ms.
+   */
+  const MOTION_ROLES = [
+    "dh-motion-none",
+    "dh-motion-instant",
+    "dh-motion-fast",
+    "dh-motion-base",
+    "dh-motion-deliberate",
+    "dh-motion-exit",
+    "dh-motion-spinner",
+    "dh-motion-shimmer",
+    "dh-motion-travel",
+    "dh-motion-travel-modal",
+    "dh-motion-scale",
+    "dh-ease-standard",
+    "dh-ease-enter",
+    "dh-ease-exit",
+    "dh-ease-emphasized",
+  ] as const;
+
+  it("declares every motion role as a var() onto machinery", () => {
+    for (const role of MOTION_ROLES) {
+      expect(declaredValue(role), `--${role} must alias, not author`).toMatch(
+        /^var\(\s*--(?:app|md)-[\w-]+\s*\)$/,
+      );
+    }
+  });
+
+  it("resolves every one of them to a real authored value", () => {
+    for (const role of MOTION_ROLES) {
+      expect(tokenValue(role), `--${role}`).not.toMatch(/^var\(/);
+      expect(tokenValue(role), `--${role}`).not.toBe("");
+    }
   });
 });
 

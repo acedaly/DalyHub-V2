@@ -245,13 +245,32 @@ export function TaskGroup({
        * cost a round trip. `hidden` keeps `aria-controls` pointing at a real
        * element and takes the subtree out of the accessibility tree at the same
        * time.
+       *
+       * ── DHDS-08 — and it is INERT from the click, not from the end of the
+       * transition ────────────────────────────────────────────────────────────
+       * `hidden` now arrives when the collapse FINISHES, so the rows can be
+       * painted while the region closes. That opened a 200ms window in which
+       * `aria-expanded` and `data-dh-open` both said `false` while the subtree
+       * was still focusable and still in the accessibility tree — so tabbing
+       * straight after a collapse landed inside content the control had just
+       * declared closed.
+       *
+       * `inert` keys on `collapsed` rather than on `bodyPainted`, which closes
+       * it: interaction and the accessibility tree go on the click, and only
+       * the PIXELS wait for the transition. That is the split DHDS-08 requires
+       * everywhere — motion may never delay or obscure what a control has
+       * already reported (`AGENTS.md` §15).
        */}
       <div
         id={bodyId}
         className="dh-taskgroup__body dh-disclosure"
         data-dh-open={collapsed ? "false" : "true"}
       >
-        <div className="dh-disclosure__content" hidden={!bodyPainted}>
+        <div
+          className="dh-disclosure__content"
+          hidden={!bodyPainted}
+          inert={collapsed ? true : undefined}
+        >
           {children}
         </div>
       </div>

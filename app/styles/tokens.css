@@ -6258,6 +6258,51 @@
   --app-motion-edge-from: 100%;
   --app-motion-edge-fade: 1;
 
+  /*
+   * DHDS-08 — DalyHub's own motion PRIMITIVES.
+   *
+   * These are the authored values. The `--dh-motion-*` / `--dh-ease-*` roles in
+   * the DalyHub layer below are `var()` aliases onto them and author nothing
+   * themselves, which is the rule `AGENTS.md` §9 states for the whole layer:
+   * nothing in it is authored, every value is a `var()` onto an existing token.
+   *
+   * ── Why they are `--app-` rather than `--md-sys-` ────────────────────────
+   * Because the prefix table means what it says: `--app-` owns "structural
+   * values M3 does not own", and M3 genuinely does not own these. Its duration
+   * ramp contains no 90ms, no 140ms and no 260ms, and its curve set contains no
+   * `cubic-bezier(0.3, 0, 0, 1)`. DHDS-08's whole argument is that M3's twelve-
+   * rung ramp is a number line rather than a vocabulary, so pinning DalyHub's
+   * five rungs to positions in it would make the vocabulary M3's again by the
+   * back door — and would silently move a DalyHub rung if the machinery ever
+   * changed.
+   *
+   * Three of the four curves happen to coincide with an M3 curve to the digit.
+   * They are still authored here rather than aliased there, because the
+   * agreement is a coincidence of good taste rather than a dependency: DalyHub's
+   * enter curve is what it is because objects should decelerate into rest, not
+   * because M3 calls it `emphasized-decelerate`.
+   *
+   * The MEANING of each value — which level it serves, why it is that long —
+   * lives with the role it feeds, in the DalyHub layer. This block is only where
+   * the numbers are written down.
+   */
+  --app-motion-duration-instant: 90ms;
+  --app-motion-duration-fast: 150ms;
+  --app-motion-duration-base: 200ms;
+  --app-motion-duration-deliberate: 260ms;
+  --app-motion-duration-exit: 140ms;
+  --app-motion-duration-spinner: 900ms;
+  --app-motion-duration-shimmer: 1200ms;
+
+  --app-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --app-motion-easing-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --app-motion-easing-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --app-motion-easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+
+  --app-motion-travel: 4px;
+  --app-motion-travel-modal: 8px;
+  --app-motion-scale: 0.98;
+
   --app-safe-area-top: env(safe-area-inset-top, 0px);
   --app-safe-area-right: env(safe-area-inset-right, 0px);
   --app-safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -7498,7 +7543,7 @@
    */
 
   /** Never. The reduced-motion resolution and the deliberate-static rung. */
-  --dh-motion-none: 0ms;
+  --dh-motion-none: var(--md-sys-motion-duration-none);
   /**
    * LEVEL 1 — state feedback. Hover, press, focus, checked, selected.
    *
@@ -7507,24 +7552,24 @@
    * repeated act pays this hundreds of times a day, so it is the shortest
    * rung the system publishes above zero.
    */
-  --dh-motion-instant: 90ms;
+  --dh-motion-instant: var(--app-motion-duration-instant);
   /** LEVEL 2 — a small reveal: a menu, a tooltip, a caret, a row affordance. */
-  --dh-motion-fast: 150ms;
+  --dh-motion-fast: var(--app-motion-duration-fast);
   /** LEVEL 2/3 — the standard interface transition. Panels, scrims, sheets. */
-  --dh-motion-base: 200ms;
+  --dh-motion-base: var(--app-motion-duration-base);
   /**
    * LEVEL 3 — meaningful structural movement: a row leaving, the next Today
    * task taking the Now position, a progress bar reaching a new value. The
    * ceiling. Nothing in DalyHub is slower than this.
    */
-  --dh-motion-deliberate: 260ms;
+  --dh-motion-deliberate: var(--app-motion-duration-deliberate);
   /**
    * LEAVING. An object that goes away should be gone slightly before you
    * finish thinking about it, so exit is shorter than the entrance it
    * reverses — the difference between a surface dismissing itself and a
    * surface being reluctant.
    */
-  --dh-motion-exit: 140ms;
+  --dh-motion-exit: var(--app-motion-duration-exit);
 
   /*
    * Two PERIODS, for the only two things in DalyHub that repeat forever.
@@ -7534,9 +7579,9 @@
    * three times a second.
    */
   /** The in-flight spinner's rotation period. */
-  --dh-motion-spinner: 900ms;
+  --dh-motion-spinner: var(--app-motion-duration-spinner);
   /** The skeleton shimmer's sweep period. */
-  --dh-motion-shimmer: 1200ms;
+  --dh-motion-shimmer: var(--app-motion-duration-shimmer);
 
   /*
    * FOUR curves, and they genuinely differ.
@@ -7550,10 +7595,10 @@
    * that wobbles is an interface that is asking to be watched, and DalyHub's
    * job is to be looked THROUGH.
    */
-  --dh-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --dh-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
-  --dh-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
-  --dh-ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+  --dh-ease-standard: var(--app-motion-easing-standard);
+  --dh-ease-enter: var(--app-motion-easing-enter);
+  --dh-ease-exit: var(--app-motion-easing-exit);
+  --dh-ease-emphasized: var(--app-motion-easing-emphasized);
 
   /*
    * How far a surface TRAVELS, and how much it scales, when it arrives.
@@ -7564,11 +7609,11 @@
    * is how a product ends up with eight subtly different ways of appearing.
    */
   /** An anchored surface — a menu, a popover, a tooltip, a hover card. */
-  --dh-motion-travel: 4px;
+  --dh-motion-travel: var(--app-motion-travel);
   /** A centred modal, which has no trigger to appear at and needs a little more. */
-  --dh-motion-travel-modal: 8px;
+  --dh-motion-travel-modal: var(--app-motion-travel-modal);
   /** The scale an anchored surface enters from. A hint of depth, not a zoom. */
-  --dh-motion-scale: 0.98;
+  --dh-motion-scale: var(--app-motion-scale);
 
   /* ---------------------------------------------------------------------- */
   /* Density — the DEFAULT preset                                           */
