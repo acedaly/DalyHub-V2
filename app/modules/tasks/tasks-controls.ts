@@ -24,7 +24,6 @@ import {
   TASK_DUE_STATES,
   TASK_PARENT_KINDS,
   TASK_PLANNED_STATES,
-  TASK_PRIORITIES,
   TASK_RECENCY_WINDOWS,
   TASK_SORTS,
   TASK_STATUSES,
@@ -36,7 +35,6 @@ import {
   TASK_GROUP_BYS,
   TASK_PRESENTATIONS,
 } from "~/kernel/task-views";
-import { taskPriorityTag } from "~/shared/task-record/task-view";
 
 import {
   COMPLETED_VISIBILITY_LABELS,
@@ -46,13 +44,13 @@ import {
   PLANNED_STATE_LABELS,
   PRESENTATION_DESCRIPTIONS,
   PRESENTATION_LABELS,
-  PRIORITY_FILTER_LABELS,
   RECENCY_LABELS,
   SECTOR_LABELS,
   SORT_LABELS,
   STATUS_LABELS,
 } from "./tasks-presentation";
 import { TASKS_FILTER_PARAMS, TASKS_PARAMS } from "./tasks-url-state";
+import { TASK_PRIORITY_OPTIONS } from "~/shared/task-record/priority-options";
 
 /** A delegatee offered as a filter option, resolved server-side from real records. */
 export interface DelegateOption {
@@ -136,14 +134,16 @@ export function buildTasksControlGroups(
       multiple: true,
       options: [
         { value: ANY, label: "Any priority" },
-        ...TASK_PRIORITIES.map((priority) => ({
-          value: priority,
-          label: PRIORITY_FILTER_LABELS[priority] ?? priority,
+        // DHDS-09 — the ONE option set, so the filter's four choices are the
+        // Task row's four choices, in the same order with the same words.
+        ...TASK_PRIORITY_OPTIONS.map(({ value, label, tag }) => ({
+          value,
+          label,
           // The applied chip already says "Priority:", so it takes the short tag
           // and stops reading "Priority: Priority 1". The MENU keeps the full
           // label, where an option stands alone and a bare "P1" is a code.
-          chipLabel: taskPriorityTag(priority),
-          mark: { kind: "priority" as const, value: priority },
+          chipLabel: tag,
+          mark: { kind: "priority" as const, value },
         })),
       ],
     },

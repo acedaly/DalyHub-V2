@@ -44,6 +44,7 @@ import {
   collectionCountLabel,
   CollectionLayout,
   CreateActionLabel,
+  SortMenu,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -64,14 +65,16 @@ const VIEWS: readonly { readonly view: ReviewView; readonly label: string }[] =
   ];
 
 /*
- * UIX-06 — each option names its own dimension, because the visible "Sort"
- * label above the control is gone (the two labels put the selects on a second
- * baseline below the search field). This is the wording People's sort select
- * has used since UIX-05.
+ * DHDS-09 — the option is the VALUE; the shared control says the dimension.
+ *
+ * UIX-06 put "Sort:" inside every option because a bare native `<select>` has
+ * nowhere else to put the field's name once its visible label is removed. The
+ * shared `SortMenu` states it once on the trigger, so the options go back to
+ * being what they are and a screen reader hears the name once.
  */
 const SORTS = [
-  { value: "recent", label: "Sort: Recently updated" },
-  { value: "period", label: "Sort: Period" },
+  { value: "recent", label: "Recently updated" },
+  { value: "period", label: "Period" },
 ] as const;
 
 type SerializedReviewRow = ReviewsCollectionData["reviews"][number];
@@ -269,31 +272,33 @@ export function ReviewsCollectionView({
           ))}
         </select>
       </label>
-      <label className="dh-reviews-filters__field">
-        <span className="dh-visually-hidden">Sort</span>
-        <select
-          className="dh-select"
-          value={data.sort}
-          onChange={(event) =>
-            setSearchParams(
-              (prev) => {
-                const next = new URLSearchParams(prev);
-                if (event.currentTarget.value === "recent") next.delete("sort");
-                else next.set("sort", event.currentTarget.value);
-                next.delete("cursor");
-                return next;
-              },
-              { replace: true, preventScrollReset: true },
-            )
-          }
-        >
-          {SORTS.map((sort) => (
-            <option key={sort.value} value={sort.value}>
-              {sort.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/*
+       * DHDS-09 — the shared sort control.
+       *
+       * This was a bare native `<select>` with "Sort:" repeated inside each of
+       * its two options, beside a Meetings collection whose identical control
+       * used a different class and a People collection that used a third. The
+       * shared control states the dimension once on its trigger, opens the
+       * product's one menu grammar, and sits at the control rung beside the
+       * search field rather than at the browser's own.
+       */}
+      <SortMenu
+        subject="reviews"
+        value={data.sort}
+        options={SORTS}
+        onSelect={(next) =>
+          setSearchParams(
+            (prev) => {
+              const params = new URLSearchParams(prev);
+              if (next === "recent") params.delete("sort");
+              else params.set("sort", next);
+              params.delete("cursor");
+              return params;
+            },
+            { replace: true, preventScrollReset: true },
+          )
+        }
+      />
     </div>
   );
 

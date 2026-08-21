@@ -60,6 +60,18 @@ export {
 // Field controls.
 export { TextField, type TextFieldProps } from "./TextField";
 export { DateField, type DateFieldProps } from "./DateField";
+/**
+ * DHDS-09 — the shared DATE CHOICE panel: presets, month grid, commands.
+ *
+ * The contents of every date surface in the product. Put it inside a `Popover`
+ * (or a `Sheet`) and it is the date picker; the `DateField` above keeps the
+ * native input, which is still the right control in a long form.
+ */
+export {
+  DateChoice,
+  type DateChoiceProps,
+  type DateShortcut,
+} from "./DateChoice";
 export {
   CalendarDateField,
   formatDateOnly,

@@ -83,11 +83,7 @@ import {
   type SerializedTaskListItem,
   type TaskListItemPatch,
 } from "~/shared/task-record/task-view";
-import {
-  MAX_PLAN_BATCH_SIZE,
-  TASK_PRIORITIES,
-  TIME_SECTORS,
-} from "~/kernel/tasks";
+import { MAX_PLAN_BATCH_SIZE, TIME_SECTORS } from "~/kernel/tasks";
 import {
   TASK_PRESENTATIONS,
   taskViewFilterCount,
@@ -132,6 +128,7 @@ import {
   type GroupedSection,
   type TaskCardData,
 } from "./tasks-view-model";
+import { TASK_PRIORITY_SELECT_OPTIONS } from "~/shared/task-record/priority-options";
 
 /** The drawer key that opens the "New task" capture form. */
 const NEW_TASK_KEY = "new-task";
@@ -1823,11 +1820,17 @@ function GroupedView({
 /* Bulk action bar (TASKS-06)                                                  */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * DHDS-09 — the canonical four, plus the one thing bulk editing genuinely adds.
+ *
+ * A bulk control CAN clear a field across a selection, which no single-task
+ * picker offers (a stored `null` is Priority 4 to a reader, so a per-task "No
+ * priority" would be a second way to say P4). Here it is a real, distinct
+ * operation over many rows, so it stays — appended to the shared list rather
+ * than inside a fifth hand-built copy of it.
+ */
 const BULK_PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  ...TASK_PRIORITIES.map((priority) => ({
-    value: priority,
-    label: taskPriorityLabel(priority),
-  })),
+  ...TASK_PRIORITY_SELECT_OPTIONS,
   { value: "__none", label: "No priority" },
 ];
 

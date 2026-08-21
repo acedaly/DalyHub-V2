@@ -1,5 +1,29 @@
 # Changelog
 
+- Made changing something as fast as reading it. Anything that floats above the
+  page — a menu, a date picker, a Project chooser, a filter panel, a
+  confirmation — is now one recognisable family with one set of habits, and each
+  kind has a job it does not stray from. Changing a task's date, priority or
+  Project is a click on the value and a click on the answer, in the list, with
+  no record to open and no form to save; the change is written through the same
+  path the record page uses, so nothing is a shortcut that behaves differently.
+  Quick Capture's three stacked form rows became one quiet line of metadata
+  under the title, each opening the same picker the task list opens — and its
+  due date can now be any day rather than one of three. Priority finally means
+  exactly one thing everywhere: four choices, the same words and the same
+  colours in every list, filter, form and menu that offers them, including the
+  two places that had quietly drifted to bare codes. Meetings, Reviews and
+  People stopped drawing three different sort controls. Menus can no longer be
+  clipped by the card or row they belong to; a picker near the bottom of the
+  window flips rather than running off it; a form's date picker, which had been
+  drawing itself with no background at all, now looks like everything else. On a
+  phone every one of these opens as a proper bottom sheet with full-width,
+  thumb-sized rows instead of a shrunken desktop panel, and the search field
+  stays put when the keyboard comes up. Keyboard operation is first-class
+  throughout — open, arrow, type to search, choose, and focus returns to exactly
+  where it was. Nothing added a dialog for an ordinary edit, and nothing became
+  a coloured pill to look clickable.
+
 - Gave DalyHub one motion and interaction grammar. Interface motion now speaks a
   single vocabulary — five durations named for what they are for, four easing
   curves that genuinely differ, and one shared set of named behaviours every

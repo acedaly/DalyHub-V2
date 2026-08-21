@@ -41,7 +41,13 @@
  * cannot simply be opened up). The whole editor — the shortcuts, the input and
  * the commands — was therefore invisible on the one surface it matters most on.
  * Placement now comes from the shared anchored layer, and below the `md`
- * breakpoint the same content is presented in the shared phone {@link Sheet}.
+ * breakpoint the same content is presented in the shared phone Sheet.
+ *
+ * ── DHDS-09 — the surface is the shared {@link Popover} ─────────────────────
+ * The anchored/sheet split, the Escape contract, the outside-press dismissal
+ * and the initial focus were written here and, near-identically, in three other
+ * places. They are now the one popover primitive; what is left in this file is
+ * the date editor itself.
  *
  * ── EDIT-03 — the SHORTCUTS are the product's, not this component's ──────────
  * A date editor that offers only a spinner asks the owner to do arithmetic for
@@ -54,12 +60,10 @@
  * passes none, and gets the input and the commands alone.
  */
 
-import { useEffect, useId, useRef, type KeyboardEvent } from "react";
+import { useId } from "react";
 
-import { AnchoredSurface } from "~/shared/anchored";
-import { CalendarGrid } from "~/shared/forms/CalendarGrid";
-import { clearControlLabel } from "~/shared/forms/clear-label";
-import { Sheet } from "~/shared/sheet";
+import { Popover } from "~/shared/floating";
+import { DateChoice } from "~/shared/forms/DateChoice";
 import { useCompactViewport } from "~/shared/viewport";
 
 import { InlineEditShell } from "./InlineEditShell";
@@ -118,31 +122,18 @@ export function InlineDateField({
   const generatedId = useId();
   const popoverId = `${generatedId}-popover`;
   const errorId = `${generatedId}-error`;
-  const firstControlRef = useRef<HTMLDivElement | null>(null);
   const compact = useCompactViewport();
 
   const open = field.editing;
 
-  useEffect(() => {
-    /*
-     * The sheet owns its own initial focus (DS-03), so only the desktop popover
-     * reaches in. It focuses the FIRST control — a preset, or the grid's single
-     * tab stop when there are none — rather than the grid unconditionally: the
-     * presets are what the owner wants four times out of five, and landing on
-     * the calendar would make the common case the long way round.
-     */
-    if (!open || compact) return;
-    firstControlRef.current
-      ?.querySelector<HTMLElement>("button:not([tabindex='-1'])")
-      ?.focus();
-  }, [open, compact]);
-
-  const onSurfaceKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    event.stopPropagation();
-    field.cancel();
-  };
+  /*
+   * Initial focus, Escape-with-focus-return, outside-press dismissal and the
+   * phone sheet all belong to the shared {@link Popover} (DHDS-09). It focuses
+   * the FIRST control — a preset, or the grid's single tab stop when there are
+   * none — which is what this component always wanted: the presets are the
+   * answer four times out of five, and landing on the calendar would make the
+   * common case the long way round.
+   */
 
   /*
    * CONTROL-01 — there is no Enter-to-commit handler any more, and there is
@@ -157,88 +148,28 @@ export function InlineDateField({
    */
 
   /*
-   * The editor's contents, identical in the popover and in the sheet.
+   * The editor's contents — the SHARED date choice (DHDS-09), identical in the
+   * popover and in the sheet.
    *
    * One definition, because the two presentations are the same field: a phone
    * that offered different shortcuts, or no Clear, would be a second date
-   * editor with the same name.
+   * editor with the same name. And one COMPONENT, because Quick Capture needs
+   * exactly this panel over a form value rather than over a server save — which
+   * is a different host, not a different date interaction.
    */
   const editor = (
-    <div className="dh-datepicker" ref={firstControlRef}>
-      {shortcuts && shortcuts.length > 0 ? (
-        /*
-         * No `role="group"` and no label of its own.
-         *
-         * The obvious `aria-label={`${label} shortcuts`}` gave the wrapper the
-         * accessible name "Due date shortcuts", which is a SECOND thing in the
-         * popover whose name contains the field's. Anything resolving a control
-         * by that name (assistive technology and `getByLabel` alike) then has
-         * two candidates for "the due date". The popover is already named "Edit
-         * due date" and each button says which day it commits.
-         */
-        <div className="dh-datepicker__presets">
-          {shortcuts.map((shortcut) => (
-            <button
-              key={shortcut.label}
-              type="button"
-              className="dh-datepicker__preset"
-              disabled={field.pending}
-              aria-pressed={value === shortcut.value}
-              onClick={() => field.submit(shortcut.value)}
-            >
-              {shortcut.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {/*
-       * The grid COMMITS on selection rather than editing a draft.
-       *
-       * A calendar day is an unambiguous, complete answer — unlike a typed
-       * `dd/mm/yyyy`, which is a draft until it parses — so a Save button after
-       * it would be a second press for a decision already made. It is the same
-       * live-apply reasoning the desktop filter popover follows, for the same
-       * reason: the change is visible immediately behind the surface.
-       */}
-      <CalendarGrid
-        label={label}
-        value={field.draft ?? null}
-        todayIso={todayIso}
-        disabled={field.pending}
-        onSelect={(iso) => field.submit(iso)}
-      />
-
-      <div className="dh-datepicker__actions">
-        {clearable && value !== null ? (
-          <button
-            type="button"
-            className="dh-datepicker__command"
-            disabled={field.pending}
-            /*
-             * DS-17 — the accessible name says which field this empties, the
-             * same wording every other clear control in the product uses. The
-             * visible words stay "No date" because the popover is already titled
-             * "Edit <field>"; the accessible name is where a screen-reader user,
-             * who may reach the button without having heard the dialog title
-             * again, needs the context.
-             */
-            aria-label={clearControlLabel(label)}
-            onClick={() => field.submit(null)}
-          >
-            No date
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="dh-datepicker__command"
-          disabled={field.pending}
-          onClick={field.cancel}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    <DateChoice
+      label={label}
+      value={field.draft ?? null}
+      todayIso={todayIso}
+      disabled={field.pending}
+      {...(shortcuts ? { shortcuts } : {})}
+      onSelect={(iso) => field.submit(iso)}
+      onClear={
+        clearable && value !== null ? () => field.submit(null) : undefined
+      }
+      onCancel={field.cancel}
+    />
   );
 
   return (
@@ -269,38 +200,21 @@ export function InlineDateField({
         {value ? (format ? format(value) : value) : null}
       </InlineEditShell>
 
-      {open && compact ? (
-        <Sheet
-          title={`Edit ${label.toLocaleLowerCase()}`}
-          opener={field.triggerRef.current}
-          onClose={field.cancel}
-          className="dh-inline-date-sheet"
-          data-testid={testId ? `${testId}-sheet` : undefined}
-        >
-          {editor}
-        </Sheet>
-      ) : null}
-
-      {open && !compact ? (
-        /* Escape-to-dismiss and Enter-to-commit belong to the popover as a
-         * whole; its focusable children (the date input and the three buttons)
-         * are the operable controls, and the dialog merely lets the two keys
-         * reach them from wherever focus currently sits. */
-        <AnchoredSurface
+      {open ? (
+        <Popover
           anchorRef={field.triggerRef}
-          onDismiss={field.cancel}
-          className="dh-inline-date__popover"
-          id={popoverId}
-          role="dialog"
-          // "Edit due date", not "Due date": the dialog and the date input
+          // "Edit due date", not "Due date": the dialog and the date controls
           // inside it are two different things, and giving them the same
           // accessible name made "the due date" ambiguous to anything
           // navigating by name — including the tests that drove this out.
-          aria-label={`Edit ${label.toLocaleLowerCase()}`}
-          onKeyDown={onSurfaceKeyDown}
+          label={`Edit ${label.toLocaleLowerCase()}`}
+          onClose={field.cancel}
+          id={popoverId}
+          className="dh-inline-date__popover"
+          {...(testId ? { "data-testid": `${testId}-popover` } : {})}
         >
           {editor}
-        </AnchoredSurface>
+        </Popover>
       ) : null}
     </div>
   );

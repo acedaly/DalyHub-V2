@@ -376,7 +376,7 @@
 .dh-confirm-root {
   position: fixed;
   inset: 0;
-  z-index: var(--app-z-modal);
+  z-index: var(--dh-layer-modal);
   display: grid;
   place-items: center;
   padding: var(--app-space-4);
@@ -405,21 +405,19 @@
   width: min(28rem, 100%);
   max-height: 100%;
   overflow-y: auto;
-  padding: var(--dh-space-5);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width) solid var(--dh-color-border);
   /*
-   * DS-02 — `--dh-radius-lg` (16px), down from `corner-extra-large` (28px).
+   * DHDS-09 — the surface, the border, the corner and the shadow come from
+   * `.dh-floating--modal`. Only the dialog's own INSET is stated here: a
+   * confirmation is prose plus two buttons and wants more room than a list of
+   * option rows.
    *
-   * A 28px corner is M3's shape for a full-screen mobile dialog. On a 28rem
-   * desktop confirmation it curves so far that the title's first character sits
-   * visibly inboard of the body text under it, and the surface reads as a
-   * rounded phone sheet floating over a desktop application. 16px is the
-   * product's own card rung and is the largest radius DalyHub spends on
-   * anything that is not the one expressive surface.
+   * The corner it inherits is `--dh-radius-lg` (16px), which DS-02 chose over
+   * M3's `corner-extra-large` (28px) for exactly this surface: at 28px on a
+   * 28rem desktop confirmation the title's first character sat visibly inboard
+   * of the body text under it, and the surface read as a rounded phone sheet
+   * floating over a desktop application.
    */
-  border-radius: var(--dh-radius-lg);
-  box-shadow: var(--dh-elevation-modal);
+  padding: var(--dh-space-5);
   /* Motion: the shared centred-modal grammar (`.dh-motion-lift`). §10 — a
    * dialog does not fly across the screen; it rises a little and fades. */
 }

@@ -28,10 +28,10 @@ import {
   type TaskSort,
 } from "~/kernel/tasks";
 import {
-  taskPriorityLabel,
   taskStatusLabel,
   timeSectorLabel,
 } from "~/shared/task-record/task-view";
+import { TASK_PRIORITY_OPTIONS } from "~/shared/task-record/priority-options";
 
 /** The primary presentations, in switcher order. */
 export const PRESENTATION_LABELS: Record<TaskPresentation, string> = {
@@ -150,8 +150,10 @@ export const STATUS_LABELS: Record<string, string> = Object.fromEntries(
  * filter and the chips say the same thing the row does.
  */
 export const PRIORITY_FILTER_LABELS: Record<string, string> = {
+  // DHDS-09 — derived from the ONE option set, so the filter cannot end up
+  // saying something the picker on the row does not.
   ...Object.fromEntries(
-    TASK_PRIORITIES.map((priority) => [priority, taskPriorityLabel(priority)]),
+    TASK_PRIORITY_OPTIONS.map(({ value, label }) => [value, label]),
   ),
   __none: "No priority",
 };

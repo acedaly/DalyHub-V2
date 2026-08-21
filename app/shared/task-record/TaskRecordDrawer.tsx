@@ -21,11 +21,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
-import {
-  TASK_PRIORITIES,
-  TIME_SECTORS,
-  type TaskRecurrenceInput,
-} from "~/kernel/tasks";
+import { TIME_SECTORS, type TaskRecurrenceInput } from "~/kernel/tasks";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { useDrawer } from "~/shared/drawer";
 import { useCapture } from "~/shared/capture";
@@ -59,7 +55,8 @@ import {
   TaskWaitingSection,
   type WaitingActionOutcome,
 } from "./TaskWaitingSection";
-import { PriorityFlag } from "./PriorityIndicator";
+import { PriorityFlag, PriorityGlyph } from "./PriorityIndicator";
+import { TASK_PRIORITY_OPTIONS } from "./priority-options";
 import { recurrenceFormFields } from "./recurrence-authoring";
 import { TaskRecurrenceEditor } from "./TaskRecurrenceEditor";
 import { UrgencyChip } from "./UrgencyChip";
@@ -70,7 +67,6 @@ import { useTaskParentSearch } from "./use-task-parent-search";
 import {
   isTaskComplete,
   taskDisplayState,
-  taskPriorityLabel,
   taskRecurrenceLabel,
   timeSectorLabel,
   type SerializedChecklistItem,
@@ -95,9 +91,14 @@ import {
  * — so it is now the field's EMPTY state, and unsetting is one separated Clear
  * command that appears only when a priority is actually set.
  */
-const PRIORITY_OPTIONS = TASK_PRIORITIES.map((priority) => ({
-  value: priority,
-  label: taskPriorityLabel(priority),
+/**
+ * DHDS-09 — the canonical priority options, from the one module that owns them.
+ * The flag is the row's leading MARK, so the menu keeps its current-value check.
+ */
+const PRIORITY_OPTIONS = TASK_PRIORITY_OPTIONS.map(({ value, label }) => ({
+  value,
+  label,
+  mark: <PriorityGlyph priority={value} size="md" />,
 }));
 
 /**
@@ -1031,13 +1032,6 @@ export function TaskRecordDrawer({
             />
           ) : null
         }
-        renderOption={(option) => (
-          <PriorityFlag
-            priority={option.value as SerializedTaskView["priority"]}
-            size="md"
-            showLabel
-          />
-        )}
         data-testid="task-priority-edit"
       />
     ),

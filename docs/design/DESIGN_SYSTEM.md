@@ -1361,7 +1361,8 @@ A **multi-field composition** still does not belong inline. A Task's recurrence 
 **Anatomy.** A ⋯ menu button on the [Record Header](#record-header) (always last in the action row) and on the [Card](#cards) (in its action group), opening one list of labelled items with optional leading glyphs, a decorative group separator, and a `danger` tone for destructive items.
 **Behaviour.** A WAI-ARIA menu button, not a modal: `aria-haspopup="menu"` + `aria-expanded`, arrow/Home/End navigation with roving focus, Escape closing only the menu and restoring focus, Tab and outside-pointer dismissal. A blocked action stays **visible and disabled with an explanation** rather than disappearing.
 **Rules.** Exactly one primary action stays in the header; everything else belongs here or in the [Command Palette](#command-palette). Meaning is always the item's wording — tone and glyph are reinforcement. Never build a second menu.
-**Realised by** the [Shared overflow menu (DS-12)](#shared-overflow-menu-ds-12).
+**Order.** module actions · move/organise · duplicate/share · Archive **or** Restore · Delete. Separators sparingly; Delete is distinguished by its label's colour, never by a filled red row.
+**Realised by** the [Shared overflow menu (DS-12)](#shared-overflow-menu-ds-12), which since DHDS-09 is a TRIGGER over the shared [`Menu`](#floating-surfaces-dhds-09) — one WAI-ARIA menu-button implementation in the product, portalled so nothing can clip it.
 
 ### Tooltip (M3-TIP)
 **Purpose.** ONE way to explain a control whose meaning is carried by a glyph — and, where the control has one, to show its keyboard shortcut to the person most likely to want it.
@@ -1381,10 +1382,42 @@ A **multi-field composition** still does not belong inline. A Task's recurrence 
 **Behaviour.** Prefers the space below the trigger; flips above when that side cannot hold the surface whole; clamps its height and scrolls internally when neither side can; slides along the inline axis to stay inside an 8px viewport margin; re-measures on scroll and resize. It carries **no** role, no ARIA and no keyboard handling — a menu, a listbox and a dialog need different ones and the host supplies them. What it does own is dismissal on an outside pointer press, where "inside" correctly includes the trigger.
 **Rules.**
 - **A surface that must escape its parents belongs in the overlay layer, not in the row.** `position: absolute` is still clipped by an ancestor's `overflow`, and `position: fixed` is still trapped by an ancestor's `transform`. A DalyHub task row has both — it hides its overflow so the swipe tray can slide underneath, and the swipe surface is translated — and both are load-bearing. This is the whole reason the layer exists: the inline editors were painting a 45px sliver of a 305px menu, showing the owner the value they already had and none of the alternatives.
-- **It sits ABOVE the modal rung** (`--app-z-anchored`, 1350). These surfaces are opened from inside other layers — the Task record Drawer edits its priority with one — so a dropdown-rung popover portalled to `<body>` would render behind the surface that opened it. Toasts and tooltips still outrank it.
+- **It sits ABOVE the modal rung** (`--dh-layer-anchored`, 1350). These surfaces are opened from inside other layers — the Task record Drawer edits its priority with one — so a dropdown-rung popover portalled to `<body>` would render behind the surface that opened it. Toasts and tooltips still outrank it.
 - **Hidden-until-placed is `opacity`, never `visibility`.** A `visibility: hidden` subtree is not focusable, and a menu moves focus onto its current item in the effect after the commit the guard applies in — so the paint guard silently turned a keyboard-complete control into a mouse-only one.
 - **Below `md`, prefer the [phone sheet](#mobile-platform-mobile-01).** A 28px menu item anchored to a 28px trigger is a desktop idea. The layer will happily place one on a phone; that does not make it the right presentation.
-**Adopted by** the [inline select and date fields](#inline-editing-ds-16). The DS-12 [overflow menu](#shared-overflow-menu-ds-12) shares the block geometry but keeps its own absolute anchoring, because its hosts already grant it the overflow it needs.
+**Adopted by** every floating surface in the product. DHDS-09 retired the last exception: the DS-12 [overflow menu](#overflow-menu) had kept its own absolute anchoring and its own copy of the block geometry, which is why a card had to be un-clipped *and* raised to the dropdown layer for as long as one of its menus was open. Both workarounds are gone with it.
+**Appearance is NOT here.** This layer answers "where does the box go and when does it go away"; what the box looks like is [Floating surfaces (DHDS-09)](#floating-surfaces-dhds-09).
+
+### Floating surfaces (DHDS-09)
+**Purpose.** ONE answer to "what kind of thing floats above the canvas here, and what does it look like" — so that a menu, a popover, a picker, a sheet and a dialog are recognisably the same product without being the same interaction.
+**Anatomy.** [`app/shared/floating`](../../app/shared/floating): `Menu`, `Popover`, `Picker`, `OptionContent` and the shared typeahead, over [`app/styles/floating.css`](../../app/styles/floating.css) — `.dh-floating` (the surface, in two rungs) and `.dh-option` (the row). Placement is the [anchored overlay](#anchored-overlay-edit-03); motion is [DHDS-08](DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md); layering is the `--dh-layer-*` vocabulary.
+
+**The taxonomy.** Six surfaces, separated by BEHAVIOUR rather than by size:
+
+| Surface | It exists to… | Semantics |
+|---|---|---|
+| **Tooltip** | explain an unlabelled control, in a few words | `role="tooltip"` |
+| **Menu** | choose a COMMAND from a small closed set | `role="menu"` / `menuitem` · `menuitemradio` |
+| **Popover** | make a short contextual choice that is not a list | non-modal `role="dialog"` |
+| **Picker** | choose a VALUE from a potentially large set | `dialog` holding `combobox` + `listbox` |
+| **Sheet** | be all of the above, on a phone | modal `role="dialog"` |
+| **Inspector / Drawer** | inspect or edit a record without losing the collection | modal `role="dialog"` |
+| **Dialog** | INTERRUPT, when interruption is justified | modal `role="dialog"` |
+
+**Rules.**
+- **A tooltip contains no workflow** — no buttons, no forms, no destructive actions — and it is never an accessible name.
+- **A menu is command-oriented.** It is not a mini settings panel, and anything needing a search field is a [Picker](#floating-surfaces-dhds-09), not a menu.
+- **An Inspector is not the mechanism for changing one piece of metadata.** Reaching for it to set a priority is the friction DHDS-09 removed.
+- **A dialog interrupts.** Reserved for destructive confirmation, an irreversible operation, a conflict, or a decision needing explicit commitment. Ordinary metadata editing never opens one.
+- **One appearance, two rungs.** `.dh-floating` is a hairline, a raised surface tone and the overlay shadow; `.dh-floating--modal` steps up one radius rung and one elevation rung because a centred surface has no trigger beside it saying where it came from. No glow, no glass, no backdrop blur, no third rung — asserted by test.
+- **One option row.** `[mark] Label / supporting label … shortcut ✓`, with hover, focused, keyboard-active, selected, disabled and destructive states. SELECTED takes a different container from hover, because when both were `--surface-muted` the current choice was indistinguishable from the one under the pointer. It is a row, never a pill.
+- **`presentation="auto"` is the whole of the phone adaptation.** The SAME items, order, ids, roles and keyboard behaviour, in the shared bottom [sheet](#mobile-platform-mobile-01) below `md`. Only the container changes, and a domain action is never implemented twice.
+- **Name a layer, never a number.** `--dh-layer-sticky` · `-scrim` · `-drawer` · `-modal` · `-anchored` · `-toast` · `-tooltip`.
+- **Dismissal is uniform.** A menu closes after a command; a single-choice picker after a choice; a multi-select on explicit completion. Escape closes the topmost layer and stops there. An outside press does not pull focus back; Escape and a committed choice do.
+- **No floating surface pushes a history entry.** A priority picker is not navigation.
+- **Contextual editing uses the CANONICAL mutation**, or none at all. A capture surface's controls report a value; the host's own submit creates the record.
+**Domain adapters.** `TASK_PRIORITY_OPTIONS` (the one priority vocabulary), `DateChoice` (presets, month grid, commands), `SortMenu`, and `TaskMetaControls` (a Task's date, priority and parent over a value rather than a save).
+**Realised by** the [overflow menu](#overflow-menu), [inline editing](#inline-editing-ds-16), the [forms](#forms) select and entity-link pickers, [filters](#filters), the collection controls, the saved-view switcher, Quick Capture and the three collection sorts.
 
 ### Record lifecycle
 **Purpose.** One vocabulary and one interaction for Archive / Restore / Delete, on every entity.

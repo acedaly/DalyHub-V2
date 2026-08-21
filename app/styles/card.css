@@ -1198,29 +1198,22 @@
   box-shadow: none;
 }
 
-/* DS-12: a swipe-enabled card still gets the shared overflow menu. The clip that
- * hides the swipe tray would otherwise cut the open panel off, so the wrapper
- * un-clips only while a menu is open. The tray is covered by the card surface
- * (z-index, not the clip), so nothing leaks. */
-.dh-card-swipe:has(.dh-overflow-menu[data-open="true"]) {
-  overflow: visible;
-}
-
-/* A card creates its own STACKING CONTEXT (the swipe surface is positioned with a
- * z-index so the tray can sit behind it), which caps the open overflow panel
- * inside it: the panel's `--app-z-dropdown` is resolved against its card, not
- * against the page. In a long collection the next card — and the sticky header —
- * therefore paint OVER an open menu, and its items become unclickable.
+/*
+ * DHDS-09 — two rules removed here, and the removal is the point.
  *
- * So while a menu is open, the CARD is raised to the dropdown layer. That lifts
- * the whole context above its siblings and above the sticky chrome, without
- * changing the panel's own z-index or the tray's position behind the surface.
- * Only one menu can be open at a time, so exactly one card is ever raised. */
-.dh-card-swipe:has(.dh-overflow-menu[data-open="true"]),
-.dh-card:has(.dh-overflow-menu[data-open="true"]) {
-  position: relative;
-  z-index: var(--app-z-dropdown);
-}
+ * DS-12 had to un-clip a swipe card while its menu was open, and UIQ-021 had to
+ * RAISE the whole card to the dropdown layer while its menu was open — because
+ * the panel was an absolutely-positioned box inside the card, so the card's own
+ * clip cut it off and the card's own stacking context capped it beneath the
+ * next card and the sticky header.
+ *
+ * Both were workarounds for the same thing, and both are dead now that the menu
+ * is portalled into the overlay layer (`~/shared/anchored`): nothing about a
+ * card can clip or cap a surface that is not inside it. Keeping them would be
+ * worse than dead code — the second one lifted an entire card above its
+ * neighbours for as long as a menu was open, which is a side effect nobody
+ * asked for on the product's densest surface.
+ */
 
 /* The article inside the clip must NOT paint its own (clipped, invisible)
  * shadow — the wrapper owns elevation now. Hover border-color, selection and

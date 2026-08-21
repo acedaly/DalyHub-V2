@@ -344,16 +344,23 @@ test.describe("MOBILE-01 shared Quick Capture", () => {
      * sentence and its two chip rows are gone, and the destination is now a
      * metadata row like every other.
      *
-     * TaskCapturePanel draws that row two ways — a fixed read-only row when the
-     * capture has a default parent, and the Project picker (empty value reading
-     * "Inbox", a real destination rather than the absence of one) when it does
-     * not — and which one the seeded owner gets is fixture state this test has
-     * no business pinning. Asserting the ROW rather than either rendering keeps
-     * the contract exactly as strong: the test fails if the sheet stops saying
-     * where the task goes, and passes for either way of saying it.
+     * TaskCapturePanel draws that destination two ways — plain text when the
+     * capture has a default parent, and the searchable picker's trigger (empty
+     * value reading "Inbox", a real destination rather than the absence of one)
+     * when it does not — and which one the seeded owner gets is fixture state
+     * this test has no business pinning. Asserting the metadata LINE rather than
+     * either rendering keeps the contract exactly as strong: the test fails if
+     * the sheet stops saying where the task goes, and passes for either way of
+     * saying it.
+     *
+     * DHDS-09 moved it from a stacked form row to that line; the words it must
+     * contain are unchanged.
      */
     await expect(
-      sheet.locator(".dh-capture-row").filter({ hasText: "Project" }).first(),
+      sheet
+        .locator(".dh-capture-meta")
+        .filter({ hasText: /Project|Area|Inbox/ })
+        .first(),
     ).toBeVisible();
 
     await title.fill("Phone-captured task");

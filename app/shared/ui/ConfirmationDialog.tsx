@@ -216,7 +216,13 @@ function ConfirmationDialogPanel({
       />
       <div
         ref={containerRef}
-        className={`dh-confirm dh-motion-lift${tone === "danger" ? " dh-confirm--danger" : ""}`}
+        /* DHDS-09 — the shared floating surface at its CENTRED-MODAL rung. A
+           dialog separates further than an anchored surface because it has no
+           trigger beside it saying where it came from; that is the whole of the
+           difference, and it lives in `floating.css`. */
+        className={`dh-floating dh-floating--modal dh-confirm dh-motion-lift${
+          tone === "danger" ? " dh-confirm--danger" : ""
+        }`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

@@ -15,7 +15,9 @@
  * and never cause page overflow.
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
+
+import { Popover } from "~/shared/floating";
 
 import { FilterChip } from "./FilterChip";
 import { FilterEditor } from "./FilterEditor";
@@ -65,7 +67,6 @@ export function FilterBar({
   const [editor, setEditor] = useState<EditorState>(null);
   const [savingView, setSavingView] = useState(false);
   const editorLabelId = useId();
-  const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const saveNameRef = useRef<HTMLInputElement>(null);
 
@@ -77,33 +78,18 @@ export function FilterBar({
     triggerRef.current = null;
   }, []);
 
-  // Dismiss the editor on Escape (only the editor) or an outside click.
-  useEffect(() => {
-    if (editor === null) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        closeEditor();
-      }
-    };
-    const onPointerDown = (event: PointerEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node) &&
-        triggerRef.current !== event.target
-      ) {
-        closeEditor();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown, true);
-      document.removeEventListener("pointerdown", onPointerDown, true);
-    };
-  }, [editor, closeEditor]);
+  /*
+   * DHDS-09 — Escape, the outside press, the focus return and the phone sheet
+   * all belong to the shared {@link Popover} now.
+   *
+   * They were a document-level `keydown` and `pointerdown` pair written here,
+   * one of four private copies of the same contract, and the copies disagreed:
+   * this one dismissed on an outside press ANYWHERE including inside its own
+   * portalled children, and it was the only one whose Escape listener was
+   * global rather than scoped to the surface — so an Escape pressed while a
+   * SELECT inside the editor was open closed the whole editor rather than the
+   * select.
+   */
 
   const openAdd = (event: React.MouseEvent<HTMLButtonElement>) => {
     triggerRef.current = event.currentTarget;
@@ -173,11 +159,11 @@ export function FilterBar({
           </button>
 
           {editor !== null ? (
-            <div
-              ref={popoverRef}
+            <Popover
+              anchorRef={triggerRef}
+              label={editor.mode === "edit" ? "Edit filter" : "Add filter"}
+              onClose={closeEditor}
               className="dh-filter-popover"
-              role="dialog"
-              aria-label={editor.mode === "edit" ? "Edit filter" : "Add filter"}
             >
               <p id={editorLabelId} className="dh-visually-hidden">
                 {editor.mode === "edit" ? "Edit filter" : "Add filter"}
@@ -192,7 +178,7 @@ export function FilterBar({
                 labelId={editorLabelId}
                 valueControls={valueControls}
               />
-            </div>
+            </Popover>
           ) : null}
         </div>
 

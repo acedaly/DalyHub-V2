@@ -352,8 +352,17 @@ describe("Areas presentations", () => {
     });
     expect(trigger).toHaveAttribute("aria-haspopup", "menu");
     fireEvent.click(trigger);
-    // The menu opened in place; the whole-card link did not fire.
-    expect(within(card).getByRole("menu")).toBeInTheDocument();
+    /*
+     * The menu opened and the whole-card link did not fire.
+     *
+     * DHDS-09 — the panel is portalled into the overlay layer, so it is queried
+     * from the document rather than from inside the card. A card clips its own
+     * overflow; a panel rendered inside one is clipped with it, which is the
+     * defect the shared anchored layer exists to remove.
+     */
+    expect(
+      screen.getByRole("menu", { name: "More actions for Career" }),
+    ).toBeInTheDocument();
     expect(
       within(card).getByRole("link", { name: "Open Career" }),
     ).toHaveAttribute("href", "/areas/a1");

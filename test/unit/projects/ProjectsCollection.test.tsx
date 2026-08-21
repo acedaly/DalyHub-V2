@@ -944,9 +944,23 @@ describe("Projects gallery grid (DS-16)", () => {
     fireEvent.click(
       within(card).getByRole("button", { name: "More actions for DalyHub V2" }),
     );
+    /*
+     * DHDS-09 — the menu is queried from the DOCUMENT, not from inside the card.
+     *
+     * Every floating surface in DalyHub is portalled into the overlay layer, so
+     * a menu opened from a card is no longer a descendant of it. That is the
+     * point rather than an inconvenience: a card clips its own overflow, and an
+     * absolutely-positioned panel inside one is clipped with it. What this test
+     * asserts — that the card's own ⋯ offers the lifecycle actions — is
+     * unchanged; only where the panel is rendered has moved.
+     */
+    const menu = screen.getByRole("menu", {
+      name: "More actions for DalyHub V2",
+    });
     expect(
-      within(card).getByRole("menuitem", { name: /Archive/ }),
+      within(menu).getByRole("menuitem", { name: /Archive/ }),
     ).toBeInTheDocument();
+    // The card's own primary link is unaffected: it was never in the menu.
     expect(
       within(card).getByRole("link", { name: "Open DalyHub V2" }),
     ).toHaveAttribute("href", "/projects/p1");
@@ -971,11 +985,15 @@ describe("Projects gallery grid (DS-16)", () => {
     fireEvent.click(
       within(card).getByRole("button", { name: "More actions for Old work" }),
     );
+    // The panel lives in the overlay layer — see the note above.
+    const menu = screen.getByRole("menu", {
+      name: "More actions for Old work",
+    });
     expect(
-      within(card).getByRole("menuitem", { name: /Restore/ }),
+      within(menu).getByRole("menuitem", { name: /Restore/ }),
     ).toBeInTheDocument();
     expect(
-      within(card).queryByRole("menuitem", { name: /^Archive/ }),
+      within(menu).queryByRole("menuitem", { name: /^Archive/ }),
     ).not.toBeInTheDocument();
   });
 });

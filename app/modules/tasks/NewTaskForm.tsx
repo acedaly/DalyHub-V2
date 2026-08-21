@@ -51,13 +51,10 @@ import {
   taskPriorityLabel,
   timeSectorLabel,
 } from "~/shared/task-record/task-view";
-import {
-  COMMITMENT_STATES,
-  TASK_PRIORITIES,
-  TIME_SECTORS,
-} from "~/kernel/tasks";
+import { COMMITMENT_STATES, TIME_SECTORS } from "~/kernel/tasks";
 
 import type { TasksCreateResult } from "./tasks-contract";
+import { TASK_PRIORITY_SELECT_OPTIONS } from "~/shared/task-record/priority-options";
 
 type Values = {
   readonly title: string;
@@ -93,10 +90,8 @@ const FIELD_LABELS: Record<string, string> = {
  * have is the combobox's own clear control — so an optional field lost nothing
  * but the pretence that emptiness was a choice.
  */
-const PRIORITY_OPTIONS: readonly SelectOption[] = TASK_PRIORITIES.map((p) => ({
-  value: p,
-  label: taskPriorityLabel(p),
-}));
+/** DHDS-09 — the canonical four, from the one module that owns them. */
+const PRIORITY_OPTIONS: readonly SelectOption[] = TASK_PRIORITY_SELECT_OPTIONS;
 
 const SECTOR_OPTIONS: readonly SelectOption[] = TIME_SECTORS.map((s) => ({
   value: s,

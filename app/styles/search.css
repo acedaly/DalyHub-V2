@@ -14,7 +14,7 @@
 .dh-search {
   position: fixed;
   inset: 0;
-  z-index: var(--app-z-modal);
+  z-index: var(--dh-layer-modal);
   display: flex;
   flex-direction: column;
   align-items: center;

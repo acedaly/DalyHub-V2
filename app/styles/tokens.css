@@ -6259,6 +6259,21 @@
   --app-motion-edge-fade: 1;
 
   /*
+   * DHDS-09 — the FLOATING SURFACE's own padding, for the same reason.
+   *
+   * A separator and a picker's search field both have to bleed to the surface's
+   * edge, which means cancelling the padding the surface set. Publishing it as
+   * one contextual property is what stops three rules re-deriving the same
+   * number and drifting; publishing it as `--app-` rather than `--dh-` is what
+   * keeps the DalyHub layer closed while `.dh-floating` sets it for itself.
+   *
+   * The default is the ordinary anchored surface's inset. A host that wants a
+   * roomier one (a wide picker, a filter popover) sets it once on its own class
+   * and everything inside follows.
+   */
+  --app-floating-inset: var(--app-space-1);
+
+  /*
    * DHDS-08 — DalyHub's own motion PRIMITIVES.
    *
    * These are the authored values. The `--dh-motion-*` / `--dh-ease-*` roles in
@@ -7333,6 +7348,41 @@
    * these ones.
    */
   --dh-detail-panel-width: 26rem;
+
+  /* ---------------------------------------------------------------------- */
+  /* Layers (DHDS-09)                                                       */
+  /* ---------------------------------------------------------------------- */
+  /*
+   * WHICH THINGS FLOAT OVER WHICH, as a product vocabulary rather than a
+   * number line.
+   *
+   * The `--app-z-*` scale underneath is machinery: it has eleven rungs, six of
+   * which no floating surface in the product has ever taken, and a component
+   * reaching into it has to decide for itself whether a picker is a "dropdown"
+   * or an "overlay". DHDS-09 found the consequence — a listbox at
+   * `--app-z-dropdown` (1000) opened from inside a Drawer (1200) renders BEHIND
+   * the Drawer, and three module stylesheets had answered the same question with
+   * a bare `z-index: 20`.
+   *
+   * Six names, ordered by how much authority the surface has to speak over what
+   * is under it. A floating surface names one of these and nothing else.
+   */
+  /** A sticky region inside a scroll container — a list header, a toolbar. */
+  --dh-layer-sticky: var(--app-z-sticky);
+  /** A modal's scrim, and the edge panel it dims the page for. */
+  --dh-layer-scrim: var(--app-z-overlay);
+  --dh-layer-drawer: var(--app-z-drawer);
+  /** A centred modal — dialog, command palette, search. */
+  --dh-layer-modal: var(--app-z-modal);
+  /**
+   * Menus, popovers, pickers. ABOVE the modal rung, because these are opened
+   * from INSIDE the surfaces below them — a Drawer edits a priority with one.
+   */
+  --dh-layer-anchored: var(--app-z-anchored);
+  /** Feedback about something that happened elsewhere. */
+  --dh-layer-toast: var(--app-z-toast);
+  /** A description of the control the pointer is on. Above everything. */
+  --dh-layer-tooltip: var(--app-z-tooltip);
 
   /* ---------------------------------------------------------------------- */
   /* Borders and elevation                                                  */

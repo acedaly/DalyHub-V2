@@ -90,7 +90,7 @@
 .dh-md-editor:not([data-density="compact"]) .dh-md-editor__bar {
   position: sticky;
   inset-block-start: 0;
-  z-index: var(--app-z-sticky);
+  z-index: var(--dh-layer-sticky);
   background: var(--dh-color-bg);
 }
 

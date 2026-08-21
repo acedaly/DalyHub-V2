@@ -7,7 +7,8 @@
  * menu opened low on the screen stays inside the viewport, whether a clamped
  * menu's last item can still be reached from the keyboard. The decision logic
  * behind the menu is unit-tested as plain numbers in
- * `test/unit/overflow-menu/menu-placement.test.ts`; this file proves the
+ * `test/unit/anchored/anchored-placement.test.ts` (DHDS-09 retired the menu's
+ * private solver in favour of it); this file proves the
  * measuring is wired to it correctly.
  */
 
@@ -526,6 +527,16 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
     await card.getByRole("button", { name: /More actions for/ }).click();
     const panel = page.getByRole("menu");
     await expect(panel).toBeVisible();
+    /*
+     * DHDS-09 — the panel and the anchored surface are the SAME element now.
+     *
+     * The overflow menu no longer places itself: it is the shared `Menu`, whose
+     * surface classes land ON the shared `AnchoredSurface` rather than on a box
+     * inside it (a bordered box inside a scrolling wrapper has its shadow
+     * clipped and its bottom border scrolled away). So the element that carries
+     * `role="menu"` is the element the solver placed, and this assertion reads
+     * exactly as it did before.
+     */
     await expect(panel).toHaveAttribute("data-side", "below");
 
     // And it stays inside the viewport without needing a clamp at all.
@@ -568,11 +579,21 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
   test("a menu too tall for either side clamps and scrolls internally", async ({
     page,
   }) => {
-    // A deliberately short viewport, so a full task-row menu cannot fit above
-    // OR below and the clamp is the only remaining answer.
+    /*
+     * A deliberately short viewport, so a full task-row menu cannot fit above
+     * OR below and the clamp is the only remaining answer.
+     *
+     * The trigger sits at y=200 rather than y=240, and the number is load
+     * bearing: DHDS-09's shared surface is 22rem where the private overflow
+     * panel was 20rem, so the same five actions now wrap less and the menu is
+     * 217px tall instead of taller than 232. At y=240 there was 232px above the
+     * trigger and the menu simply FIT — the test would have passed on a menu
+     * that never clamped. At y=200 there is 191px above and 176px below, so
+     * neither side can take it and the clamp is what is being measured again.
+     */
     await page.setViewportSize({ width: 1280, height: 420 });
     await gotoFixture(page, "/tasks");
-    const panel = await openRowMenuNear(page, 240);
+    const panel = await openRowMenuNear(page, 200);
 
     const clamped = await panel.evaluate((node) => ({
       scrollHeight: node.scrollHeight,
@@ -590,9 +611,12 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
   test("the last item of a clamped menu is reachable from the keyboard", async ({
     page,
   }) => {
+    // The same geometry as the test above, for the same reason: at y=240 this
+    // menu no longer clamps, so the keyboard would have been walking an
+    // unclamped list.
     await page.setViewportSize({ width: 1280, height: 420 });
     await gotoFixture(page, "/tasks");
-    const panel = await openRowMenuNear(page, 240);
+    const panel = await openRowMenuNear(page, 200);
 
     // End jumps to the last item; the panel scrolls it into view rather than
     // the page having to. Flipping and clamping change no keyboard semantics.

@@ -523,68 +523,28 @@
   color: var(--dh-color-text);
 }
 
+/*
+ * DHDS-09 — the combobox's listbox is now a FLOATING SURFACE.
+ *
+ * Its surface tone, border, radius, elevation and option rows come from
+ * `.dh-floating` / `.dh-option` (`floating.css`), and its position, layer,
+ * viewport clamp and internal scroll come from `.dh-anchored` (`anchored.css`)
+ * — the same two places every other menu, picker and popover in the product
+ * gets them. This block used to restate all nine, with a `--dh-color-border-strong`
+ * border and a `--dh-radius-control` corner that matched nothing else, and with
+ * `position: absolute` inside the field, which is the clipping defect the shared
+ * anchored layer exists to remove.
+ *
+ * What is left is the one thing that is genuinely this list's: a ceiling on how
+ * tall it grows before it scrolls, which is shorter than a menu's because a
+ * combobox is filtered by typing rather than by scrolling.
+ */
 .dh-listbox {
   list-style: none;
-  margin: var(--app-space-1) 0 0;
-  padding: var(--app-space-1);
-  position: absolute;
-  inset-inline: 0;
-  inset-block-start: 100%;
-  z-index: var(--app-z-dropdown, 50);
+  margin: 0;
   max-block-size: 16rem;
   overflow-y: auto;
-  background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-control);
-  box-shadow: var(--dh-elevation-overlay);
-}
-
-.dh-listbox__status {
-  padding: var(--app-space-2) var(--app-space-3);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-}
-
-.dh-listbox__option {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--app-space-2);
-  padding: var(--app-space-2) var(--app-space-2);
-  min-block-size: var(--app-touch-target-min);
-  border-radius: var(--dh-radius-sm);
-  cursor: pointer;
-  color: var(--dh-color-text);
-}
-
-.dh-listbox__option[data-active="true"] {
-  background: var(--dh-color-accent-subtle);
-}
-
-.dh-listbox__option[data-disabled="true"] {
-  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
-  cursor: not-allowed;
-}
-
-.dh-listbox__option-check {
-  flex: 0 0 auto;
-  inline-size: 1rem;
-  color: var(--dh-color-accent);
-  font-weight: 500;
-}
-
-.dh-listbox__option-body {
-  display: flex;
-  flex-direction: column;
-  min-inline-size: 0;
-}
-
-.dh-listbox__option-label {
-  overflow-wrap: anywhere;
-}
-
-.dh-listbox__option-desc {
-  font-size: var(--dh-text-meta-size);
-  color: var(--dh-color-text-muted);
+  overscroll-behavior: contain;
 }
 
 .dh-listbox__option-icon,
@@ -946,7 +906,7 @@
 .dh-unsaved-guard {
   position: fixed;
   inset: 0;
-  z-index: var(--app-z-modal, 100);
+  z-index: var(--dh-layer-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -959,15 +919,14 @@
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
 }
 
+/* DHDS-09 — the surface is `.dh-floating--modal`; only the measure is this
+ * dialog's own. It carried a `--dh-color-border-strong` border, which was the
+ * one dialog in the product with a heavier outline than the rest. */
 .dh-unsaved-guard__dialog {
+  --app-floating-inset: var(--dh-space-5);
   position: relative;
   max-inline-size: 26rem;
   inline-size: 100%;
-  padding: var(--app-space-5);
-  background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
-  border-radius: var(--dh-radius-lg);
-  box-shadow: var(--dh-elevation-modal);
 }
 
 .dh-unsaved-guard__title {

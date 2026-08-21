@@ -106,7 +106,7 @@
   min-block-size: var(--app-touch-target-min);
   left: var(--dh-space-2);
   top: -4rem;
-  z-index: var(--app-z-modal);
+  z-index: var(--dh-layer-modal);
   padding: var(--dh-space-2) var(--dh-space-3);
   background: var(--dh-color-accent);
   color: var(--dh-color-text-on-accent);
@@ -192,7 +192,7 @@
 .dh-sidebar--rail {
   position: sticky;
   top: 0;
-  z-index: var(--app-z-sticky);
+  z-index: var(--dh-layer-sticky);
   height: 100dvh;
   overflow: visible;
   background: var(--dh-color-rail);
@@ -973,17 +973,20 @@
   font-size: 1.25rem;
 }
 
+/*
+ * DHDS-09 — the surface, the border, the corner and the shadow are the shared
+ * `.dh-floating`. What is left is the panel's own measure and its layer.
+ *
+ * It named the `dropdown` rung, which sits BELOW the Drawer and the modal band,
+ * so the account panel rendered behind any surface opened over the rail.
+ */
 .dh-user-menu__panel {
   position: absolute;
   min-inline-size: 15rem;
   display: flex;
   flex-direction: column;
   padding-block: var(--dh-space-2);
-  background: var(--dh-color-surface-raised);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  box-shadow: var(--dh-elevation-overlay);
-  z-index: var(--app-z-dropdown);
+  z-index: var(--dh-layer-anchored);
 }
 
 /*
@@ -1093,7 +1096,8 @@
 .dh-topbar {
   position: sticky;
   top: 0;
-  z-index: var(--app-z-dropdown);
+  /* Sticky page chrome, not a floating surface. */
+  z-index: var(--dh-layer-sticky);
   display: flex;
   align-items: center;
   gap: var(--dh-space-4);
@@ -1425,7 +1429,7 @@
   color: var(--dh-color-text);
   position: sticky;
   top: 0;
-  z-index: var(--app-z-sticky);
+  z-index: var(--dh-layer-sticky);
 }
 
 .dh-mobilebar__back,
@@ -1935,7 +1939,7 @@
 .dh-mobilenav {
   position: fixed;
   inset: 0;
-  z-index: var(--app-z-drawer);
+  z-index: var(--dh-layer-drawer);
 }
 
 .dh-mobilenav__scrim {
@@ -2023,7 +2027,7 @@
   position: fixed;
   inset-inline: 0;
   bottom: 0;
-  z-index: var(--app-z-sticky);
+  z-index: var(--dh-layer-sticky);
   background: var(--dh-color-surface-bar);
   border-block-start: var(--dh-border-width) solid var(--dh-color-border);
   padding-bottom: var(--dh-safe-bottom);

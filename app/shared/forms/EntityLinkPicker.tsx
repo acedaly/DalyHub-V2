@@ -18,7 +18,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
+import { AnchoredSurface } from "~/shared/anchored";
 import { EntityLink } from "~/shared/entity";
+import { OptionContent } from "~/shared/floating";
 
 import {
   linkTypeLabel,
@@ -113,6 +115,8 @@ export function EntityLinkPicker({
   const [announce, setAnnounce] = useState("");
 
   const wrapperRef = useRef<HTMLDivElement>(null);
+  /** DHDS-09 — the box the portalled results list is anchored to. */
+  const fieldRef = useRef<HTMLDivElement>(null);
   const searchSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -335,7 +339,7 @@ export function EntityLinkPicker({
                 </label>
               ) : null}
 
-              <div className="dh-combobox__field">
+              <div className="dh-combobox__field" ref={fieldRef}>
                 <input
                   id={baseId}
                   className="dh-input dh-combobox__input"
@@ -363,56 +367,64 @@ export function EntityLinkPicker({
               </div>
 
               {combobox.isOpen ? (
-                <ul
-                  className="dh-listbox"
-                  id={combobox.listboxId}
-                  role="listbox"
-                  aria-label={`${label} results`}
-                >
-                  {loading ? (
-                    <li className="dh-listbox__status" role="presentation">
-                      Searching…
-                    </li>
-                  ) : selectable.length === 0 ? (
-                    <li className="dh-listbox__status" role="presentation">
-                      {query.trim().length === 0
-                        ? "Type to search."
-                        : "No matching items."}
-                    </li>
-                  ) : (
-                    selectable.map((target, index) => (
-                      // Keyboard selection is handled on the combobox input via
-                      // aria-activedescendant (WAI-ARIA combobox); the option's
-                      // click/mousedown is the mouse path only.
-                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-                      <li
-                        key={target.id}
-                        id={combobox.optionId(index)}
-                        role="option"
-                        aria-selected={false}
-                        className="dh-listbox__option"
-                        data-active={
-                          index === combobox.activeIndex || undefined
-                        }
-                        onMouseDown={(event) => event.preventDefault()}
-                        onMouseEnter={() => combobox.setActiveIndex(index)}
-                        onClick={() => void createLink(target)}
-                      >
-                        {renderTargetIcon ? (
-                          <span className="dh-listbox__option-icon">
-                            {renderTargetIcon(target.type)}
-                          </span>
-                        ) : null}
-                        <span className="dh-listbox__option-body">
-                          <span className="dh-listbox__option-label">
-                            {target.title || "Untitled"}
-                            {pendingTargetId === target.id ? " — linking…" : ""}
-                          </span>
-                        </span>
+                /*
+                 * DHDS-09 — the results list is the SHARED floating surface,
+                 * portalled into the overlay layer and drawn with the shared
+                 * option anatomy. It was `position: absolute` inside the field
+                 * and carried its own option markup, so an entity-link search
+                 * inside a Drawer or a Sheet was clipped, and its rows sat at a
+                 * different height with the check on a different side from the
+                 * menu two controls away.
+                 */
+                <AnchoredSurface anchorRef={fieldRef} matchAnchorWidth>
+                  <ul
+                    className="dh-floating dh-listbox"
+                    id={combobox.listboxId}
+                    role="listbox"
+                    aria-label={`${label} results`}
+                  >
+                    {loading ? (
+                      <li className="dh-floating__status" role="presentation">
+                        Searching…
                       </li>
-                    ))
-                  )}
-                </ul>
+                    ) : selectable.length === 0 ? (
+                      <li className="dh-floating__status" role="presentation">
+                        {query.trim().length === 0
+                          ? "Type to search."
+                          : "No matching items."}
+                      </li>
+                    ) : (
+                      selectable.map((target, index) => (
+                        // Keyboard selection is handled on the combobox input
+                        // via aria-activedescendant (WAI-ARIA combobox); the
+                        // option's click/mousedown is the mouse path only.
+                        // eslint-disable-next-line jsx-a11y/click-events-have-key-events
+                        <li
+                          key={target.id}
+                          id={combobox.optionId(index)}
+                          role="option"
+                          aria-selected={false}
+                          className="dh-option"
+                          data-active={
+                            index === combobox.activeIndex || undefined
+                          }
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => combobox.setActiveIndex(index)}
+                          onClick={() => void createLink(target)}
+                        >
+                          <OptionContent
+                            {...(renderTargetIcon
+                              ? { mark: renderTargetIcon(target.type) }
+                              : {})}
+                            label={`${target.title || "Untitled"}${
+                              pendingTargetId === target.id ? " — linking…" : ""
+                            }`}
+                          />
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </AnchoredSurface>
               ) : null}
             </div>
           )

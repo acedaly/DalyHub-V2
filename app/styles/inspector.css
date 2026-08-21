@@ -23,7 +23,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: var(--app-z-drawer);
+  z-index: var(--dh-layer-drawer);
   display: flex;
   flex-direction: column;
   width: var(--app-inspector-width, 25rem);
@@ -122,7 +122,7 @@
 .dh-inspector-scrim {
   position: fixed;
   inset: 0;
-  z-index: var(--app-z-overlay);
+  z-index: var(--dh-layer-scrim);
   border: 0;
   padding: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
@@ -139,7 +139,7 @@
   width: 100%;
   max-width: 100%;
   height: min(85vh, 40rem);
-  z-index: var(--app-z-modal);
+  z-index: var(--dh-layer-modal);
   border-left: 0;
   border-top-left-radius: var(--dh-radius-lg);
   border-top-right-radius: var(--dh-radius-lg);

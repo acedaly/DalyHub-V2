@@ -36,6 +36,7 @@ import {
   type SerializedTaskListItem,
   type SerializedTaskView,
 } from "./task-view";
+import { TASK_PRIORITY_SELECT_OPTIONS } from "./priority-options";
 
 /** The subset of a Task this panel reads. Both serialised shapes satisfy it. */
 export type QuickEditTask = Pick<
@@ -62,12 +63,8 @@ export interface TaskQuickEditPanelProps {
   readonly footer?: React.ReactNode;
 }
 
-const PRIORITY_OPTIONS = [
-  ...TASK_PRIORITIES.map((priority) => ({
-    value: priority,
-    label: taskPriorityLabel(priority),
-  })),
-];
+/** DHDS-09 — the canonical four, from the one module that owns them. */
+const PRIORITY_OPTIONS = TASK_PRIORITY_SELECT_OPTIONS;
 
 const SECTOR_OPTIONS = [
   { value: "", label: "No sector" },

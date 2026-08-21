@@ -16,6 +16,7 @@ import {
   collectionCountLabel,
   CollectionLayout,
   CreateActionLabel,
+  SortMenu,
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
@@ -40,15 +41,18 @@ const VIEW_LINKS = [
 ] as const;
 
 /*
- * UIX-06 — each option names its own dimension, so the control needs no visible
- * label beside it and the band stays one row at one baseline. Same wording as
- * People, Notes and Reviews.
+ * DHDS-09 — the option is the VALUE; the shared control says the dimension.
+ *
+ * UIX-06 put "Sort:" inside every option because a bare native `<select>` has
+ * nowhere else to put the field's name. The shared `SortMenu` states it once on
+ * the trigger, so the options go back to being what they are — three sort keys —
+ * and a screen reader hears the name once rather than once per option.
  */
-const SORT_LABELS = {
-  start: "Sort: Start date",
-  updated: "Sort: Updated date",
-  title: "Sort: Title",
-} as const;
+const SORT_OPTIONS = [
+  { value: "start", label: "Start date" },
+  { value: "updated", label: "Updated date" },
+  { value: "title", label: "Title" },
+] as const;
 
 export function MeetingsCollection({
   meetings,
@@ -185,22 +189,12 @@ export function MeetingsCollection({
               onChange={(event) => setDraftQuery(event.target.value)}
             />
           </label>
-          <label className="dh-field dh-meetings-sort">
-            <span className="dh-field__label-text dh-visually-hidden">
-              Sort
-            </span>
-            <select
-              className="dh-input"
-              value={sort}
-              onChange={(event) => updateParam("sort", event.target.value)}
-            >
-              {Object.entries(SORT_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SortMenu
+            subject="meetings"
+            value={sort}
+            options={SORT_OPTIONS}
+            onSelect={(next) => updateParam("sort", next)}
+          />
         </div>
       }
     >

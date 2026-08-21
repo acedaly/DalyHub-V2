@@ -147,11 +147,25 @@
   display: inline-flex;
 }
 
+/*
+ * DHDS-09 — the hover card names its LAYER rather than picking a number.
+ *
+ * `z-index: 20` was one of three bare numbers left in the product's floating
+ * surfaces, and it sat below every rung of the scale — so the card was above
+ * its own row by luck rather than by decision.
+ *
+ * It is still absolutely positioned inside its trigger, which the rest of the
+ * floating system is not, and that is recorded as DEBT-181 rather than changed
+ * here: its dismissal is pointer-containment on the wrapper (`onMouseLeave`),
+ * so portalling it into the overlay layer means moving the pointer INTO the
+ * card counts as leaving the trigger. Fixing that is a change to the card's
+ * interaction model, not to its appearance.
+ */
 .dh-hover-card__panel {
   position: absolute;
   top: calc(100% + var(--app-space-1));
   left: 0;
-  z-index: 20;
+  z-index: var(--dh-layer-anchored);
   min-width: 12rem;
   max-width: 20rem;
   display: flex;

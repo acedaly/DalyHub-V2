@@ -136,6 +136,15 @@
   inline-size: 100%;
 }
 
+/*
+ * DHDS-09 — the sort is the shared `SortMenu`, so this rule is layout only.
+ *
+ * It used to also carry `.dh-people-filters__select`, a module-private native
+ * `<select>` treatment beside a Meetings collection that had a different one and
+ * a Reviews collection that had a third. The control's own appearance now comes
+ * from `collection-layout.css`, at the same height and corner as the search
+ * field beside it.
+ */
 .dh-people-filters__sort {
   flex: 0 1 auto;
 }

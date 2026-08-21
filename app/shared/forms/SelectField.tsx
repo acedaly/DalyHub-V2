@@ -43,6 +43,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
+import { AnchoredSurface } from "~/shared/anchored";
+import { OptionContent } from "~/shared/floating";
 import { useCompactViewport } from "~/shared/viewport";
 
 import { clearControlLabel } from "./clear-label";
@@ -196,6 +198,13 @@ function SelectCombobox(props: SelectFieldProps) {
    */
   const [typed, setTyped] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  /**
+   * DHDS-09 — the box the listbox is anchored to.
+   *
+   * The FIELD rather than the whole control, so a multi-select's chip list does
+   * not push the popup below itself.
+   */
+  const fieldRef = useRef<HTMLDivElement>(null);
 
   // Options currently displayed: async consumers own filtering; otherwise filter
   // locally. Already-selected options are hidden in multi mode.
@@ -392,7 +401,7 @@ function SelectCombobox(props: SelectFieldProps) {
           </ul>
         ) : null}
 
-        <div className="dh-combobox__field">
+        <div className="dh-combobox__field" ref={fieldRef}>
           <input
             id={baseId}
             className="dh-input dh-combobox__input"
@@ -463,64 +472,80 @@ function SelectCombobox(props: SelectFieldProps) {
         </div>
 
         {combobox.isOpen ? (
-          <ul
-            className="dh-listbox"
-            id={combobox.listboxId}
-            role="listbox"
-            aria-label={label}
-          >
-            {loading ? (
-              <li className="dh-listbox__status" role="presentation">
-                Loading…
-              </li>
-            ) : displayOptions.length === 0 ? (
-              <li className="dh-listbox__status" role="presentation">
-                {emptyMessage}
-              </li>
-            ) : (
-              displayOptions.map((option, index) => {
-                const selected = selectedValues.includes(option.value);
-                return (
-                  // Keyboard selection is handled on the combobox input via
-                  // aria-activedescendant (WAI-ARIA combobox); the option's
-                  // click/mousedown is the mouse path only.
-                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-                  <li
-                    key={option.value}
-                    id={combobox.optionId(index)}
-                    role="option"
-                    aria-selected={selected}
-                    aria-disabled={option.disabled || undefined}
-                    className="dh-listbox__option"
-                    data-active={index === combobox.activeIndex || undefined}
-                    data-disabled={option.disabled || undefined}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onMouseEnter={() => combobox.setActiveIndex(index)}
-                    onClick={() => {
-                      if (!option.disabled) commit(option.value);
-                    }}
-                  >
-                    <span
-                      className="dh-listbox__option-check"
-                      aria-hidden="true"
+          /*
+           * DHDS-09 — the listbox is in the OVERLAY LAYER.
+           *
+           * It was `position: absolute; inset-block-start: 100%` inside the
+           * field, which is the exact defect `AnchoredSurface` was built to
+           * remove: an absolutely-positioned box is still clipped by any
+           * ancestor with `overflow: hidden` and still has no idea where the
+           * viewport edge is. The measured consequences in this product were a
+           * combobox inside a phone Sheet's scrolling body (the sheet clips) and
+           * a combobox near the bottom of a Drawer (the list ran off-screen with
+           * no flip and no clamp).
+           *
+           * It is anchored to the FIELD and matches its width, so it still reads
+           * as the field's own list rather than as a menu that happens to be
+           * nearby. No dismissal handler is passed: this control closes on blur
+           * and on Escape through `useCombobox`, and adding an outside-press
+           * listener as well would give it two answers to the same question.
+           */
+          <AnchoredSurface anchorRef={fieldRef} matchAnchorWidth>
+            <ul
+              className="dh-floating dh-listbox"
+              id={combobox.listboxId}
+              role="listbox"
+              aria-label={label}
+            >
+              {loading ? (
+                <li className="dh-floating__status" role="presentation">
+                  Loading…
+                </li>
+              ) : displayOptions.length === 0 ? (
+                <li className="dh-floating__status" role="presentation">
+                  {emptyMessage}
+                </li>
+              ) : (
+                displayOptions.map((option, index) => {
+                  const selected = selectedValues.includes(option.value);
+                  return (
+                    // Keyboard selection is handled on the combobox input via
+                    // aria-activedescendant (WAI-ARIA combobox); the option's
+                    // click/mousedown is the mouse path only.
+                    // eslint-disable-next-line jsx-a11y/click-events-have-key-events
+                    <li
+                      key={option.value}
+                      id={combobox.optionId(index)}
+                      role="option"
+                      aria-selected={selected}
+                      aria-disabled={option.disabled || undefined}
+                      className="dh-option"
+                      data-active={index === combobox.activeIndex || undefined}
+                      data-disabled={option.disabled || undefined}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => combobox.setActiveIndex(index)}
+                      onClick={() => {
+                        if (!option.disabled) commit(option.value);
+                      }}
                     >
-                      {selected ? "✓" : ""}
-                    </span>
-                    <span className="dh-listbox__option-body">
-                      <span className="dh-listbox__option-label">
-                        {option.label}
-                      </span>
-                      {option.description ? (
-                        <span className="dh-listbox__option-desc">
-                          {option.description}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                );
-              })
-            )}
-          </ul>
+                      {/* DHDS-09 — the shared option anatomy. This list used to
+                          draw its own check column, label and description, at a
+                          different height and with the check on the other side
+                          from every menu in the product. */}
+                      <OptionContent
+                        label={option.label}
+                        {...(option.description
+                          ? { support: option.description }
+                          : {})}
+                        selected={selected}
+                        showCheck
+                      />
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </AnchoredSurface>
         ) : null}
 
         {unavailableSingle ? (

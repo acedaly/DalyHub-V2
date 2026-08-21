@@ -22,7 +22,7 @@
 .dh-sheet-layer {
   position: fixed;
   inset: 0;
-  z-index: var(--app-z-drawer);
+  z-index: var(--dh-layer-drawer);
 }
 
 .dh-sheet__scrim {

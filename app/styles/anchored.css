@@ -23,7 +23,7 @@
    * toast reports something that happened elsewhere, and a tooltip describes the
    * control your pointer is on.
    */
-  z-index: var(--app-z-anchored);
+  z-index: var(--dh-layer-anchored);
   /* Clamped by the placement solver; the surface scrolls rather than spilling. */
   overflow-y: auto;
   overscroll-behavior: contain;

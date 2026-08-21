@@ -40,7 +40,7 @@ import {
   TEMPLATE_TASK_TITLE_MAX_LENGTH,
   templateContentsLabel,
 } from "~/kernel/project-templates";
-import { CHECKLIST_TITLE_MAX_LENGTH, TASK_PRIORITIES } from "~/kernel/tasks";
+import { CHECKLIST_TITLE_MAX_LENGTH } from "~/kernel/tasks";
 import {
   DrawerProvider,
   useDrawer,
@@ -64,6 +64,7 @@ import type {
   SerializedTemplateDetail,
   SerializedTemplateTask,
 } from "./template-view";
+import { TASK_PRIORITY_SELECT_OPTIONS } from "~/shared/task-record/priority-options";
 
 const CREATE_FROM_TEMPLATE_KEY = "create-from-template";
 
@@ -71,10 +72,14 @@ const CREATE_FROM_TEMPLATE_KEY = "create-from-template";
 const GENERIC_SAVE_ERROR = "That couldn\u2019t be saved. Please try again.";
 
 /** The priority choices, in the product's one vocabulary. */
-const PRIORITY_OPTIONS = TASK_PRIORITIES.map((value) => ({
-  value,
-  label: value.toUpperCase(),
-}));
+/*
+ * DHDS-09 — the canonical four.
+ *
+ * This list said `P1`/`P2`/`P3`/`P4` while every other priority control in the
+ * product said `Priority 1`…`Priority 4`, so a template's task priority was a
+ * CODE where the Task it creates shows a NAME. Same values, one vocabulary.
+ */
+const PRIORITY_OPTIONS = TASK_PRIORITY_SELECT_OPTIONS;
 
 export interface ProjectTemplateRecordViewProps {
   readonly template: SerializedTemplateDetail;
