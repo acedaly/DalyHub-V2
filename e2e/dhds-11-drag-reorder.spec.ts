@@ -199,11 +199,14 @@ test.describe("DHDS-11 Journey A — a manually ordered collection", () => {
       .toEqual([CHECKLIST_STEPS[2], CHECKLIST_STEPS[0], CHECKLIST_STEPS[1]]);
 
     await gotoFixture(page, recordUrl(CHECKLIST_TASK.id));
-    expect(await stepTitles(page)).toEqual([
-      CHECKLIST_STEPS[2],
-      CHECKLIST_STEPS[0],
-      CHECKLIST_STEPS[1],
-    ]);
+    await expect(checklist(page)).toBeVisible();
+    // Poll rather than read once: this is a fresh navigation, and the record's
+    // steps arrive with it rather than before it.
+    await expect
+      .poll(() => stepTitles(page), {
+        message: "the reloaded record should draw the persisted order",
+      })
+      .toEqual([CHECKLIST_STEPS[2], CHECKLIST_STEPS[0], CHECKLIST_STEPS[1]]);
   });
 
   test("reaches the same order from the keyboard alone", async ({ page }) => {
@@ -279,11 +282,12 @@ test.describe("DHDS-11 Journey A — a manually ordered collection", () => {
       .toEqual([GOAL_STAGES[2], GOAL_STAGES[0], GOAL_STAGES[1]]);
 
     await gotoFixture(page, `/goals/${STAGED_GOAL.id}`);
-    expect(await stageTitles(page)).toEqual([
-      GOAL_STAGES[2],
-      GOAL_STAGES[0],
-      GOAL_STAGES[1],
-    ]);
+    await expect(page.getByTestId("goal-milestones")).toBeVisible();
+    await expect
+      .poll(() => stageTitles(page), {
+        message: "the reloaded Goal should draw the persisted stage order",
+      })
+      .toEqual([GOAL_STAGES[2], GOAL_STAGES[0], GOAL_STAGES[1]]);
     // Reordering is not progress: the completed stage is still completed.
     await expect(
       page
@@ -338,14 +342,21 @@ test.describe("DHDS-11 Journey B — moving a Task to another Project", () => {
       bucket(page, HOME_PROJECT.title),
     );
 
-    // The toast names the DESTINATION, not the gesture.
-    const toast = page.getByText(`Moved to ${HOME_PROJECT.title}`);
+    /*
+     * The toast names the DESTINATION, not the gesture — and it is located by
+     * ROLE, as every other toast assertion in this suite is. A bare text match
+     * would also find the two live regions that (correctly) say the same thing
+     * in their own words.
+     */
+    const toast = page.getByRole("group", {
+      name: `Moved to ${HOME_PROJECT.title}`,
+    });
     await expect(toast).toBeVisible();
     await expect
       .poll(() => storedParentOf(WORK_TASKS[1].id))
       .toBe(HOME_PROJECT.id);
 
-    await page.getByRole("button", { name: "Undo" }).first().click();
+    await toast.getByRole("button", { name: "Undo" }).click();
     await expect
       .poll(() => storedParentOf(WORK_TASKS[1].id), {
         message: "Undo should restore the Project the Task came from",
