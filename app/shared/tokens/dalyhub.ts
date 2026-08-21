@@ -283,13 +283,27 @@ export const DALYHUB_STATE_TOKEN_NAMES = [
   "dh-state-disabled-container-opacity",
 ] as const;
 
-/** Durations and easings, named for what they are for. */
+/**
+ * DHDS-08 — durations, periods and easings, named for what they are FOR.
+ *
+ * Five transition rungs, all inside 90–260ms; two loop PERIODS, which are a
+ * different quantity from a transition length and are deliberately kept out of
+ * the ramp; four curves that genuinely differ from one another. The full
+ * rationale and the motion hierarchy the rungs serve live in
+ * `docs/design/DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md`.
+ */
 export const DALYHUB_MOTION_TOKEN_NAMES = [
   "dh-motion-none",
   "dh-motion-instant",
   "dh-motion-fast",
   "dh-motion-base",
-  "dh-motion-slow",
+  "dh-motion-deliberate",
+  "dh-motion-exit",
+  "dh-motion-spinner",
+  "dh-motion-shimmer",
+  "dh-motion-travel",
+  "dh-motion-travel-modal",
+  "dh-motion-scale",
   "dh-ease-standard",
   "dh-ease-enter",
   "dh-ease-exit",

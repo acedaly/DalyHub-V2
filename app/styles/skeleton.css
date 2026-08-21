@@ -24,20 +24,11 @@
   );
   background-size: 200% 100%;
   background-repeat: no-repeat;
-  animation: dh-skeleton-shimmer 1.2s ease-in-out infinite;
+  animation: dh-shimmer var(--dh-motion-shimmer) ease-in-out infinite;
 }
 
 .dh-skeleton--circle {
   border-radius: var(--dh-radius-pill);
-}
-
-@keyframes dh-skeleton-shimmer {
-  from {
-    background-position: 180% 0;
-  }
-  to {
-    background-position: -180% 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

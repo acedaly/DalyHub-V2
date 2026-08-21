@@ -31,7 +31,16 @@
   background: var(--dh-color-surface-raised);
   border-left: var(--app-border-width-thin) solid var(--dh-color-border);
   box-shadow: var(--dh-elevation-modal);
-  animation: dh-inspector-in var(--dh-motion-base) var(--dh-ease-emphasized);
+  /*
+   * DHDS-08 — the shared edge-anchored panel grammar
+   * (`.dh-motion-edge-inline`). The Inspector is ATTACHED to the workspace
+   * rather than flown in over it, so its displacement is a few pixels and it
+   * fades: the panel settles into place beside the record instead of arriving
+   * from off-screen, and the page behind it never moves. That distinction —
+   * amplitude, not choreography — is why it shares the Drawer's keyframe.
+   */
+  --app-motion-edge-from: var(--dh-space-2);
+  --app-motion-edge-fade: 0;
 }
 
 .dh-inspector__resize {
@@ -117,7 +126,7 @@
   border: 0;
   padding: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
-  animation: dh-inspector-scrim-in var(--dh-motion-base) var(--dh-ease-standard);
+  /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
   cursor: pointer;
 }
 
@@ -135,44 +144,22 @@
   border-top-left-radius: var(--dh-radius-lg);
   border-top-right-radius: var(--dh-radius-lg);
   padding-bottom: var(--app-safe-area-bottom);
-  animation: dh-inspector-sheet-in var(--dh-motion-base)
-    var(--dh-ease-emphasized);
+  /*
+   * A bottom sheet is the same gesture on the other axis, so it swaps the
+   * shared keyframe pair rather than owning a private one — and rises from the
+   * bottom edge properly rather than the 16px nudge it used before DHDS-08.
+   */
+  --app-motion-edge-from: 100%;
+  --app-motion-edge-fade: 1;
+  animation-name: dh-edge-block-in;
 }
 
-@keyframes dh-inspector-in {
-  from {
-    transform: translateX(12px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+.dh-inspector[data-compact="true"][data-dh-exit="true"] {
+  animation-name: dh-edge-block-out;
 }
 
-@keyframes dh-inspector-sheet-in {
-  from {
-    transform: translateY(16px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes dh-inspector-scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dh-inspector,
-  .dh-inspector-scrim {
-    animation: none;
-  }
-}
+/* DHDS-08 retired this file's three private keyframes: they were a fade, a
+ * fade-and-nudge and a fade-and-nudge-on-the-other-axis, which is the shared
+ * grammar written out three times. Reduced motion is the contract at the foot
+ * of `motion.css` — the travel is removed and the fade is kept — so the blanket
+ * `animation: none` that lived here has gone with them. */

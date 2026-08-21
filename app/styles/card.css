@@ -302,8 +302,17 @@
   cursor: pointer;
 }
 
+/* Longhands, and a completed card keeps its strike while hovered — see the
+ * matching note in `task-list.css`. */
 .dh-card__open:not(.dh-card__open--static):hover .dh-card__title-text {
-  text-decoration: underline;
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
+}
+
+.dh-card--completed
+  .dh-card__open:not(.dh-card__open--static):hover
+  .dh-card__title-text {
+  text-decoration-line: underline line-through;
 }
 
 .dh-card__open--static {
@@ -318,9 +327,11 @@
  * It reaches the title TEXT rather than the open control, so the hover underline
  * and the focus ring on that control are untouched.
  */
+/* DHDS-08 — the decoration is the shared `.dh-complete-strike` grammar on the
+ * title text; this rule keeps the ink. */
 .dh-card--completed .dh-card__title-text {
-  text-decoration: line-through;
   color: var(--dh-color-text-muted);
+  transition: color var(--dh-motion-base) var(--dh-ease-standard);
 }
 
 .dh-card__subtitle {

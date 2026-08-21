@@ -31,6 +31,7 @@
  */
 
 import { CloseGlyph, KindIcon, Spinner } from "./feedback-icons";
+import { useLeavingRecords } from "./use-leaving-notifications";
 import type { NotificationRecord, OperationRecord } from "./types";
 
 type Announcement = {
@@ -70,7 +71,10 @@ export function NotificationCenter({
   onOperationDismiss,
   onPauseChange,
 }: NotificationCenterProps) {
-  const hasItems = notifications.length > 0 || operations.length > 0;
+  // DHDS-08 — the rendered list lags the queue by one exit animation, so a
+  // dismissed toast fades instead of disappearing. See `useLeavingRecords`.
+  const { rendered, isLeaving } = useLeavingRecords(notifications);
+  const hasItems = rendered.length > 0 || operations.length > 0;
 
   return (
     <>
@@ -129,10 +133,18 @@ export function NotificationCenter({
                 />
               </li>
             ))}
-            {notifications.map((notification) => (
+            {/*
+             * DHDS-08 — `rendered` is the live queue plus anything still
+             * fading out, so a dismissed toast leaves rather than vanishing.
+             * The queue itself is untouched: a leaving toast is already gone
+             * as far as the provider, the Undo window and the commit handler
+             * are concerned, and it is `inert` so it cannot be acted on.
+             */}
+            {rendered.map((notification) => (
               <li key={notification.id} className="dh-feedback__item-wrap">
                 <NotificationToast
                   notification={notification}
+                  leaving={isLeaving(notification.id)}
                   onDismiss={onDismiss}
                   onAction={onAction}
                 />
@@ -147,16 +159,28 @@ export function NotificationCenter({
 
 function NotificationToast({
   notification,
+  leaving,
   onDismiss,
   onAction,
 }: {
   readonly notification: NotificationRecord;
+  /** DHDS-08 — this toast has left the queue and is fading out. */
+  readonly leaving: boolean;
   readonly onDismiss: (id: string) => void;
   readonly onAction: (record: NotificationRecord) => void;
 }) {
   const { id, kind, title, message, action, count } = notification;
   return (
-    <div className="dh-toast" data-kind={kind} role="group" aria-label={title}>
+    <div
+      className="dh-toast dh-motion-edge-block"
+      data-kind={kind}
+      data-dh-exit={leaving ? "true" : undefined}
+      // A toast on its way out is not operable: the dismissal has already been
+      // taken, so its Undo must not be clickable or tabbable while it fades.
+      inert={leaving ? true : undefined}
+      role="group"
+      aria-label={title}
+    >
       <span className="dh-toast__icon" data-kind={kind}>
         <KindIcon kind={kind} />
       </span>

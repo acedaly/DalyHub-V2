@@ -462,9 +462,13 @@
 /*
  * Completed is a text decoration AND a quieter colour, together. Either alone
  * would be colour-only or ambiguous; the caller also states it in words.
+ *
+ * DHDS-08 — the DECORATION now comes from the shared `.dh-complete-strike`
+ * grammar on the title (always present, transparent until done, so completing
+ * transitions a colour), and this rule keeps the ink. Both cross-fade at
+ * `--dh-motion-base` and neither moves anything.
  */
 .dh-row--completed .dh-row__title {
-  text-decoration: line-through;
   color: var(--dh-color-text-muted);
 }
 

@@ -40,21 +40,13 @@
   inset: 0;
   background: transparent;
   pointer-events: auto;
-  animation: drawer-backdrop-in var(--dh-motion-base) var(--dh-ease-standard);
+  /* DHDS-08 — the shared scrim grammar (`motion.css`). A scrim fades faster and
+   * softer than the panel it sits behind, in both directions. */
 }
 
 @media (max-width: 48rem) {
   .drawer-backdrop {
     background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
-  }
-}
-
-@keyframes drawer-backdrop-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }
 
@@ -112,7 +104,15 @@
   border-inline-start: var(--dh-border-width) solid var(--dh-color-border);
   box-shadow: var(--dh-elevation-overlay);
   pointer-events: auto;
-  animation: drawer-slide-in var(--dh-motion-base) var(--dh-ease-emphasized);
+  /*
+   * DHDS-08 — the shared edge-anchored panel grammar (`.dh-motion-edge-inline`
+   * in `motion.css`). A drawer comes fully off the inline edge, so its
+   * displacement is the whole of its own width; the Inspector uses the same
+   * keyframe at a few pixels, because they are the same gesture at different
+   * amplitudes. The exit is the mirror at `--dh-motion-exit`, driven by
+   * `usePresence` marking the panel `data-dh-exit`.
+   */
+  --app-motion-edge-from: 100%;
   transition: transform var(--dh-motion-base) var(--dh-ease-standard);
 }
 
@@ -124,15 +124,6 @@
  * the scrim above them dims the exposed sliver. */
 .drawer[data-top="false"] {
   transform: translateX(calc(-1 * var(--app-space-5)));
-}
-
-@keyframes drawer-slide-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -294,9 +285,22 @@
     width: 100vw;
     max-width: 100vw;
     border-inline-start: none;
-    animation-name: drawer-sheet-in;
     /* Shrink to the space the keyboard leaves rather than being overlaid by it. */
     height: calc(100dvh - var(--app-keyboard-inset, 0px));
+  }
+
+  /*
+   * On a phone the drawer is a bottom SHEET — the same gesture on the other
+   * axis, so it swaps the shared keyframe pair rather than owning a private
+   * one. Kept in CSS rather than routed through a viewport hook, because it is
+   * purely presentational (`use-compact-viewport`'s own rule).
+   */
+  .drawer.dh-motion-edge-inline {
+    animation-name: dh-edge-block-in;
+  }
+
+  .drawer.dh-motion-edge-inline[data-dh-exit="true"] {
+    animation-name: dh-edge-block-out;
   }
 
   /* Sheets fill the viewport, so prior levels are not offset (nothing peeks). */
@@ -355,14 +359,5 @@
    * record's own header keeps its status, metadata and actions. */
   .drawer[data-title-in-header="true"] .record-header__title {
     display: none;
-  }
-}
-
-@keyframes drawer-sheet-in {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
   }
 }

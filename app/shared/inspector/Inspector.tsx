@@ -93,7 +93,7 @@ export function Inspector({
       {compact ? (
         <button
           type="button"
-          className="dh-inspector-scrim"
+          className="dh-inspector-scrim dh-motion-scrim"
           aria-label="Close inspector"
           onClick={onRequestClose}
         />
@@ -110,7 +110,7 @@ export function Inspector({
        */}
       <Container
         ref={containerRef}
-        className="dh-inspector"
+        className="dh-inspector dh-motion-edge-inline"
         data-compact={compact ? "true" : "false"}
         style={{ ["--app-inspector-width" as string]: `${resize.width}px` }}
         role={compact ? "dialog" : undefined}

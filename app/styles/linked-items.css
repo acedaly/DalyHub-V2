@@ -164,24 +164,9 @@
   box-shadow: var(--dh-elevation-overlay);
   font-size: var(--dh-text-meta-size);
   color: var(--dh-color-text);
-  animation: dh-hover-card-in var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dh-hover-card__panel {
-    animation: none;
-  }
-}
-
-@keyframes dh-hover-card-in {
-  from {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  /* Motion: the shared anchored-reveal grammar (`.dh-motion-reveal`) — the
+   * same one the tooltip and the menus take, because a hover card is a
+   * popover with a richer body. */
 }
 
 .dh-hover-card__loading,

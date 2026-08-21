@@ -53,3 +53,57 @@
   /* It has no meaningful position yet, so it must not be clickable either. */
   pointer-events: none;
 }
+
+/*
+ * DHDS-08 — the anchored-reveal motion, and why it is a TRANSITION here rather
+ * than the shared `.dh-motion-reveal` animation.
+ *
+ * Every other floating surface in DalyHub is placed by CSS, so its entrance can
+ * be a one-shot animation that starts when it mounts. This one is placed by a
+ * MEASUREMENT: it mounts unpositioned, is measured, and is moved into place on
+ * the following commit. An animation would therefore have run — and finished —
+ * while the surface was still sitting at the top-left corner of the viewport
+ * with nothing to see. The `data-positioned` flip is the real "it is here now"
+ * event, so the reveal hangs off that instead, using the same distances, the
+ * same duration and the same curve as the shared grammar.
+ *
+ * §11: it appears quickly (`--dh-motion-fast`), it is anchored to its trigger
+ * (`transform-origin` follows the solver's own flip), it never bounces, and it
+ * never drifts — 4px is the shared travel and it is the whole of the movement.
+ *
+ * Pointer interaction is NOT delayed by any of it: `pointer-events` returns
+ * with `data-positioned="true"`, on the same commit the transition starts, and
+ * focus has already been moved onto the menu's current item by then.
+ */
+.dh-anchored {
+  transform-origin: center top;
+  transition:
+    opacity var(--dh-motion-fast) var(--dh-ease-standard),
+    transform var(--dh-motion-fast) var(--dh-ease-enter);
+}
+
+/* Flipped above the trigger: it grows from the edge nearest the control. */
+.dh-anchored[data-side="above"] {
+  transform-origin: center bottom;
+}
+
+.dh-anchored[data-positioned="false"] {
+  transform: translateY(calc(-1 * var(--dh-motion-travel)))
+    scale(var(--dh-motion-scale));
+}
+
+.dh-anchored[data-side="above"][data-positioned="false"] {
+  transform: translateY(var(--dh-motion-travel)) scale(var(--dh-motion-scale));
+}
+
+/*
+ * Reduced motion: the surface still appears, it simply does not travel. The
+ * global rule in `base.css` zeroes the duration; removing the transform here is
+ * what makes that a REMOVAL rather than an instantaneous jump.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .dh-anchored[data-positioned="false"],
+  .dh-anchored[data-side="above"][data-positioned="false"] {
+    transform: none;
+  }
+}

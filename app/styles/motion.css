@@ -1,0 +1,666 @@
+/*
+ * DHDS-08 — THE DALYHUB MOTION LAYER.
+ *
+ * `tokens.css` publishes the vocabulary (five durations, two periods, four
+ * curves). This file is the GRAMMAR: the handful of named behaviours the whole
+ * product animates with, so a surface adopts a motion by naming it instead of
+ * authoring a keyframe.
+ *
+ * ── The principle ───────────────────────────────────────────────────────────
+ * Motion explains what changed, where something came from, where it went, or
+ * what has focus. Nothing here exists to make DalyHub look animated. A user
+ * should mostly stop noticing the motion and simply perceive that the product
+ * is exceptionally well made.
+ *
+ * ── The hierarchy this file implements ──────────────────────────────────────
+ *
+ *   LEVEL 0 — no motion.
+ *     Text updates, corrections, autosave, background refresh, routine
+ *     metadata. Not everything deserves animation, and this file deliberately
+ *     publishes no class for any of it.
+ *
+ *   LEVEL 1 — interaction feedback. `--dh-motion-instant`.
+ *     Hover, press, focus, selected, checked. Owned by the components
+ *     themselves (`ui.css`, `task-signals.css`), because the thing that
+ *     changes is a colour on a specific control. There is deliberately no
+ *     shared piece — see the note in the Level 1 section below.
+ *
+ *   LEVEL 2 — contextual reveal. `--dh-motion-fast` / `--dh-motion-base`.
+ *     Menus, popovers, tooltips, toasts, sheets and the contextual action
+ *     reveal. `.dh-motion-reveal`, `.dh-motion-lift`, `.dh-motion-edge-*`,
+ *     `.dh-motion-scrim`, `.dh-action-reveal`.
+ *
+ *   LEVEL 3 — meaningful structural transition. `--dh-motion-deliberate`.
+ *     Completing a task, a disclosure opening, the next Today task taking the
+ *     Now position. `.dh-disclosure`, `.dh-complete-*`, `.dh-motion-succeed`.
+ *
+ * ── Why keyframes rather than transitions for the overlays ──────────────────
+ * A transition needs two states and something to change between them. An
+ * overlay is MOUNTED — it has no "before" — so its entrance is a one-shot
+ * animation. Its exit is the mirror, and is driven by `data-dh-exit="true"`
+ * placed on the element by `usePresence` (`app/shared/motion`) while React
+ * keeps it mounted for exactly `--dh-motion-exit`.
+ *
+ * ── Leaving is faster than arriving ─────────────────────────────────────────
+ * Every exit here runs at `--dh-motion-exit` (140ms) against an entrance of
+ * `--dh-motion-base` (200ms), on `--dh-ease-exit` rather than `--dh-ease-enter`.
+ * An object that is going away should be gone slightly before you finish
+ * thinking about it; the alternative reads as a surface reluctant to leave.
+ *
+ * ── What is animated, and what is not ───────────────────────────────────────
+ * `opacity` and `transform` only, everywhere in this file, because those are
+ * the two properties a compositor can animate without laying the page out
+ * again. The two structural exceptions are deliberate and documented at their
+ * rules: `grid-template-rows` for disclosure (there is no compositor-friendly
+ * way to open to intrinsic height, and the alternative is the `max-height`
+ * guess this file exists to prevent) and `inline-size` for progress fills.
+ * There is no `will-change` in this file: it is a memory cost paid on every
+ * matching element forever, and none of these animations measured as needing
+ * one.
+ *
+ * ── Reduced motion ──────────────────────────────────────────────────────────
+ * The contract is at the bottom of this file, and it is not "multiply every
+ * duration by zero and hope". See the banner there.
+ */
+
+/* ========================================================================== */
+/* Level 2 — the canonical enter/exit keyframes                                */
+/* ========================================================================== */
+
+/*
+ * The distances live in `tokens.css` with the durations and the curves:
+ * `--dh-motion-travel` (an anchored surface, 4px), `--dh-motion-travel-modal`
+ * (a centred one, 8px) and `--dh-motion-scale` (0.98). Small enough that a
+ * surface reads as appearing where it belongs rather than flying to it, large
+ * enough that the eye registers a direction.
+ *
+ * `--app-motion-edge-from` and `--app-motion-edge-fade` are the CONTEXTUAL
+ * pair each edge-anchored host sets for itself — see their note in `tokens.css`
+ * for why those two carry the machinery prefix.
+ */
+
+/** A scrim, a crossfade, a value appearing in place. */
+@keyframes dh-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dh-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/**
+ * An ANCHORED floating surface — a menu, a popover, a tooltip, a hover card.
+ *
+ * It grows a hint out of its `transform-origin`, which the host sets to the
+ * corner nearest its trigger, so the surface reads as having come from the
+ * control that opened it rather than from the middle of the screen.
+ */
+@keyframes dh-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--dh-motion-travel)))
+      scale(var(--dh-motion-scale));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dh-reveal-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--dh-motion-travel)))
+      scale(var(--dh-motion-scale));
+  }
+}
+
+/**
+ * A CENTRED modal surface — a dialog, the command palette, the search overlay.
+ *
+ * It rises. It does not fly in from an edge, it does not zoom, and it does not
+ * bounce: §28 forbids all three, and a dialog that arrives dramatically makes
+ * the decision it is asking for feel bigger than it is.
+ */
+@keyframes dh-lift-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--dh-motion-travel-modal));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dh-lift-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--dh-motion-travel-modal));
+  }
+}
+
+/**
+ * An EDGE-ANCHORED panel on the INLINE axis — the Drawer, the Inspector.
+ *
+ * `--app-motion-edge-from` is the host's own displacement, because a drawer
+ * comes fully off the inline edge (`100%`) while the Inspector is attached to
+ * the workspace and merely settles into it (a few pixels). Both are the same
+ * gesture at different amplitudes, so they are the same keyframe.
+ */
+@keyframes dh-edge-inline-in {
+  from {
+    opacity: var(--app-motion-edge-fade);
+    transform: translateX(var(--app-motion-edge-from));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dh-edge-inline-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: var(--app-motion-edge-fade);
+    transform: translateX(var(--app-motion-edge-from));
+  }
+}
+
+/** The same, on the BLOCK axis — a bottom sheet, a mobile inspector. */
+@keyframes dh-edge-block-in {
+  from {
+    opacity: var(--app-motion-edge-fade);
+    transform: translateY(var(--app-motion-edge-from));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dh-edge-block-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: var(--app-motion-edge-fade);
+    transform: translateY(var(--app-motion-edge-from));
+  }
+}
+
+/* ========================================================================== */
+/* The two LOOPS                                                               */
+/* ========================================================================== */
+
+/*
+ * The only two things in DalyHub that animate indefinitely, and they are here
+ * so there is one of each rather than one per surface. Both are strictly
+ * "something is happening that you are waiting for"; neither ever runs when
+ * nothing is in flight, and both are switched off under reduced motion by the
+ * surfaces that draw them.
+ */
+
+/** An in-flight spinner. Period: `--dh-motion-spinner`. */
+@keyframes dh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/**
+ * A skeleton's sweep. Period: `--dh-motion-shimmer`.
+ *
+ * `background-position` rather than a transform, because the thing that moves
+ * is a gradient inside the element rather than the element itself — so there
+ * is nothing to composite and nothing to lay out.
+ */
+@keyframes dh-shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -180% 0;
+  }
+}
+
+/* ========================================================================== */
+/* Level 2 — the classes a surface adopts                                      */
+/* ========================================================================== */
+
+/*
+ * A SCRIM.
+ *
+ * Softer and faster than the content it sits behind, in both directions: the
+ * scrim is context, the panel is the thing, and a scrim that arrives at the
+ * same speed as its panel competes with it. Exit is faster still, so the page
+ * is legible again before the panel has finished leaving.
+ */
+.dh-motion-scrim {
+  animation: dh-fade-in var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+.dh-motion-scrim[data-dh-exit="true"] {
+  animation: dh-fade-out var(--dh-motion-exit) var(--dh-ease-exit) forwards;
+}
+
+/** An anchored floating surface. Quick — a context menu should feel instant. */
+.dh-motion-reveal {
+  animation: dh-reveal-in var(--dh-motion-fast) var(--dh-ease-enter);
+}
+
+.dh-motion-reveal[data-dh-exit="true"] {
+  animation: dh-reveal-out var(--dh-motion-exit) var(--dh-ease-exit) forwards;
+}
+
+/** A centred modal surface. */
+.dh-motion-lift {
+  animation: dh-lift-in var(--dh-motion-base) var(--dh-ease-enter);
+}
+
+.dh-motion-lift[data-dh-exit="true"] {
+  animation: dh-lift-out var(--dh-motion-exit) var(--dh-ease-exit) forwards;
+}
+
+/**
+ * An edge-anchored panel. Each host sets `--app-motion-edge-from` (and
+ * `--app-motion-edge-fade` if it fades), because how far a panel travels is a
+ * fact about where it lives rather than about the grammar.
+ */
+.dh-motion-edge-inline {
+  animation: dh-edge-inline-in var(--dh-motion-base) var(--dh-ease-emphasized);
+}
+
+.dh-motion-edge-inline[data-dh-exit="true"] {
+  animation: dh-edge-inline-out var(--dh-motion-exit) var(--dh-ease-exit)
+    forwards;
+}
+
+.dh-motion-edge-block {
+  animation: dh-edge-block-in var(--dh-motion-base) var(--dh-ease-emphasized);
+}
+
+.dh-motion-edge-block[data-dh-exit="true"] {
+  animation: dh-edge-block-out var(--dh-motion-exit) var(--dh-ease-exit)
+    forwards;
+}
+
+/* ========================================================================== */
+/* Level 1 — pressed feedback                                                  */
+/* ========================================================================== */
+
+/*
+ * There is no pressed TRANSFORM in DalyHub, and that is the decision rather
+ * than an omission.
+ *
+ * Every DalyHub control already answers a press where it counts: `ui.css`
+ * transitions background, border and colour at `--dh-motion-instant` on
+ * `:active`, so the control changes value under the finger. DHDS-08 considered
+ * publishing a `.dh-press` scale for the handful of surfaces where the object
+ * being pressed IS the affordance — a whole card, a tile — and did not ship it,
+ * because on inspection every such surface in the product already reads
+ * correctly without one, and a class with no consumer is an invitation to find
+ * one.
+ *
+ * §5 is the standing rule this encodes: most controls can communicate press
+ * through a value change alone, and the generic `transform: scale(0.95)`
+ * applied everywhere is exactly what DalyHub must not look like. If a future
+ * surface genuinely needs a physical response, it belongs here, it is
+ * nearly imperceptible, and it uses `scale()` on a composited layer so it can
+ * never move a neighbour.
+ */
+
+/* ========================================================================== */
+/* Level 2 — the ROW REVEAL grammar                                            */
+/* ========================================================================== */
+
+/*
+ * A secondary row affordance — the `…` overflow button, a trailing action set —
+ * that appears when the row is engaged with. Introduced by DHDS-02 in
+ * `base.css`; DHDS-08 moved it here unchanged, because it is motion and this is
+ * where the product's motion lives.
+ *
+ * The four rules that make it safe, and the reason it is ONE contract rather
+ * than one per surface (§26: nothing should wiggle):
+ *
+ *   1. It FADES. `opacity` only. It never appears, never grows and never
+ *      slides, because all three move the row's other content.
+ *   2. It occupies its geometry AT REST. The element stays in flow at
+ *      `opacity: 0`, so the title and metadata beside it are laid out against
+ *      the space it will occupy and nothing shifts horizontally when the `…`
+ *      arrives. This is the whole point of the contract.
+ *   3. It is never unavailable to anyone who cannot hover. `opacity` does not
+ *      remove an element from the accessibility tree, `:focus-within` reveals
+ *      it for the keyboard, an open menu holds it open, and the reveal is
+ *      wrapped in `(hover: hover)` so a touch device is simply given it.
+ *   4. It cannot be clicked while it is invisible: `pointer-events` follows the
+ *      opacity, so an unrevealed action is not a hidden hit area over the row.
+ *
+ * Consumers opt in with `data-dh-action-context="true"` on the row and
+ * `dh-action-reveal` on the trailing action container.
+ */
+.dh-action-reveal {
+  opacity: 1;
+  transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+@media (hover: hover) {
+  [data-dh-action-context="true"] .dh-action-reveal {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  [data-dh-action-context="true"]:hover .dh-action-reveal,
+  [data-dh-action-context="true"]:focus-within .dh-action-reveal,
+  .dh-action-reveal:focus-within,
+  .dh-action-reveal[aria-expanded="true"],
+  .dh-action-reveal:has([aria-expanded="true"]) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Forced colours strip the opacity distinction, so the affordance is simply
+ * drawn — a control the user cannot see is worse than a slightly busier row. */
+@media (forced-colors: active) {
+  .dh-action-reveal {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* ========================================================================== */
+/* Level 3 — DISCLOSURE                                                        */
+/* ========================================================================== */
+
+/*
+ * Opening and closing a section, without `height: auto` hacks.
+ *
+ * `grid-template-rows: 0fr → 1fr` is the one stable way to transition to
+ * INTRINSIC height in CSS. The alternative the product would otherwise reach
+ * for is a `max-height` guess, which is wrong twice: too small and the content
+ * is clipped, too large and the close is a long pause followed by a snap.
+ *
+ * Cost, stated honestly: this animates a grid track, which is layout, not
+ * composite. It is bounded — one animating region at a time, at
+ * `--dh-motion-base` — and the comprehension it buys (you can see WHERE the
+ * content came from) is exactly the Level 3 test. Repeated opening and closing
+ * stays fast because 200ms is short and the transition is interruptible.
+ *
+ *   <div class="dh-disclosure" data-dh-open="true|false">
+ *     <div class="dh-disclosure__content"> … </div>
+ *   </div>
+ *
+ * The `min-block-size: 0` on the content is load-bearing: a grid item's default
+ * `auto` minimum would refuse to shrink below its content and the region would
+ * never close.
+ */
+.dh-disclosure {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dh-motion-base) var(--dh-ease-standard);
+}
+
+.dh-disclosure[data-dh-open="false"] {
+  grid-template-rows: 0fr;
+}
+
+.dh-disclosure__content {
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+/*
+ * The indicator and the content are ONE interaction, so the chevron turns over
+ * the same duration and curve as the region opens.
+ */
+.dh-disclosure-marker {
+  transition: rotate var(--dh-motion-base) var(--dh-ease-standard);
+}
+
+[aria-expanded="false"] > .dh-disclosure-marker,
+[aria-expanded="false"] .dh-disclosure-marker {
+  rotate: -90deg;
+}
+
+/* ========================================================================== */
+/* Level 3 — TASK COMPLETION                                                   */
+/* ========================================================================== */
+
+/*
+ * The signature DalyHub interaction, and the one that happens most.
+ *
+ * The sequence, and what owns each part:
+ *
+ *   1. the control responds            `task-signals.css`, instant, already
+ *                                      painted before this class arrives
+ *   2. the title and metadata recede   here — colour and opacity
+ *   3. the strike-through draws        here — a scaled pseudo-element
+ *   4. a short acknowledgement          here — the settle below
+ *   5. the row leaves, if the surface   here — `[data-dh-leaving]`
+ *      removes completed work
+ *   6. the neighbours close the gap    here — the same grid-track transition
+ *                                      disclosure uses
+ *   7. Undo                            the existing toast, untouched
+ *
+ * Total perceived: ~260ms. It is an acknowledgement, not a celebration. There
+ * is no confetti, no bounce, no scale, and no colour change beyond receding —
+ * a completed task in DalyHub goes QUIET, it does not turn green (§13).
+ *
+ * ── The mutation is NOT waiting for any of this ─────────────────────────────
+ * The optimistic write is posted the moment the control is ticked. This class
+ * describes what the row does while that happens; nothing here is ever
+ * awaited, and a surface that made persistence wait for an animation would be
+ * violating §7 and §28 at once.
+ */
+
+/** The completed row's ink. Applied by state, not by a transition trigger. */
+.dh-complete-recede {
+  transition:
+    color var(--dh-motion-base) var(--dh-ease-standard),
+    opacity var(--dh-motion-base) var(--dh-ease-standard);
+}
+
+/*
+ * The strike-through, transitioned through `text-decoration-color`.
+ *
+ * The rule is ALWAYS present and is transparent until the task is done, so what
+ * changes is a colour — which interpolates — rather than the presence of a text
+ * decoration, which does not. A `text-decoration` that simply appears reads as a
+ * glitch on the most repeated act in the product.
+ *
+ * ── Why not a pseudo-element bar ────────────────────────────────────────────
+ * The obvious alternative is an absolutely-positioned `::after` scaled on X,
+ * which composites and would be cheaper. It is also wrong here: a task title
+ * WRAPS — routinely, on a phone — and a single absolutely-positioned bar strikes
+ * the middle of the box rather than each line of the text. `text-decoration`
+ * follows the text, at every width, for free.
+ *
+ * It costs no layout either way: a line-through never reserves space, so the
+ * title does not move when the task is completed or reopened (§26).
+ */
+.dh-complete-strike {
+  /*
+   * LONGHANDS, deliberately. The `text-decoration` shorthand resets
+   * `text-decoration-color` to `currentColor`, so a surface that sets the
+   * shorthand for its own hover underline would silently reveal the strike on
+   * every incomplete row it hovered. Every rule that touches a decoration on a
+   * title carrying this class uses longhands for the same reason.
+   */
+  text-decoration-line: line-through;
+  text-decoration-thickness: from-font;
+  text-decoration-color: transparent;
+  transition: text-decoration-color var(--dh-motion-base)
+    var(--dh-ease-standard);
+}
+
+[data-completed="true"] .dh-complete-strike,
+.dh-complete-strike[data-completed="true"] {
+  text-decoration-color: currentColor;
+}
+
+/*
+ * A row LEAVING a surface that removes completed work — DEFERRED, deliberately.
+ *
+ * Steps 6 and 7 of the sequence above (the row departs; the neighbours close
+ * the gap) are not implemented, and this is the record of why rather than an
+ * oversight.
+ *
+ * The mechanism is not the hard part: collapsing the row's own grid track is
+ * the same transition disclosure uses, and `useLeavingRecords` already does the
+ * list-level bookkeeping for toasts. Two things are:
+ *
+ *   1. FOCUS. The control the owner just clicked is inside the row that is
+ *      about to go. Holding the row for 260ms while it is `inert` moves focus
+ *      to `<body>` for a quarter of a second, and deciding where it should land
+ *      instead (the next row? the list? the toast's Undo?) is a real
+ *      interaction decision, not a motion one. §19 forbids guessing.
+ *   2. The surfaces DISAGREE about what completion means. `/tasks` in its
+ *      All-active view removes the row; a Completed section keeps it; a
+ *      Project's history keeps it forever. Animating a row out of existence on
+ *      a surface that did not remove it would be a lie about what happened, so
+ *      the departure has to be opted into per surface — which is a wider change
+ *      than DHDS-08's grammar pass should make on its own.
+ *
+ * Until then a completed row on a removing surface disappears on the next
+ * revalidation, exactly as it did before DHDS-08, and the Undo toast is what
+ * carries the continuity. Recorded in `PRODUCT_DEBT.md` and in the DHDS-08
+ * record; it belongs with DHDS-11's object-continuity work.
+ */
+
+/* ========================================================================== */
+/* Level 3 — CONTINUITY (Today)                                                */
+/* ========================================================================== */
+
+/*
+ * When one object is REPLACED by the next — the Now task resolving and the
+ * next recommended action taking its position — the replacement crossfades in
+ * place rather than the composition re-rendering.
+ *
+ * It is a fade, not a slide and certainly not a carousel: the position is the
+ * meaning ("this is what comes next"), so the position must hold still while
+ * the content in it changes. The host keys the element on the object's id, so
+ * React remounts it and the entrance runs exactly when the object actually
+ * changed — never on an incidental re-render.
+ */
+.dh-motion-succeed {
+  animation: dh-fade-in var(--dh-motion-base) var(--dh-ease-enter);
+}
+
+/* ========================================================================== */
+/* Level 2 — LOADING ARRIVAL                                                   */
+/* ========================================================================== */
+
+/*
+ * Skeleton → content is NOT animated, and DHDS-08 audited it before deciding
+ * that.
+ *
+ * §14 asks that loading resolve cleanly rather than flash. The reason nothing
+ * is published here is that DalyHub's loading already does: React Router keeps
+ * the current page rendered while the next one's data is in flight, so an
+ * ordinary navigation never blanks and never replays a skeleton; the skeleton
+ * shows on a genuine first load, where there is no previous content to
+ * crossfade FROM. Adding a fade there would delay content the owner is waiting
+ * for in order to animate its absence.
+ *
+ * What §14 rules out is scrupulously absent and stays absent: no staggered row
+ * entrances, no cascading dashboard reveal, and no blanking of useful UI to
+ * replay a loading animation.
+ */
+
+/* ========================================================================== */
+/* THE REDUCED-MOTION CONTRACT                                                 */
+/* ========================================================================== */
+
+/*
+ * `base.css` already zeroes every `transition-duration` and `animation-duration`
+ * in the document under `prefers-reduced-motion: reduce`. That global rule is
+ * the FLOOR, and on its own it is not the contract — zeroing a keyframe whose
+ * `from` state is `opacity: 0` is fine, but zeroing one whose `from` is a
+ * `translate` merely makes the displacement instantaneous rather than absent,
+ * and an element that is `forwards`-filled to an exit state can be left
+ * invisible.
+ *
+ * So this block states the contract POSITIVELY. Reduced motion in DalyHub is
+ * not "the same choreography, faster":
+ *
+ *   - structural sliding is REMOVED, not accelerated — a panel does not travel
+ *     at all, it is simply there;
+ *   - transforms that exist only to add physicality are removed outright;
+ *   - opacity is KEPT, because a near-instant fade is how a surface still
+ *     reads as arriving rather than teleporting, and because removing it is
+ *     what leaves an exiting element stuck at `opacity: 0`;
+ *   - every state a motion communicated is still communicated: completion
+ *     still completes, a disclosure still shows its state, a panel still opens,
+ *     progress still reaches its value.
+ *
+ * Nothing in DalyHub depends on animation to convey semantic information, so
+ * nothing here needs a non-motion fallback invented for it. That is the
+ * property this block preserves rather than the one it creates.
+ */
+@media (prefers-reduced-motion: reduce) {
+  /* Structural travel is removed, not shortened. */
+  .dh-motion-reveal,
+  .dh-motion-lift,
+  .dh-motion-edge-inline,
+  .dh-motion-edge-block,
+  .dh-motion-reveal[data-dh-exit="true"],
+  .dh-motion-lift[data-dh-exit="true"],
+  .dh-motion-edge-inline[data-dh-exit="true"],
+  .dh-motion-edge-block[data-dh-exit="true"] {
+    animation-name: none;
+  }
+
+  /*
+   * …and replaced by the fade alone, which is the part that carries the
+   * meaning. It still runs at zero duration under the global rule, so the
+   * surface is simply present — but an EXITING surface is now filled to
+   * `opacity: 0` by a keyframe that actually describes a fade, rather than
+   * being filled to a translate it can never leave.
+   */
+  .dh-motion-reveal,
+  .dh-motion-lift,
+  .dh-motion-edge-inline,
+  .dh-motion-edge-block {
+    animation-name: dh-fade-in;
+  }
+
+  .dh-motion-reveal[data-dh-exit="true"],
+  .dh-motion-lift[data-dh-exit="true"],
+  .dh-motion-edge-inline[data-dh-exit="true"],
+  .dh-motion-edge-block[data-dh-exit="true"] {
+    animation-name: dh-fade-out;
+  }
+
+  /*
+   * Disclosure, completion and the Today succession keep their END states and
+   * lose only their duration: the region is open or closed, the strike is drawn
+   * or it is not, the next task is in the Now position. None of the three
+   * travels, so none of them needs an override here — they are named so the next
+   * reader knows that was checked rather than missed.
+   *
+   * There is no pressed transform in the product to remove (see Level 1 above).
+   */
+}

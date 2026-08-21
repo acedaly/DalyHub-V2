@@ -29,7 +29,7 @@
   padding: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
   cursor: default;
-  animation: dh-search-fade var(--dh-motion-fast) var(--dh-ease-standard);
+  /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
 }
 
 .dh-search__panel {
@@ -44,7 +44,9 @@
   border-radius: var(--dh-radius-lg);
   box-shadow: var(--dh-elevation-modal);
   overflow: hidden;
-  animation: dh-search-rise var(--dh-motion-base) var(--dh-ease-emphasized);
+  /* Motion: the shared centred-modal grammar (`.dh-motion-lift`) — the same
+   * one the command palette takes, because they are the same object with
+   * different contents. */
 }
 
 .dh-search__header {
@@ -308,26 +310,6 @@
 
 .dh-search__retry:hover {
   background: var(--dh-color-accent);
-}
-
-@keyframes dh-search-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes dh-search-rise {
-  from {
-    opacity: 0;
-    transform: translateY(calc(-1 * var(--app-space-3)));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @media (max-width: 30rem) {

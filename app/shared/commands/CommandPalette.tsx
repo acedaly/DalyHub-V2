@@ -175,9 +175,13 @@ export default function CommandPalette({
 
   return (
     <div className="dh-command" role="presentation" ref={modalRootRef}>
-      <div className="dh-command__scrim" onClick={onClose} aria-hidden="true" />
       <div
-        className="dh-command__panel"
+        className="dh-command__scrim dh-motion-scrim"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className="dh-command__panel dh-motion-lift"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

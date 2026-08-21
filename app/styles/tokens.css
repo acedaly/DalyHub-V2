@@ -6238,6 +6238,71 @@
    */
   --app-surface-current: var(--dh-color-bg);
 
+  /*
+   * DHDS-08 — the EDGE-ANCHORED panel's own displacement, and whether it fades.
+   *
+   * Contextual, in the same sense `--app-surface-current` above is: the shared
+   * `dh-edge-*` keyframes describe one gesture, and each host says how far it
+   * travels. A Drawer comes fully off its edge (`100%`), the mobile navigation
+   * comes off the opposite one (`-100%`), the Inspector is attached to the
+   * workspace and merely settles into it (a couple of spaces, with a fade), and
+   * a toast rises the modal travel. Same choreography, different amplitude.
+   *
+   * These carry the `--app-` prefix precisely BECAUSE hosts override them: the
+   * `--dh-` layer is closed (defined in this file and nowhere else), and a role
+   * every panel redefines locally is machinery rather than vocabulary.
+   *
+   * The default is the full displacement with no fade — the Drawer's, which is
+   * the commonest case and the safest thing for a host that forgets to say.
+   */
+  --app-motion-edge-from: 100%;
+  --app-motion-edge-fade: 1;
+
+  /*
+   * DHDS-08 — DalyHub's own motion PRIMITIVES.
+   *
+   * These are the authored values. The `--dh-motion-*` / `--dh-ease-*` roles in
+   * the DalyHub layer below are `var()` aliases onto them and author nothing
+   * themselves, which is the rule `AGENTS.md` §9 states for the whole layer:
+   * nothing in it is authored, every value is a `var()` onto an existing token.
+   *
+   * ── Why they are `--app-` rather than `--md-sys-` ────────────────────────
+   * Because the prefix table means what it says: `--app-` owns "structural
+   * values M3 does not own", and M3 genuinely does not own these. Its duration
+   * ramp contains no 90ms, no 140ms and no 260ms, and its curve set contains no
+   * `cubic-bezier(0.3, 0, 0, 1)`. DHDS-08's whole argument is that M3's twelve-
+   * rung ramp is a number line rather than a vocabulary, so pinning DalyHub's
+   * five rungs to positions in it would make the vocabulary M3's again by the
+   * back door — and would silently move a DalyHub rung if the machinery ever
+   * changed.
+   *
+   * Three of the four curves happen to coincide with an M3 curve to the digit.
+   * They are still authored here rather than aliased there, because the
+   * agreement is a coincidence of good taste rather than a dependency: DalyHub's
+   * enter curve is what it is because objects should decelerate into rest, not
+   * because M3 calls it `emphasized-decelerate`.
+   *
+   * The MEANING of each value — which level it serves, why it is that long —
+   * lives with the role it feeds, in the DalyHub layer. This block is only where
+   * the numbers are written down.
+   */
+  --app-motion-duration-instant: 90ms;
+  --app-motion-duration-fast: 150ms;
+  --app-motion-duration-base: 200ms;
+  --app-motion-duration-deliberate: 260ms;
+  --app-motion-duration-exit: 140ms;
+  --app-motion-duration-spinner: 900ms;
+  --app-motion-duration-shimmer: 1200ms;
+
+  --app-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --app-motion-easing-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --app-motion-easing-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --app-motion-easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+
+  --app-motion-travel: 4px;
+  --app-motion-travel-modal: 8px;
+  --app-motion-scale: 0.98;
+
   --app-safe-area-top: env(safe-area-inset-top, 0px);
   --app-safe-area-right: env(safe-area-inset-right, 0px);
   --app-safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -6901,11 +6966,10 @@
   --shadow-panel: 0 12px 32px -12px rgba(16, 16, 20, 0.22);
   --shadow-toast: 0 10px 28px -10px rgba(16, 16, 20, 0.26);
 
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --dur-hover: 120ms;
-  --dur-complete: 180ms;
-  --dur-panel: 200ms;
-  --dur-progress: 360ms;
+  /* DHDS-08 retired `--ease` and the four `--dur-*` names that lived here.
+   * They were the pre-semantic motion vocabulary, every consumer now asks for
+   * a `--dh-motion-*` / `--dh-ease-*` role by name, and two parallel motion
+   * vocabularies is precisely the second design system §28 forbids. */
 
   --z-sticky: 10;
   --z-sidebar: 20;
@@ -7442,27 +7506,114 @@
   --dh-font-numeric: tabular-nums;
 
   /* ---------------------------------------------------------------------- */
-  /* Motion                                                                 */
+  /* Motion (DHDS-08)                                                       */
   /* ---------------------------------------------------------------------- */
   /*
-   * Four durations named for what they are FOR, over the M3 duration ramp.
-   * Motion in DalyHub communicates causality — opening, selecting, reordering,
-   * completing — and nothing else; there is no decorative rung here to reach
-   * for, and nothing animates on load.
+   * THE motion vocabulary. Every duration and every curve the product animates
+   * with is named here, and a component asks for a NAME rather than a number.
+   *
+   * Motion in DalyHub explains what changed, where something came from, where
+   * it went, or what has focus. It is never decoration, there is no rung here
+   * to reach for when a surface merely wants to look lively, and nothing
+   * animates on load. The four levels the rungs serve are the hierarchy in
+   * `DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md`:
+   *
+   *   Level 0  no motion            a text update, a background refresh
+   *   Level 1  interaction feedback hover, press, focus, selected, checked
+   *   Level 2  contextual reveal    menus, popovers, tooltips, toasts, sheets
+   *   Level 3  structural change    completing, inserting, promoting, opening
+   *
+   * ── Why these five rungs and not the M3 ramp ────────────────────────────
+   * M3 publishes twelve durations from 50ms to 600ms. Twelve rungs is not a
+   * vocabulary, it is a number line: an author picks the one that "feels
+   * right" and the product ends up with eleven different opening speeds. Five,
+   * each with one job, is a vocabulary — and the whole of it lives inside
+   * 90–260ms, because past roughly 300ms an interface stops feeling
+   * responsive and starts feeling like it is performing.
+   *
+   * DHDS-08 replaced a degenerate version of this block, in which `instant`
+   * and `fast` were the same 120ms and all four curves were the same
+   * `cubic-bezier(0.2, 0.8, 0.2, 1)`. A vocabulary whose words are synonyms
+   * cannot express the distinctions the components need, so every component
+   * that wanted a real difference invented one privately — which is exactly
+   * the drift the semantic layer exists to prevent.
    *
    * `--dh-motion-none` is the one duration allowed to be nothing, and
    * `prefers-reduced-motion` in `base.css` is what resolves to it.
    */
-  --dh-motion-none: 0ms;
-  --dh-motion-instant: var(--dur-hover);
-  --dh-motion-fast: var(--dur-hover);
-  --dh-motion-base: var(--dur-panel);
-  --dh-motion-slow: var(--dur-progress);
 
-  --dh-ease-standard: var(--ease);
-  --dh-ease-enter: var(--ease);
-  --dh-ease-exit: var(--ease);
-  --dh-ease-emphasized: var(--ease);
+  /** Never. The reduced-motion resolution and the deliberate-static rung. */
+  --dh-motion-none: var(--md-sys-motion-duration-none);
+  /**
+   * LEVEL 1 — state feedback. Hover, press, focus, checked, selected.
+   *
+   * Short enough that the control feels connected to the finger and long
+   * enough that the value change is a change rather than a flicker. A
+   * repeated act pays this hundreds of times a day, so it is the shortest
+   * rung the system publishes above zero.
+   */
+  --dh-motion-instant: var(--app-motion-duration-instant);
+  /** LEVEL 2 — a small reveal: a menu, a tooltip, a caret, a row affordance. */
+  --dh-motion-fast: var(--app-motion-duration-fast);
+  /** LEVEL 2/3 — the standard interface transition. Panels, scrims, sheets. */
+  --dh-motion-base: var(--app-motion-duration-base);
+  /**
+   * LEVEL 3 — meaningful structural movement: a row leaving, the next Today
+   * task taking the Now position, a progress bar reaching a new value. The
+   * ceiling. Nothing in DalyHub is slower than this.
+   */
+  --dh-motion-deliberate: var(--app-motion-duration-deliberate);
+  /**
+   * LEAVING. An object that goes away should be gone slightly before you
+   * finish thinking about it, so exit is shorter than the entrance it
+   * reverses — the difference between a surface dismissing itself and a
+   * surface being reluctant.
+   */
+  --dh-motion-exit: var(--app-motion-duration-exit);
+
+  /*
+   * Two PERIODS, for the only two things in DalyHub that repeat forever.
+   * These are not transitions and are deliberately outside the ramp above: a
+   * loop's rhythm is a different quantity from a transition's length, and
+   * borrowing a transition rung for one is how a spinner ends up rotating
+   * three times a second.
+   */
+  /** The in-flight spinner's rotation period. */
+  --dh-motion-spinner: var(--app-motion-duration-spinner);
+  /** The skeleton shimmer's sweep period. */
+  --dh-motion-shimmer: var(--app-motion-duration-shimmer);
+
+  /*
+   * FOUR curves, and they genuinely differ.
+   *
+   *   standard   symmetric-feeling; a value changing in place
+   *   enter      decelerates into rest; an object arriving
+   *   exit       accelerates away; an object leaving
+   *   emphasized structural movement that must read as deliberate
+   *
+   * No spring, no overshoot, no bounce anywhere in the system. An interface
+   * that wobbles is an interface that is asking to be watched, and DalyHub's
+   * job is to be looked THROUGH.
+   */
+  --dh-ease-standard: var(--app-motion-easing-standard);
+  --dh-ease-enter: var(--app-motion-easing-enter);
+  --dh-ease-exit: var(--app-motion-easing-exit);
+  --dh-ease-emphasized: var(--app-motion-easing-emphasized);
+
+  /*
+   * How far a surface TRAVELS, and how much it scales, when it arrives.
+   *
+   * Published here rather than written into `motion.css`'s keyframes so the
+   * distances are as governed as the durations are: DHDS-08 found eight
+   * private values between 8px and 16px across the overlay stylesheets, which
+   * is how a product ends up with eight subtly different ways of appearing.
+   */
+  /** An anchored surface — a menu, a popover, a tooltip, a hover card. */
+  --dh-motion-travel: var(--app-motion-travel);
+  /** A centred modal, which has no trigger to appear at and needs a little more. */
+  --dh-motion-travel-modal: var(--app-motion-travel-modal);
+  /** The scale an anchored surface enters from. A hint of depth, not a zoom. */
+  --dh-motion-scale: var(--app-motion-scale);
 
   /* ---------------------------------------------------------------------- */
   /* Density — the DEFAULT preset                                           */

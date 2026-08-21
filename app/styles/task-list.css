@@ -279,10 +279,11 @@
  * celebrate, and it does not disappear: the title goes muted and struck, the
  * metadata recedes, and the row keeps its place until the list is re-read.
  */
+/* DHDS-08 — the decoration is the shared `.dh-complete-strike` grammar on the
+ * title, so it draws over `--dh-motion-base` rather than switching on; this
+ * rule recedes the ink over the same duration (`.dh-complete-recede`). */
 .dh-taskrow[data-completed="true"] .dh-taskrow__title {
   color: var(--dh-color-text-muted);
-  text-decoration: line-through;
-  text-decoration-thickness: from-font;
 }
 
 /*
@@ -373,13 +374,35 @@
   color: inherit;
   font: inherit;
   font-weight: 500;
-  text-decoration: none;
+  /*
+   * No `text-decoration` here. The title carries the shared
+   * `.dh-complete-strike` grammar, whose line-through is present (and
+   * transparent) at all times, and the shorthand would reset it — so the
+   * link's default underline is suppressed by that class's own
+   * `text-decoration-line` rather than by a `none` here.
+   */
   border-radius: var(--dh-radius-sm);
 }
 
+/*
+ * Hover underlines the title. LONGHANDS, so the decoration colour is set
+ * explicitly rather than reset by a shorthand: the strike shares this colour,
+ * and `text-decoration: underline` would have revealed it on every incomplete
+ * row the pointer touched.
+ */
 .dh-taskrow__title:hover {
-  text-decoration: underline;
+  text-decoration-line: underline;
+  text-decoration-color: currentColor;
   text-underline-offset: 0.15em;
+}
+
+/*
+ * …and a COMPLETED title keeps its strike while it is hovered. It did not
+ * before DHDS-08: the hover rule's shorthand replaced the strike with an
+ * underline, so pointing at a finished task made it look unfinished.
+ */
+.dh-taskrow[data-completed="true"] .dh-taskrow__title:hover {
+  text-decoration-line: underline line-through;
 }
 
 .dh-taskrow__title:focus-visible {
@@ -1007,18 +1030,19 @@
   cursor: pointer;
 }
 
+/*
+ * DHDS-08 — the chevron turns with the SHARED disclosure marker grammar
+ * (`.dh-disclosure-marker` in `motion.css`), so the indicator and the region it
+ * controls move over one duration and one curve and read as a single
+ * interaction. It previously turned at a different duration on a raw `ease`
+ * keyword — the last literal easing left in the product's module CSS.
+ */
 .dh-taskgroup__chevron {
   display: inline-flex;
   flex: none;
   inline-size: 16px;
   block-size: 16px;
   color: var(--dh-color-text-muted);
-  /* Reduced motion is honoured globally; this is a hover-length change. */
-  transition: transform var(--dh-motion-fast) ease;
-}
-
-.dh-taskgroup__disclosure[aria-expanded="false"] .dh-taskgroup__chevron {
-  transform: rotate(-90deg);
 }
 
 .dh-taskgroup__disclosure:hover .dh-taskgroup__chevron {
@@ -1738,32 +1762,19 @@
  *
  * `position: absolute` takes it out of the grid, so the card's geometry is
  * identical with it and without it — the same device the row's swipe tray uses.
- * It is revealed on hover and on focus-within, and `:focus-visible` inside is
- * what keeps it reachable by keyboard rather than hover-only.
+ *
+ * ── DHDS-08 — and the REVEAL is the shared contract ─────────────────────────
+ * This block used to re-implement `.dh-action-reveal` here: the same
+ * hover/focus-within/aria-expanded selector list, the same touch and
+ * forced-colours escapes — and, because it was a copy rather than the contract,
+ * no transition at all. In card presentation the `…` popped in and out
+ * instantly while the identical control on the same component's list rows
+ * faded. The trigger inside already carries `.dh-action-reveal` and the row
+ * already carries `data-dh-action-context`, so all this needs to own is the
+ * POSITION.
  */
 .dh-tasklist--cards .dh-taskrow__actions {
   position: absolute;
   inset-block-start: var(--dh-space-px);
   inset-inline-end: var(--dh-space-px);
-  opacity: 0;
-}
-
-.dh-tasklist--cards .dh-taskrow:hover .dh-taskrow__actions,
-.dh-tasklist--cards .dh-taskrow:focus-within .dh-taskrow__actions,
-.dh-tasklist--cards
-  .dh-taskrow__actions:has(.dh-taskrow__overflow[aria-expanded="true"]) {
-  opacity: 1;
-}
-
-/* A pointer that cannot hover has no reveal to wait for. */
-@media (hover: none) {
-  .dh-tasklist--cards .dh-taskrow__actions {
-    opacity: 1;
-  }
-}
-
-@media (forced-colors: active) {
-  .dh-tasklist--cards .dh-taskrow__actions {
-    opacity: 1;
-  }
 }

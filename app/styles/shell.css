@@ -480,8 +480,8 @@
   color: var(--ink-secondary);
   font: var(--t-nav);
   transition:
-    background-color var(--dur-hover) var(--ease),
-    color var(--dur-hover) var(--ease);
+    background-color var(--dh-motion-instant) var(--dh-ease-standard),
+    color var(--dh-motion-instant) var(--dh-ease-standard);
 }
 
 /*
@@ -1942,7 +1942,7 @@
   position: absolute;
   inset: 0;
   background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
-  animation: dh-mobilenav-scrim var(--dh-motion-slow) var(--dh-ease-standard);
+  /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
 }
 
 .dh-mobilenav__panel {
@@ -1960,7 +1960,14 @@
   overflow-y: auto;
   padding-block-end: var(--dh-safe-bottom);
   padding-inline-start: var(--dh-safe-left);
-  animation: dh-mobilenav-slide var(--dh-motion-slow) var(--dh-ease-enter);
+  /*
+   * DHDS-08 — the shared edge-anchored panel grammar
+   * (`.dh-motion-edge-inline`), travelling off the LEADING edge because that is
+   * the edge it lives on. Negative, therefore, where the Drawer's is positive:
+   * same keyframe, opposite direction, which is exactly what a shared
+   * displacement custom property is for.
+   */
+  --app-motion-edge-from: -100%;
 }
 
 /* The overlay's sidebar fills the sheet and drops the desktop border. */
@@ -1987,24 +1994,6 @@
 /* The persistent rail never shows the close control. */
 .dh-sidebar--rail .dh-sidebar__close {
   display: none;
-}
-
-@keyframes dh-mobilenav-scrim {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes dh-mobilenav-slide {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
 }
 
 /* -------------------------------------------------------------------------- */

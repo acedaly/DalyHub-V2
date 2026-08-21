@@ -132,7 +132,7 @@ a coincidence, not a hierarchy.
 | **Spacing / sizing** | `tokens.css` (`--app-*`) | Structural values M3 does not own |
 | **Elevation** | `tokens.css` | Two names: `resting` (none) and `raised`. Separation is surface *value*; depth is for things that genuinely float. Since UIX-06 every card family obeys D1, including the three that predate it |
 | **Controls** | `base.css` — the control baseline | One rung for every native `input`/`select`/`textarea` and for `.dh-btn`: `--app-control-height-lg` on `--app-shape-control`. A module never restates it (UIX-06) |
-| **Motion** | `tokens.css` | M3 duration and easing tokens. Nothing animates on load |
+| **Motion** | `tokens.css` + `motion.css` | DHDS-08's own vocabulary: five duration rungs named for what they are for (90–260ms), two loop periods, four curves that genuinely differ, and one shared grammar of named behaviours. Leaving is faster than arriving. Nothing animates on load; there are no route transitions |
 
 Application code — CSS and components alike — never hard-codes a raw hex, pixel,
 radius, shadow or duration where a token exists. Adding a colour means changing

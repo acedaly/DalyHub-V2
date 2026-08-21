@@ -201,7 +201,7 @@
 }
 
 .dh-ring__arc {
-  transition: stroke-dashoffset var(--dh-motion-slow) var(--dh-ease-enter);
+  transition: stroke-dashoffset var(--dh-motion-deliberate) var(--dh-ease-enter);
 }
 
 /* The centre well. `aria-hidden` in the component — it repeats the ring's own

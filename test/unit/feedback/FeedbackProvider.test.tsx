@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+
+import { DH_MOTION_EXIT_MS } from "~/shared/motion";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MAX_NOTIFICATIONS } from "~/shared/feedback/config";
@@ -48,6 +50,24 @@ async function advance(ms: number) {
   });
 }
 
+/*
+ * DHDS-08 — let a dismissed toast finish LEAVING.
+ *
+ * A toast that the provider has removed from its queue is held in the rendered
+ * list for one exit animation (`useLeavingRecords`), marked `data-dh-exit` and
+ * `inert`, so it fades instead of vanishing. It is out of the queue the instant
+ * the provider says so — the Undo window, the commit handler and the bound are
+ * all unaffected, and this helper changes none of the assertions below; it only
+ * lets the pixels finish before "is it gone from the DOM?" is asked.
+ *
+ * In a real browser the question would not need asking: `inert` removes the
+ * subtree from the accessibility tree, so `getByRole` would already miss it.
+ * The test DOM does not implement that, so the wait is explicit here.
+ */
+async function settleExit() {
+  await advance(DH_MOTION_EXIT_MS);
+}
+
 describe("DS-10 FeedbackProvider", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -79,6 +99,7 @@ describe("DS-10 FeedbackProvider", () => {
     });
     expect(screen.getByRole("group", { name: "Saved" })).toBeInTheDocument();
     await advance(5000);
+    await settleExit();
     expect(
       screen.queryByRole("group", { name: "Saved" }),
     ).not.toBeInTheDocument();
@@ -106,6 +127,7 @@ describe("DS-10 FeedbackProvider", () => {
     expect(screen.getByRole("group", { name: "Saved" })).toBeInTheDocument(); // frozen while hovered
     fireEvent.mouseLeave(region);
     await advance(5000);
+    await settleExit();
     expect(
       screen.queryByRole("group", { name: "Saved" }),
     ).not.toBeInTheDocument();
@@ -123,7 +145,7 @@ describe("DS-10 FeedbackProvider", () => {
     expect(screen.getByText("×2")).toBeInTheDocument();
   });
 
-  it("dismisses a notification via its close button", () => {
+  it("dismisses a notification via its close button", async () => {
     renderProvider();
     act(() => {
       api.notifyInfo("Sync scheduled");
@@ -131,6 +153,7 @@ describe("DS-10 FeedbackProvider", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Dismiss: Sync scheduled" }),
     );
+    await settleExit();
     expect(
       screen.queryByRole("group", { name: "Sync scheduled" }),
     ).not.toBeInTheDocument();
@@ -178,6 +201,7 @@ describe("DS-10 FeedbackProvider", () => {
       });
       expect(onUndo).toHaveBeenCalledTimes(1);
       expect(onExpire).not.toHaveBeenCalled();
+      await settleExit();
       expect(
         screen.queryByRole("group", { name: "Deleted “Draft”" }),
       ).not.toBeInTheDocument();
@@ -304,6 +328,7 @@ describe("DS-10 FeedbackProvider", () => {
     });
     expect(onSelect).toHaveBeenCalledTimes(1);
     // The rejection is swallowed (no unhandled rejection) and the toast dismisses.
+    await settleExit();
     expect(
       screen.queryByRole("group", { name: "Actionable" }),
     ).not.toBeInTheDocument();

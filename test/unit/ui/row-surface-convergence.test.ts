@@ -48,6 +48,10 @@ describe("DHDS-02 — row and grouped-surface convergence", () => {
   });
 
   it("owns contextual action visibility once and opts all row families in", () => {
+    // DHDS-08 moved the contract from `base.css` into the shared motion layer.
+    // The class names and the behaviour are unchanged; only the file is, and
+    // this test's job is to keep it in exactly ONE of them.
+    const motion = read("app", "styles", "motion.css");
     const base = read("app", "styles", "base.css");
     const taskRow = read("app", "shared", "task-record", "TaskRow.tsx");
     const recordRow = read("app", "shared", "card", "RecordRow.tsx");
@@ -59,8 +63,12 @@ describe("DHDS-02 — row and grouped-surface convergence", () => {
       "ScheduleList.tsx",
     );
 
-    expect(base).toContain('[data-dh-action-context="true"] .dh-action-reveal');
-    expect(base).toContain("pointer-events: none");
+    expect(motion).toContain(
+      '[data-dh-action-context="true"] .dh-action-reveal',
+    );
+    expect(motion).toContain("pointer-events: none");
+    // …and only there: a second copy is how the two drift apart.
+    expect(base).not.toContain(".dh-action-reveal {");
     for (const consumer of [taskRow, recordRow, schedule]) {
       expect(consumer).toContain("dh-action-reveal");
       expect(consumer).toContain("data-dh-action-context");

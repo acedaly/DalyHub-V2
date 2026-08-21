@@ -416,7 +416,7 @@ export function TaskRow({
       <Heading className="dh-taskrow__main">
         {titleEditor ?? (
           <Link
-            className="dh-taskrow__title"
+            className="dh-taskrow__title dh-complete-strike dh-complete-recede"
             to={href}
             /*
              * "Open <title>" is the product-wide accessible name for a record's

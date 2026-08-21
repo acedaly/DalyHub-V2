@@ -1,5 +1,24 @@
 # Changelog
 
+- Gave DalyHub one motion and interaction grammar. Interface motion now speaks a
+  single vocabulary — five durations named for what they are for, four easing
+  curves that genuinely differ, and one shared set of named behaviours every
+  surface reaches for instead of writing its own. Menus, popovers, tooltips,
+  panels, sheets, dialogs, toasts and the command palette all appear and dismiss
+  the same way, and things leave slightly faster than they arrive. Completing a
+  task is now one polished sequence wherever a task can be ticked: the strike
+  draws in rather than snapping on, and pointing at a finished task no longer
+  makes it look unfinished. Grouped task sections open and close smoothly instead
+  of jumping. On Today, finishing the current task lets the next one settle into
+  its place rather than the screen re-composing. Secondary row actions fade in
+  without nudging anything beside them, and several small defects went with the
+  pass — a frantic loading shimmer, a spinner running several times too fast, a
+  contextual `…` that popped instead of fading, and a command palette that
+  arrived from the wrong direction. Reduced motion is properly supported:
+  movement is removed rather than merely sped up, and nothing depends on
+  animation to be understood. No animation library was added, and ordinary
+  navigation stays instant.
+
 - Completed the remaining DHDS shared-pattern convergence: Drawer, Inspector
   and Sheet now share one panel heading/body/footer grammar; Projects table
   progress uses the canonical progress primitive; the mobile editor signals

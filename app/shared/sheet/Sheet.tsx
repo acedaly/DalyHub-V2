@@ -232,9 +232,15 @@ export function Sheet({
       ref={rootRef}
       data-testid={rest["data-testid"]}
     >
-      <div className="dh-sheet__scrim" onClick={onClose} aria-hidden="true" />
       <div
-        className={["dh-sheet", className].filter(Boolean).join(" ")}
+        className="dh-sheet__scrim dh-motion-scrim"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className={["dh-sheet", "dh-motion-edge-block", className]
+          .filter(Boolean)
+          .join(" ")}
         data-variant={variant}
         role="dialog"
         aria-modal="true"

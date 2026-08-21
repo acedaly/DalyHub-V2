@@ -318,6 +318,36 @@ in
 Panel convergence remains separate from the row pass in history and evidence;
 the completion record does not rewrite DHDS-02's scope.
 
+**Item 8 — the MOTION and interaction grammar those patterns move with** — is
+recorded in
+[`DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md`](DHDS_08_MOTION_AND_INTERACTION_GRAMMAR_2026_08.md).
+It converged the anatomy the earlier phases built onto one motion vocabulary and
+one grammar: five semantic durations, four genuinely distinct curves, a shared
+enter/exit layer that collapsed twenty-five module keyframes to three, one row
+reveal contract, one disclosure transition, one task-completion sequence, and a
+reduced-motion contract stated positively rather than as a global multiplier. It
+extends the direction the earlier phases established; it does not replace it.
+
+### The phases after DHDS-08, and their boundaries
+
+These are distinct pieces of work and **must not be implemented through bespoke
+one-offs** in the meantime. A module that grows its own floating surface, its own
+inline editor or its own drag preview is the divergence this sequence exists to
+end.
+
+| Phase | Scope |
+| --- | --- |
+| **DHDS-08** | Motion and interaction grammar |
+| **DHDS-09** | Floating surfaces and contextual choice architecture |
+| **DHDS-10** | Inline manipulation |
+| **DHDS-11** | Drag, reorder and deeper object continuity |
+
+DHDS-08 established the motion grammar DHDS-09's surfaces must use and gave
+DHDS-10's inline editors the shared reveal rung, without restructuring either.
+It defined DHDS-11's drag grammar and corrected existing drag feedback to it
+without building a drag-and-drop architecture; **row departure on completion
+belongs to DHDS-11** for the reasons recorded in the DHDS-08 record.
+
 Each PR must demonstrate at least two module consumers. A pattern is not shared
 merely because it lives in `app/shared`; it is shared when different modules can
 compose it without private visual overrides.
