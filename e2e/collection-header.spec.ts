@@ -528,15 +528,16 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
     const panel = page.getByRole("menu");
     await expect(panel).toBeVisible();
     /*
-     * DHDS-09 — the SIDE is reported by the anchored surface the panel fills.
+     * DHDS-09 — the panel and the anchored surface are the SAME element now.
      *
-     * The overflow menu no longer places itself: it is the shared `Menu` inside
-     * the shared `AnchoredSurface`, which is the one solver in the product and
-     * the one thing that knows which side it took. The box being measured is
-     * unchanged — the panel fills the surface — and so is what this asserts.
+     * The overflow menu no longer places itself: it is the shared `Menu`, whose
+     * surface classes land ON the shared `AnchoredSurface` rather than on a box
+     * inside it (a bordered box inside a scrolling wrapper has its shadow
+     * clipped and its bottom border scrolled away). So the element that carries
+     * `role="menu"` is the element the solver placed, and this assertion reads
+     * exactly as it did before.
      */
-    const surface = page.locator('.dh-anchored:has([role="menu"])');
-    await expect(surface).toHaveAttribute("data-side", "below");
+    await expect(panel).toHaveAttribute("data-side", "below");
 
     // And it stays inside the viewport without needing a clamp at all.
     const box = await panel.boundingBox();
@@ -548,11 +549,8 @@ test.describe("UIQ-021 — the shared menu fits the viewport", () => {
     page,
   }) => {
     await gotoFixture(page, "/tasks");
-    await openRowMenuNear(page, 740);
-    // The side is the anchored surface's — see the note above.
-    await expect(
-      page.locator('.dh-anchored:has([role="menu"])'),
-    ).toHaveAttribute("data-side", "above");
+    const panel = await openRowMenuNear(page, 740);
+    await expect(panel).toHaveAttribute("data-side", "above");
   });
 
   test("no menu escapes the viewport, wherever its trigger sits", async ({

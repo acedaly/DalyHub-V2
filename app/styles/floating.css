@@ -102,6 +102,8 @@
  * and the "none of these" command, a menu's ordinary actions and its
  * destructive one. Sparingly: a separator between every item is a table. */
 .dh-floating__separator {
+  /* In the same flex column as the rows, and for the same reason. */
+  flex: none;
   block-size: var(--dh-border-width);
   margin: var(--dh-space-1) calc(-1 * var(--app-floating-inset));
   background: var(--dh-color-border);
@@ -110,6 +112,7 @@
 /* The surface's own heading, for a picker or a grouped menu. Not a title bar:
  * one quiet line naming what is being chosen. */
 .dh-floating__heading {
+  flex: none;
   padding: var(--dh-space-1) var(--dh-space-2);
   color: var(--dh-color-text-muted);
   font-size: var(--dh-text-label-size);
@@ -132,11 +135,20 @@
 
 /*
  * A menu and a picker are LISTS: their rows stack, and the surface is as wide
- * as it needs to be up to the shared `--dh-anchored` ceiling. A popover holds
+ * as it needs to be up to the shared `.dh-anchored` ceiling. A popover holds
  * arbitrary content, so it only supplies the column its children stack in.
  *
  * The minimum width stops a two-word menu opening a box narrower than the
  * trigger it belongs to, which reads as a fragment rather than a surface.
+ *
+ * ── These classes land ON `.dh-anchored`, not inside it ─────────────────────
+ * `Menu`, `Picker` and `Popover` pass their surface classes THROUGH to the
+ * anchored element rather than wrapping a second box in it, because that
+ * element is the one that clamps and scrolls — a bordered, shadowed box inside
+ * a scrolling wrapper has its shadow clipped by the wrapper and its bottom
+ * border scrolled away with its last row. So `.dh-anchored` and `.dh-floating`
+ * are the same element on a pointer device, and the sheet presentation is the
+ * only one where `.dh-floating` is a child (of the sheet's body).
  */
 .dh-menu,
 .dh-picker {
@@ -183,6 +195,18 @@
  */
 .dh-option {
   display: flex;
+  /*
+   * A CLAMPED row never compresses.
+   *
+   * A menu and a picker are flex columns, and a flex item's default
+   * `flex-shrink: 1` means that when the placement solver clamps the surface's
+   * height the ROWS shrink to fit instead of the surface scrolling — so a
+   * twelve-item menu on a short viewport silently became twelve 18px rows with
+   * nothing to scroll. MEASURED at 1280×420: `scrollHeight` and `clientHeight`
+   * were both 217, which is the shape of this bug rather than of a fitting
+   * menu. The row keeps its height and the surface scrolls past it.
+   */
+  flex: none;
   align-items: center;
   gap: var(--dh-space-2);
   inline-size: 100%;
@@ -448,6 +472,8 @@
  */
 .dh-picker__search {
   display: flex;
+  /* Never compressed by a clamp: the field is how the list is narrowed. */
+  flex: none;
   align-items: center;
   gap: var(--dh-space-2);
   padding: var(--dh-space-1) var(--dh-space-2);

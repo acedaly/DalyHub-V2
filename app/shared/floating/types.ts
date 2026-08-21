@@ -107,8 +107,14 @@ export type FloatingAlign = "start" | "end";
  * only the container differs, which is what stops a phone growing a second
  * interaction with the same name.
  *
- * `anchored` pins the surface to the anchored presentation at every width. It
- * is for a surface already INSIDE a sheet or a drawer, where a second sheet
- * would be a modal on top of a modal.
+ * `anchored` pins the surface to the anchored presentation at every width.
+ *
+ * A sheet opened from inside another sheet is supported and precedented — the
+ * shared `Sheet` keeps a stack precisely so Escape closes only the top one, and
+ * Quick Capture has nested one since ASSET-03 — so this is NOT the escape hatch
+ * for "I am inside a sheet". It is for the rarer case where the anchored
+ * presentation is genuinely the better one at every width: a surface small
+ * enough that a full-height sheet would be theatre, opened from a control the
+ * owner is already pointing at.
  */
 export type FloatingPresentation = "auto" | "anchored";

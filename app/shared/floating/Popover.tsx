@@ -32,7 +32,7 @@
  * box cannot have.
  */
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId } from "react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 
 import { AnchoredSurface } from "~/shared/anchored";
@@ -83,7 +83,6 @@ export function Popover({
   const compact = useCompactViewport() && presentation === "auto";
   const generatedId = useId();
   const surfaceId = id ?? `${generatedId}-popover`;
-  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     // The Sheet owns its own initial focus (DS-03), so only the anchored
@@ -93,12 +92,20 @@ export function Popover({
       initialFocusRef.current.focus();
       return;
     }
-    bodyRef.current
+    /*
+     * Found by ID rather than by ref, because the surface IS the
+     * `AnchoredSurface` (see `surfaceProps`) and that component owns its own
+     * element. The id is already on it for the trigger's `aria-controls`, so
+     * this adds no attribute — and a ref forwarded through the placement layer
+     * purely to find the first button would be plumbing for one line.
+     */
+    document
+      .getElementById(surfaceId)
       ?.querySelector<HTMLElement>(
         'button:not([disabled]):not([tabindex="-1"]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       )
       ?.focus();
-  }, [compact, initialFocusRef]);
+  }, [compact, initialFocusRef, surfaceId]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Escape") return;
@@ -109,18 +116,23 @@ export function Popover({
     onClose(true);
   };
 
-  const body = (
-    <div
-      ref={bodyRef}
-      className={["dh-floating", "dh-popover", className]
-        .filter(Boolean)
-        .join(" ")}
-      data-presentation={compact ? "sheet" : "anchored"}
-      data-testid={rest["data-testid"]}
-    >
-      {children}
-    </div>
-  );
+  /*
+   * The surface's own attributes, applied to whichever element IS the surface.
+   *
+   * Anchored, that element is the `AnchoredSurface` itself rather than a child
+   * of it: `.dh-anchored` clamps and scrolls, so a bordered, shadowed box inside
+   * it would have its shadow clipped by its own wrapper.
+   *
+   * On a phone the Sheet is the dialog, so this stays a plain container inside
+   * it — two dialogs with one name is an ambiguity, not a belt and braces.
+   */
+  const surfaceProps = {
+    className: ["dh-floating", "dh-popover", className]
+      .filter(Boolean)
+      .join(" "),
+    "data-presentation": compact ? ("sheet" as const) : ("anchored" as const),
+    "data-testid": rest["data-testid"],
+  };
 
   if (compact) {
     return (
@@ -134,13 +146,14 @@ export function Popover({
           rest["data-testid"] ? `${rest["data-testid"]}-sheet` : undefined
         }
       >
-        {body}
+        <div {...surfaceProps}>{children}</div>
       </Sheet>
     );
   }
 
   return (
     <AnchoredSurface
+      {...surfaceProps}
       anchorRef={anchorRef}
       align={align}
       matchAnchorWidth={matchAnchorWidth}
@@ -150,7 +163,7 @@ export function Popover({
       aria-label={label}
       onKeyDown={onKeyDown}
     >
-      {body}
+      {children}
     </AnchoredSurface>
   );
 }

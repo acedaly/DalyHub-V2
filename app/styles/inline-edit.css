@@ -431,15 +431,12 @@
  * things slightly differently, which is why a picker opened beside a menu did
  * not look like the same product.
  *
- * What remains here is what is genuinely this field's: the width the menu grows
- * to match the value it is editing, and the clear command's separation.
+ * Nothing about the menu's WIDTH remains here either. The class lands on
+ * `.dh-anchored` (the field passes it through), and that layer already publishes
+ * the one ceiling every anchored surface answers to — so a second
+ * `max-inline-size` on the same element was a value that could only ever agree
+ * or be silently overridden by source order, which is what it had been.
  */
-.dh-inline-select__menu {
-  /* Wide enough to hold a real Project name, never wider than the trigger's
-   * column needs — the shared anchored ceiling caps the rest. */
-  max-inline-size: min(20rem, calc(100vw - 2 * var(--dh-space-4)));
-}
-
 /* ------------------------------------------------------------------------- *
  * The anchored date popover.
  * ------------------------------------------------------------------------- */

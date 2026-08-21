@@ -249,7 +249,16 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
       "Priority 3",
       "Priority 4",
     ]);
-    await expectUnclipped(page, 150);
+    /*
+     * 140, down from 150, and the four pixels are a real change rather than a
+     * loosened assertion: DHDS-09 gave every floating surface ONE inset
+     * (`--app-floating-inset`, 4px — the overflow menu's, which was the more
+     * canonical of the two), where this menu had privately used 6px. Four rows
+     * at the shared 34px menu-item height plus that inset and the hairline is
+     * 146px. The assertion's job is unchanged: it is the SLIVER test, and the
+     * defect it guards painted 45px of a 305px menu.
+     */
+    await expectUnclipped(page, 140);
     // The menu takes focus on the CURRENT value, so the keyboard can drive it
     // from the first frame and arrowing starts where the owner already is.
     await expect(menu.locator('[aria-checked="true"]')).toHaveText(
@@ -368,12 +377,27 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
      *
      * `exact` on the preset names: "Today" also matches the grid cell for
      * today, whose accessible name ends "…, today".
+     *
+     * ── Three presets are asserted, not four, and the reason is the product's ──
+     * `taskDateShortcuts` DROPS a preset that would commit a date another one
+     * already commits: on a Friday "Tomorrow" and "This weekend" are both
+     * Saturday, and on a Saturday "Today" and "This weekend" are both today. Two
+     * buttons committing the same date is a choice that is not a choice, and the
+     * second would light up `aria-pressed` beside the first.
+     *
+     * Asserting a fixed four therefore made this spec fail on two days in seven
+     * — which is exactly what it did when DHDS-09 ran it on a Friday. The three
+     * below can never be deduplicated (today, +1 and +7 are always distinct), and
+     * the count assertion covers the fourth without pinning the calendar.
      */
-    for (const preset of ["Today", "Tomorrow", "This weekend", "Next week"]) {
+    for (const preset of ["Today", "Tomorrow", "Next week"]) {
       await expect(
         popover.getByRole("button", { name: preset, exact: true }),
       ).toBeVisible();
     }
+    const presetCount = await popover.locator(".dh-datepicker__preset").count();
+    expect(presetCount).toBeGreaterThanOrEqual(3);
+    expect(presetCount).toBeLessThanOrEqual(4);
     await expect(popover.locator('input[type="date"]')).toHaveCount(0);
     await expect(popover.getByRole("grid", { name: "Due date" })).toBeVisible();
     await expectUnclipped(page, 120);
@@ -483,11 +507,17 @@ test.describe("EDIT-03 — the phone presentation", () => {
     expect(box?.width ?? 0).toBeGreaterThan(300);
     // CONTROL-01 — the SAME editor as the popover, so the phone gets the same
     // presets and the same month grid. One date control, two containers.
-    for (const preset of ["Today", "Tomorrow", "This weekend", "Next week"]) {
+    //
+    // Three, not four: a preset that would duplicate another's date is dropped
+    // by `taskDateShortcuts` — see the note on the desktop test above.
+    for (const preset of ["Today", "Tomorrow", "Next week"]) {
       await expect(
         sheet.getByRole("button", { name: preset, exact: true }),
       ).toBeVisible();
     }
+    const presetCount = await sheet.locator(".dh-datepicker__preset").count();
+    expect(presetCount).toBeGreaterThanOrEqual(3);
+    expect(presetCount).toBeLessThanOrEqual(4);
     await expect(sheet.locator('input[type="date"]')).toHaveCount(0);
     await expect(sheet.getByRole("grid", { name: "Due date" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
@@ -501,7 +531,15 @@ test.describe("EDIT-03 — the phone presentation", () => {
 
     const sheet = page.getByRole("dialog", { name: "Priority" });
     await expect(sheet).toBeVisible();
-    await expect(sheet.locator(".dh-sheet-option")).toHaveText([
+    /*
+     * DHDS-09 — the phone renders the SAME `role="menu"` of `menuitemradio`
+     * rows the anchored presentation does, rather than a second option
+     * vocabulary (`.dh-sheet-option`, announced through `aria-pressed`). One
+     * field, one set of roles, two containers — which is what the sheet's own
+     * width, scrim, targets and focus restoration are there to provide.
+     */
+    const menu = sheet.getByRole("menu", { name: "Priority" });
+    await expect(menu.getByRole("menuitemradio")).toHaveText([
       "Priority 1",
       "Priority 2",
       "Priority 3",
@@ -510,7 +548,7 @@ test.describe("EDIT-03 — the phone presentation", () => {
     // CONTROL-01 — no clear command: `null` IS Priority 4, so there is nothing
     // to clear TO and the sheet offers the four real values and nothing else.
     await expect(
-      sheet.getByRole("button", { name: /Clear priority/ }),
+      menu.getByRole("menuitemradio", { name: /Clear priority/ }),
     ).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
   });

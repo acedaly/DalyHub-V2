@@ -522,37 +522,36 @@ export function Picker({
     </>
   );
 
-  const surface = (
-    <div
-      className={["dh-floating", "dh-picker", className]
-        .filter(Boolean)
-        .join(" ")}
-      id={surfaceId}
-      /*
-       * The DIALOG is the surface — except on a phone, where the Sheet already
-       * is one.
-       *
-       * Declaring both put two dialogs with the same accessible name in the
-       * document, which is the very ambiguity the naming rule below exists to
-       * prevent: anything resolving "Choose project" then had two candidates.
-       * The sheet owns the role, the scrim, the focus trap and the name; this
-       * stays a plain container inside it.
-       */
-      {...(compact
-        ? {}
-        : {
-            role: "dialog",
-            // "Choose a project", not "Project": the dialog and the field it
-            // edits are two different things, and giving them one name makes
-            // "the project" ambiguous to anything navigating by name.
-            "aria-label": `Choose ${label.toLocaleLowerCase()}`,
-          })}
-      data-presentation={compact ? "sheet" : "anchored"}
-      data-testid={rest["data-testid"]}
-    >
-      {body}
-    </div>
-  );
+  /*
+   * The surface's own attributes, applied to whichever element IS the surface.
+   *
+   * Anchored, that element is the `AnchoredSurface` itself rather than a child
+   * of it: `.dh-anchored` clamps and scrolls, so a bordered, shadowed box inside
+   * it would have its shadow clipped by its own wrapper and its bottom border
+   * scrolled away with the last option.
+   *
+   * The DIALOG role goes with it — except on a phone, where the Sheet already
+   * is one. Declaring both put two dialogs with the same accessible name in the
+   * document, which is exactly the ambiguity the naming rule below exists to
+   * prevent: anything resolving "Choose project" then had two candidates.
+   */
+  const surfaceProps = {
+    className: ["dh-floating", "dh-picker", className]
+      .filter(Boolean)
+      .join(" "),
+    id: surfaceId,
+    ...(compact
+      ? {}
+      : {
+          role: "dialog",
+          // "Choose a project", not "Project": the dialog and the field it edits
+          // are two different things, and giving them one name makes "the
+          // project" ambiguous to anything navigating by name.
+          "aria-label": `Choose ${label.toLocaleLowerCase()}`,
+        }),
+    "data-presentation": compact ? ("sheet" as const) : ("anchored" as const),
+    "data-testid": rest["data-testid"],
+  };
 
   if (compact) {
     return (
@@ -566,19 +565,20 @@ export function Picker({
           rest["data-testid"] ? `${rest["data-testid"]}-sheet` : undefined
         }
       >
-        {surface}
+        <div {...surfaceProps}>{body}</div>
       </Sheet>
     );
   }
 
   return (
     <AnchoredSurface
+      {...surfaceProps}
       anchorRef={anchorRef}
       align={align}
       matchAnchorWidth={matchAnchorWidth}
       onDismiss={() => onClose(false)}
     >
-      {surface}
+      {body}
     </AnchoredSurface>
   );
 }

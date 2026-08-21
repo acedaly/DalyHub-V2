@@ -287,27 +287,36 @@ export function Menu({
   };
 
   /*
-   * The panel, built ONCE and then either anchored to the trigger or placed
-   * inside the phone sheet. One definition, because two would be two item lists
-   * to keep in step — and the roving tabindex, every `data-option-id` a test
-   * depends on, and the keyboard contract all live in it.
+   * The panel's own attributes, applied to whichever element IS the panel.
+   *
+   * In the anchored presentation that element is the `AnchoredSurface` itself
+   * rather than a child of it, and the difference is a real defect rather than a
+   * preference: `.dh-anchored` clamps and scrolls (`overflow-y: auto`, which
+   * computes `overflow-x` to `auto` alongside it), so a bordered, shadowed box
+   * INSIDE it would have its shadow clipped by its own wrapper and its bottom
+   * border scrolled away with the last item. The surface and the box that
+   * scrolls have to be the same box.
+   *
+   * The ROWS are built once either way, because two lists would be two lists to
+   * keep in step — and the roving tabindex, every `data-option-id` a test
+   * depends on, and the keyboard contract all live in them.
    */
-  const panel = (
-    <div
-      className={["dh-floating", "dh-menu", className]
-        .filter(Boolean)
-        .join(" ")}
-      id={menuId}
-      role="menu"
-      aria-label={label}
-      data-presentation={compact ? "sheet" : "anchored"}
-      // The WAI-ARIA menu-button pattern keeps focus on the item children
-      // (roving tabindex) and delegates their key events up here. `-1` makes the
-      // container programmatically focusable without adding a tab stop.
-      tabIndex={-1}
-      onKeyDown={onKeyDown}
-      data-testid={rest["data-testid"]}
-    >
+  const panelProps = {
+    className: ["dh-floating", "dh-menu", className].filter(Boolean).join(" "),
+    id: menuId,
+    role: "menu" as const,
+    "aria-label": label,
+    "data-presentation": compact ? ("sheet" as const) : ("anchored" as const),
+    // The WAI-ARIA menu-button pattern keeps focus on the item children (roving
+    // tabindex) and delegates their key events up here. `-1` makes the container
+    // programmatically focusable without adding a tab stop.
+    tabIndex: -1,
+    onKeyDown,
+    "data-testid": rest["data-testid"],
+  };
+
+  const rows = (
+    <>
       {items.map((item, index) => {
         const inactive = !isActionable(item);
         // A command inside a radio menu keeps `menuitem`; see `isCommand`.
@@ -413,7 +422,7 @@ export function Menu({
           </Fragment>
         );
       })}
-    </div>
+    </>
   );
 
   if (items.length === 0) return null;
@@ -429,13 +438,14 @@ export function Menu({
           rest["data-testid"] ? `${rest["data-testid"]}-sheet` : undefined
         }
       >
-        {panel}
+        <div {...panelProps}>{rows}</div>
       </Sheet>
     );
   }
 
   return (
     <AnchoredSurface
+      {...panelProps}
       anchorRef={anchorRef}
       align={align}
       matchAnchorWidth={matchAnchorWidth}
@@ -443,7 +453,7 @@ export function Menu({
       // focus is NOT pulled back to the trigger.
       onDismiss={() => onClose(false)}
     >
-      {panel}
+      {rows}
     </AnchoredSurface>
   );
 }

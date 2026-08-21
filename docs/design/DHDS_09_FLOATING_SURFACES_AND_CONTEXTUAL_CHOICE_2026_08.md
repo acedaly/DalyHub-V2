@@ -282,8 +282,26 @@ independently scrolling body, a 44px Close, safe-area and keyboard insets, and
 focus restored to the trigger on dismissal.
 
 `presentation="anchored"` pins a surface to the anchored presentation at every
-width. It is for a surface already inside a sheet, where a second sheet would be
-a modal on top of a modal.
+width. It is deliberately NOT the escape hatch for "I am inside a sheet":
+nesting is supported and precedented — the shared `Sheet` keeps a stack so
+Escape closes only the top one, and Quick Capture has nested one since ASSET-03.
+It is for the rarer case where anchoring is genuinely better at every width.
+
+### Nesting, and the z-order that makes it work
+
+A Project picker inside a Task Inspector, a date popover inside Quick Capture: a
+floating surface opened from inside another one is ordinary, and the layer
+vocabulary is what keeps it legible. The anchored rung (1350) is above the
+drawer (1200) and the modal (1300) rungs, so a picker opened from inside either
+renders over it rather than behind it — the one way a portal can be worse than
+the clipped absolute box it replaced.
+
+Escape unwinds one layer at a time. Every surface stops propagation, and the
+sheet stack means two sheets do not both act on the same key. What DHDS-09
+deliberately does **not** do is allow a chain to grow without meaning:
+`dialog → popover → dialog → tooltip` is not a hierarchy, and the taxonomy
+exists so each step in a chain is a different KIND of thing with a different
+reason to be there.
 
 **One convergence this changed:** the inline select's phone presentation used to
 render `SheetOption` rows announcing selection through `aria-pressed`, so one
