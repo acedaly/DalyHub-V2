@@ -1,5 +1,38 @@
 # Changelog
 
+- Made moving things feel like moving them. A step in a task's checklist and a
+  stage of a goal can now be picked up and dropped where you want it — by mouse,
+  by thumb, or from the keyboard alone (Enter to pick up, arrow keys to move,
+  Enter to drop, Escape to change your mind) — and the new order is genuinely
+  saved, so reloading confirms it rather than undoing it. A goal's stages could
+  never be reordered at all before; they now also have Move up and Move down in
+  the same menu the task checklist has, so there is never only one way to do it.
+
+  On the tasks list, when you group by Project, priority, status or Time Sector,
+  the groups become real destinations: pick a task up and drop it on another
+  Project and it moves there, with a "Moved to …" message and Undo. It is the
+  same change the little Project menu on the row already made — one operation,
+  reached two ways — so nothing about the task behaves differently depending on
+  how you moved it. A group the task is already in never lights up, so you can
+  never drop somewhere that then refuses you, and nothing at all is saved until
+  you actually let go.
+
+  And a great deal was deliberately left alone. Almost nothing in DalyHub is
+  draggable, and a page you are not touching looks exactly as it did before:
+  there are no grips on Today, in search, on a project card, on a habit or on a
+  note. Where a list's order comes from your dates or your priorities rather
+  than from you, there is no grip at all — because a drag that quietly undoes
+  itself on the next screen is worse than one that was never offered. Tasks
+  cannot be dragged up and down a list for exactly that reason, and rather than
+  invent a hidden ordering to make it look possible, it is written down as work
+  that has not been done.
+
+  Completing a task also stopped being a disappearance: the row now closes up
+  where it was, and if you were using the keyboard your place moves to the next
+  task rather than to the top of the page. Moving something leaves everything
+  else where it was — your scroll position, your filters, your grouping, and
+  every group you did not touch.
+
 - Made DalyHub feel handled rather than operated. Small changes now happen where
   you are already looking. You can rename a task from Today and from the weekly
   plan, not only from the Tasks list; moving a task to a project that is not in

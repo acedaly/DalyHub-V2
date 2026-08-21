@@ -157,6 +157,45 @@ export interface TaskRowProps {
   readonly pending?: boolean;
   /** What that unsent change IS, in words, beside the title. */
   readonly pendingNote?: string;
+  /**
+   * DHDS-11 — the reorder/move grip, when the SURFACE has somewhere to drop.
+   *
+   * A slot rather than a capability the row grants itself, and that is the whole
+   * design: a Task row is drawn on six surfaces and only some of them draw
+   * visible destinations. `/tasks` grouped by Project passes one; Today, Plan,
+   * a Project's task list and Search pass nothing, and are byte-identical to
+   * what they were. A row is never draggable "because it is a Task row".
+   *
+   * The grip is a shared `DragHandle` supplied by the caller, so this component
+   * imports no drag machinery and holds no drag state.
+   */
+  readonly dragHandle?: ReactNode;
+  /** True while THIS row is the object being dragged. Draws the quiet source. */
+  readonly dragging?: boolean;
+  /**
+   * DHDS-11 — this Task has LEFT this surface and the row is collapsing.
+   *
+   * The row is `aria-hidden` and pointer-inert while it goes, but deliberately
+   * not `inert`: `inert` blurs its subtree synchronously, which would destroy
+   * the information the focus handoff needs (`use-departing-rows.ts`). It is
+   * pointer-inert from the same commit, so nothing in a row that has already
+   * been reported gone can be clicked.
+   */
+  readonly leaving?: boolean;
+  /**
+   * DHDS-11 — this Task's record is the one currently open.
+   *
+   * Object continuity, and the smallest form of it: "I opened this object from
+   * here, and here is still here." The row keeps a quiet current marker while
+   * its Inspector is open, so closing it lands the owner's eye back on the row
+   * they came from rather than on a list they now have to re-find their place
+   * in. It is a MARK rather than a selection wash — bulk selection already owns
+   * that treatment, and the two mean different things.
+   *
+   * Opt-in per surface: a surface that does not know which record is open
+   * passes nothing and is unchanged.
+   */
+  readonly current?: boolean;
 }
 
 /**
@@ -188,6 +227,10 @@ export function TaskRow({
   readOnly = false,
   pending = false,
   pendingNote,
+  dragHandle,
+  dragging = false,
+  leaving = false,
+  current = false,
 }: TaskRowProps) {
   const Heading = `h${headingLevel}` as const;
   const due = relativeCalendarDate(task.dueDate, todayIso);
@@ -285,6 +328,17 @@ export function TaskRow({
       data-selected={selection?.selected ? "true" : undefined}
       data-pending={pending ? "true" : undefined}
       /*
+       * DHDS-11 — the row is the OBJECT a drag measures and lifts, and while it
+       * is in the air its own place is kept and drawn quiet. It never collapses:
+       * the list must not jump and the scroll position must not move, which is
+       * most of what makes a drag feel like moving a thing.
+       */
+      data-dh-drag-item={dragHandle ? "true" : undefined}
+      data-dh-drag-source={dragging ? "true" : undefined}
+      data-dh-exit={leaving ? "true" : undefined}
+      aria-hidden={leaving ? "true" : undefined}
+      data-current={current ? "true" : undefined}
+      /*
        * The gesture's whole visual footprint: an edge, an armed flag and a
        * distance. The stylesheet selects on `[data-swipe-edge]`, so the cells'
        * transform exists ONLY mid-gesture on a touch device — a permanent
@@ -360,6 +414,7 @@ export function TaskRow({
         </span>
       ) : null}
       <span className="dh-taskrow__lead">
+        {dragHandle}
         {selection ? (
           <label className="dh-taskrow__select">
             <input
@@ -437,6 +492,14 @@ export function TaskRow({
              * the visible text, so WCAG 2.5.3 (Label in Name) is satisfied.
              */
             aria-label={`Open ${task.title}`}
+            /*
+             * DHDS-11 — the record open right now IS this page's current
+             * location, so the link that opens it says so. `page` rather than
+             * `true`: the drawer is addressed by the URL, and a screen reader
+             * hearing "current page" is being told exactly the fact the visual
+             * mark carries.
+             */
+            aria-current={current ? "page" : undefined}
             data-testid="task-row-open"
             onClick={(event) => {
               if (

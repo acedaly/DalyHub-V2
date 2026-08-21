@@ -158,4 +158,27 @@ export interface GoalMeasurementRepository {
   ): Promise<GoalMilestone>;
 
   deleteMilestone(milestoneId: string): Promise<void>;
+
+  /**
+   * DHDS-11 — write a complete new stage order.
+   *
+   * The whole order is submitted, never a single stage's new position, and the
+   * implementation refuses a list that does not name exactly this Goal's current
+   * stages. That refusal is the point: a device holding a stale list — one stage
+   * short, because another device added one — would otherwise push the missing
+   * stage to an arbitrary place, which is inventing an order the owner never
+   * chose.
+   *
+   * Reordering appends NO Activity, for the same reason renaming and reweighting
+   * do not: the ORDER of a Goal's stages is configuration, and progress is the
+   * completions. An Activity feed full of "reordered a milestone" is exactly the
+   * flooding this feature is told to avoid.
+   *
+   * Returns whether anything actually changed, so an unchanged order costs no
+   * write and reports honestly.
+   */
+  reorderMilestones(
+    goalId: string,
+    orderedMilestoneIds: readonly string[],
+  ): Promise<{ readonly changed: boolean }>;
 }

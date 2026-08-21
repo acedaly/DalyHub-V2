@@ -34,11 +34,13 @@ import {
   GOAL_TARGET_REACHED,
   GoalMeasurementNotFoundError,
   GoalMeasurementStorageError,
+  GoalMilestoneOrderStaleError,
   normalizeGoalMeasurementNote,
   parseGoalMeasurementDirection,
   parseGoalMeasurementType,
   validateGoalMeasurementDate,
   validateGoalMeasurementValue,
+  validateGoalMilestoneOrder,
   validateGoalMilestoneTitle,
   validateGoalMilestoneWeight,
   type GoalMeasurement,
@@ -876,6 +878,95 @@ export class D1GoalMeasurementRepository implements GoalMeasurementRepository {
       if (!row) throw new GoalMeasurementNotFoundError();
     } catch (cause) {
       if (cause instanceof GoalMeasurementNotFoundError) throw cause;
+      throw new GoalMeasurementStorageError({ cause });
+    }
+  }
+
+  /**
+   * DHDS-11 — write a complete new stage order, in ONE transaction.
+   *
+   * Deliberately the same shape as `D1TaskRepository.reorderChecklist`, because
+   * a reorder means one thing in DalyHub and two collections must not disagree
+   * about how it is written:
+   *
+   *   - the submitted list must name EXACTLY this Goal's stages, each once. A
+   *     partial order is REFUSED rather than applied, because the alternative is
+   *     inventing an order the owner never chose;
+   *   - the membership check ran against a SNAPSHOT, so it is carried into the
+   *     write as a PRECONDITION rather than trusted across the gap: every
+   *     statement requires the Goal to still hold exactly the number of stages
+   *     the submitted order names, so a stage added or deleted in between makes
+   *     the whole batch write nothing;
+   *   - `position` carries no UNIQUE index, and it must not: a renumber
+   *     necessarily passes through states where two rows briefly share a value,
+   *     and SQLite checks a unique index row by row. The read order's
+   *     `(position, created_at)` tiebreak means even that transient state has one
+   *     deterministic answer.
+   *
+   * No Activity: the ORDER of a Goal's stages is configuration, exactly as their
+   * titles and weights are, and only a completion transition is progress.
+   */
+  async reorderMilestones(
+    goalId: string,
+    orderedMilestoneIds: readonly string[],
+  ): Promise<{ readonly changed: boolean }> {
+    const entityId = validateSpineId(goalId, "id");
+    const order = validateGoalMilestoneOrder(orderedMilestoneIds);
+
+    const current = await this.listMilestones(entityId);
+    const currentIds = new Set(current.map((milestone) => milestone.id));
+    if (
+      order.length !== current.length ||
+      order.some((id) => !currentIds.has(id))
+    ) {
+      throw new GoalMilestoneOrderStaleError();
+    }
+    const unchanged = current.every(
+      (milestone, index) => order[index] === milestone.id,
+    );
+    if (unchanged) return { changed: false };
+
+    const nowTs = toStorageTimestamp(this.#clock());
+    const stillHolds = `(SELECT COUNT(*)
+                           FROM goal_milestones held
+                          WHERE held.workspace_id = ? AND held.entity_id = ?) = ?`;
+    const statements = order.map((id, index) =>
+      this.#db
+        .prepare(
+          `UPDATE goal_milestones
+           SET position = ?, updated_at = ?
+           WHERE workspace_id = ? AND entity_id = ? AND id = ? AND position <> ?
+             AND ${stillHolds}`,
+        )
+        .bind(
+          index,
+          nowTs,
+          this.#workspaceId,
+          entityId,
+          id,
+          index,
+          this.#workspaceId,
+          entityId,
+          order.length,
+        ),
+    );
+
+    try {
+      const results = await this.#db.batch(statements);
+      /*
+       * At least one row MUST have moved: the unchanged case returned above, so
+       * a batch that wrote nothing means the precondition refused it.
+       */
+      const rowsWritten = results.reduce(
+        (total, result) => total + (result.meta?.changes ?? 0),
+        0,
+      );
+      if (rowsWritten === 0) {
+        throw new GoalMilestoneOrderStaleError();
+      }
+      return { changed: true };
+    } catch (cause) {
+      if (cause instanceof GoalMilestoneOrderStaleError) throw cause;
       throw new GoalMeasurementStorageError({ cause });
     }
   }

@@ -25,10 +25,16 @@
  *   - a title is renamed through the shared DS-16 inline field — the same
  *     click / Enter / Escape / blur behaviour every other editable value in
  *     DalyHub has;
- *   - reorder is TWO ORDINARY COMMANDS in the item's menu, not a drag. There is
- *     no drag-and-drop dependency in this repository and TASKS-13 does not add
- *     one for five rows; more importantly, "Move up" works identically with a
- *     mouse, a keyboard and a thumb, which no drag gesture does.
+ *   - reorder is a DRAG (DHDS-11) and, unchanged, two ordinary commands in the
+ *     item's menu. TASKS-13 shipped the commands alone and recorded why: "Move
+ *     up" works identically with a mouse, a keyboard and a thumb, which no drag
+ *     gesture does. That is still true and is why the commands stayed. What
+ *     DHDS-11 adds beside them is the spatial path — a checklist's order is the
+ *     owner's own, stored in `task_checklist_items.position` and read back in
+ *     it, which is precisely the condition a DalyHub collection has to meet
+ *     before it may be dragged. Both write the SAME `checklist_reorder` intent
+ *     through the same seam, so the two can never disagree about what an order
+ *     is.
  *
  * ── What it never does ───────────────────────────────────────────────────────
  * It never completes the parent Task. Ticking the last item leaves the Task
@@ -36,7 +42,14 @@
  * the steps and the Task is the commitment.
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   CHECKLIST_TITLE_MAX_LENGTH,
@@ -44,6 +57,7 @@ import {
   MAX_CHECKLIST_ITEMS,
 } from "~/kernel/tasks";
 import { useFeedback } from "~/shared/feedback";
+import { SortableHandle, SortableList } from "~/shared/drag";
 import { InlineTextField } from "~/shared/inline-edit";
 import { Button, Menu } from "~/shared/ui";
 
@@ -80,7 +94,15 @@ export function TaskChecklistSection({
    * whichever the browser found first. `useId` is the React-provided answer and
    * costs nothing.
    */
-  const headingId = `task-checklist-heading-${useId()}`;
+  const instanceId = useId();
+  const headingId = `task-checklist-heading-${instanceId}`;
+  /*
+   * The reorder surface's identity. It must be stable and unique on the page —
+   * the drawer STACKS, so two checklists can be mounted at once — and it must
+   * never be derived from an array index, which is exactly the identity a
+   * reorder changes.
+   */
+  const sortableId = `task-checklist-${instanceId}`;
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -257,28 +279,62 @@ export function TaskChecklistSection({
       </div>
 
       {items.length > 0 ? (
-        <ul className="dh-checklist__items" aria-labelledby={headingId}>
-          {items.map((item, index) => (
+        /*
+         * DHDS-11 — the shared reorder surface, not a checklist-specific one.
+         *
+         * `SortableList` owns the grip, the live gap, the floating object, the
+         * keyboard grammar and the announcements; this component owns what a
+         * step IS and where its order is written. A read-only record passes
+         * `disabled`, which registers no destination at all — so a soft-deleted
+         * or archived Task cannot be dragged into an order the server would
+         * refuse.
+         */
+        <SortableList
+          id={sortableId}
+          kind="checklist-item"
+          ariaLabel="Checklist"
+          className="dh-checklist__items"
+          items={items}
+          getItemId={(item) => item.id}
+          getItemLabel={(item) => item.title}
+          disabled={readOnly}
+          onReorder={(nextIds) => {
+            void checklist.reorderItems(nextIds).then(report);
+          }}
+          renderPreview={(item) => (
+            <span className="dh-checklist__preview">{item.title}</span>
+          )}
+          renderItem={(item, api) => (
             <ChecklistRow
-              key={item.id}
               item={item}
-              index={index}
-              count={items.length}
+              index={api.position - 1}
+              count={api.size}
               readOnly={readOnly}
               checklist={checklist}
               report={report}
               announce={announce}
+              handle={
+                readOnly ? null : (
+                  <SortableHandle
+                    {...api.handleProps}
+                    className="dh-action-reveal dh-checklist__handle"
+                  />
+                )
+              }
               onBeforeDelete={() => {
                 // The row that will occupy this position afterwards, or the Add
                 // control when this was the last one.
+                const index = items.findIndex(
+                  (candidate) => candidate.id === item.id,
+                );
                 restoreFocus.current =
                   items.length === 1
                     ? "add"
                     : (items[index + 1]?.id ?? items[index - 1]?.id ?? "add");
               }}
             />
-          ))}
-        </ul>
+          )}
+        />
       ) : null}
 
       {readOnly ? null : composing ? (
@@ -375,6 +431,8 @@ interface ChecklistRowProps {
   readonly checklist: TaskChecklistApi;
   readonly report: (outcome: ChecklistOutcome) => ChecklistOutcome;
   readonly announce: (message: string) => void;
+  /** DHDS-11 — the shared grip, or null on a read-only record. */
+  readonly handle: ReactNode;
   readonly onBeforeDelete: () => void;
 }
 
@@ -386,10 +444,22 @@ function ChecklistRow({
   checklist,
   report,
   announce,
+  handle,
   onBeforeDelete,
 }: ChecklistRowProps) {
   return (
-    <li className="dh-checklist__item" data-testid="checklist-item">
+    <div
+      className="dh-checklist__item"
+      data-testid="checklist-item"
+      /*
+       * DHDS-08's reveal context. The grip is an affordance, not a permanent
+       * fixture: it occupies its geometry at rest — so revealing it moves
+       * nothing — and it is simply drawn on a touch device and in forced
+       * colours.
+       */
+      data-dh-action-context="true"
+    >
+      {handle}
       {/*
        * The SHARED completion control (`.dh-check-circle`), inside the SHARED
        * 44px target. The same mark the Task row and the Habit row use, so
@@ -493,6 +563,6 @@ function ChecklistRow({
           ]}
         />
       )}
-    </li>
+    </div>
   );
 }

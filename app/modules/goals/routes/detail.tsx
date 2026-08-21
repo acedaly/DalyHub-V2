@@ -401,6 +401,38 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
     [postMeasurement, revalidator, notifyError],
   );
 
+  /**
+   * DHDS-11 — the Goal record's copy of the stage reorder.
+   *
+   * Same intent, same wording rules and same revalidation as the workspace
+   * pane's (`GoalMeasurementSection`). The two SURFACES are a known duplication
+   * (DEBT-183): the pane was extracted from this route and this route was not
+   * migrated onto it, so every milestone callback exists twice. What is not
+   * duplicated is the AUTHORITY — both post `reorder_milestones` to the one
+   * `/goals/:id/measurements` endpoint, which is the rule that matters.
+   */
+  const reorderMilestones = useCallback(
+    async (orderedMilestoneIds: readonly string[]) => {
+      const body = new FormData();
+      body.set("intent", "reorder_milestones");
+      for (const milestoneId of orderedMilestoneIds) {
+        body.append("milestoneId", milestoneId);
+      }
+      const result = await postMeasurement(body);
+      if (result && result.ok) {
+        revalidator.revalidate();
+        return true;
+      }
+      notifyError(
+        (result && !result.ok ? result.formError : undefined) ??
+          "That order couldn’t be saved. Please try again.",
+      );
+      revalidator.revalidate();
+      return false;
+    },
+    [postMeasurement, revalidator, notifyError],
+  );
+
   const postMutation = useCallback(
     async (body: FormData): Promise<GoalMutationResult> => {
       const response = await fetch(
@@ -698,6 +730,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
             onToggleMilestone={toggleMilestone}
             onAddMilestone={addMilestone}
             onDeleteMilestone={deleteMilestone}
+            onReorderMilestones={reorderMilestones}
           />
         }
       />

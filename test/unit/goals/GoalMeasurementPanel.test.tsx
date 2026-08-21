@@ -84,6 +84,7 @@ function renderPanel(
         onToggleMilestone={over.onToggleMilestone ?? vi.fn()}
         onAddMilestone={over.onAddMilestone ?? vi.fn()}
         onDeleteMilestone={over.onDeleteMilestone ?? vi.fn()}
+        onReorderMilestones={over.onReorderMilestones ?? vi.fn()}
       />
     </FeedbackProvider>,
   );
@@ -280,9 +281,14 @@ describe("the other measurement strategies", () => {
       }),
     });
     const stages = screen.getByTestId("goal-milestones");
+    /*
+     * DHDS-11 converged the stage row's actions onto the same overflow the Task
+     * checklist row carries — Move up, Move down, Remove stage — so the bare
+     * "Remove" button this used to assert is now inside that menu.
+     */
     expect(
       within(stages).getByRole("button", {
-        name: /Remove stage Book the course/,
+        name: "More actions for Book the course",
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("1 of 2")).toBeInTheDocument();

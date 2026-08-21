@@ -1,0 +1,284 @@
+/*
+ * DHDS-11 — the drag, reorder and destination layer.
+ *
+ * ONE stylesheet for every spatial operation in DalyHub. Before adding a
+ * `.dh-…--dragging` rule to a module stylesheet, read
+ * `docs/design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`: the
+ * whole point of this file is that a Task moving into a Project and a step
+ * moving up a checklist look like the same product doing the same thing.
+ *
+ * Everything below is DHDS tokens. No raw hex, no raw duration, no bare
+ * z-index, and no motion vocabulary that DHDS-08 did not already publish.
+ *
+ * ── The five things a drag draws ────────────────────────────────────────────
+ *   1. the HANDLE            a quiet grip, revealed with the row's affordances
+ *   2. the PREVIEW           the object itself, floating, under the pointer
+ *   3. the SOURCE            the row it left, kept in place and drawn quiet
+ *   4. the SLOT              the gap it will land in (a sortable list)
+ *   5. the DESTINATION       a container that would accept it (everything else)
+ *
+ * There is no sixth. No insertion line beside a container, no container outline
+ * inside a list, and nothing at all on a region that would refuse the drop.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* 1. The handle                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* The hit area is the product's floor even though the ink is smaller: quiet
+   * is a property of the paint, never of the target (DHDS-10 §4). */
+  min-width: var(--dh-space-6);
+  min-height: var(--dh-space-6);
+  padding: 0;
+  color: var(--dh-color-text-muted);
+  background: none;
+  border: var(--dh-border-width) solid transparent;
+  border-radius: var(--dh-radius-control);
+  cursor: grab;
+  /*
+   * The handle owns the gesture from the first pixel, so the browser must not
+   * also try to pan the page from it. It is scoped to the grip alone — every
+   * other pixel of the row still scrolls a phone normally, which is what keeps
+   * a drag handle from breaking touch scrolling.
+   */
+  touch-action: none;
+}
+
+/*
+ * A COARSE pointer gets the product's full target, unconditionally.
+ *
+ * The 24px above is the WCAG 2.2 §2.5.8 minimum and is correct for a mouse; a
+ * thumb needs 44px, and this is the same gate DHDS-10 §4 applies to a `meta`
+ * field's hit area — a device must positively declare a fine pointer WITH hover
+ * to get the smaller one. The INK does not grow; the target does.
+ */
+@media not ((hover: hover) and (pointer: fine)) {
+  .dh-drag-handle {
+    min-width: var(--app-touch-target-min);
+    min-height: var(--app-touch-target-min);
+  }
+}
+
+.dh-drag-handle:hover:not(:disabled) {
+  color: var(--dh-color-text);
+  background: var(--dh-color-surface-selected);
+}
+
+.dh-drag-handle[data-grabbed="true"] {
+  color: var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+  border-color: var(--dh-color-accent);
+  cursor: grabbing;
+}
+
+.dh-drag-handle:disabled {
+  color: var(--dh-color-text-muted);
+  opacity: var(--dh-state-disabled-content-opacity);
+  cursor: default;
+}
+
+/*
+ * While ANY drag is live the whole document shows the grabbing cursor and stops
+ * selecting text — the pointer belongs to the object, not to the page under it.
+ */
+body[data-dh-dragging="true"] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+body[data-dh-dragging="true"] * {
+  cursor: grabbing !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 2. The preview — the floating object                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The layer is inert. It has to be: the provider hit-tests destinations with
+ * `elementFromPoint`, and a preview that caught the pointer would be the only
+ * thing it ever found.
+ */
+.dh-drag-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dh-layer-anchored);
+  pointer-events: none;
+}
+
+.dh-drag-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  /*
+   * The last defence on width. `DragProvider` already caps the measured width
+   * (see `MAX_PREVIEW_WIDTH_PX`, which also caps the grab offset with it); this
+   * keeps the preview inside a viewport narrower than that cap, where a fixed
+   * width would be the thing that overflowed.
+   */
+  max-inline-size: calc(100vw - var(--dh-space-4));
+  padding: var(--dh-space-2) var(--dh-space-3);
+  background: var(--dh-color-surface);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  /*
+   * Elevation, because the object is now PHYSICALLY floating — and elevation
+   * only. No saturated outline, no glow, no rotation, no tilt, no scale.
+   *
+   * The border is not decoration: in dark mode a shadow alone does not
+   * separate a surface from the surface under it (DALYHUB_DESIGN_SYSTEM D1's
+   * own reasoning), so the edge is what says "this is off the page" where the
+   * shadow cannot.
+   */
+  box-shadow: var(--dh-elevation-overlay);
+  /* Slightly translucent so the destination under it stays readable — and only
+   * slightly, because a preview you cannot read is not the object. */
+  opacity: 0.96;
+  /*
+   * NO transition. The preview is following a pointer; a transition on a
+   * followed pointer is lag by construction.
+   */
+}
+
+/* -------------------------------------------------------------------------- */
+/* 3. The source                                                              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The row the object left KEEPS ITS PLACE. It does not collapse, the list does
+ * not jump, and the scroll position does not move — the whole reason a drag
+ * feels like moving a thing rather than deleting and recreating it.
+ *
+ * It is drawn quiet rather than hidden, so the owner can still see what they
+ * picked up and where it came from. That is the placeholder; there is no
+ * dashed rectangle.
+ */
+[data-dh-drag-source="true"] {
+  opacity: 0.4;
+}
+
+[data-dh-drag-source="true"] .dh-drag-handle {
+  /* The grip stays lit: it is the control the owner is currently holding. */
+  opacity: 1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 4. The sortable list, and the slot                                         */
+/* -------------------------------------------------------------------------- */
+
+.dh-sortable {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.dh-sortable__item {
+  min-width: 0;
+  /*
+   * Structural movement, at DHDS-08's Level 3 rung and on its emphasized curve.
+   * This is what closes the gap behind the object and opens the one in front of
+   * it, and it is the ONLY animation in this file.
+   */
+  transition: transform var(--dh-motion-base) var(--dh-ease-emphasized);
+}
+
+/* -------------------------------------------------------------------------- */
+/* 5. Destinations                                                            */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * PROGRESSIVE DISCLOSURE, in two rungs and no more.
+ *
+ * A candidate — a destination that would genuinely accept THIS object — gains a
+ * dotted edge and nothing else. A page of candidates therefore reads as a page,
+ * not as a light show. The one the pointer is actually on gains the accent, a
+ * tint and a solid edge, so at every moment exactly one region on screen looks
+ * like the answer.
+ *
+ * A region that would refuse the drop registers nothing and is drawn nothing.
+ * It is never possible to hover a lit target that then refuses.
+ */
+[data-dh-drop-candidate="true"] {
+  border-radius: var(--dh-radius-md);
+  outline: var(--dh-border-width) dashed var(--dh-color-border-strong);
+  outline-offset: var(--dh-space-1);
+  transition: outline-color var(--dh-motion-fast) var(--dh-ease-standard);
+}
+
+[data-dh-drop-active="true"] {
+  outline: var(--dh-border-width-strong) solid var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+}
+
+/*
+ * The destination's name, for a container whose heading is not obviously a
+ * destination on its own. It replaces nothing — it is added beside the label
+ * the region already has.
+ */
+.dh-drop-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  margin-inline-start: var(--dh-space-2);
+  padding: 0 var(--dh-space-2);
+  color: var(--dh-color-accent);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  font-weight: var(--dh-text-label-weight);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-accent-subtle);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Forced colours                                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * In forced-colour mode every background and shadow above is discarded by the
+ * user agent, so the two states have to be redrawn as BORDERS — the only
+ * channel that survives. Without this a drag is invisible: the preview has no
+ * edge, and the active destination looks exactly like a candidate.
+ */
+@media (forced-colors: active) {
+  .dh-drag-preview {
+    border: var(--dh-border-width-strong) solid CanvasText;
+  }
+
+  [data-dh-drop-candidate="true"] {
+    outline: var(--dh-border-width) dashed CanvasText;
+  }
+
+  [data-dh-drop-active="true"] {
+    outline: var(--dh-border-width-strong) solid Highlight;
+  }
+
+  [data-dh-drag-source="true"] {
+    /* Opacity is discarded too, so the source is marked by an edge instead. */
+    opacity: 1;
+    outline: var(--dh-border-width) dashed GrayText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Reduced motion                                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The operation is unchanged; only the travel goes. `base.css` already zeroes
+ * durations globally, and this states the intent locally so a future edit to
+ * this file cannot reintroduce a reorder that only reads as one if it moves:
+ * the slot changes instantly, and every state above is a colour or an edge that
+ * does not depend on movement to be seen.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .dh-sortable__item,
+  [data-dh-drop-candidate="true"] {
+    transition: none;
+  }
+}

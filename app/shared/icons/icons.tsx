@@ -448,6 +448,18 @@ export const FilterIcon = createIcon(
   <path d="M400-240v-80h160v80H400ZM240-440v-80h480v80H240ZM120-640v-80h720v80H120Z" />,
 );
 
+/**
+ * DHDS-11 — the drag grip. Material Symbols `drag_indicator`.
+ *
+ * The ONE grip in the product. It is decorative in every use: the control it
+ * sits inside is a real button named in words ("Reorder Prepare training
+ * brief"), because DalyHub never conveys meaning by icon alone.
+ */
+export const DragHandleIcon = createIcon(
+  "DragHandleIcon",
+  <path d="M360-160q-33 0-56.5-23.5T280-240q0-33 23.5-56.5T360-320q33 0 56.5 23.5T440-240q0 33-23.5 56.5T360-160Zm240 0q-33 0-56.5-23.5T520-240q0-33 23.5-56.5T600-320q33 0 56.5 23.5T680-240q0 33-23.5 56.5T600-160ZM360-400q-33 0-56.5-23.5T280-480q0-33 23.5-56.5T360-560q33 0 56.5 23.5T440-480q0 33-23.5 56.5T360-400Zm240 0q-33 0-56.5-23.5T520-480q0-33 23.5-56.5T600-560q33 0 56.5 23.5T680-480q0 33-23.5 56.5T600-400ZM360-640q-33 0-56.5-23.5T280-720q0-33 23.5-56.5T360-800q33 0 56.5 23.5T440-720q0 33-23.5 56.5T360-640Zm240 0q-33 0-56.5-23.5T520-720q0-33 23.5-56.5T600-800q33 0 56.5 23.5T680-720q0 33-23.5 56.5T600-640Z" />,
+);
+
 /** Priority, as a mark rather than a pill. Material Symbols `flag`. */
 export const FlagIcon = createIcon(
   "FlagIcon",

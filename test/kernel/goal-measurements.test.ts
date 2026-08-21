@@ -19,6 +19,7 @@ import {
   GOAL_TARGET_REACHED,
   GoalMeasurementNotFoundError,
   GoalMeasurementValidationError,
+  GoalMilestoneOrderStaleError,
 } from "~/kernel/goals";
 
 import {
@@ -571,6 +572,159 @@ describe("milestones", () => {
     await expect(
       measurements().createMilestone(goal.id, { title: "x", weight: 0 }),
     ).rejects.toBeInstanceOf(GoalMeasurementValidationError);
+  });
+});
+
+/*
+ * DHDS-11 — the stage ORDER became the owner's.
+ *
+ * `position` has been stored and read back in since GOAL-02, and until now
+ * nothing could change it: the order was whatever the stages were added in.
+ * These prove the four things a truthful manual order has to be — persisted,
+ * complete, refused when stale, and progress-neutral.
+ */
+describe("reordering stages", () => {
+  async function seedStages(titles: readonly string[]) {
+    const goal = await seedGoal();
+    const repo = measurements();
+    for (const title of titles) {
+      await repo.createMilestone(goal.id, { title });
+    }
+    return { goal, repo };
+  }
+
+  const titlesOf = async (
+    repo: ReturnType<typeof measurements>,
+    goalId: string,
+  ) => (await repo.listMilestones(goalId)).map((stage) => stage.title);
+
+  it("persists the submitted order, and reads back in it", async () => {
+    const { goal, repo } = await seedStages(["One", "Two", "Three"]);
+    const stages = await repo.listMilestones(goal.id);
+    const moved = [stages[2]!.id, stages[0]!.id, stages[1]!.id];
+
+    expect(await repo.reorderMilestones(goal.id, moved)).toEqual({
+      changed: true,
+    });
+    expect(await titlesOf(repo, goal.id)).toEqual(["Three", "One", "Two"]);
+  });
+
+  it("renumbers densely, so a later move has room at both ends", async () => {
+    const { goal, repo } = await seedStages(["One", "Two", "Three"]);
+    const stages = await repo.listMilestones(goal.id);
+    await repo.reorderMilestones(goal.id, [
+      stages[1]!.id,
+      stages[2]!.id,
+      stages[0]!.id,
+    ]);
+    expect(
+      (await repo.listMilestones(goal.id)).map((stage) => stage.position),
+    ).toEqual([0, 1, 2]);
+  });
+
+  it("survives repeated moves — the end position is the last one submitted", async () => {
+    const { goal, repo } = await seedStages(["One", "Two", "Three", "Four"]);
+    const ids = (await repo.listMilestones(goal.id)).map((stage) => stage.id);
+    await repo.reorderMilestones(goal.id, [ids[3]!, ids[0]!, ids[1]!, ids[2]!]);
+    await repo.reorderMilestones(goal.id, [ids[0]!, ids[3]!, ids[1]!, ids[2]!]);
+    expect(await titlesOf(repo, goal.id)).toEqual([
+      "One",
+      "Four",
+      "Two",
+      "Three",
+    ]);
+  });
+
+  it("costs no write when the order is already the one submitted", async () => {
+    const { goal, repo } = await seedStages(["One", "Two"]);
+    const ids = (await repo.listMilestones(goal.id)).map((stage) => stage.id);
+    expect(await repo.reorderMilestones(goal.id, ids)).toEqual({
+      changed: false,
+    });
+  });
+
+  it("REFUSES a partial order rather than inventing a place for the rest", async () => {
+    const { goal, repo } = await seedStages(["One", "Two", "Three"]);
+    const ids = (await repo.listMilestones(goal.id)).map((stage) => stage.id);
+    await expect(
+      repo.reorderMilestones(goal.id, [ids[1]!, ids[0]!]),
+    ).rejects.toBeInstanceOf(GoalMilestoneOrderStaleError);
+    // Nothing moved.
+    expect(await titlesOf(repo, goal.id)).toEqual(["One", "Two", "Three"]);
+  });
+
+  it("REFUSES an order naming a stage that is not this Goal's", async () => {
+    const { goal, repo } = await seedStages(["One", "Two"]);
+    const other = await seedGoal(spine(WS, "other"));
+    const foreign = await repo.createMilestone(other.id, { title: "Foreign" });
+    const ids = (await repo.listMilestones(goal.id)).map((stage) => stage.id);
+
+    await expect(
+      repo.reorderMilestones(goal.id, [ids[0]!, foreign.id]),
+    ).rejects.toBeInstanceOf(GoalMilestoneOrderStaleError);
+    expect(await titlesOf(repo, goal.id)).toEqual(["One", "Two"]);
+  });
+
+  it("refuses a malformed order — empty, or naming the same stage twice", async () => {
+    const { goal, repo } = await seedStages(["One", "Two"]);
+    const ids = (await repo.listMilestones(goal.id)).map((stage) => stage.id);
+    await expect(repo.reorderMilestones(goal.id, [])).rejects.toBeInstanceOf(
+      GoalMeasurementValidationError,
+    );
+    await expect(
+      repo.reorderMilestones(goal.id, [ids[0]!, ids[0]!]),
+    ).rejects.toBeInstanceOf(GoalMeasurementValidationError);
+  });
+
+  it("cannot be reached through another WORKSPACE's Goal", async () => {
+    const { goal, repo } = await seedStages(["One", "Two"]);
+    const ids = (await repo.listMilestones(goal.id)).map((stage) => stage.id);
+    await expect(
+      measurements(OTHER, "otherm").reorderMilestones(goal.id, [
+        ids[1]!,
+        ids[0]!,
+      ]),
+    ).rejects.toBeInstanceOf(GoalMilestoneOrderStaleError);
+    expect(await titlesOf(repo, goal.id)).toEqual(["One", "Two"]);
+  });
+
+  it("changes NO completion and appends NO Activity — order is not progress", async () => {
+    const { goal, repo } = await seedStages(["One", "Two", "Three"]);
+    const ids = (await repo.listMilestones(goal.id)).map((stage) => stage.id);
+    await repo.updateMilestone(ids[0]!, { completed: true });
+    const completions = await countActivitiesOfType(GOAL_MILESTONE_COMPLETED);
+
+    await repo.reorderMilestones(goal.id, [ids[2]!, ids[1]!, ids[0]!]);
+
+    const stages = await repo.listMilestones(goal.id);
+    expect(stages.map((stage) => stage.title)).toEqual(["Three", "Two", "One"]);
+    expect(
+      stages.find((stage) => stage.id === ids[0]!)?.completedAt,
+    ).not.toBeNull();
+    expect(await countActivitiesOfType(GOAL_MILESTONE_COMPLETED)).toBe(
+      completions,
+    );
+    expect(await countActivitiesOfType(GOAL_MILESTONE_REOPENED)).toBe(0);
+  });
+
+  it("leaves the weighted summary exactly as it was", async () => {
+    const { goal, repo } = await seedStages([]);
+    const heavy = await repo.createMilestone(goal.id, {
+      title: "Heavy",
+      weight: 6,
+    });
+    const light = await repo.createMilestone(goal.id, {
+      title: "Light",
+      weight: 4,
+    });
+    await repo.updateMilestone(heavy.id, { completed: true });
+    const before = (await repo.listMilestoneSummaries([goal.id])).get(goal.id);
+
+    await repo.reorderMilestones(goal.id, [light.id, heavy.id]);
+
+    expect((await repo.listMilestoneSummaries([goal.id])).get(goal.id)).toEqual(
+      before,
+    );
   });
 });
 

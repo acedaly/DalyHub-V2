@@ -340,7 +340,12 @@ export interface CardProps {
    * Programmatic `.focus()` on a `tabindex="-1"` control still works.
    */
   readonly rovingTabIndex?: number;
-  /** A reorder handle node (supplied by `ReorderableCardCollection`). */
+  /**
+   * DHDS-11 — the reorder grip, when the card sits in a manually ordered
+   * collection. Supply `SortableList`'s `SortableHandle` spread with the item's
+   * `handleProps`; the card draws it in its leading slot and knows nothing else
+   * about dragging.
+   */
   readonly reorderHandle?: ReactNode;
   readonly className?: string;
   readonly "data-testid"?: string;

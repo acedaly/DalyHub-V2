@@ -87,6 +87,38 @@
 }
 
 /*
+ * DHDS-11 — the reorder grip's own track, present only on a list that HAS one.
+ *
+ * A read-only record renders no handle, so it keeps the three-column grid it
+ * always had and nothing shifts. The track is `auto`, and the grip occupies its
+ * geometry at rest, so revealing it on hover moves no text — the DHDS-08
+ * contract every other row affordance in the product keeps.
+ */
+.dh-checklist__item:has(> .dh-checklist__handle) {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+.dh-checklist__handle {
+  align-self: start;
+  /* Centred against the check circle beside it rather than against the text,
+   * because the two are the row's controls and they read as a pair. */
+  min-block-size: var(--app-touch-target-min);
+}
+
+/*
+ * The floating object: a step is its words, and that is all it needs to be
+ * recognisable. It deliberately does NOT clone the check circle, the inline
+ * editor or the overflow — a preview is a picture of what is moving, never a
+ * second set of controls (DHDS-11 §"Drag preview").
+ */
+.dh-checklist__preview {
+  display: block;
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  color: var(--dh-color-text);
+}
+
+/*
  * The check keeps a FULL 44px target on every viewport and every pointer, and
  * occupies it.
  *

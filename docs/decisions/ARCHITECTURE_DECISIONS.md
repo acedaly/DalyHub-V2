@@ -4373,3 +4373,115 @@ figure counts.
 
 The full record is
 [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](../product/DALYHUB_WHOLE_APP_REPAIR_2026_08.md).
+
+---
+
+## ADR-109: An object is draggable only when its ORDER IS STORED — one drag session over Pointer Events, no drag-and-drop dependency, and no manual Task rank invented to have something to drag
+
+**Date:** 2026-08-21 · **Status:** Accepted · **Item:** DHDS-11 (drag, reorder and object continuity)
+
+**Context.** DHDS-08 established the motion grammar, DHDS-09 the floating
+surfaces, DHDS-10 which values are changed where they are shown. DHDS-11 is the
+spatial phase, and it arrived at a product where:
+
+- `AGENTS.md` §7 said "drag to reorder, drag to reschedule" as though every list
+  had an order to rearrange;
+- exactly **two** collections in the whole product store a manual order —
+  `task_checklist_items.position` (migration 0045) and `goal_milestones.position`
+  (migration 0038). Every other visible order is derived from data;
+- `task_details` carries **no ordering column at all**, and migration 0006
+  records the omission as deliberate;
+- DS-04 had already shipped a complete pointer + keyboard reorder collection
+  (`ReorderableCardCollection`), consumed by one design fixture and by nothing in
+  the product — a second drag system waiting to happen;
+- `goal_milestones.position` had been stored and read back in since GOAL-02 with
+  nothing in the interface able to change it.
+
+Three decisions follow, and each of them is a decision about what NOT to build.
+
+**Decision.**
+
+1. **A collection is draggable only when its order is the owner's and is
+   STORED — six questions, all of which must answer yes.** The object must have
+   a real destination or a real stored order; the mutation the drop performs must
+   be nameable in one sentence with no conditional; the destination must be
+   visible on the screen the drag starts from; a non-drag path must exist and be
+   at least as complete; the change must survive a reload; and dragging must be
+   faster or clearer than choosing. The gate is published in
+   [`DHDS_11_…`](../design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md)
+   §2 and in [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), so a future agent
+   answers "can I make this draggable?" from the documentation rather than from
+   taste.
+
+   **The consequence that matters: a Task cannot be dragged up a list.** Doing
+   so would have needed either a client-side order that vanishes on the next
+   navigation — a lie about persistence — or a new ranking column with its own
+   sort mode, concurrency story, offline operation and migration. The first is
+   forbidden; the second is a DOMAIN change and is not an interaction pass's to
+   make. Recorded as DEBT-188 rather than guessed at.
+
+   What IS spatial is what the domain already supports: the two ordered
+   collections, and a Task moving between the BUCKETS of a grouped Tasks view —
+   where a bucket is a destination exactly when its key IS a value of a stored
+   field (`parent`, `priority`, `status`, `sector`). Three grouping dimensions
+   are refused by the same rule: `due_state` and `planned` bucket by a derived
+   RANGE that names no value, `delegate` is an act rather than a metadata
+   choice, and the `completed` bucket of `status` is derived from spine
+   completion rather than from the field.
+
+2. **A semantic move calls the SAME operation as the contextual choice that
+   performs it.** Dropping a Task on a Project posts the `set_parent` intent its
+   DHDS-10 picker posts; "Move up" in a checklist item's menu and dragging the
+   step post the same `checklist_reorder`. The drag engine owns no mutation at
+   all — `onDrop` hands the payload back to the surface — and a source-level test
+   fails the build on a `fetch` inside `app/shared/drag/`. Two behavioural
+   implementations of one domain change is a defect, not a convenience.
+
+   The corollary for the server: both reorder operations submit the **whole
+   order** and are refused if the submitted list does not name exactly the
+   collection's current members, with that membership carried into the write as a
+   precondition rather than trusted across the read/write gap. A stale reorder is
+   refused in the owner's words; it is never half-applied and never silently
+   completed with an invented position.
+
+3. **One drag session over Pointer Events, and no drag-and-drop dependency.**
+   `~/shared/drag` is mounted once by the AppShell, above both the navigation
+   rail and the page. HTML5 `dragstart`/`dataTransfer` is banned outright — it
+   has no keyboard path, is unusable on touch, and draws a browser bitmap rather
+   than a DalyHub object. A focused DnD library was weighed and declined on three
+   grounds: the product already had an accessible pointer + keyboard reorder to
+   generalise; the hard part is DalyHub's own vocabulary (the announcements, the
+   "would this change anything?" rule, the Undo semantics), which no library can
+   supply; and the surface actually needed is two sortable lists and one set of
+   container targets, with no virtualisation, no grid and no cross-window drag.
+
+   DS-04's `ReorderableCardCollection`, `CardReorderHandle` and `reorder.ts` were
+   **removed** in the same change, so the product does not carry two.
+
+**Alternatives rejected.** *A manual Task rank, added here* — rejected: a schema
+change made in order to justify an interaction is the tail wagging the dog, and
+the decision about what "manual order" means under a filter and across two
+devices deserves its own item. *A client-side Task order* — rejected outright;
+fake persistence is the worst thing this phase could have shipped. *Fractional
+ranking keys* for the two ordered collections — rejected: both are short,
+bounded and single-owner, so a dense renumber in one transaction is simpler and
+needs no rebalancing story. *Making the navigation rail a drop destination* —
+rejected on `AGENTS.md` §9.1: it would put a Task mutation in the shell or need
+a new module-registry runtime capability (DEBT-189). *A drag on Today or Plan* —
+rejected: Today's order is a recommendation and Plan's placement is a date its
+seven day buttons already write in one press. *Per-surface opt-in for the
+completed-row departure* — rejected in favour of deriving the departure from the
+row having actually left, which cannot disagree with the event.
+
+**Consequences.** No migration and no dependency. One new repository operation
+(`reorderMilestones`) and one new route intent (`reorder_milestones`); every
+other drop reuses an intent that already existed. A `position` column carries no
+UNIQUE index by design, because a dense renumber necessarily passes through
+states where two rows briefly share a value. `/tasks/bulk` is not in PWA-12's
+offline slice, so a bucket drop made offline is refused rather than queued —
+truthfully, and recorded as DEBT-190. And the visible consequence, which is the
+point: **DalyHub has far fewer grips than a product of its kind, and every one of
+them tells the truth.**
+
+The full record is
+[`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](../design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md).

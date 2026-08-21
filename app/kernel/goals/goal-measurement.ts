@@ -350,7 +350,9 @@ export type GoalMeasurementValidationField =
   | "note"
   | "title"
   | "weight"
-  | "position";
+  | "position"
+  /** DHDS-11 — the id list a stage reorder submits, as a whole. */
+  | "milestoneOrder";
 
 export class GoalMeasurementValidationError extends Error {
   readonly code = "validation" as const;
@@ -371,6 +373,25 @@ export class GoalMeasurementNotFoundError extends Error {
   constructor() {
     super("Goal measurement not found");
     this.name = "GoalMeasurementNotFoundError";
+  }
+}
+
+/**
+ * DHDS-11 — the submitted stage order does not describe the Goal's stages any
+ * more.
+ *
+ * Its own error rather than a not-found, because it is not a missing record: it
+ * is a STALE ORDER, and the two need different words. "That stage no longer
+ * exists" would be wrong and unhelpful; the owner needs to know that the list
+ * moved somewhere else and that nothing was saved.
+ */
+export class GoalMilestoneOrderStaleError extends Error {
+  readonly code = "stale_order" as const;
+  constructor() {
+    super(
+      "These stages changed somewhere else, so the new order was not saved.",
+    );
+    this.name = "GoalMilestoneOrderStaleError";
   }
 }
 
@@ -527,6 +548,69 @@ export function validateGoalMilestoneTitle(value: unknown): string {
     );
   }
   return trimmed;
+}
+
+/**
+ * DHDS-11 — the maximum number of stage ids one reorder submission may name.
+ *
+ * A REQUEST-SIZE guard rather than a domain bound: a Goal has no maximum number
+ * of stages and this does not introduce one. It exists so an untrusted body
+ * cannot ask the repository to build an unbounded batch, and it is set far above
+ * any list a person would actually define.
+ */
+export const GOAL_MILESTONE_ORDER_MAX_LENGTH = 500;
+
+/**
+ * DHDS-11 — validate the id list a stage reorder submits.
+ *
+ * Bounded, non-empty and DE-DUPLICATED: a list naming the same stage twice
+ * describes no order at all. Whether the list is the COMPLETE set of the Goal's
+ * stages is a question only the repository can answer, and it answers it inside
+ * the transaction that writes the new order — this is the shape check, never the
+ * membership one.
+ *
+ * Deliberately the same contract as `validateChecklistOrder`, because a reorder
+ * means one thing in DalyHub and two collections must not disagree about what a
+ * malformed order is.
+ */
+export function validateGoalMilestoneOrder(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    throw new GoalMeasurementValidationError(
+      "milestoneOrder",
+      "must be a list of stage ids",
+    );
+  }
+  if (value.length === 0) {
+    throw new GoalMeasurementValidationError(
+      "milestoneOrder",
+      "must name at least one stage",
+    );
+  }
+  if (value.length > GOAL_MILESTONE_ORDER_MAX_LENGTH) {
+    throw new GoalMeasurementValidationError(
+      "milestoneOrder",
+      `must name at most ${GOAL_MILESTONE_ORDER_MAX_LENGTH} stages`,
+    );
+  }
+  const seen = new Set<string>();
+  const order: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string" || entry.length === 0 || entry.length > 64) {
+      throw new GoalMeasurementValidationError(
+        "milestoneOrder",
+        "must be a list of stage ids",
+      );
+    }
+    if (seen.has(entry)) {
+      throw new GoalMeasurementValidationError(
+        "milestoneOrder",
+        "names the same stage more than once",
+      );
+    }
+    seen.add(entry);
+    order.push(entry);
+  }
+  return order;
 }
 
 export function validateGoalMilestoneWeight(value: unknown): number {

@@ -309,6 +309,49 @@ Full grammar, per-module adoption, the keyboard/mobile/refusal contracts, the
 deliberate exceptions and the deferred domain gaps:
 [`DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md`](DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md).
 
+### Spatial movement (DHDS-11)
+
+> **Moving something in DalyHub should feel like moving that actual thing — not
+> submitting a form and waiting for the screen to redraw.**
+
+DHDS-10 changes a value where it is stated. DHDS-11 moves an OBJECT through
+space — and its larger half is the restraint: almost nothing in DalyHub is
+draggable, and a page at rest is unchanged by this phase. There are no grips on
+Today, none in Search, none on a Project card, none on a Habit, none on a Note.
+
+**A thing may be dragged only when all six are true**: it has a real destination
+or a real stored order; the mutation the drop performs can be named in one
+sentence; the destination is visible on the screen the drag starts from; a
+non-drag path exists and is at least as complete; the change survives a reload;
+and dragging is genuinely faster or clearer than choosing. If any one is no, the
+DHDS-10 control is the whole answer.
+
+Two things follow, and they are the direction rather than the mechanics:
+
+- **A drag never invents persistence.** A Task's position in a list is not
+  draggable, because the product has no manual ranking model and DHDS-11 will
+  not add a schema to give itself something to drag. What IS spatial is what the
+  domain already supports: a checklist's steps, a Goal's stages, and moving a
+  Task between the buckets of a grouped view — where a bucket is a destination
+  exactly when its key is a value of a stored field.
+- **A semantic move calls the same operation as the choice that performs it.**
+  Dropping a Task on a Project and picking that Project from its menu are one
+  mutation reached two ways. Two behavioural implementations of one domain
+  change is a defect, not a convenience.
+
+The other half of the phase has no gesture in it at all: **object continuity**.
+An object keeps its identity when it changes context. A completed row collapses
+where it sat and hands focus to the row that takes its place, rather than
+vanishing on the next revalidation. A move leaves the scroll, the filters, the
+sort and every untouched group exactly as they were. Continuity in DalyHub is
+stable identity, preserved context and coherent motion — never a heroic
+shared-element animation across the router.
+
+Full grammar, the orderability audit, the per-surface adoption and the
+deliberate non-adoption, the dependency decision, and the desktop / mobile /
+keyboard / reduced-motion / offline contracts:
+[`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md).
+
 ### Motion grammar (DHDS-08)
 
 > **Motion explains what changed, where something came from, where it went, or

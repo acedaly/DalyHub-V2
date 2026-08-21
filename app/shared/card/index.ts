@@ -2,31 +2,23 @@
  * DS-04 — public entry for the Shared Card.
  *
  * ONE configurable, entity-agnostic Card (DESIGN_SYSTEM.md → Cards) plus the
- * collection containers that lay it out in lists, boards and grids, including an
- * accessible pointer + keyboard reorder collection. No TaskCard/ProjectCard/… —
- * every entity type is this one Card configured with data.
+ * collection containers that lay it out in lists, boards and grids. No
+ * TaskCard/ProjectCard/… — every entity type is this one Card configured with
+ * data.
+ *
+ * DHDS-11 removed `ReorderableCardCollection`, `CardReorderHandle` and
+ * `reorder.ts` from here. They were DS-04's own pointer + keyboard reorder
+ * collection, and they were the product's SECOND drag implementation the moment
+ * `~/shared/drag` existed — with a second grip, a second announcement
+ * vocabulary and a second order model. `SortableList` is the one that shipped
+ * into the product; the card's `reorderHandle` slot now takes its
+ * `SortableHandle`. See
+ * `docs/design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`.
  */
 
 export { Card } from "./Card";
 export { CardCollection } from "./CardCollection";
 export type { CardCollectionProps } from "./CardCollection";
-export { ReorderableCardCollection } from "./ReorderableCardCollection";
-export type {
-  ReorderableCardCollectionProps,
-  ReorderDetail,
-  ReorderItemApi,
-} from "./ReorderableCardCollection";
-export { CardReorderHandle } from "./CardReorderHandle";
-export type { CardReorderHandleProps } from "./CardReorderHandle";
-
-export {
-  moveByStep,
-  moveToReorderablePosition,
-  ordersDiffer,
-  reorderablePositionForPointer,
-  reorderablePositionOf,
-} from "./reorder";
-
 // TODAY-06 — touch swipe quick actions (pure model + the shared single-open close).
 export {
   clampOffset,

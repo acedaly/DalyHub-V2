@@ -341,13 +341,13 @@ end.
 | **DHDS-08** | Motion and interaction grammar | shipped |
 | **DHDS-09** | Floating surfaces and contextual choice architecture | shipped |
 | **DHDS-10** | Inline manipulation and direct editing | shipped |
-| **DHDS-11** | Drag, reorder and deeper object continuity | next |
+| **DHDS-11** | Drag, reorder and object continuity | shipped |
 
 DHDS-08 established the motion grammar DHDS-09's surfaces must use and gave
 DHDS-10's inline editors the shared reveal rung, without restructuring either.
 It defined DHDS-11's drag grammar and corrected existing drag feedback to it
-without building a drag-and-drop architecture; **row departure on completion
-belongs to DHDS-11** for the reasons recorded in the DHDS-08 record.
+without building a drag-and-drop architecture; row departure on completion
+belonged to DHDS-11, which has since taken it.
 
 **Item 9 — the FLOATING SURFACES those patterns are chosen through** — is
 recorded in
@@ -384,6 +384,30 @@ under an "Edit details" link.
 It did **not** add drag, reordering or spatial reparenting; it invented no
 status vocabulary, no tag model and no Task field; and it changed no mutation
 path. Its deferred domain gaps are listed in its own §13.
+
+**Item 11 — WHICH OBJECTS may be moved through space** — is recorded in
+[`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md).
+It built the product's ONE drag session (`~/shared/drag`, pointer and keyboard
+over Pointer Events, no drag-and-drop dependency), published the six-question
+gate a collection must pass before anything in it may be dragged, and REMOVED
+DS-04's parallel reorder collection — the second drag system, used by one design
+fixture and by nothing in the product.
+
+It then adopted spatial movement in the three places the domain already
+supported one: a Task's checklist steps and a Goal's stages, whose order is the
+owner's and is stored; and a Task moving between the buckets of a grouped Tasks
+view, where a bucket is a destination exactly when its key IS a value of a
+stored field. Every drop posts the SAME canonical intent the contextual control
+beside it posts. It closed DEBT-177 — a completed row now collapses where it sat
+and hands focus to the row that takes its place.
+
+It did **not** add a manual ranking model for Tasks, and that is the phase's
+largest decision: `task_details` carries no ordering column, so dragging a Task
+up a list would have meant either a schema change or a fake. It added no
+dependency, invented no domain concept, and made no surface draggable that could
+not prove its change survives a reload. Its deliberate non-adoption — Today,
+Plan, Projects, Goals, Habits, Notes, People, Assets, Meetings, Analytics,
+Search and the navigation rail — is argued case by case in its own §11.
 
 Each PR must demonstrate at least two module consumers. A pattern is not shared
 merely because it lives in `app/shared`; it is shared when different modules can

@@ -65,6 +65,7 @@ import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
+import { useDepartingRows } from "~/shared/task-record/use-departing-rows";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
 import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";
 import {
@@ -88,6 +89,7 @@ import { MAX_PLAN_BATCH_SIZE, TIME_SECTORS } from "~/kernel/tasks";
 import {
   TASK_PRESENTATIONS,
   taskViewFilterCount,
+  type TaskDensity,
   type TaskViewConfig,
 } from "~/kernel/task-views";
 
@@ -96,6 +98,17 @@ import { NewTaskForm } from "./NewTaskForm";
 import { TasksQuickAdd } from "./TasksQuickAdd";
 import { TasksViewSwitcher } from "./TasksViewSwitcher";
 import { buildTasksControlGroups } from "./tasks-controls";
+import {
+  DraggableTaskRow,
+  useTaskBucketDrop,
+  useTaskDropHandler,
+  type TaskBucketDrop,
+  type TaskMoveRequest,
+} from "./TaskDragging";
+import {
+  isTaskDropDimension,
+  type TaskDropDimension,
+} from "./task-drop-targets";
 import type { TasksBulkResult, TasksPageData } from "./tasks-contract";
 import { PRESENTATION_LABELS } from "./tasks-presentation";
 import {
@@ -528,6 +541,48 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
   const { notifyError, notifyUndo } = useFeedback();
   const [announcement, setAnnouncement] = useState<string | null>(null);
   const [patches, setPatches] = useState<TaskPatches>(NO_TASK_PATCHES);
+  /*
+   * DHDS-11 — the ids this surface has just changed, and the whole of what makes
+   * a departing row legitimate.
+   *
+   * A row is allowed to LEAVE — to collapse while its neighbours close the gap —
+   * only when the owner's own action is what removed it. Changing a filter,
+   * switching a view, paging and navigating remove rows too, and none of those
+   * is a departure: the collection is a different collection, and animating
+   * fifty rows out of it would be theatre. An id is added when the SERVER
+   * accepts the change and drops out again once the exit could have finished.
+   */
+  const [departing, setDeparting] =
+    useState<ReadonlySet<string>>(NO_DEPARTING_TASKS);
+  const departTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const markDeparting = useCallback((taskId: string) => {
+    setDeparting((current) => {
+      const next = new Set(current);
+      next.add(taskId);
+      return next;
+    });
+    const existing = departTimers.current.get(taskId);
+    if (existing !== undefined) clearTimeout(existing);
+    departTimers.current.set(
+      taskId,
+      setTimeout(() => {
+        departTimers.current.delete(taskId);
+        setDeparting((current) => {
+          if (!current.has(taskId)) return current;
+          const next = new Set(current);
+          next.delete(taskId);
+          return next;
+        });
+      }, DEPARTURE_ELIGIBILITY_MS),
+    );
+  }, []);
+  useEffect(() => {
+    const timers = departTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   /*
    * Fresh loader data is the truth, so it retires every guess made against the
@@ -640,6 +695,9 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
           // TASKS-04: completing or undoing a REPEATING task has a second
           // consequence, and the surface says so rather than leaving a new (or
           // surviving) occurrence unexplained. Only the server knows which.
+          // The change is the SERVER's now, so the row may legitimately leave a
+          // surface that does not keep completed work.
+          markDeparting(taskId);
           const label = completed
             ? `Completed ${title}.`
             : `Reopened ${title}.`;
@@ -659,7 +717,7 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
         })
         .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, ["completedAt"]));
     },
-    [notifyUndo, refuse, revalidateFor],
+    [notifyUndo, refuse, revalidateFor, markDeparting],
   );
   completeRef.current = runCompletion;
 
@@ -746,6 +804,69 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
   );
 
   /**
+   * DHDS-11 — a SPATIAL move: the Task was dragged into another bucket.
+   *
+   * It is `setField` plus one thing — an Undo — and it is a separate function
+   * for exactly that reason rather than a flag on the other.
+   *
+   *   - **The route is the same.** `/tasks/bulk`, with the same intent the bulk
+   *     bar and the row's own DHDS-10 control post. There is no drag mutation
+   *     path anywhere in the product; `submission` came from
+   *     `taskDropSubmission`, which is the one place that decides what a bucket
+   *     means (§42 of the brief, and the hard architectural requirement of it).
+   *   - **The paint leads and the claim does not.** ADR-086: the patch is
+   *     applied immediately, and the announcement, the Undo and any statement of
+   *     success wait for the server.
+   *   - **Undo is the product's Undo.** The reverse submission is the SAME
+   *     `taskDropSubmission` computed for the bucket the Task came from, so a
+   *     move and its reversal cannot be different operations. The undo itself
+   *     offers no undo — one step back, not a history.
+   *
+   * A move earns a toast where a small inline edit does not (DHDS-10 §"Mutation,
+   * optimism and Undo"): the object has left the place the owner was looking at,
+   * and the toast is what says where it went.
+   */
+  const moveTask = useCallback(
+    (taskId: string, move: TaskMoveRequest, undoable = true) => {
+      const intent = move.fields.intent ?? "";
+      const keys = Object.keys(move.patch) as (keyof TaskListItemPatch)[];
+      setPatches((previous) => withTaskPatch(previous, taskId, move.patch));
+      void postTaskBulkAction([taskId], { ...move.fields })
+        .then((outcome) => {
+          if (!outcome.ok) {
+            refuse(taskId, outcome.message, keys);
+            return;
+          }
+          setAnnouncement(`${move.label}.`);
+          // A move out of a bucket is a departure from that bucket, and the
+          // same collapse says so.
+          markDeparting(taskId);
+          if (undoable && move.undo !== null) {
+            const back = move.undo;
+            notifyUndo(move.label, {
+              announce: false,
+              onUndo: () =>
+                moveRef.current(
+                  taskId,
+                  { ...back, label: "Move undone", undo: null },
+                  false,
+                ),
+            });
+          }
+          revalidateFor(intent);
+        })
+        .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, keys));
+    },
+    [refuse, revalidateFor, notifyUndo, markDeparting],
+  );
+  /*
+   * Held in a ref so Undo can call the same function without an undo of an undo
+   * of an undo — the identical device `runCompletion` uses above.
+   */
+  const moveRef = useRef(moveTask);
+  moveRef.current = moveTask;
+
+  /**
    * Report a change the ROW's own inline field already persisted through a canonical
    * route. The inline fields own their own request (DS-16 needs a promise-returning
    * save), so this is how their outcome reaches the same live region, the same patch
@@ -795,15 +916,30 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
 
   return {
     patches,
+    departing,
     setCompleted,
     setField,
     setRecord,
+    moveTask,
     reportInlineSave,
     reportQueuedTitle,
     announce,
     announcement,
   };
 }
+
+/**
+ * How long an id stays eligible to DEPART after the server accepted its change.
+ *
+ * Long enough for the loader's answer to arrive and the exit to run, short
+ * enough that an unrelated later removal of the same row — a filter change a few
+ * seconds afterwards — is not mistaken for the consequence of an act the owner
+ * has stopped thinking about.
+ */
+const DEPARTURE_ELIGIBILITY_MS = 2_000;
+
+/** The steady state: nothing has been changed, so nothing may depart. */
+const NO_DEPARTING_TASKS: ReadonlySet<string> = new Set<string>();
 
 /*
  * TASKS-04 / DHDS-10 — the inline TITLE editor moved to `~/shared/task-record`.
@@ -829,7 +965,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   // `/tasks`, `/inbox` or `/upcoming` — every configuration change navigates
   // back to whichever of them the owner is actually on.
   const basePath = useWorkspaceBasePath();
-  const { openDrawer } = useDrawer();
+  const { openDrawer, entries: drawerEntries } = useDrawer();
   const config = data.config;
   const quick = useTaskQuickMutation(config, data);
   // An accepted rename re-reads the list: the title is what the collection is
@@ -1053,6 +1189,40 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
    */
   const viewingDeleted = config.systemView === "deleted";
 
+  /*
+   * DHDS-11 — is this configuration a SPATIAL one?
+   *
+   * A grouped view draws its destinations already: every bucket is a
+   * server-authoritative group of one dimension. Four of those dimensions are a
+   * stored field whose bucket key IS a value of that field, and dropping into
+   * one sets it — `task-drop-targets.ts` is where that is decided and why.
+   * Everything else here is null, which means the page is exactly what it was:
+   * no handles, no targets, no listeners.
+   *
+   * Two configurations opt out even when the dimension qualifies:
+   *
+   *   - the DELETED view, where every mutation is invisible, so a drag could
+   *     only ever fail;
+   *   - SELECTION mode, which is a mode with its own gesture (a hold enters it,
+   *     a tap extends it). Two leading controls and two meanings for a press on
+   *     the same row is the interaction conflict §44 of the brief describes, and
+   *     the selection has a "Move" action of its own in the bulk bar.
+   */
+  const dropDimension = useMemo<TaskDropDimension | null>(() => {
+    if (viewingDeleted || selectionVisible || grouping === null) return null;
+    return isTaskDropDimension(grouping.dimension) ? grouping.dimension : null;
+  }, [viewingDeleted, selectionVisible, grouping]);
+
+  /*
+   * DHDS-11 — the drop handler, from the module's own drag wiring.
+   *
+   * `TaskDragging.tsx` owns everything that knows a bucket is a destination:
+   * the grip, the floating Task, the bucket's registration and the translation
+   * from a bucket to a canonical intent. This surface owns the mutation host and
+   * the collection, and hands one to the other.
+   */
+  const handleTaskDrop = useTaskDropHandler(quick.moveTask);
+
   /**
    * DS-04 — one task, as {@link TaskRow} props.
    *
@@ -1069,6 +1239,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
    * flexible column and every other fact sits in a fixed, quieter one — so the
    * declaration has nothing left to do.
    */
+  /**
+   * The Task ids whose record is currently open, from the drawer stack.
+   *
+   * A stack rather than a single id: the Drawer nests (a Task opened from a
+   * Task), and every row in the chain is one the owner came THROUGH.
+   */
+  const openRecordIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const entry of drawerEntries) {
+      const [kind, id] = entry.key.split(":");
+      if ((kind === "task" || kind === "task-quick") && id) ids.add(id);
+    }
+    return ids;
+  }, [drawerEntries]);
+
   const toRowProps = useCallback(
     (card: TaskCardData, headingLevel: 2 | 3): TaskRowProps => {
       /*
@@ -1201,6 +1386,14 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       const key = `task:${card.id}`;
       return {
         task: card,
+        /*
+         * DHDS-11 §"Inspector continuity" — the row whose record is open keeps
+         * a quiet current marker, so closing the Inspector returns the owner's
+         * eye to where they opened it from. It reads the drawer STACK rather
+         * than a second piece of state, so it is true for a bookmarked URL and
+         * for a Back-navigated one exactly as it is for a click.
+         */
+        current: openRecordIds.has(card.id),
         todayIso: data.todayIso,
         parents: data.parents,
         headingLevel,
@@ -1284,6 +1477,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       data.todayIso,
       data.parents,
       searchParams,
+      openRecordIds,
       openDrawer,
       revalidator,
       selected,
@@ -1309,14 +1503,32 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
    * lives on the list rather than on the header that used to demonstrate it.
    */
   const renderCollection = useCallback(
-    (list: readonly TaskCardData[], ariaLabel: string, headingLevel: 2 | 3) => (
-      <TaskList ariaLabel={ariaLabel} density={density}>
-        {list.map((card) => (
-          <TaskRow key={card.id} {...toRowProps(card, headingLevel)} />
-        ))}
-      </TaskList>
+    (
+      list: readonly TaskCardData[],
+      ariaLabel: string,
+      headingLevel: 2 | 3,
+      /*
+       * DHDS-11 — the bucket these rows are IN, when the view has buckets.
+       *
+       * The server put the row here, so this is the value of the grouping
+       * dimension for every Task in the list — which is what lets the bucket a
+       * Task came from refuse its own drop without a second derivation of the
+       * same fact.
+       */
+      bucketKey?: string,
+    ) => (
+      <TaskCollection
+        list={list}
+        ariaLabel={ariaLabel}
+        headingLevel={headingLevel}
+        density={density}
+        departing={quick.departing}
+        dropDimension={dropDimension}
+        toRowProps={toRowProps}
+        {...(bucketKey === undefined ? {} : { bucketKey })}
+      />
     ),
-    [toRowProps, density],
+    [toRowProps, density, dropDimension, quick.departing],
   );
 
   const count = isGrouped ? groupedTotal : items.length;
@@ -1589,6 +1801,8 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
             sections={groupedSections}
             renderCollection={renderCollection}
             viewAllHref={viewAllHref}
+            dropDimension={dropDimension}
+            onDropTask={handleTaskDrop}
           />
         </>
       ) : (
@@ -1612,6 +1826,79 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   );
 }
 
+/**
+ * One `TaskList`, plus the two things a list has to own rather than a row.
+ *
+ * **Departure** (DHDS-11, closing DEBT-177). A row that the owner's own act
+ * removed collapses instead of vanishing, and focus is handed to the row that
+ * takes its place. Both are list-level facts — a row cannot know that it is the
+ * one that left, and it certainly cannot know who should have focus next — which
+ * is why this is a component rather than a prop.
+ *
+ * **Dragging.** Rows become liftable only when the surface has drawn real
+ * destinations for them (`dropDimension`). Everywhere else this renders exactly
+ * the rows it rendered before DHDS-11.
+ */
+function TaskCollection({
+  list,
+  ariaLabel,
+  headingLevel,
+  density,
+  departing,
+  dropDimension,
+  bucketKey,
+  toRowProps,
+}: {
+  readonly list: readonly TaskCardData[];
+  readonly ariaLabel: string;
+  readonly headingLevel: 2 | 3;
+  readonly density: TaskDensity;
+  readonly departing: ReadonlySet<string>;
+  readonly dropDimension: TaskDropDimension | null;
+  readonly bucketKey?: string;
+  readonly toRowProps: (
+    card: TaskCardData,
+    headingLevel: 2 | 3,
+  ) => TaskRowProps;
+}) {
+  const listElement = useRef<HTMLUListElement | null>(null);
+  const { rendered, isLeaving } = useDepartingRows(
+    list,
+    departing,
+    listElement,
+  );
+  return (
+    <TaskList
+      ariaLabel={ariaLabel}
+      density={density}
+      listRef={(element) => {
+        listElement.current = element;
+      }}
+    >
+      {rendered.map((card) => {
+        const leaving = isLeaving(card.id);
+        const rowProps = toRowProps(card, headingLevel);
+        /*
+         * A LEAVING row is never draggable. It is on its way out of this
+         * surface, it is `aria-hidden`, and offering a grip on an object that
+         * is mid-departure would be offering to move something that has already
+         * gone.
+         */
+        return dropDimension !== null && bucketKey !== undefined && !leaving ? (
+          <DraggableTaskRow
+            key={card.id}
+            card={card}
+            bucketKey={bucketKey}
+            rowProps={rowProps}
+          />
+        ) : (
+          <TaskRow key={card.id} {...rowProps} leaving={leaving} />
+        );
+      })}
+    </TaskList>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Grouped presentations                                                       */
 /* -------------------------------------------------------------------------- */
@@ -1620,6 +1907,8 @@ type RenderCollection = (
   list: readonly TaskCardData[],
   ariaLabel: string,
   headingLevel: 2 | 3,
+  /** DHDS-11 — the bucket these rows are in, for a grouped presentation. */
+  bucketKey?: string,
 ) => ReactNode;
 
 /**
@@ -1633,13 +1922,19 @@ function GroupedBucket({
   className,
   renderCollection,
   viewAllHref,
+  dropDimension,
+  onDropTask,
 }: {
   readonly section: GroupedSection;
   readonly className: string;
   readonly renderCollection: RenderCollection;
   readonly viewAllHref: (section: GroupedSection) => string | null;
+  /** DHDS-11 — null on every configuration that is not a spatial one. */
+  readonly dropDimension: TaskDropDimension | null;
+  readonly onDropTask: TaskBucketDrop;
 }) {
   const href = section.hasMore ? viewAllHref(section) : null;
+  const drop = useTaskBucketDrop(section, dropDimension, onDropTask);
   /*
    * DS-04 — the bucket is a heading, a count and a rule.
    *
@@ -1664,10 +1959,30 @@ function GroupedBucket({
        */
       tone={section.key === "overdue" ? "overdue" : "default"}
       className={className}
+      sectionRef={drop.ref}
+      dropState={
+        drop.isActive ? "active" : drop.isCandidate ? "candidate" : null
+      }
+      dropHint="Move here"
     >
       {section.cards.length > 0 ? (
-        renderCollection(section.cards, `${section.title} tasks`, 3)
+        renderCollection(
+          section.cards,
+          `${section.title} tasks`,
+          3,
+          section.key,
+        )
       ) : (
+        /*
+         * DHDS-11 §51 — an EMPTY bucket is still a destination.
+         *
+         * The section element is what the drop is hit-tested against, so a
+         * bucket with nothing in it accepts one exactly as a full one does, and
+         * this line is a real region rather than a placeholder card invented to
+         * give the drop something to land on. (For `parent` and `delegate` an
+         * empty bucket is never rendered at all; for the closed dimensions it
+         * can be, and this is why that costs nothing.)
+         */
         <p className="dh-tasks-section__empty">Nothing here.</p>
       )}
     </TaskGroup>
@@ -1685,11 +2000,15 @@ function GroupedView({
   sections,
   renderCollection,
   viewAllHref,
+  dropDimension,
+  onDropTask,
 }: {
   readonly presentation: string;
   readonly sections: readonly GroupedSection[];
   readonly renderCollection: RenderCollection;
   readonly viewAllHref: (section: GroupedSection) => string | null;
+  readonly dropDimension: TaskDropDimension | null;
+  readonly onDropTask: TaskBucketDrop;
 }) {
   const containerClass =
     presentation === "sectors"
@@ -1713,6 +2032,8 @@ function GroupedView({
           className={bucketClass}
           renderCollection={renderCollection}
           viewAllHref={viewAllHref}
+          dropDimension={dropDimension}
+          onDropTask={onDropTask}
         />
       ))}
     </div>

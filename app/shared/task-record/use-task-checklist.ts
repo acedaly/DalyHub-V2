@@ -35,6 +35,8 @@ import {
   type TaskChecklistProgress,
 } from "~/kernel/tasks";
 
+import { ordersDiffer } from "~/shared/drag";
+
 import type { TaskActionData } from "./contract";
 import {
   postTaskRecordActionOffline,
@@ -80,6 +82,18 @@ export interface TaskChecklistApi {
   readonly moveItem: (
     itemId: string,
     delta: number,
+  ) => Promise<ChecklistOutcome>;
+  /**
+   * DHDS-11 — submit a complete new order.
+   *
+   * The seam a drag reorder commits through, and the one `moveItem` now
+   * delegates to. There is deliberately no second route, no second validation
+   * and no second refusal wording: "Move up" from the item menu and a drag down
+   * the list are the SAME `checklist_reorder` submission, which is why the two
+   * can never disagree about what an order is.
+   */
+  readonly reorderItems: (
+    orderedItemIds: readonly string[],
   ) => Promise<ChecklistOutcome>;
 }
 
@@ -189,6 +203,20 @@ export function useTaskChecklist(
     [post],
   );
 
+  const reorderItems = useCallback(
+    async (orderedItemIds: readonly string[]): Promise<ChecklistOutcome> => {
+      const order = items.map((item) => item.id);
+      if (!ordersDiffer(order, orderedItemIds)) return OK;
+      // The WHOLE order is submitted, so the server can refuse a list that no
+      // longer matches its own rather than applying half a move.
+      return post({ intent: "checklist_reorder" }, [
+        "itemId",
+        [...orderedItemIds],
+      ]);
+    },
+    [items, post],
+  );
+
   const moveItem = useCallback(
     async (itemId: string, delta: number): Promise<ChecklistOutcome> => {
       const order = items.map((item) => item.id);
@@ -198,11 +226,9 @@ export function useTaskChecklist(
       // `moveChecklistOrder` returns the SAME array for a no-op (already at that
       // end), so an unreachable move costs no request.
       if (next === order) return OK;
-      // The WHOLE order is submitted, so the server can refuse a list that no
-      // longer matches its own rather than applying half a move.
-      return post({ intent: "checklist_reorder" }, ["itemId", next]);
+      return reorderItems(next);
     },
-    [items, post],
+    [items, reorderItems],
   );
 
   /**
@@ -280,5 +306,6 @@ export function useTaskChecklist(
     setItemCompleted,
     deleteItem,
     moveItem,
+    reorderItems,
   };
 }

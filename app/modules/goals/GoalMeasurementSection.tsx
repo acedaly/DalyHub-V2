@@ -184,6 +184,44 @@ export function GoalMeasurementSection({
   );
 
   /**
+   * DHDS-11 — write a complete new stage order.
+   *
+   * The whole order is submitted, never one stage's new position, so the server
+   * can refuse a list that no longer describes this Goal rather than applying
+   * half a move. A refusal is stated in the SERVER'S own words — "these stages
+   * changed somewhere else" is a different fact from "that couldn't be saved",
+   * and the owner needs the first one to understand that nothing was lost.
+   *
+   * There is no optimistic paint: the list revalidates, exactly like every other
+   * milestone mutation on this surface. What the drag already showed the owner
+   * is the gap, and the gap is a property of the drag rather than a claim about
+   * the server.
+   */
+  const reorderMilestones = useCallback(
+    async (orderedMilestoneIds: readonly string[]) => {
+      const body = new FormData();
+      body.set("intent", "reorder_milestones");
+      for (const milestoneId of orderedMilestoneIds) {
+        body.append("milestoneId", milestoneId);
+      }
+      const result = await postMeasurement(body);
+      if (result && result.ok) {
+        revalidator.revalidate();
+        return true;
+      }
+      notifyError(
+        (result && !result.ok ? result.formError : undefined) ??
+          "That order couldn’t be saved. Please try again.",
+      );
+      // The truthful order is whatever the server holds, so the list is
+      // re-read rather than left showing an order that was refused.
+      revalidator.revalidate();
+      return false;
+    },
+    [postMeasurement, revalidator, notifyError],
+  );
+
+  /**
    * Saving the measurement configuration reuses the SAME `/mutate` endpoint and
    * the same partial-patch rule as every other Goal-owned field: the wire values
    * become a validated patch server-side, merged over the current configuration
@@ -249,6 +287,7 @@ export function GoalMeasurementSection({
         onToggleMilestone={toggleMilestone}
         onAddMilestone={addMilestone}
         onDeleteMilestone={deleteMilestone}
+        onReorderMilestones={reorderMilestones}
       />
       {checkIn ? (
         <GoalCheckInSheet

@@ -25,6 +25,7 @@ import { env } from "cloudflare:workers";
 import {
   GoalMeasurementNotFoundError,
   GoalMeasurementValidationError,
+  GoalMilestoneOrderStaleError,
   validateGoalMeasurementDate,
   validateGoalMeasurementValue,
   validateGoalMilestoneWeight,
@@ -71,6 +72,7 @@ export type GoalMeasurementMutationResult =
       readonly milestone: SerializedGoalMilestone;
     }
   | { readonly kind: "delete_milestone"; readonly ok: true }
+  | { readonly kind: "reorder_milestones"; readonly ok: true }
   | {
       readonly kind: GoalMeasurementIntent | "unknown";
       readonly ok: false;
@@ -84,7 +86,8 @@ export type GoalMeasurementIntent =
   | "delete_measurement"
   | "add_milestone"
   | "update_milestone"
-  | "delete_milestone";
+  | "delete_milestone"
+  | "reorder_milestones";
 
 const INTENTS: readonly GoalMeasurementIntent[] = [
   "log_measurement",
@@ -93,6 +96,7 @@ const INTENTS: readonly GoalMeasurementIntent[] = [
   "add_milestone",
   "update_milestone",
   "delete_milestone",
+  "reorder_milestones",
 ];
 
 function json(data: GoalMeasurementMutationResult, status = 200): Response {
@@ -218,6 +222,27 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         await scope.goalMeasurements.deleteMilestone(milestoneId);
         return json({ kind: intent, ok: true });
       }
+      /*
+       * DHDS-11 — the ONE stage-order mutation, shared by the drag and by the
+       * item menu's Move up / Move down.
+       *
+       * The order arrives as repeated `milestoneId` fields — an ordinary form
+       * list, so the same submission works from a fetcher and from a plain
+       * form. Every id is verified to belong to THIS Goal before anything is
+       * written, exactly as the single-milestone intents above are, and the
+       * repository re-checks membership inside the transaction: an order naming
+       * a stage of another Goal is a 404 rather than a silently-ignored id.
+       */
+      case "reorder_milestones": {
+        const milestoneIds = form
+          .getAll("milestoneId")
+          .map((value) => String(value));
+        for (const milestoneId of milestoneIds) {
+          await requireOwnedMilestone(scope, goalId, milestoneId);
+        }
+        await scope.goalMeasurements.reorderMilestones(goalId, milestoneIds);
+        return json({ kind: intent, ok: true });
+      }
     }
   } catch (cause) {
     if (cause instanceof Response) throw cause;
@@ -227,6 +252,11 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         ok: false,
         fieldErrors: { [cause.field]: cause.message },
       });
+    }
+    if (cause instanceof GoalMilestoneOrderStaleError) {
+      // NOT a 404: the Goal and its stages exist, the submitted ORDER is stale.
+      // The owner is told so in the server's own words and nothing was written.
+      return json({ kind: intent, ok: false, formError: cause.message });
     }
     if (cause instanceof GoalMeasurementNotFoundError) {
       throw new Response("Not Found", { status: 404 });

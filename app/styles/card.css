@@ -140,37 +140,16 @@
   min-height: var(--app-space-6);
 }
 
-.dh-card__reorder-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--app-space-6);
-  min-height: var(--app-space-6);
-  padding: var(--app-space-1);
-  color: var(--dh-color-text-muted);
-  background: transparent;
-  border: var(--app-border-width-thin) solid transparent;
-  border-radius: var(--dh-radius-control);
-  cursor: grab;
-  touch-action: none;
-}
-
-.dh-card__reorder-handle:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-  color: var(--dh-color-text);
-}
-
-.dh-card__reorder-handle[data-grabbed="true"] {
-  background: var(--dh-color-accent-subtle);
-  border-color: var(--dh-color-accent);
-  color: var(--dh-color-accent);
-  cursor: grabbing;
-}
-
-.dh-card__reorder-handle:disabled {
-  color: color-mix(in srgb, var(--dh-color-text) 38%, transparent);
-  cursor: not-allowed;
-}
+/*
+ * DHDS-11 removed `.dh-card__reorder-handle`.
+ *
+ * It was DS-04's own grip, styled here, for DS-04's own reorder collection. The
+ * card's `handle-slot` above stays — a card in a manually ordered collection
+ * still leads with a grip — but the grip itself is now the ONE shared
+ * `.dh-drag-handle` (`drag.css`), which brings its own cursor, its own reveal
+ * and its own grabbed state. A second one is what `dhds-11-drag-grammar` fails
+ * the build over.
+ */
 
 .dh-card__select-input {
   width: var(--app-space-5);
@@ -609,7 +588,6 @@
 /* -------------------------------------------------------------------------- */
 
 @media (hover: none) {
-  .dh-card__reorder-handle,
   .dh-card__action {
     min-height: var(--app-touch-target-min);
     min-width: var(--app-touch-target-min);
