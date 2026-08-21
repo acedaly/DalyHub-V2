@@ -732,4 +732,7 @@
   flex: none;
   margin-inline-start: auto;
   padding-inline-start: var(--dh-space-2);
+  /* A QUALIFIER, not an explanation: it names the option's KIND in one word and
+   * yields the whole width to the name it qualifies, so it never wraps. */
+  white-space: nowrap;
 }

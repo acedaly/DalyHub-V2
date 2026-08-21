@@ -192,23 +192,22 @@ for (const scheme of ["light", "dark"] as const) {
     test("a dialog, which is the one surface that interrupts", async ({
       page,
     }) => {
-      await gotoFixture(page, "/projects");
-      const card = page.locator("article.dh-pcard, li .dh-pcard").first();
-      if ((await card.count()) === 0) return;
-      await card.hover();
-      await card.getByRole("button", { name: /More actions for/ }).click();
-      const remove = page.getByRole("menuitem", { name: /^Delete/ });
-      if ((await remove.count()) === 0) {
-        await page.keyboard.press("Escape");
-        return;
-      }
-      await remove.first().click();
+      /*
+       * Project Settings' archive confirmation, which is the journey
+       * `accessibility.spec.ts` and `project-settings.spec.ts` both already
+       * drive — so this frame photographs a dialog the suite proves exists.
+       * The first cut opened a Projects card's overflow and looked for a
+       * "Delete" item that is not in it, silently captured nothing, and left
+       * the record citing two frames that were never written.
+       */
+      await gotoFixture(page, "/projects/pr-settings?tab=settings");
+      await page.getByRole("button", { name: "Archive project…" }).click();
       await page
-        .getByRole("dialog")
-        .first()
-        .waitFor({ state: "visible" })
-        .catch(() => undefined);
+        .getByRole("dialog", { name: "Archive this project?" })
+        .waitFor({ state: "visible" });
       await shoot(page, `desktop-${scheme}-dialog-confirm`);
+      // Cancel — a capture pass never actually archives the fixture.
+      await page.keyboard.press("Escape");
     });
   });
 

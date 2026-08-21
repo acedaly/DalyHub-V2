@@ -667,6 +667,100 @@ the second placement solver.
 
 ---
 
+## 19a. The final sweep
+
+Every file in `app/` that declares `aria-haspopup`, `role="menu"`,
+`role="listbox"` or `role="dialog"`, classified. **Not one is in a module**: the
+last module-level popup was retired by the sort convergence, so every floating
+surface in DalyHub is now a shared primitive or a shared adapter.
+
+| Classification | Surfaces |
+|---|---|
+| **Canonical primitive** | `Menu` · `Picker` · `Popover` · `AnchoredSurface` · `Sheet` · `Drawer` · `Inspector` · `ConfirmationDialog` · `Tooltip` |
+| **Adopter** | `OverflowMenu` · `InlineSelectField` · `InlineDateField` · `CalendarDateField` · `SelectField` · `EntityLinkPicker` · `FilterBar` · `CollectionControls` + its popover · `SortMenu` · `SavedViewSwitcher` · `TaskMetaControls` · `UserMenu` (appearance only) · `UnsavedChangesGuard` |
+| **Legitimate specialisation** | `CommandPalette` and `SearchSurface` (summoned centred command surfaces with their own ranking and selection model; they share the modal rung and the option row's job, not the anchored layer) · `MobileNav` (a navigation sheet) · `NotificationInbox` (a log, in the shared Sheet) · `SelectSheetControl` (a select's phone presentation) · `RecordLinkPicker` (an always-open results list inside the editor's own picker surface, not an overlay) · `InlineEditShell` (a trigger, not a surface) |
+| **Machinery** | `~/shared/anchored` (placement) and the DS-03 focus/inert/scroll-lock hooks |
+| **Missed migration** | none remaining |
+| **Documented debt** | `HoverCard` (DEBT-181) · tags (DEBT-182) |
+
+### The select pass, in full
+
+| Surface | Verdict |
+|---|---|
+| Meetings · Reviews · People collection sort | **replaced** — three drawings of one control |
+| Assets obligations / history filters | native `<select>`, kept |
+| Notes reference filter | native `<select>`, kept |
+| Reviews cadence filter | native `<select>`, kept |
+| Settings notification channel | native `<select>`, kept |
+| AI extraction review | native `<select>`, kept |
+| Tasks bulk-field bar | native `<select>`, kept — a bulk control inside a bar, not a contextual choice |
+| `~/shared/ui/Select` | the repainted native control (D31), unchanged |
+
+Everything kept is a low-frequency control inside a form, where the platform's
+own control brings the picker on touch, the free keyboard behaviour, the
+assistive-technology semantics and the no-JS submit — and where replacing it
+would be uniformity for its own sake. What was replaced is the high-frequency
+collection sort, which was the same control drawn three ways.
+
+## 19b. Repairs found on the way
+
+Small defects of the class that heavily affects perceived quality — three of
+them found only by driving a real browser, which is why the e2e journeys exist.
+
+- **A form's date picker painted no surface at all.** `CalendarDateField` put
+  `.dh-datepicker` (a column and a minimum width) on a bare `AnchoredSurface`,
+  so a date popover in a long form was drawn transparently over whatever
+  happened to be behind it. Composing the shared popover fixes it by
+  construction rather than by adding a fourth private panel style.
+- **A clamped surface would have compressed its rows instead of scrolling.** A
+  menu and a picker are flex columns, and a flex item's default `flex-shrink: 1`
+  means a height-clamped surface shrinks its ROWS to fit rather than scrolling
+  them. The retired `.dh-overflow-menu__item { flex: none }` had been carrying
+  this privately for the one surface that had it, and the shared row, the
+  separator, the heading and the picker's search field carry it now. MEASURED
+  after the fix, at 1280×420 with the trigger 200px down: the task-row menu
+  reports `clientHeight` 191 against `scrollHeight` 217 — the rows keep their
+  height and the surface scrolls, which is the assertion.
+- **A shadow clipped by its own wrapper.** The first cut put the surface classes
+  on a box INSIDE `.dh-anchored`, which clamps and scrolls — so the panel's
+  shadow was clipped by the wrapper and its bottom border scrolled away with the
+  last row. The surface and the box that scrolls are the same box now.
+- **34px rows in the phone sheet.** `--dh-menu-item-height` floors itself to the
+  touch minimum under `(pointer: coarse)`, and a narrow viewport is not the same
+  claim as a coarse pointer — measured 34px at 393×852. The sheet IS the touch
+  presentation, so its targets are floored unconditionally.
+- **A filter editor's Escape was global.** `FilterBar`'s own `keydown` listener
+  was on `document` rather than scoped to its surface, so an Escape pressed
+  while a select inside the editor was open closed the whole editor rather than
+  the select. The shared popover's is scoped.
+- **An account panel behind the Drawer.** The rail's user menu took the
+  `dropdown` rung (1000), below the Drawer (1200) and the modal band (1300), so
+  it rendered behind any surface opened over the rail.
+- **A card lifted above its neighbours while a menu was open.** UIQ-021 raised
+  the whole card to the dropdown layer to stop its own stacking context capping
+  the panel inside it. Portalling removed the need; the rule went with it.
+
+### Two test defects, repaired rather than worked around
+
+`collection-header.spec.ts` asserted that a menu too tall for either side of its
+trigger clamps and scrolls. The premise was a viewport 420px tall with the
+trigger 240px down, which left 232px above it — and the shared surface is 22rem
+where the private overflow panel was 20rem, so the same five actions wrap less
+and the menu is 217px tall. It FIT. The test would have gone on passing on a
+menu that never clamped, reporting `scrollHeight === clientHeight` as though
+that were success. The trigger now sits 200px down, which leaves 191px above and
+176px below and puts the menu back in the state the test names; the numbers are
+in a comment beside them so the next person who moves a row height knows what
+they are moving.
+
+`inline-editor-overlay.spec.ts` asserted that all four date presets exist. The
+product's own `taskDateShortcuts` deliberately DROPS a preset that would commit
+a date another already commits — on a Friday "Tomorrow" and "This weekend" are
+both Saturday — so the spec failed on two days in seven, and DHDS-09 happened to
+run it on a Friday. It now asserts the three that can never collide (today, +1
+and +7) plus the count, which is what the derivation actually promises.
+
+
 ## 20. Testing
 
 ### `test/unit/floating/floating-grammar.test.ts` — 9 contract assertions
@@ -726,7 +820,9 @@ paints a value it never persisted is worse than one that asks for a form.
 Four assertions moved from `within(card)` to the document, because a portalled
 menu is no longer a descendant of the card that opened it — which is the fix
 rather than an inconvenience. Two e2e placement assertions moved from the panel
-to the anchored surface that places it. One phone-presentation test was
+to the anchored surface that places it. Two clamp assertions kept their subject
+and moved their trigger, because a wider surface had quietly made their premise
+false (§19b). One phone-presentation test was
 rewritten to the converged contract (the same `menuitemradio` rows the desktop
 menu uses) and **strengthened** with an `aria-checked` assertion it did not have.
 
@@ -734,24 +830,87 @@ menu uses) and **strengthened** with an `aria-checked` assertion it did not have
 
 ## 21. Validation actually run
 
+Every line below was RUN in this environment, in this order, on the final tree.
+
 | Gate | Result |
 |---|---|
-| `pnpm run format:check` | pass |
-| `pnpm run lint` | pass |
+| `pnpm run format:check` | pass — all matched files use Prettier style |
+| `pnpm run lint` | pass — no errors, no warnings |
 | `pnpm run typecheck` | pass |
-| `pnpm run scheme:check` | pass |
-| `pnpm run icons:check` | pass |
-| `pnpm run dhds:check` | pass — 0 direct machinery references |
+| `pnpm run scheme:check` | pass — `tokens.css` and `scheme.ts` match the generator |
+| `pnpm run icons:check` | pass — 11 icon assets match the canonical geometry |
+| `pnpm run dhds:check` | pass — **0** direct machinery references |
 | `pnpm run build` | pass |
-| `pnpm run test:unit` | pass |
-| `pnpm run test:kernel` | pass |
-| `pnpm run e2e:partitions:check` | pass |
-| `e2e/floating-surfaces.spec.ts` | see the record in §22 |
-| `e2e/tooltip.spec.ts` | 14 passed |
+| `pnpm run test:unit` | pass — 6 262 tests in 440 files |
+| `pnpm run test:kernel` | pass — 2 839 tests in 178 files |
+| `pnpm run e2e:partitions:check` | pass — 114 spec files across 12 partitions, heaviest 15.4 min |
 
-The full twelve-partition E2E gate is a multi-hour suite and was not run in this
+### Playwright journeys
+
+| Spec | Result |
+|---|---|
+| `e2e/floating-surfaces.spec.ts` | **8 passed** — the new journeys, 51.6 s of test time |
+| `e2e/collection-header.spec.ts` | **20 passed** — including the five UIQ-021 placement journeys |
+| `e2e/inline-editor-overlay.spec.ts` | pass |
+| `e2e/mobile-shell.spec.ts` | pass |
+| `e2e/tooltip.spec.ts` | 14 passed |
+| `e2e/dhds-09-floating-screenshots.spec.ts` | **19 passed** — 33 frames captured |
+
+`e2e/floating-surfaces.spec.ts` is a NEW spec file, so it had no measured
+duration and `e2e:partitions:check` correctly refused a manifest that would have
+sized it at the 120 s default guess. It was measured here (51.6 s over 8 tests),
+recorded under the source `local:dhds-09`, and the manifest states in prose that
+the figure is local and should be replaced from the first CI run that publishes
+an artefact including it — the same treatment, for the same reason, that
+HARDEN-06B gave `meetings-concurrency.spec.ts`.
+
+The full twelve-partition E2E gate is a ~3-hour suite and was not run in this
 environment; DHDS-08 recorded nineteen pre-existing failures in it, verified
 against the merge base, and nothing in this phase moves that set.
+
+---
+
+## 21a. Visual evidence
+
+`docs/design/assets/dhds-09-2026-08/` — **33 frames**, captured by
+`e2e/dhds-09-floating-screenshots.spec.ts` with `CAPTURE_SCREENSHOTS=1`, all in
+one run so the surfaces can be compared to each other rather than to memory.
+
+| Frame | What it is evidence OF |
+|---|---|
+| `desktop-{light,dark}-menu-priority` | the canonical option row: leading mark, label, current value bold and checked, the trigger still lit beside it |
+| `desktop-{light,dark}-menu-parent` | the same row anatomy carrying a supporting label, and the last row handing off to the searchable picker |
+| `desktop-{light,dark}-menu-overflow` | the overflow menu portalled clear of the row that used to clip it, with real separators grouping its actions |
+| `desktop-{light,dark}-popover-date` | presets, a month grid and two commands — the surface that is deliberately NOT a list |
+| `desktop-{light,dark}-popover-controls` | the collection's filter and sort surface on the shared grammar |
+| `desktop-{light,dark}-picker-parent` | the combobox-in-a-dialog, opened from inside Quick Capture: a surface nested over a sheet, with the sheet still legible behind |
+| `desktop-{light,dark}-picker-empty` | the empty state naming the query — *No project or area matches “Training”* |
+| `desktop-{light,dark}-sort-{meetings,reviews,people}` | three collections that drew three different sort controls, now drawing one |
+| `desktop-{light,dark}-capture-metadata` | Quick Capture: title first, one metadata line, progressive disclosure |
+| `desktop-{light,dark}-capture-date-open` | the nesting rule as a still |
+| `desktop-{light,dark}-dialog-confirm` | the one surface that interrupts, on the modal rung |
+| `phone-{light,dark}-sheet-{priority,date}` | every anchored surface becoming a bottom sheet at 393×852, not a shrunken popover |
+| `phone-{light,dark}-capture-metadata` | Quick Capture, one-handed |
+| `narrow-320-sheet-priority` | the narrowest supported viewport keeping its content and overflowing nothing |
+
+What the set shows, read side by side: one border weight, one radius per rung,
+one shadow, one option height, one place for the check, and the same appearance
+in both colour schemes. No glow, no glass, no blur, and no second elevation.
+
+The frames were then LOOKED AT, which is the only reason this section can be
+trusted: the dialog capture's first cut opened a Projects card's overflow menu
+looking for a "Delete" item that is not in it, took the `count() === 0` branch,
+and passed while writing nothing — so the record cited two frames that did not
+exist. It now drives Project Settings' archive confirmation, the journey two
+other specs already prove. Counting the files on disk against the table is part
+of the pass.
+
+One thing the frames prompted and did NOT change: the confirmation dialog's
+scrim measures ~10% dim (`--dh-color-scrim` at 32%, itself already partly
+transparent), which is subtle enough in a still to look absent. It is not — the
+scrim's computed opacity is 1 once its entrance finishes, and the tone is DS-03's
+decision for every modal in the product. Restyling it here would be DHDS-09
+changing something it did not measure a problem with.
 
 ---
 

@@ -208,6 +208,8 @@
    */
   flex: none;
   align-items: center;
+  /* A row with a wrapping description grows past the floor; the padding above
+   * keeps its text off the row's edges when it does. */
   gap: var(--dh-space-2);
   inline-size: 100%;
   min-block-size: var(--dh-menu-item-height);
@@ -359,15 +361,26 @@
   white-space: nowrap;
 }
 
-/* The supporting label — what a status means, which kind of parent this is, a
- * person's role. One line, quieter, never a second sentence. */
+/*
+ * The supporting label — what a status means, why an action is blocked, which
+ * kind of parent this is.
+ *
+ * It WRAPS, and the label above it does not. That asymmetry is the point: a
+ * name is an identifier and an ellipsised name is still recognisable, while a
+ * description is a sentence and an ellipsised sentence explains nothing. The
+ * first cut had this the wrong way round, and MEASURED the cost — the Tasks row
+ * menu's "Move to Project or Area… / Search the whole workspace." collapsed to
+ * one clipped line, which is the half of the item that says what it does.
+ *
+ * A surface that genuinely wants a trailing QUALIFIER rather than an
+ * explanation — a Project option's "Project"/"Area" — says so for itself; see
+ * `.dh-inline-select__menu .dh-option__support` in `inline-edit.css`.
+ */
 .dh-option__support {
-  overflow: hidden;
   color: var(--dh-color-text-muted);
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /*
