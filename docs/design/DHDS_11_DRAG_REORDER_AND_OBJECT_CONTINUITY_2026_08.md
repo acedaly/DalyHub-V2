@@ -753,6 +753,46 @@ Timing is by visible state and by persisted server state. There are no sleeps an
 no pixel choreography — a drag is expressed as "from this element's centre to
 that element's centre", which is geometry the page itself supplies.
 
+### The regression run, and the failures that are not this phase's
+
+The specs over every surface this phase touched were run in full:
+
+| Spec | Result |
+|---|---|
+| `dhds-11-drag-reorder.spec.ts` | **16 / 16** |
+| `tasks-checklist.spec.ts` | **31 / 31** |
+| `cards-filters.spec.ts` | **all pass** (the design fixture migrated onto `SortableList`) |
+| `tasks-collection.spec.ts` | **all pass** |
+| `dhds-10-inline-manipulation.spec.ts` | **13 / 13** — the phase whose mutations DHDS-11 reuses |
+| `goal-measurement.spec.ts` | 18 / 19 |
+| `today-task-convergence.spec.ts` | 20 / 22 |
+
+**Three failures, all pre-existing, each REPRODUCED rather than assumed.** Each
+was re-run with `app/` checked out at the base commit, against the same seeded
+database, and each failed identically with the same error:
+
+- `goal-measurement.spec.ts` — "shows the workload trend once the week has
+  something in it";
+- `today-task-convergence.spec.ts` — "completes and reopens, and `/tasks` agrees
+  both times";
+- `today-task-convergence.spec.ts` — "swipes right to complete, left to
+  schedule".
+
+All three carry [DEBT-179](../product/PRODUCT_DEBT.md)'s signature exactly —
+`locator.check()` on a completion checkbox, the click reported as performed, the
+checkbox never becoming checked — and all three are named in its list of
+nineteen. The last two are the same pair the [DHDS-10 record](DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md)
+§14 reproduced on `0f768c8` for the same reason.
+
+They were checked FIRST rather than last, because DHDS-11 does touch the
+completion path (the departing row). The reproduction is what establishes that
+it does not touch it in a way that breaks them.
+
+One Unit test — `collection-controls-live-apply.test.tsx`, "returns to the
+committed state once the router settles" — failed once in a full run taken while
+a Playwright capture pass was saturating the machine, and passes in isolation and
+in a quiet run. It touches no code this phase changed.
+
 ---
 
 ## 17. Visual evidence
