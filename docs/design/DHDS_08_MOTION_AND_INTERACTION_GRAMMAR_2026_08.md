@@ -626,11 +626,16 @@ drift apart.
 
 ### The E2E gate: 19 pre-existing failures, every one verified
 
-The full twelve-partition gate ran in CI on this branch (runs 32424290783 and
-32428461587). **Static, Scope, Build and Unit are green.** Eight E2E partitions
-are red, carrying **19 failing tests between them** — and the two runs, taken
-before and after the review fixes, produce the *identical* set, so nothing in
-this branch moves it either way.
+The full twelve-partition gate ran in CI on this branch three times (runs
+32424290783, 32428461587 and 32430980151). **Static, Scope, Build and Unit are
+green in every one.** Eight E2E partitions are red, carrying **19 failing tests**
+— and every run draws from the same set, so nothing in this branch moves it.
+
+The third run is the sharpest evidence: 18 failures rather than 19, **no new test
+in the set**, and the one that stopped failing is `tasks-collection.spec.ts:298`
+— the test already diagnosed as reading accumulated workspace state rather than
+testing a filter defect. Two runs on the same branch content disagreeing about it
+is that diagnosis confirmed by observation rather than argued.
 
 Every one of the nineteen was checked individually by restoring `app/` to
 `157a3f4` (the merge-base), reseeding the local database and re-running the same
