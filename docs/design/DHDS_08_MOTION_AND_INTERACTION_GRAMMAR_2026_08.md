@@ -631,11 +631,33 @@ The full twelve-partition gate ran in CI on this branch three times (runs
 green in every one.** Eight E2E partitions are red, carrying **19 failing tests**
 — and every run draws from the same set, so nothing in this branch moves it.
 
-The third run is the sharpest evidence: 18 failures rather than 19, **no new test
-in the set**, and the one that stopped failing is `tasks-collection.spec.ts:298`
-— the test already diagnosed as reading accumulated workspace state rather than
-testing a filter defect. Two runs on the same branch content disagreeing about it
-is that diagnosis confirmed by observation rather than argued.
+**`main`'s own gate fails exactly the same nineteen** (run 32409611083, at
+`157a3f4`) — the same list, test for test. That is stronger than the local
+base-tree reproduction and settles the question of ownership.
+
+**A correction to an earlier claim in this record.** It said the failing set was
+identical run to run. It is not: four runs of this branch produced **19, 19, 18
+and 20**. Eighteen are constant; three tests move —
+`tasks-collection.spec.ts:298` (fail, fail, **pass**, fail), and
+`identity.spec.ts:124` and `notes.spec.ts:382`, which appeared once, on a commit
+that changes **two markdown files and nothing else**.
+
+Both of the newcomers were investigated rather than assumed, because one of them
+— a failed save showing an error state with Retry — is exactly the kind of thing
+this phase could have broken (DHDS-08 §12 governs error feedback, and the branch
+does touch the toast path). It could not have:
+
+- the Retry control is the editor's **inline save-status indicator**, not a
+  toast; every file implementing it (`SaveStatusIndicator.tsx`,
+  `use-autosave-field.ts`) is untouched by this branch;
+- no colour-scheme source file is touched either, and `scheme:check` is green;
+- both specs pass locally on this branch against a fresh database, 23/23;
+- they failed in one run out of four, on a markdown-only commit.
+
+So the churn is DEBT-173 reaching the margins of the set rather than anything
+motion did — but the useful lesson is the one the churn teaches: while the gate
+is red for unrelated reasons, "the set changed" cannot by itself distinguish a
+regression from contamination. Only a mechanism can.
 
 Every one of the nineteen was checked individually by restoring `app/` to
 `157a3f4` (the merge-base), reseeding the local database and re-running the same
