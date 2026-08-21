@@ -1,5 +1,31 @@
 # Changelog
 
+- Made DalyHub feel handled rather than operated. Small changes now happen where
+  you are already looking. You can rename a task from Today and from the weekly
+  plan, not only from the Tasks list; moving a task to a project that is not in
+  the short menu opens a search box over the row instead of opening the whole
+  task; a repeat can be set to Daily, Weekly or Monthly from the task itself,
+  with the full editor still there for anything more involved. A project's
+  status changes from the project's own header rather than from a settings tab,
+  and its Area changes from the cell that already names it. A goal's target date
+  is set on the screen you read goals on. An asset's status, where it is kept
+  and which part of life it belongs to are edited on the record that used to
+  simply print them under an "Edit details" link. Every one of these writes
+  through exactly the same path the record page uses, so nothing is a shortcut
+  that behaves differently, and a change that the server refuses leaves the real
+  value on screen with the reason beside it rather than quietly pretending.
+
+  And the counterweight, which mattered as much: none of it made the product
+  louder. A list of fifty tasks still shows dates, projects and priorities as
+  plain text — no boxes, no dropdown arrows, no column of "Not set" — and the
+  controls appear only when you point at a row or tab to it. Two things that had
+  been quietly wrong were found by looking: metadata on a phone had a smaller
+  touch target than it should have, and a project's "Project"/"Area" label in
+  the chooser was stranded on its own line, making every option twice as tall as
+  it needed to be. Both are fixed. Keyboard operation is first-class throughout,
+  a phone gets a proper bottom sheet for every choice, and nothing was added to
+  the database to make any of it possible.
+
 - Made changing something as fast as reading it. Anything that floats above the
   page — a menu, a date picker, a Project chooser, a filter panel, a
   confirmation — is now one recognisable family with one set of habits, and each

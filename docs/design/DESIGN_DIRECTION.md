@@ -257,6 +257,58 @@ Full taxonomy, keyboard contract, dismissal rules, focus restoration and the
 migrated surfaces:
 [`DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md`](DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md).
 
+### Direct editing (DHDS-10)
+
+> **If the owner can safely change a small property where they are already
+> looking at it, DalyHub should usually let them change it there.**
+
+DHDS-09 decided what a contextual surface IS. DHDS-10 decides **which values
+open one**, and — the half that is easier to get wrong — which do not.
+
+Every editable property is one of three things:
+
+| Class | Use it when | The interaction |
+| --- | --- | --- |
+| **Immediate toggle** | the choice is binary and reversible | tap → optimistic → Undo where reversal has value. Never a menu for a binary decision |
+| **Contextual choice** | a small enumeration, or one record out of many | press the value → the DHDS-09 surface → choose. Never a record editor |
+| **Inline text** | a short textual property, safely edited in context | a deliberate entry into edit mode → Enter commits, Escape cancels |
+
+**Inline is for a two-second decision; the Inspector is for understanding and
+deeply editing a record.** Use the deeper editor when several dependent fields
+must be configured together, when explanation is required, when destructive
+implications exist, when validation is complicated, when long-form content is
+involved, or when the operation has concurrency implications. A contextual
+surface may end with `Custom…`, `Edit details…` or `Manage…` opening it. The
+point is not "never use forms"; the point is *don't use a form for a two-second
+decision*.
+
+Two rules the direction is easiest to break on, and they pull against each
+other on purpose:
+
+- **Do not require the Inspector to change tomorrow to Friday.** If a row can
+  state a value, the row can change it. The collection stays where it was, the
+  scroll position stays where it was, and the owner stays in context.
+- **Do not turn DalyHub into a spreadsheet.** At rest the interface remains
+  quiet. `Tomorrow · DalyHub · P2` — not `[Tomorrow ▼] [DalyHub ▼] [P2 ▼]`. In
+  a run of metadata the value is drawn and the affordances wait for the row to
+  be engaged with, through the DHDS-08 reveal rather than a per-surface rule.
+  **The page should look like information first and controls second.**
+
+A **status badge** and **editable metadata** are different things: a badge says
+what a record IS, and it does not become a control merely because the value
+behind it is editable. Ordinary metadata is text- and icon-led; priority keeps
+its compact flag; a high-value semantic state may use a restrained badge. Never
+a wall of coloured capsules.
+
+Nothing calculated is directly editable. A Goal's progress derives from its
+measurements and its Projects — the way to change it is to record a measurement
+or complete a milestone, never a manual percentage invented to make a bar
+clickable.
+
+Full grammar, per-module adoption, the keyboard/mobile/refusal contracts, the
+deliberate exceptions and the deferred domain gaps:
+[`DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md`](DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md).
+
 ### Motion grammar (DHDS-08)
 
 > **Motion explains what changed, where something came from, where it went, or

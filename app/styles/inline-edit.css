@@ -859,11 +859,34 @@
  * one thing the shared row cannot know, which is that a Project's KIND belongs
  * at the trailing edge rather than under its name.
  */
+/*
+ * A QUALIFIER, not an explanation: it names the option's KIND in one word and
+ * yields the whole width to the name it qualifies, so it never wraps.
+ *
+ * ── DHDS-10 — it has to be on the same LINE to be a qualifier ───────────────
+ * `.dh-option__labels` is a COLUMN, so `margin-inline-start: auto` alone
+ * right-ALIGNED the word without bringing it up: every Project option in the
+ * field's menu was two lines tall with a stranded "Project" under the far end
+ * of the name, and in the phone sheet — where the row is the width of the
+ * screen — the qualifier sat ~200px away from the thing it qualifies.
+ *
+ * Photographed rather than reasoned: `docs/design/assets/dhds-10-2026-08/`
+ * captured it in both presentations, which is the whole reason an evidence
+ * pass is part of a convergence phase.
+ *
+ * So the labels box becomes a ROW here, on the baseline. Only here: a picker's
+ * support line is a real supporting line and stays beneath its label, which is
+ * what `.dh-option__support`'s own note in `floating.css` describes.
+ */
+.dh-inline-select__menu .dh-option__labels {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+}
+
 .dh-inline-select__menu .dh-option__support {
   flex: none;
   margin-inline-start: auto;
   padding-inline-start: var(--dh-space-2);
-  /* A QUALIFIER, not an explanation: it names the option's KIND in one word and
-   * yields the whole width to the name it qualifies, so it never wraps. */
   white-space: nowrap;
 }
