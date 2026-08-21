@@ -3159,6 +3159,14 @@
   text-decoration: none;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
+  white-space: nowrap;
+}
+
+/* DHDS-13 — the half that actually truncates. See the note at `ReachLink`: the
+ * link above is a flex container, so the ellipsis has to live on a real box. */
+.dh-prow .dh-prow__reach-value {
+  min-inline-size: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

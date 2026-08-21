@@ -1415,6 +1415,25 @@
     flex: none;
     margin-inline-start: auto;
     padding-inline-start: var(--dh-space-2);
+    /*
+     * DHDS-13 — the cell RESERVES the mark, so the mark is never sliced.
+     *
+     * The mark is `flag + gap + tag` and the tag is two characters, so the whole
+     * object is ~34.5px at the row's metadata size. Left to hug, the cell came
+     * out 4px SHORT of that at every phone width — the trigger's percentage
+     * width resolved against an intrinsic contribution that omitted
+     * `.dh-priority`'s flex `gap`, and `.dh-inline-select__label` (which is
+     * `overflow: hidden` so a long PROJECT name can ellipsise) then chopped the
+     * digit in half. MEASURED on `/tasks` and `/today` at 320, 360, 375, 393 and
+     * 430: every row rendered "P" plus a sliced "1". Desktop was never affected,
+     * because there the cell is a grid column with slack.
+     *
+     * A floor is the right shape of fix rather than switching the trigger to
+     * `inline-size: auto`: the cell is the thing that must be big enough to hold
+     * its own content, and stating that in `rem` keeps it true under OS text
+     * scaling, which a pixel value would not.
+     */
+    min-inline-size: 3.5rem;
   }
 
   /*
@@ -1476,8 +1495,28 @@
  * either fits or overflows. The due date yields to the project — "which project
  * is this?" is asked before "when is it due?" — and the trailing overflow keeps
  * its 44px target because a target floor is not a responsive decision.
+ *
+ * ── DHDS-13 — the tier is 21rem, and it was 19 ──────────────────────────────
+ * The threshold was calibrated on the bare `/tasks` list, whose dates are short
+ * ("28 days ago"). Today's **Now** card holds the same row one container deeper
+ * — page gutter, then the card, then the list's own inset — so its list is
+ * ~34px narrower than the plain one at the same viewport, and its dates are the
+ * long end of the ladder ("Over a year ago", 105px). Between 19rem and ~23rem
+ * the row therefore kept the date and paid for it out of the project, which is
+ * the opposite of what this tier exists to decide.
+ *
+ * MEASURED on `/today` at 393px — the most common current handset width — the
+ * Now row's container is 20.44rem, the date rendered in full and "Conference
+ * talk" was reduced to **"C…"**: a fact ellipsised to one character, which D32
+ * already records as a fact that has stopped carrying information.
+ *
+ * 21rem is the value that separates the two cases rather than merging them:
+ * Today's Now row at 393px (20.44rem) yields its date and shows the project
+ * whole, while the plain `/tasks` list at 375px (21.44rem) and above keeps both.
+ * The tier is a container query, so it follows the LIST — a Board column or a
+ * Today panel gets the same decision the window can't make for it.
  */
-@container tasklist (max-width: 19rem) {
+@container tasklist (max-width: 21rem) {
   .dh-taskrow__cell--due {
     display: none;
   }

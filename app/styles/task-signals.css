@@ -124,6 +124,8 @@
   font-size: var(--dh-text-meta-size);
   font-weight: 500;
   white-space: nowrap;
+  /* Never wider than the box it was given — see `.dh-urgency__label`. */
+  max-inline-size: 100%;
 }
 
 .dh-urgency__icon {
@@ -132,6 +134,18 @@
 
 .dh-urgency__label {
   line-height: 1.2;
+  /*
+   * DHDS-13 — the label truncates rather than pushing the chip out of its cell.
+   *
+   * The chip is `white-space: nowrap` and `inline-flex`, which is right for a
+   * row's trailing run and wrong inside a bounded metadata cell: an inline-level
+   * box in a block wrapper does not shrink, so "Overdue · due 25 Jul 2026" (200px)
+   * ran 22px past a 178px cell and 2px past the DRAWER, where it was clipped by
+   * the panel edge. MEASURED on the Task drawer at 1440 and 1100.
+   */
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*

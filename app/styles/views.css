@@ -113,30 +113,67 @@
   font-weight: 400;
 }
 
+/*
+ * ── DHDS-13 — Views takes the SHARED ROW GRAMMAR ────────────────────────────
+ *
+ * Every result used to be its own rounded `surface` slab with a 4px gap to the
+ * next one: a page of fifty separated white rectangles on grey, which is the
+ * "cards around every section… nested rounded containers" the direction lists
+ * first among the things to avoid, and which D34 already records as the failure
+ * mode of a tonal step repeated at list density ("the eye reads a field of
+ * slightly-different-white rectangles"). Every other collection in the product
+ * — Tasks, Areas, People, Notes — draws one bounded surface with hairlines
+ * between the rows, and Views was the last one that did not.
+ *
+ * The geometry below is `card-family.css`'s `.dh-row-list` / `.dh-row` verbatim
+ * (surface and border on the LIST, hairline between adjacent rows, the two-line
+ * height floor and the row's inline inset), applied to the markup Views already
+ * has rather than by rebuilding it onto `RecordRow` — the `<ul>/<li>` semantics
+ * and the test hooks are the same either way, and the risk is not.
+ */
 .dh-views__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
+  background: var(--dh-color-surface);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  overflow: hidden;
 }
 
 .dh-views__row {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-1);
+  justify-content: center;
+  gap: var(--app-space-px);
   min-width: 0;
-  padding: var(--app-space-3);
-  /* UIX-06 — D1: a card separates by its surface step, not by a hairline. */
-  border: none;
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  min-block-size: var(--app-list-row-height-two-line);
+  padding: var(--app-space-2) var(--app-space-4);
 }
 
-.dh-views__row-link {
+.dh-views__list > .dh-views__row + .dh-views__row {
+  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
+}
+
+/*
+ * The title is `on-surface`, not link blue — `.dh-row`'s own rule, and for its
+ * own reason: "a list of fifty blue titles has no hierarchy left". `EntityLink`
+ * is the accent because it marks a relationship INSIDE a sentence; as a row's
+ * primary line it was announcing itself instead of naming the record, and it
+ * made the same Task read violet here and `on-surface` on `/tasks`.
+ */
+.dh-views__row .dh-views__row-link,
+.dh-views__row .dh-views__row-link:visited {
   min-width: 0;
-  font-size: var(--dh-text-lead-size);
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  font-weight: 500;
+  color: var(--dh-color-text);
+}
+
+.dh-views__row .dh-views__row-link:hover,
+.dh-views__row .dh-views__row-link:focus-visible {
+  color: var(--dh-color-text);
 }
 
 /* A long title wraps rather than pushing the row wider: a cross-module list must
@@ -156,7 +193,13 @@
   overflow-wrap: anywhere;
 }
 
-.dh-views__row-date {
+/*
+ * DHDS-13 — the date joins the metadata ramp. It was `on-surface` at weight 500
+ * on a line where everything else is muted, which made "Overdue — due 1 Jan
+ * 2000" the loudest thing in a row whose subject is the record. Overdue keeps a
+ * colour, beside the word the label already says.
+ */
+.dh-views__row-date[data-overdue="true"] {
   font-weight: 500;
-  color: var(--dh-color-text);
+  color: var(--dh-color-danger);
 }

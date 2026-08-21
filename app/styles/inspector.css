@@ -125,7 +125,7 @@
   z-index: var(--dh-layer-scrim);
   border: 0;
   padding: 0;
-  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
+  background: var(--dh-color-scrim);
   /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
   cursor: pointer;
 }

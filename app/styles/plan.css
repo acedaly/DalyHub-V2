@@ -31,8 +31,26 @@
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-4);
-  /* The pane already owns the gutter; the page adds only its own bottom air. */
-  padding-block-end: var(--dh-space-8);
+  /*
+   * ── DHDS-13 — the page sits on the SHARED FRAME, and it did not ────────────
+   * This declared "the pane already owns the gutter", which was never true: the
+   * gutter belongs to `.dh-pane-header` and to the collection's own content
+   * padding (`shell.css`, `collection-layout.css`), and Plan composes neither.
+   * MEASURED against `main.dh-pane` on every module: fifteen pages put their
+   * `h1` at gutter 40/15 (desktop/phone) horizontally and 24–45 vertically;
+   * Plan alone put it at **0, 0** — flush to the pane's left edge and hard
+   * against the underside of the sticky top bar, and at 393px flush to the
+   * viewport edge with its supporting line indented beside it.
+   *
+   * AGENTS.md §6 states the rule this broke in one sentence — "the frame has ONE
+   * origin: rail → gutter → everything… a page's title and the first row of its
+   * content start on the same vertical line at every width" — so this is the
+   * shared frame applied, not a Plan-specific composition. The block start
+   * matches `.dh-pane-header--compact`'s, so Plan's title sits on the same
+   * baseline as every collection's.
+   */
+  padding-inline: var(--dh-shell-gutter);
+  padding-block: var(--dh-space-5) var(--dh-space-8);
   min-width: 0;
 }
 
@@ -829,6 +847,18 @@
   }
 
   .dh-plan__rail-day {
+    /*
+     * DHDS-13 — the day is its own containing block.
+     *
+     * Each day carries a `.dh-visually-hidden` full label ("Sunday 23 August, 0
+     * tasks"), and that technique is `position: absolute` with a 1px box. With
+     * the button static, the label's containing block was somewhere above the
+     * scrolling strip, so the LAST day's label was laid out at its unclipped
+     * x — 333px on a 320px viewport — and pushed the document sideways by 13px
+     * the moment the page took its gutter. Positioning the button keeps the
+     * label inside the strip that is already clipping it.
+     */
+    position: relative;
     flex: 1 0 auto;
     display: flex;
     flex-direction: column;

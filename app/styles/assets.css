@@ -93,10 +93,21 @@
   align-items: center;
   min-inline-size: 0;
   max-inline-size: 100%;
-  padding: var(--app-space-3) var(--app-space-4);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface-subtle);
+  /*
+   * ── DHDS-13 — no TRAY around the filter band ────────────────────────────────
+   * Assets was the only collection that drew one: a bordered
+   * `surface-subtle` box holding two bordered inputs, which is a nested surface
+   * (D1/D34: a container around controls that already have their own) and reads
+   * as broken beside the shared band. `.dh-collection__filters` occupies
+   * x=224–1298 and the shared "Filter & sort" control occupies 1298–1440 at
+   * every width, in every collection — so on Assets alone the tray's visible
+   * right edge stopped ~14px short of a button that is plainly part of the same
+   * row, and the button looked as though it had fallen out of the toolbar.
+   * MEASURED at 1440 on `/assets` against `/notes`, `/tasks` and `/reviews`.
+   *
+   * The band keeps its layout — the two fixed measures, the wrap, the chips
+   * flowing after them. Only the box goes.
+   */
 }
 
 /*

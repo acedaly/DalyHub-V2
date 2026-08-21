@@ -46,7 +46,7 @@
 
 @media (max-width: 48rem) {
   .drawer-backdrop {
-    background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
+    background: var(--dh-color-scrim);
   }
 }
 

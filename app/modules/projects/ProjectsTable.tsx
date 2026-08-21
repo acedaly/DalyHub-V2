@@ -233,7 +233,19 @@ function ProjectTableRow({
         {card.meta.map((fact) => fact.text).join(" · ")}
       </td>
       <td>{card.updatedLabel?.replace(/^Updated /, "") ?? <Absent />}</td>
-      <td className="dh-ptable__actions">
+      {/*
+       * DHDS-13 — the reveal contract, WIRED UP.
+       *
+       * The row has declared `data-dh-action-context="true"` since DHDS-08, and
+       * the note beside it says the overflow button fades in with the row
+       * "rather than being drawn on forty rows at rest". It was: the contract
+       * needs `dh-action-reveal` on the trailing container (`motion.css`) and
+       * this cell never carried it, so the intent was stated and never took
+       * effect. MEASURED at 1440 on `/projects` — a `⋯` painted on every one of
+       * 83 rows with no pointer anywhere near them. The class is inert outside a
+       * hover pointer, so touch, forced colours and the keyboard are unchanged.
+       */}
+      <td className="dh-ptable__actions dh-action-reveal">
         <OverflowMenu
           items={lifecycle.overflowActions}
           label={`More actions for ${card.title}`}

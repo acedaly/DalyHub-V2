@@ -47,6 +47,28 @@ describes what someone hopes is true is worse than none at all.
   records decisions taken but **not yet implemented**, with the reason each is
   still outstanding. Nothing in Part 2 may be cited as current behaviour.
 
+> **Programme status (21 August 2026).** The broad design-convergence programme
+> is closed by
+> [DHDS-13](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md), the commercial-quality
+> gate. This document stays the standing policy; it is no longer the input to a
+> numbered phase.
+>
+> **DHDS-13 added no departure and changed no decision.** Every one of its
+> eleven fixes repairs something this system had already decided and the
+> implementation had not delivered — a scrim painted at a third of its authored
+> alpha, a sheet on the elevation token its own definition rules out, a reveal
+> contract declared on a row and never wired to its container, a collection that
+> never took the row grammar, a cell that hugged four pixels short of the mark it
+> holds. That is the shape a convergence gate should have: **if a quality pass
+> has to invent a new rule to justify a fix, it is redesigning rather than
+> converging.**
+>
+> One thing it did change is an authority, not a value:
+> [`AGENTS.md`](../../AGENTS.md) §6 still asserted "the navigation rail is DARK,
+> in both appearances" long after FINAL-UI amended **D35** to the recessed
+> relationship this document has described since. The constitution was the last
+> document carrying the superseded rule.
+
 ---
 
 # Part 1 — What holds today

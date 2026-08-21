@@ -128,6 +128,17 @@ function dateLabelOf(result: CrossViewResult, todayIso: string): string | null {
   return `${prefix}${formatted}`;
 }
 
+/**
+ * Does this result's dated fact describe a date that has already passed on a
+ * record still open? The same test `dateLabelOf` uses for its "Overdue — …"
+ * phrasing, named once so the label and the row's colour cannot disagree.
+ */
+function isOverdue(result: CrossViewResult, todayIso: string): boolean {
+  if (result.detail.kind === "review") return false;
+  if (result.dueDate === null) return false;
+  return result.dueDate < todayIso && !isClosed(result);
+}
+
 function isClosed(result: CrossViewResult): boolean {
   switch (result.detail.kind) {
     case "task":
@@ -162,6 +173,7 @@ export function resultToItem(
     archived: result.archived,
     statusLabel: statusLabelOf(result),
     dateLabel: dateLabelOf(result, todayIso),
+    overdue: isOverdue(result, todayIso),
     detail: result.detail,
   };
 }

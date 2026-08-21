@@ -17,6 +17,17 @@ would break functionality, accessibility, truthful data presentation or an
 architecture decision. Existing concept images are evidence of this direction,
 not a substitute for understanding it.
 
+> **Programme status (21 August 2026).** The broad design-convergence programme
+> that delivered this direction — DHDS-01 through DHDS-11, closed by the
+> commercial-quality gate
+> [DHDS-13](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) — is **complete**. This
+> document remains the standing brief for every user-facing change. It is no
+> longer the input to a numbered redesign phase, and there will not be another
+> one without a materially changed product direction: see
+> [DHDS-13 §18](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md#18-what-happens-after-dhds-13).
+> Future UI work is module-, feature-, bug- and accessibility-specific, tied to
+> actual product work.
+
 ## What DalyHub is
 
 DalyHub is a calm, premium personal operating system: Todoist's clarity,
@@ -609,6 +620,23 @@ Before declaring a UI change complete, verify:
 - Empty, loading, error, long-content and realistic-data states still work.
 - Keyboard, focus, touch targets and reduced-motion behaviour remain correct.
 - A representative screenshot was inspected at desktop and phone width.
+- **Any geometry the change ASSERTS was measured, not looked at.** If it claims
+  a gutter, a target, a floor, a reserved column, a truncation or a hit area,
+  read the live box at every width the claim covers and assert on the number.
 
 If the implementation technically passes but still looks like a component
 library demo, it is not finished.
+
+### Why the last bullet exists
+
+[DHDS-13](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) audited the shipped
+product after five convergence phases and found four P1 defects, **every one of
+which was invisible to the check above it**. A screenshot at 1× shows "P1"; only
+a measurement shows that the "1" is four pixels wider than the box painting it,
+on every task row on every phone. A visual pass shows a violet Capture button;
+only a measurement shows the icon inside it is 0×0 at every tablet width. A page
+looks composed until you subtract its neighbour's gutter from its own and get
+zero.
+
+Inspection finds what is ugly. Measurement finds what is broken. A quality bar
+needs both, and only one of them was written down.

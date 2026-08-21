@@ -788,8 +788,9 @@ Both routes reach the same declarations. This is deliberately stricter than it w
 | **Snackbar** | `inverse-surface` pair, `corner-extra-small`, elevation 3, action text in `inverse-primary`. |
 | **Tooltip** | Plain variant: `inverse-surface` pair, `corner-extra-small`, elevation 2, `body-small`, 8px from its trigger and clamped to the viewport. Shown on hover **and** `:focus-visible`. |
 | **Progress** | Linear: `--app-progress-bar-height` (6px since M3X) `corner-full`, `primary` on `secondary-container`. Circular: the shared `ProgressRing` in [`app/shared/charts`](../../app/shared/charts), same tokens; a hero ring passes a thicker stroke. |
-| **Bottom sheet** | Top corners `extra-large`, `surface-container-low`, elevation 1, 32×4 drag handle at `on-surface-variant` 40%. |
+| **Bottom sheet** | Top corners `extra-large`, `surface-container-low`, `--dh-elevation-modal`, 32×4 drag handle at `on-surface-variant` 40%. Above tablet width the same component is a centred dialog and keeps the modal elevation — **DHDS-13** corrected it from `--dh-elevation-raised`, which is `none` by construction, so the global Capture surface had been shipping with a 6%-alpha hairline and no shadow. |
 | **Side drawer** | Neutral raised surface, one quiet leading-edge hairline, overlay elevation and a 32% scrim. It never paints the whole editing surface in the brand tint. |
+| **Scrim** | `--dh-color-scrim`, painted **as authored** — 32% in light, 58% in dark. It is a finished value, not a base colour to mix down: **DHDS-13** found all eight consumers re-applying M3's "scrim at 32%" on top of a token that already carried it, so every modal in the product was dimming its page to 10.3% (light) / 18.6% (dark). A surface that wants a lighter wash than a modal mixes it down explicitly and says why. |
 
 ---
 

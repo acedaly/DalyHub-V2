@@ -114,7 +114,7 @@ export function GoalWorkspaceList({
 }) {
   const headingId = useId();
   return (
-    <section className="dh-goalspace__panel" aria-labelledby={headingId}>
+    <div className="dh-goalspace__panel">
       {/*
        * A real heading, not an `aria-label`.
        *
@@ -123,6 +123,16 @@ export function GoalWorkspaceList({
        * order — a genuine axe failure, caught by the E2E sweep. It is visually
        * hidden because the collection's own `h1` two lines above already says
        * "Goals" to a sighted reader; a screen-reader user gets the outline.
+       *
+       * ── DHDS-13 — a `div`, and it was a NAMED `<section>` ──────────────────
+       * A `<section>` with an accessible name is a `region` LANDMARK, so
+       * pointing this one at the heading below gave `/goals` two landmarks both
+       * called "Goals" — the collection's own region and this one. axe reported
+       * it (`landmark-unique`, the single automated violation left anywhere in
+       * the product) and it is a real defect: landmark navigation is a menu of
+       * destinations, and two identical entries make it useless. The heading
+       * stays, so the outline a screen-reader user walks is unchanged; only the
+       * duplicate landmark goes.
        */}
       <h2 id={headingId} className="dh-visually-hidden">
         Goals
@@ -214,7 +224,7 @@ export function GoalWorkspaceList({
         <PlusIcon aria-hidden="true" />
         Add goal
       </DrawerTrigger>
-    </section>
+    </div>
   );
 }
 

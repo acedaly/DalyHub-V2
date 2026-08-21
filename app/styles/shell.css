@@ -1945,7 +1945,7 @@
 .dh-mobilenav__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
+  background: var(--dh-color-scrim);
   /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
 }
 

@@ -26,6 +26,14 @@ export interface ViewResultItem {
   readonly statusLabel: string | null;
   /** A dated fact, already phrased ("Due 12 Aug", "Week to 10 Aug"). */
   readonly dateLabel: string | null;
+  /**
+   * Whether {@link dateLabel} describes a date that has PASSED on an open
+   * record. Decided server-side beside the label so the surface never re-derives
+   * urgency by reading the words back, and so the row can give an overdue date
+   * the product's overdue colour without colour being the only signal — the
+   * label itself still opens with "Overdue".
+   */
+  readonly overdue: boolean;
   readonly detail: CrossViewResultDetail;
 }
 
