@@ -79,6 +79,7 @@ export {
   // UIX-01 — trajectory, filtering and priority-as-a-mark
   TrendingUpIcon,
   FilterIcon,
+  DragHandleIcon,
   FlagIcon,
   // Subtype glyphs (PX-05) — never an entity glyph re-used for a subtype
   ChatIcon,

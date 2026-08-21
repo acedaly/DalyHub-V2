@@ -191,6 +191,13 @@
  * and popover is portalled into. Here with the other overlays, and BEFORE the
  * tooltip because a tooltip outranks it. */
 @import "./styles/anchored.css";
+/* DHDS-11 — the drag, reorder and destination layer. Beside the anchored layer
+ * because a drag preview is a floating object portalled to the body and takes
+ * the same rung, and BEFORE the tooltip, which outranks everything. It is late
+ * in the cascade so a surface that needs to place a handle differently can say
+ * so without `!important`; the states themselves are declared here and nowhere
+ * else. */
+@import "./styles/drag.css";
 /* M3-TIP — the ONE shared tooltip. Near the end of the cascade because it is an
  * overlay every other surface can raise, and it must sit above them all. */
 @import "./styles/tooltip.css";

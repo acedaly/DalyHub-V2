@@ -321,6 +321,65 @@
   margin-inline-end: var(--dh-space-2);
 }
 
+/*
+ * DHDS-11 — the row's reorder/move grip.
+ *
+ * Present ONLY on a configuration whose buckets are real destinations, and
+ * revealed with the row's other affordances rather than drawn on every row of
+ * every list. It is deliberately the FIRST thing in the lead, before the
+ * completion circle: a grip after the control that finishes the task would put
+ * the least important control in the most important position.
+ *
+ * `flex: 0 0 auto` and a fixed inline size, so the title's start does not move
+ * between a list that has grips and one that does not — the geometry of a row
+ * is a property of the row, and DHDS-11 must not make it a property of the
+ * grouping.
+ */
+.dh-taskrow__handle {
+  flex: 0 0 auto;
+  /* The ink is smaller than the target; the target is the product's floor. */
+  inline-size: var(--dh-space-5);
+  min-inline-size: var(--dh-space-5);
+}
+
+/*
+ * The floating Task.
+ *
+ * The four facts the row leads with — done, called, filed, important — laid out
+ * as one line. It borrows the row's own type and colour and NOTHING of its
+ * column grid: a preview that reproduced the grid would be a screenshot clone,
+ * and would be the wrong width the moment it left the list.
+ */
+.dh-taskrow__preview {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  color: var(--dh-color-text);
+}
+
+.dh-taskrow__preview-title {
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Completion is a fact about the object, so it travels with it. */
+.dh-taskrow__preview-title[data-completed="true"] {
+  color: var(--dh-color-text-muted);
+  text-decoration: line-through;
+}
+
+.dh-taskrow__preview-parent {
+  flex: 0 0 auto;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  white-space: nowrap;
+}
+
 .dh-taskrow__select {
   display: inline-flex;
   align-items: center;

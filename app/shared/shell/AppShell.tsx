@@ -48,6 +48,7 @@ import { CommandContextProvider } from "~/shared/commands/CommandContextProvider
 import { CommandShortcutLayer } from "~/shared/commands/CommandShortcutLayer";
 import type { ShortcutBinding } from "~/shared/commands/useCommandShortcuts";
 
+import { DragProvider } from "~/shared/drag";
 import { FeedbackProvider } from "~/shared/feedback";
 import { CaptureProvider, useCapture } from "~/shared/capture";
 // Imported from the specific modules rather than the `~/shared/offline` barrel.
@@ -342,173 +343,180 @@ export function AppShell({
 
   return (
     <FeedbackProvider>
-      {/* PWA-03 — ONE offline/connection context for the authenticated session.
-       * It registers the service worker, owns the connection-state machine and
-       * holds the device's snapshot + capture queue. It wraps the shell (rather
-       * than a page) because the status surface, the capture sheet and the
-       * Settings panel all read the same state, and because registration must
-       * survive navigation between modules. */}
-      <OfflineProvider>
-        <CommandContextProvider>
-          <CaptureProvider>
-            <MobileTopBarProvider>
-              <CommandShortcutLayer
-                reserved={reservedShortcuts}
-                fallback={fallbackShortcuts}
-              />
-              {/*
-               * DS-02 — the application declares COMPACT density.
-               *
-               * DS-01 built the density model and left it with no consumer but
-               * the control baseline, noting that DS-02 is "the point at which
-               * DS-02 can give a dense toolbar its 36px controls by declaring
-               * `data-dh-density` on the region rather than by writing a height
-               * somewhere". This is that declaration, and it is one attribute
-               * rather than a shell redesign — the drawer's 216px, the app
-               * bar's anatomy and the phone bar's 60px (D12/D15) are untouched,
-               * and DS-03 owns the shell's own restyle.
-               *
-               * DalyHub is a dense desktop productivity application and the
-               * concept direction is explicit about it. Declaring it here, on
-               * the frame, is what makes that a SYSTEM decision instead of 76
-               * call sites each choosing a size — which is the shape AGENTS.md
-               * §9.8 rules out for a design value.
-               *
-               * It costs no touch target. `tokens.css` floors every compact hit
-               * area back to `--app-touch-target-min` under `(pointer: coarse)`
-               * unconditionally, last in the file so it beats the preset
-               * whatever the source order — asserted by `dalyhub-tokens.test`.
-               * A phone therefore keeps its 45px controls and gains the tighter
-               * padding, glyph and type; only a fine pointer gets 36px.
-               *
-               * It is an ATTRIBUTE, not a media query, so the Settings density
-               * preference DS-07 may add has something to override rather than
-               * a width rule to fight.
-               */}
-              <div className="dh-app" data-dh-density="compact">
-                <a className="skip-link" href="#main-content">
-                  Skip to main content
-                </a>
+      {/* DHDS-11 — the ONE drag session, mounted above BOTH the navigation rail
+       * and the page so an object lifted out of a list can be dropped on a
+       * destination in the frame. It renders nothing at rest: no listener is
+       * attached, no preview exists, and every surface below behaves exactly as
+       * it did before a drag started. */}
+      <DragProvider>
+        {/* PWA-03 — ONE offline/connection context for the authenticated session.
+         * It registers the service worker, owns the connection-state machine and
+         * holds the device's snapshot + capture queue. It wraps the shell (rather
+         * than a page) because the status surface, the capture sheet and the
+         * Settings panel all read the same state, and because registration must
+         * survive navigation between modules. */}
+        <OfflineProvider>
+          <CommandContextProvider>
+            <CaptureProvider>
+              <MobileTopBarProvider>
+                <CommandShortcutLayer
+                  reserved={reservedShortcuts}
+                  fallback={fallbackShortcuts}
+                />
+                {/*
+                 * DS-02 — the application declares COMPACT density.
+                 *
+                 * DS-01 built the density model and left it with no consumer but
+                 * the control baseline, noting that DS-02 is "the point at which
+                 * DS-02 can give a dense toolbar its 36px controls by declaring
+                 * `data-dh-density` on the region rather than by writing a height
+                 * somewhere". This is that declaration, and it is one attribute
+                 * rather than a shell redesign — the drawer's 216px, the app
+                 * bar's anatomy and the phone bar's 60px (D12/D15) are untouched,
+                 * and DS-03 owns the shell's own restyle.
+                 *
+                 * DalyHub is a dense desktop productivity application and the
+                 * concept direction is explicit about it. Declaring it here, on
+                 * the frame, is what makes that a SYSTEM decision instead of 76
+                 * call sites each choosing a size — which is the shape AGENTS.md
+                 * §9.8 rules out for a design value.
+                 *
+                 * It costs no touch target. `tokens.css` floors every compact hit
+                 * area back to `--app-touch-target-min` under `(pointer: coarse)`
+                 * unconditionally, last in the file so it beats the preset
+                 * whatever the source order — asserted by `dalyhub-tokens.test`.
+                 * A phone therefore keeps its 45px controls and gains the tighter
+                 * padding, glyph and type; only a fine pointer gets 36px.
+                 *
+                 * It is an ATTRIBUTE, not a media query, so the Settings density
+                 * preference DS-07 may add has something to override rather than
+                 * a width rule to fight.
+                 */}
+                <div className="dh-app" data-dh-density="compact">
+                  <a className="skip-link" href="#main-content">
+                    Skip to main content
+                  </a>
 
-                {/* DS-03 — the rail now carries the frame's IDENTITY at both
+                  {/* DS-03 — the rail now carries the frame's IDENTITY at both
                 ends: the product mark at the top and the owner's account at the
                 bottom, which is where both concept references put them. It
                 therefore needs the email and the appearance preference the top
                 bar used to be given. */}
-                <Sidebar
-                  workspaceName={workspaceName}
-                  email={email}
-                  appearance={appearance}
-                  navigation={navigation}
-                  settingsHref="/settings"
-                  navId={RAIL_NAV_ID}
-                  variant="rail"
-                />
-
-                <div className="dh-main-col">
-                  {/* The DESKTOP top app bar: the primary search affordance and
-                the application's own utilities. Hidden at phone widths, where
-                the bar below takes over. It opens the SAME Search surface and
-                the SAME palette the rail used to, through the same callbacks. */}
-                  <DesktopTopBar
-                    onOpenSearch={openSearch}
-                    onOpenCommand={openCommand}
-                    onOpenNotifications={openNotifications}
-                    unreadNotifications={unreadNotifications}
-                    notificationsOpen={notificationsOpen}
-                  />
-
-                  {/* A `header` so the phone bar’s title and actions are contained by a
-                landmark (the `banner`) on mobile, where the rail sidebar banner is
-                hidden — otherwise its content sits outside every landmark (WCAG
-                region, DS-11). On desktop this bar is `display:none` and ignored. */}
-                  <MobileTopBar
-                    workspaceName={workspaceName}
-                    onOpenSearch={openSearch}
-                    onOpenNotifications={openNotifications}
-                    unreadNotifications={unreadNotifications}
-                    notificationsOpen={notificationsOpen}
-                  />
-
-                  <main id="main-content" className="dh-pane" tabIndex={-1}>
-                    {/* PWA-03 — the calm connection/sync surface. It renders
-                  NOTHING while DalyHub is online, up to date and has nothing
-                  queued: the absence of a warning is the healthy state. */}
-                    <ConnectionStatus className="dh-pane__connection" />
-                    {children}
-                  </main>
-                </div>
-
-                {/* UIX-01 — nothing floats over the canvas. The global capture
-              action is the top app bar's "New" control on desktop and the
-              navigation bar's Capture slot on a phone; both open the SAME
-              shared surface this provider mounts. The 56px floating button
-              that used to sit in the bottom-right corner of every desktop
-              window is gone (see `DesktopTopBar`). */}
-                {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
-              desktop rail experience is byte-for-byte unchanged. */}
-                <ShellBottomNav
-                  navigation={navigation}
-                  onOpenMore={openMoreNavigation}
-                  moreOpen={navOpen}
-                />
-
-                {navOpen ? (
-                  <MobileNav
+                  <Sidebar
                     workspaceName={workspaceName}
                     email={email}
                     appearance={appearance}
                     navigation={navigation}
                     settingsHref="/settings"
-                    opener={navOpener}
-                    onClose={closeMoreNavigation}
-                    onOpenSearch={openSearch}
-                    onOpenCommand={openCommand}
+                    navId={RAIL_NAV_ID}
+                    variant="rail"
                   />
-                ) : null}
 
-                {searchOpen ? (
-                  <Suspense fallback={null}>
-                    <SearchSurface
-                      onClose={closeSearch}
-                      opener={searchOpenerRef.current}
+                  <div className="dh-main-col">
+                    {/* The DESKTOP top app bar: the primary search affordance and
+                the application's own utilities. Hidden at phone widths, where
+                the bar below takes over. It opens the SAME Search surface and
+                the SAME palette the rail used to, through the same callbacks. */}
+                    <DesktopTopBar
+                      onOpenSearch={openSearch}
+                      onOpenCommand={openCommand}
+                      onOpenNotifications={openNotifications}
+                      unreadNotifications={unreadNotifications}
+                      notificationsOpen={notificationsOpen}
                     />
-                  </Suspense>
-                ) : null}
 
-                {commandOpen ? (
-                  <Suspense fallback={null}>
-                    <CommandPalette
-                      onClose={closeCommand}
-                      opener={commandOpenerRef.current}
+                    {/* A `header` so the phone bar’s title and actions are contained by a
+                landmark (the `banner`) on mobile, where the rail sidebar banner is
+                hidden — otherwise its content sits outside every landmark (WCAG
+                region, DS-11). On desktop this bar is `display:none` and ignored. */}
+                    <MobileTopBar
+                      workspaceName={workspaceName}
+                      onOpenSearch={openSearch}
+                      onOpenNotifications={openNotifications}
+                      unreadNotifications={unreadNotifications}
+                      notificationsOpen={notificationsOpen}
                     />
-                  </Suspense>
-                ) : null}
 
-                {notificationsOpen ? (
-                  <Suspense fallback={null}>
-                    <NotificationInbox
-                      opener={notificationsOpener}
-                      onClose={closeNotifications}
-                      onUnreadChanged={refreshUnread}
-                      onOpenNotification={openNotification}
-                    />
-                  </Suspense>
-                ) : null}
+                    <main id="main-content" className="dh-pane" tabIndex={-1}>
+                      {/* PWA-03 — the calm connection/sync surface. It renders
+                  NOTHING while DalyHub is online, up to date and has nothing
+                  queued: the absence of a warning is the healthy state. */}
+                      <ConnectionStatus className="dh-pane__connection" />
+                      {children}
+                    </main>
+                  </div>
 
-                {shortcutsOpen ? (
-                  <Suspense fallback={null}>
-                    <KeyboardShortcutsSheet
-                      onClose={closeShortcuts}
-                      opener={shortcutsOpenerRef.current}
+                  {/* UIX-01 — nothing floats over the canvas. The global capture
+              action is the top app bar's "New" control on desktop and the
+              navigation bar's Capture slot on a phone; both open the SAME
+              shared surface this provider mounts. The 56px floating button
+              that used to sit in the bottom-right corner of every desktop
+              window is gone (see `DesktopTopBar`). */}
+                  {/* MOBILE-01: persistent phone navigation. Hidden above `md`, so the
+              desktop rail experience is byte-for-byte unchanged. */}
+                  <ShellBottomNav
+                    navigation={navigation}
+                    onOpenMore={openMoreNavigation}
+                    moreOpen={navOpen}
+                  />
+
+                  {navOpen ? (
+                    <MobileNav
+                      workspaceName={workspaceName}
+                      email={email}
+                      appearance={appearance}
+                      navigation={navigation}
+                      settingsHref="/settings"
+                      opener={navOpener}
+                      onClose={closeMoreNavigation}
+                      onOpenSearch={openSearch}
+                      onOpenCommand={openCommand}
                     />
-                  </Suspense>
-                ) : null}
-              </div>
-            </MobileTopBarProvider>
-          </CaptureProvider>
-        </CommandContextProvider>
-      </OfflineProvider>
+                  ) : null}
+
+                  {searchOpen ? (
+                    <Suspense fallback={null}>
+                      <SearchSurface
+                        onClose={closeSearch}
+                        opener={searchOpenerRef.current}
+                      />
+                    </Suspense>
+                  ) : null}
+
+                  {commandOpen ? (
+                    <Suspense fallback={null}>
+                      <CommandPalette
+                        onClose={closeCommand}
+                        opener={commandOpenerRef.current}
+                      />
+                    </Suspense>
+                  ) : null}
+
+                  {notificationsOpen ? (
+                    <Suspense fallback={null}>
+                      <NotificationInbox
+                        opener={notificationsOpener}
+                        onClose={closeNotifications}
+                        onUnreadChanged={refreshUnread}
+                        onOpenNotification={openNotification}
+                      />
+                    </Suspense>
+                  ) : null}
+
+                  {shortcutsOpen ? (
+                    <Suspense fallback={null}>
+                      <KeyboardShortcutsSheet
+                        onClose={closeShortcuts}
+                        opener={shortcutsOpenerRef.current}
+                      />
+                    </Suspense>
+                  ) : null}
+                </div>
+              </MobileTopBarProvider>
+            </CaptureProvider>
+          </CommandContextProvider>
+        </OfflineProvider>
+      </DragProvider>
     </FeedbackProvider>
   );
 }

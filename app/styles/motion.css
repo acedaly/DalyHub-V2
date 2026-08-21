@@ -376,7 +376,16 @@
   [data-dh-action-context="true"]:focus-within .dh-action-reveal,
   .dh-action-reveal:focus-within,
   .dh-action-reveal[aria-expanded="true"],
-  .dh-action-reveal:has([aria-expanded="true"]) {
+  .dh-action-reveal:has([aria-expanded="true"]),
+  /*
+   * DHDS-11 — a revealed affordance that is currently HOLDING something stays
+   * revealed. A drag takes the pointer away from the row it started on within a
+   * few pixels, and a grip that faded out mid-drag would leave the owner holding
+   * an object with no visible source. It is the same argument as
+   * `[aria-expanded="true"]` beside it: the control is in an active state, and
+   * an active control is never hidden.
+   */
+  .dh-action-reveal[data-grabbed="true"] {
     opacity: 1;
     pointer-events: auto;
   }
@@ -522,33 +531,58 @@
 }
 
 /*
- * A row LEAVING a surface that removes completed work — DEFERRED, deliberately.
+ * A row LEAVING a surface that removes it — DHDS-11, steps 5 and 6 of §7.
  *
- * Steps 6 and 7 of the sequence above (the row departs; the neighbours close
- * the gap) are not implemented, and this is the record of why rather than an
- * oversight.
+ * DHDS-08 shipped steps 1–4 and 6 (the control responds, the ink recedes, the
+ * strike draws, the Undo toast) and deferred the departure with two reasons
+ * written down. Both were interaction decisions rather than motion ones, and
+ * DHDS-11 takes them:
  *
- * The mechanism is not the hard part: collapsing the row's own grid track is
- * the same transition disclosure uses, and `useLeavingRecords` already does the
- * list-level bookkeeping for toasts. Two things are:
+ *   1. FOCUS goes to the row that takes this one's place — the next live row's
+ *      completion control, the previous one when there is no next, and the list
+ *      itself when the list is now empty. Never `<body>`. The rule is the one
+ *      `TaskChecklistSection` already uses when a step is deleted, so it is a
+ *      precedent rather than a guess. `use-departing-rows.ts` implements it, and
+ *      is also why a leaving row is `aria-hidden` and pointer-inert rather than
+ *      `inert`: `inert` blurs its subtree synchronously, so the successor could
+ *      no longer be chosen.
+ *   2. WHICH SURFACES depart is not a per-surface flag. A row departs when it
+ *      actually left — when an id the surface has just mutated is no longer in
+ *      the list the loader answered with. A surface that KEEPS completed work
+ *      produces no departure at all, because the row is still there, so the
+ *      animation can never disagree with what happened.
  *
- *   1. FOCUS. The control the owner just clicked is inside the row that is
- *      about to go. Holding the row for 260ms while it is `inert` moves focus
- *      to `<body>` for a quarter of a second, and deciding where it should land
- *      instead (the next row? the list? the toast's Undo?) is a real
- *      interaction decision, not a motion one. §19 forbids guessing.
- *   2. The surfaces DISAGREE about what completion means. `/tasks` in its
- *      All-active view removes the row; a Completed section keeps it; a
- *      Project's history keeps it forever. Animating a row out of existence on
- *      a surface that did not remove it would be a lie about what happened, so
- *      the departure has to be opted into per surface — which is a wider change
- *      than DHDS-08's grammar pass should make on its own.
+ * ── The mechanism, and its one documented exception ─────────────────────────
+ * `block-size` is animated, which lays the page out on each frame — the third
+ * structural exception in this file, beside disclosure's `grid-template-rows`
+ * and progress's `inline-size`, and for the same reason: there is no
+ * compositor-friendly way to close a gap. It is ONE row, ONCE, for 260ms.
  *
- * Until then a completed row on a removing surface disappears on the next
- * revalidation, exactly as it did before DHDS-08, and the Undo toast is what
- * carries the continuity. Recorded in `PRODUCT_DEBT.md` and in the DHDS-08
- * record; it belongs with DHDS-11's object-continuity work.
+ * It collapses from `--dh-row-height`, which is the row's height by
+ * construction ("the row's height IS the completion control's target, and
+ * nothing else", `task-list.css`). A wrapped two-line row therefore begins its
+ * collapse slightly below its full height; the gap still closes, and the
+ * alternative is measuring every row on every render to animate one of them.
  */
+.dh-taskrow[data-dh-exit="true"] {
+  overflow: hidden;
+  min-block-size: 0;
+  border-block-end-color: transparent;
+  pointer-events: none;
+  animation: dh-row-depart var(--dh-motion-deliberate) var(--dh-ease-exit)
+    forwards;
+}
+
+@keyframes dh-row-depart {
+  from {
+    block-size: var(--dh-row-height);
+    opacity: 1;
+  }
+  to {
+    block-size: 0;
+    opacity: 0;
+  }
+}
 
 /* ========================================================================== */
 /* Level 3 — CONTINUITY (Today)                                                */
@@ -662,5 +696,11 @@
    * reader knows that was checked rather than missed.
    *
    * There is no pressed transform in the product to remove (see Level 1 above).
+   *
+   * The DEPARTING ROW needs no override either, and for a stronger reason than
+   * "it does not travel": under reduced motion `use-departing-rows.ts` never
+   * marks a row as leaving at all, so `dh-row-depart` is never applied. The row
+   * simply goes when the loader says it went — which is exactly what it did
+   * before DHDS-11 — and the focus handoff, which is not motion, still runs.
    */
 }

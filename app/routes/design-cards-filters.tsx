@@ -25,13 +25,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import {
-  Card,
-  CardCollection,
-  CardReorderHandle,
-  ReorderableCardCollection,
-} from "~/shared/card";
+import { Card, CardCollection } from "~/shared/card";
 import type { CardProps, CardTone } from "~/shared/card";
+import { SortableHandle, SortableList } from "~/shared/drag";
 import { withDrawerPushed } from "~/shared/drawer";
 import { DrawerProvider, useDrawer } from "~/shared/drawer";
 import type { DrawerEntry, DrawerRenderResult } from "~/shared/drawer";
@@ -666,19 +662,32 @@ function CollectionSurface() {
             )}
           />
         ) : (
-          <ReorderableCardCollection
+          /*
+           * DHDS-11 — the demo draws the PRODUCT's reorder surface.
+           *
+           * It used DS-04's `ReorderableCardCollection`, which was the second
+           * drag implementation in the repository the moment `~/shared/drag`
+           * existed. The fixture now composes `SortableList` exactly as the Task
+           * checklist and a Goal's stages do, so a design route can never
+           * demonstrate an interaction the product does not have.
+           *
+           * Its `isReorderable` pin went with it: no DHDS-11 collection has a
+           * concept of a card that stays put while its neighbours move, and
+           * carrying a parameter nobody sets is how a second order model starts.
+           */
+          <SortableList
+            id="design-records"
+            kind="design-record"
             items={filtered}
             getItemId={(record) => record.id}
             getItemLabel={(record) => record.title}
-            isReorderable={(record) => record.type !== "area"}
             ariaLabel="Records (reorderable)"
-            density={density}
             onReorder={(nextIds) =>
               setOrderedIds((master) =>
                 applyDisplayedOrder(
                   master,
                   filtered.map((record) => record.id),
-                  nextIds,
+                  [...nextIds],
                 ),
               )
             }
@@ -686,7 +695,7 @@ function CollectionSurface() {
               <Card
                 {...toCardProps(record)}
                 headingLevel={2}
-                reorderHandle={<CardReorderHandle {...handleProps} />}
+                reorderHandle={<SortableHandle {...handleProps} />}
               />
             )}
           />

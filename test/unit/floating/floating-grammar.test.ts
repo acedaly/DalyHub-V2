@@ -218,6 +218,20 @@ describe("DHDS-09 — no second panel appearance", () => {
     // surface the owner opened; it rises from an edge, carries its own tone and
     // is never anchored to anything.
     "feedback.css",
+    /*
+     * DHDS-11 — the drag preview is not a panel; it is an OBJECT in the air.
+     *
+     * `.dh-floating` describes a surface the owner opened: it is anchored to a
+     * trigger, it has an entrance animation, it takes pointer events and it has
+     * padding of its own. A drag preview is none of those. It is the row the
+     * owner is holding, at the row's own size, following the pointer with no
+     * transition and with `pointer-events: none` — because the provider
+     * hit-tests destinations through it. It paints a shadow for the one reason
+     * DHDS-08 recorded for exactly this case ("a dragged object is Level 3
+     * structural movement… it is now physically floating"), and an edge because
+     * a shadow alone does not separate a surface in dark mode.
+     */
+    "drag.css",
   ]);
 
   it("no module stylesheet grows a private floating panel", () => {

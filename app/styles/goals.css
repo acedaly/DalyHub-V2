@@ -487,6 +487,30 @@
   white-space: nowrap;
 }
 
+/*
+ * DHDS-11 — the stage row's reorder grip and its overflow.
+ *
+ * The grip is a DHDS-08 reveal element: it occupies its geometry at rest, so
+ * showing it on hover moves no text, and it is simply drawn on a touch device
+ * and in forced colours. The overflow keeps the full touch target it had as a
+ * button.
+ */
+.dh-goal-measure__milestone-handle,
+.dh-goal-measure__milestone-overflow {
+  flex: 0 0 auto;
+}
+
+.dh-goal-measure__milestone-overflow {
+  min-inline-size: var(--app-touch-target-min);
+  min-block-size: var(--app-touch-target-min);
+}
+
+/* The floating object: a stage is its words. */
+.dh-goal-measure__milestone-preview {
+  display: block;
+  color: var(--dh-color-text);
+}
+
 .dh-goal-measure__milestone-add {
   display: flex;
   gap: var(--app-space-2);

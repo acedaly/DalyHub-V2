@@ -47,6 +47,17 @@ export interface TaskListProps {
   /** The accessible name of the list ("Tasks", "Overdue tasks"). */
   readonly ariaLabel: string;
   /**
+   * DHDS-11 — the list element, and the last place focus can land.
+   *
+   * When a departing row held focus and there is no row left to hand it to,
+   * focus goes to the list itself rather than to `<body>`: the list is a named
+   * region, so a screen reader says where the owner now is, and the next Tab
+   * continues from here instead of from the top of the document. That is why
+   * the `<ul>` carries `tabIndex={-1}` — it is programmatically focusable and
+   * is NOT in the tab order.
+   */
+  readonly listRef?: (element: HTMLUListElement | null) => void;
+  /**
    * The owner's chosen Tasks density, from the shared control's `?density=`.
    *
    * The list DECLARED `compact` unconditionally in its first form, which made
@@ -62,6 +73,7 @@ export interface TaskListProps {
 export function TaskList({
   ariaLabel,
   density,
+  listRef,
   children,
   className,
 }: TaskListProps) {
@@ -81,7 +93,12 @@ export function TaskList({
        */
       data-dh-density={densityPreset(density)}
     >
-      <ul className="dh-tasklist__rows" aria-label={ariaLabel}>
+      <ul
+        ref={listRef}
+        className="dh-tasklist__rows"
+        aria-label={ariaLabel}
+        tabIndex={-1}
+      >
         {children}
       </ul>
     </div>
@@ -114,6 +131,24 @@ export interface TaskGroupProps {
    * object: one landmark, one layout box, one thing to select.
    */
   readonly className?: string;
+  /**
+   * DHDS-11 — the bucket as a DROP DESTINATION.
+   *
+   * The section element itself is the target, because the section IS the bucket:
+   * one landmark, one layout box, one thing to drop into. The group knows
+   * nothing about drag — it takes a ref and a state and draws them — so the
+   * decision about which dimensions are destinations stays with the module that
+   * owns the domain (`tasks/task-drop-targets.ts`).
+   */
+  readonly sectionRef?: (element: HTMLElement | null) => void;
+  /**
+   * `candidate` — a drag this bucket could take is in progress; `active` — it is
+   * the destination right now. Null at every other moment, which is almost
+   * always, and which is why a page at rest is completely unchanged.
+   */
+  readonly dropState?: "candidate" | "active" | null;
+  /** The words that say what the drop would do, drawn only while `active`. */
+  readonly dropHint?: ReactNode;
   readonly children: ReactNode;
 }
 
@@ -124,6 +159,9 @@ export function TaskGroup({
   moreHref = null,
   tone = "default",
   className,
+  sectionRef,
+  dropState = null,
+  dropHint,
   children,
 }: TaskGroupProps) {
   const Heading = `h${headingLevel}` as const;
@@ -150,10 +188,13 @@ export function TaskGroup({
      * screen reader announce the number twice.
      */
     <section
+      ref={sectionRef}
       className={["dh-taskgroup", className].filter(Boolean).join(" ")}
       aria-label={title}
       data-tone={tone}
       data-testid="task-group"
+      data-dh-drop-candidate={dropState !== null ? "true" : undefined}
+      data-dh-drop-active={dropState === "active" ? "true" : undefined}
     >
       <div className="dh-taskgroup__header">
         {/*
@@ -220,6 +261,21 @@ export function TaskGroup({
             {title} <span className="dh-taskgroup__count">{count}</span>
           </Heading>
         </button>
+        {/*
+         * The destination's own words, drawn only on the ACTIVE bucket.
+         *
+         * A heading and a count do not on their own say what releasing here
+         * would DO — "Personal" is a group name, and the owner is mid-gesture.
+         * It is `aria-hidden` because the live region has already said the same
+         * sentence in better words ("Prepare training brief over Personal.
+         * Release to move."), and a second announcement of it would be the
+         * chatter the brief rules out.
+         */}
+        {dropState === "active" && dropHint ? (
+          <span className="dh-drop-hint" aria-hidden="true">
+            {dropHint}
+          </span>
+        ) : null}
         {moreHref !== null ? (
           /*
            * A ROUTER link, and `preventScrollReset`.

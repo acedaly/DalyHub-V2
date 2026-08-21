@@ -32,6 +32,7 @@ import { TrendLine } from "~/shared/charts";
 import { EmptyState } from "~/shared/empty-state";
 import { useFeedback } from "~/shared/feedback";
 import { GoalIcon, TrashIcon } from "~/shared/icons";
+import { moveByStep, SortableHandle, SortableList } from "~/shared/drag";
 import {
   formatMeasurementChange,
   formatMeasurementValue,
@@ -53,6 +54,7 @@ import { GoalStatTrio, type GoalStat } from "~/shared/goal-progress";
 import { StatusPill } from "~/shared/pill";
 import { ProgressTrack } from "~/shared/progress";
 import { ConfirmationDialog } from "~/shared/settings";
+import { Menu } from "~/shared/ui";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 /**
@@ -85,6 +87,16 @@ export interface GoalMeasurementPanelProps {
   ) => Promise<boolean>;
   readonly onAddMilestone: (title: string) => Promise<boolean>;
   readonly onDeleteMilestone: (milestoneId: string) => Promise<boolean>;
+  /**
+   * DHDS-11 — write a complete new stage order.
+   *
+   * ONE callback for both paths: the drag and the item menu's Move up / Move
+   * down submit the same list to the same `reorder_milestones` intent, so the
+   * two can never mean different things.
+   */
+  readonly onReorderMilestones: (
+    orderedMilestoneIds: readonly string[],
+  ) => Promise<boolean>;
 }
 
 export function GoalMeasurementPanel(props: GoalMeasurementPanelProps) {
@@ -718,6 +730,7 @@ function MilestoneList({
   onAddMilestone,
   onToggleMilestone,
   onDeleteMilestone,
+  onReorderMilestones,
 }: GoalMeasurementPanelProps) {
   const { notifyError } = useFeedback();
   const [draft, setDraft] = useState("");
@@ -745,9 +758,42 @@ function MilestoneList({
           from the ones you complete.
         </p>
       ) : (
-        <ul className="dh-goal-measure__milestone-list">
-          {milestones.map((milestone) => (
-            <li key={milestone.id} className="dh-goal-measure__milestone">
+        /*
+         * DHDS-11 — the stages are the one part of a Goal whose order is the
+         * OWNER'S.
+         *
+         * `goal_milestones.position` has been stored and read back in since
+         * GOAL-02, and until now nothing could change it: the order was
+         * whatever the stages happened to be added in. The measurement itself
+         * is untouched by this — reordering writes no completion, appends no
+         * Activity and moves no progress. A stage's place in the list is the
+         * plan; whether it is done is the fact.
+         */
+        <SortableList
+          id="goal-milestones"
+          kind="goal-milestone"
+          ariaLabel="Stages"
+          className="dh-goal-measure__milestone-list"
+          items={milestones}
+          getItemId={(milestone) => milestone.id}
+          getItemLabel={(milestone) => milestone.title}
+          onReorder={(nextIds) => {
+            void onReorderMilestones(nextIds);
+          }}
+          renderPreview={(milestone) => (
+            <span className="dh-goal-measure__milestone-preview">
+              {milestone.title}
+            </span>
+          )}
+          renderItem={(milestone, api) => (
+            <div
+              className="dh-goal-measure__milestone"
+              data-dh-action-context="true"
+            >
+              <SortableHandle
+                {...api.handleProps}
+                className="dh-action-reveal dh-goal-measure__milestone-handle"
+              />
               <label className="dh-goal-measure__milestone-label">
                 <input
                   type="checkbox"
@@ -768,20 +814,60 @@ function MilestoneList({
                   Weight {milestone.weight}
                 </span>
               ) : null}
-              <button
-                type="button"
-                className="dh-btn dh-btn--ghost dh-btn--sm dh-goal-measure__remove"
-                onClick={() => void onDeleteMilestone(milestone.id)}
-              >
-                <TrashIcon />
-                Remove
-                <span className="dh-visually-hidden">
-                  {` stage ${milestone.title}`}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+              {/*
+               * DHDS-11 — the NON-DRAG path, and the convergence that came with
+               * it. This row carried a bare "Remove" button and no way to move a
+               * stage at all; it now carries the same overflow the Task
+               * checklist row does — Move up, Move down, then the destructive
+               * act — so the two ordered lists in the product are operated
+               * identically, by pointer, keyboard and thumb alike.
+               */}
+              <Menu
+                label={`More actions for ${milestone.title}`}
+                triggerClassName="dh-goal-measure__milestone-overflow"
+                items={[
+                  {
+                    id: "up",
+                    label: "Move up",
+                    disabled: api.position === 1,
+                    onSelect: () => {
+                      void onReorderMilestones(
+                        moveByStep(
+                          milestones.map((entry) => entry.id),
+                          milestone.id,
+                          -1,
+                        ),
+                      );
+                    },
+                  },
+                  {
+                    id: "down",
+                    label: "Move down",
+                    disabled: api.position === api.size,
+                    onSelect: () => {
+                      void onReorderMilestones(
+                        moveByStep(
+                          milestones.map((entry) => entry.id),
+                          milestone.id,
+                          1,
+                        ),
+                      );
+                    },
+                  },
+                  {
+                    id: "remove",
+                    label: "Remove stage",
+                    tone: "danger",
+                    separatorBefore: true,
+                    onSelect: () => {
+                      void onDeleteMilestone(milestone.id);
+                    },
+                  },
+                ]}
+              />
+            </div>
+          )}
+        />
       )}
       <form
         className="dh-goal-measure__milestone-add"
