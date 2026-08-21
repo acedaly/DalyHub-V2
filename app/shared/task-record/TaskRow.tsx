@@ -182,6 +182,20 @@ export interface TaskRowProps {
    * been reported gone can be clicked.
    */
   readonly leaving?: boolean;
+  /**
+   * DHDS-11 — this Task's record is the one currently open.
+   *
+   * Object continuity, and the smallest form of it: "I opened this object from
+   * here, and here is still here." The row keeps a quiet current marker while
+   * its Inspector is open, so closing it lands the owner's eye back on the row
+   * they came from rather than on a list they now have to re-find their place
+   * in. It is a MARK rather than a selection wash — bulk selection already owns
+   * that treatment, and the two mean different things.
+   *
+   * Opt-in per surface: a surface that does not know which record is open
+   * passes nothing and is unchanged.
+   */
+  readonly current?: boolean;
 }
 
 /**
@@ -216,6 +230,7 @@ export function TaskRow({
   dragHandle,
   dragging = false,
   leaving = false,
+  current = false,
 }: TaskRowProps) {
   const Heading = `h${headingLevel}` as const;
   const due = relativeCalendarDate(task.dueDate, todayIso);
@@ -322,6 +337,7 @@ export function TaskRow({
       data-dh-drag-source={dragging ? "true" : undefined}
       data-dh-exit={leaving ? "true" : undefined}
       aria-hidden={leaving ? "true" : undefined}
+      data-current={current ? "true" : undefined}
       /*
        * The gesture's whole visual footprint: an edge, an armed flag and a
        * distance. The stylesheet selects on `[data-swipe-edge]`, so the cells'
@@ -476,6 +492,14 @@ export function TaskRow({
              * the visible text, so WCAG 2.5.3 (Label in Name) is satisfied.
              */
             aria-label={`Open ${task.title}`}
+            /*
+             * DHDS-11 — the record open right now IS this page's current
+             * location, so the link that opens it says so. `page` rather than
+             * `true`: the drawer is addressed by the URL, and a screen reader
+             * hearing "current page" is being told exactly the fact the visual
+             * mark carries.
+             */
+            aria-current={current ? "page" : undefined}
             data-testid="task-row-open"
             onClick={(event) => {
               if (

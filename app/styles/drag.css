@@ -115,6 +115,13 @@ body[data-dh-dragging="true"] * {
   top: 0;
   left: 0;
   box-sizing: border-box;
+  /*
+   * The last defence on width. `DragProvider` already caps the measured width
+   * (see `MAX_PREVIEW_WIDTH_PX`, which also caps the grab offset with it); this
+   * keeps the preview inside a viewport narrower than that cap, where a fixed
+   * width would be the thing that overflowed.
+   */
+  max-inline-size: calc(100vw - var(--dh-space-4));
   padding: var(--dh-space-2) var(--dh-space-3);
   background: var(--dh-color-surface);
   border: var(--dh-border-width) solid var(--dh-color-border);

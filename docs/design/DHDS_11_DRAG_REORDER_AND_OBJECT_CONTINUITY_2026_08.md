@@ -275,6 +275,14 @@ Three dimensions are **refused**, and the reasons are the rule working:
   change wearing a re-bucket's clothes, and completion has its own control on
   every row, its own Undo and a recurrence consequence.
 
+**The Board presentation is a grouped view, so its columns are destinations by
+the same rule and with no extra code.** `list`, `board` and `sectors` render the
+same buckets through the same component; only the container layout differs, and
+that difference is CSS. A Task dragged between board columns therefore writes the
+same field a Task dragged between list groups writes — which is also why DalyHub
+does not have Kanban semantics anywhere: a column is a bucket of a stored field,
+never a workflow stage invented to give the board something to be.
+
 **Two configurations opt out entirely even when the dimension qualifies:** the
 Deleted view (every mutation on a soft-deleted Task is invisible, so a drag could
 only ever fail) and **selection mode** (a mode with its own gesture — a hold
@@ -304,6 +312,15 @@ is not the object.
 
 It has **no transition** while it tracks the pointer. A transition on a followed
 pointer is lag, by construction.
+
+**It is capped, and clamped.** A Task row is the full width of the collection,
+and the first implementation used the source's measured width — which produced a
+976px banner following the pointer and running off the right edge of the window.
+Found by looking at the frames. The preview is now capped at 360px, the GRAB
+OFFSET is capped with it (otherwise the pointer ends up beside the preview
+rather than holding it), and the layer clamps its position into the viewport so
+the object the owner is holding is never cut in half. A preview narrower than
+the cap keeps its own width: a checklist step is already the size of an object.
 
 **A keyboard drag renders no preview at all.** Nothing is following anything: the
 object moves through the collection itself and the live region says where it now
@@ -396,6 +413,27 @@ an index-keyed reorderable row remounts every sibling on every move, so focus is
 lost, an in-flight edit is discarded, and the exit animation plays on the wrong
 object. `SortableList` owns the key so a consumer cannot get it wrong, and a
 source-level test asserts it.
+
+### The record you opened came from HERE
+
+A Task row whose record is open keeps a quiet current marker — a 2px accent at
+its leading edge, and `aria-current="page"` on the link that opened it — for as
+long as the Inspector is above it. Closing the Inspector therefore lands the
+owner's eye on the row they came from rather than on a list they have to re-find
+their place in.
+
+It is a MARK rather than a wash, for two reasons: bulk selection already owns the
+wash, and two states that look alike and mean different things is worse than one
+state fewer; and it is an inset shadow rather than a border, so it costs the row
+no width and moves no text. It reads the drawer STACK rather than a second piece
+of state, so it is true for a bookmarked URL and for a Back-navigated one exactly
+as it is for a click — and every row in a nested stack (a Task opened from a
+Task) is marked, because each is one the owner came THROUGH.
+
+There is no shared-element animation, and there will not be one. The continuity
+DalyHub owes here is *"I opened this object from here, and here is still here"* —
+which is a matter of stable identity, a preserved scroll position and one quiet
+mark, not of animating a row into a panel.
 
 ### Context survives a move
 
@@ -717,7 +755,40 @@ that element's centre", which is geometry the page itself supplies.
 
 ---
 
-## 17. Known debt
+## 17. Visual evidence
+
+`docs/design/assets/dhds-11-2026-08/`, captured by
+`e2e/dhds-11-drag-screenshots.spec.ts` (opt-in: `CAPTURE_SCREENSHOTS=1`). Every
+frame that has a light/dark distinction exists in both, because elevation and a
+dotted edge are exactly the kind of restraint that survives light and fails dark.
+
+| Frame | Shows |
+|---|---|
+| `tasks-rest-*` | **The acceptance frame.** A grouped Task list at rest, with no grip anywhere on it |
+| `tasks-hover-*` | the same list with one row engaged with — the grip, and only then |
+| `task-lifted-*` | the floating object, the quiet source row that kept its place, and the candidate destination |
+| `task-over-project-*` | the active destination, with its own words, while every other region stays as it was |
+| `task-settled-*` | after the drop: the Task in its new bucket, and the toast that says where it went |
+| `checklist-rest-*`, `checklist-reordering-*`, `checklist-settled-*` | a manually ordered collection before, during and after — the middle frame is the one that matters, because the gap IS the insertion indicator |
+| `goal-stages-rest-*`, `goal-stages-focus-*` | a Goal's stages, and the grip revealed by the keyboard rather than by a pointer |
+| `phone-checklist-*` | a coarse pointer: the grip is simply drawn, at the touch floor |
+| `phone-tasks-*` | a coarse pointer: the Task list has **no** grip at all |
+| `forced-colours-drag` | every shadow and tint discarded, and the drag still legible from its borders |
+| `reduced-motion-rest`, `reduced-motion-dragging` | the same operation with the travel removed |
+
+**The frames were looked at, which is the only reason this section can be
+trusted — and looking at them found two defects.** The first drag preview took
+the SOURCE's measured width, which for a Task row is the full width of the
+collection: a 976px banner following the pointer and running off the right edge
+of the window. It is now capped at 360px, with the grab offset capped alongside
+it and the layer clamped into the viewport (§7). The second was the capture pass
+itself: seeded once rather than per test, so the second frame of each pair
+photographed a Task already in the destination it was about to be dragged to —
+evidence of nothing happening.
+
+---
+
+## 18. Known debt
 
 Recorded in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 
@@ -741,7 +812,7 @@ Recorded in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 
 ---
 
-## 18. Phase boundaries
+## 19. Phase boundaries
 
 | Phase | Scope | State |
 |---|---|---|
@@ -756,7 +827,7 @@ convention, it is asserted.
 
 ---
 
-## 19. The rule for future work
+## 20. The rule for future work
 
 > **A drag that does not survive a reload is a bug. A second way to move
 > something is a bug. A grip on a list whose order is derived is a lie.**

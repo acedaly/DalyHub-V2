@@ -452,6 +452,46 @@ test.describe("DHDS-11 Journey B — moving a Task to another Project", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* A realistic collection, not a demo one                                     */
+/* -------------------------------------------------------------------------- */
+
+test.describe("DHDS-11 — a populated collection", () => {
+  /**
+   * The same drag, on the WHOLE workspace rather than on this fixture's four
+   * Tasks.
+   *
+   * The committed E2E workspace holds ninety-odd Tasks across a dozen parents,
+   * so this is a page of a dozen buckets and fifty rows — every one of which the
+   * pointer loop hit-tests, and every one of which the collection re-renders
+   * around when the destination changes. The assertion is the same as the
+   * isolated journey's, deliberately: what is under test is that the operation
+   * still WORKS at that size, not a timing number a CI runner cannot promise.
+   */
+  test("resolves a destination and commits on a page of many buckets", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/tasks?view=list&group=parent");
+    const moving = WORK_TASKS[0].title;
+    await expect(taskRow(page, moving).first()).toBeVisible();
+    await expect(page.getByTestId("task-group").first()).toBeVisible();
+    // More buckets than the fixture's two, so the hit test has real work.
+    expect(await page.getByTestId("task-group").count()).toBeGreaterThan(3);
+
+    await taskRow(page, moving).first().scrollIntoViewIfNeeded();
+    await taskRow(page, moving).first().hover();
+    await dragOnto(
+      page,
+      rowHandle(page, moving),
+      bucket(page, HOME_PROJECT.title),
+    );
+
+    await expect
+      .poll(() => storedParentOf(WORK_TASKS[0].id))
+      .toBe(HOME_PROJECT.id);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Journey C — the non-drag path lands in the same place                      */
 /* -------------------------------------------------------------------------- */
 
@@ -509,6 +549,21 @@ test.describe("DHDS-11 Journey D — a phone", () => {
     await expect
       .poll(() => storedSteps(CHECKLIST_TASK.id))
       .toEqual([CHECKLIST_STEPS[2], CHECKLIST_STEPS[0], CHECKLIST_STEPS[1]]);
+  });
+
+  test("keeps the reorder usable at the MINIMUM supported width", async ({
+    page,
+  }) => {
+    // 320 is the product's floor. A grip that only fits at 393 is a grip that
+    // does not fit.
+    await page.setViewportSize({ width: 320, height: 720 });
+    await gotoFixture(page, recordUrl(CHECKLIST_TASK.id));
+    const grip = checklist(page).getByRole("button", {
+      name: `Reorder ${CHECKLIST_STEPS[1]}`,
+    });
+    await expect(grip).toBeVisible();
+    await expectMinTouchTarget(grip);
+    await expectNoHorizontalOverflow(page);
   });
 
   test("offers a Task NO free drag, and the contextual move instead", async ({

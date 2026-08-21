@@ -12,7 +12,6 @@ import {
   GOAL_STAGES,
   HOME_PROJECT,
   STAGED_GOAL,
-  WORK_PROJECT,
   WORK_TASKS,
   cleanupDragFixture,
   seedDragFixture,
@@ -73,6 +72,17 @@ test.skip(
 
 test.beforeAll(() => {
   mkdirSync(OUT, { recursive: true });
+});
+
+/*
+ * Reseeded before EVERY capture, not once.
+ *
+ * Several of these frames perform a real move, so a fixture seeded once would
+ * leave the next capture's Task already in the destination it is about to be
+ * dragged to — where the drop is correctly refused, and the frame is of nothing
+ * happening. Each capture starts from the state its caption describes.
+ */
+test.beforeEach(() => {
   seedDragFixture();
 });
 
@@ -279,7 +289,7 @@ test("reduced motion: the same operation, with no travel", async ({
     page,
     row.getByRole("button", { name: `Move ${WORK_TASKS[1].title}` }),
   );
-  await holdOver(page, bucket(page, WORK_PROJECT.title).first());
+  await holdOver(page, bucket(page, HOME_PROJECT.title));
   await shoot(page, "reduced-motion-dragging");
   await page.mouse.up();
   await context.close();

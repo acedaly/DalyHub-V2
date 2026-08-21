@@ -965,7 +965,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   // `/tasks`, `/inbox` or `/upcoming` — every configuration change navigates
   // back to whichever of them the owner is actually on.
   const basePath = useWorkspaceBasePath();
-  const { openDrawer } = useDrawer();
+  const { openDrawer, entries: drawerEntries } = useDrawer();
   const config = data.config;
   const quick = useTaskQuickMutation(config, data);
   // An accepted rename re-reads the list: the title is what the collection is
@@ -1239,6 +1239,21 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
    * flexible column and every other fact sits in a fixed, quieter one — so the
    * declaration has nothing left to do.
    */
+  /**
+   * The Task ids whose record is currently open, from the drawer stack.
+   *
+   * A stack rather than a single id: the Drawer nests (a Task opened from a
+   * Task), and every row in the chain is one the owner came THROUGH.
+   */
+  const openRecordIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const entry of drawerEntries) {
+      const [kind, id] = entry.key.split(":");
+      if ((kind === "task" || kind === "task-quick") && id) ids.add(id);
+    }
+    return ids;
+  }, [drawerEntries]);
+
   const toRowProps = useCallback(
     (card: TaskCardData, headingLevel: 2 | 3): TaskRowProps => {
       /*
@@ -1371,6 +1386,14 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       const key = `task:${card.id}`;
       return {
         task: card,
+        /*
+         * DHDS-11 §"Inspector continuity" — the row whose record is open keeps
+         * a quiet current marker, so closing the Inspector returns the owner's
+         * eye to where they opened it from. It reads the drawer STACK rather
+         * than a second piece of state, so it is true for a bookmarked URL and
+         * for a Back-navigated one exactly as it is for a click.
+         */
+        current: openRecordIds.has(card.id),
         todayIso: data.todayIso,
         parents: data.parents,
         headingLevel,
@@ -1454,6 +1477,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       data.todayIso,
       data.parents,
       searchParams,
+      openRecordIds,
       openDrawer,
       revalidator,
       selected,

@@ -59,9 +59,20 @@ export function DragPreviewLayer({ session }: DragPreviewLayerProps) {
       const node = element.current;
       const current = point.current;
       if (node === null || current === null || preview === null) return;
-      node.style.transform = `translate3d(${current.x - preview.offsetX}px, ${
-        current.y - preview.offsetY
-      }px, 0)`;
+      /*
+       * CLAMPED to the viewport.
+       *
+       * The layer is `position: fixed` and cannot scroll, so a preview taken to
+       * the right edge of the window would simply be clipped — the object the
+       * owner is holding, cut in half. Holding it inside the viewport keeps it
+       * whole and keeps the pointer's relationship to it intact, because the
+       * clamp moves the preview rather than the grab point.
+       */
+      const maxX = Math.max(window.innerWidth - preview.width, 0);
+      const maxY = Math.max(window.innerHeight - preview.height, 0);
+      const x = Math.min(Math.max(current.x - preview.offsetX, 0), maxX);
+      const y = Math.min(Math.max(current.y - preview.offsetY, 0), maxY);
+      node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     };
     const onMove = (event: PointerEvent) => {
       point.current = { x: event.clientX, y: event.clientY };

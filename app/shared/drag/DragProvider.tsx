@@ -447,17 +447,36 @@ export function DragProvider({ children }: DragProviderProps) {
   );
 }
 
-/** Measure the source so the preview is the same object at the same size. */
+/**
+ * Measure the source so the preview is the same object — CAPPED.
+ *
+ * A Task row is the full width of the collection, and a preview at that width
+ * is a 976px banner following the pointer: the "giant screenshot clone" §7 of
+ * the brief rules out, and it runs off the edge of the viewport the moment the
+ * owner drags right. The cap makes the preview a recognisable object rather
+ * than a copy of the page, and it is applied here rather than in CSS so the
+ * GRAB OFFSET can be capped with it — otherwise the pointer ends up beside the
+ * preview instead of holding it.
+ *
+ * A preview narrower than the cap keeps its own width: a checklist step is
+ * already the size of an object.
+ */
+const MAX_PREVIEW_WIDTH_PX = 360;
+/** Keep the pointer inside the preview rather than off its trailing edge. */
+const PREVIEW_GRAB_INSET_PX = 24;
+
 function previewGeometry(
   element: HTMLElement | null,
   point: DragPoint | undefined,
 ) {
   if (element === null) return null;
   const rect = element.getBoundingClientRect();
+  const width = Math.min(rect.width, MAX_PREVIEW_WIDTH_PX);
+  const grabbedAt = point ? point.x - rect.left : rect.width / 2;
   return {
-    width: rect.width,
+    width,
     height: rect.height,
-    offsetX: point ? point.x - rect.left : rect.width / 2,
+    offsetX: Math.min(grabbedAt, Math.max(width - PREVIEW_GRAB_INSET_PX, 0)),
     offsetY: point ? point.y - rect.top : rect.height / 2,
   };
 }
