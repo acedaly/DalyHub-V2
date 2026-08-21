@@ -94,6 +94,27 @@ export interface InlineEditShellProps {
   /** Visual treatment. `heading` inherits the record title's typography. */
   readonly variant?: "text" | "heading" | "block";
   /**
+   * DHDS-10 — how LOUD the field is at rest.
+   *
+   * `default` is the record-page treatment: the value, its caret and its empty
+   * invitation are all drawn, because a record's summary is a small number of
+   * facts the owner came to look at.
+   *
+   * `meta` is the METADATA treatment, for a field that sits in a run of values
+   * being scanned rather than read — a collection row, a record's context line,
+   * a card's meta line. The value stays; the caret and the empty invitation
+   * become DHDS-08 reveal elements, so fifty rows do not carry fifty chevrons
+   * and a column of "Not set". It is the one thing that keeps direct
+   * manipulation from turning a list into a spreadsheet (DHDS-10 §6), and it is
+   * declared HERE rather than restyled per surface so a new adopter inherits it.
+   *
+   * The reveal is the product's existing one: the caret is a
+   * `.dh-action-reveal` inside the surrounding `data-dh-action-context` row, so
+   * it fades with that row's overflow button, on the same curve, and is given
+   * unconditionally to anything that cannot hover.
+   */
+  readonly presentation?: "default" | "meta";
+  /**
    * The stored value keeps its line breaks, so the READ state must too. Without
    * this a two-paragraph plain-text value collapses into one run-on line at
    * rest and re-splits the moment the editor opens, which reads as data loss.
@@ -119,6 +140,7 @@ export function InlineEditShell({
   errorId,
   readOnly = false,
   variant = "text",
+  presentation = "default",
   multiline = false,
   className,
   "data-testid": testId,
@@ -129,6 +151,7 @@ export function InlineEditShell({
     <div
       className={classes}
       data-variant={variant}
+      data-presentation={presentation === "meta" ? "meta" : undefined}
       data-multiline={multiline ? "true" : undefined}
       data-editing={editing ? "true" : undefined}
       data-pending={pending ? "true" : undefined}
@@ -182,7 +205,13 @@ export function InlineEditShell({
         >
           <span className="dh-inline-edit__value">
             {isEmpty ? (
-              <span className="dh-inline-edit__empty">
+              <span
+                className={
+                  presentation === "meta"
+                    ? "dh-inline-edit__empty dh-action-reveal"
+                    : "dh-inline-edit__empty"
+                }
+              >
                 {emptyLabel ?? "Not set"}
               </span>
             ) : (

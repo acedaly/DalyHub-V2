@@ -21,7 +21,12 @@ import { useNavigate } from "react-router";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
-import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
+import {
+  InlineSelectField,
+  InlineTextField,
+  type InlineSaveOutcome,
+} from "~/shared/inline-edit";
+import { ASSET_STATUSES } from "~/kernel/assets";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import {
@@ -66,6 +71,14 @@ interface AssetRecordProps {
    * than throwing, so a refusal keeps the typed name in the field.
    */
   readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
+  /**
+   * DHDS-10 — set ONE detail field, through the same `intent=update` endpoint
+   * the details form posts to. Omit and the context line renders plain facts.
+   */
+  readonly onSetField?: (
+    field: string,
+    value: string,
+  ) => Promise<InlineSaveOutcome>;
   readonly onSaved: () => void;
   readonly onQuickEvent: (action: QuickEventAction) => void;
   readonly onEditEvent: (event: SerializedAssetEvent) => void;
@@ -75,6 +88,19 @@ interface AssetRecordProps {
     obligation: SerializedAssetObligation,
   ) => void;
 }
+
+/**
+ * The status vocabulary, from the ONE module that owns it.
+ *
+ * `ASSET_STATUSES` is the kernel's list, in its display order, with its
+ * wording — so this control, the details form and the collection filter can
+ * never offer different words for the same six values. DHDS-10 §22 is explicit
+ * that a status vocabulary is not something an interaction pass invents.
+ */
+const ASSET_STATUS_OPTIONS = ASSET_STATUSES.map(({ value, label }) => ({
+  value,
+  label,
+}));
 
 const TONE_TO_RECORD: Record<
   ReturnType<typeof assetStatusTone>,
@@ -101,6 +127,7 @@ export function AssetRecord({
   eventsHasMore,
   onTabChange,
   onRename,
+  onSetField,
   onSaved,
   onQuickEvent,
   onEditEvent,
@@ -196,6 +223,44 @@ export function AssetRecord({
       value: names.ownerName,
     });
   }
+  /*
+   * DHDS-10 — the real-world STATE, as a contextual choice.
+   *
+   * It is the fact an owner changes most about an Asset — a tool is lent out, a
+   * car goes in for repair, a laptop is retired — and until this phase it was
+   * reachable only through the Details tab's eighteen-field form.
+   *
+   * It is a CONTEXT-LINE control rather than the header's status pill, and the
+   * distinction is load-bearing (§24). The pill states the record's headline
+   * condition with archive precedence ("Archived · Stored"); the context line
+   * states the Asset's own status, which is what `status` actually holds. An
+   * ARCHIVED Asset gets the plain fact: it is read-only until restored, and the
+   * repository refuses the mutation.
+   *
+   * It is LAST in the run, and that is a composition choice with a reason: a
+   * `meta` field reserves its caret's width at rest so revealing it cannot move
+   * the text beside it (DHDS-08's reveal contract, and DHDS-10 §26's "hover
+   * must not move surrounding content"). At the END of a wrapping run that
+   * reserved space costs nothing; in the MIDDLE it reads as a double gap before
+   * the next separator. The identity facts come first and the state follows
+   * them, which is also the order the Project record uses.
+   */
+  if (onSetField && !asset.archived) {
+    headerMetadata.push({
+      id: "status",
+      label: "Status",
+      value: (
+        <InlineSelectField
+          label="Status"
+          value={asset.status}
+          options={ASSET_STATUS_OPTIONS}
+          onSave={(next) => onSetField("status", next)}
+          presentation="meta"
+          data-testid="asset-status-edit"
+        />
+      ),
+    });
+  }
 
   // PX-04: the SAME lifecycle actions, in the SAME shared overflow slot, as every
   // other record. The Settings tab keeps the full explanation and the
@@ -259,6 +324,17 @@ export function AssetRecord({
                 onEditDetails={() => onTabChange("details")}
                 onOpenObligations={() => onTabChange("obligations")}
                 onOpenHistory={() => onTabChange("history")}
+                /*
+                 * The loader's existing bounded Area set, and the one-field
+                 * save. An ARCHIVED Asset gets neither, so its sheet renders as
+                 * plain text — read-only until restored, exactly as its title
+                 * already was.
+                 */
+                areas={areas.map((area) => ({
+                  id: area.id,
+                  title: area.title,
+                }))}
+                {...(onSetField && !asset.archived ? { onSetField } : {})}
               />
             ),
           },

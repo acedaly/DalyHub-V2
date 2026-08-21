@@ -62,6 +62,7 @@ import { LoadMore } from "~/shared/load-more";
 import { useFeedback } from "~/shared/feedback";
 import { type TaskRowFieldSave } from "~/shared/task-record/TaskRowFields";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
+import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
@@ -804,132 +805,20 @@ function useTaskQuickMutation(config: TaskViewConfig, data: TasksPageData) {
   };
 }
 
-/**
- * TASKS-04 — the inline TITLE editor for one list row.
+/*
+ * TASKS-04 / DHDS-10 — the inline TITLE editor moved to `~/shared/task-record`.
  *
- * It is rendered ONLY while the row is being renamed (the Card keeps its ordinary
- * open link the rest of the time), so inline editing never costs the user the way
- * into the record. Renaming posts to the canonical `POST /tasks/:taskId` route and
- * revalidates the list; a rejected save keeps the typed text, announces the reason
- * and returns focus to the field.
+ * It was declared here, privately, which was defensible while `/tasks` was the
+ * only surface that could rename a row. Today and Plan draw the SAME shared
+ * `TaskRow`, over the same Tasks, with the same `titleEditor` slot — and had no
+ * editor to put in it, so correcting a typo from the surface an owner spends
+ * the working day on meant opening the record.
+ *
+ * `TaskTitleEditor` is that component, unchanged in every observable respect —
+ * the same `rename` intent, the same offline queueing, the same Enter/Escape/
+ * blur contract, the same refusal handling that keeps the typed text. What is
+ * different is that three surfaces now share it.
  */
-function InlineTaskTitleEditor({
-  taskId,
-  title,
-  onDone,
-  onQueued,
-}: {
-  readonly taskId: string;
-  readonly title: string;
-  readonly onDone: () => void;
-  /** PWA-12 — called when the rename was accepted LOCALLY rather than by DalyHub. */
-  readonly onQueued: (taskId: string, title: string) => void;
-}) {
-  const revalidator = useRevalidator();
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [draft, setDraft] = useState(title);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
-
-  const save = useCallback(() => {
-    const trimmed = draft.trim();
-    if (saving) return;
-    if (trimmed.length === 0) {
-      // Local validation catches a structurally invalid value EARLY, online or
-      // off, so nothing pointless is queued. The domain remains authoritative:
-      // this is a courtesy, never the decision (§13).
-      setError("A title is required.");
-      window.requestAnimationFrame(() => inputRef.current?.focus());
-      return;
-    }
-    if (trimmed === title) {
-      onDone();
-      return;
-    }
-    setError(null);
-    setSaving(true);
-    const fail = (message: string) => {
-      setSaving(false);
-      // The user's text is never discarded on a recoverable failure.
-      setError(message);
-      window.requestAnimationFrame(() => inputRef.current?.focus());
-    };
-    void postTaskRecordActionOffline(
-      taskId,
-      { intent: "rename", title: trimmed },
-      { operation: "set_title", value: trimmed, baseValue: title },
-    )
-      .then((outcome) => {
-        if (outcome.kind === "refused") {
-          fail(outcome.message);
-          return;
-        }
-        if (outcome.kind === "queued") {
-          setSaving(false);
-          onQueued(taskId, trimmed);
-          onDone();
-          return;
-        }
-        const result = outcome.data;
-        if (result.kind === "update" && result.status === "success") {
-          setSaving(false);
-          revalidator.revalidate();
-          onDone();
-          return;
-        }
-        fail(
-          (result.kind === "update" ? result.fieldErrors?.title : undefined) ??
-            (result.kind === "update" ? result.formError : undefined) ??
-            "That title couldn’t be saved. Your text is safe — try again.",
-        );
-      })
-      .catch(() =>
-        fail("That title couldn’t be saved. Your text is safe — try again."),
-      );
-  }, [draft, onDone, onQueued, revalidator, saving, taskId, title]);
-
-  return (
-    <span className="dh-tasks-inline-title-editor">
-      <input
-        ref={inputRef}
-        className="dh-input dh-tasks-inline-title-editor__input"
-        value={draft}
-        maxLength={512}
-        disabled={saving}
-        aria-label={`Rename ${title}`}
-        aria-invalid={error ? true : undefined}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          if (error) setError(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            save();
-          } else if (event.key === "Escape") {
-            event.preventDefault();
-            setError(null);
-            onDone();
-          }
-        }}
-        onBlur={() => {
-          // A blur with an unresolved error would throw the text away; keep editing.
-          if (!error) save();
-        }}
-      />
-      {error ? (
-        <span className="dh-tasks-inline-title-editor__error" role="alert">
-          {error}
-        </span>
-      ) : null}
-    </span>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* The surface                                                                 */
@@ -943,6 +832,10 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
   const { openDrawer } = useDrawer();
   const config = data.config;
   const quick = useTaskQuickMutation(config, data);
+  // An accepted rename re-reads the list: the title is what the collection is
+  // ORDERED and GROUPED by on several of its configurations, so painting it
+  // locally without re-reading would leave the row in the wrong place.
+  const revalidator = useRevalidator();
   /**
    * TASKS-04 — which row (if any) is being renamed inline. Held here rather than in
    * the row so exactly one title is ever in edit mode and the Card keeps its open
@@ -1316,9 +1209,17 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         onCompletedChange: (complete: boolean) =>
           quick.setCompleted(card.id, complete, card.title),
         onInlineSave: quick.reportInlineSave,
-        // The project menu's escape hatch: the same shared picker the row's
-        // overflow opens, from the control the owner already has open.
-        onSearchParents: () => openDrawer(`task-move:${card.id}`),
+        /*
+         * DHDS-10 §11 — the project menu's escape hatch is INLINE.
+         *
+         * It was `openDrawer("task-move:<id>")`, so the one command in the
+         * field whose purpose is to choose a Project opened the Task's whole
+         * record. The field now opens the shared searchable picker over its own
+         * cell, so nothing about "move this task" leaves the collection. The
+         * overflow's "Move to Project or Area…" still points at the record: it
+         * is the phone path for a task with no parent (whose metadata trigger a
+         * phone drops) and the deeper home for everything else about the Task.
+         */
         overflowActions,
         readOnly: viewingDeleted,
         pending: pendingState !== undefined,
@@ -1328,10 +1229,11 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         ...(editingTitleId === card.id
           ? {
               titleEditor: (
-                <InlineTaskTitleEditor
+                <TaskTitleEditor
                   taskId={card.id}
                   title={card.title}
                   onDone={() => setEditingTitleId(null)}
+                  onSaved={() => revalidator.revalidate()}
                   onQueued={quick.reportQueuedTitle}
                 />
               ),
@@ -1383,6 +1285,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       data.parents,
       searchParams,
       openDrawer,
+      revalidator,
       selected,
       selectionVisible,
       quick,

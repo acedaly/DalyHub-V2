@@ -195,7 +195,25 @@ export function RecordHeader({
 
       {(typeLabel !== undefined ||
         (metadata !== undefined && metadata.length > 0)) && (
-        <ul className="record-header__context" aria-label="Record context">
+        /*
+         * DHDS-10 — the context line is a REVEAL CONTEXT.
+         *
+         * A record's context line is a run of small facts being scanned, and
+         * DHDS-10 makes several of them directly editable (a Project's status,
+         * an Asset's state, a Goal's target date). Declaring the DHDS-08 action
+         * context here is what lets every one of those fields hold its caret
+         * back at rest and show it when the owner engages with the line — one
+         * contract, the same one the row's overflow button uses, rather than a
+         * per-record decision about how loud an editable fact should look.
+         *
+         * It affects nothing that is not a `.dh-action-reveal`, so a context
+         * line of plain facts and links is byte-identical with it.
+         */
+        <ul
+          className="record-header__context"
+          aria-label="Record context"
+          data-dh-action-context="true"
+        >
           {typeLabel !== undefined && (
             <li className="record-context-item record-context-item--type">
               <span className="record-type__label">{typeLabel}</span>

@@ -55,8 +55,11 @@ import { EntityIcon, isEntityType } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
 import { ViewTabs } from "~/shared/view-switcher";
-import { PriorityIndicator } from "~/shared/task-record/PriorityIndicator";
-import { InlineTaskDate } from "~/shared/task-record/TaskRowFields";
+import {
+  InlineTaskDate,
+  InlineTaskPriority,
+  type TaskRowFieldSave,
+} from "~/shared/task-record/TaskRowFields";
 import { postTaskBulkAction } from "~/shared/task-record/task-inline-edit";
 import {
   isTaskWaiting,
@@ -314,6 +317,8 @@ function toTaskCardProps(
   archived: boolean,
   /** An unconfirmed completion for THIS task, or undefined when settled. */
   pending: boolean | undefined,
+  /** Report an inline field's accepted save, so the Project can re-read. */
+  onInlineSave: (save: TaskRowFieldSave) => void,
 ): CardProps {
   const waiting = isTaskWaiting(task);
   // The ONE canonical display-state evaluator (TASKS-02 retired the legacy
@@ -338,19 +343,43 @@ function toTaskCardProps(
   const metadata: CardMetaItem[] = [];
   /*
    * Priority stays, because it is a fact about the task that appears nowhere
-   * else on the row — but as the shared INLINE editor rather than as a static
-   * "P1" pill, so it is the same control, editable in the same way, as the one
-   * on the Tasks list. A task with no priority draws nothing (the absence rule):
-   * "No priority" under every row is a column of italics saying a dimension was
-   * not used.
+   * else on the row — and, since DHDS-10, as the shared INLINE editor rather
+   * than as a static "P1" pill.
+   *
+   * The comment above this block claimed it already was one; it was a
+   * `PriorityIndicator`, which is a read-only mark. So the SAME Task's priority
+   * was one press away on `/tasks`, on Today and on `/plan`, and required
+   * opening the record on the surface an owner works the Project FROM — the
+   * cross-surface inconsistency §35 asks every migrated property to be checked
+   * for. It is now `InlineTaskPriority`, posting the same `set_priority` intent
+   * through the same shared control.
+   *
+   * A task with no stored priority reads P4, because that is what an untriaged
+   * task IS (CONTROL-01), so the row is drawn unconditionally rather than only
+   * when a value happens to be stored — the previous rule made the column
+   * disappear on exactly the rows where setting a priority is most useful.
    */
-  if (task.priority) {
-    metadata.push({
-      id: "priority",
-      value: <PriorityIndicator priority={task.priority} />,
-      priority: "low",
-    });
-  }
+  metadata.push({
+    id: "priority",
+    value: (
+      <InlineTaskPriority
+        taskId={task.id}
+        title={task.title}
+        priority={task.priority}
+        onSaved={onInlineSave}
+        disabled={completed || archived}
+      />
+    ),
+    /*
+     * HIGH, which is the default and which it must be to be DRAWN at all: this
+     * list opts into `.dh-tasklist`, and a task row hides its `low` tier
+     * entirely (`tasks.css`) because the sector, the delegate and the waiting
+     * note are the "everything else" D18 keeps off a row. Priority is not that
+     * tier — it is the "importance" in the product's when → where → importance
+     * order, and the stylesheet has carried a `[data-field="priority"]` rule
+     * for it since before this surface drew one.
+     */
+  });
   /*
    * TASKS-12 — the blocked reason, as a metadata line rather than as a second
    * status pill: the card's status already reads "Blocked" from the shared
@@ -416,6 +445,17 @@ function toTaskCardProps(
         kind="due"
         value={task.dueDate}
         todayIso={todayIso}
+        /*
+         * DHDS-10 — the accepted save is REPORTED, which it was not.
+         *
+         * The field posted `set_due` and the server accepted it, and nothing on
+         * this surface was told: the row kept the date it had painted itself,
+         * the Project's health, its overdue counts and its progress band all
+         * kept the answer they were loaded with, and the change appeared only
+         * on the next navigation. A date is one of the two inputs the health
+         * evaluator reads, so this was the surface disagreeing with itself.
+         */
+        onSaved={onInlineSave}
         disabled={completed || archived}
       />
     ),
@@ -511,6 +551,18 @@ export function ProjectTasksTab({
    * agreeing with the row, rather than a bar that says 63% next to a list that
    * says otherwise until the next load.
    */
+  /**
+   * DHDS-10 — an inline field's accepted save, reported to the Project.
+   *
+   * The same reason completion revalidates: a Task's due date and its priority
+   * are inputs to the Project's health, its overdue counts and its ordering, so
+   * the surface re-reads rather than guessing which of those moved. It is the
+   * SERVER's outcome — the fields never call this for a refusal.
+   */
+  const onInlineSave = useCallback(() => {
+    revalidator.revalidate();
+  }, [revalidator]);
+
   const onToggleComplete = useCallback(
     (task: SerializedProjectTask, complete: boolean) => {
       setCompletionError(null);
@@ -648,6 +700,7 @@ export function ProjectTasksTab({
                   onToggleComplete,
                   archived,
                   pendingCompletion.get(task.id),
+                  onInlineSave,
                 )}
               />
             )}

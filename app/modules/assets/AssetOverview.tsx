@@ -17,6 +17,13 @@
  * greyscale print and all five themes.
  */
 
+import type { ReactNode } from "react";
+
+import {
+  InlineSelectField,
+  InlineTextField,
+  type InlineSaveOutcome,
+} from "~/shared/inline-edit";
 import { TagChipList } from "~/shared/ui";
 
 import { AssetDatesTab } from "./AssetDatesTab";
@@ -58,6 +65,21 @@ interface AssetOverviewProps {
   readonly onEditDetails: () => void;
   readonly onOpenObligations: () => void;
   readonly onOpenHistory: () => void;
+  /**
+   * DHDS-10 — the Areas this workspace has, for the Area choice.
+   *
+   * The loader's existing BOUNDED set — the same list the details form's Area
+   * field is handed — so opening the choice costs no request. Areas are few and
+   * permanent by definition (AGENTS.md §4), which is why this is a `Menu` over a
+   * closed set rather than a searchable picker: a searchable surface over six
+   * values is slower than the six values.
+   */
+  readonly areas?: readonly { readonly id: string; readonly title: string }[];
+  /** DHDS-10 — set ONE detail field. Omit and every fact renders as text. */
+  readonly onSetField?: (
+    field: string,
+    value: string,
+  ) => Promise<InlineSaveOutcome>;
 }
 
 export function AssetOverview({
@@ -68,6 +90,8 @@ export function AssetOverview({
   onEditDetails,
   onOpenObligations,
   onOpenHistory,
+  areas = [],
+  onSetField,
 }: AssetOverviewProps) {
   const open = data.obligations.filter((o) => o.status === "open");
   const overdue = open.filter((o) => o.state === "overdue");
@@ -82,7 +106,14 @@ export function AssetOverview({
       (event) => event.category === "service" || event.category === "repair",
     ) ?? null;
 
-  const facts: { id: string; label: string; value: string }[] = [];
+  /*
+   * DHDS-10 — a fact's value is a NODE, not a string.
+   *
+   * It was `string`, which is what kept this sheet read-only: a value that can
+   * only be text can only be printed. Two of these rows are now controls; the
+   * rest are still the strings they were.
+   */
+  const facts: { id: string; label: string; value: ReactNode }[] = [];
   if (names.ownerName) {
     facts.push({ id: "owner", label: "Owner", value: names.ownerName });
   }
@@ -93,11 +124,68 @@ export function AssetOverview({
       value: names.responsibleName,
     });
   }
-  if (asset.location) {
-    facts.push({ id: "location", label: "Location", value: asset.location });
-  }
-  if (names.areaName) {
-    facts.push({ id: "area", label: "Area", value: names.areaName });
+  /*
+   * DHDS-10 §22 — the two facts an Asset's owner actually moves.
+   *
+   * WHERE it is kept and WHICH part of life it belongs to are the two rows of
+   * this sheet that change while the thing itself does not, and both were
+   * read-only text with "Edit details" — an eighteen-field form — underneath
+   * them. They are now the shared inline text field and the shared contextual
+   * choice, posting the same one-field `intent=update` the form posts.
+   *
+   * Both are drawn even when EMPTY, because an absent location is exactly when
+   * setting one is useful and the sheet is a small set of labelled facts rather
+   * than a fifty-row list — the case §25 keeps the invitation visible for. The
+   * rest of the sheet keeps the "a row that does not apply is not rendered"
+   * rule: a licence still shows no odometer.
+   *
+   * Everything else here stays read-only and stays behind the details form:
+   * a purchase price, a warranty expiry and a meter reading are fields whose
+   * validation and units belong together, and DHDS-10 §34 keeps that kind of
+   * editing in its proper editor.
+   */
+  if (onSetField) {
+    facts.push({
+      id: "location",
+      label: "Location",
+      value: (
+        <InlineTextField
+          label="Location"
+          value={asset.location ?? ""}
+          onSave={(next) => onSetField("location", next)}
+          emptyLabel="Add a location"
+          presentation="meta"
+          data-testid="asset-location-edit"
+        />
+      ),
+    });
+    facts.push({
+      id: "area",
+      label: "Area",
+      value: (
+        <InlineSelectField
+          label="Area"
+          value={asset.areaId ?? ""}
+          options={areas.map((area) => ({
+            value: area.id,
+            label: area.title,
+          }))}
+          onSave={(next) => onSetField("areaId", next)}
+          emptyLabel="No Area"
+          clearable
+          clearLabel="Remove from Area"
+          presentation="meta"
+          data-testid="asset-area-edit"
+        />
+      ),
+    });
+  } else {
+    if (asset.location) {
+      facts.push({ id: "location", label: "Location", value: asset.location });
+    }
+    if (names.areaName) {
+      facts.push({ id: "area", label: "Area", value: names.areaName });
+    }
   }
   if (data.meterDisplay) {
     facts.push({
@@ -213,7 +301,13 @@ export function AssetOverview({
       ) : null}
 
       {facts.length > 0 ? (
-        <dl className="dh-asset-summary__facts">
+        /*
+         * DHDS-10 — the fact sheet is a REVEAL CONTEXT, for the same reason a
+         * record's context line and a collection row are: two of these rows are
+         * now controls, and a caret drawn permanently beside "Home & Property"
+         * would make the sheet read as a form (§6).
+         */
+        <dl className="dh-asset-summary__facts" data-dh-action-context="true">
           {facts.map((fact) => (
             <div key={fact.id} className="dh-asset-summary__fact">
               <dt>{fact.label}</dt>

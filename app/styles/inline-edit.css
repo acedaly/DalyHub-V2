@@ -382,9 +382,18 @@
  * file may reintroduce a positioning context here.
  */
 .dh-inline-select,
+.dh-inline-picker,
 .dh-inline-date {
   display: inline-block;
   min-inline-size: 0;
+}
+
+/* DHDS-10 — the picker field's optional identity mark, beside the name. It is
+ * `flex: none`, so the NAME takes the ellipsis rather than the tile. */
+.dh-inline-picker__mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
 }
 
 /*
@@ -417,6 +426,105 @@
   inline-size: var(--app-space-4);
   block-size: var(--app-space-4);
   color: var(--dh-color-text-muted);
+}
+
+/* ------------------------------------------------------------------------- *
+ * DHDS-10 — the `meta` presentation.
+ *
+ * The whole of the phase's visual thesis is in this one block: at rest a
+ * metadata run must read as INFORMATION, and the manipulability must be latent
+ * until the owner engages with the row. A chevron and an italic "Not set" after
+ * every datum is what turns a beautifully composed list into a wall of form
+ * controls (§6, §40) — and it is what the product would have grown, four times
+ * per row, the moment inline editing spread past Tasks.
+ *
+ * Three things it does, and nothing else:
+ *
+ *   1. **The caret and the empty invitation join the DHDS-08 row reveal.** They
+ *      are `.dh-action-reveal` elements, so they fade in with the row's `⋯`
+ *      button, on the product's one curve, from the product's one contract —
+ *      including everything that contract already guarantees: they occupy their
+ *      geometry at rest so nothing shifts, `:focus-within` reveals them for the
+ *      keyboard, a touch device is simply given them, and forced colours draw
+ *      them unconditionally. DHDS-10 adds no motion of its own (§42).
+ *   2. **The VALUE never hides.** Only the affordances do. A row that blanked
+ *      its dates until hover would be unreadable, which is the opposite of the
+ *      point.
+ *   3. **A floor on the hit area.** 24px in BOTH axes — WCAG 2.2 §2.5.8 — because
+ *      quiet is a property of the paint and never of the target. A three-letter
+ *      date in a hugging cell is otherwise an 11px-wide control.
+ *
+ * This lived in `task-list.css`, scoped to `.dh-tasklist`, which is why every
+ * other surface that adopted an inline field got the loud treatment by default.
+ * It is declared here so a new adopter inherits the restraint instead of having
+ * to remember it.
+ * ------------------------------------------------------------------------- */
+
+.dh-inline-edit[data-presentation="meta"] .dh-inline-edit__trigger {
+  /*
+   * The trigger's TEXT lands where the value would have without it.
+   *
+   * The shared (non-meta) trigger pulls back by `space-2` to compensate a
+   * `space-2` inset; a meta trigger is tighter, so it pulls back by exactly the
+   * `space-1` it pads. Without this a fact sheet's two editable rows sit 4px to
+   * the right of the plain ones above them and the column of values visibly
+   * steps — measured on the Asset record's Location and Area.
+   *
+   * A COLUMN grid overrides it back to zero (`task-list.css`): there the cell
+   * does the aligning, and any negative margin makes each trigger overhang its
+   * neighbour, which is how a date's hit area ends up under the priority beside
+   * it.
+   */
+  margin-inline: calc(-1 * var(--dh-space-1)) 0;
+  min-block-size: var(--dh-space-6);
+  min-inline-size: var(--dh-space-6);
+  padding-inline: var(--dh-space-1);
+  padding-block: 0;
+  border: 0;
+  border-radius: var(--dh-radius-sm);
+  background: transparent;
+  /*
+   * INHERIT the colour, never set it. A semantic wrapper (an overdue date's
+   * `dh-task-date--overdue`) sits OUTSIDE the trigger, so a trigger that
+   * declared its own colour would win over it and a slipped date would render
+   * in ordinary ink — the one place on a row where colour is doing real work.
+   */
+  color: inherit;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+@media (hover: hover) {
+  .dh-inline-edit[data-presentation="meta"] .dh-inline-edit__trigger:hover {
+    background: var(--dh-color-surface-quiet);
+  }
+}
+
+.dh-inline-edit[data-presentation="meta"]
+  .dh-inline-edit__trigger:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+/*
+ * On a device with NO hover the caret goes entirely.
+ *
+ * `.dh-action-reveal` deliberately draws itself where there is nothing to
+ * reveal with, and for an `⋯` button that is exactly right — it is the only
+ * way to reach the actions. A caret is not that: the whole VALUE is the
+ * button, at the touch-target floor, and a thumb discovers it by pressing it.
+ * Drawing the chevron anyway would put three permanent glyphs on the metadata
+ * line of every row on the screen with the least room for them.
+ *
+ * The empty INVITATION keeps the reveal contract's default and is drawn,
+ * because on a touch device an absence with no words is an absence with no
+ * target. Surfaces where even that is too much say so themselves (a Task row
+ * drops the whole trigger at phone widths — see `task-list.css`).
+ */
+@media (hover: none) {
+  .dh-inline-edit[data-presentation="meta"] .dh-inline-select__caret {
+    display: none;
+  }
 }
 
 /*

@@ -134,7 +134,18 @@ export interface TaskRowProps {
   readonly overflowActions: readonly MenuItem[];
   /** Replaces the title with an editor while this row is being renamed. */
   readonly titleEditor?: ReactNode;
-  /** Opens the shared searchable parent picker, from the project menu's foot. */
+  /**
+   * DHDS-10 — the project menu's escape hatch, when the SURFACE wants to own it.
+   *
+   * Omit it, which every surface now does: the field opens the shared
+   * searchable `Picker` in place, anchored to its own cell, writing through the
+   * same `set_parent` intent. It was `() => openDrawer("task-move:<id>")` on
+   * both callers, which meant "search all Projects and Areas" — a command
+   * whose whole purpose is to choose one value — opened the Task's full record.
+   *
+   * Kept as an override for a surface that genuinely cannot host an anchored
+   * surface over the row.
+   */
   readonly onSearchParents?: () => void;
   /** Bulk selection, when the surface is in selection mode. */
   readonly selection?: TaskRowSelection;

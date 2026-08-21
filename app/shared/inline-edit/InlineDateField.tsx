@@ -101,6 +101,12 @@ export interface InlineDateFieldProps {
    * the browser clock.
    */
   readonly todayIso?: string | null;
+  /**
+   * DHDS-10 — how loud the field is at rest. See {@link InlineEditShellProps}.
+   * `meta` holds the empty invitation ("No due date") back until the row is
+   * engaged with, so an Inbox does not read as a column of placeholders.
+   */
+  readonly presentation?: "default" | "meta";
   readonly className?: string;
   readonly "data-testid"?: string;
 }
@@ -115,6 +121,7 @@ export function InlineDateField({
   clearable = true,
   shortcuts,
   todayIso = null,
+  presentation = "default",
   className,
   "data-testid": testId,
 }: InlineDateFieldProps) {
@@ -194,6 +201,7 @@ export function InlineDateField({
         errorId={errorId}
         readOnly={readOnly}
         variant="text"
+        presentation={presentation}
         className={className}
         data-testid={testId}
       >

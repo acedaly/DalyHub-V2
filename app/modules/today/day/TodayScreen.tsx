@@ -137,6 +137,7 @@ import {
 
 import { TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
+import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import {
   applyTaskListItemPatch,
@@ -897,6 +898,14 @@ export function TodayScreen({
    */
   const actions = useTaskSurfaceActions();
   const { clearPatches } = actions;
+  /**
+   * DHDS-10 — which row (if any) is being renamed in place.
+   *
+   * Held by the SURFACE, exactly as `/tasks` holds it, so at most one title is
+   * ever in edit mode and every other row keeps its ordinary open link. Inline
+   * renaming must never cost the way into the record.
+   */
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   // Fresh loader data is the truth; every client guess is dropped the moment it
   // arrives, which is what keeps a patch a guess rather than a second state.
   useEffect(() => {
@@ -1013,15 +1022,20 @@ export function TodayScreen({
    * to the same canonical routes. What this function supplies is only the data
    * and the callbacks — which is the whole contract the shared row asks for.
    *
-   * Two deliberate differences from `/tasks`, each an omission the caller states
-   * rather than a second menu it assembles:
+   * One deliberate difference from `/tasks`, which the caller states as an
+   * omission rather than as a second menu it assembles: **no "Plan for today"**.
+   * Every row on this panel is already today's work — it is the membership rule
+   * the panel is built from — so the item would be an act with no effect on
+   * every row it appeared on.
    *
-   *   - **no "Plan for today"**. Every row on this panel is already today's work
-   *     — it is the membership rule the panel is built from — so the item would
-   *     be an act with no effect on every row it appeared on.
-   *   - **no "Rename"**. Today's plan is a bounded view of the day, not the
-   *     collection you file and tidy from; renaming lives on `/tasks` and in the
-   *     record, both one click away through the same menu's last item.
+   * ── DHDS-10 — "Rename" is no longer the second one ──────────────────────────
+   * It was, on the reading that "Today's plan is a bounded view of the day, not
+   * the collection you file and tidy from". The reading does not survive §37 and
+   * §49: Today is where the working day is actually run, correcting a title is
+   * one of the small changes an owner makes while running it, and the previous
+   * answer was to open the record and lose the surface. It is the SAME shared
+   * editor `/tasks` uses, posting the same `rename` intent — a convergence, not
+   * a second path.
    */
   const rowProps = useCallback(
     (task: DayTask): TaskRowProps => {
@@ -1040,11 +1054,15 @@ export function TodayScreen({
         onCompletedChange: (complete: boolean) =>
           actions.setCompleted(task.id, complete, task.title),
         onInlineSave: actions.reportInlineSave,
-        // The project menu's escape hatch: the SAME searchable picker `/tasks`
-        // opens, through the same drawer key.
-        onSearchParents: () => openDrawer(`task-move:${task.id}`),
+        /*
+         * DHDS-10 §11 — the project menu's escape hatch opens the shared
+         * searchable picker over the row's own cell, exactly as it now does on
+         * `/tasks`. It used to open the Task's record through `task-move:`,
+         * which is a record navigation for a one-value choice.
+         */
         overflowActions: buildTaskRowActions(row, {
           onOpenRecord: () => openDrawer(key),
+          onRename: () => setEditingTitleId(task.id),
           onMoveToParent: () => openDrawer(`task-move:${task.id}`),
           onSomeday: () =>
             actions.setField(
@@ -1066,9 +1084,37 @@ export function TodayScreen({
               `${task.title} no longer repeats.`,
             ),
         }),
+        // The editor replaces the title ONLY while this row is being renamed;
+        // every other row keeps its ordinary open link.
+        ...(editingTitleId === task.id
+          ? {
+              titleEditor: (
+                <TaskTitleEditor
+                  taskId={task.id}
+                  title={task.title}
+                  onDone={() => setEditingTitleId(null)}
+                  onSaved={(id, title) =>
+                    actions.reportInlineSave({
+                      taskId: id,
+                      intent: "rename",
+                      message: `Renamed to ${title}.`,
+                      patch: { title },
+                    })
+                  }
+                />
+              ),
+            }
+          : {}),
       };
     },
-    [data.todayIso, data.parents, searchParams, openDrawer, actions],
+    [
+      data.todayIso,
+      data.parents,
+      searchParams,
+      openDrawer,
+      actions,
+      editingTitleId,
+    ],
   );
 
   const hasDay = buckets.overdue.length > 0 || buckets.today.length > 0;

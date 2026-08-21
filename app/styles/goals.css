@@ -978,11 +978,40 @@
   border-radius: var(--dh-radius-sm);
 }
 
+/*
+ * DHDS-10 — the context line is a RUN, because one of its parts is now a
+ * control rather than a fragment of a sentence.
+ *
+ * It was `Area · Target by 31 Dec 2025` joined into one string. The target date
+ * is an inline field, so the parts are separate elements with the product's
+ * middot drawn BETWEEN them by the layout rather than typed into the text —
+ * which is also what lets a Goal with no Area, or no target date, close the gap
+ * instead of printing a stray separator.
+ */
 .dh-goalpane__context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
   margin: var(--dh-space-1) 0 0;
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
   color: var(--dh-color-text-muted);
+}
+
+.dh-goalpane__context > * + *::before {
+  content: "·";
+  margin-inline-end: var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+}
+
+/* The label and its field are ONE item in that run, so the middot lands before
+ * the pair rather than between the word and the date it introduces. */
+.dh-goalpane__target {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-inline-size: 0;
 }
 
 /* The selected Goal answers the two daily-driver questions before the chart:
