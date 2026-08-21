@@ -333,6 +333,18 @@ same component's list rows faded.
 **Verified in a real engine:** hovering a row does not move its title by a pixel
 on either axis, and the affordance is reachable by keyboard.
 
+**One known gap, recorded rather than papered over.** Rule 4 has a cost nobody
+had measured: because the unrevealed trigger is `pointer-events: none` while its
+`.dh-overflow-menu` wrapper is `pointer-events: auto` over the *same* 32px box,
+the hit test at the trigger's centre resolves to the wrapper. A person is
+unaffected — hovering the row reveals the affordance before the click lands —
+but Playwright hit-tests before it moves the mouse, so it can never perform the
+hover that would make the element hittable. `e2e/motion.spec.ts` opens the menu
+from the keyboard for this reason. The behaviour predates DHDS-08 (the
+`pointer-events` half came from `base.css` unchanged) and the fix is a decision
+between two behaviour changes rather than a motion one, so it is recorded as
+DEBT-180 rather than taken here.
+
 ---
 
 ## 9. Contextual depth behaviour
@@ -612,29 +624,52 @@ drift apart.
 | `e2e/drawer` `feedback` `tooltip` `command-palette` | 61 passed, 1 failed *(pre-existing)* |
 | `e2e/today` `today-focus` `today-mobile` `tasks` | 32 passed, 6 failed *(pre-existing)* |
 
-### Pre-existing failures, verified against the base tree
+### The E2E gate: 19 pre-existing failures, every one verified
 
-Seven E2E tests fail. Each was reproduced by checking `app/` out at
-`157a3f4` (the merge-base) and re-running the same specs against the same
-reseeded database: **the same seven fail, identically**.
+The full twelve-partition gate ran in CI on this branch (runs 32424290783 and
+32428461587). **Static, Scope, Build and Unit are green.** Eight E2E partitions
+are red, carrying **19 failing tests between them** — and the two runs, taken
+before and after the review fixes, produce the *identical* set, so nothing in
+this branch moves it either way.
 
-- `command-palette.spec.ts` — "activates the same shared action through the row's
-  own control"
-- `today.spec.ts` — four tests
-- `today-focus.spec.ts` — two tests
+Every one of the nineteen was checked individually by restoring `app/` to
+`157a3f4` (the merge-base), reseeding the local database and re-running the same
+spec. **All nineteen fail identically on the base tree.** None is a DHDS-08
+regression.
 
-All share one signature: `locator.check()` clicks a completion checkbox and the
-checkbox never becomes checked, so Playwright retries to timeout. Not motion, and
-not introduced here. They are not fixed in this branch because doing so is a
-different investigation; they are recorded in `PRODUCT_DEBT.md`.
+| Spec | Tests | Verified pre-existing |
+|---|---|---|
+| `today.spec.ts` | 4 | ✓ |
+| `today-task-convergence.spec.ts` | 2 | ✓ |
+| `today-focus.spec.ts` | 2 | ✓ |
+| `inline-editor-overlay.spec.ts` | 2 | ✓ |
+| `visual-system.spec.ts` | 2 | ✓ |
+| `command-palette.spec.ts` | 1 | ✓ |
+| `plan-weekly-planning.spec.ts` | 1 | ✓ |
+| `tasks-collection.spec.ts` | 1 | ✓ |
+| `record-anatomy.spec.ts` | 1 | ✓ |
+| `non-diary-audit.spec.ts` | 1 | ✓ |
+| `goal-measurement.spec.ts` | 1 | ✓ |
+| `iphone-daily-driver.spec.ts` | 1 | ✓ |
 
-An eighth — `tasks-collection.spec.ts` → "removes one of two applied filters and
-leaves the other" — behaves differently and was checked separately, because it
-exercises the collection popover this phase gave a reveal to. It **passes in
-isolation** against a freshly seeded database (9.6s) and **fails when run after
-another spec**, on this branch and on the merge-base alike. That is DEBT-173's
-signature (specs asserting against the shared workspace's accumulated state)
-rather than anything the anchored reveal did.
+Four of these sit squarely in this phase's blast radius and were therefore
+checked FIRST rather than last — `inline-editor-overlay` (the anchored layer
+DHDS-08 gave a reveal to) and `today-task-convergence` (the completion grammar).
+All four fail on the base tree too.
+
+Most share one signature: `locator.check()` clicks a completion checkbox, the
+checkbox never becomes checked, and Playwright retries to timeout. Two are
+different and were investigated separately — `tasks-collection.spec.ts:298`
+passes in isolation and fails only after another spec (DEBT-173's
+accumulated-state signature), and `plan-weekly-planning.spec.ts:233` is the
+hit-testing gap now recorded as DEBT-180.
+
+**The base branch is redder still.** `main` at `157a3f4` (run 32409611083) fails
+**ten** jobs, including **Unit** — `test/kernel/calendar-security.test.ts:94`, a
+network-dependent test — plus eight E2E partitions. This branch's Unit job is
+green. None of this is fixed here: a failure that is red on base is not this
+PR's to repair, and widening a grammar pass to chase nineteen unrelated tests is
+how a reviewable branch stops being one.
 
 The **full** E2E gate was not run in this environment — it is a 176-minute,
 twelve-partition suite. The partitions manifest was regenerated from a real
