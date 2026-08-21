@@ -48,6 +48,21 @@
   touch-action: none;
 }
 
+/*
+ * A COARSE pointer gets the product's full target, unconditionally.
+ *
+ * The 24px above is the WCAG 2.2 §2.5.8 minimum and is correct for a mouse; a
+ * thumb needs 44px, and this is the same gate DHDS-10 §4 applies to a `meta`
+ * field's hit area — a device must positively declare a fine pointer WITH hover
+ * to get the smaller one. The INK does not grow; the target does.
+ */
+@media not ((hover: hover) and (pointer: fine)) {
+  .dh-drag-handle {
+    min-width: var(--app-touch-target-min);
+    min-height: var(--app-touch-target-min);
+  }
+}
+
 .dh-drag-handle:hover:not(:disabled) {
   color: var(--dh-color-text);
   background: var(--dh-color-surface-selected);

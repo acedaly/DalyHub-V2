@@ -1820,14 +1820,16 @@ Two rules the August 2026 UI quality audit made explicit (UIQ-001/UIQ-002), beca
 
 **Roving-focus membership (`rovingTabIndex`).** For a keyboard-navigable collection (a surface where Arrow keys move a single focus across many cards — e.g. the Today task list, TODAY-05), the optional `rovingTabIndex` prop is applied to **only the card's primary open control** (`0` for the active card, `-1` for the rest), so the collection is a single composite widget with **exactly one tab stop**: Tab enters once and lands on the current card, Arrow keys move between cards, Tab/Shift+Tab leave/re-enter. The card's SECONDARY controls (selection checkbox, quick/overflow actions) are always removed from the tab order (`tabindex="-1"`) while roving is active — Tab never stops on them — yet stay operable by pointer and by keyboard through the collection's own model (Space selects the focused card) and the shared contextual commands / Command Palette (every action has a keyboard equivalent). Undefined (the default) leaves natural tab behaviour unchanged, so every existing consumer is untouched. This is the accessible roving-`tabindex` composite (like RecordTabs) rather than a `listbox`/`aria-activedescendant` widget — correct here because a card legitimately contains interactive children, which a listbox option may not.
 
-**Reorder model & keyboard equivalent.** DESIGN_SYSTEM requires drag with a keyboard equivalent. `ReorderableCardCollection` (with `CardReorderHandle`) provides both over the browser platform — Pointer Events + keyboard — with **no drag-and-drop dependency**. Pointer users grab the handle and drag; keyboard users focus the handle, press Enter/Space to pick up, Arrow Up/Down to move, Enter/Space to drop, Escape to cancel (restoring order). The handle has an accessible name; position/movement are announced via a live region; reordering **emits intent** (`onReorder(nextIds, detail)`) rather than mutating business data (no hidden database update); non-reorderable cards are pinned and cannot move. The **permutation guarantee** is enforced by capturing the committed collection (id order + pinned set) when the drag begins and cancelling cleanly if *anything* changes before drop — an item added, removed, reordered externally, or flipped between reorderable and pinned — so `onReorder` never emits a deleted id, omits a new one, or violates the current order; focus stays predictable. It works in both densities and does not rely on tiny touch targets. **Reorder is list presentation only** for now: pointer targeting is one-dimensional (vertical), which is correct for a single-column list but not a multi-column grid — a genuine two-dimensional grid reorder is deferred to a later item. `CardCollection` is the plain (non-reorderable) container for list/board/grid; grid and board layouts use it and do **not** offer drag.
+**Reorder model & keyboard equivalent (DHDS-11, 2026-08).** DESIGN_SYSTEM requires drag with a keyboard equivalent, and there is now exactly ONE implementation of both: [`~/shared/drag`](#drag-reorder-and-object-continuity-dhds-11-2026-08). A card in a manually ordered collection is rendered inside `SortableList` and places the shared `SortableHandle` in its `reorderHandle` slot. Pointer users grab the grip and drag; keyboard users focus it, press Enter/Space to pick up, Arrow Up/Down to move, Enter/Space to drop, Escape to cancel. The grip has an accessible name in the product's words; every move is announced through one live region; reordering **emits intent** (`onReorder(nextIds, detail)`) and never mutates business data. The **permutation guarantee** is enforced by capturing the collection when the drag begins and cancelling cleanly if it stops being a permutation of that — and again, authoritatively, by the repository inside the write. `CardCollection` is the plain (non-reorderable) container for list/board/grid; grid and board layouts use it and do **not** offer drag, because pointer targeting is one-dimensional.
+
+DHDS-11 **removed** DS-04's own `ReorderableCardCollection`, `CardReorderHandle` and `reorder.ts`. They were a second, parallel drag system — a second grip, a second announcement vocabulary and a second order model — used by one design fixture and by nothing in the product. Their pinned-card concept went with them: no DHDS-11 collection has a notion of a card that stays put while its neighbours move.
 
 **Accessibility.** Semantic card structure (`article` + heading); accessible primary open action with visible focus; native, labelled selection; keyboard-accessible quick actions that are never hover-only; status/date as text (not colour alone); labelled/valued progress; a keyboard-operable, announced reorder handle; logical tab order; no nested-button/link violations. The title heading level is configurable via **`headingLevel`** (2 | 3 | 4, default 3) so cards nest correctly under the surrounding heading — a Collection pane header at `h1` renders its cards at `h2`, a card under an `h2` section at `h3` — keeping the document's heading outline valid with no skipped levels (DS-11).
 
 **Correct vs incorrect usage.**
 
 - ✅ Configure ONE `Card` with plain typed data for any entity; give the title an `href`/`onOpen` that opens the DS-03 Drawer; keep quick actions a curated few.
-- ✅ Use `ReorderableCardCollection` for accessible reorder and let it emit intent; treat progress/status/date as text-bearing.
+- ✅ Use `SortableList` (`~/shared/drag`) for accessible reorder and let it emit intent; treat progress/status/date as text-bearing. Reach for it only when the collection's order is genuinely the owner's and is stored — see the six questions in `DHDS_11_…` §2.
 - ❌ Build a `TaskCard`/`ProjectCard`/… or bake entity/business logic into the Card; make the whole card a single click target (`div onClick`) or nest interactive controls; convey selection/status by colour alone; hide quick actions from touch; mutate data inside a reorder.
 
 **Extension rules.** Add an affordance to the **one** shared Card (and document it here) only when a real entity needs it; never fork per module. Real product card usages arrive when a module first adopts DS-04 — this ships the component plus a development fixture only.
@@ -3164,9 +3166,14 @@ panel.
     new shortcut;
   - **Escape** closes a BLANK input and never discards typed words;
   - **blur saves**, like every other inline field;
-  - **reorder is two ordinary menu commands** — *Move up* and *Move down*,
-    disabled at the ends. No drag-and-drop dependency is added, and a command
-    works identically for a mouse, a keyboard and a thumb;
+  - **reorder is a DRAG and two ordinary menu commands** — *Move up* and *Move
+    down*, disabled at the ends. TASKS-13 shipped the commands alone, and the
+    reason still holds: a command works identically for a mouse, a keyboard and
+    a thumb. DHDS-11 added the spatial path beside them, because a checklist's
+    order is the owner's and is stored (`task_checklist_items.position`) — which
+    is the condition a DalyHub collection must meet before it may be dragged.
+    Both write the SAME `checklist_reorder` intent, so the two can never
+    disagree about what an order is;
   - focus after a delete lands on the row that took the deleted one's place;
     closing the composer returns focus to the control that opened it;
   - a **polite live region** speaks an add, a move and a delete — the three
@@ -3414,3 +3421,95 @@ checkbox called "skip weekends" anywhere in DalyHub: the phrase names three
 different behaviours in three different products, so the control offers four
 complete sentences about what will happen instead. Where a flag would need a
 tooltip to say what it does, it should have been a choice.
+
+---
+
+## Drag, reorder and object continuity (DHDS-11, 2026-08)
+
+The full record is
+[`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md).
+What a component author needs is here.
+
+### The gate — six questions, all of which must answer yes
+
+Before making anything draggable:
+
+1. the object has a real spatial destination or a real, STORED order;
+2. the domain mutation the drop performs can be named in one sentence, with no
+   conditional;
+3. the destination is visible on the screen the drag starts from;
+4. a non-drag path exists and is at least as complete;
+5. persistence is truthful — the server accepts it and a reload proves it;
+6. dragging is faster or clearer than choosing from a menu.
+
+If any answer is no, the object is **not** draggable and the
+[DHDS-10](DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md) control is
+the whole answer. Two collections in the product pass: a Task's checklist steps
+and a Goal's stages. A Task's position in a list does **not** — `task_details`
+has no ranking column, and DHDS-11 did not invent one.
+
+### The one implementation
+
+`~/shared/drag`, mounted once by the `AppShell`:
+
+| Export | For |
+|---|---|
+| `SortableList` + `SortableHandle` | a collection whose order is stored |
+| `useDropTarget` | a container that IS a value of a field |
+| `useDragHandle` + `DragHandle` | a source that is not in an ordered collection |
+| `useDrag` | the live session, for a surface that draws its own state |
+
+It owns **no mutation**. `onDrop` hands the payload back and the surface posts
+its own canonical intent — the same one the contextual control beside it posts.
+There is no drag mutation path, no drag endpoint and no drag history in DalyHub.
+`app/styles/drag.css` declares every state a drag paints, and nowhere else does.
+
+### The five things a drag draws
+
+1. **the grip** — a real `<button>`, named in words, revealed with the row's
+   other DHDS-08 affordances on a fine pointer and simply drawn on a coarse one.
+   `touch-action: none` is scoped to the grip alone, so every other pixel still
+   scrolls;
+2. **the preview** — the OBJECT, at its own size, under the pointer. Elevation
+   and an edge, and nothing else: no rotation, no tilt, no glow, no scale, and
+   no transition while it tracks;
+3. **the source** — its row KEEPS its place, drawn quiet. It never collapses, the
+   list never jumps, and the scroll position never moves;
+4. **the slot** — in a sortable list, that quiet row travels to the insertion
+   position as the pointer crosses each neighbour's centre. The gap IS the
+   insertion indicator; there is no line and no dashed rectangle;
+5. **the destination** — a *candidate* gains a dotted edge and nothing else; the
+   *active* one gains the accent, a tint and a solid edge. Exactly one region on
+   screen looks like the answer. A container that would refuse the drop
+   registers nothing and is drawn nothing.
+
+### Keyboard, and the equivalence rule
+
+`Enter`/`Space` picks up and drops, `↑`/`↓` move, `Escape` cancels — and the
+arrows are captured only while the handle is holding something, so nothing a row
+already binds is taken away. Every move is announced through one polite live
+region, with the instructions spoken **once**, on pick-up.
+
+A handle with no ordered collection behind it (a Task row) offers pointer drag
+only; its keyboard equivalent is the DHDS-10 control beside it, which changes the
+same field by choosing. **Nothing in DalyHub is reachable only by drag**, and a
+test asserts it.
+
+### On a phone
+
+Deliberate, not copied. A short ordered list inside a record keeps its grip at
+the 44px floor; a Task row in a scrolling collection has **no** grip, and the
+move is its overflow command. Effective manipulation, not identical gestures.
+
+### Object continuity
+
+- a row that the owner's own act removed **collapses** and hands focus to the row
+  that takes its place — never to `<body>`. A surface that keeps completed work
+  is visibly unaffected, because a departure is derived from the row actually
+  having left (closes DEBT-177);
+- every movable collection is keyed by its record's canonical id. An index key is
+  a functional defect here, not a React nit: it remounts every sibling on every
+  move;
+- a move changes one field, revalidates only the dimensions the current
+  configuration is sensitive to, and leaves the URL, the filters, the sort, the
+  scroll and every untouched bucket exactly as they were.

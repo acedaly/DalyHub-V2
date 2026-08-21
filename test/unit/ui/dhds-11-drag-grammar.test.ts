@@ -57,6 +57,20 @@ function code(text: string): string {
 
 const inDragModule = (path: string) => path.startsWith("shared/drag/");
 
+/** Split a stylesheet into `selector { declarations }` rules. Crude on purpose. */
+function rules(css: string): readonly { selector: string; body: string }[] {
+  const out: { selector: string; body: string }[] = [];
+  const pattern = /([^{}]+)\{([^{}]*)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(css)) !== null) {
+    out.push({
+      selector: match[1]!.trim().replace(/\s+/g, " "),
+      body: match[2]!,
+    });
+  }
+  return out;
+}
+
 describe("DHDS-11 — one drag engine", () => {
   it("uses NO HTML5 drag-and-drop anywhere in the product", () => {
     /*
@@ -124,9 +138,19 @@ describe("DHDS-11 — one drag engine", () => {
 });
 
 describe("DHDS-11 — one set of drag STATES", () => {
-  const DRAG_SELECTORS = [
+  /**
+   * The STATES a drag paints. Each is a fact about the drag SESSION rather than
+   * about any one surface, so a second declaration of one is a second opinion
+   * about what a drag looks like.
+   *
+   * `.dh-drag-handle` is deliberately NOT in this list. A surface PLACING its
+   * own grip — a track width, an alignment, or DHDS-11's rule that a Task row
+   * has no grip on a coarse pointer — is composition, and the cascade note in
+   * `app.css` requires exactly that to be possible without `!important`. What a
+   * surface may not do is repaint the grip, which the next test asserts.
+   */
+  const DRAG_STATES = [
     ".dh-drag-preview",
-    ".dh-drag-handle",
     "[data-dh-drag-source",
     "[data-dh-drop-candidate",
     "[data-dh-drop-active",
@@ -135,20 +159,40 @@ describe("DHDS-11 — one set of drag STATES", () => {
 
   it("declares every one of them in drag.css and nowhere else", () => {
     const drag = stylesheet("drag.css");
-    for (const selector of DRAG_SELECTORS) {
+    for (const selector of [...DRAG_STATES, ".dh-drag-handle"]) {
       expect(drag, `${selector} belongs in drag.css`).toContain(selector);
     }
     const offenders: string[] = [];
     for (const { path, text } of sources()) {
       if (!path.endsWith(".css") || path.endsWith("styles/drag.css")) continue;
-      for (const selector of DRAG_SELECTORS) {
-        if (code(text).includes(selector))
+      for (const selector of DRAG_STATES) {
+        if (code(text).includes(selector)) {
           offenders.push(`${path}: ${selector}`);
+        }
       }
     }
     expect(
       offenders,
       `a drag state is declared twice:\n${offenders.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("lets a surface PLACE the grip, and never repaint it", () => {
+    const offenders: string[] = [];
+    for (const { path, text } of sources()) {
+      if (!path.endsWith(".css") || path.endsWith("styles/drag.css")) continue;
+      for (const { selector, body } of rules(code(text))) {
+        if (!selector.includes(".dh-drag-handle")) continue;
+        if (
+          /\b(color|background(-color)?|border(-color|-width)?)\s*:/.test(body)
+        ) {
+          offenders.push(`${path}: ${selector}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      `the grip's appearance belongs to drag.css:\n${offenders.join("\n")}`,
     ).toEqual([]);
   });
 

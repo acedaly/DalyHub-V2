@@ -335,11 +335,47 @@
  * is a property of the row, and DHDS-11 must not make it a property of the
  * grouping.
  */
-.dh-taskrow__handle {
+.dh-drag-handle.dh-taskrow__handle {
+  /*
+   * A FINE POINTER WITH HOVER, or nothing at all.
+   *
+   * This is the phase's deliberate mobile decision, and it is a rule about the
+   * ROW rather than about drag: a Task row in a scrolling collection is already
+   * a link, a completion control and a swipe surface, and a free drag between
+   * buckets on a touch screen would fight all three. `display: none` genuinely
+   * removes it — from the tab order and from the accessibility tree — so the
+   * drag cannot be started rather than merely being hard to start.
+   *
+   * What replaces it is not nothing: the move is the row's own overflow ("Move
+   * to Project or Area…") plus its inline parent, priority and date controls,
+   * every one of which DHDS-09 already converts to the canonical sheet. That is
+   * the design goal — effective manipulation, not identical gestures.
+   *
+   * The gate is the one DHDS-10 §4 uses for the narrowed hit area: a device
+   * must POSITIVELY declare a fine pointer WITH hover. A short ordered list
+   * inside a record (`.dh-checklist__handle`, `.dh-goal-measure__milestone-handle`)
+   * keeps its grip on touch, because those are explicit grips on a bounded list
+   * rather than a second gesture on a scrolling collection.
+   *
+   * It is CSS rather than a media hook because it is per-ROW: a JavaScript
+   * listener here would be fifty listeners on a page of fifty tasks.
+   *
+   * BOTH classes are in the selector deliberately. `drag.css` is imported after
+   * this file, so a single-class `.dh-taskrow__handle` would lose the `display`
+   * declaration to `.dh-drag-handle`'s on source order alone — the grip would
+   * still be drawn on a phone and this rule would silently do nothing.
+   */
+  display: none;
   flex: 0 0 auto;
-  /* The ink is smaller than the target; the target is the product's floor. */
-  inline-size: var(--dh-space-5);
-  min-inline-size: var(--dh-space-5);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dh-drag-handle.dh-taskrow__handle {
+    display: inline-flex;
+    /* The ink is smaller than the target; the target is the product's floor. */
+    inline-size: var(--dh-space-5);
+    min-inline-size: var(--dh-space-5);
+  }
 }
 
 /*

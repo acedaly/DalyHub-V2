@@ -46,6 +46,14 @@ export function DragPreviewLayer({ session }: DragPreviewLayerProps) {
 
   useEffect(() => {
     if (!active) return;
+    /*
+     * Seed from THIS drag's pick-up point before the first frame is placed.
+     *
+     * The ref survives the previous drag, so without this the preview's first
+     * paint would be at wherever the last object was released — a visible jump
+     * on every drag after the first.
+     */
+    point.current = session?.origin ?? null;
     const place = () => {
       frame.current = null;
       const node = element.current;
@@ -70,12 +78,7 @@ export function DragPreviewLayer({ session }: DragPreviewLayerProps) {
         frame.current = null;
       }
     };
-  }, [active, preview]);
-
-  // Keep the pick-up point current for the next drag's first frame.
-  useEffect(() => {
-    point.current = session?.origin ?? null;
-  }, [session]);
+  }, [active, preview, session?.origin]);
 
   if (!active || session === null || preview === null) return null;
   if (typeof document === "undefined") return null;

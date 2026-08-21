@@ -78,6 +78,16 @@ import {
 const AUTOSCROLL_EDGE_PX = 48;
 const AUTOSCROLL_STEP_PX = 12;
 
+/**
+ * How long the click a pointer release synthesises may be swallowed for.
+ *
+ * Long enough to cover it under any realistic scheduling; short enough that a
+ * drag which ended WITHOUT one — a `pointercancel`, or an Escape while the
+ * pointer is still down — cannot leave the flag standing into the owner's next
+ * interaction.
+ */
+const CLICK_SUPPRESSION_MS = 400;
+
 export interface DragProviderProps {
   readonly children: ReactNode;
 }
@@ -103,11 +113,26 @@ export function DragProvider({ children }: DragProviderProps) {
   /** The last sentence spoken, so an unchanged destination stays silent. */
   const spokenRef = useRef("");
   /**
-   * Set at a pointer pick-up and cleared by the click that follows the release,
-   * so the click the browser synthesises at the end of a drag cannot also open
-   * the record the owner was moving.
+   * Set at a pointer pick-up, so the click the browser synthesises at the end of
+   * a drag cannot also open the record the owner was moving.
+   *
+   * It is BOUNDED as well as cleared by that click, because the click is not
+   * guaranteed to arrive: a `pointercancel` (a touch the browser took over for a
+   * scroll) ends the drag with no click at all, and a flag left standing would
+   * then eat the owner's next, entirely unrelated one. The window is generous
+   * enough to cover the synthesised click and short enough that a stranded flag
+   * cannot survive into the next interaction.
    */
   const suppressClickRef = useRef(false);
+  const suppressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useCallback(() => {
+    suppressClickRef.current = true;
+    if (suppressTimer.current !== null) clearTimeout(suppressTimer.current);
+    suppressTimer.current = setTimeout(() => {
+      suppressTimer.current = null;
+      suppressClickRef.current = false;
+    }, CLICK_SUPPRESSION_MS);
+  }, []);
 
   const registerTarget = useCallback((registration: DropTargetRegistration) => {
     targets.current.set(registration.id, registration);
@@ -183,7 +208,7 @@ export function DragProvider({ children }: DragProviderProps) {
     (payload: DragPayload, options: StartDragOptions) => {
       if (sessionRef.current !== null) return;
       const point = options.point ?? null;
-      suppressClickRef.current = true;
+      suppressClick();
       pointRef.current = point;
       spokenRef.current = "";
       setSession({
@@ -196,7 +221,7 @@ export function DragProvider({ children }: DragProviderProps) {
         renderPreview: options.renderPreview,
       });
     },
-    [],
+    [suppressClick],
   );
 
   const startKeyboardDrag = useCallback(
@@ -373,7 +398,10 @@ export function DragProvider({ children }: DragProviderProps) {
       event.stopPropagation();
     };
     window.addEventListener("click", onClick, true);
-    return () => window.removeEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("click", onClick, true);
+      if (suppressTimer.current !== null) clearTimeout(suppressTimer.current);
+    };
   }, []);
 
   const api = useMemo<DragApi>(

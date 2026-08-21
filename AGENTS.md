@@ -152,7 +152,7 @@ or accessibility requirements.
 ## 7. Interaction philosophy
 
 - **Keyboard-first, mouse-friendly.** Every primary action has a keyboard path. The [Command Palette](docs/design/DESIGN_SYSTEM.md#command-palette) (`⌘K`) is the universal entry point; [Quick Actions](docs/design/DESIGN_SYSTEM.md#quick-actions) cover the frequent ones.
-- **Direct manipulation where it helps.** Drag to reorder, drag to reschedule, inline-edit in place. But never *only* drag — there is always a keyboard equivalent.
+- **Direct manipulation where it helps.** Inline-edit in place ([DHDS-10](docs/design/DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md)); drag where an object has a real destination or a real stored order ([DHDS-11](docs/design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md)). Never *only* drag — there is always a keyboard equivalent, and it is asserted by test rather than by convention. **DHDS-11 narrowed the second half of this bullet on purpose**: "drag to reorder, drag to reschedule" read as a licence, and most DalyHub collections are ordered by data rather than by the owner. A drag is legitimate only when all six questions in DHDS-11 §2 answer yes — chief among them that the change survives a reload. A drag that does not persist is worse than no drag.
 - **Optimistic and reversible.** Actions apply immediately and are undoable. The system trusts the user and lets them trust it back. Prefer undo over confirmation dialogs.
 - **Speak in the user's nouns.** The interface uses Areas, Goals, Projects, Tasks, People — the product's vocabulary — consistently, everywhere. No synonyms, no drift.
 - **Fast is a feature.** Interactions should feel instantaneous. See [Performance expectations](#16-performance-expectations).

@@ -50,7 +50,11 @@ const KNOWN_HAND_ROLLED: readonly string[] = [
   "activity-feed.css: .dh-activity__btn:hover",
   "capture.css: .dh-capture-chip:hover",
   "card.css: .dh-card-collection--list .dh-card:hover",
-  "card.css: .dh-card__reorder-handle:hover:not(:disabled)",
+  // DHDS-11 removed `.dh-card__reorder-handle` with DS-04's own reorder
+  // collection. The one shared grip that replaced it (`.dh-drag-handle`,
+  // `drag.css`) fills with `--dh-color-surface-selected` rather than a
+  // hand-rolled `color-mix`, so it never joins this list. One entry off the
+  // ratchet.
   "diary.css: .dh-diary-capture__chip:hover",
   // UIX-04 retired `.dh-diary-datenav` entirely — the Day-mode navigator is now
   // the week strip, whose hover fills are ordinary surface tokens rather than a
