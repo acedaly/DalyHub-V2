@@ -572,65 +572,56 @@
  * three more containers per row and, at fifty rows, the difference between a
  * list and a spreadsheet. The read state is now the value alone; the affordance
  * arrives on hover and focus, where it is needed and cannot cost density.
+ *
+ * ── DHDS-10 — this block is GONE, and the behaviour is not ──────────────────
+ * The trigger geometry (the zeroed optical margin, the 24px WCAG 2.2 §2.5.8
+ * floor in both axes, the inherited colour, the hover wash, the focus ring),
+ * the held-back caret and the held-back empty invitation were all declared
+ * here, scoped to `.dh-tasklist`. Every one of them is a property of "this
+ * value is METADATA", not of "this value is on a task row" — which is exactly
+ * why the Project record's context line and the Assets overview grew loud
+ * versions of the same field the moment DHDS-10 made them editable.
+ *
+ * They now live in `inline-edit.css` under `[data-presentation="meta"]`, and
+ * the row opts in by passing `presentation="meta"` to the shared field. Same
+ * pixels, one owner, and a new adopter inherits the restraint.
  */
-.dh-tasklist .dh-inline-edit__trigger,
-.dh-tasklist .dh-inline-select__trigger {
-  /*
-   * 24px is the WCAG 2.2 AA target-size minimum (2.5.8), and it is a FLOOR
-   * rather than a look.
-   *
-   * The first pass set `min-block-size: 0` to let the trigger be as quiet as the
-   * text it replaces, which produced 16×18px targets on a row of four adjacent
-   * editors — `target-size` serious, on every task, which is exactly the kind of
-   * regression a visual pass is most likely to introduce and least likely to
-   * notice. The trigger is invisible until hover and still 24px tall: quiet is a
-   * property of the PAINT, never of the hit area.
-   *
-   * It also fills its grid track, so the whole column is the target rather than
-   * the few characters in it — which both satisfies the spacing half of the rule
-   * and is what a person aiming at a date column expects.
-   */
-  /*
-   * The shared trigger carries `margin-inline: -8px` so its text aligns
-   * optically with the static value it replaces. That is right in a wrapping
-   * metadata run, where the editors are far apart, and it is the ROOT CAUSE of
-   * every "partially obscured" target on a column grid: each trigger overhung
-   * its neighbour by 8px on each side, so the date's hit area was covered by
-   * the priority beside it. In a grid the CELL does the aligning.
-   */
-  margin-inline: 0;
-  min-block-size: var(--dh-space-6);
-  /*
-   * And 24px WIDE. On the two-line composition the cells hug their content, so a
-   * three-letter date ("Mon") gave an 11px-wide target that was 24px tall — the
-   * same `target-size` failure in the other axis, and one that only appears in
-   * the Board and Time Sectors presentations where the list is narrow.
-   */
-  min-inline-size: var(--dh-space-6);
+
+/*
+ * The trigger FILLS its column cell, so the whole track is the target rather
+ * than the few characters in it — which is what a person aiming at a date
+ * column expects, and what satisfies WCAG 2.2 §2.5.8's spacing arm on a row of
+ * four adjacent editors.
+ *
+ * It stays HERE rather than in the shared `meta` presentation because it is a
+ * property of being in a COLUMN, not of being metadata: the same field in a
+ * record's context line is one item in a wrapping run, and filling its
+ * container there would stretch a two-word status across the line.
+ *
+ * It is also what bounds the value: `__value` is `inline-flex` and sizes to
+ * max-content, so a trigger that hugged its text would run a long Project name
+ * straight out of a 7rem cell and push the document sideways (POLISH-01).
+ */
+.dh-taskrow__cell .dh-inline-edit__trigger {
   inline-size: 100%;
-  padding-inline: var(--dh-space-1);
-  padding-block: 0;
-  border: 0;
-  border-radius: var(--dh-radius-sm);
-  background: transparent;
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
+  /* No optical pull-back in a grid: the CELL aligns the column, and a trigger
+   * that starts outside its cell overhangs the one beside it. */
+  margin-inline: 0;
   /*
-   * INHERIT the colour, never set it.
+   * 24px of INK on every pointer, including a phone — and the phone's 44px hit
+   * area comes from the `::before` below rather than from the box.
    *
-   * The urgency class (`dh-task-date--overdue`) lands on the field's WRAPPER,
-   * and the trigger is inside it — so a trigger that sets its own colour wins
-   * over the ancestor and a slipped date renders in ordinary text. It did:
-   * every overdue date in the list lost its colour, which is the one place on
-   * the row where colour is doing real work. The muted tone comes from the CELL
-   * instead, so both the default and the exception cascade from one place.
+   * The row is the one surface that genuinely cannot afford the floor as
+   * height: it is already 73px with two lines, and taking four metadata
+   * controls to 44px would make it ~93px and put three tasks on a phone screen
+   * instead of five. The shared `meta` rule therefore keeps the 44px floor for
+   * a coarse pointer and this narrows it back, in the one place that pays for
+   * the narrowing with a real extended target.
    */
-  color: inherit;
-  justify-content: flex-start;
-  text-align: start;
+  min-block-size: var(--dh-space-6);
+  min-inline-size: var(--dh-space-6);
 }
 
-/* The cell is the track, so the trigger inside it can fill it. */
 .dh-taskrow__cell > .dh-inline-edit,
 .dh-taskrow__cell > .dh-inline-select,
 .dh-taskrow__cell .dh-task-parent .dh-inline-select {
@@ -654,34 +645,20 @@
 /*
  * The caret is the field's "this is editable" tell, and it is held back exactly
  * like the overflow button. Four permanently-drawn chevrons per row was one of
- * the counted differences from the concept, which draws none.
+ * the counted differences from the concept, which draws none. The same is true
+ * of an UNSET value: "Unassigned" and "No due date" printed on every Inbox row
+ * is a column of placeholders saying a dimension was not used (§20).
+ *
+ * ── DHDS-10 — both are now the ONE reveal ───────────────────────────────────
+ * This file held two hand-written `opacity: 0 → 1 on :hover/:focus-within`
+ * pairs, which is the third and fourth copy of a contract `motion.css` already
+ * publishes as `.dh-action-reveal` — the same one the row's `⋯` button uses,
+ * and the one the row already declares `data-dh-action-context` for. The shared
+ * field marks its caret and its empty label with that class under
+ * `presentation="meta"`, so the row's affordances now fade in together, on one
+ * curve, from one place, and gain what the copies did not have: `pointer-events`
+ * following the opacity, and an unconditional draw under forced colours.
  */
-@media (hover: hover) {
-  .dh-tasklist .dh-inline-select__caret {
-    opacity: 0;
-    transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
-  }
-
-  .dh-taskrow:hover .dh-inline-select__caret,
-  .dh-taskrow:focus-within .dh-inline-select__caret {
-    opacity: 0.65;
-  }
-}
-
-/* An UNSET value is quiet, and on a pointer device it waits to be looked for.
- * "Unassigned" and "No due date" printed on every Inbox row is a column of
- * placeholders saying that a dimension was not used (§20). */
-@media (hover: hover) {
-  .dh-tasklist .dh-inline-edit__empty {
-    opacity: 0;
-    transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
-  }
-
-  .dh-taskrow:hover .dh-inline-edit__empty,
-  .dh-taskrow:focus-within .dh-inline-edit__empty {
-    opacity: 1;
-  }
-}
 
 /*
  * MOBILE-02 §1 — a metadata trigger is TAPPABLE without the row growing.
@@ -1348,14 +1325,10 @@
   }
 
   /*
-   * The carets go entirely on a phone.
-   *
-   * A pointer device hides them until hover because there IS a hover to reveal
-   * them with; a phone has none, so the desktop compromise would have drawn
-   * three permanent chevrons on the metadata line of every row — nine glyphs on
-   * a three-row screen, for an affordance a thumb discovers by tapping the value
-   * itself. The concept's phone rows draw none. The controls are unchanged: the
-   * whole value is still the button, at the touch-target floor.
+   * The carets go entirely on a phone — see `inline-edit.css`, which now states
+   * the rule for every `meta` field rather than for this list alone. Kept here
+   * as a WIDTH rule as well as a pointer one, because a narrow window on a
+   * laptop is the same three-chevron problem with a mouse attached.
    */
   .dh-tasklist .dh-inline-select__caret {
     display: none;

@@ -30,6 +30,7 @@
  */
 
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import type { Ref } from "react";
 
 import {
   CalendarDateField,
@@ -114,6 +115,12 @@ export interface TaskRecurrenceEditorProps {
    * worse than none, so the picker simply shows no mark.
    */
   readonly todayIso?: string | null;
+  /**
+   * DHDS-10 — a handle on the editor's own element, so a host can bring it into
+   * view when its `Custom…` command hands off to it. The editor's behaviour is
+   * unchanged by it; nothing here reads the node.
+   */
+  readonly ref?: Ref<HTMLDivElement>;
 }
 
 /**
@@ -140,6 +147,7 @@ export function TaskRecurrenceEditor({
   disabled = false,
   error,
   todayIso = null,
+  ref,
 }: TaskRecurrenceEditorProps) {
   const groupId = useId();
   const anchors = anchorChoices(task);
@@ -246,6 +254,7 @@ export function TaskRecurrenceEditor({
 
   return (
     <div
+      ref={ref}
       className="dh-recurrence-editor"
       role="group"
       aria-labelledby={`${groupId}-label`}

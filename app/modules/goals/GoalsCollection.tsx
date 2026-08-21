@@ -31,7 +31,7 @@
  */
 
 import { useCallback, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useRevalidator } from "react-router";
 
 import { EntityCard, EntityCardGrid } from "~/shared/card";
 import {
@@ -52,6 +52,7 @@ import { NewGoalForm } from "~/shared/goal-creation/NewGoalForm";
 import { AccentIcon, EntityIcon, emptyCollectionTitle } from "~/shared/entity";
 import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
 import { ViewTabs, type ViewTabOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -475,6 +476,50 @@ function useRestoreGoal() {
  * from a dormant one.
  */
 
+/**
+ * DHDS-10 — set or clear a Goal's target date, through the canonical focused
+ * intent.
+ *
+ * `POST /goals/:goalId/mutate` with `intent=set_target_date` is the SAME route
+ * and the SAME intent the canonical record's own inline date field posts, so
+ * the workspace and the record cannot come to write a target date differently.
+ * Nothing here validates: `GoalDetailsValidationError` comes back as the
+ * field's own message, and a refusal leaves the previous date on screen.
+ */
+async function setGoalTargetDate(
+  goalId: string,
+  targetDate: string | null,
+  onSaved: () => void,
+): Promise<InlineSaveOutcome> {
+  const body = new FormData();
+  body.set("intent", "set_target_date");
+  body.set("targetDate", targetDate ?? "");
+  try {
+    const response = await fetch(
+      `/goals/${encodeURIComponent(goalId)}/mutate`,
+      { method: "POST", body, headers: { accept: "application/json" } },
+    );
+    const result = (await response.json()) as {
+      readonly ok: boolean;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
+      readonly formError?: string;
+    };
+    if (result.ok) {
+      onSaved();
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      message:
+        result.fieldErrors?.targetDate ??
+        result.formError ??
+        "That couldn’t be saved. Please try again.",
+    };
+  } catch {
+    return { ok: false, message: "That couldn’t be saved. Please try again." };
+  }
+}
+
 /** UX-01 — the ONE shared keyset paginator (DEBT-45). */
 function useGoalPagination(
   firstPage: readonly SerializedGoalWithAlignment[],
@@ -580,6 +625,15 @@ function GoalsCollection({
     goals,
     nextCursor,
   );
+  /*
+   * DHDS-10 — an accepted target-date change re-reads the workspace.
+   *
+   * The date is not only a field on the pane: the list beside it and the
+   * measurement chart's pace band are both derived from it, so painting it
+   * locally would leave the row and the chart disagreeing with the value the
+   * owner just chose. The server decides; the surface re-reads.
+   */
+  const revalidator = useRevalidator();
   // PX-06: the ONE shared collection loading signal — a same-route navigation
   // (a filter, a view, a page) shows the shared skeleton instead of leaving the
   // previous list on screen with no feedback.
@@ -869,6 +923,11 @@ function GoalsCollection({
                     .iconKey ?? null
                 }
                 tabs={<GoalWorkspaceTabs goalId={selected.overview.id} />}
+                onSetTargetDate={(next) =>
+                  setGoalTargetDate(selected.overview.id, next, () =>
+                    revalidator.revalidate(),
+                  )
+                }
               />
             ) : (
               /*

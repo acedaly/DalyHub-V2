@@ -61,6 +61,8 @@ export interface InlineTextFieldProps {
   readonly multiline?: boolean;
   /** Rows for the multiline editor. Ignored in the single-line form. */
   readonly rows?: number;
+  /** DHDS-10 — how loud the field is at rest. See {@link InlineEditShell}. */
+  readonly presentation?: "default" | "meta";
   readonly className?: string;
   readonly "data-testid"?: string;
 }
@@ -76,6 +78,7 @@ export function InlineTextField({
   maxLength,
   multiline = false,
   rows = 5,
+  presentation = "default",
   className,
   "data-testid": testId,
 }: InlineTextFieldProps) {
@@ -201,6 +204,7 @@ export function InlineTextField({
       errorId={errorId}
       readOnly={readOnly}
       variant={variant}
+      presentation={presentation}
       multiline={multiline}
       className={className}
       data-testid={testId}

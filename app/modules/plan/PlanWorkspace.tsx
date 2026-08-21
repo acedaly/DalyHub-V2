@@ -74,6 +74,7 @@ import {
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
+import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import { postTaskBulkAction } from "~/shared/task-record/task-inline-edit";
 import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
@@ -194,6 +195,13 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
    */
   const [armedDay, setArmedDay] = useState<string | null>(null);
   useEffect(() => setArmedDay(null), [data.week.startIso]);
+
+  /**
+   * DHDS-10 — which row (if any) is being renamed in place. Surface state, so
+   * at most one title is ever in edit mode and every other row keeps its
+   * ordinary open link.
+   */
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
 
   /*
    * Where focus GOES after a placement.
@@ -318,9 +326,14 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
         onCompletedChange: (complete: boolean) =>
           actions.setCompleted(task.id, complete, task.title),
         onInlineSave: actions.reportInlineSave,
-        onSearchParents: () => openDrawer(`task-move:${task.id}`),
+        /*
+         * DHDS-10 §11 — the project menu's escape hatch opens the shared
+         * searchable picker over the row's own cell rather than the Task's
+         * record, exactly as it now does on `/tasks` and Today.
+         */
         overflowActions: buildTaskRowActions(row, {
           onOpenRecord: () => openDrawer(key),
+          onRename: () => setEditingTitleId(task.id),
           onMoveToParent: () => openDrawer(`task-move:${task.id}`),
           // Every day of the week the owner is looking at, EXCEPT the day this
           // task already sits on — an item that changes nothing is not a choice.
@@ -340,6 +353,31 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
               { commitmentState: "someday" },
             ),
         }),
+        /*
+         * DHDS-10 — renaming in place, from the SAME shared editor `/tasks` and
+         * Today use. Weekly Planning is where a week's work is read and tidied,
+         * and "fix that title" was previously a record navigation out of the
+         * week and back.
+         */
+        ...(editingTitleId === task.id
+          ? {
+              titleEditor: (
+                <TaskTitleEditor
+                  taskId={task.id}
+                  title={task.title}
+                  onDone={() => setEditingTitleId(null)}
+                  onSaved={(id, title) =>
+                    actions.reportInlineSave({
+                      taskId: id,
+                      intent: "rename",
+                      message: `Renamed to ${title}.`,
+                      patch: { title },
+                    })
+                  }
+                />
+              ),
+            }
+          : {}),
       };
     },
     [
@@ -352,6 +390,7 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
       actions,
       planOne,
       clearPlan,
+      editingTitleId,
     ],
   );
 

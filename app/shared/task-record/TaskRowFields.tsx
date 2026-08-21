@@ -26,13 +26,17 @@
  * fires only after the server has said yes.
  */
 
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { InlineDateField, InlineSelectField } from "~/shared/inline-edit";
 import { AccentIcon } from "~/shared/entity";
+import { Picker } from "~/shared/floating";
+import type { PickerOption } from "~/shared/floating";
 import { RepeatIcon } from "~/shared/icons";
 import type { TaskPriority, TaskRelation } from "~/kernel/tasks";
+
+import { useTaskParentSearch } from "./use-task-parent-search";
 
 import { PriorityFlag, PriorityGlyph } from "./PriorityIndicator";
 import { TASK_PRIORITY_OPTIONS } from "./priority-options";
@@ -155,6 +159,9 @@ export function InlineTaskPriority({
       renderValue={(option) =>
         option ? <PriorityFlag priority={option.value as TaskPriority} /> : null
       }
+      // DHDS-10 — a row is a run of values being SCANNED, so the caret and the
+      // empty invitation join the row's own DHDS-08 reveal (§6, §25, §26).
+      presentation="meta"
       data-testid="task-row-priority"
     />
   );
@@ -272,6 +279,7 @@ export function InlineTaskDate({
       {...(todayIso === undefined
         ? {}
         : { shortcuts: taskDateShortcuts(todayIso), todayIso })}
+      presentation="meta"
       className={
         // Only a DUE date carries urgency: a planned date is the owner's own
         // intention about when to work on something, and being "late" against
@@ -344,8 +352,38 @@ export function InlineTaskParent({
    */
   readonly onSearchAll?: () => void;
 }) {
-  const save = useCallback(
-    async (next: string): Promise<InlineSaveOutcome> => {
+  /*
+   * DHDS-10 §11 / §32 — the escape hatch opens a PICKER, not a record.
+   *
+   * `onSearchAll` used to be handed `() => openDrawer("task-move:<id>")`, so
+   * "Search all Projects and Areas…" — a command whose whole purpose is to
+   * choose one value — opened the Task's full record. That is the interaction
+   * this phase exists to remove: a full editor for a two-second decision.
+   *
+   * It now opens the shared searchable `Picker` in place, anchored to the same
+   * cell, writing through the same `save` below. The bounded MENU is unchanged
+   * and is still what opens first: for the overwhelming majority of workspaces
+   * it holds every Project and Area, its typeahead is faster than a round trip,
+   * and a picker is only worth its request when the answer is not already on
+   * screen.
+   */
+  const [searching, setSearching] = useState(false);
+  const cellRef = useRef<HTMLSpanElement | null>(null);
+  /**
+   * Write the chosen parent.
+   *
+   * `chosen` is the candidate's own record — its kind, its title and its
+   * identity — because the ROUTE needs the kind and the optimistic patch needs
+   * the rest. It comes from the bounded menu's option set, or, for a choice made
+   * in the searchable picker, from what the search endpoint reported for it.
+   * Either way the SERVER re-verifies the destination inside the workspace;
+   * this is a convenience for painting, never the authority.
+   */
+  const commit = useCallback(
+    async (
+      next: string,
+      chosen: TaskParentOption | undefined,
+    ): Promise<InlineSaveOutcome> => {
       if (next.length === 0) {
         const outcome = await saveTaskRecordField(
           taskId,
@@ -362,7 +400,6 @@ export function InlineTaskParent({
         }
         return outcome;
       }
-      const chosen = options.find((option) => option.id === next);
       if (chosen === undefined) {
         return {
           ok: false,
@@ -395,7 +432,17 @@ export function InlineTaskParent({
       }
       return outcome;
     },
-    [onSaved, options, taskId, title],
+    [onSaved, taskId, title],
+  );
+
+  /** The bounded menu's save: the candidate is one of the loader's options. */
+  const save = useCallback(
+    (next: string): Promise<InlineSaveOutcome> =>
+      commit(
+        next,
+        options.find((option) => option.id === next),
+      ),
+    [commit, options],
   );
 
   // The task's CURRENT parent is always offered, even when it falls outside the
@@ -440,7 +487,7 @@ export function InlineTaskParent({
      * behaviour and its test id are untouched. An unassigned task gets no mark
      * — "Unassigned" is an absence, and an absence does not have an identity.
      */
-    <span className="dh-task-parent">
+    <span className="dh-task-parent" ref={cellRef}>
       {parent ? (
         <AccentIcon
           entityType={parent.kind}
@@ -460,17 +507,142 @@ export function InlineTaskParent({
         clearable
         clearLabel="Move to Inbox"
         readOnly={disabled}
-        {...(onSearchAll
-          ? {
-              searchAction: {
+        {...(disabled
+          ? {}
+          : {
+              escapeAction: {
                 label: "Search all Projects and Areas…",
-                onSelect: onSearchAll,
+                onSelect: onSearchAll ?? (() => setSearching(true)),
               },
-            }
-          : {})}
+            })}
+        presentation="meta"
         data-testid="task-row-parent"
       />
+      {searching ? (
+        <TaskParentSearchPicker
+          anchorRef={cellRef}
+          value={parent?.id ?? ""}
+          /*
+           * The picker stays open until the SERVER answers and closes only on a
+           * yes. Closing on the click would leave a refused move with nowhere
+           * to report itself — the surface would shut and the row would quietly
+           * keep its old Project, which is exactly the "an inline interaction
+           * must not become a way to hide errors" failure §30 rules out.
+           */
+          onChoose={async (chosen) => {
+            const outcome = await commit(chosen?.id ?? "", chosen ?? undefined);
+            if (outcome.ok) {
+              setSearching(false);
+              return null;
+            }
+            return outcome.message;
+          }}
+          onClose={() => setSearching(false)}
+        />
+      ) : null}
     </span>
+  );
+}
+
+/**
+ * The searchable picker over EVERY valid Task parent in the workspace.
+ *
+ * Mounted only while it is open, which is the whole performance contract
+ * (DHDS-10 §43): `useTaskParentSearch` seeds itself with one unfiltered page on
+ * mount, so a list of fifty rows costs exactly zero requests until an owner
+ * asks for one, and then exactly one. The endpoint is the same bounded,
+ * workspace-scoped `/tasks/parent-options?q=` the create form and the record
+ * drawer already use — there is no second search path.
+ *
+ * It writes through the caller's `save`, which is the canonical
+ * `intent=set_parent`. Choosing here and choosing from the bounded menu are the
+ * same mutation.
+ */
+function TaskParentSearchPicker({
+  anchorRef,
+  value,
+  onChoose,
+  onClose,
+}: {
+  readonly anchorRef: React.RefObject<HTMLElement | null>;
+  readonly value: string;
+  /**
+   * Commit the chosen candidate (`null` for the Inbox), and answer with the
+   * server's refusal message, or `null` when it was accepted.
+   */
+  readonly onChoose: (
+    chosen: TaskParentOption | null,
+  ) => Promise<string | null>;
+  readonly onClose: () => void;
+}) {
+  const search = useTaskParentSearch();
+  /*
+   * A refusal from a choice made HERE.
+   *
+   * The bounded menu's refusals belong to `InlineSelectField`, which shows them
+   * beside the value it kept. This surface is the field's escape hatch and has
+   * no shell of its own, so it keeps its own message and renders it in the row
+   * — because the one thing an inline interaction may never do is close on a
+   * change the server refused (§30).
+   */
+  const [error, setError] = useState<string | null>(null);
+  const options: readonly PickerOption[] = search
+    .withSelected(value)
+    .map((option) => ({
+      id: option.value,
+      label: option.label,
+      ...(option.description ? { support: option.description } : {}),
+    }));
+  /*
+   * The endpoint reports each candidate's KIND, which the `set_parent` intent
+   * needs. `kindOf` is the hook's memory of it, and a candidate whose kind the
+   * hook does not know is not offered as a save — the field refuses rather than
+   * guessing, and the row keeps the value it had.
+   */
+  const resolve = (id: string): TaskParentOption | null => {
+    const kind = search.kindOf(id);
+    if (kind === null) return null;
+    const option = search.withSelected(value).find((o) => o.value === id);
+    return { id, kind, title: option?.label ?? id };
+  };
+  return (
+    <>
+      {error !== null ? (
+        <p className="dh-inline-edit__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <Picker
+        anchorRef={anchorRef}
+        label="Project or Area"
+        options={options}
+        value={value.length === 0 ? null : value}
+        onSelect={(id) => {
+          setError(null);
+          void onChoose(resolve(id)).then(setError);
+        }}
+        // The SAVE closes it, not the click — see the note at the call site.
+        keepOpenOnSelect
+        onSearch={search.search}
+        loading={search.loading}
+        onClose={onClose}
+        // "No project" is a real DESTINATION rather than an absence, so the
+        // command is worded as the place the task goes — the same wording Quick
+        // Capture's parent control uses.
+        {...(value.length === 0
+          ? {}
+          : {
+              clear: {
+                label: "Move to Inbox",
+                onSelect: () => {
+                  setError(null);
+                  void onChoose(null).then(setError);
+                },
+              },
+            })}
+        data-testid="task-row-parent-picker"
+      />
+    </>
   );
 }
 

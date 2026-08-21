@@ -196,6 +196,18 @@ export function Card(props: CardProps) {
       data-completed={completed ? "true" : undefined}
       data-card-density={density}
       data-presentation={presentation}
+      /*
+       * DHDS-10 — the card is a REVEAL CONTEXT.
+       *
+       * A card's metadata run is exactly the "run of values being scanned" the
+       * `meta` presentation exists for, and DHDS-10 puts inline editors in it
+       * (a Task's priority and due date on a Project's Tasks tab). Declaring
+       * DHDS-08's action context here is what lets those fields hold their
+       * caret back until the card is engaged with — the same contract, the same
+       * curve, one place. It affects nothing that is not a `.dh-action-reveal`,
+       * so a card of plain facts is byte-identical with it.
+       */
+      data-dh-action-context="true"
       data-testid={props["data-testid"]}
       {...(hasSwipe || longPress.enabled
         ? {

@@ -8,8 +8,8 @@
 
 **Delivery status (21 August 2026):** Phases 0–5 are implemented. Phase 6's code,
 interaction and documentation sweep is implemented. Phase 3's item 8 (motion,
-DHDS-08) and item 9 (floating surfaces and contextual choice, DHDS-09) are
-implemented; current-branch screenshot recapture for the phase-6 sweep remains
+DHDS-08), item 9 (floating surfaces and contextual choice, DHDS-09) and item 10
+(inline manipulation and direct editing, DHDS-10) are implemented; current-branch screenshot recapture for the phase-6 sweep remains
 pending from the DHDS-01 delivery. See
 [`DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md`](DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md)
 for the consumer map, final refinements, regression boundary and exact evidence
@@ -340,8 +340,8 @@ end.
 | --- | --- | --- |
 | **DHDS-08** | Motion and interaction grammar | shipped |
 | **DHDS-09** | Floating surfaces and contextual choice architecture | shipped |
-| **DHDS-10** | Inline manipulation | next |
-| **DHDS-11** | Drag, reorder and deeper object continuity | after |
+| **DHDS-10** | Inline manipulation and direct editing | shipped |
+| **DHDS-11** | Drag, reorder and deeper object continuity | next |
 
 DHDS-08 established the motion grammar DHDS-09's surfaces must use and gave
 DHDS-10's inline editors the shared reveal rung, without restructuring either.
@@ -365,6 +365,25 @@ different native `<select>`s.
 
 It did **not** widen what is inline-editable, change any mutation path, or add a
 tag or Person data model — those are DHDS-10's and the domain's respectively.
+
+**Item 10 — WHICH VALUES are changed where they are shown** — is recorded in
+[`DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md`](DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md).
+It named the three classes of edit (immediate toggle, contextual choice, inline
+text), added the one field DHDS-09's machinery was missing — a searchable
+RELATIONSHIP choice over a server save (`InlinePickerField`) — and added the
+`presentation="meta"` axis that keeps a run of editable values reading as
+information at rest, which is the rule that stops direct manipulation turning a
+list into a spreadsheet. It then adopted the grammar where it changes the
+product: inline renaming on Today and Plan rather than only `/tasks`; the Task
+project field's escape hatch opening a picker instead of the Task's record; the
+repeat becoming pressable on the record; a Project's workflow status and a
+Project's parent; a Goal's target date on the surface Goals are read from; and
+an Asset's status, location and Area on the record that previously printed them
+under an "Edit details" link.
+
+It did **not** add drag, reordering or spatial reparenting; it invented no
+status vocabulary, no tag model and no Task field; and it changed no mutation
+path. Its deferred domain gaps are listed in its own §13.
 
 Each PR must demonstrate at least two module consumers. A pattern is not shared
 merely because it lives in `app/shared`; it is shared when different modules can

@@ -202,6 +202,29 @@ a.dh-btn {
   background: var(--dh-color-surface-quiet);
 }
 
+/*
+ * DHDS-10 — the parent cell holds a control, and the control is BOUNDED.
+ *
+ * `.dh-ptable td` is `white-space: nowrap`, which is right for a date and a
+ * count and wrong for a record's name: an inline field sizes to its content, so
+ * a Project advancing "Finish the ground-floor renovation before summer" set
+ * the width of the whole column and ran its text over the progress bar beside
+ * it — measured on the seeded workspace at 1440.
+ *
+ * A `max-inline-size` on the CELL does not fix it: an auto-layout table sizes a
+ * column from its content and treats the cell's max as advisory. The cap goes
+ * on the field's own label, which already carries
+ * `overflow: hidden; text-overflow: ellipsis`, so a long Goal name ellipsises
+ * exactly the way the identity column's title does.
+ */
+.dh-ptable__area .dh-inline-picker {
+  max-inline-size: 100%;
+}
+
+.dh-ptable__area .dh-inline-select__label {
+  max-inline-size: 11rem;
+}
+
 /* Archived rows are quieter, and the overflow menu still says the word. */
 .dh-ptable__row[data-muted="true"] {
   opacity: 0.72;

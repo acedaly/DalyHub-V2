@@ -34,6 +34,7 @@ import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 import { ownerCalendarIso } from "~/shared/datetime";
+import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import {
   createOwnerHealthContext,
   type ProjectHealth,
@@ -479,6 +480,35 @@ function ProjectDetail({
     [postMutation, revalidator],
   );
 
+  /**
+   * DHDS-10 — the SAME `set_status` intent, in the shape a DS-16 inline field
+   * speaks.
+   *
+   * `onSetStatus` above answers the Settings row's immediate-setting contract
+   * (throw to fail, so it can revert); an inline field wants the refusal as a
+   * VALUE, so it can keep the previous status and print the server's message
+   * beside it. One mutation, two callers, no second endpoint.
+   */
+  const onSetStatusInline = useCallback(
+    async (status: ProjectWorkflowStatus): Promise<InlineSaveOutcome> => {
+      const body = new FormData();
+      body.set("intent", "set_status");
+      body.set("status", status);
+      const result = await postMutation(body);
+      if (result.kind !== "settings" || !result.ok) {
+        return {
+          ok: false,
+          message:
+            (result.kind === "settings" && result.message) ||
+            SETTINGS_GENERIC_ERROR,
+        };
+      }
+      if (result.outcome === "changed") revalidator.revalidate();
+      return { ok: true };
+    },
+    [postMutation, revalidator],
+  );
+
   const onMove = useCallback(
     async (parentId: string, signal: AbortSignal) => {
       const body = new FormData();
@@ -694,6 +724,7 @@ function ProjectDetail({
       completionPending={completionPending}
       onToggleComplete={(complete) => void onToggleComplete(complete)}
       onRename={onRename}
+      onSetStatus={onSetStatusInline}
       onSaveAsTemplate={() => void onSaveAsTemplate()}
       activeTabId={activeTabId}
       onTabChange={onTabChange}

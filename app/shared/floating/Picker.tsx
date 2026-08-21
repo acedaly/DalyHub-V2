@@ -108,6 +108,24 @@ export interface PickerProps {
    * is a step rather than the answer (DHDS-09 §32).
    */
   readonly multiple?: boolean;
+  /**
+   * DHDS-10 — keep the surface open after a SINGLE choice, and let the host
+   * close it.
+   *
+   * The dismissal contract (§32) is that a single-choice picker closes on
+   * choosing, and that is right for a caller whose `onSelect` is synchronous.
+   * It is exactly wrong for one whose `onSelect` starts a SAVE: the host's
+   * state machine only accepts a result while the field is open, so closing
+   * first drops the pending state and — the part that matters — the REFUSAL,
+   * leaving the owner with a surface that shut and a change that never
+   * happened. `InlineSelectField` has the same rule for its menu, stated at
+   * length there, and solves it the same way.
+   *
+   * The host must then close on the answer: on success, and never on a refusal.
+   * It does not change what a choice MEANS, and it is not multi-select — one
+   * value is still committed and `value` still reflects one id.
+   */
+  readonly keepOpenOnSelect?: boolean;
   /** Which ids are currently chosen, when `multiple`. */
   readonly selectedIds?: readonly string[];
   readonly align?: FloatingAlign;
@@ -150,6 +168,7 @@ export function Picker({
   createLabel,
   clear,
   multiple = false,
+  keepOpenOnSelect = false,
   selectedIds,
   align = "start",
   matchAnchorWidth = false,
@@ -280,11 +299,13 @@ export function Picker({
           onSelect(row.option.id);
           // A single-choice picker is finished the moment a choice is made
           // (DHDS-09 §32). A multi-select stays open, and clears the query so
-          // the next value is searched for from the whole list.
+          // the next value is searched for from the whole list. A host that is
+          // SAVING keeps it open too and closes on the server's answer — see
+          // `keepOpenOnSelect`.
           if (multiple) {
             setQuery("");
             onSearch?.("");
-          } else {
+          } else if (!keepOpenOnSelect) {
             onClose(true);
           }
           return;
@@ -294,11 +315,12 @@ export function Picker({
           return;
         case "clear":
           clear?.onSelect();
-          onClose(true);
+          // Clearing is a save like any other, so it follows the same rule.
+          if (!keepOpenOnSelect) onClose(true);
           return;
       }
     },
-    [clear, multiple, onClose, onCreate, onSearch, onSelect],
+    [clear, keepOpenOnSelect, multiple, onClose, onCreate, onSearch, onSelect],
   );
 
   const step = (delta: number) => {

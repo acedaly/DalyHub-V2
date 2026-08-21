@@ -55,6 +55,7 @@ import { Link } from "react-router";
 import { AccentIcon } from "~/shared/entity";
 import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
 import { goalProgressStatusLabel } from "~/shared/goal-progress";
+import { InlineDateField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 import { GoalMeasurementSection } from "./GoalMeasurementSection";
@@ -68,6 +69,7 @@ export function GoalWorkspacePane({
   areaColourRank,
   areaIconKey,
   tabs,
+  onSetTargetDate,
 }: {
   readonly detail: NonNullable<GoalWorkspaceDetail>;
   readonly todayIso: string;
@@ -77,6 +79,14 @@ export function GoalWorkspacePane({
   readonly areaIconKey: string | null;
   /** The tab rail, composed by the caller from what this record really has. */
   readonly tabs?: ReactNode;
+  /**
+   * DHDS-10 — set or clear the target date (`set_target_date`), the SAME
+   * focused intent the canonical record posts. Omit and the date renders as the
+   * plain sentence it was.
+   */
+  readonly onSetTargetDate?: (
+    targetDate: string | null,
+  ) => Promise<InlineSaveOutcome>;
 }) {
   const { overview, details, progress } = detail;
   const targetDate = details.targetDate
@@ -93,11 +103,20 @@ export function GoalWorkspacePane({
    * the target date where one exists. A Goal with no target date says only its
    * Area; it does not print "No target date", which would make an ordinary
    * absence look like a problem.
+   *
+   * ── DHDS-10 — the target date is the SAME control the record carries ────────
+   * It was a printed string here, so "move this to the end of March" — a
+   * one-value decision an owner makes while reading the Goal's chart — meant
+   * leaving the workspace for the canonical record and coming back. It is now
+   * the shared `InlineDateField` posting the SAME focused `set_target_date`
+   * intent to the SAME endpoint, so the two surfaces cannot drift.
+   *
+   * It does NOT make the pane an editor. The Goal's title, its completion and
+   * its removal stay on the record — the pane's own note above says why — and
+   * "Current status" stays derived: it is computed from the measurements, and
+   * DHDS-10 §15 is explicit that calculated progress is never directly editable.
    */
-  const context = [
-    overview.area?.title ?? null,
-    targetDate ? `Target by ${targetDate}` : null,
-  ].filter((part): part is string => part !== null);
+  const context = overview.area?.title ?? null;
 
   return (
     <article className="dh-goalpane" data-testid="goal-workspace-pane">
@@ -134,9 +153,54 @@ export function GoalWorkspacePane({
               {overview.title}
             </Link>
           </h2>
-          {context.length > 0 ? (
-            <p className="dh-goalpane__context">{context.join(" · ")}</p>
-          ) : null}
+          {/*
+           * A DIV, not a paragraph.
+           *
+           * The context line now contains an inline FIELD, and every field in
+           * `~/shared/inline-edit` roots itself in a `div`. A `div` inside a
+           * `<p>` is not merely invalid: the HTML parser CLOSES the paragraph
+           * when it meets one, so the server's markup and the client's tree
+           * disagree and React discards the whole subtree with a hydration
+           * error. It is still one line of context — the heading above it is
+           * what makes it a caption, not the element name.
+           */}
+          <div className="dh-goalpane__context" data-dh-action-context="true">
+            {context !== null ? <span>{context}</span> : null}
+            {onSetTargetDate ? (
+              <span className="dh-goalpane__target">
+                {/*
+                 * The words "Target by" belong to a DATE, so they appear only
+                 * when there is one. An empty field under a permanent label
+                 * read "DalyHub V2 · Target by" with nothing after it — the
+                 * label saying more than the value, which is exactly the
+                 * dangling placeholder §25 rules out.
+                 *
+                 * The empty state is also the one place on this line that does
+                 * NOT hold its invitation back. A detail pane carries one or two
+                 * facts, not fifty rows of them, so "Add a target date" is a
+                 * useful thing to see rather than a column of absences — the
+                 * judgement §25 asks for, made per surface.
+                 */}
+                {details.targetDate !== null ? (
+                  <span className="dh-goalpane__target-label">Target by</span>
+                ) : null}
+                <InlineDateField
+                  label="Target date"
+                  value={details.targetDate}
+                  onSave={onSetTargetDate}
+                  format={(iso) => formatCalendarDate(iso) ?? iso}
+                  emptyLabel="Add a target date"
+                  todayIso={todayIso}
+                  presentation={
+                    details.targetDate === null ? "default" : "meta"
+                  }
+                  data-testid="goal-pane-target-date"
+                />
+              </span>
+            ) : targetDate ? (
+              <span>Target by {targetDate}</span>
+            ) : null}
+          </div>
         </div>
         {/*
          * §6.2 — alignment survives as a QUIET state on the pane, not as a

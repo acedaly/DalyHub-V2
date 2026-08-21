@@ -571,6 +571,25 @@ export interface ProjectCardData {
   readonly colourSlot: IdentityColourSlot | null;
   /** The parent context line — "DalyHub V2 · Launch the site" — or null. */
   readonly parentLabel: string | null;
+  /**
+   * DHDS-10 — the STRUCTURAL parent's id and kind, so a collection row can
+   * change it without re-deriving the relationship from a label.
+   *
+   * A Goal takes precedence over its derived Area, exactly as the Settings
+   * tab's `currentParent` resolves it: a Project advancing a Goal has the GOAL
+   * as its actual structural parent, and the Area shown beside it is the Goal's.
+   * `null` for a Project with neither.
+   */
+  readonly parentId: string | null;
+  readonly parentKind: "area" | "goal" | null;
+  /**
+   * The raw workflow status, beside the display chip.
+   *
+   * The chip is a PRECEDENCE (Archived → Completed → workflow status) and often
+   * a health word, so it cannot be read back as the enumeration. A control that
+   * sets the status needs the value itself.
+   */
+  readonly workflowStatus: ProjectWorkflowStatus;
   /** The ONE status chip. */
   readonly status: ProjectCardStatus;
   /**
@@ -710,6 +729,9 @@ export function toProjectCardData(
     iconKey: item.iconKey,
     colourSlot: item.colourSlot,
     parentLabel: projectParentLabel({ areaLabel, goalLabel }),
+    parentId: item.goal?.id ?? item.area?.id ?? null,
+    parentKind: item.goal ? "goal" : item.area ? "area" : null,
+    workflowStatus: item.status,
     status,
     // The SAME predicates `projectCardStatus` branches on, so the chip and the
     // styling can never disagree about what this Project is.

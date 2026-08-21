@@ -28,8 +28,24 @@
  * Identity, Area, Progress, Tasks, Updated — the five §5.4 names, and every one
  * of them is a value the gallery card already draws or the list item already
  * carries. Nothing new is derived, and nothing new is read.
+ *
+ * ── DHDS-10 — the AREA cell is the control ──────────────────────────────────
+ * Filing is what a table of Projects is FOR: it is the surface an owner scans
+ * when deciding where work belongs, and until this phase the answer to "this
+ * one is in the wrong Area" was open the record, find the Settings tab, find
+ * the row, choose, come back — five interactions and two navigations, from the
+ * cell that already states the answer.
+ *
+ * The cell is now the shared `InlinePickerField` over the same bounded
+ * `/projects/parent-options?q=` endpoint the record's own Organisation row
+ * uses, posting the same canonical `move` intent. No column was added, no
+ * request is made until a picker is opened, and at rest the cell is still the
+ * Area's name in ordinary text — `presentation="meta"` holds the caret back
+ * until the row is engaged with, so a page of Projects reads as a table of
+ * information rather than a page of dropdowns (§6).
  */
 
+import { useCallback, useState } from "react";
 import { Link } from "react-router";
 
 import {
@@ -37,12 +53,16 @@ import {
   identityAttribute,
   resolveIdentity,
 } from "~/shared/entity";
+import type { PickerOption } from "~/shared/floating";
+import { InlinePickerField } from "~/shared/inline-edit";
+import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import { ProgressTrack, meterStatusFromTone } from "~/shared/progress";
 
 import type { ProjectCardData } from "./project-view";
+import { useParentOptionsSearch } from "./use-parent-options-search";
 
 export function ProjectsTable({
   cards,
@@ -55,12 +75,24 @@ export function ProjectsTable({
     <div className="dh-ptable__scroll">
       <table className="dh-ptable" data-testid="projects-table">
         <caption className="dh-visually-hidden">
-          Projects, with their Area, progress, task counts and last update.
+          Projects, with the Area or Goal they sit under, progress, task counts
+          and last update.
         </caption>
         <thead>
           <tr>
             <th scope="col">Project</th>
-            <th scope="col">Area</th>
+            {/*
+             * DHDS-10 — the column is named for what it now CONTAINS.
+             *
+             * It showed the derived Area and is now the STRUCTURAL parent, which
+             * for a Project advancing a Goal is the Goal — the value the `move`
+             * intent actually sets, and the one a control must state honestly.
+             * Heading it "Area" while it read "Learn Spanish" would be a column
+             * whose title disagrees with its cells, and naming the control's
+             * value differently from its visible text would break WCAG 2.5.3.
+             * The Area is still named on the gallery card and on the record.
+             */}
+            <th scope="col">Area or Goal</th>
             <th scope="col">Progress</th>
             <th scope="col">Tasks</th>
             <th scope="col">Updated</th>
@@ -111,6 +143,12 @@ function ProjectTableRow({
         }).slot,
       )}
       data-muted={card.isArchived ? "true" : undefined}
+      /*
+       * DHDS-08's reveal CONTEXT, which DHDS-10's `meta` fields read: the Area
+       * cell's caret fades in with the row exactly as the overflow button does,
+       * from the one contract, rather than being drawn on forty rows at rest.
+       */
+      data-dh-action-context="true"
       data-testid="project-table-row"
     >
       <th scope="row" className="dh-ptable__identity">
@@ -150,9 +188,24 @@ function ProjectTableRow({
           </Link>
         </span>
       </th>
-      {/* An absent value is an em dash with an accessible word behind it, never
-       * an empty cell — a blank reads as "failed to load". */}
-      <td>{card.areaLabel ?? <Absent label="No Area" />}</td>
+      {/*
+       * DHDS-10 — the Area, as a contextual choice.
+       *
+       * An ARCHIVED Project is read-only until it is restored (PROJ-05 §5), and
+       * the repository already refuses the mutation; the cell renders the plain
+       * value there rather than a control that could only ever fail.
+       *
+       * An absent value is still directly manipulable — "No Area" is the
+       * invitation, held back until the row is engaged with — so the em dash
+       * survives only for a Project that cannot be moved at all.
+       */}
+      <td className="dh-ptable__area">
+        {card.isArchived ? (
+          (card.areaLabel ?? <Absent label="No Area" />)
+        ) : (
+          <ProjectAreaCell card={card} onMoved={onLifecycleChange} />
+        )}
+      </td>
       <td className="dh-ptable__progress">
         <span className="dh-ptable__progress-inner">
           {card.progress.has ? (
@@ -188,6 +241,109 @@ function ProjectTableRow({
         {lifecycle.dialogs}
       </td>
     </tr>
+  );
+}
+
+/**
+ * The Area cell's contextual choice.
+ *
+ * Its own component so the search hook mounts PER ROW rather than per table —
+ * and, more importantly, so its one seeded request is made when a picker opens
+ * rather than when the table renders. `useParentOptionsSearch` fetches only
+ * when `onSearch` is called, and the shared `Picker` calls it on open, so a
+ * forty-row table costs zero requests until an owner asks a question (§43).
+ *
+ * It writes through the canonical `move` intent on `/projects/:id/mutate` — the
+ * same one the record's Organisation row posts — and asks the collection to
+ * re-read afterwards, because moving a Project can change which Area group,
+ * filter or segment it belongs to. The server decides that, not the row.
+ */
+function ProjectAreaCell({
+  card,
+  onMoved,
+}: {
+  readonly card: ProjectCardData;
+  readonly onMoved: () => void;
+}) {
+  // Seeded with the CURRENT parent only — never the whole Area/Goal catalogue —
+  // so the cell's own label always resolves before anything is typed.
+  const [seed] = useState<readonly PickerOption[]>(() =>
+    card.parentId === null
+      ? []
+      : [
+          {
+            id: card.parentId,
+            label:
+              (card.parentKind === "goal" ? card.goalLabel : card.areaLabel) ??
+              card.parentId,
+            support: card.parentKind === "goal" ? "Goal" : "Area",
+          },
+        ],
+  );
+  const search = useParentOptionsSearch(
+    seed.map((option) => ({
+      value: option.id,
+      label: option.label,
+      ...(option.support ? { description: option.support } : {}),
+    })),
+  );
+
+  const save = useCallback(
+    async (next: string): Promise<InlineSaveOutcome> => {
+      // A Project's parent is REQUIRED — every Project sits under an Area or
+      // advances a Goal — so there is no clear command and an empty choice is
+      // not a state the field can reach.
+      if (next.length === 0) return { ok: true };
+      const body = new FormData();
+      body.set("intent", "move");
+      body.set("parentId", next);
+      const response = await fetch(
+        `/projects/${encodeURIComponent(card.id)}/mutate`,
+        { method: "POST", body, headers: { accept: "application/json" } },
+      );
+      const result = (await response.json()) as {
+        readonly ok: boolean;
+        readonly message?: string;
+        readonly formError?: string;
+      };
+      if (!result.ok) {
+        return {
+          ok: false,
+          message:
+            result.message ??
+            result.formError ??
+            "That couldn’t be saved. Please try again.",
+        };
+      }
+      onMoved();
+      return { ok: true };
+    },
+    [card.id, onMoved],
+  );
+
+  const options: readonly PickerOption[] = search
+    .withSelected(card.parentId ?? "")
+    .map((option) => ({
+      id: option.value,
+      label: option.label,
+      ...(option.description ? { support: option.description } : {}),
+    }));
+
+  return (
+    <InlinePickerField
+      label="Area or Goal"
+      value={card.parentId ?? ""}
+      options={options}
+      onSave={save}
+      onSearch={search.onSearch}
+      // The first, unfiltered page — asked for on OPEN rather than on render,
+      // so a table of Projects makes no requests until an owner opens one.
+      onOpen={() => search.onSearch("")}
+      loading={search.loading}
+      emptyLabel="No Area"
+      presentation="meta"
+      data-testid="project-table-area"
+    />
   );
 }
 

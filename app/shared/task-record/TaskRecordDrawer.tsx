@@ -58,6 +58,7 @@ import {
 import { PriorityFlag, PriorityGlyph } from "./PriorityIndicator";
 import { TASK_PRIORITY_OPTIONS } from "./priority-options";
 import { recurrenceFormFields } from "./recurrence-authoring";
+import { TaskRecurrenceControl } from "./TaskRecurrenceControl";
 import { TaskRecurrenceEditor } from "./TaskRecurrenceEditor";
 import { UrgencyChip } from "./UrgencyChip";
 import { TaskDependenciesSection } from "./TaskDependenciesSection";
@@ -778,6 +779,52 @@ export function TaskRecordDrawer({
     [notifySuccess, postAction, refresh],
   );
 
+  /**
+   * DHDS-10 — the same save, in the shape a DS-16 inline field speaks.
+   *
+   * `saveRecurrence` answers the recurrence EDITOR's contract (`{ ok, message }`)
+   * and is the one authority for this record's rule; this adapts it, so the
+   * inline choice and the editor cannot drift into two ways of writing a repeat.
+   * A refusal keeps its server wording, which the field then shows beside the
+   * previous value.
+   */
+  const saveRecurrenceInline = useCallback(
+    async (rule: TaskRecurrenceInput | null): Promise<InlineSaveOutcome> => {
+      const outcome = await saveRecurrence(rule);
+      return outcome.ok
+        ? { ok: true }
+        : {
+            ok: false,
+            message:
+              outcome.message ??
+              "That couldn’t be saved. Nothing was changed — try again.",
+          };
+    },
+    [saveRecurrence],
+  );
+
+  /**
+   * Take the owner to the full editor — the deeper home the `Custom…` command
+   * promises (DHDS-10 §34).
+   *
+   * It scrolls rather than navigates, because the editor is already on this
+   * record: opening a second surface to author a rule is precisely the extra
+   * door CONTROL-01 §4 closed. Focus moves with the scroll so a keyboard user
+   * arrives where a pointer user is looking, and `scrollIntoView` is left to the
+   * platform's reduced-motion handling rather than animated here.
+   */
+  const recurrenceEditorRef = useRef<HTMLDivElement | null>(null);
+  const revealRecurrenceEditor = useCallback(() => {
+    const node = recurrenceEditorRef.current;
+    if (node === null) return;
+    node.scrollIntoView({ block: "nearest" });
+    (
+      node.querySelector(
+        "button, [href], input, select, textarea",
+      ) as HTMLElement | null
+    )?.focus();
+  }, []);
+
   const setWaiting = useCallback(
     async (
       payload:
@@ -1107,11 +1154,36 @@ export function TaskRecordDrawer({
   if (task.goal) {
     metadata.push({ id: "goal", label: "Goal", value: task.goal.title });
   }
-  // A stored recurrence rule is a fact about the task, so it is reported here in the
-  // same restrained vocabulary the parser and the Repeat control use.
+  /*
+   * DHDS-10 — the repeat is a fact about the task, and now a PRESSABLE one.
+   *
+   * It was the last printed value in a metadata run whose every other member —
+   * priority, horizon, commitment — CONTROL-01 §4 had already made a control.
+   * "A record that states a value it will not let you edit is a record that
+   * sends you somewhere else", and the somewhere else here was a scroll down
+   * the record to the editor.
+   *
+   * What it offers is the ORDINARY answers (§14: common choice inline, complex
+   * configuration deeper). `Custom…` does not try to squeeze the composition
+   * into a menu — it takes the owner to the full editor, which is the same
+   * shared editor, on the same record, posting the same one intent. Nothing
+   * about the recurrence architecture changes.
+   */
   const recurrenceLabel = taskRecurrenceLabel(task.recurrence);
   if (recurrenceLabel !== null) {
-    metadata.push({ id: "repeats", label: "Repeats", value: recurrenceLabel });
+    metadata.push({
+      id: "repeats",
+      label: "Repeats",
+      value: (
+        <TaskRecurrenceControl
+          value={task.recurrence ?? null}
+          onSave={saveRecurrenceInline}
+          onOpenEditor={revealRecurrenceEditor}
+          readOnly={completed || task.deletedAt !== null}
+          data-testid="task-repeats-edit"
+        />
+      ),
+    });
   }
   const taskCaptureContext: CaptureContextContract = {
     sourceEntityId: task.id,
@@ -1324,6 +1396,7 @@ export function TaskRecordDrawer({
                * and the anchor is the plan directly above it.
                */}
               <TaskRecurrenceEditor
+                ref={recurrenceEditorRef}
                 task={{
                   recurrence: task.recurrence ?? null,
                   scheduledDate: task.scheduledDate,

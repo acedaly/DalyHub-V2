@@ -26,7 +26,16 @@ import {
   type RecordMetaItem,
 } from "~/shared/record-layout";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
-import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
+import {
+  PROJECT_WORKFLOW_STATUSES,
+  projectWorkflowStatusLabel,
+  type ProjectWorkflowStatus,
+} from "~/kernel/project-settings";
+import {
+  InlineSelectField,
+  InlineTextField,
+  type InlineSaveOutcome,
+} from "~/shared/inline-edit";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import {
@@ -37,6 +46,18 @@ import {
   type SerializedProjectOverview,
 } from "./project-view";
 import { meterStatusFromTone } from "~/shared/progress";
+
+/**
+ * The workflow statuses, from the ONE module that owns the vocabulary.
+ *
+ * Built here rather than restated: `PROJECT_WORKFLOW_STATUSES` is the kernel's
+ * order and `projectWorkflowStatusLabel` its wording, so this control and the
+ * Settings row can never offer different words for the same three values.
+ */
+const PROJECT_STATUS_OPTIONS = PROJECT_WORKFLOW_STATUSES.map((status) => ({
+  value: status,
+  label: projectWorkflowStatusLabel(status),
+}));
 
 interface ProjectOverviewProps {
   readonly overview: SerializedProjectOverview;
@@ -54,6 +75,18 @@ interface ProjectOverviewProps {
    * typed name stays in the field (see `~/shared/inline-edit`).
    */
   readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
+  /**
+   * DHDS-10 — set the workflow status from the record's context line
+   * (`set_status`). The SAME intent, the same endpoint and the same archived
+   * guard the Settings tab's row posts through; a refusal comes back as an
+   * outcome so the field can keep the previous value and state the reason.
+   *
+   * Optional so a host that has no status authority (a preview, a template)
+   * simply renders the fact.
+   */
+  readonly onSetStatus?: (
+    status: ProjectWorkflowStatus,
+  ) => Promise<InlineSaveOutcome>;
   readonly tasksTab: ReactNode;
   readonly linksTab: ReactNode;
   readonly knowledgeTab: ReactNode;
@@ -86,6 +119,7 @@ export function ProjectOverview({
   completionPending,
   onToggleComplete,
   onRename,
+  onSetStatus,
   tasksTab,
   linksTab,
   knowledgeTab,
@@ -132,6 +166,26 @@ export function ProjectOverview({
    * once, as the summary band's state chip, beside the progress it explains.
    * Created, Updated and the raw State moved to the Settings tab's Record
    * details — demoted, never deleted.
+   *
+   * ── DHDS-10 — the WORKFLOW STATUS joins them, as a control ──────────────────
+   * Changing a Project from Planned to Active was: open the record, find the
+   * Settings tab, find the row, choose. Four interactions and a tab change for
+   * a three-value enumeration — the friction §16 names for Projects, and the
+   * one property an owner changes most often while the Project is open in
+   * front of them.
+   *
+   * It is shown only while the workflow status is the LIVE fact. An archived or
+   * completed Project's state is decided by its lifecycle, and the header's
+   * state pill already says so with the right precedence; offering "Planned /
+   * Active / On hold" there would be a control whose value the record is not
+   * actually in.
+   *
+   * The Area and the Goal stay LINKS here, deliberately, and §35's rule is why:
+   * consistency follows context. On a Task row the parent is metadata being
+   * scanned; on a record header it is the way UP the hierarchy, and a record
+   * that cannot reach its own parent in one press is worse than one whose
+   * parent takes an extra step to change. Changing it stays one gesture from
+   * the collection table's Area cell and from Settings → Organisation.
    */
   const contextItems: RecordMetaItem[] = [];
   if (overview.area) {
@@ -156,6 +210,24 @@ export function ProjectOverview({
           type={overview.goal.kind}
           id={overview.goal.id}
           title={overview.goal.title}
+        />
+      ),
+    });
+  }
+  if (!archived && !completed && onSetStatus) {
+    contextItems.push({
+      id: "status",
+      label: "Status",
+      value: (
+        <InlineSelectField
+          label="Status"
+          value={overview.status}
+          options={PROJECT_STATUS_OPTIONS}
+          onSave={(next) => onSetStatus(next as ProjectWorkflowStatus)}
+          // A record's context line is a RUN of facts being read, so the caret
+          // waits to be looked for exactly as it does on a collection row.
+          presentation="meta"
+          data-testid="project-status-edit"
         />
       ),
     });

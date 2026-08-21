@@ -30,6 +30,7 @@ import {
 } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
+import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
   DrawerProvider,
@@ -382,6 +383,54 @@ function AssetDetail({
     [assetId, revalidator],
   );
 
+  /**
+   * DHDS-10 — one FIELD of the Asset, from the record's own context line.
+   *
+   * The Asset record was DalyHub's clearest remaining property sheet: Location,
+   * Area, meter, purchase, warranty, renewal and last service all printed as
+   * read-only text with one "Edit details" link under them opening a form of
+   * eighteen fields. Changing where a thing is kept meant filling in a form
+   * about the thing (§22, §44).
+   *
+   * This posts the SAME `intent=update` the details form posts, with exactly
+   * one field in the body — `buildUpdate` reads only the keys a form actually
+   * submitted, so a partial update is the endpoint's designed behaviour rather
+   * than a new path — and the same `AssetValidationError` comes back as the
+   * field's message. There is no second Asset mutation.
+   */
+  const onSetField = useCallback(
+    async (field: string, value: string): Promise<InlineSaveOutcome> => {
+      const body = new FormData();
+      body.set("intent", "update");
+      body.set(field, value);
+      let result: AssetMutationResult;
+      try {
+        const response = await fetch(
+          `/asset/${encodeURIComponent(assetId)}/mutate`,
+          { method: "POST", body },
+        );
+        result = (await response.json()) as AssetMutationResult;
+      } catch {
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Please try again.",
+        };
+      }
+      if (result.kind === "update" && result.ok) {
+        revalidator.revalidate();
+        return { ok: true };
+      }
+      return {
+        ok: false,
+        message:
+          (result.kind === "update" && !result.ok
+            ? (result.fieldErrors?.[field] ?? result.formError)
+            : undefined) ?? "That couldn’t be saved. Please try again.",
+      };
+    },
+    [assetId, revalidator],
+  );
+
   const overview = useMemo(
     () => ({
       obligations: loaderData.obligations,
@@ -418,6 +467,7 @@ function AssetDetail({
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       onRename={onRename}
+      onSetField={onSetField}
       onSaved={() => revalidator.revalidate()}
       onQuickEvent={(action) => open({ kind: "event", action })}
       onEditEvent={(event) => open({ kind: "edit-event", event })}

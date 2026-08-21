@@ -102,25 +102,44 @@ export interface InlineSelectFieldProps {
   /** Render an option row with the caller's own visual language. */
   readonly renderOption?: (option: InlineSelectOption) => React.ReactNode;
   /**
-   * DS-04 — the ESCAPE HATCH at the end of a bounded option set.
+   * DS-04 / DHDS-10 — the ESCAPE HATCH at the end of the option set.
    *
-   * The Project chooser is handed the loader's bounded candidates, never "all
-   * projects", so for a large workspace the menu is a page of the answer rather
-   * than the answer. Typeahead searches what is IN the menu; this searches what
-   * is not, by handing the choice to the shared searchable picker.
+   * Two shapes of the same grammar, and DHDS-10 §34 is the rule behind both:
+   * *don't use a form for a two-second decision — and don't squeeze a
+   * configuration into a popover either.*
+   *
+   *   - the set is BOUNDED and the rest is elsewhere. The Project chooser is
+   *     handed the loader's candidates, never "all projects", so for a large
+   *     workspace the menu is a page of the answer. Typeahead searches what is
+   *     IN the menu; this searches what is not — "Search all Projects and
+   *     Areas…" hands off to the shared searchable picker;
+   *   - the set is COMPLETE for the common case and the uncommon one needs a
+   *     real editor. "Custom…" on a repeat rule opens the recurrence editor,
+   *     where a frequency, an interval, weekdays and a scheduling mode are
+   *     chosen together — a composition, not a value.
    *
    * It is an ordinary item in the same roving-focus list, so it is reachable by
    * keyboard, announced by a screen reader and typeahead-matchable, exactly like
    * every other row — but as a `menuitem` rather than a `menuitemradio`, because
    * it is a command rather than one of the field's values. A field with a
-   * genuinely closed set (priority, status) passes nothing and the list is
-   * unchanged.
+   * genuinely closed set and no deeper home (priority, status) passes nothing
+   * and the list is unchanged.
+   *
+   * It was `escapeAction` until DHDS-10 gave it its second use. Same row, same
+   * roles, same behaviour; the name simply stopped describing only half of it.
    */
-  readonly searchAction?: {
+  readonly escapeAction?: {
     readonly label: string;
     readonly description?: string;
     readonly onSelect: () => void;
   };
+  /**
+   * DHDS-10 — how loud the field is at rest. See {@link InlineEditShellProps}.
+   *
+   * `meta` is what a collection row and a record's context line pass: the value
+   * reads as metadata and the caret waits for the row to be engaged with.
+   */
+  readonly presentation?: "default" | "meta";
   readonly className?: string;
   readonly "data-testid"?: string;
 }
@@ -129,11 +148,11 @@ export interface InlineSelectFieldProps {
 const CLEAR_VALUE = "";
 
 /**
- * The sentinel the search command carries. It never reaches `onSave` — choosing
- * it hands off to the caller's picker and closes the menu — so it must be a
- * value no real option can hold.
+ * The sentinel the escape command carries. It never reaches `onSave` — choosing
+ * it hands off to the caller's picker or editor and closes the menu — so it
+ * must be a value no real option can hold.
  */
-const SEARCH_VALUE = "__dh-search";
+const ESCAPE_VALUE = "__dh-escape";
 
 export function InlineSelectField({
   label,
@@ -146,7 +165,8 @@ export function InlineSelectField({
   clearLabel,
   renderValue,
   renderOption,
-  searchAction,
+  escapeAction,
+  presentation = "default",
   className,
   "data-testid": testId,
 }: InlineSelectFieldProps) {
@@ -183,12 +203,12 @@ export function InlineSelectField({
         separatorBefore: true,
       });
     }
-    if (searchAction !== undefined) {
+    if (escapeAction !== undefined) {
       base.push({
-        id: SEARCH_VALUE,
-        label: searchAction.label,
-        ...(searchAction.description
-          ? { support: searchAction.description }
+        id: ESCAPE_VALUE,
+        label: escapeAction.label,
+        ...(escapeAction.description
+          ? { support: escapeAction.description }
           : {}),
         isCommand: true,
         tone: "quiet",
@@ -196,7 +216,7 @@ export function InlineSelectField({
       });
     }
     return base;
-  }, [clearable, clearLabel, label, options, searchAction, value]);
+  }, [clearable, clearLabel, label, options, escapeAction, value]);
 
   /**
    * Dismissal without a choice. `cancel` returns focus to the trigger on the
@@ -221,16 +241,16 @@ export function InlineSelectField({
 
   const choose = useCallback(
     (id: string) => {
-      // The search command is a HAND-OFF, not a value. It closes the menu and
-      // opens the caller's picker; nothing is written here, so a cancelled
-      // search leaves the field exactly as it was.
-      if (id === SEARCH_VALUE) {
-        searchAction?.onSelect();
+      // The escape command is a HAND-OFF, not a value. It closes the menu and
+      // opens the caller's picker or editor; nothing is written here, so a
+      // cancelled hand-off leaves the field exactly as it was.
+      if (id === ESCAPE_VALUE) {
+        escapeAction?.onSelect();
         return;
       }
       field.submit(id);
     },
-    [field, searchAction],
+    [field, escapeAction],
   );
 
   /*
@@ -244,14 +264,14 @@ export function InlineSelectField({
    * when the server says yes, and stays open with the server's message when it
    * says no.
    *
-   * The search command is not a value and keeps the default: it closes, and
-   * then hands off to the caller's picker.
+   * The escape command is not a value and keeps the default: it closes, and
+   * then hands off to the caller's picker or editor.
    */
   const menuItems = useMemo<readonly FloatingMenuOption[]>(
     () =>
       items.map((item) => ({
         ...item,
-        ...(item.id === SEARCH_VALUE ? {} : { keepOpen: true }),
+        ...(item.id === ESCAPE_VALUE ? {} : { keepOpen: true }),
         onSelect: () => choose(item.id),
       })),
     [choose, items],
@@ -289,6 +309,7 @@ export function InlineSelectField({
         errorId={errorId}
         readOnly={readOnly}
         variant="text"
+        presentation={presentation}
         className={className}
         data-testid={testId}
       >
@@ -311,7 +332,24 @@ export function InlineSelectField({
          */}
         <span className="dh-inline-select__value">
           <span className="dh-inline-select__label">{valueNode}</span>
-          <ChevronDownIcon className="dh-inline-select__caret" />
+          {/*
+           * DHDS-10 — in `meta` presentation the caret is a DHDS-08 REVEAL.
+           *
+           * A chevron after every datum is the single loudest way a direct-
+           * manipulation pass turns a list into a form (§40), and this field is
+           * the most-repeated one in the product. It is not deleted — the caret
+           * is the field's "this opens something" tell and a keyboard or touch
+           * user still gets it — it joins the same reveal the row's overflow
+           * button uses, so it arrives with the rest of the row's affordances
+           * and costs the reading state nothing.
+           */}
+          <ChevronDownIcon
+            className={
+              presentation === "meta"
+                ? "dh-inline-select__caret dh-action-reveal"
+                : "dh-inline-select__caret"
+            }
+          />
         </span>
       </InlineEditShell>
 
@@ -330,7 +368,7 @@ export function InlineSelectField({
                 renderOption: (item: FloatingMenuOption) =>
                   /*
                    * Only the field's real VALUES get the caller's rendering. A
-                   * clear or search command is not one of them, and handing
+                   * clear or escape command is not one of them, and handing
                    * `renderValue`-shaped data to a priority flag renderer would
                    * ask it to draw a priority that does not exist.
                    */
