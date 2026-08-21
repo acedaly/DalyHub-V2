@@ -626,21 +626,23 @@ drift apart.
 
 ### The E2E gate: 19 pre-existing failures, every one verified
 
-The full twelve-partition gate ran in CI on this branch three times (runs
-32424290783, 32428461587 and 32430980151). **Static, Scope, Build and Unit are
+The full twelve-partition gate ran in CI on this branch (runs 32424290783,
+32428461587, 32430980151 and 32432512935). **Static, Scope, Build and Unit are
 green in every one.** Eight E2E partitions are red, carrying **19 failing tests**
-— and every run draws from the same set, so nothing in this branch moves it.
+at their widest — **eighteen of which are constant across every run**, with three
+more moving in and out (below). Nothing in this branch moves the stable
+eighteen.
 
 **`main`'s own gate fails exactly the same nineteen** (run 32409611083, at
 `157a3f4`) — the same list, test for test. That is stronger than the local
 base-tree reproduction and settles the question of ownership.
 
-**A correction to an earlier claim in this record.** It said the failing set was
-identical run to run. It is not: four runs of this branch produced **19, 19, 18
-and 20**. Eighteen are constant; three tests move —
-`tasks-collection.spec.ts:298` (fail, fail, **pass**, fail), and
-`identity.spec.ts:124` and `notes.spec.ts:382`, which appeared once, on a commit
-that changes **two markdown files and nothing else**.
+**The set is not stable, and an earlier revision of this record wrongly said it
+was.** Four runs of this branch produced **19, 19, 18 and 20**. Eighteen are
+constant; three tests move — `tasks-collection.spec.ts:298` (fail, fail,
+**pass**, fail), and `identity.spec.ts:124` and `notes.spec.ts:382`, which
+appeared once, on a commit that changes **two markdown files and nothing
+else**.
 
 Both of the newcomers were investigated rather than assumed, because one of them
 — a failed save showing an error state with Retry — is exactly the kind of thing
@@ -654,10 +656,20 @@ does touch the toast path). It could not have:
 - both specs pass locally on this branch against a fresh database, 23/23;
 - they failed in one run out of four, on a markdown-only commit.
 
-So the churn is DEBT-173 reaching the margins of the set rather than anything
-motion did — but the useful lesson is the one the churn teaches: while the gate
-is red for unrelated reasons, "the set changed" cannot by itself distinguish a
-regression from contamination. Only a mechanism can.
+So the two newcomers are not DHDS-08's. **They are also not attributed to
+anything else**, and that restraint is deliberate. `tasks-collection.spec.ts:298`
+*is* DEBT-173 — it passes in isolation and fails only after another spec, which
+is the accumulated-state signature. The other two are not: `notes.spec.ts:382`
+builds its own uniquely-titled Note before it does anything
+(`e2e/notes.spec.ts:385-386`), so "passes in isolation" says nothing about shared
+fixtures, and one failure in four runs is not a reproducer. Filing them under
+DEBT-173 would point the next investigation at fixture isolation on no evidence,
+so they are recorded as **unexplained and unclassified** instead.
+
+The useful lesson is the one the churn teaches: while the gate is red for
+unrelated reasons, "the set changed" cannot by itself distinguish a regression
+from contamination. Only a mechanism can — and the absence of one is a reason to
+stop, not a licence to pick a cause.
 
 Every one of the nineteen was checked individually by restoring `app/` to
 `157a3f4` (the merge-base), reseeding the local database and re-running the same
