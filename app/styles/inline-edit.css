@@ -476,8 +476,6 @@
    * it.
    */
   margin-inline: calc(-1 * var(--dh-space-1)) 0;
-  min-block-size: var(--dh-space-6);
-  min-inline-size: var(--dh-space-6);
   padding-inline: var(--dh-space-1);
   padding-block: 0;
   border: 0;
@@ -494,7 +492,32 @@
   text-align: start;
 }
 
-@media (hover: hover) {
+/*
+ * The FLOOR, and why it is stated as an opt-out.
+ *
+ * The base trigger takes the product's 44px touch minimum on every pointer and
+ * M3X narrows it to `control-height-sm` behind a positive `(hover: hover) and
+ * (pointer: fine)` query — a device must positively declare a fine pointer WITH
+ * hover to get the smaller one, so a touch device, a hybrid, a stylus and any
+ * browser that cannot answer both keep the floor.
+ *
+ * `meta` narrows further, to WCAG 2.2 §2.5.8's own 24px minimum, and it must be
+ * gated the same way. Declaring 24px unconditionally is what a first cut of this
+ * rule did, and it took every metadata control on a phone from 44px to 24px —
+ * measured on the Asset record at 393px, which is a `target-size` failure on a
+ * surface with no other way to change the value.
+ *
+ * A surface that CANNOT afford 44px of ink on a phone extends the hit area
+ * instead of shrinking the target: a Task row does exactly that with a
+ * pseudo-element (`task-list.css`), which is why the row stays 24px tall on a
+ * phone and is still 44px to a thumb.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .dh-inline-edit[data-presentation="meta"] .dh-inline-edit__trigger {
+    min-block-size: var(--dh-space-6);
+    min-inline-size: var(--dh-space-6);
+  }
+
   .dh-inline-edit[data-presentation="meta"] .dh-inline-edit__trigger:hover {
     background: var(--dh-color-surface-quiet);
   }

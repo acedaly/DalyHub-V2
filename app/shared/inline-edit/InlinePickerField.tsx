@@ -212,6 +212,15 @@ export function InlinePickerField({
           options={options}
           value={value.length === 0 ? null : value}
           onSelect={choose}
+          /*
+           * Choosing does not close the surface; the SAVE does — the same rule
+           * `InlineSelectField` states for its menu, and for the same reason:
+           * `useInlineEdit.submit` is only legal while the field is open, so a
+           * picker that closed first would drop the pending state and the
+           * refusal. The field closes when the server says yes, and stays open
+           * with the server's message when it says no.
+           */
+          keepOpenOnSelect
           {...(onSearch ? { onSearch } : {})}
           loading={loading}
           onClose={field.cancel}

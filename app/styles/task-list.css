@@ -607,6 +607,19 @@
   /* No optical pull-back in a grid: the CELL aligns the column, and a trigger
    * that starts outside its cell overhangs the one beside it. */
   margin-inline: 0;
+  /*
+   * 24px of INK on every pointer, including a phone — and the phone's 44px hit
+   * area comes from the `::before` below rather than from the box.
+   *
+   * The row is the one surface that genuinely cannot afford the floor as
+   * height: it is already 73px with two lines, and taking four metadata
+   * controls to 44px would make it ~93px and put three tasks on a phone screen
+   * instead of five. The shared `meta` rule therefore keeps the 44px floor for
+   * a coarse pointer and this narrows it back, in the one place that pays for
+   * the narrowing with a real extended target.
+   */
+  min-block-size: var(--dh-space-6);
+  min-inline-size: var(--dh-space-6);
 }
 
 .dh-taskrow__cell > .dh-inline-edit,

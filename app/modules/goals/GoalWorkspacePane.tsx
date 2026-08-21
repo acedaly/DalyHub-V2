@@ -153,7 +153,18 @@ export function GoalWorkspacePane({
               {overview.title}
             </Link>
           </h2>
-          <p className="dh-goalpane__context" data-dh-action-context="true">
+          {/*
+           * A DIV, not a paragraph.
+           *
+           * The context line now contains an inline FIELD, and every field in
+           * `~/shared/inline-edit` roots itself in a `div`. A `div` inside a
+           * `<p>` is not merely invalid: the HTML parser CLOSES the paragraph
+           * when it meets one, so the server's markup and the client's tree
+           * disagree and React discards the whole subtree with a hydration
+           * error. It is still one line of context — the heading above it is
+           * what makes it a caption, not the element name.
+           */}
+          <div className="dh-goalpane__context" data-dh-action-context="true">
             {context !== null ? <span>{context}</span> : null}
             {onSetTargetDate ? (
               <span className="dh-goalpane__target">
@@ -189,7 +200,7 @@ export function GoalWorkspacePane({
             ) : targetDate ? (
               <span>Target by {targetDate}</span>
             ) : null}
-          </p>
+          </div>
         </div>
         {/*
          * §6.2 — alignment survives as a QUIET state on the pane, not as a

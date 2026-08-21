@@ -522,9 +522,20 @@ export function InlineTaskParent({
         <TaskParentSearchPicker
           anchorRef={cellRef}
           value={parent?.id ?? ""}
-          onChoose={(chosen) => {
-            setSearching(false);
-            void commit(chosen?.id ?? "", chosen ?? undefined);
+          /*
+           * The picker stays open until the SERVER answers and closes only on a
+           * yes. Closing on the click would leave a refused move with nowhere
+           * to report itself — the surface would shut and the row would quietly
+           * keep its old Project, which is exactly the "an inline interaction
+           * must not become a way to hide errors" failure §30 rules out.
+           */
+          onChoose={async (chosen) => {
+            const outcome = await commit(chosen?.id ?? "", chosen ?? undefined);
+            if (outcome.ok) {
+              setSearching(false);
+              return null;
+            }
+            return outcome.message;
           }}
           onClose={() => setSearching(false)}
         />
@@ -555,11 +566,26 @@ function TaskParentSearchPicker({
 }: {
   readonly anchorRef: React.RefObject<HTMLElement | null>;
   readonly value: string;
-  /** The chosen candidate, or `null` for the Inbox. */
-  readonly onChoose: (chosen: TaskParentOption | null) => void;
+  /**
+   * Commit the chosen candidate (`null` for the Inbox), and answer with the
+   * server's refusal message, or `null` when it was accepted.
+   */
+  readonly onChoose: (
+    chosen: TaskParentOption | null,
+  ) => Promise<string | null>;
   readonly onClose: () => void;
 }) {
   const search = useTaskParentSearch();
+  /*
+   * A refusal from a choice made HERE.
+   *
+   * The bounded menu's refusals belong to `InlineSelectField`, which shows them
+   * beside the value it kept. This surface is the field's escape hatch and has
+   * no shell of its own, so it keeps its own message and renders it in the row
+   * — because the one thing an inline interaction may never do is close on a
+   * change the server refused (§30).
+   */
+  const [error, setError] = useState<string | null>(null);
   const options: readonly PickerOption[] = search
     .withSelected(value)
     .map((option) => ({
@@ -580,25 +606,43 @@ function TaskParentSearchPicker({
     return { id, kind, title: option?.label ?? id };
   };
   return (
-    <Picker
-      anchorRef={anchorRef}
-      label="Project or Area"
-      options={options}
-      value={value.length === 0 ? null : value}
-      onSelect={(id) => onChoose(resolve(id))}
-      onSearch={search.search}
-      loading={search.loading}
-      onClose={onClose}
-      // "No project" is a real DESTINATION rather than an absence, so the
-      // command is worded as the place the task goes — the same wording Quick
-      // Capture's parent control uses.
-      {...(value.length === 0
-        ? {}
-        : {
-            clear: { label: "Move to Inbox", onSelect: () => onChoose(null) },
-          })}
-      data-testid="task-row-parent-picker"
-    />
+    <>
+      {error !== null ? (
+        <p className="dh-inline-edit__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <Picker
+        anchorRef={anchorRef}
+        label="Project or Area"
+        options={options}
+        value={value.length === 0 ? null : value}
+        onSelect={(id) => {
+          setError(null);
+          void onChoose(resolve(id)).then(setError);
+        }}
+        // The SAVE closes it, not the click — see the note at the call site.
+        keepOpenOnSelect
+        onSearch={search.search}
+        loading={search.loading}
+        onClose={onClose}
+        // "No project" is a real DESTINATION rather than an absence, so the
+        // command is worded as the place the task goes — the same wording Quick
+        // Capture's parent control uses.
+        {...(value.length === 0
+          ? {}
+          : {
+              clear: {
+                label: "Move to Inbox",
+                onSelect: () => {
+                  setError(null);
+                  void onChoose(null).then(setError);
+                },
+              },
+            })}
+        data-testid="task-row-parent-picker"
+      />
+    </>
   );
 }
 
