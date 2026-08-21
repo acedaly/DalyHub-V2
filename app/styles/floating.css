@@ -1,0 +1,554 @@
+/*
+ * DHDS-09 — the shared FLOATING-SURFACE grammar.
+ *
+ * `tokens.css` publishes the vocabulary and `motion.css` publishes how a surface
+ * MOVES (DHDS-08). This file publishes what a floating surface IS: the one
+ * appearance every menu, popover, picker and floating listbox in DalyHub wears,
+ * and the one option row they are all built out of.
+ *
+ * ── What DHDS-09 found ──────────────────────────────────────────────────────
+ * Six floating surfaces, six answers to the same three questions:
+ *
+ *   | Surface                    | border colour        | radius              | elevation    |
+ *   |----------------------------|----------------------|---------------------|--------------|
+ *   | overflow menu panel        | `--dh-color-border`  | `--dh-radius-md`    | overlay      |
+ *   | form listbox               | `…-border-strong`    | `--dh-radius-control` | overlay    |
+ *   | filter popover             | `--dh-color-border`  | `--dh-radius-md`    | **modal**    |
+ *   | inline select / date       | `--dh-color-border`  | `var(--radius-panel)` | `var(--shadow-popover)` |
+ *   | command palette / search   | `--dh-color-border`  | `--dh-radius-lg`    | modal        |
+ *   | tooltip                    | (none)               | `--dh-radius-sm`    | overlay      |
+ *
+ * Three of them were also reaching past the DalyHub layer into the legacy
+ * aliases underneath (`--surface`, `--radius-panel`, `--shadow-popover`,
+ * `--surface-muted`) and writing raw pixels for their padding and their option
+ * height. None of that is a design decision anybody made; it is six components
+ * each deciding privately, which is exactly the drift a shared layer exists to
+ * prevent — and it is why a picker opened next to a menu did not look like it
+ * belonged to the same product.
+ *
+ * ── The rules ───────────────────────────────────────────────────────────────
+ * A floating surface is obvious because it is PHYSICALLY ABOVE the canvas, not
+ * because it is loud (DESIGN_DIRECTION → elevation). So: one hairline border,
+ * one raised surface tone, one overlay shadow, and nothing else. No glow, no
+ * glass, no backdrop blur, no tint, no Material slab.
+ *
+ * Two rungs, and only two:
+ *
+ *   `.dh-floating`          an ANCHORED surface — menu, popover, picker, floating
+ *                           listbox. It belongs to a trigger, so it is quiet.
+ *   `.dh-floating--modal`   a CENTRED surface — dialog, command palette, search.
+ *                           It has no trigger to belong to, so it separates more.
+ *
+ * Position, layer, the viewport clamp and the internal scroll are NOT here: an
+ * anchored surface gets them from `.dh-anchored` (`anchored.css`), a modal from
+ * its own host. A rule in this file that restated any of them would be a second
+ * place the same geometry is decided.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* The surface                                                                */
+/* -------------------------------------------------------------------------- */
+
+.dh-floating {
+  /*
+   * The surface's own padding, published as a CONTEXTUAL property so the
+   * elements that must bleed to its edge — a separator, the picker's search
+   * field — can cancel it without either of them re-deriving the number.
+   *
+   * `--app-` rather than `--dh-`, following the DHDS-08 precedent: the DalyHub
+   * layer is CLOSED (defined in `tokens.css` and nowhere else, asserted by
+   * test), and a role a host sets for itself is machinery rather than
+   * vocabulary.
+   */
+  --app-floating-inset: var(--dh-space-1);
+  padding: var(--app-floating-inset);
+  background: var(--dh-color-surface-raised);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-md);
+  box-shadow: var(--dh-elevation-overlay);
+  /*
+   * The surface is painted over whatever happens to be behind it, so it states
+   * its own appearance rather than inheriting one. Without this a floating
+   * surface opened from inside the DARK navigation rail — the one region whose
+   * value does not follow the appearance (AGENTS.md §6) — renders a form
+   * control inside it with the rail's colour scheme.
+   */
+  color: var(--dh-color-text);
+}
+
+/*
+ * A centred modal separates further, because there is no trigger beside it
+ * saying where it came from. It is still a shadow and a hairline — the step is
+ * from `--dh-elevation-overlay` to `--dh-elevation-modal` and one radius rung,
+ * never a second visual language.
+ */
+.dh-floating--modal {
+  border-radius: var(--dh-radius-lg);
+  box-shadow: var(--dh-elevation-modal);
+}
+
+/*
+ * Forced colours: the shadow is not painted at all and the surface tone
+ * collapses into `Canvas`, so the border is the ONLY thing left saying "this
+ * floats". It has to be a real one.
+ */
+@media (forced-colors: active) {
+  .dh-floating {
+    border-color: CanvasText;
+  }
+}
+
+/* A hairline between two KINDS of thing inside one surface — the real values
+ * and the "none of these" command, a menu's ordinary actions and its
+ * destructive one. Sparingly: a separator between every item is a table. */
+.dh-floating__separator {
+  block-size: var(--dh-border-width);
+  margin: var(--dh-space-1) calc(-1 * var(--app-floating-inset));
+  background: var(--dh-color-border);
+}
+
+/* The surface's own heading, for a picker or a grouped menu. Not a title bar:
+ * one quiet line naming what is being chosen. */
+.dh-floating__heading {
+  padding: var(--dh-space-1) var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  font-weight: var(--dh-text-label-weight);
+  letter-spacing: var(--dh-text-label-tracking);
+}
+
+/* A status line inside a surface — loading, empty, a count. Never a spinner
+ * the size of the panel (DHDS-09 §39). */
+.dh-floating__status {
+  padding: var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The three anchored surfaces                                                */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A menu and a picker are LISTS: their rows stack, and the surface is as wide
+ * as it needs to be up to the shared `--dh-anchored` ceiling. A popover holds
+ * arbitrary content, so it only supplies the column its children stack in.
+ *
+ * The minimum width stops a two-word menu opening a box narrower than the
+ * trigger it belongs to, which reads as a fragment rather than a surface.
+ */
+.dh-menu,
+.dh-picker {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: min(14rem, calc(100vw - 2 * var(--dh-space-4)));
+}
+
+.dh-popover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dh-space-2);
+}
+
+/*
+ * Inside a phone Sheet the surface supplies the panel, so these must not also
+ * be a floating box. The rows keep the shared anatomy; the container goes.
+ */
+.dh-menu[data-presentation="sheet"],
+.dh-picker[data-presentation="sheet"],
+.dh-popover[data-presentation="sheet"] {
+  min-inline-size: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The option row                                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ONE anatomy for a repeated choice, wherever it is repeated: a menu command, a
+ * picker option, a listbox option, a sort choice.
+ *
+ *   [ mark ]  Label                        ⌘K   ✓
+ *             Supporting label
+ *
+ * Everything but the label is optional and nothing reserves space it is not
+ * using, so a four-item priority menu and a searchable Project picker are the
+ * same row with different parts filled in — rather than two rows that merely
+ * resemble each other.
+ *
+ * It is deliberately NOT a pill. A row is a row; the interactive treatment is a
+ * background on hover and focus, which is what stops DHDS-09 turning every
+ * clickable value in the product into a rounded coloured capsule (§42).
+ */
+.dh-option {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  inline-size: 100%;
+  min-block-size: var(--dh-menu-item-height);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  border: 0;
+  border-radius: var(--dh-radius-control);
+  background: transparent;
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/*
+ * Hover and keyboard-active are the SAME treatment, because they mean the same
+ * thing: this is the row you are about to choose. A picker drives its active
+ * row with `data-active` (the WAI-ARIA combobox pattern keeps DOM focus in the
+ * text field), a menu drives it with real focus; both land here.
+ */
+.dh-option:hover,
+.dh-option:focus-visible,
+.dh-option[data-active="true"] {
+  background: var(--dh-color-surface-quiet);
+}
+
+.dh-option:active {
+  background: var(--dh-color-bg-sunken);
+}
+
+/*
+ * The CURRENT value. Reinforced three ways — a trailing check, a heavier label
+ * and a container — because "don't rely on colour alone" (AGENTS.md §15) and
+ * because the fill disappears entirely in forced colours.
+ *
+ * It is a DIFFERENT container from hover, deliberately. Both states used
+ * `--surface-muted` in the surfaces this replaces, so the current option looked
+ * exactly like the one under the pointer and the two cancelled whenever they
+ * met. `base.css` already states the rule this follows — "SELECTED is not an
+ * opacity … M3 draws a checked menu item with `secondary-container`" — so
+ * selection takes the accent container and its own foreground, and hover stays
+ * a quiet surface step.
+ */
+.dh-option[aria-checked="true"],
+.dh-option[aria-selected="true"],
+.dh-option[aria-pressed="true"],
+.dh-option[data-selected="true"] {
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-text-on-accent-subtle);
+}
+
+/*
+ * On the accent container the row's own foreground is the readable one, so the
+ * quiet parts stop being quiet-by-token and become quiet-by-opacity relative to
+ * it. A fixed grey on a tinted container is the classic way a "selected" row
+ * loses its supporting line.
+ */
+.dh-option[aria-checked="true"] :is(.dh-option__mark, .dh-option__support),
+.dh-option[aria-selected="true"] :is(.dh-option__mark, .dh-option__support),
+.dh-option[aria-pressed="true"] :is(.dh-option__mark, .dh-option__support),
+.dh-option[data-selected="true"] :is(.dh-option__mark, .dh-option__support) {
+  color: inherit;
+}
+
+.dh-option[aria-checked="true"] .dh-option__check,
+.dh-option[aria-selected="true"] .dh-option__check,
+.dh-option[aria-pressed="true"] .dh-option__check,
+.dh-option[data-selected="true"] .dh-option__check {
+  color: inherit;
+}
+
+.dh-option[aria-checked="true"] .dh-option__label,
+.dh-option[aria-selected="true"] .dh-option__label,
+.dh-option[aria-pressed="true"] .dh-option__label,
+.dh-option[data-selected="true"] .dh-option__label {
+  font-weight: var(--dh-text-label-strong-weight);
+}
+
+.dh-option[aria-disabled="true"],
+.dh-option:disabled {
+  color: color-mix(
+    in srgb,
+    var(--dh-color-text) calc(var(--dh-state-disabled-content-opacity) * 100%),
+    transparent
+  );
+  cursor: not-allowed;
+}
+
+.dh-option[aria-disabled="true"]:hover,
+.dh-option:disabled:hover {
+  background: transparent;
+}
+
+/*
+ * The destructive command. Its LABEL takes the danger colour and the row stays
+ * an ordinary row — a bright red slab at the foot of every overflow menu is
+ * what DHDS-09 §20 rules out, and a fill would also make Delete the loudest
+ * thing on a surface whose other items are the ones people actually want.
+ */
+.dh-option[data-tone="danger"] {
+  color: var(--dh-color-danger);
+}
+
+.dh-option[data-tone="danger"]:hover,
+.dh-option[data-tone="danger"]:focus-visible,
+.dh-option[data-tone="danger"][data-active="true"] {
+  background: var(--dh-color-danger-subtle);
+}
+
+/* The "none of these" command — Clear, No date, Move to Inbox. A different KIND
+ * of item from the real values, so it is separated and quieter. */
+.dh-option[data-tone="quiet"] {
+  color: var(--dh-color-text-muted);
+}
+
+/* The leading identity mark: a priority flag, an entity accent tile, a person's
+ * initials, a command's glyph. Decorative by construction — the label carries
+ * the meaning. */
+.dh-option__mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-option__mark > svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* The label column. `min-inline-size: 0` is what lets a long Project name
+ * ellipsise instead of pushing the check off the surface. */
+.dh-option__labels {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dh-option__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The supporting label — what a status means, which kind of parent this is, a
+ * person's role. One line, quieter, never a second sentence. */
+.dh-option__support {
+  overflow: hidden;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The shortcut this row duplicates. Decorative: the row's accessible name is
+ * the action, and appending a key to it would make the name unmatchable by the
+ * words a screen-reader user hears.
+ */
+.dh-option__shortcut {
+  flex: 0 0 auto;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+/*
+ * The trailing check. It holds its box whether or not it is showing a mark, so
+ * choosing a different option does not re-lay-out the surface under the pointer
+ * — the one place in a picker where a 16px reflow is felt.
+ */
+.dh-option__check {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+  color: var(--dh-color-accent);
+}
+
+.dh-option__check > svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+@media (forced-colors: active) {
+  /*
+   * Every signal above is a colour, and forced colours removes all of them. The
+   * check mark survives (it is a glyph), and the active/selected row gets a
+   * real border so the two states remain distinguishable from each other and
+   * from the rest of the list.
+   */
+  .dh-option[data-active="true"],
+  .dh-option:focus-visible {
+    outline: var(--dh-focus-width) solid Highlight;
+    outline-offset: calc(-1 * var(--dh-focus-width));
+  }
+
+  .dh-option[aria-checked="true"],
+  .dh-option[aria-selected="true"],
+  .dh-option[aria-pressed="true"],
+  .dh-option[data-selected="true"] {
+    border: var(--dh-border-width) solid CanvasText;
+  }
+
+  .dh-option[aria-disabled="true"],
+  .dh-option:disabled {
+    color: GrayText;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Touch                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A coarse pointer has no hover to reveal anything with and a finger instead of
+ * a cursor, so every option row is floored at the WCAG target minimum
+ * regardless of the document's density. `--dh-menu-item-height` already does
+ * this through the density presets; this is the belt for a surface rendered
+ * inside a region that declared `compact` explicitly.
+ */
+@media (pointer: coarse) {
+  .dh-option {
+    min-block-size: var(--app-touch-target-min);
+  }
+}
+
+/*
+ * …and UNCONDITIONALLY inside a Sheet, because the sheet IS the touch
+ * presentation.
+ *
+ * Measured at 393×852: a menu row inside the phone sheet was 34px, because the
+ * density token only floors itself under `(pointer: coarse)` and a narrow
+ * viewport is not the same claim as a coarse pointer. The rows this replaced
+ * (`SheetOption`) met the floor by construction rather than by media query, and
+ * they were right to: the product decides a sheet is what a phone gets, so the
+ * targets inside one are a product decision rather than a device report.
+ */
+.dh-sheet .dh-option {
+  min-block-size: var(--app-touch-target-min);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The picker's search field                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A searchable picker's field is part of the surface rather than a control
+ * sitting on it: no second border, no second radius, one hairline separating it
+ * from the options it filters. The alternative — a bordered `.dh-input` inside
+ * a bordered panel — is the stock component-library look DHDS-01 §6 rules out.
+ */
+.dh-picker__search {
+  display: flex;
+  align-items: center;
+  gap: var(--dh-space-2);
+  padding: var(--dh-space-1) var(--dh-space-2);
+  margin: calc(-1 * var(--app-floating-inset))
+    calc(-1 * var(--app-floating-inset)) var(--dh-space-1);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-picker__search-icon {
+  flex: 0 0 auto;
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-picker__search-input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: var(--dh-menu-item-height);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dh-color-text);
+  font: inherit;
+  font-size: var(--dh-text-row-size);
+}
+
+.dh-picker__search-input:focus-visible {
+  /* The whole surface is the focused object while the field owns the caret;
+   * a second ring around the field inside it reads as two focused things. */
+  outline: none;
+}
+
+.dh-picker__search-input::placeholder {
+  color: var(--dh-color-text-muted);
+}
+
+/* The option list. `role="listbox"`, so it must not introduce a scroll
+ * container of its own — `.dh-anchored` already clamps and scrolls, and two
+ * nested scrollers is the trap DHDS-09 §31 rules out on touch. */
+.dh-picker__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The empty result, which says what was searched for rather than "No results".
+ * The create command below it, when creation is genuinely supported, is an
+ * ordinary `.dh-option` in the same list. */
+.dh-picker__empty {
+  padding: var(--dh-space-2);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+.dh-picker__empty-query {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-text-label-strong-weight);
+}
+
+/*
+ * The loading shell. The surface opens IMMEDIATELY with its search field and
+ * three placeholder rows at the height real rows will take, so the panel does
+ * not resize under the pointer when the options land (DHDS-09 §39).
+ */
+.dh-picker__skeleton {
+  block-size: var(--dh-menu-item-height);
+  margin: var(--dh-space-1) var(--dh-space-2);
+  border-radius: var(--dh-radius-control);
+  background: var(--dh-color-surface-quiet);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The sheet presentation                                                     */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * On a phone the same picker is the shared bottom {@link Sheet}, and the sheet
+ * supplies the surface — so the option rows inside it must NOT also draw a
+ * floating panel. They keep the shared option anatomy and lose the container.
+ */
+.dh-sheet .dh-floating {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/*
+ * The sheet's search field is sticky at the top of the scrolling body, so the
+ * software keyboard cannot push it out of view while the owner is typing into
+ * it (DHDS-09 §31).
+ */
+.dh-sheet .dh-picker__search {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--dh-layer-sticky);
+  margin: 0 0 var(--dh-space-1);
+  background: var(--dh-color-surface-raised);
+}

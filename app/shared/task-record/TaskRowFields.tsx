@@ -32,13 +32,10 @@ import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { InlineDateField, InlineSelectField } from "~/shared/inline-edit";
 import { AccentIcon } from "~/shared/entity";
 import { RepeatIcon } from "~/shared/icons";
-import {
-  TASK_PRIORITIES,
-  type TaskPriority,
-  type TaskRelation,
-} from "~/kernel/tasks";
+import type { TaskPriority, TaskRelation } from "~/kernel/tasks";
 
-import { PriorityFlag } from "./PriorityIndicator";
+import { PriorityFlag, PriorityGlyph } from "./PriorityIndicator";
+import { TASK_PRIORITY_OPTIONS } from "./priority-options";
 import { taskDateShortcuts } from "./plan-targets";
 import { saveTaskBulkField, saveTaskRecordField } from "./task-inline-edit";
 import {
@@ -50,13 +47,19 @@ import {
 import type { SerializedTaskListItem, TaskListItemPatch } from "./task-view";
 
 /**
- * The REAL priority values only. The unset state is the shell's quiet empty label and
- * clearing is the separated command at the end of the menu (EDIT-02), so an untriaged
- * task never reads as "set to No priority".
+ * DHDS-09 — the canonical priority options, with their canonical marks.
+ *
+ * This file used to build its own `{ value, label }` list from
+ * `taskPriorityLabel`, as six other surfaces separately did. The list now comes
+ * from the one module that owns it (`priority-options.ts`), and the flag is the
+ * row's leading MARK rather than a `renderOption` that replaced the whole row —
+ * which is what took the current-value check away from this menu and the Task
+ * record's.
  */
-const PRIORITY_OPTIONS = TASK_PRIORITIES.map((priority) => ({
-  value: priority,
-  label: taskPriorityLabel(priority),
+const PRIORITY_OPTIONS = TASK_PRIORITY_OPTIONS.map(({ value, label }) => ({
+  value,
+  label,
+  mark: <PriorityGlyph priority={value} size="md" />,
 }));
 
 /**
@@ -152,13 +155,6 @@ export function InlineTaskPriority({
       renderValue={(option) =>
         option ? <PriorityFlag priority={option.value as TaskPriority} /> : null
       }
-      renderOption={(option) => (
-        <PriorityFlag
-          priority={option.value as TaskPriority}
-          size="md"
-          showLabel
-        />
-      )}
       data-testid="task-row-priority"
     />
   );

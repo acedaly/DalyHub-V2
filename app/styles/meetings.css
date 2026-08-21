@@ -155,7 +155,7 @@
   bottom: calc(
     var(--app-keyboard-inset, 0px) + var(--app-bottomnav-height, 0px)
   );
-  z-index: var(--app-z-sticky);
+  z-index: var(--dh-layer-sticky);
   display: flex;
   flex-direction: column;
   gap: var(--app-space-2);

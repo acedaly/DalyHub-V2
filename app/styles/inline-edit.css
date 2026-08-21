@@ -420,105 +420,38 @@
 }
 
 /*
- * The two surfaces' APPEARANCE. Position, layer, the viewport clamp and the
- * internal scroll all belong to `.dh-anchored` (`styles/anchored.css`) — this
- * rule may not restate any of them, or the two would have to agree about the
- * same geometry in two files.
+ * DHDS-09 — the two surfaces' APPEARANCE now comes from `.dh-floating`, and
+ * their option rows from `.dh-option` (`app/styles/floating.css`).
+ *
+ * This block used to restate both: a surface tone, a border, a radius and a
+ * shadow that reached BELOW the DalyHub layer into `--surface`, `--radius-panel`
+ * and `--shadow-popover`, and an option row with a hand-written 34px height, a
+ * raw `8px` corner and hover/active fills on `--surface-muted`/`--surface-sunken`.
+ * The overflow menu, the form listbox and the filter popover each said the same
+ * things slightly differently, which is why a picker opened beside a menu did
+ * not look like the same product.
+ *
+ * What remains here is what is genuinely this field's: the width the menu grows
+ * to match the value it is editing, and the clear command's separation.
  */
-.dh-inline-select__menu,
-.dh-inline-date__popover {
-  min-inline-size: max(var(--app-space-16), 180px);
-  max-inline-size: min(320px, calc(100vw - 16px));
-  padding: 6px;
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--radius-panel);
-  background: var(--surface);
-  box-shadow: var(--shadow-popover);
-}
-
-.dh-inline-select__option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
-  inline-size: 100%;
-  min-block-size: 34px;
-  padding: 0 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ink-body);
-  font: var(--t-item);
-  text-align: start;
-  cursor: pointer;
-}
-
-.dh-inline-select__option:hover,
-.dh-inline-select__option:focus-visible {
-  background: var(--surface-muted);
-  outline: none;
-}
-
-.dh-inline-select__option:active {
-  background: var(--surface-sunken);
-}
-
-/* The chosen option carries a check WORD-equivalent through `aria-checked`; the
- * fill is reinforcement, never the only signal. */
-.dh-inline-select__option[aria-checked="true"] {
-  background: var(--surface-muted);
-  color: var(--ink);
-  font-weight: 400;
-}
-
-/* The clear command is the "none of these" choice, separated from the real
- * values by a hairline so it reads as a different KIND of item — and it is
- * quieter than them, because unsetting a field is rarely the point of opening
- * the menu. */
-.dh-inline-select__option[data-clear="true"] {
-  margin-block-start: 6px;
-  border-block-start: var(--dh-border-width) solid var(--hairline);
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-  color: var(--dh-color-text-muted);
-}
-
-.dh-inline-select__option-description {
-  color: var(--dh-color-text-muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-
-/* The phone presentation's clear command. The sheet's option rows carry the
- * real values; this is the same separated "none of these" the menu ends with. */
-.dh-inline-select-sheet__clear {
-  display: block;
-  inline-size: 100%;
-  min-block-size: var(--app-touch-target-min);
-  margin-block-start: var(--app-space-2);
-  padding: var(--app-space-2) var(--app-space-3);
-  border: none;
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
-  background: transparent;
-  color: var(--dh-color-text-muted);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
+.dh-inline-select__menu {
+  /* Wide enough to hold a real Project name, never wider than the trigger's
+   * column needs — the shared anchored ceiling caps the rest. */
+  max-inline-size: min(20rem, calc(100vw - 2 * var(--dh-space-4)));
 }
 
 /* ------------------------------------------------------------------------- *
  * The anchored date popover.
  * ------------------------------------------------------------------------- */
-.dh-inline-date__popover,
-.dh-inline-date-sheet .dh-sheet__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  align-items: stretch;
-}
-
+/*
+ * The date popover holds a grid and two command rows rather than a list, so it
+ * is a POPOVER (`.dh-floating` + `.dh-popover`) and needs a roomier inset than
+ * the option surfaces. One contextual property, set once — see
+ * `--app-floating-inset` in `tokens.css`.
+ */
 .dh-inline-date__popover {
-  padding: var(--app-space-3);
+  --app-floating-inset: var(--dh-space-3);
+  align-items: stretch;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -771,10 +704,6 @@
   .dh-inline-edit__trigger:focus-visible {
     border-color: Highlight;
   }
-
-  .dh-inline-select__option[aria-checked="true"] {
-    border: var(--app-border-width-thin) solid Highlight;
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -795,80 +724,15 @@
  *     scrolling to reach the end of a list the loader deliberately bounded to
  *     fifty so it would be reachable.
  *
- * Widening it and putting each option on ONE line at the menu-item rung fits
- * roughly fourteen options per screen instead of five, with no wrapping. The
- * clamp and the internal scroll are `AnchoredSurface`'s and are untouched — the
- * fix is to need less of them.
+ * Both fixes are now the SHARED option row's: `.dh-option` is one line at
+ * `--dh-menu-item-height` with an ellipsising label, and `.dh-option__support`
+ * is a trailing qualifier rather than a second line. What is left here is the
+ * one thing that is specific to this field — how wide its menu grows — and the
+ * one thing the shared row cannot know, which is that a Project's KIND belongs
+ * at the trailing edge rather than under its name.
  */
-.dh-inline-select__menu {
-  min-inline-size: min(20rem, calc(100vw - 16px));
-  max-inline-size: min(320px, calc(100vw - 16px));
-}
-
-.dh-inline-select__option {
-  /*
-   * One line, at the menu-item rung. `--dh-menu-item-height` is 36px on a fine
-   * pointer and floors back to 45px on a coarse one, which is exactly the
-   * distinction the old fixed `--app-touch-target-min` could not make.
-   */
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  min-block-size: var(--dh-menu-item-height);
-  padding-block: 0;
-}
-
-.dh-inline-select__option-label {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The description becomes a trailing qualifier — "Kitchen fit-out · Project" —
- * rather than a second line, and it yields the whole width to the name it
- * qualifies. */
-.dh-inline-select__option-description {
+.dh-inline-select__menu .dh-option__support {
   flex: none;
   margin-inline-start: auto;
   padding-inline-start: var(--dh-space-2);
-}
-
-/*
- * The chosen option is marked, visibly, by a TICK as well as by its fill.
- *
- * `aria-checked` told a screen reader which one was current and a
- * `secondary-container` fill told a sighted reader — but a filled row in a menu
- * also reads as "hovered", which is why "which one is set?" was genuinely
- * ambiguous on a fifty-item list.
- */
-.dh-inline-select__option[aria-checked="true"]:not(
-    [data-clear="true"]
-  )::before {
-  content: "✓";
-  flex: none;
-  /* After the label and the description in the visual order, and — being a
-   * pseudo-element — nowhere at all in the accessible name or in `textContent`.
-   * It cannot be `::after`: `base.css` owns that on every interactive control as
-   * the shared M3 state layer, so a tick drawn there is silently replaced by a
-   * hover wash. */
-  order: 1;
-  margin-inline-start: var(--dh-space-2);
-  color: var(--accent);
-}
-
-/* The escape hatch to the full searchable picker, set apart from the values the
- * way the clear command is — it is a different KIND of item. */
-.dh-inline-select__option[data-search="true"] {
-  margin-block-start: var(--dh-space-1);
-  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-  color: var(--dh-color-accent);
-}
-
-/* The sheet's escape hatch reads as an ACTION rather than as the "none of
- * these" command it sits beside — same anatomy, the accent's colour. */
-.dh-inline-select-sheet__clear[data-search="true"] {
-  color: var(--dh-color-accent);
 }

@@ -46,6 +46,7 @@ import {
 } from "~/shared/ui";
 
 import "~/styles/primitives-demo.css";
+import { TASK_PRIORITY_SELECT_OPTIONS } from "~/shared/task-record/priority-options";
 
 export function meta() {
   return [{ title: "UI primitives · DalyHub design fixtures" }];
@@ -193,11 +194,20 @@ export default function DesignPrimitivesRoute() {
           <Input defaultValue="Read only" readOnly aria-label="Read only" />
         </Row>
         <Row label="Select">
+          {/*
+            DHDS-09 — the demo says what the PRODUCT says.
+            
+            It used to invent a fifth "No priority" option and a `P1 — Urgent`
+            wording that appears nowhere else, so the one page a contributor
+            reads to learn the primitives taught a vocabulary the product does
+            not use. The options come from the canonical set now.
+          */}
           <Select defaultValue="p2" aria-label="Priority">
-            <option value="">No priority</option>
-            <option value="p1">P1 — Urgent</option>
-            <option value="p2">P2 — High</option>
-            <option value="p3">P3 — Normal</option>
+            {TASK_PRIORITY_SELECT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </Select>
         </Row>
         <Row label="Multi-line">

@@ -29,18 +29,13 @@ import {
 import type { SelectOption } from "~/shared/forms/types";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 import {
-  taskPriorityLabel,
   taskStatusLabel,
   timeSectorLabel,
 } from "~/shared/task-record/task-view";
-import {
-  COMMITMENT_STATES,
-  TASK_PRIORITIES,
-  TASK_STATUSES,
-  TIME_SECTORS,
-} from "~/kernel/tasks";
+import { COMMITMENT_STATES, TASK_STATUSES, TIME_SECTORS } from "~/kernel/tasks";
 
 import type { MeetingFollowUpResult } from "./routes/follow-up";
+import { TASK_PRIORITY_SELECT_OPTIONS } from "~/shared/task-record/priority-options";
 
 type Values = {
   readonly title: string;
@@ -66,10 +61,8 @@ const FIELD_LABELS: Record<string, string> = {
 
 /* DH-DS — the REAL values only; an unset optional field is the placeholder, not
  * a first option that reads as a selected default (see `NewTaskForm`). */
-const PRIORITY_OPTIONS: readonly SelectOption[] = TASK_PRIORITIES.map((p) => ({
-  value: p,
-  label: taskPriorityLabel(p),
-}));
+/** DHDS-09 — the canonical four, from the one module that owns them. */
+const PRIORITY_OPTIONS: readonly SelectOption[] = TASK_PRIORITY_SELECT_OPTIONS;
 const STATUS_OPTIONS: readonly SelectOption[] = TASK_STATUSES.map((s) => ({
   value: s,
   label: taskStatusLabel(s),

@@ -22,6 +22,8 @@ import {
 } from "~/kernel/views";
 import type { CollectionControlGroup } from "~/shared/collection-layout";
 
+import { TASK_PRIORITY_OPTIONS } from "~/shared/task-record/priority-options";
+
 import { VIEWS_PARAMS } from "./views-url-state";
 
 const HEALTH_LABELS: Record<string, string> = {
@@ -155,12 +157,26 @@ export function viewsControlGroups(
       id: "task-priority",
       label: "Task priority",
       param: VIEWS_PARAMS.taskPriority,
+      /*
+       * DHDS-09 — the CANONICAL priority vocabulary.
+       *
+       * This list said `P1`/`P2`/`P3`/`P4` while `/tasks`, the Task row, the
+       * Task record, Quick Capture and the bulk bar all said `Priority 1`…
+       * `Priority 4`. A code where the rest of the product uses a name is
+       * exactly the drift §10 of the DHDS-09 brief rules out: the same four
+       * choices must read the same way in every picker that offers them.
+       *
+       * The applied CHIP still prints the short tag, because a chip already
+       * says "Priority:" and "Priority: Priority 1" reads twice.
+       */
       options: [
         { value: "", label: "Any" },
-        { value: "p1", label: "P1" },
-        { value: "p2", label: "P2" },
-        { value: "p3", label: "P3" },
-        { value: "p4", label: "P4" },
+        ...TASK_PRIORITY_OPTIONS.map(({ value, label, tag }) => ({
+          value,
+          label,
+          chipLabel: tag,
+          mark: { kind: "priority" as const, value },
+        })),
         { value: "__none", label: "Not triaged" },
       ],
     });

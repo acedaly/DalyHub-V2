@@ -5,11 +5,18 @@
  * criteria name explicitly: **open capture, type a title, press Enter**. With no
  * contextual Project or Area, that creates an Unassigned Inbox Task.
  *
- * Everything else is progressive disclosure:
- *   - Priority and Due date are optional CHIP rows — one tap each, never a
- *     collapsed select the thumb has to hunt for;
- *   - the optional parent picker is the same server-backed search the full form
- *     uses; leaving it empty keeps the Task in Inbox.
+ * Everything else is progressive disclosure.
+ *
+ * ── DHDS-09 — the metadata is a CONTEXTUAL LINE, not three form rows ────────
+ * It was three stacked `SelectField` rows under the title: three labels, three
+ * closed controls, a fixed order, and — for the due date — three hard-coded days
+ * with no way to say "the 14th" without abandoning capture for the full form.
+ *
+ * It is now one quiet line of metadata under the title, where each value opens
+ * the SAME surface the Task row opens: the date popover with the product's
+ * presets and its month grid, the canonical priority menu, and the searchable
+ * Project picker over the same bounded endpoint. Nothing is required, nothing is
+ * a pill, and none of it is in the way of type-and-Enter.
  *
  * It posts to `POST /tasks/new` — the SAME atomic TASKS-01 creation route the
  * full New Task form uses, so parent verification, validation and the created
@@ -24,19 +31,21 @@ import {
   Form,
   FormButton,
   FormErrorSummary,
-  SelectField,
   TextField,
   required,
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
 import {
+  TaskDueDateControl,
+  TaskParentControl,
+  TaskPriorityControl,
+} from "~/shared/task-record/TaskMetaControls";
+import {
   applyRecurrenceFields,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
-import { taskPriorityLabel } from "~/shared/task-record/task-view";
-import { TASK_PRIORITIES, type TaskPriority } from "~/kernel/tasks";
 
 import { CaptureResult } from "./CaptureResult";
 import {
@@ -69,36 +78,6 @@ type TasksCreateResponse =
       readonly formError?: string;
       readonly fieldErrors?: Record<string, string>;
     };
-
-/**
- * The priority row's options.
- *
- * CONTROL-01 — FOUR options, not five. The empty value is Priority 4 rather
- * than a separate "No priority": a task captured without a priority stores
- * `null`, and `null` IS Priority 4 everywhere the product draws it, so listing
- * both would put two identical-looking rows in a four-choice control.
- *
- * The empty value is kept as the P4 option's value so the posted payload is
- * unchanged — capture still stores `null` for an untriaged task, and nothing
- * about the request or the parser moves for a labelling fix.
- */
-const PRIORITY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "", label: taskPriorityLabel("p4") },
-  ...TASK_PRIORITIES.filter((priority) => priority !== "p4").map(
-    (priority: TaskPriority) => ({
-      value: priority,
-      label: taskPriorityLabel(priority),
-    }),
-  ),
-];
-
-/** Add-a-day helpers for the one-tap due-date options (owner calendar, ISO dates). */
-function shiftIso(iso: string, days: number): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  const base = Date.UTC(year, (month ?? 1) - 1, day ?? 1);
-  const shifted = new Date(base + days * 86_400_000);
-  return shifted.toISOString().slice(0, 10);
-}
 
 export function TaskCapturePanel({
   firstFieldRef,
@@ -208,6 +187,24 @@ export function TaskCapturePanel({
 
   const titleField = form.field("title");
   const parentField = form.field("parentId");
+  const priorityField = form.field("priority");
+  const dueField = form.field("dueDate");
+
+  /*
+   * The parent candidates, in the shared picker's option shape.
+   *
+   * `withSelected` keeps the CURRENT choice in the list even after a search has
+   * narrowed past it, so the trigger can always resolve the name it is showing.
+   */
+  const parentOptions = useMemo(
+    () =>
+      parentSearch.withSelected(parentField.value).map((option) => ({
+        id: option.value,
+        label: option.label,
+        ...(option.description ? { support: option.description } : {}),
+      })),
+    [parentField.value, parentSearch],
+  );
   /*
    * UIX-01 — the "Filing under …" sentence and the two chip rows are gone, and
    * with them the three derived values that fed them. The Project row's own
@@ -225,27 +222,6 @@ export function TaskCapturePanel({
     // Focus returns to the title so the next capture is typing plus Enter.
     window.requestAnimationFrame(() => firstFieldRef.current?.focus());
   }, [form, firstFieldRef]);
-
-  /*
-   * The due-date row's options: the three days a quick capture actually uses,
-   * plus the empty value that means "no due date".
-   *
-   * An arbitrary calendar date is deliberately NOT here. This surface exists to
-   * get a task out of the owner's head in two taps; a date picker in it is the
-   * fuller form, and the fuller form is one link away at the top of the sheet
-   * with the typed title carried across. The deterministic quick-capture parser
-   * also still reads "next friday" straight out of the title, exactly as it does
-   * on `/tasks`.
-   */
-  const dueOptions = useMemo(() => {
-    if (todayIso === null) return [];
-    return [
-      { value: "", label: "No due date" },
-      { value: todayIso, label: "Today" },
-      { value: shiftIso(todayIso, 1), label: "Tomorrow" },
-      { value: shiftIso(todayIso, 7), label: "Next week" },
-    ];
-  }, [todayIso]);
 
   if (success) {
     return (
@@ -299,63 +275,54 @@ export function TaskCapturePanel({
       />
 
       {/*
-        UIX-01 — the optional classification, as METADATA ROWS.
+        DHDS-09 — the optional classification, as ONE CONTEXTUAL LINE.
         
-        The reference draws a new-task sheet as a big title with a short list of
-        rows under it: a glyph, the current value, and the field's name. That is
-        what these are. Before this the same three facts were a "Filing under
-        Inbox" sentence, a searchable select, a row of four priority chips and a
-        row of three date chips — eleven controls under a one-line field, on the
-        surface whose entire purpose is speed.
+        Three values under the title, each of which opens the same picker the
+        Task row opens. Not three form rows and not a row of pills: a value that
+        looks like metadata and becomes interactive on hover AND on focus (§42),
+        which is exactly the shared read affordance every inline field already
+        uses.
         
-        Every row is an ordinary labelled control, so each is one tap, keyboard
-        operable, and announced with its own name. NONE of them is required:
-        title-only capture is still type-and-Enter, and each row's own empty
-        state ("No due date", "Priority 4", "Inbox") is a real value rather
-        than a placeholder the owner must clear.
+        NONE of them is required — title-only capture is still type-and-Enter —
+        and each states a real value rather than a placeholder the owner must
+        clear: "No due date", "Priority 4", "Inbox".
       */}
-      <div className="dh-capture-rows">
-        {dueOptions.length > 0 ? (
-          <SelectField
-            label="Due date"
-            className="dh-capture-row"
-            showOptionalCue={false}
-            options={dueOptions}
-            {...form.field("dueDate")}
-          />
-        ) : null}
+      <div className="dh-capture-meta">
+        <TaskDueDateControl
+          value={dueField.value}
+          onChange={dueField.onChange}
+          todayIso={todayIso}
+          data-testid="capture-task-due"
+        />
 
-        <SelectField
-          label="Priority"
-          className="dh-capture-row"
-          showOptionalCue={false}
-          options={PRIORITY_OPTIONS}
-          {...form.field("priority")}
+        <TaskPriorityControl
+          value={priorityField.value}
+          onChange={priorityField.onChange}
+          data-testid="capture-task-priority"
         />
 
         {/*
-          TASKS-04 — the sheet ALWAYS states where the task will be filed,
+          TASKS-04 — the surface ALWAYS states where the task will be filed,
           because "somewhere" is the one thing a trustworthy inbox may never be.
           With a fixed destination (captured from a Project record) that is a
-          read-only row; otherwise it is the picker, whose empty value reads
-          "Inbox" — a real destination, not the absence of one.
+          read-only line; otherwise it is the searchable picker over the same
+          bounded endpoint the full form uses, whose empty value reads "Inbox".
         */}
         {defaultParent ? (
-          <p className="dh-capture-row dh-capture-row--fixed">
-            <span className="dh-capture-row__value">{defaultParent.title}</span>
-            <span className="dh-capture-row__name">Project</span>
+          <p className="dh-capture-meta__fixed">
+            <span className="dh-capture-meta__value">
+              {defaultParent.title}
+            </span>
+            <span className="dh-visually-hidden"> — Project</span>
           </p>
         ) : canChooseParent ? (
-          <SelectField
-            label="Project"
-            className="dh-capture-row"
-            placeholder="Inbox"
-            showOptionalCue={false}
-            options={parentSearch.withSelected(parentField.value)}
+          <TaskParentControl
+            value={parentField.value}
+            onChange={parentField.onChange}
+            options={parentOptions}
             onSearch={parentSearch.search}
             loading={parentSearch.loading}
-            emptyMessage="No matching Projects or Areas"
-            {...parentField}
+            data-testid="capture-task-parent"
           />
         ) : null}
       </div>

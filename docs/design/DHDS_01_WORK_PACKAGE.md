@@ -6,10 +6,11 @@
 > defines shared mechanics. If they conflict, stop and resolve the conflict in
 > documentation or an ADR before changing implementation.
 
-**Delivery status (20 August 2026):** Phases 0–5 are implemented. Phase 6's code,
-interaction and documentation sweep is implemented; current-branch screenshot
-recapture remains pending because the execution environment has no working
-Chromium runtime. See
+**Delivery status (21 August 2026):** Phases 0–5 are implemented. Phase 6's code,
+interaction and documentation sweep is implemented. Phase 3's item 8 (motion,
+DHDS-08) and item 9 (floating surfaces and contextual choice, DHDS-09) are
+implemented; current-branch screenshot recapture for the phase-6 sweep remains
+pending from the DHDS-01 delivery. See
 [`DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md`](DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md)
 for the consumer map, final refinements, regression boundary and exact evidence
 still required. The package is not marked fully done until that capture is
@@ -335,18 +336,35 @@ one-offs** in the meantime. A module that grows its own floating surface, its ow
 inline editor or its own drag preview is the divergence this sequence exists to
 end.
 
-| Phase | Scope |
-| --- | --- |
-| **DHDS-08** | Motion and interaction grammar |
-| **DHDS-09** | Floating surfaces and contextual choice architecture |
-| **DHDS-10** | Inline manipulation |
-| **DHDS-11** | Drag, reorder and deeper object continuity |
+| Phase | Scope | Status |
+| --- | --- | --- |
+| **DHDS-08** | Motion and interaction grammar | shipped |
+| **DHDS-09** | Floating surfaces and contextual choice architecture | shipped |
+| **DHDS-10** | Inline manipulation | next |
+| **DHDS-11** | Drag, reorder and deeper object continuity | after |
 
 DHDS-08 established the motion grammar DHDS-09's surfaces must use and gave
 DHDS-10's inline editors the shared reveal rung, without restructuring either.
 It defined DHDS-11's drag grammar and corrected existing drag feedback to it
 without building a drag-and-drop architecture; **row departure on completion
 belongs to DHDS-11** for the reasons recorded in the DHDS-08 record.
+
+**Item 9 — the FLOATING SURFACES those patterns are chosen through** — is
+recorded in
+[`DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md`](DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md).
+It named the six things that may float above the canvas and what each is for,
+collapsed six privately-decided panel appearances into one surface with two
+rungs and five option-row anatomies into one, retired the product's second
+placement solver and its three bare `z-index` numbers, gave the layer scale a
+product vocabulary (`--dh-layer-*`), and made the eight independently-built
+priority option lists one. It then adopted that system where it changes the
+product: the Task row's date, priority and parent; Quick Capture's metadata line;
+the form select, entity-link and date controls; the filter and collection
+controls; the saved-view switcher; and three collection sorts that were three
+different native `<select>`s.
+
+It did **not** widen what is inline-editable, change any mutation path, or add a
+tag or Person data model — those are DHDS-10's and the domain's respectively.
 
 Each PR must demonstrate at least two module consumers. A pattern is not shared
 merely because it lives in `app/shared`; it is shared when different modules can

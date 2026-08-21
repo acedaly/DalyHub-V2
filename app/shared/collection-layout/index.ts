@@ -113,3 +113,11 @@ export {
   resolveCollectionPresentation,
   type CollectionPresentation,
 } from "./presentation";
+
+/**
+ * DHDS-09 — the ONE quiet sort control, for a collection whose sorting is a
+ * single dimension. A collection with several filter dimensions uses
+ * `CollectionControls` instead; both open the same shared menu grammar.
+ */
+export { SortMenu } from "./SortMenu";
+export type { SortMenuOption, SortMenuProps } from "./SortMenu";

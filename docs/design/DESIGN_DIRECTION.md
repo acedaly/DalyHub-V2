@@ -172,7 +172,8 @@ Todoist is the strongest interaction reference. DalyHub's best interactions are
 fast and reversible:
 
 - adding a task does not feel like completing a form;
-- changing priority, date or project is available inline;
+- changing priority, date or project is available inline, through the ONE
+  contextual surface for each (DHDS-09) rather than a per-module control;
 - moving an item does not require navigating through several screens;
 - hover or tap reveals secondary actions instead of displaying them permanently;
 - optimistic mutations offer Undo where practical;
@@ -197,6 +198,64 @@ Task metadata is always **when → where → how important** in both DOM and vis
 order. Grouped Task collections use one disclosure/name/count pattern across
 Tasks and Plan. These are product semantics, not screenshot styling; a new task
 surface inherits them before adding module-specific composition.
+
+### Contextual choice (DHDS-09)
+
+> **Stay where you are. Change the thing in context. Continue working.**
+
+The target sentence for every common metadata change is three steps —
+`click value → choose replacement → continue` — not seven:
+`click item → open record → find field → open form → change value → save →
+close → return`.
+
+Six kinds of thing float above the canvas, separated by BEHAVIOUR rather than by
+size, and choosing the wrong one is a defect rather than a preference:
+
+| Surface | It exists to… |
+| --- | --- |
+| Tooltip | explain an unlabelled control, in a few words |
+| Menu | choose a COMMAND from a small closed set |
+| Popover | make a short contextual choice that is not a list |
+| Picker | choose a VALUE from a potentially large set |
+| Sheet | be all of the above, on a phone |
+| Inspector / Drawer | inspect or edit a record without losing the collection |
+| Dialog | interrupt, when interruption is justified |
+
+A tooltip holds no workflow. A menu is not a mini settings panel. An Inspector
+is not the mechanism for changing one piece of metadata. A dialog is reserved
+for a destructive confirmation, an irreversible operation, a conflict, or a
+decision that genuinely needs explicit commitment; ordinary metadata editing
+never opens one.
+
+All of them share one appearance, one placement solver, one option row, one
+layer vocabulary and the DHDS-08 motion grammar. They deliberately do **not**
+share an ARIA pattern — a menu, a listbox, a combobox and a dialog are different
+interactions, and flattening them is how a keyboard-complete product stops being
+one.
+
+Two rules the direction is easiest to break on:
+
+- **Elevation may do real work here, and only here.** A menu, a popover, a sheet
+  or a drag preview may visibly separate from the canvas — with a hairline, a
+  raised surface tone and one restrained shadow. Never a Material slab, a violet
+  aura, glass, a backdrop blur, or a border-plus-shadow-plus-tint-plus-glow
+  combination. A floating surface should be obvious because it is physically
+  above the canvas, not because it is shouting.
+- **Interaction does not require a pill.** A due date, a priority, a Project, a
+  status, an Area and a Goal are metadata; they read as metadata at rest and
+  grow a restrained container on hover *and* on keyboard focus. Turning every
+  clickable value into a rounded coloured capsule is the same prohibition as
+  "no pill for ordinary metadata", arrived at from the other direction.
+
+Desktop anchors a surface to the control that opened it, and the trigger stays
+visibly engaged while it is open — the surface is in the overlay layer, so that
+is the only thing connecting the two. A phone gets the shared bottom sheet: more
+width, thumb reach, larger targets, room for search and a calendar. The same
+domain action underneath, never a second one.
+
+Full taxonomy, keyboard contract, dismissal rules, focus restoration and the
+migrated surfaces:
+[`DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md`](DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md).
 
 ### Motion grammar (DHDS-08)
 

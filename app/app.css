@@ -50,6 +50,17 @@
  * imported after this point and would otherwise win on source order alone.
  */
 @import "./styles/ui.css";
+/*
+ * DHDS-09 — the shared FLOATING-SURFACE layer.
+ *
+ * Beside `ui.css` and for the same reason: it is a FLOOR. Every menu, popover,
+ * picker and floating listbox stylesheet below composes `.dh-floating` and
+ * `.dh-option`, and a surface that needs to adjust one of them on one screen
+ * must be able to say so without `!important`. Position, layer and the viewport
+ * clamp stay with `anchored.css` near the end of the cascade; this is
+ * appearance and option anatomy only.
+ */
+@import "./styles/floating.css";
 @import "./styles/pill.css";
 @import "./styles/icons.css";
 /* BRAND-01 — the product-identity surfaces (sidebar brand, full lockup). Before

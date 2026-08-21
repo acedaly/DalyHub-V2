@@ -207,6 +207,24 @@ export const DALYHUB_RADIUS_TOKEN_NAMES = [
  */
 export const DALYHUB_OVERLAY_TOKEN_NAMES = ["dh-detail-panel-width"] as const;
 
+/**
+ * DHDS-09 — the LAYER vocabulary: which floating surfaces speak over which.
+ *
+ * Six names ordered by authority, aliasing the `--app-z-*` machinery scale. A
+ * floating surface names one of these; it never reaches for the scale beneath,
+ * and it never writes a bare number. The full taxonomy the ordering expresses
+ * lives in `docs/design/DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md`.
+ */
+export const DALYHUB_LAYER_TOKEN_NAMES = [
+  "dh-layer-sticky",
+  "dh-layer-scrim",
+  "dh-layer-drawer",
+  "dh-layer-modal",
+  "dh-layer-anchored",
+  "dh-layer-toast",
+  "dh-layer-tooltip",
+] as const;
+
 /** Borders, depth and the focus indicator. */
 export const DALYHUB_SURFACE_TOKEN_NAMES = [
   "dh-border-width",
@@ -388,6 +406,7 @@ export const DALYHUB_TOKEN_NAMES: readonly string[] = [
   ...DALYHUB_SPACE_TOKEN_NAMES,
   ...DALYHUB_RADIUS_TOKEN_NAMES,
   ...DALYHUB_OVERLAY_TOKEN_NAMES,
+  ...DALYHUB_LAYER_TOKEN_NAMES,
   ...DALYHUB_SURFACE_TOKEN_NAMES,
   ...DALYHUB_TYPOGRAPHY_TOKEN_NAMES,
   ...DALYHUB_STATE_TOKEN_NAMES,

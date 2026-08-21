@@ -23,12 +23,11 @@
  */
 
 import { useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
 
-import { AnchoredSurface } from "~/shared/anchored";
+import { Popover } from "~/shared/floating";
 
-import { CalendarGrid } from "./CalendarGrid";
 import type { BaseControlProps } from "./control-props";
+import { DateChoice } from "./DateChoice";
 import { Field } from "./Field";
 
 export interface CalendarDateFieldProps extends BaseControlProps<string> {
@@ -90,14 +89,6 @@ export function CalendarDateField({
     if (restoreFocus) triggerRef.current?.focus();
   };
 
-  const onSurfaceKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    // Stopped, or a surface inside a Drawer would close the Drawer too.
-    event.stopPropagation();
-    close();
-  };
-
   return (
     <Field
       id={id}
@@ -146,15 +137,26 @@ export function CalendarDateField({
           </button>
 
           {open ? (
-            <AnchoredSurface
+            /*
+             * DHDS-09 — the shared {@link Popover} and the shared
+             * {@link DateChoice}.
+             *
+             * This surface used to be a bare `AnchoredSurface` carrying only
+             * `.dh-datepicker`, which supplies a column and a minimum width and
+             * NO surface at all — no background, no border, no elevation. A form
+             * date picker was therefore drawn transparently over whatever
+             * happened to be behind it. Composing the popover fixes that by
+             * construction rather than by adding a fourth private panel style,
+             * and brings the Escape contract, the focus return and the phone
+             * sheet with it.
+             */
+            <Popover
               anchorRef={triggerRef}
-              onDismiss={() => close(false)}
-              onKeyDown={onSurfaceKeyDown}
-              className="dh-datepicker"
-              role="dialog"
-              aria-label={`Choose ${label}`}
+              label={`Choose ${label.toLocaleLowerCase()}`}
+              onClose={() => close()}
+              className="dh-inline-date__popover"
             >
-              <CalendarGrid
+              <DateChoice
                 label={label}
                 value={value === "" ? null : value}
                 todayIso={todayIso}
@@ -162,32 +164,19 @@ export function CalendarDateField({
                   onChange(iso);
                   close();
                 }}
+                /* A required date has nothing to clear TO, so the command is
+                   absent rather than present and rejecting the press. */
+                onClear={
+                  value !== "" && !required
+                    ? () => {
+                        onChange("");
+                        close();
+                      }
+                    : undefined
+                }
+                onCancel={() => close()}
               />
-              <div className="dh-datepicker__actions">
-                {/* A required date has nothing to clear TO, so the command is
-                    absent rather than present and rejecting the press. */}
-                {value !== "" && !required ? (
-                  <button
-                    type="button"
-                    className="dh-datepicker__command"
-                    aria-label={`Clear ${label.toLowerCase()}`}
-                    onClick={() => {
-                      onChange("");
-                      close();
-                    }}
-                  >
-                    {placeholder}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="dh-datepicker__command"
-                  onClick={() => close()}
-                >
-                  Cancel
-                </button>
-              </div>
-            </AnchoredSurface>
+            </Popover>
           ) : null}
         </>
       )}

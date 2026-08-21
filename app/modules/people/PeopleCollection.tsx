@@ -53,6 +53,7 @@ import {
   collectionCountLabel,
   CollectionLayout,
   CreateActionLabel,
+  SortMenu,
   type CollectionControlGroup,
   useCollectionLoading,
 } from "~/shared/collection-layout";
@@ -680,20 +681,23 @@ function PeopleCollection({
           </span>
         </button>
       ) : null}
-      <label className="dh-people-filters__sort">
-        <span className="dh-visually-hidden">Sort people</span>
-        <select
-          value={sortKey}
-          onChange={(event) => setParam("sort", event.target.value)}
-          className="dh-people-filters__select"
-        >
-          {SORT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              Sort: {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/*
+       * DHDS-09 — the shared sort control.
+       *
+       * This was a bare native `<select>` with its own module class, printing
+       * "Sort: " in front of every one of its four options because the control
+       * itself had nowhere to say what it was. The shared control says it once
+       * on the trigger and opens the product's one menu grammar — the same one
+       * Meetings and Reviews now use, at the same height and corner as the
+       * search field beside it.
+       */}
+      <SortMenu
+        className="dh-people-filters__sort"
+        subject="people"
+        value={sortKey}
+        options={SORT_OPTIONS}
+        onSelect={(next) => setParam("sort", next)}
+      />
     </div>
   );
 

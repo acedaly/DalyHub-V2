@@ -17,7 +17,7 @@
 
 .dh-tooltip {
   position: fixed;
-  z-index: var(--app-z-tooltip);
+  z-index: var(--dh-layer-tooltip);
   /* It supplements a control; it must never intercept the click meant for it. */
   pointer-events: none;
   display: inline-flex;

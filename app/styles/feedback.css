@@ -22,7 +22,7 @@
 
 .dh-feedback {
   position: fixed;
-  z-index: var(--app-z-toast);
+  z-index: var(--dh-layer-toast);
   right: var(--app-space-4);
   /* Above the FAB, not over it. Both are anchored to this corner, and a
    * notification stack that overlaps a 56px control leaves it with a few pixels

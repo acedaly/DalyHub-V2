@@ -190,17 +190,20 @@
 /* Add/edit popover                                                            */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * DHDS-09 — the surface, its layer, its placement and its dismissal all come
+ * from the shared `Popover`.
+ *
+ * This rule used to state all four, and two of them were wrong for what this
+ * is: it sat at the DROPDOWN rung (1000), so a filter editor opened from inside
+ * a Drawer (1200) rendered behind it, and it took `--dh-elevation-modal` — the
+ * dialog shadow — while the menu two controls away took the overlay one. What
+ * is left is the width a filter editor needs to hold a field, an operator and a
+ * value without wrapping.
+ */
 .dh-filter-popover {
-  position: absolute;
-  z-index: var(--app-z-dropdown);
-  inset-block-start: calc(100% + var(--app-space-1));
-  inset-inline-start: 0;
-  inline-size: min(22rem, calc(100vw - var(--app-space-6)));
-  padding: var(--app-space-3);
-  background: var(--dh-color-surface-raised);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  box-shadow: var(--dh-elevation-modal);
+  --app-floating-inset: var(--dh-space-3);
+  inline-size: min(22rem, calc(100vw - var(--dh-space-6)));
 }
 
 .dh-filter-editor {

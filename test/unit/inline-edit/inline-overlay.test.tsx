@@ -391,19 +391,39 @@ describe("InlineSelectField — the phone presentation", () => {
     );
 
     const sheet = await screen.findByRole("dialog", { name: "Priority" });
-    // A menu of 28px rows anchored to a 28px trigger is a desktop idea; the
-    // phone gets the shared sheet's large labelled rows instead.
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    /*
+     * A menu of 28px rows anchored to a 28px trigger is a desktop idea; the
+     * phone gets the shared sheet, with its scrim, its 44px targets, its
+     * safe-area insets and focus restored to the trigger on dismissal.
+     *
+     * DHDS-09 — what it does NOT get any more is a second option VOCABULARY.
+     * The sheet used to render `SheetOption` rows announcing selection through
+     * `aria-pressed`, so one field had two sets of roles depending on the width
+     * of the window. It now renders the SAME `role="menu"` of `menuitemradio`
+     * rows the anchored presentation does — which is what the shared overflow
+     * menu has always done inside its own sheet — so the field has one
+     * accessibility contract and only its container changes.
+     */
+    const menu = within(sheet).getByRole("menu", { name: "Priority" });
     for (const option of PRIORITIES) {
       expect(
-        within(sheet).getByRole("button", { name: new RegExp(option.label) }),
+        within(menu).getByRole("menuitemradio", {
+          name: new RegExp(option.label),
+        }),
       ).toBeInTheDocument();
     }
     expect(
-      within(sheet).getByRole("button", { name: "Clear priority" }),
+      within(menu).getByRole("menuitemradio", { name: "Clear priority" }),
     ).toBeInTheDocument();
+    // The current value is announced as current, in the sheet exactly as it is
+    // in the anchored menu.
+    expect(
+      within(menu).getByRole("menuitemradio", { name: /P2 · High/ }),
+    ).toHaveAttribute("aria-checked", "true");
 
-    fireEvent.click(within(sheet).getByRole("button", { name: /P4 · Low/ }));
+    fireEvent.click(
+      within(menu).getByRole("menuitemradio", { name: /P4 · Low/ }),
+    );
     await waitFor(() => expect(onSave).toHaveBeenCalledWith("p4"));
   });
 });

@@ -146,7 +146,10 @@ export function UserMenu({
    */
   const panel = open ? (
     <div
-      className="dh-user-menu__panel"
+      /* DHDS-09 — the shared floating surface. This is a disclosure rather
+         than a menu (see the note above), so it composes the appearance
+         without adopting the menu's keyboard model. */
+      className="dh-floating dh-user-menu__panel"
       id={panelId}
       role="group"
       aria-label="Account"

@@ -168,7 +168,8 @@ export function UnsavedChangesGuard({
           interactive path. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
-        className="dh-unsaved-guard__dialog"
+        /* DHDS-09 — the shared centred-modal surface. */
+        className="dh-floating dh-floating--modal dh-unsaved-guard__dialog"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}

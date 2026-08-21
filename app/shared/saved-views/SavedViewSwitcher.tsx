@@ -45,6 +45,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useRevalidator } from "react-router";
 
 import { ConfirmationDialog } from "~/shared/settings";
+import { Popover } from "~/shared/floating";
 import { OverflowMenu } from "~/shared/overflow-menu";
 import type { OverflowMenuItem } from "~/shared/overflow-menu";
 
@@ -358,8 +359,9 @@ export function SavedViewSwitcher({
         type="button"
         ref={triggerRef}
         className={`${classPrefix}__trigger`}
+        aria-haspopup="dialog"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
         data-testid={`${testIdPrefix}-trigger`}
       >
@@ -381,7 +383,25 @@ export function SavedViewSwitcher({
       />
 
       {open ? (
-        <div
+        /*
+         * DHDS-09 — the shared {@link Popover}.
+         *
+         * The panel was `position: absolute` inside the switcher at a bare
+         * `z-index: 20`, with no Escape handler, no outside-press dismissal and
+         * no focus return — the only floating surface left in the product with
+         * none of the three. Being absolutely positioned it was also clipped by
+         * the collection header's own overflow at narrow widths, and its `20`
+         * put it below every real layer in the scale, so the ⋯ menus it contains
+         * (now portalled) rendered over it correctly only by accident.
+         *
+         * It is a POPOVER rather than a Menu because it is not a list of
+         * commands: it holds a naming FORM, two headed groups of links and a
+         * per-view overflow control. That is the popover's job description.
+         */
+        <Popover
+          anchorRef={triggerRef}
+          label={`${collectionLabel} views`}
+          onClose={() => setOpen(false)}
           id={listId}
           className={`${classPrefix}__panel`}
           data-testid={`${testIdPrefix}-panel`}
@@ -482,7 +502,7 @@ export function SavedViewSwitcher({
               grouping, then choose <strong>Save as new view</strong>.
             </p>
           )}
-        </div>
+        </Popover>
       ) : null}
 
       <p className="dh-visually-hidden" role="status" aria-live="polite">

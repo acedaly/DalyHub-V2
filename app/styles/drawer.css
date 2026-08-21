@@ -31,7 +31,7 @@
 .drawer-stack {
   position: fixed;
   inset: 0;
-  z-index: var(--app-z-drawer);
+  z-index: var(--dh-layer-drawer);
   pointer-events: none;
 }
 

@@ -33,7 +33,7 @@
 .dh-collection__sticky {
   position: sticky;
   top: var(--dh-shell-bar-height);
-  z-index: var(--app-z-sticky);
+  z-index: var(--dh-layer-sticky);
   background: var(--dh-color-bg);
   /*
    * POLISH-01 — the ground the band is painted on, published for the strips
@@ -273,7 +273,7 @@
 .dh-collection__selection {
   position: sticky;
   bottom: 0;
-  z-index: var(--app-z-sticky);
+  z-index: var(--dh-layer-sticky);
   padding: var(--app-space-3) var(--app-page-padding);
   padding-block-end: max(var(--app-space-3), var(--app-safe-area-bottom));
   background: var(--dh-color-surface);
@@ -510,13 +510,21 @@
  * Geometry, layering and dismissal belong to `.dh-anchored` (`anchored.css`).
  * This rule may not restate any of them.
  */
+/*
+ * DHDS-09 — the surface, its option rows and its group headings are the SHARED
+ * ones (`floating.css`).
+ *
+ * This block used to restate them: a `--dh-radius-lg` corner where every other
+ * anchored surface takes `--dh-radius-md`, a 34px row with its own hover and
+ * checked fills, a heading with its own type, and a check mark that did not
+ * exist at all — so the sort menu was the one place in the product where the
+ * current choice was a fill and nothing else.
+ *
+ * What is left is what is genuinely this surface's: how wide it is, and the two
+ * things that are about GROUPING rather than about a row.
+ */
 .dh-collection-popover {
   inline-size: min(20rem, calc(100vw - 2 * var(--dh-space-4)));
-  padding: var(--dh-space-1);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface-raised);
-  box-shadow: var(--dh-elevation-overlay);
 }
 
 .dh-collection-popover__body {
@@ -542,68 +550,6 @@
   margin-block-start: var(--dh-space-2);
 }
 
-.dh-collection-popover__label {
-  margin: 0;
-  padding: var(--dh-space-1) var(--dh-space-3) var(--dh-space-0);
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: var(--dh-text-label-weight);
-}
-
-/*
- * A 34px row — the shared menu-item height, not the 44px touch floor.
- *
- * The floor is right for a thumb and wrong for a pointer: at 44px a five-option
- * group is 220px tall and the panel needs a scrollbar for a list that would
- * otherwise fit, which is the "phone control on a desktop" failure this whole
- * change is about. A coarse pointer never sees this surface — it gets the sheet
- * — so there is no target being taken from anyone.
- */
-.dh-collection-popover__option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
-  inline-size: 100%;
-  min-block-size: var(--dh-menu-item-height);
-  padding-inline: var(--dh-space-3);
-  border: none;
-  border-radius: var(--dh-radius-control);
-  background: transparent;
-  color: var(--dh-color-text);
-  font-family: var(--dh-font-family);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  text-align: start;
-  cursor: pointer;
-}
-
-.dh-collection-popover__option:hover,
-.dh-collection-popover__option:focus-visible {
-  background: var(--dh-color-surface-quiet);
-  outline: none;
-}
-
-/* The chosen option is announced by `aria-checked`; the fill reinforces it and
- * is never the only signal. */
-.dh-collection-popover__option[aria-checked="true"] {
-  background: var(--dh-color-surface-quiet);
-  font-weight: var(--dh-text-label-weight);
-}
-
-.dh-collection-popover__option:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: calc(-1 * var(--dh-focus-width));
-}
-
-.dh-collection-popover__option-description {
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
-  font-weight: 400;
-}
-
 .dh-collection-popover__custom {
   padding: var(--dh-space-2) var(--dh-space-3);
 }
@@ -611,37 +557,12 @@
 /* Reset is ONE row at the end, separated by a hairline because it is a different
  * KIND of item — a command, not a choice. It is not a sticky footer: a footer
  * that occupies a fixed band of a 320px panel is most of what made the sheet
- * feel heavy here. */
+ * feel heavy here. The row itself is the shared `.dh-option` at the quiet
+ * tone. */
 .dh-collection-popover__foot {
   margin-block-start: var(--dh-space-1);
   padding-block-start: var(--dh-space-1);
   border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
-}
-
-.dh-collection-popover__reset {
-  inline-size: 100%;
-  min-block-size: var(--dh-menu-item-height);
-  padding-inline: var(--dh-space-3);
-  border: none;
-  border-radius: var(--dh-radius-control);
-  background: transparent;
-  color: var(--dh-color-text-muted);
-  font-family: var(--dh-font-family);
-  font-size: var(--dh-text-row-size);
-  line-height: var(--dh-text-row-line-height);
-  text-align: start;
-  cursor: pointer;
-}
-
-.dh-collection-popover__reset:hover,
-.dh-collection-popover__reset:focus-visible {
-  background: var(--dh-color-surface-quiet);
-  color: var(--dh-color-text);
-}
-
-.dh-collection-popover__reset:focus-visible {
-  outline: var(--dh-focus-width) solid var(--dh-focus-color);
-  outline-offset: calc(-1 * var(--dh-focus-width));
 }
 
 .dh-collection-sheet {
@@ -1053,4 +974,69 @@
   .dh-csearch[data-open="true"] .dh-csearch__field {
     display: flex;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* DHDS-09 — the shared SORT control                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A quiet trigger stating the applied sort, opening the shared menu.
+ *
+ * It borrows the control rung's height and corner so it sits on the same
+ * baseline as the search field and the Filter button beside it — the mismatch
+ * UIX-06 removed from the collection header, which the three bespoke native
+ * `<select>`s this replaces had reintroduced one module at a time.
+ */
+.dh-sortmenu {
+  display: inline-flex;
+  flex: none;
+}
+
+.dh-sortmenu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-block-size: var(--dh-control-height);
+  padding-inline: var(--dh-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-control);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font-family: var(--dh-font-family);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  cursor: pointer;
+}
+
+.dh-sortmenu__trigger:hover {
+  background: var(--dh-color-surface-quiet);
+}
+
+/* The field's NAME, said once on the trigger — which is what lets the options
+ * be values rather than repeated sentences. */
+.dh-sortmenu__name {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-sortmenu__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dh-sortmenu__caret {
+  flex: none;
+  inline-size: var(--dh-icon-size);
+  block-size: var(--dh-icon-size);
+  color: var(--dh-color-text-muted);
+}
+
+/* An OPEN trigger stays lit while its panel is on screen: the panel is
+ * portalled into the overlay layer, so this is the only thing on the page
+ * connecting the surface to the control that produced it. */
+.dh-sortmenu[data-open="true"] .dh-sortmenu__trigger {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-surface-selected);
 }

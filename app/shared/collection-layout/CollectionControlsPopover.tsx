@@ -52,6 +52,8 @@ import {
   currentValues,
   type CollectionControlGroup,
 } from "./collection-controls-model";
+import { OptionContent } from "~/shared/floating";
+
 import { ControlOptionMark } from "./ControlOptionMark";
 
 export type CollectionControlsPopoverProps = {
@@ -169,7 +171,7 @@ export function CollectionControlsPopover({
       align="end"
       onDismiss={onClose}
       onKeyDown={onKeyDown}
-      className="dh-collection-popover"
+      className="dh-floating dh-collection-popover"
       id={id}
       data-testid="collection-popover"
     >
@@ -208,7 +210,7 @@ export function CollectionControlsPopover({
               aria-label={group.label}
               className="dh-collection-popover__group"
             >
-              <p className="dh-collection-popover__label" aria-hidden="true">
+              <p className="dh-floating__heading" aria-hidden="true">
                 {group.label}
               </p>
               {group.options.map((option) => {
@@ -235,21 +237,27 @@ export function CollectionControlsPopover({
                     }
                     aria-checked={checked}
                     tabIndex={-1}
-                    className="dh-collection-popover__option"
+                    className="dh-option"
                     onClick={() => onSelect(group, option.value)}
                     data-testid={`collection-popover-${group.param}-${
                       option.value || "default"
                     }`}
                   >
-                    <span className="dh-collection-popover__option-label">
-                      <ControlOptionMark mark={option.mark} />
-                      {option.label}
-                    </span>
-                    {option.description ? (
-                      <span className="dh-collection-popover__option-description">
-                        {option.description}
-                      </span>
-                    ) : null}
+                    {/* DHDS-09 — the shared option anatomy, so a sort choice
+                        and a row's priority menu are the same row. */}
+                    <OptionContent
+                      mark={
+                        option.mark ? (
+                          <ControlOptionMark mark={option.mark} />
+                        ) : undefined
+                      }
+                      label={option.label}
+                      {...(option.description
+                        ? { support: option.description }
+                        : {})}
+                      selected={checked}
+                      showCheck
+                    />
                   </button>
                 );
               })}
@@ -267,11 +275,12 @@ export function CollectionControlsPopover({
               ref={register}
               role="menuitem"
               tabIndex={-1}
-              className="dh-collection-popover__reset"
+              className="dh-option"
+              data-tone="quiet"
               onClick={onReset}
               data-testid="collection-popover-reset"
             >
-              Clear all filters
+              <OptionContent label="Clear all filters" />
             </button>
           </div>
         ) : null}

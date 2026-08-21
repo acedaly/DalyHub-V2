@@ -493,20 +493,17 @@
   color: var(--dh-color-text-muted);
 }
 
+/*
+ * DHDS-09 — the panel is the shared `Popover`.
+ *
+ * Its position, its layer, its viewport clamp and its internal scroll all come
+ * from `.dh-anchored`, and its surface from `.dh-floating`. This rule used to
+ * state every one of them, including a bare `z-index: 20` that sat below every
+ * rung of the product's own scale.
+ */
 .dh-tasks-views__panel {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + var(--app-space-2));
-  inset-inline-start: 0;
-  width: min(22rem, calc(100vw - 2 * var(--app-page-padding)));
-  max-height: min(28rem, 60vh);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--app-space-3);
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-lg);
-  background: var(--dh-color-surface-raised);
-  box-shadow: var(--dh-elevation-overlay);
+  --app-floating-inset: var(--dh-space-3);
+  inline-size: min(22rem, calc(100vw - 2 * var(--app-page-padding)));
 }
 
 .dh-tasks-views__group + .dh-tasks-views__group {

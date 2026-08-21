@@ -274,114 +274,66 @@
  * one focus treatment. */
 
 /* -------------------------------------------------------------------------- */
-/* The metadata rows                                                           */
+/* DHDS-09 — the contextual metadata LINE                                      */
 /* -------------------------------------------------------------------------- */
 
 /*
- * One tonal surface holding a run of rows separated by hairlines — the
- * "grouped list" shape every phone platform uses for exactly this, and the one
- * the reference draws. It is ONE surface, not three cards: three rounded boxes
- * for three facts is the card-inside-card clutter the redesign is removing.
+ * One quiet line under the title: the three values a captured Task most often
+ * carries, each of which opens the SAME picker the Task row opens.
+ *
+ * ── What this replaces, and why ─────────────────────────────────────────────
+ * A tonal "grouped list" of three full-width rows, each a `SelectField` with its
+ * name on the trailing edge and its control stripped of its own box. It read
+ * well, and it was still a FORM: three labels, three closed controls in a fixed
+ * order, and a due-date control that could offer three hard-coded days and
+ * nothing else — so "the 14th" meant abandoning capture for the full form.
+ *
+ * The line is not a row of pills. Each value is the shared inline read
+ * affordance (`.dh-inline-edit__trigger`): plain metadata at rest, a restrained
+ * container on hover AND on `:focus-visible`, and a real button on every input
+ * device. That is the §42 rule — interaction does not require a capsule.
  */
-.dh-capture-rows {
+.dh-capture-meta {
   display: flex;
-  flex-direction: column;
-  border-radius: var(--app-shape-supporting);
-  background: var(--dh-color-surface-subtle);
-  overflow: hidden;
-}
-
-/*
- * A row reads VALUE first and FIELD NAME second, which is the opposite of a
- * form and the point of the arrangement: an owner scanning the sheet wants to
- * know what the task will BE ("Tomorrow", "Medium priority", "No project"), not
- * to be reminded what the three fields are called. The name stays a real
- * `<label>`, so the control's accessible name is unchanged.
- */
-.dh-capture-rows .dh-capture-row {
-  display: flex;
-  /* `.dh-field` is a column; a row is the whole point of this treatment. */
-  flex-direction: row;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 0 var(--app-space-3);
-  margin: 0;
-  padding-inline: var(--app-space-4);
+  align-items: center;
+  /*
+   * A generous gap rather than separators: three values reading
+   * "Tomorrow · Priority 2 · DalyHub" is a sentence about the task, and rules
+   * between them would make it a table of three fields again.
+   */
+  gap: var(--dh-space-1) var(--dh-space-3);
   min-block-size: var(--app-touch-target-min);
 }
 
-.dh-capture-rows .dh-capture-row + .dh-capture-row {
-  border-block-start: var(--app-border-width-thin) solid var(--dh-color-border);
-}
-
-/* The label is the row's trailing NAME. `SelectField` renders a label ROW and
- * `TextField` a `<label>`; both are addressed so the two controls compose the
- * same way. */
-.dh-capture-rows .dh-capture-row > .dh-field__label,
-.dh-capture-rows .dh-capture-row > .dh-field__label-row {
-  order: 2;
-  margin: 0;
+/* Each control is `flex: none` so the line packs from the start and wraps
+ * whole values, rather than a Project name shrinking to two characters to keep
+ * everything on one line. */
+.dh-task-meta {
   flex: none;
-  color: var(--dh-color-text-muted);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+/*
+ * A destination the surface was GIVEN (capture opened from a Project record) is
+ * a fact rather than a choice, so it is plain text with no affordance. A value
+ * that cannot be changed must not look like one that can.
+ */
+.dh-capture-meta__fixed {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--dh-color-text);
   font-size: var(--dh-text-meta-size);
-  font-weight: 400;
 }
 
-/* …and the control is the row's leading VALUE, borderless and left-aligned.
- * `flex-basis: 0`, not `auto`: an input's intrinsic width is wider than the
- * space left beside the label, and a wrapping flex line places an item on a new
- * line when its HYPOTHETICAL size exceeds the free space — before it considers
- * shrinking. A zero basis makes the control ask for nothing and grow into what
- * is left, which is what keeps the row a row. */
-.dh-capture-rows .dh-capture-row > .dh-field__control {
-  order: 1;
-  flex: 1 1 0;
-  min-inline-size: 0;
-}
-
-/* Help and error messages take the whole width beneath the row rather than
- * squeezing the value — a validation message must never be truncated. */
-.dh-capture-rows .dh-capture-row > .dh-field__messages {
-  order: 3;
-  flex: 1 0 100%;
-}
-
-.dh-capture-rows .dh-capture-row > .dh-field__messages:empty {
-  display: none;
-}
-
-.dh-capture-rows
-  .dh-capture-row
-  :where(.dh-input, .dh-select, .dh-combobox__input),
-.dh-capture-rows .dh-capture-row .dh-combobox__field {
-  padding-inline: 0;
-  border-color: transparent;
-  background: transparent;
-}
-
-/* The value reads as text until it is engaged, which is the grouped-list idiom:
- * a row states a fact, and touching it opens the way to change it. Focus is
- * unmistakable regardless — the shared focus ring is untouched. */
-.dh-capture-rows .dh-capture-row .dh-input {
-  color: var(--dh-color-text);
-}
-
-.dh-capture-rows .dh-capture-row--fixed {
-  color: var(--dh-color-text);
-}
-
-.dh-capture-row__value {
-  flex: 1 1 auto;
-  min-inline-size: 0;
+.dh-capture-meta__value {
+  display: inline-block;
+  max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.dh-capture-row__name {
-  flex: none;
-  color: var(--dh-color-text-muted);
-  font-size: var(--dh-text-meta-size);
+  vertical-align: bottom;
 }
 
 /*
