@@ -302,13 +302,27 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
         .filter({ hasText: title })
         .first();
       /*
-       * An ASSERTION, not an exit. The workspace must now be measuring at least
-       * this Goal, because this test just created it; if the row is missing or
-       * carries no progressbar, that is a product failure and it is reported as
-       * one.
+       * An ASSERTION, not an exit. The workspace must be listing this Goal,
+       * because this test just created it; if the row is missing, that is a
+       * product failure and it is reported as one.
+       *
+       * And it must carry NO BAR YET, which is a real claim rather than a
+       * formality. `goal-progress-view.ts` states the rule in its own words —
+       * "a Goal with a configuration but no reading yet … the row draws no bar
+       * and no figure", because "0% would be a claim about progress rather than
+       * a statement of absence". A configured, unmeasured Goal showing an empty
+       * bar would be the product asserting something nobody has measured.
+       *
+       * V2.4-GATE-01 — this is where the old skip guard was, and reinstating it
+       * as `toHaveCount(1)` was WRONG: a progressbar was a sound proxy for
+       * "measurable" when the guard was hunting the seed for a Goal somebody
+       * else had already recorded readings against, and it is a precondition
+       * this journey is supposed to CREATE. Asserting absence before and
+       * presence after is what makes the bar's appearance the journey's result
+       * rather than its entry fee.
        */
       await expect(measurable).toBeVisible();
-      await expect(measurable.getByRole("progressbar")).toHaveCount(1);
+      await expect(measurable.getByRole("progressbar")).toHaveCount(0);
       await measurable.getByRole("link").first().click();
 
       const pane = page.getByTestId("goal-workspace-pane");
@@ -334,6 +348,16 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
         .poll(async () => (await trio.textContent()) ?? "")
         .not.toBe(before);
       await expect(trio).toContainText("9.4");
+
+      /*
+       * …and the ROW the journey started from now draws the bar it did not have,
+       * with the reading against the target in the one form
+       * `goalRowValue` defines: "value / target unit", the unit stated once.
+       * This is the half the old guard could never reach — the measurement
+       * making a Goal measurable-looking is the thing the test is named for.
+       */
+      await expect(measurable.getByRole("progressbar")).toHaveCount(1);
+      await expect(measurable).toContainText("9.4 / 100 km");
     } finally {
       // In a `finally`, so a failed assertion still leaves the partition clean.
       // A leaked measurable Goal would change what every later spec in this
