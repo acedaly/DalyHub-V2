@@ -89,6 +89,35 @@ function tasksRow(page: Page, title: string): Locator {
   return page.locator(".dh-taskrow", { hasText: title }).first();
 }
 
+/**
+ * The row for one stamped title AFTER it has been completed on Today.
+ *
+ * A completed task does not stay in its band. `TodayScreen` files it under the
+ * plan's `Completed · n` disclosure, and that `<details>` renders CLOSED — so
+ * the row is still in the DOM, and still completely absent from the
+ * accessibility tree. `getByRole("checkbox", …)` inside the plan therefore
+ * resolves to nothing at all, which is exactly what the two failures here
+ * reported: `toBeChecked()` said "element(s) not found", and `.check()` hung
+ * until the test timeout, because Playwright re-resolves the locator to verify
+ * the new state and the act of completing had removed the only element it could
+ * resolve to.
+ *
+ * Neither is a defect in the product and neither is fixed by waiting longer:
+ * the completed row is simply somewhere else, so the assertion goes there. The
+ * disclosure is opened by CLICKING ITS SUMMARY — the owner's own way in — so
+ * this helper proves the completion is reachable rather than merely present.
+ */
+async function openCompletedGroup(page: Page, title: string): Promise<Locator> {
+  const group = page.locator(
+    '[data-testid="today-plan"] details.dh-today__completed',
+  );
+  await expect(group).toBeAttached();
+  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await group.locator("summary").click();
+  }
+  return group.locator(".dh-taskrow", { hasText: title }).first();
+}
+
 /** Open an inline cell's editor. A pointer device reveals it on hover. */
 async function openCell(row: Locator, testId: string): Promise<void> {
   await row.scrollIntoViewIfNeeded();
@@ -170,10 +199,18 @@ test.describe("TODAY-TASK-01 — a task is fully actionable from Today", () => {
 
     await page.goto("/today");
     const row = planRow(page, task.title);
-    await row.getByRole("checkbox", { name: `Complete ${task.title}` }).check();
+    /*
+     * `.click()`, not `.check()`: `check()` verifies by re-resolving the same
+     * locator, and completing the task is what invalidates it (see
+     * `openCompletedGroup`). The state is still asserted — one line below, on
+     * the row where Today actually files it.
+     */
+    await row.getByRole("checkbox", { name: `Complete ${task.title}` }).click();
     // Optimistic in place, then reconciled by the loader revalidation.
     await expect(
-      row.getByRole("checkbox", { name: `Reopen ${task.title}` }),
+      (await openCompletedGroup(page, task.title)).getByRole("checkbox", {
+        name: `Reopen ${task.title}`,
+      }),
     ).toBeChecked();
 
     // The SERVER has it: the canonical collection reads it as complete.
@@ -190,14 +227,18 @@ test.describe("TODAY-TASK-01 — a task is fully actionable from Today", () => {
       }),
     ).toBeChecked();
 
-    // …and reopening from Today puts it back.
+    // …and reopening from Today puts it back — out of the completed disclosure
+    // and into the day's own bands, which is the half that proves the round
+    // trip rather than just the tick.
     await page.goto("/today");
-    const again = planRow(page, task.title);
-    await again
+    const completed = await openCompletedGroup(page, task.title);
+    await completed
       .getByRole("checkbox", { name: `Reopen ${task.title}` })
-      .uncheck();
+      .click();
     await expect(
-      again.getByRole("checkbox", { name: `Complete ${task.title}` }),
+      planRow(page, task.title).getByRole("checkbox", {
+        name: `Complete ${task.title}`,
+      }),
     ).not.toBeChecked();
 
     await page.goto("/tasks");
@@ -439,7 +480,7 @@ test.describe("TODAY-TASK-01 — the plan on a phone", () => {
     // Pull towards the inline END: that reveals the START edge, which completes.
     await drag(row, box.x + 24, box.x + box.width - 8);
     await expect(
-      planRow(page, task.title).getByRole("checkbox", {
+      (await openCompletedGroup(page, task.title)).getByRole("checkbox", {
         name: `Reopen ${task.title}`,
       }),
     ).toBeChecked();

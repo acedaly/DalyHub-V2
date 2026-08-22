@@ -24,6 +24,13 @@
   the screen while everything beneath it was properly indented. It now begins on
   the same line as every other page in DalyHub, at every screen size.
 
+  The Diary's week — the row of seven days you tap to move around — had been
+  quietly squeezed into two thirds of the width available to it, because the box
+  it sits in was indenting it a second time. On a small phone each day had
+  shrunk to 35 pixels, which is smaller than a thumb. The seven days now use the
+  full width of their strip, and they are back to the size they were meant to
+  be.
+
 - Made things that float actually look like they are floating. When you open
   Capture, the page behind it now dims properly and the panel casts a real
   shadow, so it reads as something in front of your work rather than a white box

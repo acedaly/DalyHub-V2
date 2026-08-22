@@ -1037,13 +1037,14 @@
    * already existed — and the seven days take the full width of a line of their
    * own. Nothing is hidden, nothing scrolls, and every day is the same width.
    *
-   * The residual, stated rather than papered over: a day is 51px at 390 and 57
-   * at 430 (both clear), and 41px at 320 — still short of the floor, because
+   * The residual, stated rather than papered over: a day is 50px at 390 and 56
+   * at 430 (both clear), and 40px at 320 — still short of the floor, because
    * seven equal targets in a 288px content box cannot each be 45px. That is the
    * same arithmetic the phone navigation bar records for itself at deep zoom.
-   * 41 is what the width allows, it is 58% larger than what this strip drew
+   * 40 is what the width allows, it is 54% larger than what this strip drew
    * before, and the day is also reachable from the date picker beside it, which
-   * is a full-size control.
+   * is a full-size control. See the `__days` rule below for why the strip has
+   * to reach past the toolbar's own padding to get even that.
    */
   .dh-diary-week {
     flex-wrap: wrap;
@@ -1054,10 +1055,31 @@
     display: contents;
   }
 
+  /*
+   * ── DHDS-13 — the strip spans the toolbar, not the toolbar's text column ───
+   *
+   * The residual above was computed against "a 288px content box", which is the
+   * PAGE's content box at 320px. The strip never had it. `.dh-diary-toolbar` is
+   * a bordered card with its own `--app-space-4` inline padding, and it sits
+   * inside `.dh-collection__filters`, which has already applied the page
+   * gutter — so the week was laid out in 254px, not 288, and MEASURED at 320px
+   * each day drew 35.4px rather than the 41 recorded here. The nested inset was
+   * invisible in the arithmetic because nobody measured the box the days
+   * actually got.
+   *
+   * The days therefore span the card's full inner width, by negating exactly
+   * the inline padding they sit in. The toolbar keeps its padding for the
+   * CONTROL line above (arrows, picker, Today), where an inset is what makes it
+   * read as a card; the day strip is a full-bleed band inside it, which is the
+   * ordinary way a segmented control lives in a padded surface. MEASURED after
+   * the change: 40px at 320, 48 at 375, 50 at 390 and 56 at 430 — the strip is
+   * back to the geometry this block was written to produce.
+   */
   .dh-diary-week__days {
     order: 4;
     flex: 1 0 100%;
     min-inline-size: 0;
+    margin-inline: calc(-1 * var(--app-space-4));
     /* The days no longer overflow, so the track must not offer to scroll: a
      * scroll container that never scrolls still swallows a horizontal drag. */
     overflow-x: visible;
