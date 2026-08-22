@@ -120,6 +120,14 @@ all say `2.4.0`.
 - **An unrevealed row action was still a hit target.** A row's `⋯` is invisible
   until you engage with the row, and its own rule says it must not be a hidden
   hit area over the row — but the wrapper around it stayed live, so it was.
+- **A record's tab strip drew a doubled edge.** The panel below a record's tabs
+  is meant to join the strip seamlessly, and two stylesheets were describing its
+  border — the later one restoring the top edge the earlier one had removed. The
+  result was a second hairline under the tabs on every record.
+- **A record's filter rail was louder than the tabs above it.** The rail is
+  meant to be subordinate to the tab strip it sits under, and was drawn one type
+  step larger. Half a pixel of type, inverting the hierarchy — the kind of thing
+  that has to be measured rather than looked at, which is how it was found.
 - **A Goal measurement journey that never ran.** The end-to-end proof that
   recording a reading moves a Goal's figures had been quietly skipping for its
   whole existence, because nothing in the test workspace was measurable.
