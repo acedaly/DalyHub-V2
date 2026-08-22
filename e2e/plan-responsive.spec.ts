@@ -280,8 +280,17 @@ test("keeps focus after a mutation and announces the outcome", async ({
   await target.focus();
   await page.keyboard.press("Enter");
 
-  // The announcement is a live region, and it says what happened AND what did not.
-  await expect(page.locator('[role="status"]').last()).toContainText(
+  /*
+   * The announcement is a live region, and it says what happened AND what did
+   * not.
+   *
+   * Named rather than taken as the LAST `[role="status"]` on the page. The shell
+   * mounts `ConnectionStatus`, a persistent live region, after the route's own
+   * markup, so last-in-document is the connection state — permanently empty
+   * while the connection is healthy — and this assertion timed out against `""`
+   * about an announcement the Plan had made correctly.
+   */
+  await expect(page.getByTestId("plan-announcement")).toContainText(
     /planned for .*Deadlines are unchanged/,
   );
   /*

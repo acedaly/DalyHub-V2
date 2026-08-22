@@ -238,6 +238,25 @@ test("clearing a plan returns the task to the planning queue", async ({
   const monday = fixture.task("mon");
   const mondaySection = daySection(page, monday.scheduledDate!);
 
+  /*
+   * HOVER THE ROW FIRST — V2.4-GATE-01, closing DEBT-180's automation half.
+   *
+   * A row's `⋯` is concealed at rest by the shared reveal contract: `opacity: 0`
+   * AND `pointer-events: none`, so that an unrevealed action is not a hidden hit
+   * area over the row. Playwright's actionability check hit-tests the target
+   * point BEFORE it moves the mouse, so it never performs the hover that would
+   * make the control hittable — a deadlock, not a race, which is why retrying to
+   * the timeout was the only outcome.
+   *
+   * Pointing at the row first is what a person does, and it is what
+   * `clickCardAction` in `helpers.ts` already exists to do for cards. NOT
+   * `force: true`: forcing the click would prove a path no owner can take, and
+   * the product half of DEBT-180 (the wrapper staying live while the affordance
+   * inside it was inert) is fixed in `TaskRow` rather than worked around here.
+   */
+  const row = mondaySection.locator(".dh-taskrow", { hasText: monday.title });
+  await row.scrollIntoViewIfNeeded();
+  await row.hover();
   await mondaySection
     .getByRole("button", { name: `More actions for ${monday.title}` })
     .click();

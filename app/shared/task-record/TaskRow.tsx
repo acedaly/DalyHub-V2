@@ -660,7 +660,26 @@ export function TaskRow({
           // The product-wide wording for a row's long tail, so one phrase
           // names this control everywhere it appears.
           label={`More actions for ${task.title}`}
-          triggerClassName="dh-taskrow__overflow dh-action-reveal"
+          /*
+           * V2.4-GATE-01 — the reveal class belongs on the WRAPPER.
+           *
+           * The contract in `motion.css` says so in its own consumer rule —
+           * "`dh-action-reveal` on the trailing action CONTAINER" — and rule 4
+           * of that contract is that an unrevealed action "is not a hidden hit
+           * area over the row". With the class on the trigger, the trigger went
+           * `opacity: 0; pointer-events: none` and its wrapper stayed
+           * `opacity: 1; pointer-events: auto` — a live 32px target over the row
+           * with nothing visible in it. MEASURED at the trigger's own centre:
+           * `document.elementsFromPoint` returned `DIV.dh-overflow-menu`, then
+           * `SPAN.dh-taskrow__actions`, then the row; the trigger was never in
+           * the stack. Rule 4 was simply false as shipped (DEBT-180).
+           *
+           * On the wrapper, the whole affordance is inert while it is invisible
+           * and live once the row is engaged with — which is what the rule says,
+           * and what every other consumer of the contract already does.
+           */
+          className="dh-action-reveal"
+          triggerClassName="dh-taskrow__overflow"
           items={overflowActions as MenuItem[]}
         />
       </span>

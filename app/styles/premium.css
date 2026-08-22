@@ -256,6 +256,33 @@
   box-shadow: none;
 }
 
+/*
+ * …and the TABBED panel still joins its strip.
+ *
+ * The block above re-declares `border` and `border-radius` as SHORTHANDS, which
+ * silently reinstated the top edge and the top corners that `record-layout.css`
+ * removes so a panel and its tab strip read as one working surface (M3-INT).
+ * `app.css` imports `record-layout.css` at line 78 and this file at line 206, at
+ * the same specificity — so this one won, and the panel drew a second top edge
+ * directly under the strip's own rule. That is exactly the "a tab bar, and
+ * separately, a card" segmentation M3-INT exists to prevent, and it shipped.
+ *
+ * Restated HERE rather than fixed by reordering the imports or raising the other
+ * rule's specificity: this file legitimately owns the panel's DalyHub-layer
+ * border width and radius, and the join is a property of the same surface. Both
+ * belong in the file that sets them last.
+ *
+ * `e2e/non-diary-audit.spec.ts:33` fails without this — `borderTopWidth`
+ * expected 0, received 1 — and had been failing on it, inside DEBT-179's
+ * undifferentiated red set, where a real product defect is indistinguishable
+ * from a fixture problem.
+ */
+.record-tabs__panel {
+  border-block-start: none;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
 .dh-record-summary-bar {
   padding: var(--dh-space-5);
 }

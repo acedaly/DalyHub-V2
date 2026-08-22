@@ -141,13 +141,30 @@ test.describe("DHDS-08 — the row reveal never moves the row", () => {
   }) => {
     await gotoFixture(page, "/tasks");
     const row = taskRows(page).first();
-    const trigger = row.locator(".dh-action-reveal").first();
+    /*
+     * The row's OVERFLOW TRIGGER, named — V2.4-GATE-01.
+     *
+     * This asked for `.dh-action-reveal.first()`, which meant the trigger when
+     * it was written and does not now: DHDS-10 gave every empty inline cell a
+     * revealed caret, so the first bearer in a row is an `<svg>`. MEASURED in
+     * the browser — the three bearers are `svg`, `svg`, then
+     * `BUTTON.dh-overflow-menu__trigger` — and an `<svg>` cannot take focus, so
+     * `.focus()` did nothing and the opacity stayed 0. The contract was intact
+     * and the locator had drifted.
+     *
+     * The claim in the title is about the AFFORDANCE, so it names the affordance.
+     */
+    const trigger = row.locator(".dh-overflow-menu__trigger").first();
     await expect(trigger).toBeAttached();
 
     // It is never removed from the tree — `opacity`, never `display: none`.
     await expect(trigger).toHaveCSS("display", /^(?!none$)/);
     await trigger.focus();
     await expect(trigger).toHaveCSS("opacity", "1");
+    // …and revealing it by KEYBOARD makes it genuinely hittable, not merely
+    // visible: `pointer-events` follows the opacity, which is rule 4 of the
+    // contract and the half DEBT-180 found false on the wrapper.
+    await expect(trigger).toHaveCSS("pointer-events", "auto");
   });
 });
 

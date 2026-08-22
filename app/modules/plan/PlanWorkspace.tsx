@@ -509,7 +509,21 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
 
       <PlanGlance data={data} />
 
-      <p className="dh-visually-hidden" role="status" aria-live="polite">
+      {/*
+       * The workspace's ONE announcement region.
+       *
+       * It carries a test id for the same reason every other landmark in this
+       * file does: `role="status"` is not a unique handle. The shell mounts a
+       * persistent `ConnectionStatus` live region AFTER the route's own markup,
+       * so `[role="status"]` last-in-document is the connection state — empty
+       * while the connection is healthy — not what the Plan just did.
+       */}
+      <p
+        className="dh-visually-hidden"
+        role="status"
+        aria-live="polite"
+        data-testid="plan-announcement"
+      >
         {announcement ?? actions.announcement ?? ""}
       </p>
     </div>

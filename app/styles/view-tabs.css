@@ -105,8 +105,26 @@
  * filter's type must be no larger than the tabs'.
  */
 .dh-record-toolbar .dh-viewtabs__tab {
-  font-size: var(--dh-text-label-size);
-  line-height: var(--dh-text-label-line-height);
+  /*
+   * V2.4-GATE-01 — this override had stopped overriding anything.
+   *
+   * The comment above states the rule and this rule's whole purpose: inside a
+   * record the rail sits directly beneath the record's own tab strip, so it must
+   * be no larger than it. But it was setting `--dh-text-label-size` — the SAME
+   * token the base rule at the top of this file sets — so the two collapsed and
+   * the distinction the override exists to create disappeared. MEASURED:
+   * `.record-tab` draws at `--dh-text-meta-size` (12.5px) and this drew at
+   * `--dh-text-label-size` (13px), so the filter OUTWEIGHED the navigation above
+   * it — the exact regression the comment says `record-anatomy.spec` has been
+   * asserting since M3-INT, and was, on `e2e/record-anatomy.spec.ts:307`.
+   *
+   * It takes the record tab strip's own type now, so the relationship is carried
+   * by the same token rather than by two that happened to differ. The rail under
+   * a PAGE TITLE is untouched and keeps `label`: that one is the loudest thing
+   * in its band, which is the other half of the same comment.
+   */
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
 }
 
 /* -------------------------------------------------------------------------- */

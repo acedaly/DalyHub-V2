@@ -64,6 +64,16 @@ export interface OverflowMenuProps {
   readonly label: string;
   /** Which edge the panel aligns to. Defaults to `end` (right in LTR). */
   readonly align?: "start" | "end";
+  /**
+   * Extra class on the WRAPPER — the element the menu occupies in its row.
+   *
+   * V2.4-GATE-01. This is where a consumer puts `dh-action-reveal`, because the
+   * reveal contract's own consumer rule says the class goes on "the trailing
+   * action container" and the wrapper IS that container. Putting it on the
+   * trigger instead left the wrapper live while the affordance inside it was
+   * invisible and pointer-inert — see `TaskRow`.
+   */
+  readonly className?: string;
   /** Extra class on the trigger (for surface-specific sizing only). */
   readonly triggerClassName?: string;
   /** Removes the trigger from the tab order (a roving-tabindex collection). */

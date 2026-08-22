@@ -88,6 +88,7 @@ export function OverflowMenu({
   items,
   label,
   align = "end",
+  className,
   triggerClassName,
   tabIndex,
   ...rest
@@ -140,7 +141,7 @@ export function OverflowMenu({
 
   return (
     <div
-      className="dh-overflow-menu"
+      className={["dh-overflow-menu", className].filter(Boolean).join(" ")}
       data-open={open ? "true" : "false"}
       data-testid={rest["data-testid"]}
     >
