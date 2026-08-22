@@ -145,7 +145,26 @@ test.describe("visual system — Today reference layout", () => {
      */
     expect(style.borderStyle).toBe("solid");
     expect(parseFloat(style.borderWidth)).toBeLessThanOrEqual(1);
-    expect(style.boxShadow).toBe("none");
+    /*
+     * NO DEPTH — which is the rule. `boxShadow === "none"` was a PROXY for it,
+     * and #205 made the proxy false while leaving the rule true: its design
+     * record says "a larger product radius and a single accent edge identify the
+     * place to act WITHOUT ADDING ELEVATION", and `today.css` draws that edge as
+     * `box-shadow: inset …`, which is how CSS draws a 1px line without taking
+     * part in layout. An inset shadow is a line; depth is an OUTER shadow.
+     *
+     * So the assertion states the rule directly, and is stricter about the thing
+     * that matters: a real drop shadow on an in-flow surface still fails here,
+     * and now fails saying that it is depth rather than that it is a shadow.
+     */
+    for (const layer of style.boxShadow === "none"
+      ? []
+      : style.boxShadow.split(/,(?![^(]*\))/)) {
+      expect(
+        layer.trim(),
+        "an in-flow surface may draw a line, never depth",
+      ).toContain("inset");
+    }
     expect(parseFloat(style.borderRadius)).toBeGreaterThanOrEqual(12);
     expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
   });
@@ -223,13 +242,30 @@ test.describe("visual system — surface hierarchy", () => {
      * workspace renders one. It is the member of the family `card-family.css`
      * names, so the contract below is the one this test was written to pin,
      * asserted on a card that exists.
+     *
+     * V2.4-GATE-01 — and it is the GALLERY of `/areas`, named explicitly.
+     *
+     * Areas kept its gallery but stopped defaulting to it: `?present=` is a
+     * presentation toggle whose default is List, "the DHDS default", with Grid
+     * "the optional recognition-led view" (`AreasCollection.tsx`). Only the grid
+     * branch constructs `EntityCard`, so bare `/areas` renders no `.dh-ecard`
+     * at all — the locator matched nothing and the test spent its whole 30s
+     * timeout on `.first().evaluate(…)`, which is the fifth time this one
+     * assertion has been silently unhooked by a presentation moving underneath
+     * it. Naming the presentation is what stops a sixth: the URL now says which
+     * drawing is under test, so a future default swap cannot quietly empty it —
+     * it would have to delete the gallery, which would fail loudly here.
      */
-    await gotoFixture(page, "/areas");
+    await gotoFixture(page, "/areas?present=grid");
 
-    const widgetStyle = await page
-      .locator(".dh-ecard")
-      .first()
-      .evaluate((element) => {
+    // Fail LOUDLY when the subject is absent. `.first().evaluate(…)` on an empty
+    // locator is indistinguishable from a slow page: it waits out the full test
+    // timeout and reports a timeout, which is how the four earlier re-pointings
+    // above each went unnoticed until a whole shard ran out of time.
+    const card = page.locator(".dh-ecard").first();
+    await expect(card, "the Areas gallery draws the product's EntityCard").toBeVisible();
+
+    const widgetStyle = await card.evaluate((element) => {
         const style = getComputedStyle(element);
         const root = getComputedStyle(document.documentElement);
         return {

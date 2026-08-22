@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   enterTaskSelection,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -48,7 +49,7 @@ async function createJourneyTask(
   const parent = dialog.getByRole("combobox", { name: /Project or Area/ });
   await parent.click();
   await parent.fill(options.parent);
-  const option = dialog.getByRole("option", { name: options.parent });
+  const option = await comboboxOption(parent, options.parent);
   await expect(option).toBeVisible();
   await option.click();
 
@@ -169,8 +170,28 @@ async function chooseBulk(
  */
 const JOURNEY_LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 
-/** The banded triage surface V2.2 kept when the Eisenhower Matrix was removed. */
-const PRIORITY_GROUPS = "/tasks?view=list&system=active&group=priority";
+/**
+ * The banded triage surface V2.2 kept when the Eisenhower Matrix was removed,
+ * NARROWED to this journey's own Project.
+ *
+ * V2.4-GATE-01 — the narrowing is the fix for [DEBT-173]'s clearest instance.
+ * A priority band is BOUNDED, and every one of this journey's assertions is
+ * about which band its own task is in. Unfiltered, the band it lands in is
+ * shared with the seed's 80-task collection plus whatever every earlier spec in
+ * the partition created, so a task correctly filed under Priority 1 could sit
+ * below the bound and read as absent — which is exactly how `:379` failed on run
+ * C of an identical tree that run B had passed, with no product change between
+ * them.
+ *
+ * `pr-tasksjourney` is the journey's own seeded Project (`e2e/seed-tasks.sql`)
+ * and every task this file creates is parented to it, so the filter makes the
+ * spec assert over records it OWNS rather than over the workspace's history.
+ * The claims are unchanged and the NEGATIVE ones get stronger: "not in the
+ * Priority 1 band" now means "absent from the band that certainly contains this
+ * Project's P1 work", rather than "not among the first n rows of everyone's".
+ */
+const PRIORITY_GROUPS =
+  "/tasks?view=list&system=active&group=priority&project=pr-tasksjourney";
 
 test.describe("TASKS-01 — full journey", () => {
   /*

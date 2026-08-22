@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
+  comboboxOption,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -52,9 +53,7 @@ test.describe("AREA-03 — Alignment view", () => {
     });
     await combo.click();
     await combo.fill(goalTitle);
-    await newProjectDialog
-      .getByRole("option", { name: new RegExp(goalTitle) })
-      .click();
+    await (await comboboxOption(combo, new RegExp(goalTitle))).click();
     await newProjectDialog.getByLabel(/Title/).fill(projectTitle);
     await newProjectDialog
       .getByRole("button", { name: "Create project" })

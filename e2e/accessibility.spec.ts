@@ -238,8 +238,17 @@ test.describe("automated accessibility — open overlays", () => {
       .getByRole("link", { name: "Open Design the homepage" })
       .first()
       .click();
-    await page.getByRole("dialog").waitFor();
-    await page.getByRole("button", { name: /^Priority: / }).click();
+    const record = page.getByRole("dialog");
+    await record.waitFor();
+    /*
+     * Scoped to the RECORD — V2.4-GATE-01. DHDS-10 made the Project Tasks tab's
+     * own priority an inline editable control (it had been a read-only
+     * `PriorityIndicator`), so the page BEHIND this Drawer now carries a second
+     * `Priority: …` trigger and the unscoped locator resolved to two elements:
+     * `task-row-priority` and `task-priority-edit`. This test is about the
+     * DRAWER's inline menu, and now says so.
+     */
+    await record.getByRole("button", { name: /^Priority: / }).click();
     await page.getByRole("menu").waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");

@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import {
+  cleanupGoalByTitle,
+  createMeasurableGoal,
+  uniqueGoalTitle,
+} from "./goal-fixtures";
+import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -260,47 +265,82 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     ).toBeVisible();
   });
 
+  /**
+   * V2.4-GATE-01 / DEBT-158 — this journey now OWNS its measurable Goal.
+   *
+   * It used to open `/goals`, look for a row carrying a `progressbar`, and
+   * `test.skip()` when it found none. MEASURED on the E2E database,
+   * `SELECT COUNT(*) FROM goal_details WHERE target_value IS NOT NULL` is
+   * **0** — so it found none, every time, for as long as it has existed, and
+   * CI reported the result as *"1 skipped"* beside the passes. REDESIGN-04's
+   * measurement journey has never once executed. A green test that never runs
+   * the scenario is not coverage; it is the gate lying quietly.
+   *
+   * The guard's REASONING was right and is kept — driving whichever Goal the
+   * workspace is genuinely measuring, rather than a pinned fixture id, is what
+   * stops a journey silently detaching from a seed it no longer matches — so
+   * the fixture is created first and the guard becomes an assertion. The Goal
+   * is created and removed by this test alone, in the manner of
+   * `habits-fixtures.ts`, so nothing else in the partition sees it: DEBT-158's
+   * own reason for not widening the shared seed.
+   */
   test("records a measurement from the workspace and updates the trio and the chart", async ({
     page,
   }) => {
-    await gotoFixture(page, "/goals");
-    /*
-     * Drive whichever Goal the workspace is genuinely measuring, rather than a
-     * fixture id: the E2E seed and the design fixture are different databases,
-     * and a journey that only runs on one of them is a journey that silently
-     * stops running.
-     */
-    const measurable = page
-      .getByTestId("goals-list")
-      .getByRole("article")
-      .filter({ has: page.getByRole("progressbar") })
-      .first();
-    if ((await measurable.count()) === 0) test.skip();
-    await measurable.getByRole("link").click();
+    const title = uniqueGoalTitle("workspace-measurement");
+    try {
+      await createMeasurableGoal(page, title, {
+        unit: "km",
+        baseline: "0",
+        target: "100",
+      });
 
-    const pane = page.getByTestId("goal-workspace-pane");
-    const trio = pane.getByTestId("goal-metrics");
-    await expect(trio).toBeVisible();
-    const before = (await trio.textContent()) ?? "";
+      await gotoFixture(page, "/goals");
+      const measurable = page
+        .getByTestId("goals-list")
+        .getByRole("article")
+        .filter({ hasText: title })
+        .first();
+      /*
+       * An ASSERTION, not an exit. The workspace must now be measuring at least
+       * this Goal, because this test just created it; if the row is missing or
+       * carries no progressbar, that is a product failure and it is reported as
+       * one.
+       */
+      await expect(measurable).toBeVisible();
+      await expect(measurable.getByRole("progressbar")).toHaveCount(1);
+      await measurable.getByRole("link").first().click();
 
-    await pane.getByRole("button", { name: /^Log / }).first().click();
-    const sheet = page.getByRole("dialog");
-    await expect(sheet).toBeVisible();
-    /*
-     * A textbox, not a spinbutton: the value field carries
-     * `inputMode="decimal"` rather than `type="number"`, so a phone gets the
-     * decimal keypad and a negative reading (a balance, a temperature) stays
-     * legitimate. See `GoalCheckInSheet`.
-     */
-    await sheet.getByRole("textbox").first().fill("9.4");
-    await sheet.getByRole("button", { name: /^(Save|Record|Log)/ }).click();
+      const pane = page.getByTestId("goal-workspace-pane");
+      const trio = pane.getByTestId("goal-metrics");
+      await expect(trio).toBeVisible();
+      const before = (await trio.textContent()) ?? "";
 
-    // The figures are DERIVED on every read, so the pane re-reads rather than
-    // patching: the trio and the chart move together or not at all.
-    await expect
-      .poll(async () => (await trio.textContent()) ?? "")
-      .not.toBe(before);
-    await expect(trio).toContainText("9.4");
+      await pane.getByRole("button", { name: /^Log / }).first().click();
+      const sheet = page.getByRole("dialog");
+      await expect(sheet).toBeVisible();
+      /*
+       * A textbox, not a spinbutton: the value field carries
+       * `inputMode="decimal"` rather than `type="number"`, so a phone gets the
+       * decimal keypad and a negative reading (a balance, a temperature) stays
+       * legitimate. See `GoalCheckInSheet`.
+       */
+      await sheet.getByRole("textbox").first().fill("9.4");
+      await sheet.getByRole("button", { name: /^(Save|Record|Log)/ }).click();
+
+      // The figures are DERIVED on every read, so the pane re-reads rather than
+      // patching: the trio and the chart move together or not at all.
+      await expect
+        .poll(async () => (await trio.textContent()) ?? "")
+        .not.toBe(before);
+      await expect(trio).toContainText("9.4");
+    } finally {
+      // In a `finally`, so a failed assertion still leaves the partition clean.
+      // A leaked measurable Goal would change what every later spec in this
+      // partition sees on `/goals` and on Today — which is DEBT-173's defect,
+      // and it would be this test that introduced it.
+      cleanupGoalByTitle(title);
+    }
   });
 
   test("offers the §5.1 creation entry point, and requires an Area", async ({

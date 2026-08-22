@@ -200,17 +200,49 @@ test.describe("MOBILE-01 the shared overflow menu", () => {
     );
     await expect(panel).toBeVisible();
 
-    // Every action is a full-width row that clears the target floor, and the
-    // LAST one is on screen — the anchored panel measured 208px wide with items
-    // wrapping onto three lines.
+    /*
+     * Every action is a full-width row that clears the target floor, and every
+     * one of them is REACHABLE — the defect this pins is an anchored panel that
+     * measured 208px wide with its items wrapping onto three lines.
+     *
+     * ── Why reachability rather than "the last row's bottom is on screen" ────
+     * V2.4-GATE-01. That was the assertion, and it was wrong in two ways at
+     * once, which is why it failed intermittently (DEBT-173's second instance):
+     *
+     *   1. **It contradicted the product's own contract.** `floating.css` states
+     *      it in as many words — a clamped surface must not compress its rows,
+     *      "the row keeps its height and the surface scrolls past it". A sheet
+     *      with more actions than fit is *supposed* to put its last row below
+     *      the fold; requiring otherwise asks the phone sheet to be the
+     *      squashed twelve-item menu that comment exists to forbid.
+     *   2. **Its subject was whatever `/tasks` happened to list first**, so how
+     *      many actions the menu offered was decided by every spec that had run
+     *      before it in the partition. MEASURED at 853.85 against an 845 limit —
+     *      an 8.85px overrun by a menu one item longer than the run before.
+     *
+     * So the geometry is asserted where it is unconditionally true — the SHEET
+     * is bounded by the viewport — and each row is scrolled to before it is
+     * measured, which is what a thumb does. That is strictly more than the old
+     * assertion made: it still fails a 208px panel, it still fails a compressed
+     * row, and it now also fails a sheet that runs off the screen or a row that
+     * cannot be scrolled to. What it no longer depends on is the item count.
+     */
+    const panelBox = (await panel.boundingBox())!;
+    expect(panelBox.y).toBeGreaterThanOrEqual(-1);
+    expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(PHONE.height + 1);
+
     const items = page.getByRole("menuitem");
     const count = await items.count();
     expect(count).toBeGreaterThan(0);
     for (let index = 0; index < count; index += 1) {
-      const box = await items.nth(index).boundingBox();
+      const item = items.nth(index);
+      await item.scrollIntoViewIfNeeded();
+      const box = await item.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.height).toBeGreaterThanOrEqual(43.5);
       expect(box!.width).toBeGreaterThan(PHONE.width * 0.75);
+      // Reached: on screen once the sheet has been scrolled to it.
+      expect(box!.y).toBeGreaterThanOrEqual(-1);
       expect(box!.y + box!.height).toBeLessThanOrEqual(PHONE.height + 1);
     }
 

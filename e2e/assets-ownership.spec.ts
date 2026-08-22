@@ -23,6 +23,7 @@ import {
   uniqueAssetTitle,
 } from "./assets-fixtures";
 import {
+  comboboxOption,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -175,10 +176,17 @@ async function chooseOption(
   const combo = drawer(page).getByRole("combobox", { name: field });
   await combo.click();
   await combo.fill(optionLabel);
-  // Scoped to the DRAWER: the obligations tab behind it carries a native
-  // `<select>` filter with the same option labels.
-  await drawer(page)
-    .getByRole("option", { name: optionLabel, exact: true })
+  // Scoped to the LISTBOX THIS COMBOBOX CONTROLS, by `aria-controls`.
+  //
+  // It used to be scoped to the drawer, for a good reason its own comment gave:
+  // the obligations tab behind it carries a native `<select>` filter with the
+  // same option labels. DHDS-09 then portalled every floating surface onto
+  // `<body>`, so the drawer no longer contains the listbox and this resolved to
+  // nothing. Following `aria-controls` serves the original intent BETTER — it
+  // names exactly one listbox, which a native `<select>`'s options can never be.
+  await (
+    await comboboxOption(combo, optionLabel, { exact: true })
+  )
     .first()
     .click();
 }

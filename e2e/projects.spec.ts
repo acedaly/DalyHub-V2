@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
+  comboboxOption,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -640,7 +641,7 @@ test.describe("PROJ-01 — Projects", () => {
     const combo = dialog.getByRole("combobox", { name: /Area or Goal/ });
     await combo.click();
     await combo.fill("Pagination");
-    const option = dialog.getByRole("option", { name: /Pagination/ });
+    const option = await comboboxOption(combo, /Pagination/);
     await expect(option).toBeVisible();
     await option.click();
 

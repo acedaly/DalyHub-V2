@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  comboboxOption,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -112,7 +113,7 @@ test.describe("TODAY-03 — Waiting", () => {
     // Default mode is a DalyHub record; search for the seeded Person.
     const combobox = dialog.getByRole("combobox", { name: "Which record" });
     await combobox.fill("Sarah");
-    const option = dialog.getByRole("option", { name: /Sarah Chen/ });
+    const option = await comboboxOption(combobox, /Sarah Chen/);
     await expect(option).toBeVisible();
     await option.click();
     await dialog.getByRole("button", { name: "Save" }).click();

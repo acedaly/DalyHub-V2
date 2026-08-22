@@ -521,21 +521,55 @@ export async function clickCardAction(
   await card.getByRole("button", { name }).click();
 }
 
+/* -------------------------------------------------------------------------- */
+/* V2.4-GATE-01 — completing a task, and finding it afterwards                 */
+/* -------------------------------------------------------------------------- */
+
 /**
- * UIX-01 — complete (or reopen) a task from its row.
+ * Complete a task from its row, and let the caller assert the result.
  *
- * The row's leading control is a completion CHECKBOX now, not a "Complete"
- * button in the trailing action rail — a task's most frequent act moved to
- * where every reference product puts it. The accessible NAME is unchanged
- * ("Complete <title>" / "Reopen <title>"), so this is the same command reached
- * through the same words on a different element.
+ * ── Why this is `.click()` and not `.check()` ───────────────────────────────
+ * `ElementHandle._setChecked` (playwright-core 1.62.1) clicks and then verifies
+ * against the element HANDLE it acted on. That is fine while the node survives:
+ * DalyHub's control renames itself from `Complete <title>` to `Reopen <title>`
+ * the moment it is used — correctly, a toggle should say what it will do — and
+ * `check()` does not mind, because a renamed element is still the same node.
+ * MEASURED: `tasks-collection.spec.ts` completes a task on `/tasks?system=all`
+ * with `check()` and passes.
+ *
+ * It stops being fine when the node is **disconnected**, because `isChecked`
+ * then throws `throwElementIsNotAttached()`, and that throw propagates to the
+ * locator retry wrapper, which **re-resolves the selector**. On Today that is
+ * exactly what happens: every band in `TodayScreen` filters `!task.completed`,
+ * so a completed row is re-rendered into the `Completed · n` disclosure, which
+ * renders CLOSED — in the DOM, out of the accessibility tree. The re-resolution
+ * finds nothing (the name has changed too, and the row is inside a collapsed
+ * `<details>` either way), and `check()` retries to its timeout while reporting
+ * that the checkbox never became checked — about a task the product completed
+ * correctly. The gate's own call log says it in as many words: *"performing
+ * click action / click action done"*, and then the same locator, waited for,
+ * until the test dies. That is DEBT-179's dominant signature, root-caused.
+ *
+ * **Nothing is weakened by clicking.** `check()`'s implicit verification is
+ * replaced by an explicit assertion on the row where the product actually files
+ * the task — a stronger statement, because it names the resulting accessible
+ * name as well as the checked state. This helper performs the act; the caller
+ * asserts the outcome.
+ *
+ * It is also strictly LOUDER than `check()` about a mistake: `check()` silently
+ * no-ops on an already-completed task, while this waits for a control named
+ * `Complete …` and fails if the task was not open to begin with.
+ *
+ * The existing callers are all on surfaces that KEEP the row, so this is a
+ * robustness change to passing tests rather than a repair — said plainly, and
+ * carried by the full gate rather than by assertion.
  */
 export async function completeTaskRow(
   card: Locator,
   title: string,
 ): Promise<void> {
   await card.scrollIntoViewIfNeeded();
-  await card.getByRole("checkbox", { name: `Complete ${title}` }).check();
+  await card.getByRole("checkbox", { name: `Complete ${title}` }).click();
 }
 
 /** The same control, the other way: reopen a completed task from its row. */
@@ -544,7 +578,79 @@ export async function reopenTaskRow(
   title: string,
 ): Promise<void> {
   await card.scrollIntoViewIfNeeded();
-  await card.getByRole("checkbox", { name: `Reopen ${title}` }).uncheck();
+  await card.getByRole("checkbox", { name: `Reopen ${title}` }).click();
+}
+
+/**
+ * A completed task's row on Today, in the disclosure the product files it under.
+ *
+ * `TodayScreen` puts a completed task in `Completed · n`, a `<details>` that
+ * renders closed, so the row is present and unreachable until the disclosure is
+ * opened. This opens it **by clicking its summary** — the owner's own way in —
+ * so a completion is proved *reachable* rather than merely present.
+ *
+ * Hoisted out of `today-task-convergence.spec.ts`, which found the projection
+ * (DHDS-13) and was the only spec that knew about it.
+ */
+export async function todayCompletedRow(
+  page: Page,
+  title: string,
+): Promise<Locator> {
+  const group = page.locator(
+    '[data-testid="today-plan"] details.dh-today__completed',
+  );
+  await expect(group).toBeAttached();
+  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await group.locator("summary").click();
+  }
+  return group.locator(".dh-taskrow", { hasText: title }).first();
+}
+
+/**
+ * One of an open combobox's result options.
+ *
+ * ── Why the option is not inside the thing that opened it ───────────────────
+ * DHDS-09 moved every floating surface into the shared overlay layer, and
+ * `AnchoredSurface` portals unconditionally onto `<body>`. All three picker
+ * components render their results there — `EntityLinkPicker`, `SelectField` and
+ * the shared `Picker` — so a picker's `role="listbox"` is **not** a DOM
+ * descendant of the form, Drawer or dialog that anchors it. Specs written
+ * before that phase still scope their option lookup to the anchor, and report
+ * `element(s) not found` about an option that is on screen.
+ *
+ * ── Why `aria-controls` rather than the listbox's name ──────────────────────
+ * Because the product already states the relationship. Every combobox in
+ * DalyHub publishes `aria-controls` naming the listbox it controls
+ * (`use-combobox.ts`), and the listbox carries that id — so following it is
+ * exact by construction, needs no knowledge of a label that could be reworded,
+ * and is a STRICTER query than the anchor-scoped one it replaces rather than a
+ * looser one. A bare page-wide `getByRole("option")` would be the looser one:
+ * the overlay layer can hold more than one surface at a time.
+ *
+ * Asserting `aria-expanded` first also replaces the implicit wait the old query
+ * had, so a spec still waits for the popup rather than racing it.
+ */
+export async function comboboxOption(
+  combobox: Locator,
+  option: string | RegExp,
+  /** Passed straight through, so a call site that needed `exact` keeps it. */
+  options: { readonly exact?: boolean } = {},
+): Promise<Locator> {
+  await expect(combobox).toHaveAttribute("aria-expanded", "true");
+  const listboxId = await combobox.getAttribute("aria-controls");
+  expect(
+    listboxId,
+    "a DalyHub combobox names the listbox it controls (use-combobox.ts)",
+  ).toBeTruthy();
+  // By ATTRIBUTE rather than `#id`: React's generated ids are not guaranteed to
+  // be valid CSS identifiers, and an attribute selector needs no escaping.
+  return combobox
+    .page()
+    .locator(`[id="${listboxId}"]`)
+    .getByRole("option", {
+      name: option,
+      ...(options.exact === undefined ? {} : { exact: options.exact }),
+    });
 }
 
 /**

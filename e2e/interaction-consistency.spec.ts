@@ -82,13 +82,27 @@ test.describe("M3-INT — the shared state layer", () => {
   });
 
   test("a disabled control has no state layer at all", async ({ page }) => {
-    await gotoFixture(page, "/design/record-layout");
-    const disabledTab = page.getByRole("tab", { name: "Settings" });
-    void disabledTab;
-
-    await gotoFixture(page, "/design/forms");
+    /*
+     * V2.4-GATE-01 — this ran on `/design/forms` behind
+     * `if (count === 0) test.skip()`, and the count was ALWAYS zero: that
+     * gallery's only disabled control is a `TextField`, and its one disabled
+     * BUTTON is the submit, disabled solely while `form.isSubmitting`. So the
+     * assertion below had never executed — the test reported green while
+     * proving nothing, which is worse than red because nothing asks about it.
+     *
+     * `/design/primitives` states the button family, disabled variants
+     * included, at rest. Pointing at it needs no product change and no fixture,
+     * and the guard goes with it: a gallery that stops drawing a disabled
+     * button should fail here loudly rather than quietly stop testing.
+     */
+    await gotoFixture(page, "/design/primitives");
     const disabled = page.locator("button.dh-btn:disabled").first();
-    if ((await disabled.count()) === 0) test.skip();
+    await expect(
+      disabled,
+      "the primitives gallery states the disabled button",
+    ).toBeVisible();
+    // `force`, because a disabled control legitimately refuses pointer events —
+    // the point of the assertion is that refusing them draws no layer either.
     await disabled.hover({ force: true });
     expect(await layerOpacity(disabled)).toBe(0);
   });

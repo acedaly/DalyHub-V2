@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import {
+  comboboxOption,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -283,9 +284,7 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     });
     await combo.click();
     await combo.fill(goalTitle);
-    await newProjectDialog
-      .getByRole("option", { name: new RegExp(goalTitle) })
-      .click();
+    await (await comboboxOption(combo, new RegExp(goalTitle))).click();
     await newProjectDialog.getByLabel(/Title/).fill(projectTitle);
     await expectNoHorizontalOverflow(page);
     await newProjectDialog

@@ -7,6 +7,7 @@ import {
   expectNoHorizontalOverflow,
   ownerToday,
   postSameOrigin,
+  todayCompletedRow,
 } from "./helpers";
 
 /**
@@ -92,31 +93,13 @@ function tasksRow(page: Page, title: string): Locator {
 /**
  * The row for one stamped title AFTER it has been completed on Today.
  *
- * A completed task does not stay in its band. `TodayScreen` files it under the
- * plan's `Completed · n` disclosure, and that `<details>` renders CLOSED — so
- * the row is still in the DOM, and still completely absent from the
- * accessibility tree. `getByRole("checkbox", …)` inside the plan therefore
- * resolves to nothing at all, which is exactly what the two failures here
- * reported: `toBeChecked()` said "element(s) not found", and `.check()` hung
- * until the test timeout, because Playwright re-resolves the locator to verify
- * the new state and the act of completing had removed the only element it could
- * resolve to.
- *
- * Neither is a defect in the product and neither is fixed by waiting longer:
- * the completed row is simply somewhere else, so the assertion goes there. The
- * disclosure is opened by CLICKING ITS SUMMARY — the owner's own way in — so
- * this helper proves the completion is reachable rather than merely present.
+ * This spec discovered the projection and was, for a while, the only file that
+ * knew about it — which is why several other journeys were still asserting on a
+ * band the completed row had left. V2.4-GATE-01 hoisted it into `helpers.ts` as
+ * {@link todayCompletedRow}, which carries the full explanation; the local name
+ * is kept because it reads better at this spec's call sites.
  */
-async function openCompletedGroup(page: Page, title: string): Promise<Locator> {
-  const group = page.locator(
-    '[data-testid="today-plan"] details.dh-today__completed',
-  );
-  await expect(group).toBeAttached();
-  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
-    await group.locator("summary").click();
-  }
-  return group.locator(".dh-taskrow", { hasText: title }).first();
-}
+const openCompletedGroup = todayCompletedRow;
 
 /** Open an inline cell's editor. A pointer device reveals it on hover. */
 async function openCell(row: Locator, testId: string): Promise<void> {

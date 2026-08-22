@@ -2,12 +2,13 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   enterTaskSelection,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
-  taskRows,
   taskRow,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -487,7 +488,7 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    await (await comboboxOption(repeat, /^Custom/)).click();
 
     await drawer.getByLabel(/Repeat every/).fill("14");
     const unit = drawer.getByRole("combobox", { name: "Unit" });
@@ -536,7 +537,7 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    await (await comboboxOption(repeat, /^Custom/)).click();
 
     await drawer.getByRole("checkbox", { name: "Monday" }).check();
     await drawer.getByRole("checkbox", { name: "Thursday" }).check();
@@ -712,7 +713,7 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    await (await comboboxOption(repeat, /^Custom/)).click();
     await expect(drawer.getByTestId("task-recurrence-editor")).toBeVisible();
 
     // The seven weekday targets wrap rather than shrink, so 320px is legible.

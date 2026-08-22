@@ -236,9 +236,13 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await ensureOpen(page);
     // The row's checkbox IS the shared toggle action — the same `/tasks/:id`
     // intent the palette command and the Drawer post. Completing here persists,
-    // and the row's own control flips to "Reopen", which is how the redesigned
-    // Today states a finished task (it keeps its place rather than moving into a
-    // separate "Completed today" section, which the redesign removed).
+    // which is this test's whole subject; it is read back from the RECORD below.
+    //
+    // The sentence that used to be here — that the row "keeps its place rather
+    // than moving into a separate 'Completed today' section, which the redesign
+    // removed" — stopped being true when TODAY-12 put finished work back behind
+    // a `Completed · n` disclosure. It is not this test's business either way,
+    // and saying so was what made it look like this test's business.
     /*
      * The row is located by its TITLE, not by its control's name: the control is
      * named for what it will do next ("Complete …" / "Reopen …"), so naming it is
@@ -261,7 +265,16 @@ test.describe("DS-09 Command Palette — desktop", () => {
       (response) =>
         response.request().method() === "POST" && response.status() < 400,
     );
-    await toggle.check();
+    /*
+     * `.click()`, not `.check()` — V2.4-GATE-01. `check()` verifies against the
+     * element it acted on; `TodayScreen` re-renders the completed row into the
+     * closed `Completed · n` disclosure, so the node goes, the selector is
+     * re-resolved, and `listitem`/`checkbox` are both out of the accessibility
+     * tree inside a collapsed `<details>`. This locator never names the control,
+     * which is what makes it the clean isolation of that cause: the accessible
+     * name is not involved here at all.
+     */
+    await toggle.click();
     await written;
 
     /*

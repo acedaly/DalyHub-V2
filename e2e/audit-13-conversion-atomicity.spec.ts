@@ -16,7 +16,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { gotoFixture } from "./helpers";
+import { comboboxOption, gotoFixture } from "./helpers";
 import {
   cleanupAllMeetingFixtures,
   cleanupMeetingByTitle,
@@ -70,7 +70,7 @@ async function convert(
   const picker = dialog.getByRole("combobox", { name: /Project or Area/ });
   await picker.click();
   await picker.fill(parent);
-  await dialog.getByRole("option", { name: parent }).click();
+  await (await comboboxOption(picker, parent)).click();
   await Promise.all([
     page.waitForResponse(
       (r) =>

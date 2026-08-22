@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-import { pickCalendarDate } from "./helpers";
+import {
+  comboboxOption,
+  globalCaptureControl,
+  pickCalendarDate,
+  todayCompletedRow,
+} from "./helpers";
 
 /**
  * The Today screen, driven end to end against the development-auth server.
@@ -145,6 +150,24 @@ test.describe("Today — the day surface", () => {
 
     const summary = page.getByTestId("today-summary");
     await expect(summary).toBeVisible();
+    /*
+     * V2.4-GATE-01 — open the disclosure the measures live in.
+     *
+     * TODAY-12 moved the rolling-week measures below the day's decisions and put
+     * them behind `<details class="dh-today__weekly">`, which renders CLOSED.
+     * `innerText()` reflects RENDERED text and a closed `<details>`'s content is
+     * not rendered, so every figure below read as "" and this failed on
+     * `expect(value).toMatch(/^\d/)` — about figures that were correct.
+     *
+     * Opened by its SUMMARY, the owner's own way in, so the assertions below now
+     * prove the figures are REACHABLE as well as right. Nothing is weakened: the
+     * same figures are read, by the same rules.
+     */
+    const weekly = summary.locator("details.dh-today__weekly");
+    await expect(weekly).toBeAttached();
+    if (!(await weekly.evaluate((el: HTMLDetailsElement) => el.open))) {
+      await weekly.locator("summary").click();
+    }
     const measures = summary.locator(".dh-today__measure");
     const count = await measures.count();
     expect(count).toBeGreaterThan(0);
@@ -286,9 +309,9 @@ test.describe("Today — the day surface", () => {
     const priority = dialog.getByRole("combobox", { name: "Priority" });
     await priority.click();
     await priority.fill("P1");
-    await dialog
-      .getByRole("option", { name: "Priority 1", exact: true })
-      .click();
+    await (
+      await comboboxOption(priority, "Priority 1", { exact: true })
+    ).click();
     await dialog.locator("summary", { hasText: "More details" }).click();
     await dialog.getByLabel("Due date").click();
     await pickCalendarDate(
@@ -309,10 +332,20 @@ test.describe("Today — the day surface", () => {
     const row = page.locator(".dh-taskrow", { hasText: title }).first();
     await expect(row).toBeVisible();
 
-    await row.getByRole("checkbox", { name: `Complete ${title}` }).check();
+    /*
+     * `.click()`, not `.check()`. `check()` verifies by re-reading the element it
+     * acted on, and completing the task is what invalidates it: `TodayScreen`
+     * files the completed row under the closed `Completed · n` disclosure, so
+     * the node is replaced and the selector is re-resolved against a row that is
+     * no longer in the accessibility tree. The state is still asserted — one
+     * line below, where the product actually put it.
+     */
+    await row.getByRole("checkbox", { name: `Complete ${title}` }).click();
     // Optimistic in place, then reconciled by the loader revalidation.
     await expect(
-      row.getByRole("checkbox", { name: `Reopen ${title}` }),
+      (await todayCompletedRow(page, title)).getByRole("checkbox", {
+        name: `Reopen ${title}`,
+      }),
     ).toBeChecked();
 
     // The SAME task record reads as complete — one completion path, one truth.
@@ -412,7 +445,24 @@ test.describe("Today — the day surface", () => {
     await expect(
       surface.getByRole("button", { name: /customise/i }),
     ).toHaveCount(0);
-    await expect(surface.locator("details")).toHaveCount(0);
+    /*
+     * V2.4-GATE-01 — Today uses `<details>` deliberately, in exactly two places.
+     *
+     * This asserted there were NONE, which was a proxy for "no customisation
+     * panel" and was true when it was written. REDESIGN-03 then put the weekly
+     * measures behind `Last 7 days` and TODAY-12 put finished work behind
+     * `Completed · n`, so the proxy became false while the rule it protects
+     * stayed true.
+     *
+     * NAMING them keeps the guard rather than dropping it: a THIRD disclosure —
+     * a customisation panel, a widget tray — still fails here, and fails saying
+     * which one arrived.
+     */
+    for (const disclosure of await surface.locator("details").all()) {
+      await expect(disclosure).toHaveClass(
+        /dh-today__(weekly|completed)/,
+      );
+    }
 
     const topBar = page.getByRole("banner");
     await expect(
@@ -421,35 +471,54 @@ test.describe("Today — the day surface", () => {
   });
 
   /*
-   * TODAY-11 — the capture card, and the two chips that are NOT on it.
+   * V2.4-GATE-01 — this asserted a surface TODAY-12 deliberately retired.
    *
-   * Today gained capture affordances of its own, reversing the rule the test
-   * above used to carry. What the removal was protecting is still true and is
-   * what this asserts: every control opens the SHARED sheet, the "field" is a
-   * button rather than a second form, and no chip offers a capability the
-   * product does not have.
+   * It opened on `getByTestId("today-capture")`, and `today-capture` does not
+   * appear anywhere in `app/` any more. That is not a regression, and the
+   * provenance is written down:
+   * `docs/design/TODAY_12_DECISION_FIRST_COMMAND_CENTRE_2026_08.md` §
+   * Composition 6 — "The duplicate page-level Quick capture panel is removed.
+   * Global Capture and the plan's contextual Add task action continue to use the
+   * one CaptureProvider."
+   *
+   * The test's TITLE is still exactly the right claim, so it proves TODAY-12's
+   * decision now instead of the retired panel — the stronger of the two, because
+   * "Today has no capture implementation of its own" is what the old card's
+   * "the field is a BUTTON" assertion and the removal were both protecting.
    */
   test("captures through the shared sheet, and offers no capability it lacks", async ({
     page,
   }) => {
     await page.goto("/today");
-    const card = page.getByTestId("today-capture");
-    await expect(card).toBeVisible();
+    const surface = page.locator(".dh-today");
 
-    // A control that LOOKS like a field, not a second capture form.
-    const field = page.getByTestId("today-capture-field");
-    await expect(field).toHaveJSProperty("tagName", "BUTTON");
-    await expect(page.locator(".dh-today").getByRole("textbox")).toHaveCount(0);
+    // 1. No second capture implementation on the page: no form, no field, and
+    //    not the retired panel returning under its old name.
+    await expect(surface.getByRole("textbox")).toHaveCount(0);
+    await expect(page.getByTestId("today-capture")).toHaveCount(0);
+    await expect(page.getByTestId("today-capture-field")).toHaveCount(0);
 
-    // "Reminder" has no delivery channel (DEBT-57) and "Upload" no attachments
-    // (DEBT-35). Neither is drawn, and neither may arrive before the capability.
-    await expect(card.getByRole("button", { name: /reminder/i })).toHaveCount(
+    // 2. "Reminder" has no delivery channel (DEBT-57) and "Upload" no
+    //    attachments (DEBT-35). Neither is drawn ANYWHERE on the surface, and
+    //    neither may arrive before the capability does.
+    await expect(
+      surface.getByRole("button", { name: /reminder/i }),
+    ).toHaveCount(0);
+    await expect(surface.getByRole("button", { name: /upload/i })).toHaveCount(
       0,
     );
-    await expect(card.getByRole("button", { name: /upload/i })).toHaveCount(0);
 
-    // The chip opens the SAME sheet the global "+" does, on the Task panel.
-    await card.getByRole("button", { name: "Task", exact: true }).click();
+    // 3. The plan's own Add task opens the SHARED sheet — the one
+    //    CaptureProvider TODAY-12 names — rather than a Today-local form.
+    await page.getByTestId("today-plan-add").click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(sheet).toHaveCount(0);
+
+    // 4. …and the global control opens that same shared surface, which is what
+    //    makes it ONE implementation rather than two that happen to agree.
+    await globalCaptureControl(page).click();
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 

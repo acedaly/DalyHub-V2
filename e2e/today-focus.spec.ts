@@ -7,6 +7,7 @@ import {
   ownerToday,
   postSameOrigin,
   taskRows,
+  todayCompletedRow,
 } from "./helpers";
 
 /**
@@ -49,8 +50,8 @@ function shiftDays(iso: string, days: number): string {
  * rows past the bound and fail it for a reason it is not about, which is exactly
  * the kind of accumulation HARDEN-02 found elsewhere in this suite. Cleanup
  * CLEARS THE DATES rather than completing the Tasks: a completion stays on the
- * day (dimmed, in its band, counted by the progress figure), which is correct
- * product behaviour and useless as cleanup.
+ * day — filed under `Completed · n` and counted by the progress figure — which
+ * is correct product behaviour and useless as cleanup.
  */
 const created: string[] = [];
 
@@ -105,6 +106,25 @@ async function focusBands(
     }
     return bands;
   }, STAMP);
+}
+
+/**
+ * The title in the `Now` panel, or `null` when the day has no open work.
+ *
+ * TODAY-12 (#207) turned Today into a decision-first command centre: the single
+ * most urgent OPEN task — the oldest slip, else the first of today's work — is
+ * promoted out of the banded timeline into its own `Now` panel, and the bands
+ * below draw what REMAINS (`TodayScreen.tsx` → `nowTask`, `remainingOverdue`).
+ *
+ * So `Now` is part of the classification, not a decoration beside it, and a spec
+ * that reads only `.dh-today__timeline` is reading the day with its first row
+ * cut off. This reads the other half, deliberately scoped to `.dh-today__now`,
+ * which is a SIBLING of the timeline — that separation is why `focusBands` and
+ * the "drawn exactly once" counts below are unaffected by it.
+ */
+async function nowTitle(page: Page): Promise<string | null> {
+  const now = page.locator('[data-testid="today-now"] .dh-taskrow__title');
+  return (await now.count()) === 0 ? null : (await now.first().innerText()).trim();
 }
 
 /**
@@ -187,7 +207,22 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     ).toBeVisible();
     const bands = await focusBands(page);
 
-    expect(bands["Overdue"]).toContain(slipped.title);
+    /*
+     * The oldest slip is the day's Now task, and it is NOT also in the Overdue
+     * band. This spec used to assert `bands["Overdue"]` held it, which was true
+     * until TODAY-12 promoted the most urgent open task into the `Now` panel and
+     * had the bands draw the remainder — see {@link nowTitle}.
+     *
+     * Asserting the promotion is the stronger claim, and it is the one this test
+     * is named for: the panel says WHY each Task is on the day, and says it ONCE.
+     * A task that appeared in both places would be the exact defect
+     * "and never twice" exists to catch, so the second line is not bookkeeping.
+     * This spec's own dates are what make it deterministic: `slipped` is dated
+     * 1995, older than anything else the shared workspace carries, and
+     * `bucketDay` orders the overdue bucket oldest-slip-first.
+     */
+    expect(await nowTitle(page)).toBe(slipped.title);
+    expect(bands["Overdue"] ?? []).not.toContain(slipped.title);
     expect(bands["Due today"]).toEqual(
       expect.arrayContaining([due.title, both.title]),
     );
@@ -200,10 +235,11 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
         hasText: both.title,
       }),
     ).toHaveCount(1);
-    // Future work is not on the day at all.
+    // Future work is not on the day at all — in no band, and not promoted.
     for (const band of Object.values(bands)) {
       expect(band).not.toContain(future.title);
     }
+    expect(await nowTitle(page)).not.toBe(future.title);
 
     // Priority orders the band: the P1 comes before the P2, never A–Z.
     const dueBand = bands["Due today"]!;
@@ -268,15 +304,38 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     // 3. Complete it directly from Today.
     await row
       .getByRole("checkbox", { name: `Complete ${target.title}` })
-      .check();
+      .click();
 
-    // 4. It leaves ACTIVE Focus — the checkbox now offers to reopen it, and it
-    //    stays in the band it was already in rather than jumping to the bottom
-    //    of the panel under a heading that is not true of it.
+    /*
+     * 4. It leaves the ACTIVE bands and is filed under `Completed · n`.
+     *
+     * This step used to assert the row stayed in "Due today", dimmed in place —
+     * TODAY-10's placement, and the reason `DAY_COMPLETED_PLACEMENT` exists.
+     * TODAY-12 (#207) replaced it: `TodayScreen` now filters `!task.completed`
+     * out of every band and collects the day's completions in one disclosure.
+     * The concern TODAY-10 was fixing is still honoured — the row does not
+     * reappear fifteen rows down "under a heading that is not true of it" —
+     * because `Completed · n` is exactly true of it, states its own size, and
+     * sits at the foot of the same panel.
+     *
+     * Requiring the row to stay in a band would require the product to have a
+     * projection it deliberately dropped, so the assertion goes where the
+     * product files the task — and is opened THE OWNER'S WAY, by clicking the
+     * summary, so the completion is proved reachable rather than merely present.
+     * Nothing is weakened: `.check()`'s implicit verification is replaced by an
+     * explicit `toBeChecked()` on a control whose accessible name is asserted
+     * too, plus the "drawn once" count below, which `.check()` never made.
+     */
+    const filed = await todayCompletedRow(page, target.title);
     await expect(
-      row.getByRole("checkbox", { name: `Reopen ${target.title}` }),
+      filed.getByRole("checkbox", { name: `Reopen ${target.title}` }),
     ).toBeChecked();
-    await expect(bandLabel(row)).toHaveText(/^due today$/i);
+    // Filed, not duplicated: one row for it in the whole panel.
+    await expect(
+      page.locator(".dh-today__timeline .dh-taskrow__title", {
+        hasText: target.title,
+      }),
+    ).toHaveCount(1);
 
     // 5. Exactly one announcement. A completion is announced by ONE live
     //    region, not by the list AND the notification centre (DEBT-115).
@@ -293,15 +352,13 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     expect(canonical).toContain(survivor.title);
     expect(canonical).not.toContain(target.title);
 
-    // 8–9. Back on Today, the state is unchanged: still done, still in place.
+    // 8–9. Back on Today, the state is unchanged: still done, still filed where
+    //      it was, and the work that is left is still in its band.
     await page.goto("/today");
-    const again = page
-      .locator(".dh-today__timeline .dh-taskrow", { hasText: target.title })
-      .first();
+    const again = await todayCompletedRow(page, target.title);
     await expect(
       again.getByRole("checkbox", { name: `Reopen ${target.title}` }),
     ).toBeChecked();
-    await expect(bandLabel(again)).toHaveText(/^due today$/i);
     expect((await focusBands(page))["Due today"]).toContain(survivor.title);
   });
 

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import {
+  comboboxOption,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -92,7 +93,7 @@ async function createProjectFromSheet(page: Page, title: string) {
   const parent = dialog.getByRole("combobox", { name: /Area or Goal/ });
   await parent.click();
   await parent.fill("DalyHub");
-  const option = dialog.getByRole("option", { name: /DalyHub V2/ });
+  const option = await comboboxOption(parent, /DalyHub V2/);
   await expect(option).toBeVisible();
   await option.click();
 
@@ -464,9 +465,7 @@ test.describe("PROJ-06 — mobile Projects", () => {
     const parent = dialog.getByRole("combobox", { name: /Area or Goal/ });
     await parent.click();
     await parent.fill("Pagination");
-    await expect(
-      dialog.getByRole("option", { name: /Pagination/ }),
-    ).toBeVisible();
+    await expect(await comboboxOption(parent, /Pagination/)).toBeVisible();
     await expectMinTouchTarget(dialog.getByRole("button", { name: "Cancel" }));
     await expectNoHorizontalOverflow(page);
   });

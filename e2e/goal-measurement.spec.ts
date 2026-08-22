@@ -7,6 +7,7 @@ import {
   gotoFixture,
   ownerToday,
   postSameOrigin,
+  todayCompletedRow,
   waitForInteractive,
 } from "./helpers";
 
@@ -402,12 +403,21 @@ test.describe("GOAL-02 — Today", () => {
     const own = page
       .locator(".dh-taskrow", { hasText: title })
       .getByRole("checkbox", { name: `Complete ${title}` });
-    await own.check();
+    /*
+     * `.click()`, not `.check()` — V2.4-GATE-01. `check()` verifies against the
+     * element it acted on, and `TodayScreen` re-renders the completed row into
+     * the closed `Completed · n` disclosure, so the node goes and the selector
+     * is re-resolved against something that is no longer in the accessibility
+     * tree. The gate's call log for this exact line read "performing click
+     * action / click action done" and then waited on the same locator until the
+     * test died — about a task the product completed correctly.
+     */
+    await own.click();
     // The row's own state is the signal that the completion landed — no sleep.
     await expect(
-      page
-        .locator(".dh-taskrow", { hasText: title })
-        .getByRole("checkbox", { name: `Reopen ${title}` }),
+      (await todayCompletedRow(page, title)).getByRole("checkbox", {
+        name: `Reopen ${title}`,
+      }),
     ).toBeChecked();
 
     await gotoFixture(page, "/today");

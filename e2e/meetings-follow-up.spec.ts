@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -67,15 +68,15 @@ async function convertItem(
   const parent = dialog.getByRole("combobox", { name: /Project or Area/ });
   await parent.click();
   await parent.fill(options.parent);
-  await dialog.getByRole("option", { name: options.parent }).click();
+  await (await comboboxOption(parent, options.parent)).click();
 
   if (options.priority) {
     const priority = dialog.getByRole("combobox", { name: "Priority" });
     await priority.click();
     await priority.fill(options.priority.split(" ")[0]!);
-    await dialog
-      .getByRole("option", { name: options.priority, exact: true })
-      .click();
+    await (
+      await comboboxOption(priority, options.priority, { exact: true })
+    ).click();
   }
 
   const [response] = await Promise.all([
