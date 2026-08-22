@@ -109,6 +109,18 @@ export function EntityRow({
         .join(" ")}
       aria-label={title}
       {...identityAttribute(identity.slot)}
+      /*
+       * DHDS-13 — the row takes the shared reveal contract (`motion.css`).
+       *
+       * `TaskRow`, `RecordRow` and the Projects table all hold their trailing
+       * `⋯` back until the row is pointed at or focused within; the Areas list
+       * — this component's only consumer — drew one on every row at rest, which
+       * is the "permanent action buttons" the direction lists among the things
+       * to avoid and a visible inconsistency between two lists in the same
+       * product. Only declared when there IS an overflow, so a row without one
+       * does not advertise a context it has nothing to reveal in.
+       */
+      data-dh-action-context={overflow ? "true" : undefined}
       data-testid={testId}
     >
       {icon ? (
@@ -132,7 +144,9 @@ export function EntityRow({
 
       {figure ? <p className="dh-erow__figure">{figure}</p> : null}
 
-      {overflow ? <div className="dh-erow__overflow">{overflow}</div> : null}
+      {overflow ? (
+        <div className="dh-erow__overflow dh-action-reveal">{overflow}</div>
+      ) : null}
     </article>
   );
 }

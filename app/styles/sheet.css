@@ -28,7 +28,7 @@
 .dh-sheet__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
+  background: var(--dh-color-scrim);
   /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
 }
 
@@ -53,7 +53,22 @@
   border-top-left-radius: var(--dh-radius-xl);
   border-top-right-radius: var(--dh-radius-xl);
   border: none;
-  box-shadow: var(--dh-elevation-raised);
+  /*
+   * DHDS-13 — a sheet is a MODAL surface, and it took the raised token.
+   *
+   * `--dh-elevation-raised` is `none` by construction (tokens.css: "a border is
+   * the default separator and a shadow is reserved for something that genuinely
+   * floats"), and `--dh-elevation-modal`'s own definition names this component:
+   * "A dialog, a sheet, a drawer — the layer above everything." So the global
+   * Capture surface — the product's most-used interaction — shipped with a 6%
+   * hairline and no shadow, over a 10% scrim, which is how a modal ends up
+   * indistinguishable from the page it is covering.
+   *
+   * The Drawer, the Inspector, the Command Palette and Search all already paint
+   * `--dh-elevation-modal`; this is the sheet joining them rather than a new
+   * elevation decision.
+   */
+  box-shadow: var(--dh-elevation-modal);
   /*
    * DHDS-08 — the shared block-axis edge grammar (`.dh-motion-edge-block`).
    * A bottom sheet rises from the bottom edge, at the standard duration, with

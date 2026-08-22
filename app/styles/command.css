@@ -26,7 +26,7 @@
   border: 0;
   margin: 0;
   padding: 0;
-  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
+  background: var(--dh-color-scrim);
   cursor: default;
   /* Motion: the shared `.dh-motion-scrim` grammar (`motion.css`). */
 }

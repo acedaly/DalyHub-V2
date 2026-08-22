@@ -286,7 +286,23 @@ function ResultRow({ item }: { readonly item: ViewResultItem }) {
       />
       <p className="dh-views__row-meta">
         {item.dateLabel ? (
-          <span className="dh-views__row-date">{item.dateLabel}</span>
+          /*
+           * DHDS-13 — the date is METADATA, and overdue is the one exception.
+           *
+           * It used to be the row's loudest object: `on-surface` at weight 500
+           * beside a title drawn as an accent-coloured `EntityLink`, so a
+           * cross-module list read date-first with the record's name subordinate
+           * to it. The date now takes the metadata ramp like everything else on
+           * this line, and only a genuinely overdue one is coloured — beside the
+           * word "Overdue", which the label already carries, so the colour is
+           * never the only signal.
+           */
+          <span
+            className="dh-views__row-date"
+            data-overdue={item.overdue ? "true" : undefined}
+          >
+            {item.dateLabel}
+          </span>
         ) : null}
         {item.statusLabel ? (
           <span className="dh-views__row-status">{item.statusLabel}</span>

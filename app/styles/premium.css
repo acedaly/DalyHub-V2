@@ -31,12 +31,41 @@
   justify-content: flex-start;
 }
 
+/*
+ * The tablet rail's Capture button: a SQUARE holding the glyph alone.
+ *
+ * ── DHDS-13 — the label is hidden; the TYPE SCALE is not ────────────────────
+ * This block collapsed the button by setting `font-size: 0`, which is a
+ * plausible way to hide a label and a fatal one here: every DalyHub icon is
+ * authored `width="1em" height="1em"` (`icons.css`), so a zero font size
+ * collapses the PLUS as well. MEASURED at 820px and 900px on `/today` — the
+ * button painted 32×36 of brand violet with a 0×0 svg and a 0×0 label inside
+ * it, so the product's most prominent action rendered as a blank coloured
+ * block at every width in the tablet band (768–1023px). D38 collapses the rail
+ * to GLYPHS; this was the one destination in it that lost its glyph.
+ *
+ * The label is hidden with the shared `.dh-visually-hidden` technique instead
+ * (`base.css`), so the accessible name is unchanged, `overflow: hidden` on the
+ * button can no longer clip it into a sliver, and the icon keeps the button's
+ * own font size.
+ */
 @media (min-width: 48rem) and (max-width: 63.9375rem) {
   .dh-sidebar__capture {
     inline-size: var(--dh-control-height);
     padding-inline: 0;
     justify-content: center;
-    font-size: 0;
+  }
+
+  .dh-sidebar__capture .dh-button__label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
 

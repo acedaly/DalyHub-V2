@@ -960,6 +960,22 @@
   border-block-end: var(--dh-border-width) solid var(--dh-color-border);
 }
 
+/*
+ * DHDS-13 — the strip's edge COVER has to be the colour it is covering.
+ *
+ * `.dh-scroll-strip` paints an opaque cover over each end so the "there is more
+ * this way" shadow is hidden at rest, and it defaults that cover to
+ * `--app-surface-current` "at the point of use" (`scroll-strip.css`). The Goal
+ * pane never set it, so the rail — which sits on the WHITE detail panel — was
+ * covering itself in the page's grey: MEASURED at 1440 on `/goals`, a ~20px
+ * grey block at each end of a four-tab rail that does not even scroll. The other
+ * two adopters (`collection-layout.css`, `capture.css`) already name their
+ * surface; this is the Goal pane joining them.
+ */
+.dh-goalpane__rail {
+  --scroll-strip-cover: var(--dh-color-surface);
+}
+
 .dh-goalpane__identity {
   display: flex;
   align-items: flex-start;

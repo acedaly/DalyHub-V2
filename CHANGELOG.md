@@ -1,5 +1,60 @@
 # Changelog
 
+- Went looking for the things that were quietly wrong, and fixed them. On a
+  phone, the little priority tag on every task — P1, P2, P3, P4 — was having its
+  number sliced in half. Not on some rows: on every row, on every phone size,
+  everywhere a task appears. It is fixed, and there is now a test that measures
+  the tag against the box it is painted in at five different phone widths, so it
+  cannot come back.
+
+  On Today, the project name beside a task had been squeezed down to a single
+  letter — "C…" where it should say "Conference talk" — on the phone size most
+  people actually carry. A row now gives up the date before it gives up the
+  project, because knowing what something belongs to is worth more than knowing
+  exactly when it slipped, and the heading above the row already says it is
+  overdue.
+
+  On a tablet, the Capture button had become a blank purple square. The plus
+  sign inside it was being shrunk to nothing along with its label, so the one
+  action the whole product is built around was an unmarked block. It has its
+  plus back.
+
+  Weekly planning was starting in the wrong place: its title sat hard against
+  the top bar with no margin at all, and on a phone it touched the very edge of
+  the screen while everything beneath it was properly indented. It now begins on
+  the same line as every other page in DalyHub, at every screen size.
+
+  The Diary's week — the row of seven days you tap to move around — had been
+  quietly squeezed into two thirds of the width available to it, because the box
+  it sits in was indenting it a second time. On a small phone each day had
+  shrunk to 35 pixels, which is smaller than a thumb. The seven days now use the
+  full width of their strip, and they are back to the size they were meant to
+  be.
+
+- Made things that float actually look like they are floating. When you open
+  Capture, the page behind it now dims properly and the panel casts a real
+  shadow, so it reads as something in front of your work rather than a white box
+  that has landed on a white page. The same correction applies to the drawer,
+  the inspector, search, the command palette, the settings panels and the phone
+  navigation sheet — all of them were dimming the page to about a third of the
+  amount they were supposed to. It is most obvious in dark mode, where there was
+  almost nothing separating a dark panel from a dark page.
+
+- Made the cross-module Views screen look like the rest of DalyHub. Every result
+  used to sit in its own little white slab with a purple link for a title and
+  the date in bold black beside it, so the loudest thing in each row was the due
+  date and the record's own name came second. Results now sit in one list with
+  quiet dividers, the name is the name, and only a genuinely overdue date is
+  coloured.
+
+  Elsewhere: a long email address on a person's row now ends in "…" instead of
+  being chopped through a letter; the "⋯" button stopped being drawn on every
+  row of the projects table and the areas list until you actually point at one;
+  the box around the Assets search field is gone, so its "Filter & sort" button
+  no longer looks like it fell out of the toolbar; a stray grey block on the
+  Goals panel is gone; and an overdue date on a task panel no longer runs off
+  the edge of it.
+
 - Made moving things feel like moving them. A step in a task's checklist and a
   stage of a goal can now be picked up and dropped where you want it — by mouse,
   by thumb, or from the keyboard alone (Enter to pick up, arrow keys to move,

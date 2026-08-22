@@ -6,15 +6,31 @@
 > defines shared mechanics. If they conflict, stop and resolve the conflict in
 > documentation or an ADR before changing implementation.
 
-**Delivery status (21 August 2026):** Phases 0–5 are implemented. Phase 6's code,
-interaction and documentation sweep is implemented. Phase 3's item 8 (motion,
-DHDS-08), item 9 (floating surfaces and contextual choice, DHDS-09) and item 10
-(inline manipulation and direct editing, DHDS-10) are implemented; current-branch screenshot recapture for the phase-6 sweep remains
-pending from the DHDS-01 delivery. See
+**Delivery status — CLOSED, 21 August 2026.** Phases 0–6 are implemented, and
+phase 3's items 8–11 shipped as their own records: motion (**DHDS-08**),
+floating surfaces and contextual choice (**DHDS-09**), inline manipulation
+(**DHDS-10**) and the drag/continuity grammar (**DHDS-11**).
+
+**[DHDS-13](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) closes this package and
+the broad design-convergence programme with it.** It audited the shipped
+application adversarially across twenty-two surfaces, two appearances and ten
+widths, fixed four P1 and six P2 defects, and captured the current-branch
+evidence set this status note used to say was still owed —
+`docs/design/assets/dhds-13-2026-08/`, 73 frames from the real product. Its
+verdict is **B — nearly commercial**, with the two P2s it deliberately left open
+named in its §15 rather than absorbed into a claim of completeness.
+
+**There is no DHDS-12 and no DHDS-14.** DHDS-12 was never opened; the phase after
+DHDS-11 is the gate. What comes after the gate is module-, feature-, bug- and
+accessibility-specific work tied to actual product work — see
+[DHDS-13 §18](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md#18-what-happens-after-dhds-13)
+for the condition a future broad redesign has to meet, and for the one rule this
+programme ends with: **a visual claim about a rendered surface is proven by a
+measurement of that surface, not by looking at it.**
+
+See
 [`DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md`](DHDS_03_07_SHARED_PATTERN_COMPLETION_2026_08.md)
-for the consumer map, final refinements, regression boundary and exact evidence
-still required. The package is not marked fully done until that capture is
-inspected.
+for the consumer map, final refinements and regression boundary of phases 3–7.
 
 ## Outcome
 

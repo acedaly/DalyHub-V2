@@ -916,7 +916,7 @@
 .dh-unsaved-guard__scrim {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--dh-color-scrim) 32%, transparent);
+  background: var(--dh-color-scrim);
 }
 
 /* DHDS-09 — the surface is `.dh-floating--modal`; only the measure is this

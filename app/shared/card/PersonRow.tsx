@@ -235,7 +235,20 @@ function ReachLink({
       href={reach.href}
       aria-label={`${reach.kind} ${name} — ${reach.value}`}
     >
-      {reach.value}
+      {/*
+       * DHDS-13 — the value truncates in a SPAN, not in the link.
+       *
+       * The link is `display: flex` (it centres its text inside a 24px target,
+       * see `card-family.css`), and `text-overflow: ellipsis` does not apply to
+       * a flex container's anonymous text item — the declaration was there and
+       * silently did nothing, so a long address was chopped mid-glyph instead.
+       * MEASURED on `/people` at 1440, 1280 and 1100:
+       * "private-search-person@example.test" rendered as "…@example.tes" with
+       * the final letter sliced and no ellipsis. This is the same failure
+       * POLISH-01 fixed for the inline select's label; giving the text its own
+       * block-level box is the same fix.
+       */}
+      <span className="dh-prow__reach-value">{reach.value}</span>
     </a>
   );
 }

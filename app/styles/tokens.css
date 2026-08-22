@@ -7290,7 +7290,24 @@
   /** The focus indicator. Named separately from the accent because it is an
    * accessibility contract, not a brand decision, and must survive a rebrand. */
   --dh-color-focus: var(--accent);
-  /** The scrim behind a modal surface. */
+  /**
+   * The scrim behind a modal surface — the FINISHED value, alpha included.
+   *
+   * DHDS-13: every one of the eight consumers used to paint
+   * `color-mix(in srgb, var(--dh-color-scrim) 32%, transparent)`, applying M3's
+   * "scrim at 32%" a second time on top of a token that already carried it. The
+   * shipped result was a **10.3%** scrim in light and **18.6%** in dark, against
+   * the 32% `DESIGN_SYSTEM.md` specifies for a modal surface — which is why the
+   * global Capture sheet, a white panel with no shadow, sat on a page that was
+   * still fully bright behind it and did not read as modal at all.
+   *
+   * The dark value is deliberately heavier than the light one rather than the
+   * same 32%: a dark modal over a dark page has less tonal difference to work
+   * with, so the separation has to come from the scrim.
+   *
+   * Paint it as-is. A surface that wants a LIGHTER wash than a modal (the scroll
+   * strip's edge cue) mixes it down explicitly and says why.
+   */
   --dh-color-scrim: var(--overlay-scrim);
 
   /* ---------------------------------------------------------------------- */
