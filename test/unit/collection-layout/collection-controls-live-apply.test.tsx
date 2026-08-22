@@ -19,7 +19,7 @@
  * by the test, never by a timer.
  */
 
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   RouterProvider,
   createMemoryRouter,
@@ -141,11 +141,25 @@ describe("collection controls — live apply", () => {
     fireEvent.click(await screen.findByTestId("collection-filter-trigger"));
     fireEvent.click(screen.getByTestId("collection-popover-due-overdue"));
 
-    // Settled: the rejected dimension is gone from the chips and the badge,
-    // rather than being re-asserted by a remembered write.
-    expect(
-      await screen.findByTestId("collection-filter-trigger"),
-    ).not.toHaveTextContent("1");
-    expect(screen.queryByTestId("collection-filter-chips")).toBeNull();
+    /*
+     * Settled: the rejected dimension is gone from the chips and the badge,
+     * rather than being re-asserted by a remembered write.
+     *
+     * V2.4-GATE-01 — waited for, as ONE settled state, rather than read
+     * synchronously after a `findBy` that never waited for it. The trigger is
+     * in the document from the first render, so `findByTestId` resolved
+     * immediately and both assertions raced the router's settle: the chips
+     * survive one extra render tick, and the run in which they did reported a
+     * defect that is not there. The assertions themselves are unchanged, and
+     * neither is weakened — a chip that genuinely stayed would still fail here,
+     * on the same values, at the end of the timeout instead of before the
+     * product had answered.
+     */
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("collection-filter-trigger"),
+      ).not.toHaveTextContent("1");
+      expect(screen.queryByTestId("collection-filter-chips")).toBeNull();
+    });
   });
 });
