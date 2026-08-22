@@ -179,7 +179,7 @@ of time altogether. That is § 3.6.
 | --- | --- | --- | --- | --- |
 | The picker's listbox | ~19 | stale assertion | **yes** | DHDS-09 portalled floating surfaces into the overlay layer, so a `SelectField` / `EntityLinkPicker` listbox is no longer a DOM descendant of the Drawer, dialog or form holding the field. A container-scoped `getByRole("option")` resolves to nothing, however long it waits. |
 | Completion re-assertion | 6 | stale assertion | **yes** | DHDS-13's signature, product-wide. Today files a completed row under the plan's `Completed · n` disclosure, which renders CLOSED — so `check()` re-resolves onto nothing and retries to timeout. |
-| Row-reveal deadlock | 2 | **product** (DEBT-180) | **yes** | `pointer-events: none` on the unrevealed affordance handed the hit test to an inert wrapper of identical size. |
+| Row-reveal deadlock | 2 | **product** (DEBT-180) | **yes** | the affordance was inert while concealed and its identically-sized wrapper was not, so the wrapper swallowed the click and did nothing with it. |
 | Phone Plan draws two days | 2 | **product** (DEBT-196) | **on a weekend** | selection was published on the weekend COLUMN, which holds two days. It failed on two days of every week, which is why it read as intermittent. |
 | Record panel double edge | 1 | **product** | **yes** | `premium.css` (#206) restated the card family's border and radius after `record-layout.css` had deliberately removed them. |
 | Nested filter outranks its tabs | 1 | **product** | **yes** | the M3-INT fix named `--dh-text-label-size` because `.record-tab` was label-sized; the token has since drifted to 13px against the strip's 12.5px. |
@@ -197,21 +197,53 @@ sequential gate, which is the evidence § 3.5 records.
 ### 3.3 The product defects, fixed at their authority
 
 **DEBT-180 — the row reveal.** The decision the entry asked for, taken once and
-recorded in `motion.css` beside the rule it changes. The measurement that
-settles it: `.dh-overflow-menu` is `position: relative`, `display: inline-flex`
-and EXACTLY the same 32×32 box as its trigger, and it keeps `pointer-events:
-auto` — so that rectangle already intercepted every click at rest.
-`pointer-events: none` on the trigger never shrank the hit area by a pixel; it
-only decided that the element catching the click was the inert wrapper rather
-than the button that can act on it. Removing it therefore takes nothing away
-from the row and gives the affordance back a click that was being swallowed
-above it. `plan-weekly-planning.spec.ts:233` passes with no per-spec workaround,
-no `force: true` and no test-only CSS, and `motion.spec.ts` additionally asserts
-that the control wins its own hit test at rest.
+recorded in `motion.css` beside the rule it changes. It was taken TWICE, and the
+first answer was wrong; both are recorded, because the second is only defensible
+against the first.
+
+The measurement is not in dispute: `.dh-overflow-menu` is `position: relative`,
+`display: inline-flex` and EXACTLY the same 32×32 box as its trigger, and it
+keeps `pointer-events: auto`. `elementsFromPoint` at the trigger's own centre
+returned the wrapper, then `.dh-taskrow__actions`, then the row — the trigger
+never appeared. So rule 4 was only ever HALF enforced: the affordance was inert
+and its wrapper was not, and that rectangle swallowed every click at rest without
+doing anything with it, which is the hidden hit area rule 4 forbids, one element
+up.
+
+**The first answer — drop `pointer-events: none` so the affordance catches its
+own clicks — was rejected on review, correctly.** The measurement it rests on is
+true of the overflow trigger and does not generalise: `.dh-action-reveal` also
+sits directly on a navigation `<Link>` (`ScheduleList`) and on drag handles
+(`TaskDragging`, `TaskChecklistSection`, `GoalMeasurementPanel`), none of which
+have such a wrapper. On a hybrid device — one matching `(hover: hover)` because
+a mouse is attached, driven by a finger that never hovers — a tap on apparently
+empty row space would then navigate or begin a drag with nothing drawn to say
+so. A contract rule is not worth trading for a test's convenience.
+
+**The answer that shipped** restores rule 4 on the affordance and extends it to
+the box that was defeating it: `[data-dh-action-context="true"]
+.dh-overflow-menu:has(> .dh-action-reveal)` is transparent to the pointer while
+its child is, so a click in that space reaches the ROW — which the rule has
+always promised and had never delivered. It is scoped to an action context,
+because the same overflow menu on a record header conceals nothing and must stay
+clickable.
+
+Automation reaches the affordance the way a person does, through one shared
+`revealRowActions()` helper (`e2e/helpers.ts`) that engages the row first — a
+shared interaction contract rather than a hover copied per spec, and no
+`force: true` anywhere, which would assert a control is reachable while proving
+the opposite. `motion.spec.ts` proves rule 4 in BOTH directions from the real
+hit test rather than from a computed style (the half that was already right): at
+rest neither the trigger nor its wrapper takes the click and the row does; focus
+alone reveals the affordance with no pointer involved; and once the row is
+engaged the trigger wins its own hit test and its menu opens.
+`plan-weekly-planning.spec.ts:233` passes on the shared helper.
 
 The card's action rail (`card.css`, UIQ-002) keeps its `pointer-events: none`,
-deliberately: that rail is an OVERLAY which does not hold its geometry at rest,
-so there the rule is load-bearing and the two specs that hover first say so.
+deliberately and for the same reason: that rail is an OVERLAY which does not hold
+its geometry at rest, so there the rule is load-bearing in the stronger sense —
+it is the only thing stopping an unseen "Complete" from taking a click meant for
+the title beneath it — and the two specs that hover first say so.
 
 **DEBT-196 — one day on a phone.** `PlanDaySection` publishes `data-selected`
 and the phone tier hides the day that is not selected. The column rule is
