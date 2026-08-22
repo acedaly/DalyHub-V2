@@ -244,6 +244,28 @@ function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+/**
+ * A scratch directory that is removed on EVERY exit path.
+ *
+ * A `finally` alone is not enough here, and the gap is not theoretical:
+ * `fail()` calls `process.exit`, which does **not** run `finally` blocks. So a
+ * refusal partway through `verify` or `rehearse` — a tampered artifact, a dump
+ * that will not load — left the DECRYPTED production database sitting in the OS
+ * temp directory, which is exactly the plaintext this pipeline exists to keep
+ * from surviving a failure. An `exit` hook runs on both paths; the `finally`
+ * blocks stay as well, so the directory is gone the moment the command is done
+ * rather than at the end of the process.
+ *
+ * @param {string} prefix
+ */
+function makeScratch(prefix) {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  process.on("exit", () => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+  return dir;
+}
+
 function requireFile(path, what) {
   if (typeof path !== "string" || path.length === 0) {
     fail(`Missing --${what}.`);
@@ -350,7 +372,7 @@ function commandVerify(args) {
     );
   }
 
-  const scratch = mkdtempSync(join(tmpdir(), "dalyhub-backup-verify-"));
+  const scratch = makeScratch("dalyhub-backup-verify-");
   try {
     const roundTrip = join(scratch, "decrypted.sql");
     runGpg(
@@ -488,7 +510,7 @@ async function commandRehearse(args) {
     fail("--into needs a file path.");
   }
 
-  const scratch = mkdtempSync(join(tmpdir(), "dalyhub-backup-rehearse-"));
+  const scratch = makeScratch("dalyhub-backup-rehearse-");
   try {
     const restored = join(scratch, "restored.sql");
     runGpg(

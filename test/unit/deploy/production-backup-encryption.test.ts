@@ -30,11 +30,17 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const SCRIPT = join(process.cwd(), "scripts", "production-backup.mjs");
 
@@ -131,6 +137,14 @@ describe("AUDIT-11 encrypted production backup", () => {
       key,
       createHash("sha256").update(`test-${Date.now()}`).digest("hex"),
     );
+  });
+
+  afterAll(() => {
+    // This suite writes real dumps, a real (throwaway) key and real ciphertext
+    // to a temp directory, and never removed them. A file whose whole subject is
+    // "the plaintext must not survive" should not leave a dozen copies of one in
+    // the OS temp directory of every machine that runs the suite.
+    rmSync(dir, { recursive: true, force: true });
   });
 
   /**
