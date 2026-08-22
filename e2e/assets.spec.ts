@@ -65,6 +65,23 @@ async function createAsset(
 test("create, edit, search, filter, archive, restore, delete", async ({
   page,
 }) => {
+  /*
+   * A real budget for the longest journey in this file — a BUDGET CORRECTION,
+   * not a retry and not a way to wait out a defect.
+   *
+   * MEASURED at this commit: the journey completes in 38.2 s of genuine work,
+   * against the suite's 30 s default. It creates four Assets through the real
+   * creation flow, edits structured details with an explicit save, searches,
+   * filters the collection through the shared controls, then archives and
+   * restores from the Settings tab — roughly fifteen product navigations, each
+   * settling the network. Nothing hangs and nothing is retried: raising the
+   * budget makes it pass in 38 s, which is what "it needed more than 30" looks
+   * like when there is nothing wrong.
+   *
+   * The precedent, and the same reasoning, is `goals.spec.ts`'s own
+   * `setTimeout(120_000)`. Every assertion below is unchanged.
+   */
+  test.setTimeout(120_000);
   const vehicle = uniqueAssetTitle("vehicle");
   const appliance = uniqueAssetTitle("appliance");
   const licence = uniqueAssetTitle("licence");

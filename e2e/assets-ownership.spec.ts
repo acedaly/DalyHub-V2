@@ -23,6 +23,7 @@ import {
   uniqueAssetTitle,
 } from "./assets-fixtures";
 import {
+  comboboxOption,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -175,10 +176,13 @@ async function chooseOption(
   const combo = drawer(page).getByRole("combobox", { name: field });
   await combo.click();
   await combo.fill(optionLabel);
-  // Scoped to the DRAWER: the obligations tab behind it carries a native
-  // `<select>` filter with the same option labels.
-  await drawer(page)
-    .getByRole("option", { name: optionLabel, exact: true })
+  // Scoped to the listbox this combobox OWNS: DHDS-09 portalled it out of the
+  // Drawer, and the obligations tab behind it carries a native `<select>`
+  // filter with the same option labels — so page-wide would be ambiguous and
+  // Drawer-wide now resolves to nothing.
+  await (
+    await comboboxOption(combo, optionLabel, { exact: true })
+  )
     .first()
     .click();
 }

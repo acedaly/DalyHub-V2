@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -67,15 +68,17 @@ async function convertItem(
   const parent = dialog.getByRole("combobox", { name: /Project or Area/ });
   await parent.click();
   await parent.fill(options.parent);
-  await dialog.getByRole("option", { name: options.parent }).click();
+  // DHDS-09 — the listbox is portalled into the overlay layer, so it is
+  // addressed through the combobox that owns it rather than through the dialog.
+  await (await comboboxOption(parent, options.parent)).click();
 
   if (options.priority) {
     const priority = dialog.getByRole("combobox", { name: "Priority" });
     await priority.click();
     await priority.fill(options.priority.split(" ")[0]!);
-    await dialog
-      .getByRole("option", { name: options.priority, exact: true })
-      .click();
+    await (
+      await comboboxOption(priority, options.priority, { exact: true })
+    ).click();
   }
 
   const [response] = await Promise.all([
@@ -189,7 +192,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   });
   await directParent.click();
   await directParent.fill("Website relaunch");
-  await directDialog.getByRole("option", { name: "Website relaunch" }).click();
+  await (await comboboxOption(directParent, "Website relaunch")).click();
   await Promise.all([
     page.waitForResponse(
       (r) =>

@@ -238,8 +238,16 @@ test.describe("automated accessibility — open overlays", () => {
       .getByRole("link", { name: "Open Design the homepage" })
       .first()
       .click();
-    await page.getByRole("dialog").waitFor();
-    await page.getByRole("button", { name: /^Priority: / }).click();
+    const drawer = page.getByRole("dialog");
+    await drawer.waitFor();
+    /*
+     * Scoped to the DRAWER. DHDS-10 made the Project record's own task rows
+     * inline-editable, so the page behind the Drawer now draws its own
+     * `Priority: …` trigger for every row — the page-wide locator resolved to
+     * two elements and failed Playwright's strict mode. The Drawer's is the one
+     * this scan is about, and it is the only one that opens over the dialog.
+     */
+    await drawer.getByRole("button", { name: /^Priority: / }).click();
     await page.getByRole("menu").waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");

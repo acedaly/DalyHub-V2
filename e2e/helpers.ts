@@ -637,6 +637,119 @@ export async function pickCalendarDate(
 }
 
 /* -------------------------------------------------------------------------- */
+/* DHDS-13 — where a surface FILES a task once it is completed                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The row for `title` after it has been completed on a surface that keeps
+ * completed work behind a disclosure — opened through that disclosure.
+ *
+ * A completed Task does not stay in its band. Today files it under the plan's
+ * `Completed · n` disclosure, and that `<details>` renders CLOSED — so the row
+ * is still in the DOM and completely absent from the accessibility tree, and
+ * `getByRole("checkbox", …)` scoped to the plan resolves to nothing at all.
+ * `check()` re-resolves its locator to verify the new state, finds no element,
+ * and retries to timeout; a `toBeChecked()` written the same way reports
+ * "element(s) not found" while the page's own live region says *"Completed …"*.
+ *
+ * Neither is a defect in the product and neither is fixed by waiting longer: the
+ * completed row is simply somewhere else, so the assertion goes there. The
+ * disclosure is opened by CLICKING ITS SUMMARY — the owner's own way in — so
+ * this proves the completion is REACHABLE rather than merely present.
+ *
+ * DHDS-13 established the mechanism on `today-task-convergence.spec.ts`; this is
+ * that helper, shared, so the next spec to complete a Task on Today does not
+ * have to rediscover it.
+ */
+export async function openCompletedGroup(
+  page: Page,
+  title: string,
+  scope = '[data-testid="today-plan"]',
+): Promise<Locator> {
+  const group = page.locator(`${scope} details.dh-today__completed`);
+  await expect(group).toBeAttached();
+  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await group.locator("summary").click();
+  }
+  return group.locator(".dh-taskrow", { hasText: title }).first();
+}
+
+/* -------------------------------------------------------------------------- */
+/* DHDS-09 — the listbox a combobox owns, wherever the overlay layer put it    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The `role="listbox"` a combobox CONTROLS, resolved through `aria-controls`.
+ *
+ * DHDS-09 moved every floating surface into the shared overlay layer, so a
+ * `SelectField`'s or an `EntityLinkPicker`'s options are portalled onto `<body>`
+ * and are no longer DOM descendants of the Drawer, dialog or form that holds the
+ * field. A container-scoped `dialog.getByRole("option", …)` therefore resolves to
+ * nothing, however long it waits — the same shape as the calendar grid, which
+ * `pickCalendarDate` already addresses at page level for exactly this reason.
+ *
+ * Resolving through `aria-controls` is a STRONGER assertion than the container
+ * scope it replaces, not a weaker one. The container only ever proved that the
+ * option shared an ancestor with the field; this proves the option is in the
+ * listbox **this combobox owns** — the relationship the WAI-ARIA pattern is built
+ * on, and the one a screen reader follows. It is also presentation-agnostic: the
+ * anchored listbox and the phone Sheet both carry the same id.
+ *
+ * The combobox must be OPEN — `aria-controls` is published while the listbox
+ * exists — so call it after the click/fill that opens the field.
+ */
+export async function comboboxListbox(combo: Locator): Promise<Locator> {
+  // `aria-controls` is only published once the field is expanded, so wait for it
+  // rather than reading a null and failing with "#null is not a valid selector".
+  await expect(combo).toHaveAttribute("aria-controls", /\S/);
+  const id = await combo.getAttribute("aria-controls");
+  // Attribute selector rather than `#id`: React's `useId()` values contain
+  // characters (`«`, `»` on some versions) that are legal in an id and illegal
+  // unescaped in a CSS id selector.
+  return combo.page().locator(`[id="${id}"]`);
+}
+
+/**
+ * One option of the listbox `combo` owns. See {@link comboboxListbox}.
+ *
+ * The narrowest possible replacement for a container-scoped lookup: same role,
+ * same name, same matching — only the scope moves, from "somewhere under this
+ * dialog" to "inside this field's own listbox".
+ */
+export async function comboboxOption(
+  combo: Locator,
+  name: string | RegExp,
+  options: { readonly exact?: boolean } = {},
+): Promise<Locator> {
+  const listbox = await comboboxListbox(combo);
+  return listbox.getByRole("option", {
+    name,
+    ...(options.exact === undefined ? {} : { exact: options.exact }),
+  });
+}
+
+/**
+ * Type into a combobox and choose the option that appears — the whole act, in
+ * the order an owner performs it.
+ *
+ * Most journeys want exactly this and nothing else, and doing it in one place
+ * means the wait for the option is never forgotten (a `click()` on an option
+ * that has not arrived yet is a flake, not a failure).
+ */
+export async function chooseComboboxOption(
+  combo: Locator,
+  query: string,
+  name: string | RegExp = query,
+  options: { readonly exact?: boolean } = {},
+): Promise<void> {
+  await combo.click();
+  await combo.fill(query);
+  const option = await comboboxOption(combo, name, options);
+  await expect(option.first()).toBeVisible();
+  await option.first().click();
+}
+
+/* -------------------------------------------------------------------------- */
 /* CONTROL-01 — the shared collection controls, in either presentation         */
 /* -------------------------------------------------------------------------- */
 

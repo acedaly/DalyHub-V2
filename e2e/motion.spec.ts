@@ -141,13 +141,45 @@ test.describe("DHDS-08 — the row reveal never moves the row", () => {
   }) => {
     await gotoFixture(page, "/tasks");
     const row = taskRows(page).first();
-    const trigger = row.locator(".dh-action-reveal").first();
+    /*
+     * The row's OVERFLOW TRIGGER, named — not `.dh-action-reveal` first().
+     *
+     * DHDS-10 gave every inline-select field a chevron carrying the same reveal
+     * class, and those come first in the row, so `.first()` had quietly become
+     * an `<svg aria-hidden="true" focusable="false">`: `focus()` on it does
+     * nothing at all, `:focus-within` never matches, and the opacity assertion
+     * failed on a decoration rather than on the affordance the test is named
+     * for. Asking for the control by its own class fixes what is measured and
+     * makes it stronger — the assertion below now proves the thing a keyboard
+     * user actually reaches took focus.
+     */
+    const trigger = row.locator(".dh-taskrow__overflow").first();
     await expect(trigger).toBeAttached();
 
     // It is never removed from the tree — `opacity`, never `display: none`.
     await expect(trigger).toHaveCSS("display", /^(?!none$)/);
     await trigger.focus();
+    await expect(trigger).toBeFocused();
     await expect(trigger).toHaveCSS("opacity", "1");
+
+    /*
+     * DEBT-180 — and it is HITTABLE at rest, which is the half that was broken.
+     *
+     * The affordance's own box is the row's pointer target whether or not it is
+     * painted (`motion.css`), so `elementsFromPoint` at its centre returns it
+     * rather than the inert wrapper that used to win. This is asserted directly
+     * because a person never notices the difference — moving the pointer there
+     * reveals it — while every automated caller deadlocked on it.
+     */
+    const box = (await trigger.boundingBox())!;
+    const topMost = await page.evaluate(
+      ([x, y]) => {
+        const el = document.elementFromPoint(x as number, y as number);
+        return el?.closest(".dh-taskrow__overflow") !== null;
+      },
+      [box.x + box.width / 2, box.y + box.height / 2],
+    );
+    expect(topMost, "the row's ⋯ wins its own hit test at rest").toBe(true);
   });
 });
 

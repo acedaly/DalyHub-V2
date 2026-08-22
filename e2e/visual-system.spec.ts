@@ -145,7 +145,27 @@ test.describe("visual system — Today reference layout", () => {
      */
     expect(style.borderStyle).toBe("solid");
     expect(parseFloat(style.borderWidth)).toBeLessThanOrEqual(1);
-    expect(style.boxShadow).toBe("none");
+    /*
+     * NO DEPTH — which is not the same as no `box-shadow`.
+     *
+     * TODAY-TASK-01 gave the day's card a leading ACCENT RULE, and drew it as an
+     * INSET shadow (`today.css` → `.dh-today__timeline`) because an inset hairline
+     * is the one way to put a rule on a rounded card's edge without a second
+     * border fighting the first. An inset shadow paints inside the box: it cannot
+     * lift a surface off the page, which is the only thing "no depth" forbids.
+     *
+     * So the assertion is what the rule always meant rather than a literal string
+     * comparison that a legitimate edge device now fails: every shadow this
+     * surface draws is inset, and an OUTER shadow — the depth an in-flow card may
+     * never spend — is still refused.
+     */
+    for (const shadow of style.boxShadow.split(/,(?![^(]*\))/)) {
+      const layer = shadow.trim();
+      if (layer === "none" || layer === "") continue;
+      expect(layer, "an in-flow surface draws no OUTER shadow").toContain(
+        "inset",
+      );
+    }
     expect(parseFloat(style.borderRadius)).toBeGreaterThanOrEqual(12);
     expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
   });
@@ -219,12 +239,19 @@ test.describe("visual system — surface hierarchy", () => {
      * REDESIGN-04 then took `.dh-gcard` too: `/goals` became a master-detail
      * WORKSPACE whose list is `ProgressRow` (`.dh-mrow`), not a gallery of
      * cards. `.dh-ecard` — the EntityCard this file's own comment calls "the
-     * in-flow card of the product" — is back, and `/areas` is where a seeded
-     * workspace renders one. It is the member of the family `card-family.css`
-     * names, so the contract below is the one this test was written to pin,
-     * asserted on a card that exists.
+     * in-flow card of the product" — is back. `/areas` is NOT where it lives:
+     * UIX-06 made that collection `EntityRowList` (`.dh-erow`, and not one
+     * `.dh-ecard`), so the locator matched nothing and the test spent its whole
+     * timeout on it again — the third page this assertion has chased a card to.
+     *
+     * It stops chasing. `/design/card-family` is the FIXTURE the family is
+     * published on: it is owned by the design system rather than by whichever
+     * collection last changed presentation, `card-family.css` is exactly what
+     * this test pins, and no product decision can take the card off the route
+     * that exists to draw it. It is immune to the shared workspace too — no
+     * other journey can archive the last card out from under it.
      */
-    await gotoFixture(page, "/areas");
+    await gotoFixture(page, "/design/card-family");
 
     const widgetStyle = await page
       .locator(".dh-ecard")

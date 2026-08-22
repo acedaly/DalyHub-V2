@@ -105,8 +105,23 @@
  * filter's type must be no larger than the tabs'.
  */
 .dh-record-toolbar .dh-viewtabs__tab {
-  font-size: var(--dh-text-label-size);
-  line-height: var(--dh-text-label-line-height);
+  /*
+   * FROM THE RECORD TAB'S OWN TOKEN, not from a second one that happened to be
+   * smaller when this rule was written.
+   *
+   * The rule above says the filter "must be no larger than the tabs'", and it
+   * enforced that by naming `label` because `.record-tab` was `label-medium`.
+   * The record tab is `--dh-text-meta-size` (12.5px) and `--dh-text-label-size`
+   * is 13px, so the intended hierarchy had quietly inverted again by half a
+   * pixel — the same regression, with the fix still in place and no longer
+   * doing anything, which `record-anatomy.spec.ts` duly caught a second time.
+   *
+   * Naming the strip's own token is what stops it happening a third time: the
+   * filter now MOVES WITH the tabs it is subordinate to, whatever either is
+   * re-sized to.
+   */
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
 }
 
 /* -------------------------------------------------------------------------- */

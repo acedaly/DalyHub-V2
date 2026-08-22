@@ -676,6 +676,7 @@ function PlanBoardColumn({
         <PlanDaySection
           key={day.dateIso}
           day={day}
+          selected={day.dateIso === selectedDay}
           armed={armedDay === day.dateIso}
           onArmDay={onArmDay}
           rowProps={rowProps}
@@ -688,12 +689,15 @@ function PlanBoardColumn({
 
 function PlanDaySection({
   day,
+  selected,
   armed,
   onArmDay,
   rowProps,
   density,
 }: {
   readonly day: PlanDay;
+  /** DEBT-196 — is this the day the phone rail says is selected? */
+  readonly selected: boolean;
   readonly armed: boolean;
   readonly onArmDay: (dateIso: string) => void;
   readonly rowProps: (
@@ -715,6 +719,20 @@ function PlanDaySection({
       id={`plan-day-${day.dateIso}`}
       aria-labelledby={`plan-day-heading-${day.dateIso}`}
       data-testid="plan-day"
+      /*
+       * DEBT-196 — the phone tier promises ONE day, and this is what lets the
+       * stylesheet keep that promise.
+       *
+       * Selection was published on the COLUMN alone, and a weekend column holds
+       * two days: choosing either Saturday or Sunday therefore drew BOTH, so the
+       * rail said one day was selected and the page showed two — on exactly two
+       * of the seven days of the week, which is why it read as intermittent.
+       * The column marker still decides which column is rendered (a merged
+       * weekend column must be shown when either of its days is chosen, or
+       * choosing Sunday would show nothing); this marker decides which DAY
+       * inside it is, and only the phone tier reads it.
+       */
+      data-selected={selected ? "true" : undefined}
       data-date={day.dateIso}
       data-today={day.isToday ? "true" : undefined}
       data-past={day.isPast ? "true" : undefined}

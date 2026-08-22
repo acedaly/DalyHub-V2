@@ -355,8 +355,37 @@
  *      remove an element from the accessibility tree, `:focus-within` reveals
  *      it for the keyboard, an open menu holds it open, and the reveal is
  *      wrapped in `(hover: hover)` so a touch device is simply given it.
- *   4. It cannot be clicked while it is invisible: `pointer-events` follows the
- *      opacity, so an unrevealed action is not a hidden hit area over the row.
+ *   4. It never enlarges the row's hit area. The affordance's box is exactly
+ *      the box it occupies at rest (rule 2), so the pointer target and the
+ *      drawn control are the same rectangle whether or not it is painted.
+ *
+ * ── Rule 4 was `pointer-events: none`, and that was the wrong lever ─────────
+ * DEBT-180. The rule it was written to enforce — *"an unrevealed action is not
+ * a hidden hit area over the row"* — is enforced by rule 2 and by the DOM, not
+ * by `pointer-events`. MEASURED on `/plan`: at the trigger's own centre,
+ * `document.elementsFromPoint` returned `div.dh-overflow-menu`, then
+ * `span.dh-taskrow__actions`, then the row. The trigger's wrapper is
+ * `position: relative`, `display: inline-flex` and EXACTLY the same 32×32 box,
+ * and it keeps `pointer-events: auto` — so that rectangle already intercepted
+ * every click at rest. `pointer-events: none` on the trigger did not shrink the
+ * hit area by one pixel; it only decided that the element which caught the
+ * click was the inert wrapper rather than the button that can act on it.
+ *
+ * Removing it therefore takes nothing away from the row and gives the
+ * affordance back a click that was already being swallowed above it. What it
+ * fixes is AUTOMATION, which is where the cost was actually being paid:
+ * Playwright hit-tests the target BEFORE moving the mouse, so it saw the
+ * wrapper, reported *"intercepts pointer events"*, and never performed the
+ * hover that would have made the element hittable — a deadlock rather than a
+ * race, so retrying to timeout was the only outcome
+ * (`plan-weekly-planning.spec.ts:233`). A person was never affected: moving the
+ * pointer onto the affordance is what reveals it, and a keyboard user reaches
+ * it by focus.
+ *
+ * The alternative — teaching every spec to hover the row first — was rejected
+ * because it spreads a contract gap across specs that are not about the reveal,
+ * and because a `force: true` click (the other way out) asserts that the
+ * control is reachable while proving the opposite.
  *
  * Consumers opt in with `data-dh-action-context="true"` on the row and
  * `dh-action-reveal` on the trailing action container.
@@ -369,7 +398,6 @@
 @media (hover: hover) {
   [data-dh-action-context="true"] .dh-action-reveal {
     opacity: 0;
-    pointer-events: none;
   }
 
   [data-dh-action-context="true"]:hover .dh-action-reveal,
@@ -387,7 +415,6 @@
    */
   .dh-action-reveal[data-grabbed="true"] {
     opacity: 1;
-    pointer-events: auto;
   }
 }
 
@@ -396,7 +423,6 @@
 @media (forced-colors: active) {
   .dh-action-reveal {
     opacity: 1;
-    pointer-events: auto;
   }
 }
 

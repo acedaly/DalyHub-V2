@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   clickCardAction,
   completeTaskRow,
   reopenTaskRow,
@@ -214,7 +215,8 @@ test.describe("TASKS-04 — Inbox is active, unassigned work", () => {
     // Wait for THE fixture option by name, not for "whatever is first": the picker
     // seeds an unfiltered page on mount, so clicking the first row can race the
     // filtered response and land on a node that is being replaced.
-    const option = drawer.getByRole("option", { name: FILING_PROJECT });
+    // DHDS-09 — the listbox is in the overlay layer, not under the Drawer.
+    const option = await comboboxOption(picker, FILING_PROJECT);
     await expect(option).toBeVisible();
     await option.click();
     await expect(
@@ -359,7 +361,7 @@ test.describe("TASKS-04 — persisted recurrence", () => {
     await expect(repeat).toBeVisible();
     await repeat.click();
     await repeat.fill("Monthly");
-    const monthly = drawer.getByRole("option", { name: "Monthly" });
+    const monthly = await comboboxOption(repeat, "Monthly");
     await expect(monthly).toBeVisible();
     await monthly.click();
     await expect(
@@ -474,9 +476,7 @@ test.describe("TASKS-04 — Review Inbox", () => {
     const picker = panel.getByRole("combobox", { name: /Project or Area/ });
     await picker.click();
     await picker.fill("Daily driver filing");
-    await expect(
-      panel.getByRole("option", { name: FILING_PROJECT }),
-    ).toBeVisible();
+    await expect(await comboboxOption(picker, FILING_PROJECT)).toBeVisible();
     await picker.press("ArrowDown");
     await picker.press("Enter");
     await expect(picker).toHaveValue(FILING_PROJECT);

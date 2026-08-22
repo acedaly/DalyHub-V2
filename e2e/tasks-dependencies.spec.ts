@@ -22,6 +22,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -60,7 +61,10 @@ async function addBlocker(page: Page, title: string): Promise<void> {
   });
   await picker.click();
   await picker.fill(title);
-  await dependencies(page).getByRole("option", { name: title }).first().click();
+  // DHDS-09 — the candidate listbox is portalled into the overlay layer, so it
+  // is addressed through the combobox that owns it rather than through the
+  // section that holds the field.
+  await (await comboboxOption(picker, title)).first().click();
   await dependencies(page)
     .getByRole("button", { name: "Add blocker", exact: true })
     .last()
@@ -96,22 +100,22 @@ test.describe("TASKS-12 — authoring an advanced repeat", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    await (await comboboxOption(repeat, /^Custom/)).click();
 
     const unit = drawer.getByRole("combobox", { name: "Unit" });
     await unit.click();
     await unit.fill("month");
-    await drawer.getByRole("option", { name: "month", exact: true }).click();
+    await (await comboboxOption(unit, "month", { exact: true })).click();
 
     await drawer.getByRole("radio", { name: "A named weekday" }).click();
     const which = drawer.getByRole("combobox", { name: "Which one" });
     await which.click();
     await which.fill("Last");
-    await drawer.getByRole("option", { name: "Last" }).click();
+    await (await comboboxOption(which, "Last")).click();
     const weekday = drawer.getByRole("combobox", { name: "Weekday" });
     await weekday.click();
     await weekday.fill("Friday");
-    await drawer.getByRole("option", { name: "Friday" }).click();
+    await (await comboboxOption(weekday, "Friday")).click();
 
     // The RESULT, read before it is committed to — no decoding required.
     await expect(drawer.getByTestId("task-recurrence-summary")).toHaveText(
@@ -129,7 +133,7 @@ test.describe("TASKS-12 — authoring an advanced repeat", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    await (await comboboxOption(repeat, /^Custom/)).click();
 
     const weekend = drawer.getByRole("combobox", {
       name: "If it falls on a weekend",
@@ -142,11 +146,11 @@ test.describe("TASKS-12 — authoring an advanced repeat", () => {
       "Move it to the Monday after",
       "Skip that occurrence",
     ]) {
-      await expect(drawer.getByRole("option", { name: wording })).toBeVisible();
+      await expect(await comboboxOption(weekend, wording)).toBeVisible();
     }
-    await drawer
-      .getByRole("option", { name: "Move it to the Friday before" })
-      .click();
+    await (
+      await comboboxOption(weekend, "Move it to the Friday before")
+    ).click();
     await expect(drawer.getByTestId("task-recurrence-summary")).toContainText(
       "moved to the Friday before",
     );
@@ -160,13 +164,11 @@ test.describe("TASKS-12 — authoring an advanced repeat", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    await (await comboboxOption(repeat, /^Custom/)).click();
 
     const ends = drawer.getByRole("combobox", { name: "Ends" });
     await ends.click();
-    await drawer
-      .getByRole("option", { name: "After a number of times" })
-      .click();
+    await (await comboboxOption(ends, "After a number of times")).click();
     const count = drawer.getByLabel("Number of times");
     await count.fill("3");
     // The counting rule is stated where the number is entered, not in a doc.
@@ -401,7 +403,7 @@ test.describe("TASKS-12 — managing dependencies on the Task record", () => {
     // The candidate search is debounced and asynchronous, so the option has to
     // EXIST before a keyboard user can move to it.
     await expect(
-      dependencies(page).getByRole("option", { name: "Get director approval" }),
+      await comboboxOption(picker, "Get director approval"),
     ).toBeVisible();
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
@@ -565,7 +567,7 @@ test.describe("TASKS-12 — phone", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    await (await comboboxOption(repeat, /^Custom/)).click();
     await expect(drawer.getByTestId("task-recurrence-editor")).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
