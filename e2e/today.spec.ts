@@ -6,6 +6,7 @@ import {
   globalCaptureControl,
   pickCalendarDate,
   todayCompletedRow,
+  todayWeeklyMeasures,
 } from "./helpers";
 
 /**
@@ -148,26 +149,22 @@ test.describe("Today — the day surface", () => {
     const stats = page.locator(".dh-stat--interactive");
     expect(await stats.count()).toBe(0);
 
-    const summary = page.getByTestId("today-summary");
-    await expect(summary).toBeVisible();
     /*
      * V2.4-GATE-01 — open the disclosure the measures live in.
      *
      * TODAY-12 moved the rolling-week measures below the day's decisions and put
-     * them behind `<details class="dh-today__weekly">`, which renders CLOSED.
-     * `innerText()` reflects RENDERED text and a closed `<details>`'s content is
-     * not rendered, so every figure below read as "" and this failed on
-     * `expect(value).toMatch(/^\d/)` — about figures that were correct.
+     * them behind a `<details>` that renders CLOSED. `innerText()` reflects
+     * RENDERED text, so every figure below read as "" and this failed on
+     * `expect(value).toMatch(/^\d/)` — about figures that were correct. See
+     * {@link todayWeeklyMeasures}, which `goal-measurement.spec.ts` needs too,
+     * for the other half of the same change.
      *
-     * Opened by its SUMMARY, the owner's own way in, so the assertions below now
-     * prove the figures are REACHABLE as well as right. Nothing is weakened: the
-     * same figures are read, by the same rules.
+     * Nothing is weakened: the same figures are read by the same rules, and
+     * opening the disclosure the owner's own way proves they are REACHABLE as
+     * well as right.
      */
-    const weekly = summary.locator("details.dh-today__weekly");
-    await expect(weekly).toBeAttached();
-    if (!(await weekly.evaluate((el: HTMLDetailsElement) => el.open))) {
-      await weekly.locator("summary").click();
-    }
+    const summary = await todayWeeklyMeasures(page);
+    await expect(summary).toBeVisible();
     const measures = summary.locator(".dh-today__measure");
     const count = await measures.count();
     expect(count).toBeGreaterThan(0);

@@ -209,13 +209,32 @@ test.describe("HABITS-01 — creating and checking in", () => {
     await row.getByTestId("habit-check").check();
     await expect(row).toContainText("Done today");
     /*
+     * The week now records this check-in — asserted where the fact is, not
+     * where one of its two wordings is.
+     *
      * The denominator is what the week ACTUALLY asked for, which for a habit
-     * created today is the days from today onward — never a flat seven. That is
-     * the honest answer (it was not expected on Monday if it did not exist on
-     * Monday), so the assertion is on the shape rather than on a number that
-     * depends on which weekday the suite runs.
+     * created today is the days from today onward, never a flat seven: it was
+     * not expected on Monday if it did not exist on Monday.
+     *
+     * V2.4-GATE-01 — and that reasoning has a boundary this assertion fell
+     * over. `/1 of [1-7] this week/` is false whenever the week becomes MET,
+     * because `habitWeekLabel` deliberately says so in words: *"'Done this
+     * week' rather than '3 of 3': once the week is satisfied the count has
+     * nothing left to tell the owner, and a completed thing should read as
+     * completed rather than as a ratio they have to parse."* For a habit
+     * created today, the week is met by this very check-in whenever today is
+     * the last day the cadence asks for — so the spec failed on the owner's
+     * Sunday and passed every other day. MEASURED: the row read "Done this
+     * week" where this expected "1 of 1 this week".
+     *
+     * So the week LINE is accepted in either of the two shapes the product
+     * defines for a day-scheduled habit, and the check-in itself is asserted on
+     * the week strip, which names the day and its state and cannot drift with
+     * the weekday. That is the stronger of the two: the old assertion could be
+     * satisfied by a count with no square behind it.
      */
-    await expect(row).toContainText(/1 of [1-7] this week/);
+    await expect(row).toContainText(/(1 of [1-7] this week|Done this week)/);
+    await expect(row.getByTestId("habit-week-strip")).toContainText(/: done/);
 
     // The completion is a DURABLE FACT, not optimistic state.
     await page.reload();

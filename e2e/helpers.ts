@@ -607,6 +607,35 @@ export async function todayCompletedRow(
 }
 
 /**
+ * Today's rolling-week measures, with their disclosure open.
+ *
+ * TODAY-12 moved the week below the day's decisions and put it behind
+ * `<details class="dh-today__weekly">`, which renders CLOSED. That has two
+ * separate consequences, and a spec can trip over either:
+ *
+ *   - `innerText()` reflects RENDERED text, so every figure inside reads `""`;
+ *   - a closed `<details>`'s content is out of the ACCESSIBILITY TREE, so
+ *     `getByRole(…)` resolves to nothing inside it.
+ *
+ * `toContainText` is the one that still works, because it reads `textContent` —
+ * which is why `expect(summary).toContainText("Tasks completed")` passed on the
+ * same line that `summary.getByRole("link", { name: /Tasks completed/ })` did
+ * not find its link. Two specs hit the two halves independently.
+ *
+ * Opened by its SUMMARY, the owner's own way in, so what follows proves the
+ * measures are REACHABLE as well as right.
+ */
+export async function todayWeeklyMeasures(page: Page): Promise<Locator> {
+  const summary = page.getByTestId("today-summary");
+  const weekly = summary.locator("details.dh-today__weekly");
+  await expect(weekly).toBeAttached();
+  if (!(await weekly.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await weekly.locator("summary").click();
+  }
+  return summary;
+}
+
+/**
  * One of an open combobox's result options.
  *
  * ── Why the option is not inside the thing that opened it ───────────────────

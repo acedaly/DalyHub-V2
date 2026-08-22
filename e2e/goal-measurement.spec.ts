@@ -8,6 +8,7 @@ import {
   ownerToday,
   postSameOrigin,
   todayCompletedRow,
+  todayWeeklyMeasures,
   waitForInteractive,
 } from "./helpers";
 
@@ -432,7 +433,18 @@ test.describe("GOAL-02 — Today", () => {
      * measure the completion above just moved links there.
      */
     await expect(page.getByTestId("today-activity-trend")).toHaveCount(0);
-    const summary = page.getByTestId("today-summary");
+    /*
+     * V2.4-GATE-01 — open the disclosure the measures live in.
+     *
+     * TODAY-12 put the rolling week behind `<details class="dh-today__weekly">`,
+     * which renders CLOSED, so the link below was in the DOM and out of the
+     * accessibility tree — `toContainText` found the words on the line above
+     * (it reads `textContent`) and `getByRole("link", …)` found nothing on the
+     * line after. This failure was MASKED until now: the completion earlier in
+     * this same test was timing out on `check()` 30 seconds before execution
+     * ever reached here.
+     */
+    const summary = await todayWeeklyMeasures(page);
     await expect(summary).toBeVisible();
     await expect(summary).toContainText("Tasks completed");
     await expect(
