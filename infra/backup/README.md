@@ -42,6 +42,19 @@ A backup that stops working because a UI change was deployed is not a backup, so
 the backup lives on its own and shares nothing with the application but the
 database it reads.
 
+## Restoring one of these dumps
+
+**Read [`BACKUP_AND_RESTORE.md` § 5.0a](../../docs/development/BACKUP_AND_RESTORE.md)
+first.** The dumps in this bucket are `wrangler d1 export` output, and V2.4-GATE-01
+measured that such a dump **cannot** be loaded by a statement-by-statement
+executor with foreign keys enforced — the export emits its indexes last, so
+`entity_links`' composite foreign keys reference a parent key that is not yet
+unique when its rows arrive. It is a property of the export format, not of these
+objects, and it applies equally to the GitHub artifact. The working command, the
+measurement behind it, and the one thing that is still unmeasured (the remote
+import path) are all in that section and in
+[DEBT-199](../../docs/product/PRODUCT_DEBT.md).
+
 ## Why the dump is stored as plain SQL
 
 DalyHub's other production backup — the AUDIT-11 GitHub Actions artifact — is

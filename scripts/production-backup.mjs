@@ -22,6 +22,29 @@
  *             reproduces the original — and that the original's bytes do not
  *             appear inside the ciphertext. Recoverability is demonstrated on
  *             every single run, not assumed from a file extension.
+ *   rehearse  the step above proves the CIPHERTEXT round-trips. This one proves
+ *             the PAYLOAD is a database: decrypt the artifact, EXECUTE the SQL
+ *             into a throwaway SQLite file, and read the kernel tables back out
+ *             of it. See § "Why a round trip is not a recovery proof" below.
+ *
+ * ── Why a round trip is not a recovery proof (V2.4-GATE-01) ───────────────────
+ * `verify` answers "can this file be decrypted back to the bytes we encrypted?".
+ * That is necessary and it is not sufficient: the bytes it reproduces could be a
+ * dump that no database will load. `validate` narrows that with structural
+ * checks, but it is deliberately not a SQL parser (see its own docstring), so
+ * "every required CREATE TABLE appears and the last statement is terminated" is
+ * a shape check rather than a load.
+ *
+ * `rehearse` closes the gap the only way it can be closed — by restoring. It
+ * starts from the ENCRYPTED artifact and the key, exactly as the owner would on
+ * the day it matters, and finishes with rows read out of a database built from
+ * it. Nothing it touches is production: the target is a throwaway file in a
+ * scratch directory, created and deleted inside one command.
+ *
+ * `node:sqlite` is the engine, deliberately. It is Node's own standard library —
+ * no dependency, no licence question, and the same binary the rest of this
+ * pipeline already runs on — and D1 is SQLite, so a dump SQLite will not load is
+ * a dump D1 will not load either.
  *
  * ── Why GnuPG, and why not something bespoke ──────────────────────────────────
  * AGENTS.md §11 and the "no custom cryptography" rule both point the same way.
@@ -51,8 +74,12 @@
  *   node scripts/production-backup.mjs encrypt  --in dump.sql --out dump.sql.gpg \
  *                                               --passphrase-file key.txt
  *   node scripts/production-backup.mjs verify   --in dump.sql --encrypted dump.sql.gpg \
+ *                                               --passphrase-file key.txt \
+ *                                               --receipt recovery.json
+ *   node scripts/production-backup.mjs rehearse --encrypted dump.sql.gpg \
  *                                               --passphrase-file key.txt
- *   node scripts/production-backup.mjs metadata --encrypted dump.sql.gpg --in dump.sql \
+ *   node scripts/production-backup.mjs metadata --encrypted dump.sql.gpg \
+ *                                               --receipt recovery.json \
  *                                               --out metadata.json [--field k=v …]
  */
 
@@ -217,6 +244,28 @@ function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+/**
+ * A scratch directory that is removed on EVERY exit path.
+ *
+ * A `finally` alone is not enough here, and the gap is not theoretical:
+ * `fail()` calls `process.exit`, which does **not** run `finally` blocks. So a
+ * refusal partway through `verify` or `rehearse` — a tampered artifact, a dump
+ * that will not load — left the DECRYPTED production database sitting in the OS
+ * temp directory, which is exactly the plaintext this pipeline exists to keep
+ * from surviving a failure. An `exit` hook runs on both paths; the `finally`
+ * blocks stay as well, so the directory is gone the moment the command is done
+ * rather than at the end of the process.
+ *
+ * @param {string} prefix
+ */
+function makeScratch(prefix) {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  process.on("exit", () => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+  return dir;
+}
+
 function requireFile(path, what) {
   if (typeof path !== "string" || path.length === 0) {
     fail(`Missing --${what}.`);
@@ -323,7 +372,7 @@ function commandVerify(args) {
     );
   }
 
-  const scratch = mkdtempSync(join(tmpdir(), "dalyhub-backup-verify-"));
+  const scratch = makeScratch("dalyhub-backup-verify-");
   try {
     const roundTrip = join(scratch, "decrypted.sql");
     runGpg(
@@ -347,6 +396,280 @@ function commandVerify(args) {
     console.log(
       `Recovery proved: ${encrypted} decrypts to a byte-identical dump (sha256 ${after}).`,
     );
+    // The RECEIPT, and why it exists. `metadata` publishes
+    // `recoveryVerified: true`, and until V2.4-GATE-01 it published that claim
+    // unconditionally — it had no way to know whether this command had ever
+    // run. A metadata file that asserts a verification nobody performed is
+    // precisely the "proves a file exists rather than proving it is
+    // recoverable" failure the gate was raised to remove, and it would survive
+    // any edit that reordered or dropped the verify step.
+    //
+    // So the claim is now carried by evidence: this command writes the digests
+    // it actually computed, and `metadata` refuses to publish the claim without
+    // a receipt whose ciphertext digest matches the artifact in front of it.
+    writeReceipt(args.receipt, {
+      artifact: encrypted.split("/").pop(),
+      encryptedSha256: sha256File(encrypted),
+      plaintextSha256: after,
+      plaintextBytes: statSync(input).size,
+      encryptedBytes: statSync(encrypted).size,
+      roundTrip: "byte-identical",
+    });
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Write a verification receipt, when one was asked for.
+ *
+ * Optional so an operator running `verify` by hand on a downloaded artifact does
+ * not have to supply a path for a file they do not want. The pipeline always
+ * asks for one, and `metadata` will not publish a recovery claim without it.
+ *
+ * @param {unknown} path
+ * @param {Record<string, unknown>} receipt
+ */
+function writeReceipt(path, receipt) {
+  if (typeof path !== "string" || path.length === 0) return;
+  writeFileSync(path, `${JSON.stringify(receipt, null, 2)}\n`);
+  console.log(`Recovery receipt written: ${path}`);
+}
+
+/**
+ * The tables `rehearse` reads a row count out of after restoring.
+ *
+ * The kernel's own — a database in which these three cannot be queried is not a
+ * database DalyHub could be brought back on. `entities` additionally must be
+ * NON-EMPTY: a schema-only dump satisfies every structural check in this file
+ * and would restore a workspace containing nothing at all.
+ */
+export const REHEARSAL_COUNT_TABLES = ["workspaces", "entities", "activities"];
+
+/**
+ * Prove the artifact is a RESTORABLE DATABASE, not merely a decryptable file.
+ *
+ * Starts where a real recovery starts — the encrypted artifact plus the key —
+ * and ends with rows read out of a database built from it.
+ *
+ * ── Why this cannot be `wrangler d1 execute --file`, which is what the recovery
+ *    documentation used to say (V2.4-GATE-01, MEASURED) ──────────────────────
+ * It does not work, and it never did. A D1 export writes each table's DDL
+ * followed immediately by its data, and puts every `CREATE UNIQUE INDEX` at the
+ * END of the file. `entity_links` carries composite foreign keys —
+ * `REFERENCES entities (workspace_id, id)` — whose parent key is unique only
+ * because of `entities_workspace_id_key`, an index the dump does not create for
+ * another ~2,700 lines. SQLite therefore raises
+ *
+ *     foreign key mismatch - "entity_links" referencing "entities"
+ *
+ * on the first `INSERT INTO entity_links`, and stops. This is a SCHEMA error
+ * rather than a constraint violation, which is the part that makes it
+ * unavoidable: the `PRAGMA defer_foreign_keys=TRUE` the export itself emits on
+ * line 1 does NOT defer it — proven both inside a transaction and outside one —
+ * and `PRAGMA foreign_keys=OFF` inside the file is ignored, because D1 does not
+ * take that pragma from user SQL. See DEBT-199.
+ *
+ * The fix is the one every database's own restore uses: load with foreign-key
+ * enforcement OFF, then check integrity once the schema is whole. That is
+ * strictly stronger than enforcing statement by statement, because it asks
+ * whether the RESTORED DATABASE is intact rather than whether every
+ * intermediate state was.
+ *
+ * ── Why this is not the "one-click restore" BACKUP_AND_RESTORE.md § 5 refuses ─
+ * That refusal is about an automated PRODUCTION restore, and it stands. This
+ * command cannot perform one: it speaks to no network, holds no Cloudflare
+ * credential, takes no database name or account id, and writes only to a local
+ * SQLite file — a throwaway inside a scratch directory unless the caller names
+ * one with `--into`. There is no argument to this command that could name
+ * production, which is a stronger guarantee than a warning in a docstring.
+ *
+ * Counts are printed; contents never are. A row count is an operational fact
+ * about the backup; the row itself is the owner's private life.
+ */
+async function commandRehearse(args) {
+  // Imported HERE rather than at the top of the file, deliberately. The pure
+  // helpers in this module (`validateDumpText`, the cipher parameters, the
+  // required-table list) are imported directly by tests running under Vite,
+  // which refuses to bundle a Node built-in for a client environment — a
+  // top-level `node:sqlite` therefore broke the import of everything else in
+  // the file. A dynamic import keeps the module graph free of it until the one
+  // command that needs it actually runs.
+  const { DatabaseSync } = await import("node:sqlite");
+  const encrypted = requireFile(args.encrypted, "encrypted");
+  const passphraseFile = requireFile(
+    args["passphrase-file"],
+    "passphrase-file",
+  );
+  // `--into` keeps the restored database instead of discarding it, so a
+  // rehearsal can go on to BOOT the application against it — which is the half
+  // of "an untested restore is not a backup" that reading row counts cannot
+  // reach. Still a local SQLite file, still no network, still no credential.
+  const into = args.into;
+  if (into !== undefined && typeof into !== "string") {
+    fail("--into needs a file path.");
+  }
+
+  const scratch = makeScratch("dalyhub-backup-rehearse-");
+  try {
+    const restored = join(scratch, "restored.sql");
+    runGpg(
+      [
+        ...GPG_DECRYPT_ARGS,
+        "--passphrase-file",
+        passphraseFile,
+        "--output",
+        restored,
+        encrypted,
+      ],
+      { expectOutputAt: restored },
+    );
+
+    // Re-validated on the way OUT as well as on the way in. The dump that was
+    // checked before encryption and the dump that comes back out of the
+    // artifact are the same bytes only if nothing went wrong; asserting it here
+    // means the rehearsal is a complete proof on its own, runnable months later
+    // against a downloaded artifact by someone who has no access to the run
+    // that produced it.
+    const text = readFileSync(restored, "utf8");
+    const problems = validateDumpText(text);
+    if (problems.length > 0) {
+      for (const problem of problems) console.error(`::error::${problem}`);
+      fail("The decrypted dump failed structural validation.");
+    }
+
+    const databasePath =
+      typeof into === "string" && into.length > 0
+        ? into
+        : join(scratch, "rehearsal.sqlite");
+    // A restore is a REPLACEMENT. Loading a dump on top of an existing database
+    // would half-apply — `CREATE TABLE IF NOT EXISTS` silently no-ops while the
+    // plain `CREATE TABLE` statements the export also emits fail on "table
+    // already exists" — and leave something that is neither the old database nor
+    // the new one. Refuse rather than produce that.
+    if (databasePath !== join(scratch, "rehearsal.sqlite")) {
+      for (const suffix of ["", "-wal", "-shm"]) {
+        if (existsSync(`${databasePath}${suffix}`)) {
+          fail(
+            `--into must name a path that does not exist yet; found ${databasePath}${suffix}. A restore replaces a database, it does not merge into one.`,
+          );
+        }
+      }
+    }
+    // `enableForeignKeyConstraints: false`, and it is load-bearing rather than
+    // a relaxation. A D1 export opens with its own `PRAGMA
+    // defer_foreign_keys=TRUE` because it writes tables in schema order, so a
+    // child table is created and filled before its parent exists — that is what
+    // a dump IS, and `wrangler d1 execute --file` restores it on the same
+    // terms. `node:sqlite` turns foreign keys ON by default, and
+    // `defer_foreign_keys` defers only to the end of a transaction, so outside
+    // one it defers nothing: the very first restore attempt died on
+    // `foreign key mismatch - "entity_links" referencing "entities"`, which
+    // says nothing about the backup and everything about statement order.
+    //
+    // Enforcement is not dropped, it is MOVED — to `PRAGMA foreign_key_check`
+    // over the finished database below, which is the stronger question anyway
+    // ("is the restored database referentially intact?" rather than "was every
+    // intermediate state?") and is exactly what BACKUP_AND_RESTORE.md § 5.4
+    // asks an operator to run by hand after a real restore.
+    let database;
+    try {
+      database = new DatabaseSync(databasePath, {
+        enableForeignKeyConstraints: false,
+      });
+    } catch (error) {
+      // A `--into` naming a directory that does not exist, or one that cannot be
+      // written, is an operator mistake and deserves the same one-line refusal
+      // every other bad argument gets — not a stack trace out of the runtime.
+      fail(
+        `Could not open ${databasePath} as a database: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    try {
+      // The load itself. This is the assertion the structural checks cannot
+      // make: SQLite either accepts every statement in the dump or it throws.
+      try {
+        database.exec(text);
+      } catch (error) {
+        fail(
+          `The decrypted dump could not be restored into a database: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+
+      const present = new Set(
+        database
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+          .all()
+          .map((row) => String(row.name)),
+      );
+      const missing = REQUIRED_DUMP_TABLES.filter(
+        (table) => !present.has(table),
+      );
+      if (missing.length > 0) {
+        fail(
+          `The restored database is missing ${missing.length} required table(s): ${missing.join(", ")}.`,
+        );
+      }
+
+      const counts = [];
+      for (const table of REHEARSAL_COUNT_TABLES) {
+        // The table name is from this file's own frozen list, never from input.
+        const row = database
+          .prepare(`SELECT COUNT(*) AS n FROM ${table}`)
+          .get();
+        counts.push([table, Number(row?.n ?? 0)]);
+      }
+      const entities = counts.find(([table]) => table === "entities")?.[1] ?? 0;
+      if (entities === 0) {
+        fail(
+          "The restored database holds no entities. A schema-only dump passes every structural check and would restore an empty life.",
+        );
+      }
+
+      // Referential integrity of the RESTORED database, which is the property
+      // §5.4 of BACKUP_AND_RESTORE.md asks an operator to check by hand.
+      const violations = database.prepare("PRAGMA foreign_key_check").all();
+      if (violations.length > 0) {
+        fail(
+          `The restored database has ${violations.length} foreign-key violation(s).`,
+        );
+      }
+
+      console.log(
+        `Restore rehearsed: ${encrypted} decrypts, loads into ` +
+          `${typeof into === "string" && into.length > 0 ? into : "a throwaway SQLite database"}, ` +
+          `carries all ${REQUIRED_DUMP_TABLES.length} required tables and passes foreign_key_check.`,
+      );
+      console.log(
+        `  rows: ${counts.map(([table, n]) => `${table}=${n}`).join(" ")} (counts only; no content is read or printed)`,
+      );
+
+      // Countersign the verification receipt, when the caller keeps one. This is
+      // what lets the published metadata distinguish "this decrypts" from "this
+      // restores", rather than leaving both under one word.
+      if (typeof args.receipt === "string" && args.receipt.length > 0) {
+        const existing = existsSync(args.receipt)
+          ? JSON.parse(readFileSync(args.receipt, "utf8"))
+          : {};
+        const encryptedSha256 = sha256File(encrypted);
+        if (
+          existing.encryptedSha256 !== undefined &&
+          existing.encryptedSha256 !== encryptedSha256
+        ) {
+          fail(
+            "The recovery receipt describes a different artifact. Refusing to countersign it.",
+          );
+        }
+        writeReceipt(args.receipt, {
+          ...existing,
+          encryptedSha256,
+          rehearsed: true,
+          restoredRowCounts: Object.fromEntries(counts),
+        });
+      }
+    } finally {
+      database.close();
+    }
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
@@ -364,9 +687,28 @@ function commandVerify(args) {
  */
 function commandMetadata(args) {
   const encrypted = requireFile(args.encrypted, "encrypted");
-  const input = requireFile(args.in, "in");
+  const receiptPath = requireFile(args.receipt, "receipt");
   const output = args.out;
   if (typeof output !== "string" || output.length === 0) fail("Missing --out.");
+
+  // The receipt is what makes `recoveryVerified` a fact rather than a wish. It
+  // is cross-checked against the artifact actually in front of us, so a stale
+  // receipt from an earlier run cannot vouch for a different file.
+  let receipt;
+  try {
+    receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+  } catch {
+    fail(`The recovery receipt is not readable JSON: ${receiptPath}`);
+  }
+  const encryptedSha256 = sha256File(encrypted);
+  if (receipt?.encryptedSha256 !== encryptedSha256) {
+    fail(
+      "The recovery receipt does not describe this artifact. Refusing to publish an unproven recovery claim.",
+    );
+  }
+  if (typeof receipt?.plaintextSha256 !== "string") {
+    fail("The recovery receipt carries no plaintext digest.");
+  }
 
   const extra = {};
   for (const field of [].concat(args.field ?? [])) {
@@ -384,10 +726,14 @@ function commandMetadata(args) {
     artifact: encrypted.split("/").pop(),
     encryption: "gnupg-symmetric-aes256",
     encryptedBytes: statSync(encrypted).size,
-    encryptedSha256: sha256File(encrypted),
-    plaintextBytes: statSync(input).size,
-    plaintextSha256: sha256File(input),
+    encryptedSha256,
+    // From the RECEIPT, not recomputed from a plaintext file that may no longer
+    // be the one this artifact was made from — and by then may not exist at all,
+    // which is the correct end state for a plaintext production dump.
+    plaintextBytes: receipt.plaintextBytes,
+    plaintextSha256: receipt.plaintextSha256,
     recoveryVerified: true,
+    recoveryProof: receipt.rehearsed === true ? "decrypt+restore" : "decrypt",
     decryptCommand:
       "gpg --batch --decrypt --passphrase-file <your-recovery-key-file> <artifact> > dalyhub-production.sql",
     purpose:
@@ -409,6 +755,7 @@ const COMMANDS = {
   validate: commandValidate,
   encrypt: commandEncrypt,
   verify: commandVerify,
+  rehearse: commandRehearse,
   metadata: commandMetadata,
 };
 
@@ -422,5 +769,6 @@ if (process.argv[1]?.endsWith("production-backup.mjs")) {
       `Unknown command "${command ?? ""}". Expected one of: ${Object.keys(COMMANDS).join(", ")}.`,
     );
   }
-  run(readArgs(rest));
+  // Awaited: `rehearse` is async, because it imports `node:sqlite` on demand.
+  await run(readArgs(rest));
 }

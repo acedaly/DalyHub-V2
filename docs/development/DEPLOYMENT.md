@@ -916,6 +916,7 @@ than a surprise at deploy time.
 | Worker `dalyhub-v2-production` live on <https://hub.daly.id.au>; authenticated owner shell loads through Access; `workers.dev` returns 404 and Preview URLs disabled; D1 at `0001`–`0005` | 2026-07-18 | owner, at the first deployment |
 | The V2 Worker deployed and the V2 migration upgrade performed | 2026-08 | owner |
 | An unauthenticated `GET /health` answers `302` to the Cloudflare Access login — i.e. Access is protecting the hostname, and the endpoint is **not** publicly readable | 2026-08-11 | HARDEN-01, from an unauthenticated network |
+| The same, still true: `pnpm run verify:production` reports `https://hub.daly.id.au/health answered 302 — Cloudflare Access protecting the hostname, which is the intended configuration`. The origin is reachable and Access is intercepting. It says **nothing** about which release is running | 2026-08-22 | V2.4-GATE-01, unauthenticated and with no Cloudflare credentials |
 
 **What has NOT been verified from this repository, and remains owner action:**
 

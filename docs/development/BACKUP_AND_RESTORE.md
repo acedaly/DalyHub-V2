@@ -43,6 +43,13 @@ case where there is no working database to restore *into*. If you use one, the
 sequence is: restore the dump into D1 → bring the application back → take a
 DalyHub backup from Settings so you have a canonical one again.
 
+> **Read § 5.0a before restoring a D1 dump.** V2.4-GATE-01 rehearsed the D1
+> recovery path for the first time and found that a dump cannot be loaded by a
+> statement-by-statement executor with foreign keys enforced. It is a property
+> of every D1 export, it has a one-line cause, and the working command is there.
+> This paragraph exists because the instruction that used to be in § 5.2 had
+> never been run.
+
 ### Why there are two D1 dumps, and why that is deliberate
 
 They live in **different trust boundaries**, which is the entire point. The R2
@@ -299,6 +306,80 @@ owner's life.
 | You need a **specific known-good day**, the damage is older than Time Travel's window, or the database is gone entirely | **An R2 SQL dump** (§5.2). |
 | **Cloudflare itself** is the problem — the account is lost, compromised or unreachable | **The GitHub artifact** (§5.3). |
 
+### 5.0a A D1 dump will not load with foreign keys enforced — MEASURED
+
+This is the single most important operational fact in this document, and it was
+discovered by *doing* the rehearsal § 5.5 records rather than by reading the
+pipeline.
+
+**The mechanism.** A D1 export writes each table's DDL followed immediately by
+its rows, and emits every `CREATE [UNIQUE] INDEX` at the **end** of the file.
+`entity_links` carries composite foreign keys —
+
+```sql
+CONSTRAINT entity_links_source_fk
+  FOREIGN KEY (workspace_id, source_entity_id)
+  REFERENCES entities (workspace_id, id) ON DELETE RESTRICT
+```
+
+— whose parent key is unique only because of `entities_workspace_id_key`, an
+index the dump does not create for another ~2,700 lines. SQLite therefore raises
+
+```
+foreign key mismatch - "entity_links" referencing "entities"
+```
+
+on the **first** `INSERT INTO entity_links`, and stops.
+
+**Why the export's own pragma does not save it.** Line 1 of every D1 dump is
+`PRAGMA defer_foreign_keys=TRUE;`. `foreign key mismatch` is a **schema** error,
+not a constraint violation, so deferral does not apply to it — verified in and
+out of an explicit transaction. `PRAGMA foreign_keys=OFF` inside the file does
+not help either: D1 does not take that pragma from user SQL.
+
+**What was measured, on 2026-08-22, against a real `wrangler d1 export` of a
+migrated and seeded database (49 migrations, head `0047`, 325 entities):**
+
+| Restore attempt | Result |
+| --- | --- |
+| `wrangler d1 execute … --local --file=dump.sql` | **fails** — `foreign key mismatch` |
+| the same with `PRAGMA foreign_keys=OFF;` prepended | **fails** identically |
+| the same wrapped in `BEGIN; … COMMIT;` | **fails** identically |
+| loaded with foreign-key enforcement off, then `PRAGMA foreign_key_check` | **succeeds**, 0 violations |
+
+**What was NOT measured, and must not be assumed either way:** the **remote**
+path, `wrangler d1 execute … --remote --file=…`, which goes through Cloudflare's
+D1 import endpoint rather than executing statements locally. It may well handle
+this — Cloudflare designs export and import as a pair — but this repository has
+no Cloudflare credentials and therefore no evidence, and a recovery document is
+the last place to write down a guess. Recorded as
+[DEBT-199](../product/PRODUCT_DEBT.md), with the exact owner command that would
+settle it.
+
+**The working restore**, and the one the pipeline's own nightly proof now runs:
+
+```sh
+# Decrypt (GitHub artifact) or download (R2), then restore with the enforcement
+# moved to the end, where it belongs — the question worth asking is whether the
+# RESTORED database is intact, not whether every intermediate state was.
+node scripts/production-backup.mjs rehearse \
+  --encrypted dalyhub-v2-production-<stamp>.sql.gpg \
+  --passphrase-file /path/to/recovery-key.txt \
+  --into recovered.sqlite
+```
+
+It decrypts, re-validates the dump structurally, loads it into
+`recovered.sqlite` with `foreign_keys` off, asserts every required kernel and
+sensitive-module table is present, asserts the database is **not empty**, and
+runs `PRAGMA foreign_key_check` over the finished result. It reads **row counts
+only** and never prints content. It speaks to no network, holds no Cloudflare
+credential, and takes no argument that could name a real database — so it is not
+the automated production restore § 5 refuses, and cannot become one.
+
+`recovered.sqlite` is an ordinary SQLite file. For a **local** recovery it can be
+put in place directly (§ 5.5); for a **remote** one it is the artefact to verify
+against before touching production at all.
+
 ### 5.1 Recent incident — D1 Time Travel
 
 D1 keeps a restorable history of the database for 30 days, with no backup file
@@ -393,6 +474,16 @@ npx wrangler d1 create dalyhub-v2-recovered
 npx wrangler d1 execute dalyhub-v2-recovered --remote --file=dalyhub-production.sql
 ```
 
+> **Prove the dump loads before you get here** — § 5.0a. This step used to be
+> stated as a certainty and had never been run. Restore the dump locally first
+> (`node scripts/production-backup.mjs rehearse … --into recovered.sqlite`),
+> which takes seconds and tells you whether you are holding a database or a
+> file. If the `--remote` command above fails with `foreign key mismatch`, that
+> is § 5.0a and **not** a problem with your backup: the payload is intact and the
+> executor is the problem. Record the outcome against
+> [DEBT-199](../product/PRODUCT_DEBT.md) either way — it is the one observation
+> this repository cannot make for itself.
+
 **6. Point the Worker at the recovered database** by supplying its id as
 `CLOUDFLARE_D1_DATABASE_ID`, deploy, and check `/health`.
 
@@ -474,6 +565,89 @@ version). The passphrase is a single secret.
   `production` → secret **`BACKUP_ENCRYPTION_PASSPHRASE`**. It is used by the
   workflow and by nothing else. It is never printed, never passed on a command
   line, never written into the artifact or its metadata.
+
+### Setting it for the first time — the one owner action
+
+> **This is the whole of [DEBT-198](../product/PRODUCT_DEBT.md).** The secret has
+> never been set, so the nightly job has failed at its first guard every night
+> since it was written and **no infrastructure disaster-recovery copy of the
+> production database exists**. The workflow is behaving correctly by refusing to
+> export data it cannot encrypt; nothing in the repository can fix it, because
+> the secret and the off-GitHub copy of it are owner-held by design. Everything
+> else V2.4-GATE-01 could do is done, and this is what remains.
+
+**1. Generate a key.** 64 characters, from a CSPRNG, on a machine you control:
+
+```sh
+openssl rand -base64 48
+```
+
+Do not shorten it: the workflow refuses anything under 32 non-whitespace
+characters, because this passphrase is the only thing between a stolen artifact
+and the owner's entire life. Do not reuse an existing password, and do not let it
+touch a shell history file you keep (`  openssl …` with a leading space, or a
+password manager's own generator, both avoid that).
+
+**2. Put a copy somewhere that does not depend on GitHub** — a password manager,
+labelled with today's date. Do this **before** step 3. A key that exists only
+inside the system it protects is not a recovery key, and every artifact taken
+under it becomes unreadable the moment that system is the thing that is gone.
+
+**3. Set the secret.** GitHub → the repository → **Settings** → **Environments**
+→ **`production`** → **Add secret**:
+
+| | |
+| --- | --- |
+| Name | `BACKUP_ENCRYPTION_PASSPHRASE` |
+| Value | the string from step 1, with no surrounding whitespace |
+
+It must be an **environment** secret on `production`, not a repository secret:
+the workflow's job declares `environment: production`, and that is what puts the
+value behind whatever protection rules the environment carries.
+
+**4. Run it by hand and watch it finish.** GitHub → **Actions** → **Production
+D1 backup** → **Run workflow**. A manual dispatch takes byte-identical steps to
+the scheduled run, so this proves the nightly one.
+
+Expect the job to reach and pass, in order:
+
+```
+Refuse to run without an encryption key   → "Encryption key is present and long enough."
+Export, validate, encrypt and verify      → "Recovery proved: … decrypts to a byte-identical dump"
+                                          → "Restore rehearsed: … passes foreign_key_check"
+Refuse to upload anything unencrypted     → "Upload contents verified"
+Upload encrypted backup artifact          → dalyhub-v2-production-d1-<stamp>-<sha>
+```
+
+**5. Prove you can read it.** Download the artifact, and decrypt it with the copy
+of the key from step 2 — the copy, not the one in GitHub, because what is being
+tested is that the off-GitHub key works:
+
+```sh
+gpg --batch --decrypt --passphrase-file /path/to/recovery-key.txt \
+  dalyhub-v2-production-<stamp>.sql.gpg > dalyhub-production.sql
+sha256sum dalyhub-production.sql     # compare with metadata.json's plaintextSha256
+```
+
+**6. Prove it restores**, which is not the same claim (§ 5.0a):
+
+```sh
+node scripts/production-backup.mjs rehearse \
+  --encrypted dalyhub-v2-production-<stamp>.sql.gpg \
+  --passphrase-file /path/to/recovery-key.txt
+```
+
+**7. Check the other backup is healthy too**, since it is the one to reach for
+first in an ordinary disaster:
+
+```sh
+source .production.env
+pnpm run backup:verify              # the LIVE R2 configuration
+pnpm run db:production:backup:list  # must report a non-zero result
+```
+
+Then delete `dalyhub-production.sql`. It is the owner's entire life in plain
+text.
 - **Owner-held copy: REQUIRED, and off GitHub.** Keep it in a password manager or
   another place you control that does not depend on GitHub being available. The
   key must not live inside the thing it protects, and it must not live only in
@@ -602,9 +776,10 @@ One pipeline, `scripts/production-backup.mjs`, used identically by the scheduled
 and the manually dispatched run — there is no "secure scheduled backup, insecure
 manual backup" split.
 
-1. **Refuse early.** If `BACKUP_ENCRYPTION_PASSPHRASE` is absent, the job fails
-   *before* the database is read. Discovering it after the export has written the
-   owner's database to the runner is too late.
+1. **Refuse early.** If `BACKUP_ENCRYPTION_PASSPHRASE` is absent — or is shorter
+   than 32 non-whitespace characters, which a key made of spaces is — the job
+   fails *before* the database is read. Discovering it after the export has
+   written the owner's database to the runner is too late.
 2. **Export** through the same audited wrapper the owner uses by hand
    (`scripts/production-d1.mjs`), to a scratch directory that is **never** the
    upload path.
@@ -614,17 +789,39 @@ manual backup" split.
 4. **Encrypt** with GnuPG AES-256, passphrase read from a file written under
    `umask 077` — never from `argv` (world-readable through `/proc`) and never
    interpolated into a shell string.
-5. **Prove recovery.** Decrypt the artifact back and compare SHA-256 with the
-   original, and assert the plaintext does not appear inside the ciphertext.
+5. **Prove the bytes come back.** Decrypt the artifact and compare SHA-256 with
+   the original, and assert the plaintext does not appear inside the ciphertext.
    Every night. Recoverability is demonstrated, not inferred from a file
-   extension.
-6. **Write non-sensitive metadata** — sizes, digests, run identity, the decrypt
+   extension. The digests are written to a **receipt** in the scratch directory —
+   see step 7.
+6. **Prove the bytes LOAD** — V2.4-GATE-01. Step 5 answers *"can this be
+   decrypted?"*, which is not the same question as *"is this a database?"*, and
+   step 3 is deliberately a shape check rather than a SQL parser. `rehearse`
+   starts from the encrypted artifact and the key, exactly as a real recovery
+   does, executes the dump into a throwaway SQLite file inside the scratch
+   directory, asserts every required table is present, asserts the database is
+   **not empty** (a schema-only export passes every check above it and would
+   restore a life containing nothing), and runs `PRAGMA foreign_key_check` over
+   the result. Row **counts** are logged; row content never is.
+7. **Write non-sensitive metadata** — sizes, digests, run identity, the decrypt
    command. A SHA-256 is one-way, so publishing the plaintext digest lets a
-   future decryption be checked without disclosing anything.
-7. **Refuse to upload** if the artifact directory contains anything unencrypted,
-   if the metadata is missing, or if the metadata names a credential field.
-8. **Clean up** the plaintext and the key file in a trap that runs even on
-   failure.
+   future decryption be checked without disclosing anything. `recoveryVerified`
+   used to be a **constant in the writer**: it asserted a verification the script
+   had no way to know had happened, and would have gone on asserting it through
+   any edit that dropped steps 5–6. It is now carried by the receipt those steps
+   write, cross-checked against the artifact's own digest, and the file is
+   refused without one. `recoveryProof` states which proof was actually run —
+   `decrypt` or `decrypt+restore`.
+8. **Refuse to upload** anything that is not one of the two files this artifact
+   may contain. An **allow-list** (`*.sql.gpg`, `metadata.json`), not a
+   deny-list: the previous rule refused `*.sql`, `*.json` and `*.zip`, so a
+   plaintext dump named `dump.txt` or `dump.bak`, or with no extension at all,
+   walked past it into a thirty-day artifact. The metadata must exist, and must
+   not name a credential field.
+9. **Clean up** the plaintext, the key file and the receipt in a trap that runs
+   on `EXIT`, `INT` **and** `TERM` — a cancelled job signals the step rather than
+   letting it exit, and that is the one case where the owner's whole database
+   would otherwise sit in plaintext on a runner nobody is watching.
 
 Nothing prints backup contents. Every log line is a file name, a byte count or a
 digest.

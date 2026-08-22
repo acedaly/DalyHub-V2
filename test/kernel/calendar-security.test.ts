@@ -13,7 +13,7 @@
  */
 
 import { env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import {
   EncryptionKeyUnavailableError,
@@ -259,6 +259,33 @@ describe("the bounded, guarded feed fetch", () => {
 });
 
 describe("the scheduled refresh", () => {
+  /**
+   * Load the composition boundary BEFORE the timed assertions — V2.4-GATE-01.
+   *
+   * `runScheduledCalendarRefresh` reaches the workspace through
+   * `await import("~/platform/workspaces")`, a dynamic import the handler makes
+   * deliberately so the cron entry point does not pull every repository in the
+   * product into module scope. The first caller therefore pays for compiling
+   * that whole graph, and in this file the first caller is a test with the
+   * default five-second budget.
+   *
+   * Which made the result depend on what else had run. MEASURED on this branch:
+   * the full kernel suite is green — some earlier file has already loaded the
+   * boundary — while `vitest run test/kernel/calendar-security.test.ts` on its
+   * own times out at 5,000 ms, and the same call completes in ~5.7 s when given
+   * room. A test whose outcome is decided by its neighbours is not measuring
+   * the thing it names, and it is the reason this file has a history of being
+   * called environment-dependent (DEBT-179).
+   *
+   * The fix is not a bigger number: the assertions below keep the default
+   * budget, and what moves is the one-time module compilation, out of the
+   * measurement and into setup where it belongs. If the handler ever becomes
+   * genuinely slow, these tests still fail.
+   */
+  beforeAll(async () => {
+    await import("~/platform/workspaces");
+  });
+
   it("does nothing, quietly, when no encryption key is configured", async () => {
     const summary = await runScheduledCalendarRefresh({
       DB: env.DB,
