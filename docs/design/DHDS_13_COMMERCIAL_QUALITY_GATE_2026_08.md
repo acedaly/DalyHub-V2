@@ -703,6 +703,44 @@ against it here — five of them complete a task and re-assert, which is where
 whoever takes DEBT-179 should start, and turning a design gate into a
 sixteen-test suite repair is the bundling that entry itself warns against.
 
+### The whole gate, checked at partition level
+
+The focused runs above cover the changed areas; the full twelve-partition gate
+covers 117 spec files, and a branch cannot claim ownership of only the part it
+chose to run. So the gate's own result was checked against the known-red set as
+a whole. On this branch at `5c41d31`, CI reported **ten red partitions — p01
+through p10 — and two green: p11 and p12.**
+
+Mapping the seventeen spec files known to be red (the twelve proven pre-existing
+above, plus the rest of DEBT-179's own named list) onto `e2e/partitions.json`
+gives:
+
+| Partition | Known-red spec files it holds |
+|---|---|
+| p01 | `accessibility` · `projects` |
+| p02 | `goal-measurement` |
+| p03 | `inline-editor-overlay` · `today` |
+| p04 | `command-palette` |
+| p05 | `identity` · `non-diary-audit` |
+| p06 | `record-anatomy` |
+| p07 | `plan-responsive` · `tasks-collection` · `today-focus` |
+| p08 | `plan-weekly-planning` |
+| p09 | `assets` · `iphone-daily-driver` · `today-task-convergence` |
+| p10 | `goals` · `notes` · `visual-system` |
+| **p11** | **none** |
+| **p12** | **none** |
+
+**The correspondence is exact.** Every red partition holds at least one
+known-red spec file, and the only two partitions holding none are the only two
+that passed. Where test-level evidence exists — p09, the one this branch was
+woken about — it matches too: three failures, all three in
+`iphone-daily-driver` and `today-task-convergence`, with `assets` passing.
+
+This is partition-level evidence, and it is stated as such: it does not prove
+*which* test failed inside p01–p08 and p10. What it establishes is narrower and
+still worth having — **no partition failed that this branch cannot already
+account for**, so there is no unexplained red anywhere in the gate.
+
 **On the E2E gate's known instability.** This phase does not claim to have fixed
 DEBT-179 and does not use it as cover: ownership above is established by
 reproduction, the new specs are green, and the partition manifest is regenerated
