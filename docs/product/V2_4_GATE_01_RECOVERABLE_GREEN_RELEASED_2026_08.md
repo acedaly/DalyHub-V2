@@ -301,7 +301,55 @@ produces, never the projection it used to.
 
 ### 3.5 The gate under two states
 
-*(Filled in from the runs — see § 3.7.)*
+The acceptance asks for the suite under a **fresh** workspace and under an
+**accumulated** one, because a suite that only passes when run a test at a time
+is not a green suite — it is a green rehearsal.
+
+#### The three failures that only a developer machine could produce
+
+Running the repaired specs locally surfaced three that had failed in **no** CI
+run at all:
+
+| Spec | Symptom |
+| --- | --- |
+| `notes-knowledge.spec.ts:536` | `getByRole("option", { name: /Notes e2e note record-link-target-…/ })` never appears |
+| `notes-knowledge.spec.ts:584` | the same option, timing out on `click` |
+| `dhds-11-drag-reorder.spec.ts:481` | the many-buckets drag never resolves its destination |
+
+The tempting reading is "local flake, ignore it". The measurement says
+something else, and it is worth stating because it is the exact shape of the
+mistake this whole item exists to stop.
+
+**The variable was the DATABASE, not the code.** The local D1 had accumulated
+**622 active entities** across repeated gate rehearsals — 491 of them Tasks. A
+wipe and reseed put it at **325**, and all three passed first time
+(19.8 s / 20.5 s / 24.2 s). Both halves of that are counted, not asserted:
+
+```
+active entities, accumulated local D1 : 622   (task 491, project 86, goal 20, …)
+active entities, freshly seeded       : 325   (task 212, project 83, area 11, …)
+```
+
+For the two `notes-knowledge` journeys the mechanism is exact, and it is a real
+product defect rather than a test artefact.
+[`searchLinkTargets`](../../app/platform/entity-links/entity-link-picker-service.ts)
+scans **at most five pages of 100** and
+[`D1EntityRepository.list`](../../app/platform/storage/d1/d1-entity-repository.ts)
+orders `created_at ASC` — so the picker only ever sees a workspace's **500
+oldest** entities. At 622 a note created seconds ago is past the horizon, and
+the picker reports it as nonexistent. That is
+[**DEBT-201**](PRODUCT_DEBT.md#-debt-201--both-record-pickers-stop-seeing-a-workspace-at-its-500th-record-and-say-nothing--p2),
+raised rather than fixed: the seam documents the bound as DS-08's to remove, and
+replacing a search architecture is not what *"make main green and release
+2.4.0"* means. The third is the same cause without the sharp edge — that test's
+own comment describes *"ninety-odd Tasks"* and the local page was carrying 491,
+so the pointer loop's hit test and re-render ran past the step timeout.
+
+So the honest classification is **environment dependence**, on a database
+mutated by many *separate* gate runs — which is not the accumulated state the
+acceptance means. That state is one complete partition sequence, and it is
+measured below. The distinction matters: had these been waved off as flake, a
+genuine P2 would have gone unrecorded.
 
 ### 3.6 The partition manifest
 
