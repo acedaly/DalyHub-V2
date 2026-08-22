@@ -304,6 +304,29 @@ test.describe("TASKS-03 — filtering", () => {
     await controls.choose("due", "overdue");
     await controls.commit();
 
+    /*
+     * "Two APPLIED filters" is this test's own title, and it had been assuming
+     * it rather than asserting it. On a pointer viewport the controls apply
+     * LIVE, so `commit()` is a no-op and the second choice's write may still be
+     * in flight here. A chip is a `<Link>` whose destination was fixed at its
+     * last render, so clicking one in that window follows a target composed
+     * before the second filter existed — which removes both.
+     *
+     * MEASURED on CI run 32602831529 (p07): the URL after the click was
+     * `/tasks?group=due_state`, with `due=overdue` gone as well as `priority=p1`.
+     * The product is not at fault — `useAppliedParams` puts the pending write
+     * into what the chips read, so a person one frame later sees the right
+     * destination — but Playwright clicks inside a frame, and a test that races
+     * its own precondition is not testing removal.
+     *
+     * The sibling journey above already waits for both parameters before going
+     * on; this one now does the same. Nothing is weakened: if the two filters
+     * genuinely failed to combine, this is where it fails, and it fails LOUDER
+     * than a downstream expectation about what survived a removal.
+     */
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+
     await page
       .getByRole("link", { name: /^Remove filter Priority: P1$/ })
       .click();

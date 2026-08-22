@@ -122,10 +122,21 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
   });
 
   test("Automatic gives the derived colour back", async ({ page }) => {
-    await openPicker(page);
+    const trigger = await openPicker(page);
     await page.getByRole("button", { name: "Fuchsia", exact: true }).click();
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
+    /*
+     * The dialog closing proves NOTHING about the save. `AreaSettingsTab` fires
+     * `void onSetIdentity(next)` and the picker closes on the same tick, so
+     * navigating here can abandon a request that was still in flight — which is
+     * what made this journey fail on CI run 32602831529 (p05) and pass on every
+     * run before it. The trigger's label is rendered from the LOADER's value,
+     * not from a draft, so waiting for it to read "Fuchsia" is the outcome
+     * assertion: the write landed and the route re-read it. That is what the
+     * first journey in this file already does, and this one had skipped.
+     */
+    await expect(trigger).toContainText("Fuchsia");
     await gotoFixture(page, "/areas");
     await expect(
       page
@@ -137,12 +148,16 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
     // Back to Automatic. The record must return to the colour its RANK gives
     // it — which is the colour it had before anyone chose anything — rather
     // than to no colour at all.
-    await openPicker(page);
+    const revertTrigger = await openPicker(page);
     const automatic = page.getByRole("button", { name: /^Automatic/ });
     await expect(automatic).toBeVisible();
     await automatic.click();
     await page.getByRole("button", { name: "Apply" }).click();
 
+    // Same again for the revert — and here the wait is load-bearing twice over,
+    // because the assertion below is that the slot is NOT fuchsia, which an
+    // abandoned save would satisfy by accident.
+    await expect(revertTrigger).toContainText("Automatic");
     await gotoFixture(page, "/areas");
     const mark = page
       .getByRole("article", { name: AREA_TITLE })

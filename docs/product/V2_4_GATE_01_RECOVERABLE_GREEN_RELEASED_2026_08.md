@@ -351,6 +351,57 @@ acceptance means. That state is one complete partition sequence, and it is
 measured below. The distinction matters: had these been waved off as flake, a
 genuine P2 would have gone unrecorded.
 
+#### The last three on CI, and one race that was NOT a product defect
+
+Run [`32602831529`](https://github.com/acedaly/DalyHub-V2/actions/runs/32602831529)
+at `047a5ca` — 55 failures down to **3**, nine of twelve partitions green, and
+`Static`, `Scope`, `Unit` and `Build` all green.
+
+| Partition | Test | Cause |
+| --- | --- | --- |
+| p02 | `habits.spec.ts:199` | the weekday dependence in § 3.4 — the run landed on the owner's Sunday |
+| p05 | `identity.spec.ts:124` | a save the test never waited for |
+| p07 | `tasks-collection.spec.ts:298` | a precondition the test asserted downstream of the thing that needed it |
+
+**`identity.spec.ts:124`** — `AreaSettingsTab` commits an identity with `void
+onSetIdentity(next)` and the picker's dialog closes on the same tick, so
+`toBeHidden()` on the dialog proves nothing about the write. The journey then
+navigated to `/areas` immediately, which can abandon the request in flight. The
+trigger's label is rendered from the **loader's** value rather than from a
+draft, so waiting for it to read "Fuchsia" is an outcome assertion: the write
+landed and the route re-read it. The first journey in the same file already did
+exactly this; this one had skipped it. Both the choose and the revert now wait,
+and the revert's wait is load-bearing twice over — the assertion after it is
+that the slot is *not* fuchsia, which an abandoned save would satisfy by
+accident.
+
+**`tasks-collection.spec.ts:298`** — the committed URL was
+`/tasks?group=due_state`, with **both** filters gone. That is the exact
+signature `use-applied-params.ts` documents, so the first suspicion was that
+V2.3-GATE-01's fix had a residual window: `useAppliedParams` clears its
+remembered write during render whenever the router is not loading, and that
+test cannot distinguish *not started yet* from *already finished*.
+
+**That suspicion was wrong, and it was measured rather than assumed.** A new
+unit test drives both choices in one synchronous block, with no wait between —
+the gap the existing test skips over by waiting for `loading` — and the write
+still carries both filters, because the router dispatches `loading` in the same
+batch as the `setSearchParams` that caused it. No render ever sees the
+idle-but-pending state. The test is kept: it is what would fail if that
+batching changed.
+
+The real cause is in the test. A filter chip is a `<Link>` whose destination was
+fixed at its last render, and on a pointer viewport the controls apply LIVE, so
+`commit()` is a no-op and the second choice's write may still be in flight when
+the journey clicks "Remove filter Priority: P1". Following a destination
+composed before the second filter existed removes both. A person one frame later
+is fine — the chips read `applied`, which includes the pending write — but
+Playwright clicks inside a frame. "Two **applied** filters" is the test's own
+title and it was assuming rather than asserting it; it now waits for both
+parameters first, as the sibling journey above it already did. That is a
+**race** in the test, not a defect in the product, and calling it the other way
+would have meant changing working code.
+
 ### 3.6 The partition manifest
 
 *(Filled in from the measurement — see § 3.7.)*

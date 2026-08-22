@@ -119,6 +119,59 @@ describe("collection controls — live apply", () => {
     first.open();
   });
 
+  it("composes a second choice made before the router has even STARTED the first", async () => {
+    /*
+     * V2.4-GATE-01 — the half of the window the test above does not cover, and
+     * the answer to a question its absence left open.
+     *
+     * That one waits for `target` to show the first write, which means it waits
+     * for the router to report `state === "loading"`. Nothing waits for that in
+     * real use, so the obvious worry is the gap between `record()` and the
+     * router picking the navigation up: in that gap `useAppliedParams` sees an
+     * IDLE router, and its render-time clear cannot tell "not started yet" from
+     * "already finished". If it dropped the remembered write there, the second
+     * choice would compose over the committed state and delete the first — the
+     * exact defect this file exists for.
+     *
+     * It does not. Both clicks here are in one synchronous block with no wait
+     * between them, and the write still carries both. The gap is not observable
+     * because the router dispatches `loading` in the same batch as the
+     * `setSearchParams` that caused it, so no render ever sees the idle-but-
+     * pending state. This test is here to keep it that way: it is the assertion
+     * that would fail if that batching ever changed, and it was written because
+     * a CI failure made the question worth answering rather than assuming.
+     */
+    const first = gate();
+    let loads = 0;
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/tasks",
+          loader: async ({ request }) => {
+            loads += 1;
+            if (loads === 2) await first.held;
+            return new URL(request.url).searchParams.toString();
+          },
+          Component: Collection,
+        },
+      ],
+      { initialEntries: ["/tasks"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    fireEvent.click(await screen.findByTestId("collection-filter-trigger"));
+    fireEvent.click(screen.getByTestId("collection-popover-priority-p1"));
+    fireEvent.click(screen.getByTestId("collection-popover-due-overdue"));
+
+    const target = await screen.findByTestId("target");
+    await waitFor(() => {
+      expect(target).toHaveTextContent("priority=p1");
+      expect(target).toHaveTextContent("due=overdue");
+    });
+
+    first.open();
+  });
+
   it("returns to the committed state once the router settles", async () => {
     const router = createMemoryRouter(
       [
