@@ -4485,3 +4485,153 @@ them tells the truth.**
 
 The full record is
 [`DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md`](../design/DHDS_11_DRAG_REORDER_AND_OBJECT_CONTINUITY_2026_08.md).
+
+---
+
+## ADR-110: Follow-through is DERIVED from the Activity stream, never stored — one period account, no adherence score, and no snapshot table for a plan or a Goal
+
+- **Status:** Accepted (2026-08-22, defining [V2.4](../roadmap/ROADMAP_V2_4.md))
+
+- **Context.** V2.3 gave DalyHub a commitment model: a Task's `scheduled_date` is
+  the plan ([ADR-030](#adr-030-task-planning--the-scheduled-date-as-commitment-atomic-single--bulk-mutations-and-planning-activity),
+  [ADR-101](#adr-101-weekly-planning-is-a-projection-not-a-record--the-owners-calendar-week-a-named-band-queue-and-one-declarative-filter-vocabulary-with-two-consumers)),
+  a Habit is a behaviour with an effective-dated schedule
+  ([ADR-102](#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks)),
+  and a Goal's progress is derived and never cached. What it did not give the
+  product is any statement of **what became of a commitment**: `/plan` shows the
+  week ahead, Today shows the day, and the Review reports completions — but
+  nothing says how much of what was planned happened on the day it was planned
+  for, and for a Goal without a numeric target nothing says whether it moved at
+  all. V2.4 closes that gap.
+
+  There are two obvious ways to build it, and the obvious one is wrong. A
+  "planned week" table, a per-Goal progress snapshot and a stored adherence
+  percentage would each make one screen easy — and each would create a **second
+  record of a fact the system already holds**, which then has to be written on
+  every mutation path, reconciled when it drifts, migrated when the shape changes,
+  exported, restored, and kept honest across a timezone boundary. DalyHub has
+  refused that trade four times already (TASKS-13's checklist progress, TASKS-12's
+  derived `blocked` state, PROJECT-02's template provenance, and Goal contribution
+  itself), and [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--narrowed-2026-08-09-by-goal-02)
+  already wrote the instruction down in advance: *"Do NOT add a snapshot table
+  first — the Activity stream is already the historical record."*
+
+  The facts are in fact all present. `task.planned`, `task.rescheduled`,
+  `task.plan_cleared` and `task.completed` are existing kernel activity types with
+  the indexes a window query needs; `habit_completions` is keyed by the
+  owner-local date; REVIEW-03 already derives exact period facts from the same
+  stream and already stores exactly **one** period artefact, its versioned insight
+  snapshot, captured on Review completion for period-over-period comparison.
+
+  There is also a product force, and it is the stronger of the two. DalyHub's
+  philosophy is explicit that the product *"reduces anxiety, not manufactures
+  it — no manufactured streaks, no guilt mechanics"*
+  ([`AGENTS.md` §2.4](../../AGENTS.md#2-product-philosophy)), and HABITS-01 made
+  that structural rather than stylistic: there is no flame, no chain and no day
+  count anywhere in Habits, and [ADR-104](#adr-104-the-planning-week-is-a-board-and-a-habit-may-state-one-proportion--two-decisions-re-taken-on-fresh-measurements-superseding-adr-101-10-and-adr-102-8)
+  narrowed that ban to admit exactly one proportion, only because it carries its
+  denominator, its window and its refusal to count an unscheduled day. A
+  "plan adherence score" is precisely the thing those decisions exist to prevent:
+  one number, no denominator, over an arbitrary window, that turns a week into a
+  grade.
+
+- **Decision.**
+
+  1. **Follow-through is derived, never stored.** The account of a period — what
+     was planned, what was kept on its planned day, what moved and how often, what
+     was cleared, what was never placed — is computed from the append-only
+     Activity stream inside a **bounded window**, at read time. No `plan_weeks`
+     table, no `plan_snapshots`, no per-Task adherence column and no cached
+     aggregate.
+
+  2. **Goal movement is derived the same way**, by a bounded Activity query over
+     the Goal's contributing Project ids within the window — not by a
+     `goal_snapshots` table and not by differencing a cached rollup.
+
+  3. **REVIEW-03's insight snapshot stays the ONLY stored period artefact**, and
+     stays what it already is: captured on Review completion, versioned,
+     fail-closed on an unknown version, and read for period-over-period comparison
+     only. Widening its stored shape is a change to *that* decision and needs its
+     own ADR; adding a second period artefact beside it is forbidden here.
+
+  4. **No score, no grade, no streak.** A period account states counts with their
+     denominators, in the product's own nouns, in words. It does not produce a
+     percentage of plan kept, a weekly grade, a chain, a streak, a "productivity"
+     figure, or any ranking of one period against another. The single proportion
+     ADR-104 allows remains the only proportion in the product, and it is a Habit
+     consistency figure with its own denominator printed beside it — not a
+     precedent for scoring a week.
+
+  5. **A window is always named, and a period that has not happened is never
+     counted.** Every derived figure states the window it covers. A day that has
+     not occurred is not a miss; a period still running is never described as
+     having failed work it has not reached. These are HABITS-01's two unsayable
+     sentences, promoted from the Habits module to a product-wide rule.
+
+  6. **One derivation per question, shared by every consumer.** The period account
+     has one implementation, consumed by `/plan` and by the Review; Goal movement
+     has one implementation in `~/shared/alignment` beside the existing evaluator,
+     consumed by Today, the Goals collection and the Goal record. A surface that
+     needs a new figure adds it to the derivation and tests it there — it does not
+     compute one of its own. This is GOAL-02's existing rule
+     (`evaluateGoalProgress` is the one place a Goal figure is computed), restated
+     for the new facts so it cannot be quietly re-decided.
+
+  7. **If a bounded query cannot be written without new storage, that is a
+     finding, not a licence.** Record it, put it to a decision, and supersede this
+     ADR if the decision goes the other way. Do not add the column and mention it
+     in a PR description.
+
+- **Consequences.**
+
+  - **Easy.** Every figure is reproducible from the audit trail, so it can be
+    proved against a fixture whose events are known rather than against whatever
+    the workspace happens to hold. Nothing can drift, because there is no second
+    copy to drift from. Deleting or reopening a record changes the account
+    correctly and immediately, with no reconciliation job. Export and restore gain
+    nothing new to carry. A future window, a future breakdown or a future consumer
+    costs a query, not a migration.
+  - **Hard, and accepted.** Every read is a window query rather than a lookup, so
+    each one must be bounded by construction and carry a flatness proof — a
+    fifteen-Task week must cost what a three-Task week does — and must respect
+    D1's ceiling of **100 bound parameters per query**, which TASKS-13 and UX-02
+    both discovered the expensive way. A period much older than the Activity
+    retention window cannot be reconstructed; that is the correct limit to have,
+    and the Review's own snapshot is what covers the period-over-period case.
+    Some questions a stored model would answer trivially — "what did the plan look
+    like on Monday morning, before I changed it?" — are **not answerable**, and
+    that is accepted rather than worked around: the events say what moved and
+    when, which is the question the owner actually asks.
+  - **Foreclosed on purpose.** The single most likely wrong turn in V2.4 — a
+    plan-snapshot table plus a percentage — is refused in advance, in writing,
+    before the first implementation prompt is written.
+
+- **Alternatives considered.**
+
+  - **A `plan_weeks` / planned-snapshot table.** Rejected. It is a second record
+    of `scheduled_date`, which ADR-101 already refused once for the planner
+    itself ("it stores nothing"); reintroducing it for the retrospective would
+    give the same fact two authorities that disagree the first time a Task is
+    edited outside `/plan`.
+  - **A per-Goal progress snapshot, written on rollup.** Rejected on DEBT-78's own
+    reasoning, and because Goal contribution is deliberately derived and never
+    cached — a snapshot would need a write on every Task completion in the
+    workspace, which is a write amplification on the hottest path in the product
+    to serve one panel.
+  - **An adherence percentage, presented calmly.** Rejected. ADR-104 admitted one
+    proportion by naming the three properties that made it honest (a printed
+    denominator, a bounded window, and no unscheduled or future day counted). A
+    percentage of a plan kept fails the third by construction: a week the owner
+    deliberately re-planned on Tuesday because Tuesday changed is not a week they
+    failed, and no wording makes a single number say that.
+  - **Extending the Review's stored snapshot to carry the plan account.**
+    Rejected for now, and worth naming because it is the closest call. It would
+    make period-over-period plan comparison cheap. But the snapshot is captured
+    only on Review **completion**, and the account has to be true for the current,
+    incomplete week on `/plan` as well — so the derivation is needed regardless,
+    and storing a second copy of it would buy nothing that the derivation does not
+    already give. If period-over-period plan comparison later proves worth the
+    storage, it is an additive field on the existing versioned snapshot with its
+    own ADR, not a new artefact.
+
+The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2_4.md).

@@ -7,8 +7,15 @@
 >
 > [`ROADMAP_V2.md`](ROADMAP_V2.md) is the closed record of V2;
 > [`ROADMAP_V2_1.md`](ROADMAP_V2_1.md) holds V2.1 and
-> [`ROADMAP_V2_2.md`](ROADMAP_V2_2.md) holds V2.2. **This file is V2.3, and it is
-> where new work goes.**
+> [`ROADMAP_V2_2.md`](ROADMAP_V2_2.md) holds V2.2. **This file is V2.3, and V2.3
+> is CLOSED.**
+>
+> **New work now goes in [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md)** — V2.4,
+> "Follow-through", which moves DalyHub from *a system that records what you
+> intended* to *a system that tells you what became of it*: two bounded gates
+> (a recoverable, green, released product; honest signals on a task row) and two
+> features (FOLLOW-01, the week you committed to against the week you had;
+> FOLLOW-02, whether every Goal moved — not only the ones carrying a number).
 >
 > The rules are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to
 > build; this tells you *what*. Status is updated in the PR that changes it. No
@@ -498,9 +505,13 @@ module behaviour: [`TASKS_MODULE.md`](../development/TASKS_MODULE.md#advanced-re
 
 ## NEXT
 
-**Nothing.** TASKS-12 was the last item of the V2.3 theme, and it is delivered
-above. The list below records what this theme deliberately did NOT add; a new
-item belongs in a new roadmap document with its own decision, not appended here.
+**Nothing here.** TASKS-12 was the last item of the V2.3 theme, and it is
+delivered above. The list below records what this theme deliberately did NOT add;
+a new item belongs in a new roadmap document with its own decision, not appended
+here — **and one now exists: [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md)**, the
+Follow-through programme, accepted as
+[ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal).
+It carries forward the standing non-goals below unchanged.
 
 **Two hardening passes have landed on top of the closed theme, and neither is a
 V2.3 item.** They are recorded here only so the next reader knows the state
@@ -564,5 +575,6 @@ model.
 - [`TASKS_MODULE.md`](../development/TASKS_MODULE.md) — the Tasks module's full behaviour
 - [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](../product/DALYHUB_WHOLE_APP_REPAIR_2026_08.md) — the hardening pass that repaired the whole-application audit on top of this closed theme
 - [ADR-108](../decisions/ARCHITECTURE_DECISIONS.md#adr-108-three-product-wide-rules-the-whole-application-audit-found-were-per-module-conventions--a-base-version-on-every-whole-document-write-an-owner-day-that-never-travels-without-its-zone-and-maintenance-that-is-not-contact) — the three rules that pass turned from per-module conventions into rules
+- [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md) — the successor programme, where new work goes
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — what is still owed
 - [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — the shared patterns this used and added
