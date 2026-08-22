@@ -313,25 +313,41 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     ownedGoals.add(title);
     // Ascending — 10 km towards 100 km — so a larger reading is unambiguously
     // progress and the assertions do not depend on an inferred direction.
-    const goalUrl = await createMeasurableGoal(page, title, {
+    await createMeasurableGoal(page, title, {
       unit: "km",
       baseline: "10",
       target: "100",
     });
 
-    // 1. A measurable Goal EXISTS, and the collection says so with the
-    //    progressbar the old guard was looking for. Scoped to this spec's own
-    //    row by title, so it is this Goal that is measurable rather than
-    //    whatever the shared workspace happens to hold.
+    /*
+     * 1. A measurable Goal EXISTS, and the workspace is genuinely measuring
+     *    THIS one — scoped to the spec's own row by title, so the assertion is
+     *    about the Goal it created rather than whatever the shared workspace
+     *    happens to hold.
+     *
+     *    Its collection row carries NO progressbar yet, and that is correct
+     *    rather than a miss: a measurable Goal with a baseline and no readings
+     *    is "not measured yet", and `goal-measurement.spec.ts` asserts in as
+     *    many words that such a Goal "is never shown as 0%". The bar arriving
+     *    once a reading exists is checked at step 7, which makes it a real
+     *    before/after rather than a presence check.
+     */
     await gotoFixture(page, "/goals");
     const row = page
       .getByTestId("goals-list")
       .getByRole("article")
       .filter({ hasText: title });
     await expect(row).toHaveCount(1);
-    await expect(row.getByRole("progressbar")).toBeVisible();
+    await expect(row.getByRole("progressbar")).toHaveCount(0);
 
-    await page.goto(goalUrl);
+    /*
+     * Driven from the WORKSPACE, which is what this journey is about: the row
+     * selects the Goal into the detail pane as URL state (§11), and the pane is
+     * where the trio and the chart live. `goalUrl` is the canonical record —
+     * a different surface, and not the one REDESIGN-04 asks about.
+     */
+    await row.getByRole("link").click();
+    await expect(page).toHaveURL(/[?&]goal=/);
     const pane = page.getByTestId("goal-workspace-pane");
     const trio = pane.getByTestId("goal-metrics");
     await expect(trio).toBeVisible();
@@ -375,10 +391,21 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
       )
       .toBeGreaterThan(0);
 
-    // 6. A reload preserves the result — it was written, not painted.
+    // 6. A reload preserves the result — it was written, not painted. The
+    //    selection is URL state, so the reload lands on the same Goal.
     await page.reload();
     await waitForInteractive(page);
-    await expect(page.getByTestId("goal-metrics")).toContainText("42.5");
+    await expect(
+      page.getByTestId("goal-workspace-pane").getByTestId("goal-metrics"),
+    ).toContainText("42.5");
+
+    /*
+     * 7. …and the COLLECTION now measures it, which step 1 established it did
+     *    not. This is the row the retired `test.skip()` guard was hunting for,
+     *    and the journey now produces it rather than waiting for the seed to.
+     */
+    await gotoFixture(page, "/goals");
+    await expect(row.getByRole("progressbar")).toBeVisible();
   });
 
   test("offers the §5.1 creation entry point, and requires an Area", async ({

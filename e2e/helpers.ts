@@ -674,6 +674,29 @@ export async function openCompletedGroup(
   return group.locator(".dh-taskrow", { hasText: title }).first();
 }
 
+/**
+ * Today's week summary, with its `Last 7 days` disclosure OPEN.
+ *
+ * TODAY-12 put the week's measures behind one line so the day itself owns the
+ * first viewport, and that `<details>` renders CLOSED. A closed disclosure's
+ * contents are in the DOM and out of the RENDERING, so `innerText` on a figure
+ * inside it returns `""` and `getByRole("link", …)` resolves to nothing —
+ * neither is a missing figure, and neither is fixed by waiting.
+ *
+ * Opened through its SUMMARY, the owner's own way in, so a caller proves the
+ * measures are reachable as well as correct.
+ */
+export async function openTodayWeeklySummary(page: Page): Promise<Locator> {
+  const summary = page.getByTestId("today-summary");
+  await expect(summary).toBeVisible();
+  const weekly = summary.locator("details.dh-today__weekly");
+  await expect(weekly).toBeAttached();
+  if (!(await weekly.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await weekly.locator("summary").click();
+  }
+  return summary;
+}
+
 /* -------------------------------------------------------------------------- */
 /* DHDS-09 — the listbox a combobox owns, wherever the overlay layer put it    */
 /* -------------------------------------------------------------------------- */

@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test";
 import {
   comboboxOption,
   openCompletedGroup,
+  openTodayWeeklySummary,
   pickCalendarDate,
 } from "./helpers";
 
@@ -147,8 +148,6 @@ test.describe("Today — the day surface", () => {
     const stats = page.locator(".dh-stat--interactive");
     expect(await stats.count()).toBe(0);
 
-    const summary = page.getByTestId("today-summary");
-    await expect(summary).toBeVisible();
     /*
      * The measures sit inside the summary's own `Last 7 days` disclosure, and
      * that `<details>` renders CLOSED — TODAY-12 put the week behind one line so
@@ -156,15 +155,8 @@ test.describe("Today — the day surface", () => {
      * in the DOM and out of the rendering, so `innerText` on a figure inside it
      * returns "" however long it waits: the assertion below was reading a
      * projection that no longer exists rather than a figure that is missing.
-     *
-     * It is opened THROUGH ITS SUMMARY — the owner's own way in — so the check
-     * proves the figures are reachable as well as correct.
      */
-    const weekly = summary.locator("details.dh-today__weekly");
-    await expect(weekly).toBeAttached();
-    if (!(await weekly.evaluate((el: HTMLDetailsElement) => el.open))) {
-      await weekly.locator("summary").click();
-    }
+    const summary = await openTodayWeeklySummary(page);
     const measures = summary.locator(".dh-today__measure");
     const count = await measures.count();
     expect(count).toBeGreaterThan(0);

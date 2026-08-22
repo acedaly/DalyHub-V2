@@ -6,6 +6,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   openCompletedGroup,
+  openTodayWeeklySummary,
   ownerToday,
   postSameOrigin,
   waitForInteractive,
@@ -431,8 +432,12 @@ test.describe("GOAL-02 — Today", () => {
      * measure the completion above just moved links there.
      */
     await expect(page.getByTestId("today-activity-trend")).toHaveCount(0);
-    const summary = page.getByTestId("today-summary");
-    await expect(summary).toBeVisible();
+    /*
+     * The measures sit inside the summary's own `Last 7 days` disclosure, which
+     * renders CLOSED — so the link below is in the DOM and out of the
+     * accessibility tree until it is opened. See `openTodayWeeklySummary`.
+     */
+    const summary = await openTodayWeeklySummary(page);
     await expect(summary).toContainText("Tasks completed");
     await expect(
       summary.getByRole("link", { name: /Tasks completed/ }),
