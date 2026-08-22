@@ -675,6 +675,45 @@ export async function openCompletedGroup(
 }
 
 /**
+ * Engage a row so its contextual actions are operable — the one shared way.
+ *
+ * DEBT-180. The row-reveal contract (`motion.css`) conceals a row's trailing
+ * affordances at `opacity: 0` AND makes them transparent to the pointer, so that
+ * an unrevealed action is never a hidden hit area over the row. That rule is
+ * right and is deliberately kept: `.dh-action-reveal` sits directly on a
+ * navigation `<Link>` in `ScheduleList` and on drag handles in `TaskDragging`,
+ * `TaskChecklistSection` and `GoalMeasurementPanel`, and on a hybrid device —
+ * one that matches `(hover: hover)` because a mouse is attached, driven by a
+ * finger that never hovers — a live control under blank space would navigate or
+ * begin a drag with nothing drawn to say so.
+ *
+ * What that costs is AUTOMATION, and it costs it as a DEADLOCK rather than a
+ * race: Playwright hit-tests the target BEFORE moving the mouse, so a bare
+ * `click()` on a concealed affordance reports *"intercepts pointer events"* and
+ * never performs the hover that would make it hittable. Retrying to timeout is
+ * the only outcome.
+ *
+ * So a journey does what a person does — it moves onto the row first. Hovering
+ * is a real interaction, not a workaround: it is exactly how the affordance
+ * becomes available to a pointer user, and it is the only honest alternative to
+ * `force: true`, which asserts a control is reachable while proving it is not.
+ *
+ * One helper rather than a hover copied into each spec, so the requirement lives
+ * with the contract it belongs to.
+ */
+export async function revealRowActions(row: Locator): Promise<void> {
+  await row.scrollIntoViewIfNeeded();
+  await row.hover();
+  // The reveal is a `--dh-motion-fast` opacity transition, and `toHaveCSS`
+  // polls — so this waits for the affordance to actually BE revealed rather
+  // than for a fixed time. A row with no concealed affordance is a no-op.
+  const reveal = row.locator(".dh-action-reveal").first();
+  if ((await reveal.count()) > 0) {
+    await expect(reveal).toHaveCSS("opacity", "1");
+  }
+}
+
+/**
  * Today's week summary, with its `Last 7 days` disclosure OPEN.
  *
  * TODAY-12 put the week's measures behind one line so the day itself owns the

@@ -9,10 +9,10 @@ it.** Implements
 > test gate whose red means something, and a release whose notes name what
 > shipped.
 >
-> **It does not reach that floor in full, and says so.** Two of the three halves
-> are complete in the repository and blocked on one owner-held secret and one set
-> of owner-held credentials. Those are named exactly, with the commands, in
-> § 5 — not softened, and not counted as done.
+> **It does not reach that floor in full, and says so.** Everything the
+> repository can do is done; what remains is one owner-held secret and one set of
+> owner-held credentials, named exactly, with the commands, in § 5 — not
+> softened, and not counted as done. The roadmap item stays **☐**.
 
 ---
 
@@ -21,8 +21,8 @@ it.** Implements
 | | Claim | State |
 |---|---|---|
 | **Recoverable** | a backup exists and has been restored in a rehearsal | ◐ — the pipeline is fixed, hardened and now proves a **restore** on every run, and the mechanism has been rehearsed end to end. **No artefact of the owner's data exists yet**, because `BACKUP_ENCRYPTION_PASSPHRASE` is not set. § 2, § 5.1 |
-| **Green** | the twelve-partition gate is green | see § 3 |
-| **Released** | production is verified, migrated, and running a release whose notes name what shipped | ◐ — the version decision is taken and recorded, the notes and checklist are written, and **nothing has been deployed**: this environment holds no Cloudflare credentials, which `verify:production` reports for itself. § 4, § 5.2 |
+| **Green** | the twelve-partition gate is green | see § 3 — the 55 failures, the 5 tests that never executed and the one journey that never ran are all resolved; the roadmap's own condition is *"green on `main` for two consecutive pushes"*, which only merging can produce |
+| **Released** | production is verified, migrated, and running a release whose notes name what shipped | ◐ — the version decision is taken and recorded, the notes and checklist are written, and **nothing has been deployed or migrated**. Two independent blocks, both owner-held: no production backup has ever completed (§ 4.4), and this environment holds no Cloudflare credentials, which `verify:production` reports for itself (§ 4.3). § 4, § 5.2 |
 
 ---
 
@@ -311,11 +311,48 @@ its own.
 ### 4.3 What was NOT done, and why
 
 Nothing was deployed, no migration was applied, and production state is still
-unknown. `pnpm run verify:production` was run at this commit and reports five
-`SKIPPED` checks — its own honest answer to having no credentials — recorded
-verbatim in the checklist. One thing it *did* establish: `hub.daly.id.au/health`
-answers **302 to the Cloudflare Access login**, which is the intended hardening
-and not an outage.
+unknown. `pnpm run verify:production` was run again at this commit and reports
+**PARTIALLY VERIFIED** with five `SKIPPED` checks — its own honest answer to
+having no credentials — recorded verbatim in the checklist:
+
+```
+  [SKIPPED] Configuration — none of the production configuration is supplied in this environment
+             not supplied: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_D1_DATABASE_ID,
+             PRODUCTION_DEFAULT_WORKSPACE_ID, PRODUCTION_ACCESS_TEAM_DOMAIN,
+             PRODUCTION_ACCESS_AUD, PRODUCTION_OWNER_EMAIL
+  [SKIPPED] Worker deployment  — Wrangler is not authenticated
+  [SKIPPED] Worker secrets     — Wrangler is not authenticated
+  [SKIPPED] D1 migrations      — could not read the production migration state
+  [SKIPPED] Application health — https://hub.daly.id.au/health answered 302 —
+             Cloudflare Access protecting the hostname, which is the intended
+             configuration. The RUNNING release is therefore NOT confirmed.
+```
+
+`hub.daly.id.au/health` answering **302 to the Cloudflare Access login** is the
+intended hardening and not an outage; the verifier is the authority on that and
+says so in its own words. **Production's migration state remains unmeasured, and
+this document does not guess at it** — the whole point of DEBT-84 is that a
+repository cannot know what a database has applied.
+
+### 4.4 The backup prerequisite is still unmet, and it is now a HARD block
+
+This is not the same statement § 2 makes about the pipeline. The pipeline is
+fixed; what has never happened is a run of it that produced anything.
+
+MEASURED on the repository's own Actions history: `Production D1 backup` run
+**21** — 2026-08-22T16:45:50Z, five hours AFTER the pipeline hardening merged —
+failed at the same guard as runs 10 through 20 before it:
+
+```
+##[error]BACKUP_ENCRYPTION_PASSPHRASE is not set in the production environment.
+         Refusing to export production data that cannot be encrypted.
+```
+
+The workflow is behaving correctly, and that is the point (DEBT-198). The
+consequence is that **no disaster-recovery copy of the owner's data exists**, so
+the roadmap's own sequencing applies without exception: migrations are not
+applied to production before a backup exists, and nothing here weakens or
+bypasses that guard to make a checklist look finished.
 
 ---
 
@@ -339,7 +376,20 @@ the migration-discipline refusals stated beside it.
 
 ### 5.3 One measurement nobody here can make
 
-[DEBT-199](PRODUCT_DEBT.md)'s remote half — § 2.4.
+[DEBT-199](PRODUCT_DEBT.md)'s remote half — § 2.4. It needs one command run
+against real Cloudflare, against a NEW throwaway database and never production.
+It is not closed from the local rehearsal, because the local executor and the
+remote import endpoint are different code paths and a recovery document is the
+last place to record a guess.
+
+### 5.4 The one acceptance condition only MERGING can produce
+
+The roadmap asks for the twelve-partition gate to be *"green on `main` for two
+consecutive pushes"*. A branch cannot produce that: `main`'s gate runs on a push
+to `main`. What this pass can and does produce is the gate green on this branch,
+against both states § 3.5 records, with the run ids named. The second half is
+the first two pushes to `main` after the merge, and the item stays **☐** until
+they are green.
 
 ---
 
@@ -348,9 +398,16 @@ the migration-discipline refusals stated beside it.
 Not done, deliberately, and none of it was started:
 
 - **V2.4-GATE-02, FOLLOW-01 and FOLLOW-02.** Untouched.
-- **The Plan dual-checkbox, semantic-overdue and one-day-phone defects**
-  (DEBT-194/196/197). They belong to V2.4-GATE-02 and none of them blocked a
-  GATE-01 test.
+- **The Plan dual-checkbox and semantic-overdue defects** (DEBT-194, DEBT-197).
+  They belong to V2.4-GATE-02, neither blocks a GATE-01 assertion, and neither
+  is touched.
+- **DEBT-196 — the one-day-phone defect — WAS taken, and the reason is stated
+  rather than implied.** It also belongs to V2.4-GATE-02, and unlike its two
+  siblings it *does* block a GATE-01 assertion: `plan-responsive.spec.ts:100`
+  and `:194` assert the product's own tier promise, they fail on two days of
+  every week, and the roadmap forbids reaching green by weakening a test. The
+  fix is one data attribute and one phone-tier rule, and it decides nothing
+  GATE-02 has to decide about how the Plan queue works.
 - **No schema or API change.** None was needed.
 - **No new design phase, no new domain concept, no unrelated UI work.**
 - **No E2E partition redesign.** § 3 records whether the manifest was
