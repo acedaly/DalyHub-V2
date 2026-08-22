@@ -19,7 +19,13 @@
  * by the test, never by a timer.
  */
 
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import {
   RouterProvider,
   createMemoryRouter,
@@ -119,27 +125,35 @@ describe("collection controls — live apply", () => {
     first.open();
   });
 
-  it("composes a second choice made before the router has even STARTED the first", async () => {
+  it("composes a second choice made before ANY render has reflected the first", async () => {
     /*
-     * V2.4-GATE-01 — the half of the window the test above does not cover, and
-     * the answer to a question its absence left open.
+     * V2.4-GATE-01 — the half of the window the test above does not cover.
      *
-     * That one waits for `target` to show the first write, which means it waits
-     * for the router to report `state === "loading"`. Nothing waits for that in
-     * real use, so the obvious worry is the gap between `record()` and the
-     * router picking the navigation up: in that gap `useAppliedParams` sees an
-     * IDLE router, and its render-time clear cannot tell "not started yet" from
-     * "already finished". If it dropped the remembered write there, the second
-     * choice would compose over the committed state and delete the first — the
-     * exact defect this file exists for.
+     * That one HOLDS the first `.data` response, which guarantees the router is
+     * reporting `loading` by the time the second choice is made — so it only
+     * ever exercises the path where a render has already happened and
+     * `useAppliedParams` has already handed the pending write to the controls.
      *
-     * It does not. Both clicks here are in one synchronous block with no wait
-     * between them, and the write still carries both. The gap is not observable
-     * because the router dispatches `loading` in the same batch as the
-     * `setSearchParams` that caused it, so no render ever sees the idle-but-
-     * pending state. This test is here to keep it that way: it is the assertion
-     * that would fail if that batching ever changed, and it was written because
-     * a CI failure made the question worth answering rather than assuming.
+     * The window it leaves open is the one before any of that. `record` writes a
+     * REF and deliberately does not re-render; React Router does not dispatch
+     * `loading` synchronously either. So between a choice and the render that
+     * reflects it, NOTHING has re-rendered — and `commit`/`write` used to close
+     * over the `searchParams` of the last render. A second choice landing in
+     * that window ran a handler holding the pre-first-choice parameters and
+     * deleted the first: the very lost update this file exists for, arriving
+     * through the one door the fix left open.
+     *
+     * MEASURED in a browser rather than inferred. `tasks-collection.spec.ts:298`
+     * reproduces it deterministically against the dev server, and its trace
+     * shows exactly the two loader requests the hook's own docstring predicts —
+     * `?group=due_state&priority=p1`, then `?group=due_state&due=overdue` with
+     * `priority=p1` gone. The same signature appeared on CI run 32602831529.
+     *
+     * `fireEvent` cannot reproduce it: it wraps each event in `act()`, which
+     * flushes a render between the two clicks and hands the second handler the
+     * pending write — which is why an earlier version of this test passed
+     * against the defect. Both clicks therefore go inside ONE `act`, which is
+     * what a fast pair of real clicks does.
      */
     const first = gate();
     let loads = 0;
@@ -160,8 +174,14 @@ describe("collection controls — live apply", () => {
     render(<RouterProvider router={router} />);
 
     fireEvent.click(await screen.findByTestId("collection-filter-trigger"));
-    fireEvent.click(screen.getByTestId("collection-popover-priority-p1"));
-    fireEvent.click(screen.getByTestId("collection-popover-due-overdue"));
+
+    // ONE act, two clicks: no render is flushed between them, which is the
+    // window. Native `.click()` rather than `fireEvent`, so React sees two
+    // ordinary discrete events in one batch.
+    await act(async () => {
+      screen.getByTestId("collection-popover-priority-p1").click();
+      screen.getByTestId("collection-popover-due-overdue").click();
+    });
 
     const target = await screen.findByTestId("target");
     await waitFor(() => {

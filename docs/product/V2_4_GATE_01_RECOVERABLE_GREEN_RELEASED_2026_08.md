@@ -376,31 +376,68 @@ that the slot is *not* fuchsia, which an abandoned save would satisfy by
 accident.
 
 **`tasks-collection.spec.ts:298`** — the committed URL was
-`/tasks?group=due_state`, with **both** filters gone. That is the exact
-signature `use-applied-params.ts` documents, so the first suspicion was that
-V2.3-GATE-01's fix had a residual window: `useAppliedParams` clears its
-remembered write during render whenever the router is not loading, and that
-test cannot distinguish *not started yet* from *already finished*.
+`/tasks?group=due_state`, with **both** filters gone: the exact signature
+`use-applied-params.ts` documents. So the first suspicion was that
+V2.3-GATE-01's fix had a residual window.
 
-**That suspicion was wrong, and it was measured rather than assumed.** A new
-unit test drives both choices in one synchronous block, with no wait between —
-the gap the existing test skips over by waiting for `loading` — and the write
-still carries both filters, because the router dispatches `loading` in the same
-batch as the `setSearchParams` that caused it. No render ever sees the
-idle-but-pending state. The test is kept: it is what would fail if that
-batching changed.
+The first attempt to prove it **failed to**, and the honest thing is to record
+what that cost. A unit test drove both choices in one synchronous block and
+passed against the unfixed code, so the suspicion was written up as disproved
+and the test rewritten as a race in the spec: the journey was made to assert its
+own precondition before clicking a chip, and the product was left alone. The
+next CI run (`32604491454`, p07) then failed one assertion further on, which is
+what sent this back for a real measurement instead of a plausible one.
 
-The real cause is in the test. A filter chip is a `<Link>` whose destination was
-fixed at its last render, and on a pointer viewport the controls apply LIVE, so
-`commit()` is a no-op and the second choice's write may still be in flight when
-the journey clicks "Remove filter Priority: P1". Following a destination
-composed before the second filter existed removes both. A person one frame later
-is fine — the chips read `applied`, which includes the pending write — but
-Playwright clicks inside a frame. "Two **applied** filters" is the test's own
-title and it was assuming rather than asserting it; it now waits for both
-parameters first, as the sibling journey above it already did. That is a
-**race** in the test, not a defect in the product, and calling it the other way
-would have meant changing working code.
+**Run it in a browser and it reproduces every time.** Against the dev server,
+`tasks-collection.spec.ts:298` writes precisely what the hook's own docstring
+predicts:
+
+```
+choose Priority = P1    → GET /tasks.data?group=due_state&priority=p1
+choose Due = Overdue    → GET /tasks.data?group=due_state&due=overdue
+final URL                 /tasks?group=due_state&due=overdue
+```
+
+`priority=p1` is gone. That is a **lost update in shipped code**, not a test
+artefact, and V2.3-GATE-01 did not close it — it closed one half of it.
+
+The mechanism is the half nothing was looking at. `useAppliedParams` computes
+`applied` **during render**, and `record` writes a **ref** precisely so that it
+does *not* re-render (its own comment explains why, and the reasoning is sound).
+React Router does not dispatch `loading` synchronously either. So between a
+choice and the render that reflects it there is a window in which *nothing has
+re-rendered* — and `commit`/`write` were composing over the `searchParams` they
+had closed over at the last render. A second choice landing in that window ran a
+handler still holding the pre-first-choice parameters, and deleted the first.
+The pending write was sitting in the ref the whole time; no render had happened
+to go and read it.
+
+The existing regression test could never have caught this: it **holds the first
+`.data` response**, which guarantees the router is already reporting `loading`
+and a render has already handed the controls the pending write. It only ever
+exercised the covered half.
+
+**The fix, at the authority.** `useAppliedParams` now also returns
+`current()` — the same precedence (a remembered write outranks the committed
+parameters until a render retires it), asked at **event time** rather than
+render time — and `write`/`commit` compose over that instead of over a captured
+value. Nothing else about the composition changes, and `applied` still drives
+everything on screen.
+
+Two tests, both measured:
+
+- The unit test now puts **both clicks inside one `act`**, so no render is
+  flushed between them. It **fails without the fix and passes with it**;
+  `fireEvent` cannot reproduce the window at all, because it flushes a render
+  per event — which is exactly why the first attempt reported a clean bill.
+- `tasks-collection.spec.ts:298` keeps the precondition assertion added in that
+  first attempt. It was right for its own reason ("two **applied** filters" is
+  the test's own title and it had been assuming it), and it is what turned a
+  silent wrong answer into a failure that named its own cause.
+
+The lesson worth keeping is the one about method rather than about filters: a
+unit test that passes is only evidence if it can fail. This one could not, and
+it was briefly allowed to stand as proof that working code was working.
 
 ### 3.6 The partition manifest
 
