@@ -291,6 +291,17 @@ the live DOM rather than by reasoning about stylesheets.
   two of the reveal's own selectors — `.dh-action-reveal:focus-within` and
   `.dh-action-reveal:has([aria-expanded="true"])` — only mean anything on an
   element that CONTAINS the control. On the trigger they were dead.
+
+  **And every other consumer in the product already did it that way.** All five
+  were checked rather than assumed: `ProjectsTable` (`<td className="…
+  dh-action-reveal">`), `EntityRowList` (`<div className="dh-erow__overflow
+  dh-action-reveal">`), `RecordRow` (`<div className="dh-row__actions
+  dh-action-reveal">`), and the two that ARE the affordance and so have no
+  wrapper (`ScheduleList`'s link, the drag handles). `TaskRow` was alone.
+  DHDS-13 had already made this exact repair on `ProjectsTable` and left its
+  reasoning in place — *"the contract needs `dh-action-reveal` on the trailing
+  container (`motion.css`) and this cell never carried it, so the intent was
+  stated and never took effect"* — which is the same sentence, one surface over.
 - **All four pointer modes are covered, and three of them by construction.** The
   concealment lives inside `@media (hover: hover)`, so a **coarse pointer or
   touch** device draws the affordance outright and always has; **keyboard** is

@@ -96,10 +96,48 @@ test.describe("UIQ — task-row hover contract (Tasks)", () => {
     // and every inline caret are opacity-0 at rest and still in the
     // accessibility tree, so a screen reader and the keyboard reach a row that
     // was never hovered.
+    /*
+     * V2.4-GATE-01 — the concealment is asserted on the thing that CONCEALS.
+     *
+     * This read `opacity: 0` off the trigger, which is where
+     * `dh-action-reveal` used to sit. It sits on the trigger's WRAPPER now,
+     * because that is what the contract's consumer rule says ("the trailing
+     * action container") and what its own selectors were already written for
+     * (`.dh-action-reveal:focus-within`, `:has([aria-expanded="true"])` — both
+     * meaningless on the trigger itself). DEBT-180 is precisely the cost of
+     * the old arrangement: the trigger was concealed and inert while the
+     * wrapper around it stayed `opacity: 1; pointer-events: auto`, so the row
+     * carried a live 32px target with nothing visible in it —
+     * `elementsFromPoint` at the trigger's own centre returned
+     * `DIV.dh-overflow-menu`, then the row, and never the trigger.
+     *
+     * So this is the same claim measured one level out, and it is now TRUE of
+     * the whole affordance rather than of one element inside a live box. The
+     * trigger's own `pointer-events: none` is kept and still passes —
+     * `pointer-events` inherits, so concealing the container makes every part
+     * of it inert, which is what "truly absent" in this test's title means.
+     * The hit test below is the assertion DEBT-180 would have failed.
+     */
+    const reveal = row.locator(".dh-overflow-menu.dh-action-reveal");
+    await expect(reveal).toHaveCSS("opacity", "0");
     const overflow = row.locator(".dh-taskrow__overflow");
-    await expect(overflow).toHaveCSS("opacity", "0");
     await expect(overflow).toHaveCSS("pointer-events", "none");
     await expect(overflow).toHaveAttribute("aria-haspopup", /menu|true/);
+
+    // Nothing of the concealed affordance is in the hit stack at its own centre
+    // — not the trigger, and not the box around it.
+    const hits = await overflow.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      // `getAttribute` rather than `className`: an SVG element's `className` is
+      // an `SVGAnimatedString`, which stringifies to `[object …]`.
+      return document
+        .elementsFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)
+        .map((node) => node.getAttribute("class") ?? "");
+    });
+    expect(
+      hits.some((name) => /dh-overflow-menu|dh-taskrow__overflow/.test(name)),
+      "a concealed row action is not a hidden hit area over the row (DEBT-180)",
+    ).toBe(false);
 
     const carets = row.locator(".dh-inline-select__caret");
     expect(
