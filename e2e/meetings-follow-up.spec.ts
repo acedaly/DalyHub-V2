@@ -190,7 +190,7 @@ test("converts meeting items into linked Tasks and groups the follow-up work", a
   });
   await directParent.click();
   await directParent.fill("Website relaunch");
-  await directDialog.getByRole("option", { name: "Website relaunch" }).click();
+  await (await comboboxOption(directParent, "Website relaunch")).click();
   await Promise.all([
     page.waitForResponse(
       (r) =>

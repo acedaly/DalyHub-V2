@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
+  comboboxOption,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -162,9 +163,7 @@ test.describe("AREA-02 — Goals", () => {
     });
     await combo.click();
     await combo.fill(goalTitle);
-    const goalOption = newProjectDialog.getByRole("option", {
-      name: new RegExp(goalTitle),
-    });
+    const goalOption = await comboboxOption(combo, new RegExp(goalTitle));
     await expect(goalOption).toBeVisible();
     await goalOption.click();
     await newProjectDialog.getByLabel(/Title/).fill(projectTitle);

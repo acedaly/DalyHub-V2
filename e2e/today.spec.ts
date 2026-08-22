@@ -345,11 +345,20 @@ test.describe("Today — the day surface", () => {
       }),
     ).toBeChecked();
 
-    // The SAME task record reads as complete — one completion path, one truth.
+    /*
+     * The SAME task record reads as complete — one completion path, one truth.
+     *
+     * Opened from the row where the completed task now LIVES. A page-wide
+     * `.dh-taskrow` first-match resolves into the closed `Completed · n`
+     * disclosure, and a closed `<details>`'s content is not rendered — so the
+     * click waited out its timeout on an element that was present and
+     * unrenderable, reporting only "element is not visible". (The
+     * `dh-complete-strike dh-complete-recede` classes in that call log are the
+     * completed row's ordinary styling, not the reason: they are on the row
+     * inside the disclosure.)
+     */
     await page.goto("/today");
-    await page
-      .locator(".dh-taskrow", { hasText: title })
-      .first()
+    await (await todayCompletedRow(page, title))
       .getByTestId("task-row-open")
       .click();
     const record = page.getByRole("dialog");

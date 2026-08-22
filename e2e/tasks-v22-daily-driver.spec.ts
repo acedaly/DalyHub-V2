@@ -494,7 +494,7 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     const unit = drawer.getByRole("combobox", { name: "Unit" });
     await unit.click();
     await unit.fill("days");
-    await drawer.getByRole("option", { name: "days" }).click();
+    await (await comboboxOption(unit, "days")).click();
     await drawer
       .getByRole("radio", { name: /Repeat after completion/ })
       .click();
