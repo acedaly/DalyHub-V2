@@ -550,9 +550,19 @@ async function commandRehearse(args) {
     // ("is the restored database referentially intact?" rather than "was every
     // intermediate state?") and is exactly what BACKUP_AND_RESTORE.md § 5.4
     // asks an operator to run by hand after a real restore.
-    const database = new DatabaseSync(databasePath, {
-      enableForeignKeyConstraints: false,
-    });
+    let database;
+    try {
+      database = new DatabaseSync(databasePath, {
+        enableForeignKeyConstraints: false,
+      });
+    } catch (error) {
+      // A `--into` naming a directory that does not exist, or one that cannot be
+      // written, is an operator mistake and deserves the same one-line refusal
+      // every other bad argument gets — not a stack trace out of the runtime.
+      fail(
+        `Could not open ${databasePath} as a database: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     try {
       // The load itself. This is the assertion the structural checks cannot
       // make: SQLite either accepts every statement in the dump or it throws.
