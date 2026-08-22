@@ -145,7 +145,139 @@ and the warning beside the `--remote` instruction rather than in place of it.
 
 ## 3. Green
 
-*(§ 3 is completed in the same pass; see the sections below.)*
+> **The starting inventory was MEASURED, not inherited.** DEBT-179's *"19 tests
+> across 8 partitions"* describes a tree three programmes old. The set below is
+> what the canonical CI path actually reports on `main` today, read from the
+> run's own `e2e-results-*` artefacts rather than from a log.
+
+### 3.1 The failure set on `main` @ `054b98f`
+
+CI run [`32571105218`](https://github.com/acedaly/DalyHub-V2/actions/runs/32571105218):
+
+| | |
+| --- | --- |
+| Scope, Static, **Unit**, Build | **green** — `test:unit` and `test:kernel` both pass, so § 2's module-load fix held |
+| E2E | **ten of twelve partitions red** — p01–p10; p11 and p12 green |
+| Failing tests | **55** |
+| Tests that **never executed** | **5** — p03 and p04 each ran the full 25 minutes of Playwright's `globalTimeout` |
+| Conditional `test.skip` branches taken | **4** |
+
+Per partition, and this is the number the manifest is measured against:
+
+| | p01 | p02 | p03 | p04 | p05 | p06 | p07 | p08 | p09 | p10 | p11 | p12 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| failed | 5 | 1 | 9 | 9 | 4 | 8 | 5 | 7 | 1 | 6 | 0 | 0 |
+| never ran | 0 | 0 | **3** | **2** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| elapsed (min) | 20.1 | 20.0 | **25.0** | **25.0** | 20.0 | 21.9 | 20.1 | 12.2 | 18.3 | 18.3 | 13.8 | 13.0 |
+
+Every partition ran past the manifest's own 16.1-minute budget, and two ran out
+of time altogether. That is § 3.6.
+
+### 3.2 One explanation for every failure
+
+| Family | n | Class | Reproduces alone? | Mechanism |
+| --- | --- | --- | --- | --- |
+| The picker's listbox | ~19 | stale assertion | **yes** | DHDS-09 portalled floating surfaces into the overlay layer, so a `SelectField` / `EntityLinkPicker` listbox is no longer a DOM descendant of the Drawer, dialog or form holding the field. A container-scoped `getByRole("option")` resolves to nothing, however long it waits. |
+| Completion re-assertion | 6 | stale assertion | **yes** | DHDS-13's signature, product-wide. Today files a completed row under the plan's `Completed · n` disclosure, which renders CLOSED — so `check()` re-resolves onto nothing and retries to timeout. |
+| Row-reveal deadlock | 2 | **product** (DEBT-180) | **yes** | `pointer-events: none` on the unrevealed affordance handed the hit test to an inert wrapper of identical size. |
+| Phone Plan draws two days | 2 | **product** (DEBT-196) | **on a weekend** | selection was published on the weekend COLUMN, which holds two days. It failed on two days of every week, which is why it read as intermittent. |
+| Record panel double edge | 1 | **product** | **yes** | `premium.css` (#206) restated the card family's border and radius after `record-layout.css` had deliberately removed them. |
+| Nested filter outranks its tabs | 1 | **product** | **yes** | the M3-INT fix named `--dh-text-label-size` because `.record-tab` was label-sized; the token has since drifted to 13px against the strip's 12.5px. |
+| The `Now` promotion | 1 | stale assertion | **yes** | TODAY-12 promotes the oldest open overdue Task out of its band into the `Now` position, so the spec's row was never in `Overdue`. |
+| Retired surfaces, drifted locators | 5 | stale assertion | **yes** | Today's capture card (removed by TODAY-12), its two named disclosures, an INSET accent rule read as depth, a card chased from `/projects` to `/goals` to `/areas`, and a strict-mode collision the Project record's own inline rows introduced. |
+| Journey budget | 1 | budget | **yes** | `assets.spec.ts`'s lifecycle journey measures **38.2 s** of genuine work against the 30 s default. |
+| A journey that never ran | 1 | fixture ownership (DEBT-158) | **yes** | nothing in the seed is measurable, so the guard exited every time. |
+
+**Not one failure was accumulated-state-only.** DEBT-173's signature — a spec
+whose result depends on which specs preceded it — did not appear in this set at
+all; the entry's own two named instances (`iphone-daily-driver.spec.ts:185`,
+`tasks-journey.spec.ts:379`) are green here in isolation and in the full
+sequential gate, which is the evidence § 3.5 records.
+
+### 3.3 The product defects, fixed at their authority
+
+**DEBT-180 — the row reveal.** The decision the entry asked for, taken once and
+recorded in `motion.css` beside the rule it changes. The measurement that
+settles it: `.dh-overflow-menu` is `position: relative`, `display: inline-flex`
+and EXACTLY the same 32×32 box as its trigger, and it keeps `pointer-events:
+auto` — so that rectangle already intercepted every click at rest.
+`pointer-events: none` on the trigger never shrank the hit area by a pixel; it
+only decided that the element catching the click was the inert wrapper rather
+than the button that can act on it. Removing it therefore takes nothing away
+from the row and gives the affordance back a click that was being swallowed
+above it. `plan-weekly-planning.spec.ts:233` passes with no per-spec workaround,
+no `force: true` and no test-only CSS, and `motion.spec.ts` additionally asserts
+that the control wins its own hit test at rest.
+
+The card's action rail (`card.css`, UIQ-002) keeps its `pointer-events: none`,
+deliberately: that rail is an OVERLAY which does not hold its geometry at rest,
+so there the rule is load-bearing and the two specs that hover first say so.
+
+**DEBT-196 — one day on a phone.** `PlanDaySection` publishes `data-selected`
+and the phone tier hides the day that is not selected. The column rule is
+unchanged, because a merged weekend column must still be RENDERED when either
+of its days is chosen. Taken ahead of V2.4-GATE-02 for one reason, stated
+plainly: `plan-responsive.spec.ts:100` and `:194` assert the product's own tier
+promise, the gate cannot be green while they fail, and the roadmap forbids
+weakening them. DEBT-194 and DEBT-197 are untouched.
+
+**The record panel's doubled top edge.** `premium.css` restated the family's
+border and radius on `.record-tabs__panel` after `record-layout.css` had removed
+the top edge and squared the top corners — so a second hairline sat directly
+under the strip's own. The join is restated after it, rather than the family
+rule being narrowed, so the panel still follows the card family when that
+changes.
+
+**A nested filter louder than its tabs.** Sized from the record tab's own token,
+so the two move together and cannot drift a third time.
+
+### 3.4 Stale tests corrected, and fixture ownership
+
+The correction is always the same shape: assert the OUTCOME the product
+produces, never the projection it used to.
+
+- **`comboboxOption()` / `comboboxListbox()`** (`e2e/helpers.ts`) resolve a
+  listbox through `aria-controls`. This is a **stronger** scope than the
+  container it replaces: the container only proved the option shared an ancestor
+  with the field; this proves the option is in the listbox **that combobox
+  owns** — the relationship the WAI-ARIA pattern is built on and the one a
+  screen reader follows. It is presentation-agnostic, so the anchored listbox and
+  the phone Sheet are the same call.
+- **`openCompletedGroup()`** files the assertion where Today files the row, and
+  opens the disclosure by CLICKING ITS SUMMARY, so the completion is proved
+  reachable rather than merely present. Nothing was changed to keep completed
+  Tasks visible for Playwright's benefit.
+- **`openTodayWeeklySummary()`** does the same for the `Last 7 days`
+  disclosure, whose closed contents return `""` from `innerText` and resolve to
+  nothing by role.
+- **DEBT-158** — `spine-workspaces.spec.ts` owns a measurable Goal through
+  `goal-fixtures.ts`, the fixture § 2's pass wrote and left unwired. There is no
+  skip branch left, and the journey asserts, in order: the Goal exists and the
+  collection row carries **no** progressbar yet (a measurable Goal with no
+  readings is *"not measured yet"*, which `goal-measurement.spec.ts` states in
+  as many words); the starting value; that logging a reading changes the trio;
+  that the RENDERED progress moves with it; that a reload preserves it; and that
+  the collection row now carries the progressbar it did not have at step 1.
+- One **budget correction**, named as one rather than smuggled in:
+  `assets.spec.ts`'s lifecycle journey is given 120 s against a measured 38.2 s
+  of work. Nothing hangs, nothing is retried, every assertion is unchanged, and
+  the precedent is `goals.spec.ts`'s own `setTimeout(120_000)`.
+- One **racing unit assertion**: `collection-controls-live-apply.test.tsx` read
+  the chips synchronously after a `findBy` that resolved immediately, so both
+  assertions raced the router's settle and one run in three reported a defect
+  that is not there. Both move inside one `waitFor`, unchanged.
+
+### 3.5 The gate under two states
+
+*(Filled in from the runs — see § 3.7.)*
+
+### 3.6 The partition manifest
+
+*(Filled in from the measurement — see § 3.7.)*
+
+### 3.7 Evidence
+
+*(Run ids and results recorded here.)*
 
 ---
 
