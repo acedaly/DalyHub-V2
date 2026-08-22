@@ -78,17 +78,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Set up toolchain
+        # The SHARED composite action, the same one every CI job uses. This job
+        # hand-rolled corepack + setup-node + install for its whole life, which
+        # is exactly the copy-paste the action's own description says it exists
+        # to end: the backup job could quietly end up on a different Node or a
+        # different pnpm from the one the pipeline it runs is tested against.
+        uses: ./.github/actions/setup
 
       - name: Refuse to run without an encryption key
         env:
@@ -102,7 +98,21 @@ jobs:
             echo "::error::BACKUP_ENCRYPTION_PASSPHRASE is not set in the production environment. Refusing to export production data that cannot be encrypted."
             exit 1
           fi
-          echo "Encryption key is present. Its value is never printed."
+          # A key made of whitespace is not a key, and `-z` accepts one. GnuPG
+          # would encrypt with it perfectly happily, producing an artifact that
+          # looks exactly like a real backup and is protected by nothing.
+          trimmed_length="$(printf '%s' "${BACKUP_ENCRYPTION_PASSPHRASE}" | tr -d '[:space:]' | wc -c)"
+          if [ "${trimmed_length}" -lt 32 ]; then
+            # The LENGTH is compared, never printed, and the message names the
+            # requirement rather than what was found. 32 is the floor because
+            # this passphrase is the only thing between a stolen artifact and
+            # the owner's entire life, and the generation command in
+            # docs/development/BACKUP_AND_RESTORE.md § "The recovery key"
+            # produces 64 characters.
+            echo "::error::BACKUP_ENCRYPTION_PASSPHRASE must be at least 32 non-whitespace characters. Refusing to encrypt the owner's entire database under a weak key."
+            exit 1
+          fi
+          echo "Encryption key is present and long enough. Its value is never printed."
 
       - name: Export, validate, encrypt and verify
         id: backup
@@ -121,6 +131,7 @@ jobs:
           scratch="$(mktemp -d)"
           plain="${scratch}/dalyhub-v2-production-${stamp}.sql"
           key="${scratch}/backup.key"
+          receipt="${scratch}/recovery-receipt.json"
           mkdir -p backup
           encrypted="backup/dalyhub-v2-production-${stamp}.sql.gpg"
 
@@ -135,7 +146,12 @@ jobs:
             # not survive this step for a later step (or a debug re-run) to find.
             rm -rf "${scratch}"
           }
-          trap cleanup EXIT
+          # INT and TERM as well as EXIT. A cancelled workflow — the job's
+          # `timeout-minutes`, or a person pressing Cancel — signals the step
+          # rather than letting it exit, and a bare `trap … EXIT` does not run
+          # then. That is the one case where the owner's whole database is
+          # sitting in plaintext on a runner nobody is watching.
+          trap cleanup EXIT INT TERM
 
           echo "Exporting the production database…"
           pnpm run db:production:export -- --output "${plain}"
@@ -149,10 +165,27 @@ jobs:
 
           echo "Proving the encrypted artifact decrypts back to the dump…"
           node scripts/production-backup.mjs verify \
-            --in "${plain}" --encrypted "${encrypted}" --passphrase-file "${key}"
+            --in "${plain}" --encrypted "${encrypted}" --passphrase-file "${key}" \
+            --receipt "${receipt}"
 
+          # And proving the payload is a DATABASE, not merely a decryptable file.
+          # `verify` above answers "do the bytes come back?"; this answers "do
+          # the bytes load?" — it starts from the encrypted artifact and the key,
+          # exactly as a real recovery does, executes the dump into a throwaway
+          # SQLite file inside the scratch directory, and reads the kernel tables
+          # back out. A schema-only or half-written export passes every check
+          # above it and fails here.
+          echo "Rehearsing the restore from the encrypted artifact…"
+          node scripts/production-backup.mjs rehearse \
+            --encrypted "${encrypted}" --passphrase-file "${key}" \
+            --receipt "${receipt}"
+
+          # The receipt is what makes the metadata's `recoveryVerified` claim
+          # evidence rather than a constant. It lives in the SCRATCH directory,
+          # never in `backup/`: it is not part of the artifact.
           node scripts/production-backup.mjs metadata \
-            --encrypted "${encrypted}" --in "${plain}" --out backup/metadata.json \
+            --encrypted "${encrypted}" --receipt "${receipt}" \
+            --out backup/metadata.json \
             --field "environment=production" \
             --field "database=dalyhub-v2 (production)" \
             --field "exportedAtUtc=${stamp}" \
@@ -169,11 +202,27 @@ jobs:
           # The last line of defence, and the one that would catch a future edit
           # that reintroduced the finding. It inspects the upload directory only,
           # by NAME — it never reads or prints file contents.
-          leaked="$(find backup -type f \( -name '*.sql' -o -name '*.json' -o -name '*.zip' \) \
-            ! -name 'metadata.json' -print)"
-          if [ -n "${leaked}" ]; then
-            echo "::error::Refusing to upload: the artifact directory contains unencrypted backup material."
-            echo "${leaked}"
+          #
+          # An ALLOW-LIST, not a deny-list, and that is the whole point of this
+          # step. The previous rule refused `*.sql`, `*.json` and `*.zip`, so a
+          # plaintext dump written as `dump.txt`, `dump.bak` or with no extension
+          # at all walked straight past it and into a thirty-day artifact. The
+          # question worth asking is not "does this look dangerous?" but "is this
+          # one of the two files this artifact is allowed to contain?" — which is
+          # the same allow-list-not-deny-list rule the restore reader already
+          # applies to an incoming archive.
+          unexpected="$(find backup -type f \
+            ! -name '*.sql.gpg' ! -name 'metadata.json' -print)"
+          if [ -n "${unexpected}" ]; then
+            echo "::error::Refusing to upload: the artifact directory contains a file that is neither an encrypted backup nor its metadata."
+            echo "${unexpected}"
+            exit 1
+          fi
+          # Directories cannot carry a plaintext dump past the rule above by
+          # hiding it one level down — `find -type f` is recursive — but an empty
+          # directory tree in the artifact would still be noise nobody intended.
+          if [ -n "$(find backup -mindepth 1 -type d -print)" ]; then
+            echo "::error::Refusing to upload: the artifact directory has subdirectories, which this pipeline never creates."
             exit 1
           fi
           if [ ! -s backup/metadata.json ]; then

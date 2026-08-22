@@ -36,8 +36,21 @@ export const APPLICATION_NAME = "DalyHub";
  * application agree, and `test/unit/about/package-version.test.ts` fails if they
  * ever drift. That test — not a runtime read — is what keeps the two in step,
  * so this module stays the only thing the Worker consults.
+ *
+ * ── `2.0.1` → `2.4.0`, and why there is no 2.1, 2.2 or 2.3 (V2.4-GATE-01) ────
+ * The release train stopped after `2.0.1` and three whole programmes landed on
+ * `main` behind it. A consolidated `2.4.0` is the SIMPLEST TRUTHFUL answer, and
+ * the alternative was considered rather than skipped: tagging `2.1.0`, `2.2.0`
+ * and `2.3.0` on the way past would name three releases that were never built,
+ * never deployed and never ran anywhere. The artefact is identical for all four
+ * numbers, so three of them would identify nothing — and this constant's whole
+ * job is to answer "which build is live", which a number that never was a build
+ * cannot do.
+ *
+ * `docs/release/RELEASE_NOTES_V2_4_0.md` therefore enumerates what V2.1, V2.2
+ * and V2.3 shipped, because for the owner all of it arrives at once.
  */
-export const APP_VERSION = "2.0.1";
+export const APP_VERSION = "2.4.0";
 
 /**
  * The release this version ships under. Shown beside the number in About.
@@ -45,6 +58,10 @@ export const APP_VERSION = "2.0.1";
  * This is the release NAME, not a milestone name. It was "V2 Final Polish" while
  * that milestone was in flight; the shipped product is DalyHub V2, so that is
  * what About, Settings and every export archive now say.
+ *
+ * UNCHANGED by the `2.4.0` bump, deliberately: the shipped product is still
+ * DalyHub V2 and `2.4.0` is a version within it. Writing "V2.4" here would make
+ * this a milestone name, which the paragraph above rules out.
  */
 export const APP_RELEASE_NAME = "V2";
 

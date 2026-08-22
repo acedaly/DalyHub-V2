@@ -45,8 +45,47 @@ describe("production backup workflow (AUDIT-11)", () => {
   });
 
   it("removes the plaintext dump and the key file even when a step fails", () => {
-    expect(WORKFLOW).toContain("trap cleanup EXIT");
+    // INT and TERM as well as EXIT — V2.4-GATE-01. A cancelled job (the
+    // `timeout-minutes` backstop, or a person pressing Cancel) SIGNALS the step
+    // rather than letting it exit, and a bare EXIT trap does not run then: the
+    // owner's whole database would be left in plaintext on a runner nobody is
+    // watching, which is the one moment it matters most.
+    expect(WORKFLOW).toContain("trap cleanup EXIT INT TERM");
     expect(WORKFLOW).toContain('rm -rf "${scratch}"');
+  });
+
+  it("uses the shared toolchain action rather than its own copy of it", () => {
+    // This job hand-rolled corepack + setup-node + install for its whole life,
+    // which is exactly the drift `.github/actions/setup` exists to prevent: the
+    // backup pipeline could quietly end up on a different Node from the one it
+    // is tested on. Nothing about a backup justifies its own toolchain.
+    expect(WORKFLOW).toContain("uses: ./.github/actions/setup");
+    expect(WORKFLOW).not.toContain("corepack enable");
+    expect(WORKFLOW).not.toContain("pnpm install --frozen-lockfile");
+  });
+
+  it("refuses a key that is present but not a key", () => {
+    // `-z` accepts a passphrase made entirely of whitespace, and GnuPG would
+    // encrypt the owner's entire life under it perfectly happily — producing an
+    // artifact indistinguishable from a real backup and protected by nothing.
+    expect(WORKFLOW).toContain("tr -d '[:space:]'");
+    expect(WORKFLOW).toContain("at least 32 non-whitespace characters");
+    // The length is compared and never printed, and neither is anything derived
+    // from the value.
+    expect(WORKFLOW).not.toMatch(
+      /echo[^\n]*\$\{?(trimmed_length|BACKUP_ENCRYPTION_PASSPHRASE)/,
+    );
+  });
+
+  it("guards the upload with an allow-list, not a deny-list", () => {
+    // The previous rule refused `*.sql`, `*.json` and `*.zip`, so a plaintext
+    // dump written as `dump.txt`, `dump.bak` or with no extension at all walked
+    // past it into a thirty-day artifact. The question is not "does this look
+    // dangerous?" but "is this one of the two files this artifact may contain?".
+    expect(WORKFLOW).toContain(
+      "! -name '*.sql.gpg' ! -name 'metadata.json' -print",
+    );
+    expect(WORKFLOW).not.toMatch(/-name '\*\.sql' -o -name '\*\.json'/);
   });
 
   it("never passes the passphrase on a command line and never prints it", () => {
@@ -78,6 +117,37 @@ describe("production backup workflow (AUDIT-11)", () => {
     expect(WORKFLOW).toContain("node scripts/production-backup.mjs validate");
     expect(WORKFLOW).toContain("node scripts/production-backup.mjs encrypt");
     expect(WORKFLOW).toContain("node scripts/production-backup.mjs verify");
+  });
+
+  it("proves the payload RESTORES, not merely that it decrypts", () => {
+    // V2.4-GATE-01. `verify` answers "do the bytes come back?"; it cannot
+    // answer "will a database load them?", and `validate` is deliberately a
+    // shape check rather than a SQL parser. `rehearse` executes the decrypted
+    // dump into a throwaway SQLite database and reads the kernel tables out of
+    // it, so a schema-only or unparseable export fails the run instead of
+    // being filed as a month of recoverable history.
+    expect(WORKFLOW).toContain("node scripts/production-backup.mjs rehearse");
+    // And it happens BEFORE anything is published, which is the whole point of
+    // proving it at all.
+    const rehearse = WORKFLOW.indexOf(
+      "node scripts/production-backup.mjs rehearse",
+    );
+    const upload = WORKFLOW.indexOf("Upload encrypted backup artifact");
+    expect(rehearse).toBeGreaterThan(-1);
+    expect(upload).toBeGreaterThan(rehearse);
+  });
+
+  it("publishes a recovery claim only when a receipt backs it", () => {
+    // `recoveryVerified: true` was a constant in the metadata writer: it
+    // asserted a verification the script had no way to know had happened, and
+    // would have gone on asserting it through any edit that dropped or
+    // reordered the steps above. The receipt is the evidence, and it is
+    // cross-checked against the artifact it claims to describe.
+    expect(WORKFLOW).toContain('--receipt "${receipt}"');
+    expect(WORKFLOW).toContain('receipt="${scratch}/recovery-receipt.json"');
+    // In the SCRATCH directory — the receipt is proof for the run, not part of
+    // the artifact, and it is shredded with the plaintext.
+    expect(WORKFLOW).not.toMatch(/receipt="backup\//);
   });
 
   it("runs only from the schedule or a manual dispatch, in the production environment", () => {
