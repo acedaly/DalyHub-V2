@@ -139,9 +139,41 @@ function isOverdue(result: CrossViewResult, todayIso: string): boolean {
   return result.dueDate < todayIso && !isClosed(result);
 }
 
+/**
+ * Is this record OUT OF COMMITMENT — so a date on it can no longer be late?
+ *
+ * "Overdue" is a claim that the owner still owes the work and it has slipped.
+ * A record nobody is going to do cannot slip, and saying it has is manufactured
+ * urgency on work that is already closed (`AGENTS.md` §2.4, "calm over urgent").
+ *
+ * ── DHDS-13 follow-up — a Task is closed by THREE states, not one ────────────
+ * This asked `detail.completed` alone, so a **cancelled** Task with a past due
+ * date read "Overdue — due 6 Jul 2026" and — once DHDS-13 gave the date a
+ * colour — read it in the danger red. MEASURED on `/views` against the seeded
+ * workspace: three cancelled Tasks and one **Someday / Maybe** Task rendered
+ * `data-overdue="true"` at `#c5372a`, beside their own "Cancelled" and
+ * "Someday / Maybe" status words. The label half of that predates DHDS-13; the
+ * colour is what made it shout.
+ *
+ * The three states are not a judgement call — the kernel already names them
+ * together as "the three TERMINAL/parked-out-of-commitment states the whole
+ * product excludes: completed, cancelled and Someday/Maybe"
+ * (`app/kernel/tasks/task.ts`, the `open` system view). Fixing only the
+ * cancelled third would leave a documented triple two-thirds honest.
+ *
+ * `waiting` and `on_hold` are deliberately NOT here, by the same authority: the
+ * `open` scope keeps them because they are work the owner still intends to do,
+ * blocked rather than abandoned. A Task you are waiting on someone for IS late,
+ * and the row says so in words beside the date.
+ */
 function isClosed(result: CrossViewResult): boolean {
   switch (result.detail.kind) {
     case "task":
+      return (
+        result.detail.completed ||
+        result.detail.status === "cancelled" ||
+        result.detail.someday
+      );
     case "project":
     case "goal":
       return result.detail.completed;

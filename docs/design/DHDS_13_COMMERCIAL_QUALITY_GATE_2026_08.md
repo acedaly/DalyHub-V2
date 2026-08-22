@@ -127,7 +127,7 @@ navigation and search were all driven end to end and all behave.
 | **P1-3** | **The product's primary action renders as a blank violet block at every tablet width.** The rail's Capture button collapsed with `font-size: 0`; every DalyHub icon is authored `width="1em"`, so the plus collapsed with the label. | MEASURED at 820 and 900: a 32×36 violet button containing a **0×0 svg** and a 0×0 label. The band is 768–1023px. |
 | **P1-4** | **`/plan` sits on no page frame.** Its `h1` was flush to the pane's left edge and hard against the underside of the sticky top bar; at 393px it touched the viewport edge while its own supporting line was indented beside it. | MEASURED against `main.dh-pane` on sixteen routes: fifteen at gutter **40/24/15–16** horizontally and 24–45 vertically; Plan alone at **0, 0** at every width. |
 
-### P2 — noticeable quality defects (9 found, 6 fixed, 3 open)
+### P2 — noticeable quality defects (10 found, 7 fixed, 3 open)
 
 | # | Finding | Status |
 |---|---|---|
@@ -139,6 +139,7 @@ navigation and search were all driven end to end and all behave.
 | **P2-6** | **Assets is the only collection with a tray around its filter band** — a bordered `surface-subtle` box holding two already-bordered inputs, whose right edge stopped 14px short of the shared "Filter & sort" control, so the button read as having fallen out of the toolbar. | **Fixed** |
 | **P2-7** | **The Plan queue draws a selection checkbox and a completion checkbox side by side, unlabelled, 8px apart.** `task-signals.css` states the invariant this breaks in its own words: *"A row shows one of them at rest."* Ticking the wrong one completes work the owner meant to schedule. | **Open** — §15 |
 | **P2-8** | **Search's empty query offers nothing.** The body restates the placeholder ("Search across everything in your workspace") where every reference product shows recent records. | **Open** — §15 |
+| **P2-10** | **A terminal Task was called overdue.** `isClosed` on the cross-view surface asked `completed` alone, so a **cancelled** Task and a **Someday / Maybe** Task with passed due dates read "Overdue — due 6 Jul 2026" — and, once this phase gave the date a colour, read it in the danger red beside their own "Cancelled" status word. Raised in review on this branch. | **Fixed** — the label half predated the phase; the colour is what made it shout |
 | **P2-9** | **Weekly Planning draws two days at phone width.** The phone tier is supposed to show one day plus a rail to move between them; Saturday *and* Sunday are both drawn, at 100% and at 200% zoom. Found in the audit's own phone capture and **already failing on `main`** — `plan-responsive.spec.ts` :100 and :194 both expect 1 and receive 2. | **Open** — pre-existing; **DEBT-196** |
 
 ### P3 — minor polish (documented, not chased)
@@ -199,6 +200,7 @@ decided** — none introduces a new visual decision, and that is deliberate
 | `.dh-urgency` bounds itself and its label ellipsises | `task-signals.css` | the drawer's overdue chip escaped the panel by 2px at 1440 and 1100 |
 | The Goal pane names the surface its scroll strip covers | `goals.css` | a ~20px grey block painted on the white detail panel at both ends of a rail that does not scroll |
 | The Goal list stops being a second `region` named "Goals" | `GoalWorkspace.tsx` | the single automated a11y violation anywhere in the product |
+| A terminal Task is no longer overdue on the cross-view surface | `views-presentation.ts` | P2-10 |
 | The constitution's rail statement is corrected | `AGENTS.md` | §6 still asserted "the navigation rail is DARK, in both appearances" — superseded by FINAL-UI's amendment to D35, and the last document still saying it |
 
 ### Highest-value improvements, in order
@@ -496,7 +498,14 @@ its proportion and its queue's two checkboxes are not.
   (P2-7). *P2.*
 - **DEBT-195** — Search's empty query offers no recent records (P2-8). *P2.*
 - **DEBT-196** — Weekly Planning draws two days at phone width, where the tier
-  says one (P2-9). *P2.* Raised rather than fixed because it is **pre-existing
+  says one (P2-9). *P2.*
+- **DEBT-197** — a Task ROW still paints a cancelled Task's passed due date in
+  the overdue colour (P2-10's other half). *P3.* `InlineTaskDate` derives urgency
+  from calendar arithmetic alone and takes no Task, so honouring commitment there
+  means adding a semantic prop to a shared control rendered on seven surfaces —
+  and deciding, product-wide, whether `--overdue` means "this date has passed" or
+  "you still owe this". Pre-existing, and by §17's own rule a decision this gate
+  raises rather than takes. Raised rather than fixed because it is **pre-existing
   and already has two failing tests on `main`**; giving it an entry stops it
   living only inside DEBT-179's undifferentiated red set.
 
@@ -553,7 +562,7 @@ this branch's history.
 | `pnpm run icons:check` | pass — 11 icon assets match canonical geometry |
 | `pnpm run dhds:check` | pass — 0 direct machinery references |
 | `pnpm run build` | pass |
-| `pnpm run test:unit` | pass — **6,381** tests in 450 files (15 new) |
+| `pnpm run test:unit` | pass — **6,390** tests in 451 files (24 new) |
 | `pnpm run test:kernel` | pass |
 | `pnpm run e2e:partitions:check` | pass — 117 spec files across 12 partitions, heaviest 16.1 min |
 | `e2e/dhds-13-commercial-quality.spec.ts` | pass — 12/12 |
@@ -565,7 +574,11 @@ this branch's history.
 [`e2e/dhds-13-commercial-quality.spec.ts`](../../e2e/dhds-13-commercial-quality.spec.ts)
 (12 geometry checks — sliced marks at five phone widths, the Project stub at 393,
 the Capture glyph across the tablet band, the gutter across eight routes at four
-widths, and drawer containment at two).
+widths, and drawer containment at two), plus
+[`test/unit/views/views-overdue-commitment.test.ts`](../../test/unit/views/views-overdue-commitment.test.ts)
+(9 cases pinning which Task states can still be late — added in response to
+review, and asserting the LABEL as well as the state, because "Overdue" in
+words and "Overdue" in red are two separate false claims).
 
 ### The focused E2E run, and how ownership was established
 
@@ -578,7 +591,7 @@ content), and a count comparison against a churning set is not evidence.
 
 | Spec | Branch | Baseline | Verdict |
 |---|---|---|---|
-| `cross-module-views` · `people` · `areas` · `global-capture` | pass | — | green |
+| `cross-module-views` · `people` · `areas` · `global-capture` | pass | — | green (re-run after the P2-10 fix: 21/21 with `dhds-13-commercial-quality`) |
 | `floating-surfaces` | pass | — | green |
 | `tasks-collection` (fresh DB) | 30 pass | — | green |
 | `dhds-13-commercial-quality` | 12 pass | — | green (new) |
