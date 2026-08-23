@@ -631,21 +631,53 @@ reasons each of which is now understood and fixed.** The clause asking for two
 consecutive green pushes exists to force exactly that distinction, and it earned
 its place on this branch.
 
-#### Two consecutive green pushes
+#### Two consecutive green pushes — and why that is not the same as stable
 
-| Push | SHA | Run | Result |
-| --- | --- | --- | --- |
-| 1 | `8e574e0` | [`32611293999`](https://github.com/acedaly/DalyHub-V2/actions/runs/32611293999) | GREEN — twelve of twelve |
-| 2 | `ae84193` | [`32612296143`](https://github.com/acedaly/DalyHub-V2/actions/runs/32612296143) | GREEN — twelve of twelve, all 17 checks |
+`8e574e0` ([`32611293999`](https://github.com/acedaly/DalyHub-V2/actions/runs/32611293999))
+and `ae84193` ([`32612296143`](https://github.com/acedaly/DalyHub-V2/actions/runs/32612296143))
+are both green, twelve partitions of twelve, verified structurally as well as by
+conclusion: each published twelve `e2e-results-<partition>` artefacts and **no**
+`e2e-report-*` or `e2e-traces-*` artefact at all. Those upload only on failure,
+so their absence is independent evidence that no partition had one.
 
-Both verified structurally as well as by conclusion: each run published twelve
-`e2e-results-<partition>` artefacts and **no** `e2e-report-*` or `e2e-traces-*`
-artefact at all. Those upload only on failure, so their absence is independent
-evidence that no partition had one — not a claim taken from a summary line.
+**That satisfies the letter of the criterion, and the very next run falsified its
+spirit.** `4a844cf` ([`32613259476`](https://github.com/acedaly/DalyHub-V2/actions/runs/32613259476))
+— documentation only — went red on a **fourth** latent race, in
+`color-scheme.spec.ts:242`. So the green pair had not established stability; it
+had established that two samples were not enough to find what a third would.
+`038206c` ([`32614341978`](https://github.com/acedaly/DalyHub-V2/actions/runs/32614341978))
+is green again on the fix.
 
-That is the acceptance criterion met **on the branch**. The criterion says
-`main`, and this is the one clause of it that only merging can produce; § 5.4
-states that rather than blurring it.
+This is recorded rather than smoothed over, because the smoothing is the failure
+mode: a reader who sees "two consecutive green pushes ✓" and stops has learned
+something less true than a reader who sees the whole sequence.
+
+#### The rate is itself a finding
+
+Across eleven runs of substantially one tree:
+
+```
+720 ✗3   721 ✗1   722 ✓   723 ✗1   724 ✓   725 ✗1
+726 ✓    727 ✓    728 ✗1   729 ✓
+```
+
+Roughly **one previously-unseen latent race per two runs**, and every one of them
+had a real mechanism, reproduced from evidence, and was fixed at a shared
+contract rather than quarantined: `revealRowActions` (a concealed affordance),
+`waitForEditorReady` (an editor that discards what is typed before it enhances),
+`dismiss` (a click across an open floating surface), and now a wait that matched
+*any* colour scheme rather than the one just chosen.
+
+So the honest characterisation of this gate is: **green is a probabilistic
+statement about this suite, not an absolute one.** Nothing here is red for an
+unexplained reason, no test was skipped, weakened or quarantined to get there,
+and four real defects in the suite's own discipline were removed on the way. But
+a twelfth run finding a fifth race would surprise nobody who read this section,
+and pretending otherwise would be the same class of claim this item exists to
+retire. Recorded as [DEBT-203](PRODUCT_DEBT.md).
+
+The criterion also says `main`. That clause only merging can produce; § 5.4
+states it rather than blurring it.
 
 ---
 
