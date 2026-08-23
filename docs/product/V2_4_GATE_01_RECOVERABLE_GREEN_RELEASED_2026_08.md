@@ -441,11 +441,71 @@ it was briefly allowed to stand as proof that working code was working.
 
 ### 3.6 The partition manifest
 
-*(Filled in from the measurement — see § 3.7.)*
+Regenerated **after** correctness, from measurement, and from nothing else.
+
+Green run [`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327)
+published an `e2e-results-<partition>` artefact from **all twelve** partitions.
+That is the first time every spec file could be measured from a run that was
+*fully green* — every earlier refresh, HARDEN-06A's included, had to take at
+least one number from a partition that failed, which is the whole of what
+[DEBT-157](PRODUCT_DEBT.md) was raised about. `generate --from` was run over the
+complete set of twelve:
+
+```
+12 partitions · 190.4 min of measured test time · mean 15.9 min
+  p01 … p10   16.5–16.6 min   10–12 specs
+  p11, p12    12.3 min each   responsive.spec.ts --shard=1/2, 2/2
+  worst/mean 1.05
+```
+
+- **All 117 spec files now read `source: ci:32605964327`.** The six that still
+  carried a local or phase-local figure — `local:harden-06b`, `local:dhds-09`,
+  `local/dhds-11`, `local/dhds-13`, `dhds-10`, and `motion.spec.ts`'s prose
+  source — are gone. No local, normalised or extrapolated number survives.
+- **`PARTITION_COUNT` is unchanged at 12, and the ceiling was not raised.** The
+  heaviest partition measures **16.6 min against the 16.7 min** that
+  `MAX_PARTITION_SECONDS` derives from `globalTimeout`. Raising the ceiling to
+  fit is the one answer HARDEN-04 removed from the table; it was not needed and
+  was not taken. Nor was any partition hand-tuned — the split is the script's.
+- No E2E architecture was rewritten. The manifest is data.
 
 ### 3.7 Evidence
 
-*(Run ids and results recorded here.)*
+| Run | SHA | Result |
+| --- | --- | --- |
+| [`32602831529`](https://github.com/acedaly/DalyHub-V2/actions/runs/32602831529) | `047a5ca` | 3 failures (p02, p05, p07) — from 55 |
+| [`32604491454`](https://github.com/acedaly/DalyHub-V2/actions/runs/32604491454) | `7f8cbea` | 1 failure (p07) — the one a passing unit test had wrongly cleared |
+| [`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327) | `42afd5f` | **GREEN** — twelve of twelve partitions, Scope, Static, Unit, Build, CI Gate |
+
+Counted from the partitions' own `e2e-results-*` artefacts rather than from a
+log line, because a log line is what this item exists to stop trusting:
+
+```
+p01 235   p02 127   p03 119   p04 135   p05  92+1s   p06 185
+p07 128   p08 109+1s p09 145  p10 117+1s p11 260    p12 259
+
+TOTAL   1911 collected · 1911 executed · 0 failed · 0 flaky · 3 skipped
+```
+
+The three `skipped` are exactly the three conditional guards
+[DEBT-200](PRODUCT_DEBT.md) records — `tasks-optimistic.spec.ts:205`,
+`ux-02-plan-habits.spec.ts:322`, `interaction-consistency.spec.ts:84` —
+pre-existing, unchanged, and named. DEBT-158's journey is **not** among them: it
+executes. A green test that quietly avoids its scenario is indistinguishable
+from a real one in a summary line and distinguishable in the artefact, which is
+why the artefact is what is read here.
+
+**None of the forbidden moves was used.** No test skipped, disabled,
+quarantined or deleted; no `test.fixme`; no expected-failure wrapper; no retry
+added; no assertion weakened. One `test.setTimeout` was raised — `assets.spec.ts:65`,
+on a spec measured at 38.2 s of real work under a 30 s default — and it is
+stated in § 3.4 with the measurement beside it rather than folded in quietly.
+One `test.skip()` was **removed**, so the suite executes more than it did.
+
+**What this evidence does NOT establish.** The acceptance says *"green on `main`
+for two consecutive pushes"*. These are pull-request runs. Two consecutive green
+runs on this branch are the strongest thing a branch can produce, and the clause
+that remains — `main` — is one only merging can satisfy. It is not claimed here.
 
 ---
 
