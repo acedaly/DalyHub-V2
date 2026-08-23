@@ -480,6 +480,7 @@ complete set of twelve:
 | [`32609242926`](https://github.com/acedaly/DalyHub-V2/actions/runs/32609242926) | `47bf5be` | **GREEN** — twelve of twelve, on the re-derived split |
 | [`32610240298`](https://github.com/acedaly/DalyHub-V2/actions/runs/32610240298) | `317c934` | 1 failure (p02) — `tasks-collection.spec.ts:298`, clicking across an open popover |
 | [`32611293999`](https://github.com/acedaly/DalyHub-V2/actions/runs/32611293999) | `8e574e0` | **GREEN** — twelve of twelve |
+| [`32612296143`](https://github.com/acedaly/DalyHub-V2/actions/runs/32612296143) | `ae84193` | **GREEN** — twelve of twelve, all 17 checks |
 
 Counted from the partitions' own `e2e-results-*` artefacts rather than from a
 log line, because a log line is what this item exists to stop trusting:
@@ -629,6 +630,22 @@ on this tree, twice consecutively, having been red three times in between for
 reasons each of which is now understood and fixed.** The clause asking for two
 consecutive green pushes exists to force exactly that distinction, and it earned
 its place on this branch.
+
+#### Two consecutive green pushes
+
+| Push | SHA | Run | Result |
+| --- | --- | --- | --- |
+| 1 | `8e574e0` | [`32611293999`](https://github.com/acedaly/DalyHub-V2/actions/runs/32611293999) | GREEN — twelve of twelve |
+| 2 | `ae84193` | [`32612296143`](https://github.com/acedaly/DalyHub-V2/actions/runs/32612296143) | GREEN — twelve of twelve, all 17 checks |
+
+Both verified structurally as well as by conclusion: each run published twelve
+`e2e-results-<partition>` artefacts and **no** `e2e-report-*` or `e2e-traces-*`
+artefact at all. Those upload only on failure, so their absence is independent
+evidence that no partition had one — not a claim taken from a summary line.
+
+That is the acceptance criterion met **on the branch**. The criterion says
+`main`, and this is the one clause of it that only merging can produce; § 5.4
+states that rather than blurring it.
 
 ---
 
