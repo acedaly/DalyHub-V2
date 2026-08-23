@@ -753,19 +753,50 @@ something less true than a reader who sees the whole sequence.
 
 #### The rate is itself a finding
 
-Across eleven runs of substantially one tree:
+The whole run history on substantially one tree:
 
 ```
-720 ✗3   721 ✗1   722 ✓   723 ✗1   724 ✓   725 ✗1
-726 ✓    727 ✓    728 ✗1   729 ✓
+720 ✗3   721 ✗1   722 ✓   723 ✗1   724 ✓   725 ✗1   726 ✓   727 ✓
+728 ✗1   729 ✓    730 (cancelled)   731 ✓   732 (cancelled)
+733 ✗1   734 ✗1   735 ✓
 ```
 
-Roughly **one previously-unseen latent race per two runs**, and every one of them
-had a real mechanism, reproduced from evidence, and was fixed at a shared
-contract rather than quarantined: `revealRowActions` (a concealed affordance),
-`waitForEditorReady` (an editor that discards what is typed before it enhances),
-`dismiss` (a click across an open floating surface), and now a wait that matched
-*any* colour scheme rather than the one just chosen.
+Roughly **one previously-unseen latent race per two runs**, and every one had a
+real mechanism, reproduced from evidence, and was fixed at a shared contract
+rather than quarantined.
+
+**Four of the six share one root cause, and naming it is the useful part: an
+assertion that a state left over from EARLIER already satisfies.**
+
+| Journey | What it waited for | Why that was already true |
+| --- | --- | --- |
+| `identity.spec.ts:124` | the dialog to be hidden | it hides on the same tick the save is *fired*, not when it lands |
+| `task-drawer.spec.ts:111` | nothing | it typed into a fallback the editor then replaced, and the save reported success |
+| `color-scheme.spec.ts:242` | `data-color-scheme` matching `/.+/` | the PREVIOUS scheme's slug matches it |
+| `meetings-concurrency.spec.ts:282` | the text "Saved" | the PREVIOUS save left it on screen |
+
+Each had passed for a long time by winning a race. None was flake. Each fix now
+waits on a transition the product actually publishes — `data-editor-ready`, the
+specific slug, `Saving…` → `Saved` — rather than on a state it happens to be in.
+The other two were a concealed affordance automation could not reach
+(`revealRowActions`) and a click across an open floating surface (`dismiss`).
+
+That is what [DEBT-203](PRODUCT_DEBT.md) is really recording. Not "the suite is
+flaky" — **the suite contains assertions that cannot fail at the moment they
+run.** A suite of that kind reports green and means less than it appears to, and
+the only way to find them is to keep running it.
+
+#### Where it finished
+
+Run [`32630251479`](https://github.com/acedaly/DalyHub-V2/actions/runs/32630251479)
+at `cf15d17` is **green** — all 17 checks, twelve `e2e-results-*` artefacts
+published and **no** `e2e-report-*` or `e2e-traces-*` at all.
+
+And the one thing § 3.7 said it could not explain resolved itself honestly: p04's
+`socket hang up` **did not recur** in run `32629099619`, which published p04
+results with no failure evidence. That was the re-run this document said the next
+push would be. It stays recorded as one occurrence with no mechanism, because
+that is what it was.
 
 So the honest characterisation of this gate is: **green is a probabilistic
 statement about this suite, not an absolute one.** Nothing here is red for an
