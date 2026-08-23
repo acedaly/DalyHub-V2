@@ -476,6 +476,8 @@ complete set of twelve:
 | [`32602831529`](https://github.com/acedaly/DalyHub-V2/actions/runs/32602831529) | `047a5ca` | 3 failures (p02, p05, p07) — from 55 |
 | [`32604491454`](https://github.com/acedaly/DalyHub-V2/actions/runs/32604491454) | `7f8cbea` | 1 failure (p07) — the one a passing unit test had wrongly cleared |
 | [`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327) | `42afd5f` | **GREEN** — twelve of twelve partitions, Scope, Static, Unit, Build, CI Gate |
+| [`32607890703`](https://github.com/acedaly/DalyHub-V2/actions/runs/32607890703) | `d924b1e` | 1 failure (p02) — `task-drawer.spec.ts:111`, on the first run of the re-derived split |
+| [`32609242926`](https://github.com/acedaly/DalyHub-V2/actions/runs/32609242926) | `47bf5be` | **GREEN** — twelve of twelve, on the re-derived split |
 
 Counted from the partitions' own `e2e-results-*` artefacts rather than from a
 log line, because a log line is what this item exists to stop trusting:
@@ -557,6 +559,21 @@ The residual product question — whether the handoff should carry the fallback'
 in-flight text rather than the `value` prop — is real, is owned by a shared
 editor used across the product, and is **not** GATE-01's to answer. Raised as
 [DEBT-202](PRODUCT_DEBT.md).
+
+**Run [`32609242926`](https://github.com/acedaly/DalyHub-V2/actions/runs/32609242926)
+at `47bf5be` is green** on the re-derived split, twelve partitions of twelve.
+
+#### On "two consecutive green pushes", counted honestly
+
+The count is **not** three greens out of five runs. It is: `42afd5f` green,
+`d924b1e` **red**, `47bf5be` green. A red run in the middle resets the sequence,
+and it should — the clause exists so that one lucky sample cannot be presented
+as stability. What stands at this commit is **one** green run since the last red
+one, and the second is what the next push has to produce.
+
+That the intervening red was a stale test rather than a regression does not earn
+it a pass. Runs 720, 721 and 723 each found something real that the run before
+had not, which is the argument for the clause rather than against it.
 
 ---
 
