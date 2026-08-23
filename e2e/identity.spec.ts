@@ -308,4 +308,48 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
       page.locator(".dh-icon-picker__trigger").first(),
     ).toContainText("Rose");
   });
+
+  test("'Use the defaults' clears the identity, and puts the shared Area back", async ({
+    page,
+  }) => {
+    /*
+     * Two jobs, and both are honest ones.
+     *
+     * It TESTS the picker's "Use the defaults" control, which nothing else did:
+     * every journey above chooses something, and none clears both halves at
+     * once.
+     *
+     * It also RESTORES `a-dh`, which this file has been mutating since its first
+     * journey. V2.4-GATE-01 — `entity-icons.spec.ts` uses that same Area as its
+     * `AREA_WITHOUT_ICON` and asserts `not.toHaveAttribute("data-icon-key",
+     * /./)`. In CI the two never meet, because every partition gets its own
+     * container and its own database. In ONE sequential gate run they do — this
+     * file is in p01 and that one is in p10 — and three `entity-icons` journeys
+     * failed on an icon chosen nine partitions earlier.
+     *
+     * That is [DEBT-173](../docs/product/PRODUCT_DEBT.md) exactly: a spec
+     * asserting against shared state another spec mutated, so the result is a
+     * property of the SPLIT rather than of the product. Its prescription is that
+     * the spec owns the fact it asserts — and the mutator cleaning up is the
+     * smaller half, because this file knows it changed something and
+     * `entity-icons.spec.ts` has no way to know that anyone did.
+     */
+    const trigger = await openPicker(page);
+    await page.getByRole("button", { name: "Use the defaults" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    // The trigger renders the LOADER's value, so this is the write landing
+    // rather than the dialog merely closing.
+    await expect(trigger).toContainText("Automatic");
+    await expect(trigger).toContainText("Default icon");
+
+    // And the record itself carries no chosen key — which is the exact fact
+    // `entity-icons.spec.ts` asserts about this Area.
+    await gotoFixture(page, `/areas/${AREA_ID}`);
+    await expect(page.locator(".dh-accent-icon").first()).not.toHaveAttribute(
+      "data-icon-key",
+      /./,
+    );
+  });
 });
