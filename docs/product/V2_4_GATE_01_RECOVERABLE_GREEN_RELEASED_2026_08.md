@@ -512,6 +512,57 @@ for two consecutive pushes"*. These are pull-request runs. Two consecutive green
 runs on this branch are the strongest thing a branch can produce, and the clause
 that remains — `main` — is one only merging can satisfy. It is not claimed here.
 
+#### B. Accumulated state — and the defect only this could find
+
+The complete twelve-partition sequence, run locally against ONE dev server and
+ONE database, each partition inheriting everything the partitions before it
+created. This is the state CI structurally cannot produce: every CI partition
+gets a fresh container and a fresh D1, so no CI partition ever accumulates past
+its own dozen spec files.
+
+**The first attempt failed, and it found the most valuable defect of this pass.**
+At partition **p09** the workspace held **558 active entities**, and five
+journeys failed together — every one on a `getByRole("option", …)` for a record
+created seconds earlier:
+
+| Spec | The record it could not see |
+| --- | --- |
+| `goals-alignment.spec.ts:28` | `Alignment e2e …` in the parent listbox |
+| `notes-knowledge.spec.ts:536` | its own record-link target |
+| `notes-knowledge.spec.ts:584` | its own rename target |
+| `people-relationship.spec.ts:119` | a note it had just written |
+| `people-relationship.spec.ts:241` | the same, in the accessibility sweep |
+
+One mechanism, five failures:
+[DEBT-201](PRODUCT_DEBT.md). `searchLinkTargets` scanned five pages of 100 with
+`list` ordered `(createdAt, id)` **ASC**, so both pickers only ever saw a
+workspace's 500 **oldest** entities. Past that count a brand-new record was
+invisible, and an unreachable record was presented exactly like a nonexistent
+one. The entry had rated this a "many rehearsals" artefact; it is not — **one**
+gate run crosses the threshold, which means an owner does too.
+
+Fixed at the seam: the search now consults `listRecentByType` — newest-first,
+bounded, and documented in the kernel as existing precisely because *"`list`'s
+ascending cursor pagination cannot cheaply surface the newest records"* — for
+each type the caller names, before the ascending scan it already did. A kernel
+test seeds 520 filler rows with ascending timestamps and **fails without the fix,
+passes with it**.
+
+**Re-run on the fixed tree, all five pass in the same partition at the same
+position, with the workspace at 546 active entities — past the same horizon:**
+
+| Spec | Before | After |
+| --- | --- | --- |
+| `goals-alignment.spec.ts:28` | ✘ 31.0 s timeout | ✓ 25.2 s |
+| `notes-knowledge.spec.ts:536` | ✘ option not found | ✓ 20.4 s |
+| `notes-knowledge.spec.ts:584` | ✘ 2.6 min timeout | ✓ 25.6 s |
+| `people-relationship.spec.ts:119` | ✘ option not found | ✓ 29.0 s |
+| `people-relationship.spec.ts:241` | ✘ option not found | ✓ 31.6 s |
+
+This is the clause of the acceptance criterion earning its keep. Twelve green CI
+partitions said nothing about it, twice over, because the shape of CI's
+parallelism hides it by construction.
+
 #### The re-derived split found one more, and it is the best kind of finding
 
 Run [`32607890703`](https://github.com/acedaly/DalyHub-V2/actions/runs/32607890703)
