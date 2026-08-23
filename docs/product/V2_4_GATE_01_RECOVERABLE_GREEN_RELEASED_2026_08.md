@@ -778,6 +778,59 @@ retire. Recorded as [DEBT-203](PRODUCT_DEBT.md).
 The criterion also says `main`. That clause only merging can produce; § 5.4
 states it rather than blurring it.
 
+#### One failure this document does NOT claim to have explained
+
+Run [`32627346569`](https://github.com/acedaly/DalyHub-V2/actions/runs/32627346569)
+at `618e552` failed one test in p04 — `ai-assistance.spec.ts:434`, *"apply
+refuses a Task carrying an impossible date"* — with:
+
+```
+apiRequestContext.post: socket hang up
+  → POST http://localhost:4173/ai/apply
+```
+
+That is **transport level**, not an assertion: the dev server dropped the
+connection rather than answering. The obvious worry is the serious one — a
+malformed date (`2026-02-30`) taking the server down instead of being refused —
+so it was checked rather than assumed. It does **not** reproduce: three
+consecutive local runs against the same tree pass in ~9.5 s each, the server
+refusing the date exactly as the test requires, and the same test passed in six
+consecutive green CI runs (722, 724, 726, 727, 729, 731).
+
+**What is honest to say is therefore narrow: one occurrence, transport level, no
+mechanism established.** Not "flake" — this document has spent its whole length
+refusing that word without a mechanism, and it is not going to spend its last
+section granting itself an exception.
+
+Re-running that job would settle it, and this environment cannot: the API
+returns `403 Resource not accessible by integration`. Nor is the test made
+"robust" here, because the only way to absorb a socket hang up is a retry, and a
+retry is precisely what would hide a genuine crash if this turns out to be one.
+So it is recorded, and the next run of this branch is the re-run.
+
+---
+
+### 3.8 The validation suite, at the final commit
+
+Every command the item names, run on the tree this record describes:
+
+| Command | Result |
+| --- | --- |
+| `format:check` | PASS |
+| `lint` | PASS |
+| `typecheck` | PASS |
+| `scheme:check` | PASS |
+| `icons:check` | PASS |
+| `dhds:check` | PASS |
+| `e2e:partitions:check` | PASS — 117 spec files across 12 partitions, heaviest 16.6 min |
+| `build` | PASS |
+| `test:unit` | **6400** passed, 451 files |
+| `test:kernel` | **2850** passed, 178 files |
+
+The kernel count is one higher than the 2849 this branch started from: the
+addition is [DEBT-201](PRODUCT_DEBT.md)'s regression test, which fails without
+its fix.
+
 ---
 
 ## 4. Released
