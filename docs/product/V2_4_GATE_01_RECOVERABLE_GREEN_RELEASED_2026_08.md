@@ -563,6 +563,54 @@ This is the clause of the acceptance criterion earning its keep. Twelve green CI
 partitions said nothing about it, twice over, because the shape of CI's
 parallelism hides it by construction.
 
+##### The completed run: 11 of 12 partitions green
+
+```
+p01…p09, p11, p12   pass
+p10                 FAIL — 4 tests
+total   1907 passed · 4 failed · 0 skipped by a test · 0 NEVER EXECUTED
+```
+
+All four were in one partition and all four are now understood.
+
+**Three were [DEBT-173](PRODUCT_DEBT.md), at last** — the first genuine instances
+of it found anywhere in this pass. `identity.spec.ts` (p01) mutates the shared
+seeded Area `a-dh`; `entity-icons.spec.ts` (p10) uses that same Area as its
+`AREA_WITHOUT_ICON` and asserts it carries no icon key. Nine partitions apart,
+one record, two beliefs — `Received "heart"`, `Received "Wellbeing, Emerald"`.
+Fixed by that entry's own prescription: the **mutator** cleans up, through the
+picker's "Use the defaults" control, which had no coverage of its own and so
+gains a test in the bargain. All 7 `entity-icons` journeys then pass.
+
+**The fourth failed for time rather than truth.**
+`tasks-dependencies.spec.ts:500` makes six navigations, four of them to a Task
+collection, and that collection is as large as the workspace is. Against the
+database a full sequence leaves behind — 559 active entities, 429 Tasks — it does
+**41.1 s** of real work under a 30 s default. Given 120 s it passes, on the same
+tree, same database, same assertions. Raised with the measurement stated, on the
+`assets.spec.ts:65` precedent; nothing weakened, and a real regression still
+fails, only later.
+
+##### And re-running the file found a fifth, which nothing else could
+
+Fixing the Area let `identity.spec.ts` be re-run, and `:268` then failed:
+`Expected "Automatic" / Received "Reading, Rose"`. It asserts a Goal reads
+"Automatic" **before** choosing, then chooses Rose + Reading on a Goal it picks
+BY POSITION and never puts back. Pristine database: passes. Second run against
+the same one: fails. DEBT-173's shape turned inward — a spec whose own
+precondition its own previous run destroys.
+
+The repair matters more than the defect. **Clearing at the end would not have
+fixed it**, because a test that fails at that assertion never reaches its own
+cleanup and stays dirty for good. So the journey now ESTABLISHES its precondition
+rather than assuming it — it heals whatever the last run left, then asserts.
+Verified by running the file three times in a row against one database: 9, 9, 9
+passed.
+
+The gate had never seen it, because the gate starts from a wiped database. That
+is exactly the kind of luck this item exists to stop depending on, and it is only
+visible to someone who runs the same suite twice without resetting between.
+
 #### The re-derived split found one more, and it is the best kind of finding
 
 Run [`32607890703`](https://github.com/acedaly/DalyHub-V2/actions/runs/32607890703)
