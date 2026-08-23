@@ -281,6 +281,46 @@ describe("DS-06 entity-link picker service (FND-04 policy integration)", () => {
     expect(byTitle.map((t) => t.title)).toEqual(["Creative brief"]);
   });
 
+  it("finds a record created BEYOND the ascending scan horizon", async () => {
+    /*
+     * DEBT-201 / V2.4-GATE-01 — the ascending scan is bounded at five pages of
+     * 100 and `list` orders `(createdAt, id)` ASC, so it only ever saw a
+     * workspace's 500 OLDEST entities. Past that count a record created seconds
+     * ago was invisible, and the picker presented an unreachable record exactly
+     * like a nonexistent one.
+     *
+     * MEASURED before this test existed: one complete sequential gate run
+     * crosses the threshold at partition p09 — 558 active entities — and FIVE
+     * journeys then fail on `getByRole("option", …)` for a record they had just
+     * created. CI could not see it, because every partition gets a fresh
+     * container and a fresh database.
+     *
+     * 520 filler rows put the target past the horizon. The timestamps ascend so
+     * the target really is the NEWEST row rather than merely a late one, which
+     * is what makes this a horizon test rather than an ordering coincidence.
+     */
+    const base = Date.parse("2026-07-18T00:00:00.000Z");
+    for (let i = 0; i < 520; i += 1) {
+      await seedEntity(WS_A, `filler-${String(i).padStart(4, "0")}`, {
+        type: "note",
+        title: `Filler note ${i}`,
+        at: new Date(base + i * 1000).toISOString(),
+      });
+    }
+    await seedEntity(WS_A, "n-just-made", {
+      type: "note",
+      title: "Just made this one",
+      at: new Date(base + 520 * 1000).toISOString(),
+    });
+
+    const found = await searchLinkTargets(depsA, {
+      anchorId: ANCHOR,
+      query: "Just made this one",
+      targetTypes: ["note"],
+    });
+    expect(found.map((t) => t.id)).toContain("n-just-made");
+  });
+
   it("policy-authorised unlink removes the link and touches only entity_links", async () => {
     const created = await createLinkWithPolicy(depsA, policy(), {
       targetId: NOTE,

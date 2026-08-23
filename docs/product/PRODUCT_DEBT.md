@@ -2838,7 +2838,22 @@ that required CI is a readable signal, because the suite has not finished.
 - **Closing condition.** A full gate run in which **no** test is reported as skipped by its own annotation, demonstrated from the run's `e2e-results-*` artefacts rather than from a log line.
 - **Related roadmap item.** [V2.4-GATE-01](../roadmap/ROADMAP_V2_4.md#-v24-gate-01--recoverable-green-released); [DEBT-158](#-debt-158--a-goal-measurement-journey-has-never-once-run-because-nothing-in-the-seed-is-measurable--p2).
 
-### ☐ DEBT-201 — Both record pickers stop seeing a workspace at its 500th record, and say nothing — P2
+### ☑ DEBT-201 — Both record pickers stop seeing a workspace at its 500th record, and say nothing — P2 — RESOLVED 2026-08-23 (V2.4-GATE-01)
+
+- **It was worse than this entry rated it, and the accumulated-state run is what showed that.** A single sequential twelve-partition gate run crosses the threshold on its own: at partition **p09** the local database held **558 active entities**, and **five journeys** failed together, every one of them on a `getByRole("option", …)` for a record created seconds earlier —
+
+  | Spec | The record it could not see |
+  | --- | --- |
+  | `goals-alignment.spec.ts:28` | `Alignment e2e …` in the parent listbox |
+  | `notes-knowledge.spec.ts:536` | its own record-link target |
+  | `notes-knowledge.spec.ts:584` | its own rename target |
+  | `people-relationship.spec.ts:119` | `Notes e2e note person-relationship-…` |
+  | `people-relationship.spec.ts:241` | the same, in the accessibility sweep |
+
+  **CI is structurally incapable of finding this**: every partition runs in a fresh container against a fresh database, so no CI partition ever accumulates past the horizon. Only the sequential local gate the acceptance asks for could produce it — which is the argument for that clause, made by measurement rather than assertion.
+- **Fixed at the seam, without inventing a search architecture.** `searchLinkTargets` now consults `listRecentByType` — newest-first, bounded, and documented in the kernel as existing precisely because *"`list`'s ascending cursor pagination cannot cheaply surface the newest records"* — for each type the caller names, **before** the ascending scan it already did. The records an owner is most likely to link to are now the ones the picker is certain to see.
+- **What this does and does not do.** The horizon MOVES; it does not disappear. A workspace can still hold more entities than any bounded scan will reach, and closing that properly is DS-08's full-text path. What is gone is the case that actually bites: a brand-new record being unfindable. The service stays bounded, workspace-scoped, anchor-excluding and entity-agnostic — the recent pass runs only when the caller names its types, so no vocabulary was smuggled into a service that deliberately has none.
+- **Closing condition met, and by the test this entry asked for.** `test/kernel/entity-link-picker-service.test.ts` — *"finds a record created BEYOND the ascending scan horizon"* — seeds 520 filler rows with ascending timestamps so the target is genuinely the newest, and asserts the picker finds it. It **fails without the fix and passes with it**, verified in both directions against real D1.
 
 - **Current issue.** [`searchLinkTargets`](../../app/platform/entity-links/entity-link-picker-service.ts) — the ONE search behind both the DS-06 entity-link picker and the NOTES-05 record-link picker — matches a title substring over a **bounded scan of at most five pages of 100**, and [`D1EntityRepository.list`](../../app/platform/storage/d1/d1-entity-repository.ts) orders `created_at ASC, id ASC`. So the window is the workspace's **500 OLDEST** entities. Past that count, a record created *today* is not in the scan and the picker returns no results for its exact title. There is no "showing the first 500" notice: an unreachable record and a nonexistent one are presented identically.
 - **How it was found.** MEASURED, not read. Three E2E journeys — `notes-knowledge.spec.ts:536`, `notes-knowledge.spec.ts:584` and `dhds-11-drag-reorder.spec.ts:481` — failed locally during V2.4-GATE-01 and in no CI run. The difference was the database, not the code: the local D1 had accumulated **622** active entities across repeated gate rehearsals; a wipe and reseed put it at **325**, and all three passed. The first two fail on `getByRole("option", …)` for a note created seconds earlier, which is this defect exactly.
@@ -2847,6 +2862,11 @@ that required CI is a readable signal, because the suite has not finished.
 - **Desired future state.** The picker resolves titles through a real indexed search that has no scan horizon; failing that, it states its own bound to the owner rather than presenting a truncated result as a complete one.
 - **Closing condition.** A workspace holding more than 500 entities in which the picker finds a record created after the first 500, demonstrated end to end rather than by unit test — the local database that produced this entry is exactly such a workspace.
 - **Related roadmap item.** [V2.4-GATE-01](../roadmap/ROADMAP_V2_4.md#-v24-gate-01--recoverable-green-released); DS-06; DS-08; NOTES-05.
+
+<details>
+<summary>The entry as it stood while it was open</summary>
+
+</details>
 
 ### ☐ DEBT-202 — Typing into a Markdown editor before it enhances loses the text, and the save reports success — P2
 

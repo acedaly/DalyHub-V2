@@ -40,7 +40,10 @@ import type {
 
 /** The narrow repository dependencies the service needs (injected). */
 export interface EntityLinkPickerDeps {
-  readonly entities: Pick<EntityRepository, "list" | "getById">;
+  readonly entities: Pick<
+    EntityRepository,
+    "list" | "getById" | "listRecentByType"
+  >;
   readonly entityLinks: Pick<
     EntityLinkRepository,
     "create" | "getById" | "listForEntity" | "unlink"
@@ -52,6 +55,13 @@ export const DEFAULT_TARGET_LIMIT = 25;
 export const MAX_TARGET_LIMIT = 50;
 /** How many candidate entities to scan per search before filtering by query. */
 const SCAN_PAGE_SIZE = 100;
+/**
+ * How many of the NEWEST entities of each named type to consider before the
+ * ascending scan. Bounded like everything else here: with the ten link types the
+ * callers pass, this is at most 500 additional rows, and the repository clamps
+ * it to its own safe maximum regardless.
+ */
+const RECENT_SCAN_LIMIT = 50;
 
 /** Map a kernel entity to the picker's opaque target option. */
 export function entityToTargetOption(
@@ -93,23 +103,68 @@ export async function searchLinkTargets(
       : null;
 
   const results: EntityLinkTargetOption[] = [];
-  let cursor: string | undefined;
+  const taken = new Set<string>();
+
+  /** Accept an entity if it is in scope and matches, and report whether it was. */
+  const consider = (entity: EntityRecord): void => {
+    if (results.length >= limit) return;
+    if (entity.id === params.anchorId) return;
+    if (taken.has(entity.id)) return;
+    if (allowTypes && !allowTypes.has(entity.type)) return;
+    if (needle.length > 0 && !entity.title.toLocaleLowerCase().includes(needle))
+      return;
+    taken.add(entity.id);
+    results.push(entityToTargetOption(entity));
+  };
+
+  /*
+   * NEWEST FIRST, then the ascending scan.
+   *
+   * V2.4-GATE-01 — the ascending scan below is bounded at five pages, and
+   * `list` orders `(createdAt, id)` ASC, so it only ever saw a workspace's 500
+   * OLDEST entities. Past that count a record created seconds ago was invisible
+   * to both pickers, and an unreachable record was presented exactly like a
+   * nonexistent one. MEASURED: a full sequential gate run crosses the threshold
+   * at partition p09 — 558 active entities — and FIVE journeys then fail on
+   * `getByRole("option", …)` for a record they had just created. CI never saw it
+   * because each partition gets a fresh container and a fresh database.
+   *
+   * `listRecentByType` exists for precisely this and says so in its own
+   * docstring: *"distinct from `list`, whose ascending cursor pagination cannot
+   * cheaply surface the newest records"*. Consulting it first means the records
+   * an owner is most likely to link to — the ones they just made — are the ones
+   * the picker is now certain to see.
+   *
+   * This does NOT make the search exhaustive, and is not pretending to: the
+   * horizon moves rather than disappearing, and closing it properly is DS-08's
+   * full-text path. What it removes is the case that actually bites
+   * ([DEBT-201](../../../docs/product/PRODUCT_DEBT.md)) — a brand-new record
+   * being unfindable — while staying bounded, workspace-scoped and
+   * anchor-excluding exactly as before.
+   */
+  // Only when the caller NAMES the types. This service is entity-agnostic by
+  // design and must not grow a hard-coded vocabulary of its own; both real
+  // callers pass `SUPPORTED_LINK_ENTITY_TYPES`, so the pass applies where it
+  // matters, and an unfiltered search keeps exactly its previous behaviour.
+  if (allowTypes) {
+    for (const type of allowTypes) {
+      if (results.length >= limit) break;
+      const recent = await deps.entities.listRecentByType(
+        type as Parameters<EntityRepository["listRecentByType"]>[0],
+        RECENT_SCAN_LIMIT,
+      );
+      for (const entity of recent) consider(entity);
+    }
+  }
 
   // Scan bounded pages until we have enough matches (no unbounded work).
   // Without kernel full-text search (DS-08), matching is a title substring over
   // a bounded scan; the picker's contract lets DS-08 replace this later.
+  let cursor: string | undefined;
   for (let page = 0; page < 5 && results.length < limit; page += 1) {
     const listed = await deps.entities.list({ limit: SCAN_PAGE_SIZE, cursor });
     for (const entity of listed.items) {
-      if (entity.id === params.anchorId) continue;
-      if (allowTypes && !allowTypes.has(entity.type)) continue;
-      if (
-        needle.length > 0 &&
-        !entity.title.toLocaleLowerCase().includes(needle)
-      ) {
-        continue;
-      }
-      results.push(entityToTargetOption(entity));
+      consider(entity);
       if (results.length >= limit) break;
     }
     if (!listed.nextCursor) break;
