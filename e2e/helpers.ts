@@ -846,6 +846,29 @@ export interface CollectionControlsSurface {
   readonly choose: (param: string, value: string) => Promise<void>;
   /** Commit the draft. A no-op in the popover, which applies as it goes. */
   readonly commit: () => Promise<void>;
+  /**
+   * Close the surface and wait until it is gone.
+   *
+   * V2.4-GATE-01 — `commit` does NOT do this, and the asymmetry matters. On a
+   * phone it clicks Apply, which closes the sheet; on a pointer viewport it is a
+   * no-op, so the popover is still OPEN and still over the page. A journey that
+   * goes on to touch something else — a filter chip, say — is then interacting
+   * across an open floating surface on desktop and a closed one on phone, which
+   * is not one journey at two widths, and is not what a person does either.
+   *
+   * MEASURED on CI runs 32604491454 and 32610240298 (p07, then p02):
+   * `tasks-collection.spec.ts:298` clicked a chip's remove link with the popover
+   * still open, and the click produced **no navigation at all** — no third
+   * `.data` request in the trace, the URL unchanged. `AnchoredSurface` dismisses
+   * on a capture-phase `pointerdown` and returns focus to the trigger, so the
+   * page can move between `pointerdown` and `pointerup` and the `click` never
+   * reaches the link. The sibling journey that removes a chip with nothing open
+   * (`:159`) has always passed.
+   *
+   * Escape closes both surfaces — the Sheet as a modal, the popover through its
+   * own `onKeyDown` — so one keystroke serves both, exactly as a person would.
+   */
+  readonly dismiss: () => Promise<void>;
 }
 
 export async function openCollectionControls(
@@ -868,6 +891,12 @@ export async function openCollectionControls(
     },
     commit: async () => {
       if (compact) await page.getByTestId("collection-sheet-apply").click();
+    },
+    dismiss: async () => {
+      if (await surface.isVisible()) {
+        await page.keyboard.press("Escape");
+        await expect(surface).toBeHidden();
+      }
     },
   };
 }

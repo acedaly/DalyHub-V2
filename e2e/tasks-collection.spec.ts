@@ -327,6 +327,22 @@ test.describe("TASKS-03 — filtering", () => {
     await expect(page).toHaveURL(/priority=p1/);
     await expect(page).toHaveURL(/due=overdue/);
 
+    /*
+     * Put the controls away before touching the chips, which is what a person
+     * does and what this journey had never done. `commit()` closes the phone's
+     * sheet and is a NO-OP on the pointer viewport's popover, so without this
+     * the same journey reached across an open floating surface at one width and
+     * a closed one at the other.
+     *
+     * MEASURED on CI runs 32604491454 and 32610240298: the chip click produced
+     * no navigation at all — no third `.data` request, the URL unchanged.
+     * `AnchoredSurface` dismisses on a capture-phase `pointerdown` and returns
+     * focus to the trigger, so the page can move between `pointerdown` and
+     * `pointerup` and the `click` never reaches the link. The sibling journey
+     * that removes a chip with nothing open has always passed.
+     */
+    await controls.dismiss();
+
     await page
       .getByRole("link", { name: /^Remove filter Priority: P1$/ })
       .click();

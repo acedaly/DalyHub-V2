@@ -2343,6 +2343,15 @@ that required CI is a readable signal, because the suite has not finished.
   That is the *controls'* lost update, not the chip row's. The single-removal half of this entry was never a chip defect; the end URL was simply consistent with both stories, and the entry picked the one it was about.
 - **That half is FIXED, at a different seam than this entry supposed.** `useAppliedParams` computed `applied` during render while `record` deliberately wrote a ref, so between a choice and the render reflecting it nothing had re-rendered and `commit`/`write` were composing over the `searchParams` captured at the last render. The hook now also exposes `current()` — the same precedence asked at event time — and both writers use it. A unit test drives both clicks inside one `act` (no render between) and **fails without the fix**; `fireEvent` cannot reproduce the window, which is why the covering test that existed could not.
 - **What remains OPEN, and it is the entry's real subject.** Removing chip A and then chip B inside one revalidation. The chips are ordinary `<Link>`s whose destination is fixed at render, `current()` does not reach them, and the contract that they stay real links should not be traded away. The first bullet of the closing condition is untouched; the second is now met.
+- **DIRECT confirmation of the render-time lag, from a trace (2026-08-23).** This entry's central claim — *"each chip's remove control is an ordinary `<Link>` whose `to` is computed at RENDER time from the applied parameters"* — is now observed rather than reasoned. On CI run [`32610240298`](https://github.com/acedaly/DalyHub-V2/actions/runs/32610240298) the DOM snapshot at the moment of the click reads:
+
+  ```
+  page URL : /tasks?group=due_state&priority=p1&due=overdue
+  chip href: /tasks?group=due_state            ← composed before `due=overdue` existed
+  ```
+
+  A later snapshot of the same page carries the corrected `/tasks?group=due_state&due=overdue`. So the lag is real, it is one render wide, and following the stale destination would remove both filters — which is this entry, exactly, in the single-removal direction.
+- **A THIRD thing, which is neither this entry nor the controls.** In the same trace the click produced **no navigation at all** — no `.data` request, URL unchanged — because the journey clicked the chip with the controls popover still open. `AnchoredSurface` dismisses on a capture-phase `pointerdown` and returns focus to the trigger, so the page can move between `pointerdown` and `pointerup` and the `click` never reaches the link. That is a test reaching across an open floating surface, fixed by putting the controls away first (`dismiss()` in `e2e/helpers.ts`), and it is recorded here only so a future reader does not mistake it for this entry's mechanism.
 - **Related roadmap item.** [V2.3-GATE-01](../roadmap/ROADMAP_V2_3.md#-v23-gate-01--a-trustworthy-v23-baseline--delivered-2026-08-18); SMART-01; [V2.4-GATE-01](../roadmap/ROADMAP_V2_4.md#-v24-gate-01--recoverable-green-released).
 
 ### ☐ DEBT-160 — Only checklist COMPLETION is offline-capable — P3

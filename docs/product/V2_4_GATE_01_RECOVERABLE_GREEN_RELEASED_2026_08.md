@@ -575,6 +575,35 @@ That the intervening red was a stale test rather than a regression does not earn
 it a pass. Runs 720, 721 and 723 each found something real that the run before
 had not, which is the argument for the clause rather than against it.
 
+#### And run 725 made the point again
+
+[`32610240298`](https://github.com/acedaly/DalyHub-V2/actions/runs/32610240298)
+at `317c934` — again a **documentation-only** commit — failed
+`tasks-collection.spec.ts:298` in p02, with the same signature run 721 had shown
+and which the `current()` fix had not addressed because it was never the cause of
+*that* half.
+
+From the trace: the chip click produced **no navigation whatsoever** — no third
+`.data` request, the URL unchanged. The journey clicks the chip with the controls
+**popover still open**, and `AnchoredSurface` dismisses on a capture-phase
+`pointerdown` and returns focus to the trigger, so the page can move between
+`pointerdown` and `pointerup` and the `click` never reaches the link. The sibling
+journey that removes a chip with nothing open (`:159`) has always passed.
+
+The helper made this easy to get wrong: `commit()` clicks Apply on a phone, which
+closes the sheet, and is a **no-op** on a pointer viewport, which leaves the
+popover open. So one journey was reaching across an open floating surface at one
+width and a closed one at the other — not one journey at two widths, and not what
+a person does. `dismiss()` joins the shared surface contract, Escape closes both,
+and `:298` puts the controls away before touching the chips. Every other
+`commit()` caller was checked: all of them only *assert* afterwards, so none had
+the same gap.
+
+The trace also confirms, directly, [DEBT-159](PRODUCT_DEBT.md)'s central claim —
+at the click the page URL carried both filters while the chip's `href` still read
+`/tasks?group=due_state`, composed before the second filter existed. That entry
+stays open, and now has an observation rather than an inference behind it.
+
 ---
 
 ## 4. Released
