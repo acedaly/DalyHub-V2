@@ -507,6 +507,57 @@ for two consecutive pushes"*. These are pull-request runs. Two consecutive green
 runs on this branch are the strongest thing a branch can produce, and the clause
 that remains — `main` — is one only merging can satisfy. It is not claimed here.
 
+#### The re-derived split found one more, and it is the best kind of finding
+
+Run [`32607890703`](https://github.com/acedaly/DalyHub-V2/actions/runs/32607890703)
+at `d924b1e` — the first run of the regenerated manifest, on a commit that
+changes **documentation and the manifest and nothing else** — failed one test:
+`task-drawer.spec.ts:111`, in p02.
+
+`task-drawer.spec.ts` moved from p06 to p02 in the re-derivation, so the
+immediate suspicion was [DEBT-173](PRODUCT_DEBT.md) at last producing its own
+closing experiment: a spec changing its result because the split moved, with no
+product change. **It is not that, and the check that ruled it out was cheap** —
+the local gate happened to be running the same new split, reached the same spec
+in the same partition after the same predecessors, and **passed**. Same order,
+same accumulated database, different answer. So the variable was not the split.
+
+**What it actually is, from the request body rather than from the DOM.** The
+POST that the Save issued carried:
+
+```
+name="description"
+Draft the **proposal** document.
+```
+
+— the **seeded** text, not the typed text. So the save succeeded honestly, the
+success toast was honest, and the value written was the one already there. The
+assertion that failed was the only thing in the test capable of noticing.
+
+`LiveMarkdownEditor` server-renders a `<textarea>` and replaces it with
+CodeMirror initialised from its `value` **prop**, so anything typed into the
+fallback in that window is discarded. This is not a discovery: `forms.spec.ts`
+says it in as many words, the component publishes `data-editor-ready` precisely
+so a caller can wait, and **four specs already wait on it**. `task-drawer.spec.ts`
+never did — it had simply won the race on every previous run, and a different
+partition is a different machine, a different warm-up and a different set of
+predecessors.
+
+So the classification is **a stale test**, not accumulated state and not the
+split: a spec that does not honour a shared contract the repository already
+documents. `waitForEditorReady()` is now in `e2e/helpers.ts` — the default for
+the next spec that types into an editor, with the four existing waits left alone
+because each has a stated reason (a 90 s cold-compile allowance, a scope that
+must not match a sibling prompt, a code-split-chunk rationale, a label-taking
+signature). All three of `task-drawer`'s edit journeys now wait, including the
+one asserting a discarded edit is **not** kept — which a lost keystroke would
+have satisfied for entirely the wrong reason.
+
+The residual product question — whether the handoff should carry the fallback's
+in-flight text rather than the `value` prop — is real, is owned by a shared
+editor used across the product, and is **not** GATE-01's to answer. Raised as
+[DEBT-202](PRODUCT_DEBT.md).
+
 ---
 
 ## 4. Released

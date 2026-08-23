@@ -871,3 +871,47 @@ export async function openCollectionControls(
     },
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* The Markdown editor's readiness contract                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Wait for a `LiveMarkdownEditor` to finish enhancing, before typing into it.
+ *
+ * `LiveMarkdownEditor` server-renders a plain `<textarea>` and replaces it with
+ * CodeMirror on the client, initialising the view from its `value` PROP. So
+ * anything typed into the fallback during that window is **discarded** — as
+ * `forms.spec.ts` already says in as many words: *"until enhancement lands, the
+ * live control is still the SSR `<textarea>`, and anything typed into it is
+ * discarded when CodeMirror replaces it."* The component publishes
+ * `data-editor-ready` on `.dh-md-editor` precisely so a caller can wait.
+ *
+ * V2.4-GATE-01 — this exists because `task-drawer.spec.ts:111` did not wait, and
+ * lost a race it had won on every previous run. The failure was silent in the
+ * worst way: the form SAVED, the toast said success, and the value it wrote was
+ * the one already there. Only the request body showed it —
+ * `name="description"` carrying `Draft the **proposal** document.`, the seeded
+ * text, on CI run 32607890703 (p02). An assertion cannot catch that; a wait can
+ * prevent it.
+ *
+ * Four specs already wait on this contract with their own expectations, and they
+ * are deliberately NOT folded into this one: `touch-targets` allows 90 s for a
+ * cold CodeMirror compile, `reviews-guided` scopes to `.dh-review-guide__prompt`
+ * so it cannot match a sibling prompt's editor, `notes` documents the
+ * code-split-chunk reasoning its timeout is chosen for, and
+ * `meetings-concurrency` takes a field label and returns the group. Each has a
+ * reason worth keeping. This is the default for everything else, so the next
+ * spec that types into an editor has somewhere to reach rather than a fifth
+ * copy to write.
+ *
+ * @param scope Where to look — a dialog, a form, or the page.
+ */
+export async function waitForEditorReady(
+  scope: Page | Locator,
+  options: { readonly timeout?: number } = {},
+): Promise<void> {
+  await expect(
+    scope.locator('.dh-md-editor[data-editor-ready="true"]').first(),
+  ).toBeVisible({ timeout: options.timeout ?? 30_000 });
+}

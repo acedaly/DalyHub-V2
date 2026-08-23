@@ -5,6 +5,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  waitForEditorReady,
 } from "./helpers";
 
 /**
@@ -115,6 +116,21 @@ test.describe("TODAY-02 — desktop", () => {
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Edit details" }).click();
 
+    /*
+     * Wait for the Markdown editor to finish enhancing before typing into it.
+     * `LiveMarkdownEditor` server-renders a `<textarea>` and replaces it with
+     * CodeMirror initialised from its `value` PROP, so text typed into the
+     * fallback in that window is discarded — the shared contract
+     * `waitForEditorReady` is named for, which four other specs already honour.
+     *
+     * V2.4-GATE-01 — this test lost that race on CI run 32607890703 (p02) and
+     * had won it on every run before, which is why it looked like the split's
+     * doing and was not. It failed SILENTLY in the worst way: the form saved,
+     * the toast said success, and the value written was the one already there.
+     * Only the request body showed it — `name="description"` carrying
+     * `Draft the **proposal** document.`, the seeded text.
+     */
+    await waitForEditorReady(dialog);
     const description = dialog.getByRole("textbox", { name: "Description" });
     await description.fill("Reviewed and ready to draft.");
     await dialog.getByRole("button", { name: "Save changes" }).click();
@@ -137,7 +153,10 @@ test.describe("TODAY-02 — desktop", () => {
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Edit details" }).click();
     // EDIT-02 — the title left this form for the record's own heading, so the
-    // discardable value here is the description.
+    // discardable value here is the description. Same readiness wait as above:
+    // this journey asserts the text is NOT kept, which a discarded keystroke
+    // would satisfy for the wrong reason.
+    await waitForEditorReady(dialog);
     const description = dialog.getByRole("textbox", { name: "Description" });
     await description.fill("A discarded description");
     await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -222,6 +241,7 @@ test.describe("TODAY-02 — desktop", () => {
     const dialog = page.getByRole("dialog");
     // Make a mutation so there is at least one event.
     await dialog.getByRole("button", { name: "Edit details" }).click();
+    await waitForEditorReady(dialog);
     await dialog
       .getByRole("textbox", { name: "Description" })
       .fill("Activity check.");
