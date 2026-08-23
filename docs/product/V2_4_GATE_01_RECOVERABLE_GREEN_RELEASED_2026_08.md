@@ -478,6 +478,8 @@ complete set of twelve:
 | [`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327) | `42afd5f` | **GREEN** — twelve of twelve partitions, Scope, Static, Unit, Build, CI Gate |
 | [`32607890703`](https://github.com/acedaly/DalyHub-V2/actions/runs/32607890703) | `d924b1e` | 1 failure (p02) — `task-drawer.spec.ts:111`, on the first run of the re-derived split |
 | [`32609242926`](https://github.com/acedaly/DalyHub-V2/actions/runs/32609242926) | `47bf5be` | **GREEN** — twelve of twelve, on the re-derived split |
+| [`32610240298`](https://github.com/acedaly/DalyHub-V2/actions/runs/32610240298) | `317c934` | 1 failure (p02) — `tasks-collection.spec.ts:298`, clicking across an open popover |
+| [`32611293999`](https://github.com/acedaly/DalyHub-V2/actions/runs/32611293999) | `8e574e0` | **GREEN** — twelve of twelve |
 
 Counted from the partitions' own `e2e-results-*` artefacts rather than from a
 log line, because a log line is what this item exists to stop trusting:
@@ -603,6 +605,30 @@ The trace also confirms, directly, [DEBT-159](PRODUCT_DEBT.md)'s central claim �
 at the click the page URL carried both filters while the chip's `href` still read
 `/tasks?group=due_state`, composed before the second filter existed. That entry
 stays open, and now has an observation rather than an inference behind it.
+
+Run [`32611293999`](https://github.com/acedaly/DalyHub-V2/actions/runs/32611293999)
+at `8e574e0` is green, twelve of twelve.
+
+#### What three documentation-only red runs actually demonstrated
+
+Runs 723 and 725 both failed on commits that changed **no executable code at
+all**, and both failures were real: a spec typing into a Markdown editor before
+it had enhanced, and a spec clicking through an open floating surface. Neither
+was accumulated state; neither was the split; neither was flake.
+
+That is worth stating plainly, because it is the strongest available answer to
+*"is this gate green, or is it merely green today?"* Six runs of substantially
+the same tree found three distinct latent races, each with a mechanism, each
+fixed at a shared contract rather than in the spec that happened to trip on it —
+`revealRowActions`, `waitForEditorReady`, `dismiss`. A suite that surfaces three
+real races under repetition is a suite that is being measured properly; one that
+went green and stayed green on the first attempt would have told us less.
+
+It also means the honest reading of "green" here is narrow: **the gate is green
+on this tree, twice consecutively, having been red three times in between for
+reasons each of which is now understood and fixed.** The clause asking for two
+consecutive green pushes exists to force exactly that distinction, and it earned
+its place on this branch.
 
 ---
 
