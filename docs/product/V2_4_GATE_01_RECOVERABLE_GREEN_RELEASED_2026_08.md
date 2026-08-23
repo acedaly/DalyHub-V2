@@ -798,6 +798,23 @@ results with no failure evidence. That was the re-run this document said the nex
 push would be. It stays recorded as one occurrence with no mechanism, because
 that is what it was.
 
+#### The acceptance criterion, re-established
+
+| Push | SHA | Run | Result |
+| --- | --- | --- | --- |
+| 1 | `cf15d17` | [`32630251479`](https://github.com/acedaly/DalyHub-V2/actions/runs/32630251479) | GREEN — 17/17 checks, no failure artefacts |
+| 2 | `b55fe75` | [`32631318116`](https://github.com/acedaly/DalyHub-V2/actions/runs/32631318116) | GREEN — 17/17 checks |
+
+**This pair, not the earlier one.** `8e574e0`/`ae84193` also satisfied the letter
+of the criterion and the next run falsified its spirit, so they are not what this
+document rests on. These two follow six diagnosed races, the last of which was
+found by the run immediately before them — which is the strongest form of the
+claim a branch can make: *green after the thing that kept making it not green was
+understood*, rather than green because nothing looked.
+
+It is still green **on a branch**. The criterion says `main`, and that clause
+only merging can produce.
+
 So the honest characterisation of this gate is: **green is a probabilistic
 statement about this suite, not an absolute one.** Nothing here is red for an
 unexplained reason, no test was skipped, weakened or quarantined to get there,

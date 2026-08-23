@@ -273,16 +273,23 @@ adds anything to it.**
   | --- | --- | --- |
   | 1 | A scheduled backup completes; `backup:verify` and `db:production:backup:list` non-zero | **NOT MET** — run 21 failed at the same guard as 10–20; `BACKUP_ENCRYPTION_PASSPHRASE` is still unset ([DEBT-198](../product/PRODUCT_DEBT.md)) |
   | 2 | A restore rehearsal is recorded | **MET for the mechanism** (PR #222, `BACKUP_AND_RESTORE.md` § 5.5) — against a scratch database with the committed schema, because no artefact of the owner's data exists to rehearse against |
-  | 3 | Twelve-partition gate green on `main` for two consecutive pushes, fresh **and** accumulated | **MET on the branch, NOT on `main`** — see below |
+  | 3 | Twelve-partition gate green on `main` for two consecutive pushes, fresh **and** accumulated | **MET on the branch, NOT on `main`** — two consecutive green pushes, and a full sequential accumulated-state run; see below |
   | 4 | `spine-workspaces.spec.ts`'s measurement journey executes, owning its own Goal | **MET** — [DEBT-158](../product/PRODUCT_DEBT.md) closed; verified as *executed* from the run's artefacts, not merely as passing |
   | 5 | `db:production:list` reports no pending migration; `verify:production` run with credentials | **NOT MET** — `wrangler whoami` reports not authenticated; the verifier's PARTIALLY VERIFIED output is recorded verbatim instead |
   | 6 | `package.json`, release notes and the running release agree; `DEPLOYMENT.md` states no migration number | **MET except "the running release"**, which cannot be read without credentials |
 
-  **On criterion 3.** CI run
-  [`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327)
-  at `42afd5f` is green across all twelve partitions with **1911 tests
-  collected, 1911 executed, 0 failed, 0 flaky**, read from the partitions' own
-  `e2e-results-*` artefacts. From **55 failures across 10 partitions plus 5 tests
+  **On criterion 3.** Two consecutive green pushes —
+  [`32630251479`](https://github.com/acedaly/DalyHub-V2/actions/runs/32630251479)
+  at `cf15d17` and
+  [`32631318116`](https://github.com/acedaly/DalyHub-V2/actions/runs/32631318116)
+  at `b55fe75`, 17/17 checks each, neither publishing a single failure artefact.
+  An earlier green pair was superseded deliberately: it satisfied the letter of
+  the criterion and the next run falsified its spirit, so the record rests on
+  the pair that FOLLOWS the six diagnosed races rather than the one that preceded
+  the last of them. The fullest single measurement remains run
+  [`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327),
+  green across all twelve partitions with **1911 tests collected, 1911 executed,
+  0 failed, 0 flaky**, read from the partitions' own `e2e-results-*` artefacts. From **55 failures across 10 partitions plus 5 tests
   that never executed**, measured on `main` at `054b98f` — not the "19 tests
   across 8 partitions" DEBT-179 carried, which was three programmes stale. The
   non-goals held: nothing skipped, disabled, quarantined, weakened or deleted,
