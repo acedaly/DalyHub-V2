@@ -283,8 +283,35 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
     await gotoFixture(page, href!);
     const trigger = page.locator(".dh-icon-picker__trigger").first();
     await expect(trigger).toBeVisible();
-    // Before choosing, the Goal wears what it inherits — and the picker says so
-    // rather than leaving the owner to guess what "Automatic" resolves to.
+
+    /*
+     * ESTABLISH the precondition rather than assuming it.
+     *
+     * V2.4-GATE-01 — this journey asserted `toContainText("Automatic")` here,
+     * which is only true of a Goal that has never chosen. It then chose Rose +
+     * Reading on a Goal it picks by position (`a[href*='/goals/']` first) and
+     * never put back, so it passed on a pristine database and failed on the
+     * second run against the same one: MEASURED as `Expected "Automatic" /
+     * Received "Reading, Rose"`.
+     *
+     * Clearing it at the END would not fix that, because a test that fails at
+     * this assertion never REACHES its own cleanup and stays dirty for good.
+     * Establishing the state first is what makes the journey idempotent: it
+     * heals whatever the last run left, and only then asserts.
+     *
+     * This is the DEBT-173 shape turned inward — a spec whose own precondition
+     * its own previous run destroys. The gate never saw it because the gate
+     * starts from a wiped database, which is exactly the kind of luck this item
+     * exists to stop depending on.
+     */
+    await trigger.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "Use the defaults" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    // Now it wears what it INHERITS, and the picker says so rather than leaving
+    // the owner to guess what "Automatic" resolves to.
     await expect(trigger).toContainText("Automatic");
 
     await trigger.click();
@@ -307,6 +334,15 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
     await expect(
       page.locator(".dh-icon-picker__trigger").first(),
     ).toContainText("Rose");
+
+    // And put it back, so the next run starts where this one did. The reset at
+    // the top is what makes the journey survive a run that never gets here.
+    const goalTrigger = page.locator(".dh-icon-picker__trigger").first();
+    await goalTrigger.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "Use the defaults" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(goalTrigger).toContainText("Automatic");
   });
 
   test("'Use the defaults' clears the identity, and puts the shared Area back", async ({

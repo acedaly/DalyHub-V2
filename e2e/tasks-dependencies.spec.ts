@@ -500,6 +500,25 @@ test.describe("TASKS-12 — blocked state on the shared Task row", () => {
   test("clears when the blocker is completed and RETURNS when it is reopened", async ({
     page,
   }) => {
+    /*
+     * SIX navigations, four of them to a Task COLLECTION, and the collection is
+     * as large as the workspace is.
+     *
+     * V2.4-GATE-01 — this is the one test in the accumulated-state gate run that
+     * failed for time rather than for truth. MEASURED on this sandbox against
+     * the database a full twelve-partition sequence leaves behind (559 active
+     * entities, 429 of them Tasks): the journey does **41.1 s** of real work and
+     * the default 30 s budget cuts it off mid-assertion. Given 120 s it passes,
+     * on the same tree, the same database and the same assertions — so the
+     * product is right, the assertion is right, and the budget was wrong.
+     *
+     * This is a STATED measurement, not timeout inflation to bury a defect:
+     * nothing is weakened, the final assertion still requires the blocked badge
+     * to come back with its exact text, and a real regression fails here just as
+     * loudly as before — only later. The precedent is `assets.spec.ts:65`, which
+     * carries its own measurement for the same reason.
+     */
+    test.setTimeout(120_000);
     await gotoFixture(page, recordUrl(BLOCKER));
     await record(page).getByRole("button", { name: "Complete task" }).click();
     await expect(
