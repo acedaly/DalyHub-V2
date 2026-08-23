@@ -264,6 +264,47 @@ adds anything to it.**
 - **Closes.** DEBT-198, DEBT-139, DEBT-179, DEBT-173, DEBT-158, DEBT-180.
   **Advances.** DEBT-84 (to ☑ if `verify:production` is recorded), DEBT-157,
   DEBT-125.
+- **Progress, 2026-08-23 — GREEN is delivered; RECOVERABLE and RELEASED are
+  owner-blocked. The item stays ☐.** Two of the three claims in its own title are
+  not met, and a partial pass is not a tick. Implementation record:
+  [`V2_4_GATE_01_RECOVERABLE_GREEN_RELEASED_2026_08.md`](../product/V2_4_GATE_01_RECOVERABLE_GREEN_RELEASED_2026_08.md).
+
+  | # | Acceptance criterion | State |
+  | --- | --- | --- |
+  | 1 | A scheduled backup completes; `backup:verify` and `db:production:backup:list` non-zero | **NOT MET** — run 21 failed at the same guard as 10–20; `BACKUP_ENCRYPTION_PASSPHRASE` is still unset ([DEBT-198](../product/PRODUCT_DEBT.md)) |
+  | 2 | A restore rehearsal is recorded | **MET for the mechanism** (PR #222, `BACKUP_AND_RESTORE.md` § 5.5) — against a scratch database with the committed schema, because no artefact of the owner's data exists to rehearse against |
+  | 3 | Twelve-partition gate green on `main` for two consecutive pushes, fresh **and** accumulated | **MET on the branch, NOT on `main`** — see below |
+  | 4 | `spine-workspaces.spec.ts`'s measurement journey executes, owning its own Goal | **MET** — [DEBT-158](../product/PRODUCT_DEBT.md) closed; verified as *executed* from the run's artefacts, not merely as passing |
+  | 5 | `db:production:list` reports no pending migration; `verify:production` run with credentials | **NOT MET** — `wrangler whoami` reports not authenticated; the verifier's PARTIALLY VERIFIED output is recorded verbatim instead |
+  | 6 | `package.json`, release notes and the running release agree; `DEPLOYMENT.md` states no migration number | **MET except "the running release"**, which cannot be read without credentials |
+
+  **On criterion 3.** CI run
+  [`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327)
+  at `42afd5f` is green across all twelve partitions with **1911 tests
+  collected, 1911 executed, 0 failed, 0 flaky**, read from the partitions' own
+  `e2e-results-*` artefacts. From **55 failures across 10 partitions plus 5 tests
+  that never executed**, measured on `main` at `054b98f` — not the "19 tests
+  across 8 partitions" DEBT-179 carried, which was three programmes stale. The
+  non-goals held: nothing skipped, disabled, quarantined, weakened or deleted,
+  no retry added, and one `test.setTimeout` raised on a spec measured at 38.2 s
+  of real work under a 30 s default, stated with its measurement. `e2e/partitions.json`
+  was regenerated from that green run and from nothing else — all 117 spec files
+  now read `ci:32605964327`, `PARTITION_COUNT` unchanged at 12, heaviest
+  partition 16.6 min against a 16.7 min derived ceiling.
+  **The clause this does not satisfy is `main`.** A pull-request run is not a
+  `main` run, and two consecutive green pushes on a branch are not two on `main`
+  — which only merging can produce.
+- **Also closed, from outside the "Closes" list.**
+  [DEBT-196](../product/PRODUCT_DEBT.md) — Weekly Planning's phone tier — because
+  two of the 55 failures were its assertions, both correct about the product,
+  and GATE-01's own terms forbid weakening an assertion to reach green.
+  **V2.4-GATE-02 should strike that criterion from its acceptance**; its other
+  subjects were left untouched.
+- **Also raised.** [DEBT-200](../product/PRODUCT_DEBT.md) (three more journeys
+  that report green by never running) and [DEBT-201](../product/PRODUCT_DEBT.md)
+  (both record pickers go blind at a workspace's 500th entity — found because
+  three specs failed on a developer machine and in no CI run, and the difference
+  turned out to be the database rather than the code).
 
 ---
 
