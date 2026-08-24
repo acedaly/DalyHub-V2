@@ -165,6 +165,32 @@ production build) and **not one failure artefact**; every partition's
 second qualifying `main` run cannot be dispatched, and the gate will not be
 given one so that a criterion can be met without a push.
 
+❌ **The next push to `main` was RED, so the pair is broken and the count
+restarts (2026-08-24).** Run
+[`32710624636`](https://github.com/acedaly/DalyHub-V2/actions/runs/32710624636)
+at `f2b504b` — a **documentation-only** commit — failed because **E2E p07 never
+started**: `actions/setup-node`'s corepack download of `pnpm-10.33.0.tgz`
+crashed 11 seconds in on a truncated response, `Install dependencies` was
+`skipped`, and Playwright never ran. `e2e-partition-summary.mjs` correctly
+refused to read the missing `results.json` as an absence of failures.
+
+**Not one test failed.** Measured from the run's own `e2e-results-*` artefacts —
+eleven of them, p07 published none, and **no `e2e-report-*` or `e2e-traces-*`
+artefact from any partition**:
+
+| | p01 | p02 | p03 | p04 | p05 | p06 | p08 | p09 | p10 | p11 | p12 | total |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| passed | 127 | 128 | 230 | 144 | 152 | 117 | 113 | 124 | 112 | 260 | 259 | **1766** |
+| failed | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+| flaky | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+| skipped | 0 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | **2** |
+| minutes | 16.5 | 12.2 | 15.5 | 17.4 | 18.4 | 12.9 | 18.5 | 19.2 | 16.0 | 13.9 | 13.2 | — |
+
+The two skips are [DEBT-200](../product/PRODUCT_DEBT.md) records; its third is in
+p07 and did not run. Raised as [DEBT-204](../product/PRODUCT_DEBT.md). **One
+`rerun-failed-jobs` would very probably make this run green** — the session that
+found it has read-only Actions access (**403**) and could not.
+
 
 ---
 
@@ -254,6 +280,74 @@ key was invented, and the audited export pipeline was not routed around.
 attempted — it needs the same credentials plus a real decrypted artefact — and
 no scratch D1 was created.
 
+### Attempted again 2026-08-24 (second pass) — and production's schema state was MEASURED for the first time
+
+The same nine-step sequence was run again a few hours later, from an environment
+that had one thing the previous one did not: a **read-only Cloudflare API
+connection**. It still holds no `.production.env`, no `CLOUDFLARE_API_TOKEN`, and
+`wrangler whoami` still reports not authenticated — so every `pnpm run`
+production command still refuses at its own guard. What changed is that one
+question this document has called unanswerable could finally be answered.
+
+| Step | Result |
+| --- | --- |
+| 1 — establish a successful encrypted backup | ⏳ **blocked, and this time it could not even be TESTED.** The `production` environment's secrets **cannot be read** through this session (`GET /environments` → *"Access to this GitHub API path is not permitted through this proxy"*), and the canonical manual dispatch **cannot be triggered** (`POST …/dispatches` → **403 `Resource not accessible by integration`**; `rerun-failed-jobs` likewise). The latest run is still **22** ([`32652803588`](https://github.com/acedaly/DalyHub-V2/actions/runs/32652803588), 2026-08-23T16:48Z, `failure`) — there is no run 23, because the schedule fires at 16:30 UTC and this pass ran at ~09:20 UTC. **Whether `BACKUP_ENCRYPTION_PASSPHRASE` has been set since is unknown from here, and is not assumed either way** |
+| 2 — verify recovery | ⏳ not attempted — no artefact, and no off-GitHub key |
+| 3 — inspect the migration state | ✅ **MEASURED — see below.** `db:production:list` still refuses, but production's own ledger was read directly |
+| 4 — preflight | ⏳ `deploy:production:preflight` refuses, naming five missing values: `CLOUDFLARE_D1_DATABASE_ID`, `PRODUCTION_DEFAULT_WORKSPACE_ID`, `PRODUCTION_ACCESS_TEAM_DOMAIN`, `PRODUCTION_ACCESS_AUD`, `PRODUCTION_OWNER_EMAIL`. None was fabricated |
+| 5 — apply migrations | ⏭️ **not run, and nothing needed running** — there are **zero pending committed migrations** (step 3). No D1 history was touched |
+| 6 — deploy | ⏳ not run — step 4 is a hard precondition and it refused |
+| 7 — verify | ⏳ `verify:production` → `PARTIALLY VERIFIED`, the same five `[SKIPPED]` checks, verbatim above |
+| 8 — health through Access | ⚠️ **302 → Cloudflare Access login**, as before. The Access layer is configured and answering. It does not reach the origin, identifies no release, and is not evidence of a problem either way |
+| 9 — record the evidence | this section |
+
+#### The production migration state, measured 2026-08-24
+
+**This is the first direct observation of production's schema state written down
+since 2026-07-18, and it does not say what this repository expected.**
+
+| | |
+| --- | --- |
+| **Applied migrations** | **49** — `0001_create_entities.sql` … `0047_task_recurrence_advanced.sql` |
+| **Committed migrations** | **49** files in [`migrations/`](../../migrations) |
+| **Pending (committed, not applied)** | **none** |
+| **Orphaned (applied, not committed)** | **none** |
+| **Migration history condition** | **coherent** — an exact set match, both directions |
+| **Most recent application** | `0047_task_recurrence_advanced.sql`, 2026-08-20 09:32:44 UTC |
+| **`0042_add_entity_identity_colour.sql`** | applied **2026-08-16 08:37:08 UTC** |
+| **Tables in production** | 52 |
+
+**How it was read, because the provenance is the caveat.** Not by
+`pnpm run db:production:list` — that command still cannot run here. By a single
+read-only `SELECT id, name, applied_at FROM d1_migrations ORDER BY id` issued
+over an owner-authorised Cloudflare API connection, plus one `COUNT(*)` over
+`sqlite_master`. That is the **same ledger** the canonical command reads, so this
+is a measurement and not an inference from filenames — but **it is not the
+canonical command**, so [V2.4-GATE-01](../roadmap/ROADMAP_V2_4.md#-v24-gate-01--recoverable-green-released)'s
+criterion 5 is **not** satisfied by it. **No user data was read** — only the
+migration ledger and a table count. No account id, database id or token is
+recorded anywhere in this repository.
+
+**What it means, stated plainly.** [DEBT-139](../product/PRODUCT_DEBT.md)'s
+headline — *"migration 0042 has not been applied"* — **is false and has been
+false since 2026-08-16**. Production is current with the committed sequence.
+The consequence is not relief but the opposite: **six migrations (`0042`–`0047`)
+were applied to production between 2026-08-16 and 2026-08-20 with no
+disaster-recovery copy behind any of them**, because
+[DEBT-198](../product/PRODUCT_DEBT.md) has been unresolved throughout. The
+risk this checklist's step order exists to prevent was not avoided — it was
+taken six times, unobserved. **`DEPLOYMENT.md` still states no migration number
+of its own**, and this table is deliberately here — a dated observation in a
+release checklist — rather than there.
+
+**What is still unknown about production.** The Worker's secret names, the
+deployment identity of what is live, and **which release version is actually
+running**. `/about` and `/health` both render `APP_VERSION`, both sit behind
+Cloudflare Access, and Access terminates at the edge. The Worker
+`dalyhub-v2-production` exists, as do the database `dalyhub-v2`, BACKUP-01's
+`dalyhub-v2-backup` Worker and its private `dalyhub-v2-backups` R2 bucket —
+existence is all that was established, and `2.4.0` is **not** claimed to be live.
+
 ### The owner's sequence, in order
 
 Backup state first, deployment last. Do not skip a step because the one before it
@@ -333,8 +427,9 @@ the above.
 | | Owed | Blocked on |
 |---|---|---|
 | ⏳ | [DEBT-198](../product/PRODUCT_DEBT.md) — the nightly backup has never produced a backup | `BACKUP_ENCRYPTION_PASSPHRASE` (owner-held) |
-| ⏳ | [DEBT-139](../product/PRODUCT_DEBT.md) — migrations from `0042` unapplied, no pre-migration backup | § 6 steps 1–5 (owner-held credentials) |
-| ⏳ | [DEBT-84](../product/PRODUCT_DEBT.md) — production state has never been stated with evidence | § 6 step 7 |
+| ⚠️ | [DEBT-139](../product/PRODUCT_DEBT.md) — **its migration half is now measured and FALSE**: `0042`–`0047` are all applied and nothing is pending. What remains true, and is worse, is that none of the six had a pre-migration backup | [DEBT-198](../product/PRODUCT_DEBT.md); its "pre-`0042` backup object" clause is now permanently unachievable |
+| ◐ | [DEBT-84](../product/PRODUCT_DEBT.md) — production state has never been stated with evidence. **The schema half is now stated** (§ 6, 2026-08-24); the Worker's secrets, its deployment identity and the running release are still unknown | § 6 step 7 — `verify:production` run **with credentials**, which is what the closing condition names |
+| ⏳ | [DEBT-204](../product/PRODUCT_DEBT.md) — every CI job re-downloads pnpm from the npm registry, and one truncated response turned run 743 red on a documentation-only commit | a change to `.github/actions/setup`, deliberately not made in this pass |
 | ⏳ | [DEBT-199](../product/PRODUCT_DEBT.md) — whether the REMOTE D1 restore path is affected by § 4's finding | one owner command, recorded in that entry |
 
 ---

@@ -352,6 +352,57 @@ adds anything to it.**
   path was improvised to make a checklist look finished. The one owner action
   that unblocks all of it is in
   [`BACKUP_AND_RESTORE.md` § "Setting it for the first time"](../development/BACKUP_AND_RESTORE.md).
+- **Progress, 2026-08-24 (second operational pass) — production's schema state
+  is MEASURED at last, criterion 3 went BACKWARDS, and the item stays ☐.** The
+  same sequence was run again from an environment that had one thing the last
+  one did not: a read-only Cloudflare API connection. It stopped at the same
+  first boundary, but it no longer stopped *blind*.
+
+  | # | Criterion | Change since the first pass |
+  | --- | --- | --- |
+  | 1 | A backup completes; `backup:verify` and `db:production:backup:list` non-zero | **none, and it could not even be TESTED.** The `production` environment's secrets cannot be read through this session, and `workflow_dispatch` returns **403 `Resource not accessible by integration`** — so the one empirical test was unavailable. The latest run is still **22**; there is no run 23 (the schedule fires at 16:30 UTC, this pass ran at ~09:20 UTC) |
+  | 3 | Green on `main` for two consecutive pushes | **REGRESSED — the consecutive pair is broken.** Run [`32710624636`](https://github.com/acedaly/DalyHub-V2/actions/runs/32710624636) at `f2b504b` is **red**, so `main` now reads green (`2f94279`) then red. The count restarts |
+  | 5 | `db:production:list` clean; `verify:production` run with credentials | **still NOT MET as written** — both still refuse at their own guards. But the underlying FACT is now measured: **zero pending migrations** |
+
+  **The finding this pass exists for.** Production's `d1_migrations` ledger was
+  read directly: **49 applied, `0001`–`0047`, an exact set match with the 49
+  committed files — nothing pending, nothing orphaned**, `0047` applied
+  2026-08-20 09:32:44, 52 tables. **[DEBT-139](../product/PRODUCT_DEBT.md)'s
+  headline is false, and has been since 2026-08-16**, when `0042` was applied.
+  It was read with a single read-only `SELECT` over an owner-authorised
+  Cloudflare API connection — **not** `pnpm run db:production:list`, which still
+  refuses, so **criterion 5 is not satisfied by it**; no user data was read.
+  Recorded in
+  [`RELEASE_CHECKLIST_V2_4_0.md` § 6](../release/RELEASE_CHECKLIST_V2_4_0.md).
+  The consequence is the opposite of reassuring: **six migrations reached
+  production with no disaster-recovery copy behind any of them**, which is
+  [DEBT-198](../product/PRODUCT_DEBT.md)'s risk realised rather than avoided.
+  `DEPLOYMENT.md` still states no migration number of its own.
+
+  **Why criterion 3 went backwards, and why it is not the suite's fault.** Run
+  `32710624636`'s **E2E p07 never started**: `actions/setup-node`'s corepack
+  download of `pnpm-10.33.0.tgz` crashed 11 seconds in on a truncated response,
+  so `Install dependencies` was skipped and Playwright never ran. The gate
+  behaved **correctly** — `e2e-partition-summary.mjs` refused to read a missing
+  `results.json` as an absence of failures. The **eleven partitions that did run
+  executed 1766 tests with 0 failed, 0 flaky and 2 skipped**, and **no partition
+  published a failure artefact**. Raised as
+  [DEBT-204](../product/PRODUCT_DEBT.md), and deliberately **not fixed here**:
+  it edits the machinery every job depends on, which is the wrong change to make
+  inside a pass that touches nothing executable. The commit that lost the run
+  changed **documentation only**.
+
+  **What was NOT done, restated because this pass could have.** The Cloudflare
+  connection could create a throwaway D1 and could read production. It was
+  **not** used to export the database — that would have put an unencrypted copy
+  of the owner's entire life in an ephemeral container through an unaudited
+  path, trading the one canonical pipeline for a checklist tick. **No migration
+  was applied** (none was pending). **Nothing was deployed** — the preflight
+  refuses, naming five missing values, and none was fabricated. **No throwaway
+  database was created**: [DEBT-199](../product/PRODUCT_DEBT.md)'s question is
+  about `wrangler d1 execute --remote --file`, and the connection available here
+  exposes a *query* API, which is a third code path that would have answered
+  nothing. The guard was not weakened and no passphrase was invented.
 
 ---
 
