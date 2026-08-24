@@ -21,7 +21,7 @@ it.** Implements
 | | Claim | State |
 |---|---|---|
 | **Recoverable** | a backup exists and has been restored in a rehearsal | ◐ — the pipeline is fixed, hardened and now proves a **restore** on every run, and the mechanism has been rehearsed end to end. **No artefact of the owner's data exists yet**, because `BACKUP_ENCRYPTION_PASSPHRASE` is not set. § 2, § 5.1 |
-| **Green** | the twelve-partition gate is green | see § 3 — the 55 failures, the 5 tests that never executed and the one journey that never ran are all resolved; the roadmap's own condition is *"green on `main` for two consecutive pushes"*, which only merging can produce |
+| **Green** | the twelve-partition gate is green | ◐ — see § 3: the 55 failures, the 5 tests that never executed and the one journey that never ran are all resolved. The roadmap's own condition is *"green on `main` for two consecutive pushes"*; the merge produced the **first** (§ 7.1), and the second needs one more push |
 | **Released** | production is verified, migrated, and running a release whose notes name what shipped | ◐ — the version decision is taken and recorded, the notes and checklist are written, and **nothing has been deployed or migrated**. Two independent blocks, both owner-held: no production backup has ever completed (§ 4.4), and this environment holds no Cloudflare credentials, which `verify:production` reports for itself (§ 4.3). § 4, § 5.2 |
 
 ---
@@ -928,9 +928,14 @@ having no credentials — recorded verbatim in the checklist:
              configuration. The RUNNING release is therefore NOT confirmed.
 ```
 
-`hub.daly.id.au/health` answering **302 to the Cloudflare Access login** is the
-intended hardening and not an outage; the verifier is the authority on that and
-says so in its own words. **Production's migration state remains unmeasured, and
+`hub.daly.id.au/health` answering **302 to the Cloudflare Access login** shows
+the Access layer is configured on the hostname and answering — the intended
+hardening. It shows nothing about the origin: Access terminates an
+unauthenticated request at the edge, before it is proxied, so the same 302 comes
+back whether the Worker behind it is healthy, broken or absent. The verifier is
+the authority, and it marks Application health `[SKIPPED]` rather than passing
+it. (**This sentence read "and not an outage" until § 7.4 corrected it** — a
+probe that never reaches the origin cannot rule an outage out.) **Production's migration state remains unmeasured, and
 this document does not guess at it** — the whole point of DEBT-84 is that a
 repository cannot know what a database has applied.
 
@@ -991,6 +996,10 @@ against both states § 3.5 records, with the run ids named. The second half is
 the first two pushes to `main` after the merge, and the item stays **☐** until
 they are green.
 
+**The first of the two now exists — see § 7.1.** The merge of #223 produced
+[`32685626437`](https://github.com/acedaly/DalyHub-V2/actions/runs/32685626437)
+at `2f94279`, 17 of 17 jobs green. One remains.
+
 ---
 
 ## 6. Scope discipline
@@ -1014,6 +1023,102 @@ Not done, deliberately, and none of it was started:
   regenerated and on what measurement.
 
 ---
+
+## 7. The operational pass, 2026-08-24 — where it got to, and where it stopped
+
+A second session took the operational half: produce a real encrypted production
+backup, verify it, inspect and apply production migrations, deploy `2.4.0`,
+verify production, and close the item if — and only if — the evidence supported
+all three words. **It stopped at the first of those steps**, which is the
+outcome the evidence supports. Nothing was deployed, nothing was migrated, no
+production data was read, and the item stays **☐**.
+
+### 7.1 What advanced: the gate is green on `main`
+
+| | |
+| --- | --- |
+| Run | [`32685626437`](https://github.com/acedaly/DalyHub-V2/actions/runs/32685626437) |
+| Commit | `2f94279` — the #223 merge commit |
+| Trigger | `push` to `main` |
+| Result | **17 of 17 jobs `success`** — Scope, Static, Build, Unit, E2E p01…p12, CI Gate |
+| Failure artefacts | **none.** Thirteen artefacts: `e2e-results-p01`…`p12` and `production-build`. Every partition's *"Upload Playwright report"* and *"Upload Playwright traces & failure screenshots"* step is `skipped` — those steps are `if: failure()`, so `skipped` on all twelve is the per-partition proof that nothing failed |
+
+This is the first complete gate run this item has ever had on `main` rather than
+on a branch, and it is **one of the two** criterion 3 asks for. The second is
+the next push to `main`. It cannot be dispatched: `ci.yml` declares
+`push: [main]` and `pull_request` and **no `workflow_dispatch`**, so there is no
+way to ask for another `main` run without landing a commit — and adding a
+dispatch trigger to the gate so that a criterion could be satisfied without a
+push is precisely the kind of move § 6 exists to refuse.
+
+### 7.2 What did not move, and the boundary that held
+
+The sequence is *backup → verify → migrate → deploy → verify*, and each arrow is
+a safety boundary. It stopped at the first.
+
+| Step | Result |
+| --- | --- |
+| Real production backup | **not produced.** `BACKUP_ENCRYPTION_PASSPHRASE` is still unset in the protected `production` environment. Run **22** ([`32652803588`](https://github.com/acedaly/DalyHub-V2/actions/runs/32652803588), 2026-08-23T16:48:06Z, `054b98f`) failed at step 4, *"Refuse to run without an encryption key"*, with the export, upload-guard and upload steps all `skipped` — identical to runs 10–21 |
+| Backup recovery proof | **not attempted** — no artefact to decrypt, and no off-GitHub key to decrypt it with |
+| DEBT-199's remote half | **not attempted** — it needs credentials *and* a real decrypted artefact. **No scratch D1 was created**, and nothing was inferred about the remote import path |
+| Production migration state | **still unmeasured.** `db:production:list` → `CLOUDFLARE_D1_DATABASE_ID is not set` |
+| Preflight / apply / deploy | **not run** — each refuses at its own guard |
+| `verify:production` | **`PARTIALLY VERIFIED`**, unchanged from § 4.3: Configuration, Worker deployment, Worker secrets, D1 migrations and Application health all `[SKIPPED]` |
+| `https://hub.daly.id.au/health` | **302 → Cloudflare Access login**, consistently. This establishes that **the Access layer answers**; it does not reach the origin, so it neither confirms nor rules out an application problem, and it identifies no release. See § 7.4 |
+
+**Why the secret could not be set from there either.** The session had no
+`~/.dalyhub-v2-production.env` and no `.production.env`, no `CLOUDFLARE_API_TOKEN`,
+`wrangler whoami` reporting not authenticated, no `gh` CLI, and no
+secrets-management API — so the `production` environment could not be
+configured. Nor could a generated key have been *kept*: no password manager or
+other persistent store outside GitHub was available, and § "The recovery key"
+requires the off-GitHub copy to exist **before** the secret is set. A key whose
+only copy lives inside the system it protects is not a recovery key, so
+generating one would have produced the appearance of recoverability rather than
+recoverability.
+
+**What was deliberately not done.** The guard was not weakened, bypassed or made
+conditional. No passphrase was invented. No export path was improvised around
+`production-d1.mjs` / `production-backup.mjs` — a read-only Cloudflare API
+connection was reachable and could see the production Worker and D1, and using
+it to dump or migrate production would have replaced the one audited pipeline
+with an unaudited one to make a checklist look finished. No migration was
+applied to production, and no D1 history was touched.
+
+### 7.4 A correction this pass made to its own evidence, and to two documents
+
+Review of this PR flagged that the health observation was being read as more
+than it can carry, and the finding was correct.
+
+**The error.** A 302 from `hub.daly.id.au/health` was recorded as *"not an
+outage"*. Cloudflare Access terminates an unauthenticated request **at the edge,
+before it is proxied to the origin** — so that redirect is returned identically
+whether the Worker behind it is healthy, misconfigured or absent. The
+observation supports one claim (the Access layer is configured and answering)
+and cannot support the other (the application is up). Asserting the second from
+the first is a false green, which is precisely the class of signal this whole
+item exists to remove — DEBT-84 is open because *"a repository cannot know what
+a database has applied"*, and the same discipline applies to what a probe can
+know about an origin it never reached.
+
+**Where it was fixed.** In § 4.3 above and in
+[`RELEASE_CHECKLIST_V2_4_0.md` § 6](../release/RELEASE_CHECKLIST_V2_4_0.md) —
+including its step-8 runbook comment — as well as in this pass's own § 7.2 row.
+Two of the four were inherited rather than introduced here; they were corrected
+rather than left standing beside a corrected one, because a release checklist
+that says both things is worse than one that says the wrong thing once.
+
+**What is unchanged.** An unauthenticated non-200 from that hostname is still
+**not** a source-code failure, and CI still must never probe it — the reason
+`ci.yml` says so is unaffected. The correction narrows what the redirect proves;
+it does not turn it into evidence of a problem.
+
+### 7.3 What this leaves
+
+Exactly what § 5 already said, minus half of § 5.4: **one owner action**
+(§ 5.1), **one set of owner credentials** (§ 5.2), and **one more push to
+`main`** (§ 5.4). The repository side is complete and this pass added nothing to
+it — no source file was changed, because none needed changing.
 
 ## Related documents
 

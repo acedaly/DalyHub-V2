@@ -153,6 +153,19 @@ evidence. In summary:
 | Not done | nothing skipped, quarantined, weakened, `fixme`d or deleted; no retry added; no timeout raised except one measured budget correction, named as one |
 | Remaining | the roadmap's *"green on `main` for two consecutive pushes"* is produced by the two pushes AFTER the merge, and cannot be produced from a branch |
 
+✅ **The first of the two `main` runs exists.** The merge of #223 produced CI run
+[`32685626437`](https://github.com/acedaly/DalyHub-V2/actions/runs/32685626437)
+at `2f94279`: **17 of 17 jobs `success`** — Scope, Static, Build, Unit, E2E
+p01…p12, CI Gate — with thirteen artefacts (`e2e-results-p01`…`p12` plus the
+production build) and **not one failure artefact**; every partition's
+`if: failure()` upload steps are `skipped`.
+
+⏳ **The second needs the next push to `main`.** `ci.yml` triggers on
+`push: [main]` and `pull_request` only — there is no `workflow_dispatch`, so a
+second qualifying `main` run cannot be dispatched, and the gate will not be
+given one so that a criterion can be met without a push.
+
+
 ---
 
 ## 6. Released — the production sequence
@@ -186,15 +199,60 @@ Configuration, Worker deployment, Worker secrets, D1 migrations, Application hea
 Those remain owner/environment action; nothing below them is a pass.
 ```
 
-✅ **One thing that observation DOES establish:** `https://hub.daly.id.au/health`
-answered **302 to the Cloudflare Access login**. The origin is reachable and
-Access is intercepting the hostname, which is the intended hardening and **not**
-an application outage — exactly the distinction
-[DEBT-84](../product/PRODUCT_DEBT.md) exists about. It says nothing about which
-release is running.
+⚠️ **What that observation DOES and does NOT establish.**
+`https://hub.daly.id.au/health` answered **302 to the Cloudflare Access login**.
+That establishes **the Access layer is configured on the hostname and is
+answering** — the intended hardening, and the reason an unauthenticated non-200
+here must never be read as a source-code failure, which is the distinction
+[DEBT-84](../product/PRODUCT_DEBT.md) exists about.
+
+It establishes **nothing about the origin**. Access terminates an
+unauthenticated request at Cloudflare's edge, *before* it is proxied, so the
+same 302 is returned whether the Worker behind it is healthy, broken or absent.
+It therefore neither confirms nor rules out an application outage, and it says
+nothing about which release is running. **This paragraph claimed "the origin is
+reachable" and "not an application outage" until the V2.4-GATE-01 operational
+pass corrected it** — both were unsupported by a probe that never reached the
+origin, and a release checklist inferring health from an auth redirect is the
+same class of false signal the sentence above refuses in the other direction.
+`verify:production` marks Application health `[SKIPPED]`, and the verifier is
+the authority.
 
 ⏳ **The production migration state is UNKNOWN, and this repository cannot know
 it.** No statement here should be read as evidence that any migration is applied.
+
+### Attempted 2026-08-24, and stopped at step 1
+
+The sequence below was run in order by an operational pass and got no further
+than its first step. **Nothing in it was performed against production**, and the
+outcomes are recorded here rather than left implied:
+
+| Step | Result |
+| --- | --- |
+| 1 — establish a successful encrypted backup | ⏳ **blocked.** `BACKUP_ENCRYPTION_PASSPHRASE` is still unset; run **22** ([`32652803588`](https://github.com/acedaly/DalyHub-V2/actions/runs/32652803588), 2026-08-23T16:48Z) failed at the same guard as 10–21, export and upload `skipped` |
+| 2 — verify recovery | ⏳ not attempted — no artefact, and no off-GitHub key |
+| 3 — inspect the migration state | ⏳ `db:production:list` → `CLOUDFLARE_D1_DATABASE_ID is not set`. **Production's schema state remains unmeasured** |
+| 4 — preflight | ⏳ `deploy:production:preflight` refuses, naming the missing values |
+| 5 — apply migrations | ⏳ not run. **No migration was applied to production** |
+| 6 — deploy | ⏳ not run |
+| 7 — verify | ⏳ `verify:production` → `PARTIALLY VERIFIED`, the same five `[SKIPPED]` checks as above |
+| 8 — health through Access | ⚠️ observed: **302 → Cloudflare Access login**, consistently. This establishes that **the Access layer answers** on the hostname. It does **not** reach the origin, so it neither confirms nor rules out an application problem, and it identifies no release. `verify:production` marks Application health `[SKIPPED]`, and that is the correct reading |
+| 9 — record the evidence | this table |
+
+**Why it stopped rather than continued.** Step 1 is a hard prerequisite, not a
+slow one: no migration may be applied to production until a real backup exists.
+Beyond it, every step is blocked a second time over — that environment had no
+`.production.env`, no `CLOUDFLARE_API_TOKEN` and `wrangler whoami` reporting not
+authenticated. The passphrase could not be set from there either: there was no
+`gh` CLI and no secrets API, and — decisively — no password manager or other
+persistent store **outside GitHub**, which § "The recovery key" requires the key
+to reach *before* the secret is set. Generating one anyway would have produced
+the look of recoverability without the substance. The guard was not weakened, no
+key was invented, and the audited export pipeline was not routed around.
+
+[DEBT-199](../product/PRODUCT_DEBT.md)'s remote half was likewise **not**
+attempted — it needs the same credentials plus a real decrypted artefact — and
+no scratch D1 was created.
 
 ### The owner's sequence, in order
 
@@ -241,8 +299,10 @@ pnpm run verify:production                # every check should now PASS or state
 pnpm run db:production:list               # expect: no pending migration
 
 # ── 8. Confirm health through Cloudflare Access ───────────────────────────────
-#     A 302 from /health is Access doing its job, NOT an outage. The verifier is
-#     the authority. To confirm the RUNNING release, either sign in and read
+#     A 302 from /health means Access answered; it does NOT mean the origin is
+#     healthy, because the request never reached it. It is not evidence of an
+#     outage either. The verifier is the authority — it marks Application health
+#     [SKIPPED] rather than passing it. To confirm the RUNNING release, sign in and read
 #     /about (version + deployed commit), or supply
 #     PRODUCTION_ACCESS_SERVICE_TOKEN_ID / _SECRET so the verifier can pass
 #     through Access as a machine identity and assert it itself.
