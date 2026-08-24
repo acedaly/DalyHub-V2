@@ -362,7 +362,7 @@ adds anything to it.**
 
   | # | Criterion | Change since the first pass |
   | --- | --- | --- |
-  | 1 | A backup completes; `backup:verify` and `db:production:backup:list` non-zero | **none, and it could not even be TESTED.** The `production` environment's secrets cannot be read through this session, and `workflow_dispatch` returns **403 `Resource not accessible by integration`** — so the one empirical test was unavailable. The latest run is still **22**; there is no run 23 (the schedule fires at 16:30 UTC, this pass ran at ~09:20 UTC) |
+  | 1 | A backup completes; `backup:verify` and `db:production:backup:list` non-zero | **none, and it could not even be TESTED.** The `production` environment's secrets cannot be read through this session, and `workflow_dispatch` returns **403 `Resource not accessible by integration`** — so the one empirical test was unavailable. The pass ran at ~09:20 UTC, before that day's 16:30 UTC schedule — and **run 23** ([`32754291594`](https://github.com/acedaly/DalyHub-V2/actions/runs/32754291594), 17:02Z) then failed at the same guard with the env line empty, so the question the pass left open is answered: **the secret is still not set**, 23 runs in |
   | 3 | Green on `main` for two consecutive pushes | **REGRESSED — the consecutive pair is broken.** Run [`32710624636`](https://github.com/acedaly/DalyHub-V2/actions/runs/32710624636) at `f2b504b` is **red**, so `main` now reads green (`2f94279`) then red. The count restarts |
   | 5 | `db:production:list` clean; `verify:production` run with credentials | **still NOT MET as written** — both still refuse at their own guards. But the underlying FACT is now measured: **zero pending migrations** |
 

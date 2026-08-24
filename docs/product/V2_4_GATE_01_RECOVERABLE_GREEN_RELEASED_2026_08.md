@@ -1254,6 +1254,13 @@ Unchanged from § 5, with one clause harder and one easier:
 - **§ 5.1 — one owner action.** `BACKUP_ENCRYPTION_PASSPHRASE`, with a copy off
   GitHub first. Now the **only** thing standing between the repository and
   `Recoverable`, and the migration finding raised its stakes.
+  **Confirmed still unset the same evening.** This pass could not read the secret
+  and could not dispatch the workflow, so § 8.5 recorded the question as open.
+  The nightly schedule closed it: **run 23** ([`32754291594`](https://github.com/acedaly/DalyHub-V2/actions/runs/32754291594),
+  2026-08-24T17:02Z at `f2b504b`) failed at the same guard, with
+  `BACKUP_ENCRYPTION_PASSPHRASE:` printing **empty** — an unset secret, not a
+  rejected one. **23 consecutive failures**, and the job has still never reached
+  the database.
 - **§ 5.2 — owner credentials.** Still needed for criterion 5 as written, for
   the deploy, and for the running release. The *schema* half of the question they
   were needed for is now answered.
