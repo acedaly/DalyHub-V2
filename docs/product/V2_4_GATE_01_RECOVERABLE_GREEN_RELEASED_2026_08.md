@@ -21,8 +21,8 @@ it.** Implements
 | | Claim | State |
 |---|---|---|
 | **Recoverable** | a backup exists and has been restored in a rehearsal | ◐ — the pipeline is fixed, hardened and now proves a **restore** on every run, and the mechanism has been rehearsed end to end. **No artefact of the owner's data exists yet**, because `BACKUP_ENCRYPTION_PASSPHRASE` is not set. § 2, § 5.1 |
-| **Green** | the twelve-partition gate is green | ◐ — see § 3: the 55 failures, the 5 tests that never executed and the one journey that never ran are all resolved. The roadmap's own condition is *"green on `main` for two consecutive pushes"*; the merge produced the **first** (§ 7.1), and the second needs one more push |
-| **Released** | production is verified, migrated, and running a release whose notes name what shipped | ◐ — the version decision is taken and recorded, the notes and checklist are written, and **nothing has been deployed or migrated**. Two independent blocks, both owner-held: no production backup has ever completed (§ 4.4), and this environment holds no Cloudflare credentials, which `verify:production` reports for itself (§ 4.3). § 4, § 5.2 |
+| **Green** | the twelve-partition gate is green | ◐ — see § 3: the 55 failures, the 5 tests that never executed and the one journey that never ran are all resolved. The roadmap's own condition is *"green on `main` for two consecutive pushes"*; the merge produced the **first** (§ 7.1) — and the NEXT push to `main` was **red**, so the pair is broken and the count restarts (§ 8.4). Not one test failed: a partition died in `actions/setup-node` before Playwright started ([DEBT-204](PRODUCT_DEBT.md)) |
+| **Released** | production is verified, migrated, and running a release whose notes name what shipped | ◐ — the version decision is taken and recorded, the notes and checklist are written, and **nothing has been deployed**. **Nothing needed migrating**: production is now measured at 49 of 49 committed migrations applied, nothing pending (§ 8.2) — which also means `0042`–`0047` reached production with no backup behind them. Two independent blocks, both owner-held: no production backup has ever completed (§ 4.4), and this environment holds no Cloudflare credentials, which `verify:production` reports for itself (§ 4.3). § 4, § 5.2 |
 
 ---
 
@@ -1079,7 +1079,7 @@ recoverability.
 
 **What was deliberately not done.** The guard was not weakened, bypassed or made
 conditional. No passphrase was invented. No export path was improvised around
-`production-d1.mjs` / `production-backup.mjs` — a read-only Cloudflare API
+`production-d1.mjs` / `production-backup.mjs` — a Cloudflare API
 connection was reachable and could see the production Worker and D1, and using
 it to dump or migrate production would have replaced the one audited pipeline
 with an unaudited one to make a checklist look finished. No migration was
@@ -1119,6 +1119,159 @@ Exactly what § 5 already said, minus half of § 5.4: **one owner action**
 (§ 5.1), **one set of owner credentials** (§ 5.2), and **one more push to
 `main`** (§ 5.4). The repository side is complete and this pass added nothing to
 it — no source file was changed, because none needed changing.
+
+## 8. The second operational pass, 2026-08-24 — production measured, and a green `main` run lost to a package download
+
+The sequence was run in order a second time. It reached the same boundary and
+stopped there again — but this pass could see production, so for the first time
+the boundary is described from evidence rather than from the absence of it.
+
+### 8.1 What this pass could do that the last one could not
+
+An **owner-authorised Cloudflare API connection** was reachable. It could list
+Workers, D1 databases and R2 buckets, and it could issue SQL. That is the
+difference, and everything below follows from it.
+
+**Its credential is WRITE-CAPABLE, and saying so is the point of an operational
+provenance record.** It could create and delete D1 databases, and the SQL channel
+takes writes as readily as reads. **This pass used it read-only** — two `SELECT`s
+and nothing else — and that was a *decision*, not a boundary the credential
+enforced. § 8.5 is the list of what that decision cost. A future reader asking
+*"could this pass have altered production?"* deserves the answer **yes, and it
+did not**, rather than an assurance that quietly rests on a capability the
+credential never had.
+
+What it could **not** do is anything canonical: `wrangler whoami` still reports
+**not authenticated**, there is still no `.production.env` and no
+`CLOUDFLARE_API_TOKEN`, so `db:production:list`, `db:production:apply`,
+`deploy:production:preflight`, `deploy:production` and the credentialed half of
+`verify:production` all still refuse at their own guards. So the connection is
+not a substitute for the pipeline — it bypasses it. **It was used as an
+observation instrument because that is what it was chosen to be**, which is the
+distinction § 8.5 turns on.
+
+### 8.2 Production's migration state, measured
+
+**The first direct reading of production's schema state since 2026-07-18.**
+
+| | |
+| --- | --- |
+| Applied | **49** — `0001_create_entities.sql` … `0047_task_recurrence_advanced.sql` |
+| Committed | **49** files in [`migrations/`](../../migrations) |
+| Pending | **none** |
+| Orphaned | **none** |
+| History condition | **coherent** — exact set match, both directions |
+| `0042_add_entity_identity_colour.sql` | applied **2026-08-16 08:37:08** |
+| Most recent | `0047`, **2026-08-20 09:32:44** |
+| Tables | 52 |
+
+**Provenance, which is the caveat.** One read-only
+`SELECT id, name, applied_at FROM d1_migrations ORDER BY id`, plus one `COUNT(*)`
+over `sqlite_master`. **No user data was read.** This is the same ledger
+`db:production:list` reads, so it is a measurement rather than an inference from
+filenames — but it is **not the canonical command**, and § 3's acceptance
+criterion 5 names the canonical command. **Criterion 5 is therefore still not
+met**, and the reading does not pretend otherwise.
+
+**What it means.** [DEBT-139](PRODUCT_DEBT.md)'s headline — *"migration 0042 has
+not been applied"* — is **false, and has been since 2026-08-16**. That is not
+good news. The risk the item's own step order exists to prevent was not avoided;
+**it was taken six times, unobserved**: `0042`–`0047` all reached production
+between 2026-08-16 and 2026-08-20 with **no disaster-recovery copy behind any of
+them**, because [DEBT-198](PRODUCT_DEBT.md) was unresolved throughout and still
+is. § 4.4's *"hard block"* framing survives intact — it just turns out the block
+was never actually holding.
+
+### 8.3 What is still unknown about production
+
+The Worker's **secret names**, the **deployment identity** of what is live, and
+**which release is running**. `dalyhub-v2-production` exists;
+`hub.daly.id.au/health` answers **302 to the Cloudflare Access login**, and
+Access terminates at the edge before the origin, so that redirect identifies no
+release and establishes nothing about the Worker behind it — the correction
+§ 7.4 made, unchanged. **`2.4.0` is not claimed to be live.** BACKUP-01's
+`dalyhub-v2-backup` Worker and its private `dalyhub-v2-backups` R2 bucket exist;
+`backup:verify` and `db:production:backup:list` still cannot be run, so what the
+bucket contains is unknown.
+
+### 8.4 Criterion 3 went backwards
+
+Run [`32710624636`](https://github.com/acedaly/DalyHub-V2/actions/runs/32710624636)
+at `f2b504b`, the push that merged #224, is **red** — so `main` now reads green
+(`2f94279`) then red, and the *"two consecutive green pushes"* count **restarts**.
+
+**It is not the suite.** **E2E p07 never started.** `actions/setup-node`'s
+corepack download of `pnpm-10.33.0.tgz` crashed **11 seconds in**:
+
+```
+! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-10.33.0.tgz
+AssertionError [ERR_ASSERTION]: assert(!this.paused)
+  at Parser.finish (node:internal/deps/undici/undici:6165:9)
+```
+
+`Install dependencies` was `skipped` and Playwright never ran, so no
+`results.json` existed — and `scripts/e2e-partition-summary.mjs` **refused to
+read that absence as an absence of failures**, which is the gate working exactly
+as designed.
+
+**Measured from the run's own artefacts.** Eleven `e2e-results-*` artefacts
+(p07 published none), **no `e2e-report-*` or `e2e-traces-*` artefact from any
+partition**, and across the eleven that ran:
+
+| | p01 | p02 | p03 | p04 | p05 | p06 | p08 | p09 | p10 | p11 | p12 | total |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| passed | 127 | 128 | 230 | 144 | 152 | 117 | 113 | 124 | 112 | 260 | 259 | **1766** |
+| failed | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+| flaky | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+| skipped | 0 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | **2** |
+| minutes | 16.5 | 12.2 | 15.5 | 17.4 | 18.4 | 12.9 | 18.5 | 19.2 | 16.0 | 13.9 | 13.2 | — |
+
+The two skips are [DEBT-200](PRODUCT_DEBT.md) records; its third lives in p07 and
+did not run. The commit that lost the run changed **documentation only**.
+
+Raised as [DEBT-204](PRODUCT_DEBT.md) and **deliberately not fixed here** — it
+edits `.github/actions/setup`, which every job depends on, and this pass changes
+nothing executable. One `rerun-failed-jobs` would very likely turn the run green;
+this session's GitHub access is read-only for Actions (**403**), so it could not.
+
+### 8.5 What was not done, and why each refusal held
+
+| Temptation | Refused because |
+| --- | --- |
+| Export production through the Cloudflare connection to satisfy criterion 1 | It would write an **unencrypted copy of the owner's entire life** into an ephemeral container through an **unaudited** path, retiring the one canonical pipeline (`production-d1.mjs` / `production-backup.mjs`) for a checklist tick |
+| Generate and set `BACKUP_ENCRYPTION_PASSPHRASE` | Unreachable anyway (403 / blocked API) — and § 7.2's conclusion stands: the off-GitHub copy must exist **first**, and this environment has nowhere to put one |
+| Create the DEBT-199 scratch database | Its question is about `wrangler d1 execute --remote --file`. The connection here exposes a **query** API — a third code path — so the probe would have answered nothing and left a stray database behind |
+| Fabricate the five missing preflight values | Two of them (`PRODUCTION_ACCESS_TEAM_DOMAIN`, `PRODUCTION_ACCESS_AUD`) are Access configuration, and a deploy is the last place to guess |
+| Apply migrations | **None were pending.** `db:production:apply` was not run because there was nothing for it to do |
+
+No D1 history was touched, nothing was marked applied by hand, no migration file
+was edited, and production was neither reset nor reseeded.
+
+### 8.6 What this leaves
+
+Unchanged from § 5, with one clause harder and one easier:
+
+- **§ 5.1 — one owner action.** `BACKUP_ENCRYPTION_PASSPHRASE`, with a copy off
+  GitHub first. Now the **only** thing standing between the repository and
+  `Recoverable`, and the migration finding raised its stakes.
+  **Confirmed still unset the same evening.** This pass could not read the secret
+  and could not dispatch the workflow, so § 8.5 recorded the question as open.
+  The nightly schedule closed it: **run 23** ([`32754291594`](https://github.com/acedaly/DalyHub-V2/actions/runs/32754291594),
+  2026-08-24T17:02Z at `f2b504b`) failed at the same guard, with
+  `BACKUP_ENCRYPTION_PASSPHRASE:` printing **empty** — an unset secret, not a
+  rejected one. **23 consecutive failures**, and the job has still never reached
+  the database.
+- **§ 5.2 — owner credentials.** Still needed for criterion 5 as written, for
+  the deploy, and for the running release. The *schema* half of the question they
+  were needed for is now answered.
+- **§ 5.4 — two green `main` pushes.** **Harder than it was**: the pair is
+  broken and the count restarts. [DEBT-204](PRODUCT_DEBT.md) is the reason, and
+  fixing it is the cheapest way to stop paying this cost per push.
+
+**The gate stays ☐.** Of *recoverable, green, released*: **recoverable** is
+unmet and now demonstrably overdue, **green** regressed to one-then-red, and
+**released** was never reached. One of three would not have been a tick; none of
+three plainly is not.
 
 ## Related documents
 
