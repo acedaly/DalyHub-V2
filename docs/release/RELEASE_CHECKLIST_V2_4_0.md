@@ -199,12 +199,24 @@ Configuration, Worker deployment, Worker secrets, D1 migrations, Application hea
 Those remain owner/environment action; nothing below them is a pass.
 ```
 
-✅ **One thing that observation DOES establish:** `https://hub.daly.id.au/health`
-answered **302 to the Cloudflare Access login**. The origin is reachable and
-Access is intercepting the hostname, which is the intended hardening and **not**
-an application outage — exactly the distinction
-[DEBT-84](../product/PRODUCT_DEBT.md) exists about. It says nothing about which
-release is running.
+⚠️ **What that observation DOES and does NOT establish.**
+`https://hub.daly.id.au/health` answered **302 to the Cloudflare Access login**.
+That establishes **the Access layer is configured on the hostname and is
+answering** — the intended hardening, and the reason an unauthenticated non-200
+here must never be read as a source-code failure, which is the distinction
+[DEBT-84](../product/PRODUCT_DEBT.md) exists about.
+
+It establishes **nothing about the origin**. Access terminates an
+unauthenticated request at Cloudflare's edge, *before* it is proxied, so the
+same 302 is returned whether the Worker behind it is healthy, broken or absent.
+It therefore neither confirms nor rules out an application outage, and it says
+nothing about which release is running. **This paragraph claimed "the origin is
+reachable" and "not an application outage" until the V2.4-GATE-01 operational
+pass corrected it** — both were unsupported by a probe that never reached the
+origin, and a release checklist inferring health from an auth redirect is the
+same class of false signal the sentence above refuses in the other direction.
+`verify:production` marks Application health `[SKIPPED]`, and the verifier is
+the authority.
 
 ⏳ **The production migration state is UNKNOWN, and this repository cannot know
 it.** No statement here should be read as evidence that any migration is applied.
@@ -224,7 +236,7 @@ outcomes are recorded here rather than left implied:
 | 5 — apply migrations | ⏳ not run. **No migration was applied to production** |
 | 6 — deploy | ⏳ not run |
 | 7 — verify | ⏳ `verify:production` → `PARTIALLY VERIFIED`, the same five `[SKIPPED]` checks as above |
-| 8 — health through Access | ✅ observed: **302 → Cloudflare Access login**, consistently. Access is doing its job; this is not an outage, and it identifies no release |
+| 8 — health through Access | ⚠️ observed: **302 → Cloudflare Access login**, consistently. This establishes that **the Access layer answers** on the hostname. It does **not** reach the origin, so it neither confirms nor rules out an application problem, and it identifies no release. `verify:production` marks Application health `[SKIPPED]`, and that is the correct reading |
 | 9 — record the evidence | this table |
 
 **Why it stopped rather than continued.** Step 1 is a hard prerequisite, not a
@@ -287,8 +299,10 @@ pnpm run verify:production                # every check should now PASS or state
 pnpm run db:production:list               # expect: no pending migration
 
 # ── 8. Confirm health through Cloudflare Access ───────────────────────────────
-#     A 302 from /health is Access doing its job, NOT an outage. The verifier is
-#     the authority. To confirm the RUNNING release, either sign in and read
+#     A 302 from /health means Access answered; it does NOT mean the origin is
+#     healthy, because the request never reached it. It is not evidence of an
+#     outage either. The verifier is the authority — it marks Application health
+#     [SKIPPED] rather than passing it. To confirm the RUNNING release, sign in and read
 #     /about (version + deployed commit), or supply
 #     PRODUCTION_ACCESS_SERVICE_TOKEN_ID / _SECRET so the verifier can pass
 #     through Access as a machine identity and assert it itself.

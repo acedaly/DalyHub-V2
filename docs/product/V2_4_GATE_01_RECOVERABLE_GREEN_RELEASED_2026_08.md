@@ -928,9 +928,14 @@ having no credentials — recorded verbatim in the checklist:
              configuration. The RUNNING release is therefore NOT confirmed.
 ```
 
-`hub.daly.id.au/health` answering **302 to the Cloudflare Access login** is the
-intended hardening and not an outage; the verifier is the authority on that and
-says so in its own words. **Production's migration state remains unmeasured, and
+`hub.daly.id.au/health` answering **302 to the Cloudflare Access login** shows
+the Access layer is configured on the hostname and answering — the intended
+hardening. It shows nothing about the origin: Access terminates an
+unauthenticated request at the edge, before it is proxied, so the same 302 comes
+back whether the Worker behind it is healthy, broken or absent. The verifier is
+the authority, and it marks Application health `[SKIPPED]` rather than passing
+it. (**This sentence read "and not an outage" until § 7.4 corrected it** — a
+probe that never reaches the origin cannot rule an outage out.) **Production's migration state remains unmeasured, and
 this document does not guess at it** — the whole point of DEBT-84 is that a
 repository cannot know what a database has applied.
 
@@ -1059,7 +1064,7 @@ a safety boundary. It stopped at the first.
 | Production migration state | **still unmeasured.** `db:production:list` → `CLOUDFLARE_D1_DATABASE_ID is not set` |
 | Preflight / apply / deploy | **not run** — each refuses at its own guard |
 | `verify:production` | **`PARTIALLY VERIFIED`**, unchanged from § 4.3: Configuration, Worker deployment, Worker secrets, D1 migrations and Application health all `[SKIPPED]` |
-| `https://hub.daly.id.au/health` | **302 → Cloudflare Access login**, consistently. Access is intercepting the hostname, which is the intended configuration and not an outage — the § 4.3 reading is unchanged, and it still says nothing about which release is running |
+| `https://hub.daly.id.au/health` | **302 → Cloudflare Access login**, consistently. This establishes that **the Access layer answers**; it does not reach the origin, so it neither confirms nor rules out an application problem, and it identifies no release. See § 7.4 |
 
 **Why the secret could not be set from there either.** The session had no
 `~/.dalyhub-v2-production.env` and no `.production.env`, no `CLOUDFLARE_API_TOKEN`,
@@ -1079,6 +1084,34 @@ connection was reachable and could see the production Worker and D1, and using
 it to dump or migrate production would have replaced the one audited pipeline
 with an unaudited one to make a checklist look finished. No migration was
 applied to production, and no D1 history was touched.
+
+### 7.4 A correction this pass made to its own evidence, and to two documents
+
+Review of this PR flagged that the health observation was being read as more
+than it can carry, and the finding was correct.
+
+**The error.** A 302 from `hub.daly.id.au/health` was recorded as *"not an
+outage"*. Cloudflare Access terminates an unauthenticated request **at the edge,
+before it is proxied to the origin** — so that redirect is returned identically
+whether the Worker behind it is healthy, misconfigured or absent. The
+observation supports one claim (the Access layer is configured and answering)
+and cannot support the other (the application is up). Asserting the second from
+the first is a false green, which is precisely the class of signal this whole
+item exists to remove — DEBT-84 is open because *"a repository cannot know what
+a database has applied"*, and the same discipline applies to what a probe can
+know about an origin it never reached.
+
+**Where it was fixed.** In § 4.3 above and in
+[`RELEASE_CHECKLIST_V2_4_0.md` § 6](../release/RELEASE_CHECKLIST_V2_4_0.md) —
+including its step-8 runbook comment — as well as in this pass's own § 7.2 row.
+Two of the four were inherited rather than introduced here; they were corrected
+rather than left standing beside a corrected one, because a release checklist
+that says both things is worse than one that says the wrong thing once.
+
+**What is unchanged.** An unauthenticated non-200 from that hostname is still
+**not** a source-code failure, and CI still must never probe it — the reason
+`ci.yml` says so is unaffected. The correction narrows what the redirect proves;
+it does not turn it into evidence of a problem.
 
 ### 7.3 What this leaves
 
