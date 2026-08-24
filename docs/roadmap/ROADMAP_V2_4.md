@@ -355,8 +355,10 @@ adds anything to it.**
 - **Progress, 2026-08-24 (second operational pass) — production's schema state
   is MEASURED at last, criterion 3 went BACKWARDS, and the item stays ☐.** The
   same sequence was run again from an environment that had one thing the last
-  one did not: a read-only Cloudflare API connection. It stopped at the same
-  first boundary, but it no longer stopped *blind*.
+  one did not: a live, owner-authorised Cloudflare API connection — one whose
+  credential is **write-capable**, and which this pass deliberately used
+  **read-only**. It stopped at the same first boundary, but it no longer stopped
+  *blind*.
 
   | # | Criterion | Change since the first pass |
   | --- | --- | --- |

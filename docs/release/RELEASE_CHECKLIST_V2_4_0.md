@@ -196,9 +196,17 @@ found it has read-only Actions access (**403**) and could not.
 
 ## 6. Released — the production sequence
 
-> **Nothing in this section has been performed.** This environment holds no
-> Cloudflare credentials, which `pnpm run verify:production` reports for itself
-> rather than being told.
+> **No step in this section's sequence has been performed** — nothing has been
+> backed up, migrated or deployed — and no environment that has attempted it
+> held Cloudflare credentials, which `pnpm run verify:production` reports for
+> itself rather than being told.
+>
+> **One exception, added 2026-08-24: step 3 is no longer unknown.** Production's
+> migration state has been MEASURED — 49 applied, nothing pending — outside the
+> canonical command. See *"The production migration state, measured 2026-08-24"*
+> below, which is the authority on that one question; the 2026-08-22 material
+> immediately following predates it and is kept as the record of what was known
+> then.
 
 ⏳ **Recorded output of `pnpm run verify:production`, run at this commit
 (2026-08-22, no credentials supplied):**
@@ -244,8 +252,13 @@ same class of false signal the sentence above refuses in the other direction.
 `verify:production` marks Application health `[SKIPPED]`, and the verifier is
 the authority.
 
-⏳ **The production migration state is UNKNOWN, and this repository cannot know
-it.** No statement here should be read as evidence that any migration is applied.
+⏳ **The production migration state was UNKNOWN as of 2026-08-22, and nothing
+above establishes it.** ~~This repository cannot know it.~~ **SUPERSEDED
+2026-08-24** by the direct reading below: the repository still cannot know it,
+but an owner-authorised connection could be asked, and was. Nothing in the
+2026-08-22 material above should be read as evidence that any migration is
+applied; the measured table below is the only statement here that carries that
+evidence.
 
 ### Attempted 2026-08-24, and stopped at step 1
 
@@ -283,8 +296,11 @@ no scratch D1 was created.
 ### Attempted again 2026-08-24 (second pass) — and production's schema state was MEASURED for the first time
 
 The same nine-step sequence was run again a few hours later, from an environment
-that had one thing the previous one did not: a **read-only Cloudflare API
-connection**. It still holds no `.production.env`, no `CLOUDFLARE_API_TOKEN`, and
+that had one thing the previous one did not: a **live, owner-authorised
+Cloudflare API connection**. The credential is **write-capable** — it can create
+and delete D1 databases and issue arbitrary SQL. **This pass used it read-only** —
+two `SELECT`s and nothing else — and that was a choice rather than a limit. See
+*"How it was read"* under the measured table below. It still holds no `.production.env`, no `CLOUDFLARE_API_TOKEN`, and
 `wrangler whoami` still reports not authenticated — so every `pnpm run`
 production command still refuses at its own guard. What changed is that one
 question this document has called unanswerable could finally be answered.

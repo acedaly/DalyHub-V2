@@ -1079,7 +1079,7 @@ recoverability.
 
 **What was deliberately not done.** The guard was not weakened, bypassed or made
 conditional. No passphrase was invented. No export path was improvised around
-`production-d1.mjs` / `production-backup.mjs` — a read-only Cloudflare API
+`production-d1.mjs` / `production-backup.mjs` — a Cloudflare API
 connection was reachable and could see the production Worker and D1, and using
 it to dump or migrate production would have replaced the one audited pipeline
 with an unaudited one to make a checklist look finished. No migration was
@@ -1128,16 +1128,27 @@ the boundary is described from evidence rather than from the absence of it.
 
 ### 8.1 What this pass could do that the last one could not
 
-An **owner-authorised, read-only Cloudflare API connection** was reachable. It
-could list Workers, D1 databases and R2 buckets, and it could issue SQL. That is
-the difference, and everything below follows from it.
+An **owner-authorised Cloudflare API connection** was reachable. It could list
+Workers, D1 databases and R2 buckets, and it could issue SQL. That is the
+difference, and everything below follows from it.
+
+**Its credential is WRITE-CAPABLE, and saying so is the point of an operational
+provenance record.** It could create and delete D1 databases, and the SQL channel
+takes writes as readily as reads. **This pass used it read-only** — two `SELECT`s
+and nothing else — and that was a *decision*, not a boundary the credential
+enforced. § 8.5 is the list of what that decision cost. A future reader asking
+*"could this pass have altered production?"* deserves the answer **yes, and it
+did not**, rather than an assurance that quietly rests on a capability the
+credential never had.
 
 What it could **not** do is anything canonical: `wrangler whoami` still reports
 **not authenticated**, there is still no `.production.env` and no
 `CLOUDFLARE_API_TOKEN`, so `db:production:list`, `db:production:apply`,
 `deploy:production:preflight`, `deploy:production` and the credentialed half of
-`verify:production` all still refuse at their own guards. The connection is an
-observation instrument, not a substitute for the pipeline.
+`verify:production` all still refuse at their own guards. So the connection is
+not a substitute for the pipeline — it bypasses it. **It was used as an
+observation instrument because that is what it was chosen to be**, which is the
+distinction § 8.5 turns on.
 
 ### 8.2 Production's migration state, measured
 
