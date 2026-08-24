@@ -385,13 +385,32 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     const noteTitle = uniqueNoteTitle("retry");
     await createNote(page, noteTitle);
 
-    let failNext = true;
+    /*
+     * Fail EVERY save until the test has seen the error state, rather than
+     * exactly one.
+     *
+     * V2.4-GATE-01 — this was a one-shot `failNext`, which assumes the blur
+     * below is the first POST to reach `/mutate` after the route is installed.
+     * It need not be: the editor autosaves on a debounce, so on a loaded runner
+     * a save can fire DURING `clearAndType`, consume the single failure, and
+     * leave the blur's save to succeed — no error state, and the assertion
+     * below fails looking for one.
+     *
+     * MEASURED on CI run 32623860843 (p09). [DEBT-179](../docs/product/PRODUCT_DEBT.md)
+     * had recorded this spec failing once with *"no mechanism in the branch, one
+     * occurrence, cause unknown"* and deliberately left it unclassified rather
+     * than guess; this is the second occurrence and the mechanism.
+     *
+     * Nothing is weakened. The gate is released explicitly once the failure has
+     * been shown, so Retry still has to succeed against a working server —
+     * which is the half of this journey that matters.
+     */
+    let failSaves = true;
     await page.route("**/mutate", async (route) => {
-      if (route.request().method() !== "POST" || !failNext) {
+      if (route.request().method() !== "POST" || !failSaves) {
         await route.continue();
         return;
       }
-      failNext = false;
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -411,6 +430,10 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     expect(await readSource(page)).toContain(
       "Draft that must survive a failure",
     );
+
+    // The failure has been shown; let the server work again so Retry is a real
+    // recovery rather than a second rejection.
+    failSaves = false;
 
     // `exact` matters here: Playwright matches accessible names by
     // case-insensitive SUBSTRING, and the DS-12 overflow trigger is named after

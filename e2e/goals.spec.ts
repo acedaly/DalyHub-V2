@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  comboboxOption,
   RESPONSIVE_VIEWPORTS,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -162,9 +163,9 @@ test.describe("AREA-02 — Goals", () => {
     });
     await combo.click();
     await combo.fill(goalTitle);
-    const goalOption = newProjectDialog.getByRole("option", {
-      name: new RegExp(goalTitle),
-    });
+    // DHDS-09 — the listbox is portalled, so it is reached through the
+    // combobox that owns it rather than through the dialog around the field.
+    const goalOption = await comboboxOption(combo, new RegExp(goalTitle));
     await expect(goalOption).toBeVisible();
     await goalOption.click();
     await newProjectDialog.getByLabel(/Title/).fill(projectTitle);

@@ -280,10 +280,22 @@ test("keeps focus after a mutation and announces the outcome", async ({
   await target.focus();
   await page.keyboard.press("Enter");
 
-  // The announcement is a live region, and it says what happened AND what did not.
-  await expect(page.locator('[role="status"]').last()).toContainText(
-    /planned for .*Deadlines are unchanged/,
-  );
+  /*
+   * The announcement is a live region, and it says what happened AND what did
+   * not — read from THE PLANNER'S OWN region rather than from "the last
+   * `role="status"` on the page".
+   *
+   * The shell publishes live regions of its own (the offline/storage status at
+   * the top of `<main>`, and the shared feedback system's `aria-atomic` region,
+   * which is mounted after the page content). `.last()` therefore resolved to
+   * the feedback region — permanently empty on this journey — and waited out its
+   * timeout beside a planner region that already held the right sentence.
+   * Scoping to `.dh-plan` names the surface whose announcement this test is
+   * about, and cannot be moved by anything the shell adds later.
+   */
+  await expect(
+    page.locator(".dh-plan").getByRole("status").last(),
+  ).toContainText(/planned for .*Deadlines are unchanged/);
   /*
    * Focus is not thrown away.
    *

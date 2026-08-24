@@ -5,6 +5,8 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  openCompletedGroup,
+  openTodayWeeklySummary,
   ownerToday,
   postSameOrigin,
   waitForInteractive,
@@ -402,12 +404,20 @@ test.describe("GOAL-02 — Today", () => {
     const own = page
       .locator(".dh-taskrow", { hasText: title })
       .getByRole("checkbox", { name: `Complete ${title}` });
-    await own.check();
-    // The row's own state is the signal that the completion landed — no sleep.
+    /*
+     * `.click()`, not `.check()`. `check()` verifies by RE-RESOLVING the same
+     * locator, and completing the Task is what invalidates it: Today files the
+     * completed row under the plan's `Completed · n` disclosure, which renders
+     * closed, so the row leaves the accessibility tree and `check()` retries
+     * against nothing until the test times out.
+     */
+    await own.click();
+    // The row's own state is the signal that the completion landed — no sleep —
+    // read where Today actually files it.
     await expect(
-      page
-        .locator(".dh-taskrow", { hasText: title })
-        .getByRole("checkbox", { name: `Reopen ${title}` }),
+      (await openCompletedGroup(page, title)).getByRole("checkbox", {
+        name: `Reopen ${title}`,
+      }),
     ).toBeChecked();
 
     await gotoFixture(page, "/today");
@@ -422,8 +432,12 @@ test.describe("GOAL-02 — Today", () => {
      * measure the completion above just moved links there.
      */
     await expect(page.getByTestId("today-activity-trend")).toHaveCount(0);
-    const summary = page.getByTestId("today-summary");
-    await expect(summary).toBeVisible();
+    /*
+     * The measures sit inside the summary's own `Last 7 days` disclosure, which
+     * renders CLOSED — so the link below is in the DOM and out of the
+     * accessibility tree until it is opened. See `openTodayWeeklySummary`.
+     */
+    const summary = await openTodayWeeklySummary(page);
     await expect(summary).toContainText("Tasks completed");
     await expect(
       summary.getByRole("link", { name: /Tasks completed/ }),

@@ -20,6 +20,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   openCollectionControls,
+  revealRowActions,
   taskRow,
   taskRows,
   waitForInteractive,
@@ -141,13 +142,87 @@ test.describe("DHDS-08 — the row reveal never moves the row", () => {
   }) => {
     await gotoFixture(page, "/tasks");
     const row = taskRows(page).first();
-    const trigger = row.locator(".dh-action-reveal").first();
+    /*
+     * The row's OVERFLOW TRIGGER, named — not `.dh-action-reveal` first().
+     *
+     * DHDS-10 gave every inline-select field a chevron carrying the same reveal
+     * class, and those come first in the row, so `.first()` had quietly become
+     * an `<svg aria-hidden="true" focusable="false">`: `focus()` on it does
+     * nothing at all, `:focus-within` never matches, and the opacity assertion
+     * failed on a decoration rather than on the affordance the test is named
+     * for. Asking for the control by its own class fixes what is measured and
+     * makes it stronger — the assertion below now proves the thing a keyboard
+     * user actually reaches took focus.
+     */
+    const trigger = row.locator(".dh-taskrow__overflow").first();
     await expect(trigger).toBeAttached();
 
     // It is never removed from the tree — `opacity`, never `display: none`.
     await expect(trigger).toHaveCSS("display", /^(?!none$)/);
+
+    /*
+     * DEBT-180 — rule 4, asserted in BOTH directions, because it had only ever
+     * been half true.
+     *
+     * AT REST the concealed affordance is transparent to the pointer AND so is
+     * the box that shrink-wraps it, so a click in that space reaches the ROW.
+     * That is what the contract promises and what it did not deliver: MEASURED
+     * before the fix, `elementsFromPoint` at the trigger's own centre returned
+     * `div.dh-overflow-menu` — the same 32×32 box, `pointer-events: auto`, and
+     * inert — so the click was swallowed by a wrapper one element up from the
+     * affordance the rule had correctly disabled.
+     *
+     * Read from the real hit test rather than from a computed style, because
+     * the computed style is the half that was already right.
+     */
+    const atPoint = async () =>
+      await trigger.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          rect.x + rect.width / 2,
+          rect.y + rect.height / 2,
+        );
+        return {
+          reveal: hit?.closest(".dh-action-reveal") !== null,
+          wrapper: hit?.closest(".dh-overflow-menu") !== null,
+          row: hit?.closest("[data-dh-action-context='true']") !== null,
+        };
+      });
+
+    // Genuinely at rest: nothing hovered and nothing in the row focused, so
+    // neither `:hover` nor `:focus-within` is revealing anything.
+    await page.mouse.move(0, 0);
+    const resting = await atPoint();
+    expect(
+      resting.wrapper,
+      "at rest, neither the ⋯ nor its wrapper takes the click",
+    ).toBe(false);
+    expect(resting.row, "at rest, a click in that space reaches the ROW").toBe(
+      true,
+    );
+
+    /*
+     * REACHABLE BY KEYBOARD, which is what this test is named for: focus alone
+     * reveals the affordance, with no pointer involved at all.
+     */
     await trigger.focus();
+    await expect(trigger).toBeFocused();
     await expect(trigger).toHaveCSS("opacity", "1");
+
+    /*
+     * …and once the row is ENGAGED the affordance is operable — the other half
+     * of the same rule, and the half `revealRowActions()` exists to give an
+     * automated caller without a `force: true` that would assert reachability
+     * while proving the opposite.
+     */
+    await revealRowActions(row);
+    expect(
+      (await atPoint()).reveal,
+      "once the row is engaged, the ⋯ wins its own hit test",
+    ).toBe(true);
+    await trigger.click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.keyboard.press("Escape");
   });
 });
 

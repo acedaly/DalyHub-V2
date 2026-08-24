@@ -19,7 +19,13 @@
  * by the test, never by a timer.
  */
 
-import { render, screen, fireEvent } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import {
   RouterProvider,
   createMemoryRouter,
@@ -119,6 +125,73 @@ describe("collection controls — live apply", () => {
     first.open();
   });
 
+  it("composes a second choice made before ANY render has reflected the first", async () => {
+    /*
+     * V2.4-GATE-01 — the half of the window the test above does not cover.
+     *
+     * That one HOLDS the first `.data` response, which guarantees the router is
+     * reporting `loading` by the time the second choice is made — so it only
+     * ever exercises the path where a render has already happened and
+     * `useAppliedParams` has already handed the pending write to the controls.
+     *
+     * The window it leaves open is the one before any of that. `record` writes a
+     * REF and deliberately does not re-render; React Router does not dispatch
+     * `loading` synchronously either. So between a choice and the render that
+     * reflects it, NOTHING has re-rendered — and `commit`/`write` used to close
+     * over the `searchParams` of the last render. A second choice landing in
+     * that window ran a handler holding the pre-first-choice parameters and
+     * deleted the first: the very lost update this file exists for, arriving
+     * through the one door the fix left open.
+     *
+     * MEASURED in a browser rather than inferred. `tasks-collection.spec.ts:298`
+     * reproduces it deterministically against the dev server, and its trace
+     * shows exactly the two loader requests the hook's own docstring predicts —
+     * `?group=due_state&priority=p1`, then `?group=due_state&due=overdue` with
+     * `priority=p1` gone. The same signature appeared on CI run 32602831529.
+     *
+     * `fireEvent` cannot reproduce it: it wraps each event in `act()`, which
+     * flushes a render between the two clicks and hands the second handler the
+     * pending write — which is why an earlier version of this test passed
+     * against the defect. Both clicks therefore go inside ONE `act`, which is
+     * what a fast pair of real clicks does.
+     */
+    const first = gate();
+    let loads = 0;
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/tasks",
+          loader: async ({ request }) => {
+            loads += 1;
+            if (loads === 2) await first.held;
+            return new URL(request.url).searchParams.toString();
+          },
+          Component: Collection,
+        },
+      ],
+      { initialEntries: ["/tasks"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    fireEvent.click(await screen.findByTestId("collection-filter-trigger"));
+
+    // ONE act, two clicks: no render is flushed between them, which is the
+    // window. Native `.click()` rather than `fireEvent`, so React sees two
+    // ordinary discrete events in one batch.
+    await act(async () => {
+      screen.getByTestId("collection-popover-priority-p1").click();
+      screen.getByTestId("collection-popover-due-overdue").click();
+    });
+
+    const target = await screen.findByTestId("target");
+    await waitFor(() => {
+      expect(target).toHaveTextContent("priority=p1");
+      expect(target).toHaveTextContent("due=overdue");
+    });
+
+    first.open();
+  });
+
   it("returns to the committed state once the router settles", async () => {
     const router = createMemoryRouter(
       [
@@ -141,11 +214,25 @@ describe("collection controls — live apply", () => {
     fireEvent.click(await screen.findByTestId("collection-filter-trigger"));
     fireEvent.click(screen.getByTestId("collection-popover-due-overdue"));
 
-    // Settled: the rejected dimension is gone from the chips and the badge,
-    // rather than being re-asserted by a remembered write.
-    expect(
-      await screen.findByTestId("collection-filter-trigger"),
-    ).not.toHaveTextContent("1");
-    expect(screen.queryByTestId("collection-filter-chips")).toBeNull();
+    /*
+     * Settled: the rejected dimension is gone from the chips and the badge,
+     * rather than being re-asserted by a remembered write.
+     *
+     * V2.4-GATE-01 — waited for, as ONE settled state, rather than read
+     * synchronously after a `findBy` that never waited for it. The trigger is
+     * in the document from the first render, so `findByTestId` resolved
+     * immediately and both assertions raced the router's settle: the chips
+     * survive one extra render tick, and the run in which they did reported a
+     * defect that is not there. The assertions themselves are unchanged, and
+     * neither is weakened — a chip that genuinely stayed would still fail here,
+     * on the same values, at the end of the timeout instead of before the
+     * product had answered.
+     */
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("collection-filter-trigger"),
+      ).not.toHaveTextContent("1");
+      expect(screen.queryByTestId("collection-filter-chips")).toBeNull();
+    });
   });
 });

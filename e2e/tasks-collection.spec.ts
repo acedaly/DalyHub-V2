@@ -304,6 +304,45 @@ test.describe("TASKS-03 — filtering", () => {
     await controls.choose("due", "overdue");
     await controls.commit();
 
+    /*
+     * "Two APPLIED filters" is this test's own title, and it had been assuming
+     * it rather than asserting it. On a pointer viewport the controls apply
+     * LIVE, so `commit()` is a no-op and the second choice's write may still be
+     * in flight here. A chip is a `<Link>` whose destination was fixed at its
+     * last render, so clicking one in that window follows a target composed
+     * before the second filter existed — which removes both.
+     *
+     * MEASURED on CI run 32602831529 (p07): the URL after the click was
+     * `/tasks?group=due_state`, with `due=overdue` gone as well as `priority=p1`.
+     * The product is not at fault — `useAppliedParams` puts the pending write
+     * into what the chips read, so a person one frame later sees the right
+     * destination — but Playwright clicks inside a frame, and a test that races
+     * its own precondition is not testing removal.
+     *
+     * The sibling journey above already waits for both parameters before going
+     * on; this one now does the same. Nothing is weakened: if the two filters
+     * genuinely failed to combine, this is where it fails, and it fails LOUDER
+     * than a downstream expectation about what survived a removal.
+     */
+    await expect(page).toHaveURL(/priority=p1/);
+    await expect(page).toHaveURL(/due=overdue/);
+
+    /*
+     * Put the controls away before touching the chips, which is what a person
+     * does and what this journey had never done. `commit()` closes the phone's
+     * sheet and is a NO-OP on the pointer viewport's popover, so without this
+     * the same journey reached across an open floating surface at one width and
+     * a closed one at the other.
+     *
+     * MEASURED on CI runs 32604491454 and 32610240298: the chip click produced
+     * no navigation at all — no third `.data` request, the URL unchanged.
+     * `AnchoredSurface` dismisses on a capture-phase `pointerdown` and returns
+     * focus to the trigger, so the page can move between `pointerdown` and
+     * `pointerup` and the `click` never reaches the link. The sibling journey
+     * that removes a chip with nothing open has always passed.
+     */
+    await controls.dismiss();
+
     await page
       .getByRole("link", { name: /^Remove filter Priority: P1$/ })
       .click();

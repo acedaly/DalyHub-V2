@@ -4,6 +4,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  openCompletedGroup,
   ownerToday,
   postSameOrigin,
   taskRows,
@@ -187,7 +188,38 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     ).toBeVisible();
     const bands = await focusBands(page);
 
-    expect(bands["Overdue"]).toContain(slipped.title);
+    /*
+     * The oldest slip is the day's NOW task, and that is where the assertion
+     * goes.
+     *
+     * TODAY-12 gave Today a decision-first `Now` position, and `TodayScreen`
+     * fills it with `buckets.overdue.find(open)` — the FIRST open overdue task,
+     * which `bucketDay` has already ordered oldest-slip-first. The row is then
+     * REMOVED from the band it came from (`remainingOverdue`), because drawing
+     * the same Task twice on one screen is exactly what this test's own "never
+     * twice" clause forbids.
+     *
+     * So this row is deterministically Now — a 1995 due date is the oldest slip
+     * in any workspace this suite produces — and looking for it in the Overdue
+     * band asserted a projection the product deliberately stopped having. What
+     * the band assertion was protecting is unchanged and is what is checked
+     * here: the Task is CLASSIFIED as overdue (it reached the Now position,
+     * which only overdue work reaches while overdue work exists), it is drawn
+     * ONCE, and it is not also left in the band.
+     */
+    const now = page.getByTestId("today-now");
+    await expect(
+      now.getByRole("link", { name: `Open ${slipped.title}` }),
+    ).toBeVisible();
+    expect(bands["Overdue"] ?? []).not.toContain(slipped.title);
+    await expect(
+      page.locator(".dh-taskrow__title", { hasText: slipped.title }),
+    ).toHaveCount(1);
+    // …and it is there because it SLIPPED, which the row says for itself.
+    await expect(
+      now.getByRole("button", { name: /^Due date: (Over a year ago|.*ago)$/ }),
+    ).toBeVisible();
+
     expect(bands["Due today"]).toEqual(
       expect.arrayContaining([due.title, both.title]),
     );
@@ -265,18 +297,39 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
         .locator(".dh-day-section__label");
     await expect(bandLabel(row)).toHaveText(/^due today$/i);
 
-    // 3. Complete it directly from Today.
+    /*
+     * 3. Complete it directly from Today.
+     *
+     * `.click()`, not `.check()`: `check()` verifies by RE-RESOLVING the same
+     * locator, and completing the Task is what invalidates it. Today files a
+     * completed row under the plan's `Completed · n` disclosure, which renders
+     * closed — so the row leaves both its band and the accessibility tree, and
+     * `check()` retries against nothing until the test times out.
+     */
     await row
       .getByRole("checkbox", { name: `Complete ${target.title}` })
-      .check();
+      .click();
 
-    // 4. It leaves ACTIVE Focus — the checkbox now offers to reopen it, and it
-    //    stays in the band it was already in rather than jumping to the bottom
-    //    of the panel under a heading that is not true of it.
+    /*
+     * 4. It leaves ACTIVE Focus, and the assertion is the OUTCOME rather than
+     *    the old projection: the due-today band no longer holds it, the day's
+     *    `Completed · n` group does, and the control there offers to reopen it.
+     *
+     *    The previous assertion — that the row stays in the band it was already
+     *    in — was true of TODAY-10's panel and stopped being true when DHDS-11
+     *    made a completed row depart and this panel grouped completed work
+     *    behind its own disclosure. Asserting it now would be a test forbidding
+     *    a decision the product has taken, so it asserts where the product
+     *    actually files the row instead.
+     */
+    await expect
+      .poll(async () => (await focusBands(page))["Due today"] ?? [])
+      .not.toContain(target.title);
     await expect(
-      row.getByRole("checkbox", { name: `Reopen ${target.title}` }),
+      (await openCompletedGroup(page, target.title)).getByRole("checkbox", {
+        name: `Reopen ${target.title}`,
+      }),
     ).toBeChecked();
-    await expect(bandLabel(row)).toHaveText(/^due today$/i);
 
     // 5. Exactly one announcement. A completion is announced by ONE live
     //    region, not by the list AND the notification centre (DEBT-115).
@@ -293,16 +346,16 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
     expect(canonical).toContain(survivor.title);
     expect(canonical).not.toContain(target.title);
 
-    // 8–9. Back on Today, the state is unchanged: still done, still in place.
+    // 8–9. Back on Today, the state SURVIVES the reload: still done, still
+    //      filed under the day's completed group, and the survivor still due.
     await page.goto("/today");
-    const again = page
-      .locator(".dh-today__timeline .dh-taskrow", { hasText: target.title })
-      .first();
     await expect(
-      again.getByRole("checkbox", { name: `Reopen ${target.title}` }),
+      (await openCompletedGroup(page, target.title)).getByRole("checkbox", {
+        name: `Reopen ${target.title}`,
+      }),
     ).toBeChecked();
-    await expect(bandLabel(again)).toHaveText(/^due today$/i);
     expect((await focusBands(page))["Due today"]).toContain(survivor.title);
+    expect((await focusBands(page))["Due today"]).not.toContain(target.title);
   });
 
   test("bounds a large day, states the true total and routes to Tasks", async ({

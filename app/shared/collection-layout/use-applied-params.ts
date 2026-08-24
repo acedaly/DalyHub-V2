@@ -57,6 +57,23 @@ export type AppliedParams = {
    */
   readonly applied: URLSearchParams;
   /**
+   * The same answer, asked at EVENT TIME rather than at render time.
+   *
+   * V2.4-GATE-01 — `applied` above is computed during render, so a handler that
+   * closed over it is only as current as the last render. `record` writes a ref
+   * and deliberately does not re-render (see below), and React Router does not
+   * report `loading` synchronously either, so between a choice and the render
+   * that reflects it there is a window in which NOTHING has re-rendered. A
+   * second choice made in that window runs a handler holding the pre-choice
+   * parameters, composes over them, and deletes the first — which is the very
+   * lost update this hook was written to close, arriving through the one door it
+   * left open.
+   *
+   * So every write composes over THIS, never over a captured value. Same rule,
+   * same precedence, read at the moment it is used.
+   */
+  readonly current: () => URLSearchParams;
+  /**
    * Record the parameters just written, so the next choice composes over them
    * instead of over the state the loader has not yet replaced. Call it with the
    * exact value handed to `setSearchParams`.
@@ -74,6 +91,13 @@ export function useAppliedParams(committed: URLSearchParams): AppliedParams {
    * and would invite something to start reading it as the state itself.
    */
   const pendingRef = useRef<URLSearchParams | null>(null);
+  /*
+   * The latest committed parameters, reachable from an event handler. `current`
+   * has to be referentially stable — every write callback depends on it — so it
+   * cannot close over `committed` directly.
+   */
+  const committedRef = useRef(committed);
+  committedRef.current = committed;
 
   const inFlight =
     navigation.state === "loading" &&
@@ -90,8 +114,21 @@ export function useAppliedParams(committed: URLSearchParams): AppliedParams {
     pendingRef.current = new URLSearchParams(written);
   }, []);
 
+  /*
+   * A remembered write outranks the committed parameters until a render has
+   * retired it — which is the same precedence `applied` applies, minus the
+   * dependence on a render having happened. `pendingRef` is only ever non-null
+   * between a write and the render that supersedes it, so there is no state here
+   * that outlives the round trip it belongs to.
+   */
+  const current = useCallback(
+    () => pendingRef.current ?? committedRef.current,
+    [],
+  );
+
   return {
     applied: inFlight && pendingRef.current ? pendingRef.current : committed,
+    current,
     record,
   };
 }

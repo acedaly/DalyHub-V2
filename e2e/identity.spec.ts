@@ -122,10 +122,21 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
   });
 
   test("Automatic gives the derived colour back", async ({ page }) => {
-    await openPicker(page);
+    const trigger = await openPicker(page);
     await page.getByRole("button", { name: "Fuchsia", exact: true }).click();
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
+    /*
+     * The dialog closing proves NOTHING about the save. `AreaSettingsTab` fires
+     * `void onSetIdentity(next)` and the picker closes on the same tick, so
+     * navigating here can abandon a request that was still in flight — which is
+     * what made this journey fail on CI run 32602831529 (p05) and pass on every
+     * run before it. The trigger's label is rendered from the LOADER's value,
+     * not from a draft, so waiting for it to read "Fuchsia" is the outcome
+     * assertion: the write landed and the route re-read it. That is what the
+     * first journey in this file already does, and this one had skipped.
+     */
+    await expect(trigger).toContainText("Fuchsia");
     await gotoFixture(page, "/areas");
     await expect(
       page
@@ -137,12 +148,16 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
     // Back to Automatic. The record must return to the colour its RANK gives
     // it — which is the colour it had before anyone chose anything — rather
     // than to no colour at all.
-    await openPicker(page);
+    const revertTrigger = await openPicker(page);
     const automatic = page.getByRole("button", { name: /^Automatic/ });
     await expect(automatic).toBeVisible();
     await automatic.click();
     await page.getByRole("button", { name: "Apply" }).click();
 
+    // Same again for the revert — and here the wait is load-bearing twice over,
+    // because the assertion below is that the slot is NOT fuchsia, which an
+    // abandoned save would satisfy by accident.
+    await expect(revertTrigger).toContainText("Automatic");
     await gotoFixture(page, "/areas");
     const mark = page
       .getByRole("article", { name: AREA_TITLE })
@@ -268,8 +283,35 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
     await gotoFixture(page, href!);
     const trigger = page.locator(".dh-icon-picker__trigger").first();
     await expect(trigger).toBeVisible();
-    // Before choosing, the Goal wears what it inherits — and the picker says so
-    // rather than leaving the owner to guess what "Automatic" resolves to.
+
+    /*
+     * ESTABLISH the precondition rather than assuming it.
+     *
+     * V2.4-GATE-01 — this journey asserted `toContainText("Automatic")` here,
+     * which is only true of a Goal that has never chosen. It then chose Rose +
+     * Reading on a Goal it picks by position (`a[href*='/goals/']` first) and
+     * never put back, so it passed on a pristine database and failed on the
+     * second run against the same one: MEASURED as `Expected "Automatic" /
+     * Received "Reading, Rose"`.
+     *
+     * Clearing it at the END would not fix that, because a test that fails at
+     * this assertion never REACHES its own cleanup and stays dirty for good.
+     * Establishing the state first is what makes the journey idempotent: it
+     * heals whatever the last run left, and only then asserts.
+     *
+     * This is the DEBT-173 shape turned inward — a spec whose own precondition
+     * its own previous run destroys. The gate never saw it because the gate
+     * starts from a wiped database, which is exactly the kind of luck this item
+     * exists to stop depending on.
+     */
+    await trigger.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "Use the defaults" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    // Now it wears what it INHERITS, and the picker says so rather than leaving
+    // the owner to guess what "Automatic" resolves to.
     await expect(trigger).toContainText("Automatic");
 
     await trigger.click();
@@ -292,5 +334,58 @@ test.describe("IDENTITY-01 — a chosen identity", () => {
     await expect(
       page.locator(".dh-icon-picker__trigger").first(),
     ).toContainText("Rose");
+
+    // And put it back, so the next run starts where this one did. The reset at
+    // the top is what makes the journey survive a run that never gets here.
+    const goalTrigger = page.locator(".dh-icon-picker__trigger").first();
+    await goalTrigger.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "Use the defaults" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(goalTrigger).toContainText("Automatic");
+  });
+
+  test("'Use the defaults' clears the identity, and puts the shared Area back", async ({
+    page,
+  }) => {
+    /*
+     * Two jobs, and both are honest ones.
+     *
+     * It TESTS the picker's "Use the defaults" control, which nothing else did:
+     * every journey above chooses something, and none clears both halves at
+     * once.
+     *
+     * It also RESTORES `a-dh`, which this file has been mutating since its first
+     * journey. V2.4-GATE-01 — `entity-icons.spec.ts` uses that same Area as its
+     * `AREA_WITHOUT_ICON` and asserts `not.toHaveAttribute("data-icon-key",
+     * /./)`. In CI the two never meet, because every partition gets its own
+     * container and its own database. In ONE sequential gate run they do — this
+     * file is in p01 and that one is in p10 — and three `entity-icons` journeys
+     * failed on an icon chosen nine partitions earlier.
+     *
+     * That is [DEBT-173](../docs/product/PRODUCT_DEBT.md) exactly: a spec
+     * asserting against shared state another spec mutated, so the result is a
+     * property of the SPLIT rather than of the product. Its prescription is that
+     * the spec owns the fact it asserts — and the mutator cleaning up is the
+     * smaller half, because this file knows it changed something and
+     * `entity-icons.spec.ts` has no way to know that anyone did.
+     */
+    const trigger = await openPicker(page);
+    await page.getByRole("button", { name: "Use the defaults" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden();
+
+    // The trigger renders the LOADER's value, so this is the write landing
+    // rather than the dialog merely closing.
+    await expect(trigger).toContainText("Automatic");
+    await expect(trigger).toContainText("Default icon");
+
+    // And the record itself carries no chosen key — which is the exact fact
+    // `entity-icons.spec.ts` asserts about this Area.
+    await gotoFixture(page, `/areas/${AREA_ID}`);
+    await expect(page.locator(".dh-accent-icon").first()).not.toHaveAttribute(
+      "data-icon-key",
+      /./,
+    );
   });
 });

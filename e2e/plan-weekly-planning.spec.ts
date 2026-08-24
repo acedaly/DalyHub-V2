@@ -16,7 +16,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { gotoFixture, ownerToday, taskRow } from "./helpers";
+import { gotoFixture, ownerToday, revealRowActions, taskRow } from "./helpers";
 import {
   addDays,
   clearPlanFixture,
@@ -238,7 +238,18 @@ test("clearing a plan returns the task to the planning queue", async ({
   const monday = fixture.task("mon");
   const mondaySection = daySection(page, monday.scheduledDate!);
 
-  await mondaySection
+  /*
+   * DEBT-180 — engage the row before reaching its contextual action, which is
+   * what a pointer user does and what makes the affordance operable. Without
+   * it this is a DEADLOCK rather than a race: Playwright hit-tests before
+   * moving the mouse, so it never performs the hover that would reveal the
+   * control. See `revealRowActions`.
+   */
+  const mondayRow = mondaySection.locator(".dh-taskrow", {
+    hasText: monday.title,
+  });
+  await revealRowActions(mondayRow);
+  await mondayRow
     .getByRole("button", { name: `More actions for ${monday.title}` })
     .click();
   await page.getByRole("menuitem", { name: "Remove the planned date" }).click();

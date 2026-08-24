@@ -1,5 +1,32 @@
 # Changelog
 
+- Fixed the things that were quietly broken, and made the test gate mean
+  something again. The searchable pickers — the ones you use to file a task
+  under a project, choose a priority, link a record to another — had been
+  correct for a while, but nothing was checking them: nineteen tests were
+  looking for the list of choices in the wrong place, so a real break in any of
+  those pickers would have gone straight past. They are checked properly now.
+
+  The little "⋯" button on a task row could not be reached by anything but a
+  hand on a mouse. It looked fine and it worked fine for you; what it could not
+  do was be driven by a test, because an invisible box exactly its size was
+  catching the click first. That box was already there and already swallowing
+  clicks — it just wasn't the button. Now it is.
+
+  Weekly planning on a phone promised one day and drew two, but only on
+  Saturdays and Sundays, because the weekend shares a column with its neighbour.
+  A phone now shows the day the strip says is selected, every day of the week.
+
+  A record's tabs had grown a second hairline directly under the first, so the
+  panel read as a bar sitting on a card rather than as one surface. And the
+  filter inside a project's task list had quietly grown half a pixel larger than
+  the tabs above it, which is backwards — a filter is subordinate to the
+  navigation it sits under. Both are back to one edge and one hierarchy.
+
+  Behind all of that: a Goal-measurement journey that had never once run in the
+  entire history of the test suite now runs on every check, and the suite stopped
+  giving different answers on identical code.
+
 - Went looking for the things that were quietly wrong, and fixed them. On a
   phone, the little priority tag on every task — P1, P2, P3, P4 — was having its
   number sliced in half. Not on some rows: on every row, on every phone size,

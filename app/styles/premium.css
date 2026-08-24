@@ -256,6 +256,27 @@
   box-shadow: none;
 }
 
+/*
+ * …and the TABBED panel still JOINS its strip.
+ *
+ * `record-layout.css` removes the panel's own top edge and squares its top
+ * corners, deliberately: *"the strip's rule is already there … so the two read
+ * as one working surface rather than as a bar sitting on a card"* (M3-INT). The
+ * shorthand above is later in the cascade, so restating the family's edge on
+ * this surface silently put both back — a second hairline directly under the
+ * strip's own, and a rounded corner on each side of it.
+ *
+ * The join is restated here rather than the rule above being narrowed, because
+ * the record panel genuinely is a member of the card family and should keep
+ * taking the family's edge when that edge changes. What it must never take back
+ * is the edge it shares with the strip above it.
+ */
+.record-tabs__panel {
+  border-block-start: none;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
 .dh-record-summary-bar {
   padding: var(--dh-space-5);
 }

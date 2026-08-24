@@ -919,6 +919,24 @@
     display: none;
   }
 
+  /*
+   * DEBT-196 — and the DAY inside it, for the same reason.
+   *
+   * A weekend COLUMN holds two days, so hiding by column alone drew Saturday and
+   * Sunday together whenever either was chosen: the rail reported one selected
+   * day and the page showed two, on two days of every week. The column rule
+   * above still decides which column is rendered — a merged weekend column has
+   * to be shown when either of its days is chosen, or choosing Sunday would show
+   * nothing at all — and this decides which of its days is.
+   *
+   * `display: none` for the same reason the rule above gives: an unselected day
+   * must leave the accessibility tree too, so a screen-reader user reads the day
+   * the rail says is selected rather than walking two.
+   */
+  .dh-plan__day:not([data-selected="true"]) {
+    display: none;
+  }
+
   .dh-plan__board {
     border: 0;
     border-radius: 0;

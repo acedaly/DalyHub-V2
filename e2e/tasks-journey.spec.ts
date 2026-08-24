@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   enterTaskSelection,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -48,7 +49,9 @@ async function createJourneyTask(
   const parent = dialog.getByRole("combobox", { name: /Project or Area/ });
   await parent.click();
   await parent.fill(options.parent);
-  const option = dialog.getByRole("option", { name: options.parent });
+  // DHDS-09 — the listbox is portalled into the overlay layer, so it is
+  // addressed through the combobox that owns it rather than through the Drawer.
+  const option = await comboboxOption(parent, options.parent);
   await expect(option).toBeVisible();
   await option.click();
 
@@ -58,9 +61,9 @@ async function createJourneyTask(
     const priorityCombo = dialog.getByRole("combobox", { name: "Priority" });
     await priorityCombo.click();
     await priorityCombo.fill(options.priority.split(" ")[0]!);
-    await dialog
-      .getByRole("option", { name: options.priority, exact: true })
-      .click();
+    await (
+      await comboboxOption(priorityCombo, options.priority, { exact: true })
+    ).click();
   }
   if (options.sector || options.scheduledDate) {
     await dialog.locator("summary", { hasText: "More details" }).click();
@@ -69,9 +72,9 @@ async function createJourneyTask(
     const sectorCombo = dialog.getByRole("combobox", { name: "Time sector" });
     await sectorCombo.click();
     await sectorCombo.fill(options.sector);
-    await dialog
-      .getByRole("option", { name: options.sector, exact: true })
-      .click();
+    await (
+      await comboboxOption(sectorCombo, options.sector, { exact: true })
+    ).click();
   }
   if (options.scheduledDate) {
     // CONTROL-01 — the form's date is DalyHub's month grid now, not a native

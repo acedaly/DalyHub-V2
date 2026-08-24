@@ -355,8 +355,49 @@
  *      remove an element from the accessibility tree, `:focus-within` reveals
  *      it for the keyboard, an open menu holds it open, and the reveal is
  *      wrapped in `(hover: hover)` so a touch device is simply given it.
- *   4. It cannot be clicked while it is invisible: `pointer-events` follows the
- *      opacity, so an unrevealed action is not a hidden hit area over the row.
+ *   4. It cannot be operated while it is invisible: `pointer-events` follows
+ *      the opacity, so an unrevealed action is not a hidden hit area over the
+ *      row — AND NEITHER IS ANYTHING WRAPPING IT.
+ *
+ * ── DEBT-180: rule 4 was true of the affordance and false of its wrapper ────
+ * The decision this contract owed, taken once and applied to every consumer.
+ *
+ * MEASURED on `/plan`: at the trigger's own centre `document.elementsFromPoint`
+ * returned `div.dh-overflow-menu`, then `span.dh-taskrow__actions`, then the
+ * row — the trigger itself never appeared in the stack. `.dh-overflow-menu` is
+ * `position: relative`, `display: inline-flex` and EXACTLY the same 32×32 box
+ * as the trigger it wraps, and it kept `pointer-events: auto`. So rule 4 was
+ * only ever half enforced: the affordance was inert and its wrapper was not, and
+ * that rectangle swallowed every click at rest without doing anything with it —
+ * which is precisely the "hidden hit area over the row" rule 4 forbids, one
+ * element up.
+ *
+ * Two candidate fixes were on the table (DEBT-180), and the FIRST — drop
+ * `pointer-events: none` so the affordance catches its own clicks — was tried
+ * and REJECTED on review, correctly. The argument for it was measured on the
+ * overflow trigger, where the wrapper makes the hit area identical either way;
+ * it does not generalise. `.dh-action-reveal` is also placed directly on a
+ * navigation `<Link>` (`ScheduleList`) and on drag handles (`TaskDragging`,
+ * `TaskChecklistSection`, `GoalMeasurementPanel`), none of which have such a
+ * wrapper. On a hybrid device — one that matches `(hover: hover)` because a
+ * mouse is attached, driven by a finger that never hovers — a tap on
+ * apparently empty row space would then navigate, or begin a drag, with nothing
+ * drawn to say so. A contract rule is not worth trading for a test's
+ * convenience.
+ *
+ * So rule 4 is RESTORED, and extended to the wrapper that was defeating it: an
+ * unrevealed affordance and anything shrink-wrapping it are both transparent to
+ * the pointer, and the click reaches the row — which is what the rule promised
+ * and what it had never actually delivered.
+ *
+ * Automation reaches the affordance the way a person does: by engaging the row
+ * first. Playwright hit-tests before moving the mouse, so a bare `click()` on an
+ * unrevealed control is a DEADLOCK rather than a race — it never performs the
+ * hover that would make the element hittable. `revealRowActions()` in
+ * `e2e/helpers.ts` is the one shared way to do it, so this is a shared
+ * interaction contract rather than a workaround copied per spec, and no test
+ * uses `force: true` — which would assert the control is reachable while
+ * proving the opposite.
  *
  * Consumers opt in with `data-dh-action-context="true"` on the row and
  * `dh-action-reveal` on the trailing action container.
@@ -369,6 +410,19 @@
 @media (hover: hover) {
   [data-dh-action-context="true"] .dh-action-reveal {
     opacity: 0;
+    pointer-events: none;
+  }
+
+  /*
+   * …and the box that shrink-wraps it, which is what defeated rule 4.
+   *
+   * Scoped to an action context, because the same overflow menu appears on a
+   * record header where nothing is ever concealed and it must stay clickable.
+   * `:has(> .dh-action-reveal)` binds the suppression to the ONE case that
+   * needs it — a wrapper whose only child is a concealed affordance — rather
+   * than to every overflow menu that happens to be inside a row.
+   */
+  [data-dh-action-context="true"] .dh-overflow-menu:has(> .dh-action-reveal) {
     pointer-events: none;
   }
 
@@ -389,6 +443,17 @@
     opacity: 1;
     pointer-events: auto;
   }
+
+  /* The wrapper follows its child back: revealed means operable, on both. */
+  [data-dh-action-context="true"]:hover
+    .dh-overflow-menu:has(> .dh-action-reveal),
+  [data-dh-action-context="true"]:focus-within
+    .dh-overflow-menu:has(> .dh-action-reveal),
+  .dh-overflow-menu:has(> .dh-action-reveal:focus-within),
+  .dh-overflow-menu:has(> .dh-action-reveal[aria-expanded="true"]),
+  .dh-overflow-menu:has(> .dh-action-reveal[data-grabbed="true"]) {
+    pointer-events: auto;
+  }
 }
 
 /* Forced colours strip the opacity distinction, so the affordance is simply
@@ -396,6 +461,10 @@
 @media (forced-colors: active) {
   .dh-action-reveal {
     opacity: 1;
+    pointer-events: auto;
+  }
+
+  .dh-overflow-menu:has(> .dh-action-reveal) {
     pointer-events: auto;
   }
 }

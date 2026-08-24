@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import {
+  comboboxOption,
   enterTaskSelection,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -487,13 +488,15 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    // DHDS-09 — the listbox is portalled into the overlay layer, so it is
+    // addressed through the combobox that owns it rather than through the Drawer.
+    await (await comboboxOption(repeat, /^Custom/)).click();
 
     await drawer.getByLabel(/Repeat every/).fill("14");
     const unit = drawer.getByRole("combobox", { name: "Unit" });
     await unit.click();
     await unit.fill("days");
-    await drawer.getByRole("option", { name: "days" }).click();
+    await (await comboboxOption(unit, "days")).click();
     await drawer
       .getByRole("radio", { name: /Repeat after completion/ })
       .click();
@@ -536,7 +539,9 @@ test.describe("TASKS-07 — Recurrence 2.0", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    // DHDS-09 — the listbox is portalled into the overlay layer, so it is
+    // addressed through the combobox that owns it rather than through the Drawer.
+    await (await comboboxOption(repeat, /^Custom/)).click();
 
     await drawer.getByRole("checkbox", { name: "Monday" }).check();
     await drawer.getByRole("checkbox", { name: "Thursday" }).check();
@@ -712,7 +717,9 @@ test.describe("TASKS-08 — the phone daily driver at 390px", () => {
     const repeat = drawer.getByRole("combobox", { name: /^Repeat/ });
     await repeat.click();
     await repeat.fill("Custom");
-    await drawer.getByRole("option", { name: /^Custom/ }).click();
+    // DHDS-09 — the listbox is portalled into the overlay layer, so it is
+    // addressed through the combobox that owns it rather than through the Drawer.
+    await (await comboboxOption(repeat, /^Custom/)).click();
     await expect(drawer.getByTestId("task-recurrence-editor")).toBeVisible();
 
     // The seven weekday targets wrap rather than shrink, so 320px is legible.

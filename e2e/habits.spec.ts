@@ -206,16 +206,37 @@ test.describe("HABITS-01 — creating and checking in", () => {
     const row = habitRow(page, title);
     await expect(row).toContainText("Not yet today");
 
+    /*
+     * The week line BEFORE the check-in: nothing done, out of what the week
+     * actually asked for. The denominator is the days from today onward — never
+     * a flat seven — because a habit created today was not expected on Monday if
+     * it did not exist on Monday.
+     */
+    await expect(row).toContainText(/0 of [1-7] this week/);
+
     await row.getByTestId("habit-check").check();
     await expect(row).toContainText("Done today");
     /*
-     * The denominator is what the week ACTUALLY asked for, which for a habit
-     * created today is the days from today onward — never a flat seven. That is
-     * the honest answer (it was not expected on Monday if it did not exist on
-     * Monday), so the assertion is on the shape rather than on a number that
-     * depends on which weekday the suite runs.
+     * …and AFTER it, the week states itself honestly in one of its TWO truthful
+     * forms, which is a product decision rather than a choice this test gets to
+     * make: `habitWeekLabel` prints the ratio while the week still expects
+     * something, and "Done this week" once the week is satisfied — *"once the
+     * week is satisfied the count has nothing left to tell the owner"*.
+     *
+     * V2.4-GATE-01 — this asserted the ratio ALONE, and therefore failed on one
+     * day in seven and only that day: a daily habit created on the LAST day the
+     * owner's week expects has a denominator of 1, so a single check-in
+     * satisfies the week and the row correctly reads "Done this week". MEASURED
+     * on CI run 32601647802, which ran at 22:31Z on a Saturday — Sunday in the
+     * owner's `Australia/Sydney` calendar, and the last day of a Monday-start
+     * week. The comment above already said the assertion should not depend on
+     * which weekday the suite runs; it just did not go far enough.
+     *
+     * Nothing is weakened by accepting both: the before/after pair above and
+     * below is what proves the check-in was COUNTED, and neither form can be
+     * reached without it.
      */
-    await expect(row).toContainText(/1 of [1-7] this week/);
+    await expect(row).toContainText(/1 of [1-7] this week|Done this week/);
 
     // The completion is a DURABLE FACT, not optimistic state.
     await page.reload();

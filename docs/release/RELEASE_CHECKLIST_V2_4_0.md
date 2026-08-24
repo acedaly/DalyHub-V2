@@ -142,7 +142,16 @@ one-line cause — recorded, measured four ways, and given a working replacement
 ## 5. Green — the test gate
 
 See [V2.4-GATE-01's implementation record](../product/V2_4_GATE_01_RECOVERABLE_GREEN_RELEASED_2026_08.md)
-for the failure-by-failure classification, the fixes and the complete evidence.
+§ 3 for the failure-by-failure classification, the fixes and the complete
+evidence. In summary:
+
+| | |
+| --- | --- |
+| Starting state | `main` @ `054b98f`, CI run [`32571105218`](https://github.com/acedaly/DalyHub-V2/actions/runs/32571105218): **ten of twelve E2E partitions red, 55 failing tests, 5 tests that never executed** |
+| Failing families | one mechanism each — a portalled listbox, a completed row filed under a closed disclosure, two hit-testing/CSS product defects, a promoted `Now` row, five retired surfaces, one journey budget, one fixture that never existed |
+| Product defects fixed | DEBT-180 (row reveal), DEBT-196 (one day on a phone), a doubled record-panel edge, a nested filter outranking its tabs |
+| Not done | nothing skipped, quarantined, weakened, `fixme`d or deleted; no retry added; no timeout raised except one measured budget correction, named as one |
+| Remaining | the roadmap's *"green on `main` for two consecutive pushes"* is produced by the two pushes AFTER the merge, and cannot be produced from a branch |
 
 ---
 

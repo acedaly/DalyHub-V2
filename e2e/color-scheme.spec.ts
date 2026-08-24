@@ -251,6 +251,31 @@ test.describe("THEME-01 — choosing a colour scheme", () => {
         .getByRole("radio", { name: new RegExp(appearance) })
         .click();
       const seen = new Set<string>();
+      /*
+       * The slug each label writes, so the wait below can name it.
+       *
+       * V2.4-GATE-01 — this loop used to wait for `data-color-scheme` to match
+       * `/.+/`, which the PREVIOUS scheme's slug already satisfies, so it waited
+       * for nothing at all. The poll underneath it then compared the primary
+       * colour against `seen`, which is empty on the first iteration of each
+       * appearance — so a still-unrepainted colour passed, was added to `seen`,
+       * and a later scheme could collide with it. MEASURED on CI run
+       * 32613259476 (p07), where the predicate ran out its 5 s waiting for a
+       * colour it had already recorded under another scheme's name.
+       *
+       * The three sibling journeys above this one already wait on the SPECIFIC
+       * slug (`electric`, `pulse`, `ocean`); this one simply had not. Nothing is
+       * weakened by naming it: five schemes that genuinely resolved to one
+       * primary still fail, on `seen.size`, which is the assertion this test
+       * exists for.
+       */
+      const SLUGS: Readonly<Record<string, string>> = {
+        "Daly Violet": "violet",
+        Electric: "electric",
+        Pulse: "pulse",
+        Ocean: "ocean",
+        Graphite: "graphite",
+      };
       for (const label of [
         "Daly Violet",
         "Electric",
@@ -261,7 +286,7 @@ test.describe("THEME-01 — choosing a colour scheme", () => {
         await schemeOption(page, label).click();
         await expect(page.locator("html")).toHaveAttribute(
           "data-color-scheme",
-          /.+/,
+          SLUGS[label] as string,
         );
         // Poll, because the repaint is a cascade re-evaluation after an attribute
         // write rather than a navigation.

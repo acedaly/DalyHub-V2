@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  comboboxOption,
   RESPONSIVE_VIEWPORTS,
   expectMinTouchTarget,
   expectNoAxeViolations,
@@ -640,7 +641,9 @@ test.describe("PROJ-01 — Projects", () => {
     const combo = dialog.getByRole("combobox", { name: /Area or Goal/ });
     await combo.click();
     await combo.fill("Pagination");
-    const option = dialog.getByRole("option", { name: /Pagination/ });
+    // DHDS-09 — the listbox is portalled into the overlay layer, so it is
+    // reached through the combobox that owns it rather than through the dialog.
+    const option = await comboboxOption(combo, /Pagination/);
     await expect(option).toBeVisible();
     await option.click();
 

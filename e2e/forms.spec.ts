@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+import { comboboxOption } from "./helpers";
+
 /**
  * DS-06 — Shared Forms & field controls, driven end to end against the
  * development-auth server where the dev-only fixture (`/design/forms`) is mounted.
@@ -102,7 +104,10 @@ test.describe("DS-06 — desktop", () => {
     const combo = form.getByRole("combobox", { name: /Related items/ });
     await combo.click();
     await combo.fill("brief");
-    const option = form.getByRole("option", { name: /Creative brief/ });
+    // DHDS-09 — the results are in the overlay layer, so they are addressed
+    // through the listbox this combobox OWNS rather than through the form that
+    // holds the field. See `comboboxOption`.
+    const option = await comboboxOption(combo, /Creative brief/);
     await expect(option).toBeVisible();
     await option.click();
 
@@ -121,7 +126,7 @@ test.describe("DS-06 — desktop", () => {
     const combo = form.getByRole("combobox", { name: /Related items/ });
     await combo.focus();
     await combo.fill("Mel");
-    await expect(form.getByRole("option", { name: /Mel Okoye/ })).toBeVisible();
+    await expect(await comboboxOption(combo, /Mel Okoye/)).toBeVisible();
     await combo.press("ArrowDown");
     await combo.press("Enter");
     await expect(

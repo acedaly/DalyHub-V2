@@ -637,6 +637,181 @@ export async function pickCalendarDate(
 }
 
 /* -------------------------------------------------------------------------- */
+/* DHDS-13 — where a surface FILES a task once it is completed                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The row for `title` after it has been completed on a surface that keeps
+ * completed work behind a disclosure — opened through that disclosure.
+ *
+ * A completed Task does not stay in its band. Today files it under the plan's
+ * `Completed · n` disclosure, and that `<details>` renders CLOSED — so the row
+ * is still in the DOM and completely absent from the accessibility tree, and
+ * `getByRole("checkbox", …)` scoped to the plan resolves to nothing at all.
+ * `check()` re-resolves its locator to verify the new state, finds no element,
+ * and retries to timeout; a `toBeChecked()` written the same way reports
+ * "element(s) not found" while the page's own live region says *"Completed …"*.
+ *
+ * Neither is a defect in the product and neither is fixed by waiting longer: the
+ * completed row is simply somewhere else, so the assertion goes there. The
+ * disclosure is opened by CLICKING ITS SUMMARY — the owner's own way in — so
+ * this proves the completion is REACHABLE rather than merely present.
+ *
+ * DHDS-13 established the mechanism on `today-task-convergence.spec.ts`; this is
+ * that helper, shared, so the next spec to complete a Task on Today does not
+ * have to rediscover it.
+ */
+export async function openCompletedGroup(
+  page: Page,
+  title: string,
+  scope = '[data-testid="today-plan"]',
+): Promise<Locator> {
+  const group = page.locator(`${scope} details.dh-today__completed`);
+  await expect(group).toBeAttached();
+  if (!(await group.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await group.locator("summary").click();
+  }
+  return group.locator(".dh-taskrow", { hasText: title }).first();
+}
+
+/**
+ * Engage a row so its contextual actions are operable — the one shared way.
+ *
+ * DEBT-180. The row-reveal contract (`motion.css`) conceals a row's trailing
+ * affordances at `opacity: 0` AND makes them transparent to the pointer, so that
+ * an unrevealed action is never a hidden hit area over the row. That rule is
+ * right and is deliberately kept: `.dh-action-reveal` sits directly on a
+ * navigation `<Link>` in `ScheduleList` and on drag handles in `TaskDragging`,
+ * `TaskChecklistSection` and `GoalMeasurementPanel`, and on a hybrid device —
+ * one that matches `(hover: hover)` because a mouse is attached, driven by a
+ * finger that never hovers — a live control under blank space would navigate or
+ * begin a drag with nothing drawn to say so.
+ *
+ * What that costs is AUTOMATION, and it costs it as a DEADLOCK rather than a
+ * race: Playwright hit-tests the target BEFORE moving the mouse, so a bare
+ * `click()` on a concealed affordance reports *"intercepts pointer events"* and
+ * never performs the hover that would make it hittable. Retrying to timeout is
+ * the only outcome.
+ *
+ * So a journey does what a person does — it moves onto the row first. Hovering
+ * is a real interaction, not a workaround: it is exactly how the affordance
+ * becomes available to a pointer user, and it is the only honest alternative to
+ * `force: true`, which asserts a control is reachable while proving it is not.
+ *
+ * One helper rather than a hover copied into each spec, so the requirement lives
+ * with the contract it belongs to.
+ */
+export async function revealRowActions(row: Locator): Promise<void> {
+  await row.scrollIntoViewIfNeeded();
+  await row.hover();
+  // The reveal is a `--dh-motion-fast` opacity transition, and `toHaveCSS`
+  // polls — so this waits for the affordance to actually BE revealed rather
+  // than for a fixed time. A row with no concealed affordance is a no-op.
+  const reveal = row.locator(".dh-action-reveal").first();
+  if ((await reveal.count()) > 0) {
+    await expect(reveal).toHaveCSS("opacity", "1");
+  }
+}
+
+/**
+ * Today's week summary, with its `Last 7 days` disclosure OPEN.
+ *
+ * TODAY-12 put the week's measures behind one line so the day itself owns the
+ * first viewport, and that `<details>` renders CLOSED. A closed disclosure's
+ * contents are in the DOM and out of the RENDERING, so `innerText` on a figure
+ * inside it returns `""` and `getByRole("link", …)` resolves to nothing —
+ * neither is a missing figure, and neither is fixed by waiting.
+ *
+ * Opened through its SUMMARY, the owner's own way in, so a caller proves the
+ * measures are reachable as well as correct.
+ */
+export async function openTodayWeeklySummary(page: Page): Promise<Locator> {
+  const summary = page.getByTestId("today-summary");
+  await expect(summary).toBeVisible();
+  const weekly = summary.locator("details.dh-today__weekly");
+  await expect(weekly).toBeAttached();
+  if (!(await weekly.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await weekly.locator("summary").click();
+  }
+  return summary;
+}
+
+/* -------------------------------------------------------------------------- */
+/* DHDS-09 — the listbox a combobox owns, wherever the overlay layer put it    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The `role="listbox"` a combobox CONTROLS, resolved through `aria-controls`.
+ *
+ * DHDS-09 moved every floating surface into the shared overlay layer, so a
+ * `SelectField`'s or an `EntityLinkPicker`'s options are portalled onto `<body>`
+ * and are no longer DOM descendants of the Drawer, dialog or form that holds the
+ * field. A container-scoped `dialog.getByRole("option", …)` therefore resolves to
+ * nothing, however long it waits — the same shape as the calendar grid, which
+ * `pickCalendarDate` already addresses at page level for exactly this reason.
+ *
+ * Resolving through `aria-controls` is a STRONGER assertion than the container
+ * scope it replaces, not a weaker one. The container only ever proved that the
+ * option shared an ancestor with the field; this proves the option is in the
+ * listbox **this combobox owns** — the relationship the WAI-ARIA pattern is built
+ * on, and the one a screen reader follows. It is also presentation-agnostic: the
+ * anchored listbox and the phone Sheet both carry the same id.
+ *
+ * The combobox must be OPEN — `aria-controls` is published while the listbox
+ * exists — so call it after the click/fill that opens the field.
+ */
+export async function comboboxListbox(combo: Locator): Promise<Locator> {
+  // `aria-controls` is only published once the field is expanded, so wait for it
+  // rather than reading a null and failing with "#null is not a valid selector".
+  await expect(combo).toHaveAttribute("aria-controls", /\S/);
+  const id = await combo.getAttribute("aria-controls");
+  // Attribute selector rather than `#id`: React's `useId()` values contain
+  // characters (`«`, `»` on some versions) that are legal in an id and illegal
+  // unescaped in a CSS id selector.
+  return combo.page().locator(`[id="${id}"]`);
+}
+
+/**
+ * One option of the listbox `combo` owns. See {@link comboboxListbox}.
+ *
+ * The narrowest possible replacement for a container-scoped lookup: same role,
+ * same name, same matching — only the scope moves, from "somewhere under this
+ * dialog" to "inside this field's own listbox".
+ */
+export async function comboboxOption(
+  combo: Locator,
+  name: string | RegExp,
+  options: { readonly exact?: boolean } = {},
+): Promise<Locator> {
+  const listbox = await comboboxListbox(combo);
+  return listbox.getByRole("option", {
+    name,
+    ...(options.exact === undefined ? {} : { exact: options.exact }),
+  });
+}
+
+/**
+ * Type into a combobox and choose the option that appears — the whole act, in
+ * the order an owner performs it.
+ *
+ * Most journeys want exactly this and nothing else, and doing it in one place
+ * means the wait for the option is never forgotten (a `click()` on an option
+ * that has not arrived yet is a flake, not a failure).
+ */
+export async function chooseComboboxOption(
+  combo: Locator,
+  query: string,
+  name: string | RegExp = query,
+  options: { readonly exact?: boolean } = {},
+): Promise<void> {
+  await combo.click();
+  await combo.fill(query);
+  const option = await comboboxOption(combo, name, options);
+  await expect(option.first()).toBeVisible();
+  await option.first().click();
+}
+
+/* -------------------------------------------------------------------------- */
 /* CONTROL-01 — the shared collection controls, in either presentation         */
 /* -------------------------------------------------------------------------- */
 
@@ -671,6 +846,29 @@ export interface CollectionControlsSurface {
   readonly choose: (param: string, value: string) => Promise<void>;
   /** Commit the draft. A no-op in the popover, which applies as it goes. */
   readonly commit: () => Promise<void>;
+  /**
+   * Close the surface and wait until it is gone.
+   *
+   * V2.4-GATE-01 — `commit` does NOT do this, and the asymmetry matters. On a
+   * phone it clicks Apply, which closes the sheet; on a pointer viewport it is a
+   * no-op, so the popover is still OPEN and still over the page. A journey that
+   * goes on to touch something else — a filter chip, say — is then interacting
+   * across an open floating surface on desktop and a closed one on phone, which
+   * is not one journey at two widths, and is not what a person does either.
+   *
+   * MEASURED on CI runs 32604491454 and 32610240298 (p07, then p02):
+   * `tasks-collection.spec.ts:298` clicked a chip's remove link with the popover
+   * still open, and the click produced **no navigation at all** — no third
+   * `.data` request in the trace, the URL unchanged. `AnchoredSurface` dismisses
+   * on a capture-phase `pointerdown` and returns focus to the trigger, so the
+   * page can move between `pointerdown` and `pointerup` and the `click` never
+   * reaches the link. The sibling journey that removes a chip with nothing open
+   * (`:159`) has always passed.
+   *
+   * Escape closes both surfaces — the Sheet as a modal, the popover through its
+   * own `onKeyDown` — so one keystroke serves both, exactly as a person would.
+   */
+  readonly dismiss: () => Promise<void>;
 }
 
 export async function openCollectionControls(
@@ -694,5 +892,55 @@ export async function openCollectionControls(
     commit: async () => {
       if (compact) await page.getByTestId("collection-sheet-apply").click();
     },
+    dismiss: async () => {
+      if (await surface.isVisible()) {
+        await page.keyboard.press("Escape");
+        await expect(surface).toBeHidden();
+      }
+    },
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* The Markdown editor's readiness contract                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Wait for a `LiveMarkdownEditor` to finish enhancing, before typing into it.
+ *
+ * `LiveMarkdownEditor` server-renders a plain `<textarea>` and replaces it with
+ * CodeMirror on the client, initialising the view from its `value` PROP. So
+ * anything typed into the fallback during that window is **discarded** — as
+ * `forms.spec.ts` already says in as many words: *"until enhancement lands, the
+ * live control is still the SSR `<textarea>`, and anything typed into it is
+ * discarded when CodeMirror replaces it."* The component publishes
+ * `data-editor-ready` on `.dh-md-editor` precisely so a caller can wait.
+ *
+ * V2.4-GATE-01 — this exists because `task-drawer.spec.ts:111` did not wait, and
+ * lost a race it had won on every previous run. The failure was silent in the
+ * worst way: the form SAVED, the toast said success, and the value it wrote was
+ * the one already there. Only the request body showed it —
+ * `name="description"` carrying `Draft the **proposal** document.`, the seeded
+ * text, on CI run 32607890703 (p02). An assertion cannot catch that; a wait can
+ * prevent it.
+ *
+ * Four specs already wait on this contract with their own expectations, and they
+ * are deliberately NOT folded into this one: `touch-targets` allows 90 s for a
+ * cold CodeMirror compile, `reviews-guided` scopes to `.dh-review-guide__prompt`
+ * so it cannot match a sibling prompt's editor, `notes` documents the
+ * code-split-chunk reasoning its timeout is chosen for, and
+ * `meetings-concurrency` takes a field label and returns the group. Each has a
+ * reason worth keeping. This is the default for everything else, so the next
+ * spec that types into an editor has somewhere to reach rather than a fifth
+ * copy to write.
+ *
+ * @param scope Where to look — a dialog, a form, or the page.
+ */
+export async function waitForEditorReady(
+  scope: Page | Locator,
+  options: { readonly timeout?: number } = {},
+): Promise<void> {
+  await expect(
+    scope.locator('.dh-md-editor[data-editor-ready="true"]').first(),
+  ).toBeVisible({ timeout: options.timeout ?? 30_000 });
 }

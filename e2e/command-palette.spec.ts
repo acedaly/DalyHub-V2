@@ -261,7 +261,16 @@ test.describe("DS-09 Command Palette — desktop", () => {
       (response) =>
         response.request().method() === "POST" && response.status() < 400,
     );
-    await toggle.check();
+    /*
+     * `.click()`, not `.check()`. `check()` verifies its work by RE-RESOLVING
+     * the same locator, and completing the Task is exactly what invalidates it:
+     * Today files the completed row under the plan's `Completed · n`
+     * disclosure, which renders closed, so the row leaves the day panel this
+     * locator is scoped to and `check()` retries against nothing until the test
+     * times out. The click still happens; only the verification moves — and it
+     * moves somewhere better, to the record's own state below.
+     */
+    await toggle.click();
     await written;
 
     /*

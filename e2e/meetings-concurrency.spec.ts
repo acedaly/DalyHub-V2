@@ -295,7 +295,29 @@ test("clearing the notes to empty actually empties them", async ({ page }) => {
   await group.locator(".cm-content").click();
   await page.keyboard.press("ControlOrMeta+a");
   await page.keyboard.press("Delete");
+
+  /*
+   * Wait for THIS save, not for the previous one's leftover badge.
+   *
+   * V2.4-GATE-01 — the line below used to be a second
+   * `expect(getByText("Saved")).toBeVisible()`, identical to the one after the
+   * first save. `SaveStatusIndicator` leaves "Saved" on screen, so that
+   * assertion was already true before the clear was even submitted: it passed
+   * instantly, the reload followed, and the test read the notes back before the
+   * empty submission had landed. MEASURED on CI run 32629099619 (p08) —
+   * `Received "Something written by mistake."` after a reload that was simply
+   * too early.
+   *
+   * Waiting for the status to enter "Saving…" and return to "Saved" is the
+   * transition this journey actually depends on, and the indicator publishes
+   * both states for exactly this reason. Nothing is weakened: the real
+   * assertion is still the reload below, which is what proves the empty
+   * submission reached the database rather than being coerced to "not
+   * supplied" — the HARDEN-06B regression this test exists for.
+   */
+  const savingAgain = expect(page.getByText("Saving…").first()).toBeVisible();
   await blurEditor(page, "Notes");
+  await savingAgain;
   await expect(page.getByText("Saved").first()).toBeVisible();
 
   await gotoFixture(page, meetingUrl);

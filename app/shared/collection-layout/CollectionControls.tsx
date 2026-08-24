@@ -131,7 +131,11 @@ export function CollectionControls({
    * popover's checkmarks, the draft the sheet seeds, and the base every write is
    * composed over) reads THIS, so there is exactly one answer on screen.
    */
-  const { applied: searchParams, record } = useAppliedParams(committedParams);
+  const {
+    applied: searchParams,
+    current: currentParams,
+    record,
+  } = useAppliedParams(committedParams);
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<CollectionControlsDraft>(() =>
@@ -171,31 +175,40 @@ export function CollectionControls({
    * It RECORDS what it wrote before writing it, so a second choice made while
    * this one is still in flight composes over it rather than over the committed
    * state the loader has not replaced yet (`use-applied-params.ts`).
+   *
+   * V2.4-GATE-01 — the base comes from `currentParams()` rather than from the
+   * `searchParams` this callback would otherwise close over. A captured value is
+   * only as fresh as the last RENDER, and two choices can land before any render
+   * happens: `record` writes a ref by design, and React Router does not report
+   * `loading` synchronously, so the second handler would still be holding the
+   * pre-first-choice parameters and would delete the first choice. Asking at
+   * write time closes that; nothing else about the composition changes.
    */
   const write = useCallback(
     (next: CollectionControlsDraft) => {
-      const written = applyDraft(groups, searchParams, next, {
+      const written = applyDraft(groups, currentParams(), next, {
         ...(resetParams ? { resetParams: ["cursor", ...resetParams] } : {}),
       });
       record(written);
       setSearchParams(written, { replace: true, preventScrollReset: true });
     },
-    [groups, searchParams, setSearchParams, resetParams, record],
+    [groups, currentParams, setSearchParams, resetParams, record],
   );
 
   /**
    * Commit ONE control immediately — the popover's whole behavioural difference.
    *
-   * The draft it composes over is derived from what is APPLIED, which is what
+   * The draft it composes over is derived from what is APPLIED **at this
+   * moment** — `currentParams()`, for the reason `write` states — which is what
    * makes two quick choices combine instead of the second erasing the first.
    */
   const commit = useCallback(
     (group: CollectionControlGroup, value: string) => {
       write(
-        withDraftValue(draftFromParams(groups, searchParams), group, value),
+        withDraftValue(draftFromParams(groups, currentParams()), group, value),
       );
     },
-    [groups, searchParams, write],
+    [groups, currentParams, write],
   );
 
   const clearAll = useCallback(() => {

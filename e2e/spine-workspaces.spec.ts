@@ -5,7 +5,33 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  waitForInteractive,
 } from "./helpers";
+import {
+  cleanupGoalByTitle,
+  createMeasurableGoal,
+  uniqueGoalTitle,
+} from "./goal-fixtures";
+
+/**
+ * DEBT-158 — every measurable Goal this spec creates, so each one is taken back
+ * out of the shared workspace whatever the test did.
+ *
+ * The Goals collection, Today's Goal progress panel and the Review's evidence
+ * all read the same workspace, and a measurable Goal accumulating one reading
+ * per gate run would change what every one of them sees.
+ *
+ * Per-test rather than a suite sweep: `cleanupAllTestGoals` would also remove
+ * the fixture Goals `goals.spec.ts` owns under the same shared prefix, and a
+ * run interrupted before this hook already has its safety net in
+ * `setup-local-db.mjs`, which sweeps that prefix before it seeds.
+ */
+const ownedGoals = new Set<string>();
+
+test.afterEach(() => {
+  for (const title of ownedGoals) cleanupGoalByTitle(title);
+  ownedGoals.clear();
+});
 
 /**
  * REDESIGN-04 — the Spine Workspaces, driven end to end against the
@@ -260,29 +286,79 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     ).toBeVisible();
   });
 
+  /*
+   * DEBT-158 — this journey now OWNS the Goal it measures.
+   *
+   * It used to drive "whichever Goal the workspace is genuinely measuring" and
+   * `test.skip()` when it found none. The reasoning was sound and the fixture
+   * was missing: MEASURED on the E2E database, `SELECT COUNT(*) FROM
+   * goal_details WHERE target_value IS NOT NULL` is 0, so it found none EVERY
+   * time and the whole journey had never once executed — reported by CI as
+   * "1 skipped" beside the passes, which is a green that means nothing.
+   *
+   * The fix is the one the entry itself named: the spec creates its own
+   * measurable Goal through the product's creation flow and removes it
+   * afterwards (`goal-fixtures.ts`, in the manner of `habits-fixtures.ts`), so
+   * the journey runs on every gate WITHOUT the shared seed gaining a measurable
+   * Goal that Today, analytics, the Review evidence and the Goals collection
+   * would all start seeing.
+   *
+   * There is no skip branch left to take, and the assertions below say so
+   * explicitly rather than leaving it to be inferred.
+   */
   test("records a measurement from the workspace and updates the trio and the chart", async ({
     page,
   }) => {
-    await gotoFixture(page, "/goals");
+    const title = uniqueGoalTitle("workspace-measurement");
+    ownedGoals.add(title);
+    // Ascending — 10 km towards 100 km — so a larger reading is unambiguously
+    // progress and the assertions do not depend on an inferred direction.
+    await createMeasurableGoal(page, title, {
+      unit: "km",
+      baseline: "10",
+      target: "100",
+    });
+
     /*
-     * Drive whichever Goal the workspace is genuinely measuring, rather than a
-     * fixture id: the E2E seed and the design fixture are different databases,
-     * and a journey that only runs on one of them is a journey that silently
-     * stops running.
+     * 1. A measurable Goal EXISTS, and the workspace is genuinely measuring
+     *    THIS one — scoped to the spec's own row by title, so the assertion is
+     *    about the Goal it created rather than whatever the shared workspace
+     *    happens to hold.
+     *
+     *    Its collection row carries NO progressbar yet, and that is correct
+     *    rather than a miss: a measurable Goal with a baseline and no readings
+     *    is "not measured yet", and `goal-measurement.spec.ts` asserts in as
+     *    many words that such a Goal "is never shown as 0%". The bar arriving
+     *    once a reading exists is checked at step 7, which makes it a real
+     *    before/after rather than a presence check.
      */
-    const measurable = page
+    await gotoFixture(page, "/goals");
+    const row = page
       .getByTestId("goals-list")
       .getByRole("article")
-      .filter({ has: page.getByRole("progressbar") })
-      .first();
-    if ((await measurable.count()) === 0) test.skip();
-    await measurable.getByRole("link").click();
+      .filter({ hasText: title });
+    await expect(row).toHaveCount(1);
+    await expect(row.getByRole("progressbar")).toHaveCount(0);
 
+    /*
+     * Driven from the WORKSPACE, which is what this journey is about: the row
+     * selects the Goal into the detail pane as URL state (§11), and the pane is
+     * where the trio and the chart live. `goalUrl` is the canonical record —
+     * a different surface, and not the one REDESIGN-04 asks about.
+     */
+    await row.getByRole("link").click();
+    await expect(page).toHaveURL(/[?&]goal=/);
     const pane = page.getByTestId("goal-workspace-pane");
     const trio = pane.getByTestId("goal-metrics");
     await expect(trio).toBeVisible();
+
+    // 2. The STARTING value is known, and it is the one the Goal was created
+    //    with — so "the figures moved" below is measured from a stated point
+    //    rather than from whatever was there.
+    await expect(trio).toContainText("10");
     const before = (await trio.textContent()) ?? "";
 
+    // 3. The action changes the underlying signal.
     await pane.getByRole("button", { name: /^Log / }).first().click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
@@ -292,15 +368,44 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
      * decimal keypad and a negative reading (a balance, a temperature) stays
      * legitimate. See `GoalCheckInSheet`.
      */
-    await sheet.getByRole("textbox").first().fill("9.4");
+    await sheet.getByRole("textbox").first().fill("42.5");
     await sheet.getByRole("button", { name: /^(Save|Record|Log)/ }).click();
 
-    // The figures are DERIVED on every read, so the pane re-reads rather than
-    // patching: the trio and the chart move together or not at all.
+    // 4. The figures are DERIVED on every read, so the pane re-reads rather than
+    //    patching: the trio and the chart move together or not at all.
     await expect
       .poll(async () => (await trio.textContent()) ?? "")
       .not.toBe(before);
-    await expect(trio).toContainText("9.4");
+    await expect(trio).toContainText("42.5");
+
+    // 5. …and the RENDERED progress moved with them, which is the half a
+    //    figure alone does not prove.
+    await expect
+      .poll(async () =>
+        Number(
+          await pane
+            .getByRole("progressbar")
+            .first()
+            .getAttribute("aria-valuenow"),
+        ),
+      )
+      .toBeGreaterThan(0);
+
+    // 6. A reload preserves the result — it was written, not painted. The
+    //    selection is URL state, so the reload lands on the same Goal.
+    await page.reload();
+    await waitForInteractive(page);
+    await expect(
+      page.getByTestId("goal-workspace-pane").getByTestId("goal-metrics"),
+    ).toContainText("42.5");
+
+    /*
+     * 7. …and the COLLECTION now measures it, which step 1 established it did
+     *    not. This is the row the retired `test.skip()` guard was hunting for,
+     *    and the journey now produces it rather than waiting for the seed to.
+     */
+    await gotoFixture(page, "/goals");
+    await expect(row.getByRole("progressbar")).toBeVisible();
   });
 
   test("offers the §5.1 creation entry point, and requires an Area", async ({
