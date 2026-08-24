@@ -153,6 +153,19 @@ evidence. In summary:
 | Not done | nothing skipped, quarantined, weakened, `fixme`d or deleted; no retry added; no timeout raised except one measured budget correction, named as one |
 | Remaining | the roadmap's *"green on `main` for two consecutive pushes"* is produced by the two pushes AFTER the merge, and cannot be produced from a branch |
 
+✅ **The first of the two `main` runs exists.** The merge of #223 produced CI run
+[`32685626437`](https://github.com/acedaly/DalyHub-V2/actions/runs/32685626437)
+at `2f94279`: **17 of 17 jobs `success`** — Scope, Static, Build, Unit, E2E
+p01…p12, CI Gate — with thirteen artefacts (`e2e-results-p01`…`p12` plus the
+production build) and **not one failure artefact**; every partition's
+`if: failure()` upload steps are `skipped`.
+
+⏳ **The second needs the next push to `main`.** `ci.yml` triggers on
+`push: [main]` and `pull_request` only — there is no `workflow_dispatch`, so a
+second qualifying `main` run cannot be dispatched, and the gate will not be
+given one so that a criterion can be met without a push.
+
+
 ---
 
 ## 6. Released — the production sequence
@@ -195,6 +208,39 @@ release is running.
 
 ⏳ **The production migration state is UNKNOWN, and this repository cannot know
 it.** No statement here should be read as evidence that any migration is applied.
+
+### Attempted 2026-08-24, and stopped at step 1
+
+The sequence below was run in order by an operational pass and got no further
+than its first step. **Nothing in it was performed against production**, and the
+outcomes are recorded here rather than left implied:
+
+| Step | Result |
+| --- | --- |
+| 1 — establish a successful encrypted backup | ⏳ **blocked.** `BACKUP_ENCRYPTION_PASSPHRASE` is still unset; run **22** ([`32652803588`](https://github.com/acedaly/DalyHub-V2/actions/runs/32652803588), 2026-08-23T16:48Z) failed at the same guard as 10–21, export and upload `skipped` |
+| 2 — verify recovery | ⏳ not attempted — no artefact, and no off-GitHub key |
+| 3 — inspect the migration state | ⏳ `db:production:list` → `CLOUDFLARE_D1_DATABASE_ID is not set`. **Production's schema state remains unmeasured** |
+| 4 — preflight | ⏳ `deploy:production:preflight` refuses, naming the missing values |
+| 5 — apply migrations | ⏳ not run. **No migration was applied to production** |
+| 6 — deploy | ⏳ not run |
+| 7 — verify | ⏳ `verify:production` → `PARTIALLY VERIFIED`, the same five `[SKIPPED]` checks as above |
+| 8 — health through Access | ✅ observed: **302 → Cloudflare Access login**, consistently. Access is doing its job; this is not an outage, and it identifies no release |
+| 9 — record the evidence | this table |
+
+**Why it stopped rather than continued.** Step 1 is a hard prerequisite, not a
+slow one: no migration may be applied to production until a real backup exists.
+Beyond it, every step is blocked a second time over — that environment had no
+`.production.env`, no `CLOUDFLARE_API_TOKEN` and `wrangler whoami` reporting not
+authenticated. The passphrase could not be set from there either: there was no
+`gh` CLI and no secrets API, and — decisively — no password manager or other
+persistent store **outside GitHub**, which § "The recovery key" requires the key
+to reach *before* the secret is set. Generating one anyway would have produced
+the look of recoverability without the substance. The guard was not weakened, no
+key was invented, and the audited export pipeline was not routed around.
+
+[DEBT-199](../product/PRODUCT_DEBT.md)'s remote half was likewise **not**
+attempted — it needs the same credentials plus a real decrypted artefact — and
+no scratch D1 was created.
 
 ### The owner's sequence, in order
 

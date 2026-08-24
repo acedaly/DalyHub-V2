@@ -273,7 +273,7 @@ adds anything to it.**
   | --- | --- | --- |
   | 1 | A scheduled backup completes; `backup:verify` and `db:production:backup:list` non-zero | **NOT MET** — run 21 failed at the same guard as 10–20; `BACKUP_ENCRYPTION_PASSPHRASE` is still unset ([DEBT-198](../product/PRODUCT_DEBT.md)) |
   | 2 | A restore rehearsal is recorded | **MET for the mechanism** (PR #222, `BACKUP_AND_RESTORE.md` § 5.5) — against a scratch database with the committed schema, because no artefact of the owner's data exists to rehearse against |
-  | 3 | Twelve-partition gate green on `main` for two consecutive pushes, fresh **and** accumulated | **MET on the branch, NOT on `main`** — two consecutive green pushes, and a full sequential accumulated-state run; see below |
+  | 3 | Twelve-partition gate green on `main` for two consecutive pushes, fresh **and** accumulated | **ONE OF TWO on `main`** — the merge of #223 produced the first ([`32685626437`](https://github.com/acedaly/DalyHub-V2/actions/runs/32685626437) at `2f94279`, 17/17 jobs green); the second needs the next push to `main`. Fresh **and** accumulated were both met on the branch; see below |
   | 4 | `spine-workspaces.spec.ts`'s measurement journey executes, owning its own Goal | **MET** — [DEBT-158](../product/PRODUCT_DEBT.md) closed; verified as *executed* from the run's artefacts, not merely as passing |
   | 5 | `db:production:list` reports no pending migration; `verify:production` run with credentials | **NOT MET** — `wrangler whoami` reports not authenticated; the verifier's PARTIALLY VERIFIED output is recorded verbatim instead |
   | 6 | `package.json`, release notes and the running release agree; `DEPLOYMENT.md` states no migration number | **MET except "the running release"**, which cannot be read without credentials |
@@ -312,6 +312,46 @@ adds anything to it.**
   (both record pickers go blind at a workspace's 500th entity — found because
   three specs failed on a developer machine and in no CI run, and the difference
   turned out to be the database rather than the code).
+- **Progress, 2026-08-24 — the operational pass ran, and stopped at its first
+  safety boundary. The item stays ☐.** The sequence *backup → verify → migrate →
+  deploy → verify* was attempted in order and got no further than its first step,
+  because the prerequisite that step needs is still owner-held. Nothing was
+  deployed, nothing was migrated, and no production data was read.
+
+  | # | Criterion | Change since 2026-08-23 |
+  | --- | --- | --- |
+  | 1 | A backup completes; `backup:verify` and `db:production:backup:list` non-zero | **none** — `BACKUP_ENCRYPTION_PASSPHRASE` is still unset. Run **22** ([`32652803588`](https://github.com/acedaly/DalyHub-V2/actions/runs/32652803588), 2026-08-23T16:48Z) failed at the same guard as 10–21 |
+  | 3 | Green on `main` for two consecutive pushes | **ADVANCED — one of the two now exists**, and it is the first complete gate run this item has ever had on `main` rather than on a branch |
+  | 5 | `db:production:list` clean; `verify:production` run with credentials | **none** — still `PARTIALLY VERIFIED`; this environment holds no Cloudflare credentials |
+
+  **The first `main` run, measured.** [`32685626437`](https://github.com/acedaly/DalyHub-V2/actions/runs/32685626437)
+  at `2f94279`, `push` to `main`, **17 of 17 jobs `success`** — Scope, Static,
+  Build, Unit, E2E p01…p12 and CI Gate. Every partition's *"Upload Playwright
+  report"* and *"Upload Playwright traces & failure screenshots"* step is
+  `skipped`, which is what a partition with no failure produces; the run's
+  thirteen artefacts are the twelve `e2e-results-p01…p12` and the production
+  build, and **not one failure artefact**. The second half of the criterion is
+  the NEXT push to `main`: `ci.yml` triggers on `push: [main]` and
+  `pull_request` and has no `workflow_dispatch`, so a second qualifying run
+  cannot be dispatched — and adding a dispatch trigger to the gate in order to
+  manufacture one would be the same category of move this item's non-goals
+  forbid.
+
+  **Why the sequence stopped where it did.** The boundary is criterion 1, and it
+  is a hard block rather than a slow step: no production migration may be applied
+  until a real backup exists ([DEBT-198](../product/PRODUCT_DEBT.md),
+  [DEBT-139](../product/PRODUCT_DEBT.md)). Beyond it every remaining step is
+  blocked a second time over — the environment has no `.production.env`, no
+  `CLOUDFLARE_API_TOKEN`, and `wrangler whoami` reports not authenticated, so
+  `db:production:list`, `deploy:production:preflight`, `db:production:apply`,
+  `deploy:production` and the credentialed half of `verify:production` all refuse
+  at their own guards. **DEBT-199's remote half was not attempted**, because
+  probing it needs those same credentials plus a real decrypted artefact; no
+  scratch D1 was created, and nothing was inferred about the remote import path.
+  The guard was not weakened, no key was invented, and no non-canonical export
+  path was improvised to make a checklist look finished. The one owner action
+  that unblocks all of it is in
+  [`BACKUP_AND_RESTORE.md` § "Setting it for the first time"](../development/BACKUP_AND_RESTORE.md).
 
 ---
 
