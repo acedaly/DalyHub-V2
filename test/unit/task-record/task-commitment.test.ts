@@ -25,6 +25,10 @@ import {
   type TaskStatus,
 } from "~/kernel/tasks";
 import {
+  taskStateBreakdown,
+  toTaskCardData,
+} from "~/modules/tasks/tasks-view-model";
+import {
   taskStillOwed,
   taskUrgency,
   toTaskRowProjection,
@@ -189,6 +193,24 @@ describe("taskUrgency is late only while the Task is still owed", () => {
       tone: "warning",
     });
     expect(taskUrgency(item({ dueDate: FUTURE }), TODAY)?.kind).toBe("due");
+  });
+
+  it("counts a past-due Task into the collection's Overdue segment only while it is owed", () => {
+    /*
+     * The bar above `/tasks` and the rows below it must agree. It counted a
+     * cancelled or Someday/Maybe Task with a passed deadline as overdue, which
+     * is the same untruth the row was telling, one element higher up the page.
+     */
+    const cards = [
+      toTaskCardData(item({})),
+      toTaskCardData(item({ status: "cancelled" })),
+      toTaskCardData(item({ commitmentState: "someday" })),
+    ];
+    // It reads "1 overdue", not "3": the label is a sentence, so the assertion is
+    // over the sentence the owner is shown.
+    const label = taskStateBreakdown(cards, TODAY, { bounded: false });
+    expect(label).toContain("1\u00a0overdue");
+    expect(label).not.toContain("3\u00a0overdue");
   });
 
   it("drops the WARNING from a closed Task due today, and keeps the words", () => {

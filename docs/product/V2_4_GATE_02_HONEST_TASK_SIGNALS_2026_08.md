@@ -157,6 +157,16 @@ kernel  isTaskStillOwed(facts)
   └─ views-presentation.ts  isClosed()                  ← the cross-view row
 ```
 
+Two more consumers were found by the audit §9 asks for, and both are fixed here
+rather than left as "not a rendered row":
+
+- **the Tasks collection's own state bar** (`taskStateBreakdown`) counted a
+  cancelled or Someday/Maybe past-due Task into its *Overdue* segment, one
+  element above a list of rows that correctly said otherwise;
+- **the assistant's weekly-Review facts** (`tasksOverdue`) did the same in a
+  number it reports to the owner in words — `listTasks` excludes only completed
+  work, so the other two thirds of the triple went uncounted.
+
 **Nothing re-derives it.** `InlineTaskDate` is handed the *answer*, never the
 facts — DEBT-197's entry names that control as the place a second definition would
 appear, and the one thing it must not grow is a status list. `TaskRow`,
@@ -419,6 +429,11 @@ numbers (`painted 94.7 of 99 with 15.3px spare`).
 | `test/unit/task-record/task-commitment.test.ts` | the semantic matrix at the **authority**: the kernel, the serialised adapter, the row projection and `taskUrgency`, over every status × commitment × completion combination, plus two rule-level falsifiers |
 | `test/unit/task-record/honest-task-signals.test.tsx` | what the **row** does with it: one control at rest, one in selection, distinct names, the same target box, the right shape per act, completion reachable through the menu while displaced, placement reachable at rest, the mode ending restores the row, and the paint of every closed state |
 | `test/unit/task-record/task-selection.test.ts` | the selection reducer, moved with its module (unchanged) |
+| `test/unit/ai/review-facts-overdue.test.ts` | the assistant's `tasksOverdue`: an open past-due Task counts, a cancelled or Someday/Maybe one does not, and waiting / on hold still do |
+
+The collection state bar's segment is asserted in `task-commitment.test.ts` beside
+the rest of the matrix, over the sentence the owner is shown ("1 overdue", not
+"3"). Both were falsified by reverting their one line.
 
 `test/unit/views/views-overdue-commitment.test.ts` (already on `main`) now covers
 the cross-view row against the kernel-delegating `isClosed`, unchanged and

@@ -157,12 +157,20 @@ test("Weekly Planning: one signal at rest, selection is a mode, and both acts su
   await page.keyboard.press("Escape");
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
   await expect(toggle).toBeFocused();
+  await expect(page.locator(".dh-plan [role='status']")).toContainText(
+    /Left selection/,
+  );
   await expect(queue.getByTestId("task-select")).toHaveCount(0);
   await expect(page.getByTestId("plan-place-bar")).toHaveCount(0);
 
-  // Back in, for the rest of the journey.
+  // Back in, for the rest of the journey — and the change of MODE is announced,
+  // not left to be inferred from controls appearing. The planner's own live
+  // region is the one that says it (`role="status"`, `aria-live="polite"`).
   await page.keyboard.press("Enter");
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".dh-plan [role='status']")).toContainText(
+    /Selecting tasks to place/,
+  );
 
   /*
    * axe, IN SELECTION MODE — the state this item introduces.
