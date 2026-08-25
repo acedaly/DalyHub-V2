@@ -1,6 +1,6 @@
 # V2.4-GATE-02 — Honest signals on a task row
 
-> The record of [`V2.4-GATE-02`](../roadmap/ROADMAP_V2_4.md#-v24-gate-02--honest-signals-on-a-task-row-and-one-day-on-a-phone),
+> The record of [`V2.4-GATE-02`](../roadmap/ROADMAP_V2_4.md#-v24-gate-02--honest-signals-on-a-task-row-and-one-day-on-a-phone--delivered-2026-08-25),
 > the bounded product decision [DHDS-13](../design/DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md)
 > correctly refused to take inside a quality gate.
 >

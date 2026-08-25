@@ -424,14 +424,14 @@ gate, and the reason the product closed at B rather than A.**
      `task-signals.css` states the invariant this breaks in its own words —
      *"A row shows one of them at rest."* **Ticking the wrong one completes work
      the owner meant to schedule**, on the surface whose only purpose is
-     scheduling ([DEBT-194](../product/PRODUCT_DEBT.md#-debt-194--the-plan-queue-draws-a-selection-control-and-a-completion-control-side-by-side-which-the-design-systems-own-invariant-forbids--p2),
+     scheduling ([DEBT-194](../product/PRODUCT_DEBT.md#-debt-194--the-plan-queue-draws-a-selection-control-and-a-completion-control-side-by-side-which-the-design-systems-own-invariant-forbids--p2--resolved-2026-08-25-v24-gate-02),
      and the same defect raised earlier at a lower severity as
-     [DEBT-164](../product/PRODUCT_DEBT.md#-debt-164--a-planning-queue-row-carries-two-checkboxes--p3)).
+     [DEBT-164](../product/PRODUCT_DEBT.md#-debt-164--a-planning-queue-row-carries-two-checkboxes--p3--resolved-2026-08-25-v24-gate-02-with-debt-194)).
   2. A **cancelled** Task with a passed due date paints that date in the overdue
      colour, beside its own *"Cancelled"* pill — the product telling the owner
      that work nobody is going to do is late, which is exactly the manufactured
      urgency [`AGENTS.md` §2.4](../../AGENTS.md#2-product-philosophy) rules out
-     ([DEBT-197](../product/PRODUCT_DEBT.md#-debt-197--a-task-row-paints-a-cancelled-tasks-passed-due-date-in-the-overdue-colour--p3)).
+     ([DEBT-197](../product/PRODUCT_DEBT.md#-debt-197--a-task-row-paints-a-cancelled-tasks-passed-due-date-in-the-overdue-colour--p3--resolved-2026-08-25-v24-gate-02)).
   3. Below the phone tier `/plan` draws **two days where its own tier says one**,
      so the day rail reports a selected day and the page shows two
      ([DEBT-196](../product/PRODUCT_DEBT.md#-debt-196--weekly-planning-draws-two-days-at-phone-width-where-its-own-tier-says-one--p2--resolved-2026-08-23-v24-gate-01);
@@ -738,7 +738,7 @@ decision with a named home.
 | **Search's empty query offers nothing to open** | [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2) (P2); DHDS-13 §4 P2-8 | Needs a recency source the search path does not have, with its own storage, scoping and privacy questions (Diary and People are excluded from external context for a reason). It belongs to a retrieval/velocity programme with tags and capture, not to follow-through. **Stated plainly: while this is open, the product does not claim an A on DHDS-13's own scale.** |
 | **Tags, and the capture grammar that would use them** | [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3), [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3); DHDS-13 §13 rates capture speed *"Below"* | A canonical tag model is the real work; `#tag` in the parser is its consequence. One coherent programme, later. |
 | **A first-run / sparse-workspace experience** | DHDS-13 §13 (*"Below"*), §4 P3-6 (Analytics opens on four zeroes) | FOLLOW-02 removes one of the zeroes an empty workspace meets. The rest is a programme of its own. |
-| **A hugging metadata label truncates a name that fits** | [DEBT-193](../product/PRODUCT_DEBT.md#-debt-193--a-hugging-metadata-label-paints-4-narrower-than-its-own-content-so-a-phone-truncates-a-name-that-fits--p3) (P3) | Six candidate fixes moved the number by zero; the correction is a cell restructure, which is not a proportionate risk for one or two characters. |
+| **A hugging metadata label truncates a name that fits** | [DEBT-193](../product/PRODUCT_DEBT.md#-debt-193--a-hugging-metadata-label-paints-4-narrower-than-its-own-content-so-a-phone-truncates-a-name-that-fits--p3--resolved-2026-08-25-v24-gate-02) (P3) | Six candidate fixes moved the number by zero; the correction is a cell restructure, which is not a proportionate risk for one or two characters. |
 | **The offline slice: habit check-in, template create, dependency edit, relationship and order changes** | [DEBT-155](../product/PRODUCT_DEBT.md#-debt-155--a-habit-check-in-is-online-only-and-the-surface-can-only-say-so-after-it-fails--p3), [DEBT-167](../product/PRODUCT_DEBT.md#-debt-167--creating-a-project-from-a-template-requires-connectivity--p3), [DEBT-170](../product/PRODUCT_DEBT.md#-debt-170--adding-or-removing-a-dependency-requires-connectivity--p3), [DEBT-190](../product/PRODUCT_DEBT.md#-debt-190--the-offline-slice-does-not-cover-relationship-or-order-changes--p3) | Each is a widening of PWA-12's queue and they belong together, judged as one decision about what the offline contract covers. |
 | **Plan's board proportions** | [DEBT-162](../product/PRODUCT_DEBT.md#-debt-162--the-six-column-planning-board-needs-a-1440px-viewport--p3), [DEBT-163](../product/PRODUCT_DEBT.md#-debt-163--a-sunday-start-week-draws-seven-board-columns-and-wraps-the-seventh--p3), DHDS-13 §4 P3-5 | Composition questions, each needing its own measurement. None costs the owner information. |
 
