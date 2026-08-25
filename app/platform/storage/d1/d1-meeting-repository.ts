@@ -176,6 +176,16 @@ function isUniqueConstraintViolation(cause: unknown): boolean {
   return /UNIQUE constraint failed/i.test(message);
 }
 
+/**
+ * The per-query meeting-id chunk size for the page's items read (DEBT-65).
+ *
+ * D1 caps bound variables at 100 per statement and the workspace id takes one,
+ * so 50 leaves generous headroom — and a collection page is itself capped at 50
+ * rows, which is why this is one statement in practice. Mirrors
+ * `ALIGNMENT_FACTS_CHUNK_SIZE` and `SUBJECT_ID_CHUNK_SIZE`.
+ */
+const ITEM_ID_CHUNK_SIZE = 50;
+
 export class D1MeetingRepository implements MeetingRepository {
   readonly #db: D1Database;
   readonly #workspaceId: string;
@@ -303,20 +313,50 @@ export class D1MeetingRepository implements MeetingRepository {
     return this.#map(row, await this.#items(id));
   }
   async #items(id: string): Promise<MeetingItem[]> {
-    const result = await this.#db
-      .prepare(
-        "SELECT id,kind,body_markdown,position,created_at,updated_at FROM meeting_items WHERE workspace_id=? AND meeting_id=? ORDER BY kind,position,id",
-      )
-      .bind(this.#workspaceId, id)
-      .all<ItemRow>();
-    return result.results.map((r) => ({
-      id: r.id,
-      kind: r.kind as MeetingItemKind,
-      bodyMarkdown: r.body_markdown,
-      position: r.position,
-      createdAt: fromStorageTimestamp(r.created_at),
-      updatedAt: fromStorageTimestamp(r.updated_at),
-    }));
+    return (await this.#itemsFor([id])).get(id) ?? [];
+  }
+
+  /**
+   * DEBT-65 — every meeting's items for a PAGE, in a bounded number of reads.
+   *
+   * `list()` mapped each row through `#items(id)`, so a 30-row collection page
+   * issued ~31 statements instead of ~2 — the N+1 shape AGENTS.md §16 exists to
+   * prevent, kept below the surface only by the page's own 50-row cap. This is
+   * the same grouped-and-chunked read `D1AlignmentRepository` and
+   * `D1ProjectHealthRepository` already use, and the same ordering, so a
+   * meeting's items come back in exactly the order they did.
+   *
+   * The chunk exists because D1 caps bound variables at 100 per statement and
+   * the workspace id takes one of them; a page can never exceed 50 rows, so in
+   * practice this is ALWAYS one statement — the loop is the guarantee rather
+   * than a routine path.
+   */
+  async #itemsFor(ids: readonly string[]): Promise<Map<string, MeetingItem[]>> {
+    const byMeeting = new Map<string, MeetingItem[]>();
+    for (const id of ids) byMeeting.set(id, []);
+    if (ids.length === 0) return byMeeting;
+
+    for (let start = 0; start < ids.length; start += ITEM_ID_CHUNK_SIZE) {
+      const slice = ids.slice(start, start + ITEM_ID_CHUNK_SIZE);
+      const placeholders = slice.map(() => "?").join(",");
+      const result = await this.#db
+        .prepare(
+          `SELECT meeting_id,id,kind,body_markdown,position,created_at,updated_at FROM meeting_items WHERE workspace_id=? AND meeting_id IN (${placeholders}) ORDER BY meeting_id,kind,position,id`,
+        )
+        .bind(this.#workspaceId, ...slice)
+        .all<ItemRow & { readonly meeting_id: string }>();
+      for (const r of result.results) {
+        byMeeting.get(r.meeting_id)?.push({
+          id: r.id,
+          kind: r.kind as MeetingItemKind,
+          bodyMarkdown: r.body_markdown,
+          position: r.position,
+          createdAt: fromStorageTimestamp(r.created_at),
+          updatedAt: fromStorageTimestamp(r.updated_at),
+        });
+      }
+    }
+    return byMeeting;
   }
   async list(
     input: {
@@ -391,9 +431,9 @@ export class D1MeetingRepository implements MeetingRepository {
     ).results;
     const hasMore = rows.length > limit,
       page = rows.slice(0, limit);
-    const items = await Promise.all(
-      page.map(async (r) => this.#map(r, await this.#items(r.id))),
-    );
+    // DEBT-65 — ONE grouped read for the whole page's items, not one per row.
+    const itemsByMeeting = await this.#itemsFor(page.map((r) => r.id));
+    const items = page.map((r) => this.#map(r, itemsByMeeting.get(r.id) ?? []));
     const last = page.at(-1);
     return {
       items,

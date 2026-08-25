@@ -4,6 +4,7 @@ import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { MeetingsCollection } from "../MeetingsCollection";
+import { loadMeetingRowAttendees } from "../meeting-attendees";
 import { serializeMeeting } from "../meeting-view";
 import type { Route } from "./+types/recent";
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -33,8 +34,18 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       sort: parseMeetingSort(u.searchParams.get("sort")),
       cursor: u.searchParams.get("cursor") ?? undefined,
     });
+    // DEBT-124 — the page's attendees, in ONE bounded relationship read. A
+    // failure costs the CONTEXT, never the page.
+    const attendees = await loadMeetingRowAttendees(
+      scope.entityLinks,
+      p.items.map((meeting) => meeting.id),
+    ).catch(() => new Map());
+
     return {
-      meetings: p.items.map(serializeMeeting),
+      meetings: p.items.map((meeting) => ({
+        ...serializeMeeting(meeting),
+        attendees: attendees.get(meeting.id) ?? null,
+      })),
       total: p.total,
       nextCursor: p.nextCursor,
       hasMore: p.hasMore,

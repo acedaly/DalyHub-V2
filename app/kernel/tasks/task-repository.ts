@@ -579,6 +579,28 @@ export interface TaskRepository {
   ): Promise<ReadonlyMap<string, TaskChecklistProgress>>;
 
   /**
+   * DEBT-59 — which of these Tasks are OPEN, for a surface that holds many ids.
+   *
+   * ONE bounded, indexed, workspace-scoped read over the whole id list — never
+   * one `getTask` per id, and never a client-side filter over a page of full
+   * Task views. It exists for the same reason `listChecklistProgress` does: the
+   * only way for a collection surface to obtain a per-Task fact is to ask for
+   * all of them at once, which makes "no N+1" structural rather than a habit.
+   *
+   * OPEN is the kernel's own definition and the SAME one the Assets attention
+   * query already uses in SQL: the Task exists, is not soft-deleted, is not
+   * completed on the spine, and is not cancelled. Cancellation is a deliberate
+   * decision not to proceed ([ADR-043](../../docs/decisions/ARCHITECTURE_DECISIONS.md)
+   * §5), so a cancelled Task is no longer an actionable commitment.
+   *
+   * Ids that do not resolve — deleted, cross-workspace, never existed — are
+   * simply absent from the result, which is the conservative direction: a
+   * surface reads a missing id as "not open" rather than inventing a state for
+   * it. An empty id list returns an empty set and issues no statement.
+   */
+  listOpenTaskIds(taskIds: readonly string[]): Promise<ReadonlySet<string>>;
+
+  /**
    * TASKS-13 — append one item to the END of a Task's checklist, atomically.
    *
    * One batch inserts the item at the next dense position and bumps the parent

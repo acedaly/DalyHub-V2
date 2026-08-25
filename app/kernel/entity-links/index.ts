@@ -20,10 +20,13 @@ export type {
   CreateEntityLinkResult,
   GetEntityLinkOptions,
   ListEntityLinksInput,
+  ListEntityLinksForEntitiesInput,
   EntityLinkPage,
   EntityLinkLifecycleOutcome,
   EntityLinkLifecycleResult,
 } from "./entity-link";
+
+export { DEFAULT_LINKS_PER_ENTITY, MAX_LINKS_PER_ENTITY } from "./entity-link";
 
 export {
   EntityLinkError,

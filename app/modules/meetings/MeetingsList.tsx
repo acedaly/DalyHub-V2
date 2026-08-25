@@ -39,8 +39,26 @@ import {
   type SerializedMeeting,
 } from "./meeting-view";
 
+/**
+ * DEBT-124 — a meeting row's People context.
+ *
+ * Resolved by the loader through the kernel's batched relationship read, never
+ * by the row: a row that fetched its own attendees would be exactly the N+1
+ * that kept this off the collection in the first place. `null` means the page
+ * did not resolve it (or the meeting has none), and the row simply says
+ * nothing — an honest absence rather than an empty "with:".
+ */
+export interface MeetingRowAttendeeContext {
+  readonly names: readonly string[];
+  readonly more: number;
+}
+
+export type MeetingsListMeeting = SerializedMeeting & {
+  readonly attendees?: MeetingRowAttendeeContext | null;
+};
+
 export interface MeetingsListProps {
-  readonly meetings: readonly SerializedMeeting[];
+  readonly meetings: readonly MeetingsListMeeting[];
   readonly ariaLabel: string;
   /** The owner's calendar day, `YYYY-MM-DD`, for the relative group headings. */
   readonly todayKey: string;
@@ -61,7 +79,7 @@ export interface MeetingsListProps {
 type MeetingGroup = {
   readonly key: string;
   readonly heading: string;
-  readonly meetings: readonly SerializedMeeting[];
+  readonly meetings: readonly MeetingsListMeeting[];
 };
 
 /**
@@ -74,7 +92,7 @@ type MeetingGroup = {
  * "sorted by title".
  */
 function groupByDay(
-  meetings: readonly SerializedMeeting[],
+  meetings: readonly MeetingsListMeeting[],
   todayKey: string,
   ownerTimezone: string,
 ): readonly MeetingGroup[] {
@@ -165,6 +183,23 @@ export function MeetingsList({
                 meeting.startsAt,
                 meeting.endsAt,
               );
+              /*
+               * DEBT-124 — "with whom", on the row.
+               *
+               * The one fact UIX-04 §25 asked a meeting row to carry and it
+               * could not, because the kernel had no batched relationship read.
+               * It is TEXT rather than avatars: a name is what a schedule is
+               * scanned by, and a row of discs would need a second read to name
+               * them for a screen reader anyway.
+               */
+              const attendees = meeting.attendees ?? null;
+              const who =
+                attendees === null || attendees.names.length === 0
+                  ? null
+                  : attendees.more > 0
+                    ? `${attendees.names.join(", ")} +${attendees.more}`
+                    : attendees.names.join(", ");
+
               const joinable =
                 meeting.meetingUrl !== null &&
                 meeting.meetingUrl.length > 0 &&
@@ -195,7 +230,7 @@ export function MeetingsList({
                       <span className="dh-meetings-list__title">
                         {meeting.title}
                       </span>
-                      {where || status || duration ? (
+                      {where || status || duration || who ? (
                         <span className="dh-meetings-list__meta">
                           {/* REFINE §40 — duration leads the meta line, because
                            * it is the fact a schedule is read for after the time
@@ -209,6 +244,14 @@ export function MeetingsList({
                           {where ? (
                             <span className="dh-meetings-list__where">
                               {where}
+                            </span>
+                          ) : null}
+                          {who ? (
+                            <span
+                              className="dh-meetings-list__who"
+                              data-testid="meeting-row-attendees"
+                            >
+                              {who}
                             </span>
                           ) : null}
                           {status ? (

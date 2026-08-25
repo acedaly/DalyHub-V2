@@ -2,7 +2,10 @@ import { RouterProvider, createMemoryRouter } from "react-router";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { MeetingsList } from "~/modules/meetings/MeetingsList";
+import {
+  MeetingsList,
+  type MeetingsListMeeting,
+} from "~/modules/meetings/MeetingsList";
 import {
   formatMeetingDayGroup,
   formatMeetingTime,
@@ -46,7 +49,7 @@ function meeting(over: Partial<SerializedMeeting> = {}): SerializedMeeting {
 }
 
 function renderList(
-  meetings: readonly SerializedMeeting[],
+  meetings: readonly MeetingsListMeeting[],
   view = "upcoming",
   todayKey = TODAY,
   ownerTimezone = SYDNEY,
@@ -243,5 +246,56 @@ describe("the meeting day/time formatters", () => {
     expect(meetingZoneLabel("America/New_York")).toBe("New York");
     expect(meetingZoneLabel("Australia/Sydney")).toBe("Sydney");
     expect(meetingZoneLabel("UTC")).toBe("UTC");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* DEBT-124 — the row can finally say WITH WHOM                                */
+/* -------------------------------------------------------------------------- */
+
+describe("DEBT-124 — People context on a meeting row", () => {
+  /*
+   * UIX-04 §25 lists "People / Project context" among what a meeting row may
+   * show, and the collection could not show it — not because it was undesirable
+   * but because the kernel published only `listForEntity`, so a page of thirty
+   * rows meant thirty queries. The loader now resolves the whole page through
+   * the batched `listForEntities`; what is asserted here is the ROW's half.
+   */
+  it("names the attendees the loader resolved", () => {
+    renderList([
+      meeting({
+        attendees: { names: ["Mira Chen", "Anna Ruiz"], more: 0 },
+      } as Partial<MeetingsListMeeting>),
+    ]);
+    expect(screen.getByTestId("meeting-row-attendees")).toHaveTextContent(
+      "Mira Chen, Anna Ruiz",
+    );
+  });
+
+  it("says how many MORE there are rather than a partial truth", () => {
+    // A row that named three of nine and stopped would be a true sentence that
+    // reads as the whole list.
+    renderList([
+      meeting({
+        attendees: { names: ["Mira Chen", "Anna Ruiz", "Tomas Lind"], more: 6 },
+      } as Partial<MeetingsListMeeting>),
+    ]);
+    expect(screen.getByTestId("meeting-row-attendees")).toHaveTextContent(
+      "Mira Chen, Anna Ruiz, Tomas Lind +6",
+    );
+  });
+
+  it("says NOTHING when the page did not resolve any, rather than an empty label", () => {
+    // `null` covers both "this meeting has no attendees" and "the relationship
+    // read failed", and both must draw an honest absence rather than "with:".
+    renderList([meeting()]);
+    expect(screen.queryByTestId("meeting-row-attendees")).toBeNull();
+
+    renderList([
+      meeting({
+        attendees: { names: [], more: 0 },
+      } as Partial<MeetingsListMeeting>),
+    ]);
+    expect(screen.queryByTestId("meeting-row-attendees")).toBeNull();
   });
 });
