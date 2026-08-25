@@ -140,7 +140,17 @@ test.describe("PX-02 frame — desktop", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Projects" }),
     ).toBeVisible();
-    await expect(page.getByRole("group", { name: "View" })).toBeVisible();
+    /*
+     * The "View" group is gone, and its absence is the point. It was this
+     * fixture's own hand-rolled list/grid switcher, removed with DEBT-113 —
+     * `CardCollection` never received `grid` or `board` from any production
+     * surface, and a fixture offering a presentation the product cannot
+     * construct is the divergence the card family exists to end.
+     *
+     * Asserted as ABSENT rather than deleted, so a switcher reappearing here
+     * fails rather than passing quietly.
+     */
+    await expect(page.getByRole("group", { name: "View" })).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Website relaunch" }),
     ).toBeVisible();
