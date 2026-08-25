@@ -67,7 +67,7 @@ export function DiaryTypeFilter({
           to={hrefFor(null)}
           replace
           preventScrollReset
-          className="dh-diary-filter__option"
+          className="dh-diary-filter__option md-state-layer"
           aria-current={activeType === null ? "true" : undefined}
         >
           <span className="dh-diary-filter__text">All</span>
@@ -83,7 +83,7 @@ export function DiaryTypeFilter({
               to={hrefFor(option.value)}
               replace
               preventScrollReset
-              className="dh-diary-filter__option"
+              className="dh-diary-filter__option md-state-layer"
               aria-current={activeType === option.value ? "true" : undefined}
             >
               {/* PX-05: the SAME subtype glyph the capture picker and the timeline

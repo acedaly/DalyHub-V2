@@ -97,7 +97,6 @@
   color: var(--dh-color-text-muted);
 }
 .dh-filter-btn--ghost:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   color: var(--dh-color-text);
 }
 
@@ -149,9 +148,6 @@
   font-size: var(--dh-text-label-size);
   color: var(--dh-color-text);
   min-width: 0;
-}
-.dh-filter-chip__edit:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-filter-chip__field {

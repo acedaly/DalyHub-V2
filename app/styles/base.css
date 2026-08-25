@@ -194,7 +194,8 @@ body {
   .dh-user-menu__trigger,
   .dh-mobilebar__back,
   .dh-mobilebar__action,
-  .dh-command__close
+  .dh-command__close,
+  .dh-filter-btn--ghost
 ) {
   position: relative;
 }
@@ -216,7 +217,8 @@ body {
   .dh-user-menu__trigger,
   .dh-mobilebar__back,
   .dh-mobilebar__action,
-  .dh-command__close
+  .dh-command__close,
+  .dh-filter-btn--ghost
 )::after {
   content: none;
   position: absolute;
@@ -245,7 +247,8 @@ body {
     .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
-    .dh-command__close
+    .dh-command__close,
+    .dh-filter-btn--ghost
   ):hover::after {
   opacity: var(--dh-state-hover-opacity);
 }
@@ -276,7 +279,8 @@ body {
     .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
-    .dh-command__close
+    .dh-command__close,
+    .dh-filter-btn--ghost
   ):focus-visible::after {
   opacity: var(--dh-state-focus-opacity);
 }
@@ -301,7 +305,8 @@ body {
     .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
-    .dh-command__close
+    .dh-command__close,
+    .dh-filter-btn--ghost
   ):active::after {
   opacity: var(--dh-state-pressed-opacity);
 }
@@ -326,7 +331,8 @@ body {
     .dh-user-menu__trigger,
     .dh-mobilebar__back,
     .dh-mobilebar__action,
-    .dh-command__close
+    .dh-command__close,
+    .dh-filter-btn--ghost
   ):is(:disabled, [aria-disabled="true"])::after {
   opacity: 0;
 }

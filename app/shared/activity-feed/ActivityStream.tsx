@@ -184,7 +184,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
           </p>
           <button
             type="button"
-            className="dh-activity__btn"
+            className="dh-activity__btn md-state-layer"
             onClick={stream.retry}
           >
             Try again
@@ -204,7 +204,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
         <div className="dh-activity__footer">
           <button
             type="button"
-            className="dh-activity__btn dh-activity__btn--load-more"
+            className="dh-activity__btn dh-activity__btn--load-more md-state-layer"
             onClick={stream.loadMore}
           >
             {loadMoreLabel}
@@ -261,7 +261,7 @@ export function ActivityStream(props: ActivityStreamProps): ReactNode {
             <p className="dh-activity__error-text">Couldn’t load activity.</p>
             <button
               type="button"
-              className="dh-activity__btn"
+              className="dh-activity__btn md-state-layer"
               onClick={stream.retry}
             >
               Try again

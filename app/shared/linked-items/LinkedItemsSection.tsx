@@ -222,7 +222,10 @@ export function LinkedItemsSection({
               </GroupHeading>
               <ul className="dh-linked-items__list">
                 {group.items.map((item) => (
-                  <li key={item.linkId} className="dh-linked-items__item">
+                  <li
+                    key={item.linkId}
+                    className="dh-linked-items__item md-state-layer"
+                  >
                     <HoverCard
                       loadSummary={(signal) =>
                         loadSummary(item.target.id, signal)

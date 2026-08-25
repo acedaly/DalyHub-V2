@@ -89,10 +89,6 @@
   border-radius: var(--dh-radius-control);
 }
 
-.dh-linked-items__item:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 .dh-linked-items__link {
   overflow-wrap: anywhere;
 }

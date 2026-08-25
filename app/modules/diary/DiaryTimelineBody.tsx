@@ -107,7 +107,10 @@ function DiaryEntryRow({
   const Icon = entryTypeIcon(entry.entryType);
   const excerpt = excerptOf(entry.bodySource);
   return (
-    <li className="dh-diary-entry" data-selected={selected ? "true" : "false"}>
+    <li
+      className="dh-diary-entry md-state-layer"
+      data-selected={selected ? "true" : "false"}
+    >
       <time className="dh-diary-entry__time" dateTime={entry.occurredAtIso}>
         {entry.occurredTimeLabel}
       </time>
@@ -167,7 +170,7 @@ function DiaryEntryRow({
       </div>
       <button
         type="button"
-        className="dh-diary-entry__edit"
+        className="dh-diary-entry__edit md-state-layer"
         aria-label={`Edit ${entry.title}`}
         onClick={() => onEdit(entry.id)}
       >

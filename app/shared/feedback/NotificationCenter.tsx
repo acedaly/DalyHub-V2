@@ -114,7 +114,7 @@ export function NotificationCenter({
             <div className="dh-feedback__toolbar">
               <button
                 type="button"
-                className="dh-feedback__dismiss-all"
+                className="dh-feedback__dismiss-all md-state-layer"
                 onClick={onDismissAll}
               >
                 Dismiss all
@@ -202,7 +202,7 @@ function NotificationToast({
         {action ? (
           <button
             type="button"
-            className="dh-toast__action"
+            className="dh-toast__action md-state-layer"
             onClick={() => onAction(notification)}
           >
             {action.label}
@@ -210,7 +210,7 @@ function NotificationToast({
         ) : null}
         <button
           type="button"
-          className="dh-toast__close"
+          className="dh-toast__close md-state-layer"
           onClick={() => onDismiss(id)}
           aria-label={`Dismiss: ${title}`}
         >
@@ -264,7 +264,7 @@ function OperationToast({
         {status === "failure" && operation.retryable ? (
           <button
             type="button"
-            className="dh-toast__action"
+            className="dh-toast__action md-state-layer"
             onClick={() => onRetry(id)}
           >
             Retry
@@ -273,7 +273,7 @@ function OperationToast({
         {active && cancellable ? (
           <button
             type="button"
-            className="dh-toast__action"
+            className="dh-toast__action md-state-layer"
             onClick={() => onCancel(id)}
           >
             Cancel
@@ -282,7 +282,7 @@ function OperationToast({
         {!active ? (
           <button
             type="button"
-            className="dh-toast__close"
+            className="dh-toast__close md-state-layer"
             onClick={() => onDismiss(id)}
             aria-label={`Dismiss: ${label}`}
           >

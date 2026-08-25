@@ -80,7 +80,7 @@ export default function HelpRoute({ loaderData }: Route.ComponentProps) {
                 {section.topics.map((topic) => (
                   <li key={topic.id}>
                     <a
-                      className="dh-help__contents-link"
+                      className="dh-help__contents-link md-state-layer"
                       href={`#${topic.id}`}
                       aria-current={
                         topic.id === focusTopicId ? "true" : undefined

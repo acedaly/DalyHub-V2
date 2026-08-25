@@ -461,11 +461,6 @@
   line-height: 1;
 }
 
-.dh-tags__chip-remove:hover,
-.dh-select__chip-remove:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 .dh-tags__input-item {
   flex: 1 1 6rem;
   min-inline-size: 6rem;
@@ -519,7 +514,6 @@
 }
 
 .dh-combobox__clear:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   color: var(--dh-color-text);
 }
 
@@ -715,10 +709,6 @@
   font: inherit;
   font-size: var(--dh-text-meta-size);
   cursor: pointer;
-}
-
-.dh-link-picker__unlink:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-link-picker__unlink:disabled {

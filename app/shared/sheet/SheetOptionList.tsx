@@ -65,7 +65,7 @@ export function SheetOption({
   return (
     <button
       type="button"
-      className="dh-sheet-option"
+      className="dh-sheet-option md-state-layer"
       aria-pressed={selected}
       disabled={disabled}
       onClick={onSelect}

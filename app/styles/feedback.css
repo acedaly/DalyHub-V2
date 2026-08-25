@@ -77,7 +77,6 @@
 
 .dh-feedback__dismiss-all:hover {
   color: var(--dh-color-text);
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-feedback__list {
@@ -243,9 +242,6 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.dh-toast__action:hover {
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
 
 .dh-toast__close {
   /* A real control inside the click-through region: opt back in. */
@@ -264,7 +260,6 @@
 }
 .dh-toast__close:hover {
   color: var(--dh-color-text);
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-toast__spinner {

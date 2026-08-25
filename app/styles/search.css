@@ -83,10 +83,6 @@
   cursor: pointer;
 }
 
-.dh-search__close:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 .dh-search__inputrow {
   display: flex;
   align-items: center;
@@ -178,10 +174,6 @@
   font: inherit;
   text-transform: none;
   cursor: pointer;
-}
-
-.dh-search__clear:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-search__option {

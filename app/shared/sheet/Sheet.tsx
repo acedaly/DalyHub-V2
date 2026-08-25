@@ -210,7 +210,7 @@ export function Sheet({
     closeLabel === undefined ? (
       <IconButton
         ref={closeButtonRef}
-        className="dh-sheet__close dh-panel-close"
+        className="dh-sheet__close dh-panel-close md-state-layer"
         icon={<CloseIcon />}
         label="Close"
         onClick={onClose}
@@ -218,7 +218,7 @@ export function Sheet({
     ) : (
       <button
         type="button"
-        className="dh-sheet__close dh-sheet__close--worded dh-panel-close"
+        className="dh-sheet__close dh-sheet__close--worded dh-panel-close md-state-layer"
         ref={closeButtonRef}
         onClick={onClose}
       >

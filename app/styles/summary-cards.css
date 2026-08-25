@@ -79,7 +79,6 @@
 
 .dh-summary-card--link:hover {
   border-color: var(--dh-color-border-strong);
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -123,7 +123,6 @@
 }
 
 .dh-help__contents-link:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   color: var(--dh-color-text);
 }
 

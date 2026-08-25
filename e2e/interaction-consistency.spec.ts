@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -109,6 +110,55 @@ test.describe("M3-INT — the shared state layer", () => {
       ).toBe(0);
       await page.mouse.move(0, 0);
     }
+  });
+
+  test("the module-level chrome DEBT-99 converted are hosts too", async ({
+    page,
+  }) => {
+    /*
+     * DEBT-99 — twenty-six module-level controls hand-rolled their own hover
+     * fill: `background: color-mix(in srgb, var(--dh-color-text) 8%,
+     * transparent)`, written out again in each of nineteen stylesheets. They
+     * agreed because their authors read the same rule; nothing made them agree
+     * tomorrow, and none of them had a FOCUS or a PRESSED state — which is a
+     * hover-only affordance, and AGENTS.md §15 rules those out.
+     *
+     * Two of the converted controls, on two different surfaces, measured the
+     * way the rest of this file measures: the LAYER's own opacity, not a
+     * `background` — because a hand-rolled fill would satisfy a background
+     * assertion and this one passes only if the shared implementation is what
+     * is running. FOCUS is asserted, not hover, because focus is the state
+     * these controls did not have before.
+     */
+    await gotoFixture(page, "/help");
+    const contentsLink = page.locator("a.dh-help__contents-link").first();
+    await expect(contentsLink).toBeVisible();
+    expect(await layerOpacity(contentsLink)).toBe(0);
+    await contentsLink.hover();
+    await expect
+      .poll(() => layerOpacity(contentsLink), { timeout: 2_000 })
+      .toBeGreaterThan(0.05);
+    await page.mouse.move(0, 0);
+
+    // The keyboard half — the state the hand-rolled rules did not have at all.
+    await contentsLink.focus();
+    await expect
+      .poll(() => layerOpacity(contentsLink), { timeout: 2_000 })
+      .toBeGreaterThan(0.05);
+
+    // A second surface and a second converted control — the shared Drawer's
+    // close button, reached the way an owner reaches it.
+    await gotoFixture(page, "/tasks");
+    await taskRows(page).first().getByRole("link").first().click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer).toBeVisible();
+    const drawerClose = drawer.locator("button.drawer__close");
+    await expect(drawerClose).toBeVisible();
+    expect(await layerOpacity(drawerClose)).toBe(0);
+    await drawerClose.hover();
+    await expect
+      .poll(() => layerOpacity(drawerClose), { timeout: 2_000 })
+      .toBeGreaterThan(0.05);
   });
 
   test("the record header's own controls are hosts too", async ({ page }) => {

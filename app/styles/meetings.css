@@ -203,10 +203,6 @@
   cursor: pointer;
 }
 
-.dh-meeting-capturebar__type:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 /*
  * Selected: aria-pressed (semantic) + a filled container + weight — never
  * colour alone.

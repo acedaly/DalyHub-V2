@@ -300,7 +300,7 @@ export function EntityLinkPicker({
                 {!readOnly ? (
                   <button
                     type="button"
-                    className="dh-link-picker__unlink"
+                    className="dh-link-picker__unlink md-state-layer"
                     disabled={disabled || pendingUnlinkId === link.linkId}
                     aria-label={`Remove link to ${link.target.title || "item"}`}
                     onClick={() => void removeLink(link)}

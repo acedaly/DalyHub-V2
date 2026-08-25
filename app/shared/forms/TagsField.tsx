@@ -145,7 +145,7 @@ export function TagsField({
                 {!readOnly ? (
                   <button
                     type="button"
-                    className="dh-tags__chip-remove"
+                    className="dh-tags__chip-remove md-state-layer"
                     disabled={disabled}
                     onClick={() => remove(index)}
                     aria-label={`Remove ${tag}`}
