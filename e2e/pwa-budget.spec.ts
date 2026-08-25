@@ -12,6 +12,8 @@
  * `docs/development/PWA_AND_OFFLINE.md`.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 import { expect, test, type Page } from "@playwright/test";
@@ -21,33 +23,52 @@ const PROD_BASE = "http://localhost:4174";
 /* Budgets. Measured 2026-08-02 against the production build of V2.0.1. */
 
 /*
- * Measured 2026-08-19 (TASKS-12): 24,025 bytes, over the 24,000 ceiling — and
- * `main` @ cd14b3e measured 23,960, which is FORTY BYTES under it. The ceiling
- * was exhausted before this change arrived, and this records the numbers rather
- * than the impression.
+ * TWO ceilings over the service worker, because it is two things that grow for
+ * completely different reasons (DEBT-172).
  *
- * The growth is NOT worker logic. `vite-plugins/sw-template.js` is 22,925 bytes
- * and byte-identical on both; the difference is the precache MANIFEST the plugin
- * substitutes into it — 31 assets / 1,013 bytes of URL literals on main, 33 /
- * 1,074 here. TASKS-12 added one resource route and one chunk, and the worker
- * grew by sixty-five bytes because its list of shell bundles got two entries
- * longer. Any change that adds a route breaches a ceiling with forty bytes of
- * headroom, so what this ceiling was measuring had stopped being "is the worker
- * small enough to read in one sitting" and become "has anyone added a route".
+ * ── What one ceiling was actually measuring ──────────────────────────────────
+ * `/sw.js` is `vite-plugins/sw-template.js` with a build id, an offline
+ * document and a PRECACHE MANIFEST substituted into it. A single ceiling over
+ * the served file therefore moves when somebody adds a ROUTE — and it did:
+ * measured 2026-08-19 (TASKS-12) at 24,025 bytes against a 24,000 ceiling,
+ * where `main` @ cd14b3e was 23,960 — forty bytes of headroom. The worker's
+ * LOGIC was byte-identical on both; TASKS-12 added one resource route and one
+ * chunk, and the manifest grew by sixty-five bytes.
  *
- * Re-baselined to the measured value plus ~12%, the same ratchet HARDEN-05
- * applied to the precache ceiling below and for the same reason: a budget is
- * useful when it catches a change that TRIPLES what a phone downloads, and
- * useless when it fires on a sixty-five-byte manifest entry. The original
- * comment read "Measured: 12 kB" against a 24,000 ceiling — the worker had
- * doubled since that measurement without the number ever being revisited, which
- * is exactly the rot the file's own header warns about.
+ * So the number had stopped answering *"is the worker small enough to read in
+ * one sitting?"* and started answering *"has anyone added a route?"* — and,
+ * worse, would have gone quiet about real worker growth as soon as somebody
+ * re-baselined it.
  *
- * The worker's own size is what deserves a ratchet, and it does not have one
- * yet: separating the LOGIC from the MANIFEST so each is bounded on its own is
- * recorded as DEBT-172.
+ * ── The two, and what each is for ────────────────────────────────────────────
+ * The LOGIC ceiling is over `sw-template.js` on disk. Nothing but a deliberate
+ * change to the worker moves it, so it is the one that means "the worker
+ * grew". Measured 2026-08-25: 22,925 bytes.
+ *
+ * The MANIFEST ceiling is over the URL literals the plugin substitutes, and it
+ * sits beside `PRECACHE_MAX_ASSETS`, which already bounds the manifest's
+ * LENGTH. This one bounds its BYTES, so a route with a very long path is
+ * caught as well as a route that is merely one more. Measured 2026-08-25 and
+ * printed on every run.
+ *
+ * Each carries headroom over its measured value, and the test asserts the two
+ * ACCOUNT for the served worker — otherwise a third thing could grow inside
+ * `/sw.js` with neither ceiling seeing it, which is the failure this split
+ * would otherwise introduce.
  */
-const SERVICE_WORKER_MAX_BYTES = 27_000;
+const SERVICE_WORKER_LOGIC_MAX_BYTES = 25_000;
+const PRECACHE_MANIFEST_MAX_BYTES = 2_000;
+
+/*
+ * What the substitutions other than the manifest are worth, plus slack.
+ *
+ * `__DALYHUB_BUILD_ID__` and `__DALYHUB_OFFLINE_DOCUMENT__` are replaced by
+ * short literals, so the served worker is the template plus the manifest plus a
+ * few hundred bytes. This bounds "a few hundred": if the served file is bigger
+ * than the two ceilings can explain, something is growing that neither of them
+ * measures, and that is the one regression a split budget can hide.
+ */
+const SUBSTITUTION_SLACK_BYTES = 4_000;
 
 /*
  * Measured 2026-08-17 (HARDEN-05): 1,321 kB across 30 assets uncompressed, and
@@ -115,7 +136,21 @@ test("the service worker and its precache stay within budget", async ({
   const worker = await request.get(`${PROD_BASE}/sw.js`);
   const source = await worker.text();
   const workerBytes = Buffer.byteLength(source, "utf8");
-  expect(workerBytes).toBeLessThan(SERVICE_WORKER_MAX_BYTES);
+
+  /*
+   * DEBT-172 — the worker's own LOGIC, from the template on disk rather than
+   * from the served file, because the served file is the template plus the
+   * manifest and this ceiling is about the template alone.
+   */
+  const logicBytes = Buffer.byteLength(
+    readFileSync(join(process.cwd(), "vite-plugins", "sw-template.js"), "utf8"),
+    "utf8",
+  );
+  expect(
+    logicBytes,
+    "the service worker's own logic grew; this ceiling is the one that means " +
+      "'the worker got bigger', and adding a route must not move it (DEBT-172)",
+  ).toBeLessThan(SERVICE_WORKER_LOGIC_MAX_BYTES);
 
   // `woff2` is in this alternation deliberately (ADR-068 decision 4). DS-14
   // precaches two self-hosted font files; before they were added, this pattern
@@ -130,6 +165,41 @@ test("the service worker and its precache stay within budget", async ({
     .map((match) => match[1])
     .filter((url, index, all) => all.indexOf(url) === index);
   expect(urls.length).toBeLessThanOrEqual(PRECACHE_MAX_ASSETS);
+
+  /*
+   * DEBT-172 — the manifest's BYTES, beside its length. A route with a very
+   * long path costs a phone the same as several short ones, and
+   * `PRECACHE_MAX_ASSETS` cannot see the difference.
+   */
+  const manifestBytes = urls.reduce(
+    // Each URL appears in the substituted list as a quoted literal plus its
+    // separator, which is what the worker actually carries.
+    (total, url) => total + Buffer.byteLength(url, "utf8") + 3,
+    0,
+  );
+  expect(
+    manifestBytes,
+    "the precache manifest's byte cost grew; this is the ceiling a new route " +
+      "is supposed to move (DEBT-172)",
+  ).toBeLessThan(PRECACHE_MANIFEST_MAX_BYTES);
+
+  /*
+   * And the two ACCOUNT for the served worker. Without this, a split budget
+   * would let a third thing grow inside `/sw.js` with neither ceiling seeing
+   * it — which is the one regression splitting a budget can introduce.
+   */
+  expect(
+    workerBytes,
+    `the served worker (${workerBytes} B) is larger than its logic ` +
+      `(${logicBytes} B) plus its manifest (${manifestBytes} B) can explain — ` +
+      "something is growing that neither ceiling measures (DEBT-172)",
+  ).toBeLessThan(logicBytes + manifestBytes + SUBSTITUTION_SLACK_BYTES);
+
+  console.log(
+    `[budget] sw logic ${logicBytes} B / ${SERVICE_WORKER_LOGIC_MAX_BYTES} · ` +
+      `manifest ${manifestBytes} B / ${PRECACHE_MANIFEST_MAX_BYTES} · ` +
+      `served ${workerBytes} B`,
+  );
 
   let precacheBytes = 0;
   let transferBytes = 0;
