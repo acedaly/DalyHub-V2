@@ -38,6 +38,92 @@ import {
   storedBlockers,
 } from "./dependency-fixtures";
 
+/* -------------------------------------------------------------------------- */
+/* Calendar anchors — RELATIVE to the owner's day, never absolute              */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Every recurrence fixture below has to be seeded on a date that is AHEAD of the
+ * owner's day, and the reason is the rule under test: a fixed schedule never
+ * produces a successor on or before the day the work was actually finished. Seed
+ * it in the past and the series legitimately skips forward, so the assertion
+ * silently stops being about the rule it names.
+ *
+ * These were written as absolute dates with a comment saying they were ahead of
+ * the owner's day — which was true when they were written and became false on
+ * 2026-08-24. The Mon/Wed/Fri journey then failed PERMANENTLY (not on some days:
+ * from that date onwards), expecting Wednesday 2026-08-26 and correctly getting
+ * Friday 2026-08-28, because the owner's day had reached the Wednesday. Found by
+ * V2.4-GATE-02 running the complete local gate; the branch touches neither this
+ * spec, its fixture nor any recurrence code.
+ *
+ * `helpers.ts`'s own note on `ownerToday` names this exact shape — *"invisible in
+ * the morning and certain in the evening, which is the worst shape a test can
+ * have"* — and the fix is the one `plan-fixtures.ts` already uses for the same
+ * reason: derive the dates, do not write them down.
+ */
+
+/** The weekday index (0 = Sunday) of a date-only ISO value, in UTC components. */
+function weekdayOf(iso: string): number {
+  return new Date(Date.parse(`${iso}T00:00:00Z`)).getUTCDay();
+}
+
+/** Add whole days to a wall-calendar date, in UTC component arithmetic only. */
+function addDays(iso: string, days: number): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** The next `weekday` (0 = Sunday) STRICTLY AFTER the owner's calendar day. */
+function nextWeekday(weekday: number): string {
+  const today = ownerToday();
+  for (let step = 1; step <= 7; step += 1) {
+    const candidate = addDays(today, step);
+    if (weekdayOf(candidate) === weekday) return candidate;
+  }
+  /* c8 ignore next */
+  throw new Error("a weekday always occurs within seven days");
+}
+
+/** The last `weekday` of the month `iso` falls in. */
+function lastWeekdayOfMonth(iso: string, weekday: number): string {
+  const [year, month] = iso.split("-").map(Number);
+  // Day 0 of the next month is the last day of this one.
+  const last = new Date(Date.UTC(year!, month!, 0)).toISOString().slice(0, 10);
+  for (let step = 0; step < 7; step += 1) {
+    const candidate = addDays(last, -step);
+    if (weekdayOf(candidate) === weekday) return candidate;
+  }
+  /* c8 ignore next */
+  throw new Error("a weekday always occurs within the last seven days");
+}
+
+/** The first month whose last `weekday` is strictly after the owner's day. */
+function nextLastWeekdayOfMonth(weekday: number): string {
+  const today = ownerToday();
+  let probe = today;
+  for (let month = 0; month < 3; month += 1) {
+    const candidate = lastWeekdayOfMonth(probe, weekday);
+    if (candidate > today) return candidate;
+    // Step into the next month by walking past this month's end.
+    probe = addDays(
+      lastWeekdayOfMonth(probe, weekdayOf(probe)) > probe ? probe : probe,
+      0,
+    );
+    const [year, monthNumber] = probe.split("-").map(Number);
+    probe = new Date(Date.UTC(year!, monthNumber!, 1))
+      .toISOString()
+      .slice(0, 10);
+  }
+  /* c8 ignore next */
+  throw new Error("a month always has a last weekday");
+}
+
+const FRIDAY = 5;
+const MONDAY = 1;
+const WEDNESDAY = 3;
+
 /** The Tasks list with no grouping, newest first — where a seeded row is first. */
 const TASKS_URL = "/tasks?view=list&group=none&sort=created&dir=desc";
 
@@ -82,8 +168,8 @@ test.describe("TASKS-12 — authoring an advanced repeat", () => {
     seedDependencyTask({
       id: TASK_ID,
       title: "Board pack review",
-      // 28 August 2026 is the last Friday of August.
-      scheduledDate: "2026-08-28",
+      // The last Friday of the first month whose last Friday is still ahead.
+      scheduledDate: nextLastWeekdayOfMonth(FRIDAY),
     });
   });
 
@@ -194,16 +280,19 @@ test.describe("TASKS-12 — completing an advanced repeat", () => {
   test("a 'last Friday' occurrence produces the next month's last Friday", async ({
     page,
   }) => {
+    // The last Friday of the first month whose last Friday is still ahead of the
+    // owner's day — derived for the same reason the Mon/Wed/Fri anchor below is.
+    const monthlyAnchor = nextLastWeekdayOfMonth(FRIDAY);
     seedDependencyTask({
       id: MONTHLY,
       title: "Last Friday review",
-      scheduledDate: "2026-08-28",
+      scheduledDate: monthlyAnchor,
       repeat: {
         frequency: "month",
         seriesId: MONTHLY_SERIES,
         weekdays: [5],
         ordinal: "last",
-        anchorDay: 28,
+        anchorDay: Number(monthlyAnchor.slice(8, 10)),
       },
     });
     await gotoFixture(page, recordUrl(MONTHLY));
@@ -212,22 +301,29 @@ test.describe("TASKS-12 — completing an advanced repeat", () => {
       record(page).getByRole("button", { name: "Reopen task" }),
     ).toBeVisible();
 
-    // 25 September 2026 is the last Friday of September.
+    // The last Friday of the FOLLOWING month, derived rather than written down.
     const successor = occurrenceAt(MONTHLY_SERIES, 1);
-    expect(successor?.scheduledDate).toBe("2026-09-25");
+    expect(successor?.scheduledDate).toBe(
+      lastWeekdayOfMonth(addDays(monthlyAnchor, 7), FRIDAY),
+    );
   });
 
   test("a Mon/Wed/Fri occurrence steps ONE day, staying in ONE series", async ({
     page,
   }) => {
-    // 24 August 2026 is a Monday, and it is AHEAD of the owner's day — which
-    // matters: a fixed schedule never produces a date on or before the day the
-    // work was actually finished, so an occurrence seeded in the past would
-    // legitimately skip forward and the assertion would be about the wrong rule.
+    /*
+     * The next MONDAY strictly after the owner's day — which is the whole point:
+     * a fixed schedule never produces a date on or before the day the work was
+     * actually finished, so an occurrence seeded in the past would legitimately
+     * skip forward and the assertion would be about the wrong rule. This was a
+     * hard-coded 2026-08-24 with that sentence beside it, and the sentence
+     * stopped being true on 2026-08-24.
+     */
+    const monday = nextWeekday(MONDAY);
     seedDependencyTask({
       id: WEEKLY,
       title: "Standup notes",
-      scheduledDate: "2026-08-24",
+      scheduledDate: monday,
       repeat: {
         frequency: "week",
         seriesId: WEEKLY_SERIES,
@@ -239,7 +335,10 @@ test.describe("TASKS-12 — completing an advanced repeat", () => {
     await expect(
       record(page).getByRole("button", { name: "Reopen task" }),
     ).toBeVisible();
-    expect(occurrenceAt(WEEKLY_SERIES, 1)?.scheduledDate).toBe("2026-08-26");
+    expect(occurrenceAt(WEEKLY_SERIES, 1)?.scheduledDate).toBe(
+      addDays(monday, 2),
+    );
+    expect(weekdayOf(addDays(monday, 2))).toBe(WEDNESDAY);
 
     // ...and completing THAT one steps to the Friday, in the same series.
     const wednesday = occurrenceAt(WEEKLY_SERIES, 1)!;
@@ -248,7 +347,10 @@ test.describe("TASKS-12 — completing an advanced repeat", () => {
     await expect(
       record(page).getByRole("button", { name: "Reopen task" }),
     ).toBeVisible();
-    expect(occurrenceAt(WEEKLY_SERIES, 2)?.scheduledDate).toBe("2026-08-28");
+    expect(occurrenceAt(WEEKLY_SERIES, 2)?.scheduledDate).toBe(
+      addDays(monday, 4),
+    );
+    expect(weekdayOf(addDays(monday, 4))).toBe(FRIDAY);
   });
 
   test("the FINAL occurrence of a bounded series creates no successor", async ({
