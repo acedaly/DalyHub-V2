@@ -130,10 +130,6 @@
   transition: background-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
-.dh-capture-chip:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 /* Selected: aria-pressed (semantic) + accent border + weight — never colour alone. */
 .dh-capture-chip[aria-pressed="true"] {
   border-color: var(--dh-color-accent);

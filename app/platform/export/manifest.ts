@@ -88,8 +88,23 @@ export interface ExportManifest {
  * Whether the NON-SECRET half — the digest time, its zone, the per-source
  * toggles, a calendar's name — should be exported as `owner`-scoped
  * configuration, by column rather than by table, is a separate and open
- * question: it is the same shape as DEBT-94's AI-preferences judgement, and it
- * is recorded as DEBT-176 rather than decided here.
+ * question, recorded as DEBT-176 rather than decided here.
+ *
+ * DEBT-94, which that question was compared to, IS now decided, and this list
+ * is where it belongs: AI preferences are deliberately not exported. The
+ * comparison was apt — the same shape, and the same answer. Those rows hold a
+ * spending budget, feature switches and a privacy CONSENT, and a restore that
+ * quietly re-enabled all three would spend the owner's money and re-grant a
+ * consent they may have withdrawn. An archive that loses a setting is
+ * recoverable in a minute; one that silently restores a consent is not.
+ *
+ * It is HERE and not in `limitations` for a reason worth stating, because the
+ * first attempt got it wrong: `limitations` means *something happened during
+ * THIS export* — a collection truncated, a payload that would not parse. A
+ * standing exclusion is a property of the schema, and putting it there would
+ * have made "this export hit no problems" unexpressible. `workspace-restore`'s
+ * round-trip assertion, `expect(source.limitations).toEqual([])`, is exactly
+ * that claim, and it caught the mistake.
  */
 export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Authentication artefacts: Cloudflare Access JWTs, cookies and session state.",
@@ -104,6 +119,7 @@ export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Notification settings: the delivery channel, the digest time and its zone, and the per-source toggles. The row holds Pushover credentials, so it is omitted whole; a restored workspace starts with notifications off and the defaults.",
   "The notification ledger: what was sent and delivered. It is a record of how the system was operated, not anything the owner authored — the same rule the AI usage ledger follows.",
   "Calendar sources and the events read from them: a subscribed feed's sealed URL is a credential, and the events themselves belong to the calendar that publishes them. A restored workspace subscribes to nothing until the owner adds the feeds again.",
+  "AI preferences: the spending budget, the allowed features and categories, and the privacy consent. Restoring them would re-enable spending and re-grant a consent the owner may have withdrawn — silently — so they are omitted. Re-set them from Settings after a restore; every other owner preference and saved view is carried.",
 ];
 
 /**

@@ -35,6 +35,8 @@ import {
 } from "~/kernel/spine";
 import { RESERVED_TASK_LINK_TYPES } from "~/kernel/tasks";
 import {
+  DEFAULT_LINKS_PER_ENTITY,
+  MAX_LINKS_PER_ENTITY,
   EntityLinkConflictError,
   EntityLinkEndpointArchivedError,
   EntityLinkEndpointNotFoundError,
@@ -53,6 +55,8 @@ import {
   type EntityLinkRepository,
   type GetEntityLinkOptions,
   type IdGenerator,
+  type EntityLinkView,
+  type ListEntityLinksForEntitiesInput,
   type ListEntityLinksInput,
 } from "~/kernel/entity-links";
 import {
@@ -149,6 +153,17 @@ interface LinkIdentity {
   readonly targetEntityId: string;
   readonly type: string;
 }
+
+/**
+ * The per-statement anchor-id chunk for `listForEntities` (DEBT-124).
+ *
+ * D1 caps bound variables at 100 per statement, and the batched read binds the
+ * id list ONCE PER DIRECTION plus a workspace id and a rank bound — so 40 ids
+ * costs at most 83 parameters with `direction: "both"` and a type filter, which
+ * leaves real headroom. A collection page is 30 rows or fewer everywhere in the
+ * product, so this is one statement in practice; the loop is the guarantee.
+ */
+const LINK_ANCHOR_ID_CHUNK_SIZE = 40;
 
 const OUTGOING_PROJECTION = `
   l.id AS link_id,
@@ -503,6 +518,82 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
     return { items, nextCursor, hasMore };
   }
 
+  /**
+   * DEBT-124 — every anchor's links for a PAGE, in a bounded number of reads.
+   *
+   * Two properties make this a kernel primitive rather than a convenience:
+   *
+   *   - the truncation is PER ANCHOR, through a window function, so a record
+   *     with two hundred links cannot consume the whole read and leave the rest
+   *     of the page empty. A global `LIMIT` over a `UNION ALL` would do exactly
+   *     that, silently;
+   *   - the anchor is DERIVED from the row's own direction rather than carried
+   *     as a second column, so a link between two anchors on the same page
+   *     appears once for each of them — which is what it is.
+   *
+   * The chunk exists only because D1 accepts a finite number of bound
+   * parameters, so the statement count is ceil(ids / chunk) — a function of the
+   * caller's page, not of the workspace's size.
+   */
+  async listForEntities(
+    entityIds: readonly string[],
+    input: ListEntityLinksForEntitiesInput = {},
+  ): Promise<ReadonlyMap<string, readonly EntityLinkView[]>> {
+    const direction = validateDirectionFilter(input.direction);
+    const type = validateOptionalLinkType(input.type);
+    const limitPerEntity = Math.max(
+      1,
+      Math.min(
+        MAX_LINKS_PER_ENTITY,
+        Math.trunc(input.limitPerEntity ?? DEFAULT_LINKS_PER_ENTITY),
+      ),
+    );
+
+    const unique: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of entityIds) {
+      if (typeof raw !== "string" || raw.length === 0) continue;
+      // Validate rather than trust: an id that cannot be a link endpoint is a
+      // caller error, and the same refusal `listForEntity` makes.
+      const id = validateEntityLinkId(raw);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      unique.push(id);
+    }
+
+    const byAnchor = new Map<string, EntityLinkView[]>();
+    // An empty page costs NOTHING — no statement can answer anything but "none".
+    if (unique.length === 0) return byAnchor;
+
+    for (
+      let start = 0;
+      start < unique.length;
+      start += LINK_ANCHOR_ID_CHUNK_SIZE
+    ) {
+      const chunk = unique.slice(start, start + LINK_ANCHOR_ID_CHUNK_SIZE);
+      const { sql, params } = this.#buildBatchListQuery(
+        chunk,
+        direction,
+        type,
+        limitPerEntity,
+      );
+      const rows = await this.#allViews(this.#db.prepare(sql).bind(...params));
+      for (const row of rows) {
+        const anchorId =
+          row.direction === "outgoing"
+            ? row.link_source_entity_id
+            : row.link_target_entity_id;
+        const bucket = byAnchor.get(anchorId);
+        if (bucket) {
+          bucket.push(viewRowToEntityLinkView(row));
+        } else {
+          byAnchor.set(anchorId, [viewRowToEntityLinkView(row)]);
+        }
+      }
+    }
+    return byAnchor;
+  }
+
   async unlink(id: string): Promise<EntityLinkLifecycleResult> {
     const linkId = validateEntityLinkId(id);
 
@@ -766,6 +857,108 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
         : `SELECT * FROM (${parts.join(" UNION ALL ")})`;
     const sql = `${combined} ORDER BY link_created_at ASC, link_id ASC LIMIT ?`;
     params.push(fetchLimit);
+    return { sql, params };
+  }
+
+  /**
+   * DEBT-124 — the batched read's statement.
+   *
+   * The same direction subqueries `#buildListQuery` composes, over `IN (...)`
+   * rather than one anchor, wrapped in a window function that ranks each row
+   * WITHIN its own anchor. The rank is what makes the bound per anchor rather
+   * than per page — see `listForEntities` for why that matters.
+   */
+  #buildBatchListQuery(
+    anchorIds: readonly string[],
+    direction: EntityLinkDirectionFilter,
+    type: string | undefined,
+    limitPerEntity: number,
+  ): { sql: string; params: unknown[] } {
+    const parts: string[] = [];
+    const params: unknown[] = [];
+
+    if (direction === "outgoing" || direction === "both") {
+      const sub = this.#buildBatchDirectionSubquery(
+        "outgoing",
+        anchorIds,
+        type,
+      );
+      parts.push(sub.sql);
+      params.push(...sub.params);
+    }
+    if (direction === "incoming" || direction === "both") {
+      const sub = this.#buildBatchDirectionSubquery(
+        "incoming",
+        anchorIds,
+        type,
+      );
+      parts.push(sub.sql);
+      params.push(...sub.params);
+    }
+
+    const combined = parts.join(" UNION ALL ");
+    const sql = `SELECT * FROM (
+      SELECT *, ROW_NUMBER() OVER (
+        PARTITION BY anchor_entity_id
+        ORDER BY link_created_at ASC, link_id ASC
+      ) AS anchor_rank
+      FROM (${combined})
+    ) WHERE anchor_rank <= ?
+      ORDER BY anchor_entity_id ASC, link_created_at ASC, link_id ASC`;
+    params.push(limitPerEntity);
+    return { sql, params };
+  }
+
+  /** One direction's SELECT over a SET of anchors, with the anchor projected. */
+  #buildBatchDirectionSubquery(
+    kind: "outgoing" | "incoming",
+    anchorIds: readonly string[],
+    type: string | undefined,
+  ): { sql: string; params: unknown[] } {
+    const outgoing = kind === "outgoing";
+    const projection = outgoing ? OUTGOING_PROJECTION : INCOMING_PROJECTION;
+    const anchorColumn = outgoing ? "source_entity_id" : "target_entity_id";
+    const counterpartColumn = outgoing
+      ? "target_entity_id"
+      : "source_entity_id";
+
+    const placeholders = anchorIds.map(() => "?").join(", ");
+    const conditions = [
+      "l.workspace_id = ?",
+      `l.${anchorColumn} IN (${placeholders})`,
+      "l.deleted_at IS NULL",
+      "e.deleted_at IS NULL",
+      /*
+       * The ANCHOR's own row, and this join is not symmetry for its own sake.
+       *
+       * `listForEntities` documents that an anchor which does not exist, is
+       * soft-deleted, or belongs to another workspace is ABSENT from the map —
+       * that is the difference from `listForEntity`, which refuses. Soft-
+       * deleting an entity does not delete its `entity_links`, so checking only
+       * the link and the COUNTERPART returned a deleted record's live
+       * relationships: the contract stated, and the query not keeping it.
+       *
+       * Found by review on PR #226. It costs a second JOIN in the SAME
+       * statement — no extra round trip — so the bounded-query property
+       * DEBT-124 exists for is untouched.
+       */
+      "a.deleted_at IS NULL",
+    ];
+    const params: unknown[] = [this.#workspaceId, ...anchorIds];
+
+    if (type !== undefined) {
+      conditions.push("l.type = ?");
+      params.push(type);
+    }
+
+    const sql = `SELECT ${projection},
+      l.${anchorColumn} AS anchor_entity_id
+      FROM entity_links l
+      JOIN entities e
+        ON e.workspace_id = l.workspace_id AND e.id = l.${counterpartColumn}
+      JOIN entities a
+        ON a.workspace_id = l.workspace_id AND a.id = l.${anchorColumn}
+      WHERE ${conditions.join(" AND ")}`;
     return { sql, params };
   }
 

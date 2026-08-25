@@ -466,6 +466,27 @@ function StatesDemo() {
           readOnly
         />
       </div>
+
+      {/*
+        The gallery documented every DISABLED field and no disabled BUTTON,
+        which is the one control whose disabled appearance is a rule rather
+        than a colour: a disabled control is inert, so it carries no state
+        layer at all — not a fainter one (DS-02, and `interaction-consistency`
+        asserts it). These are unconditionally disabled because that is the
+        state being shown; the submitting-form case is already demonstrated
+        above, where Cancel disables itself while Save is pending.
+      */}
+      <FormActions>
+        <FormButton type="button" variant="primary" disabled>
+          Disabled primary
+        </FormButton>
+        <FormButton type="button" variant="secondary" disabled>
+          Disabled secondary
+        </FormButton>
+        <FormButton type="button" variant="ghost" disabled>
+          Disabled ghost
+        </FormButton>
+      </FormActions>
     </section>
   );
 }

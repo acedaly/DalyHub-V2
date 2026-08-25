@@ -319,7 +319,6 @@
 }
 
 .dh-diary-filter__option:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   color: var(--dh-color-text);
 }
 
@@ -476,10 +475,6 @@
   border-radius: var(--dh-radius-pill);
 }
 
-.dh-diary-entry:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 .dh-diary-entry[data-selected="true"] {
   background: var(--dh-color-accent-subtle);
 }
@@ -630,7 +625,6 @@
 
 .dh-diary-entry__edit:hover {
   color: var(--dh-color-text);
-  background: color-mix(in srgb, var(--dh-color-text) 10%, transparent);
 }
 
 /* Keep the Edit affordance visible where hover isn't available (touch). */
@@ -883,7 +877,6 @@
 }
 
 .dh-diary-capture__chip:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   color: var(--dh-color-text);
 }
 

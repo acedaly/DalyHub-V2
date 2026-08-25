@@ -122,7 +122,7 @@ export function Drawer({ entry, result, opener, onClose }: DrawerProps) {
         )}
         <IconButton
           ref={closeButtonRef}
-          className="drawer__close dh-panel-close"
+          className="drawer__close dh-panel-close md-state-layer"
           icon={<CloseIcon />}
           label="Close"
           onClick={onClose}

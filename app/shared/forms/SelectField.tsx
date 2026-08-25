@@ -387,7 +387,7 @@ function SelectCombobox(props: SelectFieldProps) {
                   {!readOnly ? (
                     <button
                       type="button"
-                      className="dh-select__chip-remove"
+                      className="dh-select__chip-remove md-state-layer"
                       disabled={disabled}
                       aria-label={`Remove ${option?.label ?? value}`}
                       onClick={() => removeSelected(value)}
@@ -441,7 +441,7 @@ function SelectCombobox(props: SelectFieldProps) {
           {!multiple && (props.value || query) && !readOnly ? (
             <button
               type="button"
-              className="dh-combobox__clear"
+              className="dh-combobox__clear md-state-layer"
               /*
                * DS-17 — named after the field it clears, matching
                * `InlineSelectField`, so a form with three selects offers three

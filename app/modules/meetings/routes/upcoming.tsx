@@ -4,6 +4,7 @@ import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { MeetingsCollection } from "../MeetingsCollection";
+import { loadMeetingRowAttendees } from "../meeting-attendees";
 import { serializeMeeting } from "../meeting-view";
 import type { Route } from "./+types/upcoming";
 export function meta() {
@@ -36,8 +37,27 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       sort: parseMeetingSort(u.searchParams.get("sort")),
       cursor: u.searchParams.get("cursor") ?? undefined,
     });
+    /*
+     * DEBT-124 — the page's attendees, in ONE bounded relationship read.
+     *
+     * UIX-04 §25 wanted People context on a meeting row and could not have it:
+     * the kernel published only `listForEntity`, so thirty rows meant thirty
+     * queries and the collection correctly did without. `listForEntities` is
+     * the batched counterpart; this is one statement for the whole page.
+     *
+     * A failure costs the CONTEXT, never the page: a collection that cannot
+     * resolve who was in a meeting should still list the meetings.
+     */
+    const attendees = await loadMeetingRowAttendees(
+      scope.entityLinks,
+      page.items.map((meeting) => meeting.id),
+    ).catch(() => new Map());
+
     return {
-      meetings: page.items.map(serializeMeeting),
+      meetings: page.items.map((meeting) => ({
+        ...serializeMeeting(meeting),
+        attendees: attendees.get(meeting.id) ?? null,
+      })),
       total: page.total,
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,

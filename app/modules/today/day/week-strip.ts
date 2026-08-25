@@ -15,18 +15,22 @@
  * bounded, seven-item view of the ONE window the page already read, so selecting
  * a day costs no request and reaches no date the loader did not fetch.
  *
- * ── The week starts on Monday ───────────────────────────────────────────────
+ * ── The week starts where the OWNER's week starts (DEBT-152 / DEBT-154) ─────
  * The mockup draws `MON TUE WED THU FRI SAT SUN`, and that is the week an
- * en-AU owner reads.
+ * en-AU owner reads — so `monday` remains the DEFAULT preference and the strip
+ * a Monday-start owner sees is byte-identical to the one it always drew.
  *
- * It is a constant here rather than a preference, and HARDEN-06E (F-15)
- * corrected the reason. This comment used to say "DalyHub has no
- * first-day-of-week setting", which stopped being true before PLAN-01: the
- * preference exists, and `/plan`, `/habits` and a weekly Review all resolve
- * their week through it. So the constant is now what it actually is — an
- * OUTSTANDING inconsistency rather than a settled decision, recorded as
- * DEBT-152 / DEBT-154 — and this file no longer states a fact that would stop
- * the next reader from fixing it.
+ * It was a CONSTANT here, and that was the last place in the product where
+ * "which week is this?" had a second answer. `firstDayOfWeek` has been a real,
+ * validated, settings-surfaced preference since REVIEWS-01, and `/plan`,
+ * `/habits` and a weekly Review already resolve their week through the ONE
+ * shared helper. Today's strip now does too: `planningWeekStart` is the
+ * authority, taking the preference as an argument, and this module derives
+ * nothing of its own.
+ *
+ * The rolling `today … today + 6` task window (`weekWindowEnd`) is deliberately
+ * NOT this question and is not folded in: it needs no preference precisely so a
+ * shared `/tasks` link means the same thing to any viewer.
  *
  * ── Dates are dates ─────────────────────────────────────────────────────────
  * Every value below is a wall-calendar `YYYY-MM-DD` string, stepped as an
@@ -34,7 +38,8 @@
  * shift by a timezone (ADR-022 §22.7). Nothing here converts an instant.
  */
 
-import { addDaysToIsoDate } from "~/kernel/alignment";
+import { addPlanningDays, planningWeekStart } from "~/kernel/planning";
+import type { FirstDayOfWeek } from "~/kernel/preferences";
 
 /** Seven days, because a week is seven days. */
 export const WEEK_STRIP_DAYS = 7;
@@ -59,39 +64,31 @@ export interface WeekStripDay {
   readonly itemCount: number;
 }
 
-/** Parse `YYYY-MM-DD` to a UTC day number, or null when it is not a date. */
-function dayNumberOf(iso: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (match === null) return null;
-  const utc = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
-  return Number.isNaN(utc) ? null : Math.round(utc / 86_400_000);
-}
-
 /**
- * The Monday of the calendar week containing `dateIso`.
+ * The first day of the owner's calendar week containing `dateIso`.
  *
- * The epoch day 0 (1970-01-01) was a Thursday, so `(day + 3) mod 7` is the
- * zero-based offset from Monday. Integer arithmetic on a day number, never a
- * `Date` mutated through `setDate` — the codebase has been bitten by that once
- * already (see `PRODUCT_DEBT` DEBT on duplicated ISO day-shift arithmetic).
+ * DEBT-152 / DEBT-154 — this is `planningWeekStart` and nothing else. It was a
+ * private copy that hard-coded Monday (`(day + 3) mod 7`); `/plan`, `/habits`
+ * and a weekly Review were already resolving the same question through the
+ * shared helper, so a Sunday-start owner saw three surfaces begin on Sunday and
+ * this one begin on Monday.
  */
-export function weekStartIso(dateIso: string): string {
-  const day = dayNumberOf(dateIso);
-  if (day === null) return dateIso;
-  const offsetFromMonday = (((day + 3) % 7) + 7) % 7;
-  return addDaysToIsoDate(dateIso, -offsetFromMonday);
+export function weekStartIso(
+  dateIso: string,
+  firstDayOfWeek: FirstDayOfWeek,
+): string {
+  return planningWeekStart(dateIso, firstDayOfWeek);
 }
 
 /** The seven owner-calendar dates of the week containing `todayIso`. */
-export function weekDatesFor(todayIso: string): readonly string[] {
-  const start = weekStartIso(todayIso);
+export function weekDatesFor(
+  todayIso: string,
+  firstDayOfWeek: FirstDayOfWeek,
+): readonly string[] {
+  const start = weekStartIso(todayIso, firstDayOfWeek);
   const dates: string[] = [];
   for (let offset = 0; offset < WEEK_STRIP_DAYS; offset += 1) {
-    dates.push(addDaysToIsoDate(start, offset));
+    dates.push(addPlanningDays(start, offset));
   }
   return dates;
 }
@@ -116,9 +113,11 @@ function formatDate(
  */
 export function buildWeekStrip(input: {
   readonly todayIso: string;
+  /** The owner's own week start — never a constant (DEBT-152 / DEBT-154). */
+  readonly firstDayOfWeek: FirstDayOfWeek;
   readonly itemCountFor: (dateIso: string) => number;
 }): readonly WeekStripDay[] {
-  return weekDatesFor(input.todayIso).map((dateIso) => ({
+  return weekDatesFor(input.todayIso, input.firstDayOfWeek).map((dateIso) => ({
     dateIso,
     weekdayLabel: formatDate(dateIso, { weekday: "short" }),
     dayNumber: formatDate(dateIso, { day: "numeric" }),

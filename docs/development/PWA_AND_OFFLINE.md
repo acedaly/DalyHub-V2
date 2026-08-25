@@ -1008,22 +1008,49 @@ needs a real device.
 
 ## 12. Measurements
 
-Re-measured **2026-08-04** against the production build carrying BRAND-01. The
-same numbers are enforced as ceilings by `e2e/pwa-budget.spec.ts`. **No budget has
-been raised**, by DS-14 or by BRAND-01.
+Re-measured **2026-08-25** against the production build, from the run
+`e2e/pwa-budget.spec.ts` prints on every execution — these are that run's own
+numbers, not a transcription. The same figures are enforced as ceilings by that
+spec.
+
+**Two budgets have been raised since this table was first written, and saying so
+matters more than the table looking clean.** HARDEN-05 re-baselined the precache
+ceilings on 2026-08-17 (1.2 MB → 1.45 MB uncompressed, plus a NEW compressed
+ceiling, which is the tighter of the two), and TASKS-12 re-baselined the
+service-worker ceiling on 2026-08-19. Each is argued in `PRODUCT_DEBT.md` —
+[DEBT-151](../product/PRODUCT_DEBT.md) and
+[DEBT-172](../product/PRODUCT_DEBT.md) — rather than adjusted quietly.
 
 | Metric | Measured | Budget |
 |---|---|---|
-| Service-worker script | 21,903 B | 24 kB |
-| Precached assets | 27 | 40 |
-| Precache size (uncompressed) | 794,648 B | 1.2 MB |
-| Snapshot payload | 8,549 B (23 tasks, 3 notes, 4 diary, 1 meeting, 7 references) | 2 MB |
-| Snapshot build (end to end) | 166–179 ms | 5 s |
-| Origin storage after priming | 78,252 B | 20 MB |
-| Origin storage after 3 syncs | 78,252 B → 78,252 B → 78,252 B (flat) | no growth |
+| Service-worker **logic** (`vite-plugins/sw-template.js`) | 22,925 B | 25,000 B |
+| Precache **manifest** (substituted URL literals) | 1,004 B | 2,000 B |
+| Service-worker script as served (`/sw.js`) | 23,985 B | logic + manifest + 4,000 B |
+| Precached assets | 32 | 40 |
+| Precache size (uncompressed) | 1,383,217 B | 1.45 MB |
+| Precache size (over the wire, gzip) | 293,924 B | 320,000 B |
+| Snapshot payload | 12,108 B (40 tasks, 8 references) | 2 MB |
+| Snapshot build (end to end) | 116 ms | 5 s |
+| Origin storage after priming | 107,340 B | 20 MB |
+| Origin storage after 3 syncs | 107,340 B → 107,340 B → 107,340 B (flat) | no growth |
 | Self-hosted fonts (transferred) | 23,160 B across 1 file (M3-01: Roboto Flex replaces the Inter + Source Serif pair's 63,492 B) | ≤ 70,000 B per family, ≤ 120,000 B combined (derived) |
 | Added runtime dependencies | **none** | — |
 | Effect on the online bundle | The offline provider and status surface are in the shell chunk; the offline page and its view are a separate route chunk. | — |
+
+### Why the service worker has three rows (DEBT-172)
+
+`/sw.js` is `sw-template.js` with a build id, an offline document and the
+precache manifest substituted into it, so a single ceiling over the served file
+moved when somebody added a **route**. It did, at forty bytes of headroom, and
+had stopped answering *"is the worker small enough to read in one sitting?"*
+
+The **logic** ceiling is read from the template **on disk**, which a route
+cannot reach — so that number moves only when the worker itself changes. The
+**manifest** ceiling bounds the substituted URL literals' bytes, beside the
+asset-count ceiling that already bounds how many there are. The third row is the
+one that keeps the split honest: the served file must be no bigger than the two
+plus a bounded substitution slack, or something is growing inside `/sw.js` that
+neither ceiling measures.
 
 ### What BRAND-01 changed, and what it did not
 

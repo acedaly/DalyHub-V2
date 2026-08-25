@@ -371,7 +371,8 @@ Tasks, Notes, Diary entries or links. Accepted via
   **always allowed on an active Area** (unlike a Project's archive, which is
   blocked by unfinished direct Tasks). Archived state is stored the way every
   other additive detail slice is: a small module-owned `area_details` table
-  (migration `0013`, the `project_details`/`goal_details` precedent) holding one
+  (migration `0013_create_area_details.sql`, the `project_details`/`goal_details`
+  precedent) holding one
   nullable `archived_at`, mutated only through the trusted `AreaSettingsRepository.
   archive`/`restore`. It is **not** the spine's soft-delete (which blocks
   non-empty containers and returns not-found), and **not** hidden UI state.
@@ -519,7 +520,7 @@ moralises about a neglected life Area. Every Area is one link away from the Revi
 
 Richer per-period Area attention, momentum history and trend are **not** derived here: they
 remain [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) and
-[DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3).
+[DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03).
 
 ## Record-screen anatomy (RECORD-01, #131)
 

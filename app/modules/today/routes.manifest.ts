@@ -39,15 +39,24 @@ const routes: readonly RouteContribution[] = [
     path: "today/waiting",
     file: "routes/waiting.tsx",
   },
-  // TODAY-04 Planning: the bulk/quick planning endpoint (action-only resource
-  // route, no nav entry). The Today surface's per-card plan actions and the
-  // multi-select bulk action bar POST here; the per-task Planning section in the
-  // Task Drawer uses the re-homed /tasks/:taskId action (ADR-033).
-  {
-    id: "today.plan",
-    path: "today/plan",
-    file: "routes/plan.tsx",
-  },
+  /*
+   * DEBT-104 — `today/plan` is gone, and Tasks owns bulk planning.
+   *
+   * It was the endpoint Today's multi-select bulk bar posted to. The 2026-08
+   * redesign replaced that collection with plain rows — a checkbox completes, a
+   * title opens the record — and nothing has called it since. Per-task planning
+   * was never affected: it goes through the re-homed `/tasks/:taskId` action
+   * (ADR-033), which the Task Drawer and its keyboard commands still use.
+   *
+   * It was kept for a while because deleting a tested surface is a real cost.
+   * The cost of KEEPING it turned out to be higher and is the one this register
+   * names: an unreferenced, discoverable, tested route is what the next agent
+   * builds against instead of the module that owns the act. `/tasks/bulk`
+   * dispatches `plan` and `clear_plan` to the SAME `planTasks` / `clearPlans`
+   * kernel authority this route called, so nothing about the capability moved —
+   * only the door. Its four route-level journeys moved with it
+   * (`test/kernel/task-planning.test.ts`), which `/tasks/bulk` had none of.
+   */
   // TODAY-08 Command centre: the workspace-wide Recent Activity feed endpoint
   // (action/loader-only resource route, no nav entry). The Recent Activity widget's
   // shared DS-05 feed pages through this; it renders the ONE FND-05 Activity stream.

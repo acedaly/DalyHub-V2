@@ -38,6 +38,7 @@ import type {
 } from "~/kernel/tasks";
 
 import { taskRecurrenceLabel } from "./task-view";
+import { addCalendarDays, calendarWeekday } from "~/kernel/datetime";
 
 /** The structured interpretation of a captured line. */
 export interface QuickCaptureInterpretation {
@@ -177,16 +178,9 @@ function normaliseWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function addDaysIso(iso: string, days: number): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  const base = Date.UTC(year!, month! - 1, day!);
-  return new Date(base + days * 86_400_000).toISOString().slice(0, 10);
-}
-
-function weekdayOfIso(iso: string): number {
-  const [year, month, day] = iso.split("-").map(Number);
-  return new Date(Date.UTC(year!, month! - 1, day!)).getUTCDay();
-}
+// DEBT-52 — the kernel's ONE calendar-day implementation.
+const addDaysIso = addCalendarDays;
+const weekdayOfIso = calendarWeekday;
 
 function validIso(year: number, month: number, day: number): string | null {
   if (year < 1900 || year > 9999 || month < 1 || month > 12 || day < 1) {

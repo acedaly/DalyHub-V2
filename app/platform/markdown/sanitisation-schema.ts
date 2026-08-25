@@ -84,7 +84,15 @@ export const MARKDOWN_SANITISATION_SCHEMA: SanitizeSchema =
       li: [["className", "task-list-item"]],
       // GFM task-list checkbox: only a disabled checkbox, never an editable/other
       // input. `type` is pinned to `checkbox`; `checked` reflects the source.
-      input: [["type", "checkbox"], "disabled", "checked"],
+      /*
+       * DEBT-26 — `ariaLabel` is permitted so the pipeline can NAME the
+       * checkbox with its own item's text. The value is never author-supplied
+       * markup: it is derived from the item's already-sanitised text by
+       * `labelTaskListCheckbox`, and `rehype-stringify` escapes it as an
+       * attribute. Nothing else about this entry changes — `type` is still
+       * pinned to `checkbox`, and the input is still always `disabled`.
+       */
+      input: [["type", "checkbox"], "disabled", "checked", "ariaLabel"],
       // GFM table cell alignment, constrained to the three valid values.
       th: [["align", "left", "center", "right"]],
       td: [["align", "left", "center", "right"]],

@@ -33,6 +33,12 @@
  * is always an ARGUMENT — this module never reads a clock.
  */
 
+import {
+  calendarDateFromEpochDay,
+  calendarWeekday,
+  isCalendarDate,
+  tryCalendarEpochDay,
+} from "~/kernel/datetime";
 import type { FirstDayOfWeek } from "~/kernel/preferences";
 
 /** Seven days, because a week is seven days. */
@@ -49,32 +55,24 @@ export const PLANNING_WEEK_DAYS = 7;
 export const PLANNING_WEEK_MIN_OFFSET = -1;
 export const PLANNING_WEEK_MAX_OFFSET = 1;
 
-/** Parse `YYYY-MM-DD` to a UTC day number, or null when it is not a date. */
-function epochDay(iso: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (match === null) return null;
-  const utc = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
-  if (Number.isNaN(utc)) return null;
-  // Reject a value whose components do not round-trip (2026-02-31), so a
-  // hand-typed URL cannot silently become a different day.
-  const round = new Date(utc).toISOString().slice(0, 10);
-  return round === iso ? Math.round(utc / 86_400_000) : null;
-}
+/*
+ * DEBT-52 — the parse and the shift are the kernel's ONE implementation
+ * (`~/kernel/datetime`). `tryCalendarEpochDay` is the ROUND-TRIPPING parse,
+ * which is what this module has always needed and what it published privately:
+ * these values arrive from a URL, so `2026-02-31` must be refused rather than
+ * silently becoming 3 March.
+ */
 
 /** Add whole days to a date-only value. Returns the input when it is not a date. */
 export function addPlanningDays(iso: string, days: number): string {
-  const day = epochDay(iso);
+  const day = tryCalendarEpochDay(iso);
   if (day === null) return iso;
-  return new Date((day + days) * 86_400_000).toISOString().slice(0, 10);
+  return calendarDateFromEpochDay(day + days);
 }
 
 /** True when `iso` is a real wall-calendar date. */
 export function isPlanningDate(iso: unknown): iso is string {
-  return typeof iso === "string" && epochDay(iso) !== null;
+  return isCalendarDate(iso);
 }
 
 /**
@@ -88,9 +86,8 @@ export function planningWeekStart(
   dateIso: string,
   firstDayOfWeek: FirstDayOfWeek,
 ): string {
-  const day = epochDay(dateIso);
-  if (day === null) return dateIso;
-  const weekday = (((day + 4) % 7) + 7) % 7;
+  if (!isCalendarDate(dateIso)) return dateIso;
+  const weekday = calendarWeekday(dateIso);
   const startIndex = firstDayOfWeek === "sunday" ? 0 : 1;
   const delta = (weekday - startIndex + 7) % 7;
   return addPlanningDays(dateIso, -delta);

@@ -47,50 +47,38 @@ const STATE_LAYER_PERCENTAGES = ["8%", "10%", "12%", "16%"];
  * one left behind). It may only shrink. Tracked in `PRODUCT_DEBT.md`.
  */
 const KNOWN_HAND_ROLLED: readonly string[] = [
-  "activity-feed.css: .dh-activity__btn:hover",
-  "capture.css: .dh-capture-chip:hover",
+  /*
+   * DEBT-99, closed down to ONE entry on 2026-08-25.
+   *
+   * The twenty-six module-level chrome controls this list used to carry are
+   * now hosts of the one implementation — twenty-five by carrying
+   * `md-state-layer` in their own markup (route (a)) and one,
+   * `.dh-filter-btn--ghost`, by joining the host list in `base.css` (route
+   * (b), because it is a literal string at a dozen call sites). Each gained a
+   * FOCUS and a PRESSED state it did not have: the hand-rolled rules were
+   * hover-only, which AGENTS.md §15 rules out and which was M3-INT finding 3's
+   * second half.
+   */
+  /*
+   * The one that stays, and the reason is not "it is hard".
+   *
+   * `.dh-card-collection--list .dh-card:hover` is not a translucent LAYER. It
+   * paints an OPAQUE row band — `color-mix(… 8%, var(--dh-color-surface))`, a
+   * mix with the surface rather than with transparency — and then extends that
+   * exact colour past the card's own box with two bleed `box-shadow`s, so the
+   * hover reads as a full-width row in a list that has side padding. The
+   * shared layer is `inset: 0` on the element and cannot bleed, and it sits
+   * ABOVE the content rather than behind it — which on the product's
+   * most-rendered surface would wash every status chip and identity dot on the
+   * card with 8% of the text colour.
+   *
+   * Converting it is therefore a Card change with a visual consequence, not a
+   * mechanical one, and it belongs with whoever next owns the row band. It
+   * trips the detector because the detector is deliberately crude about
+   * `background` + `color-mix` + a state percentage, and being crude is what
+   * makes it have no false negatives.
+   */
   "card.css: .dh-card-collection--list .dh-card:hover",
-  // DHDS-11 removed `.dh-card__reorder-handle` with DS-04's own reorder
-  // collection. The one shared grip that replaced it (`.dh-drag-handle`,
-  // `drag.css`) fills with `--dh-color-surface-selected` rather than a
-  // hand-rolled `color-mix`, so it never joins this list. One entry off the
-  // ratchet.
-  "diary.css: .dh-diary-capture__chip:hover",
-  // UIX-04 retired `.dh-diary-datenav` entirely — the Day-mode navigator is now
-  // the week strip, whose hover fills are ordinary surface tokens rather than a
-  // hand-rolled `color-mix` layer. Two entries off the ratchet.
-  "diary.css: .dh-diary-entry:hover",
-  "diary.css: .dh-diary-entry__edit:hover",
-  "diary.css: .dh-diary-filter__option:hover",
-  "drawer.css: .drawer__close:active",
-  "drawer.css: .drawer__close:hover",
-  "feedback.css: .dh-feedback__dismiss-all:hover",
-  "feedback.css: .dh-toast__action:hover",
-  "feedback.css: .dh-toast__close:hover",
-  "filters.css: .dh-filter-btn--ghost:hover",
-  "filters.css: .dh-filter-chip__edit:hover",
-  "forms.css: .dh-combobox__clear:hover",
-  "forms.css: .dh-link-picker__unlink:hover",
-  "forms.css: .dh-tags__chip-remove:hover, .dh-select__chip-remove:hover",
-  "help.css: .dh-help__contents-link:hover",
-  "inspector.css: .dh-inspector__close:hover",
-  "linked-items.css: .dh-linked-items__item:hover",
-  "meetings.css: .dh-meeting-capturebar__type:hover",
-  "search.css: .dh-search__clear:hover",
-  "search.css: .dh-search__close:hover",
-  // DS-02 retired `.dh-confirm__button` entirely — the confirmation dialog's
-  // actions are the shared `Button`, which is a host of the one implementation.
-  // One entry off the ratchet.
-  //
-  // FINAL-UI took `settings.css: .dh-settings-page__nav-link:hover` off it too.
-  // The Settings section list became a two-line row (a title over the sentence
-  // that says what is inside, which is what concept 1 draws), so the fill had to
-  // move from the link to the row — and moving it was the moment to stop
-  // re-implementing it. The row carries `md-state-layer` in the markup and gains
-  // the pressed state the hand-rolled rule never had.
-  "sheet.css: .dh-sheet-option:hover",
-  "sheet.css: .dh-sheet__close:hover",
-  "summary-cards.css: .dh-summary-card--link:hover",
 ];
 
 function stylesheets(): readonly { name: string; text: string }[] {
@@ -196,7 +184,18 @@ describe("M3-INT — no bespoke state layers", () => {
       base.indexOf("/* The M3 state layer"),
       base.indexOf("SELECTED is not an opacity"),
     );
-    const hosts = [...new Set(block.match(/\.[a-z][\w-]*(?:__[\w-]+)?/g) ?? [])]
+    /*
+     * COMMENTS STRIPPED FIRST. A host is a selector, never prose — and this
+     * scan used to read both, so a comment mentioning `getComputedStyle(el,
+     * "::after").opacity` contributed `.opacity` to the host list and the
+     * assertion below then demanded a stylesheet define it. Found while adding
+     * the comment that records why `content` must be `""`; the failure was in
+     * the test's parser, not in the product.
+     */
+    const selectorsOnly = block.replace(/\/\*[\s\S]*?\*\//g, "");
+    const hosts = [
+      ...new Set(selectorsOnly.match(/\.[a-z][\w-]*(?:__[\w-]+)?/g) ?? []),
+    ]
       // `.md-state-layer` is the class route and needs no other stylesheet.
       .filter((host) => host !== ".md-state-layer");
 

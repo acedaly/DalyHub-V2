@@ -170,7 +170,7 @@ export function DiaryCapturePanel({
               <button
                 key={option.value}
                 type="button"
-                className="dh-capture-chip"
+                className="dh-capture-chip md-state-layer"
                 aria-pressed={selected}
                 onClick={() => setEntryType(option.value)}
                 data-testid={`diary-type-${option.value}`}

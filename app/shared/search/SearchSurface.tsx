@@ -303,7 +303,7 @@ export default function SearchSurface({
           </h2>
           <button
             type="button"
-            className="dh-search__close"
+            className="dh-search__close md-state-layer"
             ref={closeButtonRef}
             onClick={onClose}
           >
@@ -437,7 +437,7 @@ function SearchResults({
               Recent
               <button
                 type="button"
-                className="dh-search__clear"
+                className="dh-search__clear md-state-layer"
                 onClick={onClearRecent}
               >
                 Clear

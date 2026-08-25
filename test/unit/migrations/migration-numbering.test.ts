@@ -37,7 +37,7 @@
  * rather than by number.
  */
 
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -69,6 +69,41 @@ const GRANDFATHERED_COLLISIONS: readonly ReadonlySet<string>[] = [
     "0039_create_capture_credentials.sql",
   ]),
 ];
+
+/**
+ * DEBT-40's OTHER half — the ambiguity of "which migration is `0013`?".
+ *
+ * The check above closes the "latent later" half: a NEW collision fails the
+ * build. It cannot close the half that made this entry a P3 rather than a note,
+ * which is that every document citing a colliding number by number alone is
+ * unresolvable. `(migration 0013)` in an ADR could mean `area_details` or
+ * `person_details`, and a reader has no way to tell.
+ *
+ * So the convention is: a COLLIDING number is cited by filename, everywhere.
+ * Non-colliding numbers are unambiguous and stay as they are — this is not a
+ * rule that every migration reference must be a filename, which would be noise.
+ *
+ * Prose ABOUT the collisions is exempt by necessity: the register, the roadmaps
+ * and the audits that record "0013 and 0039 are each used twice" have to name
+ * the numbers. They are recognised by naming BOTH colliding numbers, or by
+ * saying "collision"/"duplicate"/"grandfathered" on the same line — a document
+ * discussing the problem, rather than one citing a migration and getting it
+ * wrong.
+ */
+const COLLIDING_NUMBERS = ["0013", "0039"];
+
+/** Every `.md` under `docs/`, plus the repository's own root documents. */
+function documentationFiles(root: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(root)) {
+    const full = path.join(root, entry);
+    if (statSync(full).isDirectory()) {
+      documentationFiles(full, out);
+      continue;
+    }
+    if (full.endsWith(".md")) out.push(full);
+  }
+  return out;
+}
 
 function migrationFiles(): string[] {
   return readdirSync(migrationsDir)
@@ -128,5 +163,47 @@ describe("migration numbering", () => {
       (number, index) => index > 0 && number !== numbers[index - 1]! + 1,
     );
     expect(gaps).toEqual([]);
+  });
+
+  /*
+   * DEBT-40 — the citation half. See COLLIDING_NUMBERS above for the rule and
+   * for why prose about the collisions is exempt.
+   */
+  it("cites a COLLIDING migration number by filename, never by number alone", () => {
+    const offenders: string[] = [];
+    for (const file of documentationFiles(path.join(process.cwd(), "docs"))) {
+      const lines = readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, index) => {
+        // Only a CITATION is in scope — a line that names a migration. Prose
+        // that mentions a number for another reason is not this rule's
+        // business.
+        if (!/migrations?/i.test(line)) return;
+        // A line ABOUT the collisions has to name the numbers. Recognised by
+        // the words such a line actually uses, not by an exempt-file list.
+        if (
+          /collision|collidin|duplicate|grandfather|both claimed|share the number|DEBT-40/i.test(
+            line,
+          )
+        ) {
+          return;
+        }
+        for (const number of COLLIDING_NUMBERS) {
+          if (!new RegExp("`" + number + "`").test(line)) continue;
+          // The filename is present somewhere on the line — as a link target,
+          // or spelled out — so the citation resolves. That is the convention
+          // met, not evaded.
+          if (line.includes(`${number}_`)) continue;
+          offenders.push(
+            `${path.relative(process.cwd(), file)}:${index + 1} cites \`${number}\``,
+          );
+        }
+      });
+    }
+    expect(
+      offenders,
+      "a migration number used TWICE cannot identify a migration, so it must " +
+        "be cited by filename or linked to one (DEBT-40):\n" +
+        offenders.join("\n"),
+    ).toEqual([]);
   });
 });

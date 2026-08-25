@@ -42,7 +42,7 @@ export function FilterChip({
     <span className="dh-filter-chip">
       <button
         type="button"
-        className="dh-filter-chip__edit"
+        className="dh-filter-chip__edit md-state-layer"
         aria-label={`Edit filter: ${accessibleName}`}
         onClick={onEdit}
       >

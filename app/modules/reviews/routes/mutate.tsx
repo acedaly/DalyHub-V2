@@ -8,7 +8,10 @@ import {
   type ReviewSectionId,
 } from "~/kernel/reviews";
 import { requireAuthenticatedSession } from "~/platform/request";
-import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import {
+  resolveAuthenticatedWorkspaceScope,
+  type WorkspaceScope,
+} from "~/platform/workspaces";
 import { lifecycleBlockedByLinks } from "~/shared/record-lifecycle";
 
 import { captureSnapshotForCompletedReview } from "../insights/review-insights-context";
@@ -74,6 +77,28 @@ function json(data: ReviewMutationResult, status = 200): Response {
   });
 }
 
+/**
+ * DEBT-187 — completing a Review, in ONE place.
+ *
+ * The completion and the REVIEW-03 snapshot are one act: the snapshot records
+ * what was true at this Review point, and a completion without one silently
+ * costs the NEXT Review its ability to say what changed. Extracting it is what
+ * lets `set_status` reach `completed` without being a second, weaker path to
+ * the same state.
+ */
+async function completeReview(
+  scope: WorkspaceScope,
+  actorSubject: string,
+  reviewId: string,
+): Promise<ReviewMutationResult> {
+  const result = await scope.reviews.complete(reviewId);
+  // REVIEW-03 — record what was true at this Review point, so the NEXT
+  // Review can say what changed. Best-effort by design: a failed capture
+  // never turns a completion the owner made into an error.
+  await captureSnapshotForCompletedReview(scope, actorSubject, result.review);
+  return { kind: "lifecycle", ok: true };
+}
+
 export async function action({ request, params, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     throw new Response("Method Not Allowed", { status: 405 });
@@ -131,24 +156,34 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         updatedAt: (stored?.updatedAt ?? new Date(0)).toISOString(),
       });
     }
+    /**
+     * DEBT-187 — there is ONE path to `completed`, and it is this one.
+     *
+     * `set_status` wrote the column directly, so choosing "Completed" from the
+     * record's status field completed a Review **without** the REVIEW-03
+     * snapshot — the record of what was true at this Review point, which is the
+     * only thing that lets the NEXT Review say what changed. The two controls
+     * sat one row apart and did materially different things under the same
+     * word.
+     *
+     * The fix is at the SERVER rather than in the select's option list: a UI
+     * that omits the option is a guard any other caller routes around, and the
+     * snapshot is a property of completing a Review, not of which control was
+     * pressed. `set_status` now DELEGATES to the completion path for that one
+     * value, so every route to `completed` captures the snapshot.
+     */
     if (intent === "set_status") {
-      await scope.reviews.setStatus(
-        reviewId,
-        String(form.get("status") ?? "") as ReviewStatus,
-      );
+      const status = String(form.get("status") ?? "") as ReviewStatus;
+      if (status === "completed") {
+        return json(
+          await completeReview(scope, session.user.subject, reviewId),
+        );
+      }
+      await scope.reviews.setStatus(reviewId, status);
       return json({ kind: "lifecycle", ok: true });
     }
     if (intent === "complete") {
-      const result = await scope.reviews.complete(reviewId);
-      // REVIEW-03 — record what was true at this Review point, so the NEXT
-      // Review can say what changed. Best-effort by design: a failed capture
-      // never turns a completion the owner made into an error.
-      await captureSnapshotForCompletedReview(
-        scope,
-        session.user.subject,
-        result.review,
-      );
-      return json({ kind: "lifecycle", ok: true });
+      return json(await completeReview(scope, session.user.subject, reviewId));
     }
     if (intent === "reopen") {
       await scope.reviews.reopen(reviewId);

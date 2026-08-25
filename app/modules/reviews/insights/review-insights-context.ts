@@ -57,6 +57,7 @@ import type { WorkspaceScope } from "~/platform/workspaces";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
 import { ownerCalendarIso, ownerLocalToUtc } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
+import { addCalendarDays } from "~/kernel/datetime";
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
@@ -153,12 +154,10 @@ export function reviewPeriodWindow(
   };
 }
 
-/** Add whole days to a `YYYY-MM-DD` wall-calendar date. */
-function addCalendarDays(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map((part) => Number(part));
-  const shifted = new Date(Date.UTC(y, m - 1, d + days));
-  return `${shifted.getUTCFullYear().toString().padStart(4, "0")}-${(shifted.getUTCMonth() + 1).toString().padStart(2, "0")}-${shifted.getUTCDate().toString().padStart(2, "0")}`;
-}
+/*
+ * DEBT-52 — the kernel's ONE calendar-day implementation. This module carried a
+ * third `addCalendarDays`, beside `~/kernel/reviews`'s own and the kernel's.
+ */
 
 function inPeriod(iso: string, start: string, end: string): boolean {
   return iso >= start && iso <= end;

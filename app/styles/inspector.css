@@ -102,7 +102,6 @@
 }
 .dh-inspector__close:hover {
   color: var(--dh-color-text);
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-inspector__body {

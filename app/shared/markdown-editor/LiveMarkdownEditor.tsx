@@ -73,6 +73,7 @@ import {
   type MarkdownTransform,
 } from "./markdown-transforms";
 import { deriveFieldIds, composeDescribedBy } from "~/shared/forms/field-ids";
+import { resolveEnhancementHandoff } from "./enhancement-handoff";
 
 export interface LiveMarkdownEditorProps {
   /** The Markdown source (the single source of truth). */
@@ -309,10 +310,36 @@ export function LiveMarkdownEditor({
               { createEditorExtensions, setEditorEditable },
             ]) => {
               if (cancelled || !node.isConnected) return;
+              /*
+               * DEBT-202 — the enhanced editor starts from the FALLBACK's own
+               * value, not from the prop it mounted with.
+               *
+               * The prop lags the textarea by however long React takes to
+               * commit, and this `.then` fires whenever a ~525 kB chunk happens
+               * to finish loading. Reading the DOM here is the only way to be
+               * sure the handoff takes what the author actually typed — and if
+               * the host has not seen it yet, it is reported upward below, so
+               * the FORM agrees with the editor rather than saving over it.
+               */
+              const fallback = fallbackRef.current;
+              const handoff = resolveEnhancementHandoff(
+                valueRef.current,
+                fallback
+                  ? {
+                      value: fallback.value,
+                      selectionStart: fallback.selectionStart ?? 0,
+                      selectionEnd: fallback.selectionEnd ?? 0,
+                    }
+                  : null,
+              );
               const view = new EditorView({
                 parent: node,
                 state: EditorState.create({
-                  doc: valueRef.current,
+                  doc: handoff.doc,
+                  selection: {
+                    anchor: handoff.selectionStart,
+                    head: handoff.selectionEnd,
+                  },
                   extensions: createEditorExtensions({
                     ariaLabel: label,
                     placeholder,
@@ -333,6 +360,11 @@ export function LiveMarkdownEditor({
                 }),
               });
               viewRef.current = view;
+              if (handoff.adopted) {
+                // The host had not committed these characters. Telling it now is
+                // what stops the save reporting success over the top of them.
+                onChangeRef.current(handoff.doc);
+              }
               // The live surface is now the focusable one. `contentDOM` is the
               // element CodeMirror gives `role="textbox"`, so a host focusing it
               // lands the caret in the document rather than on a wrapper.

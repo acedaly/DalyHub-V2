@@ -147,7 +147,7 @@ export function MeetingCaptureBar({
           <button
             key={option.kind}
             type="button"
-            className="dh-meeting-capturebar__type"
+            className="dh-meeting-capturebar__type md-state-layer"
             aria-pressed={option.kind === kind}
             onClick={() => choose(option.kind)}
             data-testid={`meeting-capture-${option.kind}`}

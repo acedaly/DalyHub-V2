@@ -235,7 +235,7 @@ export function DiaryCapture({ todayKey, onCaptured }: DiaryCaptureProps) {
               return (
                 <label
                   key={option.value}
-                  className="dh-diary-capture__chip"
+                  className="dh-diary-capture__chip md-state-layer"
                   data-checked={checked ? "true" : "false"}
                 >
                   <input

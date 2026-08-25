@@ -6428,6 +6428,68 @@ export class D1TaskRepository implements TaskRepository {
     );
   }
 
+  /**
+   * DEBT-59 — the OPEN subset of an id list, in a bounded number of statements.
+   *
+   * The Asset record resolved each obligation's linked-Task open state with its
+   * own `getTask`, capped at 50 lookups per load — so 50 obligations cost 50
+   * statements, and obligation 51 onward silently read as "not open", showing
+   * the "record what actually happened" prompt for a Task that was still open.
+   *
+   * The predicate is the one `OPEN_TASK_EXISTS` already expresses in the Assets
+   * attention query, moved here so there is ONE definition of an open Task
+   * rather than a second one per surface.
+   */
+  async listOpenTaskIds(
+    taskIds: readonly string[],
+  ): Promise<ReadonlySet<string>> {
+    const unique: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of taskIds) {
+      if (typeof raw !== "string" || raw.length === 0) continue;
+      if (seen.has(raw)) continue;
+      seen.add(raw);
+      unique.push(raw);
+    }
+    const open = new Set<string>();
+    // An empty list costs NOTHING — no statement can answer anything but "none".
+    if (unique.length === 0) return open;
+
+    /*
+     * ONE statement per CHUNK, never one per Task. The chunk exists only because
+     * D1 accepts a finite number of bound parameters, so the statement count is
+     * ceil(ids / CHECKLIST_ID_CHUNK) — a function of the caller's page, not of
+     * the workspace's size.
+     */
+    for (let start = 0; start < unique.length; start += CHECKLIST_ID_CHUNK) {
+      const chunk = unique.slice(start, start + CHECKLIST_ID_CHUNK);
+      const result = await this.#run(
+        this.#db
+          .prepare(
+            `SELECT e.id AS id
+               FROM entities e
+               JOIN spine_records sr
+                 ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+               LEFT JOIN task_details td
+                 ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+              WHERE e.workspace_id = ?
+                AND e.id IN (${chunk.map(() => "?").join(", ")})
+                AND e.type = 'task'
+                AND e.deleted_at IS NULL
+                AND sr.completed_at IS NULL
+                AND coalesce(td.status, 'todo') <> 'cancelled'`,
+          )
+          .bind(this.#workspaceId, ...chunk),
+      );
+      for (const row of (result.results ?? []) as {
+        readonly id: string;
+      }[]) {
+        open.add(row.id);
+      }
+    }
+    return open;
+  }
+
   async listChecklistProgress(
     taskIds: readonly string[],
   ): Promise<ReadonlyMap<string, TaskChecklistProgress>> {

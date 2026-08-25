@@ -462,6 +462,15 @@ These are real and recorded rather than hidden.
   workspace-membership record exports as `Unknown user`. The structured
   `dalyhub-snapshot.json` still carries `actorType`/`actorId` verbatim — it is a
   faithful record of the database, and the owner's own copy of their own ids.
+- **AI preferences are deliberately NOT exported** (DEBT-94), and every archive
+  names the omission in the manifest's `excluded` list, beside notification
+  settings and the subscribed calendars. Those rows hold a
+  spending budget, feature switches and a privacy consent; a restore that
+  quietly re-enabled all three would spend the owner's money and re-grant a
+  consent they may have withdrawn. An archive that loses a setting is
+  recoverable in a minute; one that silently restores a consent is not. Re-set
+  them from Settings after a restore. Every other `owner` field — the app
+  preferences and the saved Tasks views — is carried.
 - **No attachments.** DalyHub stores none yet.
 - **Task checklist items were exported and NOT restored, until 2026-08-19.**
   `task_checklist_items` had a snapshot collection and a restore destination but
@@ -541,7 +550,7 @@ which is a principle and which is a judgement call.
   an archive into a different environment is a worse failure than making the
   owner set them again. That is a defensible answer, not an obvious one — it is
   recorded as
-  [DEBT-94](../product/PRODUCT_DEBT.md#-debt-94--ai-preferences-are-the-one-kind-of-owner-configuration-the-export-snapshot-omits--p3)
+  [DEBT-94](../product/PRODUCT_DEBT.md#-debt-94--ai-preferences-are-the-one-kind-of-owner-configuration-the-export-snapshot-omits--p3--resolved-2026-08-25)
   so SET-02 confronts it rather than inheriting it.
 - **The security consequence is unaffected either way:** no AI table is in the
   snapshot, so no export can carry a provider credential — and there is no

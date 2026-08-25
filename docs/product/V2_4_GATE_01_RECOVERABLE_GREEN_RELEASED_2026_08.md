@@ -338,7 +338,7 @@ scans **at most five pages of 100** and
 orders `created_at ASC` — so the picker only ever sees a workspace's **500
 oldest** entities. At 622 a note created seconds ago is past the horizon, and
 the picker reports it as nonexistent. That is
-[**DEBT-201**](PRODUCT_DEBT.md#-debt-201--both-record-pickers-stop-seeing-a-workspace-at-its-500th-record-and-say-nothing--p2),
+[**DEBT-201**](PRODUCT_DEBT.md#-debt-201--both-record-pickers-stop-seeing-a-workspace-at-its-500th-record-and-say-nothing--p2--resolved-2026-08-23-v24-gate-01),
 raised rather than fixed: the seam documents the bound as DS-08's to remove, and
 replacing a search architecture is not what *"make main green and release
 2.4.0"* means. The third is the same cause without the sharp edge — that test's

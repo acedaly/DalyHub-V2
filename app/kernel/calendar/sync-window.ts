@@ -14,6 +14,7 @@
 
 import { SYNC_WINDOW_FUTURE_DAYS, SYNC_WINDOW_PAST_DAYS } from "./calendar";
 import type { ScheduleWindow } from "./calendar-repository";
+import { addCalendarDays } from "~/kernel/datetime";
 
 export interface CalendarWindowInput {
   /** The owner's calendar date, `YYYY-MM-DD`. */
@@ -63,11 +64,8 @@ function startOfDayUtc(dateIso: string, timeZone: string): Date {
   return new Date(utc);
 }
 
-function shiftDate(dateIso: string, days: number): string {
-  return new Date(Date.parse(`${dateIso}T00:00:00Z`) + days * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-}
+// DEBT-52 — the kernel's ONE calendar-day implementation.
+const shiftDate = addCalendarDays;
 
 /**
  * The window, as both instant bounds (for timed events) and date bounds (for

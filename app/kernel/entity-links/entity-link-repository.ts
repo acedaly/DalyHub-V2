@@ -23,6 +23,8 @@ import type {
   EntityLinkRecord,
   GetEntityLinkOptions,
   ListEntityLinksInput,
+  ListEntityLinksForEntitiesInput,
+  EntityLinkView,
 } from "./entity-link";
 
 // The clock and id-generator seams are shared with the entity kernel so tests
@@ -93,6 +95,42 @@ export interface EntityLinkRepository {
     entityId: string,
     input?: ListEntityLinksInput,
   ): Promise<EntityLinkPage>;
+
+  /**
+   * DEBT-124 — the links of MANY entities, for a collection page.
+   *
+   * `listForEntity` is the only relationship read the kernel published, so every
+   * consumer that needed relationships for a PAGE of records had three choices:
+   * one query per row, a per-module projection that answers a kernel-shaped
+   * question (which is what Notes did for its `linkCount`), or do without
+   * (which is what the Meetings collection did — it could not show attendees).
+   * The cheap wrong one was the easiest to write.
+   *
+   * This is the batched counterpart, and it is deliberately NOT a paginated
+   * list: a collection row wants a bounded handful of counterparts to draw, not
+   * a cursor. So it takes a per-entity limit and returns a map, in a number of
+   * statements that is a function of the CHUNK size rather than of the page.
+   *
+   * Semantics are `listForEntity`'s, minus pagination:
+   *   - links where the entity is the source or the target, each carrying its
+   *     `direction` from that entity and the ACTIVE counterpart;
+   *   - unlinked links and soft-deleted counterparts excluded;
+   *   - optionally filtered by `type` and/or `direction`;
+   *   - ordered deterministically by `(createdAt, id)` WITHIN each entity, and
+   *     truncated per entity rather than across the page — so one heavily-linked
+   *     record cannot starve the rest.
+   *
+   * One deliberate difference: an anchor that does not exist, is soft-deleted,
+   * or belongs to another workspace is simply ABSENT from the map rather than
+   * raising. `listForEntity` refuses because it is being asked about one record
+   * the caller named; this is being handed a page, and one row that has since
+   * been deleted must not fail the other twenty-nine — nor cost N existence
+   * checks to find out, which is the N+1 this exists to remove.
+   */
+  listForEntities(
+    entityIds: readonly string[],
+    input?: ListEntityLinksForEntitiesInput,
+  ): Promise<ReadonlyMap<string, readonly EntityLinkView[]>>;
 
   /**
    * Unlink (reversibly soft-delete) a link in the bound workspace: set

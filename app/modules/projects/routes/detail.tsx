@@ -53,7 +53,10 @@ import type {
   EntityLinkSelection,
   EntityLinkTargetOption,
 } from "~/shared/forms/model";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 
 import { NewProjectTaskForm } from "../NewProjectTaskForm";
 import { ProjectActivityTab } from "../ProjectActivityTab";
@@ -291,8 +294,7 @@ function createProjectDrawerRenderer(overview: SerializedProjectOverview) {
 
     if (kind === "task" && id.length > 0) {
       return {
-        title: "Task",
-        description: "Task record",
+        title: TASK_DRAWER_TITLE,
         children: <TaskRecordDrawer taskId={id} />,
       };
     }

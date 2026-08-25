@@ -29,7 +29,10 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, EntityLink } from "~/shared/entity";
 import { SavedViewSwitcher } from "~/shared/saved-views";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 
 import type {
   ViewResultGroup,
@@ -57,8 +60,7 @@ export function ViewsWorkspace({ data }: ViewsWorkspaceProps) {
       const id = separator === -1 ? "" : entry.key.slice(separator + 1);
       if (kind !== "task" || id.length === 0) return null;
       return {
-        title: "Task",
-        description: "Task record",
+        title: TASK_DRAWER_TITLE,
         children: <TaskRecordDrawer taskId={id} />,
       };
     };

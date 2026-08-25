@@ -66,7 +66,10 @@ import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { useDepartingRows } from "~/shared/task-record/use-departing-rows";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";
 import {
   postTaskBulkAction,
@@ -143,6 +146,7 @@ import {
   type TaskCardData,
 } from "./tasks-view-model";
 import { TASK_PRIORITY_SELECT_OPTIONS } from "~/shared/task-record/priority-options";
+import { addCalendarDays, isCalendarDate } from "~/kernel/datetime";
 
 /** The drawer key that opens the "New task" capture form. */
 const NEW_TASK_KEY = "new-task";
@@ -300,8 +304,7 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
 
       if (kind === "task" && id.length > 0) {
         return {
-          title: "Task",
-          description: "Task record",
+          title: TASK_DRAWER_TITLE,
           children: <TaskRecordDrawer taskId={id} />,
         };
       }
@@ -325,8 +328,7 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
        */
       if ((kind === "task-quick" || kind === "task-move") && id.length > 0) {
         return {
-          title: "Task",
-          description: "Task record",
+          title: TASK_DRAWER_TITLE,
           children: <TaskRecordDrawer taskId={id} />,
         };
       }
@@ -2540,14 +2542,9 @@ function BulkMenu({
  * can move the result.
  */
 function shiftIso(iso: string, days: number): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!match) return iso;
-  const base = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
-  return new Date(base + days * 86_400_000).toISOString().slice(0, 10);
+  // DEBT-52 — the kernel's ONE calendar-day implementation, keeping this
+  // helper's lenient contract for a value that may not be a date yet.
+  return isCalendarDate(iso) ? addCalendarDays(iso, days) : iso;
 }
 
 /** Split on the FIRST separator only, so an id containing one survives intact. */

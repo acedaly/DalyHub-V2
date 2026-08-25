@@ -134,7 +134,7 @@ export function Inspector({
           />
           <IconButton
             ref={closeButtonRef}
-            className="dh-inspector__close dh-panel-close"
+            className="dh-inspector__close dh-panel-close md-state-layer"
             icon={<CloseIcon />}
             label="Close inspector"
             onClick={onRequestClose}

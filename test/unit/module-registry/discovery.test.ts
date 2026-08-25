@@ -185,12 +185,10 @@ describe("module discovery", () => {
           moduleId: "today",
           file: "routes/waiting.tsx",
         },
-        // TODAY-04 adds the planning endpoint (bulk/quick plan action, no nav).
-        {
-          id: "today.plan",
-          moduleId: "today",
-          file: "routes/plan.tsx",
-        },
+        // DEBT-104 retired `today.plan`: Today's multi-select bulk bar was its
+        // only caller and the 2026-08 redesign replaced that collection with
+        // plain rows. `/tasks/bulk` dispatches `plan`/`clear_plan` to the same
+        // kernel authority, so Tasks owns bulk planning and there is one door.
         // TODAY-08 adds the workspace-wide Recent Activity feed endpoint (no nav).
         {
           id: "today.activity",

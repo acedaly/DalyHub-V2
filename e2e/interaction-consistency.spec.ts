@@ -6,6 +6,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRows,
 } from "./helpers";
 
 /**
@@ -34,6 +35,60 @@ async function layerOpacity(locator: Locator): Promise<number> {
   );
 }
 
+/**
+ * The layer is a REAL BOX, and hovering it changes what is on screen.
+ *
+ * Every other assertion in this file measures `getComputedStyle(el,
+ * "::after").opacity` — and that number is returned whether or not the
+ * pseudo-element is GENERATED. `base.css` said `content: none` from M3-INT
+ * until 2026-08-25, so for that whole time the shared state layer painted
+ * nothing on any host and every opacity assertion here passed anyway: MEASURED
+ * on `/design/forms`, a hovered shared Button reported
+ * `{content: "none", opacity: "0.08", width: "auto", height: "auto"}` — an
+ * opacity on nothing. It was found by review, not by this suite.
+ *
+ * So one assertion in this file has to be about PIXELS. It is called from the
+ * canonical shared-button test and from the module-chrome test, which is enough
+ * to prove the implementation is running; the rest can then measure opacity,
+ * which is the precise instrument once the box is known to exist.
+ */
+async function expectLayerPaints(page: Page, locator: Locator): Promise<void> {
+  await locator.scrollIntoViewIfNeeded();
+  const generated = await locator.evaluate((element) => {
+    const layer = getComputedStyle(element, "::after");
+    return { content: layer.content, width: layer.width, height: layer.height };
+  });
+  expect(
+    generated.content,
+    "the state layer's `content` is `none`, so the pseudo-element is not " +
+      "generated and nothing paints — every opacity assertion in this file " +
+      'would still pass. Use `content: ""`.',
+  ).not.toBe("none");
+  expect(generated.width).not.toBe("auto");
+  expect(generated.height).not.toBe("auto");
+
+  await page.mouse.move(0, 0);
+  const rest = (await locator.screenshot()).toString("base64");
+  await locator.hover();
+  await expect
+    .poll(async () => (await locator.screenshot()).toString("base64"), {
+      timeout: 2_000,
+    })
+    .not.toBe(rest);
+
+  /*
+   * Leave the control RESTING, and settled.
+   *
+   * The layer transitions, so a caller that moves the mouse away and samples
+   * immediately lands mid-animation on a value it is leaving — which is the
+   * trap this file's own "Polled, not sampled" comment records for the pressed
+   * state. A helper that leaves a control hovered would hand that trap to
+   * every caller, so this one waits until the layer is back at zero.
+   */
+  await page.mouse.move(0, 0);
+  await expect.poll(() => layerOpacity(locator), { timeout: 2_000 }).toBe(0);
+}
+
 test.describe("M3-INT — the shared state layer", () => {
   test("hover, focus and pressed all light the layer on a shared button", async ({
     page,
@@ -42,6 +97,9 @@ test.describe("M3-INT — the shared state layer", () => {
 
     const button = page.getByRole("button", { name: "Save" }).first();
     await expect(button).toBeVisible();
+
+    // The one assertion in this file that is about PIXELS — see the helper.
+    await expectLayerPaints(page, button);
 
     // Rest: no layer at all.
     expect(await layerOpacity(button)).toBe(0);
@@ -82,15 +140,84 @@ test.describe("M3-INT — the shared state layer", () => {
   });
 
   test("a disabled control has no state layer at all", async ({ page }) => {
-    await gotoFixture(page, "/design/record-layout");
-    const disabledTab = page.getByRole("tab", { name: "Settings" });
-    void disabledTab;
-
+    /*
+     * DEBT-200 — this used to `test.skip()` when it found no disabled button,
+     * which it did on every run: `/design/forms` documented every disabled
+     * FIELD and no disabled BUTTON, so the one claim about the disabled state
+     * layer had never once been checked in the product. The fixture now shows
+     * the state it is meant to document, and the guard is an assertion.
+     */
     await gotoFixture(page, "/design/forms");
-    const disabled = page.locator("button.dh-btn:disabled").first();
-    if ((await disabled.count()) === 0) test.skip();
-    await disabled.hover({ force: true });
-    expect(await layerOpacity(disabled)).toBe(0);
+    const disabled = page.locator("button.dh-btn:disabled");
+    expect(
+      await disabled.count(),
+      "`/design/forms` must document the disabled button state; without it " +
+        "this journey asserts nothing (DEBT-200)",
+    ).toBeGreaterThan(0);
+
+    // Every variant, not just the first: the rule is that INERT means no layer,
+    // and a variant that painted its own disabled hover would pass a
+    // first-only check.
+    for (let index = 0; index < (await disabled.count()); index += 1) {
+      const control = disabled.nth(index);
+      await control.hover({ force: true });
+      expect(
+        await layerOpacity(control),
+        `disabled control ${index} paints a state layer on hover`,
+      ).toBe(0);
+      await page.mouse.move(0, 0);
+    }
+  });
+
+  test("the module-level chrome DEBT-99 converted are hosts too", async ({
+    page,
+  }) => {
+    /*
+     * DEBT-99 — twenty-six module-level controls hand-rolled their own hover
+     * fill: `background: color-mix(in srgb, var(--dh-color-text) 8%,
+     * transparent)`, written out again in each of nineteen stylesheets. They
+     * agreed because their authors read the same rule; nothing made them agree
+     * tomorrow, and none of them had a FOCUS or a PRESSED state — which is a
+     * hover-only affordance, and AGENTS.md §15 rules those out.
+     *
+     * Two of the converted controls, on two different surfaces, measured the
+     * way the rest of this file measures: the LAYER's own opacity, not a
+     * `background` — because a hand-rolled fill would satisfy a background
+     * assertion and this one passes only if the shared implementation is what
+     * is running. FOCUS is asserted, not hover, because focus is the state
+     * these controls did not have before.
+     */
+    await gotoFixture(page, "/help");
+    const contentsLink = page.locator("a.dh-help__contents-link").first();
+    await expect(contentsLink).toBeVisible();
+    // A converted control paints, rather than merely computing an opacity.
+    await expectLayerPaints(page, contentsLink);
+    expect(await layerOpacity(contentsLink)).toBe(0);
+    await contentsLink.hover();
+    await expect
+      .poll(() => layerOpacity(contentsLink), { timeout: 2_000 })
+      .toBeGreaterThan(0.05);
+    await page.mouse.move(0, 0);
+
+    // The keyboard half — the state the hand-rolled rules did not have at all.
+    await contentsLink.focus();
+    await expect
+      .poll(() => layerOpacity(contentsLink), { timeout: 2_000 })
+      .toBeGreaterThan(0.05);
+
+    // A second surface and a second converted control — the shared Drawer's
+    // close button, reached the way an owner reaches it.
+    await gotoFixture(page, "/tasks");
+    await taskRows(page).first().getByRole("link").first().click();
+    const drawer = page.getByRole("dialog");
+    await expect(drawer).toBeVisible();
+    const drawerClose = drawer.locator("button.drawer__close");
+    await expect(drawerClose).toBeVisible();
+    expect(await layerOpacity(drawerClose)).toBe(0);
+    await drawerClose.hover();
+    await expect
+      .poll(() => layerOpacity(drawerClose), { timeout: 2_000 })
+      .toBeGreaterThan(0.05);
   });
 
   test("the record header's own controls are hosts too", async ({ page }) => {
@@ -319,8 +446,11 @@ test.describe("M3-INT — the shared switch", () => {
 
   test("a disabled switch cannot be toggled", async ({ page }) => {
     await gotoFixture(page, "/settings?section=navigation");
+    // DEBT-200 — an assertion, not an exit. `today` and `settings` are
+    // MANDATORY_NAVIGATION_MODULES, so their rows are always disabled; a guard
+    // here could only ever hide the disappearance of that guarantee.
     const disabled = page.locator("input[role='switch']:disabled").first();
-    if ((await disabled.count()) === 0) test.skip();
+    await expect(disabled).toBeAttached();
     const before = await disabled.isChecked();
     await page
       .locator(`label[for="${await disabled.getAttribute("id")}"]`)

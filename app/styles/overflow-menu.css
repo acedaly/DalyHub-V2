@@ -66,12 +66,24 @@
 }
 
 /*
- * Touch: a comfortable target for the trigger.
+ * A comfortable target for the trigger — by VIEWPORT as well as by device.
  *
- * The menu's own rows are floored by `floating.css`; this covers a device that
- * reports `hover: none` without reporting `pointer: coarse`.
+ * The menu's own rows are floored by `floating.css`. This rule covers a device
+ * that reports `hover: none` without reporting `pointer: coarse`, and — since
+ * DEBT-50 — a narrow viewport driven by a POINTER.
+ *
+ * That last case is the one the entry is about and the one every test missed:
+ * WCAG 2.2 §2.5.8 is written about target SIZE, not input modality, so a small
+ * desktop window, a resized browser or a touchscreen laptop reporting a fine
+ * pointer met a control MEASURED at 32×32 while being exactly the layout the
+ * 44px floor exists for. Every phone journey runs under touch emulation, where
+ * the product genuinely met the floor — so it was correct everywhere anyone
+ * looked and wrong everywhere they did not.
+ *
+ * Above `md` the compact rung stays, deliberately: a mouse at a desktop width
+ * is the case DalyHub's density model is drawn for.
  */
-@media (hover: none) {
+@media (hover: none), (pointer: coarse), (max-width: 48rem) {
   .dh-overflow-menu__trigger {
     min-height: var(--app-touch-target-min);
     min-width: var(--app-touch-target-min);

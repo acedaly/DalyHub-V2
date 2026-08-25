@@ -1045,7 +1045,7 @@ no new relationship type — record links reuse `note.references`. See
   prose reading the old title — the relationship survives; the words are the
   user's and are never rewritten.
 - Rendered GFM task-list checkboxes have no accessible label — a shared pipeline
-  concern, [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
+  concern, [DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3--resolved-2026-08-25).
 
 **Deferred work.** Whole-workspace export ([X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability)),
 a printable/PDF render, folder hierarchy, aliases, attachments, a graph view and
@@ -1064,7 +1064,7 @@ note transclusion — see [Deferrals](#deferrals).
 [DEBT-36](../product/PRODUCT_DEBT.md#-debt-36--global-search-coverage-is-incomplete-several-shipped-modules-register-no-provider--p2) ☑ ·
 [DEBT-17](../product/PRODUCT_DEBT.md#-debt-17--today-search-provider-is-fixture-backed-not-over-real-records--p1) ☑ ·
 [DEBT-08](../product/PRODUCT_DEBT.md#-debt-08--ad-hoc-cross-entity-links--p2) ·
-[DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3).
+[DEBT-26](../product/PRODUCT_DEBT.md#-debt-26--rendered-gfm-task-list-checkboxes-have-no-accessible-label--p3--resolved-2026-08-25).
 
 ---
 

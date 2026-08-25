@@ -232,75 +232,37 @@ test.describe("UIQ-003 — record title inline rename keeps the heading's width"
   });
 });
 
-test.describe("UIQ-004 — grid card heading survives a wrapping title", () => {
-  test("icon stays beside the first title line and the status chip stays in the heading row", async ({
-    page,
-  }) => {
-    // Narrow enough that several fixture titles wrap inside grid columns.
-    await page.setViewportSize({ width: 900, height: 900 });
-    await gotoFixture(page, "/design/cards-filters");
-    await page.getByRole("radio", { name: "grid" }).check();
-
-    const measured = await page.evaluate(() => {
-      const out: {
-        title: string;
-        lines: number;
-        iconTop: number;
-        iconRight: number;
-        titleTop: number;
-        titleLeft: number;
-        lineHeight: number;
-        statusTop: number | null;
-      }[] = [];
-      for (const card of document.querySelectorAll(".dh-card--grid")) {
-        const icon = card.querySelector(".dh-card__icon");
-        const title = card.querySelector(".dh-card__title");
-        if (!icon || !title) continue;
-        const status = card.querySelector(".dh-card__status");
-        const t = title.getBoundingClientRect();
-        const style = getComputedStyle(title);
-        const lineHeight =
-          Number.parseFloat(style.lineHeight) ||
-          Number.parseFloat(style.fontSize) * 1.35;
-        out.push({
-          title: (title.textContent ?? "").slice(0, 40),
-          lines: Math.round(t.height / lineHeight),
-          iconTop: icon.getBoundingClientRect().top,
-          iconRight: icon.getBoundingClientRect().right,
-          titleTop: t.top,
-          titleLeft: t.left,
-          lineHeight,
-          statusTop: status ? status.getBoundingClientRect().top : null,
-        });
-      }
-      return out;
-    });
-
-    const wrapping = measured.filter((m) => m.lines >= 2);
-    expect(
-      wrapping.length,
-      "expected at least one wrapping grid-card title at this width — widen the fixture data or narrow the viewport",
-    ).toBeGreaterThan(0);
-
-    for (const m of wrapping) {
-      // The glyph sits in its own column beside the title's FIRST line — not
-      // orphaned on a line of its own above the title.
-      expect(
-        m.iconRight,
-        `icon should sit beside the title ("${m.title}")`,
-      ).toBeLessThanOrEqual(m.titleLeft + 1);
-      expect(
-        Math.abs(m.iconTop - m.titleTop),
-        `icon should align with the first title line ("${m.title}")`,
-      ).toBeLessThanOrEqual(m.lineHeight);
-      // The status chip is pinned to the heading row, not dangling at the end
-      // of the title's last line.
-      if (m.statusTop !== null) {
-        expect(
-          m.statusTop - m.titleTop,
-          `status chip should stay in the heading row ("${m.title}")`,
-        ).toBeLessThanOrEqual(m.lineHeight);
-      }
-    }
-  });
-});
+/*
+ * UIQ-004 — "grid card heading survives a wrapping title" — was DELETED here
+ * on 2026-08-25, and this note is what replaces it.
+ *
+ * Its subject was the GRID card: it drove a `grid` radio on
+ * `/design/cards-filters` and measured `.dh-card--grid`. DEBT-113 removed the
+ * grid and board presentations — nothing in the product ever constructed them,
+ * and the documented rule for a grid card contradicted `card-family.css` — so
+ * the radio, the class and the treatment are all gone. A test asserting a
+ * component that does not exist is the case HARDEN-01 already ruled on
+ * (DEBT-125: twenty-two such failures, deleted rather than adapted).
+ *
+ * ── Why it was not simply re-pointed at the list card, which was tried ──────
+ * Both of its claims were measured against the surviving presentation, and
+ * NEITHER transfers:
+ *
+ *   - *"the glyph sits in its own column beside the title"* describes a
+ *     two-dimensional grid heading. On the list card the icon's right edge is
+ *     ~14px PAST the title box's left edge at 1200, 900, 700 AND 480px,
+ *     because the title is a full-width block in a row rather than a column
+ *     neighbour.
+ *   - *"the status chip stays in the heading row"* fails at 480px, where the
+ *     compact phone treatment deliberately recomposes the card.
+ *
+ * Asserting either would invent a requirement UIQ-004 never made and call the
+ * product broken for not meeting it. If the LIST card's heading anatomy
+ * deserves a guard, that is a new claim needing its own evidence and its own
+ * measurement — not this one rehomed until it happens to pass.
+ *
+ * What the removal itself is guarded by: `CardPresentation` is the literal
+ * type `"list"`, so a second presentation cannot reappear without a
+ * type-level change, and `test/unit/card/Card.test.tsx` asserts the rendered
+ * `data-presentation`.
+ */

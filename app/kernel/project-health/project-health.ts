@@ -23,6 +23,7 @@
  * workflow status (PROJ-05 owns a richer project status model).
  */
 
+import { addCalendarDays, calendarDaysBetween } from "~/kernel/datetime";
 import type { ProjectWorkflowStatus } from "~/kernel/project-settings";
 
 /* -------------------------------------------------------------------------- */
@@ -251,18 +252,10 @@ export type HealthEvaluationContext = {
 /* Pure date-only helpers (no timezone — operate on `YYYY-MM-DD` calendar dates) */
 /* -------------------------------------------------------------------------- */
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Parse a `YYYY-MM-DD` calendar date to a UTC-midnight epoch-day count. Date-only
- * values are never routed through a timezone (ADR-030); UTC midnight is a stable,
- * DST-free anchor for day arithmetic. */
-function epochDay(iso: string): number {
-  if (!ISO_DATE.test(iso)) {
-    throw new RangeError(`Not a YYYY-MM-DD calendar date: ${iso}`);
-  }
-  const [y, m, d] = iso.split("-").map((part) => Number(part));
-  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
-}
+/*
+ * DEBT-52 — the arithmetic is the kernel's ONE implementation
+ * (`~/kernel/datetime`); these two names are project-health's wording for it.
+ */
 
 /**
  * Whole owner-calendar days from `fromIso` up to `toIso` (positive when `toIso` is
@@ -270,17 +263,13 @@ function epochDay(iso: string): number {
  * difference used for staleness and wait durations.
  */
 export function daysBetweenIsoDates(fromIso: string, toIso: string): number {
-  return epochDay(toIso) - epochDay(fromIso);
+  return calendarDaysBetween(fromIso, toIso);
 }
 
 /** Add `days` to a `YYYY-MM-DD` calendar date, returning a `YYYY-MM-DD` date. Used
  * to compute the inclusive upcoming-window boundary for the facts query. */
 export function addDaysToIsoDate(iso: string, days: number): string {
-  const date = new Date((epochDay(iso) + days) * 86_400_000);
-  const y = date.getUTCFullYear().toString().padStart(4, "0");
-  const m = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const d = date.getUTCDate().toString().padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return addCalendarDays(iso, days);
 }
 
 /* -------------------------------------------------------------------------- */

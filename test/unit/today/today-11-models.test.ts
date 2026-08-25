@@ -39,14 +39,14 @@ import {
 describe("the week strip's arithmetic", () => {
   it("starts the week on Monday, whichever day is asked about", () => {
     // 2026-08-08 is a Saturday; its week began on Monday the 3rd.
-    expect(weekStartIso("2026-08-08")).toBe("2026-08-03");
-    expect(weekStartIso("2026-08-03")).toBe("2026-08-03");
+    expect(weekStartIso("2026-08-08", "monday")).toBe("2026-08-03");
+    expect(weekStartIso("2026-08-03", "monday")).toBe("2026-08-03");
     // A Sunday belongs to the week that STARTED, not the one about to.
-    expect(weekStartIso("2026-08-09")).toBe("2026-08-03");
+    expect(weekStartIso("2026-08-09", "monday")).toBe("2026-08-03");
   });
 
   it("returns seven consecutive dates, today among them", () => {
-    const dates = weekDatesFor("2026-08-08");
+    const dates = weekDatesFor("2026-08-08", "monday");
     expect(dates).toEqual([
       "2026-08-03",
       "2026-08-04",
@@ -60,7 +60,7 @@ describe("the week strip's arithmetic", () => {
 
   it("crosses a month boundary without losing a day", () => {
     // 2026-09-02 is a Wednesday, so its week starts on 31 August.
-    expect(weekDatesFor("2026-09-02")).toEqual([
+    expect(weekDatesFor("2026-09-02", "monday")).toEqual([
       "2026-08-31",
       "2026-09-01",
       "2026-09-02",
@@ -74,6 +74,7 @@ describe("the week strip's arithmetic", () => {
   it("marks exactly one day as today, and counts each day's items", () => {
     const days = buildWeekStrip({
       todayIso: "2026-08-08",
+      firstDayOfWeek: "monday",
       itemCountFor: (dateIso) => (dateIso === "2026-08-05" ? 3 : 0),
     });
     expect(days.filter((day) => day.isToday).map((day) => day.dateIso)).toEqual(
@@ -86,6 +87,7 @@ describe("the week strip's arithmetic", () => {
   it("names each day in full for the control's accessible name", () => {
     const days = buildWeekStrip({
       todayIso: "2026-08-08",
+      firstDayOfWeek: "monday",
       itemCountFor: () => 0,
     });
     const monday = days[0]!;
@@ -97,6 +99,7 @@ describe("the week strip's arithmetic", () => {
   it("keeps the selected day and the owner's today strictly distinct", () => {
     const days = buildWeekStrip({
       todayIso: "2026-08-08",
+      firstDayOfWeek: "monday",
       itemCountFor: () => 0,
     });
     const today = days.find((day) => day.isToday)!;
@@ -111,12 +114,14 @@ describe("the week strip's arithmetic", () => {
   it("names BOTH months when the week spans two", () => {
     const one = buildWeekStrip({
       todayIso: "2026-08-08",
+      firstDayOfWeek: "monday",
       itemCountFor: () => 0,
     });
     expect(weekStripMonthLabel(one)).toBe("August 2026");
 
     const across = buildWeekStrip({
       todayIso: "2026-09-02",
+      firstDayOfWeek: "monday",
       itemCountFor: () => 0,
     });
     // Four of the seven dates under a bare "September" would be mislabelled.
@@ -125,6 +130,7 @@ describe("the week strip's arithmetic", () => {
     const newYear = buildWeekStrip({
       // 2026-12-31 is a Thursday: the week runs 28 December to 3 January.
       todayIso: "2026-12-31",
+      firstDayOfWeek: "monday",
       itemCountFor: () => 0,
     });
     expect(weekStripMonthLabel(newYear)).toBe("December 2026 – January 2027");

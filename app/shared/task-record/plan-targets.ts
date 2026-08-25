@@ -12,24 +12,21 @@
  * arithmetic on the calendar components, never a timezone shift.
  */
 
+import {
+  addCalendarDays as addKernelCalendarDays,
+  isCalendarDate,
+} from "~/kernel/datetime";
+
 /**
  * Add `days` to a date-only `YYYY-MM-DD` value, returning `YYYY-MM-DD`. Uses UTC
  * arithmetic on the calendar components only, so it is deterministic and never
  * shifts by a timezone. Returns the input unchanged if it is not a valid date.
  */
 export function addCalendarDays(iso: string, days: number): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!match) {
-    return iso;
-  }
-  const dt = new Date(
-    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
-  );
-  dt.setUTCDate(dt.getUTCDate() + days);
-  const year = dt.getUTCFullYear();
-  const month = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(dt.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  // DEBT-52 — the kernel's ONE calendar-day implementation. The lenient
+  // "return the input unchanged" contract is preserved: this is a UI helper
+  // whose caller may hold a half-typed value, and throwing would be wrong here.
+  return isCalendarDate(iso) ? addKernelCalendarDays(iso, days) : iso;
 }
 
 /**

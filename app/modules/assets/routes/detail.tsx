@@ -65,8 +65,6 @@ const DRAWER_KEY = "asset-drawer";
 /** How much of the record's own surfaces load with the page. Both bounded. */
 const OVERVIEW_EVENT_LIMIT = 20;
 const OVERVIEW_OBLIGATION_LIMIT = 50;
-/** The most linked Tasks whose open-state the record will resolve in one load. */
-const MAX_TASK_LOOKUPS = 50;
 
 export function meta() {
   return [{ title: "Asset · DalyHub" }];
@@ -174,26 +172,27 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       ),
     ];
     let taskTitles = new Map<string, { title: string }>();
-    const openTaskIds = new Set<string>();
+    let openTaskIds: ReadonlySet<string> = new Set<string>();
     if (taskIds.length > 0) {
       try {
-        taskTitles = await scope.entities.getByIds(taskIds, {
-          includeDeleted: true,
-        });
-        const views = await Promise.all(
-          taskIds
-            .slice(0, MAX_TASK_LOOKUPS)
-            .map((id) => scope.tasks.getTask(id)),
-        );
-        for (const view of views) {
-          if (
-            view &&
-            view.completedAt === null &&
-            view.status !== "cancelled"
-          ) {
-            openTaskIds.add(view.id);
-          }
-        }
+        /*
+         * DEBT-59 — TWO bounded reads for the whole obligation page, not N.
+         *
+         * This resolved each linked Task's open state with its own `getTask`,
+         * capped at 50 lookups per load: 50 obligations cost 50 statements, and
+         * anything past the cap silently read as "not open" — so the record
+         * showed the "record what actually happened" prompt for a Task that was
+         * in fact still open. `listOpenTaskIds` is the kernel's ONE definition
+         * of an open Task (the same predicate the Assets attention query
+         * already expresses in SQL), asked once for the whole list, so the cap
+         * is gone along with the read that needed it.
+         */
+        const [titles, open] = await Promise.all([
+          scope.entities.getByIds(taskIds, { includeDeleted: true }),
+          scope.tasks.listOpenTaskIds(taskIds),
+        ]);
+        taskTitles = titles;
+        openTaskIds = open;
       } catch {
         // An unresolvable Task simply reads as "not open" — never a 500.
       }

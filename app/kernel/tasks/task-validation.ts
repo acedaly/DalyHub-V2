@@ -13,6 +13,7 @@
  * FND-08 parser (`parseMarkdownSource`); TODAY-02 adds no second parser or policy.
  */
 
+import { addCalendarDays } from "~/kernel/datetime";
 import { ID_MAX_LENGTH, TITLE_MAX_LENGTH } from "~/kernel/entities";
 import {
   MarkdownError,
@@ -772,20 +773,13 @@ export function validateTaskLimit(value: unknown): number {
  * before it reaches here; this only moves it along the calendar.
  */
 export function shiftCalendarDate(isoDate: string, days: number): string {
-  const match = DATE_ONLY_PATTERN.exec(isoDate);
-  if (!match) {
+  if (!DATE_ONLY_PATTERN.test(isoDate)) {
+    // The refusal stays the TASK domain's, because the caller is validating a
+    // task's own field and a `RangeError` is not what that surface reports.
     throw new TaskValidationError("scheduledDate", "must be a YYYY-MM-DD date");
   }
-  const base = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
-  const shifted = new Date(base + days * 86_400_000);
-  const year = String(shifted.getUTCFullYear()).padStart(4, "0");
-  const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(shifted.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  // DEBT-52 — the arithmetic itself is the kernel's ONE implementation.
+  return addCalendarDays(isoDate, days);
 }
 
 /**

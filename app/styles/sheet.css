@@ -189,7 +189,6 @@
 }
 
 .dh-sheet__close:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   color: var(--dh-color-text);
 }
 
@@ -246,10 +245,6 @@
   text-align: start;
   cursor: pointer;
   transition: background-color var(--dh-motion-fast) var(--dh-ease-standard);
-}
-
-.dh-sheet-option:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
 }
 
 .dh-sheet-option[aria-pressed="true"] {

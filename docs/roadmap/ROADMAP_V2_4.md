@@ -103,7 +103,7 @@ thing from different directions:
    `GoalProgressSection` renders **measurable Goals only**
    ([`TodayScreen.tsx`](../../app/modules/today/day/TodayScreen.tsx)); a workspace
    with Goals and no targets is told *"No measurable Goals yet"* every morning.
-   [DEBT-158](../product/PRODUCT_DEBT.md#-debt-158--a-goal-measurement-journey-has-never-once-run-because-nothing-in-the-seed-is-measurable--p2)
+   [DEBT-158](../product/PRODUCT_DEBT.md#-debt-158--a-goal-measurement-journey-has-never-once-run-because-nothing-in-the-seed-is-measurable--p2--resolved-2026-08-23-v24-gate-01)
    measured the seed: `SELECT COUNT(*) FROM goal_details WHERE target_value IS NOT NULL`
    is **0**, against a workspace holding **six Goals**. For every one of them the
    top two levels of the spine contribute nothing to the daily surface.
@@ -189,13 +189,13 @@ adds anything to it.**
   - **The gate is red on `main`.** CI run [`32482182727`](https://github.com/acedaly/DalyHub-V2/actions/runs/32482182727)
     at `b31323c`: **Scope, Static, Unit and Build all green; nine of twelve E2E
     partitions failed** (p02–p10), p01/p11/p12 green, CI Gate failed. The named red
-    set is [DEBT-179](../product/PRODUCT_DEBT.md#-debt-179--the-e2e-gate-is-red-on-main-19-tests-across-8-partitions-plus-a-network-dependent-unit-test--p2)
+    set is [DEBT-179](../product/PRODUCT_DEBT.md#-debt-179--the-e2e-gate-is-red-on-main-19-tests-across-8-partitions-plus-a-network-dependent-unit-test--p2--resolved-2026-08-23-v24-gate-01)
     — whose dominant signature DHDS-13 **root-caused** (a completed row is filed
     into a closed `<details>`, so the re-assertion resolves to nothing), fixing
     three of nineteen and leaving sixteen unchecked against that mechanism —
     together with [DEBT-173](../product/PRODUCT_DEBT.md#-debt-173--e2e-specs-assert-against-the-shared-workspaces-accumulated-state-so-re-ordering-the-suite-changes-what-they-see--p2)
-    (accumulated fixture state) and [DEBT-180](../product/PRODUCT_DEBT.md#-debt-180--the-row-reveal-contract-is-unclickable-by-automation-the-hidden-triggers-own-wrapper-wins-the-hit-test--p3).
-    [DEBT-158](../product/PRODUCT_DEBT.md#-debt-158--a-goal-measurement-journey-has-never-once-run-because-nothing-in-the-seed-is-measurable--p2)
+    (accumulated fixture state) and [DEBT-180](../product/PRODUCT_DEBT.md#-debt-180--the-row-reveal-contract-is-unclickable-by-automation-the-hidden-triggers-own-wrapper-wins-the-hit-test--p3--resolved-2026-08-23-v24-gate-01).
+    [DEBT-158](../product/PRODUCT_DEBT.md#-debt-158--a-goal-measurement-journey-has-never-once-run-because-nothing-in-the-seed-is-measurable--p2--resolved-2026-08-23-v24-gate-01)
     is the same problem inverted: a journey that reports green by never executing.
   - **The release train stopped.** `package.json` is `2.0.1`; `docs/release/`
     holds notes for V2 and V2.0.1 and nothing since; `DEPLOYMENT.md`'s last
@@ -203,7 +203,7 @@ adds anything to it.**
     from that document, because *"a repository cannot know what a database has
     applied"* — was `0001`–`0025`, and the committed sequence now runs to `0047`
     (47 numbers over 49 files: `0013` and `0039` are each used twice, the first of
-    which is [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3));
+    which is [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3--resolved-2026-08-25));
     [DEBT-139](../product/PRODUCT_DEBT.md#-debt-139--migration-0042-has-not-been-applied-and-no-production-backup-has-been-taken--p1)
     records migration `0042` as unapplied to production with no pre-migration
     backup taken, and five more have landed behind it;
@@ -408,6 +408,11 @@ adds anything to it.**
 
 ---
 
+- **Progress, 2026-08-25 — the [all-open-debt pass](../product/PRODUCT_DEBT_CLOSURE_2026_08.md) removed two things that stand between this item and criterion 3, and moved no criterion.** It is not a GATE-01 pass and claims none of its acceptance; what it did is repair two mechanisms whose failures had each already cost this item a run.
+  - **A gate run lost to a package download cannot happen the same way again** ([DEBT-204](../product/PRODUCT_DEBT.md), ◐). Run `32710624636` — the candidate SECOND green push for criterion 3 — lost E2E p07 eleven seconds in, on a documentation-only commit, when corepack's fetch of `pnpm-10.33.0.tgz` was truncated mid-stream. pnpm is now materialised **before** `actions/setup-node`'s cache probe, with a bounded, loud retry; the ordering is the substance, since by then pnpm is on disk and that probe cannot reach the network at all. The entry stays ◐ because its own condition is a `main` run in which no job fails before `Install dependencies`, and only merging produces one.
+  - **Three journeys that reported green by never running now execute** ([DEBT-200](../product/PRODUCT_DEBT.md), ◐), which is the same class of problem GATE-01 raised the entry for. One of the three had its cause recorded WRONG — the seed holds 119 active Tasks against a page size of 50; the blocker was a grouped view drawing no "Load more" at all — so a future agent would have built a fixture and changed nothing.
+  - **Criterion 3 is unmoved and is still one `main` run short.** Nothing here was run on `main`, and nothing here claims to have been. Criteria 1, 2, 4 and 5 are untouched: no backup exists, no migration was applied, no production data was read, and `wrangler whoami` still reports not authenticated.
+
 ### ☐ V2.4-GATE-02 — Honest signals on a task row, and one day on a phone
 
 **A bounded product decision DHDS-13 correctly refused to take inside a quality
@@ -429,7 +434,7 @@ gate, and the reason the product closed at B rather than A.**
      ([DEBT-197](../product/PRODUCT_DEBT.md#-debt-197--a-task-row-paints-a-cancelled-tasks-passed-due-date-in-the-overdue-colour--p3)).
   3. Below the phone tier `/plan` draws **two days where its own tier says one**,
      so the day rail reports a selected day and the page shows two
-     ([DEBT-196](../product/PRODUCT_DEBT.md#-debt-196--weekly-planning-draws-two-days-at-phone-width-where-its-own-tier-says-one--p2);
+     ([DEBT-196](../product/PRODUCT_DEBT.md#-debt-196--weekly-planning-draws-two-days-at-phone-width-where-its-own-tier-says-one--p2--resolved-2026-08-23-v24-gate-01);
      `plan-responsive.spec.ts` :100 and :194 already assert it and already fail).
 - **Outcome.** A planning row shows one control at rest, like every other row in
   the product, with placement as an act the row states rather than a checkbox that
@@ -442,7 +447,7 @@ gate, and the reason the product closed at B rather than A.**
   must not be built on a surface that can complete work by accident.
 - **Major dependencies.** V2.4-GATE-01, so the fix's own assertions mean something
   on a gate that can fail honestly. Touches
-  [DEBT-180](../product/PRODUCT_DEBT.md#-debt-180--the-row-reveal-contract-is-unclickable-by-automation-the-hidden-triggers-own-wrapper-wins-the-hit-test--p3)
+  [DEBT-180](../product/PRODUCT_DEBT.md#-debt-180--the-row-reveal-contract-is-unclickable-by-automation-the-hidden-triggers-own-wrapper-wins-the-hit-test--p3--resolved-2026-08-23-v24-gate-01)
   if placement moves into the row's overflow, which GATE-01 will already have
   settled.
 - **Explicit non-goals.** No Plan redesign, no new composition, no drag-and-drop

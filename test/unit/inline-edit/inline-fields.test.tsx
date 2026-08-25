@@ -6,7 +6,13 @@
  * when the server says no, and where the keyboard focus lands afterwards.
  */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -256,6 +262,47 @@ describe("InlineDateField", () => {
       screen.getByRole("button", { name: "Thursday 3 September 2026" }),
     );
     await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-09-03"));
+  });
+
+  it("commits a PRESET on selection — no second press (DEBT-129)", async () => {
+    /*
+     * DEBT-129 recorded this editor as "still a Save/Cancel form in a popover",
+     * and it was when the entry was written. CONTROL-01 replaced the native
+     * `<input type="date">` with the product's own presets and month grid, and
+     * every control in the editor became a button that commits — there is no
+     * Save step left, and the entry's own closing condition ("choosing Today,
+     * Tomorrow or Next week from a row writes without a second press") has been
+     * true since.
+     *
+     * What was missing was this assertion. The file covered a calendar DAY
+     * committing and the presets being PRESENT, and never that pressing one
+     * writes on its own — which is exactly the half the entry names.
+     */
+    const onSave = vi.fn(async () => ({ ok: true }) as const);
+    render(
+      <InlineDateField
+        label="Due date"
+        value="2026-09-01"
+        todayIso="2026-09-01"
+        shortcuts={[
+          { label: "Today", value: "2026-09-01" },
+          { label: "Tomorrow", value: "2026-09-02" },
+          { label: "Next week", value: "2026-09-08" },
+        ]}
+        onSave={onSave}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Due date: 2026-09-01" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Edit due date" });
+    // There is no Save. Cancel survives, which is a different thing.
+    expect(within(dialog).queryByRole("button", { name: "Save" })).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Next week" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith("2026-09-08"));
+    // ONE press: the save happened without any further interaction.
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 
   it("offers the product's own presets, and marks the one in force", () => {

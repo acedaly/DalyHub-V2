@@ -43,6 +43,10 @@ import {
   type GoalMeasurementPoint,
   type GoalMeasurementType,
 } from "./goal-measurement";
+import {
+  calendarDateFromEpochDay,
+  tryCalendarEpochDay,
+} from "~/kernel/datetime";
 
 /* -------------------------------------------------------------------------- */
 /* Tuning constants — every one of them documented, none of them magic          */
@@ -250,19 +254,14 @@ export const UNMEASURED_GOAL_PROGRESS: GoalProgressEvaluation = {
  * instant — the same dependency-free approach `goal-details.ts` takes to avoid
  * importing the UI date package into the kernel.
  */
-const MS_PER_DAY = 86_400_000;
-
-function dayNumber(iso: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!match) return null;
-  const ms = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  return Number.isFinite(ms) ? Math.round(ms / MS_PER_DAY) : null;
-}
-
-function isoFromDayNumber(day: number): string {
-  const date = new Date(day * MS_PER_DAY);
-  return date.toISOString().slice(0, 10);
-}
+/*
+ * DEBT-52 — the kernel's ONE calendar-day implementation
+ * (`~/kernel/datetime`). `tryCalendarEpochDay` additionally round-trips the
+ * parse, so an impossible target date (`2026-02-31`) is refused here rather
+ * than silently becoming 3 March in a Goal's pace calculation.
+ */
+const dayNumber = tryCalendarEpochDay;
+const isoFromDayNumber = calendarDateFromEpochDay;
 
 /** Whole days from `from` to `to`. Negative when `to` is earlier. */
 export function goalDaysBetween(from: string, to: string): number | null {

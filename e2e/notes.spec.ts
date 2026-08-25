@@ -302,6 +302,64 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await page.emulateMedia({ colorScheme: "light" });
   });
 
+  /**
+   * DEBT-26 — a rendered task list passes the axe gate.
+   *
+   * `remark-gfm` renders `- [x] Book the venue` as a disabled checkbox followed
+   * by the item's text as a SIBLING, so the input had no label of any kind and
+   * axe's `label` rule (WCAG 2.2 AA, critical) reported a violation wherever
+   * Markdown containing a checklist was RENDERED — a Note in Read mode, a Diary
+   * entry, a Task description.
+   *
+   * It stayed latent because no preview scan had ever rendered task-list
+   * content: NOTES-04 recorded the gap and scoped its own editor scan to the
+   * Source surface rather than fix the shared pipeline it was not allowed to
+   * touch. This is that scan, unscoped, over content that actually contains a
+   * checklist — which is what "re-enable the axe scan over rendered task lists"
+   * asks for. `label` has never been in the globally-disabled set, so nothing
+   * is being turned back on: the scan simply now looks at the thing.
+   */
+  test("a rendered task list is axe-clean, and each checkbox is named", async ({
+    page,
+  }) => {
+    const noteTitle = uniqueNoteTitle("tasklist-a11y");
+    await createNote(page, noteTitle);
+    /*
+     * The editor CONTINUES a task list on Enter and continues it UNTICKED, so
+     * the second item is typed as bare text and the ticked one is the first.
+     * That is a true fact about the editor rather than something this journey
+     * is asserting, which is why the saved source is read back below.
+     */
+    await clearAndType(page, "- [x] Book the venue\nSend the invitations");
+    await expect(page.getByText("Saved")).toBeVisible({ timeout: 5_000 });
+    // Read back, so the journey cannot quietly stop rendering a task list and
+    // keep passing. The editor continues the list unticked, which is why the
+    // CHECKED item is the first one.
+    expect(await readSource(page)).toBe(
+      "- [x] Book the venue\n- [ ] Send the invitations",
+    );
+
+    // Read mode is the SHARED FND-08 render — the pipeline this entry is about.
+    await page.getByRole("button", { name: "Read", exact: true }).click();
+    const reading = page.locator(".dh-md-editor__reading");
+    await expect(reading.getByRole("checkbox")).toHaveCount(2);
+
+    // Each checkbox is named by its own step, and its state is still on the
+    // control rather than folded into the name.
+    await expect(
+      reading.getByRole("checkbox", { name: "Book the venue" }),
+    ).toBeChecked();
+    await expect(
+      reading.getByRole("checkbox", { name: "Send the invitations" }),
+    ).not.toBeChecked();
+
+    // The whole page, with `label` enforced, in both appearances.
+    await expectNoAxeViolations(page);
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expectNoAxeViolations(page);
+    await page.emulateMedia({ colorScheme: "light" });
+  });
+
   test("live preview: task checkboxes, thematic rules and tables render while writing", async ({
     page,
   }) => {

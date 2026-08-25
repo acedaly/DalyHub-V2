@@ -27,6 +27,8 @@
  * whole module is directly testable — and it is (`test/unit/backup/`).
  */
 
+import { calendarDaysBetween } from "~/kernel/datetime";
+
 /* -------------------------------------------------------------------------- */
 /* The shapes                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -452,12 +454,8 @@ function calendarDate(instant: Date, timeZone: string): string {
   }).format(instant);
 }
 
-function dayOffset(from: string, to: string): number {
-  return Math.round(
-    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
-      86_400_000,
-  );
-}
+// DEBT-52 — the kernel's ONE calendar-day implementation.
+const dayOffset = calendarDaysBetween;
 
 /**
  * An instant, as the owner reads it: "Today, 2:03 am", "Yesterday, 2:02 am",

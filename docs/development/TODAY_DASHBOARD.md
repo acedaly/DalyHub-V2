@@ -565,10 +565,12 @@ migration, no second store and no second planning model.
   showing Scheduled + Due with the quick actions and an inline DS-06 date control —
   no modal-in-modal. Bulk planning lives in the Tasks module.
 - **Routes.** Single-task planning posts `plan`/`clear_plan` intents to the
-  `/tasks/:taskId` action. The action-only
-  [`/today/plan`](../../app/modules/today/routes/plan.tsx) bulk route still exists
-  and is still tested, but the redesign left it without a caller — recorded as
-  [DEBT-104](../product/PRODUCT_DEBT.md).
+  `/tasks/:taskId` action. Bulk planning is the Tasks module's
+  [`/tasks/bulk`](../../app/modules/tasks/routes/bulk.tsx) route, and it is the
+  only one. The action-only `/today/plan` route this section used to describe
+  was **deleted on 2026-08-25** — the Today redesign had left it without a
+  caller, and a tested, discoverable, unreachable endpoint is something the next
+  author builds against ([DEBT-104](../product/PRODUCT_DEBT.md), resolved).
 - **Keyboard.** Planning is exposed as shared contextual commands while a task's
   Drawer is open — "Plan for Today" (`P`), "Move to Tomorrow" (`Shift+P`), "Clear
   plan" — with shortcut metadata, driving the same mutation path the visible
@@ -617,7 +619,7 @@ What survives, and where it lives:
 | Notes / Diary / Areas / Goals / Assets widgets | Their own modules, all in the sidebar. |
 | Recent activity widget | Nowhere yet — the endpoint is kept and the gap is logged as [DEBT-103](../product/PRODUCT_DEBT.md). |
 | Quick Capture widget + the "Focus Quick Capture" command | The global `+`. Every module still contributes its own "New …" command to the palette. |
-| Multi-select + the bulk planning bar | The Tasks module's bulk actions. `/today/plan` is left without a caller — [DEBT-104](../product/PRODUCT_DEBT.md). |
+| Multi-select + the bulk planning bar | The Tasks module's bulk actions (`/tasks/bulk`). `/today/plan` was left without a caller and has since been deleted — [DEBT-104](../product/PRODUCT_DEBT.md), resolved 2026-08-25. |
 | The roving keyboard collection | Native tab order over plain rows. |
 
 ## Tests

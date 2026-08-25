@@ -17,7 +17,10 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 
 import { ReviewRecord } from "../ReviewRecord";
 import { loadReviewInsights } from "../insights/review-insights-context";
@@ -81,8 +84,7 @@ function createReviewDrawerRenderer() {
     const id = separator === -1 ? "" : entry.key.slice(separator + 1);
     if (kind === "task" && id.length > 0) {
       return {
-        title: "Task",
-        description: "Task record",
+        title: TASK_DRAWER_TITLE,
         children: <TaskRecordDrawer taskId={id} />,
       };
     }

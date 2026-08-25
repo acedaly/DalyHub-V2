@@ -182,12 +182,7 @@
 }
 
 .drawer__close:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
   color: var(--dh-color-text);
-}
-
-.drawer__close:active {
-  background: color-mix(in srgb, var(--dh-color-text) 10%, transparent);
 }
 
 /* -------------------------------------------------------------------------- */

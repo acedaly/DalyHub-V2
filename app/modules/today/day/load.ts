@@ -13,7 +13,10 @@
  */
 
 import { addDaysToIsoDate } from "~/kernel/alignment";
-import type { FirstDayOfWeek } from "~/kernel/preferences";
+import {
+  DEFAULT_APP_PREFERENCES,
+  type FirstDayOfWeek,
+} from "~/kernel/preferences";
 import type {
   TaskBlockedSummary,
   TaskChecklistProgress,
@@ -249,9 +252,18 @@ export function emptyDay(input: {
   readonly dateLong: string;
   readonly hour: number;
   readonly ownerName: string | null;
+  /**
+   * The owner's week start (DEBT-152 / DEBT-154). Optional here and ONLY here:
+   * this path exists because reading the preferences themselves failed, so the
+   * product default is the only honest answer — and it is the same default the
+   * preference itself carries, so a Monday-start owner sees no difference.
+   */
+  readonly firstDayOfWeek?: FirstDayOfWeek;
 }): TodayDayData {
+  const { firstDayOfWeek = DEFAULT_APP_PREFERENCES.firstDayOfWeek, ...rest } =
+    input;
   return {
-    ...input,
+    ...rest,
     overdue: [],
     today: [],
     completedToday: [],
@@ -260,7 +272,7 @@ export function emptyDay(input: {
     // The strip still draws: a week with nothing in it is a real week, and a
     // Schedule panel that loses its own navigation because a read failed is a
     // worse degradation than an empty timeline.
-    week: emptyWeek(input.todayIso),
+    week: emptyWeek(input.todayIso, firstDayOfWeek),
     scheduleHasSources: false,
     scheduleStale: false,
     attention: [],
@@ -275,14 +287,21 @@ export function emptyDay(input: {
 }
 
 /** The week's seven days with no items on any of them. */
-function emptyWeek(todayIso: string): readonly TodayWeekDay[] {
+function emptyWeek(
+  todayIso: string,
+  firstDayOfWeek: FirstDayOfWeek,
+): readonly TodayWeekDay[] {
   const schedules = new Map<string, DaySchedule>(
-    weekDatesFor(todayIso).map((dateIso) => [
+    weekDatesFor(todayIso, firstDayOfWeek).map((dateIso) => [
       dateIso,
       { dateIso, allDay: [], timed: [], count: 0 },
     ]),
   );
-  return buildWeekStrip({ todayIso, itemCountFor: () => 0 }).map((day) => ({
+  return buildWeekStrip({
+    todayIso,
+    firstDayOfWeek,
+    itemCountFor: () => 0,
+  }).map((day) => ({
     ...day,
     schedule: schedules.get(day.dateIso)!,
   }));
@@ -364,6 +383,7 @@ async function loadSchedule(
   now: Date,
   todayIso: string,
   timezone: string,
+  firstDayOfWeek: FirstDayOfWeek,
 ): Promise<{
   readonly schedule: DaySchedule;
   readonly week: readonly TodayWeekDay[];
@@ -381,7 +401,7 @@ async function loadSchedule(
    * occurrence projection read, one source list, two Meeting reads), so the week
    * costs what the day cost — the rows returned grow, the queries do not.
    */
-  const dates = weekDatesFor(todayIso);
+  const dates = weekDatesFor(todayIso, firstDayOfWeek);
   const data = await loadScheduleWindow(scope, {
     fromDateIso: dates[0]!,
     toDateIso: dates[dates.length - 1]!,
@@ -402,6 +422,7 @@ async function loadSchedule(
   );
   const week: readonly TodayWeekDay[] = buildWeekStrip({
     todayIso,
+    firstDayOfWeek,
     itemCountFor: (dateIso) => schedules.get(dateIso)?.count ?? 0,
   }).map((day) => ({ ...day, schedule: schedules.get(day.dateIso)! }));
 
@@ -525,13 +546,16 @@ export async function loadTodayDay(
       trackedAsTasksCount: 0,
       overdueCount: 0,
     }),
-    safely(() => loadSchedule(scope, now, todayIso, timezone), {
-      schedule: { dateIso: todayIso, allDay: [], timed: [], count: 0 },
-      week: emptyWeek(todayIso),
-      meetings: [] as readonly DayMeeting[],
-      hasSources: false,
-      stale: false,
-    }),
+    safely(
+      () => loadSchedule(scope, now, todayIso, timezone, facts.firstDayOfWeek),
+      {
+        schedule: { dateIso: todayIso, allDay: [], timed: [], count: 0 },
+        week: emptyWeek(todayIso, facts.firstDayOfWeek),
+        meetings: [] as readonly DayMeeting[],
+        hasSources: false,
+        stale: false,
+      },
+    ),
     safely(() => readWaiting(scope, todayIso, timezone), {
       count: 0,
       oldestDays: null,

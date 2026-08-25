@@ -101,7 +101,7 @@ export function SummaryCards({
         <li key={item.id} className="dh-summary-cards__item">
           {item.href ? (
             <Link
-              className="dh-summary-card dh-summary-card--link"
+              className="dh-summary-card dh-summary-card--link md-state-layer"
               to={item.href}
               aria-label={item.ariaLabel ?? `${item.label}: ${item.value}`}
             >

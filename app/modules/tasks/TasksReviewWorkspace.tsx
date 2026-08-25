@@ -31,6 +31,7 @@ import { CollectionLayout } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { FormButton } from "~/shared/forms";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
+import { taskCompletionOutcome } from "~/shared/task-record/task-completion-outcome";
 
 import type { TasksReviewData } from "./tasks-contract";
 
@@ -44,6 +45,7 @@ export function TasksReviewWorkspace({
   const [searchParams] = useSearchParams();
   const [index, setIndex] = useState(0);
   const [announcement, setAnnouncement] = useState<string | null>(null);
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const settled = useRef<unknown>(null);
 
@@ -89,21 +91,47 @@ export function TasksReviewWorkspace({
       : null;
   }, [current?.id, current, items]);
 
+  /**
+   * DEBT-89 — report the ROUTE's answer, never the optimistic guess.
+   *
+   * This announced `"Task completed."` and revalidated as soon as the fetcher
+   * settled with ANY data, without reading it. `/tasks/:taskId` genuinely
+   * refuses a completion — an archived Project, a Task deleted in another tab,
+   * a storage failure — and this surface told the owner, and a screen reader
+   * through the `role="status"` region below, that the Task was done when it
+   * was not. On the one screen whose entire purpose is deciding what has been
+   * dealt with.
+   *
+   * The rule is the shared `taskCompletionOutcome`, the same pure function the
+   * guided weekly Review's Inbox step uses — one decision, so the announcement
+   * and the visible message cannot drift, and neither can the two surfaces.
+   * A refusal is SHOWN as well as announced, and the queue is NOT revalidated:
+   * the Task stays where the owner can retry it, exactly as `TaskQuickEditPanel`
+   * in this same file already behaves for every other field.
+   */
   useEffect(() => {
     if (completion.state !== "idle" || !completion.data) return;
     if (settled.current === completion.data) return;
     settled.current = completion.data;
-    setAnnouncement("Task completed.");
+    const outcome = taskCompletionOutcome(completion.data);
+    setAnnouncement(outcome.message);
+    if (!outcome.ok) {
+      setCompletionError(outcome.message);
+      return;
+    }
+    setCompletionError(null);
     revalidator.revalidate();
   }, [completion.state, completion.data, revalidator]);
 
   const skip = useCallback(() => {
     setIndex((value) => value + 1);
+    setCompletionError(null);
     setAnnouncement("Skipped to the next task.");
   }, []);
 
   const back = useCallback(() => {
     setIndex((value) => Math.max(0, value - 1));
+    setCompletionError(null);
   }, []);
 
   const complete = useCallback(() => {
@@ -208,6 +236,15 @@ export function TasksReviewWorkspace({
           >
             Reviewing task {position + 1} of {total}
           </h2>
+
+          {/* DEBT-89 — a refusal is SHOWN, not only announced: a sighted owner
+              looking at the button they just pressed has to be able to see that
+              nothing happened. */}
+          {completionError ? (
+            <p className="dh-task-review__error" role="alert">
+              {completionError}
+            </p>
+          ) : null}
 
           <TaskQuickEditPanel
             key={current.id}

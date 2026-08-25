@@ -279,10 +279,6 @@
   transition: background var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
-.dh-activity__btn:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 .dh-activity__btn:focus-visible {
   outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: var(--app-space-px);

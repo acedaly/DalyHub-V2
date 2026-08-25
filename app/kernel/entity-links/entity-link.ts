@@ -166,6 +166,38 @@ export type ListEntityLinksInput = {
 };
 
 /**
+ * Input to read the links of MANY entities at once (DEBT-124).
+ *
+ * Deliberately has no `cursor`: this answers "what is linked to each of these
+ * rows?" for a collection page, which is a bounded context read rather than a
+ * paginated list. The bound is PER ENTITY, so one heavily-linked record cannot
+ * starve the rest of the page.
+ */
+export type ListEntityLinksForEntitiesInput = {
+  /** Source (`outgoing`), target (`incoming`) or both. Defaults to `both`. */
+  readonly direction?: EntityLinkDirectionFilter;
+  /** Optional filter to a single link type. */
+  readonly type?: string;
+  /**
+   * The most links to return FOR EACH entity. Clamped to
+   * `[1, MAX_LINKS_PER_ENTITY]`; defaults to `DEFAULT_LINKS_PER_ENTITY`.
+   */
+  readonly limitPerEntity?: number;
+};
+
+/** The default per-entity bound: enough counterparts for a row to read well. */
+export const DEFAULT_LINKS_PER_ENTITY = 5;
+
+/**
+ * The ceiling on the per-entity bound.
+ *
+ * A collection row draws a handful of counterparts; anything more is a record
+ * surface's job, and letting a page ask for fifty each would turn a context read
+ * back into an unbounded one by a different route.
+ */
+export const MAX_LINKS_PER_ENTITY = 20;
+
+/**
  * A bounded page of link views plus the information needed to request the next
  * page. `nextCursor` is null when there are no further records.
  */

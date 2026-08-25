@@ -6,7 +6,8 @@
  * Drawer and Record Layout components over DS-01 tokens — no bespoke card or filter
  * logic here:
  *   - the same Card renders Areas, Goals, Projects, Tasks and People;
- *   - comfortable/compact density and list/board/grid presentation;
+ *   - comfortable/compact density (DEBT-113 retired the board/grid
+ *     presentations, which no product surface ever constructed);
  *   - selection, multi-selection and quick actions that never open the card;
  *   - pointer + keyboard reordering that emits intent (no data mutation);
  *   - URL-backed filters (status/type/text/progress/date), AND/OR, chips,
@@ -25,7 +26,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
-import { Card, CardCollection } from "~/shared/card";
+import { Card } from "~/shared/card";
 import type { CardProps, CardTone } from "~/shared/card";
 import { SortableHandle, SortableList } from "~/shared/drag";
 import { withDrawerPushed } from "~/shared/drawer";
@@ -387,15 +388,12 @@ function applyDisplayedOrder(
 /* -------------------------------------------------------------------------- */
 
 type Density = "comfortable" | "compact";
-type Presentation = "list" | "board" | "grid";
-
 function CollectionSurface() {
   const [searchParams] = useSearchParams();
   const { expression, setExpression } = useFilterUrlState(FIELDS);
   const { openDrawer } = useDrawer();
 
   const [density, setDensity] = useState<Density>("comfortable");
-  const [presentation, setPresentation] = useState<Presentation>("list");
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
     RECORDS.map((record) => record.id),
   );
@@ -500,9 +498,8 @@ function CollectionSurface() {
       href: drawerHref(record.id),
       onOpen: () => openDrawer(record.id),
       density,
-      presentation,
     }),
-    [density, presentation, selected, toggleSelected, drawerHref, openDrawer],
+    [density, selected, toggleSelected, drawerHref, openDrawer],
   );
 
   const clearFilters = () => setExpression({ mode: "and", clauses: [] });
@@ -569,21 +566,6 @@ function CollectionSurface() {
           ))}
         </fieldset>
 
-        <fieldset className="cf-demo__group">
-          <legend>Presentation</legend>
-          {(["list", "board", "grid"] as const).map((value) => (
-            <label key={value}>
-              <input
-                type="radio"
-                name="presentation"
-                checked={presentation === value}
-                onChange={() => setPresentation(value)}
-              />
-              {value}
-            </label>
-          ))}
-        </fieldset>
-
         <div className="cf-demo__group">
           <button
             type="button"
@@ -644,23 +626,6 @@ function CollectionSurface() {
             description="Try removing a filter to see more."
             onClearFilters={clearFilters}
           />
-        ) : presentation === "board" ? (
-          <BoardView
-            records={filtered}
-            density={density}
-            toCardProps={toCardProps}
-          />
-        ) : presentation === "grid" ? (
-          <CardCollection
-            items={filtered}
-            getItemId={(record) => record.id}
-            ariaLabel="Records"
-            presentation="grid"
-            density={density}
-            renderCard={(record) => (
-              <Card {...toCardProps(record)} headingLevel={2} />
-            )}
-          />
         ) : (
           /*
            * DHDS-11 — the demo draws the PRODUCT's reorder surface.
@@ -711,45 +676,6 @@ function CollectionSurface() {
         ))}
       </div>
       <div data-testid="page-bottom">End of fixture.</div>
-    </div>
-  );
-}
-
-function BoardView({
-  records,
-  density,
-  toCardProps,
-}: {
-  records: readonly FixtureRecord[];
-  density: Density;
-  toCardProps: (record: FixtureRecord) => CardProps;
-}) {
-  const columns = TYPE_OPTIONS.map((option) => ({
-    ...option,
-    records: records.filter((record) => record.type === option.value),
-  })).filter((column) => column.records.length > 0);
-
-  return (
-    <div className="cf-demo__board">
-      {columns.map((column) => (
-        <section
-          key={column.value}
-          className="cf-demo__board-column"
-          aria-label={`${column.label} column`}
-        >
-          <h2 className="cf-demo__board-heading">{column.label}</h2>
-          <CardCollection
-            items={column.records}
-            getItemId={(record) => record.id}
-            ariaLabel={`${column.label} records`}
-            presentation="board"
-            density={density}
-            renderCard={(record) => (
-              <Card {...toCardProps(record)} presentation="board" />
-            )}
-          />
-        </section>
-      ))}
     </div>
   );
 }

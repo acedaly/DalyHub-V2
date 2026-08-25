@@ -203,10 +203,6 @@
   cursor: pointer;
 }
 
-.dh-meeting-capturebar__type:hover {
-  background: color-mix(in srgb, var(--dh-color-text) 8%, transparent);
-}
-
 /*
  * Selected: aria-pressed (semantic) + a filled container + weight — never
  * colour alone.
@@ -776,6 +772,22 @@
 .dh-meetings-list__status {
   font-weight: 600;
   color: var(--dh-color-text-muted);
+}
+
+/*
+ * DEBT-124 — "with whom", in the row's own metadata line.
+ *
+ * It takes the line's inherited muted colour and size rather than a treatment
+ * of its own: it is one more fact about the meeting, beside the duration and
+ * the place, not a new kind of thing. It ellipsises rather than wrapping the
+ * line onto a third row on a phone — the names are recognition, and the record
+ * is one tap away for the full list.
+ */
+.dh-meetings-list__who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-inline-size: 100%;
 }
 
 .dh-meetings-list__join {
