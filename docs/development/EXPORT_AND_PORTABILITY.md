@@ -463,7 +463,8 @@ These are real and recorded rather than hidden.
   `dalyhub-snapshot.json` still carries `actorType`/`actorId` verbatim — it is a
   faithful record of the database, and the owner's own copy of their own ids.
 - **AI preferences are deliberately NOT exported** (DEBT-94), and every archive
-  says so in `limitations` under `owner.aiPreferences`. Those rows hold a
+  names the omission in the manifest's `excluded` list, beside notification
+  settings and the subscribed calendars. Those rows hold a
   spending budget, feature switches and a privacy consent; a restore that
   quietly re-enabled all three would spend the owner's money and re-grant a
   consent they may have withdrawn. An archive that loses a setting is

@@ -144,7 +144,7 @@ Six entries, one shape: a rule the product had **stated** and nothing
 | DEBT-40 | a colliding migration number is cited by filename | a scan of every `.md` under `docs/` |
 | DEBT-172 | the worker and its manifest are bounded separately | two ceilings, plus one that they account for the served file |
 | DEBT-33 | a preference change belongs in the history | one helper every write goes through |
-| DEBT-94 | what the export cannot carry is NAMED | an unconditional limitation, and a test that the omission stays narrow |
+| DEBT-94 | what the export cannot carry is NAMED | the manifest's `excluded` list, and a test that the omission stays narrow |
 
 ---
 
@@ -241,7 +241,7 @@ says so in its own entry.
 | DEBT-60 | P3 | Help and About get mobile titles |
 | DEBT-65 | P3 | one grouped read per Meetings page |
 | DEBT-67 | P3 | **already resolved** by THEME-01 (ADR-089) |
-| DEBT-94 | P3 | the export names the setting it deliberately does not carry |
+| DEBT-94 | P3 | the manifest names the setting the export deliberately does not carry |
 | DEBT-104 | P3 | the unreachable route deleted |
 | DEBT-113 | P3 | `CardPresentation` narrowed to `"list"` |
 | DEBT-114 | P3 | `insights.css` → `charts.css` |
@@ -282,6 +282,16 @@ week**. `create` is idempotent per `(type, period)`, so it was asserting about
 **one** Review completed twice, and would have passed against the defect. Fixed
 by giving each seed its own week and asserting `viaField !== viaCommand`;
 falsification then produced two failures instead of one.
+
+**The right decision in the wrong place.** DEBT-94's closure first pushed the
+AI-preferences exclusion into the snapshot's `limitations` — which means
+*something happened during THIS export*, not *this is a property of the schema*.
+It made "this export hit no problems" inexpressible, and
+`workspace-restore.test.ts`'s round-trip assertion, `expect(source.limitations)
+.toEqual([])`, caught it in the full kernel suite. The exclusion moved to the
+manifest's `excluded` list, beside notification settings and calendars — where
+`manifest.ts`'s own comment had already predicted it belonged. **The full gate
+is not a formality; it found this.**
 
 **A race that does not reproduce locally.** DEBT-202's E2E journey passed against
 the *previous* implementation when run here, and the entry says so plainly. It is

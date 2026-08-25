@@ -150,6 +150,41 @@ describe("buildExportManifest", () => {
     expect(excluded).toContain("Calendar sources");
   });
 
+  /*
+   * DEBT-94 — AI preferences are the one kind of owner CONFIGURATION the
+   * snapshot does not carry, and the decision is to keep it that way.
+   *
+   * Those rows hold a spending budget, feature switches and a privacy CONSENT.
+   * A restore that quietly re-enabled all three would spend the owner's money
+   * and re-grant a consent they may have withdrawn. An archive that loses a
+   * setting is recoverable in a minute; one that silently restores a consent is
+   * not — so it is excluded, and NAMED, which is what the export contract
+   * requires of every omission.
+   *
+   * Asserted HERE rather than in `limitations`, and the distinction is the
+   * point: `limitations` means something happened during THIS export.
+   * A standing exclusion is a property of the schema.
+   */
+  it("names the AI-preferences omission, and what to do about it", () => {
+    const excluded = manifest.excluded.join(" ");
+    expect(
+      excluded,
+      "an export that claims to carry the owner's configuration and silently " +
+        "omits their AI budget, feature switches and privacy consent is not " +
+        "an honest archive (DEBT-94)",
+    ).toContain("AI preferences");
+    expect(excluded).toContain("consent");
+    // The sentence has to tell the owner what to DO, not only what happened.
+    expect(excluded).toContain("Re-set them from Settings");
+  });
+
+  it("keeps that omission NARROW — every other owner setting is carried", () => {
+    const excluded = manifest.excluded.join(" ");
+    expect(excluded).toContain(
+      "every other owner preference and saved view is carried",
+    );
+  });
+
   it("says what a restored workspace comes back WITHOUT", () => {
     // Not just the table names: the sentence an owner reads has to tell them
     // what they will have to set up again.
