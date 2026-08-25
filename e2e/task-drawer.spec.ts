@@ -109,6 +109,75 @@ test.describe("TODAY-02 — desktop", () => {
     await expect(relationships.getByText("DalyHub V2")).toBeVisible();
   });
 
+  /**
+   * DEBT-202 — text typed BEFORE the editor enhances reaches the server.
+   *
+   * The journey above deliberately waits for `data-editor-ready` first, which is
+   * the right thing for a test about editing and the wrong thing for a test
+   * about this defect: waiting is precisely what hides it. This one refuses to
+   * wait, which is what an owner does when they open a record and start typing.
+   *
+   * It asserts what was SENT, not what the read view shows, because the defect
+   * writes a plausible value and reports success — a DOM assertion can pass
+   * while the author's text is gone, which is exactly how it survived until a
+   * request body was read.
+   */
+  test("keeps what was typed before the Markdown editor enhanced", async ({
+    page,
+  }) => {
+    /*
+     * The race is made DETERMINISTIC rather than hoped for.
+     *
+     * `LiveMarkdownEditor` reaches CodeMirror through three dynamic imports, and
+     * the window this defect lives in is however long they take. On a warm chunk
+     * and a fast machine that is a few milliseconds, so a test that merely
+     * declines to wait passes either way and proves nothing — which is precisely
+     * how this survived: it went red on CI run 32607890703 and green on every
+     * run before it. Holding the chunk open for a second reproduces the cold
+     * first-visit case an owner actually meets, every time.
+     */
+    await page.route(/codemirror|editor-setup/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      await route.continue();
+    });
+
+    await gotoFixture(page, DRAWER_URL);
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "Edit details" }).click();
+
+    // NO `waitForEditorReady` — that is the whole point of this journey. The
+    // surface being typed into is asserted to be the un-enhanced fallback,
+    // because a journey that silently ran against the enhanced editor would be
+    // testing the thing the OTHER journey already tests.
+    const typed = `Typed before enhancement ${Date.now()}`;
+    const description = dialog.getByRole("textbox", { name: "Description" });
+    await expect(description).toHaveJSProperty("tagName", "TEXTAREA");
+    await expect(
+      dialog.locator('.dh-md-editor[data-editor-ready="true"]'),
+    ).toHaveCount(0);
+    await description.fill(typed);
+
+    // Let the enhancement land, so the handoff this journey is about actually
+    // happens before the save rather than after it.
+    await waitForEditorReady(dialog);
+
+    const submission = page.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        request.url().includes("/tasks/t-drawer"),
+    );
+    await dialog.getByRole("button", { name: "Save changes" }).click();
+    const body = (await submission).postData() ?? "";
+
+    // Every character, in the form data the server actually received.
+    expect(decodeURIComponent(body.replace(/\+/g, " "))).toContain(typed);
+
+    // And it really landed: the read view renders it, and so does a reload.
+    await expect(dialog.getByText(typed)).toBeVisible();
+    await gotoFixture(page, DRAWER_URL);
+    await expect(page.getByRole("dialog").getByText(typed)).toBeVisible();
+  });
+
   test("edits and saves, and the result persists after reload", async ({
     page,
   }) => {
