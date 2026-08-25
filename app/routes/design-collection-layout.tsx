@@ -30,7 +30,7 @@ import { EntityIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { FilterBar, filterRecords, useFilterUrlState } from "~/shared/filters";
 import type { FilterExpression, FilterFieldRegistry } from "~/shared/filters";
-import { BoardIcon, GridIcon, ListIcon, PlusIcon } from "~/shared/icons";
+import { PlusIcon } from "~/shared/icons";
 import { RecordContent, RecordLayout } from "~/shared/record-layout";
 
 import "~/styles/collection-demo.css";
@@ -39,7 +39,6 @@ export function meta() {
   return [{ title: "Collection Layout · DalyHub design fixtures" }];
 }
 
-type Presentation = "list" | "board" | "grid";
 type Mode = "content" | "loading" | "empty";
 
 interface ProjectRecord {
@@ -116,43 +115,11 @@ const STATUS_TONE: Record<ProjectRecord["status"], CardProps["status"]> = {
   done: { label: "Done", tone: "success" },
 };
 
-function ViewSwitcher({
-  value,
-  onChange,
-}: {
-  readonly value: Presentation;
-  readonly onChange: (next: Presentation) => void;
-}) {
-  const options: { id: Presentation; label: string; Icon: typeof ListIcon }[] =
-    [
-      { id: "list", label: "List", Icon: ListIcon },
-      { id: "board", label: "Board", Icon: BoardIcon },
-      { id: "grid", label: "Grid", Icon: GridIcon },
-    ];
-  return (
-    <div className="dh-view-switcher" role="group" aria-label="View">
-      {options.map(({ id, label, Icon }) => (
-        <button
-          key={id}
-          type="button"
-          className="dh-view-switcher__option"
-          aria-pressed={value === id}
-          onClick={() => onChange(id)}
-        >
-          <Icon />
-          <span className="dh-visually-hidden">{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function CollectionDemo() {
   const [searchParams] = useSearchParams();
   const { expression, setExpression } = useFilterUrlState(FIELDS);
   const { openDrawer } = useDrawer();
 
-  const [presentation, setPresentation] = useState<Presentation>("list");
   const [mode, setMode] = useState<Mode>("content");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
@@ -196,16 +163,12 @@ function CollectionDemo() {
       selected: selected.has(record.id),
       onSelectedChange: (on) => toggleSelected(record.id, on),
     },
-    presentation,
   });
 
   return (
     <CollectionLayout
       title="Projects"
       subtitle={`${filtered.length} of ${source.length} shown`}
-      viewSwitcher={
-        <ViewSwitcher value={presentation} onChange={setPresentation} />
-      }
       primaryAction={
         <button type="button" className="dh-demo-primary">
           <PlusIcon />
@@ -240,7 +203,6 @@ function CollectionDemo() {
       isLoading={isLoading}
       isEmpty={isEmpty}
       isFilteredEmpty={isFilteredEmpty}
-      presentation={presentation}
       emptySlot={
         <EmptyState
           icon={<EntityIcon type="project" size={28} />}
@@ -289,7 +251,6 @@ function CollectionDemo() {
         getItemId={(record) => record.id}
         renderCard={(record) => <Card {...toCard(record)} />}
         ariaLabel="Projects"
-        presentation={presentation}
       />
     </CollectionLayout>
   );

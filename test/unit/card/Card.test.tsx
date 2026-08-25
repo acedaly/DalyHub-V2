@@ -86,20 +86,29 @@ describe("Card — density & presentation (one component)", () => {
     expect(article).toHaveAttribute("data-card-density", "comfortable");
     expect(article).toHaveAttribute("data-presentation", "list");
 
-    for (const presentation of ["board", "grid"] as const) {
-      rerender(
-        <Card
-          id="a"
-          title="T"
-          density="compact"
-          presentation={presentation}
-          onOpen={() => {}}
-        />,
-      );
-      article = screen.getByRole("article");
-      expect(article).toHaveAttribute("data-card-density", "compact");
-      expect(article).toHaveAttribute("data-presentation", presentation);
-    }
+    /*
+     * DEBT-113 — `list` is the only presentation now.
+     *
+     * This loop asserted `board` and `grid` too, which is how a dead branch
+     * stays alive: nothing in the product ever constructed either, the grids
+     * that used to (Projects, Goals, Areas) moved to
+     * `EntityCard`/`EntityCardGrid`, and `card.css` still carried a documented
+     * rule for a grid card that `card-family.css` contradicted. The density
+     * half of what it covered is what survives, over the presentation that
+     * exists.
+     */
+    rerender(
+      <Card
+        id="a"
+        title="T"
+        density="compact"
+        presentation="list"
+        onOpen={() => {}}
+      />,
+    );
+    article = screen.getByRole("article");
+    expect(article).toHaveAttribute("data-card-density", "compact");
+    expect(article).toHaveAttribute("data-presentation", "list");
   });
 });
 

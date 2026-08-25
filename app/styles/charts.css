@@ -8,9 +8,12 @@
  * every surface that draws a Goal trend or a workload comparison must get the
  * same chart, and there is exactly one place to change it.
  *
- * (`TrendBars`' own rules still live in `insights.css`, where REVIEW-03 left
- * them. Moving them is a tidy-up for the stylesheet that owns them, not for this
- * change — see PRODUCT_DEBT.)
+ * (DEBT-114 — `TrendBars`' rules are here too now. They lived in
+ * `insights.css`, a MODULE stylesheet for the Reviews insight panel, which
+ * meant the next surface to use a shared chart had to import a Reviews
+ * stylesheet to get it. `ProgressRing` stays in `progress.css` as the
+ * deliberate exception, stated rather than moved: it shares its tokens with the
+ * linear progress track it must match, and belongs beside it.)
  *
  * Rules every chart here follows:
  *   - colour is never the only signal. Each series is named in a legend and its
@@ -553,4 +556,98 @@
   .dh-linechart__projection-key {
     border-block-start-color: CanvasText;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* TrendBars (moved here from `insights.css` by DEBT-114 — REVIEW-03's own)    */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The chart itself. It is always exactly as wide as its container and never
+ * wider, so no Review can overflow horizontally on a phone — the bars get
+ * narrower, the numbers below them wrap.
+ */
+.dh-trend {
+  display: grid;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+/*
+ * `--app-trend-width` is set by the component from the number of periods, so a
+ * two-period trend is a small chart and a six-period one is a wider chart — and
+ * neither is a full-bleed slab across a desktop. It always yields to the
+ * container, so a phone simply gets narrower bars. The SUMMARY sentence below
+ * is deliberately not constrained by it: prose gets the full measure.
+ */
+.dh-trend__plot,
+.dh-trend__axis {
+  max-inline-size: min(100%, var(--app-trend-width, 24rem));
+}
+
+.dh-trend__plot {
+  inline-size: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.dh-trend__bar {
+  fill: var(--dh-color-accent-subtle);
+}
+
+/* The period being reviewed is the stronger tone — and it is also the only one
+ * labelled as current in the summary sentence, so the emphasis is never the
+ * only cue. */
+.dh-trend__bar[data-current="true"] {
+  fill: var(--dh-color-accent);
+}
+
+/* In forced-colours mode fills collapse; an explicit stroke keeps the bars
+ * visible as shapes rather than disappearing into the background. */
+@media (forced-colors: active) {
+  .dh-trend__bar {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1;
+  }
+  .dh-trend__bar[data-current="true"] {
+    fill: Highlight;
+  }
+}
+
+.dh-trend__axis {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--app-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.dh-trend__axis li {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.dh-trend__value {
+  font-size: var(--dh-text-label-size);
+  font-weight: 500;
+  color: var(--dh-color-text);
+}
+
+.dh-trend__label {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-trend__summary {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
 }

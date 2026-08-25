@@ -15,7 +15,7 @@ import { env } from "cloudflare:test";
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { setAuthenticatedSession } from "~/platform/request";
 import { action as taskAction } from "~/modules/tasks/routes/task-detail";
-import { action as planAction } from "~/modules/today/routes/plan";
+import { action as tasksBulkAction } from "~/modules/tasks/routes/bulk";
 import {
   TASK_PLANNED,
   TASK_PLAN_CLEARED,
@@ -483,15 +483,30 @@ function authedContext(): RouterContextProvider {
   return context;
 }
 
+/**
+ * DEBT-104 — bulk planning goes through `/tasks/bulk`, the ONE bulk path.
+ *
+ * These four journeys used to drive `/today/plan`, which was posted to by
+ * Today's multi-select bulk bar until the 2026-08 redesign replaced that
+ * collection with plain rows. Nothing called it afterwards, and it survived as
+ * a discoverable, tested, stale surface — the trap any unreferenced shared
+ * route sets: the next agent builds against it rather than against the module
+ * that owns the act.
+ *
+ * Retiring it would have deleted the only ROUTE-level coverage bulk planning
+ * had, because `/tasks/bulk` had none. So the coverage moved with the
+ * capability: the same four properties, over the surviving path, against the
+ * same kernel authority (`planTasks` / `clearPlans`) both routes always called.
+ */
 async function runPlan(form: FormData): Promise<Response> {
-  return planAction({
-    request: new Request("https://app.test/today/plan", {
+  return tasksBulkAction({
+    request: new Request("https://app.test/tasks/bulk", {
       method: "POST",
       body: form,
     }),
     context: authedContext(),
     params: {},
-  } as unknown as Parameters<typeof planAction>[0]) as Promise<Response>;
+  } as unknown as Parameters<typeof tasksBulkAction>[0]) as Promise<Response>;
 }
 
 async function runTaskAction(
@@ -508,7 +523,7 @@ async function runTaskAction(
   } as unknown as Parameters<typeof taskAction>[0]) as Promise<Response>;
 }
 
-describe("route: /today/plan", () => {
+describe("route: /tasks/bulk — planning intents (DEBT-104)", () => {
   it("bulk-plans the submitted ids and persists them", async () => {
     const a = await seedTask(WS, "A");
     const b = await seedTask(WS, "B");
@@ -520,8 +535,8 @@ describe("route: /today/plan", () => {
 
     const res = await runPlan(form);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { status: string; changed: number };
-    expect(body.status).toBe("success");
+    const body = (await res.json()) as { ok: boolean; changed: number };
+    expect(body.ok).toBe(true);
     expect(body.changed).toBe(2);
     expect(await storedScheduled(WS, a)).toBe("2026-07-21");
   });
@@ -536,8 +551,8 @@ describe("route: /today/plan", () => {
     form.set("scheduledDate", "2026-07-21");
 
     const res = await runPlan(form);
-    const body = (await res.json()) as { status: string };
-    expect(body.status).toBe("error");
+    const body = (await res.json()) as { ok: boolean };
+    expect(body.ok).toBe(false);
     expect(await storedScheduled(WS, a)).toBeNull();
   });
 
@@ -549,18 +564,18 @@ describe("route: /today/plan", () => {
     form.append("id", a);
 
     const res = await runPlan(form);
-    const body = (await res.json()) as { status: string; changed: number };
-    expect(body.status).toBe("success");
+    const body = (await res.json()) as { ok: boolean; changed: number };
+    expect(body.ok).toBe(true);
     expect(body.changed).toBe(1);
     expect(await storedScheduled(WS, a)).toBeNull();
   });
 
   it("rejects a non-POST method with 405", async () => {
-    const res = await planAction({
-      request: new Request("https://app.test/today/plan", { method: "GET" }),
+    const res = await tasksBulkAction({
+      request: new Request("https://app.test/tasks/bulk", { method: "GET" }),
       context: authedContext(),
       params: {},
-    } as unknown as Parameters<typeof planAction>[0]).catch(
+    } as unknown as Parameters<typeof tasksBulkAction>[0]).catch(
       (r: unknown) => r as Response,
     );
     expect((res as Response).status).toBe(405);

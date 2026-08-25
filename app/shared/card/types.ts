@@ -42,8 +42,22 @@ export type CardTone =
 /** Comfortable (default) or compact vertical rhythm. */
 export type CardDensity = "comfortable" | "compact";
 
-/** The presentation context. The SAME component adapts spacing/placement. */
-export type CardPresentation = "list" | "board" | "grid";
+/**
+ * The presentation context.
+ *
+ * DEBT-113 — `list` is the only member, because it is the only one any surface
+ * ever constructed. `board` and `grid` were accepted and styled, and the grids
+ * that used to take them (Projects, Goals, Areas) moved to
+ * `EntityCard`/`EntityCardGrid` — a different family with a different treatment
+ * — so the product carried a documented rule for grid cards that governed
+ * nothing, and a live rule elsewhere that said the opposite.
+ *
+ * It stays a named type rather than becoming a literal: a presentation is a
+ * real axis of this component, and a second one is legitimate the day a surface
+ * genuinely needs it — at which point `card-family.css` and this file have to
+ * be reconciled deliberately rather than by accident.
+ */
+export type CardPresentation = "list";
 
 /**
  * MOBILE-01 — how much a metadata entry earns on a small card.
