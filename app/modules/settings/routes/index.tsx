@@ -17,7 +17,9 @@ import {
   parseLandingDestination,
   parseTaskCaptureParentId,
   parseTaskDefaultView,
+  APP_PREFERENCES_CHANGED,
   parseTimezone,
+  preferencesChangedPayload,
   resolveNavigationPreferences,
   type AppPreferencePatch,
   type DateFormat,
@@ -503,6 +505,45 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   };
 }
 
+/**
+ * DEBT-33 — update the owner's preferences, and record THAT they changed.
+ *
+ * One helper rather than a `workspaceEvents.record` beside each
+ * `appPreferences.update`, because "beside each" is a convention and this file
+ * has six of them: a seventh branch would be one nobody remembered. Every
+ * preference write in this action goes through here, so the event cannot be
+ * forgotten by adding a branch.
+ *
+ * The payload names the FIELDS and never their values (see
+ * `preference-events.ts` — a timezone is a location, a capture parent is a
+ * record id).
+ *
+ * Recording is BEST-EFFORT, at the call site, exactly as SET-03's seam
+ * requires: failing to write history must never fail the owner's actual change,
+ * which has already been made durable by the line above. A recorder failure is
+ * swallowed here and nowhere deeper — the seam itself still rejects loudly.
+ */
+async function updatePreferences(
+  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+  subject: string,
+  patch: Parameters<typeof scope.appPreferences.update>[1],
+  options?: Parameters<typeof scope.appPreferences.update>[2],
+): Promise<void> {
+  await scope.appPreferences.update(subject, patch, options);
+  const payload = preferencesChangedPayload(
+    patch as Readonly<Record<string, unknown>>,
+  );
+  if (payload === null) return;
+  try {
+    await scope.workspaceEvents.record({
+      type: APP_PREFERENCES_CHANGED,
+      payload,
+    });
+  } catch {
+    // Deliberately silent. See above: the preference IS saved.
+  }
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     throw new Response("Method Not Allowed", { status: 405 });
@@ -517,7 +558,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       const field = String(form.get("field") ?? "");
       const value = String(form.get("value") ?? "");
       const patch = patchForField(field, value);
-      await scope.appPreferences.update(session.user.subject, patch);
+      await updatePreferences(scope, session.user.subject, patch);
       return json({ ok: true });
     }
     if (intent === "update-task-capture-parent") {
@@ -525,7 +566,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         String(form.get("parentId") ?? ""),
       );
       if (parentId === null) {
-        await scope.appPreferences.update(session.user.subject, {
+        await updatePreferences(scope, session.user.subject, {
           defaultTaskDestination: "inbox",
           defaultTaskCaptureParentId: null,
           defaultTaskCaptureParentKind: null,
@@ -542,7 +583,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           400,
         );
       }
-      await scope.appPreferences.update(session.user.subject, {
+      await updatePreferences(scope, session.user.subject, {
         defaultTaskDestination: "chosen_parent",
         defaultTaskCaptureParentId: parent.id,
         defaultTaskCaptureParentKind: parent.kind,
@@ -599,7 +640,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         const hidden = new Set(resolved.preferences.hiddenModuleIds);
         if (visible) hidden.delete(moduleId);
         else hidden.add(moduleId);
-        await scope.appPreferences.update(
+        await updatePreferences(
+          scope,
           session.user.subject,
           { navigation: { version: 1, hiddenModuleIds: [...hidden] } },
           { expectedVersion: current.version },
@@ -633,7 +675,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       return json({ ok: true });
     }
     if (intent === "reset-navigation") {
-      await scope.appPreferences.update(session.user.subject, {
+      await updatePreferences(scope, session.user.subject, {
         navigation: DEFAULT_APP_PREFERENCES.navigation,
       });
       return json({ ok: true });

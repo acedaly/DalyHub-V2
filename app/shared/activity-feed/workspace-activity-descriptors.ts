@@ -272,6 +272,71 @@ function captureReceived(): ActivityTypeDescriptor {
   };
 }
 
+/**
+ * DEBT-33 — a descriptor for an ordinary preference change.
+ *
+ * The second descriptor that reads a payload, and it reads the same kind of
+ * thing `captureReceived` does: a bounded enum, never text anybody typed. The
+ * payload carries FIELD NAMES only (`preference-events.ts` explains why — a
+ * timezone is a location and a capture parent is a record id), and this maps
+ * them to the words the settings screen itself uses.
+ *
+ * A name that is not on the map is dropped rather than echoed, so a field added
+ * to the kernel allowlist without a label here degrades to "their settings"
+ * instead of rendering a raw key at an owner.
+ */
+const PREFERENCE_FIELD_LABELS: Record<string, string> = {
+  appearance: "appearance",
+  colorScheme: "colour scheme",
+  dateFormat: "date format",
+  defaultDiaryMode: "default Diary view",
+  defaultLandingDestination: "landing screen",
+  defaultTaskCaptureParentId: "where captured Tasks go",
+  defaultTaskCaptureParentKind: "where captured Tasks go",
+  defaultTaskDestination: "where captured Tasks go",
+  defaultTaskViewId: "default Tasks view",
+  defaultTasksView: "default Tasks view",
+  firstDayOfWeek: "first day of the week",
+  navigation: "navigation",
+  timezone: "timezone",
+};
+
+/** "a", "a and b", "a, b and c" — the Oxford-free list the product uses. */
+function readableList(items: readonly string[]): string {
+  if (items.length === 1) return items[0]!;
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+function preferencesChanged(): ActivityTypeDescriptor {
+  return {
+    label: "Changed settings",
+    describe: (base) => {
+      const raw = base.payload.fields;
+      const labels = Array.isArray(raw)
+        ? [
+            ...new Set(
+              raw
+                .map((field) =>
+                  typeof field === "string"
+                    ? PREFERENCE_FIELD_LABELS[field]
+                    : undefined,
+                )
+                .filter((label): label is string => label !== undefined),
+            ),
+          ]
+        : [];
+      const what =
+        labels.length === 0 ? "their settings" : readableList(labels);
+      return {
+        segments: [
+          { kind: "actor" },
+          { kind: "text", text: ` changed ${what}` },
+        ],
+      };
+    },
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* The curated cross-module set                                               */
 /* -------------------------------------------------------------------------- */
@@ -460,17 +525,8 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
     entityType: "review",
   }),
 
-  /* Settings --------------------------------------------------------------- */
-  [APP_PREFERENCES_CHANGED]: {
-    label: "Changed preferences",
-    describe: () => ({
-      segments: [
-        { kind: "actor" },
-        { kind: "text", text: " changed " },
-        { kind: "emphasis", text: "application preferences" },
-      ],
-    }),
-  },
+  /* Settings (DEBT-33) ------------------------------------------------------ */
+  [APP_PREFERENCES_CHANGED]: preferencesChanged(),
 };
 
 /**
