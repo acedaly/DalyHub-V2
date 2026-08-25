@@ -8,11 +8,12 @@
  */
 
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { TasksReviewWorkspace } from "~/modules/tasks/TasksReviewWorkspace";
 import type { TasksReviewData } from "~/modules/tasks/tasks-contract";
+import { TASK_COMPLETION_FALLBACK_ERROR } from "~/shared/task-record/task-completion-outcome";
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 
 function task(id: string, title: string): SerializedTaskListItem {
@@ -34,7 +35,16 @@ function task(id: string, title: string): SerializedTaskListItem {
   };
 }
 
-function renderReview(over: Partial<TasksReviewData> = {}) {
+function renderReview(
+  over: Partial<TasksReviewData> = {},
+  /**
+   * DEBT-89 — what the canonical Task route ANSWERS. The default is the
+   * acceptance every existing assertion here was written against; a refusal is
+   * the shape `/tasks/:taskId` genuinely returns for an archived Project, a
+   * Task deleted in another tab, or a storage failure.
+   */
+  taskAction: () => unknown = () => ({ kind: "update", status: "success" }),
+) {
   const data: TasksReviewData = {
     items: [task("t-1", "Book the dentist"), task("t-2", "Renew the rego")],
     nextCursor: null,
@@ -51,7 +61,7 @@ function renderReview(over: Partial<TasksReviewData> = {}) {
       { path: "/tasks/bulk", action: async () => ({ ok: true }) },
       {
         path: "/tasks/:taskId",
-        action: async () => ({ kind: "update", status: "success" }),
+        action: async () => taskAction(),
       },
     ],
     { initialEntries: ["/tasks/review"] },
@@ -164,5 +174,82 @@ describe("Review Inbox", () => {
       .map((node) => node.textContent ?? "")
       .join(" ");
     expect(status).toContain("Skipped to the next task.");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* DEBT-89 — the Review Inbox reports the ROUTE's answer                       */
+/* -------------------------------------------------------------------------- */
+
+describe("DEBT-89 — a REFUSED completion is not announced as a success", () => {
+  /*
+   * The failure mode, stated exactly: this surface announced "Task completed."
+   * as soon as the completion fetcher settled with any data at all, without
+   * reading it. `/tasks/:taskId` genuinely refuses — an archived Project
+   * (`TaskProjectArchivedError` / `SpineParentUnavailableError`), a Task deleted
+   * in another tab, any storage failure — and the owner, and a screen reader
+   * through the `role="status"` region, were told the work was done.
+   *
+   * Both assertions below FAIL against the previous implementation: the first
+   * because the region said "Task completed.", the second because there was no
+   * visible refusal anywhere on the page.
+   */
+  const REFUSAL = {
+    kind: "completion",
+    ok: false,
+    message: "That task's project is archived, so it can't be completed.",
+  } as const;
+
+  it("announces the route's own refusal instead of a success", async () => {
+    renderReview({}, () => REFUSAL);
+    fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+
+    await waitFor(() => {
+      const status = screen
+        .getAllByRole("status")
+        .map((node) => node.textContent ?? "")
+        .join(" ");
+      expect(status).toContain(REFUSAL.message);
+      expect(status).not.toContain("Task completed.");
+    });
+  });
+
+  it("SHOWS the refusal, so a sighted owner sees that nothing happened", async () => {
+    renderReview({}, () => REFUSAL);
+    fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(REFUSAL.message);
+  });
+
+  it("leaves the Task in the queue after a refusal, so it can be retried", async () => {
+    renderReview({}, () => REFUSAL);
+    fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+    await screen.findByRole("alert");
+    expect(
+      screen.getByRole("heading", { name: "Reviewing task 1 of 2" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Book the dentist" }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to a real sentence when the route refuses without one", async () => {
+    renderReview({}, () => ({ ok: false }));
+    fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      TASK_COMPLETION_FALLBACK_ERROR,
+    );
+  });
+
+  it("still announces a real completion as one", async () => {
+    renderReview({}, () => ({ kind: "completion", ok: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Complete" }));
+    await waitFor(() => {
+      const status = screen
+        .getAllByRole("status")
+        .map((node) => node.textContent ?? "")
+        .join(" ");
+      expect(status).toContain("Task completed.");
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

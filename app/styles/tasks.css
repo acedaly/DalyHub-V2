@@ -448,6 +448,20 @@
 /* The heading receives PROGRAMMATIC focus each time the reviewed task changes, and
    programmatic focus is not always `:focus-visible` — so the indicator is on `:focus`.
    A ring, never colour alone. */
+/*
+ * DEBT-89 — a refused completion, reported where it was attempted.
+ *
+ * The Review Inbox announced "Task completed." for every settled response and
+ * showed nothing at all. A refusal now uses the SAME wording, the same colour
+ * and the same measure the shared quick-edit panel's own refusal uses, because
+ * it is the same fact about the same route.
+ */
+.dh-task-review__error {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-on-danger-subtle);
+}
+
 .dh-task-review__progress:focus {
   outline: var(--app-border-width-thick) solid var(--dh-color-accent);
   outline-offset: 2px;

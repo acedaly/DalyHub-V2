@@ -24,6 +24,11 @@ import {
 } from "~/kernel/reviews";
 
 import type { SerializedReview, SerializedReviewSection } from "../review-view";
+import {
+  TASK_COMPLETION_FALLBACK_ERROR,
+  taskCompletionOutcome,
+  type TaskCompletionOutcome,
+} from "~/shared/task-record/task-completion-outcome";
 
 /* -------------------------------------------------------------------------- */
 /* The URL contract                                                            */
@@ -248,43 +253,14 @@ export function reviewCompletionSummary(
 /* Inbox completion outcome                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * What the canonical Task-completion route actually said.
+/*
+ * DEBT-89 — this decision moved to `~/shared/task-record`.
  *
- * `/tasks/:taskId` genuinely refuses a completion — an archived Project, a Task
- * deleted in another tab, any storage failure — and reports it as
- * `{ kind: "completion", ok: false, message }`. Announcing "Task completed" for
- * every settled response would tell the owner, and a screen reader, that work
- * finished when it did not.
- *
- * Kept pure and outside React so the decision is unit-tested directly rather
- * than through a fetcher, and so the announcement can never drift from the
- * visible message: both come from this one value.
+ * It is a fact about what the canonical TASK route answered, not about a
+ * Review, and the TASKS-04 Review Inbox had the same defect and could not reach
+ * a Reviews-module helper to fix it. The names below are kept so every existing
+ * caller and test still reads in the Review's words; the rule is one function.
  */
-export interface InboxCompletionOutcome {
-  readonly ok: boolean;
-  /** The sentence to show AND announce. Never a storage detail. */
-  readonly message: string;
-}
-
-/** The message shown when the route refused but said nothing useful. */
-export const INBOX_COMPLETION_FALLBACK_ERROR =
-  "That task couldn’t be completed. Please try again.";
-
-export function inboxCompletionOutcome(data: unknown): InboxCompletionOutcome {
-  const result = (data ?? {}) as {
-    readonly ok?: unknown;
-    readonly message?: unknown;
-    readonly formError?: unknown;
-  };
-  if (result.ok === false) {
-    const message =
-      typeof result.message === "string" && result.message.length > 0
-        ? result.message
-        : typeof result.formError === "string" && result.formError.length > 0
-          ? result.formError
-          : INBOX_COMPLETION_FALLBACK_ERROR;
-    return { ok: false, message };
-  }
-  return { ok: true, message: "Task completed." };
-}
+export type InboxCompletionOutcome = TaskCompletionOutcome;
+export const INBOX_COMPLETION_FALLBACK_ERROR = TASK_COMPLETION_FALLBACK_ERROR;
+export const inboxCompletionOutcome = taskCompletionOutcome;

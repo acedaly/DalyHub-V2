@@ -29,7 +29,9 @@ import {
   SettingsGroup,
   SettingsLayout,
   SettingsRow,
+  useImmediateSetting,
 } from "~/shared/settings";
+import { SelectField } from "~/shared/forms";
 
 import type {
   ReviewPeriodContext,
@@ -628,8 +630,6 @@ function ReviewSettings({
   readonly onSaved: () => void;
 }) {
   const [title, setTitle] = useState(review.title);
-  const [status, setStatus] = useState<ReviewStatus>(review.status);
-  const feedback = useFeedback();
   return (
     <SettingsLayout aria-label="Review settings">
       <SettingsGroup title="Name" headingLevel={2}>
@@ -663,54 +663,7 @@ function ReviewSettings({
         />
       </SettingsGroup>
       <SettingsGroup title="Status" headingLevel={2}>
-        <SettingsRow
-          label="Status"
-          description="Completion is reversible. Reopening clears the current completed timestamp while preserving history in Activity."
-          control={
-            <div className="dh-review-inline-form">
-              <select
-                className="dh-select"
-                value={status}
-                disabled={review.archived || review.status === "completed"}
-                onChange={(event) =>
-                  setStatus(event.currentTarget.value as ReviewStatus)
-                }
-                aria-label="Review status"
-              >
-                {REVIEW_STATUSES.map((value) => (
-                  <option key={value} value={value}>
-                    {value === "in_progress"
-                      ? "In progress"
-                      : value[0].toUpperCase() + value.slice(1)}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="dh-btn dh-btn--secondary"
-                type="button"
-                disabled={
-                  review.archived ||
-                  review.status === "completed" ||
-                  status === review.status
-                }
-                onClick={() => {
-                  void post("set_status", { status }).then((result) => {
-                    if (result.ok) {
-                      feedback.notifySuccess("Status changed");
-                      onSaved();
-                    } else {
-                      feedback.notifyError(
-                        result.formError ?? "That status couldn’t be saved.",
-                      );
-                    }
-                  });
-                }}
-              >
-                Save status
-              </button>
-            </div>
-          }
-        />
+        <ReviewStatusRow review={review} post={post} onSaved={onSaved} />
         <SettingsRow
           label={review.status === "completed" ? "Reopen" : "Complete"}
           description={
@@ -775,5 +728,97 @@ function ReviewSettings({
         <RecordDetails items={detailItems} label="Review record details" />
       </SettingsGroup>
     </SettingsLayout>
+  );
+}
+
+/**
+ * DEBT-187 — the Review's status, as ONE control and ONE press.
+ *
+ * It was a native `<select>` beside its own **Save status** button, in a row of
+ * shared controls, directly above a **Complete review** command — and the two
+ * were not equivalent. `set_status` wrote the column; `complete` also captured
+ * the REVIEW-03 snapshot the NEXT Review reads to say what changed. Choosing
+ * "Completed" from the select therefore completed a Review without one.
+ *
+ * Two changes, at two different layers, because the defect had two halves:
+ *
+ *   - **The semantic half is fixed at the SERVER** (`routes/mutate.tsx`):
+ *     `set_status` with `completed` now delegates to the completion path, so
+ *     there is no route to `completed` that skips the snapshot, whatever calls
+ *     it. Removing the option from this list alone would have been a guard any
+ *     other caller routes around.
+ *   - **The interaction half is fixed here**, on the precedent the Project's
+ *     equivalent row already set at M3-INT: the shared `SelectField` with
+ *     `useImmediateSetting`, so the choice saves on selection with
+ *     revert-on-failure, and the second press is gone.
+ *
+ * The list offers `draft` and `in progress` — the two values that are genuinely
+ * a choice. Completing is the command below, which is where it is discoverable
+ * and where it says what it does; a Review is not "set to completed", it is
+ * completed. Reopening likewise stays a command rather than a select value.
+ */
+function ReviewStatusRow({
+  review,
+  post,
+  onSaved,
+}: {
+  readonly review: SerializedReview;
+  readonly post: (
+    intent: string,
+    extra?: Record<string, string>,
+  ) => Promise<ReviewMutationResult>;
+  readonly onSaved: () => void;
+}) {
+  const setting = useImmediateSetting<ReviewStatus>({
+    initialValue: review.status,
+    successMessage: "Status changed",
+    errorMessage: "That status couldn’t be saved.",
+    feedbackKey: `review-status-${review.id}`,
+    onApply: async (next) => {
+      const result = await post("set_status", { status: next });
+      if (!result.ok) {
+        // Rejecting is what makes `useImmediateSetting` revert the control to
+        // the server's truth rather than leaving the owner's guess on screen.
+        throw new Error(
+          ("formError" in result && result.formError) ||
+            "That status couldn’t be saved.",
+        );
+      }
+      onSaved();
+    },
+  });
+
+  const readOnly = review.archived || review.status === "completed";
+
+  return (
+    <SettingsRow
+      label="Status"
+      description="Completion is reversible. Reopening clears the current completed timestamp while preserving history in Activity."
+      status={setting.pending ? "Saving…" : undefined}
+      statusLive
+      control={(ids) => (
+        <SelectField
+          id={ids.controlId}
+          label="Status"
+          labelledBy={ids.labelId}
+          describedBy={ids.describedById}
+          showOptionalCue={false}
+          value={readOnly ? review.status : setting.value}
+          disabled={readOnly || setting.pending}
+          options={REVIEW_STATUSES.filter(
+            // `completed` is reached by the command below, which is the one
+            // that says what completing a Review actually does.
+            (value) => value !== "completed" || review.status === "completed",
+          ).map((value) => ({
+            value,
+            label: value === "in_progress" ? "In progress" : "Draft",
+          }))}
+          onChange={(next) => {
+            if (next === setting.value || next.length === 0) return;
+            setting.apply(next as ReviewStatus);
+          }}
+        />
+      )}
+    />
   );
 }
