@@ -7,6 +7,7 @@
  * and it cannot contradict them without contradicting the block it was given.
  */
 
+import { isTaskStillOwed } from "~/kernel/tasks";
 import type { WeeklyReviewFacts } from "~/platform/ai";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -83,8 +84,23 @@ export async function computeWeeklyReviewFacts(
     periodStart,
     periodEnd,
     tasksCompleted: completedInPeriod.length,
+    /*
+     * V2.4-GATE-02 — overdue is "past due AND still owed", here too.
+     *
+     * `listTasks` excludes only COMPLETED work, so this counted a cancelled or
+     * Someday/Maybe Task with a passed deadline as overdue — the same untruth
+     * the Task row was telling, in a number the assistant reports to the owner.
+     * It asks the kernel rather than re-deriving the rule.
+     */
     tasksOverdue: open.filter(
-      (task) => task.dueDate !== null && task.dueDate < todayIso,
+      (task) =>
+        task.dueDate !== null &&
+        task.dueDate < todayIso &&
+        isTaskStillOwed({
+          completed: task.completedAt !== null,
+          status: task.status,
+          someday: task.commitmentState === "someday",
+        }),
     ).length,
     inboxRemaining: open.filter((task) => task.parent === null).length,
     activeProjects: parents.size,

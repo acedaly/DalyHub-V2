@@ -62,6 +62,10 @@ function signals(task: TaskSearchHit, todayIso: string): SearchResultSignal[] {
   const urgency = taskUrgency(
     {
       completedAt: task.completedAt ? task.completedAt.toISOString() : null,
+      // V2.4-GATE-02 — the two facts that, with completion, decide whether this
+      // date can still be late. The subtitle above already reads them.
+      status: task.status,
+      commitmentState: task.commitmentState,
       dueDate: task.dueDate,
       scheduledDate: task.scheduledDate,
     },

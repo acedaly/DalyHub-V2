@@ -233,6 +233,21 @@
  * accessible name; completion is always present and is what the row is for. A
  * row shows one of them at rest.
  *
+ * ── V2.4-GATE-02 — that sentence is now ENFORCED, not merely asserted ────────
+ * It was true of the design and false of two surfaces. Weekly Planning's queue
+ * had no selection MODE, so it was permanently in one and every row drew BOTH
+ * controls eight pixels apart; `/tasks` drew both whenever its own mode was on.
+ * `TaskRow` now REPLACES completion with selection rather than adding to it, so
+ * there is one control in the DOM and the rule cannot be broken by a caller.
+ *
+ * Two consequences live in this file. The selection control wears
+ * `.dh-check-circle-target` as well as its own class, so both acts occupy the
+ * SAME box and entering the mode moves no other cell — asserted by measurement
+ * at nine widths in both appearances. And the size above is superseded: the
+ * selection control is the design system's own 18px square
+ * (`.dh-checkbox__control`, D7), not the 16px this note described and not the
+ * unstyled `dh-checkbox__input` the queue was actually drawing.
+ *
  * The class name is unchanged. It is referenced from six stylesheets and a dozen
  * components, and renaming a stable hook to match a border-radius is churn that
  * would make this diff unreadable for no behavioural gain.

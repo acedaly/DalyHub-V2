@@ -19,7 +19,7 @@ import {
   taskSelectionReducer,
   type TaskSelectionAction,
   type TaskSelectionState,
-} from "~/modules/tasks/task-selection";
+} from "~/shared/task-record/task-selection";
 import { MAX_PLAN_BATCH_SIZE } from "~/kernel/tasks";
 
 const VISIBLE = ["a", "b", "c", "d", "e"] as const;

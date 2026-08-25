@@ -122,7 +122,7 @@ import {
   summariseBulkField,
   taskSelectionReducer,
   type TaskSelectionAction,
-} from "./task-selection";
+} from "~/shared/task-record/task-selection";
 import {
   NO_TASK_PATCHES,
   applyTaskPatches,

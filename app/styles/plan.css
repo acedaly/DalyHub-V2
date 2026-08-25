@@ -651,6 +651,37 @@
   color: var(--dh-color-text);
 }
 
+/*
+ * V2.4-GATE-02 — the queue's selection-mode toggle.
+ *
+ * It sits at the trailing edge of the queue's own header, which is where the
+ * mode it governs applies. `margin-inline-start: auto` rather than a
+ * `space-between` on the header: the count must stay beside the title (they are
+ * one fact), and only this control is pushed away from them.
+ *
+ * The pressed state takes the ordinary selected wash rather than a colour of its
+ * own — the button's LABEL is what carries the state ("Select tasks" / "Stop
+ * selecting"), as `AGENTS.md` §15 requires, and `aria-pressed` says it to a
+ * screen reader.
+ */
+.dh-plan__queue-select {
+  margin-inline-start: auto;
+  flex: none;
+  /* Baseline-aligned siblings; this one is a control and wants its own box. */
+  align-self: center;
+}
+
+.dh-plan__queue-select[aria-pressed="true"] {
+  background: var(--dh-color-surface-selected);
+  color: var(--dh-color-text);
+}
+
+/* The way out, at the foot of the bar the mode opened. Full width, so it reads
+ * as the bar's own footer rather than as an eighth day. */
+.dh-plan__place-done {
+  align-self: stretch;
+}
+
 .dh-plan__queue-empty,
 .dh-plan__queue-more,
 .dh-plan__signals-note {

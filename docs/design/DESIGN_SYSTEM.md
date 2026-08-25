@@ -1850,7 +1850,7 @@ The `/tasks` workspace does not render tasks as [Cards](#shared-cards-ds-04). It
   <div class="dh-tasklist__columns" aria-hidden>        ← Task · Project · Due · Priority · Status
   <ul class="dh-tasklist__rows" aria-label>             ← real list semantics
     <li class="dh-taskrow">                             ← no surface: a hairline, a hover wash
-      lead     [select?] [completion circle]
+      lead     [selection square] OR [completion circle]  ← never both (V2.4-GATE-02)
       main     <h2|h3> title link · repeat/sync signals
       meta     project · due · priority · status        ← display:contents on desktop, flex on a phone
       actions  overflow menu (hover/focus; always on touch)
@@ -1865,6 +1865,12 @@ The `/tasks` workspace does not render tasks as [Cards](#shared-cards-ds-04). It
 5. **Breakpoints are the LIST's width.** `container-type: inline-size`, and the template is re-declared on `.dh-tasklist__columns, .dh-taskrow` inside each query — a container query can never style its own container.
 6. **Quiet is a property of the paint.** An affordance may be invisible until hover; it may never be smaller than 24×24.
 7. **The row owns no authority.** Every edit is a shared control posting a canonical intent.
+8. **ONE checkbox-like control at the lead, and the MODE decides which (V2.4-GATE-02).** `task-signals.css` has always stated it — *"selection is a control that appears at the row's leading edge ONLY in selection mode … a row shows one of them at rest"* — and the row now enforces it structurally rather than by convention: passing `selection` REPLACES the completion control instead of adding to it. Not hidden-but-interactive, not shrunk, not recoloured — one control in the DOM, so a mis-click cannot reach the other act and a screen reader is never offered two checkboxes on one row.
+   - The two stay separable by SHAPE, at the same size and in the same place: selection is the 18px square (`.dh-checkbox__control`, [D7](DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material)), completion the 20px rounded square. **Both sit inside the same `.dh-check-circle-target` box**, which is what keeps entering and leaving the mode from moving a single other cell.
+   - **Neither capability leaves the surface.** While selection displaces completion, the row's own overflow carries "Complete"/"Reopen" — added by the ROW, because the row is what knows its lead is occupied. A surface that offers placement offers it at rest through `planDays` in the same menu.
+   - **A surface that draws selection needs an explicit MODE**, and the model is shared: `taskSelectionReducer` in [`task-selection.ts`](../../app/shared/task-record/task-selection.ts). Entering is deliberate (a labelled toggle, or the touch hold); leaving is that toggle, an explicit "Done", Escape, or the completion of the act the mode existed for. A surface that is permanently "in selection" is the defect this rule exists to prevent ([DEBT-194](../product/PRODUCT_DEBT.md)).
+
+**One answer to "is this date late?" (V2.4-GATE-02).** *Overdue* means the due date has passed **and** the Task is still an active commitment — never simply that the date is earlier than today. The answer is the kernel's `isTaskStillOwed` ([`app/kernel/tasks/task.ts`](../../app/kernel/tasks/task.ts)), over the triple the `open` scope already excluded (completed, cancelled, Someday/Maybe; `waiting` and `on_hold` are deliberately still owed, because blocked is not abandoned). It reaches the row as `stillOwed` on the shared projection, and `InlineTaskDate` is handed the **answer**, never the facts — no surface, and no stylesheet, carries a second status list. A closed Task keeps its date; what it loses is the urgency ramp.
 
 **Adoption.** DS-04 wired it into `/tasks` only. [TODAY-TASK-01](TODAY_TASK_01_ONE_TASK_ROW_2026_08.md) added **Today's plan** as its second caller and closed [DEBT-143](../product/PRODUCT_DEBT.md) with it — Today's private row is deleted, and the module declares no `.dh-today .dh-taskrow` structural override. Projects and search still render Cards ([DEBT-128](../product/PRODUCT_DEBT.md)).
 
@@ -1872,7 +1878,7 @@ The `/tasks` workspace does not render tasks as [Cards](#shared-cards-ds-04). It
 
 | It supplies | From |
 |---|---|
-| `task` | `toTaskRowProjection(item)` — the SHARED display projection ([`task-view.ts`](../../app/shared/task-record/task-view.ts)). Never a hand-rolled derivation of the display state, the completion flag or the waiting flag. |
+| `task` | `toTaskRowProjection(item)` — the SHARED display projection ([`task-view.ts`](../../app/shared/task-record/task-view.ts)). Never a hand-rolled derivation of the display state, the completion flag, the waiting flag or **`stillOwed`**. |
 | `parents` | ONE bounded `searchTaskParents({ limit })` in its loader. Never a query per row, never the whole workspace. |
 | `overflowActions` | `buildTaskRowActions(task, handlers, { readOnly })` ([`task-row-actions.tsx`](../../app/shared/task-record/task-row-actions.tsx)) — the shared SET. A caller omits an item by passing no handler for it, and states why; it never assembles a menu of its own. |
 | the callbacks | Its own host, posting the canonical intents through [`task-inline-edit.ts`](../../app/shared/task-record/task-inline-edit.ts) to `POST /tasks/:id` and `POST /tasks/bulk`. **A surface never gets a mutation endpoint of its own.** |

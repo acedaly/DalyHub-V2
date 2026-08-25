@@ -183,9 +183,24 @@ export function InlineTaskDate({
   onSaved,
   disabled = false,
   todayIso,
+  stillOwed,
 }: TaskRowFieldProps & {
   readonly kind: "due" | "scheduled";
   readonly value: string | null;
+  /**
+   * V2.4-GATE-02 — is the Task this date belongs to still a commitment?
+   *
+   * The field is handed the ANSWER, never the facts: DEBT-197's entry names this
+   * control as the place a second definition of "overdue" would appear, and the
+   * one thing it must not grow is a status list of its own. Its caller reads
+   * `stillOwed` off the shared Task projection, which reads it from the kernel
+   * (`isTaskStillOwed`).
+   *
+   * A closed Task keeps its date — "Yesterday", "20 days ago", "6 Jul 2026" is
+   * historical truth and stays visible. What it loses is the URGENCY ramp: it
+   * stops claiming to be late.
+   */
+  readonly stillOwed: boolean;
   /**
    * UIX-01 — the OWNER's calendar day, which turns the field's absolute date
    * into the relative words a list is actually scanned by.
@@ -210,6 +225,17 @@ export function InlineTaskDate({
    */
   const relative =
     todayIso === undefined ? null : relativeCalendarDate(value, todayIso);
+  /*
+   * The urgency ramp is the calendar answer AND the commitment answer.
+   *
+   * `relativeCalendarDate` is pure arithmetic that has never seen the Task, which
+   * is exactly right for the WORDS ("Yesterday") and exactly wrong for the
+   * COLOUR: a date that has passed on work nobody is going to do has not slipped.
+   * A Task that is no longer owed takes the ordinary metadata ramp — the same
+   * class a planned date takes — rather than a state of its own.
+   */
+  const urgency =
+    relative === null ? null : stillOwed ? relative.urgency : null;
   const save = useCallback(
     async (next: string | null): Promise<InlineSaveOutcome> => {
       // PWA-12 — `next` is ALREADY the canonical `YYYY-MM-DD` the owner chose,
@@ -284,8 +310,8 @@ export function InlineTaskDate({
         // Only a DUE date carries urgency: a planned date is the owner's own
         // intention about when to work on something, and being "late" against
         // your own plan is not a state the product judges.
-        kind === "due" && relative !== null
-          ? `dh-task-date dh-task-date--${relative.urgency}`
+        kind === "due" && urgency !== null
+          ? `dh-task-date dh-task-date--${urgency}`
           : "dh-task-date"
       }
       data-testid={`task-row-${kind}-date`}

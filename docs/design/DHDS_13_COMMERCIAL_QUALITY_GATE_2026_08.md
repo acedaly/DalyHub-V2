@@ -539,11 +539,34 @@ its proportion and its queue's two checkboxes are not.
   and hiding either one changes what the queue can do. A quality gate is the
   wrong place to make that call, and the honest cost of leaving it is stated in
   §1 rather than hidden in a table.
+
+  > **Taken and closed by [V2.4-GATE-02](../product/V2_4_GATE_02_HONEST_TASK_SIGNALS_2026_08.md)
+  > (2026-08-25), and this note's diagnosis was exactly right.** *"A surface
+  > permanently in selection mode is the thing that makes two controls
+  > adjacent"* is the whole defect, and the fix is to give the queue the explicit
+  > mode the rest of the product already has rather than to hide either control.
+  > In the mode the selection control REPLACES completion in the same box;
+  > neither act leaves the surface, because whichever one is displaced is in the
+  > row's own overflow. Deferring it to a roadmap item was the right call.
 - **DEBT-195** needs a data source for "recent records" that does not exist as a
   search-side concept. That is feature work, which §46 excludes.
 - **DEBT-193** resisted six candidate fixes; the mechanism is an intrinsic-sizing
   quirk and the correction is a cell restructure. The visible cost is one or two
   characters of a Project name on a phone, which does not justify the risk.
+
+  > **Corrected by [V2.4-GATE-02](../product/V2_4_GATE_02_HONEST_TASK_SIGNALS_2026_08.md)
+  > (2026-08-25): the mechanism is not intrinsic sizing, and no cell restructure
+  > was needed.** `task-list.css` already declared `margin-inline: 0` on a cell's
+  > inline-edit trigger — with a comment saying exactly why — and that rule lost
+  > the cascade to the shared `[data-presentation="meta"]` rule by one compound
+  > selector, so every metadata trigger in a task row kept a `-4px` start margin
+  > that a hugging cell subtracts from its intrinsic contribution and the used
+  > layout does not give back. Six corrections to the CHAIN could not move it
+  > because the chain was not the problem. The judgement in this note was sound
+  > on the evidence it had; the evidence was incomplete, and none of the six
+  > attempts had asked which rule was actually winning. **A candidate fix that
+  > does nothing is worth one look at the computed style before it becomes a
+  > conclusion about the mechanism.**
 
 **Closed by DHDS-08…13:** see [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 This phase closes nothing it did not itself prove closed, and re-states DEBT-179

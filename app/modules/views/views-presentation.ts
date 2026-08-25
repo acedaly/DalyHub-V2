@@ -9,6 +9,7 @@
  */
 
 import type { DateFormat } from "~/kernel/preferences";
+import { isTaskOutOfCommitment } from "~/kernel/tasks";
 import type { CrossViewResult, ViewGroupBy, ViewScope } from "~/kernel/views";
 import { viewScopeDefinition } from "~/kernel/views";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -169,11 +170,19 @@ function isOverdue(result: CrossViewResult, todayIso: string): boolean {
 function isClosed(result: CrossViewResult): boolean {
   switch (result.detail.kind) {
     case "task":
-      return (
-        result.detail.completed ||
-        result.detail.status === "cancelled" ||
-        result.detail.someday
-      );
+      /*
+       * V2.4-GATE-02 — the triple is the KERNEL's, asked rather than restated.
+       *
+       * The three states were written out here, correctly, and correctness by
+       * duplication is how the row half of DEBT-197 came to disagree with this
+       * half in the first place. `isTaskOutOfCommitment` is the one place the
+       * list exists; this surface now spells its own three facts and asks.
+       */
+      return isTaskOutOfCommitment({
+        completed: result.detail.completed,
+        status: result.detail.status,
+        someday: result.detail.someday,
+      });
     case "project":
     case "goal":
       return result.detail.completed;

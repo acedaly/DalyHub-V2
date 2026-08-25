@@ -61,7 +61,14 @@
  * menu item that clears a plan says so in as many words.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { Link, useSearchParams } from "react-router";
 
 import type { ScheduleEntry } from "~/kernel/calendar";
@@ -72,10 +79,15 @@ import {
   planningEntryMinutes,
 } from "~/kernel/planning";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
+import { Button } from "~/shared/ui";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
+import {
+  EMPTY_TASK_SELECTION,
+  taskSelectionReducer,
+} from "~/shared/task-record/task-selection";
 import { postTaskBulkAction } from "~/shared/task-record/task-inline-edit";
 import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
 import {
@@ -178,9 +190,47 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
   const [selectedDay, setSelectedDay] = useState(data.selectedDayIso);
   useEffect(() => setSelectedDay(data.selectedDayIso), [data.selectedDayIso]);
 
-  /** The queue's multi-selection — the keyboard-complete way to place work. */
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  useEffect(() => setSelected(new Set()), [data.week.startIso]);
+  /**
+   * The queue's multi-selection — the keyboard-complete way to place work.
+   *
+   * ── V2.4-GATE-02 gave it a MODE, and that is the whole interaction change ──
+   * It was a bare `Set<string>` with no mode, which meant the queue was
+   * PERMANENTLY in selection mode: every row drew a selection control beside its
+   * completion control, eight pixels apart and unlabelled as a pair, on the one
+   * surface whose entire purpose is scheduling. A mis-click completed work the
+   * owner meant to place (DEBT-194 / DEBT-164).
+   *
+   * The model is the product's existing one — the same reducer `/tasks` has used
+   * since TASKS-06, now shared (`~/shared/task-record/task-selection`) rather
+   * than copied. Its rule 4 is exactly what this surface was missing:
+   * *"selection mode is explicit and separate from having a selection."* So the
+   * queue now behaves like every other DalyHub collection:
+   *
+   *   at rest        each row shows its COMPLETION control, and placement is one
+   *                  menu item away ("Plan for Wednesday 14 May") — the same
+   *                  one-gesture path PLAN-01 shipped, unchanged;
+   *   in selection   the SELECTION control replaces completion in the same box,
+   *                  the placement bar appears, and Escape or "Done" leaves.
+   *
+   * Entering is deliberate: the queue header's "Select tasks" button, or a touch
+   * HOLD on a row (`useCardLongPress`, the product's existing gesture) — never a
+   * mode the surface simply starts in.
+   */
+  const [selection, dispatchSelection] = useReducer(
+    taskSelectionReducer,
+    EMPTY_TASK_SELECTION,
+  );
+  const selected = selection.ids;
+  /*
+   * The rows draw the selection control whenever the mode is on OR something is
+   * still selected — the same guard `/tasks` uses, so a selection that outlives
+   * a revalidation is never left un-clearable behind an absent control.
+   */
+  const selecting = selection.mode || selected.size > 0;
+  useEffect(
+    () => dispatchSelection({ type: "reset" }),
+    [data.week.startIso, data.activeQueueSourceId],
+  );
   const [placing, setPlacing] = useState(false);
   const [announcement, setAnnouncement] = useState<string | null>(null);
 
@@ -217,14 +267,64 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
    */
   const queueHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
-  const toggleSelected = useCallback((taskId: string, on: boolean) => {
-    setSelected((previous) => {
-      const next = new Set(previous);
-      if (on) next.add(taskId);
-      else next.delete(taskId);
-      return next;
-    });
+  /**
+   * Every queue Task, in DISPLAY order — the input a Shift-range needs.
+   *
+   * The queue is a flat, loader-ordered list, so the order is the loader's; the
+   * groups below only break it into headed runs.
+   */
+  const queueIds = useMemo(
+    () => data.queue.map((entry) => entry.task.id),
+    [data.queue],
+  );
+
+  const toggleSelected = useCallback(
+    (taskId: string, on: boolean, modifiers?: { readonly shift: boolean }) => {
+      dispatchSelection({
+        type: "toggle",
+        id: taskId,
+        selected: on,
+        ...(modifiers?.shift ? { shift: true } : {}),
+        visibleIds: queueIds,
+      });
+    },
+    [queueIds],
+  );
+
+  /*
+   * Leaving the mode, and where FOCUS lands.
+   *
+   * The control that turned the mode on is the control that turns it off, and it
+   * is outside the rows — so it survives the rows losing their selection
+   * controls, and the owner's place is never destroyed by the very act of
+   * leaving (AGENTS.md §6, "never lose the user's place"). Escape reaches the
+   * same function, which is the product's established dismissal.
+   */
+  const selectToggleRef = useRef<HTMLButtonElement | null>(null);
+  const stopSelecting = useCallback(() => {
+    dispatchSelection({ type: "reset" });
+    setAnnouncement(
+      "Left selection. Rows show their completion control again.",
+    );
+    selectToggleRef.current?.focus();
   }, []);
+  const startSelecting = useCallback(() => {
+    dispatchSelection({ type: "enter" });
+    setAnnouncement(
+      "Selecting tasks to place. Choose tasks, then choose a day.",
+    );
+  }, []);
+
+  /*
+   * A queue Task's selection state must not outlive the rows.
+   *
+   * After a placement the placed Tasks leave the queue, so anything still
+   * selected that is no longer on screen is pruned — the count on the placement
+   * bar always equals the number of rows the owner can point at.
+   */
+  useEffect(() => {
+    dispatchSelection({ type: "prune", visibleIds: queueIds });
+  }, [queueIds]);
 
   /**
    * Place the selection on a day, as ONE atomic bulk mutation.
@@ -249,7 +349,15 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
             setAnnouncement(outcome.message);
             return;
           }
-          setSelected(new Set());
+          /*
+           * The placement is the END of the act, so the mode ends with it.
+           *
+           * `reset` rather than `clear`: staying in a selection mode with nothing
+           * selected, after the thing the mode existed for has happened, is a
+           * surface holding a state the owner is no longer in. The rows go back
+           * to their completion control, which is what "at rest" means here.
+           */
+          dispatchSelection({ type: "reset" });
           setArmedDay(null);
           setAnnouncement(
             `${outcome.changed} ${outcome.changed === 1 ? "task" : "tasks"} planned for ${day.fullLabel}. Deadlines are unchanged.`,
@@ -311,7 +419,18 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
   const rowProps = useCallback(
     (
       item: SerializedTaskListItem,
-      options: { readonly inWeek: boolean; readonly headingLevel: 2 | 3 },
+      options: {
+        readonly inWeek: boolean;
+        readonly headingLevel: 2 | 3;
+        /**
+         * V2.4-GATE-02 — the queue's rows, which can enter selection mode.
+         *
+         * The BOARD's rows never do: a Task already on a day is not waiting on a
+         * placement decision, and giving the board a mode would put a second
+         * selection model on one page. Only the queue passes this.
+         */
+        readonly selectable?: boolean;
+      },
     ): TaskRowProps => {
       const task = paint(item);
       const key = `task:${task.id}`;
@@ -326,6 +445,39 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
         onCompletedChange: (complete: boolean) =>
           actions.setCompleted(task.id, complete, task.title),
         onInlineSave: actions.reportInlineSave,
+        /*
+         * V2.4-GATE-02 — the row draws ONE control, and which one is the mode.
+         *
+         * `selection` is passed only while the queue is actually selecting, so
+         * at rest the queue's rows are byte-identical to `/tasks`' rows: one
+         * completion control, and placement in the row's own overflow. When it
+         * IS passed, the shared row replaces completion with selection in the
+         * same box — the geometry does not move and the two acts are never
+         * offered at once.
+         */
+        ...(options.selectable && selecting
+          ? {
+              selection: {
+                selected: selected.has(task.id),
+                onSelectedChange: (
+                  on: boolean,
+                  modifiers?: { readonly shift: boolean },
+                ) => toggleSelected(task.id, on, modifiers),
+                label: `Select ${task.title} to place on a day`,
+              },
+            }
+          : {}),
+        /*
+         * The touch way IN. A hold both enters the mode and selects the row that
+         * was held — the product's existing gesture (`useCardLongPress`), which
+         * is inert on a pointer device, so nothing here depends on hover.
+         */
+        ...(options.selectable
+          ? {
+              onLongPress: () =>
+                dispatchSelection({ type: "enter", id: task.id }),
+            }
+          : {}),
         /*
          * DHDS-10 §11 — the project menu's escape hatch opens the shared
          * searchable picker over the row's own cell rather than the Task's
@@ -391,6 +543,9 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
       planOne,
       clearPlan,
       editingTitleId,
+      selecting,
+      selected,
+      toggleSelected,
     ],
   );
 
@@ -495,12 +650,15 @@ function PlanScreen({ data }: { readonly data: PlanPageData }) {
           <PlanQueue
             data={data}
             selected={selected}
+            selecting={selecting}
             placing={placing}
             armedDay={armedDay}
-            onToggleSelected={toggleSelected}
+            onStartSelecting={startSelecting}
+            onStopSelecting={stopSelecting}
             onPlaceSelection={placeSelection}
             rowProps={rowProps}
             headingRef={queueHeadingRef}
+            selectToggleRef={selectToggleRef}
           />
           <PlanRoutines data={data} />
           <PlanSignals data={data} />
@@ -901,23 +1059,34 @@ function PlanCommitment({ entry }: { readonly entry: ScheduleEntry }) {
 function PlanQueue({
   data,
   selected,
+  selecting,
   placing,
   armedDay,
-  onToggleSelected,
+  onStartSelecting,
+  onStopSelecting,
   onPlaceSelection,
   rowProps,
   headingRef,
+  selectToggleRef,
 }: {
   readonly data: PlanPageData;
   readonly selected: ReadonlySet<string>;
+  /** V2.4-GATE-02 — is the queue in its explicit selection mode? */
+  readonly selecting: boolean;
   readonly placing: boolean;
   readonly armedDay: string | null;
   readonly headingRef: React.RefObject<HTMLHeadingElement | null>;
-  readonly onToggleSelected: (taskId: string, on: boolean) => void;
+  readonly selectToggleRef: React.RefObject<HTMLButtonElement | null>;
+  readonly onStartSelecting: () => void;
+  readonly onStopSelecting: () => void;
   readonly onPlaceSelection: (day: PlanDay) => void;
   readonly rowProps: (
     item: SerializedTaskListItem,
-    options: { readonly inWeek: boolean; readonly headingLevel: 2 | 3 },
+    options: {
+      readonly inWeek: boolean;
+      readonly headingLevel: 2 | 3;
+      readonly selectable?: boolean;
+    },
   ) => TaskRowProps;
 }) {
   const count = selected.size;
@@ -963,10 +1132,33 @@ function PlanQueue({
   }, [data.queue, sourceName]);
 
   return (
+    /*
+     * V2.4-GATE-02 — Escape LEAVES selection, which is the product's established
+     * dismissal for a transient mode (every anchored surface and every inline
+     * editor already answers it). It is bound on the REGION rather than the
+     * document so it cannot swallow an Escape meant for an editor or a menu open
+     * over the queue — those handle it first and stop it — and a key pressed
+     * anywhere else on the page is not this region's.
+     *
+     * The region listens for a key that BUBBLES from its own real controls: the
+     * mode toggle, the row checkboxes and the day buttons are all focusable
+     * elements inside it. Escape is never the only way out (the toggle and the
+     * bar's "Done" both leave the mode by pointer), and nothing here makes the
+     * section itself a target — no tabindex, no role, no click handler. Same
+     * shape `UnsavedChangesGuard` states for its own Escape handling.
+     */
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
       className="dh-plan__queue"
       aria-labelledby="plan-queue-heading"
       data-testid="plan-queue"
+      data-selecting={selecting ? "true" : undefined}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && selecting && !event.defaultPrevented) {
+          event.preventDefault();
+          onStopSelecting();
+        }
+      }}
     >
       <header className="dh-plan__queue-head">
         {/* `tabIndex={-1}` so focus can be MOVED here after a placement without
@@ -980,6 +1172,32 @@ function PlanQueue({
           Still to place
         </h2>
         <span className="dh-plan__queue-count">{data.queue.length}</span>
+        {/*
+         * V2.4-GATE-02 — the deliberate way INTO and OUT OF selection.
+         *
+         * The same control does both, and its LABEL carries the state — the
+         * wording `/tasks` has used since TASKS-06 ("Select tasks" / "Stop
+         * selecting"), so an owner who learnt the mode on one surface knows it
+         * on the other. `aria-pressed` states it for a screen reader without a
+         * second element to keep in step, and the button lives OUTSIDE the rows
+         * so leaving the mode never destroys the focused element.
+         *
+         * It is absent when there is nothing to select: a mode toggle over an
+         * empty queue is a control that can only ever do nothing.
+         */}
+        {data.queue.length === 0 ? null : (
+          <Button
+            variant="subtle"
+            size="sm"
+            ref={selectToggleRef}
+            className="dh-plan__queue-select"
+            data-testid="plan-queue-select-toggle"
+            aria-pressed={selecting}
+            onClick={selecting ? onStopSelecting : onStartSelecting}
+          >
+            {selecting ? "Stop selecting" : "Select tasks"}
+          </Button>
+        )}
       </header>
 
       {/*
@@ -1084,13 +1302,12 @@ function PlanQueue({
                           // heading. h3 keeps the outline flat inside the group
                           // rather than wrong.
                           headingLevel: 3,
+                          // V2.4-GATE-02 — these rows MAY enter selection mode.
+                          // Whether they are drawing a selection control right
+                          // now is the surface's `selecting` state, resolved in
+                          // `rowProps`; this only says the capability exists.
+                          selectable: true,
                         })}
-                        selection={{
-                          selected: selected.has(entry.task.id),
-                          onSelectedChange: (on) =>
-                            onToggleSelected(entry.task.id, on),
-                          label: `Select ${entry.task.title} to place on a day`,
-                        }}
                       />
                     ))}
                   </TaskList>
@@ -1120,49 +1337,76 @@ function PlanQueue({
            * BOARD armed. It is the same one mutation — a second door into it, for
            * an owner who started from the column rather than from the queue.
            */}
-          <div className="dh-plan__place" data-testid="plan-place-bar">
-            <button
-              type="button"
-              className="dh-btn dh-btn--primary dh-plan__place-go"
-              disabled={count === 0 || armed === null || placing}
-              data-testid="plan-place-selected"
-              onClick={() => {
-                if (armed !== null) onPlaceSelection(armed);
-              }}
-            >
-              {armed === null
-                ? `Plan selected (${count})`
-                : `Plan ${count} on ${armed.weekdayLong}`}
-            </button>
-            <p className="dh-plan__place-label">
-              {count === 0
-                ? "Select tasks, then choose a day."
-                : armed === null
-                  ? `${count} selected — choose a day:`
-                  : `${count} selected for ${armed.fullLabel}. Deadlines are unchanged.`}
-            </p>
-            <div
-              className="dh-plan__place-days"
-              role="group"
-              aria-label="Place the selected tasks"
-            >
-              {data.days.map((day) => (
-                <button
-                  key={day.dateIso}
-                  type="button"
-                  className="dh-plan__place-day"
-                  disabled={count === 0 || placing}
-                  aria-label={`Plan ${count} selected ${count === 1 ? "task" : "tasks"} for ${day.fullLabel}`}
-                  data-testid="plan-place-day"
-                  data-date={day.dateIso}
-                  data-armed={day.dateIso === armedDay ? "true" : undefined}
-                  onClick={() => onPlaceSelection(day)}
-                >
-                  <span aria-hidden="true">{day.weekdayShort}</span>
-                </button>
-              ))}
+          {/*
+           * V2.4-GATE-02 — the bar belongs to the MODE.
+           *
+           * It used to be permanent, with seven disabled day buttons under the
+           * sentence "Select tasks, then choose a day" — which is what made the
+           * queue read as always-selecting and is half of why every row carried a
+           * selection control. Now it appears with the mode and leaves with it,
+           * so an at-rest queue is a list of work rather than a toolbar waiting
+           * for an act the owner has not started.
+           *
+           * At rest the placement capability is NOT hidden: each row's overflow
+           * carries "Plan for Wednesday 14 May" for every day of the week — the
+           * one-gesture, keyboard-complete path PLAN-01 shipped, unchanged and
+           * untouched by this item. The bar is what makes placement BULK.
+           */}
+          {selecting ? (
+            <div className="dh-plan__place" data-testid="plan-place-bar">
+              <button
+                type="button"
+                className="dh-btn dh-btn--primary dh-plan__place-go"
+                disabled={count === 0 || armed === null || placing}
+                data-testid="plan-place-selected"
+                onClick={() => {
+                  if (armed !== null) onPlaceSelection(armed);
+                }}
+              >
+                {armed === null
+                  ? `Plan selected (${count})`
+                  : `Plan ${count} on ${armed.weekdayLong}`}
+              </button>
+              <p className="dh-plan__place-label">
+                {count === 0
+                  ? "Select tasks, then choose a day."
+                  : armed === null
+                    ? `${count} selected — choose a day:`
+                    : `${count} selected for ${armed.fullLabel}. Deadlines are unchanged.`}
+              </p>
+              <div
+                className="dh-plan__place-days"
+                role="group"
+                aria-label="Place the selected tasks"
+              >
+                {data.days.map((day) => (
+                  <button
+                    key={day.dateIso}
+                    type="button"
+                    className="dh-plan__place-day"
+                    disabled={count === 0 || placing}
+                    aria-label={`Plan ${count} selected ${count === 1 ? "task" : "tasks"} for ${day.fullLabel}`}
+                    data-testid="plan-place-day"
+                    data-date={day.dateIso}
+                    data-armed={day.dateIso === armedDay ? "true" : undefined}
+                    onClick={() => onPlaceSelection(day)}
+                  >
+                    <span aria-hidden="true">{day.weekdayShort}</span>
+                  </button>
+                ))}
+              </div>
+              {/* The stated way out, beside the act — so leaving the mode is as
+                discoverable as entering it and never requires the keyboard. */}
+              <Button
+                variant="subtle"
+                className="dh-plan__place-done"
+                data-testid="plan-place-done"
+                onClick={onStopSelecting}
+              >
+                Done
+              </Button>
             </div>
-          </div>
+          ) : null}
         </>
       )}
     </section>

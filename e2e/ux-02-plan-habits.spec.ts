@@ -232,6 +232,10 @@ test.describe("planning from the board", () => {
 
     // The queue's primary control now names the day in WORDS, and is still
     // refused while nothing is selected.
+    // V2.4-GATE-02 — the placement bar belongs to the queue's selection mode, so
+    // this half of the journey enters it. Arming a day is unchanged and still
+    // commits nothing on its own.
+    await page.getByTestId("plan-queue-select-toggle").click();
     const commit = page.getByTestId("plan-place-selected");
     await expect(commit).toBeDisabled();
 
@@ -254,6 +258,9 @@ test.describe("planning from the board", () => {
       .getByTestId("task-row")
       .filter({ hasText: task.title });
     await expect(queueRow).toHaveCount(1);
+    // V2.4-GATE-02 — selection is an explicit mode now; the row draws its
+    // completion control until the owner asks to select.
+    await page.getByTestId("plan-queue-select-toggle").click();
     await queueRow.getByTestId("task-select").check();
 
     await page

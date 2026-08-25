@@ -125,6 +125,14 @@ export interface TaskCardData {
   readonly delegatedTo: string | null;
   readonly completed: boolean;
   readonly waiting: boolean;
+  /**
+   * V2.4-GATE-02 — the kernel's "still owed" answer, from the shared projection.
+   *
+   * Spread in by `toTaskRowProjection` rather than derived here: this module
+   * composes the shared row's contract, and a second copy of the commitment rule
+   * is exactly what DEBT-197 was.
+   */
+  readonly stillOwed: boolean;
   /** The recurrence rule, for the row's shared recurrence signal (TASKS-07). */
   readonly recurrence: SerializedTaskListItem["recurrence"];
 }
@@ -326,7 +334,18 @@ export function taskStateBreakdown(
       waiting += 1;
       continue;
     }
+    /*
+     * V2.4-GATE-02 — the segment counts work that is late, not dates that have
+     * passed.
+     *
+     * `relativeCalendarDate` is calendar arithmetic that has never seen the
+     * Task, so on `/tasks?system=all` a CANCELLED or Someday/Maybe Task with a
+     * passed deadline was counted into the Overdue segment of the bar above a
+     * list whose rows correctly say it is not. `stillOwed` is the shared
+     * projection's kernel answer; nothing is re-derived here.
+     */
     if (
+      card.stillOwed &&
       card.dueDate !== null &&
       relativeCalendarDate(card.dueDate, todayIso)?.urgency === "overdue"
     ) {

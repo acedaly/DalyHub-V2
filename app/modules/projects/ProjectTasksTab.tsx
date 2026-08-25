@@ -64,6 +64,7 @@ import { postTaskBulkAction } from "~/shared/task-record/task-inline-edit";
 import {
   isTaskWaiting,
   taskDisplayState,
+  taskStillOwed,
   taskUrgency,
   waitingSubjectLabel,
 } from "~/shared/task-record/task-view";
@@ -445,6 +446,16 @@ function toTaskCardProps(
         kind="due"
         value={task.dueDate}
         todayIso={todayIso}
+        /*
+         * V2.4-GATE-02 — the SHARED commitment answer, from the shared adapter.
+         *
+         * This tab does not render `TaskRow` yet (DEBT-175), so it is the one
+         * surface that has to pass this itself. It passes the same function's
+         * answer rather than a second rule: `taskStillOwed` delegates to the
+         * kernel, so a cancelled Task's passed date reads here exactly as it
+         * does on `/tasks`, `/today` and `/plan`.
+         */
+        stillOwed={taskStillOwed(task)}
         /*
          * DHDS-10 — the accepted save is REPORTED, which it was not.
          *

@@ -12,7 +12,7 @@
  */
 
 import type { RecordTone } from "~/shared/record-layout";
-import { isTaskBlocked } from "~/kernel/tasks";
+import { isTaskBlocked, isTaskStillOwed } from "~/kernel/tasks";
 import type {
   CommitmentState,
   TaskBlockedSummary,
@@ -383,6 +383,17 @@ export interface TaskRowProjection {
   readonly parent: TaskRelation | null;
   readonly completed: boolean;
   readonly waiting: boolean;
+  /**
+   * V2.4-GATE-02 — is this Task still a commitment the owner OWES?
+   *
+   * The kernel's `open`-scope answer (`isTaskStillOwed`), carried on the
+   * projection rather than re-derived per surface, because it is the input to
+   * every "is this date late?" decision a row makes: the date's urgency ramp, the
+   * row's own `data-overdue` and the completion control's affordance. Projecting
+   * it once is what makes a cancelled Task's passed date read the same on
+   * `/tasks`, `/today`, `/plan` and a Project's Tasks tab.
+   */
+  readonly stillOwed: boolean;
   readonly recurrence: TaskRecurrenceRule | null;
   /** TASKS-13 — checklist progress, when the surface projected it. */
   readonly checklist?: TaskChecklistProgress;
@@ -421,6 +432,7 @@ export function toTaskRowProjection(
     parent: item.parent,
     completed: item.completedAt !== null,
     waiting: item.waiting !== null && item.completedAt === null,
+    stillOwed: taskStillOwed(item),
     recurrence: item.recurrence ?? null,
     // Passed through whole, so every surface drawing the shared row shows the
     // same figure — and a surface that did not project it shows none.
@@ -434,6 +446,27 @@ export function isTaskComplete(task: {
   readonly completedAt: string | null;
 }): boolean {
   return task.completedAt !== null;
+}
+
+/**
+ * V2.4-GATE-02 — the kernel's commitment answer, over the SERIALISED shape.
+ *
+ * An adapter and nothing more: it spells the three facts
+ * {@link isTaskStillOwed} reads out of the shape a loader actually hands a
+ * surface, and delegates. The status list itself is stated exactly once, in
+ * `app/kernel/tasks/task.ts`, so no surface can grow a second opinion about what
+ * "still owed" means.
+ */
+export function taskStillOwed(task: {
+  readonly completedAt: string | null;
+  readonly status: TaskStatus;
+  readonly commitmentState: CommitmentState;
+}): boolean {
+  return isTaskStillOwed({
+    completed: task.completedAt !== null,
+    status: task.status,
+    someday: task.commitmentState === "someday",
+  });
 }
 
 /** Human label for a workflow status value (edit control options). */
@@ -909,22 +942,43 @@ export interface TaskUrgency {
   readonly tone: TaskUrgencyTone;
 }
 
+/**
+ * The shape {@link taskUrgency} reads: the two dates plus the three facts that
+ * decide whether the owner still OWES the work.
+ *
+ * V2.4-GATE-02 widened it from `completedAt` alone. Completion was only one
+ * third of the kernel's own answer, so a **cancelled** or **Someday / Maybe**
+ * Task with a passed deadline was labelled "Overdue · due 6 Jul 2026" in the
+ * danger tone, beside its own state pill. The facts are REQUIRED rather than
+ * optional: a caller that cannot say whether a Task is still owed cannot
+ * honestly ask whether its date is late.
+ */
+export interface TaskUrgencyInput {
+  readonly completedAt: string | null;
+  readonly status: TaskStatus;
+  readonly commitmentState: CommitmentState;
+  readonly dueDate: string | null;
+  readonly scheduledDate: string | null;
+}
+
 /** Evaluate the deterministic urgency signal of a task (TASKS-02). */
 export function taskUrgency(
-  task: {
-    readonly completedAt: string | null;
-    readonly dueDate: string | null;
-    readonly scheduledDate: string | null;
-  },
+  task: TaskUrgencyInput,
   todayIso: string,
 ): TaskUrgency | null {
-  const complete = isTaskComplete(task);
+  /*
+   * V2.4-GATE-02 — "still owed", from the kernel, not from completion alone.
+   *
+   * `taskStillOwed` delegates to `isTaskStillOwed`, which states the terminal /
+   * parked triple exactly once. Nothing in this file re-derives it.
+   */
+  const owed = taskStillOwed(task);
   if (task.dueDate !== null) {
     const formatted = formatCalendarDate(task.dueDate);
     if (formatted === null) {
       return null;
     }
-    if (!complete && task.dueDate < todayIso) {
+    if (owed && task.dueDate < todayIso) {
       return {
         kind: "overdue",
         label: `Overdue · due ${formatted}`,
@@ -935,7 +989,7 @@ export function taskUrgency(
       return {
         kind: "due_today",
         label: "Due today",
-        tone: complete ? "neutral" : "warning",
+        tone: owed ? "warning" : "neutral",
       };
     }
     return { kind: "due", label: `Due ${formatted}`, tone: "neutral" };
@@ -949,7 +1003,7 @@ export function taskUrgency(
       return {
         kind: "scheduled_today",
         label: "Scheduled today",
-        tone: complete ? "neutral" : "info",
+        tone: owed ? "info" : "neutral",
       };
     }
     return {
@@ -971,11 +1025,7 @@ export function taskUrgency(
  * `UrgencyChip` instead.
  */
 export function taskDateLabel(
-  task: {
-    readonly completedAt: string | null;
-    readonly dueDate: string | null;
-    readonly scheduledDate: string | null;
-  },
+  task: TaskUrgencyInput,
   todayIso: string,
 ): { readonly label: string; readonly tone?: "danger" } | null {
   const urgency = taskUrgency(task, todayIso);

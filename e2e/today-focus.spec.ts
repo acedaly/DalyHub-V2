@@ -331,6 +331,50 @@ test.describe("TODAY-10 — the Focus panel classifies the day", () => {
       }),
     ).toBeChecked();
 
+    /*
+     * 4b. WAIT FOR THE SERVER, not for the paint.
+     *
+     * Everything asserted above is satisfied by the OPTIMISTIC patch alone:
+     * `useTaskSurfaceActions.setCompleted` paints `completedAt` synchronously
+     * and fires the POST with `void`, so the row reaches the day's `Completed`
+     * group before the server has been asked, let alone answered. Step 6 then
+     * navigates to a SERVER-RENDERED collection — and `page.goto` can abort
+     * the still-in-flight write on its way out. When it does, `?system=today`
+     * correctly returns a Task that was never completed, and step 7 fails
+     * having proved nothing about the product.
+     *
+     * That is load-sensitive rather than deterministic, which is why it read
+     * green until a partition ran long (run 32873158039 / p02, 17.0 min against
+     * a 16.7 min budget) and it surfaced there and nowhere else.
+     *
+     * The wait is the product's OWN confirmation signal, not a timer: this
+     * hook's contract (`use-task-surface-actions.ts` header) is that "the
+     * announcement and the notification fire only AFTER the server has said",
+     * and a merely QUEUED write says "Waiting to sync." instead. So the exact
+     * confirmed wording is the one thing that cannot be true early.
+     *
+     * It weakens nothing. Both assertions below still have to hold, and the
+     * count in step 5 becomes MEANINGFUL rather than incidentally true — it
+     * used to run whenever it happened to run, and would pass by reading zero
+     * mentions if the announcement had not landed yet.
+     */
+    await expect
+      .poll(async () =>
+        (
+          await page
+            .locator('[aria-live]:not([aria-live="off"])')
+            .allInnerTexts()
+        ).some(
+          (text) =>
+            text.includes(`Completed ${target.title}.`) &&
+            // The QUEUED wording is a superstring of the confirmed one
+            // ("Completed X. Waiting to sync."), so `includes` alone would
+            // accept the very state this wait exists to exclude.
+            !text.includes("Waiting to sync."),
+        ),
+      )
+      .toBe(true);
+
     // 5. Exactly one announcement. A completion is announced by ONE live
     //    region, not by the list AND the notification centre (DEBT-115).
     const announcements = await page

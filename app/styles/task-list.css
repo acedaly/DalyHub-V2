@@ -441,14 +441,27 @@
   white-space: nowrap;
 }
 
+/*
+ * V2.4-GATE-02 — the selection target IS the completion target.
+ *
+ * The row draws exactly one checkbox-like control at its leading edge, and which
+ * one it is depends on the mode (`TaskRow.tsx`). So the two must occupy the same
+ * box, or entering selection mode would move the title and every metadata cell
+ * beside it — and "selection mode does not distort row geometry" is the whole
+ * point of replacing the control rather than adding one.
+ *
+ * The element therefore carries `.dh-check-circle-target` as well, which owns the
+ * 44px touch box, its negative inline margins and the fine-pointer 28px
+ * narrowing (`task-signals.css`). Nothing about the box is restated here; what is
+ * left is the CONTROL inside it, which is the design system's 18px square rather
+ * than completion's 20px rounded square (D7: *"this is the square — selection"*).
+ *
+ * The class it used to draw, `dh-checkbox__input`, was styled by no stylesheet in
+ * the repository — so the queue's selection control was a bare user-agent
+ * checkbox beside a designed one, which is most of why DEBT-194 measured them as
+ * "two near-identical boxes" that were nevertheless not the same object.
+ */
 .dh-taskrow__select {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  /* The hit area is the WCAG minimum even though the box is 18px, and it is not
-   * a density decision — see tokens.css. */
-  inline-size: var(--dh-space-6);
-  block-size: var(--dh-space-6);
   cursor: pointer;
 }
 
@@ -722,7 +735,46 @@
  * max-content, so a trigger that hugged its text would run a long Project name
  * straight out of a 7rem cell and push the document sideways (POLISH-01).
  */
-.dh-taskrow__cell .dh-inline-edit__trigger {
+/*
+ * DEBT-193 — the selector carries the `meta` attribute ON PURPOSE.
+ *
+ * The rule below has always INTENDED to zero the trigger's optical pull-back
+ * inside a column, and said so in the comment. It never did: the shared
+ * `.dh-inline-edit[data-presentation="meta"] .dh-inline-edit__trigger`
+ * (inline-edit.css) is three compound selectors to this rule's two, so the
+ * shared `-4px` won the cascade and every metadata trigger in a task row kept
+ * it.
+ *
+ * On the desktop grid that is invisible — a fixed track has slack. On the PHONE
+ * composition the project cell HUGS, and a negative start margin is subtracted
+ * from a hugging box's intrinsic contribution while the used layout does not
+ * give it back: the cell came out ~4px short of its own content and
+ * `.dh-inline-select__label` (which is `overflow: hidden` so a long name can
+ * ellipsise) then dropped the last characters of a name that fitted.
+ *
+ * MEASURED on `/today` at 393px before this rule matched: "Conference talk"
+ * painted 94.7px against a 99px need, "DalyHub V2" 69.9 against 74, "Personal"
+ * 49.1 against 53 — the same ~4px shortfall on every row, with 39–85px of unused
+ * space beside the cell. The chain is
+ * `cell → .dh-task-parent → .dh-inline-select → trigger → value → label`, and the
+ * arithmetic closes exactly: cell 118.688 = 8 (mark) + 8 (gap) + 102.688, where
+ * 102.688 is the trigger's MARGIN box (98.688 of text + 8 of padding − 4 of
+ * margin) — so the missing 4px is the margin and nothing else.
+ *
+ * DHDS-13 answered the same defect on the PRIORITY cell with a `min-inline-size`
+ * floor, because a two-character mark has a knowable width. A Project's name does
+ * not, so the floor is not available here — and it was never the right shape of
+ * fix anyway. Making the rule that already exists actually apply is.
+ *
+ * The extra weight is CLASSES, deliberately: repeating
+ * `[data-presentation="meta"]` here would DECLARE the meta presentation outside
+ * `inline-edit.css`, which DHDS-10's grammar forbids and
+ * `dhds-10-inline-grammar.test.ts` asserts. Adjusting a field's composition
+ * inside a column is legal; restating what a meta field looks like is not. Four
+ * compound selectors — the list, the row, the cell and the trigger — outrank the
+ * shared three whatever order the stylesheets load in.
+ */
+.dh-tasklist .dh-taskrow .dh-taskrow__cell .dh-inline-edit__trigger {
   inline-size: 100%;
   /* No optical pull-back in a grid: the CELL aligns the column, and a trigger
    * that starts outside its cell overhangs the one beside it. */
@@ -1826,8 +1878,7 @@
  * Without this the 45px target alone takes a third of a 133px column.
  */
 @media (pointer: fine) and (min-width: 48rem) {
-  .dh-tasklist--cards .dh-check-circle-target,
-  .dh-tasklist--cards .dh-taskrow__select {
+  .dh-tasklist--cards .dh-check-circle-target {
     inline-size: 1.75rem;
     block-size: 1.75rem;
     margin-inline: 0;

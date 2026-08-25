@@ -97,7 +97,13 @@ describe("taskDateLabel", () => {
   it("prefers the due date and flags it overdue (with the WORD) when past and open", () => {
     expect(
       taskDateLabel(
-        { completedAt: null, dueDate: "2026-07-10", scheduledDate: null },
+        {
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: "2026-07-10",
+          scheduledDate: null,
+        },
         "2026-07-20",
       ),
     ).toEqual({ label: "Overdue · due 10 Jul 2026", tone: "danger" });
@@ -108,6 +114,8 @@ describe("taskDateLabel", () => {
       taskDateLabel(
         {
           completedAt: "2026-07-21T00:00:00.000Z",
+          status: "todo",
+          commitmentState: "active",
           dueDate: "2026-07-10",
           scheduledDate: null,
         },
@@ -119,13 +127,25 @@ describe("taskDateLabel", () => {
   it("falls back to the scheduled date, then nothing", () => {
     expect(
       taskDateLabel(
-        { completedAt: null, dueDate: null, scheduledDate: "2026-08-05" },
+        {
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: null,
+          scheduledDate: "2026-08-05",
+        },
         "2026-07-20",
       ),
     ).toEqual({ label: "Scheduled 5 Aug 2026" });
     expect(
       taskDateLabel(
-        { completedAt: null, dueDate: null, scheduledDate: null },
+        {
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: null,
+          scheduledDate: null,
+        },
         "2026-07-20",
       ),
     ).toBeNull();
