@@ -26,6 +26,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
 | **Product** | |
 | [`product/PRODUCT_PRINCIPLES.md`](product/PRODUCT_PRINCIPLES.md) | What DalyHub is, why it exists, how it should feel; meaning of every entity. |
 | [`product/PRODUCT_DEBT.md`](product/PRODUCT_DEBT.md) | Known inconsistencies and their target states, linked to roadmap items. |
+| [`product/PRODUCT_DEBT_CLOSURE_2026_08.md`](product/PRODUCT_DEBT_CLOSURE_2026_08.md) | The 2026-08-25 all-open-debt pass: the starting inventory, the eight root-cause groups, the entries whose recorded facts were wrong, the decisions taken and refused, and — the substance — why each of the 106 remaining entries is still open and what would close it. |
 | [`product/UX_01_IMPLEMENTATION_NOTE_2026_07_28.md`](product/UX_01_IMPLEMENTATION_NOTE_2026_07_28.md) | Exact completed and remaining scope for the UX-01 Tasks/Meetings usability slice. |
 | [`product/UI_UX_COHERENCE_AUDIT_2026_07.md`](product/UI_UX_COHERENCE_AUDIT_2026_07.md) | The 2026-07 cross-module UI/UX coherence audit that DS-12 → PX-06 implemented. |
 | [`product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md`](product/UX_01_DAILY_DRIVER_AUDIT_2026_08.md) | The 2026-08 full-product daily-driver audit (UX-01): the documents reviewed, every finding by phase with severity, what was fixed, and what was deliberately left alone. |
@@ -142,6 +143,7 @@ A future prompt should be as small as: **"Implement the next unchecked ROADMAP_V
     │   ├── DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md
     │   ├── DALYHUB_WHOLE_APP_REPAIR_2026_08.md
     │   ├── V2_4_GATE_01_RECOVERABLE_GREEN_RELEASED_2026_08.md
+    │   ├── PRODUCT_DEBT_CLOSURE_2026_08.md
     │   └── IMPLEMENTATION_WORKFLOW.md
     ├── release/
     │   ├── RELEASE_NOTES_V2.md

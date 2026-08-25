@@ -408,6 +408,11 @@ adds anything to it.**
 
 ---
 
+- **Progress, 2026-08-25 — the [all-open-debt pass](../product/PRODUCT_DEBT_CLOSURE_2026_08.md) removed two things that stand between this item and criterion 3, and moved no criterion.** It is not a GATE-01 pass and claims none of its acceptance; what it did is repair two mechanisms whose failures had each already cost this item a run.
+  - **A gate run lost to a package download cannot happen the same way again** ([DEBT-204](../product/PRODUCT_DEBT.md), ◐). Run `32710624636` — the candidate SECOND green push for criterion 3 — lost E2E p07 eleven seconds in, on a documentation-only commit, when corepack's fetch of `pnpm-10.33.0.tgz` was truncated mid-stream. pnpm is now materialised **before** `actions/setup-node`'s cache probe, with a bounded, loud retry; the ordering is the substance, since by then pnpm is on disk and that probe cannot reach the network at all. The entry stays ◐ because its own condition is a `main` run in which no job fails before `Install dependencies`, and only merging produces one.
+  - **Three journeys that reported green by never running now execute** ([DEBT-200](../product/PRODUCT_DEBT.md), ◐), which is the same class of problem GATE-01 raised the entry for. One of the three had its cause recorded WRONG — the seed holds 119 active Tasks against a page size of 50; the blocker was a grouped view drawing no "Load more" at all — so a future agent would have built a fixture and changed nothing.
+  - **Criterion 3 is unmoved and is still one `main` run short.** Nothing here was run on `main`, and nothing here claims to have been. Criteria 1, 2, 4 and 5 are untouched: no backup exists, no migration was applied, no production data was read, and `wrangler whoami` still reports not authenticated.
+
 ### ☐ V2.4-GATE-02 — Honest signals on a task row, and one day on a phone
 
 **A bounded product decision DHDS-13 correctly refused to take inside a quality

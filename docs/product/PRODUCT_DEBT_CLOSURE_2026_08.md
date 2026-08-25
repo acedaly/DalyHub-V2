@@ -2,7 +2,7 @@
 
 > A programme record, not a second register. [`PRODUCT_DEBT.md`](PRODUCT_DEBT.md)
 > is the authority on every entry; this file explains what was done to the whole
-> of it on 2026-08-25, why, and — the part that matters most — why **108 entries
+> of it on 2026-08-25, why, and — the part that matters most — why **106 entries
 > are still open** and what would close each of them.
 
 **Branch:** `claude/product-debt-closure-ofudxo` · **Base:** `main` @
@@ -37,7 +37,7 @@ Two counting notes, because both cost time before they were caught:
 
 ## 2. What this pass actually did
 
-**26 entries closed. 108 remain, every one of them with a reason stated in its
+**28 entries closed. 106 remain, every one of them with a reason stated in its
 own entry.** No entry was closed on "it should be fixed by now"; no test was
 skipped, quarantined or weakened; no ceiling was loosened to make a run pass; no
 production claim is made that this repository cannot support.
@@ -60,7 +60,7 @@ is the reason it is not optional.
 
 ## 3. Debt grouped by root cause
 
-Eight groups. The grouping is the useful output: sixteen of the twenty-six
+Eight groups. The grouping is the useful output: sixteen of the twenty-eight
 closures were **four shared authorities**, not sixteen local repairs.
 
 ### 3.1 One calendar day — DEBT-52, DEBT-152, DEBT-154
@@ -131,7 +131,7 @@ commit. pnpm is now materialised **before** `setup-node`'s cache probe, with a
 bounded, loud retry — not a generic one. Three E2E journeys that reported green
 by never running now execute; the third's recorded cause was **wrong** (§4).
 
-### 3.8 Rules that were conventions — DEBT-33, 40, 99, 130, 172, 174
+### 3.8 Rules that were conventions — DEBT-33, 40, 94, 99, 130, 172, 174
 
 Six entries, one shape: a rule the product had **stated** and nothing
 **enforced**. Each is now a mechanism.
@@ -144,6 +144,7 @@ Six entries, one shape: a rule the product had **stated** and nothing
 | DEBT-40 | a colliding migration number is cited by filename | a scan of every `.md` under `docs/` |
 | DEBT-172 | the worker and its manifest are bounded separately | two ceilings, plus one that they account for the served file |
 | DEBT-33 | a preference change belongs in the history | one helper every write goes through |
+| DEBT-94 | what the export cannot carry is NAMED | an unconditional limitation, and a test that the omission stays narrow |
 
 ---
 
@@ -223,7 +224,7 @@ says so in its own entry.
 
 ## 6. What was closed
 
-**26 entries.** In priority order, then by number.
+**28 entries.** In priority order, then by number.
 
 | Entry | P | How it closed |
 |---|---|---|
@@ -240,6 +241,7 @@ says so in its own entry.
 | DEBT-60 | P3 | Help and About get mobile titles |
 | DEBT-65 | P3 | one grouped read per Meetings page |
 | DEBT-67 | P3 | **already resolved** by THEME-01 (ADR-089) |
+| DEBT-94 | P3 | the export names the setting it deliberately does not carry |
 | DEBT-104 | P3 | the unreachable route deleted |
 | DEBT-113 | P3 | `CardPresentation` narrowed to `"list"` |
 | DEBT-114 | P3 | `insights.css` → `charts.css` |
@@ -289,7 +291,7 @@ the old rule.
 
 ---
 
-## 8. What remains open, and why — all 108
+## 8. What remains open, and why — all 106
 
 Every entry below carries, in `PRODUCT_DEBT.md`, a current issue, an impact, a
 desired future state, a closing condition, the reason it is still open and a
@@ -324,7 +326,7 @@ DEBT-76's preferred remedy is `retries` on a browser crash. **It was not taken**
 because the brief for this pass forbids generic retries and the entry's own
 condition is a measurement, not a mechanism.
 
-### 8.3 Owned by a scheduled V2.4 item — 12 entries, deliberately untouched
+### 8.3 Owned by a scheduled V2.4 item — 13 entries, deliberately untouched
 
 The roadmap is not distorted to accommodate a cleanup pass. These are in scope
 for an item that has not run yet, and taking them here would consume that item's
@@ -348,7 +350,7 @@ short description?) recorded from two sides, and should be taken together.
 PR amending `AGENTS.md`"*, which is that file's own closing rule, and folding a
 constitutional amendment into a debt pass is exactly what the rule forbids.
 
-### 8.5 Future features, not implementation debt — 26 entries
+### 8.5 Future features, not implementation debt — 28 entries
 
 §12 of this pass's brief: *do not automatically implement deferred feature ideas.*
 Each of these is a capability the product deliberately does not have, recorded so
@@ -356,8 +358,8 @@ the deferral stays visible rather than being rediscovered as an omission.
 
 DEBT-35 (Asset attachments, OCR, ingestion) · DEBT-48 and DEBT-182 (a canonical
 tag model) · DEBT-77 · DEBT-91, DEBT-92, DEBT-93 (AI capability) · DEBT-102 ·
-DEBT-109 · DEBT-145 · DEBT-153 · DEBT-155 · DEBT-160, DEBT-161 · DEBT-165–DEBT-171
-(templates, dependencies, recurrence) · DEBT-188, DEBT-189, DEBT-190, DEBT-191
+DEBT-109 · DEBT-145 · DEBT-153 · DEBT-155 · DEBT-160, DEBT-161 · DEBT-165, DEBT-166, DEBT-167,
+DEBT-168, DEBT-169, DEBT-170, DEBT-171 (templates, dependencies, recurrence) · DEBT-188, DEBT-189, DEBT-190, DEBT-191
 (manual ranking and drag destinations) · DEBT-195 (a recency source Search does
 not have) · DEBT-58 · DEBT-138.
 
@@ -376,7 +378,7 @@ snapshot — **platform-blocked, not deferred**) · DEBT-62 (a workspace approac
 50,000 rows or 64 MiB) · DEBT-75 · DEBT-136 · DEBT-140 · DEBT-151 · RECORD-02 (a
 second reason for the tab to exist).
 
-### 8.7 Bounded implementation debt not taken, each with its reason — 42 entries
+### 8.7 Bounded implementation debt not taken, each with its reason — 37 entries
 
 The largest group, and the honest one: these **could** be fixed, and were not,
 because each needs a change to a shared surface that deserves its own review.
@@ -412,11 +414,11 @@ candidates for the next pass:
 
 | | At `0e5f8ea` | After this pass |
 |---|---|---|
-| Open (☐ or ◐) | 134 | **108** |
-| Resolved (☑) | 79 | **105** |
+| Open (☐ or ◐) | 134 | **106** |
+| Resolved (☑) | 79 | **107** |
 | P1 open | 5 | 5 |
 | P2 open | 27 | 24 |
-| P3 open | 100 | 77 |
+| P3 open | 100 | 75 |
 | P4 open | 2 | 2 |
 
 **The next free debt ID is `DEBT-205`**, re-derived from the file at the end of
@@ -443,7 +445,7 @@ The target was **zero unexplained or actionable debt**, not zero open debt.
 - **Unexplained: none.** Every open entry answers six questions. Twenty-three did
   not before this pass.
 
-**This is not "all debt resolved", and it should not be read as one.** 108
+**This is not "all debt resolved", and it should not be read as one.** 106
 entries are open. What changed is that a reader can now go to any one of them and
 learn, without re-deriving it, what it costs, what would close it, and who has to
 act.
