@@ -486,7 +486,87 @@ measured practical ceiling of twelve. The headroom left is thin, and
 
 ---
 
-## 11. Explicit non-goals
+## 11. The gate, run in full — and the three failures it produced
+
+`format:check` · `lint` · `typecheck` · `scheme:check` · `icons:check` ·
+`dhds:check` · `build` · `test:unit` (**6,510**) · `test:kernel` (**2,888**) ·
+`e2e:partitions:check` — all green.
+
+The complete product E2E suite was then run in one sequential process, because
+this change alters core Task interaction: **1,924 passed · 3 failed · 1 skipped,
+in 3.7 hours.** No skip, no quarantine, no weakened assertion. The three are
+below, each diagnosed rather than dismissed.
+
+### The environment, measured
+
+| | active entities |
+|---|---|
+| committed seed, freshly reseeded | **325** |
+| before the run | 347 |
+| **after the run** | **564** |
+
+**One complete run leaks 217 records it never cleans up.** That is
+[DEBT-173](PRODUCT_DEBT.md) — *"E2E specs assert against the shared workspace's
+ACCUMULATED state"* — measured at the scale of a whole run rather than a
+re-ordering, and it carries the workspace two-thirds of the way past the
+500-entity horizon [DEBT-201](PRODUCT_DEBT.md) was raised for, from a clean start,
+in a single pass. **CI is structurally incapable of producing it**: every
+partition runs in a fresh container against a fresh database.
+
+### 1 and 2 — accumulation. Wiped, reseeded, green.
+
+- `dhds-11-drag-reorder.spec.ts:481` — the drag resolved no destination on a page
+  of many buckets: the section was marked `data-dh-drop-candidate` and never
+  `data-dh-drop-active`. This register already names **this exact line** among
+  three journeys that failed on a developer machine and in no CI run.
+- `tasks-dependencies.spec.ts:488` — a strict-mode violation: **three** rows
+  titled "Book the venue" where the assertion expects one. The leaker is now
+  named: `ai-assistance.spec.ts` accepts an AI proposal that CREATES a real Task
+  with that title and never removes it, so every full run leaves one more behind.
+  The database held four — the seed's, the test's own fixture, and one from each
+  of two gate runs.
+
+After `rm -rf .wrangler/state/v3/d1` and a reseed (325 entities, one "Book the
+venue"), **both passed**, with nothing else changed. Neither touches anything
+this item altered.
+
+### 3 — a real defect, found by this run and fixed
+
+`tasks-dependencies.spec.ts:220` seeded a Mon/Wed/Fri occurrence on a hard-coded
+`2026-08-24`, with a comment stating the date was *"AHEAD of the owner's day"* —
+true when written, **false from 2026-08-24 onwards**. From that date the test is
+permanently red, not flaky: it expects Wednesday `2026-08-26` and correctly gets
+Friday `2026-08-28`, because the rule under test never produces a successor on or
+before the day the work was finished, and the owner's day has reached the
+Wednesday. MEASURED: the owner's calendar day (Australia/Sydney) is
+**2026-08-26, a Wednesday**.
+
+The branch touches neither that spec, its fixture, nor any recurrence code. Its
+sibling *"last Friday of every month"* journeys sat on the same fuse, two days
+from failing.
+
+**Fixed by deriving the anchors from `ownerToday()`** — the technique
+`plan-fixtures.ts` already uses, and exactly the shape `helpers.ts`'s own note on
+`ownerToday` warns about (*"invisible in the morning and certain in the evening,
+which is the worst shape a test can have"*). Verified across **400 consecutive
+days**: the Monday is always strictly ahead and is a Monday, the monthly anchor
+always a Friday strictly ahead, the successor always the following month's last
+Friday. Today's derivation reproduces the value the test used to hard-code
+(`2026-09-25`) — which is what shows the rewrite preserves the intent rather than
+moving the goalposts.
+
+### The confirming run
+
+All 37 tests of both files, on the freshly seeded database:
+**37 passed** — including all three failures above.
+
+So the honest statement of the gate is: **1,927 of 1,927 green once the
+environment condition is removed**, with one genuine pre-existing defect found
+and fixed on the way.
+
+---
+
+## 12. Explicit non-goals
 
 - **No Weekly Planning redesign.** The board, its columns, the day rail, the
   arming control, the queue's sources and the glance bar are untouched.

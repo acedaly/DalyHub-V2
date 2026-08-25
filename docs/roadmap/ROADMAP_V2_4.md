@@ -553,6 +553,18 @@ gate, and the reason the product closed at B rather than A.**
   the shared date control and the shared urgency evaluator, so no third overdue
   implementation was created and the row convergence was not needed.
 
+  **The full gate, and the three failures it produced.** Every repository check is
+  green, and the complete product E2E suite was run in one sequential process
+  because this changes core Task interaction: **1,924 passed, 3 failed, 1 skipped,
+  in 3.7 hours** — with no skip, no quarantine and no weakened assertion. Two of
+  the three are [DEBT-173](../product/PRODUCT_DEBT.md) (accumulated shared state),
+  now measured at the scale of a whole run: **one pass leaks 217 records**, taking
+  the workspace from the seed's 325 to 564 — past the horizon DEBT-201 was raised
+  for, from a clean start, in one run. Wiped, reseeded, both green. The third was
+  real and is fixed: a date fuse in the TASKS-12 recurrence journeys that had been
+  **permanently** red since 2026-08-24, on a spec this branch does not otherwise
+  touch. **1,927 of 1,927 green once the environment condition is removed.**
+
   **One thing this item spent that is worth naming.** The E2E gate is now at 191.3
   min of measured test time against a 16.7 min per-partition ceiling, and the new
   coverage did not fit until the spec was made genuinely cheaper (page loads and a
