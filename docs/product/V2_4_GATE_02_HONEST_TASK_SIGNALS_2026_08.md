@@ -599,6 +599,45 @@ So the honest statement of the gate is: **1,927 of 1,927 green once the
 environment condition is removed**, with one genuine pre-existing defect found
 and fixed on the way.
 
+### A fourth, found in CI — and this one is PROVEN
+
+`today-focus.spec.ts:275` ("completes a Task from Today, once, and both surfaces
+follow") failed in CI on p02 and had never failed locally. It is **not** this
+branch's: p02 and p08 are different partitions on different runners with separate
+databases, the only commit between the green run and the red one touched
+`cards-filters.spec.ts` (p08) alone, so **p02's inputs were byte-identical across
+both runs**. The kernel rule the test asserts — `today` excludes completed work —
+is untouched here, and on `/today` there is no selection mode, so the completion
+control and its handler are byte-identical to `main`.
+
+The mechanism is an **optimistic-write race**, and it is the same family as
+DEBT-41's:
+
+> `useTaskSurfaceActions.setCompleted` paints `completedAt` synchronously and
+> fires the POST with `void`. Every assertion before step 6 is satisfied by that
+> paint alone. Step 6 then navigates to a **server-rendered** collection while the
+> write may not have reached the server at all — so `?system=today` correctly
+> returns a Task that was never completed.
+
+That is load-sensitive, which is why it surfaced on the one partition that ran
+long (**17.0 min against a 16.7 min budget**) and nowhere else.
+
+**Unlike DEBT-41, this one was falsified rather than reasoned.** Holding the
+completion POST back from the server by 3s — CI load, made deterministic —
+reproduces it exactly, and the fix removes it:
+
+| the wait | completed Task still listed in `?system=today` |
+|---|---|
+| absent | **yes** — the CI failure, on demand |
+| present | no |
+
+The fix waits on the product's **own** confirmation signal, not a timer: this
+hook's contract is that "the announcement and the notification fire only AFTER
+the server has said", and a merely queued write says *"Waiting to sync."*
+instead. Nothing is relaxed — both assertions still have to hold, and step 5's
+"exactly one announcement" count becomes meaningful rather than incidentally
+true, since it could previously pass by reading zero mentions.
+
 ---
 
 ## 12. Explicit non-goals
