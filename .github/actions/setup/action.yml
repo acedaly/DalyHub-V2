@@ -12,6 +12,10 @@ description: >-
   `worker-configuration.d.ts`. Type-checking depends on that file existing, so
   no job may skip this action and then run `tsc`.
 
+  DEBT-204 — the pnpm binary is fetched with a bounded retry, and BEFORE
+  `setup-node` asks for it. Do not remove either half; the reasoning is beside
+  each step.
+
 runs:
   using: composite
   steps:
@@ -19,10 +23,53 @@ runs:
       shell: bash
       run: corepack enable
 
+    # DEBT-204 — materialise pnpm HERE, with a retry, rather than letting
+    # `setup-node` trip it.
+    #
+    # `package.json` pins `packageManager`, so the first command that invokes
+    # pnpm makes corepack download `pnpm-<version>.tgz` from
+    # `registry.npmjs.org`. That first command used to be `setup-node`'s own
+    # `pnpm store path --silent`, run to resolve the cache directory — inside a
+    # step nobody owns, with no retry and no fallback.
+    #
+    # MEASURED on `main`: CI run 32710624636 (a documentation-only commit) lost
+    # E2E p07 eleven seconds in, when the HTTP response was truncated mid-stream
+    # and Node's bundled undici crashed on it —
+    # `AssertionError [ERR_ASSERTION]: assert(!this.paused)`. Playwright never
+    # started; the other eleven partitions ran the identical action on the
+    # identical commit and passed. It is a FAN-OUT problem: sixteen jobs make
+    # the same call, so the chance that at least one fails is roughly sixteen
+    # times the per-call rate, and any single one turns the whole run red.
+    #
+    # Three attempts with a short backoff, and the last one is not swallowed:
+    # a genuinely unreachable registry still fails the job, loudly, here rather
+    # than four steps later inside somebody else's action.
+    - name: Prepare pnpm (retried — see DEBT-204)
+      shell: bash
+      env:
+        PNPM_PREPARE_ATTEMPTS: "3"
+      run: |
+        set -euo pipefail
+        for attempt in $(seq 1 "${PNPM_PREPARE_ATTEMPTS}"); do
+          if corepack prepare --activate; then
+            echo "pnpm $(pnpm --version) ready (attempt ${attempt})"
+            exit 0
+          fi
+          if [ "${attempt}" -eq "${PNPM_PREPARE_ATTEMPTS}" ]; then
+            echo "::error::corepack could not obtain the pinned pnpm after ${PNPM_PREPARE_ATTEMPTS} attempts."
+            exit 1
+          fi
+          echo "corepack prepare failed (attempt ${attempt}); retrying in $((attempt * 5))s"
+          sleep "$((attempt * 5))"
+        done
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version-file: .nvmrc
+        # `cache: pnpm` resolves the store by running `pnpm store path`. By the
+        # time this runs, pnpm is already on disk (the step above), so that call
+        # cannot reach the network — which is the whole point of the ordering.
         cache: pnpm
 
     - name: Install dependencies
