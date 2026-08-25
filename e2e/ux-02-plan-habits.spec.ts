@@ -52,6 +52,11 @@ import {
   cleanupCalendarFixtures,
   seedCalendarSources,
 } from "./calendar-fixtures";
+import {
+  cleanupReviewByTitle,
+  createCompletedPriorWeeklyReview,
+  uniqueReviewTitle,
+} from "./reviews-fixtures";
 
 let fixture: PlanFixture;
 
@@ -322,22 +327,41 @@ test("the week's figures agree with the rows, and are printed twice", async ({
 test("the Review focus is a real disclosure, hidden until it is asked for", async ({
   page,
 }) => {
-  await gotoFixture(page, "/plan");
-  const toggle = page.getByTestId("plan-focus-toggle");
-  const count = await toggle.count();
-  // The seeded workspace may hold no completed weekly Review for the prior
-  // period; the control is drawn only when there is prose to read.
-  test.skip(count === 0, "no prior Review focus in the seeded workspace");
+  /*
+   * DEBT-200 — this used to `test.skip()` on "no prior Review focus in the
+   * seeded workspace", which was true on every run: the seed holds no completed
+   * weekly Review at all, so the journey had never once executed. The guard is
+   * kept as an ASSERTION and the spec now owns the Review it reads, created
+   * through the product's own flow (`reviews-fixtures.ts`).
+   */
+  const title = uniqueReviewTitle("prior-focus");
+  const focus = "Ship the planner's prior-focus disclosure.";
+  try {
+    await createCompletedPriorWeeklyReview(page, title, focus);
 
-  const panel = page.getByTestId("plan-prior-focus");
-  await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await expect(panel).toBeHidden();
+    await gotoFixture(page, "/plan");
+    const toggle = page.getByTestId("plan-focus-toggle");
+    await expect(
+      toggle,
+      "a completed prior-period weekly Review with prose must draw the focus " +
+        "disclosure; without it this journey asserts nothing (DEBT-200)",
+    ).toBeVisible();
 
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(panel).toBeVisible();
-  // It READS the Review; it never copies it and never creates anything.
-  await expect(panel).toContainText("never copied");
+    const panel = page.getByTestId("plan-prior-focus");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(panel).toBeHidden();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(panel).toBeVisible();
+    // It READS the Review; it never copies it and never creates anything.
+    await expect(panel).toContainText("never copied");
+    // And what it reads is THIS Review's own words, not a placeholder.
+    await expect(panel).toContainText(focus);
+    await expect(panel).toContainText(title);
+  } finally {
+    await cleanupReviewByTitle(title);
+  }
 });
 
 /* -------------------------------------------------------------------------- */

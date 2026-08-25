@@ -34,6 +34,21 @@ const FLAT_LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 /** The default execution scope, which EXCLUDES completed work. */
 const ACTIVE_LIST = "/tasks?view=list&system=active&sort=created&dir=desc";
 
+/**
+ * The same scope, UNGROUPED — the configuration that actually paginates.
+ *
+ * DEBT-200 — `?system=active` resolves the All-active BUILT-IN, and UIX-01 gave
+ * that view a `due_state` grouping. A grouped view renders from a
+ * server-authoritative per-bucket slice and draws no "Load more tasks" at all,
+ * so the accumulation journey's guard fired on every run and the journey had
+ * never once executed. The register recorded the cause as a seed too small to
+ * fill a page; it is not — MEASURED on the E2E database, the workspace holds
+ * **119** active Tasks against a `DEFAULT_TASK_PAGE_SIZE` of 50. Adding
+ * `group=none` is the Layout control an owner has, and it is what makes the
+ * list flat and therefore paginated.
+ */
+const ACTIVE_FLAT_LIST = `${ACTIVE_LIST}&group=none`;
+
 /** Every canonical single-task record mutation. Never the loader, never `/tasks/new`. */
 const TASK_RECORD_POST = "**/tasks/*";
 
@@ -205,15 +220,16 @@ test.describe("TASKS-09 — an optimistic list, reconciled", () => {
   test("keeps loaded pages when a mutation re-reads the list", async ({
     page,
   }) => {
-    await gotoFixture(page, ACTIVE_LIST);
+    await gotoFixture(page, ACTIVE_FLAT_LIST);
     const loadMore = page.getByRole("button", { name: "Load more tasks" });
-    // The seeded workspace may hold a single page; the accumulation rule is unit
-    // tested either way, and this case asserts it in the product when there is more
-    // than one page to accumulate.
-    test.skip(
-      (await loadMore.count()) === 0,
-      "the seeded workspace holds a single page of active tasks",
-    );
+    // An ASSERTION, not an exit (DEBT-200). A flat active list over a workspace
+    // of 119 active Tasks has a second page by arithmetic; if this control is
+    // absent the journey proves nothing, and saying so is the point.
+    await expect(
+      loadMore,
+      "a flat active list must paginate; without a second page this journey " +
+        "asserts nothing (DEBT-200)",
+    ).toBeVisible();
 
     const before = await taskRows(page).count();
     await loadMore.click();

@@ -82,15 +82,33 @@ test.describe("M3-INT — the shared state layer", () => {
   });
 
   test("a disabled control has no state layer at all", async ({ page }) => {
-    await gotoFixture(page, "/design/record-layout");
-    const disabledTab = page.getByRole("tab", { name: "Settings" });
-    void disabledTab;
-
+    /*
+     * DEBT-200 — this used to `test.skip()` when it found no disabled button,
+     * which it did on every run: `/design/forms` documented every disabled
+     * FIELD and no disabled BUTTON, so the one claim about the disabled state
+     * layer had never once been checked in the product. The fixture now shows
+     * the state it is meant to document, and the guard is an assertion.
+     */
     await gotoFixture(page, "/design/forms");
-    const disabled = page.locator("button.dh-btn:disabled").first();
-    if ((await disabled.count()) === 0) test.skip();
-    await disabled.hover({ force: true });
-    expect(await layerOpacity(disabled)).toBe(0);
+    const disabled = page.locator("button.dh-btn:disabled");
+    expect(
+      await disabled.count(),
+      "`/design/forms` must document the disabled button state; without it " +
+        "this journey asserts nothing (DEBT-200)",
+    ).toBeGreaterThan(0);
+
+    // Every variant, not just the first: the rule is that INERT means no layer,
+    // and a variant that painted its own disabled hover would pass a
+    // first-only check.
+    for (let index = 0; index < (await disabled.count()); index += 1) {
+      const control = disabled.nth(index);
+      await control.hover({ force: true });
+      expect(
+        await layerOpacity(control),
+        `disabled control ${index} paints a state layer on hover`,
+      ).toBe(0);
+      await page.mouse.move(0, 0);
+    }
   });
 
   test("the record header's own controls are hosts too", async ({ page }) => {
@@ -319,8 +337,11 @@ test.describe("M3-INT — the shared switch", () => {
 
   test("a disabled switch cannot be toggled", async ({ page }) => {
     await gotoFixture(page, "/settings?section=navigation");
+    // DEBT-200 — an assertion, not an exit. `today` and `settings` are
+    // MANDATORY_NAVIGATION_MODULES, so their rows are always disabled; a guard
+    // here could only ever hide the disappearance of that guarantee.
     const disabled = page.locator("input[role='switch']:disabled").first();
-    if ((await disabled.count()) === 0) test.skip();
+    await expect(disabled).toBeAttached();
     const before = await disabled.isChecked();
     await page
       .locator(`label[for="${await disabled.getAttribute("id")}"]`)
