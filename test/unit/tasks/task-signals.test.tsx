@@ -81,7 +81,13 @@ describe("UrgencyChip", () => {
   it("renders the word Overdue with a danger tone for a past open due date", () => {
     render(
       <UrgencyChip
-        task={{ completedAt: null, dueDate: "2026-07-10", scheduledDate: null }}
+        task={{
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: "2026-07-10",
+          scheduledDate: null,
+        }}
         todayIso={TODAY}
         data-testid="uc"
       />,
@@ -95,7 +101,13 @@ describe("UrgencyChip", () => {
   it("renders 'Due today' distinctly from a future due date", () => {
     const { rerender } = render(
       <UrgencyChip
-        task={{ completedAt: null, dueDate: TODAY, scheduledDate: null }}
+        task={{
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: TODAY,
+          scheduledDate: null,
+        }}
         todayIso={TODAY}
         data-testid="uc"
       />,
@@ -103,7 +115,13 @@ describe("UrgencyChip", () => {
     expect(screen.getByTestId("uc")).toHaveTextContent("Due today");
     rerender(
       <UrgencyChip
-        task={{ completedAt: null, dueDate: "2026-08-01", scheduledDate: null }}
+        task={{
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: "2026-08-01",
+          scheduledDate: null,
+        }}
         todayIso={TODAY}
         data-testid="uc"
       />,
@@ -115,7 +133,13 @@ describe("UrgencyChip", () => {
   it("renders 'Scheduled today' for a task planned for today", () => {
     render(
       <UrgencyChip
-        task={{ completedAt: null, dueDate: null, scheduledDate: TODAY }}
+        task={{
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: null,
+          scheduledDate: TODAY,
+        }}
         todayIso={TODAY}
         data-testid="uc"
       />,
@@ -126,7 +150,13 @@ describe("UrgencyChip", () => {
   it("renders nothing when the task has no due or scheduled date", () => {
     const { container } = render(
       <UrgencyChip
-        task={{ completedAt: null, dueDate: null, scheduledDate: null }}
+        task={{
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: null,
+          scheduledDate: null,
+        }}
         todayIso={TODAY}
       />,
     );
@@ -136,7 +166,13 @@ describe("UrgencyChip", () => {
   it("hides its glyph from assistive tech (the label carries the meaning)", () => {
     render(
       <UrgencyChip
-        task={{ completedAt: null, dueDate: "2026-07-10", scheduledDate: null }}
+        task={{
+          completedAt: null,
+          status: "todo",
+          commitmentState: "active",
+          dueDate: "2026-07-10",
+          scheduledDate: null,
+        }}
         todayIso={TODAY}
         data-testid="uc"
       />,

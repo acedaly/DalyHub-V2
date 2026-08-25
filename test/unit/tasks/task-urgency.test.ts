@@ -10,20 +10,25 @@
 
 import { describe, expect, it } from "vitest";
 
-import { taskUrgency } from "~/shared/task-record/task-view";
+import {
+  taskUrgency,
+  type TaskUrgencyInput,
+} from "~/shared/task-record/task-view";
 
 const TODAY = "2026-07-20";
 
-function urgency(
-  over: Partial<{
-    completedAt: string | null;
-    dueDate: string | null;
-    scheduledDate: string | null;
-  }> = {},
-  todayIso = TODAY,
-) {
+function urgency(over: Partial<TaskUrgencyInput> = {}, todayIso = TODAY) {
   return taskUrgency(
-    { completedAt: null, dueDate: null, scheduledDate: null, ...over },
+    {
+      completedAt: null,
+      // V2.4-GATE-02 — the default is an ORDINARY open Task, so every existing
+      // case below still asks what it asked. The commitment cases override them.
+      status: "todo",
+      commitmentState: "active",
+      dueDate: null,
+      scheduledDate: null,
+      ...over,
+    },
     todayIso,
   );
 }

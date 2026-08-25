@@ -60,6 +60,11 @@ async function visibleControlBoxes(
     const selectors = [
       '[data-testid="plan-rail-day"]',
       '[data-testid="plan-place-day"]',
+      '[data-testid="plan-place-done"]',
+      // V2.4-GATE-02 — the control that enters and leaves the queue's selection
+      // mode. It is a PLAN-01 control by every test this file applies: it is on
+      // this surface, it is this surface's, and a thumb has to hit it.
+      '[data-testid="plan-queue-select-toggle"]',
       '[data-testid="plan-queue-source"]',
       ".dh-plan__weeknav-link",
     ];
@@ -178,7 +183,13 @@ test.describe("the phone's touch targets", () => {
      * the week navigation. The shared task row's own controls are DS-04's and are
      * asserted where they are defined; re-asserting them here would make this
      * file fail for a change it does not own.
+     *
+     * V2.4-GATE-02 — the placement bar belongs to the queue's selection mode, so
+     * the mode is entered first. Measuring it while it is not drawn would have
+     * quietly stopped measuring the seven buttons this test exists for.
      */
+    await page.getByTestId("plan-queue-select-toggle").click();
+    await expect(page.getByTestId("plan-place-bar")).toBeVisible();
     const boxes = await visibleControlBoxes(page);
     expect(boxes.length).toBeGreaterThan(0);
     const undersized = boxes.filter(
@@ -255,6 +266,8 @@ test("states the week and the day in WORDS, never by colour alone", async ({
   ).toHaveCount(1);
 
   // Every day control names its day in words, for a screen reader.
+  // V2.4-GATE-02 — the placement bar belongs to the queue's selection mode.
+  await page.getByTestId("plan-queue-select-toggle").click();
   const placeDays = page.getByTestId("plan-place-day");
   await expect(placeDays).toHaveCount(7);
   for (let index = 0; index < 7; index += 1) {
@@ -271,6 +284,7 @@ test("keeps focus after a mutation and announces the outcome", async ({
 
   const unplaced = fixture.task("unplaced");
   const queue = page.getByTestId("plan-queue");
+  await queue.getByTestId("plan-queue-select-toggle").click();
   const checkbox = queue.getByRole("checkbox", {
     name: `Select ${unplaced.title} to place on a day`,
   });

@@ -87,6 +87,17 @@ export interface TaskRowData {
   readonly parent: TaskRelation | null;
   readonly completed: boolean;
   readonly waiting: boolean;
+  /**
+   * V2.4-GATE-02 — is this Task still a commitment the owner OWES?
+   *
+   * The kernel's `open`-scope answer, projected by `toTaskRowProjection` and
+   * never re-derived here. It decides one thing and one thing only: whether a
+   * passed due date is allowed to claim urgency. A **completed**, **cancelled**
+   * or **Someday / Maybe** Task keeps its date and loses the overdue ramp; a
+   * **waiting** or **on hold** Task is still owed and is unchanged, because
+   * blocked is not abandoned.
+   */
+  readonly stillOwed: boolean;
   readonly recurrence: SerializedTaskListItem["recurrence"];
   /**
    * TASKS-13 — this Task's checklist progress, when the SURFACE projected it.
@@ -234,7 +245,16 @@ export function TaskRow({
 }: TaskRowProps) {
   const Heading = `h${headingLevel}` as const;
   const due = relativeCalendarDate(task.dueDate, todayIso);
-  const overdue = !task.completed && due?.urgency === "overdue";
+  /*
+   * V2.4-GATE-02 — the row's own overdue flag agrees with the date beside it.
+   *
+   * It asked `!task.completed`, which is one third of the kernel's answer, so a
+   * cancelled Task's passed date set `data-overdue` on the row exactly like a
+   * live one. `stillOwed` is that answer, resolved once per Task in the shared
+   * projection, so the flag, the date's colour and the cross-view row can no
+   * longer disagree.
+   */
+  const overdue = task.stillOwed && due?.urgency === "overdue";
   const disabled = readOnly || task.completed;
   const repeat = taskRecurrenceLabel(task.recurrence ?? null);
   const checklist = checklistProgressLabel(task.checklist);
@@ -303,6 +323,33 @@ export function TaskRow({
     // The cell holds exactly one control: `InlineTaskDate`'s trigger button.
     dateCellRef.current?.querySelector("button")?.click();
   }, []);
+
+  /*
+   * V2.4-GATE-02 — completion stays reachable while selection displaces it.
+   *
+   * The row's long tail is the one place that is present in EVERY mode, so it is
+   * where the displaced act goes. It appears only while the lead is showing the
+   * selection control — an at-rest row's menu is byte-identical to what it was,
+   * because a menu item duplicating the control 200px to its left is noise.
+   *
+   * It is added HERE rather than by each surface deliberately: the row is what
+   * knows its own lead is occupied, and a rule that depended on four callers
+   * remembering is a rule that would be missed on the fifth. It writes through
+   * `onCompletedChange` — the checkbox's own handler — so there is no second
+   * completion path anywhere in this component.
+   */
+  const menuItems: MenuItem[] =
+    selection && !readOnly
+      ? [
+          {
+            id: "complete",
+            label: task.completed ? "Reopen" : "Complete",
+            icon: <CheckCircleIcon />,
+            onSelect: () => onCompletedChange(!task.completed),
+          },
+          ...(overflowActions as MenuItem[]),
+        ]
+      : (overflowActions as MenuItem[]);
 
   const swipe = useTaskRowSwipe({
     // A read-only row (the Deleted view) offers neither: every mutation on a
@@ -415,11 +462,41 @@ export function TaskRow({
       ) : null}
       <span className="dh-taskrow__lead">
         {dragHandle}
+        {/*
+         * V2.4-GATE-02 — ONE checkbox-like control at the row's leading edge.
+         *
+         * `task-signals.css` has always stated the invariant — *"selection is a
+         * control that appears at the row's leading edge ONLY in selection mode
+         * … A row shows one of them at rest"* — and the row did not keep it: a
+         * surface in selection mode drew the 20px completion square AND a
+         * selection checkbox 8px from it, unlabelled as a pair. On Weekly
+         * Planning's queue, which is permanently in selection mode, ticking the
+         * wrong one COMPLETED work the owner meant to schedule (DEBT-194 /
+         * DEBT-164).
+         *
+         * The rule is now structural rather than a note: in selection mode the
+         * selection control REPLACES completion; otherwise completion is the
+         * row's control. Not hidden-but-interactive, not shrunk, not recoloured
+         * — there is exactly one control in the DOM, so a mis-click cannot reach
+         * the other act and a screen reader is never offered two checkboxes on
+         * one row.
+         *
+         * Completion is not lost while the mode is on: it stays one item away in
+         * the row's own overflow menu (below), it is what the surface's bulk bar
+         * offers over the selection, and leaving the mode restores it instantly.
+         *
+         * The two are still told apart by SHAPE, at the same size and in the same
+         * place: selection is the design system's 18px SQUARE
+         * (`.dh-checkbox__control`, D7 — *"this is the square — selection"*),
+         * completion is the 20px rounded square. Both sit inside the SAME 44px
+         * target box, so entering and leaving selection mode moves no other cell
+         * by a pixel.
+         */}
         {selection ? (
-          <label className="dh-taskrow__select">
+          <label className="dh-check-circle-target dh-taskrow__select">
             <input
               type="checkbox"
-              className="dh-checkbox__input"
+              className="dh-checkbox__control"
               checked={selection.selected}
               data-testid="task-select"
               aria-label={selection.label}
@@ -432,7 +509,6 @@ export function TaskRow({
               }
               onClick={(event) => event.stopPropagation()}
             />
-            <span className="dh-checkbox__box" aria-hidden="true" />
           </label>
         ) : null}
         {/*
@@ -446,7 +522,7 @@ export function TaskRow({
          * checkbox would still be announced, and would still say the task can
          * be finished. Restore it first.
          */}
-        {readOnly ? null : (
+        {readOnly || selection ? null : (
           <label className="dh-check-circle-target dh-taskrow__complete">
             <input
               type="checkbox"
@@ -605,6 +681,7 @@ export function TaskRow({
               kind="scheduled"
               value={task.scheduledDate}
               todayIso={todayIso}
+              stillOwed={task.stillOwed}
               onSaved={onInlineSave}
               disabled={disabled}
             />
@@ -615,6 +692,7 @@ export function TaskRow({
               kind="due"
               value={task.dueDate}
               todayIso={todayIso}
+              stillOwed={task.stillOwed}
               onSaved={onInlineSave}
               disabled={disabled}
             />
@@ -661,7 +739,7 @@ export function TaskRow({
           // names this control everywhere it appears.
           label={`More actions for ${task.title}`}
           triggerClassName="dh-taskrow__overflow dh-action-reveal"
-          items={overflowActions as MenuItem[]}
+          items={menuItems}
         />
       </span>
     </li>

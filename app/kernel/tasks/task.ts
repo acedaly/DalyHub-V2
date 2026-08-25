@@ -79,6 +79,59 @@ export type TimeSector = (typeof TIME_SECTORS)[number];
 export const COMMITMENT_STATES = ["active", "someday"] as const;
 export type CommitmentState = (typeof COMMITMENT_STATES)[number];
 
+/* -------------------------------------------------------------------------- */
+/* Commitment — the ONE answer to "does the owner still owe this?"            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The three facts that decide whether a Task is still a COMMITMENT.
+ *
+ * Deliberately not `TaskView`: this question is asked of a full record, of a
+ * serialised list item, of a cross-view result and of a Project's task row, and
+ * every one of those spells the same three facts differently. Naming the facts
+ * rather than the record is what lets all four ask the kernel instead of each
+ * writing the status list out again.
+ */
+export interface TaskCommitmentFacts {
+  /** Completion is the spine's `completedAt`, never a status (see above). */
+  readonly completed: boolean;
+  readonly status: TaskStatus;
+  /** `commitmentState === "someday"` — parked out of the committed set. */
+  readonly someday: boolean;
+}
+
+/**
+ * Is this Task OUT OF COMMITMENT — terminal, or parked out of the committed set?
+ *
+ * Exactly the triple the `open` system view excludes: **completed, cancelled and
+ * Someday / Maybe**. It is stated once, here, because it is a kernel fact about
+ * what a Task IS and not a rendering decision — and until V2.4-GATE-02 three
+ * surfaces answered it independently (`views-presentation.ts` had the triple,
+ * `TaskRow` had completion alone, and `InlineTaskDate` had nothing at all, so a
+ * cancelled Task's passed due date was painted in the overdue colour beside its
+ * own "Cancelled" pill).
+ *
+ * `waiting` and `on_hold` are deliberately ABSENT, by the same authority: the
+ * `open` scope keeps both because they are work the owner still intends to do,
+ * blocked or paused rather than abandoned. A Task somebody else is sitting on IS
+ * late, and the row says so in words beside the date.
+ */
+export function isTaskOutOfCommitment(task: TaskCommitmentFacts): boolean {
+  return task.completed || task.status === "cancelled" || task.someday;
+}
+
+/**
+ * Is this Task still OWED — the positive form, and the one a surface reads.
+ *
+ * "Overdue" is a claim that the owner still owes the work and it has slipped.
+ * Work nobody is going to do cannot slip, and saying it has is the manufactured
+ * urgency `AGENTS.md` §2.4 ("calm over urgent") rules out. A closed Task keeps
+ * its date — history is not hidden — it simply stops claiming to be late.
+ */
+export function isTaskStillOwed(task: TaskCommitmentFacts): boolean {
+  return !isTaskOutOfCommitment(task);
+}
+
 /** The kinds of record a Task can be related to and displayed against. */
 export type TaskRelationKind = "project" | "goal" | "area";
 
@@ -594,6 +647,13 @@ export type WaitingTaskListItem = {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly status: TaskStatus;
+  /**
+   * V2.4-GATE-02 — carried so the Waiting card can ask
+   * {@link isTaskStillOwed} rather than assume. The query already excludes
+   * Someday/Maybe and completed work; `cancelled` it does not exclude, and a
+   * cancelled Task's passed deadline must not paint as late here either.
+   */
+  readonly commitmentState: CommitmentState;
   readonly priority: TaskPriority | null;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;

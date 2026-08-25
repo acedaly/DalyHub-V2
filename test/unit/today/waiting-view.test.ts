@@ -88,6 +88,10 @@ describe("toWaitingCardData", () => {
   const base = {
     id: "t1",
     title: "Prepare supplier agreement",
+    // V2.4-GATE-02 — a waiting Task is still OWED, and the card now says so from
+    // the Task's own facts rather than from completion alone.
+    status: "todo" as const,
+    commitmentState: "active" as const,
     priority: "p1" as const,
     dueDate: "2026-07-15",
     scheduledDate: null,

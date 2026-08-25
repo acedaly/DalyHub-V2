@@ -111,6 +111,88 @@ test.describe("DHDS-13 — the phone task row prints what it draws", () => {
     // At least four fifths of the name, rather than a single character.
     expect(painted!.painted).toBeGreaterThan(painted!.wanted * 0.8);
   });
+
+  /*
+   * DEBT-193 — a hugging metadata cell paints its OWN content, or it is genuinely
+   * out of room. There is no third case.
+   *
+   * The entry recorded this as an intrinsic-sizing quirk that six candidate
+   * corrections failed to move; V2.4-GATE-02 found the actual cause, which was
+   * neither intrinsic sizing nor unfixable: `task-list.css` has always declared
+   * `margin-inline: 0` on a cell's inline-edit trigger ("no optical pull-back in
+   * a grid: the CELL aligns the column"), and the rule lost the cascade to the
+   * shared `[data-presentation="meta"]` rule, which is one compound selector
+   * heavier. So every metadata trigger in a task row kept a `-4px` start margin —
+   * subtracted from the hugging cell's intrinsic contribution and not given back
+   * in layout.
+   *
+   * MEASURED on `/today` at 393px before the fix: 94.7 painted against 99 wanted
+   * ("Conference t…"), 69.9 against 74, 49.1 against 53. After: 98.7 against 99,
+   * 73.9 against 74, 53.1 against 53.
+   *
+   * The test asks the entry's own question — *does a label whose cell has spare
+   * width paint its full `scrollWidth`?* — so a label that ellipsises because the
+   * row is genuinely full is not a failure. "Spare width" is the metadata run's
+   * leftover space beyond its own flex gaps.
+   */
+  /*
+   * ONE test over both routes and every phone width, rather than one per width.
+   *
+   * A viewport change re-runs the media and container queries without a
+   * navigation, and this assertion is pure geometry — so two page loads answer
+   * the question ten would. The gate's partition budget is measured test time
+   * (`scripts/e2e-partitions.mjs`), and ten redundant loads is real minutes.
+   */
+  test("a Project label with room paints its whole name at every phone width", async ({
+    page,
+  }) => {
+    const offenders: string[] = [];
+    for (const route of ["/today", "/tasks"]) {
+      await page.setViewportSize(PHONES[0]);
+      await gotoFixture(page, route);
+      for (const phone of PHONES) {
+        await page.setViewportSize(phone);
+        await expect(page.getByTestId("task-row").first()).toBeVisible();
+        offenders.push(
+          ...(await page.evaluate((width) => {
+            const found: string[] = [];
+            for (const cell of document.querySelectorAll(
+              ".dh-taskrow__cell--project",
+            )) {
+              const label = cell.querySelector(".dh-inline-select__label");
+              const meta = cell.closest(".dh-taskrow__meta");
+              if (!label || !meta) continue;
+              const gap =
+                Number.parseFloat(getComputedStyle(meta).columnGap || "0") || 0;
+              const children = [...meta.children];
+              const used = children.reduce(
+                (total, child) => total + child.getBoundingClientRect().width,
+                0,
+              );
+              const spare =
+                meta.getBoundingClientRect().width -
+                used -
+                gap * Math.max(0, children.length - 1);
+              const painted = label.getBoundingClientRect().width;
+              const wanted = label.scrollWidth;
+              // One pixel of tolerance: `scrollWidth` is an integer and the
+              // painted box is fractional, so an exact fit reads as 98.69 vs 99.
+              if (spare > 1 && painted < wanted - 1) {
+                found.push(
+                  `${width}px — ${label.textContent?.trim()}: painted ${painted.toFixed(1)} of ${wanted} with ${spare.toFixed(1)}px spare`,
+                );
+              }
+            }
+            return found;
+          }, phone.width)),
+        );
+      }
+    }
+    expect(
+      offenders,
+      "a phone truncates a Project name that had room for it",
+    ).toEqual([]);
+  });
 });
 
 test.describe("DHDS-13 — the tablet rail keeps its primary action visible", () => {

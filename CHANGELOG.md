@@ -1,5 +1,36 @@
 # Changelog
 
+- Made a task row stop saying things that were not true. Weekly planning's "still
+  to place" list drew **two tick boxes on every row**, eight pixels apart, and
+  they did different things: one scheduled the task, one finished it. On the one
+  screen whose entire job is deciding when you will do something, a slip of the
+  mouse marked it done instead. Now a row shows one control at a time. Normally
+  it is the one that completes the task, exactly like every other list in
+  DalyHub, and you place work from the row's own "⋯" menu — "Plan for Wednesday
+  14 May", a line for each day of the week. When you want to move several at
+  once you press **Select tasks**, and while you are choosing, the tick box on
+  each row _becomes_ the selection box rather than sitting next to it. Escape,
+  "Done", or placing the work takes you back out. Nothing moves on the screen
+  when you switch between the two, and both things stay reachable by keyboard
+  the whole time.
+
+  And a cancelled task with a date in the past no longer claims to be overdue.
+  It was painting the date in the late-work colour right beside its own
+  "Cancelled" label — telling you that work nobody is ever going to do is running
+  behind. Same for finished work and anything parked as Someday / Maybe. The date
+  is still there, because it is true and it is history; what has gone is the
+  urgency. Work you are _waiting_ on someone for, or that is on hold, is still
+  counted as late, because that is still yours to chase — and now every screen
+  agrees about which is which, instead of three of them each having their own
+  opinion.
+
+  One smaller thing, on a phone: a project's name in a task's second line was
+  being cut short by about four pixels even when there was plenty of room beside
+  it — "Conference t…" with fifty pixels of empty space to its right. It had been
+  looked at before and written off as unfixable. It was a stylesheet rule that
+  had been overridden without anyone noticing, and it now says what it always
+  meant to.
+
 - Fixed the things that were quietly broken, and made the test gate mean
   something again. The searchable pickers — the ones you use to file a task
   under a project, choose a priority, link a record to another — had been

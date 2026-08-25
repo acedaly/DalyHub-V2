@@ -13,15 +13,20 @@
  * has no due or scheduled date, so lists stay calm.
  */
 
-import { taskUrgency, type TaskUrgency } from "./task-view";
+import {
+  taskUrgency,
+  type TaskUrgency,
+  type TaskUrgencyInput,
+} from "./task-view";
 
 export type UrgencyChipProps = {
   /** The minimal date facts the urgency evaluator reads. */
-  readonly task: {
-    readonly completedAt: string | null;
-    readonly dueDate: string | null;
-    readonly scheduledDate: string | null;
-  } | null;
+  /**
+   * V2.4-GATE-02 — the chip reads the same input `taskUrgency` does, which now
+   * includes the two commitment facts beside completion. A chip cannot say
+   * "Overdue" about work the owner no longer owes.
+   */
+  readonly task: TaskUrgencyInput | null;
   /** The owner's current calendar date `YYYY-MM-DD` (server-derived, ADR-022). */
   readonly todayIso?: string;
   /** A pre-evaluated urgency fact from a trusted projection, used by Search. */

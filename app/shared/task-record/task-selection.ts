@@ -1,5 +1,16 @@
 /**
- * TASKS-06 — the Tasks multi-selection state model (pure, React-free, testable).
+ * TASKS-06 — the SHARED task multi-selection state model (pure, React-free).
+ *
+ * ── V2.4-GATE-02 moved it out of `app/modules/tasks/` ────────────────────────
+ * Weekly Planning's queue also selects Tasks, and until this item it did so with
+ * a bare `Set<string>` and no MODE — so its rows were permanently in selection
+ * mode and drew a selection control beside the completion control, which is the
+ * defect DEBT-194 records. Giving the queue a mode meant either importing a
+ * module-private model (which the module-isolation rule forbids) or writing a
+ * second selection model beside the first. Neither is acceptable, so the model
+ * moved here, beside the shared `TaskRow` that renders the control it drives.
+ * `/tasks` is unchanged by the move; `/plan` now enters and leaves the same mode
+ * with the same reducer.
  *
  * Selection looks trivial until it has to be correct, and then it has four rules that
  * are easy to get wrong and impossible to test through a rendered list:

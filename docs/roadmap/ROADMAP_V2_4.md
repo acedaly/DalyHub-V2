@@ -413,7 +413,7 @@ adds anything to it.**
   - **Three journeys that reported green by never running now execute** ([DEBT-200](../product/PRODUCT_DEBT.md), ◐), which is the same class of problem GATE-01 raised the entry for. One of the three had its cause recorded WRONG — the seed holds 119 active Tasks against a page size of 50; the blocker was a grouped view drawing no "Load more" at all — so a future agent would have built a fixture and changed nothing.
   - **Criterion 3 is unmoved and is still one `main` run short.** Nothing here was run on `main`, and nothing here claims to have been. Criteria 1, 2, 4 and 5 are untouched: no backup exists, no migration was applied, no production data was read, and `wrangler whoami` still reports not authenticated.
 
-### ☐ V2.4-GATE-02 — Honest signals on a task row, and one day on a phone
+### ☑ V2.4-GATE-02 — Honest signals on a task row, and one day on a phone — **DELIVERED 2026-08-25**
 
 **A bounded product decision DHDS-13 correctly refused to take inside a quality
 gate, and the reason the product closed at B rather than A.**
@@ -484,6 +484,82 @@ gate, and the reason the product closed at B rather than A.**
      appearances**: no horizontal document overflow, and 44px hit areas under a
      coarse pointer. `axe` clean with no rule disabled.
 - **Closes.** DEBT-194, DEBT-164, DEBT-196, DEBT-197.
+- **DELIVERED 2026-08-25**, and it closed one more than it set out to. Record:
+  [`V2_4_GATE_02_HONEST_TASK_SIGNALS_2026_08.md`](../product/V2_4_GATE_02_HONEST_TASK_SIGNALS_2026_08.md).
+
+  **The decision, which is what this item was actually for.** A Task row draws
+  **one** checkbox-like control, and which one it is depends on an explicit
+  selection MODE: at rest it is completion, in the mode the selection control
+  *replaces* it in the same box. That is not an invention — it is the grammar
+  `/tasks` has used since TASKS-06, and the queue simply never had a mode (its
+  state was a bare `Set<string>`, so it was permanently in one). The reducer moved
+  to `app/shared/task-record/task-selection.ts` so both surfaces share one model
+  rather than copying it; `/tasks` is byte-identical across the move. Entering is
+  deliberate (a "Select tasks" button, or the product's existing touch hold);
+  leaving is the same button, the bar's "Done", **Escape**, or a completed
+  placement. Neither capability leaves the surface: at rest placement is in the
+  row's overflow, one item per day of the week; in the mode completion is.
+
+  **The semantic answer.** `isTaskStillOwed` / `isTaskOutOfCommitment` in the
+  kernel, over the triple the `open` scope already excluded — completed, cancelled
+  and Someday/Maybe, with waiting and on hold deliberately kept because blocked is
+  not abandoned. Carried on the shared projection as `stillOwed`; `InlineTaskDate`
+  is handed the ANSWER and never the facts, which is exactly what DEBT-197's entry
+  said must not be got wrong. `taskUrgency`'s input widened to REQUIRE the
+  commitment facts, so the type system found every consumer.
+
+  **Acceptance, criterion by criterion.**
+  1. **Met.** No task row anywhere renders both controls at rest — asserted over
+     the rendered row on `/plan`, `/tasks`, `/today` and a Project's Tasks tab
+     (the last over the `Card` anatomy, so the claim is about the product), at
+     rest **and** in selection mode. MEASURED at nine widths in both appearances:
+     `min = max = 1` in every pass.
+  2. **Met.** Both acts by keyboard and by screen reader, with distinct names
+     (`Complete <title>` vs `Select <title> to place on a day`) and never two at
+     once. `plan-weekly-planning.spec.ts` still proves both.
+  3. **Met.** A cancelled, completed or Someday/Maybe Task with a passed due date
+     draws its date in the ordinary metadata ramp on every surface that renders
+     it — asserted by reading the **painted colour** in both appearances, over
+     fixtures the spec owns, on `/tasks` and a Project's Tasks tab. A live overdue
+     Task is unchanged; so is an **on hold** one, which is the control case.
+  4. **Met, and NOT re-taken.** DEBT-196's own entry asked this item to strike the
+     criterion rather than re-litigate a closed measurement, and it did:
+     `plan-responsive.spec.ts` was run on the starting `main` before any change
+     (16/16, including both assertions at 100% and 200% zoom) and again after.
+     Verified, not rebuilt.
+  5. **Met.** MEASURED from the live DOM at 320/360/375/393/430 and
+     820/900/1280/1440, in both appearances, at rest and in selection: no
+     horizontal document overflow, hit areas at the coarse-pointer floor, no
+     newly clipped signal, and the row's geometry **identical** across the mode
+     change. `axe` clean with no rule disabled, including over the queue in the
+     mode — a state no existing scan could see.
+
+  **Also closed: [DEBT-193](../product/PRODUCT_DEBT.md#-debt-193--a-hugging-metadata-label-paints-4-narrower-than-its-own-content-so-a-phone-truncates-a-name-that-fits--p3--resolved-2026-08-25-v24-gate-02).**
+  It was not in this item's acceptance and PR #226 assigned it here; it is closed
+  because its recorded diagnosis turned out to be **wrong**. It is not an
+  intrinsic-sizing quirk needing the hugging chain restructured: `task-list.css`
+  has always declared `margin-inline: 0` on a cell's inline-edit trigger, and that
+  rule lost the cascade to the shared `[data-presentation="meta"]` rule by one
+  compound selector. Making the existing rule apply moved the entry's own numbers
+  (94.7 → 98.7 against a 99px need) with no desktop regression.
+
+  **Non-goals held.** No Plan redesign, no new composition, no drag-and-drop, no
+  new mutation authority on `/plan`, no schema change, no new API, no new
+  dependency, no new Task status, no new colour and no new display state.
+  [DEBT-162](../product/PRODUCT_DEBT.md#-debt-162--the-six-column-planning-board-needs-a-1440px-viewport--p3)
+  and [DEBT-163](../product/PRODUCT_DEBT.md#-debt-163--a-sunday-start-week-draws-seven-board-columns-and-wraps-the-seventh--p3)
+  were re-read, re-verified as real, and stay deferred with their reasons.
+  DEBT-128/DEBT-175 stay open: the semantic fix reached the Project tab through
+  the shared date control and the shared urgency evaluator, so no third overdue
+  implementation was created and the row convergence was not needed.
+
+  **One thing this item spent that is worth naming.** The E2E gate is now at 191.3
+  min of measured test time against a 16.7 min per-partition ceiling, and the new
+  coverage did not fit until the spec was made genuinely cheaper (page loads and a
+  duplicate axe scan removed — never an assertion). `PARTITION_COUNT` was not
+  raised, because 13 is past the runner pool's measured ceiling. **The next item
+  that adds E2E coverage will have to answer that question rather than shave
+  seconds**, and `e2e/partitions.json` says so in as many words.
 
 ---
 
@@ -700,7 +776,20 @@ And the architectural ones, which V2.4 may not reopen without its own ADR:
 ```
 V2.4-GATE-01  ──►  V2.4-GATE-02  ──►  FOLLOW-01  ──►  FOLLOW-02
   (backup half has no predecessor and goes first)
+      ☐              ☑ 2026-08-25        ☐             ☐
+   owner-blocked
 ```
+
+**V2.4-GATE-02 ran BEFORE V2.4-GATE-01 finished, deliberately and with the
+dependency's own reasoning intact.** That dependency exists so the fix's
+assertions mean something on a gate that can fail honestly — and GATE-01 already
+delivered that half: the E2E gate went green on run
+[`32605964327`](https://github.com/acedaly/DalyHub-V2/actions/runs/32605964327)
+and DEBT-179 is closed. What keeps GATE-01 open is **DEBT-198 and DEBT-139**, the
+production backup and the migration state, both blocked on an owner-held secret
+and Cloudflare credentials this repository does not have. Waiting on those would
+have blocked the whole programme on an action no agent can take. **GATE-01 remains
+☐ and explicitly deferred; nothing in GATE-02 claims any part of it.**
 
 External to the repository, and therefore the one real scheduling risk:
 **V2.4-GATE-01 needs Cloudflare credentials, the `production` GitHub environment's
@@ -770,7 +859,7 @@ DEBT-179, whose dominant signature it root-caused.
 | **DEBT-196** — Weekly Planning draws two days at phone width | P2 | **Taken** — V2.4-GATE-02. Pre-existing, already asserted twice and already failing. |
 | **DEBT-197** — a cancelled Task's passed date painted overdue | P3 | **Taken** — V2.4-GATE-02. It is a product-semantics decision about what `--overdue` means, and "the row's signals are honest" is exactly this item. |
 | **DEBT-195** — Search's empty query offers nothing | P2 | **Kept open, and deferred with its reason** — [LATER](#later--real-evidenced-and-deliberately-not-v24). It needs a recency source that does not exist, and it is the reason this programme does not claim an A. |
-| **DEBT-193** — a hugging metadata label truncates a name that fits | P3 | **Kept open, deferred.** Six candidate fixes moved the number by zero; the correction is a cell restructure. |
+| **DEBT-193** — a hugging metadata label truncates a name that fits | P3 | **Closed by V2.4-GATE-02 (2026-08-25)**, and this disposition was wrong on the facts rather than on the judgement. Six candidate fixes moved the number by zero because none of them was the cause: `task-list.css` already declared the rule that fixes it and lost the cascade to the shared `meta` rule by one compound selector. No cell restructure was needed. |
 | **DEBT-179** — the E2E gate is red on `main` | P2 | **Taken** — V2.4-GATE-01. DHDS-13 root-caused the dominant signature and fixed three of nineteen; the remaining sixteen are this item's starting point. |
 
 **The DHDS-13 findings are inputs to this roadmap, not the roadmap.** Three

@@ -11,8 +11,10 @@
  */
 
 import type {
+  CommitmentState,
   TaskPriority,
   TaskRelation,
+  TaskStatus,
   WaitingTaskListItem,
 } from "~/kernel/tasks";
 
@@ -55,6 +57,8 @@ export function toWaitingCardData(
   item: {
     readonly id: string;
     readonly title: string;
+    readonly status: TaskStatus;
+    readonly commitmentState: CommitmentState;
     readonly priority: TaskPriority | null;
     readonly dueDate: string | null;
     readonly scheduledDate: string | null;
@@ -74,10 +78,19 @@ export function toWaitingCardData(
     subjectType: subject.kind === "entity" ? subject.type : null,
     sinceLabel: formatWaitingSince(item.waiting.since),
     elapsedLabel: formatWaitingElapsed(item.waiting.since, nowMs),
-    // A waiting task is never complete, so `completedAt` is always null here.
+    /*
+     * A waiting task is never complete, so `completedAt` is always null here.
+     *
+     * V2.4-GATE-02 — the other two commitment facts are NOT assumed. The waiting
+     * query already excludes Someday/Maybe, but a `cancelled` Task can still
+     * carry a waiting state, and its passed deadline must not read "Overdue"
+     * here when it does not on `/tasks`. One rule, every surface.
+     */
     dateLabel: taskDateLabel(
       {
         completedAt: null,
+        status: item.status,
+        commitmentState: item.commitmentState,
         dueDate: item.dueDate,
         scheduledDate: item.scheduledDate,
       },
@@ -90,6 +103,8 @@ export function toWaitingCardData(
 export interface SerializedWaitingTaskItem {
   readonly id: string;
   readonly title: string;
+  readonly status: TaskStatus;
+  readonly commitmentState: CommitmentState;
   readonly priority: TaskPriority | null;
   readonly dueDate: string | null;
   readonly scheduledDate: string | null;
@@ -104,6 +119,8 @@ export function serializeWaitingItem(
   return {
     id: item.id,
     title: item.title,
+    status: item.status,
+    commitmentState: item.commitmentState,
     priority: item.priority,
     dueDate: item.dueDate,
     scheduledDate: item.scheduledDate,

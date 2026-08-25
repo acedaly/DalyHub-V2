@@ -3507,6 +3507,7 @@ export class D1TaskRepository implements TaskRepository {
         createdAt: fromStorageTimestamp(row.created_at),
         updatedAt: fromStorageTimestamp(row.updated_at),
         status: details.status,
+        commitmentState: details.commitmentState,
         priority: details.priority,
         dueDate: details.dueDate,
         scheduledDate: details.scheduledDate,

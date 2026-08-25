@@ -165,7 +165,13 @@ test("placing an unplaced task sets its PLANNED date and leaves the deadline alo
     band.getByRole("link", { name: `Open ${overdue.title}` }),
   ).toBeVisible();
 
-  // Select it, then choose a day. No drag anywhere in this journey.
+  // ENTER selection mode, deliberately, then select it and choose a day. No drag
+  // anywhere in this journey.
+  //
+  // V2.4-GATE-02 — the mode is the change: the queue used to draw a selection
+  // control on every row at all times, beside each row's completion control, so
+  // the surface built for scheduling could complete work by mis-click.
+  await queue.getByTestId("plan-queue-select-toggle").click();
   await queue
     .getByRole("checkbox", {
       name: `Select ${overdue.title} to place on a day`,
@@ -205,6 +211,7 @@ test("a change made in Planning is the same Task in Tasks and Today", async ({
   const today = ownerToday();
   const queue = page.getByTestId("plan-queue");
 
+  await queue.getByTestId("plan-queue-select-toggle").click();
   await queue
     .getByRole("checkbox", {
       name: `Select ${unplaced.title} to place on a day`,
@@ -338,6 +345,15 @@ test("the whole placement flow is reachable by keyboard", async ({ page }) => {
 
   const unplaced = fixture.task("unplaced");
   const queue = page.getByTestId("plan-queue");
+
+  // V2.4-GATE-02 — entering the mode is itself a keyboard act, on a real button
+  // whose LABEL carries the state.
+  const toggle = queue.getByTestId("plan-queue-select-toggle");
+  await toggle.focus();
+  await expect(toggle).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
   const checkbox = queue.getByRole("checkbox", {
     name: `Select ${unplaced.title} to place on a day`,
   });
