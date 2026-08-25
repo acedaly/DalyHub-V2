@@ -50,6 +50,32 @@ async function addFilter(
     await dialog.getByRole("textbox").fill(value.value);
   }
   await dialog.getByRole("button", { name: "Add filter" }).click();
+  /*
+   * The helper does not return until the act it performed has LANDED.
+   *
+   * Adding a filter writes the URL, and that write is a history push that does
+   * not complete synchronously with the click. Returning early makes every
+   * caller's next act race it — and when the next act is itself a navigation,
+   * the filter's entry can be lost entirely, so a later `navigate(-1)` pops past
+   * where the test believes it is.
+   *
+   * That is not hypothetical. `:344` ("keeps filters after close") failed on CI
+   * run 32870346323 with the URL back at the BARE fixture — no query at all —
+   * which is the exact symptom that test's own comment describes for the drawer
+   * half of the same race, and which DEBT-41 records this spec producing on CI
+   * before. The drawer half was given a precondition; the FILTER half never was,
+   * and it is the earlier of the two.
+   *
+   * Asserting the postcondition here fixes the whole class in one place rather
+   * than one symptom at one call site, and it is a strengthening: no assertion
+   * is relaxed, and a caller that was already safe is unaffected.
+   *
+   * HONEST LIMIT, in the same words DEBT-41 used for the previous correction to
+   * this file: this is REASONED, not verified. `cards-filters.spec.ts` passes
+   * locally either way — the race does not open on this machine — so only CI can
+   * confirm it.
+   */
+  await expect(page).toHaveURL(new RegExp(`f=${field}`));
 }
 
 test.describe("DS-04/DS-07 — desktop", () => {

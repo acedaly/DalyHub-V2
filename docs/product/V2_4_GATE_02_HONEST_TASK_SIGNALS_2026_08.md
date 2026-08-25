@@ -555,6 +555,41 @@ Friday. Today's derivation reproduces the value the test used to hard-code
 (`2026-09-25`) — which is what shows the rewrite preserves the intent rather than
 moving the goalposts.
 
+### 4 — what CI then found, on a spec this branch does not touch
+
+`cards-filters.spec.ts:344` ("keeps filters after close") failed on CI run
+**32870346323**, partition p08, with the URL back at
+`http://localhost:4173/design/cards-filters` — **the bare fixture URL, no query
+at all.**
+
+That is not a new defect and it is not this branch's: the surface is the
+`/design/cards-filters` fixture, a Card collection of **Projects**, with no Task
+row, no selection mode and no inline-edit trigger in it. It is the history race
+[DEBT-41](PRODUCT_DEBT.md) records this spec producing on CI before — the same
+test, the same mechanism, and the same symptom the test's own comment spells
+out. DEBT-41 also records the previous correction as *"reasoned, not verified"*,
+because the race does not open on a developer machine.
+
+**Root-caused rather than re-run** (a re-run was attempted and refused, 403):
+`addFilter` returns as soon as the "Add filter" click is dispatched, and the
+filter's URL write is a history push that does not complete synchronously. So
+
+```
+addFilter(…)          click dispatched; the filter's history entry may not exist yet
+link.click()          the drawer is pushed — possibly from the BARE url
+toHaveURL(/drawer=/)  passes either way: `drawer=` is present
+Escape → navigate(-1) pops to the bare url
+```
+
+The drawer half of that race was given a precondition by the earlier fix. **The
+filter half never was, and it is the earlier of the two.**
+
+The fix is the postcondition, in the helper rather than at one call site, so the
+whole class closes at once and no assertion is relaxed. `cards-filters.spec.ts`
+then passes **36/36 locally with `--repeat-each=3`** — which, exactly as DEBT-41
+said of the last correction, proves no regression rather than efficacy: the race
+does not open on this machine, so only CI can confirm it.
+
 ### The confirming run
 
 All 37 tests of both files, on the freshly seeded database:
