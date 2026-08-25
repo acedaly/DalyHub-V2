@@ -37,7 +37,7 @@ Two counting notes, because both cost time before they were caught:
 
 ## 2. What this pass actually did
 
-**28 entries closed. 106 remain, every one of them with a reason stated in its
+**29 entries closed. 105 remain, every one of them with a reason stated in its
 own entry.** No entry was closed on "it should be fixed by now"; no test was
 skipped, quarantined or weakened; no ceiling was loosened to make a run pass; no
 production claim is made that this repository cannot support.
@@ -224,7 +224,7 @@ says so in its own entry.
 
 ## 6. What was closed
 
-**28 entries.** In priority order, then by number.
+**29 entries.** In priority order, then by number.
 
 | Entry | P | How it closed |
 |---|---|---|
@@ -257,17 +257,45 @@ says so in its own entry.
 | DEBT-172 | P3 | two ceilings, plus one that they account for the served file |
 | DEBT-185 | P3 | the shared `Picker` publishes its option's name |
 
-Three further entries **advanced materially and stayed ◐**, which is the honest
+**DEBT-200 (P2) is the twenty-ninth**, and it closed last, on the gate run itself
+rather than on a change: all twelve partitions report `skipped (by a test) 0`
+from their own `results.json`. It is listed separately because the work that
+closed it — three fixtures, one URL correction — landed with the others, and only
+the *evidence* arrived afterwards. See §6.1.
+
+Two further entries **advanced materially and stayed ◐**, which is the honest
 status rather than a pass:
 
 - **DEBT-99** — 26 of the 27 remaining hand-rolled state layers converted; the
   ratchet is at **one**, and the one has a reason written beside it (a full-bleed
   opaque row band is not a translucent layer, and converting it is a Card change
   with a visual consequence).
-- **DEBT-200** — all three journeys now execute and pass; the artefact-level
-  demonstration is a `main` run.
 - **DEBT-204** — the mechanism is fixed and pinned by five assertions; the
-  demonstrating run is a `main` run.
+  demonstrating run its own closing condition names is a `main` run.
+
+### 6.1 DEBT-200, and a requirement this pass had invented for it
+
+DEBT-200's closing condition is *"a full gate run in which no test is reported as
+skipped by its own annotation, demonstrated from the run's `e2e-results-*`
+artefacts rather than from a log line."* Gate run
+[`32821202642`](https://github.com/acedaly/DalyHub-V2/actions/runs/32821202642)
+at `5846381` is that run: twelve partitions green, **1923 collected, 1923
+executed, 0 failed, 0 skipped by a test, 0 never executed**, each figure computed
+by `scripts/e2e-partition-summary.mjs` from the partition's own
+`playwright-report/results.json` — the file uploaded as `e2e-results-pNN`, and
+the script that exists specifically to tell an annotated skip (which has a
+result) from a test that never ran (which has none).
+
+**The interesting part is what had to be undone.** When this pass first wrote
+DEBT-200's disposition it held the entry ◐ pending *"a `main` gate run after this
+merges"* — a requirement the closing condition does not contain and never has.
+Two neighbouring entries, DEBT-157 and DEBT-125, *do* say `main` in their own
+conditions, and the word leaked across. That is a small error with a specific
+cost: an entry held open against a requirement its own condition does not carry
+teaches the next reader that the conditions are advisory. It was removed, and the
+removal is recorded in the entry so the judgement can be argued with rather than
+reconstructed. The run measured is the gate on this branch's head, not on `main`,
+and the entry now says so in as many words.
 
 ---
 
@@ -316,7 +344,7 @@ the old rule.
 
 ---
 
-## 8. What remains open, and why — all 106
+## 8. What remains open, and why — all 105
 
 Every entry below carries, in `PRODUCT_DEBT.md`, a current issue, an impact, a
 desired future state, a closing condition, the reason it is still open and a
@@ -335,16 +363,18 @@ Nothing repository-side is owed. Each needs an action only the owner can take.
 
 **No production evidence is claimed anywhere in this pass.**
 
-### 8.2 Blocked on a `main` gate run — 6 entries
+### 8.2 Blocked on a `main` gate run — 5 entries
 
 Each has had its repository-side work done and cannot produce the run from a
-branch.
+branch. Each of the five says `main`, or "consecutive runs", **in its own closing
+condition** — which is the test applied, after DEBT-200 showed how easily the
+requirement travels to an entry that never asked for it (§6.1).
 
 `DEBT-125` (P1, two consecutive green `main` runs) · `DEBT-157` (P1, the
 confirming run for a mechanism HARDEN-06A closed) · `DEBT-203` (P2, ten
 consecutive runs on one tree) · `DEBT-76` (P2, ten consecutive green `main` runs;
 its named cause — `chrome-headless-shell` — was fixed by `channel: "chromium"`
-and the fix is holding) · `DEBT-200` (P2, artefacts with no annotated skip) ·
+and the fix is holding) ·
 `DEBT-204` (P2, a run where no job fails before `Install dependencies`).
 
 DEBT-76's preferred remedy is `retries` on a browser crash. **It was not taken**,
@@ -439,10 +469,10 @@ candidates for the next pass:
 
 | | At `0e5f8ea` | After this pass |
 |---|---|---|
-| Open (☐ or ◐) | 134 | **106** |
-| Resolved (☑) | 79 | **107** |
+| Open (☐ or ◐) | 134 | **105** |
+| Resolved (☑) | 79 | **108** |
 | P1 open | 5 | 5 |
-| P2 open | 27 | 24 |
+| P2 open | 27 | 23 |
 | P3 open | 100 | 75 |
 | P4 open | 2 | 2 |
 

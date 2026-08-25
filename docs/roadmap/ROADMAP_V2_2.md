@@ -325,14 +325,14 @@ Make Today truthful enough to remain the daily entry point.
 Lock the current Tasks daily-driver behaviour before adding new Task features.
 
 - Added the missing >100 selection/bulk-bound E2E coverage recorded in
-  [DEBT-110](../product/PRODUCT_DEBT.md#-debt-110--the-100-task-bulk-bound-has-unit-coverage-but-no-e2e-journey-that-accumulates-more-than-one-page--p3).
+  [DEBT-110](../product/PRODUCT_DEBT.md#-debt-110--bulk-operations-are-bounded-at-100-tasks-with-no-surface-that-says-so--p3--resolved-2026-08-09).
 - Re-ran and preserved the phone acceptance matrix for capture, list editing, bulk
   actions and recurrence at 320, 375, 390 and 430px.
 - Revalidated the full create form against the title-first composer contract: the
   full Drawer still focuses title first, accepts title-only Inbox capture, and leaves
   the faster quick-add/global capture paths unchanged.
 - Fixed the completed-task double-announcement debt
-  ([DEBT-115](../product/PRODUCT_DEBT.md#-debt-115--a-completed-task-is-announced-twice-once-by-the-list-once-by-the-notification-centre--p3)).
+  ([DEBT-115](../product/PRODUCT_DEBT.md#-debt-115--a-completed-task-is-announced-twice-once-by-the-list-once-by-the-notification-centre--p3--resolved-2026-08-09)).
 - **Non-goals:** new views, AI parsing, offline editing, subtasks or another Matrix.
 
 ### ☑ UIX-01 - Product UI redesign against the supplied references — **DELIVERED 2026-08-09**

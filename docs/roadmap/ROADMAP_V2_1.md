@@ -874,7 +874,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   Verified on current `main` before this item resumed and **preserved, not
   rebuilt** — no Person layout was redesigned here.
 - **Delivered now — the
-  [DEBT-45](../product/PRODUCT_DEBT.md#-debt-45--a-captured-record-is-not-linked-to-the-context-it-was-captured-from--p2)
+  [DEBT-45](../product/PRODUCT_DEBT.md#-debt-45--keyset-paginators-can-consume-a-revalidated-fetcher-page-after-a-scope-reset--p3--resolved-2026-08-01)
   closure matrix.**
   - **The full-form hand-off**, which was the named gap. Capture context used to
     live only in the sheet's React state, so leaving it for a module's fuller
@@ -1201,7 +1201,7 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Performance.** One evidence load costs an **asserted 14 executed statements**
   against real D1, flat with respect to workspace size *and* to how many past Reviews
   exist. Every measure carries its exactness; a bounded number is never shown as exact.
-- **Closes** [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3)
+- **Closes** [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03)
   and the derived-period-facts half of
   [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2);
   DEBT-34's Today "Start this week's Review" card remains open and is recorded there.
@@ -1277,7 +1277,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   `security.signed_out` and `security.local_data_cleared` are recorded as
   workspace-scoped, subject-less events in the same `activities` table every other
   event lives in — no second audit log. That resolves the modelling half of
-  [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--narrowed-2026-08-08),
+  [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--resolved-2026-08-25),
   which is narrowed rather than closed: ordinary preference changes still append
   no Activity.
 - **☐ NOT delivered: sign-out-everywhere, and this item is NOT ☑ because of it.**
@@ -1370,7 +1370,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   of that ramp and hover moves the border instead. Project **"next action"** was
   not added: it needs a per-project task query on the most-visited route in the
   product — recorded as [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3), with
-  the query shape that would satisfy it. Goal **trend** is [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3):
+  the query shape that would satisfy it. Goal **trend** is [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--narrowed-2026-08-09-by-goal-02):
   nothing stores a goal's completion over time, so completion and recent progress
   ship and the direction does not.
 - **Acceptance evidence.** Unit, kernel, lint, typecheck and build green; the
@@ -1442,7 +1442,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   the running application.
 
   **What that means, stated rather than left to be discovered.**
-  - **The wide-desktop question is answered IN this PR rather than after it.** [DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2)
+  - **The wide-desktop question is answered IN this PR rather than after it.** [DEBT-72](../product/PRODUCT_DEBT.md#-debt-72--card-on-tint-is-a-phone-native-pattern-and-its-behaviour-at-1440px-and-above-is-unproven--p2--resolved-2026-08-03)
     recorded that card-on-tint's behaviour at 1440px and above was unproven; the
     answer turned out to be a real one — an uncapped collection at 1440px is a
     1200px row with a title at one end and a status pill at the other — and the

@@ -535,7 +535,7 @@ Timeline reads. `validateSubjects` therefore requires at least one subject, and
 
 Some security-relevant facts have no record to be about. Signing out and clearing
 a device's local DalyHub data are things the owner did to the WORKSPACE, not to
-anything in it. [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--narrowed-2026-08-08)
+anything in it. [DEBT-33](../product/PRODUCT_DEBT.md#-debt-33--settings-changes-are-not-yet-represented-in-activity--p3--resolved-2026-08-25)
 had correctly refused to invent a fake entity subject to hang such an event from,
 and had stalled there.
 

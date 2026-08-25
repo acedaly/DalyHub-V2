@@ -550,7 +550,7 @@ which is a principle and which is a judgement call.
   an archive into a different environment is a worse failure than making the
   owner set them again. That is a defensible answer, not an obvious one — it is
   recorded as
-  [DEBT-94](../product/PRODUCT_DEBT.md#-debt-94--ai-preferences-are-the-one-kind-of-owner-configuration-the-export-snapshot-omits--p3)
+  [DEBT-94](../product/PRODUCT_DEBT.md#-debt-94--ai-preferences-are-the-one-kind-of-owner-configuration-the-export-snapshot-omits--p3--resolved-2026-08-25)
   so SET-02 confronts it rather than inheriting it.
 - **The security consequence is unaffected either way:** no AI table is in the
   snapshot, so no export can carry a provider credential — and there is no

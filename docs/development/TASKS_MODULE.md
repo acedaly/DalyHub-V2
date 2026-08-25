@@ -245,7 +245,7 @@ management, recurrence and mobile behaviour.
 is plain text today, deliberately EntityLink-ready); time tracking. Recurrence is
 no longer deferred: V2.2 delivered custom rules, fixed schedule vs after-completion
 mode, skip and stop-repeating behaviour. The remaining recurrence limitation is
-ordinal monthly patterns, recorded as [DEBT-109](../product/PRODUCT_DEBT.md#-debt-109--ordinal-monthly-recurrence-is-not-expressible-first-monday-of-the-month--p3).
+ordinal monthly patterns, recorded as [DEBT-109](../product/PRODUCT_DEBT.md#-debt-109--ordinal-monthly-recurrence-first-monday-of-every-month-is-not-expressible--p3).
 
 **Relevant roadmap items.** [TASKS-01](../roadmap/ROADMAP_V2.md#-tasks-01--first-class-tasks-module) ☑ · [TASKS-02](../roadmap/ROADMAP_V2.md#-tasks-02--shared-task-signal-presentation) ☑ · [TASKS-02b](../roadmap/ROADMAP_V2.md#-tasks-02b--task-signals-in-global-search) ☑ · [TODAY-07](../roadmap/ROADMAP_V2.md#-today-07--quick-capture-wiring) ☐.
 

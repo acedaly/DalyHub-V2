@@ -637,7 +637,7 @@ actions are raised to 44px under `@media (hover: none)` — a touch device — s
 narrow viewport driven by a *mouse* keeps a 28px control. The touch-target
 assertion was moved to the touch-emulated phone block, where the product genuinely
 meets the target, rather than widened to hide the gap, and the gap is recorded as
-[DEBT-50](PRODUCT_DEBT.md#-debt-50--card-quick-actions-are-28px-on-a-narrow-viewport-with-a-mouse--p3).
+[DEBT-50](PRODUCT_DEBT.md#-debt-50--card-quick-actions-are-28px-on-a-narrow-viewport-with-a-mouse--p3--resolved-2026-08-25).
 
 **Still open from this audit, unchanged:** DEBT-01's Diary half
 ([DEBT-46](PRODUCT_DEBT.md)), capture context ([DEBT-45](PRODUCT_DEBT.md)), and

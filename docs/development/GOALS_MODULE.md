@@ -633,7 +633,7 @@ active, plus how many active Projects have no Goal linked. Wording stays calm an
 "No active Project currently contributes to this Goal" — with no scores, streaks,
 gamification or moral language. Trend and history remain
 [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) /
-[DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3).
+[DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03).
 
 ---
 
