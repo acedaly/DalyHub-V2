@@ -40,7 +40,10 @@ import { EmptyState } from "~/shared/empty-state";
 import { NewGoalForm } from "~/shared/goal-creation/NewGoalForm";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import { createOwnerHealthContext } from "~/shared/project-health";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 
 import { AreaActivityTab } from "../AreaActivityTab";
 import { NEW_GOAL_KEY, AreaOverviewView } from "../AreaOverview";
@@ -297,8 +300,7 @@ function createAreaDrawerRenderer(areaId: string) {
     const id = separator === -1 ? "" : entry.key.slice(separator + 1);
     if (kind === "task" && id.length > 0) {
       return {
-        title: "Task",
-        description: "Task record",
+        title: TASK_DRAWER_TITLE,
         children: <TaskRecordDrawer taskId={id} />,
       };
     }

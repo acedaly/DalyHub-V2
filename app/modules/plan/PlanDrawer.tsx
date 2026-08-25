@@ -17,7 +17,10 @@
  */
 
 import type { DrawerEntry, DrawerRenderResult } from "~/shared/drawer";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 
 function splitKey(key: string): { readonly kind: string; readonly id: string } {
   const separator = key.indexOf(":");
@@ -35,7 +38,7 @@ export function createPlanDrawerRenderer(
     if (kind !== "task" && kind !== "task-move") return null;
     if (id.length === 0) return null;
     return {
-      title: taskTitles.get(id) ?? "Task",
+      title: taskTitles.get(id) ?? TASK_DRAWER_TITLE,
       description: "Task record",
       children: <TaskRecordDrawer taskId={id} />,
     };

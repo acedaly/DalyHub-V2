@@ -47,7 +47,10 @@ import {
 } from "~/shared/forms";
 import { AiExtractionSurface } from "~/shared/ai";
 import { RecordLayout } from "~/shared/record-layout";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 import { serializeTaskView } from "~/shared/task-record/task-view";
 import { utcToOwnerLocal } from "~/shared/datetime";
 import { MeetingCaptureBar } from "../MeetingCaptureBar";
@@ -180,8 +183,7 @@ export default function Detail({ loaderData }: Route.ComponentProps) {
       const id = sep === -1 ? "" : entry.key.slice(sep + 1);
       if (kind === "task" && id) {
         return {
-          title: "Task",
-          description: "Task record",
+          title: TASK_DRAWER_TITLE,
           children: <TaskRecordDrawer taskId={id} />,
         };
       }

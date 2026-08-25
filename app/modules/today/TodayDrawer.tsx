@@ -19,6 +19,7 @@
  */
 
 import type { DrawerEntry, DrawerRenderResult } from "~/shared/drawer";
+import { TASK_DRAWER_TITLE } from "~/shared/task-record/TaskRecordDrawer";
 
 import { renderKeyboardHelpDrawer } from "./keyboard/KeyboardHelp";
 import { TaskDrawerContent } from "./task/TaskDrawerContent";
@@ -67,7 +68,7 @@ export function createTodayDrawerRenderer(
       // TaskDrawerContent then loads the full record and renders its real heading.
       const title = taskTitles.get(id);
       return {
-        title: title ?? "Task",
+        title: title ?? TASK_DRAWER_TITLE,
         description: "Task record",
         // `isTop` gates the task's keyboard-shortcut ownership: a lower task drawer
         // (with another drawer stacked above) keeps its state but not its shortcuts.

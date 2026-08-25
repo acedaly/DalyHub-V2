@@ -37,7 +37,10 @@ import { LinkedItemsTab } from "~/shared/linked-items";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { useFeedback } from "~/shared/feedback";
 import { useReversibleDelete } from "~/shared/record-lifecycle";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 
 import { GoalActivityTab } from "../GoalActivityTab";
 import { GoalOverview } from "../GoalOverview";
@@ -234,8 +237,7 @@ function createGoalDrawerRenderer() {
     const id = separator === -1 ? "" : entry.key.slice(separator + 1);
     if (kind === "task" && id.length > 0) {
       return {
-        title: "Task",
-        description: "Task record",
+        title: TASK_DRAWER_TITLE,
         children: <TaskRecordDrawer taskId={id} />,
       };
     }

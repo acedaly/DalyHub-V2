@@ -196,6 +196,26 @@ const NO_DEPENDENCIES: SerializedTaskDependencies = {
   blocks: [],
 };
 
+/**
+ * DEBT-130 — the ONE word a Task drawer's own header publishes.
+ *
+ * Twelve hosts each wrote `title: "Task"` beside `description: "Task record"`,
+ * so the first 100px of the panel said the word three times — twice in the
+ * shell's header and again as the shared task `EntityIcon` beside the record's
+ * title — before the task's own name appeared.
+ *
+ * The description went, because it restated the label rather than adding to it:
+ * a dialog whose `aria-describedby` says "Task record" under a label that says
+ * "Task" has told a screen-reader user nothing twice. The type is still
+ * published once, by the header, and once more in the record's own identity
+ * mark, which is what an icon is for.
+ *
+ * Two hosts (Plan and Today) title the drawer with the TASK'S OWN NAME and fall
+ * back to this constant, which is the better shape and is kept: there the
+ * description genuinely carries the type, because the title does not.
+ */
+export const TASK_DRAWER_TITLE = "Task";
+
 export function TaskRecordDrawer({
   taskId,
   basePath = "/tasks",

@@ -31,6 +31,7 @@ import {
   type DrawerRenderResult,
 } from "~/shared/drawer";
 import { EntityIcon } from "~/shared/entity";
+import { TASK_DRAWER_TITLE } from "~/shared/task-record/TaskRecordDrawer";
 import { EmptyState } from "~/shared/empty-state";
 
 import { formatTodayDate, ownerCalendarIso } from "../date";
@@ -99,8 +100,7 @@ function renderWaitingDrawer(entry: DrawerEntry): DrawerRenderResult | null {
     return null;
   }
   return {
-    title: "Task",
-    description: "Task record",
+    title: TASK_DRAWER_TITLE,
     // `isTop` gates the task's keyboard-shortcut ownership when another drawer stacks.
     children: <TaskDrawerContent taskId={id} isTop={entry.isTop} />,
   };

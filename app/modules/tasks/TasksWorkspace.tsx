@@ -66,7 +66,10 @@ import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { useDepartingRows } from "~/shared/task-record/use-departing-rows";
-import { TaskRecordDrawer } from "~/shared/task-record/TaskRecordDrawer";
+import {
+  TASK_DRAWER_TITLE,
+  TaskRecordDrawer,
+} from "~/shared/task-record/TaskRecordDrawer";
 import type { TaskRecurrenceOutcome } from "~/shared/task-record/contract";
 import {
   postTaskBulkAction,
@@ -301,8 +304,7 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
 
       if (kind === "task" && id.length > 0) {
         return {
-          title: "Task",
-          description: "Task record",
+          title: TASK_DRAWER_TITLE,
           children: <TaskRecordDrawer taskId={id} />,
         };
       }
@@ -326,8 +328,7 @@ export function TasksWorkspace({ data }: { readonly data: TasksPageData }) {
        */
       if ((kind === "task-quick" || kind === "task-move") && id.length > 0) {
         return {
-          title: "Task",
-          description: "Task record",
+          title: TASK_DRAWER_TITLE,
           children: <TaskRecordDrawer taskId={id} />,
         };
       }
