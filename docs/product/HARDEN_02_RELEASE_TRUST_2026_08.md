@@ -67,7 +67,7 @@ producing is indistinguishable from a pass.
 
 **`CHANGELOG.md`** — reformatted. One blank line.
 
-**Migration `0039`** — **recorded, not renumbered.** Both files keep their names.
+**Migration `0039`** — **the collision was recorded, not renumbered.** Both files keep their names.
 
 This pass got it wrong first, and the mistake is worth keeping because it is a
 trap the failure message invites. HARDEN-02 renumbered THEME-01's to

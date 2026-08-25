@@ -637,7 +637,7 @@ meaning "the violet app" without becoming five applications. Accepted as
   name, a sentence and a three-dot preview drawn from generated per-scheme preview
   tokens, so a row shows its OWN scheme in the current appearance. Switching is
   immediate and optimistic; nothing reloads.
-- **Persistence and first paint.** Owner-scoped column (migration `0039`,
+- **Persistence and first paint.** Owner-scoped column (migration `0039_add_owner_color_scheme_preference.sql`,
   additive, `DEFAULT 'violet'`), record as authority, `dh_color_scheme` cookie as
   a first-paint mirror reconciled by the shell loader, attribute written
   server-side. An unknown or stale value matches no scheme block and lands on the
@@ -703,7 +703,8 @@ opening the application first.
 - **It terminates in the EXISTING domain.** A captured Task is the same atomic
   `TaskRepository.createTask` `/tasks/new` uses, through the same deterministic
   TASKS-01 parser; a captured Note is the same entity create plus the Note's own
-  content mutation. Migration `0039` adds credentials and rate-limit counters and
+  content mutation. Migration `0039_create_capture_credentials.sql` adds
+  credentials and rate-limit counters and
   stores no captured record - there is no `shortcut_tasks` and no `email_notes`.
 - **Inbox is the safety net.** `auto` classification is deterministic, conservative
   and AI-free; anything ambiguous becomes an unassigned Task, which is what DalyHub's

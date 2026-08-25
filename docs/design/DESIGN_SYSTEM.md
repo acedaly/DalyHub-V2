@@ -614,7 +614,7 @@ Identical architecture, twice ([ADR-075](../decisions/ARCHITECTURE_DECISIONS.md#
 
 | | Appearance | Colour scheme |
 | --- | --- | --- |
-| Column | `owner_app_preferences.appearance` (migration `0033`) | `owner_app_preferences.color_scheme` (migration `0039`) |
+| Column | `owner_app_preferences.appearance` (migration `0033`) | `owner_app_preferences.color_scheme` (migration `0039_add_owner_color_scheme_preference.sql`) |
 | Default | `system` | `violet` |
 | First-paint cookie | `dh_appearance` | `dh_color_scheme` |
 | Action | `POST /preferences/appearance` | `POST /preferences/color-scheme` |

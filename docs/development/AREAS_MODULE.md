@@ -371,7 +371,8 @@ Tasks, Notes, Diary entries or links. Accepted via
   **always allowed on an active Area** (unlike a Project's archive, which is
   blocked by unfinished direct Tasks). Archived state is stored the way every
   other additive detail slice is: a small module-owned `area_details` table
-  (migration `0013`, the `project_details`/`goal_details` precedent) holding one
+  (migration `0013_create_area_details.sql`, the `project_details`/`goal_details`
+  precedent) holding one
   nullable `archived_at`, mutated only through the trusted `AreaSettingsRepository.
   archive`/`restore`. It is **not** the spine's soft-delete (which blocks
   non-empty containers and returns not-found), and **not** hidden UI state.
