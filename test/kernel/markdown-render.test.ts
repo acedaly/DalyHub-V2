@@ -98,11 +98,116 @@ describe("supported profile", () => {
     const html = render("- [ ] todo\n- [x] done");
     expect(html).toContain('class="contains-task-list"');
     expect(html).toContain('class="task-list-item"');
-    expect(html).toContain('<input type="checkbox" disabled>');
-    expect(html).toContain('<input type="checkbox" checked disabled>');
     // Never an editable control.
     expect(html).not.toMatch(/<input[^>]*\bname=/);
     expect(html).not.toMatch(/<input(?![^>]*\bdisabled\b)[^>]*>/);
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* DEBT-26 — a rendered task-list checkbox has an accessible NAME          */
+  /* ---------------------------------------------------------------------- */
+
+  describe("DEBT-26 — a task-list checkbox is named", () => {
+    /*
+     * GFM renders `- [x] done` as a disabled checkbox followed by the text as a
+     * SIBLING, so the input had no label of any kind and axe reported a
+     * critical WCAG 2.2 AA `label` violation anywhere Markdown with a checklist
+     * was rendered — a Note preview, a Diary entry, a Task description.
+     *
+     * Every assertion below fails against the previous pipeline, which emitted
+     * `<input type="checkbox" disabled>` and nothing else.
+     */
+    it("names each checkbox with its OWN item's text", () => {
+      const html = render("- [ ] Book the venue\n- [x] Send the invitations");
+      expect(html).toContain(
+        '<input type="checkbox" disabled aria-label="Book the venue">',
+      );
+      expect(html).toContain(
+        '<input type="checkbox" checked disabled aria-label="Send the invitations">',
+      );
+    });
+
+    it("keeps the CHECKED state on the control rather than in the name", () => {
+      /*
+       * The reason this is a name and not `aria-hidden`. The item's text says
+       * what the step is; only the checkbox says whether it is done. Hiding the
+       * input would satisfy the checker and lose the one fact it carries.
+       */
+      const html = render("- [x] Send the invitations");
+      expect(html).toMatch(/<input[^>]*\bchecked\b[^>]*>/);
+      expect(html).not.toContain('aria-label="Checked Send the invitations"');
+    });
+
+    it("names a checkbox whose item is only formatting, not raw markup", () => {
+      const html = render("- [ ] Review the **draft** contract");
+      expect(html).toContain('aria-label="Review the draft contract"');
+      // The name is TEXT: no tags leak into an attribute.
+      expect(html).not.toMatch(/aria-label="[^"]*</);
+    });
+
+    it("bounds a very long step rather than making the name a paragraph", () => {
+      const long = "x".repeat(400);
+      const html = render(`- [ ] ${long}`);
+      const match = /aria-label="([^"]*)"/.exec(html);
+      expect(match).not.toBeNull();
+      expect(match![1]!.length).toBeLessThanOrEqual(201);
+      expect(match![1]).toMatch(/…$/);
+    });
+
+    it("cannot be handed an EMPTY item, which is why the fallback is a guard", () => {
+      /*
+       * The naming code has a state-only fallback ("Checked item") for an item
+       * with no text. It is a guard rather than a product case, and this pins
+       * the reason: GFM does not treat a bare `- [x]` as a task list at all, so
+       * a checkbox with nothing beside it never reaches the transform. Worth
+       * asserting rather than assuming — if that ever changes, the fallback
+       * becomes reachable and this test says so.
+       */
+      expect(render("- [x]")).not.toContain("<input");
+      expect(render("- [x]  ")).not.toContain("<input");
+      // The moment there IS content, however slight, it is named by it.
+      expect(render("- [x] `")).toContain("aria-label=");
+    });
+
+    it("leaves an ordinary list item alone", () => {
+      const html = render("- Just a bullet");
+      expect(html).not.toContain("aria-label");
+      expect(html).not.toContain("<input");
+    });
+
+    it("cannot be used to break OUT of the attribute", () => {
+      /*
+       * The name is derived from already-sanitised TEXT and escaped on write,
+       * so an item whose prose happens to look like markup stays prose. The
+       * words `onclick=` and `<img` appear in the item's TEXT because the author
+       * typed them — what must not happen is a real attribute or a real tag.
+       */
+      const html = render('- [ ] Say "hi" onclick=alert(1) <img src=x>');
+      // The quotes are escaped, so the attribute cannot be closed early.
+      expect(html).toContain(
+        'aria-label="Say &#x22;hi&#x22; onclick=alert(1)"',
+      );
+      // Raw HTML is dropped by the pipeline before any of this runs.
+      expect(html).not.toContain("<img");
+      /*
+       * And the input carries exactly the attributes the frozen allowlist
+       * permits — asserted over the TAG rather than with a regex across the
+       * document, because the author's own prose legitimately contains the
+       * text `onclick=` and a naive pattern cannot tell the two apart. That
+       * ambiguity is the point: the escaping is what keeps them distinct.
+       */
+      const tag = /<input\b[^>]*>/.exec(html)?.[0] ?? "";
+      // Strip every quoted VALUE first: the author's prose lives in one of
+      // them, and an attribute name is only an attribute name outside them.
+      const names = tag
+        .replace(/="[^"]*"/g, "=")
+        .matchAll(/\s([a-zA-Z-]+)(?==|>|\s)/g);
+      expect([...names].map((match) => match[1]).sort()).toEqual([
+        "aria-label",
+        "disabled",
+        "type",
+      ]);
+    });
   });
 
   it("renders hard line breaks", () => {

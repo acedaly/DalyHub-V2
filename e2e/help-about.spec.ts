@@ -349,3 +349,38 @@ test.describe("THEME-01 navigation icons", () => {
     }
   });
 });
+
+/**
+ * DEBT-60 — Help and About name themselves on the phone top bar.
+ *
+ * The bar shows the title a route publishes and falls back to the WORKSPACE
+ * name when a route publishes nothing. Both of these are deliberate bespoke
+ * page shapes — Help has a contents rail, About composes `SettingsLayout` — so
+ * neither published one, and a phone owner reading either saw a bar that said
+ * "DalyHub" while the page under it said something else.
+ *
+ * Asserted at a phone width, which is the only place the bar exists.
+ */
+test.describe("DEBT-60 — the phone top bar names the page", () => {
+  test.use({
+    viewport: { width: 390, height: 780 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  for (const [path, title] of [
+    ["/help", "Help"],
+    ["/about", "About"],
+  ] as const) {
+    test(`${path} reads "${title}" on the phone top bar`, async ({ page }) => {
+      await gotoFixture(page, path);
+      const bar = page.locator(".dh-mobilebar");
+      await expect(bar).toBeVisible();
+      await expect(bar.locator(".dh-mobilebar__title")).toHaveText(title);
+      // And the page still says it too — publishing a title replaced nothing.
+      await expect(
+        page.getByRole("heading", { level: 1, name: title }),
+      ).toBeVisible();
+    });
+  }
+});

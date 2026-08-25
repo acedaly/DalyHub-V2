@@ -20,6 +20,7 @@ import { env } from "cloudflare:workers";
 import { buildInfo } from "~/lib/version";
 import { BrandLockup } from "~/shared/brand";
 import { SettingsGroup, SettingsLayout, SettingsRow } from "~/shared/settings";
+import { useSetMobileTopBar } from "~/shared/shell";
 
 import type { Route } from "./+types/index";
 
@@ -50,6 +51,16 @@ const ENVIRONMENT_LABELS: Record<string, string> = {
 
 export default function AboutRoute({ loaderData }: Route.ComponentProps) {
   const { build } = loaderData;
+
+  /*
+   * DEBT-60 — About names itself on the phone top bar.
+   *
+   * It composes `SettingsLayout` rather than `PaneHeader`, so it published no
+   * title and a phone owner saw the workspace name instead. See the same note
+   * on `/help`: publishing the title is the fix that changes nothing visually,
+   * and `backTo` is omitted because About is reached from more than one place.
+   */
+  useSetMobileTopBar({ title: "About" });
 
   return (
     <div className="dh-about">

@@ -584,10 +584,26 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Touch: comfortable targets, no hover dependency                             */
+/* Comfortable targets, no hover dependency                                    */
 /* -------------------------------------------------------------------------- */
 
-@media (hover: none) {
+/*
+ * DEBT-50 — the target follows the VIEWPORT as well as the pointer.
+ *
+ * This block was `@media (hover: none)` alone, which is a statement about the
+ * INPUT DEVICE. WCAG 2.2 §2.5.8 is written about target SIZE, and a narrow
+ * viewport driven by a pointer — a small desktop window, a resized browser, a
+ * touchscreen laptop that reports a fine pointer — kept the compact 28px
+ * control while being exactly the layout the 44px rule exists for. Every phone
+ * journey and `touch-targets.spec.ts` run under touch emulation, so the product
+ * genuinely met 44px everywhere they looked and missed it everywhere they did
+ * not.
+ *
+ * The rule now applies on a coarse pointer OR below the `md` breakpoint, so the
+ * two answers cannot disagree. It affects every Card in the product, which is
+ * what the entry says it should: this was never a Tasks defect.
+ */
+@media (hover: none), (pointer: coarse), (max-width: 48rem) {
   .dh-card__action {
     min-height: var(--app-touch-target-min);
     min-width: var(--app-touch-target-min);

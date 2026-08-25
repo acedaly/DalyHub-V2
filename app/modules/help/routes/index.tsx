@@ -19,6 +19,8 @@
  * follows (describe the product as it is, owner language, name what is missing).
  */
 
+import { useSetMobileTopBar } from "~/shared/shell";
+
 import { resolveHelpTopicId, HELP_SECTIONS } from "../help-content";
 import type { HelpBlock, HelpTopic } from "../help-content";
 
@@ -40,6 +42,23 @@ export function loader({ request }: Route.LoaderArgs) {
 
 export default function HelpRoute({ loaderData }: Route.ComponentProps) {
   const { focusTopicId } = loaderData;
+
+  /*
+   * DEBT-60 — Help names itself on the phone top bar.
+   *
+   * The bar shows the title a route publishes through `PaneHeader` or
+   * `RecordLayout` and falls back to the workspace name when a route publishes
+   * nothing. Help composes neither — it is a deliberate bespoke page shape —
+   * so a phone owner reading Help saw a bar that said "DalyHub".
+   *
+   * Publishing the title is the smaller of the two fixes the entry names, and
+   * the one that changes nothing visually: this page keeps its own `h1` and its
+   * own contents rail, and the phone bar simply stops disagreeing with them.
+   * `backTo` is deliberately omitted — Help is reached from many places, and a
+   * Back that always went to one of them would be a lie about where the owner
+   * came from; the phone bar's own navigation opener is unaffected.
+   */
+  useSetMobileTopBar({ title: "Help" });
 
   return (
     <div className="dh-help">

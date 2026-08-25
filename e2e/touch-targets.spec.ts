@@ -271,3 +271,42 @@ test.describe("touch targets — Notes (mobile, NOTES-01C)", () => {
     await cleanupNoteByTitle(noteTitle);
   });
 });
+
+/**
+ * DEBT-50 — row actions meet 44px at phone WIDTHS, with a MOUSE.
+ *
+ * The shared Card and the shared overflow trigger both raised themselves to
+ * 44px under `@media (hover: none)` — a statement about the input DEVICE. WCAG
+ * 2.2 §2.5.8 is written about target SIZE, so a narrow viewport driven by a
+ * POINTER (a small desktop window, a resized browser, a touchscreen laptop
+ * reporting a fine pointer) kept the compact control while being exactly the
+ * layout the rule exists for. MEASURED before the fix: **32×32** at 390px.
+ *
+ * It stayed invisible because every phone journey and every other test in this
+ * file runs under touch EMULATION, where the product genuinely met 44px — so it
+ * was correct everywhere anyone looked and wrong everywhere they did not. These
+ * assertions are therefore made deliberately WITHOUT `hasTouch`, at the widths
+ * the entry names, which is the only configuration that can see it.
+ *
+ * The trigger measured is the SHARED `OverflowMenu` one, which is the control a
+ * person actually meets on a row — the entry's own point that this "affects
+ * every Card in the product, not only Tasks".
+ */
+test.describe("touch targets — row actions at phone widths with a POINTER", () => {
+  // No `hasTouch`: a fine pointer at a narrow viewport, which is the case.
+  test.use({ hasTouch: false, isMobile: false });
+
+  for (const width of [320, 375, 390, 430] as const) {
+    test(`the row overflow trigger meets 44px at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 780 });
+      await gotoFixture(page, "/areas");
+      const trigger = page
+        .getByRole("button", { name: /More actions for/ })
+        .first();
+      await trigger.scrollIntoViewIfNeeded();
+      await expectMinTouchTarget(trigger);
+    });
+  }
+});

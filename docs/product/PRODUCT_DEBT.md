@@ -310,12 +310,16 @@ authority now.)
 - **Desired future state.** Project the parent Area id in the Today recent-projects read model and render the card's `context` with an `EntityLink`/`href` to `/areas/:id`, reusing the shared `entityDestination` helper this PR added.
 - **Related roadmap item.** [PROJ-01](../roadmap/ROADMAP_V2.md#-proj-01--overview) (Today integration) / a future Today refinement.
 
-### ☐ DEBT-26 — Rendered GFM task-list checkboxes have no accessible label — P3
+### ☑ DEBT-26 — Rendered GFM task-list checkboxes have no accessible label — P3 — **RESOLVED 2026-08-25**
 - **Current issue.** The shared FND-08 renderer (`app/platform/markdown`, sanitised by the one frozen allowlist and rendered by the single `MarkdownContent` sink) emits a GFM task-list item `- [ ]` as a `<input type="checkbox" disabled>` with **no associated label** — no wrapping/explicit `<label>`, `aria-label`, or `title`. axe (`label`, WCAG 2.2 AA, critical) flags each such checkbox. NOTES-04 surfaced this when a Note whose Markdown contains a checklist is previewed; it was latent before because no prior preview axe scan rendered task-list content. The checkbox text sits in the sibling list-item content, so a screen-reader user still hears the item, but the input itself is unlabelled.
 - **Assessment.** This is a **shared Markdown-pipeline** concern, not a Notes concern — the same output appears anywhere Markdown with a task list is rendered (Notes preview, Diary, descriptions). NOTES-04 is scoped to Notes and must not modify the one authoritative pipeline or its frozen sanitisation allowlist (which would touch shared infrastructure and risk the concurrent TASKS-01 work), so it recorded the gap rather than fixing it, and scopes its own editor axe gate to the Source surface (the toolbar it actually adds) while keeping the preview's functional/safety assertions.
 - **Desired future state.** The shared renderer associates each display-only task-list checkbox with its item text — e.g. `aria-label` derived from the item content, or `aria-hidden` on the purely-decorative input since the checked/unchecked state is already conveyable in the item text — inside the one FND-08 pipeline and its allowlist, with a `test/kernel/markdown-*` regression and the axe scan re-enabled over rendered task lists.
 - **Related roadmap item.** [FND-08](../roadmap/ROADMAP_V2.md#-fnd-08--markdown-pipeline); [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
-
+- **RESOLVED 2026-08-25 by the [all-open-debt pass](PRODUCT_DEBT_CLOSURE_2026_08.md), in the ONE pipeline, by the first of the two routes this entry offered.**
+  - The renderer NAMES each task-list checkbox with its own item's text, in the hast transform that already runs before sanitisation — so the attribute is subject to the same frozen allowlist as everything else, and `ariaLabel` was added to the schema's `input` entry for exactly this and nothing else.
+  - **Not `aria-hidden`, and the reason matters.** The item's text says what the step IS; only the checkbox says whether it is DONE. Removing the input from the accessibility tree would satisfy the checker and take the one fact it carries with it — a screen-reader user would hear "Book the venue" for a ticked step and an unticked one alike.
+  - **The axe scan now looks at the thing.** `label` has never been in the globally-disabled set, so nothing was re-enabled: the gap was that no scan had ever rendered task-list content, exactly as this entry says. `e2e/notes.spec.ts` → *"a rendered task list is axe-clean, and each checkbox is named"* writes a real checklist, renders it through Read mode (the shared FND-08 render), and scans the whole page in both appearances.
+  - **Closing condition, met and falsified twice.** Five of seven new assertions in [`test/kernel/markdown-render.test.ts`](../../test/kernel/markdown-render.test.ts) fail against the previous pipeline; and with the naming removed the E2E scan reports the violation verbatim — `"id": "label"`, `"impact": "critical"`, *"aria-label attribute does not exist or is empty"*, twice.
 ### ☑ DEBT-27 — Task overdue urgency is signalled by colour alone — P1
 - **Current issue.** An overdue task's due date renders as "Due &lt;date&gt;" in the danger tone (red) with **no textual "Overdue" cue**; a future due date renders the same "Due &lt;date&gt;" string in a neutral tone. The only difference is colour ([`taskDateLabel`](../../app/shared/task-record/task-view.ts) sets `tone: "danger"` with no marker word; duplicated inline in [`TasksWorkspace.tsx`](../../app/modules/tasks/TasksWorkspace.tsx) and [`TodayDashboard.tsx`](../../app/modules/today/TodayDashboard.tsx)). This directly contradicts the product's own "never rely on colour alone" contract ([ACCESSIBILITY_RESPONSIVE.md](../development/ACCESSIBILITY_RESPONSIVE.md)). Confirmed visually in the 2026-07 audit ([`tasks-drawer-light.png`](assets/ui-audit-2026-07/tasks-drawer-light.png)). Separately, a task due **today** (`due == today`) is not distinguished at all — it falls through to the neutral label, identical to a due date months away.
 - **Desired future state.** A shared task urgency signal carries an explicit label ("Overdue", "Due today", "Scheduled today") — icon + word — with colour as reinforcement only, per the §6 grammar in [`UI_UX_COHERENCE_AUDIT_2026_07.md`](UI_UX_COHERENCE_AUDIT_2026_07.md). Overdue detection is computed once in the shared derivation, not re-derived inline per surface.
@@ -610,7 +614,7 @@ authority now.)
 
 ---
 
-### ☐ DEBT-50 — Card quick actions are 28px on a narrow viewport with a mouse — P3
+### ☑ DEBT-50 — Card quick actions are 28px on a narrow viewport with a mouse — P3 — **RESOLVED 2026-08-25**
 - **Current issue.** The shared Card's quick actions and overflow trigger are raised to the 44px target under `@media (hover: none)` — a TOUCH device. A narrow viewport driven by a POINTER (a small desktop window, a resized browser, a touchscreen laptop reporting fine pointer) keeps the compact 28px control. WCAG 2.2 §2.5.8 is written about target size, not input modality, so the compact control is below the target for any user in that configuration.
 - **Where it stands.** Pre-existing, and unchanged by TASKS-03 — it was found by driving the Tasks list at 390px with a mouse while writing that item's touch-target coverage, and the assertion was moved to the touch-emulated phone block (where the product genuinely meets 44px) rather than widened to paper over it. Every phone journey and `touch-targets.spec.ts` run under touch emulation and pass.
 - **Impact.** Low but real: a pointer user at a phone-width window gets a 28×28 target where 44×44 is required. It affects every Card in the product, not only Tasks.
@@ -620,7 +624,10 @@ authority now.)
 - **Related roadmap item.** [DS-11](../roadmap/ROADMAP_V2.md#-ds-11--accessibility--responsive-baseline).
 
 ---
-
+- **RESOLVED 2026-08-25 by the [all-open-debt pass](PRODUCT_DEBT_CLOSURE_2026_08.md), by the route the entry prescribes — the sizing rule follows the VIEWPORT as well as the pointer.** Both `@media (hover: none)` blocks became `@media (hover: none), (pointer: coarse), (max-width: 48rem)`: the Card's in [`card.css`](../../app/styles/card.css), and — the one a person actually meets on a row — the shared overflow trigger's in [`overflow-menu.css`](../../app/styles/overflow-menu.css). Above `md` the compact rung stays, deliberately: a mouse at a desktop width is what DalyHub's density model is drawn for.
+- **The measurement corrected the entry's own number.** MEASURED on `/areas` at 390px with a fine pointer and no touch emulation, the trigger was **32×32**, not 28. The register said 28 because that was true when it was written.
+- **Why it survived every test.** Every phone journey, and every other assertion in `touch-targets.spec.ts`, runs under touch EMULATION — where the product genuinely met 44px. It was correct everywhere anyone looked and wrong everywhere they did not.
+- **Closing condition, met and falsified.** [`e2e/touch-targets.spec.ts`](../../e2e/touch-targets.spec.ts) → *"row actions at phone widths with a POINTER"* asserts the floor at **320, 375, 390 and 430** with `hasTouch: false`, which is the only configuration that can see the defect. Reverting the overflow rule to `hover: none` alone turns it red at 320px: `Expected: >= 43.5 / Received: 32`.
 ### ☐ DEBT-51 — An open overflow menu escapes its card by z-index, not by leaving the stacking context — P2
 - **Current issue.** The shared DS-12 `OverflowMenu` panel carries `z-index: var(--dh-z-dropdown)`, but a DS-04 Card establishes its own **stacking context** (the swipe surface is positioned with a z-index so the tray can sit behind it), so the panel's z-index resolves *inside* the card. In a long collection the next card — and the sticky Pane Header — painted over an open menu and its items were unclickable. Found by driving the Tasks list; it affected every Card in the product and had simply never been hit, because existing specs opened menus on short lists.
 - **Where it stands.** Fixed at the symptom in TASKS-03 (`app/styles/card.css`): while a menu is open the CARD is raised to the dropdown layer, which lifts the whole context above its siblings and the sticky chrome. Correct and covered by a browser test, but it is a rule keyed to `.dh-card`/`.dh-card-swipe`.
@@ -720,7 +727,7 @@ authority now.)
 
 ---
 
-### ☐ DEBT-60 — Help and About do not name themselves on the phone top bar — P3
+### ☑ DEBT-60 — Help and About do not name themselves on the phone top bar — P3 — **RESOLVED 2026-08-25**
 
 - **Current issue.** The MOBILE-01 phone top bar shows the title a route publishes through `PaneHeader` or `RecordLayout`, and falls back to the workspace name when a route publishes nothing. `/help` and `/about` compose neither (Help uses a bespoke contents-rail page; About composes `SettingsLayout`), so a phone owner reading Help sees a bar that says "DalyHub" and offers no contextual Back.
 - **Why it was not swept here.** UX-01 fixed the same cause on `/new/meeting` and `/reviews/new`, where the pages are ordinary create forms and publishing a title changes nothing visually. Help and About are deliberate bespoke page shapes; giving them a `PaneHeader` would change how they look, and publishing a title without one is the smaller fix but still a presentation decision about two screens this audit did not otherwise touch.
@@ -730,7 +737,8 @@ authority now.)
 - **Related roadmap item.** [MOBILE-01](../roadmap/ROADMAP_V2.md#-mobile-01--fast-mobile-first-daily-experience); [HELP-01](../roadmap/ROADMAP_V2.md#-help-01--in-app-help).
 
 ---
-
+- **RESOLVED 2026-08-25 by the [all-open-debt pass](PRODUCT_DEBT_CLOSURE_2026_08.md), by the SMALLER of the two fixes this entry offers.** Both routes call `useSetMobileTopBar({ title })` — the same shared hook `/new/meeting` and `/reviews/new` already use — so the bar names the page and nothing about either page's deliberate bespoke shape changes. Neither publishes a `backTo`: both are reached from more than one place, and a Back that always went to one of them would be a lie about where the owner came from.
+- **Closing condition, met and falsified.** [`e2e/help-about.spec.ts`](../../e2e/help-about.spec.ts) → *"the phone top bar names the page"* asserts the bar reads "Help" on `/help` and "About" on `/about` at 390px, and that each page still carries its own `h1`. Removing the two calls turns both red with `Received: "DalyHub"` — the entry's own description of the defect.
 ### ☑ DEBT-63 — "Load more" could silently drop a page — P1 — **RESOLVED 2026-08-01**
 
 - **Filed as a test-timing curiosity. It was a product defect.** The first draft of this entry recorded two keyset-pagination component tests failing "only under heavy machine load", noted CI was green, and deliberately declined to widen their waits without a reproduction. Then the same family failed on CI on a dedicated runner (`NotesCollection.test.tsx`, run 30715617556), which falsified the "only under load" reading and forced a real diagnosis.
@@ -2687,7 +2695,7 @@ that required CI is a readable signal, because the suite has not finished.
 - **V2.4 disposition — EXPLICITLY NOT TAKEN.** Named as a non-goal by [FOLLOW-02](../roadmap/ROADMAP_V2_4.md#-follow-02--did-the-goals-move), for the same reason as DEBT-183: it is a domain-capability decision, not a consequence of stating movement.
 - **Related roadmap item.** [`DHDS_10_…`](../design/DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md) §13.
 
-### ☐ DEBT-185 — A picker option's accessible NAME includes its supporting text — P3
+### ☑ DEBT-185 — A picker option's accessible NAME includes its supporting text — P3 — **RESOLVED 2026-08-25**
 
 - **Current issue.** `Picker` renders an option's support line (`"Project"`, `"Area"`) as a DOM descendant of the `role="option"` element and references it with `aria-describedby` ([`app/shared/floating/Picker.tsx`](../../app/shared/floating/Picker.tsx)). `aria-describedby` does not remove a descendant from the accessible-name computation, so the name is "Home & Property Area" rather than "Home & Property" — and the same text is then announced again as the description.
 - **Impact.** A screen-reader user hears the qualifier twice, and the option is not matchable by the words it visibly shows. DHDS-09's own documentation states the support is "never part of the accessible NAME", so the intent is clear and the implementation does not meet it.
@@ -2695,7 +2703,8 @@ that required CI is a readable signal, because the suite has not finished.
 - **Desired future state.** `Picker` gives each option `aria-label={option.ariaLabel ?? option.label}`, so the visible label is the name and the support stays a description. `Menu` is already correct.
 - **Closing condition.** An option's accessible name is its label alone, verified in a browser test, with the description still announced.
 - **Related roadmap item.** [`DHDS_10_…`](../design/DHDS_10_INLINE_MANIPULATION_AND_DIRECT_EDITING_2026_08.md) §13.
-
+- **RESOLVED 2026-08-25 by the [all-open-debt pass](PRODUCT_DEBT_CLOSURE_2026_08.md), exactly as the desired future state describes it:** `Picker` gives each option `aria-label={option.ariaLabel ?? option.label}`, so the visible label is the name and the support stays a description. `ariaLabel` already existed on `FloatingOption`, so nothing new was introduced — the option row simply now uses it.
+- **Closing condition, met and falsified.** Three assertions in [`test/unit/floating/floating-surfaces.test.tsx`](../../test/unit/floating/floating-surfaces.test.tsx) prove the name is the label alone, that the support is still announced once as a DESCRIPTION (so nothing is lost), and that an explicit `ariaLabel` still wins. All three fail against the previous implementation, where the option was matchable only as "Home & Property Area".
 ### ☐ DEBT-186 — A Project's workflow status and its parent are editable in TWO places on one record — P3
 
 - **Current issue.** DHDS-10 made the workflow status a control on the Project record's context line, and the Settings tab's `WorkflowStatusRow` still carries the same value as a `SelectField`. The Area/Goal parent is the mirror case: it is now a picker on the collection table and remains a `SelectField` in Settings → Organisation.

@@ -332,6 +332,75 @@ function PickerHost({
   );
 }
 
+describe("DEBT-185 — a picker option's accessible NAME is its label alone", () => {
+  /*
+   * DHDS-09's own documentation states that the supporting line is "never part
+   * of the accessible NAME (it is referenced separately)". It was: `Picker`
+   * rendered the support as a DOM descendant of the `role="option"` element and
+   * referenced it with `aria-describedby`, and `aria-describedby` does not
+   * remove a descendant from the name computation. So an option read as
+   * "Home & Property Area", announced the qualifier a second time as its
+   * description, and was unmatchable by the words it visibly shows — which is
+   * what a screen-reader user navigates a list of options by.
+   *
+   * Both assertions fail against the previous implementation.
+   */
+  const WITH_SUPPORT: PickerOption[] = [
+    { id: "a-home", label: "Home & Property", support: "Area" },
+    { id: "p-camper", label: "Camper upgrades", support: "Project" },
+  ];
+
+  it("names the option by its label, not label-plus-support", () => {
+    stubViewport(false);
+    render(<PickerHost options={WITH_SUPPORT} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    // Matchable by exactly the words it shows.
+    expect(
+      screen.getByRole("option", { name: "Home & Property" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Camper upgrades" }),
+    ).toBeInTheDocument();
+    // And NOT by the name it used to have.
+    expect(
+      screen.queryByRole("option", { name: "Home & Property Area" }),
+    ).toBeNull();
+  });
+
+  it("keeps the support as a DESCRIPTION, so nothing is lost", () => {
+    // The qualifier is still announced — once, as what it is.
+    stubViewport(false);
+    render(<PickerHost options={WITH_SUPPORT} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    const option = screen.getByRole("option", { name: "Home & Property" });
+    const describedBy = option.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy!)?.textContent).toBe("Area");
+  });
+
+  it("still honours an explicit ariaLabel where a caller supplies one", () => {
+    stubViewport(false);
+    render(
+      <PickerHost
+        options={[
+          {
+            id: "p1",
+            label: "P1",
+            support: "Priority",
+            ariaLabel: "Priority 1",
+          },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(
+      screen.getByRole("option", { name: "Priority 1" }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("Picker — the one searchable picker", () => {
   it("is a combobox controlling a listbox, with the search field focused", () => {
     stubViewport(false);

@@ -513,6 +513,20 @@ export function Picker({
               key={option.id}
               id={rowId(index)}
               role="option"
+              /*
+               * DHDS-09's own rule, finally true (DEBT-185): the supporting
+               * line is "never part of the accessible NAME (it is referenced
+               * separately)". It was — `aria-describedby` does NOT remove a
+               * descendant from the name computation, so an option read as
+               * "Home & Property Area" and then announced the qualifier a
+               * second time as its description. It was also unmatchable by the
+               * words it visibly shows, which is what a screen-reader user
+               * navigates a list of options by.
+               *
+               * The name is the LABEL, explicitly. `Menu` was already correct;
+               * this makes the two floating surfaces agree.
+               */
+              aria-label={option.ariaLabel ?? option.label}
               aria-selected={selected}
               aria-disabled={option.disabled || undefined}
               aria-describedby={supportId}

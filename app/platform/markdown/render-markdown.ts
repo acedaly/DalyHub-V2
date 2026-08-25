@@ -116,6 +116,10 @@ function transformNode(node: ElementContent): ElementContent[] {
     return [replaceImage(node)];
   }
 
+  if (node.tagName === "li") {
+    labelTaskListCheckbox(node);
+  }
+
   if (node.tagName === "a") {
     const href = node.properties?.href;
     if (typeof href !== "string" || !isSafeMarkdownUrl(href)) {
@@ -126,6 +130,85 @@ function transformNode(node: ElementContent): ElementContent[] {
   }
 
   return [node];
+}
+
+/**
+ * DEBT-26 — a rendered GFM task-list checkbox gets an accessible NAME.
+ *
+ * `remark-gfm` renders `- [x] Book the venue` as a disabled
+ * `<input type="checkbox" checked>` followed by the item's text as a SIBLING.
+ * The input therefore has no label of any kind, which axe reports as a critical
+ * WCAG 2.2 AA `label` violation wherever Markdown containing a checklist is
+ * rendered — a Note preview, a Diary entry, a Task description.
+ *
+ * ── Why a NAME rather than `aria-hidden` ────────────────────────────────────
+ * Hiding it would satisfy the checker and lose the information. The item's text
+ * says what the step is; only the checkbox says whether it is DONE, so an input
+ * removed from the accessibility tree takes the one fact it carries with it. A
+ * screen-reader user would hear "Book the venue" for a ticked step and an
+ * unticked one alike.
+ *
+ * So the input is named with its own item's text, which is what a sighted
+ * reader associates with it — and its checked state is announced by the native
+ * control, unchanged.
+ *
+ * ── Why here rather than in each renderer ───────────────────────────────────
+ * There is ONE pipeline (ADR-015 §14) and this is a property of the output, not
+ * of any consumer. It runs BEFORE `rehype-sanitize`, so the attribute is
+ * subject to the same frozen allowlist as everything else; `ariaLabel` is added
+ * to the schema's `input` entry for exactly this and nothing else.
+ *
+ * The text is taken from the item's own already-transformed subtree, so it can
+ * only ever contain content the pipeline has already accepted, and it is bounded
+ * so a paragraph-long step does not become a paragraph-long accessible name.
+ */
+const TASK_LIST_LABEL_MAX = 200;
+
+function labelTaskListCheckbox(item: Element): void {
+  const checkbox = item.children.find(
+    (child): child is Element =>
+      child.type === "element" &&
+      child.tagName === "input" &&
+      child.properties?.type === "checkbox",
+  );
+  if (!checkbox) {
+    return;
+  }
+  const text = collectText(item.children).replace(/\s+/g, " ").trim();
+  if (text.length === 0) {
+    /*
+     * A checkbox with no text beside it. The state is all there is, so it is
+     * named as the state — never left unlabelled, and never hidden, because
+     * "checked" is the whole content of the item.
+     */
+    checkbox.properties = {
+      ...checkbox.properties,
+      ariaLabel: checkbox.properties?.checked
+        ? "Checked item"
+        : "Unchecked item",
+    };
+    return;
+  }
+  checkbox.properties = {
+    ...checkbox.properties,
+    ariaLabel:
+      text.length > TASK_LIST_LABEL_MAX
+        ? `${text.slice(0, TASK_LIST_LABEL_MAX).trimEnd()}…`
+        : text,
+  };
+}
+
+/** The visible text of a subtree, for the label above. */
+function collectText(nodes: readonly ElementContent[]): string {
+  let out = "";
+  for (const node of nodes) {
+    if (node.type === "text") {
+      out += node.value;
+    } else if (node.type === "element") {
+      out += collectText(node.children);
+    }
+  }
+  return out;
 }
 
 /**
