@@ -283,6 +283,21 @@ week**. `create` is idempotent per `(type, period)`, so it was asserting about
 by giving each seed its own week and asserting `viaField !== viaCommand`;
 falsification then produced two failures instead of one.
 
+**A shared implementation that had never run, and a falsification that could
+not see it.** DEBT-99 replaced twenty-six hand-rolled hover fills with the
+shared `md-state-layer` class. Review on PR #226 found that `base.css` set
+`content: none` on the `::after` — so the pseudo-element **is not generated**,
+and the one implementation this register has been converging on had painted
+nothing on any host since M3-INT. Replacing twenty-six *working* fills with it
+would have shipped twenty-six controls with no hover state.
+
+The falsification this pass ran was real and still blind: every assertion
+measured `getComputedStyle(el, "::after").opacity`, which is returned whether
+or not the box exists. It distinguished *"the shared rule matches"* from *"no
+rule matches"* — never *"paints"* from *"does not paint"*. **A test can be
+falsifiable and still be blind to the thing that matters.** The suite now has
+one assertion about pixels, and `content: ""` fixes the layer for every host.
+
 **The right decision in the wrong place.** DEBT-94's closure first pushed the
 AI-preferences exclusion into the snapshot's `limitations` — which means
 *something happened during THIS export*, not *this is a property of the schema*.

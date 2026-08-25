@@ -224,6 +224,62 @@ describe("DEBT-124 — the batched relationship read", () => {
     ]);
   });
 
+  it("omits a SOFT-DELETED anchor, not just a soft-deleted counterpart", async () => {
+    /*
+     * The contract says an anchor that "does not exist, is soft-deleted, or
+     * belongs to another workspace is simply ABSENT from the map". Soft-
+     * deleting an entity does NOT delete its `entity_links`, so a query that
+     * validates only the link and the counterpart happily returns a deleted
+     * record's live relationships — the contract stated, the query not keeping
+     * it. Found by review on PR #226; the read now joins the anchor's own row
+     * in the same statement.
+     *
+     * Asserted beside a LIVE anchor in the same call, because the failure this
+     * guards against is a page of thirty rows where one was deleted in another
+     * tab: the deleted one must vanish and the other twenty-nine must not.
+     */
+    const doomed = await widget("Doomed anchor");
+    const live = await widget("Live anchor");
+    await links.create({
+      sourceEntityId: doomed,
+      targetEntityId: await widget("Doomed counterpart"),
+      type: LINK_TYPE,
+    });
+    await links.create({
+      sourceEntityId: live,
+      targetEntityId: await widget("Live counterpart"),
+      type: LINK_TYPE,
+    });
+    await entities.softDelete(doomed);
+
+    const page = await batchRepo().listForEntities([doomed, live], {
+      type: LINK_TYPE,
+    });
+    expect(
+      page.has(doomed),
+      "a soft-deleted anchor's relationships are still readable, so a record " +
+        "the rest of the product treats as gone is exposed through this read",
+    ).toBe(false);
+    expect(page.get(live)).toHaveLength(1);
+  });
+
+  it("omits a soft-deleted anchor on the INCOMING side too", async () => {
+    // The union has two direction subqueries and only one of them would have
+    // been fixed by a change that looked at the outgoing case alone.
+    const doomed = await widget("Doomed target");
+    await links.create({
+      sourceEntityId: await widget("Some source"),
+      targetEntityId: doomed,
+      type: LINK_TYPE,
+    });
+    await entities.softDelete(doomed);
+
+    const page = await batchRepo().listForEntities([doomed], {
+      type: LINK_TYPE,
+    });
+    expect(page.has(doomed)).toBe(false);
+  });
+
   it("omits an anchor with no links rather than inventing an empty entry", async () => {
     const lonely = await widget("Lonely");
     const page = await batchRepo().listForEntities([lonely], {

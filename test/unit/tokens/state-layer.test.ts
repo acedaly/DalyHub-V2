@@ -184,7 +184,18 @@ describe("M3-INT — no bespoke state layers", () => {
       base.indexOf("/* The M3 state layer"),
       base.indexOf("SELECTED is not an opacity"),
     );
-    const hosts = [...new Set(block.match(/\.[a-z][\w-]*(?:__[\w-]+)?/g) ?? [])]
+    /*
+     * COMMENTS STRIPPED FIRST. A host is a selector, never prose — and this
+     * scan used to read both, so a comment mentioning `getComputedStyle(el,
+     * "::after").opacity` contributed `.opacity` to the host list and the
+     * assertion below then demanded a stylesheet define it. Found while adding
+     * the comment that records why `content` must be `""`; the failure was in
+     * the test's parser, not in the product.
+     */
+    const selectorsOnly = block.replace(/\/\*[\s\S]*?\*\//g, "");
+    const hosts = [
+      ...new Set(selectorsOnly.match(/\.[a-z][\w-]*(?:__[\w-]+)?/g) ?? []),
+    ]
       // `.md-state-layer` is the class route and needs no other stylesheet.
       .filter((host) => host !== ".md-state-layer");
 

@@ -35,6 +35,60 @@ async function layerOpacity(locator: Locator): Promise<number> {
   );
 }
 
+/**
+ * The layer is a REAL BOX, and hovering it changes what is on screen.
+ *
+ * Every other assertion in this file measures `getComputedStyle(el,
+ * "::after").opacity` — and that number is returned whether or not the
+ * pseudo-element is GENERATED. `base.css` said `content: none` from M3-INT
+ * until 2026-08-25, so for that whole time the shared state layer painted
+ * nothing on any host and every opacity assertion here passed anyway: MEASURED
+ * on `/design/forms`, a hovered shared Button reported
+ * `{content: "none", opacity: "0.08", width: "auto", height: "auto"}` — an
+ * opacity on nothing. It was found by review, not by this suite.
+ *
+ * So one assertion in this file has to be about PIXELS. It is called from the
+ * canonical shared-button test and from the module-chrome test, which is enough
+ * to prove the implementation is running; the rest can then measure opacity,
+ * which is the precise instrument once the box is known to exist.
+ */
+async function expectLayerPaints(page: Page, locator: Locator): Promise<void> {
+  await locator.scrollIntoViewIfNeeded();
+  const generated = await locator.evaluate((element) => {
+    const layer = getComputedStyle(element, "::after");
+    return { content: layer.content, width: layer.width, height: layer.height };
+  });
+  expect(
+    generated.content,
+    "the state layer's `content` is `none`, so the pseudo-element is not " +
+      "generated and nothing paints — every opacity assertion in this file " +
+      'would still pass. Use `content: ""`.',
+  ).not.toBe("none");
+  expect(generated.width).not.toBe("auto");
+  expect(generated.height).not.toBe("auto");
+
+  await page.mouse.move(0, 0);
+  const rest = (await locator.screenshot()).toString("base64");
+  await locator.hover();
+  await expect
+    .poll(async () => (await locator.screenshot()).toString("base64"), {
+      timeout: 2_000,
+    })
+    .not.toBe(rest);
+
+  /*
+   * Leave the control RESTING, and settled.
+   *
+   * The layer transitions, so a caller that moves the mouse away and samples
+   * immediately lands mid-animation on a value it is leaving — which is the
+   * trap this file's own "Polled, not sampled" comment records for the pressed
+   * state. A helper that leaves a control hovered would hand that trap to
+   * every caller, so this one waits until the layer is back at zero.
+   */
+  await page.mouse.move(0, 0);
+  await expect.poll(() => layerOpacity(locator), { timeout: 2_000 }).toBe(0);
+}
+
 test.describe("M3-INT — the shared state layer", () => {
   test("hover, focus and pressed all light the layer on a shared button", async ({
     page,
@@ -43,6 +97,9 @@ test.describe("M3-INT — the shared state layer", () => {
 
     const button = page.getByRole("button", { name: "Save" }).first();
     await expect(button).toBeVisible();
+
+    // The one assertion in this file that is about PIXELS — see the helper.
+    await expectLayerPaints(page, button);
 
     // Rest: no layer at all.
     expect(await layerOpacity(button)).toBe(0);
@@ -133,6 +190,8 @@ test.describe("M3-INT — the shared state layer", () => {
     await gotoFixture(page, "/help");
     const contentsLink = page.locator("a.dh-help__contents-link").first();
     await expect(contentsLink).toBeVisible();
+    // A converted control paints, rather than merely computing an opacity.
+    await expectLayerPaints(page, contentsLink);
     expect(await layerOpacity(contentsLink)).toBe(0);
     await contentsLink.hover();
     await expect

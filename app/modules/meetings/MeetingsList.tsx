@@ -50,7 +50,7 @@ import {
  */
 export interface MeetingRowAttendeeContext {
   readonly names: readonly string[];
-  readonly more: number;
+  readonly hasMore: boolean;
 }
 
 export type MeetingsListMeeting = SerializedMeeting & {
@@ -196,8 +196,8 @@ export function MeetingsList({
               const who =
                 attendees === null || attendees.names.length === 0
                   ? null
-                  : attendees.more > 0
-                    ? `${attendees.names.join(", ")} +${attendees.more}`
+                  : attendees.hasMore
+                    ? `${attendees.names.join(", ")} and others`
                     : attendees.names.join(", ");
 
               const joinable =

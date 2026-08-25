@@ -264,7 +264,7 @@ describe("DEBT-124 — People context on a meeting row", () => {
   it("names the attendees the loader resolved", () => {
     renderList([
       meeting({
-        attendees: { names: ["Mira Chen", "Anna Ruiz"], more: 0 },
+        attendees: { names: ["Mira Chen", "Anna Ruiz"], hasMore: false },
       } as Partial<MeetingsListMeeting>),
     ]);
     expect(screen.getByTestId("meeting-row-attendees")).toHaveTextContent(
@@ -272,17 +272,32 @@ describe("DEBT-124 — People context on a meeting row", () => {
     );
   });
 
-  it("says how many MORE there are rather than a partial truth", () => {
-    // A row that named three of nine and stopped would be a true sentence that
-    // reads as the whole list.
+  it("says THAT there are more rather than a partial truth — and never a number", () => {
+    /*
+     * A row that named three of nine and stopped would be a true sentence that
+     * reads as the whole list. But it must not say "+6" either: the read
+     * behind it is bounded at `MEETING_ROW_ATTENDEE_LIMIT + 1`, so any count
+     * derived from it is at most 1 however many attendees there are. Found by
+     * review on PR #226; the contract is now a boolean and this asserts the
+     * wording it produces.
+     */
     renderList([
       meeting({
-        attendees: { names: ["Mira Chen", "Anna Ruiz", "Tomas Lind"], more: 6 },
+        attendees: {
+          names: ["Mira Chen", "Anna Ruiz", "Tomas Lind"],
+          hasMore: true,
+        },
       } as Partial<MeetingsListMeeting>),
     ]);
-    expect(screen.getByTestId("meeting-row-attendees")).toHaveTextContent(
-      "Mira Chen, Anna Ruiz, Tomas Lind +6",
+    const row = screen.getByTestId("meeting-row-attendees");
+    expect(row).toHaveTextContent(
+      "Mira Chen, Anna Ruiz, Tomas Lind and others",
     );
+    expect(
+      row.textContent,
+      "the row states a NUMBER of remaining attendees, which a bounded read " +
+        "cannot know",
+    ).not.toMatch(/\+\s*\d/);
   });
 
   it("says NOTHING when the page did not resolve any, rather than an empty label", () => {
@@ -293,7 +308,7 @@ describe("DEBT-124 — People context on a meeting row", () => {
 
     renderList([
       meeting({
-        attendees: { names: [], more: 0 },
+        attendees: { names: [], hasMore: false },
       } as Partial<MeetingsListMeeting>),
     ]);
     expect(screen.queryByTestId("meeting-row-attendees")).toBeNull();

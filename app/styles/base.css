@@ -220,7 +220,27 @@ body {
   .dh-command__close,
   .dh-filter-btn--ghost
 )::after {
-  content: none;
+  /*
+   * `content: ""`, not `content: none`.
+   *
+   * This said `none` from M3-INT until 2026-08-25, and `none` means the
+   * pseudo-element IS NOT GENERATED — so every declaration below applied to a
+   * box that did not exist and **the shared state layer never painted
+   * anything**, on any host, for as long as it has existed.
+   *
+   * It survived because `getComputedStyle(el, "::after").opacity` returns the
+   * computed value whether or not a box is generated, so a test measuring the
+   * layer's opacity passes identically in both worlds. What distinguishes them
+   * is `content` and the box's own geometry: MEASURED in Chromium on
+   * `/design/forms`, a hovered shared Button reported
+   * `{content: "none", opacity: "0.08", width: "auto", height: "auto"}` — an
+   * opacity on nothing.
+   *
+   * Found by review on PR #226, after DEBT-99 replaced twenty-six working
+   * hand-rolled hover fills with this class and would otherwise have shipped
+   * twenty-six controls with no hover state at all.
+   */
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;

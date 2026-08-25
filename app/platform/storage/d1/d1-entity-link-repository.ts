@@ -928,6 +928,21 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       `l.${anchorColumn} IN (${placeholders})`,
       "l.deleted_at IS NULL",
       "e.deleted_at IS NULL",
+      /*
+       * The ANCHOR's own row, and this join is not symmetry for its own sake.
+       *
+       * `listForEntities` documents that an anchor which does not exist, is
+       * soft-deleted, or belongs to another workspace is ABSENT from the map —
+       * that is the difference from `listForEntity`, which refuses. Soft-
+       * deleting an entity does not delete its `entity_links`, so checking only
+       * the link and the COUNTERPART returned a deleted record's live
+       * relationships: the contract stated, and the query not keeping it.
+       *
+       * Found by review on PR #226. It costs a second JOIN in the SAME
+       * statement — no extra round trip — so the bounded-query property
+       * DEBT-124 exists for is untouched.
+       */
+      "a.deleted_at IS NULL",
     ];
     const params: unknown[] = [this.#workspaceId, ...anchorIds];
 
@@ -941,6 +956,8 @@ export class D1EntityLinkRepository implements EntityLinkRepository {
       FROM entity_links l
       JOIN entities e
         ON e.workspace_id = l.workspace_id AND e.id = l.${counterpartColumn}
+      JOIN entities a
+        ON a.workspace_id = l.workspace_id AND a.id = l.${anchorColumn}
       WHERE ${conditions.join(" AND ")}`;
     return { sql, params };
   }

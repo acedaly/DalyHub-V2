@@ -599,6 +599,18 @@ export function ReviewRecord({
   );
 }
 
+/**
+ * The word for each Review status, in one place.
+ *
+ * Written out rather than derived, because these are the owner's words and not
+ * the domain's: `in_progress` reads "In progress", never "In_progress".
+ */
+const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  draft: "Draft",
+  in_progress: "In progress",
+  completed: "Completed",
+};
+
 function ReviewSettings({
   review,
   detailItems,
@@ -811,7 +823,14 @@ function ReviewStatusRow({
             (value) => value !== "completed" || review.status === "completed",
           ).map((value) => ({
             value,
-            label: value === "in_progress" ? "In progress" : "Draft",
+            /*
+             * All three, not a two-way ternary. The filter above deliberately
+             * KEEPS `completed` when the Review is completed — so the disabled
+             * control shows the true state — and a ternary that calls
+             * everything-but-`in_progress` "Draft" then reports a completed
+             * Review as a draft. Found by review on PR #226.
+             */
+            label: REVIEW_STATUS_LABELS[value],
           }))}
           onChange={(next) => {
             if (next === setting.value || next.length === 0) return;
