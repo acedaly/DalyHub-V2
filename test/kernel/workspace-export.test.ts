@@ -458,3 +458,56 @@ describe("workspace export → Obsidian vault (D1)", () => {
     ).toBe(true);
   });
 });
+
+/*
+ * DEBT-94 — the one kind of owner configuration this snapshot does not carry.
+ *
+ * The entry offered two closings: export AI preferences with a restore test, or
+ * name the omission in `limitations` and assert it is named. The second was
+ * chosen, and the reason is the entry's own counter-argument: those rows hold a
+ * spending budget, feature switches and a privacy CONSENT, and a restore that
+ * quietly re-enabled all three would spend the owner's money and re-grant a
+ * consent they may have withdrawn. An archive that loses a setting is
+ * recoverable in a minute; one that silently restores a consent is not.
+ *
+ * What was never acceptable was leaving it unsaid — the snapshot claims to
+ * carry "the owner's configuration".
+ */
+describe("workspace export — the AI-preferences omission is NAMED (DEBT-94)", () => {
+  beforeEach(async () => {
+    await resetTables([WS]);
+    await seedWorkspace();
+  });
+
+  it("names it in `limitations`, on every export", async () => {
+    const snapshot = await exportSnapshot();
+    const limitation = snapshot.limitations.find(
+      (entry) => entry.subject === "owner.aiPreferences",
+    );
+    expect(
+      limitation,
+      "an export that claims to carry the owner's configuration and silently " +
+        "omits their AI budget, feature switches and privacy consent is not " +
+        "an honest archive (DEBT-94)",
+    ).toBeDefined();
+    expect(limitation?.code).toBe("collection_excluded");
+    // The detail has to say what to DO about it, not merely that it happened.
+    expect(limitation?.detail).toMatch(/consent/i);
+    expect(limitation?.detail).toMatch(/Settings/);
+  });
+
+  it("still carries every other owner setting, so the omission is narrow", async () => {
+    const snapshot = await exportSnapshot();
+    // The claim is that ONE thing is excluded, not that `owner` is unreliable.
+    expect(snapshot.owner.preferences).toBeDefined();
+    expect(Array.isArray(snapshot.owner.taskSavedViews)).toBe(true);
+    const excluded = snapshot.limitations.filter(
+      (entry) => entry.code === "collection_excluded",
+    );
+    expect(
+      excluded.map((entry) => entry.subject),
+      "a second `collection_excluded` limitation means something else stopped " +
+        "being exported; that is a decision, and it needs its own entry",
+    ).toEqual(["owner.aiPreferences"]);
+  });
+});

@@ -462,6 +462,14 @@ These are real and recorded rather than hidden.
   workspace-membership record exports as `Unknown user`. The structured
   `dalyhub-snapshot.json` still carries `actorType`/`actorId` verbatim — it is a
   faithful record of the database, and the owner's own copy of their own ids.
+- **AI preferences are deliberately NOT exported** (DEBT-94), and every archive
+  says so in `limitations` under `owner.aiPreferences`. Those rows hold a
+  spending budget, feature switches and a privacy consent; a restore that
+  quietly re-enabled all three would spend the owner's money and re-grant a
+  consent they may have withdrawn. An archive that loses a setting is
+  recoverable in a minute; one that silently restores a consent is not. Re-set
+  them from Settings after a restore. Every other `owner` field — the app
+  preferences and the saved Tasks views — is carried.
 - **No attachments.** DalyHub stores none yet.
 - **Task checklist items were exported and NOT restored, until 2026-08-19.**
   `task_checklist_items` had a snapshot collection and a restore destination but

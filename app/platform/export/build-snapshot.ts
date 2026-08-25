@@ -145,6 +145,36 @@ export async function buildWorkspaceSnapshot(
     });
   }
 
+  /*
+   * DEBT-94 — the owner configuration this snapshot deliberately does NOT
+   * carry, named rather than silently absent.
+   *
+   * `owner_app_preferences` and the saved views are here; `workspace_ai_
+   * preferences` is not. That is a DECISION, and the decision is to exclude:
+   * those rows hold a spending budget, feature switches and a privacy consent,
+   * and a restore that quietly re-enabled all three would spend the owner's
+   * money and re-grant a consent they may have withdrawn. An archive that
+   * loses a setting is recoverable in a minute; one that silently restores a
+   * consent is not.
+   *
+   * What was NOT acceptable was leaving it unsaid. The snapshot claims to carry
+   * "the owner's configuration", so an owner who restores and finds their AI
+   * settings at defaults has to be told here rather than discovering it.
+   *
+   * Unconditional, because it is a property of the SCHEMA rather than of this
+   * workspace's data — every export omits it, so every export says so.
+   */
+  limitations.push({
+    code: "collection_excluded",
+    subject: "owner.aiPreferences",
+    detail:
+      "AI preferences (budget, allowed features and categories, privacy " +
+      "consent) are deliberately not exported. Restoring them would re-enable " +
+      "spending and re-grant a consent the owner may have withdrawn, silently. " +
+      "Re-set them from Settings after a restore; nothing else in `owner` is " +
+      "affected.",
+  });
+
   if (preferences.navigationConfig === null) {
     limitations.push({
       code: "preference_value_unparseable",
