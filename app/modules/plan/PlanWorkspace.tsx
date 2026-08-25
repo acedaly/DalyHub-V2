@@ -1186,16 +1186,17 @@ function PlanQueue({
          * empty queue is a control that can only ever do nothing.
          */}
         {data.queue.length === 0 ? null : (
-          <button
-            type="button"
+          <Button
+            variant="subtle"
+            size="sm"
             ref={selectToggleRef}
-            className="dh-btn dh-btn--ghost dh-btn--sm dh-plan__queue-select"
+            className="dh-plan__queue-select"
             data-testid="plan-queue-select-toggle"
             aria-pressed={selecting}
             onClick={selecting ? onStopSelecting : onStartSelecting}
           >
             {selecting ? "Stop selecting" : "Select tasks"}
-          </button>
+          </Button>
         )}
       </header>
 
