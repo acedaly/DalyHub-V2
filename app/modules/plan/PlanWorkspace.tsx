@@ -79,6 +79,7 @@ import {
   planningEntryMinutes,
 } from "~/kernel/planning";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
+import { Button } from "~/shared/ui";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
@@ -1395,14 +1396,14 @@ function PlanQueue({
               </div>
               {/* The stated way out, beside the act — so leaving the mode is as
                 discoverable as entering it and never requires the keyboard. */}
-              <button
-                type="button"
-                className="dh-btn dh-btn--ghost dh-plan__place-done"
+              <Button
+                variant="subtle"
+                className="dh-plan__place-done"
                 data-testid="plan-place-done"
                 onClick={onStopSelecting}
               >
                 Done
-              </button>
+              </Button>
             </div>
           ) : null}
         </>

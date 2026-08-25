@@ -38,11 +38,11 @@
  * (DS-04 §61).
  */
 
-import { useCallback, useRef, type ReactNode } from "react";
+import { useCallback, useId, useRef, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { useCardLongPress } from "~/shared/card/useCardLongPress";
-import { Menu, type MenuItem } from "~/shared/ui";
+import { Checkbox, Menu, type MenuItem } from "~/shared/ui";
 import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
 import {
   checklistProgressLabel,
@@ -244,6 +244,8 @@ export function TaskRow({
   current = false,
 }: TaskRowProps) {
   const Heading = `h${headingLevel}` as const;
+  /* The selection control's id, so its 44px label can name it explicitly. */
+  const selectionId = useId();
   const due = relativeCalendarDate(task.dueDate, todayIso);
   /*
    * V2.4-GATE-02 — the row's own overdue flag agrees with the date beside it.
@@ -486,17 +488,33 @@ export function TaskRow({
          * offers over the selection, and leaving the mode restores it instantly.
          *
          * The two are still told apart by SHAPE, at the same size and in the same
-         * place: selection is the design system's 18px SQUARE
-         * (`.dh-checkbox__control`, D7 — *"this is the square — selection"*),
-         * completion is the 20px rounded square. Both sit inside the SAME 44px
-         * target box, so entering and leaving selection mode moves no other cell
-         * by a pixel.
+         * place: selection is the design system's own 18px SQUARE — the shared
+         * `Checkbox` primitive, whose file header is the other half of D7
+         * (*"this primitive is the square — selection"*) — and completion is the
+         * 20px rounded square. Both sit inside the SAME 44px target box, so
+         * entering and leaving selection mode moves no other cell by a pixel.
+         *
+         * `Checkbox` is COMPOSED rather than its class applied to a bare input:
+         * a styled `<input>` written by hand is exactly what `AGENTS.md` §6 says
+         * to import the primitive instead of, and a parallel copy would not
+         * inherit the indeterminate handling or any later accessibility change.
+         * Its own note licenses the unlabelled form here — *"omit it ONLY where
+         * the control's name comes from elsewhere (a row whose title names it),
+         * and pass `aria-label` in that case"* — which is this case exactly.
+         *
+         * The `<label>` around it is the 44px hit area. It associates EXPLICITLY,
+         * by `htmlFor`, rather than by nesting: the primitive puts a wrapper span
+         * between the label and the input, and while nesting still associates
+         * them through it, an explicit pair is the one a reader — and a static
+         * analyser — can verify without knowing what `Checkbox` renders.
          */}
         {selection ? (
-          <label className="dh-check-circle-target dh-taskrow__select">
-            <input
-              type="checkbox"
-              className="dh-checkbox__control"
+          <label
+            className="dh-check-circle-target dh-taskrow__select"
+            htmlFor={selectionId}
+          >
+            <Checkbox
+              id={selectionId}
               checked={selection.selected}
               data-testid="task-select"
               aria-label={selection.label}
