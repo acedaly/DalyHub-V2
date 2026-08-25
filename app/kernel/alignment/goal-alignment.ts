@@ -22,6 +22,7 @@
  * meaningless zero count.
  */
 
+import { addCalendarDays, calendarDaysBetween } from "~/kernel/datetime";
 import type { GoalProjectContribution } from "~/kernel/goals";
 
 /* -------------------------------------------------------------------------- */
@@ -40,34 +41,23 @@ import type { GoalProjectContribution } from "~/kernel/goals";
 export const RECENT_ACTION_WINDOW_DAYS = 14;
 
 /* -------------------------------------------------------------------------- */
-/* Pure date-only helpers (duplicated from `~/kernel/project-health` — a small */
-/* pure date helper, deliberately kept local rather than cross-kernel-imported */
-/* per the established `goal-details.ts`/`project-view` precedent)            */
+/* Pure date-only helpers                                                     */
+/*                                                                            */
+/* DEBT-52 — the arithmetic was a LOCAL copy of `~/kernel/project-health`'s,   */
+/* "deliberately kept local rather than cross-kernel-imported". Eight such     */
+/* deliberate copies later, the kernel publishes one implementation            */
+/* (`~/kernel/datetime`) and these two names are alignment's wording for it.   */
 /* -------------------------------------------------------------------------- */
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-function epochDay(iso: string): number {
-  if (!ISO_DATE.test(iso)) {
-    throw new RangeError(`Not a YYYY-MM-DD calendar date: ${iso}`);
-  }
-  const [y, m, d] = iso.split("-").map((part) => Number(part));
-  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
-}
 
 /** Whole owner-calendar days from `fromIso` up to `toIso` (positive when
  * `toIso` is later). Both are date-only `YYYY-MM-DD`. */
 export function daysBetweenIsoDates(fromIso: string, toIso: string): number {
-  return epochDay(toIso) - epochDay(fromIso);
+  return calendarDaysBetween(fromIso, toIso);
 }
 
 /** Add `days` to a `YYYY-MM-DD` calendar date, returning a `YYYY-MM-DD` date. */
 export function addDaysToIsoDate(iso: string, days: number): string {
-  const date = new Date((epochDay(iso) + days) * 86_400_000);
-  const y = date.getUTCFullYear().toString().padStart(4, "0");
-  const m = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const d = date.getUTCDate().toString().padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return addCalendarDays(iso, days);
 }
 
 /**

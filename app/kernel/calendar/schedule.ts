@@ -40,6 +40,7 @@
 
 import { EXTERNAL_TITLE_MAX_LENGTH } from "./calendar";
 import type { ExternalEventStatus } from "./calendar";
+import { addCalendarDays, calendarDaysBetween } from "~/kernel/datetime";
 
 /** Where a schedule row came from. The UI uses it for the row's one action. */
 export type ScheduleEntryKind = "event" | "meeting";
@@ -232,13 +233,12 @@ function longDayLabel(instant: Date, timeZone: string): string {
   return `${get("weekday")} ${get("day")} ${get("month")}`;
 }
 
-/** Whole days from `fromIso` to `toIso`, over date-only strings. */
-function dayOffset(fromIso: string, toIso: string): number {
-  return Math.round(
-    (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) /
-      86_400_000,
-  );
-}
+/**
+ * Whole days from `fromIso` to `toIso`, over date-only strings.
+ *
+ * DEBT-52 — the kernel's ONE calendar-day implementation.
+ */
+const dayOffset = calendarDaysBetween;
 
 /** Trim a possibly-hostile external string to a bounded, single-line value. */
 export function boundedExternalText(
@@ -489,11 +489,7 @@ export function scheduleFactDates(
       offset <= Math.min(dayOffset(from, to), 366);
       offset += 1
     ) {
-      dates.push(
-        new Date(Date.parse(`${from}T00:00:00Z`) + offset * 86_400_000)
-          .toISOString()
-          .slice(0, 10),
-      );
+      dates.push(addCalendarDays(from, offset));
     }
     return dates;
   }
@@ -511,11 +507,7 @@ export function scheduleFactDates(
     offset <= Math.min(dayOffset(startDate, endDate), 366);
     offset += 1
   ) {
-    dates.push(
-      new Date(Date.parse(`${startDate}T00:00:00Z`) + offset * 86_400_000)
-        .toISOString()
-        .slice(0, 10),
-    );
+    dates.push(addCalendarDays(startDate, offset));
   }
   return dates;
 }

@@ -33,6 +33,11 @@
 
 import type { FirstDayOfWeek } from "~/kernel/preferences";
 import { addPlanningDays, planningWeekStart } from "~/kernel/planning";
+import {
+  calendarWeekday,
+  isCalendarDate,
+  tryCalendarEpochDay,
+} from "~/kernel/datetime";
 
 /* -------------------------------------------------------------------------- */
 /* The vocabulary                                                             */
@@ -95,28 +100,16 @@ export interface HabitScheduleVersion {
 /* Calendar arithmetic                                                        */
 /* -------------------------------------------------------------------------- */
 
-const MILLISECONDS_PER_DAY = 86_400_000;
-
-/** Parse `YYYY-MM-DD` to a UTC day number, or `null` when it is not a date. */
-function epochDay(iso: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (match === null) return null;
-  const utc = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
-  if (Number.isNaN(utc)) return null;
-  // Reject a value whose components do not round-trip (2026-02-31), so a
-  // hand-typed date can never silently become a different day.
-  return new Date(utc).toISOString().slice(0, 10) === iso
-    ? Math.round(utc / MILLISECONDS_PER_DAY)
-    : null;
-}
+/*
+ * DEBT-52 — the parse, the weekday and the difference below are the kernel's ONE
+ * calendar-day implementation (`~/kernel/datetime`), re-exported under the names
+ * the habits domain reads. The round-tripping parse is the one this module has
+ * always used, and it is now published rather than re-derived.
+ */
 
 /** True when `value` is a real wall-calendar date. */
 export function isHabitDate(value: unknown): value is string {
-  return typeof value === "string" && epochDay(value) !== null;
+  return isCalendarDate(value);
 }
 
 /**
@@ -127,9 +120,7 @@ export function isHabitDate(value: unknown): value is string {
  * timezone, which is how a weekday quietly becomes wrong for half the planet.
  */
 export function habitWeekdayIndex(dateIso: string): number {
-  const day = epochDay(dateIso);
-  if (day === null) return 0;
-  return (((day + 4) % 7) + 7) % 7;
+  return isCalendarDate(dateIso) ? calendarWeekday(dateIso) : 0;
 }
 
 /** Whole days from `fromIso` to `toIso`, or `null` when either is not a date. */
@@ -137,8 +128,8 @@ export function habitDaysBetween(
   fromIso: string,
   toIso: string,
 ): number | null {
-  const from = epochDay(fromIso);
-  const to = epochDay(toIso);
+  const from = tryCalendarEpochDay(fromIso);
+  const to = tryCalendarEpochDay(toIso);
   if (from === null || to === null) return null;
   return to - from;
 }

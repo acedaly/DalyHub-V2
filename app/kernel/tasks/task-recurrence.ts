@@ -20,6 +20,14 @@
  * still the ONE function that decides whether a series continues and where.
  */
 
+import {
+  addCalendarDays as addKernelCalendarDays,
+  calendarDateFromParts,
+  calendarDaysBetween as kernelCalendarDaysBetween,
+  calendarWeekday,
+  daysInCalendarMonth,
+} from "~/kernel/datetime";
+
 import { TaskValidationError } from "./task-errors";
 import type { TaskValidationField } from "./task-errors";
 
@@ -282,45 +290,26 @@ function isoParts(iso: string): {
   };
 }
 
-function toIso(year: number, month: number, day: number): string {
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.toISOString().slice(0, 10);
-}
+/*
+ * DEBT-52 — the calendar arithmetic below is the kernel's ONE implementation
+ * (`~/kernel/datetime`), re-exported here under the names the recurrence engine
+ * and its consumers already read.
+ */
+const toIso = calendarDateFromParts;
+const daysInMonth = daysInCalendarMonth;
 
-function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
+export const addCalendarDays = addKernelCalendarDays;
 
-export function addCalendarDays(iso: string, days: number): string {
-  const { year, month, day } = isoParts(iso);
-  const base = Date.UTC(year, month - 1, day);
-  return new Date(base + days * 86_400_000).toISOString().slice(0, 10);
-}
-
-export function weekdayOfDate(iso: string): number {
-  const { year, month, day } = isoParts(iso);
-  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-}
+export const weekdayOfDate = calendarWeekday;
 
 /**
  * Whole calendar days from `fromIso` to `toIsoValue` (negative when earlier).
  * Exported so a successor can preserve the GAP between its two dates without a
  * second copy of calendar arithmetic (DEBT-52).
  */
-export function calendarDaysBetween(
-  fromIso: string,
-  toIsoValue: string,
-): number {
-  return daysBetween(fromIso, toIsoValue);
-}
+export const calendarDaysBetween = kernelCalendarDaysBetween;
 
-function daysBetween(fromIso: string, toIsoValue: string): number {
-  const from = isoParts(fromIso);
-  const to = isoParts(toIsoValue);
-  const fromMs = Date.UTC(from.year, from.month - 1, from.day);
-  const toMs = Date.UTC(to.year, to.month - 1, to.day);
-  return Math.floor((toMs - fromMs) / 86_400_000);
-}
+const daysBetween = kernelCalendarDaysBetween;
 
 function maxIso(a: string, b: string): string {
   return a >= b ? a : b;

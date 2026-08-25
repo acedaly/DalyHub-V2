@@ -24,6 +24,7 @@
  * The caller supplies the owner-calendar day (ADR-022 §22.7).
  */
 
+import { calendarDaysBetween } from "~/kernel/datetime";
 import type { WorkspaceId } from "~/kernel/workspaces";
 
 import { AssetValidationError } from "./asset-errors";
@@ -291,13 +292,13 @@ export function addMonths(iso: string, months: number): string {
   return toIso(year, month, Math.min(d, daysInMonth(year, month)));
 }
 
-/** Whole days from `from` to `to`; positive when `to` is later. */
+/**
+ * Whole days from `from` to `to`; positive when `to` is later.
+ *
+ * DEBT-52 — the kernel's ONE calendar-day implementation, worded for assets.
+ */
 export function daysBetween(from: string, to: string): number {
-  const [ay, am, ad] = from.split("-").map((p) => Number.parseInt(p, 10));
-  const [by, bm, bd] = to.split("-").map((p) => Number.parseInt(p, 10));
-  return Math.round(
-    (Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000,
-  );
+  return calendarDaysBetween(from, to);
 }
 
 /**

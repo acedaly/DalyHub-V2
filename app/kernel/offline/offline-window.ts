@@ -40,6 +40,11 @@ export const OFFLINE_RETENTION_FUTURE_DAYS = 7;
 /** A calendar date, `YYYY-MM-DD`, in the owner's timezone. */
 export type CalendarIso = string;
 
+import {
+  addCalendarDays as addKernelCalendarDays,
+  calendarDaysBetween as kernelCalendarDaysBetween,
+} from "~/kernel/datetime";
+
 const CALENDAR_ISO_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** True for a well-formed `YYYY-MM-DD` naming a real calendar date. */
@@ -59,15 +64,9 @@ export function isCalendarIso(value: unknown): value is CalendarIso {
  * transition in any timezone can move the result.
  */
 export function addCalendarDays(iso: CalendarIso, days: number): CalendarIso {
-  const match = CALENDAR_ISO_PATTERN.exec(iso);
-  if (!match) {
-    throw new RangeError(`Not a calendar date: ${iso}`);
-  }
-  const [, year, month, day] = match;
-  const shifted = new Date(
-    Date.UTC(Number(year), Number(month) - 1, Number(day) + days),
-  );
-  return shifted.toISOString().slice(0, 10);
+  // DEBT-52 — the kernel's ONE calendar-day implementation. The `RangeError` on
+  // a non-calendar value is the same refusal this function has always made.
+  return addKernelCalendarDays(iso, days);
 }
 
 /** Whole calendar days from `from` to `to` (negative when `to` is earlier). */
@@ -75,12 +74,7 @@ export function calendarDaysBetween(
   from: CalendarIso,
   to: CalendarIso,
 ): number {
-  const asUtc = (iso: CalendarIso) => {
-    const match = CALENDAR_ISO_PATTERN.exec(iso);
-    if (!match) throw new RangeError(`Not a calendar date: ${iso}`);
-    return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  };
-  return Math.round((asUtc(to) - asUtc(from)) / 86_400_000);
+  return kernelCalendarDaysBetween(from, to);
 }
 
 /** The retention window: the owner's today and the inclusive bounds around it. */

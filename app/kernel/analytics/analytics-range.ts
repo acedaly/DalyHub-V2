@@ -36,6 +36,8 @@
  * owner-calendar day.
  */
 
+import { addCalendarDays, calendarDaysBetween } from "~/kernel/datetime";
+
 /** The spans Analytics offers. Exactly one is always active. */
 export type AnalyticsRangeId = "week" | "month" | "quarter";
 
@@ -86,24 +88,16 @@ export function analyticsRange(id: AnalyticsRangeId) {
 /* Calendar arithmetic                                                         */
 /* -------------------------------------------------------------------------- */
 
-function ymd(iso: string): [number, number, number] {
-  const [y, m, d] = iso.split("-").map((part) => Number.parseInt(part, 10));
-  return [y, (m ?? 1) - 1, d ?? 1];
-}
+/*
+ * DEBT-52 — the kernel's ONE calendar-day implementation
+ * (`~/kernel/datetime`), under the names Analytics reads.
+ */
 
 /** `YYYY-MM-DD` shifted by whole days. Calendar arithmetic only — no zone. */
-export function addDays(iso: string, days: number): string {
-  const [y, m, d] = ymd(iso);
-  const shifted = new Date(Date.UTC(y, m, d + days));
-  return shifted.toISOString().slice(0, 10);
-}
+export const addDays = addCalendarDays;
 
 /** Whole days from `from` to `to`; positive means `to` is later. */
-export function daysBetween(from: string, to: string): number {
-  const a = Date.UTC(...ymd(from));
-  const b = Date.UTC(...ymd(to));
-  return Math.round((b - a) / 86_400_000);
-}
+export const daysBetween = calendarDaysBetween;
 
 /* -------------------------------------------------------------------------- */
 /* Windows and buckets                                                         */

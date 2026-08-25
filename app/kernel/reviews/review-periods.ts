@@ -1,3 +1,8 @@
+import {
+  addCalendarDays as addKernelCalendarDays,
+  calendarDateFromParts,
+} from "~/kernel/datetime";
+import { planningWeekStart } from "~/kernel/planning";
 import type { DateFormat, FirstDayOfWeek } from "~/kernel/preferences";
 import { formatPreferenceDate } from "~/kernel/preferences";
 import type { ReviewType } from "./review";
@@ -18,34 +23,41 @@ function parts(iso: string): {
   return { y, m, d };
 }
 
+/*
+ * DEBT-52 — the arithmetic is the kernel's ONE implementation
+ * (`~/kernel/datetime`). `parts` stays, because the REFUSAL is this domain's:
+ * a bad period boundary is a Review validation error, not a `RangeError`.
+ */
 function isoFromDate(date: Date): string {
-  const y = date.getUTCFullYear().toString().padStart(4, "0");
-  const m = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const d = date.getUTCDate().toString().padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return date.toISOString().slice(0, 10);
 }
 
 export function addCalendarDays(iso: string, days: number): string {
-  const { y, m, d } = parts(iso);
-  return isoFromDate(new Date(Date.UTC(y, m - 1, d + days)));
+  parts(iso);
+  return addKernelCalendarDays(iso, days);
 }
 
 export function addCalendarMonths(iso: string, months: number): string {
   const { y, m, d } = parts(iso);
-  return isoFromDate(new Date(Date.UTC(y, m - 1 + months, d)));
+  return calendarDateFromParts(y, m + months, d);
 }
 
+/**
+ * The owner's calendar week containing `todayIso`.
+ *
+ * DEBT-152 / DEBT-154 — `planningWeekStart` is the product's ONE answer to
+ * "which week is this?", and this function used to derive its own. The two
+ * agreed, which is precisely why the drift was invisible: `weeklyPeriod`,
+ * `planningWeek`, `habitWeek` and Today's strip were four derivations of one
+ * rule, and only three of them read the preference.
+ */
 export function weeklyPeriod(
   todayIso: string,
   firstDayOfWeek: FirstDayOfWeek,
 ): ReviewPeriod {
-  const { y, m, d } = parts(todayIso);
-  const date = new Date(Date.UTC(y, m - 1, d));
-  const day = date.getUTCDay();
-  const startIndex = firstDayOfWeek === "sunday" ? 0 : 1;
-  const delta = (day - startIndex + 7) % 7;
-  const start = isoFromDate(new Date(Date.UTC(y, m - 1, d - delta)));
-  return { start, end: addCalendarDays(start, 6) };
+  parts(todayIso);
+  const start = planningWeekStart(todayIso, firstDayOfWeek);
+  return { start, end: addKernelCalendarDays(start, 6) };
 }
 
 export function monthlyPeriod(todayIso: string): ReviewPeriod {

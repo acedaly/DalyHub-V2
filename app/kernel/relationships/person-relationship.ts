@@ -25,6 +25,7 @@
  * never carries meaning on its own; the label always does.
  */
 
+import { calendarDaysBetween, isCalendarDate } from "~/kernel/datetime";
 import type { FollowUpFrequency } from "~/kernel/people";
 
 /* -------------------------------------------------------------------------- */
@@ -405,28 +406,18 @@ export type PersonRelationship = {
 /* Pure date-only helpers (no timezone — operate on `YYYY-MM-DD` dates)         */
 /* -------------------------------------------------------------------------- */
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Parse a `YYYY-MM-DD` calendar date to a UTC-midnight epoch-day count. Date-only
- * values are never routed through a timezone (ADR-030); UTC midnight is a stable,
- * DST-free anchor for day arithmetic. */
-function epochDay(iso: string): number {
-  if (!ISO_DATE.test(iso)) {
-    throw new RangeError(`Not a YYYY-MM-DD calendar date: ${iso}`);
-  }
-  const [y, m, d] = iso.split("-").map((part) => Number(part));
-  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000);
-}
-
 /**
  * Whole owner-calendar days from `fromIso` up to `toIso` (positive when `toIso` is
  * later). Both are date-only `YYYY-MM-DD`.
+ *
+ * DEBT-52 — the arithmetic is the kernel's ONE implementation
+ * (`~/kernel/datetime`); this name is the relationship domain's wording for it.
  */
 export function relationshipDaysBetween(
   fromIso: string,
   toIso: string,
 ): number {
-  return epochDay(toIso) - epochDay(fromIso);
+  return calendarDaysBetween(fromIso, toIso);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -634,7 +625,10 @@ export function evaluatePersonRelationship(
     daysSinceLastInteraction >= EXTENDED_ABSENCE_AFTER_DAYS;
   const followUpDatePassed =
     ctx.nextFollowUpIso !== null &&
-    ISO_DATE.test(ctx.nextFollowUpIso) &&
+    // DEBT-52 — the kernel's shared calendar-date guard. It is the shape check
+    // this line always made, plus a round-trip: a stored `2026-02-31` is not a
+    // day, so a follow-up cannot be "past" it.
+    isCalendarDate(ctx.nextFollowUpIso) &&
     relationshipDaysBetween(ctx.nextFollowUpIso, ctx.todayIso) > 0;
   const cadenceElapsed =
     expectedIntervalDays !== null &&
