@@ -222,6 +222,50 @@ describe("both acts stay reachable in both modes", () => {
     expect(onCompletedChange).not.toHaveBeenCalled();
   });
 
+  it("offers a READ-ONLY row no completion at all, in either mode", () => {
+    /*
+     * The Deleted view is a recovery surface: every ordinary mutation on a
+     * soft-deleted Task is invisible, so a completion control there is one that
+     * can only ever fail. It has none at rest, and selection must not smuggle
+     * one into the long tail either.
+     */
+    renderInRouter(
+      <ul className="dh-tasklist">
+        <TaskRow
+          task={baseTask}
+          todayIso={TODAY}
+          parents={[]}
+          href="/tasks"
+          onOpen={() => {}}
+          headingLevel={3}
+          onCompletedChange={() => {}}
+          onInlineSave={() => {}}
+          readOnly
+          overflowActions={buildTaskRowActions(
+            baseTask,
+            { onOpenRecord: () => {} },
+            { readOnly: true },
+          )}
+          selection={{
+            selected: false,
+            onSelectedChange: () => {},
+            label: `Select ${baseTask.title} to place on a day`,
+          }}
+        />
+      </ul>,
+    );
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(screen.getByTestId("task-select")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "More actions for Strip out the old kitchen",
+      }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: /^Complete|^Reopen/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("restores the ordinary row when the mode ends", () => {
     const { unmount } = row({}, { selecting: true });
     expect(screen.getByTestId("task-select")).toBeInTheDocument();
