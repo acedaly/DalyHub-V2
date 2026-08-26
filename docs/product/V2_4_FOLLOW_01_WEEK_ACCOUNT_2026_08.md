@@ -570,6 +570,55 @@ loosened and no timeout was raised to reach it. This is one leaker removed, not
 
 ---
 
+### 11.2 What the repartition cost, measured
+
+Raising `PARTITION_COUNT` was forced, not chosen. The committed 12-way split was
+packed to within **0.1 s** of the ceiling — every whole partition between 992.5 s
+and 1003.9 s against `MAX_PARTITION_SECONDS` of 1004 — so its emptiest bin had
+**11.5 s** of headroom and the new journey needs 43.2 s. Twelve cannot hold it.
+
+What was *not* forced is how much the split moves when the count changes.
+`derivePartitions` is a greedy longest-processing-time bin-pack, so a change of
+count re-derives every assignment from scratch. MEASURED against the merge base:
+
+| 13-way split | heaviest partition | specs whose neighbour set changed |
+| --- | --- | --- |
+| Greedy LPT (committed) | 1003.9 s | **117 of 117** |
+| Churn-minimal (simulated) | 1003.9 s | **0 of 117** |
+
+Identical makespan, because the ceiling is what binds and the heaviest partition
+is unchanged either way. In a suite that asserts against accumulated workspace
+state ([DEBT-173](PRODUCT_DEBT.md)) a spec's NEIGHBOURS are part of its inputs,
+so reshuffling the manifest is a semantic change to every spec in it, not only a
+scheduling one — and §11.1 is what that cost, once, concretely.
+
+**The derivation was deliberately NOT changed.** `manifestProblems` re-derives the
+split and refuses a manifest that is not what the committed durations produce,
+which is the guard that stops the manifest being hand-edited. A derivation that
+remembered the previous grouping would have to take the committed manifest as an
+input, making that guard validate the manifest against itself. Trading a real
+guard for a scheduling nicety is not a trade this item is entitled to make inside
+a feature PR, and the reshuffle is transitional in any case: the derivation is a
+pure function, so the split is stable again from this commit until the next time
+the count moves. The measurement is recorded against DEBT-173 as evidence for
+whoever does decide to make churn an objective.
+
+### 11.3 The two failures that did NOT reproduce
+
+Three CI partitions went red across the runs of this branch. One was real and is
+§11.1. The other two are recorded here rather than quietly re-run, because
+"flake" is not a root cause:
+
+| Failure | What happened next |
+| --- | --- |
+| `p05` — `project-settings.spec.ts:234`, the Today rail's "Continue working" | Passed on the **next** CI run with no relevant change. Its own comment already documents the fragility: the rail shows three projects ranked on `lastMeaningfulActivityAt`, so "a seven-candidate workspace crowds it out". Not reproduced; nothing changed for it. |
+| `p10` — `inline-editor-overlay.spec.ts:230`, the priority journey | Did not reproduce locally in p10's own composition and order from a freshly seeded database — it passed in **10.1 s**. But the CI error was two errors stapled together, the cleanup poll's `Received: 1` beside `Test timeout of 30000ms exceeded`, and that pointed at something real: `clearProbes` polls for 30 s and is called twice per journey, inside a test inheriting Playwright's 30 s default. The helper's stated budget was never reachable. Fixed by giving those three journeys 90 s — the measured 10 s journey plus the two sweeps it is allowed to spend. |
+
+Neither fix skips, quarantines or loosens anything, and neither re-ran a job to
+turn a red result green.
+
+---
+
 ## 12. Deliberately deferred to FOLLOW-02
 
 FOLLOW-02 asks a **different** question over the **same** window — *did the Goals
