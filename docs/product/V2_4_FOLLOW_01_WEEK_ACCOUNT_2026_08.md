@@ -1,6 +1,6 @@
 # V2.4 FOLLOW-01 — the week you planned, and the week you had
 
-> **Implements:** [ROADMAP_V2_4 → FOLLOW-01](../roadmap/ROADMAP_V2_4.md#-follow-01--did-the-week-hold)
+> **Implements:** [ROADMAP_V2_4 → FOLLOW-01](../roadmap/ROADMAP_V2_4.md#-follow-01--did-the-week-hold--delivered-2026-08-26)
 > **Governed by:** [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)
 > **Delivered:** 2026-08-26
 
