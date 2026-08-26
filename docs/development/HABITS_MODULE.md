@@ -272,3 +272,44 @@ show a streak, a score, a flame or a chain · accept more than one completion pe
 | The routes over real D1: create, mutate, check-in, activity, and their failure modes | `test/kernel/habits-routes.test.ts` |
 | The journey: create each cadence, check in from `/habits` and Today, undo, reload, Goal relationship, archive, history, schedule edit, global create, phone at 390 and 320, dark, axe, keyboard | `e2e/habits.spec.ts` |
 | Evidence capture (opt-in) | `e2e/habits-screenshots.spec.ts` |
+
+
+---
+
+## Consistency over an arbitrary period (FOLLOW-01 / DEBT-156, 2026-08-26)
+
+The weekly Review now states a Habit figure, and HABITS-01 needed **no new
+metric** for it — which was the finding, not the work.
+
+[DEBT-156](../product/PRODUCT_DEBT.md) deferred this on the denominator: *"a
+Review's period is an arbitrary range, neither a week nor a fixed number of days,
+so a correct denominator means summing expectations across a schedule-VERSION
+chain over that range."* `evaluateHabitConsistency` has ALWAYS taken
+`fromIso`/`toIso` and has ALWAYS summed the chain — a day-based week contributes
+one expectation per scheduled day under the version in force ON THAT DAY, and a
+count-based week contributes its target only once the week is whole and elapsed.
+What was missing was a caller.
+
+So FOLLOW-01 added one: `readHabitPeriodConsistency`
+([`habit-facts.server.ts`](../../app/platform/habits/habit-facts.server.ts)), the
+same TWO bounded statements every other Habit read makes — the active-Habit page,
+then one completion window for the whole page's ids — summed into
+`HabitPeriodConsistency`: `expected`, `completed`, `habitsCounted`, the window,
+`bounded` and `available`. `HABIT_OVERVIEW_LIMIT` (60) remains the bound, for the
+100-bound-parameter reason recorded there.
+
+**The two unsayable sentences are inherited, not re-asserted in prose.** `toIso`
+is clamped to the owner's today by the evaluator itself, so a Review opened
+mid-period never counts a day that has not happened; and an unscheduled day
+contributes no expectation, so it can never be reported as a miss.
+
+**No percentage in a Review.** `habitConsistencyPercent` exists and `/habits`
+uses it, beside both of its integers, because that surface is about the Habits
+themselves. The Review prints two integers and nothing else: it is the one surface
+where a ratio is a sentence away from a grade
+([ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) §8),
+and a test asserts it. A period that asked nothing of any Habit says nothing at
+all — "0 of 0" is not a reading.
+
+Full record:
+[`V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md`](../product/V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md).

@@ -486,3 +486,59 @@ and Gantt · capacity planning · estimates and time tracking · shared or team
 planning · public or shared smart lists · a marketplace or template gallery · a
 new calendar module · a month grid or week timetable · drag-and-drop · a second
 Task authority · a second filter engine.
+
+---
+
+## 17. The week's own account (V2.4 FOLLOW-01, 2026-08-26)
+
+PLAN-01 built the surface that asks for a commitment. It never came back to say
+what became of one — and this document's own §1 framing is what makes that a gap
+rather than an omission: *"a Review asks what happened; Weekly Planning asks what
+am I committing to."* The planner still asks the second question. It now also
+STATES the answer to the first for the week it is showing, in one sentence,
+because the owner making next week's plan is the person who needs last week's.
+
+**One statement at rest.** It takes its own row of the existing "Week at a glance"
+bar rather than a fifth figure slot, because it is prose and because a fifth
+number beside four would read as a score even without a percentage on it:
+
+> This week's plan held 8 Tasks: 2 done (1 on the day planned), 4 left unfinished,
+> 1 moved out and 1 taken off the plan. 1 Task was completed without being planned
+> for it. _3 Tasks moved to another day 4 times between them and 1 Task came into
+> the week from another day._
+
+**One disclosure behind it**, and it is the SAME grammar the Review-focus button
+beside it already uses — `aria-expanded` onto a `hidden` panel, rendered rather
+than unmounted. Inside: the non-zero outcome lines, and every accounted Task with
+the dates its outcome was read from, linked to its record.
+
+### What it does not change
+
+- **No control on a Task row.** V2.4-GATE-02's invariant — a row shows ONE
+  checkbox-like control at rest — is untouched: the account lives outside the
+  rows entirely, adds no selection state and no completion affordance.
+- **No mutation.** `/plan` still writes nothing. Every mutation still leaves
+  through the canonical Task posters, and the loader is still a read model
+  (asserted).
+- **No second definition of the week.** The account uses the SAME owner calendar
+  week the board draws, resolved through the shared `ActivityWindow` builder that
+  the weekly Review also uses.
+- **No new query per day, per Task or per Project.** One bounded read for the
+  whole week, inside the existing concurrent fan-out — two D1 statements, flat
+  with respect to the week's size, with `PLAN_LIMITS.accountTasks` as its named
+  ceiling (deliberately below `plannedTasks`: the board draws the week, the
+  account describes a week that has happened).
+- **No score.** No percentage of plan kept, no grade, no streak, no ranking of
+  weeks — refused in advance by
+  [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)
+  and asserted over the rendered text.
+
+### Where the words come from
+
+The kernel (`~/kernel/activity-window`), not this surface — the weekly Review
+renders the same sentence from the same functions, which is what makes "one
+derivation, two consumers" checkable rather than aspirational. The screen derives
+nothing: outcomes, counts and wording all arrive already decided.
+
+Full record:
+[`V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md`](../product/V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md).

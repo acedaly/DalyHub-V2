@@ -575,7 +575,7 @@ gate, and the reason the product closed at B rather than A.**
 
 ---
 
-### ☐ FOLLOW-01 — Did the week hold?
+### ☑ FOLLOW-01 — Did the week hold? — **DELIVERED 2026-08-26**
 
 **One derivation, two consumers: the week you committed to, and the week you had.**
 
@@ -643,6 +643,104 @@ gate, and the reason the product closed at B rather than A.**
      both appearances with no rule disabled. Any geometric claim is asserted by
      **reading the live box**, per DHDS-13's one rule.
 - **Closes.** DEBT-156. **Narrows.** [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2).
+- **DELIVERED 2026-08-26.** Record:
+  [`V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md`](../product/V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md).
+
+  **The starting state, reproduced on `main` at `d87315c`** against a week whose
+  events were known. `/plan?week=-1` said *"7 planned"* about a week that had
+  held **eight** committed Tasks: a Task done on its planned day and one done
+  three days later were drawn identically; a Task moved Monday → Wednesday →
+  Friday appeared on Friday as though it had always been there; and **four of
+  nine outcomes were invisible entirely** — taken off the plan, moved out of the
+  week, completed without a plan, and withdrawn the following Monday. The Review
+  said nothing at all about the plan, and nothing about routines.
+
+  **The derivation.** `app/kernel/activity-window/` — a named owner-local
+  window, a bounded read over the append-only stream, and eight outcomes with
+  the facts behind each: *done on the day planned · done later · done ahead ·
+  still open (or still to come) · moved out · taken off the plan · no longer
+  being done · done without being planned*, beside a **count** of reschedules
+  that is never reduced to a boolean. Kept and moved are orthogonal, which is
+  criterion 2 exactly: a Task moved on Tuesday and finished on its new Thursday
+  is `kept` with `reschedules: 1`, and the words say both.
+
+  **Causality is asserted, not assumed.** "Done later than planned" means the
+  plan pointed at an earlier day AT THE MOMENT of completion, reconstructed
+  forwards from events. A Task planned Monday, done Monday, and re-planned to
+  Friday afterwards reads `kept`; an implementation judging against the Task's
+  current date calls the same Task four days EARLY, and that is one of the four
+  falsifiers run against the matrix.
+
+  **Nothing was stored.** No table, no column, no index, no migration. The
+  account is deliberately absent from REVIEW-03's snapshot, asserted by reading
+  the stored row's text.
+
+  **Acceptance, criterion by criterion.**
+  1. **Met.** Every figure is exact against a seeded week whose events are known
+     — planned, kept on the planned day, moved *K* times, cleared, never placed
+     — proved at three levels, and each is drillable to the records behind it
+     (every accounted Task is named with the dates its outcome was read from and
+     linked to its record).
+  2. **Met.** Planned Wednesday and completed Saturday is `completed_late`, not
+     kept; completed on its planned day after an earlier move is `kept` **and**
+     `reschedules: 1`, and the wording states both. Both are matrix rows.
+  3. **Met.** A week with no plan produces ONE sentence and no disclosure at all
+     — *"Nothing was planned for this week."*, or *"Nothing is planned for this
+     week yet."* for a week that has not started. A running period counts
+     `carriedAhead` separately from `carried`, so "still to come" can never be
+     printed as "left unfinished".
+  4. **Met.** HABITS-01's two unsayable sentences are structural rather than
+     editorial: an unscheduled day contributes no expectation, and the window's
+     upper bound is clamped to the owner's today.
+  5. **Met.** `/plan` gains **one** statement (plus the disclosure grammar the
+     Review-focus button beside it already uses). The window read is **exactly 2
+     D1 statements**, asserted against real D1, with a flatness proof (a
+     fifteen-Task week costs what a three-Task week does) and a bound-parameter
+     assertion — the id set never crosses the process boundary, so both
+     statements sit well inside D1's 100-parameter ceiling. The Review's budget
+     moved 14 → **17** (and 19 in a workspace that practises a routine), stated
+     and asserted rather than absorbed.
+  6. **Met.** MEASURED from the live DOM at 320 / 393 / 1440, in both
+     appearances, with the account OPEN — a state no existing scan could see. No
+     horizontal overflow, 44px hit areas under a coarse pointer, `axe` clean with
+     no rule disabled, on `/plan` and on the Review's Progress tab.
+
+  **DEBT-156 closed.** The expectation sum across a version chain HABITS-01
+  deferred turned out to **already exist** — `evaluateHabitConsistency` has always
+  taken an arbitrary range and always summed the chain. What was missing was a
+  caller, so one bounded read and one calm sentence closed it: *"2 of 3 scheduled
+  check-ins. Across 1 routine. 1 scheduled day passed without one — days a
+  routine did not ask for are not counted."* Two integers and their window, and
+  **no percentage**, because a Review is the one surface where a ratio is a
+  sentence away from a grade.
+
+  **One information gap was found, and corrected at the cause.** TASKS-07's
+  series move and skip shift an occurrence's planned day and recorded only the
+  ANCHOR, so a due-anchored routine's plan moved with nothing in the stream
+  saying it had. The event those paths already write now carries the pair it was
+  missing, under the `changes.<field>` shape `entity.updated` has always used —
+  no new event type, no schema change, no second planning authority. Reverting it
+  makes the D1 test lose the Monday the occurrence was actually planned for.
+
+  **The E2E budget question GATE-02 handed forward was answered with
+  arithmetic, not with seconds.** The journey was sized first (6 tests over 11
+  page loads → 4 over 8, page LOADS removed, never an assertion), MEASURED at
+  43.2 s. Twelve partitions then derive a heaviest of 16.80 min against the 16.73
+  min ceiling — and not by a rounding error, because the MEAN of the ten
+  non-sliced partitions is already 1005.0 s. `PARTITION_COUNT` moved 12 → **13**
+  (heaviest 15.31 min, 68% of `globalTimeout`); the ceiling was not touched. The
+  cost is stated, and so is the better fix deliberately NOT taken:
+  `responsive.spec.ts` strands **536 s — 8.9 minutes — of gate capacity** in two
+  exclusive shards, which is why twelve looked exhausted, raised as
+  [DEBT-205](../product/PRODUCT_DEBT.md) with its numbers.
+
+  **Non-goals held.** No adherence score, no percentage of plan, no grade, no
+  streak, no chain, no productivity number, no ranking of weeks. No AI, no
+  automatic rescheduling, no "catch up" proposal, no notification. No Analytics
+  module, no chart dependency. No time tracking, estimates or capacity. No
+  calendar write-back. No new stored metric. GATE-02's row invariants are
+  preserved rather than re-decided: the account adds no control to a Task row,
+  no selection state, and no mutation path.
 
 ---
 
@@ -788,7 +886,7 @@ And the architectural ones, which V2.4 may not reopen without its own ADR:
 ```
 V2.4-GATE-01  ──►  V2.4-GATE-02  ──►  FOLLOW-01  ──►  FOLLOW-02
   (backup half has no predecessor and goes first)
-      ☐              ☑ 2026-08-25        ☐             ☐
+      ☐              ☑ 2026-08-25   ☑ 2026-08-26        ☐
    owner-blocked
 ```
 
@@ -813,6 +911,17 @@ report `SKIPPED` rather than a pass for anything it cannot reach — which is wh
 Internal: FOLLOW-02 consumes FOLLOW-01's derivation; both consume REVIEW-03's
 insight surface, GOAL-02's evaluator, HABITS-01's schedules and the Activity
 stream. None of those is modified — they are read.
+
+**That derivation now exists** (`app/kernel/activity-window/`), and FOLLOW-02
+inherits four things rather than rebuilding them: the `ActivityWindow` type and
+`ownerPeriodWindow`, which are the ONE period definition three consumers already
+share; `ActivityWindowRepository`, which is where a bounded Activity query over a
+named window belongs, so DEBT-78's *"bounded activity query over the goal's
+contributing project ids within the window"* is a method on it rather than a
+Goals-module query; the phase rule, so a Goal is never described as having failed
+to move in a period that has not happened; and the word discipline — counts with
+printed denominators, absence rendering less, no percentage — enforced by tests
+that read rendered text.
 
 ---
 

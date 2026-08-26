@@ -1,5 +1,55 @@
 # Changelog
 
+- DalyHub now tells you what became of the week you planned. It has been asking
+  you to commit to a week — this task, this day — and then never mentioning it
+  again, which meant a week that quietly fell apart looked exactly like one that
+  worked. A task finished on the day you planned it and one finished three days
+  later were drawn identically. A task you moved from Monday to Wednesday to
+  Friday simply appeared on Friday, as though it had always been there. And four
+  things could happen to your week that left no trace at all: taking work off the
+  plan, pushing it into next week, finishing something you had never planned, and
+  changing your mind the following Monday about a Friday you never got to.
+
+  So `/plan` now carries one sentence about the week it is showing:
+
+  > This week's plan held 8 tasks: 2 done (1 on the day planned), 4 left
+  > unfinished, 1 moved out and 1 taken off the plan. 1 task was completed
+  > without being planned for it. _3 tasks moved to another day 4 times between
+  > them, and 1 task came into the week from another day._
+
+  Press **What happened** and it opens out: each task by name, with the dates the
+  verdict was read from — "Planned for 17 Aug, done on 20 Aug", "Planned for 21
+  Aug, and still open after moving 2 times", "Planned for 20 Aug, now planned for
+  27 Aug — outside this week" — and every one of them a link to the record.
+
+  The **weekly review** now opens on the same account of the same week, in the
+  same words, because both come from the same place. It is the return half of a
+  loop that only ran one way: the review has always handed the planner your
+  written focus, and now the planner's week comes back.
+
+  Two things it deliberately is not. There is **no score** — no percentage of
+  your plan kept, no grade, no streak, no "productive week". A week you re-planned
+  on Tuesday because Tuesday changed is not a week you failed, and no single
+  number can say that. And there is **no judgement about days that have not
+  happened**: while a week is still running, work whose day is still ahead is
+  counted as "still to come", never as unfinished.
+
+  Two questions are kept apart on purpose, because they are different questions:
+  did the work land on the day you said, and did the plan move? A task you moved
+  on Tuesday and finished on its new Thursday **kept its day and moved**, and the
+  words say both. "Done later than planned" also means what it says: the plan
+  really did point at an earlier day at the moment you finished, read from your
+  own history rather than from whatever date the task happens to carry now.
+
+  The review also finally says something about your **routines** — "2 of 3
+  scheduled check-ins", with the days a routine did not ask for explicitly not
+  counted. Two numbers and the week they cover, and no percentage. It had been
+  silent about habits since they shipped.
+
+  None of this is stored anywhere new. It is worked out from the history DalyHub
+  already keeps every time you look, which is why it is right the moment you
+  reopen a task, delete one, or change your mind.
+
 - Made a task row stop saying things that were not true. Weekly planning's "still
   to place" list drew **two tick boxes on every row**, eight pixels apart, and
   they did different things: one scheduled the task, one finished it. On the one
