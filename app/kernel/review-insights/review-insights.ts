@@ -1053,7 +1053,10 @@ function buildPlanAccount(input: ResolvedInput): PeriodPlanInsight | null {
     const matching = account.entries.filter(
       (entry) =>
         fact.outcomes.includes(entry.outcome) &&
-        (fact.key !== "ahead" ? !entry.planStillAhead : entry.planStillAhead),
+        // `carried` splits across two lines — the work whose day has passed and
+        // the work whose day has not arrived — so the line's own `ahead` flag is
+        // what decides which entries belong to it.
+        entry.planStillAhead === fact.ahead,
     );
     for (const entry of matching.slice(0, MAX_NAMED_PER_PLAN_FACT)) {
       named.push({
