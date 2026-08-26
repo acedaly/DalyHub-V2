@@ -576,3 +576,89 @@ DalyHub never receives one. See
 **What is still open.** Ordinary preference changes (timezone, navigation,
 defaults) still append no Activity. DEBT-33 is narrowed to that, with the
 mechanism now proven.
+
+---
+
+## Reading the stream as HISTORY: the bounded Activity window (FOLLOW-01, 2026-08-26)
+
+Everything above is about *rendering* Activity — a record's Timeline, the
+workspace Feed, the audit trail. V2.4 added a second way to read the same one
+stream, and it is worth naming because it is the first read that treats Activity
+as the **historical authority for a past state** rather than as a list of events
+to show.
+
+### What it answers
+
+*What became of the work a named owner-local period's plan held?* — the question
+[FOLLOW-01](../roadmap/ROADMAP_V2_4.md#-follow-01--did-the-week-hold--delivered-2026-08-26)
+exists for, and FOLLOW-02 will ask its Goal counterpart of the same window.
+
+The authority is [`~/kernel/activity-window`](../../app/kernel/activity-window/index.ts):
+a pure `ActivityWindow` type (inclusive in days, half-open in instants, both
+bounds at the owner's local midnight), an `ActivityWindowRepository` contract, and
+a pure derivation. Nothing is stored
+([ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)).
+
+### Why the payloads make it possible
+
+Because the planning events were written to be reconstructible, not merely to be
+displayed:
+
+| Event | Payload | What it lets a reader conclude |
+| --- | --- | --- |
+| `task.planned` | `scheduledDate` | the plan after — and, by its ABSENCE of `previous`, that there was none before |
+| `task.rescheduled` | `scheduledDate`, `previous` | the plan on both sides of the change |
+| `task.plan_cleared` | `previous` | the plan that was removed |
+| `task.completed` | `completedAt` | when, to the instant |
+
+`previous` is what makes the plan at any past moment derivable **without** reading
+what the Task carries now. A reader walks a Task's events in order; the Task's own
+`scheduled_date` is used only as the initial condition, and only where no event
+speaks at all (a Task created with a planned day emits `entity.created` and no
+planning event).
+
+**If you add an event type that changes a fact history will be asked about, carry
+the value on BOTH sides.** A payload that records only the new value is a payload
+a future reader cannot reverse.
+
+### The one gap this found, and how it was closed
+
+TASKS-07's series **move** and **skip** shift an occurrence's dates and recorded
+only the *anchor*, so a repeating Task anchored on its DUE date moved its planned
+day with nothing in the stream saying so. The event those paths already write now
+carries the pair it was missing, under the shape `entity.updated` has always used:
+
+```jsonc
+"changes": { "scheduledDate": { "before": "2026-05-04", "after": "2026-05-06" } }
+```
+
+No new event type, no new payload key vocabulary, no schema change. A reader that
+wants "every event that moved the plan" therefore matches the three domain types
+**or** any event carrying `changes.scheduledDate` — which is what makes this a
+reader of the STREAM rather than of three event types.
+
+### How it stays bounded
+
+The D1 implementation
+([`d1-activity-window-repository.ts`](../../app/platform/storage/d1/d1-activity-window-repository.ts))
+is **two statements**, whatever the period holds, and the id set never crosses the
+process boundary — it is a common table expression inside both, so the parameter
+count is a function of the window rather than of the week. That matters for a
+reason TASKS-13 and UX-02 both found the expensive way: **D1 accepts at most 100
+bound parameters per query.**
+
+The candidate set is three indexed arms, and each is necessary:
+
+1. **planned into the period now** — `task_details.scheduled_date` inside the
+   period's days (the ordinary case, and the one that covers a Task created with
+   a planned day);
+2. **touched inside the period** — any plan movement, completion or reopen in
+   `[startInstant, endInstant)`, served by `activities_workspace_occurred_idx`;
+3. **withdrawn after the period** — a planning event after it whose `previous` day
+   is inside it, served by `activities_workspace_type_occurred_idx`. Empty by
+   construction for a period that has not closed, and the arm without which a Task
+   the owner committed to on Wednesday and re-planned the following Monday
+   disappears from the week it was committed to.
+
+**No new index and no migration.** Adding one would be a migration made to serve a
+derivation, which ADR-110 forbids.

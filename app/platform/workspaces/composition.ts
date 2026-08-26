@@ -35,6 +35,7 @@ import type {
   NotificationRepository,
   NotificationSettingsRepository,
 } from "~/kernel/notifications";
+import type { ActivityWindowRepository } from "~/kernel/activity-window";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import {
   DEFAULT_OWNER_TIME_ZONE,
@@ -95,6 +96,7 @@ import {
   createWorkspaceEventRecorder,
   createAiPreferencesRepository,
   createAiUsageRepository,
+  createActivityWindowRepository,
   createAlignmentRepository,
   createCalendarSourceRepository,
   createCaptureRateLimiter,
@@ -410,6 +412,14 @@ export interface WorkspaceScope {
    * and Goal alignment remains `alignment`'s, and neither is ever cached here.
    */
   readonly reviewInsights: ReviewInsightRepository;
+  /**
+   * FOLLOW-01 — the bounded Activity WINDOW ([ADR-110]). One named owner-local
+   * period, read from the append-only Activity stream in a fixed number of
+   * statements, so `/plan` and the weekly Review account for the same week from
+   * the same facts. It owns no storage: there is no plan snapshot, no adherence
+   * column and no table behind it, and there never will be.
+   */
+  readonly activityWindow: ActivityWindowRepository;
   readonly appPreferences: AppPreferencesRepository;
   /**
    * AI-01 — the owner's NON-SECRET AI policy (enabled, provider, budgets, allowed
@@ -678,6 +688,7 @@ export function bindWorkspaceRepositories(
   );
   const alignment = createAlignmentRepository(env.DB, context);
   const reviewInsights = createReviewInsightRepository(env.DB, context);
+  const activityWindow = createActivityWindowRepository(env.DB, context);
   // NOTE: `appPreferences` is bound at the TOP of this function, not here — the
   // AUDIT-14 owner-timezone resolver needs it before any repository that asks
   // what day it is for the owner is constructed.
@@ -744,6 +755,7 @@ export function bindWorkspaceRepositories(
     notificationSettings,
     alignment,
     reviewInsights,
+    activityWindow,
     appPreferences,
     aiPreferences,
     aiUsage,

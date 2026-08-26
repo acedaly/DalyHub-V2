@@ -66,9 +66,28 @@ async function runCleanup(command: string | readonly string[]): Promise<void> {
   d1Execute(command);
 }
 
-/** Remove one test's Meeting + follow-up Tasks by exact title. */
+/**
+ * Remove one test's Meeting AND everything derived from it.
+ *
+ * The trailing `%` is the whole point, and it was missing. `cleanupSql` sweeps
+ * Tasks and Meetings by the SAME pattern, and a follow-up Task's title is not
+ * the Meeting's — it is the action item's body, which these suites write as
+ * `` `${title} — do the thing` ``. Matched against the bare title, the Meeting
+ * was swept and the Task it spawned was left behind, alive for the rest of the
+ * partition with a title nothing else would think to look for.
+ *
+ * It stayed invisible while `audit-13-conversion-atomicity.spec.ts` had no
+ * neighbour that reads Task rows by substring. V2.4 FOLLOW-01's repartition gave
+ * it one: `tasks-dependencies.spec.ts` asserts on a row matching "Book the
+ * venue", and a leaked *"Meetings e2e idempotent-…-2 — book the venue"* made
+ * that locator resolve to two rows and fail strict mode. The collision was real,
+ * the assertion was right, and the fixture was wrong.
+ *
+ * The suite-level sweep below already used a prefix wildcard, which is why a
+ * crashed run cleaned up correctly and a passing one did not.
+ */
 export async function cleanupMeetingByTitle(title: string): Promise<void> {
-  await runCleanup(cleanupSql(title));
+  await runCleanup(cleanupSql(`${title}%`));
 }
 
 /** Suite-level sweep of anything left under the shared prefix by a crashed run. */

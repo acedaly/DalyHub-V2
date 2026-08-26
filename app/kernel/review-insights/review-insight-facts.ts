@@ -35,6 +35,11 @@
  */
 
 import type { GoalAlignmentState } from "~/kernel/alignment";
+import type {
+  ActivityWindow,
+  PeriodPlanAccount,
+} from "~/kernel/activity-window";
+import type { HabitPeriodConsistency } from "~/kernel/habits";
 import type { ProjectHealthState } from "~/kernel/project-health";
 
 /* -------------------------------------------------------------------------- */
@@ -96,17 +101,15 @@ export function measureLabel(measure: InsightMeasure): string {
  * Activity stream is queried with. The conversion happens once, in the module
  * layer, using the owner's timezone preference — never inside SQL, and never
  * inside the evaluator.
+ *
+ * **FOLLOW-01 moved the shape to `~/kernel/activity-window`**, unchanged, and
+ * this is now an alias rather than a second declaration. The Review was the
+ * first consumer of a named owner-local window; Weekly Planning is the second
+ * and FOLLOW-02's Goal movement is the third, and three surfaces each carrying
+ * their own idea of where a week ends is three surfaces that can disagree about
+ * which Sunday night a completion belongs to.
  */
-export interface ReviewPeriodWindow {
-  /** Owner wall-calendar `YYYY-MM-DD`, inclusive. */
-  readonly periodStart: string;
-  /** Owner wall-calendar `YYYY-MM-DD`, inclusive. */
-  readonly periodEnd: string;
-  /** UTC instant at the owner's local start of `periodStart`. Inclusive. */
-  readonly startInstantIso: string;
-  /** UTC instant at the owner's local start of the day AFTER `periodEnd`. Exclusive. */
-  readonly endInstantIso: string;
-}
+export type ReviewPeriodWindow = ActivityWindow;
 
 /* -------------------------------------------------------------------------- */
 /* (1) Historical facts — exact, from the append-only Activity stream          */
@@ -236,4 +239,21 @@ export interface ReviewInsightFacts {
   readonly window: ReviewPeriodWindow;
   readonly history: ReviewPeriodHistory;
   readonly state: ReviewCurrentState;
+  /**
+   * FOLLOW-01 — what became of the work this period's PLAN held, derived from
+   * the same append-only stream by the same shared authority Weekly Planning
+   * reads. It belongs under (1): it is historical and exact, reconstructed from
+   * events that are never rewritten.
+   *
+   * It is deliberately NOT carried into `review_insight_snapshots`. The snapshot
+   * exists for facts that cannot be re-derived (state at a past moment); this
+   * one always can be, so storing it would be the second copy [ADR-110] refuses.
+   */
+  readonly planAccount: PeriodPlanAccount;
+  /**
+   * DEBT-156 / HABITS-01 — routine consistency for the SAME period, from
+   * HABITS-01's own `evaluateHabitConsistency`. Not a new metric, not a second
+   * denominator, and never a score: two integers and the window they cover.
+   */
+  readonly habits: HabitPeriodConsistency;
 }

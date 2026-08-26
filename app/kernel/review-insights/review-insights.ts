@@ -27,6 +27,12 @@
  * "not available", never nought.
  */
 
+import {
+  entryReason,
+  planAccountStatement,
+  type PlanAccountFact,
+  type TaskPlanOutcome,
+} from "~/kernel/activity-window";
 import type { GoalAlignmentState } from "~/kernel/alignment";
 import type { ProjectHealthState } from "~/kernel/project-health";
 
@@ -305,6 +311,46 @@ export function trendDirection(points: readonly TrendPoint[]): TrendDirection {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The period's plan account (FOLLOW-01)                                       */
+/* -------------------------------------------------------------------------- */
+
+/** How many Tasks one account line names before the count speaks for the rest. */
+export const MAX_NAMED_PER_PLAN_FACT = 4;
+
+/** One named Task behind one line of the account. */
+export interface PlanAccountInsightEntry {
+  readonly taskId: string;
+  readonly title: string;
+  readonly outcome: TaskPlanOutcome;
+  /** The dates the outcome was read from, in the owner's own format. */
+  readonly reason: string;
+  readonly link: InsightLink;
+}
+
+/**
+ * The Review's account of the period's PLAN — the return arrow of the loop V2.3
+ * drew, and deliberately NOT a sixth metric tile.
+ *
+ * It states what the period's plan held and what became of it, in the same words
+ * `/plan` uses for the same week, from the same derivation. There is no
+ * percentage of plan kept, no grade and no comparison of one period's adherence
+ * against another's: [ADR-110] decision 4 forbids all three, and this shape has
+ * nowhere to put them.
+ */
+export interface PeriodPlanInsight {
+  /** The one sentence. */
+  readonly headline: string;
+  /** What moved, or null when nothing did. */
+  readonly movement: string | null;
+  /** The non-zero lines, in the derivation's fixed order. */
+  readonly facts: readonly PlanAccountFact[];
+  /** Bounded named Tasks behind the lines, so every count is drillable. */
+  readonly entries: readonly PlanAccountInsightEntry[];
+  /** A calm sentence about the limits of what is shown, or null. */
+  readonly note: string | null;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Comparison basis                                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -332,6 +378,18 @@ export type InsightComparison =
 export interface ReviewInsights {
   readonly periodLabel: string;
   readonly comparison: InsightComparison;
+  /**
+   * FOLLOW-01 — what became of the work this period's PLAN held. Null when the
+   * period held no plan AND finished nothing outside one, which is a real and
+   * unremarkable way to have a week rather than a section of zeroes.
+   */
+  readonly planAccount: PeriodPlanInsight | null;
+  /**
+   * DEBT-156 — routine consistency for the same period, from HABITS-01's own
+   * derivation. Null when the period asked nothing of any Habit, because "0 of
+   * 0" is not a reading.
+   */
+  readonly habits: Insight | null;
   /** What changed: concrete movement inside the period. */
   readonly movement: readonly Insight[];
   /** Where the work contributed. */
@@ -402,6 +460,13 @@ export interface ReviewInsightsInput {
   readonly seriesShortLabels?: Readonly<Record<string, string>>;
   /** The key in `series` that is this Review's own period. */
   readonly currentSeriesKey: string;
+  /**
+   * The owner's date format, for the plan account's per-Task reasons. Supplied
+   * by the caller like every other label on this input, so the evaluator formats
+   * no date itself. Defaults to the ISO value, which is a real date rather than
+   * a placeholder.
+   */
+  readonly formatDay?: (iso: string) => string;
 }
 
 /** Internal: the input plus the resolved comparison, so the section builders
@@ -947,6 +1012,135 @@ export function seriesHeadline(
   return `${what} over the last ${points.length} Review periods, ${movement}.`;
 }
 
+/* -- The period's plan account (FOLLOW-01) --------------------------------- */
+
+/**
+ * The account, assembled from the SHARED derivation's own words.
+ *
+ * Nothing is re-worded here and no rule is restated: `planAccountStatement` and
+ * `entryReason` are the same functions `/plan` calls, so the two surfaces cannot
+ * describe one week differently — which is the whole claim of "one derivation,
+ * two consumers".
+ */
+function buildPlanAccount(input: ResolvedInput): PeriodPlanInsight | null {
+  const account = input.facts.planAccount;
+  const formatDay = input.formatDay ?? ((iso: string) => iso);
+
+  if (!account.available) {
+    return {
+      headline:
+        "The history behind this period's plan could not be read just now. Nothing in your Review has changed.",
+      movement: null,
+      facts: [],
+      entries: [],
+      note: null,
+    };
+  }
+
+  const statement = planAccountStatement(account, { periodNoun: "period" });
+  // A period that held no plan and finished nothing outside one has nothing to
+  // account for. That is an absence of COMMITMENT, not an absence of data, and
+  // a heading over an empty list would misreport it.
+  if (statement.empty) return null;
+
+  /*
+   * Named Tasks, bounded PER LINE rather than overall, so a week with eleven
+   * kept Tasks and one cleared one still names the cleared one. The counts above
+   * remain the authoritative figures; these are the records behind them.
+   */
+  const named: PlanAccountInsightEntry[] = [];
+  for (const fact of statement.facts) {
+    const matching = account.entries.filter(
+      (entry) =>
+        fact.outcomes.includes(entry.outcome) &&
+        // `carried` splits across two lines — the work whose day has passed and
+        // the work whose day has not arrived — so the line's own `ahead` flag is
+        // what decides which entries belong to it.
+        entry.planStillAhead === fact.ahead,
+    );
+    for (const entry of matching.slice(0, MAX_NAMED_PER_PLAN_FACT)) {
+      named.push({
+        taskId: entry.taskId,
+        title: entry.title,
+        outcome: entry.outcome,
+        reason: entryReason(entry, formatDay, "period"),
+        link: { label: entry.title, to: `/tasks?task=${entry.taskId}` },
+      });
+    }
+  }
+
+  return {
+    headline: statement.headline,
+    movement: statement.movement,
+    facts: statement.facts,
+    entries: named,
+    note: account.bounded
+      ? "This period's plan is read under a limit, so a very busy week may not account for every Task."
+      : null,
+  };
+}
+
+/* -- Habit consistency (DEBT-156) ------------------------------------------ */
+
+/**
+ * The period's routine consistency, as ONE calm sentence.
+ *
+ * Two integers and the window they cover, which is exactly what
+ * [ADR-104] admits and what DEBT-156 asked for. There is deliberately no
+ * percentage here even though the figure would support one: `/habits` prints a
+ * proportion beside both of its integers because that surface is about the
+ * Habits themselves, and a Review is the one surface where a ratio is one
+ * careless sentence away from becoming a grade.
+ *
+ * Absence renders LESS. A period no Habit was scheduled in returns null rather
+ * than "0 of 0" — an unscheduled day is never a miss, and a period that asked
+ * nothing has nothing to report.
+ */
+function buildHabitConsistency(input: ResolvedInput): Insight | null {
+  const habits = input.facts.habits;
+  if (!habits.available) {
+    return {
+      id: "habits.unavailable",
+      tone: "neutral",
+      label: "Routine consistency is not available",
+      reason:
+        "The read behind this could not complete. Nothing in your Review has changed.",
+      measure: null,
+      links: [{ label: "Open Habits", to: "/habits" }],
+      entityIds: [],
+    };
+  }
+  if (habits.expected === 0) return null;
+  const missed = habits.expected - habits.completed;
+  /*
+   * The read is bounded when the workspace holds more active Habits than it
+   * reads, or when the period is longer than one consistency reading walks.
+   * Either way these two integers are a FLOOR, not the period's whole, and a
+   * floor printed as a total is the quiet kind of wrong: nothing on the surface
+   * would ever look off. So the sentence says it, and the measure stops
+   * claiming to be exact.
+   */
+  const partial = habits.bounded
+    ? ` Read under a limit and counted from ${habits.fromIso}, so this is at least that many, not necessarily all of them.`
+    : "";
+  return {
+    id: "habits.consistency",
+    tone: habits.completed >= habits.expected ? "success" : "info",
+    label: `${habits.completed} of ${habits.expected} scheduled check-ins`,
+    reason:
+      (missed === 0
+        ? `Every check-in ${plural(habits.habitsCounted, "routine", "routines")} asked for this period happened.`
+        : `Across ${plural(habits.habitsCounted, "routine", "routines")}. ${plural(missed, "scheduled day", "scheduled days")} passed without one — days a routine did not ask for are not counted.`) +
+      partial,
+    measure: {
+      value: habits.completed,
+      exactness: habits.bounded ? "bounded" : "exact",
+    },
+    links: [{ label: "Open Habits", to: "/habits" }],
+    entityIds: [],
+  };
+}
+
 /* -- Notes ----------------------------------------------------------------- */
 
 function buildNotes(input: ResolvedInput): string[] {
@@ -1015,6 +1209,8 @@ export function evaluateReviewInsights(
     comparisonKindHint: comparison.kind,
   };
 
+  const planAccount = buildPlanAccount(input);
+  const habits = buildHabitConsistency(input);
   const movement = buildMovement(input);
   const goalContribution = buildGoalContribution(input);
   const projectChanges = buildProjectChanges(input);
@@ -1026,6 +1222,8 @@ export function evaluateReviewInsights(
   const trends = buildTrends(input);
 
   const isEmpty =
+    planAccount === null &&
+    habits === null &&
     movement.length === 0 &&
     goalContribution.length === 0 &&
     projectChanges.length === 0 &&
@@ -1036,6 +1234,8 @@ export function evaluateReviewInsights(
   return {
     periodLabel: input.periodLabel,
     comparison,
+    planAccount,
+    habits,
     movement,
     goalContribution,
     projectChanges,

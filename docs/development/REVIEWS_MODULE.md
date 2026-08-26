@@ -777,3 +777,93 @@ charting dependency, and no new metric added merely to make the page look
 populated. If a number does not help the owner notice progress, notice
 stagnation, notice imbalance, notice carry-over, understand contribution or
 decide what deserves attention next, it is not shown.
+
+---
+
+## The period's plan account, and routine consistency (FOLLOW-01, 2026-08-26)
+
+REVIEW-03 could say what COMPLETED in a period, where it landed, how Project
+health moved and what was carrying over. It could not say what the period's
+**plan** had held, and it said nothing at all about routines. V2.4 FOLLOW-01
+closed both, and neither added a stored artefact.
+
+### Where it comes from
+
+Not from here. The account is derived by
+[`~/kernel/activity-window`](../../app/kernel/activity-window/index.ts), read
+through `readPeriodPlanAccount`
+([`~/platform/activity-window/plan-account.server.ts`](../../app/platform/activity-window/plan-account.server.ts)),
+and the SAME read backs Weekly Planning's account of the same week. That is
+[ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)
+decision 6 made structural: one derivation per question, shared by every
+consumer, so `/plan` and the Review cannot describe one week differently.
+
+The words are the kernel's too — `planAccountStatement`, `planAccountFacts` and
+`entryReason`. This module passes `periodNoun: "period"` (a Review's period may be
+a month); `/plan` passes `"week"`. Neither writes a sentence of its own.
+
+### What the window means
+
+`ReviewPeriodWindow` is now an **alias** of the kernel's `ActivityWindow`, and
+`reviewPeriodWindow` a one-line call of the shared builder. The convention is
+unchanged and now stated in one place: inclusive in wall-calendar days, half-open
+in instants, with both bounds resolved through the OWNER's local midnight. Local
+midnight now resolves through `ownerDayStartInstant`, which walks forward to the
+first hour that exists in a zone whose DST transition skips midnight rather than
+degrading to UTC — an improvement the Review inherits from the move.
+
+### Where it appears
+
+A section, **"The week you planned"**, at the head of the evidence surface — so
+both consumers of `ReviewInsightsPanel` (the guided flow's first step and the
+Review record's Progress tab) get it. It renders the sentence, the non-zero
+outcome lines, and up to `MAX_NAMED_PER_PLAN_FACT` named Tasks **per line**
+(rather than per section, so a week with eleven kept Tasks and one cleared one
+still names the cleared one), each with the dates its outcome was read from and a
+link to its record.
+
+Absence renders less, as everywhere else on this surface: a period whose plan held
+nothing and which finished nothing outside one renders **no section at all**.
+
+### Routine consistency (DEBT-156)
+
+One more section, **"Routines"**, and one bounded read —
+`readHabitPeriodConsistency`, HABITS-01's own two-statement shape. The
+denominator is HABITS-01's, summed across the schedule-VERSION chain in force
+during the period; this module invents no Habit metric.
+
+> **Routines** — 2 of 3 scheduled check-ins
+> Across 1 routine. 1 scheduled day passed without one — days a routine did not
+> ask for are not counted.
+
+Two integers and the window they cover, and **no percentage**: `/habits` prints a
+proportion beside its integers because that surface is about the Habits
+themselves, and a Review is the one surface where a ratio is one careless sentence
+away from becoming a grade ([ADR-102](../decisions/ARCHITECTURE_DECISIONS.md#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) §8).
+A period that asked nothing of any Habit renders nothing — "0 of 0" is not a
+reading. `firstDayOfWeek` is passed in by the caller rather than read here, so the
+projection's budget does not grow by a preference lookup.
+
+### The query budget moved, and says so
+
+| | Before | After |
+| --- | --- | --- |
+| `REVIEW_INSIGHTS_QUERY_BUDGET` | 14 | **17** (+2 window, +1 active-Habit page) |
+| `REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS` | — | **19** (+ HABITS-01's schedule and completion window reads) |
+| `REVIEW_GUIDE_QUERY_BUDGET.overview` | 15 | **18** |
+
+Both figures are asserted against real D1. The pair exists because every Habit
+read in the product short-circuits on an empty page — binding a version or
+completion window to no ids is a query that cannot return anything — and one
+number would be wrong in one of the two cases.
+
+### Nothing new is stored
+
+The account is **deliberately absent** from `review_insight_snapshots`, and a
+test reads the stored row's text and fails if an outcome or a Task id appears in
+it. The snapshot exists for facts that cannot be re-derived (state at a past
+moment); this one always can be, so storing it would be the second copy ADR-110
+refuses.
+
+Full record:
+[`V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md`](../product/V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md).

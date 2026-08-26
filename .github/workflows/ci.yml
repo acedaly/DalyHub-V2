@@ -264,10 +264,13 @@ jobs:
       # reported, so one red partition does not hide the state of the others.
       fail-fast: false
       matrix:
-        # TWELVE partitions, balanced by MEASURED TIME rather than by test
+        # THIRTEEN partitions, balanced by MEASURED TIME rather than by test
         # count — HARDEN-04, closing DEBT-128; ten until HARDEN-06A raised the
-        # count so the heaviest partition sits back inside its budget with the
-        # measurements finally complete (see `PARTITION_COUNT`).
+        # count to twelve so the heaviest partition sat back inside its budget
+        # with the measurements finally complete, and twelve until V2.4
+        # FOLLOW-01 measured the suite past the derived per-partition ceiling
+        # and raised it again (see `PARTITION_COUNT`, which records the
+        # arithmetic, the cost and the better fix it deliberately did not take).
         #
         # `--shard=n/N` divides the suite by test COUNT, and DalyHub's tests are
         # not equal: MEASURED on runs 31690164253 and 31697528360, shard 6 spent
@@ -279,9 +282,10 @@ jobs:
         # The split now comes from `e2e/partitions.json`, whose per-spec-file
         # seconds are the ones those runs measured. Every constraint the previous
         # eight-way split was reasoned against still holds and is re-checked in
-        # `scripts/e2e-partitions.mjs`: the runner pool saturates past roughly
-        # twelve concurrent jobs (measured — all eight of the old split started
-        # within 0.1 min of each other, and eighteen queued six), each partition
+        # `scripts/e2e-partitions.mjs`: the runner pool saturates past roughly a
+        # dozen concurrent jobs (measured — all eight of the old split started
+        # within 0.1 min of each other, EIGHTEEN queued six, and twelve then
+        # started within one second of each other with none queued), each partition
         # costs ~2.3 min of setup that buys no coverage, and a partition's
         # BROWSER LIFETIME is now ~15 minutes rather than the ~24 that made
         # HARDEN-01 wary of fewer, fatter shards.

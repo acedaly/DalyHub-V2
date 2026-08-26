@@ -1348,3 +1348,115 @@
   border-color: var(--dh-color-accent);
   color: var(--dh-color-accent);
 }
+
+/* -------------------------------------------------------------------------- */
+/* FOLLOW-01 — the week's account                                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * ONE statement at rest, and it is a sentence.
+ *
+ * It takes the whole width of the glance bar rather than a fifth figure slot,
+ * because it is prose and because a fifth number beside four would read as a
+ * score even without a percentage on it — which is exactly what [ADR-110]
+ * refuses. `flex-basis: 100%` puts it on its own row at every width without a
+ * media query, so the phone and the desktop show the same sentence in the same
+ * place.
+ */
+.dh-plan__account-line {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-plan__account-movement {
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * The panel behind it. A quiet sunken block, the same anatomy as the Review
+ * focus it sits beside — one disclosure grammar on this surface rather than two.
+ */
+.dh-plan__account {
+  display: grid;
+  gap: var(--dh-space-3);
+  border-inline-start: var(--dh-border-width-strong) solid
+    var(--dh-color-border);
+  padding: var(--dh-space-3) var(--dh-space-4);
+  background: var(--dh-color-surface-quiet);
+  border-radius: var(--dh-radius-sm);
+  min-width: 0;
+}
+
+.dh-plan__account-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-1) var(--dh-space-5);
+  margin: 0;
+  min-width: 0;
+}
+
+.dh-plan__account-figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dh-space-2);
+  min-width: 0;
+}
+
+.dh-plan__account-label {
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Body weight, never display weight: a count of a life is not a score for one. */
+.dh-plan__account-value {
+  margin: 0;
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  font-weight: 600;
+  color: var(--dh-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-plan__account-list {
+  display: grid;
+  gap: var(--dh-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/*
+ * One accounted Task: its name, and the dates its outcome was read from. The
+ * two stack on a phone and sit side by side once there is room, which is the
+ * same `flex-wrap` behaviour every other metadata pair on this surface uses.
+ */
+.dh-plan__account-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--dh-space-1) var(--dh-space-3);
+  min-width: 0;
+}
+
+.dh-plan__account-title {
+  display: inline-flex;
+  align-items: center;
+  /* A real touch target on a coarse pointer, like every other drill-down. */
+  min-block-size: var(--app-touch-target-min);
+  color: var(--dh-color-accent);
+  overflow-wrap: anywhere;
+}
+
+.dh-plan__account-reason {
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}

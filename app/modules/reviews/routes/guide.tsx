@@ -128,6 +128,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       now,
       timezone: preferences.timezone,
       todayIso,
+      firstDayOfWeek: preferences.firstDayOfWeek,
       formatDate: (iso) => formatPreferenceDate(iso, preferences.dateFormat),
     },
     inboxRemaining,

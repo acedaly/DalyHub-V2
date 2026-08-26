@@ -221,6 +221,31 @@ async function settle(page: Page) {
 /** A flat list, newest edit first — see {@link captureProbe}. */
 const PROBE_VIEW = "/tasks?group=none&sort=updated&dir=desc";
 
+/**
+ * The budget a probe journey needs INCLUDING its own cleanup.
+ *
+ * The three journeys below each call `clearProbes` TWICE — once inside
+ * `captureProbe`, to start from the state the test describes, and once inside
+ * `completeProbe` afterwards — and that helper deliberately polls for 30 s,
+ * because a crashed earlier run can leave more than one probe to sweep. The
+ * enclosing test was inheriting Playwright's 30 s default, so the cleanup's
+ * stated budget was never reachable: the poll and the test expired in the SAME
+ * instant, and the failure surfaced as two errors stapled together — the poll's
+ * `Received: 1` beside `Test timeout of 30000ms exceeded`. That is precisely
+ * what run 32924404051 printed for p10.
+ *
+ * MEASURED on this tree, in p10's own composition and order from a freshly
+ * seeded database: the priority journey does **10.1 s** of real work and the
+ * whole spec file 7 tests in 49 s. The budget is that journey plus the two
+ * cleanup polls it is allowed to spend — 10 + 30 + 30, rounded up.
+ *
+ * Nothing is weakened. Every assertion is unchanged, `clearProbes` still refuses
+ * to let a stray probe into a test, and a real regression still fails on its own
+ * assertion in about ten seconds. What changes is that when the sweep genuinely
+ * needs its retries it now gets them, and can say so in its own words.
+ */
+const PROBE_JOURNEY_MS = 90_000;
+
 test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -230,6 +255,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
   test("Priority offers every priority, unclipped, and changes directly", async ({
     page,
   }) => {
+    test.setTimeout(PROBE_JOURNEY_MS);
     const title = await captureProbe(page, "priority");
     const row = taskRow(page, title).first();
 
@@ -303,6 +329,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
   test("Project offers the whole bounded set, scrolls it, and can remove it", async ({
     page,
   }) => {
+    test.setTimeout(PROBE_JOURNEY_MS);
     const title = await captureProbe(page, "project");
     const row = taskRow(page, title).first();
 
@@ -363,6 +390,7 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
   test("Due date exposes the whole date interface and clears", async ({
     page,
   }) => {
+    test.setTimeout(PROBE_JOURNEY_MS);
     const title = await captureProbe(page, "due");
     const row = taskRow(page, title).first();
 

@@ -55,6 +55,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       now,
       timezone: preferences.timezone,
       todayIso: today,
+      firstDayOfWeek: preferences.firstDayOfWeek,
       formatDate: (iso: string) =>
         formatPreferenceDate(iso, preferences.dateFormat),
     }),

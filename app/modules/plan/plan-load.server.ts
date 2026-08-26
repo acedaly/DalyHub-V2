@@ -41,6 +41,11 @@
  */
 
 import {
+  entryReason,
+  planAccountStatement,
+  type PeriodPlanAccount,
+} from "~/kernel/activity-window";
+import {
   DEFAULT_APP_PREFERENCES,
   type FirstDayOfWeek,
 } from "~/kernel/preferences";
@@ -77,6 +82,7 @@ import {
   loadScheduleWindow,
   scheduleForDate,
 } from "~/platform/calendar/schedule-load.server";
+import { readPeriodPlanAccount } from "~/platform/activity-window/plan-account.server";
 import {
   readHabitWeekSummary,
   type HabitWeekSummaryItem,
@@ -92,6 +98,7 @@ import {
 import { formatPreferenceDate } from "~/kernel/preferences";
 
 import type {
+  PlanAccount,
   PlanDay,
   PlanGoalSignal,
   PlanPageData,
@@ -141,6 +148,16 @@ export const PLAN_LIMITS = {
   focusCandidates: 12,
   /** Parent candidates offered by the row's inline Project editor. */
   parents: 50,
+  /**
+   * FOLLOW-01 — Tasks the week's ACCOUNT describes.
+   *
+   * A hundred is the kernel's own ceiling and it is a CEILING rather than an
+   * expectation: past it the account reports `bounded` and the surface says so,
+   * instead of presenting a partial week as a whole one. It is deliberately
+   * lower than `plannedTasks` (250), because the account covers a week that has
+   * happened rather than every row the board may draw.
+   */
+  accountTasks: 100,
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -155,6 +172,21 @@ const EMPTY_TOTALS: PlanWeekTotals = {
   commitmentMinutes: 0,
   commitmentLabel: null,
   commitmentAccessibleLabel: null,
+};
+
+/**
+ * The account a page with no scope has. `available: false` is the load-bearing
+ * field: the surface then says the history could not be read rather than
+ * printing a confident "nothing was planned".
+ */
+const EMPTY_ACCOUNT: PlanAccount = {
+  headline: "The history behind this week's plan could not be read just now.",
+  movement: null,
+  facts: [],
+  entries: [],
+  empty: false,
+  available: false,
+  bounded: false,
 };
 
 /** The built-in queue source's id. Not a saved view — the deterministic rule. */
@@ -231,6 +263,7 @@ export async function loadPlanPage(
     todayIso,
     selectedDayIso,
     totals: EMPTY_TOTALS,
+    account: EMPTY_ACCOUNT,
     queue: [],
     queueTruncated: false,
     queueSources: [suggestedSource(week.offset)],
@@ -258,6 +291,7 @@ export async function loadPlanPage(
     parentOptions,
     focus,
     routines,
+    accountRead,
   ] = await Promise.all([
     soft(
       loadScheduleWindow(scope, {
@@ -305,6 +339,21 @@ export async function loadPlanPage(
       ),
       [] as readonly HabitWeekSummaryItem[],
     ),
+    /*
+     * FOLLOW-01 — the shown week's own account, in TWO bounded statements over
+     * the append-only Activity stream. It is the same read the weekly Review
+     * makes of the same period, through the same shared authority, so the two
+     * surfaces cannot describe one week differently. It fails soft: a history
+     * read that throws narrows what the page SAYS and never costs the owner
+     * their plan.
+     */
+    readPeriodPlanAccount(scope, {
+      periodStart: week.startIso,
+      periodEnd: week.endIso,
+      timezone,
+      todayIso,
+      limits: { tasks: PLAN_LIMITS.accountTasks },
+    }),
   ]);
 
   /*
@@ -430,6 +479,9 @@ export async function loadPlanPage(
     todayIso,
     selectedDayIso,
     totals,
+    account: serializeAccount(accountRead.account, (iso) =>
+      formatPreferenceDate(iso, dateFormat),
+    ),
     queue: queueResult.items.map((entry) => ({
       ...entry,
       task: withBlockedSummary(
@@ -459,6 +511,40 @@ export async function loadPlanPage(
     hasCalendarSources: scheduleWindow.hasSources,
     calendarStale: scheduleWindow.anySourceFailing,
     failed: false,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* The account (FOLLOW-01)                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Turn the kernel's account into the JSON-safe shape the screen renders.
+ *
+ * Every word is the KERNEL's — the headline, the movement sentence, the fact
+ * labels and each entry's reason — because the weekly Review renders the same
+ * words from the same functions. What happens here is formatting a date with the
+ * owner's own preference and dropping the fields the screen has no use for.
+ */
+function serializeAccount(
+  account: PeriodPlanAccount,
+  formatDay: (iso: string) => string,
+): PlanAccount {
+  const statement = planAccountStatement(account, { periodNoun: "week" });
+  return {
+    headline: statement.headline,
+    movement: statement.movement,
+    facts: statement.facts,
+    entries: account.entries.map((entry) => ({
+      taskId: entry.taskId,
+      title: entry.title,
+      outcome: entry.outcome,
+      reason: entryReason(entry, formatDay, "week"),
+      reschedules: entry.reschedules,
+    })),
+    empty: statement.empty,
+    available: account.available,
+    bounded: account.bounded,
   };
 }
 

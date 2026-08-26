@@ -4644,4 +4644,36 @@ The full record is
     storage, it is an additive field on the existing versioned snapshot with its
     own ADR, not a new artefact.
 
+- **First implementation, 2026-08-26 — [FOLLOW-01](../roadmap/ROADMAP_V2_4.md#-follow-01--did-the-week-hold--delivered-2026-08-26).**
+  Every decision above held, and one of them was tested by an actual finding
+  rather than merely obeyed.
+
+  - Decisions 1 and 6 are the module `app/kernel/activity-window/`: one named
+    owner-local window, one bounded read (**two D1 statements, flat with respect
+    to the period's size**, asserted against real D1), one pure derivation, and
+    one set of words — consumed by `/plan` and by the weekly Review, which
+    therefore cannot describe the same week differently. **No table, no column,
+    no index, no migration.**
+  - Decision 3 held with evidence rather than by intent: the plan account is
+    absent from `review_insight_snapshots`, and a test reads the stored row's
+    TEXT and fails if an outcome or a Task id appears in it.
+  - Decision 4 is asserted over rendered output, not just over the model: the
+    E2E journey reads the account's own text on both surfaces and fails on `%`
+    or on the words *score*, *grade*, *streak* or *adherence*.
+  - Decision 5 is structural rather than editorial. The window carries a PHASE
+    (`future` / `running` / `closed`) that decides the tense, and a running
+    period counts work whose day has not arrived separately from work that is
+    overdue — so "still to come" cannot be printed as "left unfinished".
+  - **Decision 7 was exercised, and it did not become a licence.** A genuine
+    information gap was found: TASKS-07's series move and skip shift an
+    occurrence's PLANNED day and recorded only the anchor, so a due-anchored
+    routine's plan moved with nothing in the Activity stream saying it had. The
+    correction was the smallest available — the event those paths already write
+    now carries the pair it was missing, under the `changes.<field>.{before,after}`
+    shape `entity.updated` has always used. No new event type, no new payload
+    vocabulary, no schema change, no second planning authority. Recorded here
+    because decision 7 asks for exactly that, and because it is the shape of
+    finding a future window read is most likely to hit again: **a payload that
+    records only the NEW value is a payload history cannot reverse.**
+
 The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2_4.md).

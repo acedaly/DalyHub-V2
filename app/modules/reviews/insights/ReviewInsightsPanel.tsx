@@ -27,6 +27,7 @@ import type {
   GoalContributionInsight,
   Insight,
   InsightLink,
+  PeriodPlanInsight,
   ProjectChangeInsight,
   ReviewInsights,
 } from "~/kernel/review-insights";
@@ -118,6 +119,68 @@ function ProjectChangeRow({
   );
 }
 
+/**
+ * FOLLOW-01 — the period's plan account.
+ *
+ * A sentence, the lines behind it, and the Tasks behind those. Not a table of
+ * nine rows, not a tile grid and not a percentage: the counts carry their own
+ * denominator in the sentence above them, which is the only form [ADR-110]
+ * permits. It computes nothing — every string arrives already decided by the
+ * shared derivation `/plan` reads.
+ */
+function PlanAccountSection({
+  account,
+}: {
+  readonly account: PeriodPlanInsight;
+}) {
+  return (
+    <div className="dh-insights__account" data-testid="review-plan-account">
+      <p className="dh-insights__claim" data-testid="review-plan-headline">
+        {account.headline}
+      </p>
+      {account.movement === null ? null : (
+        <p className="dh-insights__reason" data-testid="review-plan-movement">
+          {account.movement}
+        </p>
+      )}
+      {account.facts.length === 0 ? null : (
+        <dl className="dh-insights__figures">
+          {account.facts.map((fact) => (
+            <div className="dh-insights__figure" key={fact.key}>
+              <dt className="dh-insights__figure-label">{fact.label}</dt>
+              <dd
+                className="dh-insights__figure-value"
+                data-account-fact={fact.key}
+              >
+                {fact.count}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {account.entries.length === 0 ? null : (
+        <ul className="dh-insights__list">
+          {account.entries.map((entry) => (
+            <li
+              className="dh-insights__item"
+              key={entry.taskId}
+              data-outcome={entry.outcome}
+            >
+              <p className="dh-insights__claim">
+                <Link to={entry.link.to}>{entry.title}</Link>
+              </p>
+              <p className="dh-insights__reason">{entry.reason}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {account.note === null ? null : (
+        <p className="dh-insights__note">{account.note}</p>
+      )}
+    </div>
+  );
+}
+
 export function ReviewInsightsPanel({
   insights,
   headingLevel = 3,
@@ -149,6 +212,16 @@ export function ReviewInsightsPanel({
   return (
     <div className="dh-insights">
       {title ? <Heading className="dh-insights__title">{title}</Heading> : null}
+
+      {insights.planAccount === null ? null : (
+        <Section
+          id="plan"
+          heading="The week you planned"
+          headingLevel={headingLevel}
+        >
+          <PlanAccountSection account={insights.planAccount} />
+        </Section>
+      )}
 
       {insights.movement.length > 0 ? (
         <Section
@@ -219,6 +292,14 @@ export function ReviewInsightsPanel({
           </ul>
         </Section>
       ) : null}
+
+      {insights.habits === null ? null : (
+        <Section id="habits" heading="Routines" headingLevel={headingLevel}>
+          <ul className="dh-insights__list">
+            <InsightRow insight={insights.habits} />
+          </ul>
+        </Section>
+      )}
 
       {insights.trends.length > 0 ? (
         <Section

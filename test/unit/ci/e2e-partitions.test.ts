@@ -148,10 +148,21 @@ describe("E2E partitions", () => {
 
   it("holds the runner-pool and budget constraints the split was reasoned against", () => {
     expect(manifest.partitions).toHaveLength(PARTITION_COUNT);
-    // Past roughly twelve concurrent jobs the GitHub-hosted pool queues (run
-    // 31445526789: six shards waited 5.5–7.0 minutes), so the count is bounded
-    // rather than "as many as fit".
-    expect(PARTITION_COUNT).toBeLessThanOrEqual(12);
+    /*
+     * The count is BOUNDED rather than "as many as fit", and the bound is the
+     * runner pool: past roughly a dozen concurrent jobs the GitHub-hosted pool
+     * queues (run 31445526789: six of EIGHTEEN shards waited 5.5–7.0 minutes).
+     *
+     * THIRTEEN since V2.4 FOLLOW-01, and the move is measured rather than
+     * convenient. At twelve the heaviest partition derived to 16.80 min against
+     * a 16.73 min ceiling once FOLLOW-01's 43.2 s spec file was measured in, and
+     * the MEAN of the ten non-sliced partitions was already 1005.0 s — so no
+     * packing fits and no cheaper spec absorbs it. `PARTITION_COUNT` is the lever
+     * this derivation exposes for exactly that case. The bound stays a bound:
+     * fourteen would need its own evidence, and the pool figure it is being
+     * checked against was interpolated from eighteen shards, not from thirteen.
+     */
+    expect(PARTITION_COUNT).toBeLessThanOrEqual(13);
     const worst = Math.max(
       ...manifest.partitions.map(
         (p: { estimateSeconds: number }) => p.estimateSeconds,

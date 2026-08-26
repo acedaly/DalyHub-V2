@@ -54,12 +54,12 @@ const MANIFEST = join(ROOT, "e2e", "partitions.json");
 /**
  * How many partitions the gate runs.
  *
- * TWELVE since HARDEN-06A, and the number is bounded by the RUNNER POOL rather
- * than by the suite. MEASURED on runs 31675715619, 31690164253 and 31697528360:
- * all eight E2E jobs started within 0.1 min of each other, so eight is not yet
- * contended — but run 31445526789 (eighteen shards) had six jobs QUEUED for
- * 5.5–7.0 minutes, which puts the pool's practical ceiling at roughly twelve
- * concurrent jobs.
+ * THIRTEEN since V2.4 FOLLOW-01. Twelve from HARDEN-06A until then, and the
+ * number is bounded by the RUNNER POOL rather than by the suite. MEASURED on
+ * runs 31675715619, 31690164253 and 31697528360: all eight E2E jobs started
+ * within 0.1 min of each other, so eight is not yet contended — but run
+ * 31445526789 (eighteen shards) had six jobs QUEUED for 5.5–7.0 minutes, which
+ * put the pool's practical ceiling at roughly twelve concurrent jobs.
  *
  * It is also bounded from BELOW by the fixed cost of a partition: 0.8 min of
  * checkout, toolchain, artifact download and browser install, plus ~1.5 min of
@@ -79,18 +79,50 @@ const MANIFEST = join(ROOT, "e2e", "partitions.json");
  *
  *   10 → worst 19.0 min · wall 21.3 min · 85%  — OVER MAX_PARTITION_SECONDS
  *   11 → worst 16.9 min · wall 18.9 min · 76%  — OVER, by 0.2 min
- *   12 → worst 15.2 min · wall 17.0 min · 68%  ← chosen
+ *   12 → worst 15.2 min · wall 17.0 min · 68%  ← chosen at HARDEN-06A
  *   13 → worst 13.8 min · wall 15.5 min · 62%  — past the pool's twelve
  *
- * Twelve is the FIRST count that satisfies `MAX_PARTITION_SECONDS`, and it puts
- * the heaviest partition back at the ~70%-of-ceiling target every split since
- * HARDEN-04 has been tuned to. It is also the pool's own measured ceiling, and
- * run 32333645709 confirmed it is not contended: all twelve E2E jobs started
- * within ONE SECOND of each other, none queued. If a future run does queue a
- * job, that costs WALL CLOCK and nothing else — a queued job has not started,
- * so it spends none of its `globalTimeout`.
+ * ── Why it moved to THIRTEEN (V2.4 FOLLOW-01), with the measurement ─────────
+ * V2.4-GATE-02 left the suite at 191.3 min against a 16.7 min per-partition
+ * ceiling and wrote down, in `partitions.json`, that the NEXT item adding E2E
+ * coverage would have to confront the split rather than shave seconds. This is
+ * that item, and the arithmetic is unambiguous. FOLLOW-01 adds ONE spec file,
+ * MEASURED at 43.2 s (four tests, already consolidated from six over eleven page
+ * loads to four over eight — assertions unchanged). Derived over the committed
+ * durations plus that file:
+ *
+ *   12 → heaviest partition 1007.7 s = 16.80 min  — OVER the 16.73 min ceiling
+ *   13 → heaviest partition  918.7 s = 15.31 min  — 68% of `globalTimeout`
+ *
+ * Twelve does not fail by a rounding error that a cheaper spec could absorb: the
+ * MEAN of the ten non-sliced partitions is already 1005.0 s at twelve, so no
+ * packing of any 43-second file fits, and reaching 1004 s would mean deleting
+ * roughly a third of the new coverage. The lever this derivation exposes is the
+ * COUNT (or a genuinely cheaper spec file) — never the ceiling, which is the one
+ * answer HARDEN-04 removed from the table — so the count is what moved.
+ *
+ * The cost is stated rather than assumed. Thirteen spends ~2.3 min more runner
+ * time on setup that buys no coverage, and it is ONE job past the pool figure
+ * interpolated from run 31445526789 — which measured EIGHTEEN shards queueing,
+ * not thirteen. Run 32333645709 then measured twelve starting within ONE SECOND
+ * of each other with none queued, so twelve had headroom rather than sitting on
+ * a wall. And the failure mode if the interpolation is right is bounded and
+ * already written down above: a queued job costs WALL CLOCK and nothing else,
+ * because a job that has not started spends none of its `globalTimeout`.
+ *
+ * ── The better fix, measured and deliberately NOT taken here ────────────────
+ * `responsive.spec.ts` is 1471.6 s in ONE generated matrix file, and `--shard`
+ * is the only way to divide it — so it takes two EXCLUSIVE partitions of 735.8 s
+ * apiece against a 1004 s ceiling. That strands **536 s of gate capacity, 8.9
+ * minutes, that no partition can use**, and it is why twelve looked exhausted.
+ * Recovering it needs either a redesign of this function (both shards of a
+ * sliced group must carry an IDENTICAL spec list, or tests are lost and
+ * duplicated) or a near-50/50 split of that file into two real spec files. Both
+ * change what every partition holds, and neither is a change to make inside a
+ * feature PR whose own coverage is four tests. Raised as its own entry in
+ * `PRODUCT_DEBT.md` with these numbers, so the next pass takes it deliberately.
  */
-export const PARTITION_COUNT = 12;
+export const PARTITION_COUNT = 13;
 
 /**
  * The estimate a spec file gets when nothing has measured it yet.

@@ -1573,6 +1573,7 @@ function PlanSignals({ data }: { readonly data: PlanPageData }) {
  */
 function PlanGlance({ data }: { readonly data: PlanPageData }) {
   const [showFocus, setShowFocus] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
   const { totals } = data;
   return (
     <>
@@ -1628,7 +1629,51 @@ function PlanGlance({ data }: { readonly data: PlanPageData }) {
             {showFocus ? "Hide review focus" : "Review focus"}
           </button>
         )}
+
+        {/*
+         * FOLLOW-01 — ONE statement, and the door to the records behind it.
+         *
+         * The week's account is a sentence, not a panel: `/plan`'s job is still
+         * to help the owner commit to a week, and a second dashboard beneath the
+         * board would make the surface about the past. The detail is one press
+         * away through the SAME disclosure grammar the Review focus beside it
+         * already uses — `aria-expanded` onto a `hidden` panel, so the account
+         * stays in the accessibility tree and a re-read after a reload finds it.
+         */}
+        <p
+          className="dh-plan__account-line"
+          data-testid="plan-account-headline"
+        >
+          {data.account.headline}
+          {data.account.movement === null ? null : (
+            <span className="dh-plan__account-movement">
+              {" "}
+              {data.account.movement}
+            </span>
+          )}
+        </p>
+        {data.account.empty || !data.account.available ? null : (
+          <button
+            type="button"
+            className="dh-plan__glance-action"
+            aria-expanded={showAccount}
+            aria-controls="plan-account-panel"
+            data-testid="plan-account-toggle"
+            onClick={() => setShowAccount((open) => !open)}
+          >
+            <TaskIcon aria-hidden="true" />
+            {showAccount ? "Hide what happened" : "What happened"}
+          </button>
+        )}
       </section>
+
+      {data.account.empty || !data.account.available ? null : (
+        <PlanAccountPanel
+          account={data.account}
+          hidden={!showAccount}
+          id="plan-account-panel"
+        />
+      )}
 
       {data.priorFocus === null ? null : (
         <PlanFocus
@@ -1638,6 +1683,82 @@ function PlanGlance({ data }: { readonly data: PlanPageData }) {
         />
       )}
     </>
+  );
+}
+
+/**
+ * FOLLOW-01 — the week's account, in full.
+ *
+ * Every count carries the sentence above it as its denominator, and every count
+ * is drillable: each accounted Task is named with the dates its outcome was read
+ * from, linked to the record. There is no percentage, no bar and no verdict — the
+ * heading asks a question rather than answering one, because a week that was
+ * deliberately re-planned is not a week that failed ([ADR-110]).
+ *
+ * `hidden` rather than unmounted, for the reason PlanFocus states and one more:
+ * V2.4-GATE-01 root-caused a whole class of E2E failure to assertions resolving
+ * against rows filed inside a collapsed disclosure, so this panel stays in the
+ * DOM and the attribute is what changes.
+ */
+function PlanAccountPanel({
+  account,
+  hidden,
+  id,
+}: {
+  readonly account: PlanPageData["account"];
+  readonly hidden: boolean;
+  readonly id: string;
+}) {
+  return (
+    <section
+      className="dh-plan__account"
+      id={id}
+      hidden={hidden}
+      aria-labelledby={`${id}-heading`}
+      data-testid="plan-account-panel"
+    >
+      <h2 id={`${id}-heading`} className="dh-plan__focus-heading">
+        What became of this week&rsquo;s plan
+      </h2>
+      {account.facts.length === 0 ? null : (
+        <dl className="dh-plan__account-figures">
+          {account.facts.map((fact) => (
+            <div className="dh-plan__account-figure" key={fact.key}>
+              <dt className="dh-plan__account-label">{fact.label}</dt>
+              <dd
+                className="dh-plan__account-value"
+                data-account-fact={fact.key}
+              >
+                {fact.count}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <ul className="dh-plan__account-list">
+        {account.entries.map((entry) => (
+          <li
+            className="dh-plan__account-entry"
+            key={entry.taskId}
+            data-outcome={entry.outcome}
+          >
+            <Link
+              className="dh-plan__account-title"
+              to={`/tasks?task=${entry.taskId}`}
+            >
+              {entry.title}
+            </Link>
+            <span className="dh-plan__account-reason">{entry.reason}</span>
+          </li>
+        ))}
+      </ul>
+      {account.bounded ? (
+        <p className="dh-plan__focus-note">
+          This week&rsquo;s history is read under a limit, so a very busy week
+          may not account for every Task.
+        </p>
+      ) : null}
+    </section>
   );
 }
 
