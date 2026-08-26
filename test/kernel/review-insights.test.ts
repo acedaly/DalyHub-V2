@@ -1052,6 +1052,51 @@ describe("the period's plan account", () => {
     expect(insights.habits?.reason).not.toContain("%");
   });
 
+  it("admits its bound on a period longer than one consistency reading walks", async () => {
+    /*
+     * A CUSTOM Review period is whatever two dates the owner picked, and
+     * `evaluateHabitConsistency` walks a fixed number of owner-calendar weeks.
+     * Asked for more it used to stop at week sixty and drop everything after —
+     * which, walking forward, is the MOST RECENT weeks, the ones the Review is
+     * actually about — while the surface still called the total exact.
+     *
+     * This period is eighty weeks. The one check-in is inside the period's LAST
+     * week, so a reading that silently truncated would report `0 of 3` and swear
+     * to it. The window is clamped from the end instead, the check-in is counted,
+     * and the reading says where it really starts.
+     */
+    const habit = await makeHabitRepository(makeContext(WS), {
+      clock: new FakeClock("2026-07-01T02:00:00.000Z").now,
+      idGenerator: sequentialIds("hab"),
+    }).create({
+      title: "Morning walk",
+      schedule: { kind: "weekdays", weekdays: [1, 3, 5] },
+    });
+    await makeHabitRepository(makeContext(WS), {
+      clock: new FakeClock(NOW.toISOString()).now,
+    }).checkIn(habit.id, "2026-07-27");
+
+    const { review } = await reviewsRepo(WS).create({
+      type: "custom",
+      periodStart: "2025-01-20", // ~80 weeks before the period's end.
+      periodEnd: PERIOD_END,
+    });
+    const { insights, facts } = await loadReviewInsights(scopeFor(), {
+      ...insightInput(review),
+      firstDayOfWeek: "monday",
+    });
+
+    expect(facts.habits.bounded).toBe(true);
+    // Clamped forward from the end, to the start of an owner-calendar week.
+    expect(facts.habits.fromIso > "2025-01-20").toBe(true);
+    expect(facts.habits.toIso).toBe(PERIOD_END);
+    // The most recent week is INSIDE the reading, which is the whole point.
+    expect(facts.habits.completed).toBe(1);
+    expect(insights.habits?.measure?.exactness).toBe("bounded");
+    expect(insights.habits?.reason).toContain(facts.habits.fromIso);
+    expect(insights.habits?.reason).toContain("not necessarily all of them");
+  });
+
   it("says NOTHING about routines when the period asked for none", async () => {
     const review = await weeklyReview();
     const { insights } = await loadReviewInsights(

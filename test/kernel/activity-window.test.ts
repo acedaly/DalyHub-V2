@@ -228,6 +228,79 @@ describe("the window's candidate set, against real D1", () => {
     expect(entry?.reschedules).toBe(0);
   });
 
+  it("does NOT credit the week with a plan made AFTER the week closed", async () => {
+    /*
+     * The mirror of the arm above, and the one the current `scheduled_date`
+     * would answer WRONGLY if it were ever trusted past its initial condition.
+     *
+     * The owner planned this for a day in June. The week ran without it. Only
+     * afterwards did they move it onto the Wednesday that week had already
+     * spent. `task_details.scheduled_date` now reads day 2 — inside the closed
+     * week — so the candidate set holds the Task, and every honest answer must
+     * come from the movement itself: at the moment the week opened, the plan
+     * said June, and a week cannot hold work that was committed to it in
+     * hindsight.
+     */
+    const id = await newTask("Backdated after the fact");
+    await tasksAt(at("2026-05-01", 9)).planTask(id, {
+      scheduledDate: "2026-06-01",
+    });
+    await tasksAt(at("2026-05-12", 9)).planTask(id, { scheduledDate: day(2) });
+
+    const account = await accountFor();
+    expect(outcomeOf(account, id)).toBeNull();
+    expect(account.counts.planned).toBe(0);
+  });
+
+  it("does NOT report a plan moved in and out again after the week as a move OUT", async () => {
+    /*
+     * Same hindsight, twice. The Task passed THROUGH a day inside the closed
+     * week on its way to July, so the withdrawal arm holds it as a candidate —
+     * and reading only the withdrawal would call it work the week planned and
+     * lost. The plan at the week's open is what settles it, and that is the
+     * `before` of the FIRST movement from the week onwards, not the `before` of
+     * the last one.
+     */
+    const id = await newTask("Passed through in hindsight");
+    await tasksAt(at("2026-05-01", 9)).planTask(id, {
+      scheduledDate: "2026-06-01",
+    });
+    await tasksAt(at("2026-05-12", 9)).planTask(id, { scheduledDate: day(2) });
+    await tasksAt(at("2026-05-13", 9)).planTask(id, {
+      scheduledDate: "2026-07-01",
+    });
+
+    const account = await accountFor();
+    expect(outcomeOf(account, id)).toBeNull();
+    expect(account.counts.movedOut).toBe(0);
+  });
+
+  it("finds a SERIES move that took an occurrence off the week after it closed", async () => {
+    /*
+     * The withdrawal arm in the OTHER recorded shape. TASKS-07's series move
+     * writes its planned-day change as a `changes.scheduledDate` pair rather
+     * than as one of the three domain planning types, and a week the owner
+     * genuinely spent an occurrence in must not vanish because of which writer
+     * recorded the move away from it.
+     */
+    const task = await tasksAt(at("2026-05-01", 9)).createTask({
+      title: "Weekly report, moved out of the week later",
+      dueDate: day(4),
+      scheduledDate: day(3),
+      recurrence: { dateKind: "due", frequency: "week", interval: 1 },
+    });
+    await tasksAt(at("2026-05-12", 9)).moveTaskOccurrence(task.id, {
+      scope: "occurrence",
+      date: "2026-05-28",
+    });
+
+    const entry = outcomeOf(await accountFor(), task.id);
+    expect(entry?.outcome).toBe("carried");
+    expect(entry?.plannedDayJudged).toBe(day(3));
+    // The move happened after the week; it is not a move INSIDE it.
+    expect(entry?.reschedules).toBe(0);
+  });
+
   it("finds work CREATED with a planned day and no planning event at all", async () => {
     /*
      * `createTask` emits `entity.created` and nothing else, so this Task has no
@@ -459,6 +532,9 @@ describe("the query budget", () => {
     ).activityWindow.readTaskPlanWindow(WEEK);
 
     expect(bound.length).toBe(2);
+    // Numbers rather than a claim: an edit that starts binding per Task shows
+    // up here long before it shows up as a failed read on a busy week.
+    expect(bound).toEqual([18, 20]);
     for (const count of bound) expect(count).toBeLessThan(100);
   });
 

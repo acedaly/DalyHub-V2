@@ -300,6 +300,36 @@ surface is about the Habits themselves, and a Review is the one surface where a
 ratio is one careless sentence away from becoming a grade (ADR-102 §8). A period
 that asked nothing of any Habit renders **nothing** — "0 of 0" is not a reading.
 
+### The other correction found in review: a total that is a floor
+
+`readHabitPeriodConsistency` is the first caller to hand `evaluateHabitConsistency`
+a window the **owner** chose. Every HABITS-01 caller before it asked for four
+weeks, so the evaluator's `for (index < 60)` was only ever a loop guard — but a
+custom Review period is whatever two dates the owner picked, and past sixty
+owner-calendar weeks the loop simply stopped. Walking forward from `fromIso`, what
+it stopped *before* was the most recent weeks: the ones the Review is most about.
+Meanwhile the reading still said `available: true`, `bounded` still meant only
+"more Habits than we read", and the sentence still called the total exact. A
+fourteen-month Review would have reported a confident, wrong number with nothing
+on the surface to suggest it.
+
+Two small changes, no new metric and no new storage:
+
+- the guard is now `MAX_HABIT_CONSISTENCY_WEEKS`, exported, and the **caller**
+  clamps its window forward from the period's end rather than letting the
+  evaluator drop the tail silently. `HabitPeriodConsistency.fromIso` reports where
+  the count really starts, so the truncation is in the data rather than absent
+  from it;
+- `bounded` now means *"this reading does not cover everything it was asked
+  for"* — more active Habits than the read's bound, **or** a period longer than one
+  reading walks. The Review's measure stops claiming `exact` and the sentence says
+  so: *"Read under a limit and counted from 2025-06-02, so this is at least that
+  many, not necessarily all of them."*
+
+The test is an eighty-week custom Review whose only check-in falls in its **last**
+week: before the change the reading reported `0 of 3` and swore to it; after it,
+the check-in is counted, `bounded` is true, and the window is named.
+
 ---
 
 ## 8. Accessibility and mobile evidence
@@ -352,7 +382,7 @@ minute in, first minute out, at both ends).
 
 Restored: **42 passed**.
 
-### Kernel — against real D1 (18 tests)
+### Kernel — against real D1 (21 tests)
 
 `test/kernel/activity-window.test.ts` writes every fixture through the
 **canonical** repository (`createTask`, `planTask`, `clearPlan`, `completeTask`,
@@ -363,16 +393,52 @@ hand-written Activity rows.
 | --- | --- |
 | Revert the occurrence-move payload correction | **1 failed** — *"reads a SERIES move's carried planned day"*: `['2026-05-06']` instead of `['2026-05-04', '2026-05-06']` |
 | Drop the withdrawn-after-the-period arm | **1 failed** — *"finds work whose plan was WITHDRAWN after the week closed"* |
+| Match the post-period reach on `before` only (as first written) | **3 failed** — the three hindsight cases below |
 
 It also asserts workspace isolation both ways, and the budget:
 
 - **exactly 2 statements** per window read;
 - **flat**: a fifteen-Task week costs what a three-Task week does, and the larger
   week really is larger (15 subjects);
-- **constant bound parameters**, both statements well inside D1's ceiling of 100 —
+- **exactly 18 and 20 bound parameters**, both well inside D1's ceiling of 100 —
   the id set never crosses the process boundary, because it is a common table
-  expression inside both statements;
+  expression inside both statements. The numbers are asserted, not asserted about;
 - `bounded` reported rather than silent truncation.
+
+### The correction found in review: reaching PAST the period in one direction only
+
+The post-period reach was written to mirror arm 3 exactly — a plan movement after
+the period whose **`before`** day is inside it. That is right for work *withdrawn*
+from a closed week, and blind to its mirror.
+
+If a plan is moved **into** a period that has already closed — the owner backdates
+a Task onto a Wednesday the week already spent — then `task_details.scheduled_date`
+reads as a day inside the period, arm 1 holds the Task as a candidate, and the
+statement fetched no event at all. With no event to read, `resolvePlanAtWindowOpen`
+fell through to its third rule and took the current date as the plan at the
+period's open: the closed week was credited with work committed to it in
+hindsight. That is precisely the inference [ADR-110] forbids, arrived at not by
+trusting `scheduled_date` deliberately but by failing to fetch the event that
+would have contradicted it.
+
+The correction is in SQL and nowhere else: the post-period branch now matches a
+movement whose `before` **or** whose `after` lands in the period, in either
+recorded shape (the three domain planning types and TASKS-07's
+`changes.scheduledDate` pair alike — the arm had been matching only the former,
+so a series move away from a closed week could make an occurrence vanish out of
+the week it was genuinely spent in). With the movement in hand the plan at the
+open resolves to what it replaced, and the Task falls out of the account.
+
+Three tests were written first and observed to fail:
+
+| Case | Before | After |
+| --- | --- | --- |
+| Planned for June; after the week closed, moved onto the week's Wednesday | `carried`, `plannedDayAtOpen` = the Wednesday | not in the account; `counts.planned` = 0 |
+| Same, then moved on to July — passing *through* the closed week in hindsight | `carried` via the withdrawal arm reading the last move's `before` | not in the account; `counts.movedOut` = 0 |
+| A due-anchored series occurrence genuinely planned inside the week, moved away by a series move after it closed | absent from the account entirely | `carried`, judged on its real planned day |
+
+Nothing about a **running** period changed: for an open period there is nothing
+after it yet, so both directions of the reach are empty by construction.
 
 ### Product projections
 
@@ -519,6 +585,14 @@ ordering change, and no adherence figure of any kind.
 - `app/modules/reviews/` — the insight context, the panel, the guided step budget
 - `app/styles/plan.css`, `app/styles/insights.css`
 - `scripts/e2e-partitions.mjs`, `e2e/partitions.json`, `.github/workflows/ci.yml`
+- `test/unit/deploy/production-backup-encryption.test.ts` — the AUDIT-11 suite's
+  eight forking tests carried Vitest's default 5 s while spawning a Node process,
+  `gpg` and (twice) `sqlite3`. They crossed it on a shared CI runner. The budget
+  is now a stated `FORKS_MS = 30_000` with the measurement that chose it recorded
+  in the file. No assertion changed; nothing is skipped; a real regression still
+  fails in under two seconds. Not FOLLOW-01's code, but FOLLOW-01's added test
+  volume is what put the pool under enough pressure to expose it, so it is fixed
+  here rather than left red.
 
 ---
 

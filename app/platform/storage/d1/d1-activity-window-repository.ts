@@ -14,8 +14,9 @@
  * crossing the process boundary. That matters for a reason TASKS-13 and UX-02
  * both found the expensive way: **D1 accepts at most 100 bound parameters per
  * query**, and binding one per Task id would put the ceiling on the size of the
- * owner's week. These statements bind THIRTEEN and FIFTEEN parameters
- * respectively — dates, instants and limits — whatever the week holds.
+ * owner's week. These statements bind EIGHTEEN and TWENTY parameters
+ * respectively — workspace ids, dates, instants and limits — whatever the week
+ * holds. Both numbers are asserted, not asserted about.
  *
  * ── The three arms of the candidate set ─────────────────────────────────────
  *   1. **Planned into the period now.** `task_details.scheduled_date` inside the
@@ -27,12 +28,31 @@
  *   2. **Touched inside the period.** Any plan movement, completion or reopen
  *      whose instant falls in `[startInstant, endInstant)`. Bounded by the
  *      period itself, and served by `activities_workspace_occurred_idx`.
- *   3. **Withdrawn after the period.** A planning event AFTER the period whose
- *      `previous` day is inside it — the arm that stops a Task the owner
+ *   3. **Withdrawn after the period.** A plan movement AFTER the period whose
+ *      `before` day is inside it — the arm that stops a Task the owner
  *      committed to on Wednesday and re-planned the following Monday from
  *      vanishing out of the week it was committed to. Empty by construction for
  *      a period that has not closed, and served by
- *      `activities_workspace_type_occurred_idx`.
+ *      `activities_workspace_occurred_idx`.
+ *
+ * ── Reaching PAST the period, in both directions ────────────────────────────
+ * Arm 3 makes the Task a candidate; the event statement then has to fetch enough
+ * of the movement for the derivation to judge it, and that reach is symmetric
+ * where the arm is not. A plan can also be moved INTO a period that has already
+ * closed — the owner backdates a Task onto a Wednesday the week already spent —
+ * and then `task_details.scheduled_date` reads as a day inside the period while
+ * nothing inside the period ever happened. Arm 1 holds that Task as a candidate
+ * either way, so the ONLY thing that keeps the account honest is fetching the
+ * post-period movement that put it there: with the movement in hand the plan at
+ * the period's open resolves to what it replaced (a day in June), the Task falls
+ * out of the account, and the week is not credited with work committed to it in
+ * hindsight. Without it the derivation would have no event to read and would
+ * fall back to the current date — the one inference [ADR-110] forbids.
+ *
+ * So the post-period branch matches a movement whose `before` OR whose `after`
+ * lands in the period, in either recorded shape. Both are bounded by the
+ * period's own days, and neither widens what a period that is still running
+ * reads: for an open period there is nothing after it yet.
  *
  * ── Which stored events carry a plan change ─────────────────────────────────
  * `task.planned`, `task.rescheduled` and `task.plan_cleared` are the domain
@@ -155,10 +175,9 @@ const CANDIDATE_CTE = `WITH candidate AS (
       ON ae.workspace_id = s.workspace_id AND ae.id = s.entity_id
          AND ae.type = '${TASK}' AND ae.deleted_at IS NULL
     WHERE a.workspace_id = ?
-      AND a.type IN ('${TASK_PLANNED}', '${TASK_RESCHEDULED}', '${TASK_PLAN_CLEARED}')
       AND a.occurred_at >= ?
-      AND json_extract(a.payload_json, '$.previous') >= ?
-      AND json_extract(a.payload_json, '$.previous') <= ?
+      AND ${IS_PLAN_EVENT}
+      AND ${PLAN_BEFORE} >= ? AND ${PLAN_BEFORE} <= ?
   ),
   windowed AS (
     SELECT task_id FROM candidate ORDER BY task_id LIMIT ?
@@ -306,9 +325,11 @@ export class D1ActivityWindowRepository implements ActivityWindowRepository {
                )
                OR (
                  a.occurred_at >= ?
-                 AND a.type IN ('${TASK_PLANNED}', '${TASK_RESCHEDULED}', '${TASK_PLAN_CLEARED}')
-                 AND json_extract(a.payload_json, '$.previous') >= ?
-                 AND json_extract(a.payload_json, '$.previous') <= ?
+                 AND ${IS_PLAN_EVENT}
+                 AND (
+                   (${PLAN_BEFORE} >= ? AND ${PLAN_BEFORE} <= ?)
+                   OR (${PLAN_AFTER} >= ? AND ${PLAN_AFTER} <= ?)
+                 )
                )
              )
            ORDER BY a.occurred_at ASC, a.id ASC
@@ -320,6 +341,8 @@ export class D1ActivityWindowRepository implements ActivityWindowRepository {
           window.startInstantIso,
           window.endInstantIso,
           window.endInstantIso,
+          window.periodStart,
+          window.periodEnd,
           window.periodStart,
           window.periodEnd,
           eventLimit + 1,

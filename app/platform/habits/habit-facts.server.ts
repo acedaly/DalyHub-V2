@@ -24,6 +24,7 @@
 
 import {
   HABIT_RECENT_WINDOW_DAYS,
+  MAX_HABIT_CONSISTENCY_WEEKS,
   evaluateHabitConsistency,
   evaluateHabitWeek,
   habitScheduleShortLabel,
@@ -419,20 +420,34 @@ export async function readHabitPeriodConsistency(
   const page = await scope.habits.list({ status: "active", limit });
   const clampedTo =
     input.toIso > calendar.todayIso ? calendar.todayIso : input.toIso;
+  /*
+   * A Review period is whatever two dates the owner picked, and
+   * `evaluateHabitConsistency` walks a fixed number of owner-calendar weeks. Ask
+   * it for more and it stops — dropping the LATEST weeks, which are the ones the
+   * Review is most about. So the window is clamped here instead, forward from
+   * the end, and the reading says where it really starts. A partial total that
+   * names its own window is a fact; one that silently omits last month is not.
+   */
+  const earliestSupported = addPlanningDays(
+    habitWeek(clampedTo, calendar.firstDayOfWeek).startIso,
+    -(MAX_HABIT_CONSISTENCY_WEEKS - 1) * 7,
+  );
+  const truncated = input.fromIso < earliestSupported;
+  const fromIso = truncated ? earliestSupported : input.fromIso;
   const empty: HabitPeriodConsistency = {
-    fromIso: input.fromIso,
+    fromIso,
     toIso: clampedTo,
     expected: 0,
     completed: 0,
     habitsCounted: 0,
-    bounded: page.hasMore,
+    bounded: page.hasMore || truncated,
     available: true,
   };
-  if (page.items.length === 0 || clampedTo < input.fromIso) return empty;
+  if (page.items.length === 0 || clampedTo < fromIso) return empty;
 
   const completions = await scope.habits.listCompletionsInRange({
     habitIds: page.items.map((habit) => habit.id),
-    fromIso: input.fromIso,
+    fromIso,
     toIso: clampedTo,
   });
   const byHabit = completionsByHabit(completions);
@@ -444,7 +459,7 @@ export async function readHabitPeriodConsistency(
     const reading = evaluateHabitConsistency(
       habitFactsFor(habit, byHabit.get(habit.id) ?? new Set()),
       calendar,
-      input.fromIso,
+      fromIso,
       clampedTo,
     );
     if (reading.expected === 0) continue;

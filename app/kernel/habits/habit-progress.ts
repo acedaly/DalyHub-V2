@@ -150,7 +150,22 @@ export interface HabitConsistency {
  * `toIso` is the period's last day CLAMPED to the owner's today, so a Review
  * opened mid-period never describes a day that has not happened as expected.
  */
+/**
+ * How many owner-calendar weeks one consistency reading walks, at most.
+ *
+ * Every HABITS-01 caller asks for four, so the stop was only ever a loop guard.
+ * FOLLOW-01 gave the evaluator a caller whose window is the OWNER'S — a custom
+ * Review period is whatever two dates they picked — so the guard became a number
+ * a caller has to be able to see, rather than a silent truncation of the answer.
+ */
+export const MAX_HABIT_CONSISTENCY_WEEKS = 60;
+
 export interface HabitPeriodConsistency {
+  /**
+   * The first day the reading actually covers, which is the period's own first
+   * day unless the period is longer than the evaluator walks. When those differ
+   * `bounded` is true and this says where the count really starts.
+   */
   readonly fromIso: string;
   /** The period's last day, or the owner's today when that is earlier. */
   readonly toIso: string;
@@ -158,7 +173,12 @@ export interface HabitPeriodConsistency {
   readonly completed: number;
   /** How many active Habits contributed an expectation. Never "all of them". */
   readonly habitsCounted: number;
-  /** True when the workspace holds more active Habits than the read's bound. */
+  /**
+   * True when the reading does not cover everything it was asked for: the
+   * workspace holds more active Habits than the read's bound, or the period is
+   * longer than `MAX_HABIT_CONSISTENCY_WEEKS`. Either way the totals are a
+   * floor, and the surface has to say so rather than print them as the whole.
+   */
   readonly bounded: boolean;
   /** False when the read failed. The surface says so; it never shows zero. */
   readonly available: boolean;
@@ -403,7 +423,10 @@ export function evaluateHabitConsistency(
   let cursor = habitWeek(fromIso, context.firstDayOfWeek).startIso;
   // Bounded by construction: one iteration per owner-calendar week in a window
   // the caller already bounds (28 days by default), with a hard stop either way.
-  for (let index = 0; index < 60; index += 1) {
+  // A caller whose window can be longer than the stop must say so itself —
+  // `MAX_HABIT_CONSISTENCY_WEEKS` is exported for exactly that, because a total
+  // silently missing its last weeks is worse than one that admits its bound.
+  for (let index = 0; index < MAX_HABIT_CONSISTENCY_WEEKS; index += 1) {
     const week = habitWeek(cursor, context.firstDayOfWeek);
     if (week.startIso > upperBound) break;
     const version = weekScheduleVersion(facts.versions, week, context.todayIso);

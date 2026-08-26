@@ -118,6 +118,29 @@ function sha256(path: string): string {
 const gpgAvailable =
   spawnSync("gpg", ["--version"], { encoding: "utf8" }).status === 0;
 
+/**
+ * Every test below FORKS: a Node process running the deploy script, which in
+ * turn runs `gpg` and, for the two `rehearse` journeys, `sqlite3`. That is up to
+ * three process starts and a real encrypt/decrypt per assertion, and each was
+ * inheriting Vitest's default 5 s — a budget nobody chose, sized for a test
+ * that does arithmetic.
+ *
+ * MEASURED on this tree, in a 461-file / 6555-test run of the WHOLE unit suite
+ * with the worker pool saturated: the heaviest of these (`refuses a dump no
+ * database will load`, which decrypts and then hands the bytes to sqlite3) does
+ * **1.17 s** of real work, and the entire file does 4.4 s. On a shared CI runner
+ * with a fraction of the cores, the two `rehearse` journeys crossed 5 s and were
+ * cut off mid-subprocess.
+ *
+ * This is a STATED measurement, not timeout inflation to bury a defect. Nothing
+ * is weakened: every assertion is unchanged, `it.runIf` still refuses to pretend
+ * gpg exists when it does not, and a real regression — a non-zero exit, a dump
+ * no database will load, a plaintext that survives — still fails in under two
+ * seconds. What changes is only that losing a race for a CPU stops reading as a
+ * broken backup.
+ */
+const FORKS_MS = 30_000;
+
 describe("AUDIT-11 encrypted production backup", () => {
   let dir: string;
   let dump: string;
@@ -261,31 +284,36 @@ describe("AUDIT-11 encrypted production backup", () => {
       expect(readFileSync(recovered, "utf8")).toContain(SENSITIVE_EMAIL);
       expect(run(["validate", "--in", recovered]).status).toBe(0);
     },
+    FORKS_MS,
   );
 
-  it.runIf(gpgAvailable)("cannot be decrypted with the wrong key", () => {
-    const wrong = join(dir, "wrong-key.txt");
-    writeFileSync(wrong, "not-the-key");
-    const out = join(dir, "should-not-exist.sql");
-    const attempt = spawnSync(
-      "gpg",
-      [
-        "--batch",
-        "--yes",
-        "--no-tty",
-        "--pinentry-mode",
-        "loopback",
-        "--passphrase-file",
-        wrong,
-        "--output",
-        out,
-        "--decrypt",
-        encrypted,
-      ],
-      { encoding: "utf8" },
-    );
-    expect(attempt.status).not.toBe(0);
-  });
+  it.runIf(gpgAvailable)(
+    "cannot be decrypted with the wrong key",
+    () => {
+      const wrong = join(dir, "wrong-key.txt");
+      writeFileSync(wrong, "not-the-key");
+      const out = join(dir, "should-not-exist.sql");
+      const attempt = spawnSync(
+        "gpg",
+        [
+          "--batch",
+          "--yes",
+          "--no-tty",
+          "--pinentry-mode",
+          "loopback",
+          "--passphrase-file",
+          wrong,
+          "--output",
+          out,
+          "--decrypt",
+          encrypted,
+        ],
+        { encoding: "utf8" },
+      );
+      expect(attempt.status).not.toBe(0);
+    },
+    FORKS_MS,
+  );
 
   it.runIf(gpgAvailable)(
     "restores the decrypted dump into a real database and reads rows back",
@@ -317,6 +345,7 @@ describe("AUDIT-11 encrypted production backup", () => {
       >;
       expect(countersigned.rehearsed).toBe(true);
     },
+    FORKS_MS,
   );
 
   it.runIf(gpgAvailable)(
@@ -354,41 +383,48 @@ describe("AUDIT-11 encrypted production backup", () => {
       expect(rehearsed.status).not.toBe(0);
       expect(rehearsed.stderr).toContain("holds no entities");
     },
+    FORKS_MS,
   );
 
-  it.runIf(gpgAvailable)("refuses a dump no database will load", () => {
-    // Structurally plausible — every required CREATE TABLE, a terminated last
-    // statement — and syntactically impossible. `validate` is deliberately not
-    // a SQL parser, so this is exactly the class of corruption only a real
-    // load catches.
-    const broken = join(dir, "broken.sql");
-    const brokenEncrypted = join(dir, "broken.sql.gpg");
-    writeFileSync(
-      broken,
-      `${makeDump()}\nINSERT INTO entities VALUES('x','y' MISSING PAREN;\n`,
-    );
-    expect(run(["validate", "--in", broken]).status).toBe(0);
-    expect(
-      run([
-        "encrypt",
-        "--in",
+  it.runIf(gpgAvailable)(
+    "refuses a dump no database will load",
+    () => {
+      // Structurally plausible — every required CREATE TABLE, a terminated last
+      // statement — and syntactically impossible. `validate` is deliberately not
+      // a SQL parser, so this is exactly the class of corruption only a real
+      // load catches.
+      const broken = join(dir, "broken.sql");
+      const brokenEncrypted = join(dir, "broken.sql.gpg");
+      writeFileSync(
         broken,
-        "--out",
+        `${makeDump()}\nINSERT INTO entities VALUES('x','y' MISSING PAREN;\n`,
+      );
+      expect(run(["validate", "--in", broken]).status).toBe(0);
+      expect(
+        run([
+          "encrypt",
+          "--in",
+          broken,
+          "--out",
+          brokenEncrypted,
+          "--passphrase-file",
+          key,
+        ]).status,
+      ).toBe(0);
+      const rehearsed = run([
+        "rehearse",
+        "--encrypted",
         brokenEncrypted,
         "--passphrase-file",
         key,
-      ]).status,
-    ).toBe(0);
-    const rehearsed = run([
-      "rehearse",
-      "--encrypted",
-      brokenEncrypted,
-      "--passphrase-file",
-      key,
-    ]);
-    expect(rehearsed.status).not.toBe(0);
-    expect(rehearsed.stderr).toContain("could not be restored into a database");
-  });
+      ]);
+      expect(rehearsed.status).not.toBe(0);
+      expect(rehearsed.stderr).toContain(
+        "could not be restored into a database",
+      );
+    },
+    FORKS_MS,
+  );
 
   it.runIf(gpgAvailable)(
     "will not publish a recovery claim without a receipt for THIS artifact",
@@ -433,6 +469,7 @@ describe("AUDIT-11 encrypted production backup", () => {
       expect(wrongArtifact.stderr).toContain("does not describe this artifact");
       expect(existsSync(metadata)).toBe(false);
     },
+    FORKS_MS,
   );
 
   it.runIf(gpgAvailable)(
@@ -486,6 +523,7 @@ describe("AUDIT-11 encrypted production backup", () => {
       expect(refused.status).not.toBe(0);
       expect(refused.stderr).toContain("Refusing to write a metadata field");
     },
+    FORKS_MS,
   );
 
   it.runIf(gpgAvailable)(
@@ -518,6 +556,7 @@ describe("AUDIT-11 encrypted production backup", () => {
       ]);
       expect(rehearsed.status).not.toBe(0);
     },
+    FORKS_MS,
   );
 
   it("is available in this environment", () => {

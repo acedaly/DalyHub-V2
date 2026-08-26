@@ -58,6 +58,7 @@ export {
 
 export {
   HABIT_RECENT_WINDOW_DAYS,
+  MAX_HABIT_CONSISTENCY_WEEKS,
   UNAVAILABLE_HABIT_PERIOD_CONSISTENCY,
   buildHabitHistory,
   evaluateHabitConsistency,

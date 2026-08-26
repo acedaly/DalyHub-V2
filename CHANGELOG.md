@@ -48,7 +48,9 @@
 
   None of this is stored anywhere new. It is worked out from the history DalyHub
   already keeps every time you look, which is why it is right the moment you
-  reopen a task, delete one, or change your mind.
+  reopen a task, delete one, or change your mind. It also means hindsight cannot
+  rewrite a week: move a task onto a Wednesday that has already been and gone,
+  and that week's account does not pretend it was ever planned for it.
 
 - Made a task row stop saying things that were not true. Weekly planning's "still
   to place" list drew **two tick boxes on every row**, eight pixels apart, and

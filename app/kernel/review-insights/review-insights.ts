@@ -1112,15 +1112,30 @@ function buildHabitConsistency(input: ResolvedInput): Insight | null {
   }
   if (habits.expected === 0) return null;
   const missed = habits.expected - habits.completed;
+  /*
+   * The read is bounded when the workspace holds more active Habits than it
+   * reads, or when the period is longer than one consistency reading walks.
+   * Either way these two integers are a FLOOR, not the period's whole, and a
+   * floor printed as a total is the quiet kind of wrong: nothing on the surface
+   * would ever look off. So the sentence says it, and the measure stops
+   * claiming to be exact.
+   */
+  const partial = habits.bounded
+    ? ` Read under a limit and counted from ${habits.fromIso}, so this is at least that many, not necessarily all of them.`
+    : "";
   return {
     id: "habits.consistency",
     tone: habits.completed >= habits.expected ? "success" : "info",
     label: `${habits.completed} of ${habits.expected} scheduled check-ins`,
     reason:
-      missed === 0
+      (missed === 0
         ? `Every check-in ${plural(habits.habitsCounted, "routine", "routines")} asked for this period happened.`
-        : `Across ${plural(habits.habitsCounted, "routine", "routines")}. ${plural(missed, "scheduled day", "scheduled days")} passed without one — days a routine did not ask for are not counted.`,
-    measure: { value: habits.completed, exactness: "exact" },
+        : `Across ${plural(habits.habitsCounted, "routine", "routines")}. ${plural(missed, "scheduled day", "scheduled days")} passed without one — days a routine did not ask for are not counted.`) +
+      partial,
+    measure: {
+      value: habits.completed,
+      exactness: habits.bounded ? "bounded" : "exact",
+    },
     links: [{ label: "Open Habits", to: "/habits" }],
     entityIds: [],
   };
