@@ -16,6 +16,7 @@ import type {
   ActivityRepository,
   WorkspaceEventRecorder,
 } from "~/kernel/activity";
+import type { ActivityWindowRepository } from "~/kernel/activity-window";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type {
   CalendarSourceRepository,
@@ -100,6 +101,7 @@ import {
 } from "./d1-notification-settings-repository";
 import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1CrossViewQueryRepository } from "./d1-cross-view-query-repository";
+import { D1ActivityWindowRepository } from "./d1-activity-window-repository";
 import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
 import {
   D1AppPreferencesRepository,
@@ -208,6 +210,7 @@ export {
 };
 export { D1ActivityRepository };
 export { D1AlignmentRepository };
+export { D1ActivityWindowRepository };
 export { D1ReviewInsightRepository };
 export { D1AppPreferencesRepository, type D1AppPreferencesRepositoryOptions };
 export { D1AreaRepository };
@@ -652,6 +655,20 @@ export function createReviewInsightRepository(
   context: WorkspaceContext,
 ): ReviewInsightRepository {
   return new D1ReviewInsightRepository(db, context);
+}
+
+/**
+ * Factory for FOLLOW-01's bounded Activity-window repository, bound to a
+ * `WorkspaceContext`. It owns no storage of its own: every read is over the
+ * append-only Activity stream, the Task's canonical `scheduled_date` and the
+ * spine's completion instant, in a fixed number of statements whatever the
+ * period holds ([ADR-110]).
+ */
+export function createActivityWindowRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): ActivityWindowRepository {
+  return new D1ActivityWindowRepository(db, context);
 }
 
 /**

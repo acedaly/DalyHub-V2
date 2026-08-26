@@ -31,7 +31,11 @@ import {
   composeGoalAlignmentFacts,
   evaluateGoalAlignment,
 } from "~/kernel/alignment";
-import { formatPreferenceDate } from "~/kernel/preferences";
+import {
+  DEFAULT_APP_PREFERENCES,
+  formatPreferenceDate,
+  type FirstDayOfWeek,
+} from "~/kernel/preferences";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import type { Review } from "~/kernel/reviews";
 import {
@@ -52,12 +56,20 @@ import {
   type ReviewPeriodWindow,
   type ReviewProjectStateFact,
 } from "~/kernel/review-insights";
+import {
+  UNAVAILABLE_HABIT_PERIOD_CONSISTENCY,
+  type HabitPeriodConsistency,
+} from "~/kernel/habits";
 import { InvalidSpineCursorError } from "~/kernel/spine";
+import {
+  readPeriodPlanAccount,
+  ownerPeriodWindow,
+} from "~/platform/activity-window/plan-account.server";
+import { readHabitPeriodConsistency } from "~/platform/habits/habit-facts.server";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
-import { ownerCalendarIso, ownerLocalToUtc } from "~/shared/datetime";
+import { ownerCalendarIso } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
-import { addCalendarDays } from "~/kernel/datetime";
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
@@ -87,6 +99,16 @@ export const REVIEW_INSIGHT_LIMITS = {
   trendPeriods: 5,
   /** Completed Reviews scanned to find the recent ones for the trend. */
   priorReviewScan: 12,
+  /**
+   * FOLLOW-01 — Tasks the period's PLAN ACCOUNT describes.
+   *
+   * The kernel's own ceiling, and a ceiling rather than an expectation: past it
+   * the account reports `bounded` and the surface says so in words, exactly as
+   * every other bounded reading on this page does.
+   */
+  planAccountTasks: 100,
+  /** Active Habits the period's consistency reading covers (HABITS-01's bound). */
+  habits: 60,
 } as const;
 
 /**
@@ -99,12 +121,28 @@ export const REVIEW_INSIGHT_LIMITS = {
  * statement) + 1 contribution breakdown (read once and shared by Projects,
  * Goals and Areas) + 1 previous snapshot + 2 Project pages + 3 Project health
  * facts + 1 carry-over page + 1 carry-over count + 1 Goal page + 1 Goal
- * contributions + 1 Goal alignment facts + 1 Area page = 14.
+ * contributions + 1 Goal alignment facts + 1 Area page = 14, plus FOLLOW-01's
+ * 2 (the bounded Activity window: one statement for the period's Task set, one
+ * for its plan history) and DEBT-156's 1 (the active-Habit page) = **17**.
  *
  * Flat with respect to workspace size and to how many past Reviews exist, both
  * asserted separately.
  */
-export const REVIEW_INSIGHTS_QUERY_BUDGET = 14;
+export const REVIEW_INSIGHTS_QUERY_BUDGET = 17;
+
+/**
+ * The same load in a workspace that actually practises a routine: TWO more
+ * statements, and both are HABITS-01's existing shape rather than anything this
+ * feature added — the schedule-version read for the whole Habit page, and the
+ * completion window for the whole page's ids. Neither is per-Habit.
+ *
+ * It is stated as its own number rather than folded into the one above because
+ * the difference is real and a single figure would be wrong in one of the two
+ * cases: every Habit read in the product short-circuits on an empty page, since
+ * binding a version or completion window to no ids is a query that cannot return
+ * anything. The budget reports that rather than hiding it.
+ */
+export const REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS = 19;
 
 /* -------------------------------------------------------------------------- */
 /* Input                                                                       */
@@ -115,6 +153,17 @@ export interface ReviewInsightsContextInput {
   readonly now: Date;
   readonly timezone: string;
   readonly todayIso: string;
+  /**
+   * DEBT-156 — the owner's week start, for the Habit consistency reading only.
+   * It is passed in rather than read here because every caller has already
+   * resolved the owner's preferences, and this projection's asserted query
+   * budget does not get to grow by a preference lookup.
+   *
+   * Optional, and its absence is not a default masquerading as a preference:
+   * `DEFAULT_APP_PREFERENCES.firstDayOfWeek` is the same value the rest of the
+   * product falls back to when no preference has been expressed.
+   */
+  readonly firstDayOfWeek?: FirstDayOfWeek;
   /** Formats a wall-calendar date for display, using the owner's preference. */
   readonly formatDate: (iso: string) => string;
 }
@@ -127,37 +176,29 @@ export interface ReviewInsightsContextInput {
  * Turn a Review's wall-calendar period into the half-open UTC instant range the
  * Activity stream is queried with.
  *
- * The conversion happens HERE, once, using the owner's timezone — never in SQL
- * and never in the evaluator. The upper bound is the owner's local midnight
- * that STARTS the day after `periodEnd`, so a Task completed at 11pm on the
- * last day of the period is inside it and one completed a minute later is not.
- * A timezone that cannot resolve a local midnight (the hour a DST jump skips)
- * falls back to the plain UTC interpretation rather than dropping the period.
+ * The conversion happens once, in the module layer, using the owner's timezone —
+ * never in SQL and never in the evaluator. The upper bound is the owner's local
+ * midnight that STARTS the day after `periodEnd`, so a Task completed at 11pm on
+ * the last day of the period is inside it and one completed a minute later is
+ * not.
+ *
+ * **FOLLOW-01 made this a thin alias of the shared builder.** The boundary
+ * convention now has ONE implementation (`ownerPeriodWindow`), shared with
+ * Weekly Planning's account of the same week and with FOLLOW-02's Goal movement,
+ * so three surfaces cannot drift on which side of midnight a Sunday-night
+ * completion falls. Two things changed with the move, and both are improvements
+ * the Review inherits: local midnight now resolves through `ownerDayStartInstant`,
+ * which walks forward to the first hour that EXISTS in a zone whose DST
+ * transition skips midnight rather than degrading to UTC; and the name survives,
+ * so every existing caller and test reads unchanged.
  */
 export function reviewPeriodWindow(
   periodStart: string,
   periodEnd: string,
   timezone: string,
 ): ReviewPeriodWindow {
-  const start = ownerLocalToUtc(`${periodStart}T00:00`, timezone);
-  const dayAfterEnd = addCalendarDays(periodEnd, 1);
-  const end = ownerLocalToUtc(`${dayAfterEnd}T00:00`, timezone);
-  return {
-    periodStart,
-    periodEnd,
-    startInstantIso: (
-      start ?? new Date(`${periodStart}T00:00:00.000Z`)
-    ).toISOString(),
-    endInstantIso: (
-      end ?? new Date(`${dayAfterEnd}T00:00:00.000Z`)
-    ).toISOString(),
-  };
+  return ownerPeriodWindow(periodStart, periodEnd, timezone);
 }
-
-/*
- * DEBT-52 — the kernel's ONE calendar-day implementation. This module carried a
- * third `addCalendarDays`, beside `~/kernel/reviews`'s own and the kernel's.
- */
 
 function inPeriod(iso: string, start: string, end: string): boolean {
   return iso >= start && iso <= end;
@@ -200,11 +241,33 @@ export async function loadReviewInsights(
    * need "how much completed work landed here", and asking the same grouped
    * question three times would be an N+1 in disguise.
    */
-  const [series, contributions, previousSnapshot] = await Promise.all([
-    readSeries(scope, input, window, priorReviews),
-    readContributions(scope, window),
-    readPreviousSnapshot(scope, priorReviews),
-  ]);
+  const [series, contributions, previousSnapshot, planAccountRead, habits] =
+    await Promise.all([
+      readSeries(scope, input, window, priorReviews),
+      readContributions(scope, window),
+      readPreviousSnapshot(scope, priorReviews),
+      /*
+       * FOLLOW-01 — what became of the work this period's PLAN held, from the same
+       * shared bounded Activity-window authority `/plan` reads. Two statements,
+       * flat with respect to the period's size, and nothing stored: the Review's
+       * versioned insight snapshot remains the only period artefact this feature
+       * persists, and this is not in it ([ADR-110] decision 3).
+       */
+      readPeriodPlanAccount(scope, {
+        periodStart: review.periodStart,
+        periodEnd: review.periodEnd,
+        timezone,
+        todayIso: input.todayIso,
+        limits: { tasks: REVIEW_INSIGHT_LIMITS.planAccountTasks },
+      }),
+      /*
+       * DEBT-156 — routine consistency for the same period, from HABITS-01's own
+       * `evaluateHabitConsistency`. Not a second Habit metric and not a score: two
+       * integers with the window they cover, which is what that entry asked for
+       * and what ADR-102 §8 requires.
+       */
+      readPeriodHabits(scope, input),
+    ]);
 
   const currentPoint = series.find((point) => point.key === "current") ?? null;
   const history: ReviewInsightFacts["history"] = {
@@ -225,7 +288,13 @@ export async function loadReviewInsights(
     contributions.rows,
   );
 
-  const facts: ReviewInsightFacts = { window, history, state };
+  const facts: ReviewInsightFacts = {
+    window,
+    history,
+    state,
+    planAccount: planAccountRead.account,
+    habits,
+  };
   const periodLabel = `${input.formatDate(review.periodStart)} – ${input.formatDate(review.periodEnd)}`;
 
   const seriesLabels: Record<string, string> = { current: periodLabel };
@@ -258,6 +327,10 @@ export async function loadReviewInsights(
     seriesLabels,
     seriesShortLabels,
     currentSeriesKey: "current",
+    // FOLLOW-01 — the owner's own date format, for the plan account's per-Task
+    // reasons. The evaluator formats no date itself; it is handed this the same
+    // way it is handed every other label.
+    formatDay: input.formatDate,
   });
 
   return { insights, facts };
@@ -651,6 +724,35 @@ async function readSeries(
   }
 }
 
+/**
+ * DEBT-156 — the period's Habit consistency, or an honest "not available".
+ *
+ * It fails soft on its own, like every other supporting read on this page: a
+ * Habits outage narrows what the Review SAYS and never stops it opening.
+ */
+async function readPeriodHabits(
+  scope: WorkspaceScope,
+  input: ReviewInsightsContextInput,
+): Promise<HabitPeriodConsistency> {
+  try {
+    return await readHabitPeriodConsistency(
+      scope,
+      {
+        todayIso: input.todayIso,
+        firstDayOfWeek:
+          input.firstDayOfWeek ?? DEFAULT_APP_PREFERENCES.firstDayOfWeek,
+      },
+      {
+        fromIso: input.review.periodStart,
+        toIso: input.review.periodEnd,
+        limit: REVIEW_INSIGHT_LIMITS.habits,
+      },
+    );
+  } catch {
+    return UNAVAILABLE_HABIT_PERIOD_CONSISTENCY;
+  }
+}
+
 async function readPreviousSnapshot(
   scope: WorkspaceScope,
   priorReviews: readonly PriorReview[],
@@ -728,6 +830,7 @@ export async function captureSnapshotForCompletedReview(
       now,
       timezone: preferences.timezone,
       todayIso: ownerCalendarIso(now, preferences.timezone),
+      firstDayOfWeek: preferences.firstDayOfWeek,
       formatDate: (iso: string) =>
         formatPreferenceDate(iso, preferences.dateFormat),
     });

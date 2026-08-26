@@ -25,6 +25,7 @@ import {
 } from "~/kernel/review-insights";
 import {
   REVIEW_INSIGHTS_QUERY_BUDGET,
+  REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS,
   captureReviewInsightSnapshot,
   loadReviewInsights,
   reviewPeriodWindow,
@@ -35,6 +36,7 @@ import type { Review } from "~/kernel/reviews";
 
 import {
   makeContext,
+  makeHabitRepository,
   makeReviewInsightRepository,
   makeReviewRepository,
   makeSpineRepository,
@@ -921,6 +923,146 @@ describe("the evidence projection", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* FOLLOW-01 — the period's plan account, and DEBT-156's routines               */
+/* -------------------------------------------------------------------------- */
+
+describe("the period's plan account", () => {
+  /** Plan/complete through the CANONICAL path at a specific instant. */
+  function tasksAt(instantIso: string, ws = WS) {
+    return makeTaskRepository(makeContext(ws), {
+      clock: new FakeClock(instantIso).now,
+    });
+  }
+
+  /** Owner-local 12:00 on a day in this period (Brisbane is UTC+10). */
+  function noon(dayIso: string): string {
+    return `${dayIso}T02:00:00.000Z`;
+  }
+
+  it("accounts for the week the Review covers, from the same derivation `/plan` reads", async () => {
+    const before = tasksAt("2026-07-24T02:00:00.000Z");
+    const kept = await before.createTask({ title: "Kept" });
+    const late = await before.createTask({ title: "Late" });
+    const moved = await before.createTask({ title: "Moved" });
+    await before.planTask(kept.id, { scheduledDate: "2026-07-27" });
+    await before.planTask(late.id, { scheduledDate: "2026-07-27" });
+    await before.planTask(moved.id, { scheduledDate: "2026-07-28" });
+
+    await tasksAt(noon("2026-07-27")).completeTask(kept.id);
+    await tasksAt(noon("2026-07-30")).completeTask(late.id);
+    await tasksAt(noon("2026-07-29")).planTask(moved.id, {
+      scheduledDate: "2026-07-31",
+    });
+
+    const review = await weeklyReview();
+    const { insights, facts } = await loadReviewInsights(
+      scopeFor(),
+      insightInput(review),
+    );
+
+    expect(facts.planAccount.available).toBe(true);
+    expect(facts.planAccount.counts).toMatchObject({
+      planned: 3,
+      kept: 1,
+      completedLate: 1,
+      carried: 1,
+      reschedules: 1,
+      rescheduled: 1,
+    });
+
+    const account = insights.planAccount;
+    expect(account).not.toBeNull();
+    expect(account?.headline).toContain("held 3 Tasks");
+    expect(account?.movement).toContain("moved to another day");
+    // Every count is drillable: each named Task links to its own record.
+    expect(account?.entries.map((entry) => entry.taskId).sort()).toEqual(
+      [kept.id, late.id, moved.id].sort(),
+    );
+    for (const entry of account?.entries ?? []) {
+      expect(entry.link.to).toBe(`/tasks?task=${entry.taskId}`);
+    }
+  });
+
+  it("says nothing at all about a period whose plan held nothing", async () => {
+    const review = await weeklyReview();
+    const { insights } = await loadReviewInsights(
+      scopeFor(),
+      insightInput(review),
+    );
+    expect(insights.planAccount).toBeNull();
+  });
+
+  it("is NOT carried into the stored snapshot", async () => {
+    /*
+     * [ADR-110] decision 3: REVIEW-03's versioned insight snapshot stays the ONLY
+     * stored period artefact, and the plan account is always re-derivable, so
+     * storing it would be the second copy this programme refuses.
+     */
+    const before = tasksAt("2026-07-24T02:00:00.000Z");
+    const task = await before.createTask({ title: "Planned" });
+    await before.planTask(task.id, { scheduledDate: "2026-07-29" });
+
+    const review = await weeklyReview();
+    expect(
+      await captureReviewInsightSnapshot(scopeFor(), insightInput(review)),
+    ).toBe(true);
+    const stored = await scopeFor().reviewInsights.getSnapshot(review.id);
+    const text = JSON.stringify(stored?.snapshot ?? {});
+    expect(text).not.toContain("planAccount");
+    expect(text).not.toContain("outcome");
+    expect(text).not.toContain(task.id);
+  });
+
+  it("states routine consistency for the period, with its denominator", async () => {
+    /*
+     * The schedule's first version is effective from the owner's day AT
+     * CREATION, so the Habit is created with a clock BEFORE the period and
+     * checked in with one after it — a check-in may not be in the future.
+     */
+    const habit = await makeHabitRepository(makeContext(WS), {
+      clock: new FakeClock("2026-07-01T02:00:00.000Z").now,
+      idGenerator: sequentialIds("hab"),
+    }).create({
+      title: "Morning walk",
+      // Monday / Wednesday / Friday. The period is Mon 27 Jul – Sun 2 Aug, so it
+      // asks for exactly three check-ins.
+      schedule: { kind: "weekdays", weekdays: [1, 3, 5] },
+    });
+    const habits = makeHabitRepository(makeContext(WS), {
+      clock: new FakeClock(NOW.toISOString()).now,
+    });
+    await habits.checkIn(habit.id, "2026-07-27");
+    await habits.checkIn(habit.id, "2026-07-29");
+
+    const review = await weeklyReview();
+    const { insights, facts } = await loadReviewInsights(scopeFor(), {
+      ...insightInput(review),
+      firstDayOfWeek: "monday",
+    });
+
+    expect(facts.habits).toMatchObject({
+      expected: 3,
+      completed: 2,
+      habitsCounted: 1,
+      available: true,
+    });
+    expect(insights.habits?.label).toBe("2 of 3 scheduled check-ins");
+    // No percentage, ever. ADR-102 §8 / ADR-110 decision 4.
+    expect(insights.habits?.label).not.toContain("%");
+    expect(insights.habits?.reason).not.toContain("%");
+  });
+
+  it("says NOTHING about routines when the period asked for none", async () => {
+    const review = await weeklyReview();
+    const { insights } = await loadReviewInsights(
+      scopeFor(),
+      insightInput(review),
+    );
+    expect(insights.habits).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Query budget                                                                */
 /* -------------------------------------------------------------------------- */
 
@@ -931,6 +1073,18 @@ describe("query bounds", () => {
     const counter: Counter = { count: 0 };
     await loadReviewInsights(scopeFor(counter), insightInput(review));
     expect(counter.count).toBe(REVIEW_INSIGHTS_QUERY_BUDGET);
+  });
+
+  it("costs TWO more statements in a workspace that practises a routine", async () => {
+    await seedCompletedWork(WS, { inPeriod: 1 });
+    await makeHabitRepository(makeContext(WS), {
+      clock: new FakeClock("2026-07-01T02:00:00.000Z").now,
+      idGenerator: sequentialIds("hab-budget"),
+    }).create({ title: "Stretch", schedule: { kind: "daily" } });
+    const review = await weeklyReview();
+    const counter: Counter = { count: 0 };
+    await loadReviewInsights(scopeFor(counter), insightInput(review));
+    expect(counter.count).toBe(REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS);
   });
 
   it("costs the same whether the workspace is small or large", async () => {

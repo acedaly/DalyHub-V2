@@ -4912,6 +4912,22 @@ export class D1TaskRepository implements TaskRepository {
    * (the Activity anchor), both dates on `task_details`, the recurrence row's
    * `series_anchor_date`, and exactly one Activity event. The non-anchor date keeps
    * its distance from the anchor, so a Monday/Friday window stays four days wide.
+   *
+   * ── FOLLOW-01: the planned day is RECORDED, whichever date the rule anchors on
+   * Both series operations move the PLANNED day — directly when the rule anchors
+   * on it, and by the same shift when the rule anchors on the due date and the
+   * occurrence also carries a planned one. Only the first was written down: the
+   * move recorded `changes.<anchorKey>` and the skip recorded the anchor's two
+   * dates under its own names, so a due-anchored routine's planned day moved with
+   * NOTHING in the Activity stream saying it had.
+   *
+   * That was a genuine information gap rather than a preference: [ADR-110] makes
+   * the stream the only historical record of a plan, and a period account
+   * reconstructed from it would have read a moved occurrence as one that never
+   * moved. The correction is the smallest one available — the event these paths
+   * ALREADY write gains the pair it was missing, under the `changes.<field>`
+   * shape `entity.updated` has always used. No new event type, no new payload
+   * key vocabulary, no schema change, and no second planning authority.
    */
   async #writeOccurrenceDates(
     move: OccurrenceMove,
@@ -4925,12 +4941,32 @@ export class D1TaskRepository implements TaskRepository {
     const scheduledDate =
       move.anchorKey === "dueDate" ? nextOtherIso : nextAnchorIso;
     const dueDate = move.anchorKey === "dueDate" ? nextAnchorIso : nextOtherIso;
+    const previousScheduled =
+      move.anchorKey === "dueDate" ? move.otherIso : move.anchorIso;
+
+    const recorded: NewActivityEvent =
+      previousScheduled === scheduledDate
+        ? event
+        : {
+            ...event,
+            payload: {
+              ...event.payload,
+              changes: {
+                ...((event.payload["changes"] as
+                  Record<string, JsonValue> | undefined) ?? {}),
+                scheduledDate: {
+                  before: previousScheduled,
+                  after: scheduledDate,
+                },
+              },
+            },
+          };
 
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
     const entityRow = await this.#runGuardedMutation(
       this.#bumpOpenTaskStatement(move.task.id, nowTs),
-      event,
+      recorded,
       [
         this.#setOccurrenceDatesStatement(
           move.task,

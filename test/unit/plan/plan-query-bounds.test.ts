@@ -89,6 +89,30 @@ describe("the planning loader's bounds", () => {
     expect(SOURCE).toContain("PLAN_LIMITS.nextActionScan");
   });
 
+  it("reads the week's ACCOUNT ONCE, for the whole week, under a named bound", () => {
+    /*
+     * FOLLOW-01. The account is a period read, not a day read and not a Task
+     * read: one call, taking the week's two boundary days, with its ceiling
+     * named as a constant like every other bound on this surface.
+     */
+    expect(SOURCE.split("readPeriodPlanAccount(").length - 1).toBe(1);
+    expect(SOURCE).toContain("periodStart: week.startIso");
+    expect(SOURCE).toContain("periodEnd: week.endIso");
+    expect(SOURCE).toContain("PLAN_LIMITS.accountTasks");
+    // And it is inside the SAME concurrent fan-out, not a second await chain.
+    const fanOut = SOURCE.slice(
+      SOURCE.indexOf("await Promise.all(["),
+      SOURCE.indexOf("The week's COMPLETED work is read separately"),
+    );
+    expect(fanOut).toContain("readPeriodPlanAccount(");
+  });
+
+  it("keeps the account's ceiling BELOW the week's own planned-Task read", () => {
+    // The board draws the week; the account describes a week that has happened.
+    // Losing a planned row would be a lie, so that read is the generous one.
+    expect(PLAN_LIMITS.accountTasks).toBeLessThan(PLAN_LIMITS.plannedTasks);
+  });
+
   it("runs its independent reads concurrently rather than as a chain", () => {
     expect(SOURCE).toContain("await Promise.all([");
   });

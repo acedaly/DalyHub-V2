@@ -30,6 +30,7 @@ import {
   habitWeek,
   type Habit,
   type HabitCalendarContext,
+  type HabitPeriodConsistency,
 } from "~/kernel/habits";
 import { addPlanningDays } from "~/kernel/planning";
 import type { WorkspaceScope } from "~/platform/workspaces";
@@ -370,6 +371,88 @@ export async function readHabitOverview(
       habits: value.habits,
     })),
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* The period reading (FOLLOW-01 / DEBT-156)                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * HABITS-01's consistency reading, summed across the active Habits, for an
+ * ARBITRARY named period — the read DEBT-156 said the Review needed and
+ * deliberately did not build.
+ *
+ * ── Why it is three lines rather than a second metric ───────────────────────
+ * DEBT-156's stated risk was the denominator: *"a Review's period is an
+ * arbitrary range, neither a week nor a fixed number of days, so a correct
+ * denominator means summing expectations across a schedule-VERSION chain over
+ * that range"*. `evaluateHabitConsistency` has ALWAYS taken `fromIso`/`toIso`
+ * and has ALWAYS summed a version chain — a day-based week contributes one
+ * expectation per scheduled day the version in force ON THAT DAY asked for, and
+ * a count-based week contributes its target only once the week is whole and
+ * elapsed. So the historically-correct denominator was already built, by the
+ * authority that owns it; what was missing was a caller. Inventing a second
+ * Habit metric here would have been the duplicate the architecture forbids.
+ *
+ * ── The two sentences it cannot say ─────────────────────────────────────────
+ * `toIso` is clamped to the owner's today by the evaluator itself, so a Review
+ * opened mid-period never counts a day that has not happened; and an unscheduled
+ * day contributes no expectation, so it can never be reported as a miss. Those
+ * are HABITS-01's two unsayable sentences, and this read inherits both rather
+ * than re-asserting them in prose.
+ *
+ * TWO bounded statements, the same pair every other Habit read makes.
+ */
+export async function readHabitPeriodConsistency(
+  scope: WorkspaceScope,
+  calendar: HabitCalendarContext,
+  input: {
+    readonly fromIso: string;
+    readonly toIso: string;
+    readonly limit?: number;
+  },
+): Promise<HabitPeriodConsistency> {
+  const limit = Math.min(
+    input.limit ?? HABIT_OVERVIEW_LIMIT,
+    HABIT_OVERVIEW_LIMIT,
+  );
+  const page = await scope.habits.list({ status: "active", limit });
+  const clampedTo =
+    input.toIso > calendar.todayIso ? calendar.todayIso : input.toIso;
+  const empty: HabitPeriodConsistency = {
+    fromIso: input.fromIso,
+    toIso: clampedTo,
+    expected: 0,
+    completed: 0,
+    habitsCounted: 0,
+    bounded: page.hasMore,
+    available: true,
+  };
+  if (page.items.length === 0 || clampedTo < input.fromIso) return empty;
+
+  const completions = await scope.habits.listCompletionsInRange({
+    habitIds: page.items.map((habit) => habit.id),
+    fromIso: input.fromIso,
+    toIso: clampedTo,
+  });
+  const byHabit = completionsByHabit(completions);
+
+  let expected = 0;
+  let completed = 0;
+  let habitsCounted = 0;
+  for (const habit of page.items) {
+    const reading = evaluateHabitConsistency(
+      habitFactsFor(habit, byHabit.get(habit.id) ?? new Set()),
+      calendar,
+      input.fromIso,
+      clampedTo,
+    );
+    if (reading.expected === 0) continue;
+    expected += reading.expected;
+    completed += reading.completed;
+    habitsCounted += 1;
+  }
+  return { ...empty, expected, completed, habitsCounted };
 }
 
 /* -------------------------------------------------------------------------- */

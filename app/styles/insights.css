@@ -165,6 +165,60 @@
 }
 
 /* -------------------------------------------------------------------------- */
+/* The period's plan account (FOLLOW-01)                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The account is a SENTENCE with its working shown, and the stylesheet's job is
+ * to keep it that way. There is no tile, no gauge, no ring and no progress bar
+ * here on purpose: [ADR-110] refuses an adherence score, and a row of big
+ * numbers reads as one whether or not a percentage is printed. The figures are
+ * a plain definition list at metadata weight, subordinate to the sentence above
+ * them, and they wrap rather than scroll at every width.
+ */
+.dh-insights__account {
+  display: grid;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+.dh-insights__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-1) var(--app-space-4);
+  margin: 0;
+  min-width: 0;
+}
+
+.dh-insights__figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-1);
+  min-width: 0;
+}
+
+.dh-insights__figure-label {
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-body-line-height);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The count reads at body weight rather than display weight. It is the same
+ * decision `plan.css` takes for the week's four figures, and it is what keeps a
+ * count of a life from looking like a score for one.
+ */
+.dh-insights__figure-value {
+  margin: 0;
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  font-weight: 600;
+  color: var(--dh-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Trends                                                                      */
 /* -------------------------------------------------------------------------- */
 

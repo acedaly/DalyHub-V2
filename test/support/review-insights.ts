@@ -7,6 +7,11 @@
  */
 
 import {
+  derivePeriodPlanAccount,
+  type PeriodPlanAccount,
+} from "~/kernel/activity-window";
+import type { HabitPeriodConsistency } from "~/kernel/habits";
+import {
   evaluateReviewInsights,
   exactMeasure,
   type CarryOverTaskFact,
@@ -103,6 +108,11 @@ export interface InsightFactsOverrides {
   readonly overdueCarryOver?: number;
   readonly waitingCarryOver?: number;
   readonly stateAvailable?: boolean;
+  /** FOLLOW-01 — the period's plan account. Empty and AVAILABLE by default, so
+   * an existing test's expectations are unchanged by its arrival. */
+  readonly planAccount?: PeriodPlanAccount;
+  /** DEBT-156 — the period's Habit consistency. Absent unless a test asks. */
+  readonly habits?: HabitPeriodConsistency;
 }
 
 export function insightFacts(
@@ -145,6 +155,24 @@ export function insightFacts(
       carryOverOverdue: exactMeasure(overrides.overdueCarryOver ?? 0),
       carryOverWaiting: exactMeasure(overrides.waitingCarryOver ?? 0),
       available: overrides.stateAvailable ?? true,
+    },
+    planAccount:
+      overrides.planAccount ??
+      derivePeriodPlanAccount({
+        window: overrides.window ?? INSIGHT_PERIOD,
+        todayIso: (overrides.window ?? INSIGHT_PERIOD).periodEnd,
+        subjects: [],
+        events: [],
+        ownerDayOf: (instantIso) => instantIso.slice(0, 10),
+      }),
+    habits: overrides.habits ?? {
+      fromIso: (overrides.window ?? INSIGHT_PERIOD).periodStart,
+      toIso: (overrides.window ?? INSIGHT_PERIOD).periodEnd,
+      expected: 0,
+      completed: 0,
+      habitsCounted: 0,
+      bounded: false,
+      available: true,
     },
   };
 }

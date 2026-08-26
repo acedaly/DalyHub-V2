@@ -13,6 +13,10 @@
  * written focus — never a second copy of any of them.
  */
 
+import type {
+  PlanAccountFact,
+  TaskPlanOutcome,
+} from "~/kernel/activity-window";
 import type { DaySchedule } from "~/kernel/calendar";
 import type { HabitWeekSummaryItem } from "~/platform/habits/habit-facts.server";
 import type {
@@ -97,6 +101,47 @@ export interface PlanGoalSignal {
   readonly title: string;
 }
 
+/**
+ * FOLLOW-01 — the account of the shown week, resolved once server-side.
+ *
+ * Weekly Planning states what the owner is committing to; this states what has
+ * become of it. Both are projections of the SAME Tasks — there is still no
+ * planning record, no plan snapshot and no adherence column ([ADR-110]) — and
+ * every word here is the shared kernel's, so `/plan` and the weekly Review
+ * cannot describe the same week differently.
+ *
+ * The screen renders these strings and derives nothing: the outcome rules, the
+ * counts and the wording all arrive already decided, which is what keeps them
+ * testable without a browser and identical in both consumers.
+ */
+export interface PlanAccountEntry {
+  readonly taskId: string;
+  readonly title: string;
+  /** The kernel's closed outcome vocabulary — a grouping key, not display text. */
+  readonly outcome: TaskPlanOutcome;
+  /** Why, in the owner's own date format: the dates the outcome was read from. */
+  readonly reason: string;
+  /** Never reduced to a boolean: "moved once" and "moved four times" differ. */
+  readonly reschedules: number;
+}
+
+export interface PlanAccount {
+  /** The one sentence the week's glance bar shows. */
+  readonly headline: string;
+  /** What moved, or null when nothing did. Never "0 changes". */
+  readonly movement: string | null;
+  /** The non-zero lines behind the headline, in the kernel's fixed order. */
+  readonly facts: readonly PlanAccountFact[];
+  /** Every accounted Task, so every figure is drillable to the records behind it. */
+  readonly entries: readonly PlanAccountEntry[];
+  /** True when this week's plan held nothing at all. One sentence, not a table. */
+  readonly empty: boolean;
+  /** False when the history read failed — the surface says so, never shows zero. */
+  readonly available: boolean;
+  /** True when the read hit its bound and the account covers less than the week. */
+  readonly bounded: boolean;
+}
+
 /** The written focus a completed weekly Review handed to this period. */
 export interface PlanPriorFocus {
   readonly reviewId: string;
@@ -157,6 +202,11 @@ export interface PlanPageData {
    * week: what does this week already ask of me?
    */
   readonly routines: readonly HabitWeekSummaryItem[];
+  /**
+   * FOLLOW-01 — what became of this week's plan, from the shared bounded
+   * Activity-window derivation the weekly Review reads too.
+   */
+  readonly account: PlanAccount;
   readonly projectSignals: readonly PlanProjectSignal[];
   readonly goalSignals: readonly PlanGoalSignal[];
   readonly priorFocus: PlanPriorFocus | null;

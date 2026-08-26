@@ -136,6 +136,45 @@ export interface HabitConsistency {
   readonly completed: number;
 }
 
+/**
+ * FOLLOW-01 / DEBT-156 — the same bounded reading, SUMMED across a set of
+ * Habits for an ARBITRARY named period.
+ *
+ * It is deliberately the same two integers {@link HabitConsistency} carries,
+ * with the set it covers named beside them, because DEBT-156's whole risk was
+ * that a Review consistency figure becomes a grade. Two counts and their window
+ * cannot: there is no percentage here, and the surface that draws it prints both
+ * integers ([ADR-104]'s three conditions — a printed denominator, a bounded
+ * window, and no unscheduled or future day counted).
+ *
+ * `toIso` is the period's last day CLAMPED to the owner's today, so a Review
+ * opened mid-period never describes a day that has not happened as expected.
+ */
+export interface HabitPeriodConsistency {
+  readonly fromIso: string;
+  /** The period's last day, or the owner's today when that is earlier. */
+  readonly toIso: string;
+  readonly expected: number;
+  readonly completed: number;
+  /** How many active Habits contributed an expectation. Never "all of them". */
+  readonly habitsCounted: number;
+  /** True when the workspace holds more active Habits than the read's bound. */
+  readonly bounded: boolean;
+  /** False when the read failed. The surface says so; it never shows zero. */
+  readonly available: boolean;
+}
+
+/** The reading a caller shows when the Habit read failed or was not attempted. */
+export const UNAVAILABLE_HABIT_PERIOD_CONSISTENCY: HabitPeriodConsistency = {
+  fromIso: "",
+  toIso: "",
+  expected: 0,
+  completed: 0,
+  habitsCounted: 0,
+  bounded: false,
+  available: false,
+};
+
 /** One day of the record's history strip. */
 export type HabitHistoryDayState =
   "completed" | "expected" | "unscheduled" | "inactive";

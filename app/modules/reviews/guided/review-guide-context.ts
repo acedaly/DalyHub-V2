@@ -42,6 +42,7 @@ import {
   type Review,
   type WeeklyReviewStepId,
 } from "~/kernel/reviews";
+import type { FirstDayOfWeek } from "~/kernel/preferences";
 import type { ReviewInsights } from "~/kernel/review-insights";
 import type { WorkspaceScope } from "~/platform/workspaces";
 
@@ -103,7 +104,14 @@ export const REVIEW_GUIDE_QUERY_BUDGET: Readonly<
   // `REVIEW_INSIGHTS_QUERY_BUDGET`) plus the shared Inbox aggregate every step
   // pays. It buys a comparison against the previous Review and a bounded trend,
   // where the six numbers it replaced could be compared against nothing.
-  overview: 15,
+  //
+  // FOLLOW-01 took it from 15 to 18: two statements for the bounded Activity
+  // window that accounts for the period's PLAN, and one for the active-Habit
+  // page behind DEBT-156's routine consistency. A workspace that actually
+  // practises a routine pays two more still — HABITS-01's own schedule and
+  // completion window reads for the whole page — which
+  // `REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS` states and asserts separately.
+  overview: 18,
   inbox: 2,
   projects: 8,
   alignment: 6,
@@ -297,6 +305,8 @@ export interface ReviewGuideContextInput {
   readonly now: Date;
   readonly timezone: string;
   readonly todayIso: string;
+  /** DEBT-156 — the owner's week start, for the period Habit reading only. */
+  readonly firstDayOfWeek?: FirstDayOfWeek;
   /** Formats a wall-calendar date for display, using the owner's preference. */
   readonly formatDate: (iso: string) => string;
 }
@@ -342,6 +352,7 @@ export async function loadReviewGuideStepData(
             now: input.now,
             timezone: input.timezone,
             todayIso: input.todayIso,
+            firstDayOfWeek: input.firstDayOfWeek,
             formatDate: input.formatDate,
           })
         ).insights,
