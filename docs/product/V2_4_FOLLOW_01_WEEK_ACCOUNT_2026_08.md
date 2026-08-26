@@ -475,7 +475,7 @@ PR #227 measured.
 | --- | --- |
 | **DEBT-156** — the Weekly Review says nothing about habit consistency | **CLOSED.** Its closing condition, clause by clause: a weekly Review's evidence states a habit figure; the denominator is provably the historical expectation (`evaluateHabitConsistency` sums the version chain, and the kernel test drives a Mon/Wed/Fri schedule effective from before the period); the step's query budget is unchanged **in shape** (bounded, page-wide, never per-Habit) and its new number is stated and asserted; and the wording assertion is extended — the Review's own tests now assert the sentence and that it carries no `%`. |
 | **DEBT-34** — Reviews period context and Today integration are bounded first cuts | **ADVANCED, still open.** The Review half named by its V2.4 disposition is delivered: the period account is the last thing REVIEW-03's evidence was missing. The **Today** half is untouched and remains the entry's closing condition — Today still offers no "Start/Continue this week's Review". |
-| **DEBT-173** — E2E specs assert against accumulated workspace state | **UNCHANGED, and deliberately not widened.** This item adds no leaker: the new fixture cleans up after itself. It also *met* the problem: the committed seed's fixed `scheduled_date` values mean which seeded Tasks fall in "last week" depends on the day the suite runs, so the journey asserts the five figures only this fixture can produce, plus internal consistency between the sentence, the lines and the rows. Recorded on the entry. |
+| **DEBT-173** — E2E specs assert against accumulated workspace state | **UNCHANGED, and deliberately not widened.** This item adds no leaker: the new fixture cleans up after itself. It also *met* the problem: the committed seed's fixed `scheduled_date` values mean which seeded Tasks fall in "last week" depends on the day the suite runs, so the journey asserts the five figures only this fixture can produce, plus internal consistency between the sentence, the lines and the rows. Recorded on the entry. It then **removed one existing leaker**, because the repartition collided with it: see §11.1. |
 | **DEBT-194 / DEBT-164 / DEBT-197** — GATE-02's row invariants | **PRESERVED, not reopened.** The account adds no control to a Task row, no selection state and no date rendering; `/plan` gains one sentence and one disclosure, both outside the rows. |
 
 **Raised.** [DEBT-205](PRODUCT_DEBT.md) — 536 seconds of E2E gate capacity is
@@ -533,6 +533,40 @@ make inside a feature PR whose own coverage is four tests. Raised as DEBT-205 wi
 these numbers.
 
 No test was skipped, quarantined, weakened or deleted, and no timeout was raised.
+
+---
+
+### 11.1 What the repartition exposed: one leaked fixture
+
+Moving spec files between partitions changes which specs share a workspace, and
+this one surfaced a **pre-existing** cross-spec leak that had never had a
+neighbour able to see it.
+
+`e2e/audit-13-conversion-atomicity.spec.ts` converts Meeting action items into
+real Tasks, then cleans up in `afterEach` via `cleanupMeetingByTitle(title)`. That
+helper swept Tasks and Meetings by the SAME pattern — `title LIKE '<the exact
+meeting title>'` — but a follow-up Task's title is not the Meeting's. It is the
+action item's body, which these suites write as `` `${title} — do the thing` ``.
+So the Meeting was removed and the Task it spawned was left behind, alive for the
+rest of the partition under a title nothing else would think to look for. (The
+suite-level sweep already used a prefix wildcard, which is why a *crashed* run
+cleaned up correctly and a passing one did not.)
+
+On `main` that was invisible: `audit-13` shared a partition with nothing that
+reads Task rows by substring. The new split put it in **p01** alongside
+`tasks-dependencies.spec.ts`, which asserts on a row matching *"Book the venue"*.
+A leaked *"Meetings e2e idempotent-…-2 — book the venue"* made that locator
+resolve to two rows, and Playwright's strict mode failed it — in CI first, then
+reproduced locally under p01's exact spec order on a freshly seeded database.
+
+MEASURED before the fix, after a full p01 run: two orphaned Tasks and **zero**
+Meetings, which is the diagnosis stated as data. After it: zero of both, and
+`tasks-dependencies.spec.ts:590` passes with every assertion unchanged.
+
+The fix is one character class — `cleanupSql(`${title}%`)` — and it is the
+fixture that was wrong, not the assertion. Nothing was skipped, no locator was
+loosened and no timeout was raised to reach it. This is one leaker removed, not
+[DEBT-173](PRODUCT_DEBT.md) solved: that entry stays open on its own terms.
 
 ---
 
