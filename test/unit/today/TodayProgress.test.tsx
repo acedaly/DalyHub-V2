@@ -53,6 +53,7 @@ function weightGoal(over: Partial<TodayGoal> = {}): TodayGoal {
     areaColourSlot: null,
     iconKey: null,
     colourSlot: null,
+    movement: null,
     progress: evaluateGoalProgress(
       {
         config: normalizeGoalMeasurementConfig({
@@ -195,11 +196,15 @@ describe("Goal progress on Today", () => {
   });
 
   it("gives a compact line, not an empty analytics container, with no Goals", () => {
+    /*
+     * FOLLOW-02 corrected this sentence. It read "No measurable Goals yet" and
+     * was shown to a workspace holding six Goals, every morning, because the
+     * panel rendered measurable Goals only. It is now the empty state it claims
+     * to be: no OPEN Goals at all.
+     */
     renderScreen(day());
     const section = screen.getByTestId("today-goal-progress");
-    expect(
-      within(section).getByText(/No measurable Goals yet/),
-    ).toBeInTheDocument();
+    expect(within(section).getByText(/No open Goals yet/)).toBeInTheDocument();
     expect(within(section).queryByRole("progressbar")).not.toBeInTheDocument();
   });
 });

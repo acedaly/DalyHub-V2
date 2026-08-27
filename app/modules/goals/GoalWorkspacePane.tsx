@@ -53,7 +53,12 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { AccentIcon } from "~/shared/entity";
-import { AlignmentIndicator, type GoalAlignment } from "~/shared/alignment";
+import {
+  AlignmentIndicator,
+  GoalMovementLine,
+  type GoalAlignment,
+  type GoalMovement,
+} from "~/shared/alignment";
 import { goalProgressStatusLabel } from "~/shared/goal-progress";
 import { InlineDateField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
@@ -66,6 +71,7 @@ export function GoalWorkspacePane({
   detail,
   todayIso,
   alignment,
+  movement = null,
   areaColourRank,
   areaIconKey,
   tabs,
@@ -74,6 +80,13 @@ export function GoalWorkspacePane({
   readonly detail: NonNullable<GoalWorkspaceDetail>;
   readonly todayIso: string;
   readonly alignment: GoalAlignment;
+  /**
+   * FOLLOW-02 — whether this Goal moved inside the named window.
+   *
+   * The SAME value the row beside it carries, looked up rather than re-derived,
+   * and rendered through the SAME component Today and the canonical record use.
+   */
+  readonly movement?: GoalMovement | null;
   /** The Area's identity, so the pane's mark matches the row that opened it. */
   readonly areaColourRank: number | null;
   readonly areaIconKey: string | null;
@@ -221,6 +234,22 @@ export function GoalWorkspacePane({
             <span>Next stage</span>
             <strong>{nextStage.title}</strong>
           </p>
+        ) : null}
+        {/*
+         * FOLLOW-02 — movement sits BESIDE the measurement status, never over
+         * it. "Is it on track?" and "did it move?" are different questions with
+         * different windows, and the pane states both rather than reconciling
+         * them into one word: a Goal can be on track and unmoved this week, and
+         * the surface must not imply that is impossible.
+         */}
+        {movement ? (
+          <GoalMovementLine
+            movement={movement}
+            size="record"
+            label="Movement"
+            formatDay={(iso) => formatCalendarDate(iso) ?? iso}
+            className="dh-goalpane__movement"
+          />
         ) : null}
       </section>
 

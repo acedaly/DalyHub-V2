@@ -81,6 +81,16 @@ export type ProgressRowProps = {
    * identity, which is a designed outcome for a record that genuinely has none.
    */
   readonly colourSlot?: string | null;
+  /**
+   * FOLLOW-02 — a quiet derived STATEMENT under the row's context line.
+   *
+   * A slot rather than a string, because the one thing a caller must not do is
+   * author its own version of a shared sentence: the Goals workspace hands this
+   * the same `GoalMovementLine` Today and the Goal record render. It sits below
+   * the context and above the bar, so the record's NAME keeps priority over it
+   * at every width.
+   */
+  readonly signal?: ReactNode;
   /** Master–detail selection. Adds `aria-current`, never a tint alone. */
   readonly selected?: boolean;
   readonly href: string;
@@ -94,6 +104,7 @@ export function ProgressRow({
   title,
   headingLevel = 3,
   context,
+  signal,
   progress,
   value,
   accent,
@@ -145,6 +156,7 @@ export function ProgressRow({
           {value ? <p className="dh-mrow__value">{value}</p> : null}
         </div>
         {context ? <p className="dh-mrow__context">{context}</p> : null}
+        {signal ? <div className="dh-mrow__signal">{signal}</div> : null}
         {progress ? (
           <span
             className="dh-mrow__track"

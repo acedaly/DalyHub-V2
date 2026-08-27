@@ -1,5 +1,55 @@
 # Changelog
 
+- Every goal now tells you whether it actually moved this week — including the
+  ones carrying no number at all. DalyHub could say what a goal _was_, and for a
+  goal with a target it could say where the measurement stood. For everything
+  else it said nothing: Today's goal panel showed measurable goals only, so a
+  workspace with goals and no numeric targets was told **"No measurable Goals
+  yet"** every single morning, and on `/goals` a goal that moved on Monday and a
+  goal that had not moved since March were drawn identically.
+
+  Now each one carries a sentence, and it is the same sentence everywhere:
+
+  > **Moved this week.**
+  > 2 of 3 Projects contributed · 2 Tasks completed
+
+  > **No movement yet this week.**
+
+  It appears on **Today**, on the **Goals** list and its detail pane, and on the
+  **goal's own record** — where it also prints the seven days it is talking
+  about, so "this week" is never a guess. All three read from the same place, so
+  they cannot disagree.
+
+  **"Moved" means something finished, not something happened.** A task completed
+  under a project that advances the goal, a contributing project completed, a
+  measurement recorded, a stage completed, or the goal itself completed. Renaming
+  a project is activity — it is not the goal moving, and it does not count.
+  Neither does adding work, planning it, or reopening something you had already
+  finished.
+
+  **A goal with no target is not given a fake percentage.** No 0%, no empty
+  ring, no bar with nothing behind it. "No numeric target" is not "0%", so an
+  unmeasured goal gets words instead of a number, and a measured goal keeps every
+  figure it already had — its reading, its target, its pace, its status — with
+  the movement sentence beside them rather than instead of them.
+
+  **Two different questions, kept apart.** _Is it on track?_ is about your
+  number and your target date. _Did it move?_ is about seven named days. A goal
+  can be comfortably on track and have moved nothing this week, and the product
+  says both rather than picking one. Today's summary says so too: "1 of 2 on
+  track · 4 of 4 moved this week" — each figure with the set it actually
+  describes.
+
+  **And when nothing moved, it says exactly that and no more.** Not "stalled",
+  not "neglected", not a red badge. Seven quiet days is not proof a goal has
+  failed; it is an absence of evidence inside a window, and that is what it says.
+  There is no score, no momentum figure, no streak, and no percentage anywhere in
+  it.
+
+  Nothing new is stored. It is worked out from the history DalyHub already keeps,
+  every time you look, at a cost that does not grow with your goals or with how
+  busy they have been.
+
 - DalyHub now tells you what became of the week you planned. It has been asking
   you to commit to a week — this task, this day — and then never mentioning it
   again, which meant a week that quietly fell apart looked exactly like one that

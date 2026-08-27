@@ -108,7 +108,7 @@ thing from different directions:
    is **0**, against a workspace holding **six Goals**. For every one of them the
    top two levels of the spine contribute nothing to the daily surface.
 3. **Where a Goal *does* have a project-only signal, the signal cannot move.**
-   [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--narrowed-2026-08-09-by-goal-02):
+   [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--resolved-2026-08-27-v24-follow-02):
    *"40% complete reads the same on a goal that gained two projects this month and
    one that has not moved since March — and* is it moving? *is the question a Goal
    exists to answer."*
@@ -162,6 +162,12 @@ Weighed against the evidence, and rejected as the *theme*:
 ## NOW
 
 Four items. Two bounded gates, then the two features the gates exist to protect.
+
+**Three of the four are delivered.** V2.4-GATE-02, FOLLOW-01 and FOLLOW-02 are
+☑; V2.4-GATE-01 stays ☐ with GREEN delivered and RECOVERABLE and RELEASED
+owner-blocked on secrets the repository cannot supply. With FOLLOW-02 shipped,
+**the planned V2.4 product sequence is complete** apart from that gate's two
+owner-held halves. What V2.5 should be is a decision, not a continuation.
 
 ### ☐ V2.4-GATE-01 — Recoverable, green, released
 
@@ -744,7 +750,7 @@ gate, and the reason the product closed at B rather than A.**
 
 ---
 
-### ☐ FOLLOW-02 — Did the goals move?
+### ☑ FOLLOW-02 — Did the goals move? — **DELIVERED 2026-08-27**
 
 **Every Goal states whether it moved — not only the ones carrying a number.**
 
@@ -809,6 +815,121 @@ gate, and the reason the product closed at B rather than A.**
 - **Closes.** DEBT-78. **Narrows.** [DEBT-120](../product/PRODUCT_DEBT.md#-debt-120--the-goals-gallery-is-ordered-by-alignment-not-by-outcome--p3).
   **Closes if the record adopts the shared section.**
   [DEBT-192](../product/PRODUCT_DEBT.md#-debt-192--a-goals-measurement-callbacks-are-declared-twice-on-the-record-and-on-the-workspace-pane--p3).
+- **DELIVERED 2026-08-27.** Record:
+  [`V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md`](../product/V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md).
+
+  **The starting state, reproduced on `main` at `e1ba3e4`** against a week whose
+  events were known, driving the real application. Today's Goal panel showed
+  **two** Goals — both measurable — and said *"1 of 2 on track"*; **four of six
+  Goals were absent entirely**, including the two that had genuinely moved that
+  week and the two that had not. On `/goals`, a Goal that moved on Monday and a
+  Goal whose last completion was four days before the week opened were drawn
+  **identically**: `DalyHub V2 · No measurement`. And the Goal record's
+  contribution evidence listed two Tasks, 24 August and 23 August, straddling
+  the week boundary with nothing on the page distinguishing them — because
+  ADR-040's window is an unbounded "most recent" against a fortnight rather than
+  a named period. The gap was not a missing field; it was three surfaces
+  answering a different question with no way for the owner to tell.
+
+  **The derivation.** `app/kernel/alignment/goal-movement.ts` — the rules, pure
+  and clock-free, re-exported through `~/shared/alignment` exactly where
+  [ADR-110] decision 6 and DEBT-78 both said to put them — over one bounded read
+  added to FOLLOW-01's own `ActivityWindowRepository`. **No second period
+  machinery**: `ActivityWindow`, `ownerPeriodWindow` and the `future`/`running`/
+  `closed` phase are consumed, not rebuilt, and there is no date helper inside
+  Goals.
+
+  **Movement is OUTCOME, and the refusals are the definition.** Five accepted
+  events — a Task completed under a contributing Project, a contributing Project
+  completed, a reading logged, a milestone completed, the Goal itself completed.
+  Everything else is refused with a reason, and the most important refusal has
+  its own real-D1 test: **renaming a Project is Activity and is not the Goal
+  moving.** Also refused: creation (intent, not outcome), the whole planning
+  vocabulary (FOLLOW-01's question), every `*.reopened` (an outcome being UNDONE
+  is not forward movement), `goal.target_reached` (written by the same atomic
+  write as the reading that caused it, so counting both counts one act twice),
+  and `entity_link.created` for `project.advances_goal` (linking a Project
+  changes what contributes, not what happened — and would credit a window with
+  work finished outside it).
+
+  **Nothing was stored.** No table, no column, no index, no migration, no schema
+  or API change. Asserted rather than intended: a test counts the workspace's
+  Activity rows before and after two movement reads and fails if the number
+  moves.
+
+  **Acceptance, criterion by criterion.**
+  1. **Met.** A Goal with no target states its movement in a named window with
+     the count behind it, and the identical sentence appears on Today, `/goals`
+     (row and pane) and the Goal record — asserted from one stable machine key
+     read on all three and compared as equal objects, rather than as three
+     sentences that happen to match.
+  2. **Met.** A Goal that has not moved says *"No movement yet this week."* and
+     is never given a `0%`, an empty ring or a figure with no denominator —
+     asserted, including the absence of any `progressbar` on an unmeasured tile.
+  3. **Met.** Today's Goal panel is populated for a workspace whose Goals carry
+     no target. The line that read *"No measurable Goals yet"* to a workspace
+     holding six Goals is gone.
+  4. **Met.** **No per-Goal query.** Exactly **two** D1 statements for a whole
+     page, with a flatness proof in BOTH directions — six Goals cost what two
+     do, and a Goal with twelve completions costs what one with a single
+     completion does, because the aggregation happens in SQL. Bound parameters
+     are `N + 1` and `N + 10`: 51 and 60 at a fifty-Goal page, against D1's
+     ceiling of 100, because the id list is bound ONCE per statement through a
+     `VALUES` CTE rather than three times.
+  5. **Met.** GOAL-02's trio, chart, pace and refusals are untouched and its
+     existing unit set passes without modification. The guarantee is structural:
+     `GoalMovement` carries no status, no percentage, no target and no trend, so
+     no surface can read a measurable answer off it — asserted by enumerating
+     the result's own keys.
+  6. **Met.** MEASURED from the live DOM at 320 / 393 / 1440 in both
+     appearances, with the dark pass driven by the media query rather than the
+     appearance cookie. No horizontal overflow at any width; the Goal's NAME
+     paints at its full content width rather than being ellipsised to make room
+     for the sentence; `axe` clean with no rule disabled. There is deliberately
+     **no badge** — movement is a sentence, because a two-colour chip turns a
+     bounded observation into the grade ADR-110 decision 4 refuses.
+
+  **A ranking finding, corrected by measurement rather than by reasoning.** The
+  first cut ranked an unmeasured Goal with no movement alongside a measured Goal
+  with nothing urgent to say, and knocked an on-track measurable Goal off Today
+  entirely in favour of one reading *"No movement yet this week."*. The bucket
+  was moved below every measured Goal. Measured Goals keep exactly the order
+  they had.
+
+  **Two denominators, and neither borrows the other's set.** Today's note now
+  reads *"1 of 2 on track · 4 of 4 moved this week"*: "on track" can only be
+  asked of a measurable Goal, "moved" can be asked of every Goal on the panel.
+  The `Goals on track` stat card was narrowed the same way — it said *"of N
+  measurable goals"* about a set that now contains unmeasured ones.
+
+  **DEBT-78 closed on its own words**, and the two adjacent entries were decided
+  rather than collected. **DEBT-120** is NARROWED and stays open: FOLLOW-02
+  settles that movement is an ATTENTION signal — so it strengthens the alignment
+  reading of `/goals` rather than converting the surface — and does not settle
+  whether GOAL-02's measurement status should govern the order, which still needs
+  the second ranking expression and cursor scope the entry names. **DEBT-192**
+  stays open because FOLLOW-02 adds no measurement callback to either Goal
+  surface, so the campsite rule has nothing to clean; migrating the record onto
+  `GoalMeasurementSection` would be a Goals refactor inside a movement item,
+  which is the bundling that entry records DHDS-11 declining.
+
+  **The E2E budget question FOLLOW-01 handed forward was answered by fitting,
+  not by moving the gate.** The journey is 2 tests over 5 page loads (every
+  other width and appearance a resize or an `emulateMedia` in place, one axe scan
+  per appearance rather than one per width), MEASURED at **18.7 s**.
+  `PARTITION_COUNT` is UNCHANGED at 13 and the ceiling was not touched: heaviest
+  15.3 min against 16.7 min, `worst/mean` 1.04. **DEBT-205 is left alone
+  deliberately** — 536 s is still stranded, FOLLOW-02 did not need it, and
+  recovering it edits machinery every job depends on.
+
+  **Non-goals held.** No snapshot table, no trend cache, no momentum score, no
+  adherence score, no streak, no chain, no grade, no ranking of Goals against
+  one another, no percentage in any movement statement (asserted over rendered
+  output). No forecast beyond GOAL-02's. No AI, no goal coaching, no automatic
+  intervention, no notification rule. No Analytics module, no chart dependency —
+  **no new dependency at all**. No Goal status vocabulary (DEBT-183) and no
+  Goal → Area move (DEBT-184), both re-read and left open. No new entity type,
+  no second Goal identity model, no change to the one measurable formula.
 
 ---
 
@@ -913,7 +1034,10 @@ insight surface, GOAL-02's evaluator, HABITS-01's schedules and the Activity
 stream. None of those is modified — they are read.
 
 **That derivation now exists** (`app/kernel/activity-window/`), and FOLLOW-02
-inherits four things rather than rebuilding them: the `ActivityWindow` type and
+inherited all four rather than rebuilding them — `readGoalMovementFacts` is a
+method on `ActivityWindowRepository`, `goalMovementWindow` resolves the owner's
+week through `ownerPeriodWindow`, the phase decides the tense, and the word
+discipline is asserted over rendered text. The four: the `ActivityWindow` type and
 `ownerPeriodWindow`, which are the ONE period definition three consumers already
 share; `ActivityWindowRepository`, which is where a bounded Activity query over a
 named window belongs, so DEBT-78's *"bounded activity query over the goal's

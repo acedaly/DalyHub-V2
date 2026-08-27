@@ -717,3 +717,54 @@ and no loader, no route and no measurement changed. The composition did.
 Full pass, including the design-language decision and the deliberate departures
 from the reference:
 [`docs/design/UIX_01_PRODUCT_REDESIGN_2026_08.md`](../design/UIX_01_PRODUCT_REDESIGN_2026_08.md).
+
+
+---
+
+## The Goal panel after FOLLOW-02 (2026-08-27)
+
+Today's Goal panel used to render **measurable Goals only**. A workspace with
+Goals and no numeric targets was told *"No measurable Goals yet"* every morning,
+and the top two levels of the spine contributed nothing to the surface the owner
+opens daily. [FOLLOW-02](../product/V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md)
+changed that, and the changes are worth stating precisely because several of them
+are refusals.
+
+**An unmeasured Goal is included, and gets WORDS rather than a number.** It
+renders no `GoalProgressReadout`, no bar and no `progressbar` role, because *"no
+numeric target" is not "0%"* — a 0% bar for visual parity would be the fabricated
+precision `PRODUCT_PRINCIPLES` forbids. What it gets instead is the shared
+movement statement (*"Moved this week." / "No movement yet this week."*), which is
+the identical sentence `/goals` and the Goal record show for the same Goal.
+
+**A measurable Goal is unchanged**, and gains the movement line beneath its
+existing readout. GOAL-02's arithmetic, wording and check-in control are
+untouched. The check-in button is hidden for an unmeasured Goal, which has no
+measurement to record against.
+
+**Two facts, each with its own denominator.** The panel's note now reads e.g.
+`1 of 2 on track · 4 of 4 moved this week`. "On track" is GOAL-02's question and
+can only be asked of a measurable Goal, so its denominator is the measured
+subset; "moved" can be asked of every Goal on the panel, so its denominator is
+the whole set. The `Goals on track` stat card in the summary strip was narrowed
+the same way — it said *"of N measurable goals"* about a set that now contains
+unmeasured ones, which would have named measurable Goals that do not exist.
+
+**The ranking** (`goalSummaryRank`) gained two buckets and reordered nothing
+existing. Measured Goals keep exactly the four predicates and the order they had;
+an unmeasured Goal that MOVED sits at bucket 2, and an unmeasured Goal with no
+movement sits at bucket 5 — **below every measured Goal**, deliberately, because
+a Goal with no target and nothing to report this week is the least useful thing a
+daily surface can show.
+
+**The empty state stopped lying.** *"No measurable Goals yet"* is now *"No open
+Goals yet."*, which is the state it always claimed to be.
+
+**The window is the owner's own week**, resolved through `goalMovementWindow`
+from `firstDayOfWeek` and the owner's timezone — the same seven days `/plan`, the
+weekly Review and the Goals surfaces mean. The read is passed into
+`loadGoalSummaries` as a function rather than imported by it, because that module
+is reached from the client bundle and `readGoalMovement` is server-only.
+
+**Cost:** one grouped read (two D1 statements) beside the three the Goal summary
+already made. Never one per Goal.

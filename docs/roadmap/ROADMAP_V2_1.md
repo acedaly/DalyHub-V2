@@ -1370,7 +1370,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   of that ramp and hover moves the border instead. Project **"next action"** was
   not added: it needs a per-project task query on the most-visited route in the
   product — recorded as [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3), with
-  the query shape that would satisfy it. Goal **trend** is [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--narrowed-2026-08-09-by-goal-02):
+  the query shape that would satisfy it. Goal **trend** is [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--resolved-2026-08-27-v24-follow-02):
   nothing stores a goal's completion over time, so completion and recent progress
   ship and the direction does not.
 - **Acceptance evidence.** Unit, kernel, lint, typecheck and build green; the

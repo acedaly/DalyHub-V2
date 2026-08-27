@@ -25,6 +25,10 @@ import type {
 import type { DaySchedule } from "~/kernel/calendar";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
+import {
+  goalMovementWindow,
+  readGoalMovement,
+} from "~/platform/activity-window/goal-movement.server";
 import { readHabitPage } from "~/platform/habits/habit-facts.server";
 import type { SerializedHabit } from "~/shared/habits";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -572,6 +576,27 @@ export async function loadTodayDay(
           timezone,
           todayIso,
           recentBoundaryStartIso,
+          /*
+           * FOLLOW-02 — the ONE shared movement read, over the owner's own
+           * week.
+           *
+           * It is passed in rather than imported by the summary read because
+           * that read is reached from the client bundle; see its own note. The
+           * window comes from `goalMovementWindow`, which is the same authority
+           * `/goals` and the Goal record use — so Today cannot describe a
+           * different seven days from the surfaces it links to.
+           */
+          readMovement: (goalIds) =>
+            readGoalMovement(scope, {
+              goalIds,
+              window: goalMovementWindow({
+                todayIso,
+                firstDayOfWeek: facts.firstDayOfWeek,
+                timezone,
+              }),
+              timezone,
+              todayIso,
+            }).then((read) => read.movements),
         }),
       [],
     ),

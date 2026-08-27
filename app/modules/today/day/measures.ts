@@ -152,7 +152,20 @@ export function todayMeasures(input: {
     });
   }
 
-  if (goals.length > 0) {
+  /*
+   * FOLLOW-02 — the DENOMINATOR is the MEASURED Goals, and it is now filtered
+   * here rather than assumed.
+   *
+   * `loadGoalSummaries` used to exclude unmeasured Goals entirely, so "the
+   * Goals this read returned" and "the Goals with a measurable schedule" were
+   * the same set and the note below could say "of N measurable goals" without
+   * checking. Today's Goal panel now carries unmeasured Goals as well, so this
+   * card filters for the set it actually describes — otherwise a workspace with
+   * four Goals and one target would read "1 of 4 measurable goals on track",
+   * which names four measurable Goals that do not exist.
+   */
+  const measured = goals.filter((goal) => goal.progress.measured);
+  if (measured.length > 0) {
     /*
      * `goalIsOnTrack`, NOT `!goalNeedsAttention`. The evaluator has nine
      * statuses and only two of them need attention, so the negation would count
@@ -161,25 +174,25 @@ export function todayMeasures(input: {
      * are mostly not being measured. The predicate lives beside its sibling in
      * `~/shared/goal-progress`, so "on track" has one definition.
      *
-     * The DENOMINATOR is the Goals this read returned, all of which have a
-     * measurable schedule: `loadGoalSummaries` excludes unmeasured and completed
-     * Goals entirely. A workspace with none produces no card rather than "0 of 0".
+     * The DENOMINATOR is `measured` above — the Goals on this surface that
+     * actually carry a measurable schedule. A workspace with none produces no
+     * card rather than "0 of 0".
      */
-    const onTrack = goals.filter((goal) =>
+    const onTrack = measured.filter((goal) =>
       goalIsOnTrack(goal.progress.status),
     ).length;
-    const valueText = `${onTrack} of ${goals.length} measurable ${
-      goals.length === 1 ? "goal" : "goals"
+    const valueText = `${onTrack} of ${measured.length} measurable ${
+      measured.length === 1 ? "goal" : "goals"
     } on track`;
     measures.push({
       id: "goals",
       label: "Goals on track",
       value: String(onTrack),
-      note: `of ${goals.length} measurable ${goals.length === 1 ? "goal" : "goals"}`,
+      note: `of ${measured.length} measurable ${measured.length === 1 ? "goal" : "goals"}`,
       href: "/goals",
       chart: {
         kind: "meter",
-        percent: (onTrack / goals.length) * 100,
+        percent: (onTrack / measured.length) * 100,
         valueText,
       },
     });

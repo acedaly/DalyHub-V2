@@ -2007,6 +2007,19 @@
   font-variant-numeric: var(--dh-font-numeric);
 }
 
+/*
+ * FOLLOW-02 — the movement statement inside a Today Goal tile.
+ *
+ * The tile is a GRID column that can be as narrow as a phone allows, so the
+ * sentence wraps rather than truncating: a Goal's NAME is what must survive
+ * intact, and the movement line is the one thing on the tile that can afford
+ * two lines. Nothing here sets a colour — the shared component does, and it
+ * does it without hue carrying meaning.
+ */
+.dh-today__goal-movement {
+  min-inline-size: 0;
+}
+
 /* The Goal's Area, under its title, as the mockup's tile draws it. */
 .dh-today__goal-area {
   color: var(--dh-color-text-muted);

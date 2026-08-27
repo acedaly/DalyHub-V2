@@ -4094,6 +4094,19 @@
 }
 
 /*
+ * FOLLOW-02 — the row's derived SIGNAL slot.
+ *
+ * Unlike the context line above it, this WRAPS: it holds a sentence rather than
+ * a label, and a truncated statement about whether a Goal moved would be worse
+ * than a two-line one. The row's NAME still leads, because the signal sits
+ * below it and never competes for its line.
+ */
+.dh-mrow__signal {
+  margin-block-start: var(--dh-space-1);
+  min-inline-size: 0;
+}
+
+/*
  * POLISH-01 — the track is the ONE shared meter well (`progress.css`).
  *
  * It was `--dh-color-border`, a translucent hairline, on the reasoning that a
