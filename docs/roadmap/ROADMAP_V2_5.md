@@ -473,10 +473,14 @@ door — sequenced so each lands on the one before it.
 - **Outcome.** One story. The Area record's Goals tab and the guided Review's
   Goals step read the same shared vocabulary Today reads —
   `~/shared/goal-progress` and `~/shared/alignment` — so a Goal's measurement
-  status, movement and alignment are the same facts in the same words wherever
-  the owner meets them. The Task roll-up remains a rollup **fact** and stops
-  being presented as the Goal's progress. Search's preview formats its facts.
-  The module's prose describes the shipped product.
+  status, movement, alignment **and owner-set condition (STEER-02's)** are the
+  same facts in the same words wherever the owner meets them. A Goal the owner
+  has set aside is therefore **distinguishable from a neglected one on both
+  propagated surfaces** — the condition is stated beside the derived facts, and
+  the Review's selection stays what it is — which is the half of STEER-02's
+  problem that would otherwise survive it. The Task roll-up remains a rollup
+  **fact** and stops being presented as the Goal's progress. Search's preview
+  formats its facts. The module's prose describes the shipped product.
 - **Why it belongs in this programme.** Steering needs one instrument panel.
   Three disagreeing progress bars for one Goal is the exact defect class
   GATE-02 closed for Task rows ("a row says something untrue about itself"),
@@ -506,19 +510,22 @@ door — sequenced so each lands on the one before it.
   collection composes.
 - **Measurable acceptance criteria.**
   1. The Area record's Goals tab states, per Goal, the same measurement value /
-     status and the same movement sentence `/goals` states for the same Goal —
-     asserted by machine key as equal values, the FOLLOW-02 parity method, not
-     as matching sentences.
+     status, the same movement sentence **and the same owner-set condition**
+     `/goals` states for the same Goal — asserted by machine key as equal
+     values, the FOLLOW-02 parity method, not as matching sentences.
   2. **No surface renders a Goal progress figure not derived from the shared
      evaluators** — asserted by enumerating the product's Goal-progress
      renderings in one test, so the next fork fails a build rather than an
      audit. The Task roll-up no longer paints a Goal card's bar; where the
      count remains it is worded as what it is.
-  3. The guided Review's Goals step states each Goal's measurement status and
-     movement beside its alignment, inside a statement budget that is stated
-     and asserted, flat in the number of Goals, and within the
-     100-bound-parameter ceiling. HABITS-01's two unsayable sentences hold on
-     the new facts (a future window is never "unmoved"; ADR-110 decision 5).
+  3. The guided Review's Goals step states each Goal's measurement status,
+     movement **and owner-set condition** beside its alignment — asserted: a
+     set-aside Goal is distinguishable from a neglected one **in the ritual
+     itself**, while the step's alignment-based selection is unchanged — inside
+     a statement budget that is stated and asserted, flat in the number of
+     Goals, and within the 100-bound-parameter ceiling. HABITS-01's two
+     unsayable sentences hold on the new facts (a future window is never
+     "unmoved"; ADR-110 decision 5).
   4. Search's Goal preview formats its target date with the product's date
      formatting, asserted.
   5. The module prose named in DEBT-211 is corrected with the surfaces it
@@ -585,10 +592,15 @@ created.**
   posters; the card's row opens the shared Drawer and mutates nothing itself.
   `POST /projects/new` remains the one Project creation path.
 - **Measurable acceptance criteria.**
-  1. DEBT-77's closing condition, verbatim: every card in "Continue working"
-     names its next action, the route's query count is unchanged (one
-     additional bounded statement, not N), and a test pins Today's "next" to
-     the same ordering `/tasks` uses.
+  1. DEBT-77's closing condition, made assertable: every card in "Continue
+     working" names its next action; the route's statement budget moves by
+     **exactly one** bounded statement — flat in the number of cards, never one
+     per card — asserted with a counting database; and a test pins Today's
+     "next" to the same ordering `/tasks` uses. (This is that entry's own
+     intent — its *"query count is unchanged (one additional statement, not
+     N)"* means the count does not grow with the cards; the phrasing is
+     reconciled in its V2.5 disposition, because "unchanged" and "one
+     additional" cannot both be a budget assertion.)
   2. A Goal's record and pane name the next step across its contributing
      Projects — the same rule, proven against the same ordering — naming the
      Project, opening the canonical Task Drawer, and stating REVIEW-02's honest

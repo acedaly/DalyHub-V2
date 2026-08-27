@@ -4804,10 +4804,14 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
   6. **One Goal story.** Every surface that presents a Goal's progress,
      alignment or movement presents it through the shared vocabulary
      (`~/shared/goal-progress`, `~/shared/alignment`) from the shared
-     evaluators. No surface introduces a measure of a Goal that the vocabulary
-     does not define — the Area tab's Task roll-up bar (DEBT-206) is the
-     counterexample this clause retires. Parity between surfaces is proven by
-     reading the same machine value from each, never by comparing sentences.
+     evaluators — and once the owner-set condition exists, it is **part of that
+     story**: a surface that tells a Goal's story states the condition beside
+     the derived facts, so a set-aside Goal is never indistinguishable from a
+     neglected one anywhere the story is told. No surface introduces a measure
+     of a Goal that the vocabulary does not define — the Area tab's Task
+     roll-up bar (DEBT-206) is the counterexample this clause retires. Parity
+     between surfaces is proven by reading the same machine value from each,
+     never by comparing sentences.
 
   7. **No composite Goal score, ever.** Alignment, movement, measurable
      progress and the owner's condition are four answers to four questions. No
