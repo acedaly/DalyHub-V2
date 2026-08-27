@@ -320,8 +320,20 @@ test.describe("GOAL-02 — Today", () => {
      * is about the SECTION's behaviour — a measurable Goal with its value, its
      * target and what remains, and one action — rather than about which Goal the
      * ranking happened to choose. `todayGoalRank` is unit-tested directly.
+     *
+     * ── V2.4 FOLLOW-02: the tile is selected by what it DRAWS, not by position
+     * This was `.first()`, which quietly assumed every tile on the panel was a
+     * measurable one. FOLLOW-02 put Goals with no reading on the panel too — a
+     * Goal that MOVED this week outranks one that was merely measured today —
+     * so the first tile is now legitimately whichever Goal the ranking chose,
+     * and this test was asserting a position it never meant to assert. Scoping
+     * to the tile that carries a `progressbar` is the subject the comment above
+     * already names; every assertion below is unchanged.
      */
-    const row = goals.locator(".dh-today__goal").first();
+    const row = goals
+      .locator(".dh-today__goal")
+      .filter({ has: page.getByRole("progressbar") })
+      .first();
     await expect(row).toContainText(/kg/);
     await expect(row).toContainText("Target 70 kg");
     /*

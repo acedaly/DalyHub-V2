@@ -18,11 +18,11 @@
  *   1. a Goal the product would call **Needs attention** or **Overdue** first —
  *      it is behind its own schedule or past its own date;
  *   2. then a Goal whose **target date is close** (inside a month);
- *   3. then an UNMEASURED Goal that **moved** inside the named window, because
- *      momentum is the most useful thing a daily surface can show;
- *   4. then a measurable Goal that has not been **checked in** for a week;
- *   5. then the remaining measurable Goals;
- *   6. last, an unmeasured Goal with no movement inside the window.
+ *   3. then a Goal with NO reading that **moved** inside the named window,
+ *      because momentum is the most useful thing a daily surface can show;
+ *   4. then a Goal that has not been **checked in** for a week;
+ *   5. then the remaining Goals that have a reading;
+ *   6. last, a Goal with no reading and no movement inside the window.
  *
  * A Goal that has just reached its target appears once — it is the most useful
  * thing the section can say that day — and never again after it is completed.
@@ -135,30 +135,33 @@ export interface GoalSummary {
 /**
  * The display rank. Lower sorts first. Six explicable buckets.
  *
- * A MEASURED Goal keeps exactly the four predicates and the order it had before
- * FOLLOW-02 — needs attention, target date close, check-in due, then the rest —
- * so nothing about GOAL-02's Goals moved relative to one another. What is new is
- * where an UNMEASURED Goal sits, and movement is the only honest answer
- * available to it: it has no schedule to be behind and no reading to be due.
+ * The split is **whether the Goal has a READING to lead with**, not whether it
+ * is configured — because a configured Goal with nothing recorded has exactly
+ * as much of a figure to show as one with no target at all: none. Both are
+ * ranked on movement instead.
  *
- *   0  measured · behind its own schedule or past its own date
- *   1  measured · target date inside a month
- *   2  UNMEASURED · moved inside the window — momentum is worth a glance
- *   3  measured · not checked in for a week
- *   4  measured · everything else
- *   5  UNMEASURED · no movement inside the window
+ * A Goal WITH a reading keeps exactly the four predicates and the order it had
+ * before FOLLOW-02, so nothing about GOAL-02's Goals moved relative to one
+ * another:
  *
- * Bucket 5 is deliberately BELOW every measured Goal. A Goal with no target and
- * nothing to report this week is the least useful thing a daily surface can
- * show, and letting it displace a measured Goal that is genuinely moving would
- * make the panel worse than it was before FOLLOW-02 — which is the opposite of
- * the point.
+ *   0  reading · behind its own schedule or past its own date
+ *   1  reading · target date inside a month
+ *   2  NO reading · moved inside the window — momentum is worth a glance
+ *   3  reading · not checked in for a week
+ *   4  reading · everything else
+ *   5  NO reading · no movement inside the window
+ *
+ * Bucket 5 is deliberately BELOW every Goal with a reading. A Goal with nothing
+ * recorded and nothing to report this week is the least useful thing a daily
+ * surface can show, and letting it displace a Goal that is genuinely moving
+ * would make the panel worse than it was before FOLLOW-02 — which is the
+ * opposite of the point.
  */
 export function goalSummaryRank(
   goal: GoalSummary,
   todayIso: string,
 ): 0 | 1 | 2 | 3 | 4 | 5 {
-  if (goal.progress.measured) {
+  if (goal.progress.current !== null) {
     if (goalNeedsAttention(goal.progress.status)) return 0;
     if (goal.progress.targetDate !== null) {
       const days = daysUntil(todayIso, goal.progress.targetDate);
@@ -187,15 +190,35 @@ function daysUntil(fromIso: string, toIso: string): number | null {
  *
  * A completed Goal is excluded: Today is about what is still moving.
  *
- * ── Which Goals are included, and what each of them says ───────────────────
- * - **Measured, with a reading.** Exactly what it said before FOLLOW-02: the
+ * ── One inclusion rule: a Goal earns its place by having something TRUE to say
+ *
+ * Before FOLLOW-02 the only thing a Goal could say here was a READING, so a Goal
+ * without one — measured-but-unstarted, or unmeasured — was excluded. Movement
+ * is a second thing it can say, and it is available to both.
+ *
+ * So: a Goal appears when it has a reading OR when this caller asked for
+ * movement. Which means:
+ *
+ * - **Measured, with a reading** — exactly what it showed before FOLLOW-02: the
  *   evaluation, the bar and the comparison figure, all from GOAL-02.
- * - **Measured, with nothing recorded yet.** Still excluded. A configured Goal
- *   with no reading has no progress to report and the Goals collection is where
- *   an unstarted one is picked up — the rule GOAL-02 set and FOLLOW-02 keeps.
- * - **Unmeasured.** INCLUDED, with a movement statement and NO percentage. This
- *   is the change: a workspace whose Goals carry no target used to see nothing
- *   at all here.
+ * - **Measured, nothing recorded yet** — included on a surface that asked for
+ *   movement, with GOAL-02's own designed absence where the reading would be
+ *   (never a 0% bar) and the movement sentence beneath it. A contributing
+ *   Project completing genuinely moves such a Goal, and the panel could not say
+ *   so while it was excluded.
+ * - **Unmeasured** — included on a surface that asked for movement, with the
+ *   movement statement and NO percentage.
+ * - **Any Goal, on a caller that did not ask for movement** (the Projects page's
+ *   compact measurement rail) — exactly the set GOAL-02 showed, unchanged,
+ *   because a Goal drawn with no bar, no figure and no sentence is worse than an
+ *   absent one.
+ *
+ * That single rule is what makes the EMPTY STATE honest. Today always asks for
+ * movement, so an empty result there means the workspace has no open Goals —
+ * which is what the empty line says. Under the previous two-rule version a
+ * workspace whose Goals were all measurable-but-unstarted produced an empty
+ * panel and was told to add a Goal, when what it needed was to record its first
+ * measurement.
  */
 export async function loadGoalSummaries(
   scope: WorkspaceScope,
@@ -255,19 +278,11 @@ export async function loadGoalSummaries(
       todayIso: facts.todayIso,
     });
     /*
-     * A configured Goal with nothing recorded is a real state, but it is not
-     * progress. An UNMEASURED Goal is a different case entirely: it has no
-     * reading to be missing, and FOLLOW-02 gives it movement to speak with.
+     * The ONE inclusion rule (see the note above): a reading, or a movement
+     * statement this caller asked for. A Goal with neither has nothing true to
+     * say on a glance surface, and is picked up on the Goals collection instead.
      */
-    if (progress.measured && progress.current === null) continue;
-    /*
-     * An unmeasured Goal earns its place by having something TRUE to say, and
-     * movement is the only thing it has. A caller that did not ask for movement
-     * (the Projects page's compact rail, which is a measurement rail) therefore
-     * sees exactly the set it saw before FOLLOW-02 — never a Goal drawn with no
-     * bar, no figure and no sentence.
-     */
-    if (!progress.measured && movement === null) continue;
+    if (progress.current === null && movement === null) continue;
     const prior = summary?.priorInWindow ?? null;
     goals.push({
       id: item.id,

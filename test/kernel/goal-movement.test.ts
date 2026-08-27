@@ -35,11 +35,14 @@ import {
 import { createActivityWindowRepository } from "~/platform/storage/d1";
 import { bindWorkspaceRepositories } from "~/platform/workspaces";
 import type { WorkspaceScope } from "~/platform/workspaces";
+import { recentBoundaryStartIso } from "~/shared/alignment/window";
 import { ownerCalendarIso } from "~/shared/datetime";
+import { loadGoalSummaries } from "~/shared/goal-progress";
 
 import {
   countingDb,
   makeContext,
+  makeGoalDetailsRepository,
   makeGoalMeasurementRepository,
   makeSpineRepository,
   makeTaskRepository,
@@ -150,6 +153,21 @@ async function taskUnder(w: World, projectId: string, title: string) {
     title,
     parent: { kind: "project", id: projectId },
   });
+}
+
+/** Give a Goal a measurement CONFIGURATION and no readings at all. */
+async function configureMeasurement(w: World, goalId: string) {
+  await makeGoalDetailsRepository(w.ctx, { clock: w.clock.now }).update(
+    goalId,
+    {
+      measurement: {
+        type: "target_value",
+        unit: "kg",
+        baselineValue: 85,
+        targetValue: 70,
+      },
+    },
+  );
 }
 
 beforeEach(async () => {
@@ -666,6 +684,84 @@ describe("[ADR-110] — movement is derived, never stored", () => {
     w.clock.set(at("2026-05-05", 9));
     await w.spine.complete(task.id);
     expect((await movementFor([goal.id])).get(goal.id)!.moved).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Which Goals Today's summary read includes                                   */
+/* -------------------------------------------------------------------------- */
+
+describe("a Goal earns its place by having something TRUE to say", () => {
+  /**
+   * `loadGoalSummaries` against the real repositories, with the movement read
+   * injected exactly as Today's loader injects it.
+   */
+  async function summaries(withMovement: boolean) {
+    const scope = scopeFor(env.DB, WS);
+    return loadGoalSummaries(scope, {
+      now: new Date(`${TODAY}T00:00:00.000Z`),
+      timezone: TZ,
+      todayIso: MON,
+      recentBoundaryStartIso: recentBoundaryStartIso(MON, TZ),
+      readMovement: withMovement
+        ? (goalIds) =>
+            readGoalMovement(scope, {
+              goalIds,
+              window: WEEK,
+              timezone: TZ,
+              todayIso: MON,
+            }).then((read) => read.movements)
+        : undefined,
+    });
+  }
+
+  it("includes a MEASURABLE Goal with no reading yet, so the panel can say what moved it", async () => {
+    /*
+     * The case a review caught, and it is a real defect rather than a nicety.
+     * The rule used to be "exclude a measurable Goal with no reading" — which
+     * made a workspace whose Goals were ALL measurable-but-unstarted produce an
+     * EMPTY Goal panel, and the empty line then told the owner to add a Goal
+     * when what they needed was to record a first measurement.
+     *
+     * It is also simply untrue that such a Goal has nothing to report: a
+     * contributing Project completed inside the window moves it, which is what
+     * this fixture does.
+     */
+    const w = world(WS, at("2026-04-20", 9));
+    const goal = await newGoal(w, "Configured but unstarted");
+    await configureMeasurement(w, goal.id);
+    const project = await advancingProject(w, goal.id);
+    w.clock.set(at("2026-05-06", 9));
+    await w.spine.complete(project.id);
+
+    const withMovement = await summaries(true);
+    const entry = withMovement.find((summary) => summary.id === goal.id);
+    expect(entry, "an unstarted measurable Goal is on the panel").toBeDefined();
+    // GOAL-02's own designed absence, never a fabricated zero.
+    expect(entry!.progress.measured).toBe(true);
+    expect(entry!.progress.current).toBeNull();
+    expect(entry!.progress.progressPercent).toBeNull();
+    // And it has something true to say.
+    expect(entry!.movement?.moved).toBe(true);
+    expect(entry!.movement?.evidence).toEqual([
+      { kind: "project_completed", count: 1 },
+    ]);
+  });
+
+  it("leaves a caller that did NOT ask for movement exactly the set it had", async () => {
+    /*
+     * The Projects page's compact rail is a MEASUREMENT rail. It asks for no
+     * movement, so it must keep GOAL-02's set precisely: no Goal drawn with no
+     * bar, no figure and no sentence.
+     */
+    const w = world(WS, at("2026-04-20", 9));
+    const unmeasured = await newGoal(w, "No number");
+    const unstarted = await newGoal(w, "Configured but unstarted");
+    await configureMeasurement(w, unstarted.id);
+
+    const ids = (await summaries(false)).map((summary) => summary.id);
+    expect(ids).not.toContain(unmeasured.id);
+    expect(ids).not.toContain(unstarted.id);
   });
 });
 

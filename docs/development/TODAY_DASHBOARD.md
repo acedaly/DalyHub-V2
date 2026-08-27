@@ -730,12 +730,28 @@ opens daily. [FOLLOW-02](../product/V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md)
 changed that, and the changes are worth stating precisely because several of them
 are refusals.
 
-**An unmeasured Goal is included, and gets WORDS rather than a number.** It
-renders no `GoalProgressReadout`, no bar and no `progressbar` role, because *"no
-numeric target" is not "0%"* — a 0% bar for visual parity would be the fabricated
+**One inclusion rule: a Goal earns its place by having something TRUE to say.**
+Before FOLLOW-02 the only thing a Goal could say here was a READING, so a Goal
+without one — measured-but-unstarted, or unmeasured — was excluded. Movement is
+a second thing it can say, and it is available to both. So a Goal appears when
+it has a reading **or** when the caller asked for movement.
+
+That single rule is what makes the empty state honest. Today always asks for
+movement, so an empty panel there means the workspace has no open Goals — which
+is what the empty line says. (The first cut kept two rules and got this wrong: a
+workspace whose Goals were all measurable-but-unstarted saw an empty panel and
+was told to add a Goal, when what it needed was to record a first measurement.
+A review caught it; `test/kernel/goal-movement.test.ts` now fails against the
+old rule.)
+
+**An unmeasured Goal gets WORDS rather than a number.** It renders no
+`GoalProgressReadout`, no bar and no `progressbar` role, because *"no numeric
+target" is not "0%"* — a 0% bar for visual parity would be the fabricated
 precision `PRODUCT_PRINCIPLES` forbids. What it gets instead is the shared
 movement statement (*"Moved this week." / "No movement yet this week."*), which is
-the identical sentence `/goals` and the Goal record show for the same Goal.
+the identical sentence `/goals` and the Goal record show for the same Goal. An
+unstarted MEASURABLE Goal keeps GOAL-02's own designed absence where the reading
+would be, and carries the same movement sentence beneath it.
 
 **A measurable Goal is unchanged**, and gains the movement line beneath its
 existing readout. GOAL-02's arithmetic, wording and check-in control are
@@ -751,11 +767,12 @@ the same way — it said *"of N measurable goals"* about a set that now contains
 unmeasured ones, which would have named measurable Goals that do not exist.
 
 **The ranking** (`goalSummaryRank`) gained two buckets and reordered nothing
-existing. Measured Goals keep exactly the four predicates and the order they had;
-an unmeasured Goal that MOVED sits at bucket 2, and an unmeasured Goal with no
-movement sits at bucket 5 — **below every measured Goal**, deliberately, because
-a Goal with no target and nothing to report this week is the least useful thing a
-daily surface can show.
+existing. The split is **whether the Goal has a READING to lead with**, not
+whether it is configured: a Goal with a reading keeps exactly the four predicates
+and the order it had; a Goal with NO reading that MOVED sits at bucket 2, and one
+with no reading and no movement sits at bucket 5 — **below every Goal with a
+reading**, deliberately, because a Goal with nothing recorded and nothing to
+report this week is the least useful thing a daily surface can show.
 
 **The empty state stopped lying.** *"No measurable Goals yet"* is now *"No open
 Goals yet."*, which is the state it always claimed to be.

@@ -335,28 +335,47 @@ The change with the largest user-visible consequence.
   subset; "moved" can be asked of every Goal on the panel, so its denominator is
   the whole set. The `Goals on track` stat card was narrowed the same way — it
   said *"of N measurable goals"* about a set that now contains unmeasured ones.
-- **The ranking gained two buckets and reordered nothing existing.** Measured
-  Goals keep exactly the four predicates and the order they had:
+- **The ranking gained two buckets and reordered nothing existing.** The split
+  is **whether the Goal has a READING to lead with**, not whether it is
+  configured — a configured Goal with nothing recorded has exactly as much of a
+  figure to show as one with no target at all: none. A Goal WITH a reading keeps
+  exactly the four predicates and the order it had:
 
   ```
-  0  measured · behind its own schedule or past its own date
-  1  measured · target date inside a month
-  2  UNMEASURED · moved inside the window
-  3  measured · not checked in for a week
-  4  measured · everything else
-  5  UNMEASURED · no movement inside the window
+  0  reading · behind its own schedule or past its own date
+  1  reading · target date inside a month
+  2  NO reading · moved inside the window
+  3  reading · not checked in for a week
+  4  reading · everything else
+  5  NO reading · no movement inside the window
   ```
 
-  Bucket 5 is deliberately below every measured Goal: a Goal with no target and
-  nothing to report this week is the least useful thing a daily surface can
-  show, and letting it displace a measured Goal that is moving would make the
+  Bucket 5 is deliberately below every Goal with a reading: a Goal with nothing
+  recorded and nothing to report this week is the least useful thing a daily
+  surface can show, and letting it displace a Goal that is moving would make the
   panel worse than before. This was found by measurement, not by reasoning —
-  the first cut put unmeasured-and-silent Goals at rank 4 and knocked
-  `FM: Reach 70 kg` off Today entirely.
-- **The Projects page's compact Goal rail is byte-for-byte unchanged.** It is a
-  measurement rail and does not ask for movement, and an unmeasured Goal is
-  included only when the caller asked for movement — because movement is the
-  only thing it has to say.
+  the first cut put silent Goals at rank 4 and knocked `FM: Reach 70 kg` off
+  Today entirely.
+- **One inclusion rule, and it is what makes the empty state honest.** A Goal
+  appears when it has a **reading** or when the caller **asked for movement**.
+  Today always asks, so an empty panel there means the workspace has no open
+  Goals — which is exactly what the empty line now says. The Projects page's
+  compact rail is a *measurement* rail, does not ask, and is therefore
+  byte-for-byte the set GOAL-02 showed: never a Goal drawn with no bar, no
+  figure and no sentence.
+
+  **A review caught this, and it was a real defect.** The first cut kept
+  GOAL-02's "exclude a measurable Goal with no reading" rule alongside the new
+  one for unmeasured Goals — so a workspace whose Goals were **all**
+  measurable-but-unstarted produced an empty panel and was told *"No open Goals
+  yet. Add a Goal…"*, when what it needed was to record a first measurement. It
+  was also simply untrue that such a Goal has nothing to report: a contributing
+  Project completing genuinely moves it. Two rules became one, and the
+  regression test creates exactly that Goal, completes a contributing Project
+  inside the window, and fails against the previous rule
+  (`test/kernel/goal-movement.test.ts` → *"includes a MEASURABLE Goal with no
+  reading yet"*). An unstarted measurable Goal still draws GOAL-02's own
+  designed absence where the reading would be — never a `0%` bar.
 
 ---
 

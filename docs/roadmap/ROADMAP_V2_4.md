@@ -890,11 +890,24 @@ gate, and the reason the product closed at B rather than A.**
      bounded observation into the grade ADR-110 decision 4 refuses.
 
   **A ranking finding, corrected by measurement rather than by reasoning.** The
-  first cut ranked an unmeasured Goal with no movement alongside a measured Goal
-  with nothing urgent to say, and knocked an on-track measurable Goal off Today
-  entirely in favour of one reading *"No movement yet this week."*. The bucket
-  was moved below every measured Goal. Measured Goals keep exactly the order
-  they had.
+  first cut ranked a silent Goal alongside a measured Goal with nothing urgent to
+  say, and knocked an on-track measurable Goal off Today entirely in favour of
+  one reading *"No movement yet this week."*. The bucket was moved below every
+  Goal that has a reading — and the split is exactly that, **a reading to lead
+  with**, rather than whether the Goal is configured, because a configured Goal
+  with nothing recorded has just as little of a figure to show. Goals with a
+  reading keep exactly the order they had.
+
+  **A review found a real defect, and the fix made the rule simpler.** The first
+  cut kept GOAL-02's *"exclude a measurable Goal with no reading"* rule beside
+  the new one for unmeasured Goals — so a workspace whose Goals were **all**
+  measurable-but-unstarted produced an empty panel and was told *"No open Goals
+  yet. Add a Goal…"*, when what it needed was to record a first measurement. It
+  was also untrue that such a Goal has nothing to report: a contributing Project
+  completing genuinely moves it. Two rules became ONE — **a Goal appears when it
+  has a reading or when the caller asked for movement** — which is also what
+  makes the empty state honest, because Today always asks. The regression test
+  fails against the previous rule.
 
   **Two denominators, and neither borrows the other's set.** Today's note now
   reads *"1 of 2 on track · 4 of 4 moved this week"*: "on track" can only be
