@@ -31,8 +31,10 @@ import type { ReactNode } from "react";
 import {
   AlignmentIndicator,
   GoalAlignmentPanel,
+  GoalMovementLine,
   alignmentReasonText,
   type GoalAlignment,
+  type GoalMovement,
   type SerializedGoalAlignmentEvidence,
 } from "~/shared/alignment";
 import {
@@ -91,6 +93,16 @@ interface GoalOverviewProps {
   /** AREA-03: the derived Goal alignment (ADR-040) — whether recent Task
    * activity has contributed to this Goal, with explained reasons. */
   readonly alignment: GoalAlignment;
+  /**
+   * FOLLOW-02 — whether this Goal moved inside the named window.
+   *
+   * A THIRD derived answer beside alignment and GOAL-02's measurement status,
+   * and deliberately not a reconciliation of them: a Goal can be numerically on
+   * track, structurally aligned and still not have moved this week, and the
+   * record states all three rather than choosing one. Rendered through the SAME
+   * component Today and the Goals collection use, from the SAME value.
+   */
+  readonly movement?: GoalMovement | null;
   readonly alignmentEvidence: readonly SerializedGoalAlignmentEvidence[];
   readonly alignmentEvidenceHasMore: boolean;
   readonly completionPending: boolean;
@@ -156,6 +168,7 @@ export function GoalOverview({
   todayIso,
   timeZone,
   alignment,
+  movement = null,
   alignmentEvidence,
   alignmentEvidenceHasMore,
   completionPending,
@@ -394,6 +407,27 @@ export function GoalOverview({
           facts: detailItems,
           description: (
             <div className="dh-goal-overview__summary">
+              {/*
+               * FOLLOW-02 — did this Goal MOVE inside the named window?
+               *
+               * It leads the summary because it is the question the record
+               * could not answer at all for a Goal with no number, and it is
+               * separate from the band's alignment chip above it on purpose:
+               * alignment says whether the Goal has a reachable structure that
+               * has had attention, movement says whether an OUTCOME happened
+               * inside seven named days, and the two are allowed to disagree.
+               * The record is the one surface with room to print the window's
+               * actual days, so it does.
+               */}
+              {movement ? (
+                <GoalMovementLine
+                  movement={movement}
+                  size="record"
+                  label="Movement"
+                  formatDay={(iso) => formatCalendarDate(iso) ?? iso}
+                  className="dh-goal-overview__movement"
+                />
+              ) : null}
               <div className="dh-goal-overview__definition">
                 <h2 className="dh-goal-overview__definition-heading">
                   Definition of done

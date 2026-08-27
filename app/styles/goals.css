@@ -11,6 +11,20 @@
   min-inline-size: 0;
 }
 
+/*
+ * FOLLOW-02 — the movement statement, leading the Goal record's summary.
+ *
+ * It gets a hairline BELOW it rather than a container around it: the summary
+ * band is already a card (DS-02's "a container is earned"), and a second box
+ * around three lines of text would be the nested-container shape UIX-03 spent a
+ * whole pass removing from this record.
+ */
+.dh-goal-overview__movement {
+  padding-block-end: var(--dh-space-4);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-divider);
+  min-inline-size: 0;
+}
+
 .dh-goal-overview__definition-heading {
   margin: 0 0 var(--app-space-2);
   font-size: var(--dh-text-meta-size);
@@ -1086,6 +1100,17 @@
   line-height: var(--dh-text-body-line-height);
   font-weight: var(--dh-text-label-weight);
   overflow-wrap: anywhere;
+}
+
+/*
+ * FOLLOW-02 — the movement statement takes the band's whole width.
+ *
+ * It is a SENTENCE, not a figure, so it does not belong in a column beside two
+ * one-word values: at 320px a half-width sentence wraps to four lines, and at
+ * 1440 it reads as a third statistic when it is a different KIND of answer.
+ */
+.dh-goalpane__movement {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 32rem) {

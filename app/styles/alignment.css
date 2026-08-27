@@ -186,6 +186,63 @@
   overflow-wrap: anywhere;
 }
 
+/* --- FOLLOW-02: the Goal movement statement -------------------------------- */
+
+/*
+ * A SENTENCE, not a badge.
+ *
+ * Movement is an observation about a bounded window ("did this Goal move
+ * between Monday and Sunday?"), and a two-colour chip would turn it into a
+ * verdict — the grade [ADR-110] decision 4 refuses. So there is no tone, no
+ * hue and no dot: the words carry the whole meaning, at every width and in
+ * forced-colours mode alike, and `data-goal-movement` carries only WEIGHT.
+ */
+.dh-goal-movement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-width: 0;
+}
+
+.dh-goal-movement__label {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  font-weight: 500;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-goal-movement__headline {
+  margin: 0;
+  font-size: var(--dh-text-label-size);
+  color: var(--dh-color-text-muted);
+  /*
+   * The Goal's NAME keeps priority over this line everywhere it appears, so it
+   * wraps rather than competing for the row: a long sentence takes a second
+   * line instead of pushing a title into an ellipsis.
+   */
+  overflow-wrap: anywhere;
+}
+
+/* Movement that happened reads as a statement of fact, so it takes the page's
+   ordinary text colour; an absence stays quiet. Weight and colour BOTH follow
+   the same key, and neither is the only carrier of the meaning. */
+.dh-goal-movement[data-goal-movement="moved"] .dh-goal-movement__headline {
+  color: var(--dh-color-text);
+  font-weight: 500;
+}
+
+.dh-goal-movement__detail,
+.dh-goal-movement__window {
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-goal-movement[data-size="record"] .dh-goal-movement__headline {
+  font-size: var(--dh-text-body-size);
+}
+
 @media (forced-colors: active) {
   .dh-alignment__pill {
     border-color: CanvasText;

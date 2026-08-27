@@ -32,6 +32,40 @@ export type {
   AlignmentEvaluationContext,
 } from "./goal-alignment";
 
+/**
+ * FOLLOW-02 — Goal MOVEMENT: did this Goal move inside a named window?
+ *
+ * A third derived answer beside alignment and GOAL-02's measurement status, and
+ * deliberately not a replacement for either ([ADR-110] decision 6, DEBT-78).
+ */
+export {
+  GOAL_MOVEMENT_KEYS,
+  GOAL_MOVEMENT_KINDS,
+  emptyGoalMovementFacts,
+  evaluateGoalMovement,
+  unavailableGoalMovement,
+} from "./goal-movement";
+export type {
+  GoalMovement,
+  GoalMovementContext,
+  GoalMovementEvidence,
+  GoalMovementFacts,
+  GoalMovementKey,
+  GoalMovementKind,
+} from "./goal-movement";
+
+export {
+  goalMovementEvidenceText,
+  goalMovementEvidenceTexts,
+  goalMovementRecap,
+  goalMovementStatement,
+  goalMovementWindowLabel,
+} from "./goal-movement-words";
+export type {
+  GoalMovementStatement,
+  GoalMovementWordsOptions,
+} from "./goal-movement-words";
+
 export { AlignmentStorageError } from "./alignment-errors";
 export type {
   AlignmentRepository,

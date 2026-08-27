@@ -42,7 +42,9 @@ import { LoadMore } from "~/shared/load-more";
 import { PlusIcon } from "~/shared/icons";
 import { ViewTabs } from "~/shared/view-switcher";
 import {
+  GoalMovementLine,
   alignmentAccessibleSummary,
+  goalMovementStatement,
   type GoalAlignment,
 } from "~/shared/alignment";
 import {
@@ -161,7 +163,21 @@ export function GoalWorkspaceList({
             }
             title={goal.title}
             headingLevel={3}
+            /*
+             * FOLLOW-02 — the context line is unchanged for a MEASURED Goal.
+             *
+             * For an unmeasured one, `goalProgressStatusLabel` reads "Not
+             * measured", which is a true and useful thing to say beside the
+             * Area — and it is now followed by a sentence that says whether the
+             * Goal moved, which is what an unmeasured Goal previously had no
+             * way of saying anywhere.
+             */
             context={`${goal.area.title} · ${goalProgressStatusLabel(goal.progress.status)}`}
+            signal={
+              goal.movement ? (
+                <GoalMovementLine movement={goal.movement} />
+              ) : null
+            }
             accent={goal.area.colourRank}
             colourSlot={
               resolveIdentity({
@@ -192,7 +208,17 @@ export function GoalWorkspaceList({
             href={`/goals?goal=${encodeURIComponent(goal.id)}`}
             // The row's accessible name carries what the row's DRAWING
             // deliberately does not: ADR-040's alignment state, in words.
-            openAriaLabel={`${goal.title} — ${goalRowAlignmentText(goal.alignment)}`}
+            /*
+             * The row's accessible name carries BOTH derived answers the
+             * drawing keeps quiet: ADR-040's alignment state, and FOLLOW-02's
+             * movement — which are different questions and are allowed to
+             * disagree, so the name states each rather than reconciling them.
+             */
+            openAriaLabel={`${goal.title} — ${goalRowAlignmentText(goal.alignment)}${
+              goal.movement
+                ? ` ${goalMovementStatement(goal.movement).headline}`
+                : ""
+            }`}
           />
         ))}
       </ProgressRowList>

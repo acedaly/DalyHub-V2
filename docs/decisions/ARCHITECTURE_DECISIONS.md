@@ -4522,7 +4522,7 @@ The full record is
   exported, restored, and kept honest across a timezone boundary. DalyHub has
   refused that trade four times already (TASKS-13's checklist progress, TASKS-12's
   derived `blocked` state, PROJECT-02's template provenance, and Goal contribution
-  itself), and [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--narrowed-2026-08-09-by-goal-02)
+  itself), and [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--resolved-2026-08-27-v24-follow-02)
   already wrote the instruction down in advance: *"Do NOT add a snapshot table
   first — the Activity stream is already the historical record."*
 
@@ -4675,5 +4675,47 @@ The full record is
     because decision 7 asks for exactly that, and because it is the shape of
     finding a future window read is most likely to hit again: **a payload that
     records only the NEW value is a payload history cannot reverse.**
+
+- **Second implementation, 2026-08-27 — [FOLLOW-02](../roadmap/ROADMAP_V2_4.md#-follow-02--did-the-goals-move--delivered-2026-08-27).**
+  Decision 2 — *"Goal movement is derived the same way, by a bounded Activity
+  query over the Goal's contributing Project ids within the window"* — is now
+  built, exactly as written and exactly where decision 6 said to put it.
+
+  - **Decision 2 is `readGoalMovementFacts` on the SAME repository FOLLOW-01
+    created.** No `goal_snapshots`, no trend column, no cached rollup to
+    difference, no migration. It returns AGGREGATES rather than events, which is
+    what makes it bounded by construction: a Goal with four thousand completed
+    Tasks costs what one with two costs, because the counting happens in SQL and
+    there is no row limit that could silently drop a Goal's only evidence.
+  - **Decision 6 held literally.** The rules live in `app/kernel/alignment/`
+    beside `evaluateGoalAlignment` and are re-exported through
+    `~/shared/alignment`, which is where both this ADR and DEBT-78 said the
+    derivation belongs. Today, the Goals collection (row AND pane) and the Goal
+    record render ONE component from ONE value; the E2E journey reads a machine
+    key from all three and asserts they are equal objects rather than three
+    sentences that happen to agree.
+  - **Decision 5 is again structural rather than editorial**, and this time it
+    is also DEFENSIVE: the window's phase decides the key, and a `future` window
+    is refused even when the fact set claims events — the one inversion of "a
+    period that has not happened is never counted" a bug could produce. A
+    falsifier that removed the phase check failed exactly that assertion.
+  - **Decision 4 was tested on the words as well as the model.** No percentage
+    appears in any movement statement, asserted over rendered output; and the
+    vocabulary refuses *stalled*, *failing*, *poor*, *bad* and *neglected* —
+    seven days without a qualifying outcome does not prove a Goal has stalled,
+    it proves the window holds no evidence, which is a smaller and truer thing.
+  - **Decision 7 was NOT exercised, and that is the finding.** Every fact the
+    read needs was already in the stream. The one thing FOLLOW-02 could not
+    reconstruct — which Projects contributed at the time an event occurred,
+    rather than now — was met by STATING the approximation (contribution is
+    resolved from current links, as `D1AlignmentRepository` and REVIEW-03 both
+    already do) rather than by adding history to `entity_link`. That is the
+    shape of the trade this decision expects: an approximation named in the
+    documentation and the code, not a column added to make a query easier.
+  - **A new refusal worth recording, because it is the general case of decision
+    2.** `goal.target_reached` is appended by the same atomic write as the
+    reading that causes it, so counting both would count one act twice. Any
+    future derivation over this stream must ask, per event type, whether it is a
+    SECOND record of an act it already counted.
 
 The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2_4.md).

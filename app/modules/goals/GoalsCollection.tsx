@@ -56,7 +56,7 @@ import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { useCollectionRestore } from "~/shared/record-lifecycle";
 import { ViewTabs, type ViewTabOption } from "~/shared/view-switcher";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
-import type { GoalAlignment } from "~/shared/alignment";
+import type { GoalAlignment, GoalMovement } from "~/shared/alignment";
 import {
   GOAL_COLLECTION_VIEWS,
   GOAL_COLLECTION_VIEW_LABELS,
@@ -116,6 +116,15 @@ export type SerializedGoalWithAlignment = SerializedGoalListItem & {
   }[];
   /** The Goal's definition of done — the CONTENT of a Goal with no number. */
   readonly definitionOfDone?: string | null;
+  /**
+   * FOLLOW-02 — whether this Goal moved inside the named window.
+   *
+   * The SAME `GoalMovement` value Today's tile and the Goal record render, from
+   * one derivation ([ADR-110] decision 6), so the three surfaces cannot describe
+   * the same Goal's week differently. Optional only so a fixture that predates
+   * FOLLOW-02 still type-checks; the loader always supplies it.
+   */
+  readonly movement?: GoalMovement | null;
 };
 
 /** A soft-deleted Goal, as the honest "Deleted" view shows it: identity only. */
@@ -201,6 +210,8 @@ export interface GoalsCollectionViewProps {
    * one detail read failed — the list stays perfectly usable in all three.
    */
   readonly selected?: GoalWorkspaceDetail | null;
+  /** FOLLOW-02 — the selected Goal's movement, the same value its row carries. */
+  readonly selectedMovement?: GoalMovement | null;
   /** The RESOLVED selection, so a row is highlighted only if its pane loaded. */
   readonly selectedId?: string | null;
   /**
@@ -237,6 +248,7 @@ export function GoalsCollectionView({
   deletedGoals = [],
   nextCursor,
   selected = null,
+  selectedMovement = null,
   selectedId = null,
   selectionExplicit = false,
   areaOptions = [],
@@ -278,6 +290,7 @@ export function GoalsCollectionView({
         deletedGoals={deletedGoals}
         nextCursor={nextCursor}
         selected={selected}
+        selectedMovement={selectedMovement}
         selectedId={selectedId}
         selectionExplicit={selectionExplicit}
         todayIso={todayIso}
@@ -603,6 +616,7 @@ function GoalsCollection({
   deletedGoals,
   nextCursor,
   selected,
+  selectedMovement,
   selectedId,
   selectionExplicit,
   todayIso,
@@ -614,6 +628,7 @@ function GoalsCollection({
   readonly deletedGoals: readonly SerializedDeletedGoalItem[];
   readonly nextCursor: string | null;
   readonly selected: GoalWorkspaceDetail | null;
+  readonly selectedMovement: GoalMovement | null;
   readonly selectedId: string | null;
   readonly selectionExplicit: boolean;
   readonly todayIso: string | null;
@@ -910,6 +925,10 @@ function GoalsCollection({
               <GoalWorkspacePane
                 detail={selected}
                 todayIso={todayIso}
+                movement={
+                  visible.find((goal) => goal.id === selectedId)?.movement ??
+                  selectedMovement
+                }
                 alignment={
                   visible.find((goal) => goal.id === selectedId)?.alignment ??
                   selected.alignment

@@ -1175,6 +1175,7 @@ function todayGoal(
     iconKey: null,
     colourSlot: null,
     progress,
+    movement: null,
     changeInWindow: null,
     windowDays: 30,
   };
@@ -1252,7 +1253,7 @@ describe("Today's summary strip states only what was actually measured", () => {
     expect(within(strip).queryByText(/on the previous/)).toBeNull();
   });
 
-  it("does not count an unmeasured Goal as on track", () => {
+  it("does not count an unmeasured Goal as on track, or in the denominator", () => {
     /*
      * The bug this replaces: the count was `!goalNeedsAttention(status)`, and
      * only two of the evaluator's nine statuses need attention — so a Goal that
@@ -1260,13 +1261,19 @@ describe("Today's summary strip states only what was actually measured", () => {
      * reading, was reported as healthy. With one measured Goal and one
      * unmeasured one the answer cannot be two, whatever the measured one
      * evaluates to.
+     *
+     * FOLLOW-02 narrowed the DENOMINATOR as well, and this assertion moved with
+     * it: the strip used to read "of 2 measurable goals" here, because
+     * `loadGoalSummaries` excluded unmeasured Goals entirely and the card could
+     * assume every Goal it was handed was measurable. Today's Goal panel now
+     * carries unmeasured Goals — that is the whole point of FOLLOW-02 — so the
+     * old sentence would name two measurable Goals when there is one. The
+     * numerator's rule is unchanged and still asserted.
      */
     renderScreen(day({ goals: [measuredGoal(), unmeasuredGoal()] }));
     const strip = screen.getByTestId("today-summary");
-    expect(
-      within(strip).getByText("of 2 measurable goals"),
-    ).toBeInTheDocument();
-    expect(within(strip).queryByText("2")).toBeNull();
+    expect(within(strip).getByText("of 1 measurable goal")).toBeInTheDocument();
+    expect(within(strip).queryByText(/measurable goals/)).toBeNull();
   });
 
   it("renders nothing at all on a day with no real readings", () => {

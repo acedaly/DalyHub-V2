@@ -22,7 +22,12 @@ import {
   createOwnerAlignmentContext,
   evaluateGoalAlignment,
   serializeGoalAlignmentEvidence,
+  unavailableGoalMovement,
 } from "~/shared/alignment";
+import {
+  goalMovementWindow,
+  readGoalMovement,
+} from "~/platform/activity-window/goal-movement.server";
 import {
   DrawerProvider,
   useDrawer,
@@ -158,6 +163,35 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     // narrow what the page says rather than take the record down.
   }
 
+  /*
+   * FOLLOW-02 — did this Goal move inside the named window?
+   *
+   * The SAME derivation Today and the Goals collection read, over the SAME
+   * owner week, so the record cannot describe this Goal's week differently from
+   * the card that linked to it. TWO statements, read AFTER the preference
+   * because the week boundary is the owner's own, and its own failure domain:
+   * an unreadable movement narrows what the record SAYS rather than taking it
+   * down.
+   */
+  const movementWindow = goalMovementWindow({
+    todayIso: evaluation.todayIso,
+    firstDayOfWeek,
+    timezone: timeZone,
+  });
+  const movement =
+    (
+      await readGoalMovement(scope, {
+        goalIds: [goalId],
+        window: movementWindow,
+        timezone: timeZone,
+        todayIso: evaluation.todayIso,
+      })
+    ).movements.get(goalId) ??
+    unavailableGoalMovement(goalId, {
+      window: movementWindow,
+      todayIso: evaluation.todayIso,
+    });
+
   const alignmentFacts = composeGoalAlignmentFacts({
     goalId,
     completedAt: overview.completedAt,
@@ -208,6 +242,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     todayIso: evaluation.todayIso,
     timeZone,
     alignment,
+    movement,
     alignmentEvidence: evidencePage.items.map(serializeGoalAlignmentEvidence),
     alignmentEvidenceHasMore: evidencePage.hasMore,
     supportingHabits,
@@ -666,6 +701,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
         todayIso={props.todayIso}
         timeZone={props.timeZone}
         alignment={props.alignment}
+        movement={props.movement}
         alignmentEvidence={props.alignmentEvidence}
         alignmentEvidenceHasMore={props.alignmentEvidenceHasMore}
         completionPending={completionPending}

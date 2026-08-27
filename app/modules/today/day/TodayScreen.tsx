@@ -165,6 +165,11 @@ import {
 } from "./attention-view";
 import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
 import { goalIsOnTrack } from "~/shared/goal-progress";
+import {
+  GoalMovementLine,
+  goalMovementRecap,
+  type GoalMovement,
+} from "~/shared/alignment";
 
 import { todayMeasures, type TodayMeasure } from "./measures";
 import { weekStripDayHeading, weekStripMonthLabel } from "./week-strip";
@@ -1713,9 +1718,25 @@ function GoalProgressSection({
     trigger: HTMLElement | null,
   ) => void;
 }) {
-  const onTrack = goals.filter((goal) =>
+  /*
+   * FOLLOW-02 — TWO facts, each carrying its own denominator, and neither
+   * borrowing the other's.
+   *
+   * "On track" is GOAL-02's question and it can only be asked of a Goal with a
+   * measurable schedule, so its denominator is the measured subset — not the
+   * panel's length, which now includes Goals that carry no number at all.
+   * "Moved" is FOLLOW-02's question and it can be asked of every Goal here, so
+   * its denominator is the whole set. Printing one figure over the other set is
+   * exactly the mis-statement this panel existed to avoid.
+   */
+  const measured = goals.filter((goal) => goal.progress.measured);
+  const onTrack = measured.filter((goal) =>
     goalIsOnTrack(goal.progress.status),
   ).length;
+  const movements = goals
+    .map((goal) => goal.movement)
+    .filter((movement): movement is GoalMovement => movement !== null);
+  const movedNote = goalMovementRecap(movements);
   return (
     <section
       className="dh-today__panel dh-today__goals"
@@ -1731,9 +1752,15 @@ function GoalProgressSection({
         </Link>
       </div>
       {goals.length === 0 ? (
+        /*
+         * FOLLOW-02 — this line USED to read "No measurable Goals yet", and it
+         * was shown to a workspace holding six Goals, every morning, because
+         * the panel rendered measurable Goals only. It is now what it claims to
+         * be: the empty state for a workspace with no open Goals at all.
+         */
         <p className="dh-today__quiet dh-today__quiet--prose">
-          No measurable Goals yet. Add a target to a{" "}
-          <Link to="/goals">Goal</Link> and your progress shows up here.
+          No open Goals yet. Add a <Link to="/goals">Goal</Link> and whether it
+          is moving shows up here.
         </p>
       ) : (
         <>
@@ -1746,9 +1773,15 @@ function GoalProgressSection({
            * are going well?". The separator is mandatory: "3 5" reads as
            * thirty-five, which is the "4 | 0" lesson DS-06 paid for once.
            */}
-          <p className="dh-today__goals-note">
-            {onTrack} of {goals.length} on track
-          </p>
+          {measured.length > 0 || movedNote ? (
+            <p className="dh-today__goals-note">
+              {measured.length > 0
+                ? `${onTrack} of ${measured.length} on track`
+                : null}
+              {measured.length > 0 && movedNote ? " · " : null}
+              {movedNote}
+            </p>
+          ) : null}
           <ul className="dh-today__goal-list">
             {goals.map((goal) => {
               const change = formatMeasurementChange(
@@ -1806,18 +1839,42 @@ function GoalProgressSection({
                       {goal.areaTitle}
                     </span>
                   ) : null}
-                  <GoalProgressReadout
-                    size="glance"
-                    progress={goal.progress}
-                    label={`${goal.title} progress`}
-                    trailing={change ? `${change} this month` : null}
-                  />
+                  {/*
+                   * A measurable Goal keeps GOAL-02's readout EXACTLY as it
+                   * was. An unmeasured one gets no readout at all — not a 0%
+                   * bar, not an empty ring, not a figure with no denominator.
+                   * "No numeric target" is not "0%", and drawing a track for
+                   * visual parity would be the fabricated precision
+                   * PRODUCT_PRINCIPLES forbids.
+                   */}
+                  {goal.progress.measured ? (
+                    <GoalProgressReadout
+                      size="glance"
+                      progress={goal.progress}
+                      label={`${goal.title} progress`}
+                      trailing={change ? `${change} this month` : null}
+                    />
+                  ) : null}
+                  {/*
+                   * FOLLOW-02 — the movement statement, from the ONE shared
+                   * derivation. The identical sentence appears on `/goals` and
+                   * on the Goal record, because all three render this component
+                   * from the same value.
+                   */}
+                  {goal.movement ? (
+                    <GoalMovementLine
+                      movement={goal.movement}
+                      className="dh-today__goal-movement"
+                    />
+                  ) : null}
                   {/* One action, and it is the one a Goal needs most often. The
                       Goal record is a link away for everything else. It is a
                       TEXT button here: an outlined pill on four cards at once
                       made the least-used thing on each card its most
                       conspicuous. */}
-                  {onUpdateGoal && goal.progress.type !== "milestone" ? (
+                  {onUpdateGoal &&
+                  goal.progress.measured &&
+                  goal.progress.type !== "milestone" ? (
                     <button
                       type="button"
                       className="dh-btn dh-btn--ghost dh-btn--sm"

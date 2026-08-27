@@ -591,7 +591,8 @@ to show.
 
 *What became of the work a named owner-local period's plan held?* — the question
 [FOLLOW-01](../roadmap/ROADMAP_V2_4.md#-follow-01--did-the-week-hold--delivered-2026-08-26)
-exists for, and FOLLOW-02 will ask its Goal counterpart of the same window.
+exists for. FOLLOW-02 now asks its Goal counterpart of the same window — see
+[below](#the-second-question-on-the-same-window-goal-movement-follow-02-2026-08-27).
 
 The authority is [`~/kernel/activity-window`](../../app/kernel/activity-window/index.ts):
 a pure `ActivityWindow` type (inclusive in days, half-open in instants, both
@@ -662,3 +663,49 @@ The candidate set is three indexed arms, and each is necessary:
 
 **No new index and no migration.** Adding one would be a migration made to serve a
 derivation, which ADR-110 forbids.
+
+### The second question on the same window: Goal movement (FOLLOW-02, 2026-08-27)
+
+*Did this Goal move inside the named period?* — the counterpart FOLLOW-01
+anticipated, and it is a **second method on the SAME repository** rather than a
+second window:
+
+```ts
+readGoalMovementFacts(
+  window: ActivityWindow,
+  goalIds: readonly string[],
+): Promise<Map<string, GoalMovementFacts>>
+```
+
+Two things about it are worth carrying forward to the next reader of this stream.
+
+**It returns AGGREGATES, not events.** Everything the product says about movement
+is a count, a distinct-Project count or the most recent day, so the counting
+happens in SQL. That is what makes the read bounded *by construction* rather than
+by a limit: a Goal with four thousand completed Tasks costs what one with two
+costs, and there is no row ceiling that could silently drop a Goal's only piece
+of evidence. Both properties are asserted —
+[`test/kernel/goal-movement.test.ts`](../../test/kernel/goal-movement.test.ts)
+proves flatness in the number of Goals *and* in the number of events. Contrast
+the plan window above, which necessarily returns rows because the derivation has
+to reconstruct each Task's history in order.
+
+**Not every event in the stream is progress.** The movement read accepts exactly
+five types — `task.completed` under a contributing Project, `project.completed`
+on one, `goal.measurement_logged`, `goal.milestone_completed` and
+`goal.completed` — and the refusals are the definition rather than an omission.
+Two of them generalise:
+
+- **`entity.updated` is activity, not outcome.** ADR-040's alignment counts it,
+  and correctly so for the question alignment asks. A derivation about whether
+  something *advanced* must not, or "renamed a Project" becomes progress.
+- **Beware a second record of one act.** `goal.target_reached` is appended by the
+  same atomic write as the reading that causes it, so counting both counts one
+  act twice. **Any new derivation over this stream should ask, per event type,
+  whether it is a second record of something already counted.**
+
+The rules live beside `evaluateGoalAlignment` in
+[`~/kernel/alignment/goal-movement.ts`](../../app/kernel/alignment/goal-movement.ts)
+and are re-exported through `~/shared/alignment`, which is where ADR-110
+decision 6 and DEBT-78 both said to put them. Full record:
+[`V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md`](../product/V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md).

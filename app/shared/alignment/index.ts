@@ -37,5 +37,40 @@ export type { SerializedGoalAlignmentEvidence } from "./alignment-view";
 
 export { ownerZonedMidnightUtcIso, recentBoundaryStartIso } from "./window";
 
+/**
+ * FOLLOW-02 — Goal MOVEMENT, re-exported here because [ADR-110] decision 6 and
+ * [DEBT-78] both name this barrel as its home: *"the derivation belongs in
+ * `~/shared/alignment` beside the existing evaluator, so Today and the Goal
+ * record cannot disagree."* The rules live in `~/kernel/alignment`; this is the
+ * one import path every consumer uses, alongside the one component that draws
+ * the answer.
+ */
+export {
+  GOAL_MOVEMENT_KEYS,
+  GOAL_MOVEMENT_KINDS,
+  emptyGoalMovementFacts,
+  evaluateGoalMovement,
+  goalMovementEvidenceText,
+  goalMovementEvidenceTexts,
+  goalMovementRecap,
+  goalMovementStatement,
+  goalMovementWindowLabel,
+  unavailableGoalMovement,
+} from "~/kernel/alignment";
+export type {
+  GoalMovement,
+  GoalMovementContext,
+  GoalMovementEvidence,
+  GoalMovementFacts,
+  GoalMovementKey,
+  GoalMovementKind,
+  GoalMovementStatement,
+  GoalMovementWordsOptions,
+} from "~/kernel/alignment";
+
 export { AlignmentIndicator } from "./AlignmentIndicator";
 export { GoalAlignmentPanel } from "./GoalAlignmentPanel";
+export {
+  GoalMovementLine,
+  type GoalMovementLineProps,
+} from "./GoalMovementLine";
