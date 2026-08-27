@@ -4719,3 +4719,162 @@ The full record is
     SECOND record of an act it already counted.
 
 The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2_4.md).
+
+---
+
+## ADR-111: Steering — owner judgement is stored beside derived signals, never merged — one next-action rule, one Goal story, and a collection order that answers a recorded question
+
+- **Status:** Accepted (2026-08-27, defining [V2.5](../roadmap/ROADMAP_V2_5.md))
+
+- **Context.** V2.4 finished the Goal layer's derived instrumentation under
+  [ADR-110](#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal):
+  a Goal now carries three derived answers — alignment (ADR-040), measurable
+  progress (GOAL-02) and movement (FOLLOW-02) — and the week has an exact
+  account, all computed from the Activity stream at read time, none stored, none
+  scored. The 2026-08-27 Goal-experience audit
+  ([`ROADMAP_V2_5.md`](../roadmap/ROADMAP_V2_5.md#the-audit-this-programme-is-built-on))
+  found that layer healthy and found everything around it missing: the owner can
+  state nothing about a Goal the machine has not already derived (DEBT-183), the
+  collection's order answers a question the screen stopped asking beneath counts
+  that are true of the page and read as the workspace (DEBT-120, DEBT-121),
+  three surfaces present three different progress measures for one Goal
+  (DEBT-206), and no surface names a next step (DEBT-77, DEBT-210).
+
+  V2.5 closes those gaps, and each has an obvious wrong turn that is cheaper to
+  foreclose now than to argue item by item. Adding an owner-set condition
+  invites *deriving* it ("mark it at-risk automatically when movement stops") or
+  letting it *silence* the derivations ("parked Goals stop computing") — either
+  collapses stored judgement and derived fact into one voice, which is how a
+  product starts lying politely. Adding a next action invites each surface to
+  invent its own "next", which is how Today and `/tasks` come to disagree —
+  [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3)
+  wrote the warning in 2026. Re-ordering a collection invites a cached rank
+  column or a client-side sort over a keyset page — both already refused once
+  (DEBT-23, ADR-040). And four per-Goal answers invite a fifth: the composite
+  "Goal health" number that would make every one of them unfalsifiable.
+
+- **Decision.**
+
+  1. **Owner judgement is stored; derived signals are derived; neither ever
+     produces the other.** An owner-set Goal condition is a small, closed
+     vocabulary on `goal_details`, written only by the owner through the
+     canonical mutate route. No code path sets, clears or suggests it from
+     activity, measurements, movement or anything else — and no derivation
+     takes it as input. `evaluateGoalProgress`, `evaluateGoalAlignment` and
+     `evaluateGoalMovement` keep signatures that cannot see it.
+
+  2. **The condition states intent, never a verdict a derivation already
+     computes.** Its members answer *"am I currently pursuing this?"* — not
+     *"is it going well?"*, which is GOAL-02's question, answered with
+     evidence. An owner-set "on track" beside a computed *On track* would be
+     two authorities for one word; the vocabulary may not contain one.
+
+  3. **A set-aside Goal changes scope, not truth.** It leaves attention
+     surfaces (Today's Goal panel, `/plan`'s Goal signals, next-step prompts)
+     by the same product grammar Someday/Maybe Tasks leave commitment surfaces
+     — and everywhere it still appears, every derived fact still reads exactly
+     as it would otherwise. Hiding a fact because the owner's judgement
+     disagrees with it is forbidden; so is re-toning it. All cross-combinations
+     of condition × alignment × movement × measurement remain expressible —
+     FOLLOW-02's four-combination rule, extended to the new axis.
+
+  4. **There is one next-action rule in the product.** "Next" means the first
+     actionable Task — DEBT-77's *"highest-priority open, non-waiting"* — under
+     the canonical Tasks `smart` ordering, the expression
+     `d1-task-repository.ts` already owns — scoped to a Project, or to a Goal
+     through its contributing Projects. Surfaces that must be exact
+     (Today's cards, a Goal's record) read it through a bounded ranked
+     statement; the guided Review's existing bounded scan remains what it is, a
+     disclosed approximation with its own honest wording. No surface computes a
+     "next" of its own, and absence is stated ("No next action visible here"),
+     never filled.
+
+  5. **A collection's order answers a recorded question, computed in SQL before
+     pagination, with the cursor bound to it.** `/goals` orders for the
+     outcomes question it now states; the alignment ordering survives where the
+     alignment question is still asked (the guided Review, insights, attention,
+     Analytics — all keep `listGoalsByAlignment`). The rank has one authority
+     mirrored between the SQL expression and a pure comparator under a parity
+     test — the `GOAL_ALIGNMENT_DISPLAY_RANK` precedent. No persisted rank or
+     status column, no client-side re-sort of a keyset page. A count shown
+     beside a lens is true of the whole collection or is not shown — a figure
+     scoped to the loaded page may not stand beside a label that reads as the
+     workspace (DEBT-121's rule, promoted).
+
+  6. **One Goal story.** Every surface that presents a Goal's progress,
+     alignment or movement presents it through the shared vocabulary
+     (`~/shared/goal-progress`, `~/shared/alignment`) from the shared
+     evaluators — and once the owner-set condition exists, it is **part of that
+     story**: a surface that tells a Goal's story states the condition beside
+     the derived facts, so a set-aside Goal is never indistinguishable from a
+     neglected one anywhere the story is told. No surface introduces a measure
+     of a Goal that the vocabulary does not define — the Area tab's Task
+     roll-up bar (DEBT-206) is the counterexample this clause retires. Parity
+     between surfaces is proven by reading the same machine value from each,
+     never by comparing sentences.
+
+  7. **No composite Goal score, ever.** Alignment, movement, measurable
+     progress and the owner's condition are four answers to four questions. No
+     number, rank, colour, grade or "health" merges them. Movement remains an
+     attention signal and never becomes an outcome metric. This restates
+     ADR-110 decision 4 at the Goal's level so it cannot be re-decided by a
+     panel that wants one number.
+
+- **Consequences.**
+
+  - **Easy.** The owner can finally answer the product back — a resting Goal
+    stops asking for attention without its facts being falsified, which is the
+    anti-guilt principle made structural rather than editorial. Next actions
+    cannot disagree across surfaces because there is nothing to disagree with.
+    The gallery's order and counts become checkable claims. Every new Goal
+    surface starts from one vocabulary and one set of evaluators, so parity is
+    a test rather than a review comment.
+  - **Hard, and accepted.** The condition column is the first owner-authored
+    Goal state since the definition of done, and it must be carried by export,
+    restore and the snapshot's optional-on-read list like every other
+    `goal_details` field. Outcome ordering must be computable inside a bounded
+    collection read — measurement status depends on readings, dates and the
+    owner's calendar, so the SQL rank is real work, guarded by the parity test;
+    if it genuinely cannot be computed within the budget, ADR-110 decision 7's
+    posture applies: that is a finding to record and decide, not a licence for
+    a cached column. Some honest asymmetries remain visible: a Goal can be set
+    aside and still moving, pursued and still silent — the product shows both
+    rather than resolving them, because resolving them is the owner's job.
+  - **Foreclosed on purpose.** The likeliest wrong turns — an auto-set
+    condition, a condition that silences derivations, a second "next" per
+    surface, a cached rank, page-counts beside workspace labels, and the
+    composite Goal score — are refused here, in writing, before the first
+    implementation prompt.
+
+- **Alternatives considered.**
+
+  - **Deriving the condition (auto-marking "at risk"/"stalled").** Rejected.
+    The derived layer already states those facts with evidence and better
+    words; an inferred owner-judgement is a grade wearing the owner's voice,
+    and ADR-040/FOLLOW-02 both deliberately kept judgement words out of the
+    derived vocabulary.
+  - **A condition that filters the derivations ("parked Goals stop
+    computing").** Rejected. Scope may change; truth may not. A set-aside Goal
+    whose movement line vanished would make the movement layer unauditable —
+    and the owner's own Review could no longer report what happened while a
+    Goal rested.
+  - **Reusing Projects' workflow status for Goals.** Rejected. A Project's
+    status describes work in flight (Planned / Active / On hold); a Goal is an
+    outcome, and its derived statuses already describe trajectory. The Goal
+    needs the one thing neither vocabulary has — the owner's intent — and
+    borrowing a work-status enum would import states a Goal cannot honestly
+    hold.
+  - **A per-surface "next action" (each card picks its own).** Rejected on
+    DEBT-77's recorded reasoning: Today and `/tasks` disagreeing about which
+    task is next is a trust defect, and REVIEW-02 already proved the
+    one-rule shape.
+  - **A persisted rank/status column to make the gallery order cheap.**
+    Rejected. It is the snapshot-table trade ADR-110 refuses — a second record
+    of a derivable fact, written on the hottest mutation paths, drifting the
+    first time a write path forgets it.
+  - **A composite Goal score presented calmly.** Rejected for the reason
+    ADR-104/ADR-110 record: a single number mixing four questions would look
+    precise and mean nothing, and every one of its inputs would stop being
+    checkable the day it ships.
+
+The programme this decision defines is [`ROADMAP_V2_5.md`](../roadmap/ROADMAP_V2_5.md).
