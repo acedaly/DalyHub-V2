@@ -8,7 +8,18 @@
 > [`ROADMAP_V2.md`](ROADMAP_V2.md) is the closed record of V2;
 > [`ROADMAP_V2_1.md`](ROADMAP_V2_1.md) holds V2.1, [`ROADMAP_V2_2.md`](ROADMAP_V2_2.md)
 > holds V2.2 and [`ROADMAP_V2_3.md`](ROADMAP_V2_3.md) holds V2.3, which is **closed**.
-> **This file is V2.4, and it is where new work goes.**
+> **This file is V2.4, whose planned product sequence is COMPLETE apart from
+> V2.4-GATE-01's two owner-held halves — which stay recorded here, ☐, and are
+> not moved.**
+>
+> **New work now goes in [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md)** — V2.5,
+> "Steering", which makes the Goal layer decision-grade: `/goals` decides the
+> question it answers and its counts become true (STEER-01), a Goal takes the
+> owner's condition and can be re-filed without losing its history (STEER-02),
+> every surface tells one Goal story including the weekly Review (STEER-03),
+> signals name a next step or offer to create the missing structure (STEER-04),
+> and Today offers this week's Review (STEER-05). Accepted as
+> [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question).
 >
 > The rules are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to build;
 > this tells you *what*. Status is updated in the PR that changes it. No time
@@ -167,7 +178,12 @@ Four items. Two bounded gates, then the two features the gates exist to protect.
 ☑; V2.4-GATE-01 stays ☐ with GREEN delivered and RECOVERABLE and RELEASED
 owner-blocked on secrets the repository cannot supply. With FOLLOW-02 shipped,
 **the planned V2.4 product sequence is complete** apart from that gate's two
-owner-held halves. What V2.5 should be is a decision, not a continuation.
+owner-held halves. What V2.5 should be is a decision, not a continuation —
+**and that decision is now taken: [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md), the
+Steering programme, accepted as
+[ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question).**
+It does not re-adopt this gate's owner-held halves; they remain here, and they
+remain the standing preconditions for any future production release.
 
 ### ☐ V2.4-GATE-01 — Recoverable, green, released
 
@@ -1130,6 +1146,7 @@ created, and no finding became a roadmap item merely because it existed.**
 
 ## Related documents
 
+- [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md) — the successor programme, where new work goes
 - [`ROADMAP_V2_3.md`](ROADMAP_V2_3.md) — the closed V2.3 programme this succeeds
 - [`DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md`](../design/DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) — the commercial-quality gate, its B verdict, its open findings and the measurement rule this programme inherits
 - [`DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md`](../product/DALYHUB_WHOLE_APP_BUG_AUDIT_2026_08.md) · [`DALYHUB_WHOLE_APP_REPAIR_2026_08.md`](../product/DALYHUB_WHOLE_APP_REPAIR_2026_08.md) — the audit that set the precondition for starting V2.4, and the repair that met it
