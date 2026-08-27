@@ -176,7 +176,7 @@ const COLLECTIONS: CollectionDescriptors = {
     table: "goal_details",
     columns: `entity_id, target_date, definition_of_done, measurement_type,
       measurement_unit, measurement_direction, baseline_value, target_value,
-      icon_key, colour_slot, updated_at`,
+      icon_key, colour_slot, condition, updated_at`,
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
@@ -194,6 +194,10 @@ const COLLECTIONS: CollectionDescriptors = {
       // release and which is the owner's choice rather than a derivation.
       iconKey: text(row.icon_key),
       colourSlot: text(row.colour_slot),
+      // STEER-02 — the OWNER's condition, the one owner-authored Goal state.
+      // Verbatim, like every other value here: the export records what the
+      // database holds, never what this build would prefer it to hold.
+      condition: text(row.condition),
       updatedAt: requiredText(row.updated_at),
     }),
   },

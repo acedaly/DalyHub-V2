@@ -238,6 +238,13 @@ describe("module discovery", () => {
         // AREA-02 adds the canonical Goal record page and its create/mutate/
         // activity resource routes.
         { id: "goals.new", moduleId: "goals", file: "routes/new.tsx" },
+        // STEER-02 — the Goal move's bounded Area search, a STATIC segment
+        // registered before `goals/:goalId` so it is not read as a Goal id.
+        {
+          id: "goals.area_options",
+          moduleId: "goals",
+          file: "routes/area-options.tsx",
+        },
         { id: "goals.detail", moduleId: "goals", file: "routes/detail.tsx" },
         // REDESIGN-04 — the `+ Link project` picker's bounded option search.
         {

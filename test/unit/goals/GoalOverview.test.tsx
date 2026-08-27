@@ -68,6 +68,8 @@ function details(
     iconKey: null,
     colourSlot: null,
     measurement: UNMEASURED_GOAL,
+    // STEER-02 — `null` is "pursuing", the default every Goal has.
+    condition: null,
     ...over,
   };
 }

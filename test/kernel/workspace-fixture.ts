@@ -33,6 +33,7 @@ import {
   makePersonRepository,
   makeRepository,
   makeReviewRepository,
+  makeGoalDetailsRepository,
   makeProjectTemplateRepository,
   makeSpineRepository,
   makeTaskRepository,
@@ -112,6 +113,7 @@ export async function seedWorkspace(): Promise<Seeded> {
   const reviews = makeReviewRepository(context);
   const preferences = makeAppPreferencesRepository(context);
   const projectTemplates = makeProjectTemplateRepository(context);
+  const goalDetails = makeGoalDetailsRepository(context);
 
   /* The spine ----------------------------------------------------------- */
   const area = await spine.createArea({ title: "Health" });
@@ -119,6 +121,25 @@ export async function seedWorkspace(): Promise<Seeded> {
   const goal = await spine.createGoal({
     title: "Run a half marathon",
     areaId: area.id,
+  });
+  /*
+   * The Goal-OWNED slice, written through its repository.
+   *
+   * The fixture created a Goal and no `goal_details` row, so
+   * `records.goalDetails` was empty and the restore suite's equality assertion
+   * over that collection could never fail — the GOAL-02 measurement columns and
+   * IDENTITY-01's identity had no end-to-end D1 export→restore coverage at all.
+   * STEER-02 seeds a real row (its own measurement, its own identity and the
+   * OWNER's condition) so the round trip is proved rather than assumed, and so
+   * dropping a column from the snapshot read fails here.
+   */
+  await goalDetails.update(goal.id, {
+    targetDate: "2026-12-31",
+    definitionOfDone: "Cross the line under two hours.",
+    measurement: { type: "target_value", baselineValue: 85, targetValue: 70 },
+    iconKey: "running",
+    colourSlot: "pink",
+    condition: "set_aside",
   });
   const project = await spine.createProject({
     title: "12-week training block",

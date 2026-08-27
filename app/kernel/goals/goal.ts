@@ -163,6 +163,22 @@ export type GoalAlignmentListInput = {
    * window is rejected.
    */
   readonly activeBoundaryIso: string;
+  /**
+   * STEER-02 — exclude Goals the owner has SET ASIDE (`goal_details.condition`).
+   *
+   * Opt-in, and only an ATTENTION surface opts in: Today's Goal panel, the
+   * at-risk rail and the notification digest ask "what needs me?", and a Goal
+   * the owner has deliberately put down is not an answer to that question
+   * (ADR-111 decision 3 — a set-aside Goal changes SCOPE, not truth). Every
+   * other consumer — the guided Review's Goals step, the insights read,
+   * Analytics — passes nothing and sees the set it always saw, because their
+   * question is a different one and their selection must not silently change.
+   *
+   * It never alters what a Goal SAYS: the excluded Goal's alignment, movement
+   * and measurement are exactly what they would be, and `/goals` and the record
+   * still state all three.
+   */
+  readonly omitSetAside?: boolean;
 };
 
 /**
@@ -174,4 +190,54 @@ export type GoalAlignmentListInput = {
 export type GoalAlignmentListPage = {
   readonly items: readonly GoalListItem[];
   readonly nextCursor: string | null;
+};
+
+/**
+ * Input for the WORKSPACE-WIDE, OUTCOME-ordered Goal list (STEER-01 /
+ * DEBT-120). The rank is GOAL-02's derived status computed in SQL before
+ * pagination, so the read needs the same context the pure evaluator takes:
+ * the owner-calendar "today" and, for each Goal's schedule origin, the owner's
+ * calendar conversion of its creation instant.
+ */
+export type GoalOutcomeListInput = {
+  readonly limit?: number;
+  readonly cursor?: string;
+  /** The owner-calendar day (`YYYY-MM-DD`), resolved server-side. */
+  readonly todayIso: string;
+  /**
+   * The owner's IANA time zone. Used only as a cursor-scope component — a zone
+   * change re-ranks schedule origins, so a cursor from another zone must be
+   * rejected rather than reinterpreted.
+   */
+  readonly timeZone: string;
+  /**
+   * Convert an instant to the owner-calendar `YYYY-MM-DD` — the SAME conversion
+   * the routes feed `evaluateGoalProgress`'s `startedOn` with
+   * (`ownerCalendarIso`). Injected rather than imported so the storage adapter
+   * stays free of the shared date module, exactly as
+   * `AlignmentEvaluationContext.calendarIsoOf` already is.
+   */
+  readonly calendarIsoOf: (instant: Date) => string;
+  /**
+   * The lens to filter by, applied IN the collection read (STEER-01: a lens
+   * filters the workspace, never the loaded page). Defaults to `"all"`.
+   */
+  readonly view?: import("./goal-outcome").GoalCollectionView;
+};
+
+/**
+ * One page of Goals ordered by the deterministic workspace-wide OUTCOME
+ * precedence (`GOAL_OUTCOME_DISPLAY_RANK`), established in SQL BEFORE
+ * pagination (STEER-01). The cursor is the dedicated outcome cursor, bound to
+ * workspace + day + zone + lens.
+ */
+export type GoalOutcomeListPage = {
+  readonly items: readonly GoalListItem[];
+  readonly nextCursor: string | null;
+};
+
+/** Input for the workspace-true lens counts (`countGoalsByOutcomeLens`). */
+export type GoalOutcomeCountsInput = {
+  readonly todayIso: string;
+  readonly calendarIsoOf: (instant: Date) => string;
 };

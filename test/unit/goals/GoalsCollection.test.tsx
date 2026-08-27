@@ -172,6 +172,7 @@ describe("Goals collection (the Alignment view)", () => {
           area: selectedGoal.area,
         },
         details: {
+          condition: null,
           targetDate: null,
           definitionOfDone: null,
           iconKey: null,

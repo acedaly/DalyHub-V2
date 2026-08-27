@@ -17,6 +17,9 @@ export type {
   GoalSearchHit,
   GoalAlignmentListInput,
   GoalAlignmentListPage,
+  GoalOutcomeListInput,
+  GoalOutcomeListPage,
+  GoalOutcomeCountsInput,
 } from "./goal";
 
 export {
@@ -110,6 +113,12 @@ export type {
 
 export {
   GOAL_DETAILS_UPDATED,
+  GOAL_CONDITION_CHANGED,
+  GOAL_CONDITIONS,
+  GOAL_CONDITION_PURSUING_LABEL,
+  GOAL_CONDITION_SET_ASIDE_LABEL,
+  parseGoalCondition,
+  validateGoalConditionInput,
   GOAL_DEFINITION_OF_DONE_MAX_LENGTH,
   validateGoalTargetDate,
   isValidGoalTargetDate,
@@ -123,12 +132,43 @@ export {
   GoalDetailsConflictError,
 } from "./goal-details";
 export type {
+  GoalCondition,
   GoalDetails,
   GoalDetailsRecord,
   UpdateGoalDetailsInput,
   GoalDetailsChangeResult,
   GoalDetailsValidationField,
 } from "./goal-details";
+
+/* STEER-01 — the outcome ordering and the collection lenses. */
+export {
+  GOAL_OUTCOME_QUESTION,
+  GOAL_OUTCOME_DISPLAY_RANK,
+  GOAL_OUTCOME_COMPLETED_RANK,
+  goalOutcomeDisplayRank,
+  GOAL_COLLECTION_VIEWS,
+  GOAL_COLLECTION_VIEW_LABELS,
+  parseGoalCollectionView,
+  goalMatchesCollectionView,
+} from "./goal-outcome";
+export type {
+  GoalCollectionView,
+  GoalOutcomeLensCounts,
+} from "./goal-outcome";
+
+export {
+  GOAL_OUTCOME_CURSOR_VERSION,
+  GOAL_OUTCOME_CURSOR_SORT,
+  encodeGoalOutcomeCursor,
+  decodeGoalOutcomeCursor,
+  decodeGoalOutcomeCursorForScope,
+  goalOutcomeCursorScopeMatches,
+} from "./goal-outcome-cursor";
+export type {
+  GoalOutcomeCursorPosition,
+  GoalOutcomeCursorScope,
+  DecodedGoalOutcomeCursor,
+} from "./goal-outcome-cursor";
 
 export {
   GOAL_CURSOR_VERSION,

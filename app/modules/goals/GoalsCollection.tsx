@@ -60,12 +60,12 @@ import type { GoalAlignment, GoalMovement } from "~/shared/alignment";
 import {
   GOAL_COLLECTION_VIEWS,
   GOAL_COLLECTION_VIEW_LABELS,
-  goalMatchesCollectionView,
   type GoalCollectionView,
   type GoalProgressEvaluation,
 } from "~/shared/goal-progress";
+import type { GoalCondition, GoalOutcomeLensCounts } from "~/kernel/goals";
 
-import { isGoalComplete } from "./goal-view";
+import { goalIdentitySource } from "./goal-view";
 import {
   GoalWorkspaceLayout,
   GoalWorkspaceList,
@@ -103,19 +103,14 @@ export type SerializedGoalWithAlignment = SerializedGoalListItem & {
    */
   readonly progress: GoalProgressEvaluation;
   /**
-   * UIX-03 — the recent readings, for the card's sparkline and nothing else.
+   * STEER-02 — the OWNER's condition (`null` = pursuing).
    *
-   * Deliberately separate from `progress`: every FIGURE on the card comes from
-   * the evaluation (which is derived from the bounded summary), and this is
-   * only the shape. Keeping them apart is what guarantees the drawing can never
-   * imply a different number from the one printed beside it.
+   * Stated BESIDE the derived answers, never merged into them and never an
+   * input to any of them (ADR-111 decisions 1–3). The row and the pane render
+   * it from this one value, so the two surfaces cannot describe the owner's
+   * judgement differently.
    */
-  readonly series?: readonly {
-    readonly value: number;
-    readonly measuredOn: string;
-  }[];
-  /** The Goal's definition of done — the CONTENT of a Goal with no number. */
-  readonly definitionOfDone?: string | null;
+  readonly condition?: GoalCondition | null;
   /**
    * FOLLOW-02 — whether this Goal moved inside the named window.
    *
@@ -172,12 +167,19 @@ const GOAL_DELETED_TAB_VALUE = "__deleted";
 
 /**
  * The one rail, built once so the two scopes cannot draw different versions of
- * it. `counts` is absent on the Deleted scope — the counts describe the loaded
- * ACTIVE page, and printing them beside a list of deleted Goals would be four
- * numbers about a set that is not on screen.
+ * it.
+ *
+ * ── STEER-01 — what a number beside a lens now means (DEBT-121) ─────────────
+ * `counts` is the WORKSPACE-TRUE figure the loader read
+ * (`countGoalsByOutcomeLens`), from the same status and lens expressions the
+ * collection read is filtered by. It used to be a tally of the loaded page
+ * standing beside a label that reads as the workspace — the trust cost
+ * DEBT-121 names. It is `undefined` on the Deleted scope and whenever the
+ * workspace read failed, and then no lens carries a number at all: DEBT-121's
+ * rule is that a count is workspace-true or absent, never page-local.
  */
 function goalViewTabs(
-  counts?: Readonly<Record<Exclude<GoalCollectionView, "all">, number>>,
+  counts?: GoalOutcomeLensCounts,
 ): readonly ViewTabOption[] {
   return [
     ...GOAL_COLLECTION_VIEWS.map((option) => ({
@@ -225,8 +227,17 @@ export interface GoalsCollectionViewProps {
   readonly areaOptionsFailed?: boolean;
   readonly todayIso?: string | null;
   readonly timeZone?: string | null;
+  /**
+   * STEER-01 — the WORKSPACE-TRUE lens counts (DEBT-121). `null` on the Deleted
+   * scope and whenever the workspace read failed, and then no lens shows a
+   * number: a count is true of the set its label names, or it is not shown.
+   */
+  readonly lensCounts?: GoalOutcomeLensCounts | null;
   readonly state?: GoalCollectionState;
-  /** UIX-03 — the status view (`?view=`), narrowing the loaded Goals. */
+  /**
+   * STEER-01 — the lens (`?view=`). It narrows the WORKSPACE in the collection
+   * read; this prop only says which lens is active, so the rail can mark it.
+   */
   readonly view?: GoalCollectionView;
   readonly failed: boolean;
 }
@@ -254,6 +265,7 @@ export function GoalsCollectionView({
   areaOptions = [],
   areaOptionsFailed = false,
   todayIso = null,
+  lensCounts = null,
   state = "active",
   view = "all",
   failed,
@@ -294,6 +306,7 @@ export function GoalsCollectionView({
         selectedId={selectedId}
         selectionExplicit={selectionExplicit}
         todayIso={todayIso}
+        lensCounts={lensCounts}
         state={state}
         view={view}
         failed={failed}
@@ -490,6 +503,51 @@ function useRestoreGoal() {
  */
 
 /**
+ * STEER-02 — set or clear a Goal's CONDITION, through the canonical focused
+ * intent.
+ *
+ * The SAME `set_condition` intent, endpoint and shared control the record
+ * posts, so the workspace and the record cannot write the owner's judgement
+ * differently. A refusal leaves the previous value on screen with the server's
+ * own message; an accepted change revalidates, because the condition can move
+ * the Goal in and out of the "Set aside" lens and change the workspace-true
+ * counts beside it.
+ */
+async function setGoalCondition(
+  goalId: string,
+  condition: GoalCondition | null,
+  onSaved: () => void,
+): Promise<InlineSaveOutcome> {
+  const body = new FormData();
+  body.set("intent", "set_condition");
+  body.set("condition", condition ?? "");
+  try {
+    const response = await fetch(
+      `/goals/${encodeURIComponent(goalId)}/mutate`,
+      { method: "POST", body, headers: { accept: "application/json" } },
+    );
+    const result = (await response.json()) as {
+      readonly ok: boolean;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
+      readonly formError?: string;
+    };
+    if (result.ok) {
+      onSaved();
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      message:
+        result.fieldErrors?.condition ??
+        result.formError ??
+        "That couldn’t be saved. Please try again.",
+    };
+  } catch {
+    return { ok: false, message: "That couldn’t be saved. Please try again." };
+  }
+}
+
+/**
  * DHDS-10 — set or clear a Goal's target date, through the canonical focused
  * intent.
  *
@@ -581,35 +639,19 @@ function alignmentSummary(
   return `${active} of ${open.length} open ${goalNoun} ${open.length === 1 ? "has" : "have"} had recent action.`;
 }
 
-/**
- * UIX-03 — how many loaded Goals fall into each status view.
+/*
+ * STEER-01 — `goalViewCounts` is GONE, and its absence is the fix.
  *
- * Derived from the SAME predicate the grid filters with
- * (`goalMatchesCollectionView`), so a tab that says "3" always has three cards
- * behind it. Counting through the shared predicate rather than re-testing the
- * statuses here is the whole point: two implementations of "is this Goal on
- * track?" is one more than the product can keep honest.
+ * It tallied the LOADED page through the shared predicate, which made every
+ * tab's number consistent with the rows beneath it and quietly wrong for the
+ * question the label asks ("On track 3" reads as a workspace fact). The
+ * workspace-true figures now come from the loader
+ * (`GoalRepository.countGoalsByOutcomeLens`), computed from the same SQL
+ * status and lens expressions the collection read is filtered by — so the
+ * count and the result set still cannot disagree, and the number is now true
+ * of the set its label names. DEBT-121's rule, satisfied by construction: no
+ * page-derived count survives on this surface.
  */
-function goalViewCounts(goals: readonly SerializedGoalWithAlignment[]): {
-  readonly total: number;
-  readonly on_track: number;
-  readonly attention: number;
-  readonly completed: number;
-} {
-  const tally = (view: GoalCollectionView) =>
-    goals.filter((goal) =>
-      goalMatchesCollectionView(view, {
-        completed: isGoalComplete(goal),
-        status: goal.progress.status,
-      }),
-    ).length;
-  return {
-    total: goals.length,
-    on_track: tally("on_track"),
-    attention: tally("attention"),
-    completed: tally("completed"),
-  };
-}
 
 function GoalsCollection({
   goals,
@@ -620,6 +662,7 @@ function GoalsCollection({
   selectedId,
   selectionExplicit,
   todayIso,
+  lensCounts,
   state,
   view,
   failed,
@@ -632,6 +675,7 @@ function GoalsCollection({
   readonly selectedId: string | null;
   readonly selectionExplicit: boolean;
   readonly todayIso: string | null;
+  readonly lensCounts: GoalOutcomeLensCounts | null;
   readonly state: GoalCollectionState;
   readonly view: GoalCollectionView;
   readonly failed: boolean;
@@ -734,29 +778,26 @@ function GoalsCollection({
     );
   }
 
-  // DEBT-23: the Alignment order is now established WORKSPACE-WIDE by the
-  // repository (`listGoalsByAlignment`) BEFORE pagination, so accumulated pages
-  // are already globally ordered by `GOAL_ALIGNMENT_DISPLAY_RANK` then
-  // `(createdAt, id)`. The client renders that authoritative order directly and
-  // never re-sorts Goals into a merely per-page ranking.
+  /*
+   * STEER-01: the OUTCOME order is established WORKSPACE-WIDE by the repository
+   * (`listGoalsByOutcome`) BEFORE pagination, and the active lens is applied in
+   * that same read — so accumulated pages are already globally ordered by
+   * `GOAL_OUTCOME_DISPLAY_RANK` then `(createdAt, id)`, and already contain only
+   * the Goals this lens admits, across the whole workspace rather than the page.
+   * The client renders that authoritative order and set directly: it never
+   * re-sorts and never re-filters, because either would turn a workspace answer
+   * back into a page-local one.
+   */
   const count = items.length;
   const subtitle = failed
     ? "We couldn’t load your Goals."
     : collectionCountLabel(count, "Goal", "Goals", { hasMore });
   const summary = failed ? null : alignmentSummary(items);
-  /*
-   * The view counts, over the Goals LOADED — the same per-page honesty the
-   * subtitle already declares. They are computed here rather than server-side
-   * because a count that disagreed with the cards beneath it would be worse
-   * than one that is explicitly about this page.
-   */
-  const counts = goalViewCounts(items);
-  const visible = items.filter((goal) =>
-    goalMatchesCollectionView(view, {
-      completed: isGoalComplete(goal),
-      status: goal.progress.status,
-    }),
-  );
+  // DEBT-121 — workspace-true or absent. `lensCounts` is the loader's
+  // workspace figure; when it is missing (the Deleted scope, or a failed read)
+  // the tabs carry no numbers at all rather than falling back to a page tally.
+  const counts = failed ? undefined : (lensCounts ?? undefined);
+  const visible = items;
 
   return (
     <CollectionLayout
@@ -833,7 +874,18 @@ function GoalsCollection({
           />
         ) : undefined
       }
-      isEmpty={!failed && count === 0}
+      /*
+       * STEER-01 — two different emptinesses, now genuinely distinguishable.
+       *
+       * The lens filters the WORKSPACE, so "nothing here" can mean either "this
+       * workspace has no Goals" or "no Goal in the workspace is on track". The
+       * workspace-true counts tell the two apart: `lensCounts.total` is every
+       * Goal in the active collection regardless of lens. Before STEER-01 the
+       * filter ran over the loaded page, so the honest answer to the second
+       * case was only ever "nothing LOADED matches" — which is what its copy
+       * had to say.
+       */
+      isEmpty={!failed && count === 0 && (lensCounts?.total ?? 0) === 0}
       emptySlot={
         /*
          * REDESIGN-04 §5.1 — the empty state now CREATES rather than
@@ -884,11 +936,11 @@ function GoalsCollection({
        * lens and offers the way back rather than inviting the owner to create a
        * Goal they already have (AGENTS.md §6 — no dead ends).
        */}
-      {visible.length === 0 && count > 0 ? (
+      {count === 0 && (lensCounts?.total ?? 0) > 0 ? (
         <EmptyState
           icon={<EntityIcon type="goal" />}
           title={`No Goals are ${GOAL_COLLECTION_VIEW_LABELS[view].toLowerCase()}`}
-          description="Nothing loaded matches this view."
+          description={`This workspace has ${lensCounts!.total === 1 ? "1 Goal" : `${lensCounts!.total} Goals`}, and none of them is in this view.`}
           primaryAction={
             <a className="dh-btn dh-btn--outlined" href="/goals">
               Show all Goals
@@ -933,17 +985,27 @@ function GoalsCollection({
                   visible.find((goal) => goal.id === selectedId)?.alignment ??
                   selected.alignment
                 }
-                areaColourRank={
-                  visible.find((goal) => goal.id === selectedId)?.area
-                    .colourRank ?? null
-                }
-                areaIconKey={
-                  visible.find((goal) => goal.id === selectedId)?.area
-                    .iconKey ?? null
-                }
+                /*
+                 * STEER-01 (DEBT-208) — the pane's mark is resolved by the ONE
+                 * Goal identity projection, from the selected Goal's OWN
+                 * identity and its Area's, so the row and the pane cannot show
+                 * two different marks for one record.
+                 */
+                identity={goalIdentitySource({
+                  own: {
+                    iconKey: selected.details.iconKey,
+                    colourSlot: selected.details.colourSlot,
+                  },
+                  area: selected.overview.area,
+                })}
                 tabs={<GoalWorkspaceTabs goalId={selected.overview.id} />}
                 onSetTargetDate={(next) =>
                   setGoalTargetDate(selected.overview.id, next, () =>
+                    revalidator.revalidate(),
+                  )
+                }
+                onSetCondition={(next) =>
+                  setGoalCondition(selected.overview.id, next, () =>
                     revalidator.revalidate(),
                   )
                 }

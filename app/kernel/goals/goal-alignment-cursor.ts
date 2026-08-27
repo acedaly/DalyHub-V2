@@ -22,7 +22,14 @@
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
 
-export const GOAL_ALIGNMENT_CURSOR_VERSION = 1;
+/**
+ * Version 2 (STEER-02): the scope gained `omitSetAside`, because a page read
+ * with set-aside Goals excluded is a different result set from one without.
+ * Bumping refuses every cursor issued under version 1 rather than
+ * reinterpreting it — the calm reset to page one every cursor kernel here
+ * performs.
+ */
+export const GOAL_ALIGNMENT_CURSOR_VERSION = 2;
 
 /** The sort semantics this cursor is bound to (guards against cross-sort reuse). */
 export const GOAL_ALIGNMENT_CURSOR_SORT = "alignment";
@@ -40,6 +47,12 @@ export type GoalAlignmentCursorScope = {
    * instant) the rank was computed under. A cursor is invalid under a different
    * window. */
   readonly windowStartIso: string;
+  /**
+   * STEER-02 — whether the page EXCLUDED Goals the owner has set aside (an
+   * attention surface's read). It is part of the scope because it changes which
+   * Goals the result set contains, so a cursor from one cannot page the other.
+   */
+  readonly omitSetAside: boolean;
 };
 
 const textEncoder = new TextEncoder();
@@ -79,6 +92,7 @@ export function encodeGoalAlignmentCursor(
     GOAL_ALIGNMENT_CURSOR_SORT,
     scope.workspaceId,
     scope.windowStartIso,
+    scope.omitSetAside,
     position.rank,
     position.createdAt,
     position.id,
@@ -109,11 +123,19 @@ export function decodeGoalAlignmentCursor(
   } catch {
     throw new InvalidSpineCursorError();
   }
-  if (!Array.isArray(parsed) || parsed.length !== 7) {
+  if (!Array.isArray(parsed) || parsed.length !== 8) {
     throw new InvalidSpineCursorError();
   }
-  const [version, sort, workspaceId, windowStartIso, rank, createdAt, id] =
-    parsed;
+  const [
+    version,
+    sort,
+    workspaceId,
+    windowStartIso,
+    omitSetAside,
+    rank,
+    createdAt,
+    id,
+  ] = parsed;
   if (
     version !== GOAL_ALIGNMENT_CURSOR_VERSION ||
     sort !== GOAL_ALIGNMENT_CURSOR_SORT ||
@@ -121,6 +143,7 @@ export function decodeGoalAlignmentCursor(
     workspaceId.length === 0 ||
     typeof windowStartIso !== "string" ||
     windowStartIso.length === 0 ||
+    typeof omitSetAside !== "boolean" ||
     typeof rank !== "number" ||
     !Number.isInteger(rank) ||
     typeof createdAt !== "string" ||
@@ -131,7 +154,7 @@ export function decodeGoalAlignmentCursor(
     throw new InvalidSpineCursorError();
   }
   return {
-    scope: { workspaceId, windowStartIso },
+    scope: { workspaceId, windowStartIso, omitSetAside },
     position: { rank, createdAt, id },
   };
 }
@@ -141,7 +164,9 @@ export function goalAlignmentCursorScopeMatches(
   b: GoalAlignmentCursorScope,
 ): boolean {
   return (
-    a.workspaceId === b.workspaceId && a.windowStartIso === b.windowStartIso
+    a.workspaceId === b.workspaceId &&
+    a.windowStartIso === b.windowStartIso &&
+    a.omitSetAside === b.omitSetAside
   );
 }
 

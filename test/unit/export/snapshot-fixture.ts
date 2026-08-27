@@ -212,6 +212,10 @@ export function makeSnapshot(
         // covers the two fields a Goal did not have before this release.
         iconKey: "running",
         colourSlot: "pink",
+        // STEER-02 — a Goal the owner has SET ASIDE, so the round trip carries
+        // a real owner condition rather than the default that would pass even
+        // if the field were dropped from the archive entirely.
+        condition: "set_aside",
         updatedAt: T(2),
       },
     ],

@@ -242,6 +242,23 @@ export async function loadGoalSummaries(
 ): Promise<readonly GoalSummary[]> {
   const page = await scope.goals.listGoalsByAlignment({
     activeBoundaryIso: facts.recentBoundaryStartIso,
+    /*
+     * STEER-02 — a Goal the owner has SET ASIDE leaves this surface.
+     *
+     * Both consumers are glance surfaces that ask for the owner's attention
+     * (Today's Goal panel, the Projects page's Goal rail), and ADR-111
+     * decision 3 is that a set-aside Goal leaves attention surfaces "by the
+     * same product grammar Someday/Maybe Tasks leave commitment surfaces". The
+     * exclusion happens in SQL, BEFORE the scan limit below, so a workspace
+     * whose first twelve Goals are all set aside still shows the ones being
+     * pursued rather than an empty panel.
+     *
+     * It changes SCOPE and nothing else: `/goals` and the Goal record still
+     * show that Goal with its alignment, its movement and its measurement
+     * status exactly as they read for any other Goal, and nothing here rewrites
+     * or re-tones a derived fact.
+     */
+    omitSetAside: true,
   });
   const items = page.items
     .filter((item) => item.completedAt === null)

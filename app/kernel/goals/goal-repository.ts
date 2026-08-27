@@ -13,12 +13,16 @@ import type {
   GoalChildrenInput,
   GoalListInput,
   GoalListPage,
+  GoalOutcomeCountsInput,
+  GoalOutcomeListInput,
+  GoalOutcomeListPage,
   GoalOverview,
   GoalProjectContribution,
   GoalProjectPage,
   GoalSearchHit,
   GoalSearchInput,
 } from "./goal";
+import type { GoalOutcomeLensCounts } from "./goal-outcome";
 
 export interface GoalRepository {
   /**
@@ -53,6 +57,41 @@ export interface GoalRepository {
   listGoalsByAlignment(
     input: GoalAlignmentListInput,
   ): Promise<GoalAlignmentListPage>;
+
+  /**
+   * STEER-01 — the WORKSPACE-WIDE Goal list ordered by the deterministic
+   * OUTCOME display precedence (`GOAL_OUTCOME_DISPLAY_RANK` over GOAL-02's
+   * derived status, spine completion last), established in SQL BEFORE
+   * pagination, with the requested lens applied in the same read. This is the
+   * `/goals` collection's base read — the recorded question it answers is
+   * `GOAL_OUTCOME_QUESTION`.
+   *
+   * The SQL status expression mirrors `evaluateGoalProgress` exactly (parity
+   * is proven by test against the pure comparator over the same fact matrix —
+   * the DEBT-23 precedent). The rank is computed in the read and NEVER
+   * persisted (ADR-111 decision 5; ADR-110's no-cached-column rule). Keyset
+   * pagination over `(displayRank, createdAt, id)` with a cursor bound to
+   * workspace + owner day + time zone + lens; a stale or foreign cursor is
+   * rejected (`InvalidSpineCursorError`), never reinterpreted.
+   *
+   * Cost: a FIXED number of workspace-scoped statements (one bounded
+   * id/creation scan to resolve schedule origins, then one ranked page read) —
+   * flat in the number of Goals, measurements and milestones, never one query
+   * per Goal.
+   */
+  listGoalsByOutcome(input: GoalOutcomeListInput): Promise<GoalOutcomeListPage>;
+
+  /**
+   * STEER-01 — the WORKSPACE-TRUE count for every collection lens, in a fixed
+   * number of statements (never a page-local tally). DEBT-121's closing
+   * condition: a count shown beside a lens describes the workspace, or it is
+   * not shown. Uses the SAME status/lens expressions as
+   * {@link listGoalsByOutcome}, so a lens's count and its result set cannot
+   * disagree.
+   */
+  countGoalsByOutcomeLens(
+    input: GoalOutcomeCountsInput,
+  ): Promise<GoalOutcomeLensCounts>;
 
   /**
    * The EXACT, complete Project-contribution boundary for a Goal: every active

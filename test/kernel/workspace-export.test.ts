@@ -203,6 +203,33 @@ describe("workspace export (D1)", () => {
     }
   });
 
+  it("carries the Goal-OWNED slice, including the OWNER's condition (STEER-02)", () => {
+    /*
+     * The Goal's own detail row: the target date, the plain-text definition of
+     * done, GOAL-02's measurement configuration, IDENTITY-01's identity and
+     * STEER-02's owner condition. Every one is a value nothing else in the
+     * archive can reconstruct, so a column missing from the snapshot read is a
+     * silent loss of the owner's own state on the next restore.
+     */
+    const detail = snapshot.records.goalDetails.find(
+      (row) => row.entityId === seeded.goalId,
+    );
+    expect(detail).toBeDefined();
+    expect(detail).toMatchObject({
+      targetDate: "2026-12-31",
+      definitionOfDone: "Cross the line under two hours.",
+      measurementType: "target_value",
+      baselineValue: 85,
+      targetValue: 70,
+      iconKey: "running",
+      colourSlot: "pink",
+      condition: "set_aside",
+    });
+    // Present as an explicit key rather than merely truthy: `undefined` would
+    // be dropped by `JSON.stringify` and reach a restore as "no condition".
+    expect("condition" in detail!).toBe(true);
+  });
+
   it("preserves module-specific child records", () => {
     expect(snapshot.records.meetingItems.map((item) => item.id)).toContain(
       seeded.meetingItemId,

@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import { GOAL_COMPLETED, GOAL_REOPENED } from "~/kernel/spine";
 import {
+  GOAL_CONDITION_CHANGED,
   GOAL_DETAILS_UPDATED,
   GOAL_MEASUREMENT_CORRECTED,
   GOAL_MEASUREMENT_LOGGED,
@@ -183,6 +184,9 @@ describe("Goal Activity descriptors", () => {
         GOAL_TARGET_REACHED,
         GOAL_MILESTONE_COMPLETED,
         GOAL_MILESTONE_REOPENED,
+        // STEER-02 — the OWNER's condition. The only owner-authored Goal state
+        // in the product, and the only Goal event a derivation never writes.
+        GOAL_CONDITION_CHANGED,
       ].sort(),
     );
   });

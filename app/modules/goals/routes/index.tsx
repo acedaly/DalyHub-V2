@@ -1,9 +1,29 @@
 /**
- * AREA-03 / REDESIGN-04 — the Goals WORKSPACE (`/goals`).
+ * AREA-03 / REDESIGN-04 / STEER-01 — the Goals WORKSPACE (`/goals`).
  *
- * Shows every open Goal across every Area with its derived alignment state —
- * whether recent Task activity has contributed to it — so the owner can see at
- * a glance which Goals have had attention and which have not (ADR-040).
+ * ── What this surface answers (STEER-01, recorded) ──────────────────────────
+ * `/goals` is the **outcomes workspace**. The question it answers is
+ * `GOAL_OUTCOME_QUESTION`:
+ *
+ *   > "How are my outcomes going — and which need my decision first?"
+ *
+ * Its order is that question's answer: the workspace-wide OUTCOME rank
+ * (`GOAL_OUTCOME_DISPLAY_RANK` over GOAL-02's derived status), established in
+ * SQL BEFORE pagination, with the keyset cursor bound to the workspace, the
+ * owner's day, their zone and the active lens. Nothing is sorted in React.
+ *
+ * The surface used to be ordered by ADR-040's ALIGNMENT rank — neglected first
+ * — beneath UIX-03's measurement lenses, so it answered "which Goal have I been
+ * neglecting?" on a screen whose lenses ask about outcomes (DEBT-120). The
+ * alignment ordering is not lost: `listGoalsByAlignment` is KEPT for every
+ * consumer that still asks the alignment question (the guided Review, the
+ * insights read, Today's attention facts and Analytics), and alignment itself
+ * is still stated on this surface — as the pane's indicator and in each row's
+ * accessible name, a derived signal beside the others rather than the order.
+ *
+ * The lenses filter the WORKSPACE in that same read, and every count beside a
+ * lens is a workspace figure from `countGoalsByOutcomeLens` (DEBT-121) — never
+ * a tally of the loaded page.
  *
  * ── REDESIGN-04: the collection became a master–detail ──────────────────────
  * `mockup3.png` draws Goals as a two-pane workspace: the list on the left, the
@@ -28,6 +48,8 @@ import { addDaysToIsoDate } from "~/kernel/alignment";
 import {
   EMPTY_GOAL_PROJECT_CONTRIBUTION,
   UNMEASURED_GOAL,
+  parseGoalCollectionView,
+  type GoalOutcomeLensCounts,
 } from "~/kernel/goals";
 import { InvalidSpineCursorError } from "~/kernel/spine";
 import {
@@ -46,20 +68,7 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
 import type { SelectOption } from "~/shared/forms/types";
-import {
-  evaluateGoalFromSummary,
-  parseGoalCollectionView,
-} from "~/shared/goal-progress";
-
-/**
- * How many readings a gallery card's sparkline is drawn from.
- *
- * Twelve. A card's chart is roughly 100px wide, where more points are pixels
- * rather than information, and the recent run is what a "which way is this
- * going?" glance is asking about — a two-year-old reading would only flatten
- * the shape of the last few months.
- */
-const GOAL_CARD_SPARKLINE_POINTS = 12;
+import { evaluateGoalFromSummary } from "~/shared/goal-progress";
 
 /** Bounded page size for the Area options in the `+ Add goal` flow. */
 const AREA_OPTIONS_LIMIT = 100;
@@ -115,18 +124,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const cursor = url.searchParams.get("cursor") ?? undefined;
   const state = parseState(url.searchParams.get("state"));
   /*
-   * UIX-03 — the status view is parsed here and applied on the CLIENT, over the
-   * Goals already loaded.
+   * STEER-01 — the lens is applied in the COLLECTION READ, not in React.
    *
-   * It is deliberately not a query filter. The collection's order is the
-   * workspace-wide alignment ranking established before pagination (DEBT-23),
-   * and its cursor is bound to that window; adding a status predicate to the
-   * SQL would need a second ranking, a second cursor scope and a status the
-   * database can compute — and the status is a KERNEL derivation over
-   * measurements, dates and the owner's calendar, which SQL has no business
-   * reproducing. Narrowing the loaded page keeps one source of truth for the
-   * word on the card and the tab that counts it; the subtitle already states
-   * that counts describe what is loaded.
+   * UIX-03 parsed it here and filtered the loaded page, because the order was
+   * the alignment ranking and adding a status predicate would have needed "a
+   * second ranking, a second cursor scope and a status the database can
+   * compute". STEER-01 built exactly those three: the order IS the outcome
+   * ranking, the cursor is bound to workspace + day + zone + lens, and the
+   * status is derived in SQL from the same stored facts the kernel evaluator
+   * reads, under a parity test. So the lens narrows the workspace, its result
+   * set is complete across pages, and its count (below) is workspace-true.
    */
   const view = parseGoalCollectionView(url.searchParams.get("view"));
   const selection = parseSelection(url.searchParams.get("goal"));
@@ -161,6 +168,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         areaOptionsFailed: true,
         todayIso: null as string | null,
         timeZone: null as string | null,
+        // STEER-01 — no workspace counts on the Deleted scope: four numbers
+        // about the ACTIVE collection printed beside a list of deleted Goals
+        // would be exactly the mismatch DEBT-121 closed.
+        lensCounts: null as GoalOutcomeLensCounts | null,
         state,
         view,
         failed: false,
@@ -178,6 +189,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         areaOptionsFailed: true,
         todayIso: null as string | null,
         timeZone: null as string | null,
+        lensCounts: null as GoalOutcomeLensCounts | null,
         state,
         view,
         failed: true,
@@ -202,24 +214,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       .then((preferences) => preferences.firstDayOfWeek)
       .catch(() => DEFAULT_APP_PREFERENCES.firstDayOfWeek);
 
-    // DEBT-23: the collection is ordered by the deterministic workspace-wide
-    // Alignment precedence in the repository (BEFORE pagination), so the Goals
-    // most worth a look lead across the WHOLE workspace — not merely within each
-    // fetched page. The rank's active/neglected split uses the EXACT owner-calendar
-    // boundary (so the SQL order agrees with the evaluator), and the cursor is
-    // bound to that window. A stale/incompatible/cross-window cursor is reset
-    // calmly to the first page rather than surfaced as an error.
+    /*
+     * STEER-01 — the collection is ordered by the deterministic workspace-wide
+     * OUTCOME precedence in the repository, BEFORE pagination, with the active
+     * lens applied in the same read (DEBT-120, DEBT-121).
+     *
+     * The rank is GOAL-02's derived status computed in SQL from the same stored
+     * facts the kernel evaluator reads, so a Goal that is behind its own target
+     * date leads the workspace rather than the page — and a Goal needing
+     * attention on page two is never stranded behind healthy Goals on page one.
+     * The cursor is bound to workspace + owner day + zone + lens; a stale,
+     * foreign or cross-lens cursor resets calmly to the first page rather than
+     * surfacing as an error, exactly as the alignment cursor does.
+     */
+    const outcomeInput = {
+      todayIso: evaluation.todayIso,
+      timeZone,
+      calendarIsoOf: (instant: Date) => ownerCalendarIso(instant, timeZone),
+      view,
+    };
     let page;
     try {
-      page = await scope.goals.listGoalsByAlignment({
-        cursor,
-        activeBoundaryIso: recentBoundaryStartIso,
-      });
+      page = await scope.goals.listGoalsByOutcome({ ...outcomeInput, cursor });
     } catch (error) {
       if (error instanceof InvalidSpineCursorError) {
-        page = await scope.goals.listGoalsByAlignment({
-          activeBoundaryIso: recentBoundaryStartIso,
-        });
+        page = await scope.goals.listGoalsByOutcome(outcomeInput);
       } else {
         throw error;
       }
@@ -257,9 +276,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       contributions,
       activityFacts,
       measurementSummaries,
-      measurementSeries,
       milestoneSummaries,
       detailsById,
+      lensCounts,
       movement,
     ] = await Promise.all([
       scope.goals.listGoalProjectContributions(ids),
@@ -268,20 +287,30 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         comparisonFromIso,
       }),
       /*
-       * UIX-03 — the card's SPARKLINE, one grouped statement for the page.
+       * DEBT-207 — the sparkline series read is GONE.
        *
-       * The summary above holds three readings chosen for arithmetic; drawing
-       * those three as a line would assert a smooth path through a history that
-       * may have wandered. This is the recent run, capped per Goal so the read
-       * stays bounded (`GOAL_CARD_SPARKLINE_POINTS`), and it is used ONLY to
-       * draw — every figure on the card still comes from the summary-based
-       * evaluation, so the picture and the percentage cannot disagree.
+       * `listMeasurementSeries(ids, { perGoalLimit: 12 })` transferred a run of
+       * readings per Goal on every page and every revalidation to draw a
+       * gallery card REDESIGN-04 deleted. The trend is not lost: selecting a
+       * row draws the full chart on the pane, from the record's own read. The
+       * repository method survives for the record; only this dead read goes.
        */
-      scope.goalMeasurements.listMeasurementSeries(ids, {
-        perGoalLimit: GOAL_CARD_SPARKLINE_POINTS,
-      }),
       scope.goalMeasurements.listMilestoneSummaries(ids),
       scope.goalDetails.listMany(ids),
+      /*
+       * STEER-01 — the WORKSPACE-TRUE lens counts (DEBT-121).
+       *
+       * Two statements for the whole workspace, from the SAME status and lens
+       * expressions the ordered page above is filtered by, so a lens's number
+       * and its result set cannot disagree. This is what lets the tabs carry a
+       * figure at all: the previous counts described the loaded page beside a
+       * label that reads as the workspace, which is the trust cost DEBT-121
+       * names.
+       */
+      scope.goals.countGoalsByOutcomeLens({
+        todayIso: evaluation.todayIso,
+        calendarIsoOf: outcomeInput.calendarIsoOf,
+      }),
       /*
        * FOLLOW-02 — did each Goal on this page move inside the named window?
        *
@@ -333,13 +362,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           completed: item.completedAt !== null,
           todayIso: evaluation.todayIso,
         }),
-        series: (measurementSeries.get(item.id) ?? []).map((point) => ({
-          value: point.value,
-          measuredOn: point.measuredOn,
-        })),
-        // Already in hand from `listMany` above — the card uses it only when
-        // there is no reading to show.
-        definitionOfDone: details?.definitionOfDone ?? null,
+        /*
+         * STEER-02 — the OWNER's condition, stated beside the derived facts and
+         * never mixed into them. Already in hand from `listMany` above, so it
+         * costs no read; it is presentation and scope only (ADR-111 decision 1)
+         * and no evaluator above has seen it.
+         */
+        condition: details?.condition ?? null,
         /*
          * FOLLOW-02 — the SAME derivation Today and the Goal record read, so
          * the three surfaces cannot describe this Goal's week differently.
@@ -448,6 +477,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       areaOptionsFailed,
       todayIso: evaluation.todayIso,
       timeZone,
+      /*
+       * DEBT-121 — the counts the lens tabs print, true of the WORKSPACE.
+       *
+       * They are the loader's own value rather than something the client
+       * derives, because a figure computed from `items` is a figure about the
+       * loaded page however it is labelled.
+       */
+      lensCounts,
       state,
       view,
       failed: false,
@@ -465,6 +502,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       areaOptionsFailed: true,
       todayIso: null as string | null,
       timeZone: null as string | null,
+      lensCounts: null as GoalOutcomeLensCounts | null,
       state,
       view,
       failed: true,
@@ -486,6 +524,7 @@ export default function GoalsRoute({ loaderData }: Route.ComponentProps) {
       areaOptionsFailed={loaderData.areaOptionsFailed}
       todayIso={loaderData.todayIso}
       timeZone={loaderData.timeZone}
+      lensCounts={loaderData.lensCounts}
       state={loaderData.state}
       view={loaderData.view}
       failed={loaderData.failed}

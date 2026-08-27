@@ -1,0 +1,50 @@
+-- Migration number: 0048 	 2026-08-27
+--
+-- STEER-02: the owner-set Goal CONDITION - one additive nullable column on the
+-- existing Goal-owned detail slice.
+--
+-- WHY. A Goal carries three DERIVED answers - alignment (ADR-040), measurable
+-- progress (GOAL-02) and movement (FOLLOW-02) - and no place for the owner's
+-- own reading. An owner who has deliberately set a Goal aside for the winter
+-- cannot say so, and since FOLLOW-02 that silence is printed: a resting Goal
+-- reads "No movement yet this week." indefinitely, indistinguishable from a
+-- neglected one (DEBT-183). This migration adds the smallest schema that lets
+-- the owner answer back.
+--
+-- WHAT IS ADDED. One nullable TEXT column, `condition`, on the EXISTING
+-- `goal_details` slice - the same home `target_date`, the GOAL-02 measurement
+-- configuration (0038) and the IDENTITY-01 identity (0042) already share,
+-- because it is Goal-owned detail state in exactly the same sense.
+--
+-- THE VOCABULARY IS CLOSED AND OWNER-WRITTEN ONLY (ADR-111 decisions 1-3).
+-- `NULL` means "pursuing" - the state every Goal has always been in - and
+-- `'set_aside'` is the one stored member. Members state the owner's INTENT,
+-- never a verdict a derivation already computes: there is deliberately no
+-- stored "on_track", "at_risk", "stalled" or any other word that would compete
+-- with `evaluateGoalProgress`'s evidence-backed answer. No background process,
+-- derivation or heuristic ever writes this column, and no derived evaluator
+-- reads it.
+--
+-- NO BACKFILL, NO REINTERPRETATION. Every existing Goal keeps working
+-- unchanged: a NULL `condition` means "pursuing", which is exactly what was
+-- true of every Goal before this migration, and a Goal with no `goal_details`
+-- row still has no row. Export archives written before this column validate
+-- and restore unchanged - absence reads as NULL reads as "pursuing".
+--
+-- WHY NO CHECK NAMES THE MEMBERS. The 0038/0032 rule, applied a fourth time: a
+-- CHECK enumerating a domain that may grow turns "widen the vocabulary" into
+-- "rebuild a production table". The closed enum lives in
+-- `app/kernel/goals/goal-details.ts` (`GOAL_CONDITIONS`) and is enforced at
+-- the one validation boundary every write passes through
+-- (`validateGoalConditionInput`). An unrecognised stored value degrades to
+-- "pursuing" on read (`parseGoalCondition`) rather than throwing.
+--
+-- SAFE AGAINST PRODUCTION D1. One `ALTER TABLE ... ADD COLUMN` statement,
+-- nullable, with no default and no constraint that would block a later
+-- `DROP COLUMN`. No table is rebuilt and no data is moved.
+--
+-- PRODUCTION APPLY IS GATED. Per AGENTS.md and V2.4-GATE-01, this migration is
+-- NOT applied to production until the real pre-migration backup precondition
+-- (DEBT-139) is satisfied. Local/dev apply is expected and safe.
+
+ALTER TABLE goal_details ADD COLUMN condition TEXT;

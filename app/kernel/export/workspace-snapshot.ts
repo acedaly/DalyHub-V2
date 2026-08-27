@@ -343,6 +343,17 @@ export interface SnapshotGoalDetail {
    */
   readonly iconKey: string | null;
   readonly colourSlot: string | null;
+  /**
+   * STEER-02 — the OWNER's condition (`null` = pursuing).
+   *
+   * Additive and optional-by-`null`, exactly as the GOAL-02 measurement fields
+   * and IDENTITY-01's identity are: an archive written before this release has
+   * no such key, and its absence restores as `null` — "pursuing", which is the
+   * state every Goal in that archive was in. The value is carried VERBATIM, so
+   * a member this build no longer recognises still survives the round trip
+   * rather than being silently normalised away on the way out.
+   */
+  readonly condition: string | null;
   readonly updatedAt: IsoInstant;
 }
 

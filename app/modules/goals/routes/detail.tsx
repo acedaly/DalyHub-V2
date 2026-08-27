@@ -50,20 +50,14 @@ import {
 import { GoalActivityTab } from "../GoalActivityTab";
 import { GoalOverview } from "../GoalOverview";
 import {
-  GoalCheckInSheet,
-  GoalMeasurementSetupSheet,
   evaluateGoalFromSeries,
-  goalCheckInLabel,
   serializeGoalMeasurement,
   serializeGoalMilestone,
-  type GoalCheckInValues,
-  type GoalMeasurementSetupValues,
-  type SerializedGoalMeasurement,
 } from "~/shared/goal-progress";
 import { ownerCalendarIso } from "~/shared/datetime";
-import { UNMEASURED_GOAL } from "~/kernel/goals";
+import { UNMEASURED_GOAL, type GoalCondition } from "~/kernel/goals";
 
-import { GoalMeasurementPanel } from "../GoalMeasurementPanel";
+import { GoalMeasurementSection } from "../GoalMeasurementSection";
 
 import {
   serializeGoalDetails,
@@ -311,164 +305,23 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
     [setSearchParams],
   );
 
-  /* ---------------------------------------------------------------------- */
-  /* GOAL-02 — measurements                                                  */
-  /* ---------------------------------------------------------------------- */
-
-  /**
-   * The check-in and the measurement-configuration sheets are owned HERE rather
-   * than inside the panel, because both post to trusted endpoints and both must
-   * revalidate the loader afterwards — the two responsibilities the panel is
-   * deliberately kept free of. `opener` travels with the request so the shared
-   * Sheet can return focus to the exact control that opened it.
-   */
-  const [checkIn, setCheckIn] = useState<{
-    readonly opener: HTMLElement | null;
-    readonly measurement: SerializedGoalMeasurement | null;
-  } | null>(null);
-  const [setupOpener, setSetupOpener] = useState<HTMLElement | null>(null);
-  const [setupOpen, setSetupOpen] = useState(false);
-
-  const postMeasurement = useCallback(
-    async (body: FormData): Promise<GoalMeasurementMutationResult | null> => {
-      try {
-        const response = await fetch(
-          `/goals/${encodeURIComponent(props.overview.id)}/measurements`,
-          { method: "POST", body },
-        );
-        return (await response.json()) as GoalMeasurementMutationResult;
-      } catch {
-        return null;
-      }
-    },
-    [props.overview.id],
-  );
-
-  const submitCheckIn = useCallback(
-    async (values: GoalCheckInValues) => {
-      const body = new FormData();
-      const editing = checkIn?.measurement ?? null;
-      body.set("intent", editing ? "update_measurement" : "log_measurement");
-      if (editing) body.set("measurementId", editing.id);
-      body.set("value", values.value);
-      body.set("measuredOn", values.measuredOn);
-      body.set("note", values.note);
-      const result = await postMeasurement(body);
-      if (result && result.ok) {
-        revalidator.revalidate();
-        notifySuccess(editing ? "Measurement updated." : "Measurement saved.");
-        return { ok: true as const };
-      }
-      return {
-        ok: false as const,
-        formError:
-          (result && !result.ok ? result.formError : undefined) ??
-          "That couldn’t be saved. Your change is still here — try again.",
-        fieldErrors:
-          result && !result.ok
-            ? // The kernel's field names are the form's field names, so a
-              // validation refusal lands on the control that caused it.
-              (result.fieldErrors as Record<string, string> | undefined)
-            : undefined,
-      };
-    },
-    [checkIn, postMeasurement, revalidator, notifySuccess],
-  );
-
-  const deleteMeasurement = useCallback(
-    async (measurementId: string) => {
-      const body = new FormData();
-      body.set("intent", "delete_measurement");
-      body.set("measurementId", measurementId);
-      const result = await postMeasurement(body);
-      if (result && result.ok) {
-        revalidator.revalidate();
-        return true;
-      }
-      return false;
-    },
-    [postMeasurement, revalidator],
-  );
-
-  const toggleMilestone = useCallback(
-    async (milestoneId: string, completed: boolean) => {
-      const body = new FormData();
-      body.set("intent", "update_milestone");
-      body.set("milestoneId", milestoneId);
-      body.set("completed", completed ? "true" : "false");
-      const result = await postMeasurement(body);
-      if (result && result.ok) {
-        revalidator.revalidate();
-        return true;
-      }
-      notifyError("That couldn’t be saved. Please try again.");
-      return false;
-    },
-    [postMeasurement, revalidator, notifyError],
-  );
-
-  const addMilestone = useCallback(
-    async (title: string) => {
-      const body = new FormData();
-      body.set("intent", "add_milestone");
-      body.set("title", title);
-      const result = await postMeasurement(body);
-      if (result && result.ok) {
-        revalidator.revalidate();
-        return true;
-      }
-      return false;
-    },
-    [postMeasurement, revalidator],
-  );
-
-  const deleteMilestone = useCallback(
-    async (milestoneId: string) => {
-      const body = new FormData();
-      body.set("intent", "delete_milestone");
-      body.set("milestoneId", milestoneId);
-      const result = await postMeasurement(body);
-      if (result && result.ok) {
-        revalidator.revalidate();
-        return true;
-      }
-      notifyError("That stage couldn’t be removed. Please try again.");
-      return false;
-    },
-    [postMeasurement, revalidator, notifyError],
-  );
-
-  /**
-   * DHDS-11 — the Goal record's copy of the stage reorder.
+  /*
+   * DEBT-192 (STEER-01) — the measurement wiring lives ONCE, in
+   * `GoalMeasurementSection`, and this record mounts it.
    *
-   * Same intent, same wording rules and same revalidation as the workspace
-   * pane's (`GoalMeasurementSection`). The two SURFACES are a known duplication
-   * (DEBT-183): the pane was extracted from this route and this route was not
-   * migrated onto it, so every milestone callback exists twice. What is not
-   * duplicated is the AUTHORITY — both post `reorder_milestones` to the one
-   * `/goals/:id/measurements` endpoint, which is the rule that matters.
+   * This route used to declare its own `postMeasurement`, `submitCheckIn`,
+   * `deleteMeasurement`, `toggleMilestone`, `addMilestone`, `deleteMilestone`,
+   * `reorderMilestones` and `submitMeasurementSetup`, plus both sheets, their
+   * `opener` handling and their revalidation — a second copy of everything the
+   * workspace pane already had. The AUTHORITY was never duplicated (both posted
+   * the same intents to the one `/goals/:id/measurements` endpoint), but the
+   * wiring was, so every new measurement capability had to be added twice and
+   * DHDS-11's stage reorder duly was.
+   *
+   * All of it is gone from here. The section is mounted below as the record's
+   * `progressSlot`, so `detail.tsx` declares no measurement or milestone
+   * callback of its own — DEBT-192's closing condition, verbatim.
    */
-  const reorderMilestones = useCallback(
-    async (orderedMilestoneIds: readonly string[]) => {
-      const body = new FormData();
-      body.set("intent", "reorder_milestones");
-      for (const milestoneId of orderedMilestoneIds) {
-        body.append("milestoneId", milestoneId);
-      }
-      const result = await postMeasurement(body);
-      if (result && result.ok) {
-        revalidator.revalidate();
-        return true;
-      }
-      notifyError(
-        (result && !result.ok ? result.formError : undefined) ??
-          "That order couldn’t be saved. Please try again.",
-      );
-      revalidator.revalidate();
-      return false;
-    },
-    [postMeasurement, revalidator, notifyError],
-  );
 
   const postMutation = useCallback(
     async (body: FormData): Promise<GoalMutationResult> => {
@@ -494,7 +347,11 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
    */
   const inlineSave = useCallback(
     async (
-      kind: "rename" | "set_target_date" | "set_definition_of_done",
+      kind:
+        | "rename"
+        | "set_target_date"
+        | "set_definition_of_done"
+        | "set_condition",
       fields: Record<string, string>,
     ): Promise<InlineSaveOutcome> => {
       const body = new FormData();
@@ -579,47 +436,54 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
     [inlineSave],
   );
 
-  /**
-   * Saving the measurement configuration reuses the SAME `/mutate` endpoint and
-   * the same partial-patch rule as every other Goal-owned field: the wire values
-   * become a validated patch server-side, merged over the current configuration
-   * and renormalised by the kernel.
+  /*
+   * STEER-02 — the OWNER's condition, through the canonical focused intent.
+   *
+   * The SAME `set_condition` intent, the SAME endpoint and the SAME shared
+   * control the `/goals` pane posts, so the record and the workspace cannot
+   * come to write the owner's judgement differently. An empty string is the
+   * endpoint's "back to pursuing" wire form, matching every other Goal field.
    */
-  const submitMeasurementSetup = useCallback(
-    async (values: GoalMeasurementSetupValues) => {
+  const onSetCondition = useCallback(
+    (condition: GoalCondition | null) =>
+      inlineSave("set_condition", { condition: condition ?? "" }),
+    [inlineSave],
+  );
+
+  /*
+   * STEER-02 — re-file this Goal into another Area (DEBT-184).
+   *
+   * The Goal's identity, history, measurements, movement evidence and
+   * contributing Projects are untouched: the server mutates the ONE structural
+   * link through `SpineRepository.move`. A successful move revalidates rather
+   * than patching locally, because the Area decides the breadcrumb, the
+   * inherited identity and both Areas' rollups — the loader is the one thing
+   * that knows all of them.
+   */
+  const onMoveToArea = useCallback(
+    async (areaId: string): Promise<InlineSaveOutcome> => {
       const body = new FormData();
-      body.set("intent", "set_measurement");
-      body.set("measurementType", values.measurementType);
-      body.set("unit", values.unit);
-      body.set("baselineValue", values.baselineValue);
-      body.set("targetValue", values.targetValue);
+      body.set("intent", "move");
+      body.set("areaId", areaId);
       let result: GoalMutationResult;
       try {
         result = await postMutation(body);
       } catch {
-        return {
-          ok: false as const,
-          formError: "That couldn’t be saved. Please try again.",
-        };
+        return { ok: false, message: "That couldn’t be saved. Please try again." };
       }
-      if (result.kind === "set_measurement" && result.ok) {
+      if (result.kind === "move" && result.ok) {
         revalidator.revalidate();
-        notifySuccess("Measurement saved.");
-        return { ok: true as const };
+        return { ok: true };
       }
       return {
-        ok: false as const,
-        formError:
-          result.kind === "set_measurement" && !result.ok
+        ok: false,
+        message:
+          result.kind === "move" && !result.ok
             ? result.formError
             : "That couldn’t be saved. Please try again.",
-        fieldErrors:
-          result.kind === "set_measurement" && !result.ok
-            ? result.fieldErrors
-            : undefined,
       };
     },
-    [postMutation, revalidator, notifySuccess],
+    [postMutation, revalidator],
   );
 
   const submitCompletion = useCallback(
@@ -710,6 +574,8 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
         onSetTargetDate={onSetTargetDate}
         onSetIdentity={onSetIdentity}
         onSetDefinitionOfDone={onSetDefinitionOfDone}
+        onSetCondition={onSetCondition}
+        onMoveToArea={onMoveToArea}
         onDelete={onDelete}
         deletePending={deletePending}
         onOpenProject={(projectId) =>
@@ -751,72 +617,23 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
           <SupportingHabits habits={props.supportingHabits} />
         }
         progressSlot={
-          <GoalMeasurementPanel
+          /*
+           * DEBT-192 — the ONE measurement composition, mounted here and on the
+           * `/goals` workspace pane. It owns the panel, both sheets, their
+           * `opener` handling, the four posts and the revalidation, so the next
+           * measurement capability is added once rather than twice.
+           */
+          <GoalMeasurementSection
+            goalId={props.overview.id}
             goalTitle={props.overview.title}
+            details={props.details}
             progress={props.progress}
             measurements={props.measurements}
             milestones={props.milestones}
             todayIso={props.todayIso}
-            onRecord={(trigger, measurement) =>
-              setCheckIn({ opener: trigger, measurement: measurement ?? null })
-            }
-            onConfigure={(trigger) => {
-              setSetupOpener(trigger);
-              setSetupOpen(true);
-            }}
-            onDeleteMeasurement={deleteMeasurement}
-            onToggleMilestone={toggleMilestone}
-            onAddMilestone={addMilestone}
-            onDeleteMilestone={deleteMilestone}
-            onReorderMilestones={reorderMilestones}
           />
         }
       />
-      {checkIn ? (
-        <GoalCheckInSheet
-          goalTitle={props.overview.title}
-          actionLabel={goalCheckInLabel(
-            props.progress.type,
-            props.progress.unit,
-          )}
-          unit={props.progress.unit}
-          currentValue={props.progress.current}
-          todayIso={props.todayIso}
-          mode={checkIn.measurement ? "correct" : "record"}
-          initial={
-            checkIn.measurement
-              ? {
-                  value: String(checkIn.measurement.value),
-                  measuredOn: checkIn.measurement.measuredOn,
-                  note: checkIn.measurement.note ?? "",
-                }
-              : undefined
-          }
-          opener={checkIn.opener}
-          onClose={() => setCheckIn(null)}
-          onSubmit={submitCheckIn}
-        />
-      ) : null}
-      {setupOpen ? (
-        <GoalMeasurementSetupSheet
-          goalTitle={props.overview.title}
-          initial={{
-            measurementType: props.details.measurement.type ?? undefined,
-            unit: props.details.measurement.unit ?? "",
-            baselineValue:
-              props.details.measurement.baselineValue === null
-                ? ""
-                : String(props.details.measurement.baselineValue),
-            targetValue:
-              props.details.measurement.targetValue === null
-                ? ""
-                : String(props.details.measurement.targetValue),
-          }}
-          opener={setupOpener}
-          onClose={() => setSetupOpen(false)}
-          onSubmit={submitMeasurementSetup}
-        />
-      ) : null}
     </>
   );
 }
