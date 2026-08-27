@@ -924,6 +924,20 @@ on the primary event having been appended.
 
 ## The Goals presentation contract (UIX-03, August 2026)
 
+> **Partially superseded (recorded 2026-08-27; see
+> [DEBT-211](../product/PRODUCT_DEBT.md#-debt-211--the-goals-modules-prose-has-drifted-from-the-shipped-surface-in-five-places--p3)).**
+> REDESIGN-04 replaced the gallery card (`.dh-gcard`) with the `/goals`
+> master–detail workspace — a `ProgressRow` list and a detail pane; the card and
+> its sparkline no longer ship — and IDENTITY-01 (migration `0042`) gave a Goal
+> its **own** optional `icon_key`/`colour_slot`, so "a Goal has no accent of its
+> own" below is no longer the rule (a Goal's own identity wins; its Area's is
+> the fallback). The measurement model, the shared vocabulary in
+> `~/shared/goal-progress`, and the per-surface density rules (Today at a
+> glance, the record in full) remain authoritative. The rewrite of this section
+> against the shipped workspace belongs to
+> [STEER-01](../roadmap/ROADMAP_V2_5.md#-steer-01--what-goals-answers) /
+> [STEER-03](../roadmap/ROADMAP_V2_5.md#-steer-03--one-goal-one-story).
+
 GOAL-02 built the measurement model; UIX-03 is the pass that got it onto the
 screen. **No domain rule, measurement type, formula or table changed.** What
 changed is what each surface says and how it says it, and this section is the
