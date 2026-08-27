@@ -207,28 +207,36 @@ const JOURNEY_PROJECT_ID = "pr-tasksjourney";
  */
 const PRIORITY_GROUPS = `/tasks?view=list&system=active&group=priority&project=${JOURNEY_PROJECT_ID}`;
 
+/*
+ * DEBT-173 — the journey owns its records, at both ends, for the WHOLE FILE.
+ *
+ * BEFORE, because a crashed or interrupted run leaves `Journey task …` rows
+ * behind and the seed only clears them once per partition, so a retry would
+ * otherwise assert against its own debris — which is how the scoped band below
+ * resolved to four identical rows instead of one during this fix's own
+ * verification.
+ *
+ * AFTER, because leaving them costs every spec that runs later in the partition:
+ * they are active Tasks in a collection that pages at 50, and this entry is about
+ * bounded bands filling with rows nobody asserted on.
+ *
+ * FILE SCOPE, not inside the first `describe`, and that distinction is the whole
+ * point. This file holds TWO sibling suites, and the second one ("journey
+ * accessibility & responsive") creates `Journey task Echo`. Hooks inside the first
+ * suite finish BEFORE the second one starts, so they would sweep everything except
+ * the one task created last — leaving exactly the leaker this change exists to
+ * remove — and running an accessibility test on its own would bypass them
+ * altogether. At file scope both suites are covered, in every selection.
+ */
+test.beforeAll(() => {
+  cleanupAllJourneyTasks();
+});
+
+test.afterAll(() => {
+  cleanupAllJourneyTasks();
+});
+
 test.describe("TASKS-01 — full journey", () => {
-  /*
-   * DEBT-173 — the journey owns its records, at both ends.
-   *
-   * BEFORE, because a crashed or interrupted run leaves `Journey task …` rows
-   * behind and the seed only clears them once per partition, so a retry would
-   * otherwise assert against its own debris — which is how the scoped band below
-   * resolved to four identical rows instead of one during this fix's own
-   * verification.
-   *
-   * AFTER, because leaving them costs every spec that runs later in the partition:
-   * they are active Tasks in a collection that pages at 50, and this entry is about
-   * bounded bands filling with rows nobody asserted on.
-   */
-  test.beforeAll(() => {
-    cleanupAllJourneyTasks();
-  });
-
-  test.afterAll(() => {
-    cleanupAllJourneyTasks();
-  });
-
   /*
    * These are multi-step STATEFUL journeys — create, open the Drawer, edit details,
    * delegate, Someday, reactivate, On hold, Cancel — and they were left on the 30s
