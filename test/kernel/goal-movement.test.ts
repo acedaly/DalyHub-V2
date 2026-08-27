@@ -32,7 +32,10 @@ import {
   goalMovementWindow,
   readGoalMovement,
 } from "~/platform/activity-window/goal-movement.server";
-import { createActivityWindowRepository } from "~/platform/storage/d1";
+import {
+  createActivityWindowRepository,
+  createGoalRepository,
+} from "~/platform/storage/d1";
 import { bindWorkspaceRepositories } from "~/platform/workspaces";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { recentBoundaryStartIso } from "~/shared/alignment/window";
@@ -153,6 +156,14 @@ async function taskUnder(w: World, projectId: string, title: string) {
     title,
     parent: { kind: "project", id: projectId },
   });
+}
+
+/** STEER-02 — the owner sets a Goal aside, through the Goal-owned slice. */
+async function setAside(w: World, goalId: string) {
+  await makeGoalDetailsRepository(w.ctx, { clock: w.clock.now }).update(
+    goalId,
+    { condition: "set_aside" },
+  );
 }
 
 /** Give a Goal a measurement CONFIGURATION and no readings at all. */
@@ -746,6 +757,71 @@ describe("a Goal earns its place by having something TRUE to say", () => {
     expect(entry!.movement?.evidence).toEqual([
       { kind: "project_completed", count: 1 },
     ]);
+  });
+
+  /**
+   * STEER-02 — a Goal the owner has set aside leaves Today's Goal panel, and
+   * loses none of its facts on the way out (ADR-111 decision 3).
+   *
+   * Both halves are asserted in ONE test deliberately, because the pair is the
+   * claim: a surface that quietly dropped a Goal AND quietly altered what it
+   * says about it would pass either half alone.
+   */
+  it("drops a SET-ASIDE Goal from the panel while its facts stay exactly what they were", async () => {
+    const w = world(WS, at("2026-05-04", 9));
+    const pursued = await newGoal(w, "Pursued");
+    const rested = await newGoal(w, "Rested");
+    // Both have a genuine, identical week: a contributing Project completed
+    // inside the window. The only difference between them is the owner's word.
+    for (const goal of [pursued, rested]) {
+      await configureMeasurement(w, goal.id);
+      const project = await advancingProject(w, goal.id, `${goal.title} work`);
+      w.clock.set(at("2026-05-06", 9));
+      await w.spine.complete(project.id);
+      w.clock.set(at("2026-05-04", 9));
+    }
+
+    const before = await summaries(true);
+    expect(before.map((entry) => entry.id).sort()).toEqual(
+      [pursued.id, rested.id].sort(),
+    );
+    const restedBefore = before.find((entry) => entry.id === rested.id)!;
+
+    await setAside(w, rested.id);
+
+    // Scope: the attention surface no longer asks about it…
+    const after = await summaries(true);
+    expect(after.map((entry) => entry.id)).toEqual([pursued.id]);
+
+    // …and TRUTH: every derived fact about that Goal is byte-identical to what
+    // it was a moment ago. The movement statement, the measurement evaluation
+    // and the alignment-ordered collection all read exactly the same.
+    const facts = (
+      await createActivityWindowRepository(
+        env.DB,
+        makeContext(WS),
+      ).readGoalMovementFacts(WEEK, [rested.id])
+    ).get(rested.id)!;
+    expect(
+      evaluateGoalMovement(facts, {
+        window: WEEK,
+        // The SAME owner day the panel read used, so the comparison is about
+        // the condition and nothing else — a different day would change the
+        // window's phase and prove only that this test moved the goalposts.
+        todayIso: MON,
+        calendarIsoOf: (instant) => ownerCalendarIso(instant, TZ),
+      }),
+    ).toEqual(restedBefore.movement);
+
+    // …and the COLLECTION still holds it, because `/goals` is where the owner
+    // deliberately looks rather than a surface asking for their attention.
+    const collection = await createGoalRepository(
+      env.DB,
+      w.ctx,
+    ).listGoalsByAlignment({
+      activeBoundaryIso: recentBoundaryStartIso(MON, TZ),
+    });
+    expect(collection.items.map((item) => item.id)).toContain(rested.id);
   });
 
   it("leaves a caller that did NOT ask for movement exactly the set it had", async () => {

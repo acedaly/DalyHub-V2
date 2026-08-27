@@ -37,20 +37,17 @@ import {
 } from "~/shared/inline-edit";
 
 /**
- * The option set, from the kernel vocabulary.
+ * The option set, in the shared field's own grammar.
  *
- * "Pursuing" is a REAL option rather than the field's empty state, even though
- * it stores `null`: an owner returning a set-aside Goal to the fold should
- * choose "Pursuing", not "Clear condition". The clear command is therefore off
- * — there is nothing to clear that choosing the other value does not say
- * better.
+ * `InlineSelectField` carries REAL values only and renders the unset state as
+ * `emptyLabel`, so "Pursuing" — which stores nothing, because it is what every
+ * Goal has always been — is the empty state rather than an option, and
+ * returning to it is the field's clear command wearing the word "Pursuing"
+ * instead of "Clear condition". That is the same shape a Task's optional
+ * fields already have, and it keeps the stored vocabulary and the offered
+ * vocabulary identical: one member, `set_aside`.
  */
 const OPTIONS = [
-  {
-    value: "",
-    label: GOAL_CONDITION_PURSUING_LABEL,
-    description: "This Goal is one you are working on now.",
-  },
   {
     value: "set_aside" satisfies GoalCondition,
     label: GOAL_CONDITION_SET_ASIDE_LABEL,
@@ -99,6 +96,12 @@ export function GoalConditionField({
         label="Condition"
         value={condition ?? ""}
         options={OPTIONS}
+        emptyLabel={GOAL_CONDITION_PURSUING_LABEL}
+        // Returning a rested Goal to the fold is offered as "Pursuing", not as
+        // "Clear condition": the owner is choosing a state, not emptying a
+        // field, and the word they read should be the one they mean.
+        clearable
+        clearLabel={GOAL_CONDITION_PURSUING_LABEL}
         onSave={(next) => onSave(next === "" ? null : ("set_aside" as const))}
         presentation={presentation}
         data-testid={testId}
