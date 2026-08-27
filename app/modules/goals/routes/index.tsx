@@ -34,7 +34,14 @@ import {
   composeGoalAlignmentFacts,
   createOwnerAlignmentContext,
   evaluateGoalAlignment,
+  unavailableGoalMovement,
+  type GoalMovement,
 } from "~/shared/alignment";
+import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
+import {
+  goalMovementWindow,
+  readGoalMovement,
+} from "~/platform/activity-window/goal-movement.server";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -147,6 +154,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         // The Deleted view is a list of removed records with one Restore each;
         // there is nothing to select and nothing to show beside it.
         selected: null as GoalWorkspaceDetail | null,
+        selectedMovement: null as GoalMovement | null,
         selectedId: null as string | null,
         selectionExplicit: false,
         areaOptions: [] as SelectOption[],
@@ -163,6 +171,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         deletedGoals: [] as readonly SerializedDeletedGoalItem[],
         nextCursor: null as string | null,
         selected: null as GoalWorkspaceDetail | null,
+        selectedMovement: null as GoalMovement | null,
         selectedId: null as string | null,
         selectionExplicit: false,
         areaOptions: [] as SelectOption[],
@@ -183,6 +192,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const timeZone = await scope.ownerTimeZone();
     const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
       createOwnerAlignmentContext(new Date(), timeZone);
+
+    /*
+     * FOLLOW-02 — started here, awaited where the window is built, so it costs
+     * no round trip of its own. See the note beside `movementWindow` below.
+     */
+    const firstDayOfWeekRead = scope.appPreferences
+      .get(session.user.subject)
+      .then((preferences) => preferences.firstDayOfWeek)
+      .catch(() => DEFAULT_APP_PREFERENCES.firstDayOfWeek);
 
     // DEBT-23: the collection is ordered by the deterministic workspace-wide
     // Alignment precedence in the repository (BEFORE pagination), so the Goals
@@ -219,6 +237,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
      * card's "since" figure describes.
      */
     const comparisonFromIso = addDaysToIsoDate(evaluation.todayIso, -30);
+    /*
+     * FOLLOW-02 — the movement window, resolved from the owner's own week.
+     *
+     * The preference read was STARTED above, concurrently with the Goals page,
+     * because the window depends on it and awaiting it in sequence would add a
+     * round trip to a route that already makes several. It is its own failure
+     * domain and falls back to the product default rather than taking the
+     * collection down: a week boundary one day out is a far smaller error than a
+     * Goals page that does not load.
+     */
+    const firstDayOfWeek = await firstDayOfWeekRead;
+    const movementWindow = goalMovementWindow({
+      todayIso: evaluation.todayIso,
+      firstDayOfWeek,
+      timezone: timeZone,
+    });
     const [
       contributions,
       activityFacts,
@@ -226,6 +260,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       measurementSeries,
       milestoneSummaries,
       detailsById,
+      movement,
     ] = await Promise.all([
       scope.goals.listGoalProjectContributions(ids),
       scope.alignment.listGoalAlignmentFacts(ids, { recentWindowStartIso }),
@@ -247,6 +282,21 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       }),
       scope.goalMeasurements.listMilestoneSummaries(ids),
       scope.goalDetails.listMany(ids),
+      /*
+       * FOLLOW-02 — did each Goal on this page move inside the named window?
+       *
+       * TWO grouped statements for the WHOLE page, beside the grouped reads
+       * this loader already makes, and never one per Goal ([DEBT-78]'s closing
+       * condition). It respects the pagination boundary by construction: the
+       * ids are this page's ids, so a second page costs a second read of the
+       * same shape rather than a read of the workspace's whole history.
+       */
+      readGoalMovement(scope, {
+        goalIds: ids,
+        window: movementWindow,
+        timezone: timeZone,
+        todayIso: evaluation.todayIso,
+      }),
     ]);
 
     const goals: SerializedGoalWithAlignment[] = page.items.map((item) => {
@@ -290,6 +340,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         // Already in hand from `listMany` above — the card uses it only when
         // there is no reading to show.
         definitionOfDone: details?.definitionOfDone ?? null,
+        /*
+         * FOLLOW-02 — the SAME derivation Today and the Goal record read, so
+         * the three surfaces cannot describe this Goal's week differently.
+         */
+        movement:
+          movement.movements.get(item.id) ??
+          unavailableGoalMovement(item.id, {
+            window: movementWindow,
+            todayIso: evaluation.todayIso,
+          }),
       };
     });
 
@@ -343,11 +403,32 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       }
     }
 
+    /*
+     * FOLLOW-02 — the pane's movement is the SAME value its row carries.
+     *
+     * It is looked up rather than re-read, so selecting a Goal costs nothing:
+     * the pane and the row beside it are literally the same object. Only a
+     * `?goal=` naming a Goal that is not on this page pays for a second read,
+     * which is the case REDESIGN-04 already accepts a whole detail read for.
+     */
+    let selectedMovement: GoalMovement | null =
+      selectedId === null ? null : (movement.movements.get(selectedId) ?? null);
+    if (selectedId !== null && selected !== null && selectedMovement === null) {
+      const offPage = await readGoalMovement(scope, {
+        goalIds: [selectedId],
+        window: movementWindow,
+        timezone: timeZone,
+        todayIso: evaluation.todayIso,
+      });
+      selectedMovement = offPage.movements.get(selectedId) ?? null;
+    }
+
     return {
       goals,
       deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: page.nextCursor,
       selected,
+      selectedMovement,
       // The RESOLVED selection, not the requested one: a `?goal=` naming a Goal
       // that no longer exists highlights nothing rather than highlighting a row
       // that is not there.
@@ -377,6 +458,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       deletedGoals: [] as readonly SerializedDeletedGoalItem[],
       nextCursor: null as string | null,
       selected: null as GoalWorkspaceDetail | null,
+      selectedMovement: null as GoalMovement | null,
       selectedId: null as string | null,
       selectionExplicit: false,
       areaOptions: [] as SelectOption[],
@@ -397,6 +479,7 @@ export default function GoalsRoute({ loaderData }: Route.ComponentProps) {
       deletedGoals={loaderData.deletedGoals}
       nextCursor={loaderData.nextCursor}
       selected={loaderData.selected}
+      selectedMovement={loaderData.selectedMovement}
       selectedId={loaderData.selectedId}
       selectionExplicit={loaderData.selectionExplicit}
       areaOptions={loaderData.areaOptions}

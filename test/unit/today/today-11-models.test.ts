@@ -215,6 +215,7 @@ function goal(id: string, progress: TodayGoal["progress"]): TodayGoal {
     iconKey: null,
     colourSlot: null,
     progress,
+    movement: null,
     changeInWindow: null,
     windowDays: 30,
   };
@@ -275,7 +276,14 @@ describe("the stat rank", () => {
     const goals = measures.find((measure) => measure.id === "goals")!;
     // Not `!goalNeedsAttention`: an unmeasured Goal is not a Goal going well.
     expect(goals.value).toBe("1");
-    expect(goals.note).toBe("of 2 measurable goals");
+    /*
+     * FOLLOW-02 narrowed the DENOMINATOR too. Today's Goal panel now carries
+     * unmeasured Goals, so "the Goals this card was handed" and "the Goals with
+     * a measurable schedule" are no longer the same set — and naming two
+     * measurable Goals where there is one would be the mis-statement this test
+     * exists to prevent, in the denominator instead of the numerator.
+     */
+    expect(goals.note).toBe("of 1 measurable goal");
   });
 
   it("links only the figure that has a canonical view of itself", () => {

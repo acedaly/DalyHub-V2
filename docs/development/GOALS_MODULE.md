@@ -987,3 +987,107 @@ ALIGNMENT — the question ADR-040 built this collection to answer, and genuinel
 the only story that card has. If it has contributing Projects it also carries the
 contribution bar and summary, with no percentage figure beside the bar: a bare
 `0%` next to the words "Not measured" reads as a claim about the Goal.
+
+
+---
+
+# FOLLOW-02 — Goal MOVEMENT (2026-08-27)
+
+> *Did this Goal move inside a named period?* — the third derived answer a Goal
+> carries, and the first one that works for a Goal with no number.
+> Full record: [`V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md`](../product/V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md).
+> Governing decision: [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal).
+
+## Three questions, and they are not the same question
+
+A Goal now carries three derived answers. Keeping them apart is the whole design;
+none of them is allowed to overwrite another.
+
+| Question | Authority | Window | Answers |
+| --- | --- | --- | --- |
+| Does it have a reachable structure that has had attention? | `evaluateGoalAlignment` (ADR-040) | unbounded "most recent", judged against 14 days | `completed` / `no_structure` / `unreachable` / `active` / `neglected` |
+| Where does the number stand against the target and the date? | `evaluateGoalProgress` (GOAL-02) | the measurement history | the nine `GoalProgressStatus` values, plus the trio, pace and projection |
+| **Did an outcome happen inside a named period?** | **`evaluateGoalMovement` (FOLLOW-02)** | **the owner's current calendar week, half-open in instants** | **moved / not moved, with counts** |
+
+All four cross-combinations are legitimate and must stay expressible — aligned
+but unmoved, poorly aligned but moved, on track but unmoved, unmeasured and
+clearly moving. A surface that implies one of them is impossible is wrong.
+
+## Where each piece lives
+
+| Piece | File |
+| --- | --- |
+| The rules (pure, clock-free, storage-free) | [`app/kernel/alignment/goal-movement.ts`](../../app/kernel/alignment/goal-movement.ts) |
+| The words | [`app/kernel/alignment/goal-movement-words.ts`](../../app/kernel/alignment/goal-movement-words.ts) |
+| The one import path for consumers | [`app/shared/alignment/index.ts`](../../app/shared/alignment/index.ts) |
+| The one component that draws it | [`app/shared/alignment/GoalMovementLine.tsx`](../../app/shared/alignment/GoalMovementLine.tsx) |
+| The bounded read | `ActivityWindowRepository.readGoalMovementFacts` + [`d1-activity-window-repository.ts`](../../app/platform/storage/d1/d1-activity-window-repository.ts) |
+| The window and the server read | [`app/platform/activity-window/goal-movement.server.ts`](../../app/platform/activity-window/goal-movement.server.ts) |
+
+**`~/shared/alignment` is where ADR-110 decision 6 and DEBT-78 both said to put
+it.** A surface that needs a new movement figure adds it to the evaluator and
+tests it there; it does not compute one of its own. This is GOAL-02's existing
+rule, restated for the new facts.
+
+## What counts, and what deliberately does not
+
+Accepted (`GOAL_MOVEMENT_KINDS`): `task.completed` on a Task under a contributing
+Project, `project.completed` on a contributing Project, `goal.measurement_logged`,
+`goal.milestone_completed`, `goal.completed`.
+
+Rejected, each for a stated reason: `entity.updated` (**renaming a Project is
+activity, not the Goal moving**), `entity.created` (intent, not outcome), the
+whole planning vocabulary (FOLLOW-01's question), the `task.waiting_*` trio,
+every `*.reopened` (an outcome UNDONE is not forward movement),
+`goal.measurement_corrected` / `_removed`, `goal.target_reached` (the same atomic
+write as the reading that caused it — counting both counts one act twice),
+`goal.details_updated`, and `entity_link.created` for `project.advances_goal`
+(linking changes what contributes, not what happened).
+
+Contribution is the ONE indirect path `SPINE_MODEL.md` allows —
+`Task → task.belongs_to_project → Project → project.advances_goal → Goal` — plus
+events on the Goal itself, resolved from the **current** links. That last is a
+stated approximation, the same one `D1AlignmentRepository` makes, and it is the
+reason a link is not itself movement.
+
+## What the surfaces show
+
+**All three render the same component from the same value**, so they cannot
+disagree. `data-goal-movement` (the key), `-events` and `-projects` are the
+stable machine facts a test reads instead of comparing three sentences.
+
+- **Today** — the Goal panel now includes UNMEASURED Goals, which it never did.
+  An unmeasured Goal gets no `GoalProgressReadout`, no bar and no `progressbar`
+  role: *"no numeric target" is not "0%"*. Its ranking bucket is movement (see
+  `goalSummaryRank`), and an unmeasured Goal with nothing to report sorts below
+  every measured one.
+- **`/goals`** — a `signal` slot on the shared `ProgressRow`, and the same value
+  again on the detail pane. The row's accessible name carries BOTH alignment and
+  movement, because they are different questions and may disagree.
+  **The collection's ORDER did not change** — see DEBT-120 for the decision.
+- **The Goal record** — leads the summary band, and is the one surface with room
+  to print the window's actual days.
+
+## The wording rules
+
+- Every statement **names its window** (*"this week"*).
+- The **phase** decides the tense, structurally: a `future` window says *"This
+  week has not started"* and is never described as stalled; a `running` one says
+  *"yet"*; a `closed` one does not.
+- **"Stalled" is not in the vocabulary**, and neither are *failing*, *poor*,
+  *bad* or *neglected* — the last is ADR-040's own answer and stays there. Seven
+  days without an outcome is an absence of evidence inside a window, and that is
+  what the words say.
+- **No percentage, no score, no streak, no grade** — asserted over rendered
+  output.
+- **No badge.** Movement is a sentence; a two-colour chip would turn a bounded
+  observation into a verdict.
+
+## What it costs
+
+**Two D1 statements** for a page of up to 50 Goals, flat in the number of Goals
+*and* in the number of events (the aggregation happens in SQL), never one per
+Goal, and `N + 1` / `N + 10` bound parameters against D1's ceiling of 100. All
+asserted in [`test/kernel/goal-movement.test.ts`](../../test/kernel/goal-movement.test.ts).
+
+**Nothing is stored** — no table, no column, no index, no migration.

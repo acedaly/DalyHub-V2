@@ -19,6 +19,7 @@ export {
 } from "./activity-window";
 
 export {
+  GOAL_MOVEMENT_CHUNK_SIZE,
   MAX_WINDOW_EVENTS,
   MAX_WINDOW_TASKS,
   type ActivityWindowRepository,
