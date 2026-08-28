@@ -236,7 +236,11 @@ describe("AreaOverview", () => {
 
   it("links a Goal row to the canonical Goal record (AREA-02)", () => {
     renderRecord({ activeTabId: "goals" });
-    const link = screen.getByRole("link", { name: /^Ship v2/ });
+    // `Open <title>` is the product's convention for a row's open link, and it
+    // is anchored here rather than left as a substring so a name that loses the
+    // verb again fails on this surface too — `areas.spec.ts` used to be the
+    // only place in the suite that noticed.
+    const link = screen.getByRole("link", { name: /^Open Ship v2/ });
     expect(link).toHaveAttribute("href", "/goals/g1");
   });
 
