@@ -785,3 +785,42 @@ is reached from the client bundle and `readGoalMovement` is server-only.
 
 **Cost:** one grouped read (two D1 statements) beside the three the Goal summary
 already made. Never one per Goal.
+
+---
+
+## "Continue working" names a next action (STEER-04, 2026-08-28)
+
+[DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3),
+closed on its own words: *"on a surface whose whole purpose is 'what should I do
+now?', that is one click more than it should be."* Each card carried health, an
+open-task count and a progress meter, and could not say what to actually do —
+because nothing in the read model held the identity of a Task.
+
+Each card now names its **next action** as one quiet line beneath its existing
+signals. The Project's title stays the card's subject and its link; the next
+action is smaller, lighter, and opens the canonical Task in the Drawer Today
+already hosts (`task:<id>`, the DS-03 URL contract). It mutates nothing — there
+is no checkbox and no inline edit on that row.
+
+**It is the product's ONE next-action rule**, not Today's:
+`TaskRepository.listProjectNextActions` evaluates
+[`~/kernel/tasks/next-action`](../../app/kernel/tasks/next-action.ts) at the
+database, from the same `active` scope and the same `smart` ordering `/tasks`
+uses — so Today and `/tasks` cannot disagree about which Task is next. A Task
+that is completed, cancelled, on hold, Someday/Maybe, waiting or
+dependency-blocked is never called "next".
+
+**Where there is nothing eligible, the card renders LESS.** No row, no sentence.
+On a three-card list on the busiest screen in the product, a line saying "No next
+action visible here" on every card would cost more than it says — and the card
+already states its open count and its health. A Goal's *record* states the
+absence in words instead, because there the owner asked about that one thing.
+
+**What it costs: exactly one bounded statement**, read after the parallel block
+because it takes the RANKED cards' ids, and flat in the number of cards —
+`rankContinueProjects` caps them, and six candidates cost what two do, asserted
+against a counting database. It is its own failure domain: an unreadable next
+action leaves the cards exactly as they were before the feature.
+
+Full detail and the parity proofs:
+[`GOALS_MODULE.md` → STEER-04](GOALS_MODULE.md#steer-04--from-signal-to-step-v25-2026-08-28).

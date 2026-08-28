@@ -22,7 +22,9 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 
 > **Status, 2026-08-28.** STEER-01 and STEER-02 are ☑ **delivered**, together,
 > in one PR — the surface decision and the owner capability that lands on it.
-> STEER-03, STEER-04 and STEER-05 are unchanged and unstarted.
+> **STEER-03 and STEER-04 are ☑ delivered**, together, in one PR — the shared
+> Goal story and the action layer that lands on it. STEER-05 is unchanged and
+> unstarted.
 
 ---
 
@@ -530,7 +532,7 @@ door — sequenced so each lands on the one before it.
   pre-migration backup precondition (DEBT-139) is real. That gate is unchanged
   and unweakened by this item.
 
-### ☐ STEER-03 — One Goal, one story
+### ☑ STEER-03 — One Goal, one story — **delivered 2026-08-28**
 
 **Every surface that tells a Goal's story tells the same one.**
 
@@ -611,8 +613,45 @@ door — sequenced so each lands on the one before it.
      stepper both re-measured with the new facts present); keyboard; `axe`
      clean with no rule disabled.
 - **Closes.** DEBT-206, DEBT-209, and (with STEER-01) DEBT-211.
+- **Delivered 2026-08-28.** Every criterion met, in one PR with STEER-04.
+  1. **The Area record's Goals tab states the same facts `/goals` states** — it
+     renders the SAME `GoalStoryRow`, from the same shared evaluators, so there
+     is no second composition to drift. Asserted by MACHINE KEY: every row on
+     every surface stamps `goalStoryDataAttributes`, and
+     [`goal-story.test.ts`](../../test/kernel/goal-story.test.ts) drives the real
+     `/goals`, Area-record and Review loaders over one workspace and demands
+     equality across a measured Goal, an unmeasured one, a
+     configured-but-unstarted one and a set-aside one.
+  2. **No surface renders a Goal progress figure not derived from the shared
+     evaluators**, asserted by ENUMERATION —
+     [`goal-progress-renderings.test.ts`](../../test/unit/goals/goal-progress-renderings.test.ts)
+     lists every one with the authority it must reach the figure through, and a
+     completeness scan makes a new, undeclared rendering fail a build. The Task
+     roll-up no longer paints a Goal's bar; the counts survive on the row's
+     context line, worded as counts of Projects and Tasks.
+  3. **The guided Review's Goals step states measurement, movement and the
+     owner's condition beside its alignment**, with the target date formatted —
+     inside a budget that MOVED FROM 6 TO 12 and says so (the FOLLOW-01
+     precedent; two of the six moved inside `loadGoalStories` rather than being
+     added, so the arithmetic is 6 − 2 + 8). Flat in the number of Goals,
+     asserted against a counting database. Its selection is unchanged:
+     `listGoalsByAlignment` still decides which Goals appear.
+  4. **Search's Goal preview formats its target date** with the same
+     `formatCalendarDate` every other surface uses.
+  5. **DEBT-211's remaining prose is corrected**: the search preview (item 5),
+     and `commands.ts`'s `goals.new` decision (item 3) — TAKEN rather than
+     deferred again: the command navigates to `/goals?drawer=new-goal`, DS-03's
+     URL drawer contract, which is one more door into the ONE creation flow.
+  6. Light and dark, 1440 / 820 / 393 / 320, keyboard, `axe` clean with no rule
+     disabled.
+- **One thing it did that the criteria did not name.** The Goal IDENTITY rule
+  (`goalIdentitySource`, STEER-01) moved from `app/modules/goals/goal-view.ts`
+  to `~/shared/goal-progress/goal-identity.ts`, re-exported from its old path.
+  A module may not import another module's internals, and a rule that has to be
+  the same on the Area record and in the Review has to live where both can
+  reach it. There is still exactly one implementation.
 
-### ☐ STEER-04 — From signal to step
+### ☑ STEER-04 — From signal to step — **delivered 2026-08-28**
 
 **Where a signal points, a next step is named — or the missing structure can be
 created.**
@@ -697,6 +736,41 @@ created.**
   — its closing condition needs the parent Area id in the same read this item
   already touches; take it only if the id travels in the existing statement,
   which is that entry's own bar.
+- **Delivered 2026-08-28.** Every criterion met, in one PR with STEER-03.
+  1. **DEBT-77's closing condition, assertable.** Every "Continue working" card
+     names its next action; the route's budget moves by **exactly one** bounded
+     statement, read after the parallel block because it takes the RANKED cards'
+     ids, and flat — six candidates cost what two do, asserted with a counting
+     database. Today's "next" is pinned to `/tasks`'s ordering by a parity test
+     that compares the ranked statement against the canonical collection read
+     for the same Project.
+  2. **A Goal's record and pane name the next step across its contributing
+     Projects**, by the SAME rule composed through `project.advances_goal`,
+     naming the Project, opening the canonical Task Drawer, and stating
+     REVIEW-02's honest absence where nothing is visible.
+  3. **A Goal in the no-structure state offers "New Project for this Goal"** —
+     the ONE shared `NewProjectForm` in the Drawer with the Goal as its decided,
+     **server-verified** parent, posting to the same `POST /projects/new`. The
+     loop is proven end to end against real D1: the created Project is
+     contributing structure on the next read, and its first completed Task moves
+     the Goal's movement line.
+  4. **A set-aside Goal is offered no next step on Today or `/plan`** — it is
+     absent from both surfaces entirely (STEER-02's exclusion, in SQL) — and its
+     record still answers when asked. Asserted on both sides in one test.
+  5. **Flatness**, both levels: one statement for a Goal's Projects whatever
+     their number, one for Today's cards whatever their number.
+  6. Light and dark, the phone widths, keyboard reach to the row and the door,
+     accessible names, `axe` clean with no rule disabled.
+- **DEBT-25 was NOT taken.** Its own bar is that the parent Area id must travel
+  in the existing statement. The next-action read is a statement about TASKS
+  partitioned by Project; it carries no Area, and adding one would mean widening
+  a different read on the product's most-visited route to satisfy a P3. The
+  entry stays open, unchanged, with its bar intact.
+- **One thing it did that the criteria did not name.** `NewProjectForm` moved to
+  `app/shared/project-creation/`, re-exported from the Projects module so no
+  call site changed. A Goal's record composing the Projects module's form would
+  be a cross-module import; writing a second form would be a second creation
+  surface. The move is the `NewGoalForm` precedent, taken for the same reason.
 
 ### ☐ STEER-05 — The week's door
 

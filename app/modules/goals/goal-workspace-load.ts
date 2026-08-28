@@ -20,6 +20,8 @@
 
 import { UNMEASURED_GOAL } from "~/kernel/goals";
 import type { WorkspaceScope } from "~/platform/workspaces";
+import { readGoalNextAction } from "~/shared/task-record/next-action-load.server";
+import type { SerializedNextAction } from "~/shared/task-record/NextActionLine";
 import {
   composeGoalAlignmentFacts,
   evaluateGoalAlignment,
@@ -132,10 +134,39 @@ export async function loadGoalWorkspaceDetail(
     todayIso: facts.evaluation.todayIso,
   });
 
+  /*
+   * STEER-04 (DEBT-210) — the Goal's NEXT STEP, across its contributing
+   * Projects.
+   *
+   * The record and the workspace pane share this read for the same reason they
+   * share every other fact on this page: two loaders drifting into two pictures
+   * of one Goal is the defect REDESIGN-04 built this module to prevent.
+   *
+   * It costs ONE bounded ranked statement over the contributing-Project page
+   * already read above (two only for a Goal with more than forty Projects) —
+   * never one query per Project. Its own failure domain: a Goal that cannot name
+   * its next step still states every derived fact it has, because a next action
+   * is an addition to the record and never a precondition for it.
+   */
+  let nextAction: SerializedNextAction | null = null;
+  try {
+    nextAction = await readGoalNextAction(scope, {
+      projects: projectPage.items.map((project) => ({
+        id: project.id,
+        title: project.title,
+      })),
+      todayIso: facts.evaluation.todayIso,
+      timezone: facts.timeZone,
+    });
+  } catch {
+    // A narrower record, never a broken one.
+  }
+
   return {
     overview: serializeGoalOverview(overview),
     details: serializeGoalDetails(details),
     progress,
+    nextAction,
     measurements: measurements.map(serializeGoalMeasurement),
     milestones: milestones.map(serializeGoalMilestone),
     contribution: serializeGoalProjectContribution(contribution),

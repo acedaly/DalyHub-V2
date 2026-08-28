@@ -24,11 +24,7 @@
  *     than silently truncating.
  */
 
-import {
-  composeGoalAlignmentFacts,
-  evaluateGoalAlignment,
-  type GoalAlignment,
-} from "~/kernel/alignment";
+import type { GoalAlignment } from "~/kernel/alignment";
 import { InvalidSpineCursorError } from "~/kernel/spine";
 import {
   evaluateProjectHealth,
@@ -42,11 +38,19 @@ import {
   type Review,
   type WeeklyReviewStepId,
 } from "~/kernel/reviews";
-import type { FirstDayOfWeek } from "~/kernel/preferences";
+import {
+  DEFAULT_APP_PREFERENCES,
+  type FirstDayOfWeek,
+} from "~/kernel/preferences";
+
+/** The product default, used only when a caller did not resolve the owner's. */
+const DEFAULT_FIRST_DAY_OF_WEEK = DEFAULT_APP_PREFERENCES.firstDayOfWeek;
 import type { ReviewInsights } from "~/kernel/review-insights";
 import type { WorkspaceScope } from "~/platform/workspaces";
 
 import { loadReviewInsights } from "../insights/review-insights-context";
+import { loadGoalStories } from "~/shared/goal-progress/goal-story-load.server";
+import type { LoadedGoalStory } from "~/shared/goal-progress";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { createOwnerHealthContext } from "~/shared/project-health";
@@ -114,7 +118,30 @@ export const REVIEW_GUIDE_QUERY_BUDGET: Readonly<
   overview: 18,
   inbox: 2,
   projects: 8,
-  alignment: 6,
+  /*
+   * STEER-03 (DEBT-209) took the alignment step from 6 to 12, STATED rather
+   * than absorbed — the FOLLOW-01 precedent, whose own rule is that a budget
+   * moves by being declared.
+   *
+   * What the six buy is the SHARED Goal story for the step's bounded page of
+   * Goals, so the weekly ritual sees what a glance at Today already saw. Two of
+   * the step's previous six moved INSIDE `loadGoalStories` (contributions,
+   * alignment facts), so the arithmetic is 6 − 2 + 8:
+   *
+   *   | read | statements |
+   *   |---|---|
+   *   | Goal details (target date, measurement config, condition) | 1 |
+   *   | measurement summaries (latest, earliest, prior-in-window) | 2 |
+   *   | milestone summaries | 1 |
+   *   | Project contributions (moved, not added) | 1 |
+   *   | alignment activity facts (moved, not added) | 1 |
+   *   | FOLLOW-02 movement — the ONE shared read, not a second path | 2 |
+   *
+   * Every one is grouped over the page's ids and flat in the number of Goals —
+   * asserted by `test/kernel/review-guide-context.test.ts`, which drives the
+   * step over a three-Goal and a ten-Goal workspace and demands the same count.
+   */
+  alignment: 12,
   reflection: 1,
   focus: 2,
   complete: 1,
@@ -190,6 +217,24 @@ export interface ReviewGoalAlignmentSummary {
   readonly alignment: GoalAlignment;
   readonly contributingProjects: number;
   readonly activeContributingProjects: number;
+  /**
+   * STEER-03 (DEBT-209) — the SHARED Goal story: GOAL-02's measurement,
+   * FOLLOW-02's movement, the Goal's target date and STEER-02's owner-set
+   * condition, beside the alignment above.
+   *
+   * The step used to show alignment and a contributing-Project count and
+   * nothing else, so the owner steered the week from LESS information in the
+   * Review than they got from a glance at Today: a Goal behind its own target
+   * date, one that moved substantially this week, and one the owner had
+   * deliberately set aside all read identically in the one sitting dedicated to
+   * noticing the difference.
+   *
+   * `alignment` above is kept as its own field rather than read off the story,
+   * because the step's SELECTION is still `listGoalsByAlignment`'s and the
+   * indicator is the fact that selection is made on. The story carries the same
+   * value, from the same evaluator — asserted, not assumed.
+   */
+  readonly story: LoadedGoalStory;
 }
 
 export interface ReviewAreaAttention {
@@ -606,49 +651,67 @@ async function readAlignment(
 
     const goalsHasMore = goalPage.items.length > REVIEW_GUIDE_LIMITS.goals;
     const goalItems = goalPage.items.slice(0, REVIEW_GUIDE_LIMITS.goals);
-    const goalIds = goalItems.map((goal) => goal.id);
 
-    const [contributions, activityFacts, areaPage, activeProjects] =
-      await Promise.all([
-        scope.goals.listGoalProjectContributions(goalIds),
-        scope.alignment.listGoalAlignmentFacts(goalIds, {
-          recentWindowStartIso,
-        }),
-        scope.areas.listAreas({ limit: REVIEW_GUIDE_LIMITS.areas + 1 }),
-        scope.projects.listProjects({
-          state: "open",
-          workflowStatus: "active",
-          orderBy: "recent",
-          limit: REVIEW_GUIDE_LIMITS.projects,
-        }),
-      ]);
-
-    const goals = goalItems.map<ReviewGoalAlignmentSummary>((goal) => {
-      const contribution = contributions.get(goal.id) ?? {
-        total: 0,
-        completed: 0,
-        incomplete: 0,
-        active: 0,
-        planned: 0,
-        onHold: 0,
-        archived: 0,
-      };
-      const alignment: GoalAlignment = evaluateGoalAlignment(
-        composeGoalAlignmentFacts({
-          goalId: goal.id,
+    /*
+     * STEER-03 (DEBT-209) — the step reads the SHARED Goal story.
+     *
+     * It used to make two of these reads itself (contributions and alignment
+     * facts) and derive alignment inline. `loadGoalStories` makes those two plus
+     * four more — details, measurement summaries, milestone summaries and
+     * FOLLOW-02's movement — in ONE grouped composition over the same bounded
+     * page of ids. It is the same function the Area record calls, so the ritual
+     * and the record cannot describe a Goal differently, and it is emphatically
+     * NOT a second movement query path: `readGoalMovement` is FOLLOW-02's one
+     * server read, reached here exactly as `/goals` reaches it.
+     *
+     * What it costs is stated and asserted rather than absorbed — the FOLLOW-01
+     * precedent. See `REVIEW_GUIDE_QUERY_BUDGET.alignment`.
+     */
+    const [stories, areaPage, activeProjects] = await Promise.all([
+      loadGoalStories(
+        scope,
+        goalItems.map((goal) => ({
+          id: goal.id,
+          title: goal.title,
+          createdAt: goal.createdAt,
           completedAt: goal.completedAt,
-          contribution,
-          activity: activityFacts.get(goal.id),
-        }),
-        evaluation,
-      );
-      return {
-        id: goal.id,
-        title: goal.title,
-        alignment,
-        contributingProjects: contribution.total,
-        activeContributingProjects: contribution.active,
-      };
+        })),
+        {
+          now: input.now,
+          timezone: input.timezone,
+          todayIso: input.todayIso,
+          firstDayOfWeek: input.firstDayOfWeek ?? DEFAULT_FIRST_DAY_OF_WEEK,
+          evaluation,
+          recentWindowStartIso,
+        },
+      ),
+      scope.areas.listAreas({ limit: REVIEW_GUIDE_LIMITS.areas + 1 }),
+      scope.projects.listProjects({
+        state: "open",
+        workflowStatus: "active",
+        orderBy: "recent",
+        limit: REVIEW_GUIDE_LIMITS.projects,
+      }),
+    ]);
+
+    const goals = goalItems.flatMap<ReviewGoalAlignmentSummary>((goal) => {
+      const story = stories.get(goal.id);
+      // Every requested id gets an entry from `loadGoalStories`, so this is a
+      // type narrowing rather than a filter — a Goal is never silently dropped
+      // from the ritual because a read came back short.
+      if (!story) return [];
+      const alignment: GoalAlignment | null = story.alignment;
+      if (alignment === null) return [];
+      return [
+        {
+          id: goal.id,
+          title: goal.title,
+          alignment,
+          contributingProjects: story.contribution?.total ?? 0,
+          activeContributingProjects: story.contribution?.active ?? 0,
+          story,
+        },
+      ];
     });
 
     /*

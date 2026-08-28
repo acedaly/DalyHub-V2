@@ -33,8 +33,6 @@ export const HOME_AREA_ID = "st-area-home";
 /** The Area the move journey re-files a Goal into. */
 export const DESTINATION_AREA_ID = "st-area-destination";
 
-const AREA_IDS = [HOME_AREA_ID, DESTINATION_AREA_ID] as const;
-
 /**
  * The Goals, and what each one is FOR.
  *
@@ -58,14 +56,37 @@ export const STEER_GOALS = {
   movable: { id: "st-goal-movable", title: "ST: Re-file me" },
 } as const;
 
-const GOAL_IDS = Object.values(STEER_GOALS).map((goal) => goal.id);
-const MEASUREMENT_IDS = [
-  "st-m-overdue",
-  "st-m-ahead",
-  "st-m-rested",
-  "st-m-movable-1",
-  "st-m-movable-2",
-] as const;
+/**
+ * STEER-04 — the STRUCTURE beneath the Goals, so a next action has somewhere to
+ * come from and a Goal with none can be told apart from one with all of it.
+ *
+ *   - `overdue` gets TWO Projects with eligible Tasks of different priorities,
+ *     so the Goal-level composition has a genuine choice to make;
+ *   - `rested` (the set-aside Goal) gets one Project with one eligible Task, so
+ *     its record can answer while the attention surfaces do not ask;
+ *   - `unmeasured` deliberately gets NOTHING, so the no-structure door is
+ *     offered against a real absence rather than a contrived one;
+ *   - `ahead` gets a Project whose only open Task is BLOCKED by an incomplete
+ *     one that is itself waiting, so the honest "no next action" state is
+ *     reachable on a Goal that clearly has work.
+ */
+export const STEER_PROJECTS = {
+  reportDraft: { id: "st-proj-draft", title: "ST: Draft the report" },
+  reportReview: { id: "st-proj-review", title: "ST: Review the report" },
+  pianoLessons: { id: "st-proj-piano", title: "ST: Book piano lessons" },
+  readingStalled: { id: "st-proj-stalled", title: "ST: Stalled reading" },
+} as const;
+
+export const STEER_TASKS = {
+  /** P3, under `reportDraft` — the lower-ranked candidate. */
+  outline: { id: "st-task-outline", title: "ST: Outline the sections" },
+  /** P1, under `reportReview` — the Goal's next step, across two Projects. */
+  proofread: { id: "st-task-proofread", title: "ST: Proofread the draft" },
+  /** The set-aside Goal's only eligible Task. */
+  piano: { id: "st-task-piano", title: "ST: Email the teacher" },
+  /** Waiting on somebody else — never a next action. */
+  waiting: { id: "st-task-waiting", title: "ST: Wait for the library" },
+} as const;
 
 export interface SteerFixture {
   readonly todayIso: string;
@@ -229,27 +250,178 @@ export function seedSteerFixture(fixture: SteerFixture): void {
   reading("st-m-movable-1", STEER_GOALS.movable.id, 10, fixture.day(-40));
   reading("st-m-movable-2", STEER_GOALS.movable.id, 25, fixture.day(-5));
 
+  /*
+   * STEER-04 — the Projects and Tasks a next action is composed FROM.
+   *
+   * A Project is a spine record linked to its parent by `project.advances_goal`
+   * (a Goal parent) and carries a `project_details` row for its workflow
+   * status; a Task is a spine record linked by `task.belongs_to_project` with a
+   * `task_details` row for its priority and its waiting state. Everything is
+   * written exactly as the repositories write it, so the ranked statement reads
+   * real rows rather than a shape invented for the test.
+   */
+  const project = (
+    id: string,
+    title: string,
+    goalId: string,
+    status = "active",
+  ) => {
+    entity(id, "project", title);
+    spine(id, "project");
+    link(id, goalId, "project.advances_goal");
+    sql.push(
+      `INSERT OR IGNORE INTO project_details (workspace_id, entity_id, entity_type, status, updated_at)
+       VALUES (${sqlLiteral(WORKSPACE)}, ${sqlLiteral(id)}, 'project', ${sqlLiteral(status)}, ${sqlLiteral(stamp)});`,
+      `UPDATE project_details SET status = ${sqlLiteral(status)}, archived_at = NULL
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE)} AND entity_id = ${sqlLiteral(id)};`,
+    );
+  };
+
+  const task = (
+    id: string,
+    title: string,
+    projectId: string,
+    options: {
+      readonly priority?: string | null;
+      readonly waiting?: boolean;
+    } = {},
+  ) => {
+    entity(id, "task", title);
+    spine(id, "task");
+    link(id, projectId, "task.belongs_to_project");
+    sql.push(
+      `INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, updated_at)
+       VALUES (${sqlLiteral(WORKSPACE)}, ${sqlLiteral(id)}, 'task', 'todo', ${sqlLiteral(stamp)});`,
+      `UPDATE task_details SET status = 'todo',
+          priority = ${options.priority ? sqlLiteral(options.priority) : "NULL"},
+          commitment_state = 'active',
+          waiting_since = ${options.waiting ? sqlLiteral(stamp) : "NULL"},
+          waiting_note = ${options.waiting ? sqlLiteral("the library") : "NULL"},
+          due_date = NULL, scheduled_date = NULL
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE)} AND entity_id = ${sqlLiteral(id)};`,
+    );
+  };
+
+  /*
+   * A recent `entity.created` Activity per fixture Task, so the fixture's
+   * Projects lead Today's "Continue working".
+   *
+   * That list is capped at three and ranked by the REAL last activity
+   * (`ProjectHealthSummary.lastActivityIso`), not by `updated_at` — so a fixture
+   * with no Activity at all sorts LAST and never reaches the surface the journey
+   * is about. The offsets below are minutes apart, which makes the top three
+   * deterministic: the Project whose only open Task is WAITING is deliberately
+   * among them, so the "names nothing" branch is exercised rather than assumed.
+   */
+  const activity = (id: string, subjectId: string, minutesAgo: number) => {
+    const occurredAt = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+    sql.push(
+      `INSERT OR IGNORE INTO activities (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
+       VALUES (${sqlLiteral(id)}, ${sqlLiteral(WORKSPACE)}, 'entity.created', 'user', 'owner-subject', ${sqlLiteral(occurredAt)}, '{}');`,
+      `UPDATE activities SET occurred_at = ${sqlLiteral(occurredAt)}
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE)} AND id = ${sqlLiteral(id)};`,
+      `INSERT OR IGNORE INTO activity_subjects (workspace_id, activity_id, entity_id, role)
+       VALUES (${sqlLiteral(WORKSPACE)}, ${sqlLiteral(id)}, ${sqlLiteral(subjectId)}, 'subject');`,
+    );
+  };
+
+  project(
+    STEER_PROJECTS.reportDraft.id,
+    STEER_PROJECTS.reportDraft.title,
+    STEER_GOALS.overdue.id,
+  );
+  project(
+    STEER_PROJECTS.reportReview.id,
+    STEER_PROJECTS.reportReview.title,
+    STEER_GOALS.overdue.id,
+  );
+  task(
+    STEER_TASKS.outline.id,
+    STEER_TASKS.outline.title,
+    STEER_PROJECTS.reportDraft.id,
+    { priority: "p3" },
+  );
+  task(
+    STEER_TASKS.proofread.id,
+    STEER_TASKS.proofread.title,
+    STEER_PROJECTS.reportReview.id,
+    { priority: "p1" },
+  );
+
+  project(
+    STEER_PROJECTS.pianoLessons.id,
+    STEER_PROJECTS.pianoLessons.title,
+    STEER_GOALS.rested.id,
+  );
+  task(
+    STEER_TASKS.piano.id,
+    STEER_TASKS.piano.title,
+    STEER_PROJECTS.pianoLessons.id,
+    { priority: "p2" },
+  );
+
+  project(
+    STEER_PROJECTS.readingStalled.id,
+    STEER_PROJECTS.readingStalled.title,
+    STEER_GOALS.ahead.id,
+  );
+  task(
+    STEER_TASKS.waiting.id,
+    STEER_TASKS.waiting.title,
+    STEER_PROJECTS.readingStalled.id,
+    { priority: "p1", waiting: true },
+  );
+
+  // Newest first, so "Continue working"'s top three are: the Project holding the
+  // Goal's next step, the Project holding the lower-ranked candidate, and the
+  // Project whose only open Task is waiting.
+  activity("st-act-proofread", STEER_TASKS.proofread.id, 1);
+  activity("st-act-outline", STEER_TASKS.outline.id, 2);
+  activity("st-act-waiting", STEER_TASKS.waiting.id, 3);
+  activity("st-act-piano", STEER_TASKS.piano.id, 4);
+
   d1Execute(sql);
 }
 
 export function cleanupSteerFixture(): void {
   const ws = sqlLiteral(WORKSPACE);
-  const goals = GOAL_IDS.map((id) => sqlLiteral(id)).join(", ");
-  const measurements = MEASUREMENT_IDS.map((id) => sqlLiteral(id)).join(", ");
-  const all = [...GOAL_IDS, ...AREA_IDS].map((id) => sqlLiteral(id)).join(", ");
+  /*
+   * Everything this fixture owns is identified by its `ST: ` title prefix, and
+   * the sweep is keyed on that rather than on a list of ids.
+   *
+   * STEER-04's journey CREATES a Project through the product's own "New Project
+   * for this Goal" door, so its id is not known here — but its title is, because
+   * the journey names it with the same prefix. A cleanup keyed only on written
+   * ids would leave that Project behind on every run, which is exactly the
+   * leaking-fixture class [DEBT-173] exists to stop.
+   *
+   * `entities` is the last table cleared, so every statement above can still
+   * resolve the id set from it. Dependents come first throughout, because every
+   * foreign key is ON DELETE RESTRICT. Idempotent: running it twice is a no-op.
+   */
+  const owned = `SELECT id FROM entities WHERE workspace_id = ${ws} AND title LIKE 'ST: %'`;
   d1Execute([
-    `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND entity_id IN (${all});`,
+    `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
     `DELETE FROM activities WHERE workspace_id = ${ws}
        AND NOT EXISTS (SELECT 1 FROM activity_subjects s
                        WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
     `DELETE FROM entity_links WHERE workspace_id = ${ws}
-       AND (source_entity_id IN (${all}) OR target_entity_id IN (${all}));`,
-    `DELETE FROM goal_measurements WHERE workspace_id = ${ws}
-       AND (id IN (${measurements}) OR entity_id IN (${goals}));`,
-    `DELETE FROM goal_milestones WHERE workspace_id = ${ws} AND entity_id IN (${goals});`,
-    `DELETE FROM goal_details WHERE workspace_id = ${ws} AND entity_id IN (${goals});`,
-    `DELETE FROM area_details WHERE workspace_id = ${ws} AND entity_id IN (${AREA_IDS.map((id) => sqlLiteral(id)).join(", ")});`,
-    `DELETE FROM spine_records WHERE workspace_id = ${ws} AND entity_id IN (${all});`,
-    `DELETE FROM entities WHERE workspace_id = ${ws} AND id IN (${all});`,
+       AND (source_entity_id IN (${owned}) OR target_entity_id IN (${owned}));`,
+    `DELETE FROM goal_measurements WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    `DELETE FROM goal_milestones WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    `DELETE FROM goal_details WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    `DELETE FROM task_details WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    `DELETE FROM project_details WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    `DELETE FROM area_details WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    /*
+     * The Review the STEER-03 journey starts, whose title carries the same
+     * prefix. `review_details` is the only review table with a foreign key onto
+     * `entities` (ON DELETE RESTRICT); every other review table cascades from
+     * it, so removing this row removes the sections, the workflow state, the
+     * acknowledgements and any insight snapshot with it.
+     */
+    `DELETE FROM review_details WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    `DELETE FROM spine_records WHERE workspace_id = ${ws} AND entity_id IN (${owned});`,
+    `DELETE FROM entities WHERE workspace_id = ${ws} AND title LIKE 'ST: %';`,
   ]);
 }

@@ -2060,3 +2060,54 @@
     letter-spacing: 0;
   }
 }
+
+/*
+ * STEER-04 (DEBT-77) — the next-action line on a "Continue working" card, and
+ * on a Goal's record.
+ *
+ * It is a quiet line beneath the record's own signals: the WORD "Next" leads it
+ * (never a tint — `AGENTS.md` §15), the Task's title is the link, and the whole
+ * row is smaller and lighter than the title above it so the Project or Goal
+ * stays the card's subject. The link keeps a full touch target on a coarse
+ * pointer even though the text is small — the density rule the design system
+ * applies unconditionally.
+ *
+ * It wraps rather than truncating: a Task title the owner cannot read is not a
+ * next action, and a card is allowed to be two lines taller than it was.
+ */
+.dh-next-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--dh-space-1) var(--dh-space-2);
+  margin: var(--dh-space-1) 0 0;
+  min-inline-size: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-next-action__label {
+  flex: none;
+  font-weight: var(--dh-text-label-weight);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-next-action__open {
+  color: var(--dh-color-text);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.dh-next-action__parent {
+  flex: none;
+  color: var(--dh-color-text-muted);
+}
+
+@media (pointer: coarse) {
+  .dh-next-action__open {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--app-touch-target-min);
+  }
+}

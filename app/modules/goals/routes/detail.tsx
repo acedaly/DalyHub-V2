@@ -28,6 +28,8 @@ import {
   goalMovementWindow,
   readGoalMovement,
 } from "~/platform/activity-window/goal-movement.server";
+import { readGoalNextAction } from "~/shared/task-record/next-action-load.server";
+import type { SerializedNextAction } from "~/shared/task-record/NextActionLine";
 import {
   DrawerProvider,
   useDrawer,
@@ -46,6 +48,13 @@ import {
   TASK_DRAWER_TITLE,
   TaskRecordDrawer,
 } from "~/shared/task-record/TaskRecordDrawer";
+
+import {
+  NEW_PROJECT_FOR_GOAL_KEY,
+  NEW_PROJECT_FOR_GOAL_TITLE,
+  NewProjectForGoalDrawer,
+  newProjectForGoalDescription,
+} from "~/shared/project-creation";
 
 import { GoalActivityTab } from "../GoalActivityTab";
 import { GoalOverview } from "../GoalOverview";
@@ -223,10 +232,40 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     todayIso: evaluation.todayIso,
   });
 
+  /*
+   * STEER-04 (DEBT-210) — the Goal's NEXT STEP, across its contributing
+   * Projects.
+   *
+   * The product's ONE next-action rule, composed through the structure the
+   * spine already has: Goal → `project.advances_goal` → each Project's
+   * canonical next action → the best of those by the SAME smart ordering. No
+   * Goal-specific ranking model, and no Task created on a Goal — the spine
+   * forbids one (`AGENTS.md` §4) and REDESIGN-04 §4.2 already refused a Goal
+   * Tasks tab for that reason.
+   *
+   * ONE bounded ranked statement over the contributing-Project page read above,
+   * never one query per Project. Its own failure domain: a Goal that cannot name
+   * its next step still answers every other question the record asks of it.
+   */
+  let nextAction: SerializedNextAction | null = null;
+  try {
+    nextAction = await readGoalNextAction(scope, {
+      projects: projectPage.items.map((project) => ({
+        id: project.id,
+        title: project.title,
+      })),
+      todayIso: evaluation.todayIso,
+      timezone: timeZone,
+    });
+  } catch {
+    // A narrower record, never a broken one.
+  }
+
   return {
     overview: serializeGoalOverview(overview),
     details: serializeGoalDetails(details),
     progress,
+    nextAction,
     measurements: measurements.map(serializeGoalMeasurement),
     milestones: milestones.map(serializeGoalMilestone),
     contribution: serializeGoalProjectContribution(contribution),
@@ -244,7 +283,12 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 }
 
 export default function GoalDetailRoute({ loaderData }: Route.ComponentProps) {
-  const renderDrawer = useMemo(() => createGoalDrawerRenderer(), []);
+  const goalId = loaderData.overview.id;
+  const goalTitle = loaderData.overview.title;
+  const renderDrawer = useMemo(
+    () => createGoalDrawerRenderer({ id: goalId, title: goalTitle }),
+    [goalId, goalTitle],
+  );
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>
@@ -258,7 +302,10 @@ export default function GoalDetailRoute({ loaderData }: Route.ComponentProps) {
  * alignment evidence. The rename and details forms are gone, because the values
  * they edited are edited on the record itself.
  */
-function createGoalDrawerRenderer() {
+function createGoalDrawerRenderer(goal: {
+  readonly id: string;
+  readonly title: string;
+}) {
   return function render(entry: DrawerEntry): DrawerRenderResult | null {
     const separator = entry.key.indexOf(":");
     const kind = separator === -1 ? entry.key : entry.key.slice(0, separator);
@@ -267,6 +314,21 @@ function createGoalDrawerRenderer() {
       return {
         title: TASK_DRAWER_TITLE,
         children: <TaskRecordDrawer taskId={id} />,
+      };
+    }
+    /*
+     * STEER-04 (DEBT-210) — the create-structure door, hosted by the Drawer
+     * this record already has. It opens the ONE shared Project form with this
+     * Goal as its decided parent; the server still resolves and re-verifies the
+     * parent from its id.
+     */
+    if (entry.key === NEW_PROJECT_FOR_GOAL_KEY) {
+      return {
+        title: NEW_PROJECT_FOR_GOAL_TITLE,
+        description: newProjectForGoalDescription(goal.title),
+        children: (
+          <NewProjectForGoalDrawer goalId={goal.id} goalTitle={goal.title} />
+        ),
       };
     }
     return null;
@@ -568,6 +630,7 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
         timeZone={props.timeZone}
         alignment={props.alignment}
         movement={props.movement}
+        nextAction={props.nextAction}
         alignmentEvidence={props.alignmentEvidence}
         alignmentEvidenceHasMore={props.alignmentEvidenceHasMore}
         completionPending={completionPending}

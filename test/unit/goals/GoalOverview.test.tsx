@@ -9,6 +9,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import { UNMEASURED_GOAL, type GoalCondition } from "~/kernel/goals";
+import { DrawerProvider } from "~/shared/drawer";
 import { FeedbackProvider } from "~/shared/feedback";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import type { ReactElement } from "react";
@@ -124,9 +125,26 @@ function alignment(over: Partial<GoalAlignment> = {}): GoalAlignment {
 }
 
 function renderInRouter(node: ReactElement) {
-  const router = createMemoryRouter([{ path: "/", element: node }], {
-    initialEntries: ["/"],
-  });
+  /*
+   * STEER-04 — the record's Drawer, INSIDE the router.
+   *
+   * The route has always provided one (it hosts the Task record opened from the
+   * alignment evidence); the harness did not need it until the record gained
+   * two controls that open one — the next-step link and the create-structure
+   * door. It has to sit inside the router because the Drawer stack lives in the
+   * URL (ADR-018), which is what makes it deep-linkable.
+   */
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/",
+        element: (
+          <DrawerProvider renderDrawer={() => null}>{node}</DrawerProvider>
+        ),
+      },
+    ],
+    { initialEntries: ["/"] },
+  );
   return render(
     <FeedbackProvider>
       <RouterProvider router={router} />

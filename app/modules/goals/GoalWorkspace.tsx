@@ -40,28 +40,16 @@
 import { useId } from "react";
 import type { ReactNode } from "react";
 
-import { ProgressRow, ProgressRowList } from "~/shared/card";
+import { ProgressRowList } from "~/shared/card";
 import { DrawerTrigger } from "~/shared/drawer";
-import { AccentIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 import { PlusIcon } from "~/shared/icons";
 import { ViewTabs } from "~/shared/view-switcher";
-import {
-  GoalMovementLine,
-  alignmentAccessibleSummary,
-  goalMovementStatement,
-  type GoalAlignment,
-} from "~/shared/alignment";
-import {
-  goalProgressMeterStatus,
-  goalProgressStatusLabel,
-  goalProgressSummaryText,
-  goalRowValue,
-} from "~/shared/goal-progress";
+import { GoalStoryRow } from "~/shared/goal-progress";
 
-import { goalIdentitySource, resolveGoalIdentity } from "./goal-view";
+import { goalIdentitySource, goalListStory } from "./goal-view";
 import type { SerializedGoalWithAlignment } from "./GoalsCollection";
 
 /**
@@ -149,86 +137,36 @@ export function GoalWorkspaceList({
       </h2>
       <ProgressRowList label="Goals" data-testid="goals-list">
         {goals.map((goal) => (
-          <ProgressRow
+          /*
+           * STEER-03 — the ONE Goal-story row, shared with the Area record.
+           *
+           * This list used to build its own `ProgressRow` from the same values.
+           * That was fine while `/goals` was the only surface telling a Goal's
+           * whole story; the moment the Area record and the guided Review told
+           * it too, "the same values assembled three times" is precisely how
+           * three surfaces come to disagree (DEBT-206 is what that looks like).
+           * So the assembly moved to `~/shared/goal-progress`, and this list
+           * renders it.
+           *
+           * Nothing about what the row DRAWS changed: the mark is
+           * `goalIdentitySource`'s (DEBT-208), the context is the Area then the
+           * derived status, the signal is FOLLOW-02's movement line, the bar is
+           * GOAL-02's measurement with POLISH-01's status ramp, and the
+           * accessible name still carries alignment and movement in words.
+           * `showAlignment` stays FALSE here because REDESIGN-04 §6.2 put the
+           * indicator on the pane beside this list.
+           */
+          <GoalStoryRow
             key={goal.id}
             data-testid="goal-row"
-            icon={
-              /*
-               * STEER-01 (DEBT-208) — the ONE Goal identity projection.
-               *
-               * The rule (the Goal's own choice first, its Area's otherwise,
-               * colour and glyph walked independently) is stated once in
-               * `goalIdentitySource` and consumed here, on the pane and on the
-               * record — so the row and the pane beside it cannot resolve two
-               * different marks for the same Goal.
-               */
-              <AccentIcon
-                entityType="goal"
-                {...goalIdentitySource({
-                  own: { iconKey: goal.iconKey, colourSlot: goal.colourSlot },
-                  area: goal.area,
-                })}
-                size="sm"
-              />
-            }
-            title={goal.title}
-            headingLevel={3}
-            /*
-             * FOLLOW-02 — the context line is unchanged for a MEASURED Goal.
-             *
-             * For an unmeasured one, `goalProgressStatusLabel` reads "Not
-             * measured", which is a true and useful thing to say beside the
-             * Area — and it is now followed by a sentence that says whether the
-             * Goal moved, which is what an unmeasured Goal previously had no
-             * way of saying anywhere.
-             */
-            context={`${goal.area.title} · ${goalProgressStatusLabel(goal.progress.status)}`}
-            signal={
-              goal.movement ? (
-                <GoalMovementLine movement={goal.movement} />
-              ) : null
-            }
-            accent={goal.area.colourRank}
-            colourSlot={
-              resolveGoalIdentity({
-                own: { iconKey: goal.iconKey, colourSlot: goal.colourSlot },
-                area: goal.area,
-              }).slot
-            }
-            selected={goal.id === selectedId}
-            progress={
-              goal.progress.progressPercent === null
-                ? undefined
-                : {
-                    percent: goal.progress.progressPercent,
-                    valueText: goalProgressSummaryText(goal.progress),
-                    // POLISH-01 — the bar states how the Goal is GOING. It used
-                    // to take the Goal's identity hue, so "60.0 / 70 kg ·
-                    // Ahead" could be drawn in red.
-                    status: goalProgressMeterStatus(goal.progress.status),
-                  }
-            }
-            value={goalRowValue(goal.progress)}
-            /*
-             * The workspace's own URL. Selecting a Goal is a change of
-             * selection, not a change of page, so it stays on `/goals` and the
-             * pane beside the list updates — which is what makes Back leave the
-             * workspace rather than walk every Goal the owner glanced at.
-             */
+            story={goalListStory(goal)}
+            identity={goalIdentitySource({
+              own: { iconKey: goal.iconKey, colourSlot: goal.colourSlot },
+              area: goal.area,
+            })}
             href={`/goals?goal=${encodeURIComponent(goal.id)}`}
-            // The row's accessible name carries what the row's DRAWING
-            // deliberately does not: ADR-040's alignment state, in words.
-            /*
-             * The row's accessible name carries BOTH derived answers the
-             * drawing keeps quiet: ADR-040's alignment state, and FOLLOW-02's
-             * movement — which are different questions and are allowed to
-             * disagree, so the name states each rather than reconciling them.
-             */
-            openAriaLabel={`${goal.title} — ${goalRowAlignmentText(goal.alignment)}${
-              goal.movement
-                ? ` ${goalMovementStatement(goal.movement).headline}`
-                : ""
-            }`}
+            contextLead={goal.area.title}
+            selected={goal.id === selectedId}
           />
         ))}
       </ProgressRowList>
@@ -262,11 +200,6 @@ export function GoalWorkspaceList({
       </DrawerTrigger>
     </div>
   );
-}
-
-/** The alignment state in words, for a row's accessible name. */
-function goalRowAlignmentText(alignment: GoalAlignment): string {
-  return alignmentAccessibleSummary(alignment);
 }
 
 /**

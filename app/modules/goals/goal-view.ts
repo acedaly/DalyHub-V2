@@ -28,19 +28,22 @@ import type {
 } from "~/kernel/goals";
 import { UNMEASURED_GOAL } from "~/kernel/goals";
 import { normaliseProgress, type CardTone } from "~/shared/card";
-import {
-  resolveIdentity,
-  type IdentitySource,
-} from "~/shared/entity/identity-resolution";
+import type { GoalAlignment, GoalMovement } from "~/shared/alignment";
+import type { GoalProgressEvaluation, GoalStory } from "~/shared/goal-progress";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 /**
  * UIX-03 — the Area context a Goal surface renders, identity included.
  *
- * A Goal has no accent of its own; it inherits its Area's, exactly as a Project
- * does. Carrying the rank and the glyph key here is what lets a Goal card draw
- * the SAME identity mark the Areas gallery draws, rather than the neutral grey
- * container every Goal used to get.
+ * A Goal INHERITS its Area's mark where it has chosen none of its own — the
+ * fallback rung of `goalIdentitySource`'s ladder. Carrying the rank and the
+ * glyph key here is what lets a Goal surface draw the SAME identity mark the
+ * Areas gallery draws, rather than the neutral grey container every Goal used
+ * to get.
+ *
+ * This comment said "a Goal has no accent of its own" until STEER-03 corrected
+ * it: IDENTITY-01 (migration `0042`) gave a Goal its own optional `icon_key`
+ * and `colour_slot`, and the Goal's own choice BEATS this one.
  */
 export type SerializedGoalArea = {
   readonly id: string;
@@ -216,57 +219,69 @@ export function serializeGoalProjectItem(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Identity (DEBT-208 / STEER-01)                                             */
+/* Identity (DEBT-208 / STEER-01, re-homed to `~/shared` by STEER-03)          */
 /* -------------------------------------------------------------------------- */
 
 /**
- * STEER-01 — the ONE Goal identity projection, used by every Goal surface.
+ * STEER-01's one Goal identity rule, re-exported from its shared home.
  *
- * A Goal's mark is its own choice where it has one and its Area's otherwise
- * (IDENTITY-01, migration `0042`). The rule itself is the shared
- * `resolveIdentity` ladder; what was missing was one place that says what a
- * GOAL feeds into it, and the absence showed: the `/goals` row resolved the
- * Goal's own identity with the Area inherited, while the pane beside it
- * resolved ONLY the Area's — so a Goal that had chosen a heart wore two
- * different marks on one screen (DEBT-208).
- *
- * `colourRank: null` is deliberate and is part of the rule: a Goal has no rank
- * of its own, so the derived-colour rung of the ladder belongs to its Area.
- * The fallback is preserved exactly — a Goal with no choice still inherits —
- * it is simply expressed once instead of three times.
- *
- * Pure and React-free, so a test can assert that two surfaces resolve the same
- * mark by comparing values rather than pixels.
+ * The rule itself now lives in `~/shared/goal-progress/goal-identity` because
+ * STEER-03 gives the Area record and the guided Review the same Goal story, and
+ * a module may not import another module's internals. Re-exporting here keeps
+ * every existing Goals-module import path working while leaving exactly ONE
+ * implementation of the rule in the product.
  */
-export function goalIdentitySource(goal: {
-  readonly own?: {
-    readonly iconKey?: string | null;
-    readonly colourSlot?: string | null;
-  } | null;
-  readonly area: {
-    readonly iconKey?: string | null;
-    readonly colourSlot?: string | null;
-    readonly colourRank?: number | null;
-  };
-}): IdentitySource {
+export {
+  goalIdentitySource,
+  resolveGoalIdentity,
+  type GoalIdentityInput,
+} from "~/shared/goal-progress/goal-identity";
+
+/* -------------------------------------------------------------------------- */
+/* The shared Goal story (STEER-03)                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * STEER-03 — a collection row's facts, as the SHARED Goal story.
+ *
+ * `/goals` has carried all four answers since STEER-02; what it lacked was a
+ * name for the set of them, so the Area record and the guided Review had to
+ * re-assemble their own. This projection is that name, and it is what lets the
+ * three surfaces render the SAME component from the SAME shape.
+ *
+ * It composes; it derives nothing. Every value is the one the loader already
+ * put on the row.
+ */
+export function goalListStory(goal: {
+  readonly id: string;
+  readonly title: string;
+  /**
+   * The Goal-owned target date. Omitted by callers that do not carry it
+   * separately, in which case it comes from the evaluation — which reports it
+   * for an UNMEASURED Goal too (`{ ...UNMEASURED_GOAL_PROGRESS, targetDate }`),
+   * so the fact is never lost by the fallback.
+   */
+  readonly targetDate?: string | null;
+  readonly progress: GoalProgressEvaluation;
+  readonly alignment: GoalAlignment;
+  readonly condition?: GoalCondition | null;
+  readonly movement?: GoalMovement | null;
+  readonly contribution: SerializedGoalProjectContribution;
+}): GoalStory {
   return {
-    colourSlot: goal.own?.colourSlot ?? null,
-    iconKey: goal.own?.iconKey ?? null,
-    // A Goal has no rank of its own; the Area's rank is the derived rung.
-    colourRank: null,
-    inherited: {
-      colourSlot: goal.area.colourSlot ?? null,
-      colourRank: goal.area.colourRank ?? null,
-      iconKey: goal.area.iconKey ?? null,
+    id: goal.id,
+    title: goal.title,
+    progress: goal.progress,
+    alignment: goal.alignment,
+    movement: goal.movement ?? null,
+    condition: goal.condition ?? null,
+    targetDate: goal.targetDate ?? goal.progress.targetDate,
+    contribution: {
+      total: goal.contribution.total,
+      completed: goal.contribution.completed,
+      active: goal.contribution.active,
     },
   };
-}
-
-/** The resolved mark for a Goal — the value every Goal surface paints from. */
-export function resolveGoalIdentity(
-  goal: Parameters<typeof goalIdentitySource>[0],
-) {
-  return resolveIdentity(goalIdentitySource(goal));
 }
 
 /** Is the Goal explicitly complete? Explicit completion is ALWAYS the spine's

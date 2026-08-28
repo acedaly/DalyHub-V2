@@ -20,6 +20,7 @@ import {
 import type {
   TaskBlockedSummary,
   TaskChecklistProgress,
+  TaskListItem,
   TaskParentCandidate,
 } from "~/kernel/tasks";
 import type { DaySchedule } from "~/kernel/calendar";
@@ -632,6 +633,35 @@ export async function loadTodayDay(
     ),
   ]);
 
+  /*
+   * STEER-04 (DEBT-77) — the next action for each "Continue working" card.
+   *
+   * ONE bounded statement, read AFTER the parallel block because it takes the
+   * RANKED cards' ids and the ranking needs the health facts above. Its cost is
+   * flat in the number of cards — `rankContinueProjects` caps them at
+   * `CONTINUE_MAX` — which is DEBT-77's own bar: *"query count is unchanged (one
+   * additional statement, not N)"*, reconciled as "the count does not grow with
+   * the cards".
+   *
+   * It is the product's ONE rule, evaluated at the database from the canonical
+   * smart ordering, so Today and `/tasks` cannot disagree about which Task is
+   * next. Its own failure domain: an unreadable next action leaves the cards
+   * exactly as they were before this feature, which is a narrower Today rather
+   * than a broken one.
+   */
+  const rankedProjects = rankContinueProjects(
+    projects.map((project) => ({ ...project, nextAction: null })),
+  );
+  const nextActions = await safely(
+    () =>
+      scope.tasks.listProjectNextActions({
+        projectIds: rankedProjects.map((project) => project.id),
+        todayIso,
+        timezone,
+      }),
+    new Map<string, TaskListItem>(),
+  );
+
   return {
     todayIso,
     dateLong: facts.dateLong,
@@ -671,7 +701,13 @@ export async function loadTodayDay(
         })),
       goals,
     }),
-    continueProjects: rankContinueProjects(projects),
+    continueProjects: rankedProjects.map((project) => {
+      const next = nextActions.get(project.id);
+      return {
+        ...project,
+        nextAction: next ? { id: next.id, title: next.title } : null,
+      };
+    }),
     goals: measurableGoals,
     activityTrend,
     reflection,

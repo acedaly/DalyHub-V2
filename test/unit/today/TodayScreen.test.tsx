@@ -166,6 +166,7 @@ function project(
     iconKey: null,
     colourSlot: null,
     colourRank: 0,
+    nextAction: null,
     ...overrides,
   };
 }

@@ -595,3 +595,90 @@
     transition: none;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* STEER-03 — the Goals step carries the whole Goal story                      */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The list must be allowed to SHRINK, and that is the whole fix.
+ *
+ * `grid-template-columns` was implicit, so the single column sized as
+ * `minmax(auto, auto)` — and an `auto` minimum is the content's MIN-CONTENT
+ * width, which a grid item propagates up its whole ancestor chain. With
+ * alignment alone in the row that minimum was small enough to hide the problem;
+ * with the measurement, the target, the movement sentence and the contribution
+ * count it was not, and the PAGE scrolled sideways at 320 px — measured with a
+ * DOM probe rather than guessed, and caught by the E2E overflow assertion
+ * before it could ship.
+ *
+ * `minmax(0, 1fr)` is the one-line answer: the column is the container's width
+ * and may shrink below its content, which is what makes every `min-inline-size:
+ * 0` below actually reachable. The Areas list takes it too — it has the same
+ * shape and the same latent minimum.
+ */
+.dh-review-guide__goals,
+.dh-review-guide__areas {
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/*
+ * The Goals row is a WRAPPING block now, not the one-line stadium an Area row
+ * still is, so it takes the shape the design system uses for a small content
+ * block. It sits after the shared rule above deliberately: the shared rule sets
+ * the pill radius, and a rule that loses the cascade is not an override.
+ */
+.dh-review-guide__goals li {
+  border-radius: var(--dh-radius-md);
+  max-inline-size: 100%;
+}
+
+/* Every direct child of a Goal row may shrink; a flex item's default
+ * `min-width: auto` is what turns a long Goal title into a page that scrolls
+ * sideways. */
+.dh-review-guide__goals li > * {
+  min-inline-size: 0;
+}
+
+/*
+ * The Goal's measurement facts, as one group: the status word, the Goal's own
+ * value, the target date and the owner's condition stay together and wrap
+ * together. It takes the whole row, so four groups are never asked to share
+ * one line at a phone width.
+ */
+.dh-review-guide__goal-measure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The shared movement line is a sentence, and a sentence wants a line. */
+.dh-review-guide__goal-movement {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * "Take a whole line" is `flex-basis: 100%` — and `flex-basis` is the MAIN axis,
+ * which is why this rule is scoped to the width where the row is still a ROW.
+ *
+ * Below 48rem the phone block above turns these rows into `flex-direction:
+ * column`, where `flex-basis: 100%` means 100% of the container's HEIGHT. Two
+ * children each demanding the full height of a wrapping column container makes
+ * the container wrap into a SECOND COLUMN — measured at 393 px, the measurement
+ * group started at x=377 in a 361 px row, and the page scrolled sideways. The
+ * E2E overflow assertion caught it; a DOM probe up the ancestor chain named it.
+ *
+ * In the column layout nothing is needed: every child is already on its own
+ * line, which is what `flex-direction: column` means.
+ */
+@media (min-width: 48.0625rem) {
+  .dh-review-guide__goal-measure,
+  .dh-review-guide__goal-movement {
+    flex-basis: 100%;
+  }
+}

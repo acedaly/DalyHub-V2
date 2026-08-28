@@ -20,7 +20,9 @@ import { useFetcher, useLocation } from "react-router";
 
 import { Card, CardCollection } from "~/shared/card";
 import type { CardMetaItem, CardProps } from "~/shared/card";
+import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
+import { NEW_PROJECT_FOR_GOAL_KEY } from "~/shared/project-creation";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
 
@@ -250,7 +252,27 @@ export function GoalProjectsTab({
         size="inline"
         headingLevel={2}
         title="No Projects advancing this Goal yet."
-        description="Projects created for this Goal appear here."
+        /*
+         * STEER-04 (DEBT-210) — the empty state names a path that EXISTS.
+         *
+         * It used to read "Projects created for this Goal appear here." — a
+         * sentence describing a route the owner had no way to take from here,
+         * on the surface that had just told them the Goal has no path. The
+         * remedy is one door to the ONE shared Project form, with this Goal as
+         * its decided, server-verified parent.
+         *
+         * `AGENTS.md` §6: every empty state teaches the next action.
+         */
+        description="Give it one, and its Tasks will start moving this Goal."
+        primaryAction={
+          <DrawerTrigger
+            drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
+            className="dh-btn dh-btn--primary"
+            data-testid="goal-projects-new-project"
+          >
+            New Project for this Goal
+          </DrawerTrigger>
+        }
       />
     );
   }

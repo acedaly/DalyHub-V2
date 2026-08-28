@@ -10,6 +10,24 @@
  * barrels).
  */
 
+/**
+ * STEER-04 — the ONE next-action rule (ADR-111 decision 4). Exported from the
+ * kernel barrel because Today, the Goal record and the `/goals` pane all
+ * consume it, and none of them may own a second copy.
+ */
+export {
+  NEXT_ACTION_RULE,
+  NEXT_ACTION_VIEW,
+  NEXT_ACTION_SORT,
+  NO_NEXT_ACTION_TEXT,
+  compareNextActionCandidates,
+  isNextActionEligible,
+  nextActionSortKey,
+  selectGoalNextAction,
+  selectNextAction,
+  type NextActionFacts,
+} from "./next-action";
+
 export {
   TASK_STATUSES,
   TASK_PRIORITIES,
@@ -95,6 +113,7 @@ export {
   type WorkspaceTaskGroup,
   type WorkspaceTaskGrouping,
   type ListWorkspaceTaskGroupsInput,
+  type ListProjectNextActionsInput,
   type TaskParentCandidate,
   type SearchTaskParentsInput,
   type NewTaskInput,

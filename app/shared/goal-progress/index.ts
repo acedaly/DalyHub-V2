@@ -53,6 +53,7 @@ export {
   goalIsOnTrack,
   goalNeedsAttention,
   goalPaceLabel,
+  goalProgressMeter,
   goalProgressStatusLabel,
   goalProgressStatusTone,
   goalProgressSummaryText,
@@ -76,6 +77,47 @@ export type {
   SerializedGoalMilestone,
   GoalCollectionView,
 } from "./goal-progress-view";
+
+/**
+ * STEER-01 / STEER-03 — the ONE Goal identity rule, in its shared home so the
+ * Goals module, the Area record and the guided Review resolve one mark.
+ */
+export {
+  goalIdentitySource,
+  resolveGoalIdentity,
+  type GoalIdentityInput,
+} from "./goal-identity";
+
+/**
+ * STEER-03 — the SHARED Goal story: the four derived-or-owner answers every
+ * surface tells a Goal through, and the machine-key projection that proves two
+ * surfaces told the same one (ADR-111 decision 6).
+ *
+ * The bounded READ that composes it lives in `./goal-story-load.server` and is
+ * deliberately NOT re-exported here: this barrel is reached from the client
+ * bundle, and that module reaches the platform layer.
+ */
+export {
+  GOAL_STORY_FACT_KEYS,
+  goalIsSetAside,
+  goalStoryDataAttributes,
+  goalStoryFacts,
+} from "./goal-story";
+export type {
+  GoalStory,
+  GoalStoryContribution,
+  GoalStoryFactKey,
+  GoalStoryFacts,
+  GoalStoryIdentity,
+  LoadedGoalStory,
+} from "./goal-story";
+
+export {
+  GoalStoryRow,
+  goalStoryRowAccessibleName,
+  type GoalStoryRowProps,
+} from "./GoalStoryRow";
+export { GoalConditionTag } from "./GoalConditionTag";
 
 export {
   GoalProgressReadout,

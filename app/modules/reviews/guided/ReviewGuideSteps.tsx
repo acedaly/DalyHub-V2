@@ -19,7 +19,19 @@ import { EmptyState } from "~/shared/empty-state";
 import { FormButton } from "~/shared/forms";
 import { AiWeeklyReviewSurface } from "~/shared/ai";
 import type { ReviewInsights } from "~/kernel/review-insights";
-import { AlignmentIndicator } from "~/shared/alignment";
+import { AlignmentIndicator, GoalMovementLine } from "~/shared/alignment";
+/*
+ * STEER-03 — the SHARED Goal vocabulary. The Reviews module reaches it through
+ * `~/shared`, never through `~/modules/goals`, and it renders the same
+ * components the Goal surfaces render rather than wording the facts again.
+ */
+import {
+  GoalConditionTag,
+  goalProgressStatusLabel,
+  goalRowValue,
+  goalStoryDataAttributes,
+} from "~/shared/goal-progress";
+import { formatCalendarDate } from "~/shared/task-record/task-view";
 import { HealthIndicator } from "~/shared/project-health";
 import { TaskQuickEditPanel } from "~/shared/task-record/TaskQuickEditPanel";
 import { useCompactViewport } from "~/shared/viewport";
@@ -416,11 +428,73 @@ export function AlignmentStep({
         ) : (
           <ul className="dh-review-guide__goals">
             {alignment.goals.map((goal) => (
-              <li key={goal.id}>
+              /*
+               * STEER-03 (DEBT-209) — the step keeps its SHAPE and gains the
+               * facts. It is the same list, the same selection
+               * (`listGoalsByAlignment`) and the same place in the flow; what
+               * changed is that the ritual now sees what a glance at Today
+               * sees.
+               *
+               * The story's machine facts are stamped on the row, from the ONE
+               * shared projection, so "the Review states the same thing the
+               * Goal record states" is an equality assertion over values rather
+               * than a comparison of sentences.
+               *
+               * It stays a REFLECTION surface: every line below is a fact the
+               * product already derived, in the words it already uses. Nothing
+               * here advises, ranks or coaches.
+               */
+              <li key={goal.id} {...goalStoryDataAttributes(goal.story)}>
                 <Link to={`/goals/${encodeURIComponent(goal.id)}`}>
                   {goal.title}
                 </Link>
                 <AlignmentIndicator alignment={goal.alignment} showReason />
+                {/*
+                 * GOAL-02's measurement, in the shared words: the status where
+                 * there is one, and the Goal's own honest value beside it. An
+                 * unmeasured Goal reads "No measurement" and gets NO figure —
+                 * never a fabricated percentage to keep the column tidy.
+                 */}
+                <span className="dh-review-guide__goal-measure">
+                  <span className="dh-review-guide__note">
+                    {goalProgressStatusLabel(goal.story.progress.status)}
+                  </span>
+                  {goalRowValue(goal.story.progress) ? (
+                    <strong>{goalRowValue(goal.story.progress)}</strong>
+                  ) : null}
+                  {/*
+                   * The target date, formatted with the product's own date
+                   * formatting, and only when the Goal has one — an absent
+                   * target date is an ordinary absence, not a finding.
+                   */}
+                  {goal.story.targetDate ? (
+                    <span className="dh-review-guide__note">
+                      {`Target ${formatCalendarDate(goal.story.targetDate) ?? goal.story.targetDate}`}
+                    </span>
+                  ) : null}
+                  {/*
+                   * STEER-02's owner-set condition, so a Goal deliberately set
+                   * aside is distinguishable from a neglected one IN THE RITUAL
+                   * — which is the half of STEER-02's problem that would
+                   * otherwise have survived it. It states the owner's judgement
+                   * beside the derived facts and changes none of them.
+                   */}
+                  <GoalConditionTag condition={goal.story.condition} />
+                </span>
+                {/*
+                 * FOLLOW-02's movement, from the ONE shared derivation and the
+                 * ONE shared component — the identical sentence Today, `/goals`
+                 * and the Goal record print. HABITS-01's two unsayable
+                 * sentences hold on it by construction: the component renders
+                 * what `evaluateGoalMovement` decided, and a window that has
+                 * not finished is never called "unmoved".
+                 */}
+                {goal.story.movement ? (
+                  <GoalMovementLine
+                    movement={goal.story.movement}
+                    className="dh-review-guide__goal-movement"
+                  />
+                ) : null}
                 <span className="dh-review-guide__note">
                   {goal.contributingProjects === 0
                     ? "No active Project currently contributes to this Goal"

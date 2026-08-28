@@ -25,6 +25,7 @@ import type {
 } from "~/kernel/areas";
 import type { AreaRollup, CompletionRollup } from "~/kernel/spine";
 import { normaliseProgress, type CardTone } from "~/shared/card";
+import type { LoadedGoalStory } from "~/shared/goal-progress";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 export type SerializedRollup = {
@@ -103,6 +104,23 @@ export type SerializedAreaGoalItem = {
   /** AREA-02: the Goal-owned target date (`YYYY-MM-DD`), or `null` when unset.
    * Momentum never depends on this field. */
   readonly targetDate: string | null;
+  /**
+   * STEER-03 — the SHARED Goal story: measurement, alignment, movement and the
+   * owner's condition, from the same evaluators `/goals`, Today and the Goal
+   * record read (ADR-111 decision 6).
+   *
+   * The four roll-up counts above stay, because they are real facts about the
+   * Area's structure and the Area record is where structure is read. What they
+   * stopped being is the Goal's PROGRESS: this tab drew `taskCompleted /
+   * taskTotal` as each Goal card's bar, a third measure no other surface had
+   * (DEBT-206), so the same Goal read "53% · Ahead" on Today and an unrelated
+   * task-count percentage on its own Area.
+   *
+   * `null` only when the story read failed — its own failure domain, so an
+   * unreadable story narrows what the tab SAYS rather than taking the Area
+   * record down.
+   */
+  readonly story: LoadedGoalStory | null;
 };
 
 export type SerializedAreaProjectItem = {
@@ -233,6 +251,8 @@ export function isAreaOverviewArchived(
 
 export function serializeAreaGoalItem(
   item: AreaGoalItem,
+  /** STEER-03 — the shared story, from the one bounded grouped read. */
+  story: LoadedGoalStory | null = null,
 ): SerializedAreaGoalItem {
   return {
     id: item.id,
@@ -245,6 +265,7 @@ export function serializeAreaGoalItem(
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
     targetDate: item.targetDate,
+    story,
   };
 }
 
