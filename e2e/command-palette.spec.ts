@@ -600,27 +600,30 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
     await expect(page.getByRole("form", { name: "New Area" })).toBeVisible();
   });
 
-  test("contributes NO create-Goal command, because there is no such surface", async ({
+  test("contributes a create-Goal command, because /goals now hosts that door", async ({
     page,
   }) => {
-    // A Goal is created from an Area record (the only host of `NewGoalForm`).
-    // A workspace-level "New Goal" command would promise something the product
-    // cannot do, so the palette must not offer one.
+    /*
+     * This test asserted the OPPOSITE until V2.5 STEER-03, and the RULE it was
+     * defending has not changed — only the fact it was defending.
+     *
+     * Its premise was that a Goal can be created only from an Area record, the
+     * only host of `NewGoalForm`, so a workspace-level command would promise
+     * something the product could not do. STEER-01 gave the Goals workspace its
+     * own "Add goal" trigger onto that SAME form, at DS-03's URL drawer key, so
+     * the surface the command needs now exists. The rule the palette still
+     * obeys is the one below: a create command must open the REAL form, not
+     * merely change the URL — which is why this asserts the form is visible
+     * rather than only that the route matched.
+     */
     await gotoFixture(page, "/today");
-    await page.keyboard.press("ControlOrMeta+k");
-    const input = palette(page);
-    await expect(input).toBeVisible();
-
-    // The Goals command that DOES exist is offered…
-    await input.fill("Goals");
-    await expect(option(page, /Open Goals/).first()).toBeVisible();
-
-    // …and no create-Goal command is, under any of the words that would find one.
-    for (const query of ["New Goal", "Create Goal"]) {
-      await input.fill(query);
-      await expect(option(page, /^New Goal/)).toHaveCount(0);
-      await expect(option(page, /^Create Goal/)).toHaveCount(0);
-    }
+    await runCommand(
+      page,
+      "New Goal",
+      /^New Goal/,
+      /\/goals\?drawer=new-goal$/,
+    );
+    await expect(page.getByRole("form", { name: "New goal" })).toBeVisible();
   });
 
   test("opens the Diary for today and the Diary capture panel", async ({

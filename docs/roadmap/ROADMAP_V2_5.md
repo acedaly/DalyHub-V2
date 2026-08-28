@@ -761,6 +761,32 @@ created.**
      their number, one for Today's cards whatever their number.
   6. Light and dark, the phone widths, keyboard reach to the row and the door,
      accessible names, `axe` clean with no rule disabled.
+- **What the gate caught that this item's own spec did not.** The full E2E gate
+  failed the next-action line on WCAG 2.2 §2.5.8 in ten tests across four spec
+  files (`accessibility`, `today-focus`, `goal-measurement`,
+  `today-task-convergence`) — and the reason it was not caught here is worth
+  recording, because it is a coverage lesson rather than a CSS one. This item's
+  own spec scans the GOAL record with `axe`, where the line sits in a roomy
+  block, and never scanned a Today "Continue working" card carrying one. A
+  "Continue working" row's stack used to END in meta TEXT, so nothing
+  interactive sat at the row's bottom edge; this line put a TARGET there,
+  MEASURED at 1.0px above the following row's TITLE link, which dropped that
+  title's safe clickable space to 21.6px against the 24px minimum. The 44px
+  floor was also scoped to `pointer: coarse`, so a MOUSE got a 16.9px-tall
+  target. Both are fixed in `today.css` with the measurements recorded beside
+  them: a 24px floor at every pointer type, `--dh-space-2` of block-end
+  separation, and DHDS-10 §4's `not ((hover: hover) and (pointer: fine))` gate
+  in place of `pointer: coarse`. This is the third time this repository has
+  written down the same defect — `card.css` documents it twice — and the second
+  time it arrived by tightening a gap that was load-bearing for a rule nobody
+  was looking at.
+- **One test's premise was inverted, deliberately and with its rule intact.**
+  `command-palette.spec.ts` asserted that NO create-Goal command exists,
+  *"because there is no such surface"*. STEER-01 built that surface — the Goals
+  workspace's "Add goal" trigger onto the one `NewGoalForm` — so the fact the
+  test defended stopped being true while the RULE it defended did not. It now
+  asserts the command lands on `/goals?drawer=new-goal` **and that the real form
+  is visible**, which is the same bar its New Project and New Area siblings meet.
 - **DEBT-25 was NOT taken.** Its own bar is that the parent Area id must travel
   in the existing statement. The next-action read is a statement about TASKS
   partitioned by Project; it carries no Area, and adding one would mean widening

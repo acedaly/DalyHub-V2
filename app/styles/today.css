@@ -2080,7 +2080,21 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--dh-space-1) var(--dh-space-2);
-  margin: var(--dh-space-1) 0 0;
+  /*
+   * The BLOCK-END space is a WCAG requirement, not a taste one — the same
+   * defect `card.css` documents twice, arriving from the other direction.
+   *
+   * A "Continue working" row's stack used to END in the meta TEXT, so nothing
+   * interactive sat at the row's bottom edge and the following row's title link
+   * had the whole gap to itself. This line puts a TARGET there. MEASURED at
+   * 1440 and at 320: the link's bottom lands 1.0px above the next row's title,
+   * which drops that title's safe clickable space to 21.6px against WCAG 2.2
+   * §2.5.8's 24px minimum and failed `axe` on `/`, on `/today`, on the Focus
+   * panel and on the converged plan. `--dh-space-2` restores it to ~30px.
+   *
+   * Eight pixels of vertical density is not worth a target a thumb misses.
+   */
+  margin: var(--dh-space-1) 0 var(--dh-space-2);
   min-inline-size: 0;
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
@@ -2094,6 +2108,15 @@
 }
 
 .dh-next-action__open {
+  /*
+   * WCAG 2.2 §2.5.8's own 24px minimum, at every pointer type. The ink does not
+   * grow — the meta type stays meta type — only the target does. Without this
+   * the link is a 16.9px-tall strip, which is a `target-size` failure on a
+   * MOUSE, before any question of thumbs.
+   */
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--dh-space-6);
   color: var(--dh-color-text);
   min-inline-size: 0;
   overflow-wrap: anywhere;
@@ -2104,10 +2127,14 @@
   color: var(--dh-color-text-muted);
 }
 
-@media (pointer: coarse) {
+/*
+ * A thumb gets the product's full target, and the gate is the one DHDS-10 §4
+ * fixed rather than `pointer: coarse` — a device must positively declare a fine
+ * pointer WITH hover to keep the 24px floor above, so a touch device, a hybrid,
+ * a stylus and any browser that cannot answer both are given 44px.
+ */
+@media not ((hover: hover) and (pointer: fine)) {
   .dh-next-action__open {
-    display: inline-flex;
-    align-items: center;
     min-block-size: var(--app-touch-target-min);
   }
 }
