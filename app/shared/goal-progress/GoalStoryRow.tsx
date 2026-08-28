@@ -165,9 +165,23 @@ export function GoalStoryRow({
   );
 }
 
-/** The row's accessible name: identity, then every derived answer it holds. */
+/**
+ * The row's accessible name: the VERB, the identity, then every derived answer
+ * the row holds.
+ *
+ * The verb is not decoration. Every other open-link in the product is named
+ * `Open <title>` — `ProjectsCollection`, `AssetsCollection`, `ProjectTasksTab`,
+ * `GoalSummarySection`, `NotesList` — and a link's accessible name should say
+ * where it GOES, which is the one thing "Reach 70 kg — On track" does not.
+ *
+ * `/goals` shipped without it in STEER-01 and nothing caught that, because the
+ * only surface asserting the convention was the Area record — which used to
+ * draw its own card. Giving both surfaces ONE row made the two conventions
+ * collide, and this is the side that was right: the Area's `Open …` keeps the
+ * verb, `/goals` gains it, and the derived facts stay in the name either way.
+ */
 export function goalStoryRowAccessibleName(story: GoalStory): string {
-  const parts = [story.title];
+  const parts = [`Open ${story.title}`];
   if (story.alignment) parts.push(alignmentAccessibleSummary(story.alignment));
   if (story.movement)
     parts.push(goalMovementStatement(story.movement).headline);

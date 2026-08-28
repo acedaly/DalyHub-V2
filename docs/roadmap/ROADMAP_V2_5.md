@@ -780,6 +780,19 @@ created.**
   written down the same defect — `card.css` documents it twice — and the second
   time it arrived by tightening a gap that was load-bearing for a rule nobody
   was looking at.
+- **The one row collided two accessible-name conventions, and the weaker one had
+  been shipping.** `areas.spec.ts` failed on a link named `Open Launch the
+  site`. `/goals` had shipped its row named `<title> — <alignment> — <movement>`
+  with NO verb (STEER-01), and the Area record's card had always been
+  `Open <title>` — the convention `ProjectsCollection`, `AssetsCollection`,
+  `ProjectTasksTab`, `GoalSummarySection` and `NotesList` all follow. Drawing
+  ONE row on both surfaces forced a choice, and the Area's side was right: a
+  link's accessible name should say where it GOES. The row is now
+  `Open <title> — <alignment> — <movement>`, so `/goals` GAINED the verb it had
+  quietly lost and the derived facts stay in the name on both surfaces. Pinned
+  at the authority in `goal-story-surfaces.test.tsx` — falsified by dropping the
+  verb, which fails it — because `areas.spec.ts` was the only assertion of this
+  convention anywhere in the suite.
 - **One test's premise was inverted, deliberately and with its rule intact.**
   `command-palette.spec.ts` asserted that NO create-Goal command exists,
   *"because there is no such surface"*. STEER-01 built that surface — the Goals

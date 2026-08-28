@@ -200,6 +200,32 @@ describe("the shared Goal-story row", () => {
     expect(name).toContain("Recent action");
     expect(name.toLowerCase()).toContain("moved");
   });
+
+  it("names the link with the product's OPEN verb, not the facts alone", () => {
+    /*
+     * A regression the full E2E gate caught and this file did not: the ONE row
+     * both `/goals` and the Area record now draw took `/goals`'s accessible
+     * name, which had no verb, and the Area record's link had always been
+     * `Open <title>` — the convention every other collection in the product
+     * follows. `areas.spec.ts` was the only assertion of it anywhere.
+     *
+     * Pinned here, at the authority, so the next surface to adopt this row
+     * cannot quietly drop the verb again.
+     */
+    renderIn(
+      <GoalStoryRow
+        story={story()}
+        identity={identity}
+        href="/goals/g1"
+        showAlignment
+      />,
+    );
+    const name =
+      screen
+        .getByRole("link", { name: /Reach 70 kg/ })
+        .getAttribute("aria-label") ?? "";
+    expect(name.startsWith("Open Reach 70 kg")).toBe(true);
+  });
 });
 
 describe("the next-action row", () => {
