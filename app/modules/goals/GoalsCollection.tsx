@@ -15,19 +15,23 @@
  * Goals and offers a one-click Restore, so removing a Goal is reversible for good
  * and never a dead end — the durable path back when an Undo toast is missed.
  *
- * DS-16 — the presentation moves from the generic full-width row Card to the
- * SAME `EntityCard`/`EntityCardGrid` foundation Areas and Projects use. A Goal
- * is a record you recognise before you read it, exactly like the other two, and
- * leaving it as the odd one out would have meant the spine's three collection
- * surfaces disagreeing about what a collection looks like. Nothing Goal-specific
- * was introduced: the grid, the card, the identity container, the fact group and
- * the overflow all come from `~/shared/card`, so the column behaviour here is
- * whatever `--app-entity-card-min-width` says it is everywhere else.
+ * ── What this surface is, since REDESIGN-04 and STEER-01 ────────────────────
+ * The ACTIVE view is the master–detail WORKSPACE (`GoalWorkspaceLayout`): a
+ * `ProgressRow` list on the left and the selected Goal's Overview beside it.
+ * DS-16's `EntityCard`/`EntityCardGrid` foundation is now true only of the
+ * **Deleted** view, whose cards carry identity, a deletion date and one Restore
+ * action — no open target, because a soft-deleted record's canonical route
+ * 404s. (This comment described the card grid as the active view's foundation
+ * until STEER-01 corrected it — [DEBT-211] item 2.)
  *
- * The DELETED view uses the same grid, deliberately. Its cards carry identity, a
- * deletion date and one Restore action — no open target, because a soft-deleted
- * record's canonical route 404s — but switching layouts between two views of the
- * same collection would make the lifecycle filter feel like a different page.
+ * ── STEER-01: the order, the lenses and the counts are the SERVER's ─────────
+ * `/goals` is the outcomes workspace. Its order is the workspace-wide outcome
+ * ranking established in SQL before pagination, the active lens is applied in
+ * that same read, and every count beside a lens is the workspace figure the
+ * loader read. This component therefore **never re-sorts and never re-filters**
+ * — either would turn a workspace answer back into a page-local one — and it
+ * shows a lens no number at all when the workspace figure is unavailable, which
+ * is [DEBT-121]'s rule.
  */
 
 import { useCallback, useMemo } from "react";

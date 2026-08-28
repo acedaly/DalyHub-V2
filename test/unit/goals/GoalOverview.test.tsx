@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { UNMEASURED_GOAL } from "~/kernel/goals";
+import { UNMEASURED_GOAL, type GoalCondition } from "~/kernel/goals";
 import { FeedbackProvider } from "~/shared/feedback";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import type { ReactElement } from "react";

@@ -123,7 +123,16 @@ export function GoalAreaField({
     }));
 
   return (
-    <span data-goal-area={area.id} data-testid={`${testId}-value`}>
+    /*
+     * A DOM hook, not a box: `dh-goal-fact` is `display: contents`, so this
+     * carries the machine value a test reads without adding a level to the
+     * sizing chain the picker's own truncation depends on.
+     */
+    <span
+      className="dh-goal-fact"
+      data-goal-area={area.id}
+      data-testid={`${testId}-value`}
+    >
       <InlinePickerField
         label="Area"
         value={area.id}

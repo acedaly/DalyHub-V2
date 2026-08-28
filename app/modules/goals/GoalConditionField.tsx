@@ -86,9 +86,13 @@ export function GoalConditionField({
      * merely similar. It is on a wrapper rather than passed through the shared
      * field because a generic primitive carries no product attributes
      * (AGENTS.md §6 — generic components know no domain).
+     *
+     * `dh-goal-fact` makes it `display: contents`, so the wrapper is a DOM hook
+     * and not a box: it adds no level to the sizing chain the field's own
+     * truncation depends on.
      */
     <span
-      className={className}
+      className={["dh-goal-fact", className].filter(Boolean).join(" ")}
       data-goal-condition={condition ?? "pursuing"}
       data-testid={`${testId}-value`}
     >

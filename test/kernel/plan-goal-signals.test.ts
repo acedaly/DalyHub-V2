@@ -95,6 +95,10 @@ async function planGoalSignals() {
     scope: scope(),
     ownerId: OWNER,
     now: NOW,
+    // The planner's own defaults — this week, no day and no queue override.
+    weekOffset: 0,
+    requestedDay: null,
+    requestedQueueSource: null,
   });
   return page.goalSignals;
 }

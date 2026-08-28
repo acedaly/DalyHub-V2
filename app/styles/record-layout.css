@@ -416,6 +416,38 @@
   color: var(--dh-color-text);
   font-weight: 500;
   overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+
+/*
+ * STEER-02 — an INLINE FIELD in the context line is bounded by the line, and
+ * its value takes the ellipsis.
+ *
+ * `.dh-inline-edit__trigger` is an `inline-flex` box with no maximum, so it
+ * sizes to its content and overflows a narrower parent rather than shrinking
+ * into it — the same intrinsic-sizing behaviour DHDS-13 measured on the Task
+ * row's project cell. It went unnoticed here while every context-line field
+ * held something short (a date, a status word). STEER-02's Area picker holds an
+ * AREA NAME, and a long one pushed the Goal record to 904px inside a 390px
+ * phone: MEASURED, at 390 and 320, on the record the AREA-04 mobile journey
+ * creates.
+ *
+ * The correction is the one `.dh-inline-select__label` already expects: bound
+ * the trigger to the line, let the label ellipsise, and leave the caret
+ * `flex: none` beside it. Scoped to the context line so it changes nothing
+ * about the same field in a table cell or a summary row.
+ */
+.record-header__context .dh-inline-edit,
+.record-header__context .dh-inline-picker,
+.record-header__context .dh-inline-date,
+.record-header__context .dh-inline-edit__trigger {
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.record-header__context .dh-inline-select__value {
+  min-inline-size: 0;
+  overflow: hidden;
 }
 
 /* A subtype ("Vehicle") is context, not a field: it needs no label beside it. */

@@ -20,6 +20,10 @@
 
 Legend: **☐** not started **◐** in progress **◑** partly delivered **☑** done
 
+> **Status, 2026-08-28.** STEER-01 and STEER-02 are ☑ **delivered**, together,
+> in one PR — the surface decision and the owner capability that lands on it.
+> STEER-03, STEER-04 and STEER-05 are unchanged and unstarted.
+
 ---
 
 ## The theme: STEERING
@@ -265,7 +269,7 @@ before pagination; and no composite Goal score exists.
 Five items. One surface decision, two owner capabilities, one action layer, one
 door — sequenced so each lands on the one before it.
 
-### ☐ STEER-01 — What `/goals` answers
+### ☑ STEER-01 — What `/goals` answers — **delivered 2026-08-28**
 
 **The collection decides its question, and every figure on it becomes true.**
 
@@ -360,8 +364,42 @@ door — sequenced so each lands on the one before it.
      ceiling.
 - **Closes.** DEBT-120, DEBT-121, DEBT-192, DEBT-207, DEBT-208.
   **Narrows.** DEBT-211 (the collection and record prose it rewrites).
+- **Delivered 2026-08-28.** Every criterion met, in one PR with STEER-02.
+  1. **The question is recorded** — `GOAL_OUTCOME_QUESTION` in
+     [`app/kernel/goals/goal-outcome.ts`](../../app/kernel/goals/goal-outcome.ts),
+     and in [`GOALS_MODULE.md`](../development/GOALS_MODULE.md#steer-01--what-goals-answers-v25-2026-08-28)
+     with the precedence table and its argument. The order is
+     `GoalRepository.listGoalsByOutcome`, established workspace-wide in SQL
+     BEFORE pagination, proven over a ten-Goal, four-page workspace where the
+     Goal needing attention was created LAST and still leads.
+  2. **SQL and kernel cannot disagree** — `test/kernel/goal-outcome.test.ts`
+     drives both over one seeded fact matrix covering all nine statuses plus
+     explicit completion, the `GOAL_ALIGNMENT_DISPLAY_RANK` precedent. The
+     schedule origin is resolved by one bounded preliminary statement and
+     passed as JSON, because SQLite cannot do IANA conversion and an
+     approximate date would break exact parity — recorded rather than absorbed.
+  3. **Every lens filters the workspace, and every count is workspace-true** —
+     `countGoalsByOutcomeLens`, from the SAME status and lens expressions the
+     page read is filtered by, asserted against a two-page workspace with a
+     counting database (two statements each, flat). Where the workspace figure
+     is unavailable, no lens shows a number: DEBT-121's sentence, kept.
+  4. **The route loads nothing it does not render** — the sparkline series, the
+     collection's definition of done and the pane's five alignment-evidence
+     rows are gone with their plumbing, asserted field-by-field over the
+     loader's returned shape.
+  5. **One identity rule** — `goalIdentitySource`, asserted on a Goal with its
+     own identity and one that inherits its Area's, by reading the same value
+     from the row and the pane.
+  6. **DEBT-192 verbatim** — `detail.tsx` declares no measurement or milestone
+     callback of its own, and the Goals E2E journeys pass unchanged.
+  7. Light and dark, 1440 / 820 / 393 / 320, `axe` clean with no rule
+     disabled, bounded queries with a flatness proof.
+- **The cursor scope, stated.** Workspace + owner day + time zone + lens —
+  every state that materially affects the ordered result, so a cursor cannot be
+  replayed against a different question. A rejected cursor resets calmly to
+  page one.
 
-### ☐ STEER-02 — The owner's hand
+### ☑ STEER-02 — The owner's hand — **delivered 2026-08-28**
 
 **A Goal takes the owner's judgement, and a mis-filed Goal can be re-filed.**
 
@@ -453,6 +491,43 @@ door — sequenced so each lands on the one before it.
   6. Light and dark; the phone widths; keyboard; accessible names; `axe` clean
      with no rule disabled.
 - **Closes.** DEBT-183, DEBT-184.
+- **Delivered 2026-08-28**, in the same PR as STEER-01.
+  1. **The vocabulary, and the decision behind it.** Two states: **Pursuing**
+     (the default, stored as `NULL`) and **Set aside** (`'set_aside'`). Members
+     answer *"am I currently pursuing this?"* — never *"is it going well?"*, so
+     the set deliberately excludes `on_track`, `off_track`, `healthy`,
+     `at_risk`, `stalled` and `failing`, each of which would be a second
+     authority for a word a derivation already computes with evidence
+     (ADR-111 decision 2). "Pursuing" storing nothing is what makes the column
+     purely additive: an old archive, an untouched row and a Goal nobody has
+     spoken about all mean the same thing.
+  2. **Inline-editable on the record and the pane from ONE shared control**
+     (`GoalConditionField`), filterable on `/goals` through STEER-01's lens
+     contract with a workspace-true count, and carried in export and restore —
+     including an archive written before the field, rebuilt as a real ZIP with
+     the key removed and its checksums recomputed, which validates, restores,
+     and lands those Goals as pursuing.
+  3. **Scope changes; truth does not.** A set-aside Goal leaves Today's Goal
+     panel and `/plan`'s unsupported-Goal signals — excluded in SQL BEFORE the
+     scan limit and before the signal cap, so it never costs a pursued Goal its
+     place — while `/goals` and the record state alignment, movement and
+     measurement unchanged. Asserted on both sides in the same tests, including
+     one that compares the movement value byte-for-byte across the change.
+  4. **No derived sentence changes when the condition changes**, asserted by
+     rendering the same Goal under each value; and no derivation can see it,
+     asserted at the SOURCE level after the value-level version was falsified.
+  5. **A moved Goal is the same record** — id, creation instant, Activity,
+     measurements, milestones and contributing Projects all survive, both
+     Areas' rollups agree afterwards including the subtree, and the move is
+     recorded through `SpineRepository.move`'s own link vocabulary rather than
+     a new audit mechanism. Cross-workspace, missing, deleted, wrong-kind and
+     archived targets fail closed with one calm outcome.
+  6. Light and dark, the phone widths, keyboard, accessible names, `axe` clean.
+- **The migration, and its production status.** `0048_goal_condition.sql`: one
+  additive nullable column, implemented, tested and applied LOCALLY. It has
+  **not** been applied to production, and must not be until V2.4-GATE-01's
+  pre-migration backup precondition (DEBT-139) is real. That gate is unchanged
+  and unweakened by this item.
 
 ### ☐ STEER-03 — One Goal, one story
 
