@@ -23,6 +23,22 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 > **Status, 2026-08-28.** STEER-01 and STEER-02 are ☑ **delivered**, together,
 > in one PR — the surface decision and the owner capability that lands on it.
 > STEER-03, STEER-04 and STEER-05 are unchanged and unstarted.
+>
+> **Verification, stated with its one caveat.** The whole `pnpm run verify` gate
+> was run: `format:check`, `lint`, `typecheck`, `dhds:check`, `scheme:check`,
+> **6609** unit tests over 463 files, **2993** kernel tests over 189 files,
+> `build`, and the full E2E suite — all 121 spec files, one worker, 4.1 hours.
+> E2E returned **1923 passed, 3 failed**, and the three are
+> [DEBT-173](../product/PRODUCT_DEBT.md#-debt-173--e2e-specs-assert-against-the-shared-workspaces-accumulated-state-so-re-ordering-the-suite-changes-what-they-see--p2)
+> rather than this item's: `color-scheme.spec.ts:305`,
+> `tasks-dependencies.spec.ts:590` and `tooltip.spec.ts:230`, none of which
+> touches a Goal, two of them failing on records other spec files left in the
+> shared local database (`Book the venue` × 2 from `ai-assistance.spec.ts`,
+> confirmed by querying D1; `Global Search E2E Task` from
+> `editing-consistency.spec.ts`). Re-run against a freshly reset database, all
+> three pass — 49 tests, 49 passed. CI does not hit them because it runs
+> thirteen partitions on thirteen fresh databases. **No test was skipped,
+> quarantined or weakened to reach this.**
 
 ---
 
