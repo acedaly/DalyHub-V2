@@ -602,7 +602,25 @@ test("the collection surfaces the obligation signal and filters on it", async ({
   ).toBeVisible();
 
   await gotoFixture(page, "/assets");
-  await expect(page.getByText("1 obligation overdue")).toBeVisible();
+  /*
+   * SCOPED to the card this test OWNS, which is DEBT-173's standing
+   * prescription and here it is load-bearing rather than tidiness.
+   *
+   * Unscoped, this matched any card in the workspace reading "1 obligation
+   * overdue" — and the committed seed contains a DATE FUSE that makes one:
+   * `ob-rc-inspect` on `as-rc-ute` ("Hilux SR5 — work ute") is an OPEN
+   * obligation due `2026-08-28`, so from that date onward the seeded ute has
+   * exactly one overdue obligation and this assertion is a strict-mode
+   * violation for everyone. MEASURED: this file passed at 127/127 in one full
+   * local gate and failed in the next against the SAME seed and the SAME
+   * commit, hours later — the clock moved, nothing else did.
+   *
+   * Scoping asserts the same fact about the record this test created, which is
+   * the only one it can speak for. The seed's fuse is recorded as DEBT-213.
+   */
+  await expect(
+    page.getByLabel(overdue, { exact: true }).getByText("1 obligation overdue"),
+  ).toBeVisible();
 
   /*
    * The obligation facet lives behind the shared Filter & sort trigger, not
