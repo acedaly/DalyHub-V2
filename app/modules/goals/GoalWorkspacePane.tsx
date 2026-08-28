@@ -278,14 +278,23 @@ export function GoalWorkspacePane({
           * and comparing the derived strings.
           */}
         {onSetCondition ? (
-          <p className="dh-goalpane__focus-condition">
+          /*
+           * A DIV, not a paragraph — the same rule the context line above
+           * records. Every field in `~/shared/inline-edit` roots itself in a
+           * `div`, and a `div` inside a `<p>` is not merely invalid: the HTML
+           * parser CLOSES the paragraph when it meets one, so the server's
+           * markup and the client's tree disagree and React discards the
+           * subtree with a hydration error. It is still one line of the focus
+           * band; the element name is not what makes it one.
+           */
+          <div className="dh-goalpane__focus-condition">
             <span>Condition</span>
             <GoalConditionField
               condition={detail.details.condition}
               onSave={onSetCondition}
               data-testid="goal-pane-condition"
             />
-          </p>
+          </div>
         ) : null}
       </section>
 
