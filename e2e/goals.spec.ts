@@ -230,8 +230,16 @@ test.describe("AREA-02 — Goals", () => {
 
     const rail = page.getByTestId("goals-views");
     await expect(rail).toBeVisible();
-    // Every scope the collection has, in one control the owner learns once.
-    await expect(rail.locator(".dh-viewtabs__tab")).toHaveCount(5);
+    /*
+     * Every scope the collection has, in one control the owner learns once.
+     *
+     * SIX since STEER-02 added the owner's own lens: All · On track · Needs
+     * attention · Set aside · Completed · Deleted. "Set aside" is a lens over
+     * a STORED owner condition rather than a derived status, which is why it
+     * sits beside the derived ones rather than among them, and Deleted stays
+     * last as the rail's least-frequent destination.
+     */
+    await expect(rail.locator(".dh-viewtabs__tab")).toHaveCount(6);
     await expect(rail.locator(".dh-viewtabs__tab").last()).toHaveText(
       "Deleted",
     );

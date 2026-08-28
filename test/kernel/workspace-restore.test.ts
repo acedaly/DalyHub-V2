@@ -272,6 +272,20 @@ describe("workspace backup and restore (D1)", () => {
     expect(
       source.records.taskChecklistItems.some((item) => item.completed),
     ).toBe(true);
+    /*
+     * STEER-02 — the same guard for the Goal-OWNED slice, which was EMPTY in
+     * this fixture until now: the equality assertion below covered
+     * `goalDetails` vacuously, so the GOAL-02 measurement columns, IDENTITY-01's
+     * identity and STEER-02's owner condition had no end-to-end proof. The
+     * fixture now writes a real row, and this states what makes the claim
+     * meaningful — a future change that empties it fails here rather than
+     * quietly making the round trip about nothing.
+     */
+    expect(source.records.goalDetails).toHaveLength(1);
+    expect(source.records.goalDetails[0]).toMatchObject({
+      measurementType: "target_value",
+      condition: "set_aside",
+    });
     // PROJECT-02 — the fixture holds a real template with ordered tasks and a
     // step, so the round trip below is a claim about templates too.
     expect(source.records.projectTemplateDetails).toHaveLength(1);
@@ -783,6 +797,71 @@ describe("workspace backup and restore (D1)", () => {
 
     const preview = await prepareRestore(dependencies(TARGET), archived);
     expect(preview.operationId).toBeTruthy();
+  });
+
+  it("restores an archive written BEFORE the owner condition existed, as 'pursuing' (STEER-02)", async () => {
+    /*
+     * The compatibility half of STEER-02's acceptance: an archive written
+     * before migration 0048 has no `condition` key at all. It must validate,
+     * restore, and land those Goals in the state they were actually in —
+     * pursuing — rather than being refused or having a judgement invented for
+     * them. Reconstructed from a REAL archive with the key removed and the
+     * checksums recomputed, the same method the older-collection case uses.
+     */
+    // The source workspace is lost first, exactly as the round-trip test does:
+    // entity ids are globally unique, so a restore into a second workspace
+    // while the first still holds them is a collision rather than a test.
+    await loseWorkspaceRecords(SOURCE);
+    await ensureWorkspace(TARGET);
+    const older = structuredClone(source) as unknown as {
+      records: {
+        goalDetails: Array<Record<string, unknown>>;
+      };
+    };
+    for (const row of older.records.goalDetails) delete row.condition;
+    expect(older.records.goalDetails.length).toBeGreaterThan(0);
+
+    const current = await buildStructuredExportArchive(source);
+    const rewritten = (await readZipArchive(current.bytes)).map((entry) =>
+      entry.path === "dalyhub-snapshot.json"
+        ? textEntry(entry.path, `${JSON.stringify(older, null, 2)}\n`)
+        : { path: entry.path, data: entry.data },
+    );
+    const checksums: string[] = [];
+    for (const entry of rewritten) {
+      if (entry.path === "CHECKSUMS.txt") continue;
+      checksums.push(`${await sha256Hex(entry.data)}  ${entry.path}`);
+    }
+    const archived = await createZipArchive(
+      [
+        ...rewritten.filter((entry) => entry.path !== "CHECKSUMS.txt"),
+        textEntry("CHECKSUMS.txt", `${checksums.sort().join("\n")}\n`),
+      ].sort((a, b) => (a.path < b.path ? -1 : 1)),
+      new Date(source.meta.exportedAt),
+    );
+
+    const deps = dependencies(TARGET);
+    const preview = await prepareRestore(deps, archived);
+    expect(preview.operationId).toBeTruthy();
+    const result = await applyRestore(deps, preview.operationId);
+    expect(result.verification.passed).toBe(true);
+
+    // Absence maps to the intended default: no condition, i.e. pursuing. The
+    // restore invented nothing, and everything else about the Goal survived.
+    const restored = await exportSnapshot(
+      TARGET,
+      new Date("2026-08-03T09:00:00.000Z"),
+    );
+    expect(restored.records.goalDetails).toHaveLength(
+      source.records.goalDetails.length,
+    );
+    for (const row of restored.records.goalDetails) {
+      expect(row.condition).toBeNull();
+    }
+    expect(restored.records.goalDetails[0]).toMatchObject({
+      measurementType: "target_value",
+      targetValue: 70,
+    });
   });
 
   it("refuses a snapshot version it cannot read", async () => {

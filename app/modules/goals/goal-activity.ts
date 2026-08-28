@@ -13,6 +13,7 @@
 
 import { GOAL_COMPLETED, GOAL_REOPENED } from "~/kernel/spine";
 import {
+  GOAL_CONDITION_CHANGED,
   GOAL_DETAILS_UPDATED,
   GOAL_MEASUREMENT_CORRECTED,
   GOAL_MEASUREMENT_LOGGED,
@@ -45,6 +46,15 @@ export const GOAL_ACTIVITY_DESCRIPTORS: Record<string, ActivityTypeDescriptor> =
     },
     [GOAL_DETAILS_UPDATED]: {
       label: "Updated goal details",
+      entityType: "goal",
+    },
+    /*
+     * STEER-02 — the OWNER's condition changed. Untoned deliberately: setting a
+     * Goal aside is a decision, not a success or a failure, and a tone here
+     * would be the product having an opinion about the owner's judgement.
+     */
+    [GOAL_CONDITION_CHANGED]: {
+      label: "Changed the goal’s condition",
       entityType: "goal",
     },
     /* GOAL-02 — the progress events. Only "reached its target" is toned, because

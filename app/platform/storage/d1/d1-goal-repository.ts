@@ -27,20 +27,33 @@ import {
   decodeGoalAlignmentCursorForScope,
   decodeGoalCursorForScope,
   decodeGoalListCursorForScope,
+  decodeGoalOutcomeCursorForScope,
   encodeGoalAlignmentCursor,
   encodeGoalCursor,
   encodeGoalListCursor,
+  encodeGoalOutcomeCursor,
   evaluateGoalProjectContribution,
+  GOAL_MEASUREMENT_TYPES,
+  GOAL_OUTCOME_COMPLETED_RANK,
+  GOAL_OUTCOME_DISPLAY_RANK,
+  GOAL_SCHEDULE_MARGIN,
+  GOAL_STALE_AFTER_DAYS,
   GoalStorageError,
   type GoalAlignmentCursorScope,
   type GoalAlignmentListInput,
   type GoalAlignmentListPage,
   type GoalChildrenInput,
+  type GoalCollectionView,
   type GoalCursorScope,
   type GoalListCursorScope,
   type GoalListInput,
   type GoalListItem,
   type GoalListPage,
+  type GoalOutcomeCountsInput,
+  type GoalOutcomeCursorScope,
+  type GoalOutcomeLensCounts,
+  type GoalOutcomeListInput,
+  type GoalOutcomeListPage,
   type GoalOverview,
   type GoalProjectContribution,
   type GoalProjectFact,
@@ -149,6 +162,49 @@ interface GoalAlignmentListRow extends GoalListRow {
 const MEANINGFUL_TYPE_LIST = MEANINGFUL_HEALTH_ACTIVITY_TYPES.map(
   (type) => `'${type}'`,
 ).join(", ");
+
+/**
+ * STEER-01 — the measurement-type vocabulary as trusted, inlined SQL lists.
+ *
+ * Both derive from the kernel's `GOAL_MEASUREMENT_TYPES`, so the SQL status
+ * derivation recognises exactly the set `parseGoalMeasurementType` recognises:
+ * an unknown stored type reads as unmeasured on BOTH sides (the migration-0038
+ * degradation rule), which the parity test asserts. Reading types are the ones
+ * `goalMeasurementAcceptsReadings` accepts — everything but `milestone`, whose
+ * value derives from stages.
+ */
+const MEASUREMENT_TYPE_LIST = GOAL_MEASUREMENT_TYPES.map(
+  (type) => `'${type}'`,
+).join(", ");
+const READING_TYPE_LIST = GOAL_MEASUREMENT_TYPES.filter(
+  (type) => type !== "milestone",
+)
+  .map((type) => `'${type}'`)
+  .join(", ");
+
+/**
+ * STEER-01/02 — one lens, one SQL predicate, used verbatim by the filtered
+ * page read AND the counts aggregate, so a lens's result set and its count
+ * cannot disagree. Mirrors the kernel's `goalMatchesCollectionView` exactly:
+ * `completed` is the spine's explicit completion and wins first; the status
+ * lenses are condition-blind; `set_aside` is the owner's stored condition
+ * (ADR-111 decision 3 — scope, never truth). Values are trusted kernel
+ * literals, never caller input.
+ */
+function outcomeLensPredicate(view: GoalCollectionView): string {
+  switch (view) {
+    case "completed":
+      return "completed_at IS NOT NULL";
+    case "on_track":
+      return "(completed_at IS NULL AND status IN ('on_track', 'ahead'))";
+    case "attention":
+      return "(completed_at IS NULL AND status IN ('needs_attention', 'overdue'))";
+    case "set_aside":
+      return "(completed_at IS NULL AND own_condition = 'set_aside')";
+    default:
+      return "1 = 1";
+  }
+}
 
 /**
  * The per-query id chunk size for the batched contribution read
@@ -448,9 +504,11 @@ export class D1GoalRepository implements GoalRepository {
     // under a different owner-calendar boundary (e.g. across a day rollover, when
     // a Goal's rank could shift around the activity cutoff) is rejected — never
     // silently reinterpreted into a duplicated or omitted page.
+    const omitSetAside = input.omitSetAside === true;
     const scope: GoalAlignmentCursorScope = {
       workspaceId: this.#workspaceId,
       windowStartIso: input.activeBoundaryIso,
+      omitSetAside,
     };
     const cursorParams: (string | number)[] = [];
     const cursorClause =
@@ -537,9 +595,29 @@ export class D1GoalRepository implements GoalRepository {
                ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
                   AND ae.type = '${AREA}' AND ae.deleted_at IS NULL${AREA_IDENTITY_JOINS}
              LEFT JOIN contrib c ON c.goal_id = ge.id
-             LEFT JOIN activity act ON act.goal_id = ge.id
+             LEFT JOIN activity act ON act.goal_id = ge.id${
+               omitSetAside
+                 ? `
+             LEFT JOIN goal_details gcond
+               ON gcond.workspace_id = ge.workspace_id AND gcond.entity_id = ge.id`
+                 : ""
+             }
              WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
-                   AND gl.deleted_at IS NULL
+                   AND gl.deleted_at IS NULL${
+                     /*
+                      * STEER-02 — an attention surface's read excludes the
+                      * Goals the owner has set aside, in SQL, before the page
+                      * boundary: filtering after the scan would let a workspace
+                      * of set-aside Goals produce an empty panel while
+                      * pursued Goals waited on page two. It is a join on the
+                      * Goal-owned slice the ranking never otherwise reads,
+                      * added only when asked for, so the ordinary alignment
+                      * read is byte-for-byte what it was.
+                      */
+                     omitSetAside
+                       ? " AND (gcond.condition IS NULL OR gcond.condition <> 'set_aside')"
+                       : ""
+                   }
            )
            SELECT id, title, created_at, updated_at, completed_at,
                   area_id, area_title, area_colour_rank, area_icon_key,
@@ -578,6 +656,355 @@ export class D1GoalRepository implements GoalRepository {
       items: pageRows.map((row) => this.#toGoalListItem(row)),
       nextCursor,
     };
+  }
+
+  /**
+   * STEER-01 — the WORKSPACE-WIDE Goal list ordered by the deterministic
+   * OUTCOME display precedence, established in SQL BEFORE pagination, with the
+   * lens applied in the same read.
+   *
+   * The rank is GOAL-02's derived status (`evaluateGoalProgress`), reproduced
+   * as a layered SQL derivation over the SAME stored facts the summary-based
+   * evaluation reads: the measurement configuration on `goal_details`, the
+   * latest/earliest reading per Goal (identical `(measured_on, created_at)`
+   * tiebreaks to `listMeasurementSummaries`), the milestone weights, the
+   * owner-calendar target date, the bound owner day, and each Goal's schedule
+   * origin — its creation day in the owner's calendar, resolved by ONE bounded
+   * preliminary statement (`#selectGoalStartedOnMap`) and passed back as a
+   * single JSON parameter, because SQLite cannot perform IANA time-zone
+   * conversion and an approximate UTC date would break exact parity with the
+   * evaluator. The rank CASE derives from `GOAL_OUTCOME_DISPLAY_RANK` — the
+   * one kernel authority — and a parity test drives both over the same fact
+   * matrix (`test/kernel/goal-outcome.test.ts`), the DEBT-23 precedent.
+   *
+   * Cost: TWO statements per page (the origin scan + the ranked page), flat in
+   * the number of Goals, measurements and milestones — never one query per
+   * Goal, and no unbounded cross-workspace scan. Nothing is persisted: no rank
+   * column, no status column (ADR-111 decision 5 / ADR-110's rule).
+   */
+  async listGoalsByOutcome(
+    input: GoalOutcomeListInput,
+  ): Promise<GoalOutcomeListPage> {
+    const limit = validateSpineLimit(input.limit);
+    const view: GoalCollectionView = input.view ?? "all";
+    const scope: GoalOutcomeCursorScope = {
+      workspaceId: this.#workspaceId,
+      todayIso: input.todayIso,
+      timeZone: input.timeZone,
+      view,
+    };
+    const cursorParams: (string | number)[] = [];
+    const cursorClause =
+      input.cursor !== undefined
+        ? (() => {
+            const position = decodeGoalOutcomeCursorForScope(
+              input.cursor!,
+              scope,
+            );
+            cursorParams.push(
+              position.rank,
+              position.rank,
+              position.createdAt,
+              position.createdAt,
+              position.id,
+            );
+            return " AND (display_rank > ? OR (display_rank = ? AND (created_at > ? OR (created_at = ? AND id > ?))))";
+          })()
+        : "";
+    const startedJson = await this.#selectGoalStartedOnMap(input.calendarIsoOf);
+    const fetchLimit = limit + 1;
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `${this.#outcomeCtes()}
+           SELECT id, title, created_at, updated_at, completed_at,
+                  area_id, area_title, area_colour_rank, area_icon_key,
+                  area_colour_slot, display_rank
+           FROM ranked
+           WHERE ${outcomeLensPredicate(view)}${cursorClause}
+           ORDER BY display_rank ASC, created_at ASC, id ASC
+           LIMIT ?`,
+        )
+        .bind(
+          ...this.#outcomeBinds(input.todayIso, startedJson),
+          ...cursorParams,
+          fetchLimit,
+        ),
+    );
+    const rows = (result.results ?? []) as GoalAlignmentListRow[];
+    const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      rows.length > limit && last
+        ? encodeGoalOutcomeCursor(scope, {
+            rank: Number(last.display_rank),
+            createdAt: last.created_at,
+            id: last.id,
+          })
+        : null;
+    return {
+      items: pageRows.map((row) => this.#toGoalListItem(row)),
+      nextCursor,
+    };
+  }
+
+  /**
+   * STEER-01 — the WORKSPACE-TRUE count behind every collection lens, from the
+   * SAME status/lens expressions the ordered read uses, so a lens's count and
+   * its result set cannot disagree (DEBT-121's closing condition). TWO
+   * statements (the origin scan + one aggregate), flat in everything.
+   */
+  async countGoalsByOutcomeLens(
+    input: GoalOutcomeCountsInput,
+  ): Promise<GoalOutcomeLensCounts> {
+    const startedJson = await this.#selectGoalStartedOnMap(input.calendarIsoOf);
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `${this.#outcomeCtes()}
+           SELECT COUNT(*) AS total,
+                  SUM(CASE WHEN ${outcomeLensPredicate("on_track")} THEN 1 ELSE 0 END) AS on_track,
+                  SUM(CASE WHEN ${outcomeLensPredicate("attention")} THEN 1 ELSE 0 END) AS attention,
+                  SUM(CASE WHEN ${outcomeLensPredicate("set_aside")} THEN 1 ELSE 0 END) AS set_aside,
+                  SUM(CASE WHEN ${outcomeLensPredicate("completed")} THEN 1 ELSE 0 END) AS completed
+           FROM ranked`,
+        )
+        .bind(...this.#outcomeBinds(input.todayIso, startedJson)),
+    );
+    const row = (
+      (result.results ?? []) as Array<{
+        readonly total: number | null;
+        readonly on_track: number | null;
+        readonly attention: number | null;
+        readonly set_aside: number | null;
+        readonly completed: number | null;
+      }>
+    )[0];
+    return {
+      total: Number(row?.total ?? 0),
+      on_track: Number(row?.on_track ?? 0),
+      attention: Number(row?.attention ?? 0),
+      set_aside: Number(row?.set_aside ?? 0),
+      completed: Number(row?.completed ?? 0),
+    };
+  }
+
+  /**
+   * ONE bounded statement resolving every active Goal's `(id, created_at)`,
+   * converted to the owner-calendar schedule origin by the injected
+   * `calendarIsoOf` and returned as a single JSON parameter for `json_each`.
+   * Two short columns per Goal — flat in measurements, milestones and events —
+   * so the whole map stays far below D1's statement and parameter limits for a
+   * personal workspace.
+   */
+  async #selectGoalStartedOnMap(
+    calendarIsoOf: (instant: Date) => string,
+  ): Promise<string> {
+    const result = await this.#run(
+      this.#db
+        .prepare(
+          `SELECT ge.id, ge.created_at
+           FROM entity_links gl
+           JOIN entities ge
+             ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+           WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                 AND gl.deleted_at IS NULL`,
+        )
+        .bind(this.#workspaceId),
+    );
+    const rows = (result.results ?? []) as Array<{
+      readonly id: string;
+      readonly created_at: string;
+    }>;
+    return JSON.stringify(
+      rows.map((row) => [
+        row.id,
+        calendarIsoOf(fromStorageTimestamp(row.created_at)),
+      ]),
+    );
+  }
+
+  /**
+   * The shared CTE pipeline both outcome statements are built from — ONE text,
+   * so the ordered page, the lens filter and the counts derive the status from
+   * identical SQL. See `listGoalsByOutcome` for the derivation notes; the
+   * status CASE mirrors `evaluateGoalProgress`'s precedence exactly
+   * (not_measured → achieved → not_started → overdue → stale → regressing →
+   * in_progress guards → the ±schedule-margin comparison), and the rank CASE
+   * is generated from `GOAL_OUTCOME_DISPLAY_RANK` so it cannot drift from the
+   * kernel authority.
+   */
+  #outcomeCtes(): string {
+    const rankCase =
+      `CASE WHEN completed_at IS NOT NULL THEN ${GOAL_OUTCOME_COMPLETED_RANK}` +
+      ` ELSE CASE status` +
+      Object.entries(GOAL_OUTCOME_DISPLAY_RANK)
+        .filter(([status]) => status !== "not_measured")
+        .map(([status, rank]) => ` WHEN '${status}' THEN ${rank}`)
+        .join("") +
+      ` ELSE ${GOAL_OUTCOME_DISPLAY_RANK.not_measured} END END`;
+    /*
+     * The schedule's expected fraction — the straight line from the Goal's
+     * owner-calendar creation day to its target date, clamped to [0, 1],
+     * exactly as `evaluateStatus` computes it. `julianday` over date-only
+     * strings yields x.5 values whose differences are exact integers, so the
+     * division and the ±margin comparison are the same IEEE-754 operations the
+     * evaluator performs — which is what the parity test relies on.
+     */
+    const expected =
+      "min(1.0, max(0.0, (julianday(today) - julianday(started_on)) / (julianday(target_date) - julianday(started_on))))";
+    return `WITH ctx(today) AS (SELECT ?),
+         started(goal_id, started_on) AS (
+           SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]')
+           FROM json_each(?)
+         ),
+         latest AS (
+           SELECT entity_id, value, measured_on FROM (
+             SELECT m.entity_id, m.value, m.measured_on,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY m.entity_id
+                      ORDER BY m.measured_on DESC, m.created_at DESC
+                    ) AS rn
+             FROM goal_measurements m
+             WHERE m.workspace_id = ?
+           ) WHERE rn = 1
+         ),
+         earliest AS (
+           SELECT entity_id, value, measured_on FROM (
+             SELECT m.entity_id, m.value, m.measured_on,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY m.entity_id
+                      ORDER BY m.measured_on ASC, m.created_at ASC
+                    ) AS rn
+             FROM goal_measurements m
+             WHERE m.workspace_id = ?
+           ) WHERE rn = 1
+         ),
+         stages AS (
+           SELECT entity_id,
+                  SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed_count,
+                  SUM(weight) AS total_weight,
+                  SUM(CASE WHEN completed_at IS NOT NULL THEN weight ELSE 0 END) AS completed_weight
+           FROM goal_milestones
+           WHERE workspace_id = ?
+           GROUP BY entity_id
+         ),
+         ${AREA_RANKS_CTE},
+         base AS (
+           SELECT ge.id AS id, ge.title AS title, ge.created_at AS created_at,
+                  ge.updated_at AS updated_at, gsr.completed_at AS completed_at,
+                  ae.id AS area_id, ae.title AS area_title,
+                  ${AREA_IDENTITY_COLUMNS},
+                  gd.target_date AS target_date,
+                  gd.condition AS own_condition,
+                  CASE WHEN gd.measurement_type IN (${MEASUREMENT_TYPE_LIST})
+                       THEN gd.measurement_type END AS mtype,
+                  gd.baseline_value AS bval,
+                  gd.target_value AS tval,
+                  gd.measurement_direction AS direction_raw,
+                  l.value AS lv, l.measured_on AS lo,
+                  f.value AS ev, f.measured_on AS eo,
+                  COALESCE(ms.completed_count, 0) AS ms_completed,
+                  COALESCE(ms.total_weight, 0) AS ms_total_weight,
+                  COALESCE(ms.completed_weight, 0) AS ms_completed_weight,
+                  st.started_on AS started_on,
+                  ctx.today AS today
+           FROM entity_links gl
+           JOIN entities ge
+             ON ge.workspace_id = gl.workspace_id AND ge.id = gl.source_entity_id
+                AND ge.type = '${GOAL}' AND ge.deleted_at IS NULL
+           JOIN spine_records gsr
+             ON gsr.workspace_id = ge.workspace_id AND gsr.entity_id = ge.id
+           JOIN entities ae
+             ON ae.workspace_id = gl.workspace_id AND ae.id = gl.target_entity_id
+                AND ae.type = '${AREA}' AND ae.deleted_at IS NULL${AREA_IDENTITY_JOINS}
+           LEFT JOIN goal_details gd
+             ON gd.workspace_id = ge.workspace_id AND gd.entity_id = ge.id
+           LEFT JOIN latest l ON l.entity_id = ge.id
+           LEFT JOIN earliest f ON f.entity_id = ge.id
+           LEFT JOIN stages ms ON ms.entity_id = ge.id
+           LEFT JOIN started st ON st.goal_id = ge.id
+           CROSS JOIN ctx
+           WHERE gl.workspace_id = ? AND gl.type = '${GOAL_BELONGS_TO_AREA}'
+                 AND gl.deleted_at IS NULL
+         ),
+         shaped AS (
+           SELECT base.*,
+                  CASE WHEN mtype = 'milestone' THEN (ms_completed > 0)
+                       WHEN mtype IS NULL THEN 0
+                       ELSE (lv IS NOT NULL) END AS has_reading,
+                  CASE WHEN mtype IS NULL THEN NULL
+                       WHEN mtype = 'target_value' THEN
+                         (CASE WHEN bval IS NOT NULL THEN bval * 1.0 ELSE ev * 1.0 END)
+                       ELSE 0.0 END AS baseline,
+                  CASE WHEN mtype = 'milestone' THEN
+                         (CASE WHEN ms_total_weight > 0 THEN ms_total_weight * 1.0 END)
+                       WHEN mtype = 'manual' THEN 100.0
+                       WHEN mtype IS NULL THEN NULL
+                       ELSE tval * 1.0 END AS target,
+                  CASE WHEN mtype = 'milestone' THEN ms_completed_weight * 1.0
+                       WHEN mtype IS NULL THEN NULL
+                       WHEN lo IS NOT NULL AND eo IS NOT NULL AND lo = eo THEN ev * 1.0
+                       ELSE lv * 1.0 END AS current_value,
+                  CASE WHEN mtype = 'target_value' THEN
+                         (CASE WHEN direction_raw IN ('increase', 'decrease') THEN direction_raw
+                               WHEN bval IS NOT NULL AND tval IS NOT NULL AND tval < bval THEN 'decrease'
+                               ELSE 'increase' END)
+                       ELSE 'increase' END AS direction,
+                  CASE WHEN mtype IN (${READING_TYPE_LIST}) AND lo IS NOT NULL
+                       THEN julianday(today) - julianday(lo) END AS days_since,
+                  CASE WHEN mtype IN ('milestone', 'manual') THEN 1
+                       WHEN mtype IN ('target_value', 'accumulation') THEN (tval IS NOT NULL)
+                       ELSE 0 END AS configured
+           FROM base
+         ),
+         valued AS (
+           SELECT shaped.*,
+                  ((completed_at IS NOT NULL)
+                    OR (current_value IS NOT NULL AND target IS NOT NULL
+                        AND ((direction = 'decrease' AND current_value <= target)
+                             OR (direction <> 'decrease' AND current_value >= target)))) AS achieved,
+                  CASE WHEN baseline IS NOT NULL AND current_value IS NOT NULL
+                            AND target IS NOT NULL AND (target - baseline) <> 0
+                       THEN (current_value - baseline) / (target - baseline) END AS fraction
+           FROM shaped
+         ),
+         classified AS (
+           SELECT valued.*,
+                  CASE
+                    WHEN mtype IS NULL THEN 'not_measured'
+                    WHEN achieved THEN 'achieved'
+                    WHEN NOT has_reading THEN 'not_started'
+                    WHEN target_date IS NOT NULL AND target_date < today THEN 'overdue'
+                    WHEN days_since IS NOT NULL AND days_since > ${GOAL_STALE_AFTER_DAYS} THEN 'stale'
+                    WHEN fraction IS NOT NULL AND fraction < 0 THEN 'needs_attention'
+                    WHEN target_date IS NULL OR started_on IS NULL OR fraction IS NULL
+                         OR NOT configured THEN 'in_progress'
+                    WHEN julianday(target_date) - julianday(started_on) <= 0 THEN 'in_progress'
+                    WHEN fraction >= ${expected} + ${GOAL_SCHEDULE_MARGIN} THEN 'ahead'
+                    WHEN fraction >= ${expected} - ${GOAL_SCHEDULE_MARGIN} THEN 'on_track'
+                    ELSE 'needs_attention'
+                  END AS status
+           FROM valued
+         ),
+         ranked AS (
+           SELECT classified.*, ${rankCase} AS display_rank
+           FROM classified
+         )`;
+  }
+
+  /** The bind values for `#outcomeCtes`, in SQL-text order. */
+  #outcomeBinds(todayIso: string, startedJson: string): (string | number)[] {
+    return [
+      todayIso, // ctx(today)
+      startedJson, // started(json_each)
+      this.#workspaceId, // latest
+      this.#workspaceId, // earliest
+      this.#workspaceId, // stages
+      this.#workspaceId, // area_ranks
+      this.#workspaceId, // base
+    ];
   }
 
   async listGoalProjects(input: GoalChildrenInput): Promise<GoalProjectPage> {

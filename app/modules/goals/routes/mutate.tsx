@@ -21,6 +21,7 @@ import {
 import {
   GoalDetailsValidationError,
   GoalMeasurementValidationError,
+  validateGoalConditionInput,
   validateGoalMeasurementPatch,
 } from "~/kernel/goals";
 import {
@@ -104,6 +105,45 @@ export type GoalMutationResult =
   | {
       readonly kind: "set_identity";
       readonly ok: false;
+      readonly formError: string;
+    }
+  /**
+   * STEER-02 — the OWNER's condition, its own focused intent.
+   *
+   * Its own intent rather than a key on `update_details` for the reason
+   * EDIT-02 gives for the two detail intents: an inline control that shows one
+   * value must submit one value, or changing the condition would resubmit
+   * whatever definition of done the page happened to be holding. It also keeps
+   * the write path legible — `set_condition` is the ONLY route through which a
+   * Goal's condition can change, and grep proves it (ADR-111 decision 1).
+   */
+  | {
+      readonly kind: "set_condition";
+      readonly ok: true;
+      readonly condition: string | null;
+    }
+  | {
+      readonly kind: "set_condition";
+      readonly ok: false;
+      readonly formError?: string;
+      readonly fieldErrors?: Readonly<Record<string, string>>;
+    }
+  /**
+   * STEER-02 — the Goal's structural MOVE between Areas (DEBT-184).
+   *
+   * The outcome vocabulary is the Project's, verbatim (`moved` / `unchanged` /
+   * `invalid`), because it is the same operation on the same spine authority
+   * and two vocabularies for one act is how two surfaces come to disagree.
+   */
+  | {
+      readonly kind: "move";
+      readonly ok: true;
+      readonly outcome: "moved" | "unchanged";
+    }
+  | {
+      readonly kind: "move";
+      readonly ok: false;
+      readonly outcome: "invalid";
       readonly formError: string;
     }
   | { readonly kind: "set_measurement"; readonly ok: true }
@@ -307,6 +347,60 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     }
   }
 
+  /*
+   * STEER-02 — the owner's condition (ADR-111 decisions 1–3).
+   *
+   * A focused intent, validated against the closed kernel vocabulary at the
+   * repository boundary, writing the Goal-owned slice through the ONE mutation
+   * path and appending the `goal.condition_changed` verb in the same
+   * transaction. Nothing else in the product writes this column: no background
+   * job, no derivation, no import, no AI. An unrecognised value is REFUSED
+   * here rather than stored, and the field's message says so.
+   */
+  if (intent === "set_condition") {
+    try {
+      const condition = validateGoalConditionInput(form.get("condition"));
+      await scope.goalDetails.update(goalId, { condition });
+      return json({ kind: "set_condition", ok: true, condition });
+    } catch (cause) {
+      if (cause instanceof GoalDetailsValidationError) {
+        return json({
+          kind: "set_condition",
+          ok: false,
+          fieldErrors: { [cause.field]: cause.message },
+        });
+      }
+      return json({
+        kind: "set_condition",
+        ok: false,
+        formError: "That couldn’t be saved. Please try again.",
+      });
+    }
+  }
+
+  /*
+   * STEER-02 — re-file a Goal into another Area (DEBT-184).
+   *
+   * The SPINE owns parentage, so this delegates to `SpineRepository.move` with
+   * the same guards `handleMove` gives a Project: the destination is resolved
+   * SERVER-side from the id (the client never asserts a kind), it must be an
+   * ACTIVE AREA in this workspace, and the move is one conditional link
+   * mutation — the existing `goal.belongs_to_area` link is soft-deleted and the
+   * destination link created or restored, in ONE batch with its Activity
+   * events. The Goal keeps its id, its history, its measurements and its
+   * subtree by construction: nothing is deleted and recreated, and its
+   * advancing Projects parent to the GOAL, not to the Area.
+   *
+   * An archived destination Area is refused, matching Goal CREATION
+   * (`routes/new.tsx`) rather than the Project move's silence: a Goal may not
+   * be created in an archived Area, so it may not be moved into one either.
+   */
+  if (intent === "move") {
+    return json(
+      await handleGoalMove(scope, goalId, String(form.get("areaId") ?? "")),
+    );
+  }
+
   if (intent === "set_measurement") {
     try {
       // Untrusted wire values become a domain patch through the KERNEL
@@ -370,6 +464,46 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 }
 
 type Scope = Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>;
+
+/**
+ * STEER-02 — the Goal move handler (DEBT-184), the Project's `handleMove`
+ * shape with the one deliberate difference recorded above: an archived Area is
+ * refused.
+ *
+ * Every failure is the same calm, non-disclosing outcome — a missing, deleted,
+ * wrong-kind, archived or cross-workspace destination all read as "Choose an
+ * available Area", because distinguishing them would tell the caller which
+ * ids exist in another workspace.
+ */
+async function handleGoalMove(
+  scope: Scope,
+  goalId: string,
+  areaId: string,
+): Promise<GoalMutationResult> {
+  const invalid = {
+    kind: "move",
+    ok: false,
+    outcome: "invalid",
+    formError: "Choose an available Area.",
+  } as const;
+  const area = await scope.spine.getById(areaId);
+  if (!area || area.kind !== "area") return invalid;
+  const settings = await scope.areaSettings.get(areaId);
+  if (settings?.archivedAt) return invalid;
+  try {
+    const result = await scope.spine.move(goalId, {
+      kind: "area",
+      id: area.id,
+    });
+    return {
+      kind: "move",
+      ok: true,
+      outcome: result.changed ? "moved" : "unchanged",
+    };
+  } catch {
+    return invalid;
+  }
+}
 
 async function handleLifecycle(
   scope: Scope,

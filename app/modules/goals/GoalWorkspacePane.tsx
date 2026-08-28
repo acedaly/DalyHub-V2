@@ -53,6 +53,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { AccentIcon } from "~/shared/entity";
+import type { IdentitySource } from "~/shared/entity/identity-resolution";
 import {
   AlignmentIndicator,
   GoalMovementLine,
@@ -60,9 +61,11 @@ import {
   type GoalMovement,
 } from "~/shared/alignment";
 import { goalProgressStatusLabel } from "~/shared/goal-progress";
+import type { GoalCondition } from "~/kernel/goals";
 import { InlineDateField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
+import { GoalConditionField } from "./GoalConditionField";
 import { GoalMeasurementSection } from "./GoalMeasurementSection";
 import { GoalProjectChips } from "./GoalProjectChips";
 import type { GoalWorkspaceDetail } from "./goal-workspace-load";
@@ -72,10 +75,10 @@ export function GoalWorkspacePane({
   todayIso,
   alignment,
   movement = null,
-  areaColourRank,
-  areaIconKey,
+  identity,
   tabs,
   onSetTargetDate,
+  onSetCondition,
 }: {
   readonly detail: NonNullable<GoalWorkspaceDetail>;
   readonly todayIso: string;
@@ -87,9 +90,16 @@ export function GoalWorkspacePane({
    * and rendered through the SAME component Today and the canonical record use.
    */
   readonly movement?: GoalMovement | null;
-  /** The Area's identity, so the pane's mark matches the row that opened it. */
-  readonly areaColourRank: number | null;
-  readonly areaIconKey: string | null;
+  /**
+   * STEER-01 (DEBT-208) — the Goal's RESOLVED identity source, from the one
+   * shared projection (`goalIdentitySource`), so the pane's mark is literally
+   * the row's mark rather than a second resolution that happens to agree.
+   *
+   * The pane used to resolve only the AREA's identity, so a Goal that had
+   * chosen its own glyph showed one mark in the list and a different one in the
+   * pane describing the same record, side by side.
+   */
+  readonly identity: IdentitySource;
   /** The tab rail, composed by the caller from what this record really has. */
   readonly tabs?: ReactNode;
   /**
@@ -99,6 +109,15 @@ export function GoalWorkspacePane({
    */
   readonly onSetTargetDate?: (
     targetDate: string | null,
+  ) => Promise<InlineSaveOutcome>;
+  /**
+   * STEER-02 — set or clear the owner's condition (`set_condition`), the SAME
+   * focused intent the canonical record posts, through the SAME shared control.
+   * Omit and the condition is not offered here (the Deleted scope, a failed
+   * detail read); the derived facts are unaffected either way.
+   */
+  readonly onSetCondition?: (
+    condition: GoalCondition | null,
   ) => Promise<InlineSaveOutcome>;
 }) {
   const { overview, details, progress } = detail;
@@ -145,11 +164,7 @@ export function GoalWorkspacePane({
 
       <header className="dh-goalpane__identity">
         <span className="dh-goalpane__mark" aria-hidden="true">
-          <AccentIcon
-            entityType="goal"
-            iconKey={areaIconKey}
-            colourRank={areaColourRank}
-          />
+          <AccentIcon entityType="goal" {...identity} />
         </span>
         <div className="dh-goalpane__titles">
           <h2 className="dh-goalpane__title">
@@ -250,6 +265,36 @@ export function GoalWorkspacePane({
             formatDay={(iso) => formatCalendarDate(iso) ?? iso}
             className="dh-goalpane__movement"
           />
+        ) : null}
+        {/*
+         * STEER-02 — the OWNER's condition, beside the machine's three answers
+         * and never over them.
+         *
+         * Its placement is the argument: it sits in the same band as the
+         * derived status and the movement line, last, because it answers a
+         * different question from either ("am I pursuing this?" rather than
+         * "how is it going?" or "did it move?"). Nothing above it changes when
+         * it changes — asserted, by rendering the same Goal under each value
+         * and comparing the derived strings.
+         */}
+        {onSetCondition ? (
+          /*
+           * A DIV, not a paragraph — the same rule the context line above
+           * records. Every field in `~/shared/inline-edit` roots itself in a
+           * `div`, and a `div` inside a `<p>` is not merely invalid: the HTML
+           * parser CLOSES the paragraph when it meets one, so the server's
+           * markup and the client's tree disagree and React discards the
+           * subtree with a hydration error. It is still one line of the focus
+           * band; the element name is not what makes it one.
+           */
+          <div className="dh-goalpane__focus-condition">
+            <span>Condition</span>
+            <GoalConditionField
+              condition={detail.details.condition}
+              onSave={onSetCondition}
+              data-testid="goal-pane-condition"
+            />
+          </div>
         ) : null}
       </section>
 

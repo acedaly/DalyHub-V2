@@ -16,6 +16,8 @@ import {
   UNMEASURED_GOAL_PROGRESS,
   evaluateGoalProgress,
   normalizeGoalMeasurementConfig,
+  type GoalCollectionView,
+  type GoalOutcomeLensCounts,
 } from "~/kernel/goals";
 
 /**
@@ -90,6 +92,9 @@ function renderCollection(
     /** REDESIGN-04 — the resolved master–detail selection. */
     selectedId?: string | null;
     selected?: GoalWorkspaceDetail | null;
+    /** STEER-01 — the workspace-true lens counts the loader read. */
+    lensCounts?: GoalOutcomeLensCounts | null;
+    view?: GoalCollectionView;
   } = {},
 ) {
   const state = opts.state ?? "active";
@@ -104,6 +109,8 @@ function renderCollection(
             nextCursor={opts.nextCursor ?? null}
             selected={opts.selected ?? null}
             selectedId={opts.selectedId ?? null}
+            lensCounts={opts.lensCounts ?? null}
+            view={opts.view ?? "all"}
             todayIso="2026-07-24"
             state={state}
             failed={opts.failed ?? false}
@@ -172,6 +179,7 @@ describe("Goals collection (the Alignment view)", () => {
           area: selectedGoal.area,
         },
         details: {
+          condition: null,
           targetDate: null,
           definitionOfDone: null,
           iconKey: null,
@@ -649,5 +657,89 @@ describe("the Deleted view grid (DS-16)", () => {
     expect(
       within(card).getByRole("button", { name: "Restore" }),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * STEER-01 — what a number beside a lens means (DEBT-121).
+ *
+ * The rule this surface now keeps: **a count shown beside a lens is true of
+ * the workspace, or it is not shown.** It used to be a tally of the loaded
+ * page standing beside a label that reads as the workspace, which is the trust
+ * cost DEBT-121 names and the reason its closing sentence is quoted here.
+ */
+describe("the lens rail's counts (DEBT-121)", () => {
+  const counts: GoalOutcomeLensCounts = {
+    total: 12,
+    on_track: 5,
+    attention: 3,
+    set_aside: 2,
+    completed: 4,
+  };
+
+  it("prints the WORKSPACE figures, not a tally of what is loaded", () => {
+    // One Goal is loaded; the counts describe twelve. That mismatch is the
+    // whole point: the numbers answer the label's question rather than the
+    // page's, and a page-derived count could never produce them.
+    renderCollection([goal()], { lensCounts: counts });
+    const rail = screen.getByTestId("goals-views");
+    expect(
+      within(rail).getByRole("link", { name: /On track 5/ }),
+    ).toBeVisible();
+    expect(
+      within(rail).getByRole("link", { name: /Needs attention 3/ }),
+    ).toBeVisible();
+    expect(
+      within(rail).getByRole("link", { name: /Set aside 2/ }),
+    ).toBeVisible();
+    expect(
+      within(rail).getByRole("link", { name: /Completed 4/ }),
+    ).toBeVisible();
+    // "All" carries no number: it is the unset state, and a total beside it
+    // would compete with the subtitle that already states what is loaded.
+    expect(within(rail).getByRole("link", { name: "All" })).toBeVisible();
+  });
+
+  it("shows NO numbers at all when the workspace figures are unavailable", () => {
+    // DEBT-121's closing sentence, verbatim: "a count that describes the page
+    // must not remain beside a label that reads as the workspace." With no
+    // workspace-true figure there is no number — never a fallback tally.
+    renderCollection([goal()], { lensCounts: null });
+    const rail = screen.getByTestId("goals-views");
+    expect(within(rail).getByRole("link", { name: "On track" })).toBeVisible();
+    expect(
+      within(rail).queryByRole("link", { name: /On track \d/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the server's page verbatim under a lens, never re-filtering it", () => {
+    /*
+     * The lens is applied in the collection READ, so what arrives is already
+     * the workspace's answer. Re-filtering here would turn a workspace answer
+     * back into a page-local one — so a Goal whose status the client would not
+     * have admitted is still rendered, because the server put it there.
+     */
+    const unmeasured = goal({ id: "g-unmeasured", title: "Unmeasured goal" });
+    renderCollection([unmeasured], {
+      view: "attention",
+      lensCounts: { ...counts, attention: 1 },
+    });
+    expect(
+      screen.getByRole("link", { name: /Unmeasured goal/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("says which lens is empty, and how many Goals the workspace really has", () => {
+    // The honest filtered-empty state a workspace-wide filter makes possible:
+    // before STEER-01 the truest thing this could say was "nothing LOADED
+    // matches this view".
+    renderCollection([], {
+      view: "on_track",
+      lensCounts: { ...counts, on_track: 0 },
+    });
+    expect(screen.getByText("No Goals are on track")).toBeVisible();
+    expect(
+      screen.getByText(/This workspace has 12 Goals, and none of them/),
+    ).toBeVisible();
   });
 });

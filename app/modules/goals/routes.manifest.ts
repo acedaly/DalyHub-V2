@@ -22,6 +22,17 @@ const routes: readonly RouteContribution[] = [
     file: "routes/new.tsx",
   },
   {
+    /*
+     * STEER-02 — the Goal MOVE destination search. A STATIC segment, declared
+     * before `goals/:goalId` so it is matched as a route rather than as a Goal
+     * id — the same ordering `projects/parent-options` relies on. A selection
+     * convenience only; the move itself re-verifies the Area (see the route).
+     */
+    id: "goals.area_options",
+    path: "goals/area-options",
+    file: "routes/area-options.tsx",
+  },
+  {
     id: "goals.detail",
     path: "goals/:goalId",
     file: "routes/detail.tsx",

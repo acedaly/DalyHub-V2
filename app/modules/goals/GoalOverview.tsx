@@ -50,7 +50,10 @@ import {
   isIdentityColourSlot,
   type IdentityColourSlot,
 } from "~/kernel/entities/identity-colour-slots";
-import { GOAL_DEFINITION_OF_DONE_MAX_LENGTH } from "~/kernel/goals";
+import {
+  GOAL_DEFINITION_OF_DONE_MAX_LENGTH,
+  type GoalCondition,
+} from "~/kernel/goals";
 import {
   InlineDateField,
   InlineTextField,
@@ -65,6 +68,8 @@ import {
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
+import { GoalAreaField } from "./GoalAreaField";
+import { GoalConditionField } from "./GoalConditionField";
 import { GoalProjectsTab } from "./GoalProjectsTab";
 import {
   goalContributionProgress,
@@ -126,6 +131,23 @@ interface GoalOverviewProps {
   readonly onSetDefinitionOfDone: (
     definitionOfDone: string,
   ) => Promise<InlineSaveOutcome>;
+  /**
+   * STEER-02 — set or clear the OWNER's condition (`set_condition`), through
+   * the ONE shared control the `/goals` pane also mounts. Omit and the
+   * condition is not offered (a read-only composition); the derived facts read
+   * exactly the same either way.
+   */
+  readonly onSetCondition?: (
+    condition: GoalCondition | null,
+  ) => Promise<InlineSaveOutcome>;
+  /**
+   * STEER-02 — re-file this Goal into another Area (`move`, DEBT-184).
+   *
+   * The candidates are SERVER-resolved (`/goals/area-options`), and the move
+   * itself re-verifies the destination, so this callback carries an id and no
+   * authority. Omit and the Area is stated as it always was.
+   */
+  readonly onMoveToArea?: (areaId: string) => Promise<InlineSaveOutcome>;
   /** PX-04: reversible removal (soft-delete + Undo), from the header overflow. */
   readonly onDelete?: () => Promise<void>;
   readonly deletePending?: boolean;
@@ -177,6 +199,8 @@ export function GoalOverview({
   onSetTargetDate,
   onSetIdentity,
   onSetDefinitionOfDone,
+  onSetCondition,
+  onMoveToArea,
   onDelete,
   deletePending = false,
   onOpenProject,
@@ -210,6 +234,60 @@ export function GoalOverview({
    * WORD beside the date, never a colour alone (AGENTS.md §15).
    */
   const contextItems: RecordMetaItem[] = [
+    /*
+     * STEER-02 — the Goal's AREA, and it is now the control that moves it
+     * (DEBT-184).
+     *
+     * The Area was stated twice on this record and editable in neither place:
+     * the breadcrumb walks to it, and the identity inherits from it. A
+     * mis-filed Goal's only remedy was to create a new Goal and re-link its
+     * Projects, which destroys its Activity and its measurement history.
+     *
+     * It lives in the context line rather than in a Settings tab because a Goal
+     * has none, and because this is exactly the "current-state fact the context
+     * line exists for" the target date beside it already demonstrates. The
+     * control is the shared `InlinePickerField` over server-resolved candidates
+     * — the pattern `ProjectsTable`'s Area cell established, not a second one.
+     */
+    ...(onMoveToArea
+      ? [
+          {
+            id: "area",
+            label: "Area",
+            value: (
+              <GoalAreaField
+                area={overview.area}
+                onMove={onMoveToArea}
+                data-testid="goal-area-edit"
+              />
+            ),
+          } satisfies RecordMetaItem,
+        ]
+      : []),
+    /*
+     * STEER-02 — the OWNER's condition, beside the machine's answers.
+     *
+     * On the context line for the same reason the target date is: it is a
+     * current-state fact about the Goal, and the value IS the control. It
+     * changes nothing else on the record — the measurement status, the
+     * alignment chip and the movement line all read exactly as they did, which
+     * is asserted rather than intended (ADR-111 decision 3).
+     */
+    ...(onSetCondition
+      ? [
+          {
+            id: "condition",
+            label: "Condition",
+            value: (
+              <GoalConditionField
+                condition={details.condition}
+                onSave={onSetCondition}
+                data-testid="goal-condition"
+              />
+            ),
+          } satisfies RecordMetaItem,
+        ]
+      : []),
     {
       id: "target",
       label: "Target date",

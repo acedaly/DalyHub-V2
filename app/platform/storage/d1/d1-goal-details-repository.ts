@@ -27,13 +27,16 @@ import {
   type IdGenerator,
 } from "~/kernel/spine";
 import {
+  GOAL_CONDITION_CHANGED,
   GOAL_DETAILS_UPDATED,
   GoalDetailsConflictError,
   GoalDetailsNotFoundError,
   GoalDetailsStorageError,
   normalizeGoalDefinitionOfDone,
+  parseGoalCondition,
   readGoalMeasurementConfig,
   resolveGoalMeasurementConfig,
+  validateGoalConditionInput,
   validateGoalTargetDate,
   type GoalDetailsChangeResult,
   type GoalDetailsRecord,
@@ -65,12 +68,14 @@ interface GoalDetailsRow {
   /* IDENTITY-01 — the Goal's OWN chosen identity, on the same owned slice. */
   readonly icon_key: string | null;
   readonly colour_slot: string | null;
+  /* STEER-02 — the owner's condition, on the same owned slice. */
+  readonly condition: string | null;
 }
 
 /** The columns every read of this slice selects, in one place. */
 const GOAL_DETAILS_COLUMNS = `target_date, definition_of_done, measurement_type,
    measurement_unit, measurement_direction, baseline_value, target_value,
-   icon_key, colour_slot`;
+   icon_key, colour_slot, condition`;
 
 /**
  * Ids per batched statement. D1 caps bound variables at 100 per statement; 50
@@ -163,7 +168,8 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
                       d.baseline_value AS baseline_value,
                       d.target_value AS target_value,
                       d.icon_key AS icon_key,
-                      d.colour_slot AS colour_slot
+                      d.colour_slot AS colour_slot,
+                      d.condition AS condition
                FROM entities e
                LEFT JOIN goal_details d
                  ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -215,13 +221,21 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
       patch.iconKey === undefined ? current.iconKey : patch.iconKey;
     const nextColourSlot =
       patch.colourSlot === undefined ? current.colourSlot : patch.colourSlot;
+    // STEER-02 — the owner's condition, validated against the closed
+    // vocabulary at this one boundary. `null` clears it back to "pursuing".
+    const nextCondition =
+      patch.condition === undefined
+        ? current.condition
+        : validateGoalConditionInput(patch.condition);
+    const conditionChanged = nextCondition !== current.condition;
 
     if (
       nextTargetDate === current.targetDate &&
       nextDefinitionOfDone === current.definitionOfDone &&
       sameMeasurement(nextMeasurement, current.measurement) &&
       nextIconKey === current.iconKey &&
-      nextColourSlot === current.colourSlot
+      nextColourSlot === current.colourSlot &&
+      !conditionChanged
     ) {
       return { details: current, changed: false };
     }
@@ -234,8 +248,9 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
         `INSERT INTO goal_details
            (workspace_id, entity_id, target_date, definition_of_done,
             measurement_type, measurement_unit, measurement_direction,
-            baseline_value, target_value, icon_key, colour_slot, updated_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            baseline_value, target_value, icon_key, colour_slot, condition,
+            updated_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = '${GOAL}'
@@ -251,6 +266,7 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
            target_value = excluded.target_value,
            icon_key = excluded.icon_key,
            colour_slot = excluded.colour_slot,
+           condition = excluded.condition,
            updated_at = excluded.updated_at
          RETURNING ${GOAL_DETAILS_COLUMNS}`,
       )
@@ -266,12 +282,35 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
         nextMeasurement.targetValue,
         nextIconKey,
         nextColourSlot,
+        nextCondition,
         nowTs,
         this.#workspaceId,
         id,
       );
 
-    const event: NewActivityEvent = {
+    /*
+     * STEER-02 — a condition change is the OWNER speaking, so it gets its own
+     * verb rather than hiding inside `goal.details_updated`. The payload
+     * carries both directions of the change — closed-vocabulary members or
+     * `null`, never free text — because a payload recording only the new value
+     * is a payload history cannot reverse (ADR-110's FOLLOW-01 lesson). A
+     * patch that ONLY changes the condition writes only this event; the
+     * (repository-level) case of a combined patch keeps `goal.details_updated`
+     * as the primary and appends the condition verb as a companion in the SAME
+     * transaction, the GOAL-02 `goal.target_reached` mechanism.
+     */
+    const otherFieldsChanged =
+      nextTargetDate !== current.targetDate ||
+      nextDefinitionOfDone !== current.definitionOfDone ||
+      !sameMeasurement(nextMeasurement, current.measurement) ||
+      nextIconKey !== current.iconKey ||
+      nextColourSlot !== current.colourSlot;
+    const conditionEvent: NewActivityEvent = {
+      type: GOAL_CONDITION_CHANGED,
+      subjects: [{ entityId: id, role: "subject" }],
+      payload: { condition: nextCondition, previous: current.condition },
+    };
+    const detailsEvent: NewActivityEvent = {
       type: GOAL_DETAILS_UPDATED,
       subjects: [{ entityId: id, role: "subject" }],
       payload: {
@@ -283,10 +322,15 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
         measurementType: nextMeasurement.type,
       },
     };
+    const event: NewActivityEvent =
+      conditionChanged && !otherFieldsChanged ? conditionEvent : detailsEvent;
+    const companions: readonly NewActivityEvent[] =
+      conditionChanged && otherFieldsChanged ? [conditionEvent] : [];
     const result = await this.#runAtomic<GoalDetailsRow>(
       event,
       domainStatement,
       now,
+      companions,
     );
 
     if (result.changed && result.row) {
@@ -327,7 +371,8 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
                   d.baseline_value AS baseline_value,
                   d.target_value AS target_value,
                   d.icon_key AS icon_key,
-                  d.colour_slot AS colour_slot
+                  d.colour_slot AS colour_slot,
+                  d.condition AS condition
            FROM entities e
            LEFT JOIN goal_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -386,6 +431,14 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
        */
       iconKey: normaliseEntityIconKey(row.icon_key),
       colourSlot: normaliseIdentityColourSlot(row.colour_slot),
+      /*
+       * STEER-02 — read through the kernel's lenient parser: the column has no
+       * CHECK (migration 0048, the 0038 rule), so a value this build does not
+       * recognise degrades to `null` — "pursuing" — rather than taking the
+       * Goal record down. The owner's own state is never invented, only
+       * forgotten, which is the safe direction for a judgement field.
+       */
+      condition: parseGoalCondition(row.condition),
     };
   }
 
@@ -399,6 +452,7 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
     event: NewActivityEvent,
     domainStatement: D1PreparedStatement,
     now: Date,
+    companions: readonly NewActivityEvent[] = [],
   ) {
     const model = buildActivityWriteModel(
       event,
@@ -413,6 +467,14 @@ export class D1GoalDetailsRepository implements GoalDetailsRepository {
         domainStatement,
         recorder: this.#recorder,
         model,
+        companions: companions.map((companion) =>
+          buildActivityWriteModel(
+            companion,
+            this.#actor.actor,
+            this.#id(),
+            now,
+          ),
+        ),
         fault: this.#fault,
       });
     } catch (cause) {

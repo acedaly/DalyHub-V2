@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { UNMEASURED_GOAL } from "~/kernel/goals";
+import { UNMEASURED_GOAL, type GoalCondition } from "~/kernel/goals";
 import { FeedbackProvider } from "~/shared/feedback";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import type { ReactElement } from "react";
@@ -68,6 +68,8 @@ function details(
     iconKey: null,
     colourSlot: null,
     measurement: UNMEASURED_GOAL,
+    // STEER-02 — `null` is "pursuing", the default every Goal has.
+    condition: null,
     ...over,
   };
 }
@@ -147,6 +149,10 @@ function renderGoal(
     onRename: (title: string) => Promise<InlineSaveOutcome>;
     onSetTargetDate: (value: string | null) => Promise<InlineSaveOutcome>;
     onSetDefinitionOfDone: (value: string) => Promise<InlineSaveOutcome>;
+    /** STEER-02 — the owner's condition, through the shared control. */
+    onSetCondition: (value: GoalCondition | null) => Promise<InlineSaveOutcome>;
+    /** STEER-02 — re-file the Goal into another Area (DEBT-184). */
+    onMoveToArea: (areaId: string) => Promise<InlineSaveOutcome>;
     onOpenProject: (id: string) => void;
     onOpenTask: (id: string) => void;
   }> = {},
@@ -168,6 +174,8 @@ function renderGoal(
       onRename={over.onRename ?? accept}
       onSetTargetDate={over.onSetTargetDate ?? accept}
       onSetDefinitionOfDone={over.onSetDefinitionOfDone ?? accept}
+      onSetCondition={over.onSetCondition}
+      onMoveToArea={over.onMoveToArea}
       onOpenProject={over.onOpenProject ?? (() => {})}
       onOpenTask={over.onOpenTask ?? (() => {})}
       linkedTab={<div>linked-content</div>}
@@ -540,5 +548,148 @@ describe("GoalOverview", () => {
     const taskButton = screen.getByRole("button", { name: "Run 5k" });
     fireEvent.click(taskButton);
     expect(onOpenTask).toHaveBeenCalledWith("t1");
+  });
+});
+
+/**
+ * STEER-02 — the OWNER's condition on the record (DEBT-183), and the rule that
+ * makes it safe: it is stated BESIDE the machine's answers and changes none of
+ * them (ADR-111 decision 3).
+ */
+describe("the owner-set condition on the Goal record", () => {
+  it("offers the two INTENT states, and nothing that competes with a derived word", async () => {
+    renderGoal({ onSetCondition: accept });
+
+    const field = screen.getByTestId("goal-condition");
+    fireEvent.click(within(field).getByRole("button"));
+    const menu = screen.getByRole("menu");
+    const options = within(menu)
+      .getAllByRole("menuitemradio")
+      .map((option) => option.textContent ?? "");
+
+    // "Set aside" is the one stored member; "Pursuing" is what the field reads
+    // when nothing is stored, offered back as the way to return. No "on
+    // track", "at risk" or "stalled": those are GOAL-02's and ADR-040's
+    // answers, computed with evidence, and an owner-set copy of one would be a
+    // second authority for the same word.
+    expect(options.some((text) => text.includes("Set aside"))).toBe(true);
+    for (const forbidden of ["On track", "At risk", "Stalled", "Failing"]) {
+      expect(options.some((text) => text.includes(forbidden))).toBe(false);
+    }
+    // The unset state reads as the owner's intent, not as an absence.
+    expect(within(field).getByText("Pursuing")).toBeVisible();
+  });
+
+  it("saves the owner's choice through the canonical callback", async () => {
+    const onSetCondition = vi.fn(accept);
+    renderGoal({ onSetCondition });
+
+    const field = screen.getByTestId("goal-condition");
+    fireEvent.click(within(field).getByRole("button"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Set aside/ }));
+    await waitFor(() =>
+      expect(onSetCondition).toHaveBeenCalledWith("set_aside"),
+    );
+  });
+
+  it("offers the way back, worded as the owner's intent rather than as a clear", async () => {
+    // A Goal that IS set aside offers "Pursuing" — the field's clear command
+    // wearing the word the owner means, rather than "Clear condition".
+    const onSetCondition = vi.fn(accept);
+    renderGoal({
+      details: details({ condition: "set_aside" }),
+      onSetCondition,
+    });
+
+    const field = screen.getByTestId("goal-condition");
+    fireEvent.click(within(field).getByRole("button"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Pursuing" }));
+    await waitFor(() => expect(onSetCondition).toHaveBeenCalledWith(null));
+  });
+
+  it("carries the condition as a machine value both surfaces can be compared on", () => {
+    renderGoal({
+      details: details({ condition: "set_aside" }),
+      onSetCondition: accept,
+    });
+    expect(screen.getByTestId("goal-condition-value")).toHaveAttribute(
+      "data-goal-condition",
+      "set_aside",
+    );
+  });
+
+  it("changes NOTHING the machine says about the Goal", () => {
+    /*
+     * ADR-111 decision 3, asserted the way the roadmap asks for it: the same
+     * Goal is rendered under each condition value and the derived sentences are
+     * compared. Alignment, the measurement status and the contribution summary
+     * must be identical strings — a set-aside Goal's facts are not softened,
+     * hidden or re-toned.
+     */
+    const measured = {
+      details: details({
+        measurement: {
+          type: "accumulation" as const,
+          unit: null,
+          direction: "increase" as const,
+          baselineValue: 0,
+          targetValue: 24,
+        },
+        targetDate: "2026-06-01",
+      }),
+      contribution: contribution({ total: 4, completed: 1, incomplete: 3 }),
+      alignment: alignment(),
+    };
+
+    const pursuing = renderGoal({ ...measured, onSetCondition: accept });
+    const pursuingText = pursuing.container.textContent ?? "";
+    pursuing.unmount();
+
+    const setAside = renderGoal({
+      ...measured,
+      details: details({ ...measured.details, condition: "set_aside" }),
+      onSetCondition: accept,
+    });
+    const setAsideText = setAside.container.textContent ?? "";
+
+    // Every derived sentence survives the change verbatim.
+    for (const derived of [
+      "1 of 4 Projects complete",
+      "Recently active",
+      "overdue",
+    ]) {
+      expect(pursuingText.includes(derived)).toBe(
+        setAsideText.includes(derived),
+      );
+    }
+    // The ONLY difference is the owner's own word.
+    expect(setAsideText).toContain("Set aside");
+  });
+});
+
+/**
+ * STEER-02 — a Goal can be re-filed (DEBT-184), and the record is where.
+ */
+describe("the Goal's Area, as the control that moves it", () => {
+  it("states the Area as an editable value, and moves through the callback", async () => {
+    const onMoveToArea = vi.fn(accept);
+    renderGoal({ onMoveToArea });
+
+    const field = screen.getByTestId("goal-area-edit-value");
+    // The machine value a test reads instead of a rendered label.
+    expect(field).toHaveAttribute("data-goal-area", "a1");
+    // The current Area seeds the picker, so its name resolves before any
+    // search has run.
+    fireEvent.click(within(field).getByRole("button"));
+    expect(await screen.findByRole("option", { name: /Health/ })).toBeVisible();
+  });
+
+  it("is absent — and the Area merely stated — when moving is not offered", () => {
+    renderGoal();
+    expect(
+      screen.queryByTestId("goal-area-edit-value"),
+    ).not.toBeInTheDocument();
+    // The breadcrumb still names it, so nothing is lost by not offering the move.
+    expect(screen.getByText("Health")).toHaveAttribute("aria-current", "page");
   });
 });

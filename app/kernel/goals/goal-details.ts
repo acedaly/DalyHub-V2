@@ -54,6 +54,98 @@ import type { WorkspaceId } from "~/kernel/workspaces";
 export const GOAL_DETAILS_UPDATED = "goal.details_updated";
 
 /**
+ * STEER-02 — Activity event appended when the OWNER's condition on a Goal
+ * changes. Its payload carries `{ condition, previous }` — both members of the
+ * closed vocabulary or `null`, never free text — so history can state the
+ * change in both directions (ADR-110's FOLLOW-01 lesson: a payload that
+ * records only the new value is a payload history cannot reverse).
+ */
+export const GOAL_CONDITION_CHANGED = "goal.condition_changed";
+
+/**
+ * STEER-02 / ADR-111 — the owner-set Goal CONDITION: a small, closed vocabulary
+ * stating the owner's INTENT beside the three derived answers.
+ *
+ * ── The vocabulary, and why it is this small ────────────────────────────────
+ * ADR-111 decision 2 constrains the space: members answer *"am I currently
+ * pursuing this?"* — never *"is it going well?"*, which is GOAL-02's question,
+ * answered with evidence. That leaves exactly two honest answers, and only one
+ * of them needs storing:
+ *
+ *   - **Pursuing** — the default, stored as `NULL`. It is the state every Goal
+ *     has been in since the model existed, which is what makes the column
+ *     purely additive: an archive written before this field, a row the
+ *     migration has not touched, and a Goal the owner never spoke about all
+ *     mean the same thing.
+ *   - **`set_aside`** — the owner has deliberately put this Goal down for now.
+ *     The one thing no derivation can know, and the answer to FOLLOW-02's
+ *     printed silence: a resting Goal stops being indistinguishable from a
+ *     neglected one.
+ *
+ * Deliberately NOT members: `on_track` / `off_track` / `healthy` / `at_risk` /
+ * `stalled` / `failing` (verdicts a derivation already computes with evidence —
+ * an owner-set "on track" beside GOAL-02's computed *On track* would be two
+ * authorities for one word); `paused` / `archived` (lifecycle, which the spine
+ * owns and STEER-02 explicitly does not change); and any free-text state.
+ * Widening the vocabulary is an ADR-111 amendment, not a field addition.
+ *
+ * The condition is OWNER-WRITTEN ONLY, through the canonical mutate route. No
+ * background process, activity derivation, measurement, movement, alignment or
+ * heuristic may set or clear it — and `evaluateGoalProgress`,
+ * `evaluateGoalAlignment` and `evaluateGoalMovement` keep signatures that
+ * cannot see it (asserted by `test/unit/goals/goal-condition.test.ts`).
+ */
+export const GOAL_CONDITIONS = ["set_aside"] as const;
+
+export type GoalCondition = (typeof GOAL_CONDITIONS)[number];
+
+/** The owner-facing words — one vocabulary, used by every surface. */
+export const GOAL_CONDITION_PURSUING_LABEL = "Pursuing";
+export const GOAL_CONDITION_SET_ASIDE_LABEL = "Set aside";
+
+/**
+ * Parse a STORED condition value (the read path). Anything unrecognised —
+ * including a value written by a future version of DalyHub — degrades to
+ * `null`, i.e. "pursuing", rather than throwing: the migration-0038 lesson,
+ * reapplied. The column deliberately has no CHECK naming the members.
+ */
+export function parseGoalCondition(value: unknown): GoalCondition | null {
+  return typeof value === "string" &&
+    (GOAL_CONDITIONS as readonly string[]).includes(value)
+    ? (value as GoalCondition)
+    : null;
+}
+
+/**
+ * Validate a SUBMITTED condition value (the write path). `null`, `undefined`
+ * and the empty string mean "pursuing" (clear it); a member of the vocabulary
+ * is stored; anything else is REFUSED with a field error — the write boundary
+ * is strict where the read boundary is lenient, exactly as the measurement
+ * type's pair of parsers already is.
+ */
+export function validateGoalConditionInput(
+  value: unknown,
+): GoalCondition | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") {
+    throw new GoalDetailsValidationError(
+      "condition",
+      "must be a recognised condition or empty",
+    );
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  const parsed = parseGoalCondition(trimmed);
+  if (parsed === null) {
+    throw new GoalDetailsValidationError(
+      "condition",
+      "must be a recognised condition or empty",
+    );
+  }
+  return parsed;
+}
+
+/**
  * A validated maximum for the definition-of-done plain-text field. Bounded well
  * above the short free-text precedent (`WAITING_NOTE_MAX_LENGTH = 200`, a single
  * waiting reason) but far below the Markdown pipeline's document-scale
@@ -90,6 +182,12 @@ export type GoalDetails = {
    * picked a heart but no colour keeps the heart and takes its Area's hue.
    */
   readonly colourSlot: IdentityColourSlot | null;
+  /**
+   * STEER-02 — the OWNER's condition. `null` means "pursuing", the state every
+   * Goal has always been in. Owner-written only; never an input to any derived
+   * evaluator (ADR-111 decisions 1–3).
+   */
+  readonly condition: GoalCondition | null;
 };
 
 export type GoalDetailsRecord = GoalDetails & {
@@ -116,6 +214,8 @@ export type UpdateGoalDetailsInput = {
   readonly iconKey?: EntityIconKey | null;
   /** IDENTITY-01 — the Goal's own colour. `null` clears it back to inheritance. */
   readonly colourSlot?: IdentityColourSlot | null;
+  /** STEER-02 — the owner's condition. `null` clears it back to "pursuing". */
+  readonly condition?: GoalCondition | null;
 };
 
 export type GoalDetailsChangeResult = {
@@ -367,7 +467,8 @@ export type GoalDetailsValidationField =
   | "measurementDirection"
   | "unit"
   | "baselineValue"
-  | "targetValue";
+  | "targetValue"
+  | "condition";
 
 export class GoalDetailsValidationError extends Error {
   readonly code = "validation" as const;

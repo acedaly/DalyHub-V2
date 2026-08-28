@@ -1,5 +1,50 @@
 # Changelog
 
+- **The Goals screen now answers one question, and you can answer it back.**
+  `/goals` was ordered by how much recent task activity a goal had — which is a
+  real signal, but it is not the question the screen looks like it is asking.
+  A goal three weeks past its own target date could sit below one that was
+  comfortably ahead, and a goal with no measurement at all could sit above both.
+  Now the list is ordered by **outcome**: the goals that need a decision first —
+  overdue, then behind, then gone quiet — and the healthy ones below them.
+
+  Whether a goal has moved recently is still shown. It just no longer decides
+  the running order, because "something happened last week" and "this is off
+  track" are different things.
+
+  **The numbers beside the filters are now true.** They used to count the goals
+  on the page you were looking at while reading as though they described your
+  whole workspace, so "Needs attention 3" could mean three on this page and
+  eleven in total. Every count now describes the whole collection — and on the
+  Deleted view, where no such figure would be honest, no figures are shown at
+  all.
+
+  **You can now set a goal aside.** One choice, on the goal's own record and in
+  the list's detail pane: **Pursuing** (which every goal already was) or **Set
+  aside**. A goal you have set aside stops appearing on the three places that
+  ask for your attention without being asked — Today's goals panel, the goals
+  strip on the Projects page, and the weekly plan's "nothing planned for this
+  goal" note — because you already know, and you decided.
+
+  What it does _not_ do is change a single fact. Its measurement, its status,
+  its alignment and its movement line read exactly as they did before, on its
+  record and in the list, where you deliberately went to look. Nothing sets this
+  for you and nothing infers it: there is no "at risk", no "stalled", no goal
+  health score, and no way for the product to decide on your behalf that you
+  have given up on something. It is your word, and only yours.
+
+  **And a goal can finally be moved to a different area.** Filed under the wrong
+  one, or an area that has changed shape? Change it from the goal's record, the
+  same way you change anything else. It is the same goal afterwards — its
+  history, its measurements, every project working towards it and every task
+  under those projects come with it, and the move is recorded in its own
+  activity. Previously the only remedy was to create a new goal, which threw all
+  of that away.
+
+  The Goals list also stopped loading three things it had not drawn since the
+  screen was redesigned — a per-goal sparkline, some hidden text and some
+  unshown evidence rows — so it now fetches what it shows and nothing else.
+
 - Every goal now tells you whether it actually moved this week — including the
   ones carrying no number at all. DalyHub could say what a goal _was_, and for a
   goal with a target it could say where the measurement stood. For everything

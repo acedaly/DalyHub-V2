@@ -19,9 +19,16 @@
  * between them would be a third measure of the same Goal at a size that can
  * carry no scale. The trend is not lost: selecting the row draws the FULL chart
  * beside it, at a size where the shape genuinely reads — which is the whole
- * point of a master–detail. `listMeasurementSeries` stays in the loader because
- * nothing else about that read changed and the series is still what the record
- * plots.
+ * point of a master–detail.
+ *
+ * **STEER-01 removed the series READ as well** (DEBT-207). REDESIGN-04 left
+ * `listMeasurementSeries` in the collection's loader on the reasoning that
+ * "nothing else about that read changed" — but nothing on this surface
+ * consumed it, so every page and every revalidation transferred a run of
+ * readings per Goal to draw a component that had been deleted. The record and
+ * the pane still plot the full history from their own `listMeasurements` read,
+ * which is a different method — so the removal costs this surface nothing, and
+ * leaves `listMeasurementSeries` with no caller ([DEBT-212]).
  *
  * **Alignment survives as a quiet state.** ADR-040's signal — whether recent
  * Task activity has contributed to a Goal — is not a measure and must not be
@@ -35,7 +42,7 @@ import type { ReactNode } from "react";
 
 import { ProgressRow, ProgressRowList } from "~/shared/card";
 import { DrawerTrigger } from "~/shared/drawer";
-import { AccentIcon, resolveIdentity } from "~/shared/entity";
+import { AccentIcon } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore } from "~/shared/load-more";
@@ -54,6 +61,7 @@ import {
   goalRowValue,
 } from "~/shared/goal-progress";
 
+import { goalIdentitySource, resolveGoalIdentity } from "./goal-view";
 import type { SerializedGoalWithAlignment } from "./GoalsCollection";
 
 /**
@@ -145,19 +153,21 @@ export function GoalWorkspaceList({
             key={goal.id}
             data-testid="goal-row"
             icon={
+              /*
+               * STEER-01 (DEBT-208) — the ONE Goal identity projection.
+               *
+               * The rule (the Goal's own choice first, its Area's otherwise,
+               * colour and glyph walked independently) is stated once in
+               * `goalIdentitySource` and consumed here, on the pane and on the
+               * record — so the row and the pane beside it cannot resolve two
+               * different marks for the same Goal.
+               */
               <AccentIcon
                 entityType="goal"
-                // A Goal's OWN identity first, its Area's otherwise. The two
-                // halves are walked independently by the resolver, so a Goal
-                // that chose a glyph but no colour keeps both answers right.
-                colourSlot={goal.colourSlot}
-                iconKey={goal.iconKey}
-                colourRank={null}
-                inherited={{
-                  colourSlot: goal.area.colourSlot,
-                  colourRank: goal.area.colourRank,
-                  iconKey: goal.area.iconKey,
-                }}
+                {...goalIdentitySource({
+                  own: { iconKey: goal.iconKey, colourSlot: goal.colourSlot },
+                  area: goal.area,
+                })}
                 size="sm"
               />
             }
@@ -180,9 +190,9 @@ export function GoalWorkspaceList({
             }
             accent={goal.area.colourRank}
             colourSlot={
-              resolveIdentity({
-                colourSlot: goal.colourSlot,
-                inherited: { colourSlot: goal.area.colourSlot },
+              resolveGoalIdentity({
+                own: { iconKey: goal.iconKey, colourSlot: goal.colourSlot },
+                area: goal.area,
               }).slot
             }
             selected={goal.id === selectedId}

@@ -563,71 +563,23 @@ export function goalAbsenceNote(
 /* -------------------------------------------------------------------------- */
 
 /**
- * UIX-03 — the Goals collection's status VIEWS.
+ * UIX-03 / STEER-01 — the Goals collection's LENSES, now kernel-owned.
  *
- * Every one is a partition of statuses the evaluator already produces, so the
- * filter can never disagree with the word printed on the card, and no status
- * was invented to populate a tab. "Attention" deliberately pairs
- * `needs_attention` with `overdue`: both mean the Goal is behind something the
- * owner themselves set, which is one question, not two.
- *
- * `completed` is the SPINE's explicit completion, never the derived "target
- * achieved" — a Goal whose reading has passed its target is not finished until
- * the owner says so, and conflating the two is exactly the semantics §30 warns
- * against. It is therefore resolved by the caller from `completedAt`, not here.
+ * The vocabulary and the predicate moved to `~/kernel/goals/goal-outcome.ts`
+ * when STEER-01 made the lens filter the WORKSPACE in the repository read: the
+ * SQL bucket expression and the pure predicate must derive from ONE table, the
+ * same rule the outcome display rank follows. They are re-exported here
+ * unchanged so every existing consumer keeps its import path — this module
+ * remains the shared vocabulary's front door, and there is exactly one
+ * definition behind it.
  */
-export const GOAL_COLLECTION_VIEWS = [
-  "all",
-  "on_track",
-  "attention",
-  "completed",
-] as const;
-
-export type GoalCollectionView = (typeof GOAL_COLLECTION_VIEWS)[number];
-
-export const GOAL_COLLECTION_VIEW_LABELS: Readonly<
-  Record<GoalCollectionView, string>
-> = {
-  all: "All",
-  on_track: "On track",
-  attention: "Needs attention",
-  completed: "Completed",
-};
-
-export function parseGoalCollectionView(
-  value: string | null,
-): GoalCollectionView {
-  return value !== null &&
-    (GOAL_COLLECTION_VIEWS as readonly string[]).includes(value)
-    ? (value as GoalCollectionView)
-    : "all";
-}
-
-/**
- * Does this Goal belong in the given view?
- *
- * `completed` is asked FIRST and answered from explicit completion alone, so a
- * finished Goal appears once — in "Completed" — rather than also under whatever
- * its last reading implied.
- */
-export function goalMatchesCollectionView(
-  view: GoalCollectionView,
-  goal: {
-    readonly completed: boolean;
-    readonly status: GoalProgressStatus;
-  },
-): boolean {
-  if (view === "completed") return goal.completed;
-  if (goal.completed) return view === "all";
-  switch (view) {
-    case "on_track":
-      return goal.status === "on_track" || goal.status === "ahead";
-    case "attention":
-      return goal.status === "needs_attention" || goal.status === "overdue";
-    default:
-      return true;
-  }
-}
+export {
+  GOAL_COLLECTION_VIEWS,
+  GOAL_COLLECTION_VIEW_LABELS,
+  parseGoalCollectionView,
+  goalMatchesCollectionView,
+} from "~/kernel/goals";
+export type { GoalCollectionView } from "~/kernel/goals";
 
 /**
  * The chart's required text equivalent, stating direction and span in words.

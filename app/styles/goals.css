@@ -1079,8 +1079,15 @@
   border-block: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
+/*
+ * STEER-02 — the owner's CONDITION sits in the same band as the derived
+ * status, the next stage and the movement line, and is drawn exactly like
+ * them: a quiet label above the value. Its placement is the argument — the
+ * owner's answer beside the machine's, never over it.
+ */
 .dh-goalpane__focus-state,
-.dh-goalpane__focus-next {
+.dh-goalpane__focus-next,
+.dh-goalpane__focus-condition {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-1);
@@ -1317,4 +1324,19 @@
   .dh-goalpane__back {
     display: inline-flex;
   }
+}
+
+/*
+ * STEER-01/02 — the machine-fact wrappers around a Goal's inline fields.
+ *
+ * `GoalConditionField` and `GoalAreaField` wrap their shared control in a span
+ * carrying a stable `data-goal-*` value, so a test can read what the surface
+ * MEANS rather than matching the sentence it prints (FOLLOW-02's parity
+ * method). `display: contents` keeps that a DOM hook rather than a box: the
+ * field's own truncation depends on an unbroken sizing chain from the line it
+ * sits in, and an extra layout level is exactly what pushed a long Area name
+ * past a phone's viewport before this rule existed.
+ */
+.dh-goal-fact {
+  display: contents;
 }

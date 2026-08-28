@@ -21,9 +21,17 @@ import type {
   GoalProjectContribution,
   GoalProjectItem,
 } from "~/kernel/goals";
-import type { GoalDetailsRecord, GoalMeasurementConfig } from "~/kernel/goals";
+import type {
+  GoalCondition,
+  GoalDetailsRecord,
+  GoalMeasurementConfig,
+} from "~/kernel/goals";
 import { UNMEASURED_GOAL } from "~/kernel/goals";
 import { normaliseProgress, type CardTone } from "~/shared/card";
+import {
+  resolveIdentity,
+  type IdentitySource,
+} from "~/shared/entity/identity-resolution";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
 /**
@@ -83,6 +91,14 @@ export type SerializedGoalDetails = {
   /** GOAL-02 — how this Goal is measured. Already JSON-safe (primitives only),
    * so it travels to the client unchanged. `type: null` means "not measured". */
   readonly measurement: GoalMeasurementConfig;
+  /**
+   * STEER-02 — the OWNER's condition, `null` meaning "pursuing".
+   *
+   * Carried on the details slice because that is where it is stored and
+   * written. It is presentation and scope only: no derived value on this
+   * surface was computed with it, and none changes when it changes.
+   */
+  readonly condition: GoalCondition | null;
 };
 
 export type SerializedGoalProjectContribution = {
@@ -173,6 +189,7 @@ export function serializeGoalDetails(
     iconKey: details?.iconKey ?? null,
     colourSlot: details?.colourSlot ?? null,
     measurement: details?.measurement ?? UNMEASURED_GOAL,
+    condition: details?.condition ?? null,
   };
 }
 
@@ -196,6 +213,60 @@ export function serializeGoalProjectItem(
     taskTotal: item.taskTotal,
     taskCompleted: item.taskCompleted,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Identity (DEBT-208 / STEER-01)                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * STEER-01 — the ONE Goal identity projection, used by every Goal surface.
+ *
+ * A Goal's mark is its own choice where it has one and its Area's otherwise
+ * (IDENTITY-01, migration `0042`). The rule itself is the shared
+ * `resolveIdentity` ladder; what was missing was one place that says what a
+ * GOAL feeds into it, and the absence showed: the `/goals` row resolved the
+ * Goal's own identity with the Area inherited, while the pane beside it
+ * resolved ONLY the Area's — so a Goal that had chosen a heart wore two
+ * different marks on one screen (DEBT-208).
+ *
+ * `colourRank: null` is deliberate and is part of the rule: a Goal has no rank
+ * of its own, so the derived-colour rung of the ladder belongs to its Area.
+ * The fallback is preserved exactly — a Goal with no choice still inherits —
+ * it is simply expressed once instead of three times.
+ *
+ * Pure and React-free, so a test can assert that two surfaces resolve the same
+ * mark by comparing values rather than pixels.
+ */
+export function goalIdentitySource(goal: {
+  readonly own?: {
+    readonly iconKey?: string | null;
+    readonly colourSlot?: string | null;
+  } | null;
+  readonly area: {
+    readonly iconKey?: string | null;
+    readonly colourSlot?: string | null;
+    readonly colourRank?: number | null;
+  };
+}): IdentitySource {
+  return {
+    colourSlot: goal.own?.colourSlot ?? null,
+    iconKey: goal.own?.iconKey ?? null,
+    // A Goal has no rank of its own; the Area's rank is the derived rung.
+    colourRank: null,
+    inherited: {
+      colourSlot: goal.area.colourSlot ?? null,
+      colourRank: goal.area.colourRank ?? null,
+      iconKey: goal.area.iconKey ?? null,
+    },
+  };
+}
+
+/** The resolved mark for a Goal — the value every Goal surface paints from. */
+export function resolveGoalIdentity(
+  goal: Parameters<typeof goalIdentitySource>[0],
+) {
+  return resolveIdentity(goalIdentitySource(goal));
 }
 
 /** Is the Goal explicitly complete? Explicit completion is ALWAYS the spine's

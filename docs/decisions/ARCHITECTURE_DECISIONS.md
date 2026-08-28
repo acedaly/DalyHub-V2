@@ -4877,4 +4877,71 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
     precise and mean nothing, and every one of its inputs would stop being
     checkable the day it ships.
 
+- **First implementation, 2026-08-28 — [STEER-01 + STEER-02](../roadmap/ROADMAP_V2_5.md#-steer-01--what-goals-answers).**
+  Five of the seven decisions are now built. Decision 4 (the one next-action
+  rule) and the DEBT-206 half of decision 6 belong to STEER-03/04 and are
+  untouched — no partial "next" was invented to fill the gap.
+
+  - **Decision 1 is enforced at the SOURCE, not by intent.** The condition is
+    `condition` on `goal_details` (migration `0048`, additive and nullable),
+    written only by `POST /goals/:goalId/mutate`'s `set_condition` intent. The
+    three evaluators keep signatures that cannot see it, and
+    `test/unit/goals/goal-condition-boundary.test.ts` reads
+    `goal-progress-evaluator.ts`, `goal-alignment.ts` and `goal-movement.ts` as
+    TEXT and fails if the word appears in any of them. That test exists because
+    a value-level test did not do the job: a deliberate falsifier that fed the
+    condition into `evaluateGoalProgress` passed nineteen kernel tests. **A
+    boundary asserted only through values is a boundary a caller can walk
+    around** — recorded here because it is the shape a future "judgement must
+    not reach a derivation" rule is most likely to get wrong the same way.
+  - **Decision 2 decided the vocabulary by SUBTRACTION.** One member,
+    `set_aside`, with "Pursuing" as the unstored default. DEBT-183 asked for
+    *"on track", "at risk", "parked"*; the first two are refused because
+    GOAL-02 already answers that question with evidence, and what remained is
+    the one thing no derivation can know. The smallness is the decision, not a
+    first instalment — a second member has to argue for itself against this
+    clause.
+  - **Decision 3 is asserted from BOTH sides, on every surface it touches.** A
+    set-aside Goal leaves Today's Goal panel, the Projects page's Goal rail
+    and `/plan`'s unsupported-Goal
+    signals — filtered *before* the three-signal cap, so a rested Goal never
+    costs a pursued one its place — and stays in `/goals` at the rank its
+    outcome earns, with its measurement status, alignment state and movement
+    line unchanged. The E2E journey proves the negative the hard way: it reads
+    two Goals with identical measurement facts and opposite conditions and
+    requires the same derived sentence from both.
+  - **Decision 5 is the SQL rank the clause asked for, and it was real work.**
+    `listGoalsByOutcome` reproduces GOAL-02's nine statuses and their fixed
+    precedence in one statement, ordered before pagination, with a version-1
+    cursor bound to the workspace, the owner's day, their zone and the lens —
+    change any of the four and the cursor is refused and the surface resets
+    calmly to page one. Parity with the pure comparator is a test over every
+    status. No rank column, no client-side re-sort, and the alignment ordering
+    is untouched for the four surfaces that still ask the alignment question.
+    The lens counts are computed over the workspace by **the same predicate**
+    that filters the page, which is what makes "true of the whole collection"
+    structural rather than a promise; on the Deleted scope, where no such count
+    would be true, none is shown.
+  - **Decision 6 gained its condition clause and one identity rule.** The Goal
+    record and the `/goals` pane mount ONE `GoalMeasurementSection` and ONE
+    `GoalConditionField`, and both surfaces resolve the Goal's mark through one
+    projection — so the row and the pane can no longer wear two marks for one
+    record. Parity is proven by reading the same machine value
+    (`data-goal-condition`, `data-goal-area`) from each, never by comparing
+    sentences.
+  - **Decision 7 held by having nothing to refuse.** No score, rank, colour or
+    health value was added; the condition is a fourth answer to a fourth
+    question and is presented beside the other three rather than folded into
+    them.
+  - **The "hard, and accepted" consequence about export came true, and caught a
+    weak test.** The condition is carried by the snapshot and the restore as an
+    additive optional field with **no schema-version bump** (the version gates
+    breaking changes; an optional field is not one), and an archive written
+    before the column existed restores with the condition absent — mapping to
+    the intended "Pursuing" default rather than to an invented state. A
+    deliberate falsifier that dropped the condition from the export read passed
+    all 210 export tests, because the shared fixture never wrote a
+    `goal_details` row at all: **an equality assertion over a row that does not
+    exist passes for the wrong reason.**
+
 The programme this decision defines is [`ROADMAP_V2_5.md`](../roadmap/ROADMAP_V2_5.md).

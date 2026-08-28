@@ -23,7 +23,6 @@ import type { WorkspaceScope } from "~/platform/workspaces";
 import {
   composeGoalAlignmentFacts,
   evaluateGoalAlignment,
-  serializeGoalAlignmentEvidence,
   type AlignmentEvaluationContext,
 } from "~/shared/alignment";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -43,11 +42,16 @@ import {
 /** The bounded page of contributing Projects a Goal's detail shows. */
 export const GOAL_PROJECT_PAGE_SIZE = 50;
 
-/**
- * A calm handful of real contributing Tasks — enough to be useful, small enough
- * to stay scannable in a Summary panel (ADR-040 §40.6).
+/*
+ * DEBT-207 — `GOAL_ALIGNMENT_EVIDENCE_LIMIT` and its read are GONE from here.
+ *
+ * `listGoalAlignmentEvidence` fetched up to five contributing-Task rows on
+ * every selection, and the workspace pane renders none of them: REDESIGN-04
+ * gave the pane the alignment INDICATOR (§6.2) and left the evidence panel on
+ * the canonical record, which makes the read there — from the record's own
+ * loader, where `GoalAlignmentPanel` actually draws it. The constant lives on
+ * in `routes/detail.tsx`, which is the one surface that renders it.
  */
-export const GOAL_ALIGNMENT_EVIDENCE_LIMIT = 5;
 
 export type GoalWorkspaceDetail = Awaited<
   ReturnType<typeof loadGoalWorkspaceDetail>
@@ -80,7 +84,6 @@ export async function loadGoalWorkspaceDetail(
     contribution,
     projectPage,
     activityFacts,
-    evidencePage,
     measurements,
     milestones,
   ] = await Promise.all([
@@ -90,10 +93,6 @@ export async function loadGoalWorkspaceDetail(
     scope.alignment.getGoalAlignmentFacts(goalId, {
       recentWindowStartIso: facts.recentWindowStartIso,
     }),
-    scope.alignment.listGoalAlignmentEvidence(
-      goalId,
-      GOAL_ALIGNMENT_EVIDENCE_LIMIT,
-    ),
     scope.goalMeasurements.listMeasurements(goalId),
     scope.goalMeasurements.listMilestones(goalId),
   ]);
@@ -143,7 +142,5 @@ export async function loadGoalWorkspaceDetail(
     projects: projectPage.items.map(serializeGoalProjectItem),
     projectsNextCursor: projectPage.nextCursor,
     alignment,
-    alignmentEvidence: evidencePage.items.map(serializeGoalAlignmentEvidence),
-    alignmentEvidenceHasMore: evidencePage.hasMore,
   };
 }

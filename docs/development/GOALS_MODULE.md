@@ -828,10 +828,13 @@ collection reads the bounded summary instead:
 - `listMilestoneSummaries(ids)` — completed/total weight, one grouped statement;
 - `goalDetails.listMany(ids)` — the configurations, one statement per chunk;
 - **`listMeasurementSeries(ids, { perGoalLimit })` (UIX-03)** — the recent run of
-  readings per Goal, for the gallery card's sparkline. One statement per chunk,
-  with the per-Goal cap applied INSIDE a `ROW_NUMBER()` partition rather than by
-  discarding rows after transferring them, so a workspace with a year of daily
-  weigh-ins on ten Goals moves a few hundred rows and not a few thousand.
+  readings per Goal. One statement per chunk, with the per-Goal cap applied
+  INSIDE a `ROW_NUMBER()` partition rather than by discarding rows after
+  transferring them, so a workspace with a year of daily weigh-ins on ten Goals
+  moves a few hundred rows and not a few thousand. **No collection calls it any
+  more**: it drew the gallery card's sparkline, REDESIGN-04 deleted the card and
+  STEER-01 removed the read ([DEBT-207](../product/PRODUCT_DEBT.md)). It remains
+  the bounded series read for a caller that genuinely plots one.
 
 `evaluateGoalFromSummary` hands the summary's three readings to the SAME kernel
 evaluator the record uses, so a card can never disagree with a record about the
@@ -922,21 +925,22 @@ on the primary event having been appended.
   chart that is the ONLY statement of its data is `TrendLine`, which is
   `role="img"` with a required summary.
 
-## The Goals presentation contract (UIX-03, August 2026)
+## The Goals presentation contract (UIX-03, August 2026 — rewritten by STEER-01)
 
-> **Partially superseded (recorded 2026-08-27; see
-> [DEBT-211](../product/PRODUCT_DEBT.md#-debt-211--the-goals-modules-prose-has-drifted-from-the-shipped-surface-in-five-places--p3)).**
+> **The gallery card is gone, and so is its rule about identity
+> (DEBT-211, items 1–2, closed by STEER-01, 2026-08-28).**
 > REDESIGN-04 replaced the gallery card (`.dh-gcard`) with the `/goals`
 > master–detail workspace — a `ProgressRow` list and a detail pane; the card and
-> its sparkline no longer ship — and IDENTITY-01 (migration `0042`) gave a Goal
-> its **own** optional `icon_key`/`colour_slot`, so "a Goal has no accent of its
-> own" below is no longer the rule (a Goal's own identity wins; its Area's is
-> the fallback). The measurement model, the shared vocabulary in
+> its sparkline no longer ship, and STEER-01 removed the sparkline's READ as
+> well. IDENTITY-01 (migration `0042`) gave a Goal its **own** optional
+> `icon_key`/`colour_slot`, so **a Goal's own identity wins and its Area's is
+> the fallback** — resolved by one projection, `goalIdentitySource`, in every
+> Goal surface. The two subsections below are corrected in place; what remains
+> authoritative and unchanged is the measurement model, the shared vocabulary in
 > `~/shared/goal-progress`, and the per-surface density rules (Today at a
-> glance, the record in full) remain authoritative. The rewrite of this section
-> against the shipped workspace belongs to
-> [STEER-01](../roadmap/ROADMAP_V2_5.md#-steer-01--what-goals-answers) /
-> [STEER-03](../roadmap/ROADMAP_V2_5.md#-steer-03--one-goal-one-story).
+> glance, the record in full). What the collection ORDERS by, and what a number
+> beside a lens means, are STEER-01's and are documented in
+> [its own section](#steer-01--what-goals-answers-v25-2026-08-28).
 
 GOAL-02 built the measurement model; UIX-03 is the pass that got it onto the
 screen. **No domain rule, measurement type, formula or table changed.** What
@@ -948,17 +952,24 @@ authority on that.
 | Surface | Leads with | Visualisation | Density |
 |---|---|---|---|
 | **Today** | title, reading, target, one state word | the bar | glance — no remainder, no chart |
-| **Gallery card** (`.dh-gcard`) | the READING, then `from 85 kg → 70 kg` | a sparkline where history supports one, else the bar alone | choice — state, distance, deadline |
+| **`/goals` row** (`ProgressRow`) | the mark, the name, the Area, and the Goal's own honest value at the line's end (`60.0 / 70 kg`) | a thin bar | scan — one line per Goal, no chart |
+| **`/goals` pane** | identity, the derived status, movement and the owner's condition | the full `TrendLine`, target on the scale | the selected Goal in full |
 | **Record** (`feature` region) | the **Start · Now · Target · Remaining** strip | the full `TrendLine`, target on the scale | everything — pace, chart, history, stages |
 
 ### Identity
 
-A Goal has **no accent of its own**; it inherits its Area's `colourRank` and
-`iconKey`, resolved on every Goal read off the Area join the title already comes
-from (`GoalAreaContext`). The rank is `ROW_NUMBER()` over Area creation order —
-the identical expression `d1-project-repository.ts` uses, so two repositories
-cannot disagree about which colour an Area is. One rank paints the mark, the wash
-behind the reading, the progress fill and the sparkline.
+A Goal has its **own** optional icon and colour (IDENTITY-01, migration `0042`),
+and **inherits its Area's** when it has chosen neither. Colour and glyph walk
+that ladder independently, so a Goal that chose a heart but no colour keeps the
+heart and takes its Area's hue. The Area's own rank is `ROW_NUMBER()` over Area
+creation order — the identical expression `d1-project-repository.ts` uses, so
+two repositories cannot disagree about which colour an Area is.
+
+**One projection states what a Goal feeds into that ladder**
+(`goalIdentitySource` / `resolveGoalIdentity`, `goal-view.ts`), and every Goal
+surface consumes it: the `/goals` row, the pane and the record. Before STEER-01
+the row resolved the Goal's own identity while the pane resolved only the
+Area's, so one record wore two marks side by side (DEBT-208).
 
 Do not parse Goal titles for colour, and do not add a Goals-only ramp.
 
@@ -994,13 +1005,16 @@ readings, which for a weight Goal is *always*, until the very end.
 
 ### Legacy and qualitative Goals
 
-A Goal with no measurement is **not 0% done**. Its card shows `Not measured`
-where the reading would be, its **definition of done** takes the space the
-reading would have had, it draws no outcome bar, and its one state word is its
-ALIGNMENT — the question ADR-040 built this collection to answer, and genuinely
-the only story that card has. If it has contributing Projects it also carries the
-contribution bar and summary, with no percentage figure beside the bar: a bare
-`0%` next to the words "Not measured" reads as a claim about the Goal.
+A Goal with no measurement is **not 0% done**. Its row says `Not measured`
+where the status word goes, draws no bar and prints no value — `goalRowValue`
+returns `null` and the row renders no track — and its story is carried by the
+signals that CAN speak for it: FOLLOW-02's movement sentence on the row, and
+ADR-040's alignment in the row's accessible name and on the pane. A bare `0%`
+next to the words "Not measured" would read as a claim about the Goal.
+
+*(This paragraph described the deleted gallery card, including a definition of
+done the row has no room for; STEER-01 removed that read as well — see
+[DEBT-207](../product/PRODUCT_DEBT.md).)*
 
 
 ---
@@ -1105,3 +1119,311 @@ Goal, and `N + 1` / `N + 10` bound parameters against D1's ceiling of 100. All
 asserted in [`test/kernel/goal-movement.test.ts`](../../test/kernel/goal-movement.test.ts).
 
 **Nothing is stored** — no table, no column, no index, no migration.
+
+---
+
+# STEER-01 — what `/goals` answers (V2.5, 2026-08-28)
+
+> *"How are my outcomes going — and which need my decision first?"*
+> — `GOAL_OUTCOME_QUESTION`, `app/kernel/goals/goal-outcome.ts`.
+> Governing decision: [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question)
+> decision 5.
+
+## The recorded question, and the order that answers it
+
+`/goals` is the **outcomes workspace**. It was ordered by ADR-040's *alignment*
+rank — neglected Goals first — beneath UIX-03's *measurement* lenses, so it
+answered *"which Goal have I been neglecting?"* on a screen whose lenses ask
+about outcomes ([DEBT-120](../product/PRODUCT_DEBT.md)). The order is now the
+answer to the question the screen actually asks.
+
+**The precedence**, lower first, and the argument for it:
+
+| Rank | Status | Why here |
+|---:|---|---|
+| 0 | `overdue` | The owner's own date has passed. |
+| 1 | `needs_attention` | Behind the line the owner set, or moving backwards. |
+| 2 | `stale` | A measured Goal whose readings went quiet a month ago — it cannot answer the outcome question until a reading arrives, which is itself a steering fact. |
+| 3–5 | `on_track`, `ahead`, `in_progress` | Outcomes under way. |
+| 6 | `achieved` | The target is reached; only the owner's explicit completion remains. Good news, and one action. |
+| 7 | `not_started` | Configured, nothing recorded. |
+| 8 | `not_measured` | Never given a measurement; alignment tells its story. |
+| 9 | *(explicitly complete)* | The spine's `completedAt`, whatever the readings say. A closed chapter is read after the open ones. |
+
+Within a rank the tiebreak is `(createdAt, id)` ascending. FOLLOW-02's finding
+is the input to the tail of the table: **a Goal with a reading to lead with
+outranks one with only absence to report**, which is DEBT-120's exemplar defect
+inverted — an unmeasured Goal can no longer sit above a measured Goal that is
+behind its own target date.
+
+Two things the rank deliberately does **not** read. **Movement**: FOLLOW-02's
+recorded rule stands, movement is an attention signal and never an outcome
+metric. **The owner's condition** (STEER-02): a set-aside Goal keeps exactly
+the place its outcome earns, because the collection is where the owner
+deliberately looks rather than a surface asking for their attention.
+
+## Where it is computed, and how it cannot drift
+
+| Piece | File |
+| --- | --- |
+| The rank, the question and the lenses | [`app/kernel/goals/goal-outcome.ts`](../../app/kernel/goals/goal-outcome.ts) |
+| The scope-bound cursor | [`app/kernel/goals/goal-outcome-cursor.ts`](../../app/kernel/goals/goal-outcome-cursor.ts) |
+| The SQL read and the counts | `GoalRepository.listGoalsByOutcome` / `countGoalsByOutcomeLens` ([`d1-goal-repository.ts`](../../app/platform/storage/d1/d1-goal-repository.ts)) |
+| The parity, pagination and count proofs | [`test/kernel/goal-outcome.test.ts`](../../test/kernel/goal-outcome.test.ts) |
+
+`GOAL_OUTCOME_DISPLAY_RANK` is the ONE authority. The repository mirrors GOAL-02's
+status precedence as a layered SQL derivation over the same stored facts the
+summary-based evaluation reads — the configuration on `goal_details`, the
+latest and earliest reading per Goal (identical `(measured_on, created_at)`
+tiebreaks to `listMeasurementSummaries`), the milestone weights, the target
+date, the owner's day and each Goal's schedule origin — and a **parity test**
+drives the SQL and the pure comparator over the same seeded fact matrix, the
+`GOAL_ALIGNMENT_DISPLAY_RANK` precedent DEBT-120 asks for. Nothing is
+persisted: no rank column, no status column (ADR-111 decision 5).
+
+**The schedule origin is why there are two statements rather than one.** "On
+track" is measured from the Goal's creation day *in the owner's calendar*, and
+SQLite cannot perform IANA time-zone conversion — so one bounded preliminary
+statement reads every Goal's `(id, created_at)`, the caller converts, and the
+map returns as a single JSON parameter for `json_each`. An approximate UTC date
+would break exact parity with the evaluator, which is the one thing this design
+may not trade away.
+
+**The cursor is bound to every state that materially affects the result**:
+workspace, owner day, time zone and lens. A cursor from yesterday's ranking, a
+different zone, another lens or the alignment ordering is rejected
+(`InvalidSpineCursorError`) and the route resets calmly to page one.
+
+`listGoalsByAlignment` is **kept**, unchanged, for every consumer that still
+asks the alignment question — the guided Review, the insights read, Today's
+attention facts and Analytics. Alignment is still *stated* on `/goals`, as the
+pane's indicator and in each row's accessible name: a derived signal beside the
+others rather than the order.
+
+## The lenses filter the workspace, and their counts are true
+
+The lenses are `All · On track · Needs attention · Set aside · Completed`
+(plus the Deleted scope). They now filter in the **collection read**, and every
+count beside a lens is a workspace figure from `countGoalsByOutcomeLens` —
+[DEBT-121](../product/PRODUCT_DEBT.md)'s closing sentence, satisfied
+structurally: *"a count that describes the page must not remain beside a label
+that reads as the workspace."* Where the workspace figure is unavailable (the
+Deleted scope, a failed read) **no lens shows a number at all**; there is no
+page-derived fallback anywhere on the surface.
+
+One SQL predicate per lens is used verbatim by the filtered page read AND the
+counts aggregate, so a lens's result set and its number cannot disagree. The
+status lenses are deliberately **condition-blind**: a set-aside Goal whose
+readings say "needs attention" still appears under Needs attention, because the
+lens filters derived truth and the condition never suppresses it.
+
+Both reads cost **two statements**, flat in Goals, measurements, milestones and
+events, asserted with a counting database.
+
+## The route reads nothing it does not render
+
+[DEBT-207](../product/PRODUCT_DEBT.md), closed. Three reads REDESIGN-04 left
+behind are gone with their plumbing:
+
+- the **sparkline series** (`listMeasurementSeries`, twelve readings per Goal on
+  every page and every revalidation) — the gallery card that drew it was
+  deleted; the record and the pane plot the full history from their own read;
+- the **definition of done** on the collection item — the row has no place for
+  prose;
+- the workspace pane's five **alignment-evidence** rows — the pane renders the
+  alignment *indicator*; the evidence panel lives on the canonical record, which
+  makes that read there.
+
+`test/kernel/goals-outcome-route.test.ts` asserts the loader's returned shape
+field by field, so a field added without a renderer fails a test rather than an
+audit.
+
+**Query budget.** The `/goals` composition makes **eight grouped reads per
+page**, and made eight before: the ordered page itself, then six reads over that
+page's ids (contributions, alignment facts, measurement summaries, milestone
+summaries, details, movement) and one workspace-wide read. What changed is
+*which* eight — the sparkline series read was removed (DEBT-207) and the
+workspace lens counts added in its place (DEBT-121) — plus the selected Goal's
+detail, which is one read lighter now that the pane no longer fetches alignment
+evidence it does not draw.
+
+In *statements* the shape is slightly different, and it is worth stating rather
+than rounding: the page read costs **two** (a bounded preliminary resolving each
+Goal's schedule origin in the owner's calendar, because SQLite cannot convert an
+IANA zone, and then the ranked page), the lens counts cost **two**, and movement
+costs **two**. `test/kernel/goal-outcome.test.ts` asserts the first two against a
+counting database and proves both are flat in the number of Goals: ten Goals cost
+what two cost. Every read is grouped over the page's ids or over the whole
+workspace; none is per Goal.
+
+## One Goal identity rule
+
+[DEBT-208](../product/PRODUCT_DEBT.md), closed. `goalIdentitySource` /
+`resolveGoalIdentity` in [`goal-view.ts`](../../app/modules/goals/goal-view.ts)
+state what a Goal feeds into the shared `resolveIdentity` ladder — its own
+choice first, its Area's otherwise, colour and glyph walked independently — and
+the row, the pane and the record all consume it. The pane used to resolve only
+the *Area's* identity, so a Goal that had chosen its own glyph wore two
+different marks on one screen. The deliberate fallback is unchanged; it is
+simply expressed once instead of three times.
+
+## One measurement composition
+
+[DEBT-192](../product/PRODUCT_DEBT.md), closed. `routes/detail.tsx` mounts
+`GoalMeasurementSection` and declares **no** measurement or milestone callback
+of its own: the panel, both sheets, their `opener` handling, the four posts and
+the revalidation exist once, shared with the workspace pane. GOAL-02's
+arithmetic, the chart's behaviour, the target/domain semantics, the progress
+wording, and movement and alignment as separate signals are all unchanged — no
+new measurement model, and no second authority.
+
+---
+
+# STEER-02 — the owner's hand (V2.5, 2026-08-28)
+
+> Governing decision: [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question)
+> decisions 1–3.
+
+## The condition: a small, closed, owner-set vocabulary
+
+A Goal carries **three derived answers** — alignment, measurable progress,
+movement — and, since STEER-02, **one stored one**: the owner's condition.
+
+| Value | Stored | Means |
+| --- | --- | --- |
+| **Pursuing** | `NULL` | The default, and the state every Goal has been in since the model existed. |
+| **Set aside** | `'set_aside'` | The owner has deliberately put this Goal down for now. |
+
+**Why the vocabulary is this small.** ADR-111 decision 2 constrains the space:
+members answer *"am I currently pursuing this?"* — never *"is it going well?"*,
+which is GOAL-02's question, answered with evidence. That leaves exactly two
+honest answers, and only one of them needs storing. Deliberately **not**
+members: `on_track` / `off_track` / `healthy` / `at_risk` / `stalled` /
+`failing` (verdicts a derivation already computes — an owner-set "on track"
+beside GOAL-02's computed *On track* would be two authorities for one word);
+`paused` / `archived` (lifecycle, which the spine owns); and any free text.
+Widening the vocabulary is an ADR-111 amendment, not a field addition.
+
+**Pursuing stores nothing, and that is what makes the column additive.** An
+archive written before this field, a row the migration has not touched, and a
+Goal the owner has never spoken about all mean the same thing.
+
+## The rule that makes it safe
+
+> **Owner judgement is stored; derived signals are derived; neither ever
+> produces the other.**
+
+- **Nothing derives the condition.** Exactly one route intent writes it —
+  `POST /goals/:goalId/mutate` with `intent=set_condition` — through
+  `GoalDetailsRepository`, the one mutation path for Goal-owned fields. No
+  background process, activity derivation, measurement, movement, alignment, AI
+  or heuristic sets or clears it.
+- **No derivation reads it.** `evaluateGoalProgress`, `evaluateGoalAlignment`
+  and `evaluateGoalMovement` keep signatures that cannot see it. This is
+  guarded by a **source-level** assertion
+  ([`test/unit/goals/goal-condition-boundary.test.ts`](../../test/unit/goals/goal-condition-boundary.test.ts)),
+  because a value-level test can only prove the condition does not change an
+  answer *today* — and the falsification pass proved exactly that gap: an edit
+  that threaded `condition` into `GoalProgressFacts` and returned the unmeasured
+  shape for a set-aside Goal passed every value-level test untouched.
+- **Scope may change; truth may not.** A set-aside Goal leaves the surfaces that
+  ask for the owner's attention and keeps every derived fact it had.
+
+## What "set aside" changes, and what it does not
+
+| Surface | A set-aside Goal |
+| --- | --- |
+| Today's Goal panel | **Leaves it.** Excluded in SQL, before the scan limit, so a workspace of rested Goals still surfaces the pursued ones. |
+| `/plan`'s unsupported-Goal signals | **Leaves them.** *"No planned supporting action this week"* is true and unwelcome about a Goal the owner has deliberately put down. Filtered before the three-signal cap, so it never costs a pursued Goal its place. |
+| `/goals` and its pane | **Stays**, in the place its outcome earns, with alignment, movement and measurement reading exactly as they would otherwise, plus the condition stated beside them. |
+| The Goal record | **Unchanged**, plus the condition control. |
+| The status lenses | **Still holds them**: a set-aside Goal that is behind its own date is still under "Needs attention", and still counted there. |
+
+The attention exclusion is opt-in at the repository
+(`listGoalsByAlignment({ omitSetAside: true })`), so the guided Review, the
+insights read and Analytics see the set they always saw — their question is a
+different one and their selection must not silently change.
+
+## The control, the event and the storage
+
+- **One shared control** — `GoalConditionField`, mounted by the Goal record and
+  the `/goals` workspace pane, an ordinary `InlineSelectField` (DEBT-183's own
+  desired state). "Pursuing" is the field's unset state and its way back, so the
+  offered vocabulary and the stored one are identical.
+- **Its own Activity verb** — `goal.condition_changed`, whose payload carries
+  `{ condition, previous }`: both members of the closed vocabulary or `null`,
+  never free text, so history can be read in both directions (ADR-110's
+  FOLLOW-01 lesson — a payload recording only the new value is a payload
+  history cannot reverse). Untoned deliberately: setting a Goal aside is a
+  decision, not a success or a failure.
+- **Migration `0048_goal_condition.sql`** — one additive nullable `TEXT` column
+  on `goal_details`, no default, no CHECK naming the members (the 0038/0032
+  rule: a CHECK over a domain that may grow turns "widen the vocabulary" into
+  "rebuild a production table"). An unrecognised stored value degrades to
+  "pursuing" on read rather than throwing.
+- **Export and restore carry it**, verbatim, like GOAL-02's five columns and
+  IDENTITY-01's identity. An archive written before this field validates,
+  restores, and lands those Goals as pursuing — asserted end to end, including
+  a real ZIP with the key removed and its checksums recomputed.
+
+## Moving a Goal between Areas
+
+[DEBT-184](../product/PRODUCT_DEBT.md), closed. A Goal filed under the wrong
+Area used to stay there: the only remedy was to recreate it and re-link its
+Projects, which destroyed its Activity and its measurement history.
+
+- **The spine owns parentage.** `POST /goals/:goalId/mutate` with `intent=move`
+  delegates to `SpineRepository.move` — the same authority, the same guards and
+  the same two link events a Project's move has (`entity_link.unlinked` then
+  `entity_link.created` or `entity_link.restored`). There is no `goal.moved`
+  verb and no second audit mechanism.
+- **The Goal is the same record.** Its id, its creation instant, its Activity,
+  its measurements, its milestones, its links and its contributing Projects all
+  survive, because one structural link is mutated rather than a record being
+  recreated. The Projects travel by construction: they parent to the *Goal*, not
+  to the Area — and their Tasks with them.
+- **Both Areas' rollups agree afterwards**, including the subtree: the old Area
+  loses the Goal, its Projects and their Tasks; the new one gains them.
+- **The identity follows the file.** A Goal with no colour of its own inherits
+  the new Area's — a real consequence of the move rather than a defect.
+- **The candidates are server-resolved.** `GET /goals/area-options?q=` returns
+  active, non-archived Areas through the shared bounded target search — the
+  `/projects/parent-options` pattern, not a second parent-picker model — and the
+  move itself re-verifies the destination. A missing, deleted, wrong-kind,
+  archived or cross-workspace target fails closed with one calm outcome.
+- **The control** is the shared `InlinePickerField` on the Goal record's context
+  line, the pattern `ProjectsTable`'s Area cell established. Nothing is fetched
+  until the picker opens. This is not a drag-and-drop hierarchy editor and does
+  not introduce one.
+
+## Testing (STEER-01 / STEER-02)
+
+- **Kernel / D1** — [`goal-outcome.test.ts`](../../test/kernel/goal-outcome.test.ts)
+  (SQL↔kernel parity across the whole status matrix, order before pagination
+  over four pages, cursor scope, workspace-true lens counts walked page by page,
+  flatness); [`goal-condition-and-move.test.ts`](../../test/kernel/goal-condition-and-move.test.ts)
+  (the vocabulary, the Activity payload both ways, unknown-value degradation,
+  the move's identity/history/rollup preservation, fail-closed targets,
+  workspace isolation); [`goals-outcome-route.test.ts`](../../test/kernel/goals-outcome-route.test.ts)
+  (the loader's shape, the counts, one identity rule);
+  [`plan-goal-signals.test.ts`](../../test/kernel/plan-goal-signals.test.ts)
+  (the `/plan` signal, which had no coverage at all, and its set-aside
+  exclusion); `goal-movement.test.ts` (a set-aside Goal leaves Today's panel
+  with its movement value byte-identical).
+- **Unit** — [`goal-condition-boundary.test.ts`](../../test/unit/goals/goal-condition-boundary.test.ts)
+  (the source-level derivation boundary); `GoalsCollection.test.tsx` (the lens
+  rail's counts, and that the client renders the server's page verbatim);
+  `GoalOverview.test.tsx` (the condition's option set, its saves, and the
+  derived sentences unchanged under each value).
+- **E2E** — [`steer-goals.spec.ts`](../../e2e/steer-goals.spec.ts): two tests
+  over four page loads, with the widths as resizes in place and one axe scan per
+  appearance.
+
+**Falsified, then restored.** A page-local lens count, a sort after pagination,
+the condition fed into a derived evaluator, a move implemented as
+recreate-and-delete, and the condition dropped from the export read. Two of the
+five survived their first falsification and are the reason two guards are
+stronger than they were: the derivation boundary became a source-level
+assertion, and the shared workspace fixture now seeds a `goal_details` row —
+without one, the restore suite's equality assertion over that collection was
+vacuous.

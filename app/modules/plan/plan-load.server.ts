@@ -896,7 +896,7 @@ async function buildSignals(input: {
       .filter((parent) => parent?.kind === "project")
       .map((parent) => parent!.id),
   );
-  const goals: PlanGoalSignal[] = [];
+  const unsupported: PlanGoalSignal[] = [];
   const seenGoals = new Set<string>();
   for (const project of projects) {
     const goal = project.goal;
@@ -908,8 +908,32 @@ async function buildSignals(input: {
         candidate.goal?.id === goal.id && supportedGoalIds.has(candidate.id),
     );
     if (supported) continue;
-    goals.push({ goalId: goal.id, title: goal.title });
-    if (goals.length >= PLAN_LIMITS.goalSignals) break;
+    unsupported.push({ goalId: goal.id, title: goal.title });
+  }
+
+  /*
+   * STEER-02 — a Goal the owner has SET ASIDE is not an unsupported Goal; it is
+   * a Goal they have decided not to pursue this week, and saying "No planned
+   * supporting action this week" about it is precisely the manufactured guilt
+   * ADR-111 decision 3 removes.
+   *
+   * ONE bounded, grouped read over the already-deduplicated candidate ids
+   * (≤ the Project bound), OUTSIDE the loop — never a read per Goal — and only
+   * when there is a candidate at all. The filter runs BEFORE the cap, so a
+   * set-aside Goal never consumes one of the three slots a pursued Goal needed.
+   * Nothing else about the signal changes: `/goals` and the Goal record still
+   * state every derived fact about that Goal.
+   */
+  const goals: PlanGoalSignal[] = [];
+  if (unsupported.length > 0) {
+    const conditions = await scope.goalDetails.listMany(
+      unsupported.map((goal) => goal.goalId),
+    );
+    for (const goal of unsupported) {
+      if (conditions.get(goal.goalId)?.condition === "set_aside") continue;
+      goals.push(goal);
+      if (goals.length >= PLAN_LIMITS.goalSignals) break;
+    }
   }
 
   return { projects: signals, goals };

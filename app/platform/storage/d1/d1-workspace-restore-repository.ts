@@ -146,6 +146,7 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "target_value",
       "icon_key",
       "colour_slot",
+      "condition",
       "updated_at",
     ],
   },
@@ -733,6 +734,10 @@ function stageRows(
           // Area's" — exactly what those Goals did.
           icon_key: row.iconKey ?? null,
           colour_slot: row.colourSlot ?? null,
+          // STEER-02 — absent in every archive written before this release,
+          // which restores as `null`: "pursuing", exactly the state those
+          // Goals were in. A restore never invents an owner's judgement.
+          condition: row.condition ?? null,
           updated_at: row.updatedAt,
         }),
       );
