@@ -24,7 +24,9 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useRevalidator } from "react-router";
 
+import { DrawerTrigger } from "~/shared/drawer";
 import { AccentIcon } from "~/shared/entity";
+import { NEW_PROJECT_FOR_GOAL_KEY } from "~/shared/project-creation";
 import { useFeedback } from "~/shared/feedback";
 import type { SelectOption } from "~/shared/forms/types";
 import { PlusIcon } from "~/shared/icons";
@@ -55,16 +57,35 @@ export function GoalProjectChips({
         <h3 className="dh-goalchips__title" id={headingId}>
           Linked projects
         </h3>
-        <button
-          type="button"
-          ref={openerRef}
-          className="dh-btn dh-btn--outlined dh-btn--sm"
-          data-testid="goal-link-project"
-          onClick={() => setPicking(true)}
-        >
-          <PlusIcon aria-hidden="true" />
-          Link project
-        </button>
+        <div className="dh-goalchips__actions">
+          {/*
+           * STEER-04 (DEBT-210) — CREATE the missing structure, beside the
+           * action that only re-parents an existing Project.
+           *
+           * The two are genuinely different verbs and the register named the
+           * gap: "`GoalProjectChips`'s '+ Link project' only re-parents an
+           * EXISTING Project". This opens the ONE shared Project form with the
+           * Goal as its decided, server-verified parent.
+           */}
+          <DrawerTrigger
+            drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
+            className="dh-btn dh-btn--outlined dh-btn--sm"
+            data-testid="goal-chips-new-project"
+          >
+            <PlusIcon aria-hidden="true" />
+            New Project
+          </DrawerTrigger>
+          <button
+            type="button"
+            ref={openerRef}
+            className="dh-btn dh-btn--outlined dh-btn--sm"
+            data-testid="goal-link-project"
+            onClick={() => setPicking(true)}
+          >
+            <PlusIcon aria-hidden="true" />
+            Link project
+          </button>
+        </div>
       </div>
 
       {projects.length === 0 ? (

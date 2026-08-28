@@ -53,6 +53,12 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import type { SelectOption } from "~/shared/forms/types";
 import { NewGoalForm } from "~/shared/goal-creation/NewGoalForm";
+import {
+  NEW_PROJECT_FOR_GOAL_KEY,
+  NEW_PROJECT_FOR_GOAL_TITLE,
+  NewProjectForGoalDrawer,
+  newProjectForGoalDescription,
+} from "~/shared/project-creation";
 import { AccentIcon, EntityIcon, emptyCollectionTitle } from "~/shared/entity";
 import { HistoryIcon } from "~/shared/icons";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
@@ -283,8 +289,32 @@ export function GoalsCollectionView({
    * of already knowing it, because a Goal without an Area home is not a thing
    * the model has. No second creation system, and no kernel change.
    */
+  const selectedGoalId = selected?.overview.id ?? null;
+  const selectedGoalTitle = selected?.overview.title ?? null;
   const renderDrawer = useMemo(() => {
     return function render(entry: DrawerEntry): DrawerRenderResult | null {
+      /*
+       * STEER-04 (DEBT-210) — the create-structure door for the Goal in the
+       * pane. It is the SAME Drawer key and the SAME shared form the canonical
+       * record hosts, so the workspace and the record cannot offer two
+       * different ways to give a Goal its first Project.
+       */
+      if (
+        entry.key === NEW_PROJECT_FOR_GOAL_KEY &&
+        selectedGoalId !== null &&
+        selectedGoalTitle !== null
+      ) {
+        return {
+          title: NEW_PROJECT_FOR_GOAL_TITLE,
+          description: newProjectForGoalDescription(selectedGoalTitle),
+          children: (
+            <NewProjectForGoalDrawer
+              goalId={selectedGoalId}
+              goalTitle={selectedGoalTitle}
+            />
+          ),
+        };
+      }
       if (entry.key !== NEW_GOAL_KEY) return null;
       return {
         title: "New Goal",
@@ -297,7 +327,7 @@ export function GoalsCollectionView({
         ),
       };
     };
-  }, [areaOptions, areaOptionsFailed]);
+  }, [areaOptions, areaOptionsFailed, selectedGoalId, selectedGoalTitle]);
 
   return (
     <DrawerProvider renderDrawer={renderDrawer}>

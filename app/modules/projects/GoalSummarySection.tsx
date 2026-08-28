@@ -32,8 +32,7 @@ import { Link } from "react-router";
 import { ProgressRow, ProgressRowList } from "~/shared/card";
 import { AccentIcon, resolveIdentity } from "~/shared/entity";
 import {
-  goalProgressMeterStatus,
-  goalProgressSummaryText,
+  goalProgressMeter,
   goalRowValue,
   type GoalSummary,
 } from "~/shared/goal-progress";
@@ -85,18 +84,17 @@ export function GoalSummarySection({
                 inherited: { colourSlot: goal.areaColourSlot },
               }).slot
             }
-            progress={
-              goal.progress.progressPercent === null
-                ? undefined
-                : {
-                    percent: goal.progress.progressPercent,
-                    valueText: goalProgressSummaryText(goal.progress),
-                    // POLISH-01 — the bar states how the Goal is GOING. It used
-                    // to take the Goal's identity hue, so "60.0 / 70 kg ·
-                    // Ahead" could be drawn in red.
-                    status: goalProgressMeterStatus(goal.progress.status),
-                  }
-            }
+            /*
+             * STEER-03 — the meter comes from the ONE shared helper.
+             *
+             * The three values were assembled inline here, and identically on
+             * the `/goals` row: same fields, same POLISH-01 status ramp, same
+             * `undefined`-when-unmeasured rule, written twice. That is how a
+             * fourth interpretation of Goal progress starts, so the assembly is
+             * stated once in `goalProgressMeter` and every Goal bar in the
+             * product now comes from it.
+             */
+            progress={goalProgressMeter(goal.progress) ?? undefined}
             value={goalRowValue(goal.progress)}
             href={`/goals/${encodeURIComponent(goal.id)}`}
             openAriaLabel={`Open ${goal.title}`}

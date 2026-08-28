@@ -512,6 +512,37 @@ export function goalRowValue(progress: GoalProgressEvaluation): string | null {
   return formatMeasurementValue(progress.current, progress.unit);
 }
 
+/**
+ * STEER-03 — the ONE Goal METER, for every surface that draws one.
+ *
+ * A Goal's bar is three values — how far along, what to announce, and how it is
+ * going — and every one of them comes from GOAL-02's evaluator. Stating them
+ * once is what makes ADR-111 decision 6 checkable: *"no surface introduces a
+ * measure of a Goal that the vocabulary does not define"*, and the
+ * counterexample the clause retires is the Area tab's Task roll-up bar
+ * (DEBT-206), which was a percentage of Tasks wearing a Goal's progress.
+ *
+ * `null` is the designed answer for a Goal with nothing to measure — an
+ * unmeasured Goal and a configured Goal with no reading yet BOTH return it, and
+ * the caller renders no track at all. A 0% bar would be a claim about progress
+ * where the truth is an absence of one, and `test/unit/goals/…` asserts the
+ * absence rather than trusting the caller to remember.
+ */
+export function goalProgressMeter(progress: GoalProgressEvaluation): {
+  readonly percent: number;
+  readonly valueText: string;
+  readonly status: MeterStatus;
+} | null {
+  if (progress.progressPercent === null) return null;
+  return {
+    percent: progress.progressPercent,
+    valueText: goalProgressSummaryText(progress),
+    // POLISH-01 — a meter states how the Goal is GOING; it never takes the
+    // record's identity hue, or "60.0 / 70 kg · Ahead" could be drawn in red.
+    status: goalProgressMeterStatus(progress.status),
+  };
+}
+
 export function goalRemainingLabel(
   progress: GoalProgressEvaluation,
 ): string | null {

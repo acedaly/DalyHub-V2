@@ -65,6 +65,10 @@ import type { GoalCondition } from "~/kernel/goals";
 import { InlineDateField, type InlineSaveOutcome } from "~/shared/inline-edit";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
+import { DrawerTrigger } from "~/shared/drawer";
+import { NextActionLine } from "~/shared/task-record/NextActionLine";
+import { NEW_PROJECT_FOR_GOAL_KEY } from "~/shared/project-creation";
+
 import { GoalConditionField } from "./GoalConditionField";
 import { GoalMeasurementSection } from "./GoalMeasurementSection";
 import { GoalProjectChips } from "./GoalProjectChips";
@@ -277,6 +281,31 @@ export function GoalWorkspacePane({
          * it changes — asserted, by rendering the same Goal under each value
          * and comparing the derived strings.
          */}
+        {/*
+         * STEER-04 (DEBT-210) — the Goal's next STEP, from the product's one
+         * next-action rule, on the same band as its derived answers.
+         *
+         * The pane states the absence in REVIEW-02's words rather than hiding
+         * it, exactly as the canonical record does: this is a detail surface an
+         * owner selected a Goal to read, not a dense list where a row of
+         * absences would cost more than it says.
+         */}
+        <div className="dh-goalpane__next" data-testid="goal-pane-next-step">
+          <NextActionLine
+            task={detail.nextAction}
+            absence="state"
+            label="Next step"
+          />
+          {detail.contribution.total === 0 ? (
+            <DrawerTrigger
+              drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
+              className="dh-btn dh-btn--outlined dh-btn--sm"
+              data-testid="goal-pane-new-project"
+            >
+              New Project for this Goal
+            </DrawerTrigger>
+          ) : null}
+        </div>
         {onSetCondition ? (
           /*
            * A DIV, not a paragraph — the same rule the context line above

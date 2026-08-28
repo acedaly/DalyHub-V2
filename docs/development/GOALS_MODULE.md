@@ -1427,3 +1427,312 @@ stronger than they were: the derivation boundary became a source-level
 assertion, and the shared workspace fixture now seeds a `goal_details` row —
 without one, the restore suite's equality assertion over that collection was
 vacuous.
+
+---
+
+# STEER-03 — one Goal, one story (V2.5, 2026-08-28)
+
+> Governing decision: [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question)
+> decision 6. Closes [DEBT-206](../product/PRODUCT_DEBT.md), [DEBT-209](../product/PRODUCT_DEBT.md)
+> and (with STEER-01) [DEBT-211](../product/PRODUCT_DEBT.md).
+
+## The story, and why it is four facts rather than one
+
+A Goal's story is **four separate answers to four separate questions**, plus the
+structure that carries them. They are never merged, never reconciled, and never
+rolled into a score:
+
+| Fact | The question it answers | Its one authority |
+|---|---|---|
+| **measurement** | *"How is the outcome going?"* | `evaluateGoalProgress` (GOAL-02) |
+| **alignment** | *"Does this Goal have a reachable structure that has had attention?"* | `evaluateGoalAlignment` (ADR-040) |
+| **movement** | *"Did it move inside a NAMED window?"* | `evaluateGoalMovement` (FOLLOW-02) |
+| **condition** | *"Am I currently pursuing this?"* | the **owner** (STEER-02) |
+| **contribution** | *"What structure is advancing it?"* | `listGoalProjectContributions` |
+
+A Goal can be on track and unmoved; set aside and moving; aligned and behind.
+Every cross-combination stays expressible, and **no surface may collapse them**.
+
+## Where the story lives
+
+| Piece | File |
+| --- | --- |
+| The shape, and the machine-key projection surfaces are compared on | [`app/shared/goal-progress/goal-story.ts`](../../app/shared/goal-progress/goal-story.ts) |
+| The ONE bounded read that composes it for a set of Goal ids | [`goal-story-load.server.ts`](../../app/shared/goal-progress/goal-story-load.server.ts) |
+| The ONE row every collection draws a Goal in | [`GoalStoryRow.tsx`](../../app/shared/goal-progress/GoalStoryRow.tsx) |
+| The ONE Goal meter | `goalProgressMeter` ([`goal-progress-view.ts`](../../app/shared/goal-progress/goal-progress-view.ts)) |
+| The ONE identity rule (re-homed from the Goals module) | [`goal-identity.ts`](../../app/shared/goal-progress/goal-identity.ts) |
+| The read-only condition tag reading surfaces state | [`GoalConditionTag.tsx`](../../app/shared/goal-progress/GoalConditionTag.tsx) |
+
+`goalStoryDataAttributes` stamps the story's facts on every row as
+`data-goal-*`, so *"the Area record and `/goals` agree about this Goal"* is an
+**equality assertion over values** rather than a comparison of sentences — the
+FOLLOW-02 parity method, which ADR-111 decision 6 requires.
+
+## What each surface says, since STEER-03
+
+| Surface | Measurement | Movement | Alignment | Condition | Structure |
+|---|---|---|---|---|---|
+| **Today** | the readout, measured only | the line | — (it is an attention surface; a set-aside Goal is absent) | — | — |
+| **`/goals` row** | the bar and the row value | the line | in the accessible name (the pane draws the indicator) | the tag, when set | — |
+| **`/goals` pane** | the trio, the chart, the pace | the line | the indicator | the inline **control** | the chips |
+| **Goal record** | the trio, the chart, the pace | the line | the indicator + evidence | the inline **control** | the Projects tab |
+| **Area record** | the bar and the row value | the line | the **indicator** (there is no pane beside it) | the tag, when set | Projects/Tasks counts, on the context line |
+| **guided Review** | the status word and the row value | the line | the indicator with its reason | the tag, when set | contributing-Project count |
+
+Where the alignment indicator is *drawn* differs by surface; the VALUE does not,
+and the parity attributes prove it. That is a density decision, not a second
+interpretation.
+
+## The Area record's Goals tab: what changed, exactly
+
+It drew the Area's **Task roll-up** (`taskCompleted / taskTotal`) as each Goal
+card's progress bar, captioned *"Task roll-up"*, with no measurement, no
+movement, no alignment and no condition — a third measure of a Goal that no
+other surface in the product showed. The same Goal read *"53% · Ahead"* on Today
+and an unrelated task-count percentage on its own Area
+([DEBT-206](../product/PRODUCT_DEBT.md)).
+
+It now renders the **same `GoalStoryRow` `/goals` renders** — not a card that
+resembles it; the same component, from the same facts, so there is nothing left
+that can drift. The roll-up is **not deleted**: the Projects and Tasks counts
+are real structural facts and the Area record is where structure is read, so
+they survive on the row's context line, worded as counts of Projects and Tasks.
+What they stopped being is the Goal's progress answer.
+
+An **unmeasured** Goal draws no bar and prints no value anywhere — "no numeric
+target" is not "0%", and a bar drawn for visual parity would be fabricated
+precision.
+
+## The guided Review's Goals step: what it sees now
+
+It showed a link, the alignment indicator with its reason, and a
+contributing-Project count — blind to the two facts V2.4 added and GOAL-02
+matured ([DEBT-209](../product/PRODUCT_DEBT.md)). The owner steered the week
+from **less** information in the Review than a glance at Today gave them.
+
+It now states, per Goal: the measurement status and the Goal's own value, the
+target date (formatted), FOLLOW-02's movement sentence, the owner's condition
+and the alignment it already had. The step keeps its shape, its place and its
+**selection** — `listGoalsByAlignment` still decides which Goals appear, because
+alignment is the question that step asks. It remains a reflection surface: every
+line is a fact the product already derived, in the words it already uses.
+
+**The budget moved, and says so** (the FOLLOW-01 precedent): the alignment step
+went from **6 to 12** statements. Two of the six moved *inside* `loadGoalStories`
+rather than being added, so the arithmetic is 6 − 2 + 8. It is asserted flat in
+the number of Goals by `test/kernel/review-guide-context.test.ts` and
+`test/kernel/goal-story.test.ts`.
+
+## What it cost, in statements
+
+`loadGoalStories` is **six grouped reads over the page's ids, executing as eight
+D1 statements**, and never one per Goal:
+
+| Read | Statements |
+|---|---|
+| `goalDetails.listMany` (target date, measurement config, condition) | 1 |
+| `goalMeasurements.listMeasurementSummaries` (latest, earliest, prior-in-window) | 2 |
+| `goalMeasurements.listMilestoneSummaries` | 1 |
+| `goals.listGoalProjectContributions` | 1 |
+| `alignment.listGoalAlignmentFacts` | 1 |
+| `readGoalMovement` — FOLLOW-02's ONE server read, not a second path | 2 |
+
+Flat in the number of Goals up to each repository's chunk size, and inside D1's
+100-bound-parameter ceiling for the bounded pages that call it (an Area's
+50-Goal page, the Review's 12).
+
+## Search, and the module's own prose
+
+The Goal search preview printed `Target 2026-08-15` — a raw ISO date on the one
+surface that shows Goals beside every other kind of record. It now formats it
+with the same `formatCalendarDate` every other surface uses ([DEBT-211] item 5).
+It deliberately does **not** reach for measurement status or movement: those are
+per-Goal derivations, and a search provider that made them would issue work per
+hit on the product's most latency-sensitive surface.
+
+`goals.new` now exists as a palette command ([DEBT-211] item 3's decision,
+taken). It navigates to `/goals?drawer=new-goal` — DS-03's URL drawer contract,
+the same one `/areas?drawer=new-area` has used since PROJ-05 — so it is one more
+door into the ONE creation flow rather than a second one.
+
+## Testing (STEER-03)
+
+- **Kernel / D1** — [`goal-story.test.ts`](../../test/kernel/goal-story.test.ts):
+  drives the REAL `/goals`, Area-record and Review loaders over one seeded
+  workspace and demands their machine facts be equal, for a measured Goal, an
+  unmeasured one, a configured-but-unstarted one and a set-aside one; proves the
+  read is eight statements flat; proves the condition changes exactly one key and
+  nothing else; and pins the Review's declared budget.
+- **Unit** — [`goal-progress-renderings.test.ts`](../../test/unit/goals/goal-progress-renderings.test.ts):
+  the ENUMERATION ADR-111 decision 6 asks for — every Goal-progress rendering in
+  the product, named, with the shared authority it must reach the figure
+  through, plus a completeness scan so a new one fails a build rather than an
+  audit. [`goal-story-surfaces.test.tsx`](../../test/unit/goals/goal-story-surfaces.test.tsx):
+  the shared row's absences and the Review step's new facts.
+  `AreaOverview.test.tsx`: the Area tab's meter reads the GOAL's arithmetic, the
+  roll-up caption is gone, and an unmeasured Goal gets no bar.
+- **E2E** — [`steer-goal-story.spec.ts`](../../e2e/steer-goal-story.spec.ts):
+  the Area tab's painted facts equal `/goals`'s, attribute for attribute, at
+  four widths and in both appearances.
+
+**Falsified, then restored.** Restoring the Area's Task-roll-up bar; removing
+movement from the Review's step. Both break the cross-surface parity tests, and
+the restored roll-up additionally breaks the enumeration.
+
+---
+
+# STEER-04 — from signal to step (V2.5, 2026-08-28)
+
+> Governing decision: [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question)
+> decision 4. Closes [DEBT-77](../product/PRODUCT_DEBT.md) and
+> [DEBT-210](../product/PRODUCT_DEBT.md).
+
+## The rule, stated once
+
+> **Next** is the FIRST Task of a Project in the workspace's canonical **active
+> planning scope**, excluding dependency-blocked work, under the canonical
+> **`smart`** ordering.
+
+It lives in [`app/kernel/tasks/next-action.ts`](../../app/kernel/tasks/next-action.ts)
+as `NEXT_ACTION_RULE`, and nothing about it is new. `smart` is the ordering
+`/tasks` already uses; the scope is the predicate the repository already applies
+to its `active` system view. DEBT-77 wrote the warning the module obeys: *"reuse
+it rather than inventing a second notion of 'next', or Today and `/tasks` will
+disagree about which task is next."*
+
+**What is excluded, and by whose rule** — every one an existing DalyHub state:
+
+| Excluded | Because |
+|---|---|
+| completed | it is done (the spine's `completed_at`) |
+| cancelled / on hold | ADR-043 §5–§6: parked work is not active work |
+| Someday/Maybe | the owner has said "not now" |
+| waiting | TODAY-03: it is blocked on somebody else |
+| dependency-blocked | TASKS-12: a live, incomplete blocker points at it |
+
+The first four are exactly `#activePlanningWhere`. The fifth is the exact
+complement of the repository's own `blocked` filter — a derived predicate over
+live `task.blocks` edges, never a stored flag. Calling a Task whose blocker is
+still open "the next action" would be the product recommending work the owner
+cannot start.
+
+## Where it is computed, and how it cannot drift
+
+| Piece | File |
+| --- | --- |
+| The rule, the eligibility predicate, the sort key and the comparator | [`app/kernel/tasks/next-action.ts`](../../app/kernel/tasks/next-action.ts) |
+| The ranked SQL statement | `TaskRepository.listProjectNextActions` ([`d1-task-repository.ts`](../../app/platform/storage/d1/d1-task-repository.ts)) |
+| The Goal-level composition | [`next-action-load.server.ts`](../../app/shared/task-record/next-action-load.server.ts) |
+| The ONE presentation | [`NextActionLine.tsx`](../../app/shared/task-record/NextActionLine.tsx) |
+| The parity and exclusion proofs | [`test/kernel/task-next-action.test.ts`](../../test/kernel/task-next-action.test.ts) |
+
+The statement is DEBT-77's own prescription, built as written: a single bounded,
+workspace-scoped `ROW_NUMBER() OVER (PARTITION BY project ORDER BY <the smart
+expression>)` filtered to rank 1. It reaches the population through
+`#resolveWorkspaceScope("active", { blocked: false })` and the ordering through
+`#workspaceSortSpec("smart")` — the SAME code paths `/tasks` uses, so there is
+no second notion of "next" to drift.
+
+**Three parity proofs, not one.** The repository's answer equals the pure rule's
+over a seeded fact matrix; it equals the FIRST row the canonical `/tasks`
+collection read returns for the same Project under the same view, sort and
+filters; and the pure sort key is asserted character-for-character against the
+SQL expression's four segments.
+
+## The Goal level: a composition, not a second model
+
+A Goal owns no Tasks — the spine forbids it (`AGENTS.md` §4), and REDESIGN-04
+§4.2 already refused a Goal Tasks tab for that reason. So a Goal's next step is
+composed **through its structure**:
+
+```
+Goal → contributing Projects (project.advances_goal)
+     → each Project's canonical next action
+     → the best of those, by the SAME ordering
+```
+
+The choice among candidates is `compareNextActionCandidates`, the same function
+one Project's list is ranked by, with the Task id as the final tiebreak — so a
+Goal with several Projects selects **predictably across reloads**. There is no
+Goal-specific ranking model and no Goal score.
+
+## Where it appears, and where it deliberately does not
+
+| Surface | Next action | Absence |
+|---|---|---|
+| **Today**'s "Continue working" cards | one quiet line under the Project's signals; opens the shared Drawer | **hidden** — a row of absences on the busiest screen costs more than it says |
+| **Goal record** | the next step across its Projects, naming the Project | **stated**, in REVIEW-02's words |
+| **`/goals` pane** | the same value, the same component | **stated** |
+| **guided Review** | unchanged — its bounded scan stays the disclosed approximation it was | unchanged |
+| **Today's Goal panel, `/plan`** | not offered; a **set-aside** Goal is absent from both entirely (ADR-111 decision 3) | — |
+
+The row is a POINTER, never a control: no checkbox, no inline edit. It opens the
+canonical Task record in the Drawer, and mutates nothing.
+
+## "New Project for this Goal"
+
+A Goal whose alignment reads *"No contribution path"* — the product's own
+diagnosis that *"this Goal was never given a path"* — offered nothing to do about
+it. `GoalProjectChips`'s "Link project" only re-parents an EXISTING Project, and
+the Projects tab's empty state named a route that could not be taken from there.
+
+The door is [`NewProjectForGoal.tsx`](../../app/shared/project-creation/NewProjectForGoal.tsx),
+offered in three places: the record's next-step band (only when the Goal has no
+contributing Project at all), the Projects tab's empty state, and the `/goals`
+pane's chip row beside "Link project" — two different verbs, both offered.
+
+It is a **door, not a flow**. It opens the ONE shared `NewProjectForm` in the
+DS-03 Drawer with the Goal as its decided parent, and the form posts the same
+`parentId` to the same trusted `POST /projects/new`. The server resolves the
+parent's KIND from the id and re-verifies it belongs to this workspace, exactly
+as it does for a picked one — a client cannot assert a Project's parentage here
+any more than it can there. `SpineRepository.createProject` remains the single
+creation authority, the relationship is `project.advances_goal`, and the new
+Project is contributing structure the instant it exists.
+
+**`NewProjectForm` moved to `app/shared/project-creation/`** for this, with a
+re-export left in the Projects module so no call site changed. That is the
+`NewGoalForm` precedent — a form composed from another module's record page
+belongs in `app/shared` — and it is why there is one Project creation surface
+rather than two.
+
+Nothing is created automatically. The owner names the Project and saves it.
+
+## What it costs
+
+| Surface | Added statements |
+|---|---|
+| `/today` | **one**, bounded, over the RANKED cards' ids — flat, never per card |
+| Goal record / `/goals` pane | **one** ranked statement over the contributing-Project page (two beyond forty Projects) |
+| guided Review | **none** — its scan is unchanged |
+
+`listProjectNextActions` chunks at forty Project ids, so the statement stays well
+inside D1's 100-bound-parameter ceiling. Both figures are asserted against a
+counting database, comparing two records against six and demanding the same
+count — the assertion an implementation that asked per Project would fail.
+
+## Testing (STEER-04)
+
+- **Kernel / D1** — [`task-next-action.test.ts`](../../test/kernel/task-next-action.test.ts)
+  (repository ↔ pure parity, repository ↔ `/tasks` parity, the sort key's
+  segments, the deterministic tiebreak, every exclusion, one statement whatever
+  the Project count, workspace isolation);
+  [`goal-next-action.test.ts`](../../test/kernel/goal-next-action.test.ts)
+  (the Goal-level composition and its determinism on reload, the honest absence
+  with the derived facts still stated, the creation loop end to end including
+  the new Project's first completed Task moving the Goal's movement line, both
+  flatness budgets, and the set-aside Goal that is absent from Today while its
+  record still answers).
+- **Unit** — [`goal-story-surfaces.test.tsx`](../../test/unit/goals/goal-story-surfaces.test.tsx):
+  the row opens the canonical Task, offers no mutation, names the Project where
+  the surface shows several, and renders less or says so per surface.
+- **E2E** — [`steer-goal-story.spec.ts`](../../e2e/steer-goal-story.spec.ts):
+  Today's card and the Goal record name it, the keyboard reaches and opens it,
+  the door creates a Project whose relationship is right on reload, at four
+  widths and in both appearances, `axe` clean.
+
+**Falsified, then restored.** Ordering the next action away from the canonical
+smart sort; letting a blocked Task become next; creating a Project without
+`project.advances_goal`; implementing the Goal's next action with a read per
+Project.

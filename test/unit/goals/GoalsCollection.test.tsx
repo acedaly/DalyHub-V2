@@ -207,6 +207,7 @@ describe("Goals collection (the Alignment view)", () => {
         contribution: selectedGoal.contribution,
         projects: [],
         projectsNextCursor: null,
+        nextAction: null,
         alignment: selectedGoal.alignment,
         alignmentEvidence: [],
         alignmentEvidenceHasMore: false,

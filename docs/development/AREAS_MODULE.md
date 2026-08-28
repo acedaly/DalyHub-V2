@@ -538,3 +538,51 @@ has no parent to place it against.
 two header metadata values, a roll-up line, a nested card and a bullet inside it
 — then again in a full empty-state card below the tabs. Created and Updated
 moved to Settings → Record details (State was already in the Lifecycle group).
+
+---
+
+## The Goals tab tells the shared Goal story (STEER-03, 2026-08-28)
+
+Until V2.5 the Area record's Goals tab built its own Goal cards, and each card's
+progress bar was the Area's **Task roll-up** (`taskCompleted / taskTotal`),
+captioned *"Task roll-up"*. It carried no measurement, no movement, no alignment
+and no owner condition — a third measure of a Goal that no other surface in the
+product showed, so the same Goal read *"53% · Ahead"* on Today and an unrelated
+task-count percentage on its own Area
+([DEBT-206](../product/PRODUCT_DEBT.md)).
+
+The tab now renders the **same `GoalStoryRow` `/goals` renders** — the same
+shared component, from the same shared evaluators, so there is nothing left that
+can drift:
+
+- the **bar and the trailing value** are GOAL-02's measurement, from
+  `goalProgressMeter`. An unmeasured Goal draws no bar and prints no value:
+  "no numeric target" is not "0%";
+- the sentence beneath is FOLLOW-02's **movement**;
+- ADR-040's **alignment indicator** is drawn here, because this surface has no
+  detail pane beside it (on `/goals` the pane carries it and the row's
+  accessible name states it in words). Same value, different density;
+- STEER-02's owner-set **condition** is stated where it is set, so a Goal the
+  owner put aside is not read as a neglected one;
+- the mark is the ONE Goal identity rule (`goalIdentitySource`), with this
+  Area's own identity as the inherited rung.
+
+**The roll-up is kept and reworded, not deleted.** The Projects and Tasks counts
+are real structural facts and an Area record is where structure is read, so they
+survive on the row's context line as counts of Projects and Tasks. What they
+stopped being is the Goal's progress answer. The Goal's target date, which
+AREA-02 added, is still shown there when set and absent when not.
+
+**What it costs:** ONE bounded grouped read for the displayed Goal page
+(`loadGoalStories`: six reads, eight statements, flat in the number of Goals),
+in its own failure domain — an unreadable story narrows what the tab says and
+never takes the Area record down. The owner's `firstDayOfWeek` is now read once
+for the whole route rather than inside the Habits block, so the Goal movement
+window and the Habits week cannot mean different sevens.
+
+`onOpenGoal` is gone from `AreaOverviewView`: the shared row opens through a
+react-router `<Link>`, which is the same client-side navigation the callback
+performed and is middle-clickable as well.
+
+Full detail, the parity method and the tests:
+[`GOALS_MODULE.md` → STEER-03](GOALS_MODULE.md#steer-03--one-goal-one-story-v25-2026-08-28).

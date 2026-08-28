@@ -886,9 +886,24 @@ is: the highest-ranked Task belonging to the Project in the workspace's `active`
 scope under the canonical `smart` sort, taken from ONE bounded scan of the most actionable
 Tasks, bucketed by Project. Where a Project has open work but none appears within that
 bound, the Review says **"No next action visible here"** and links to the Project's own Task
-list. It never claims a Project has no next action. (Today's project cards still name none —
-[DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3),
-which wants the exhaustive ranked statement rather than this bounded scan.)
+list. It never claims a Project has no next action.
+
+**STEER-04 (2026-08-28) built the exhaustive ranked statement, and left this scan
+exactly as it is.** [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3)
+is closed: `TaskRepository.listProjectNextActions` answers the SAME question with
+a bounded `ROW_NUMBER() OVER (PARTITION BY project …)` over the canonical smart
+ordering, and Today's project cards, a Goal's record and the `/goals` pane all
+read it. The rule itself is stated once in
+[`~/kernel/tasks/next-action`](../../app/kernel/tasks/next-action.ts) and proven
+equal to the repository by a parity test — see
+[`GOALS_MODULE.md` → STEER-04](GOALS_MODULE.md#steer-04--from-signal-to-step-v25-2026-08-28).
+
+The Review's own scan stays a **disclosed approximation** with its own honest
+wording, deliberately: it answers for a page of twenty Projects inside a step
+whose budget is asserted, and widening it was an explicit non-goal of STEER-04.
+The two never disagree about a Project that HAS a visible next action — both
+rank by `smart` over the active scope — and where they can differ, the Review is
+the one that says so.
 
 **Actions offered.** Open the canonical Project, open its Task list, change status through
 the Project's own Settings tab. The Project form is not embedded, and every action preserves

@@ -852,6 +852,26 @@ export type TaskCompletedVisibility =
  * their order — is bound into the pagination cursor (ADR-043 §8), so a cursor from
  * one filter set is rejected under another.
  */
+/**
+ * STEER-04 — the input to the canonical per-Project next-action read.
+ *
+ * `todayIso` is the OWNER's calendar day (ADR-022), resolved server-side: it is
+ * what decides which open Task counts as OVERDUE inside the `smart` ordering,
+ * and a browser clock would make "next" depend on where the owner is sitting.
+ * `timezone` travels with it, exactly as it does for every other calendar-
+ * relative read.
+ */
+export type ListProjectNextActionsInput = {
+  /** The Projects to answer for. Bounded by the caller; chunked internally. */
+  readonly projectIds: readonly string[];
+  /** The owner's current wall-calendar date, `YYYY-MM-DD`. */
+  readonly todayIso: string;
+  /** The zone `todayIso` was resolved in. Required: the scope predicate is
+   * calendar-relative, and a defaulted zone would silently answer for a day the
+   * owner is not living in. */
+  readonly timezone: string;
+};
+
 export type WorkspaceTaskFilters = {
   readonly priority?: TaskPriority | null;
   readonly timeSector?: TimeSector | null;

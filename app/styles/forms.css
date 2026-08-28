@@ -1023,3 +1023,19 @@
 .dh-datefield__trigger[data-invalid="true"] {
   border-color: var(--dh-color-danger);
 }
+
+/*
+ * STEER-04 — the DECIDED parent on a create form whose surface already chose
+ * one ("New Project for this Goal").
+ *
+ * A sentence rather than a disabled control: a greyed-out picker invites the
+ * owner to try to change something they cannot, and a disabled field is not
+ * reliably reachable by assistive tech. It reads as help text because that is
+ * what it is.
+ */
+.dh-form-fixed-parent {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}

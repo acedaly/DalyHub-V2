@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import {
   Card,
   CardCollection,
+  ProgressRowList,
   MetricRow,
   MetricRowItem,
   MetricTile,
@@ -22,6 +23,18 @@ import { DrawerTrigger } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { AccentIcon, EntityIcon } from "~/shared/entity";
 import { HealthIndicator } from "~/shared/project-health";
+/*
+ * STEER-03 — the shared Goal story. The Areas module reaches it through
+ * `~/shared`, not through `~/modules/goals`: a module may not import another
+ * module's internals, and a rule that has to be the same on every surface has
+ * to live where every surface can reach it.
+ */
+import {
+  GoalStoryRow,
+  goalIdentitySource,
+  type GoalStory,
+} from "~/shared/goal-progress";
+import { UNMEASURED_GOAL_PROGRESS } from "~/kernel/goals";
 import { RecordLayout } from "~/shared/record-layout";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import { InlineTextField, type InlineSaveOutcome } from "~/shared/inline-edit";
@@ -31,7 +44,6 @@ import type { AreaMomentum } from "~/kernel/areas";
 
 import {
   areaStateLabel,
-  goalStateLabel,
   projectStateLabel,
   rollupProgress,
   type SerializedAreaGoalItem,
@@ -69,7 +81,15 @@ interface AreaOverviewViewProps {
    * the server's own message beside it.
    */
   readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
-  readonly onOpenGoal: (goalId: string) => void;
+  /*
+   * STEER-03 — `onOpenGoal` is GONE.
+   *
+   * It existed because the Goal CARD's primary open target was a callback the
+   * route turned into a `navigate()`. The shared `GoalStoryRow` opens through a
+   * react-router `<Link>`, which is the same client-side navigation with a real
+   * href behind it — so the callback was a second way to say the same thing,
+   * and one of them was not middle-clickable.
+   */
   readonly onOpenProject: (projectId: string) => void;
   readonly activityTab: ReactNode;
   /** The shared Universal Relationship System Linked Items section. */
@@ -106,69 +126,85 @@ function MomentumChip({ momentum }: { readonly momentum: AreaMomentum }) {
   );
 }
 
-function goalCard(
-  goal: SerializedAreaGoalItem,
-  onOpenGoal: (goalId: string) => void,
-): CardProps {
-  const projects = rollupProgress(
-    {
-      total: goal.projectTotal,
-      completed: goal.projectCompleted,
-      ratio:
-        goal.projectTotal === 0
-          ? null
-          : goal.projectCompleted / goal.projectTotal,
-    },
-    "project",
-  );
-  const tasks = rollupProgress(
-    {
-      total: goal.taskTotal,
-      completed: goal.taskCompleted,
-      ratio: goal.taskTotal === 0 ? null : goal.taskCompleted / goal.taskTotal,
-    },
-    "task",
-  );
-  const metadata: CardMetaItem[] = [
-    {
-      id: "projects",
-      label: "Projects",
-      value: projects.has ? projects.summary : "No Projects yet",
-    },
-  ];
-  if (!tasks.has) {
-    metadata.push({ id: "tasks", label: "Tasks", value: "No tasks yet" });
+/**
+ * STEER-03 (DEBT-206) — an Area's Goal, told through the SHARED Goal story.
+ *
+ * ── What this replaced ─────────────────────────────────────────────────────
+ * A hand-built Card whose progress bar was the Area's Task ROLL-UP
+ * (`taskCompleted / taskTotal`), captioned "Task roll-up", with no measurement,
+ * no movement, no alignment and no owner condition. It was a third measure of a
+ * Goal that no other surface in the product showed: the same Goal read
+ * *"53% · Ahead"* on Today and an unrelated task-count percentage on its own
+ * Area, with nothing on either surface saying they were different questions.
+ *
+ * ── What it is now ─────────────────────────────────────────────────────────
+ * The SAME `GoalStoryRow` `/goals` renders, from the same shared evaluators —
+ * so the bar is GOAL-02's measurement (absent, not zero, on an unmeasured
+ * Goal), the sentence beneath is FOLLOW-02's movement, the indicator is
+ * ADR-040's alignment and the word beside them is STEER-02's owner condition.
+ * The mark is `goalIdentitySource`'s one identity rule, with the AREA's own
+ * identity as the inherited rung — this record knows it, so a Goal with no
+ * colour of its own is drawn in its Area's, exactly as `/goals` draws it.
+ *
+ * ── The roll-up is kept, and worded as what it is ──────────────────────────
+ * The Projects and Tasks counts are real structural facts, and the Area record
+ * is where structure is read. They stay, on the row's CONTEXT line, phrased as
+ * counts of Projects and Tasks — never as a percentage, never as a bar, and
+ * never as the Goal's progress answer.
+ */
+function areaGoalStructureNote(goal: SerializedAreaGoalItem): string | null {
+  const parts: string[] = [];
+  if (goal.projectTotal > 0) {
+    parts.push(
+      `${goal.projectCompleted} of ${goal.projectTotal} ${
+        goal.projectTotal === 1 ? "Project" : "Projects"
+      } complete`,
+    );
+  } else {
+    parts.push("No Projects yet");
   }
-  // AREA-02: only shown when set, so an Area with no Goal target dates yet
-  // never overcrowds the card with an empty field.
-  if (goal.targetDate) {
-    const formatted = formatCalendarDate(goal.targetDate);
-    if (formatted) {
-      metadata.push({ id: "target", label: "Target", value: formatted });
-    }
+  if (goal.taskTotal > 0) {
+    parts.push(
+      `${goal.taskCompleted} of ${goal.taskTotal} ${
+        goal.taskTotal === 1 ? "Task" : "Tasks"
+      } complete`,
+    );
   }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
 
-  return {
-    id: goal.id,
-    title: goal.title,
-    typeLabel: "Goal",
-    icon: <EntityIcon type="goal" />,
-    headingLevel: 3,
-    status: goalStateLabel(goal),
-    metadata,
-    progress: tasks.has
-      ? {
-          value: tasks.completed,
-          max: tasks.total,
-          label: `Task roll-up: ${tasks.summary}`,
-        }
-      : undefined,
-    density: "comfortable",
-    presentation: "list",
-    href: `/goals/${encodeURIComponent(goal.id)}`,
-    onOpen: () => onOpenGoal(goal.id),
-    openAriaLabel: `Open ${goal.title}`,
-  };
+/**
+ * The story a Goal with no readable story still tells.
+ *
+ * The story read is its own failure domain (see the Area loader), so a Goal can
+ * arrive without one. It keeps its identity, its title and its structure; what
+ * it loses is the derived facts, and it says so by showing none of them rather
+ * than by showing zeros.
+ */
+/**
+ * AREA-02's target date, kept. Only shown when SET, so an Area whose Goals carry
+ * no target dates never reads a column of "No target date" — an ordinary
+ * absence must not be drawn as a problem.
+ */
+function areaGoalTargetNote(goal: SerializedAreaGoalItem): string | null {
+  if (!goal.targetDate) return null;
+  const formatted = formatCalendarDate(goal.targetDate);
+  return formatted ? `Target ${formatted}` : null;
+}
+
+function areaGoalStory(goal: SerializedAreaGoalItem): GoalStory {
+  return (
+    goal.story ?? {
+      id: goal.id,
+      title: goal.title,
+      progress: { ...UNMEASURED_GOAL_PROGRESS, targetDate: goal.targetDate },
+      alignment: null,
+      movement: null,
+      condition: null,
+      targetDate: goal.targetDate,
+      contribution: null,
+    }
+  );
 }
 
 function projectCard(
@@ -413,7 +449,6 @@ export function AreaOverviewView({
   activeProjectTotal,
   archived = false,
   onRename,
-  onOpenGoal,
   onOpenProject,
   activityTab,
   linkedTab,
@@ -638,16 +673,50 @@ export function AreaOverviewView({
                     />
                   ) : (
                     <>
-                      <CardCollection
-                        items={goals}
-                        getItemId={(goal) => goal.id}
-                        ariaLabel="Area Goals"
-                        presentation="list"
-                        density="comfortable"
-                        renderCard={(goal) => (
-                          <Card {...goalCard(goal, onOpenGoal)} />
-                        )}
-                      />
+                      {/*
+                       * STEER-03 — the SAME row `/goals` draws, from the same
+                       * shared story. Not a card that resembles it: the same
+                       * component, so there is nothing here that can drift.
+                       *
+                       * `showAlignment` is true because this surface has no
+                       * detail pane beside it — on `/goals`, REDESIGN-04 §6.2
+                       * put ADR-040's indicator on the pane and left the row's
+                       * accessible name to carry it. Where the indicator is
+                       * DRAWN is a per-surface density decision; the VALUE is
+                       * the same one, which is what the parity attributes on
+                       * every row prove.
+                       */}
+                      <ProgressRowList
+                        label="Area Goals"
+                        data-testid="area-goals-list"
+                      >
+                        {goals.map((goal) => (
+                          <GoalStoryRow
+                            key={goal.id}
+                            data-testid="area-goal-row"
+                            story={areaGoalStory(goal)}
+                            identity={goalIdentitySource({
+                              own: goal.story
+                                ? {
+                                    iconKey: goal.story.iconKey,
+                                    colourSlot: goal.story.colourSlot,
+                                  }
+                                : null,
+                              area: {
+                                iconKey: overview.iconKey,
+                                colourSlot: overview.colourSlot,
+                                colourRank: overview.colourRank,
+                              },
+                            })}
+                            href={`/goals/${encodeURIComponent(goal.id)}`}
+                            notes={[
+                              areaGoalStructureNote(goal),
+                              areaGoalTargetNote(goal),
+                            ]}
+                            showAlignment
+                          />
+                        ))}
+                      </ProgressRowList>
                       <BoundedNote kind="Goals" nextCursor={goalsNextCursor} />
                     </>
                   )}

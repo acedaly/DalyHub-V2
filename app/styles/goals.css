@@ -1340,3 +1340,65 @@
 .dh-goal-fact {
   display: contents;
 }
+
+/*
+ * STEER-03 — the shared Goal-story row's signal group.
+ *
+ * The row's signal slot now carries up to three separate answers — FOLLOW-02's
+ * movement sentence, ADR-040's alignment indicator and STEER-02's owner
+ * condition. They are separate facts, so they are separate elements that wrap
+ * independently rather than one run-on line; the gap is what keeps them
+ * readable as three at a phone width.
+ */
+.dh-goal-row__signals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-1) var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * STEER-04 — the Goal record's next STEP, under its movement line.
+ *
+ * The two lines are the record's past and its future in one band: "did anything
+ * happen?" then "what happens next?". The create-structure door sits beside the
+ * absence when the absence is structural, so the diagnosis and its remedy are
+ * on the same line rather than a tab apart.
+ */
+.dh-goal-overview__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  margin-block-start: var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+.dh-goal-overview__next .dh-next-action {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+/* STEER-04 — the same next-step line on the `/goals` pane's focus band. */
+.dh-goalpane__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dh-space-2);
+  min-inline-size: 0;
+}
+
+.dh-goalpane__next .dh-next-action {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+/* STEER-04 — the two Project actions on the pane's chip row: create one, or
+ * link one that exists. Different verbs, so both are offered and neither is
+ * hidden behind the other; they wrap rather than crowd the heading. */
+.dh-goalchips__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dh-space-2);
+}

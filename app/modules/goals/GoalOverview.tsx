@@ -68,6 +68,11 @@ import {
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 import { formatCalendarDate } from "~/shared/task-record/task-view";
 
+import { DrawerTrigger } from "~/shared/drawer";
+import { NextActionLine } from "~/shared/task-record/NextActionLine";
+import type { SerializedNextAction } from "~/shared/task-record/NextActionLine";
+import { NEW_PROJECT_FOR_GOAL_KEY } from "~/shared/project-creation";
+
 import { GoalAreaField } from "./GoalAreaField";
 import { GoalConditionField } from "./GoalConditionField";
 import { GoalProjectsTab } from "./GoalProjectsTab";
@@ -108,6 +113,16 @@ interface GoalOverviewProps {
    * component Today and the Goals collection use, from the SAME value.
    */
   readonly movement?: GoalMovement | null;
+  /**
+   * STEER-04 (DEBT-210) — the Goal's next step, across its contributing
+   * Projects, from the product's ONE next-action rule.
+   *
+   * `null` is the honest answer in three different situations — no contributing
+   * Project, no Tasks under them, or every open Task parked or blocked — and the
+   * record states the absence rather than filling it. Where the absence is
+   * STRUCTURAL, the door beside it offers the remedy.
+   */
+  readonly nextAction?: SerializedNextAction | null;
   readonly alignmentEvidence: readonly SerializedGoalAlignmentEvidence[];
   readonly alignmentEvidenceHasMore: boolean;
   readonly completionPending: boolean;
@@ -191,6 +206,7 @@ export function GoalOverview({
   timeZone,
   alignment,
   movement = null,
+  nextAction = null,
   alignmentEvidence,
   alignmentEvidenceHasMore,
   completionPending,
@@ -506,6 +522,48 @@ export function GoalOverview({
                   className="dh-goal-overview__movement"
                 />
               ) : null}
+              {/*
+               * STEER-04 (DEBT-210) — from a signal to a STEP.
+               *
+               * It sits directly under the movement line, because those two
+               * lines are the record's past and its future in the same band:
+               * "did anything happen?" and "what happens next?". It is a
+               * pointer at the canonical Task, opened in the shared Drawer —
+               * this record mutates no Task.
+               *
+               * `absence="state"` (unlike Today's cards, which hide it): the
+               * owner opened this Goal to ask about this Goal, and REVIEW-02's
+               * honest sentence is a better answer than silence. It never
+               * suppresses the derived facts above it — a Goal with no eligible
+               * next action still states its measurement, its movement, its
+               * alignment and the owner's condition.
+               */}
+              <div
+                className="dh-goal-overview__next"
+                data-testid="goal-next-step"
+              >
+                <NextActionLine
+                  task={nextAction ?? null}
+                  absence="state"
+                  label="Next step"
+                />
+                {/*
+                 * The STRUCTURAL remedy, and only where the absence is
+                 * structural: a Goal that has no contributing Project at all.
+                 * A Goal whose Projects are simply finished is not missing
+                 * structure, and offering to create one there would be the
+                 * product inventing work.
+                 */}
+                {contribution.total === 0 ? (
+                  <DrawerTrigger
+                    drawerKey={NEW_PROJECT_FOR_GOAL_KEY}
+                    className="dh-btn dh-btn--outlined dh-btn--sm"
+                    data-testid="goal-new-project"
+                  >
+                    New Project for this Goal
+                  </DrawerTrigger>
+                ) : null}
+              </div>
               <div className="dh-goal-overview__definition">
                 <h2 className="dh-goal-overview__definition-heading">
                   Definition of done

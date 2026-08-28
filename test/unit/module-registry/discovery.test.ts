@@ -715,13 +715,18 @@ describe("module discovery", () => {
         "plan.open",
         "plan.open_next_week",
         // V2.0.1 navigation commands, in module order (Areas 10 → Goals 20 →
-        // Projects 30) ahead of Tasks at 40. Goals contributes NO create
-        // command on purpose: a Goal is created from an Area record (the only
-        // surface that hosts `NewGoalForm`), so a workspace-level "New Goal"
-        // would be a command for something the product cannot do.
+        // Projects 30) ahead of Tasks at 40.
+        //
+        // STEER-03 adds `goals.new`. The note here used to say Goals
+        // contributed no create command "on purpose: a Goal is created from an
+        // Area record (the only surface that hosts `NewGoalForm`)". That
+        // stopped being true with REDESIGN-04's `+ Add goal` on `/goals`, and
+        // the command opens exactly that Drawer through DS-03's URL contract —
+        // it is one more door into the one creation flow, not a second one.
         "areas.open",
         "areas.new",
         "goals.open",
+        "goals.new",
         // HABITS-01 — Habits contributes both a navigation command and a create
         // one, because unlike a Goal a Habit HAS a workspace-level creation
         // surface (`/habits/new`) with no required parent.

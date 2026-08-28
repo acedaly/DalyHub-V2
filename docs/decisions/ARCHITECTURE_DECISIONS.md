@@ -4877,6 +4877,71 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
     precise and mean nothing, and every one of its inputs would stop being
     checkable the day it ships.
 
+- **Second implementation, 2026-08-28 — [STEER-03 + STEER-04](../roadmap/ROADMAP_V2_5.md#-steer-03--one-goal-one-story).**
+  The two decisions the first pass left are now built, and **all seven are
+  implemented**.
+
+  - **Decision 6 is enforced by ENUMERATION, not by intent.** "One Goal story"
+    became a shape (`GoalStory`, `~/shared/goal-progress/goal-story.ts`), a
+    bounded read that composes it (`loadGoalStories`), and one row that draws it
+    (`GoalStoryRow`) — so `/goals` and the Area record render the SAME component
+    rather than two that agree. Parity is proven the way this decision requires:
+    every row stamps `goalStoryDataAttributes`, and a kernel test drives the
+    REAL `/goals`, Area-record and guided-Review loaders over one seeded
+    workspace and demands equality across a measured Goal, an unmeasured one, a
+    configured-but-unstarted one and a set-aside one. The clause's second half —
+    *"no surface introduces a measure of a Goal that the vocabulary does not
+    define"* — is a test that lists every Goal-progress rendering in the product
+    with the authority it must reach the figure through, AND scans for the shape
+    of one, so an undeclared new rendering fails a build.
+
+    **The enumeration found something the audit had not.** The Projects page's
+    Goal rail was assembling the same three meter values inline as the `/goals`
+    row — same fields, same status ramp, same unmeasured rule, written twice.
+    That is how a fourth interpretation starts, so `goalProgressMeter` became
+    the ONE Goal meter on the way past. **A "one X" decision is only as strong
+    as the census that finds the second X**, and this one was a review comment
+    away from being missed.
+
+  - **Decision 4 is enforced by reusing the code path, not by copying it.**
+    `TaskRepository.listProjectNextActions` reaches its population through the
+    repository's OWN `#resolveWorkspaceScope("active", { blocked: false })` and
+    its ordering through its OWN `#workspaceSortSpec("smart")` — so "Today and
+    `/tasks` disagree" is not a thing that can drift, because there is nothing
+    to keep in step. The kernel mirror (`~/kernel/tasks/next-action`) exists for
+    the rule to be *stated* and driven without a database, and three parity
+    proofs bind them: repository ↔ pure rule over a fact matrix, repository ↔
+    the canonical `/tasks` collection read, and the pure sort key asserted
+    character-for-character against the SQL expression's four segments.
+
+    **Blocked work is excluded, and that reading is recorded.** DEBT-77's
+    *"highest-priority open, non-waiting"* names four of the five exclusions;
+    the fifth — TASKS-12's dependency-blocked — is added because a Task whose
+    blocker is still open is work the owner cannot start, and recommending it
+    would be the one thing a next-action row must never do. It is not a new
+    state: it is the exact complement of the repository's own `blocked` filter,
+    derived from live `task.blocks` edges.
+
+    The Goal level is a **composition** of that one rule through
+    `project.advances_goal`, chosen among candidates by the same comparator with
+    the Task id as the final tiebreak — no Goal-specific ranking model, which is
+    the decision's own foreclosure.
+
+  - **Decision 3 held under the new surfaces without a special case.** A
+    set-aside Goal is absent from Today's Goal panel and `/plan` (excluded in
+    SQL by STEER-02), so it is offered no next step there by construction rather
+    than by a rule the action layer had to remember; its record still answers
+    when asked. Asserted on both sides in one test.
+
+  - **Two structural moves, both forced by the module-import boundary and both
+    worth recording.** STEER-01's Goal identity rule moved to
+    `~/shared/goal-progress/goal-identity.ts`, and `NewProjectForm` moved to
+    `~/shared/project-creation/`, each re-exported from its old path. **A "one
+    authority" rule and a module boundary are in tension the moment a second
+    module needs the authority**, and the resolution is always the same: move
+    the rule to `app/shared`, never copy it — the `NewGoalForm` precedent,
+    applied twice more.
+
 - **First implementation, 2026-08-28 — [STEER-01 + STEER-02](../roadmap/ROADMAP_V2_5.md#-steer-01--what-goals-answers).**
   Five of the seven decisions are now built. Decision 4 (the one next-action
   rule) and the DEBT-206 half of decision 6 belong to STEER-03/04 and are

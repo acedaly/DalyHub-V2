@@ -338,6 +338,40 @@ this period", "No active Project currently contributes to this Goal" — with no
 streaks, gamification, red dashboards or moral language about a neglected life Area.
 Every Goal, Area, Project and Task is one link away.
 
+**STEER-03 (2026-08-28) widened what the step SEES, and changed nothing else**
+([DEBT-209](../product/PRODUCT_DEBT.md)). The paragraph above described the step
+until then, and it was the problem: it showed alignment and a contributing count
+and nothing more, so the owner steered the week from **less** information in the
+Review than a glance at Today gave them — a Goal behind its own target date, one
+that moved substantially this week, and one the owner had deliberately set aside
+all read identically in the one sitting dedicated to noticing the difference.
+
+The step now states, per Goal: GOAL-02's **measurement status** and the Goal's own
+value, its **target date** (formatted with the product's own date formatting),
+FOLLOW-02's **movement** sentence and STEER-02's owner-set **condition**, beside
+the alignment it already had. Every one of them comes from the shared Goal story
+(`~/shared/goal-progress`, [`GOALS_MODULE.md` → STEER-03](GOALS_MODULE.md#steer-03--one-goal-one-story-v25-2026-08-28))
+through `loadGoalStories` — the same composition the Area record makes, from the
+same evaluators, so the ritual and the record cannot describe a Goal differently.
+
+Three things it deliberately did **not** change:
+
+- **The selection.** `listGoalsByAlignment` still decides which Goals appear and
+  in what order, because alignment is the question this step asks.
+- **The shape and the place.** Same list, same section, same position in the
+  flow; it is a wrapping block rather than a one-line pill now, and that is the
+  whole visual difference.
+- **The posture.** It remains a **reflection** surface. Every line is a fact the
+  product already derived, in the words it already uses. Nothing here advises,
+  ranks, coaches or proposes — and no next action is offered, because the step's
+  own bounded next-action scan is a disclosed approximation and STEER-04
+  deliberately left it exactly as it is.
+
+A Goal the owner has **set aside** is therefore distinguishable from a neglected
+one *in the ritual itself* — the half of STEER-02's problem that would otherwise
+have survived it. Its derived facts are unchanged by that word; only the reader's
+understanding is.
+
 Richer per-period Area attention history and alignment trend remain
 [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) and
 [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03).
@@ -446,11 +480,22 @@ Broader authored-content concurrency across the product remains
 `review-guide-context.ts` is the only place the guided flow reads a repository. Every
 read is bounded by `REVIEW_GUIDE_LIMITS`, and each step's exact executed-statement count
 is declared in `REVIEW_GUIDE_QUERY_BUDGET` and **asserted** against real D1 —
-`overview: 9`, `inbox: 2`, `projects: 8`, `alignment: 6`, `reflection: 1`, `focus: 2`,
+`overview: 18`, `inbox: 2`, `projects: 8`, `alignment: 12`, `reflection: 1`, `focus: 2`,
 `complete: 1`. Two further tests prove the counts are flat with respect to workspace
 size (fifteen Projects cost what three do; ten Goals cost what three do). Where a list is
 bounded the surface states it ("4+") and links to the canonical destination; the Inbox
 total is always the authoritative aggregate.
+
+**Both moved figures are STATED rather than absorbed**, which is this document's
+rule about budgets. FOLLOW-01 took `overview` from 15 to 18 (the bounded Activity
+window behind the period's plan account, and the active-Habit page behind routine
+consistency). **STEER-03 took `alignment` from 6 to 12**: the shared Goal story is
+six grouped reads executing as eight statements, and two of the step's previous
+six moved *inside* that composition rather than being added — so the arithmetic
+is 6 − 2 + 8. What the six buy is the Review seeing what Today already saw. Both
+are flat in the number of Goals, asserted by
+[`review-guide-context.test.ts`](../../test/kernel/review-guide-context.test.ts)
+and [`goal-story.test.ts`](../../test/kernel/goal-story.test.ts).
 
 ### Activity
 

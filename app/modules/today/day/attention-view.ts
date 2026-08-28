@@ -17,6 +17,8 @@
  * is capped so it can never out-length the day beside it.
  */
 
+import type { SerializedNextAction } from "~/shared/task-record/NextActionLine";
+
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -222,6 +224,24 @@ export interface ContinueProject {
   readonly colourRank: number;
   /** IDENTITY-01 — the Project's own chosen colour slot, which beats the rank. */
   readonly colourSlot: string | null;
+  /**
+   * STEER-04 (DEBT-77) — the Project's canonical NEXT ACTION, or `null`.
+   *
+   * DEBT-77's words: *"on a surface whose whole purpose is 'what should I do
+   * now?', that is one click more than it should be."* The card carried health,
+   * an open-task count and a progress meter and could not say what to actually
+   * do next, because nothing in the read model held the identity of a Task.
+   *
+   * It is the product's ONE next-action rule (`~/kernel/tasks/next-action`),
+   * evaluated by ONE bounded ranked statement over the ranked cards' ids — never
+   * one query per card, and never a second notion of "next" that would let Today
+   * and `/tasks` disagree.
+   *
+   * `null` is the honest answer for a Project whose open work is all completed,
+   * cancelled, on hold, Someday, waiting or dependency-blocked. The card renders
+   * LESS rather than inventing a step.
+   */
+  readonly nextAction: SerializedNextAction | null;
 }
 
 /**

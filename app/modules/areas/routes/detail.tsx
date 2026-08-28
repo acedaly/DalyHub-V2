@@ -25,6 +25,9 @@ import {
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { readSupportingHabits } from "~/platform/habits/habit-facts.server";
+import { createOwnerAlignmentContext } from "~/shared/alignment";
+import { loadGoalStories } from "~/shared/goal-progress/goal-story-load.server";
+import type { LoadedGoalStory } from "~/shared/goal-progress";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { SupportingHabits } from "~/shared/habits";
 import type { SerializedHabit } from "~/shared/habits";
@@ -144,10 +147,24 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  const healthContext = createOwnerHealthContext(
-    new Date(),
-    await scope.ownerTimeZone(),
-  );
+  const now = new Date();
+  const timeZone = await scope.ownerTimeZone();
+  const healthContext = createOwnerHealthContext(now, timeZone);
+
+  /*
+   * The owner's week start, read ONCE.
+   *
+   * It was read inside the Habits block; STEER-03's Goal story needs the same
+   * value for FOLLOW-02's movement window, and reading a preference twice on
+   * one route to answer one question is how two parts of a page come to
+   * disagree about which seven days "this week" means. It keeps the Habits
+   * block's own fallback: a week boundary one day out is a far smaller error
+   * than a record that does not load.
+   */
+  const firstDayOfWeek = await scope.appPreferences
+    .get(session.user.subject)
+    .then((preferences) => preferences.firstDayOfWeek)
+    .catch(() => DEFAULT_APP_PREFERENCES.firstDayOfWeek);
 
   /*
    * HABITS-01 — the behaviours the owner practises in this part of life.
@@ -159,10 +176,6 @@ export async function loader({ params, context }: Route.LoaderArgs) {
    */
   let habits: readonly SerializedHabit[] = [];
   try {
-    const firstDayOfWeek = await scope.appPreferences
-      .get(session.user.subject)
-      .then((preferences) => preferences.firstDayOfWeek)
-      .catch(() => DEFAULT_APP_PREFERENCES.firstDayOfWeek);
     const grouped = await readSupportingHabits(
       scope,
       { todayIso: healthContext.todayIso, firstDayOfWeek },
@@ -246,6 +259,49 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     isProjectHealthVisible(project),
   ).length;
 
+  /*
+   * STEER-03 (DEBT-206) — the SHARED Goal story for this Area's Goals.
+   *
+   * The one bounded, grouped read (`loadGoalStories`): SIX reads over the whole
+   * displayed page's ids — details, measurement summaries, milestone summaries,
+   * contributions, alignment facts and FOLLOW-02's movement — executing as
+   * EIGHT statements, flat in the number of Goals and never one per Goal. It is
+   * the same composition the guided Review's Goals step makes, from the same
+   * evaluators the `/goals` row reads, which is what stops this tab having a
+   * third opinion about a Goal's progress.
+   *
+   * Its OWN failure domain. A story read that throws leaves every Goal's
+   * identity, title, target date and roll-up counts intact and simply omits the
+   * derived facts — an Area record narrowed, never an Area record broken, which
+   * is how every other read on this route behaves.
+   */
+  let goalStories: ReadonlyMap<string, LoadedGoalStory> = new Map();
+  try {
+    const { evaluation, recentWindowStartIso } = createOwnerAlignmentContext(
+      now,
+      timeZone,
+    );
+    goalStories = await loadGoalStories(
+      scope,
+      goalPage.items.map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        createdAt: goal.createdAt,
+        completedAt: goal.completedAt,
+      })),
+      {
+        now,
+        timezone: timeZone,
+        todayIso: healthContext.todayIso,
+        firstDayOfWeek,
+        evaluation,
+        recentWindowStartIso,
+      },
+    );
+  } catch {
+    // See above: fewer facts on the tab, never a broken record.
+  }
+
   const evaluatedAtIso = healthContext.now.toISOString();
   const momentum = evaluateAreaMomentum(
     {
@@ -271,7 +327,9 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     rollup: serializeAreaRollup(rollup),
     momentum,
     activeProjectTotal,
-    goals: goalPage.items.map(serializeAreaGoalItem),
+    goals: goalPage.items.map((goal) =>
+      serializeAreaGoalItem(goal, goalStories.get(goal.id) ?? null),
+    ),
     goalsNextCursor: goalPage.nextCursor,
     projects,
     projectsNextCursor: projectPage.nextCursor,
@@ -501,7 +559,6 @@ function AreaDetail(props: Awaited<ReturnType<typeof loader>>) {
         />
       }
       onRename={onRename}
-      onOpenGoal={(goalId) => navigate(`/goals/${encodeURIComponent(goalId)}`)}
       onOpenProject={(projectId) =>
         navigate(`/projects/${encodeURIComponent(projectId)}`)
       }

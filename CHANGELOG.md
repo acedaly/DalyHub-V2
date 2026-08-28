@@ -1,5 +1,60 @@
 # Changelog
 
+- **Every screen now tells the same story about a goal — and points at what to
+  do next.**
+
+  A goal's own area used to show it a different way from everywhere else. Where
+  Today and the goals list showed how the goal itself was going, the area's
+  Goals tab drew a bar made of _task counts_ — so the same goal could read "79
+  of 70 kg · On track" in one place and an unrelated percentage in another, with
+  nothing to tell you they were different questions. That bar is gone. The area
+  now shows the goal exactly as the goals list does: its own measurement, whether
+  it moved this week, whether recent work has been going into it, and whether you
+  have set it aside. The project and task counts are still there — as counts,
+  where they belong, and no longer pretending to be the goal's progress.
+
+  **The weekly review can see it too.** Its Goals step used to know only whether
+  a goal had recent activity. It now shows the same measurement, the same
+  movement, the target date and your own "set aside" — so a goal that is three
+  weeks past its date, one that moved a lot this week, and one you deliberately
+  put down for the winter no longer read identically in the one sitting you set
+  aside for noticing the difference. Nothing about the review changed otherwise:
+  same step, same place, same questions, still a place to reflect rather than be
+  advised.
+
+- **"What can I actually do next?" now has an answer on the card.**
+
+  Today's _Continue working_ cards told you a project needed attention and how
+  far along it was, and then made you open it to find out what to do. Each card
+  now names its **next action** — one quiet line under the project's name, which
+  opens that task where you stand. A goal's record does the same thing across
+  every project working towards it, naming the project the task belongs to.
+
+  It is the same "next" the tasks screen means. Not a new priority system, not a
+  score, not a suggestion engine — literally the same ordering `/tasks` already
+  uses, asked one level down. So the two can never disagree about which task is
+  next. Work that is finished, cancelled, on hold, marked Someday, waiting on
+  somebody else, or blocked by another task is never offered: those are not
+  things you can do now, and calling them "next" would be the product wasting
+  your time politely.
+
+  Where there is nothing you can actually start, it says so on a goal's record
+  and shows nothing at all on a card. It never invents a task to fill the space.
+
+- **A goal with nothing working towards it can now be given something.**
+
+  A goal whose alignment read _"No contribution path"_ was a diagnosis with no
+  remedy: the only way to act on it was to leave, open the projects screen, and
+  find the goal again in a picker. There is now a **New Project for this Goal**
+  button on the goal's record, in its Projects tab and beside "Link project" in
+  the goals workspace. It opens the ordinary new-project form with the goal
+  already chosen, creates an ordinary project, and the goal counts it
+  immediately — no re-linking, no special kind of project, and nothing created
+  on your behalf. You still name it and save it.
+
+  There is also now a **New Goal** command in the command palette, which there
+  wasn't before.
+
 - **The Goals screen now answers one question, and you can answer it back.**
   `/goals` was ordered by how much recent task activity a goal had — which is a
   real signal, but it is not the question the screen looks like it is asking.

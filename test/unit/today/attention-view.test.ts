@@ -39,6 +39,7 @@ function project(overrides: Partial<ContinueProject> = {}): ContinueProject {
     iconKey: null,
     colourSlot: null,
     colourRank: 0,
+    nextAction: null,
     ...overrides,
   };
 }

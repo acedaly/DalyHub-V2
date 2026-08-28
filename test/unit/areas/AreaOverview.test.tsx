@@ -18,6 +18,8 @@ import type {
   SerializedAreaRollup,
 } from "~/modules/areas/area-view";
 import type { AreaMomentum } from "~/kernel/areas";
+import { UNMEASURED_GOAL_PROGRESS } from "~/kernel/goals";
+import type { LoadedGoalStory } from "~/shared/goal-progress";
 import { DrawerProvider } from "~/shared/drawer";
 
 import { stubHealth } from "../../support/project-health";
@@ -55,6 +57,48 @@ const momentum: AreaMomentum = {
   evaluatedAtIso: "2026-07-22T02:00:00.000Z",
 };
 
+/**
+ * STEER-03 — the Area's Goal now arrives with the SHARED story, exactly as
+ * `/goals` and the Goal record receive it. The fixture is a MEASURED Goal so
+ * the row has a bar to draw; `unmeasuredGoal` below is the other half.
+ */
+const goalStory: LoadedGoalStory = {
+  id: "g1",
+  title: "Ship v2",
+  progress: {
+    ...UNMEASURED_GOAL_PROGRESS,
+    measured: true,
+    type: "target_value",
+    unit: "features",
+    direction: "increase",
+    baseline: 0,
+    current: 6,
+    target: 10,
+    progressFraction: 0.6,
+    progressPercent: 60,
+    remaining: 4,
+    totalChange: 6,
+    status: "on_track",
+    measurementCount: 3,
+  },
+  alignment: {
+    state: "aligned",
+    label: "Recent action",
+    tone: "success",
+    reasons: [],
+    contributingProjects: 1,
+    activeContributingProjects: 1,
+    recentTaskCount: 2,
+    windowDays: 14,
+  } as unknown as LoadedGoalStory["alignment"],
+  movement: null,
+  condition: null,
+  targetDate: null,
+  contribution: { total: 1, completed: 0, active: 1 },
+  iconKey: null,
+  colourSlot: null,
+};
+
 const goal: SerializedAreaGoalItem = {
   id: "g1",
   title: "Ship v2",
@@ -66,6 +110,7 @@ const goal: SerializedAreaGoalItem = {
   taskTotal: 2,
   taskCompleted: 1,
   targetDate: null,
+  story: goalStory,
 };
 
 const project: SerializedAreaProjectItem = {
@@ -92,7 +137,6 @@ function renderRecord(
     onRename?: (
       title: string,
     ) => Promise<{ ok: true } | { ok: false; message: string }>;
-    onOpenGoal?: (id: string) => void;
     onOpenProject?: (id: string) => void;
     /** Which section to render — the record now opens on its Overview. */
     activeTabId?: string;
@@ -121,7 +165,6 @@ function renderRecord(
                 ).length
               }
               onRename={over.onRename ?? (async () => ({ ok: true }) as const)}
-              onOpenGoal={over.onOpenGoal ?? (() => {})}
               onOpenProject={over.onOpenProject ?? (() => {})}
               linkedTab={<div>linked-content</div>}
               activityTab={<div>activity-content</div>}
@@ -191,24 +234,71 @@ describe("AreaOverview", () => {
     expect(metrics.textContent).not.toContain("%");
   });
 
-  it("links Goal cards to the canonical Goal record and opens it (AREA-02)", () => {
-    const onOpenGoal = vi.fn();
-    renderRecord({ onOpenGoal, activeTabId: "goals" });
-    expect(screen.getByText("Task roll-up: 1 of 2 tasks")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Open Ship v2" }));
-    expect(onOpenGoal).toHaveBeenCalledWith("g1");
+  it("links a Goal row to the canonical Goal record (AREA-02)", () => {
+    renderRecord({ activeTabId: "goals" });
+    const link = screen.getByRole("link", { name: /^Ship v2/ });
+    expect(link).toHaveAttribute("href", "/goals/g1");
   });
 
-  it("shows a Goal’s target date only when set, never overcrowding the card (AREA-02)", () => {
+  /*
+   * STEER-03 (DEBT-206) — the Area tab no longer has a Goal measure of its own.
+   *
+   * These three assertions are the falsifier for restoring the Task roll-up
+   * bar: the caption is gone, the meter reads the GOAL's own measurement, and
+   * the roll-up survives only as a count worded as what it is.
+   */
+  it("draws the Goal’s own measurement, never a Task roll-up (STEER-03)", () => {
+    renderRecord({ activeTabId: "goals" });
+    expect(screen.queryByText(/Task roll-up/)).not.toBeInTheDocument();
+    const meter = screen.getByRole("progressbar", {
+      name: "Ship v2 progress",
+    });
+    // 60% — the GOAL's measurement, not 1-of-2 tasks (which would be 50%).
+    expect(meter).toHaveAttribute("aria-valuenow", "60");
+    expect(screen.getByText("6 / 10 features")).toBeInTheDocument();
+    // The roll-up is kept as a COUNT, on the context line.
+    expect(screen.getByText(/1 of 2 Tasks complete/)).toBeInTheDocument();
+  });
+
+  it("gives an UNMEASURED Goal no bar and no fabricated percentage (STEER-03)", () => {
+    renderRecord({
+      activeTabId: "goals",
+      goals: [
+        {
+          ...goal,
+          story: {
+            ...goalStory,
+            progress: UNMEASURED_GOAL_PROGRESS,
+          },
+        },
+      ],
+    });
+    expect(
+      screen.queryByRole("progressbar", { name: "Ship v2 progress" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/No measurement/)).toBeInTheDocument();
+  });
+
+  it("states the owner’s condition beside the derived facts (STEER-02/03)", () => {
+    renderRecord({
+      activeTabId: "goals",
+      goals: [{ ...goal, story: { ...goalStory, condition: "set_aside" } }],
+    });
+    expect(screen.getByText("Set aside")).toBeInTheDocument();
+    // The derived facts are untouched by the owner's judgement.
+    expect(screen.getByText("6 / 10 features")).toBeInTheDocument();
+  });
+
+  it("shows a Goal’s target date only when set, never overcrowding the row (AREA-02)", () => {
     const { unmount } = renderRecord({ activeTabId: "goals" });
-    expect(screen.queryByText("Target")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Target /)).not.toBeInTheDocument();
     unmount();
 
     renderRecord({
       activeTabId: "goals",
       goals: [{ ...goal, targetDate: "2026-08-15" }],
     });
-    expect(screen.getByText("15 Aug 2026")).toBeInTheDocument();
+    expect(screen.getByText(/Target 15 Aug 2026/)).toBeInTheDocument();
   });
 
   it("exposes a New Goal action on the Goals tab (AREA-02)", () => {

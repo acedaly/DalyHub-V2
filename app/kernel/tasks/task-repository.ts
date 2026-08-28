@@ -31,6 +31,7 @@ import type {
   ListWaitingTasksInput,
   TaskActivityDayCount,
   ListWorkspaceTaskGroupsInput,
+  ListProjectNextActionsInput,
   ListWorkspaceTasksInput,
   MoveTaskOccurrenceInput,
   MoveTaskOccurrenceResult,
@@ -49,6 +50,7 @@ import type {
   SetWaitingResult,
   SkipTaskOccurrenceOptions,
   SkipTaskOccurrenceResult,
+  TaskListItem,
   TaskListPage,
   TaskParentCandidate,
   TaskPriority,
@@ -216,6 +218,26 @@ export interface TaskRepository {
   listWorkspaceTaskGroups(
     input: ListWorkspaceTaskGroupsInput,
   ): Promise<WorkspaceTaskGrouping>;
+
+  /**
+   * STEER-04 — each Project's canonical NEXT ACTION, in ONE bounded statement.
+   *
+   * The product's one next-action rule (`~/kernel/tasks/next-action`,
+   * ADR-111 decision 4) evaluated at the database: the population is the
+   * canonical ACTIVE planning scope minus TASKS-12's dependency-blocked work,
+   * the ordering is the canonical `smart` expression with the collection's own
+   * `created_at, id` tiebreak, and `ROW_NUMBER() OVER (PARTITION BY project)`
+   * keeps rank 1 per Project. One statement per chunk of ids — never one query
+   * per Project, and never a bounded scan of the workspace pretending to be
+   * exhaustive (which is what the guided Review's disclosed approximation is,
+   * and why it stays what it is rather than being widened).
+   *
+   * A Project with no eligible Task is simply absent from the map: the caller
+   * renders REVIEW-02's honest absence rather than inventing a step.
+   */
+  listProjectNextActions(
+    input: ListProjectNextActionsInput,
+  ): Promise<Map<string, TaskListItem>>;
 
   /**
    * TASKS-03 — the DISTINCT delegatees recorded on the workspace's tasks, for the

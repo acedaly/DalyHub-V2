@@ -135,6 +135,7 @@ import {
   goalCheckInLabel,
 } from "~/shared/goal-progress";
 
+import { NextActionLine } from "~/shared/task-record/NextActionLine";
 import { TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
@@ -1515,6 +1516,27 @@ export function TodayScreen({
                       {project.openCount === 1 ? "task" : "tasks"} ·{" "}
                       {project.statusLabel}
                     </span>
+                    {/*
+                     * STEER-04 (DEBT-77) — what the owner can actually DO next.
+                     *
+                     * One quiet line UNDER the Project's title and its existing
+                     * signals, so the title stays visually dominant and the card
+                     * gains a fact rather than a second subject. It opens the
+                     * canonical Task in the Drawer Today already hosts and
+                     * mutates nothing.
+                     *
+                     * `absence="hide"` is deliberate: this is a three-card list
+                     * on the busiest screen in the product, and a row saying
+                     * "No next action visible here" on every card would cost
+                     * more than it says. The Project card already states its
+                     * open count and its health, so the absence is legible from
+                     * what is there. A Goal's RECORD states it in words, because
+                     * there the owner asked about that one thing.
+                     */}
+                    <NextActionLine
+                      task={project.nextAction}
+                      className="dh-day-row__next"
+                    />
                   </span>
                 </li>
               ))}

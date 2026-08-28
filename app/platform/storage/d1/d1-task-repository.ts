@@ -118,6 +118,7 @@ import {
   validateTaskRecencyWindow,
   recencyWindowStart,
   weekWindowEnd,
+  NEXT_ACTION_VIEW,
   type BulkFieldResult,
   type BulkPlanResult,
   type ClearPlanResult,
@@ -133,6 +134,7 @@ import {
   type TaskActivityDayCount,
   type ListWaitingTasksInput,
   type ListWorkspaceTaskGroupsInput,
+  type ListProjectNextActionsInput,
   type ListWorkspaceTasksInput,
   type MoveTaskOccurrenceInput,
   type MoveTaskOccurrenceResult,
@@ -568,6 +570,16 @@ const CHECKLIST_ID_CHUNK = 80;
  */
 const BLOCKED_SUMMARY_MAX_TASKS = 1_500;
 const DEPENDENCY_ID_CHUNK = 80;
+
+/**
+ * STEER-04 — how many Project ids one next-action statement may carry.
+ *
+ * The statement binds the workspace id twice, the owner's day, the week end and
+ * the active scope's own handful of parameters beside these ids, so forty
+ * leaves ample room under D1's 100-bound-parameter ceiling. A caller with more
+ * Projects than this pays one more ROUND TRIP, never one query per Project.
+ */
+const NEXT_ACTION_PROJECT_CHUNK_SIZE = 40;
 
 const TASK_PARENT_SEARCH_LIMIT = 25;
 const TASK_PARENT_SEARCH_MAX = 50;
@@ -2538,6 +2550,128 @@ export class D1TaskRepository implements TaskRepository {
     );
 
     return { dimension, groups };
+  }
+
+  /**
+   * STEER-04 — the canonical NEXT ACTION for a bounded set of Projects.
+   *
+   * DEBT-77 prescribed this statement's shape in 2026 and it is built exactly
+   * as written: *"a single bounded, workspace-scoped statement over the … project
+   * ids — a `ROW_NUMBER() OVER (PARTITION BY project ORDER BY <the Tasks
+   * smart-sort expression>)` filtered to rank 1"*. Six cards cost what two do.
+   *
+   * Every rule it applies is one the repository ALREADY owns, reached through
+   * the same code path the `/tasks` collection uses, so there is no second
+   * notion of "next" to drift:
+   *
+   *   - the population is `#resolveWorkspaceScope("active", { blocked: false })`
+   *     — the canonical active planning scope (not completed, cancelled, on
+   *     hold, Someday/Maybe or waiting) minus TASKS-12's dependency-blocked
+   *     work, derived from live `task.blocks` edges rather than a stored flag;
+   *   - the ordering is `#workspaceSortSpec("smart")`, character for character,
+   *     with the collection's own `created_at ASC, id ASC` tiebreak, so the
+   *     answer is deterministic across reads of unchanged data;
+   *   - the kernel mirror of both is `~/kernel/tasks/next-action`, and
+   *     `test/kernel/task-next-action.test.ts` drives the two over one fact
+   *     matrix and fails if they disagree.
+   *
+   * Ids are chunked so a caller with many Projects stays inside D1's
+   * 100-bound-parameter ceiling; each chunk is ONE statement, and a Project with
+   * no eligible Task is simply absent from the result.
+   */
+  async listProjectNextActions(
+    input: ListProjectNextActionsInput,
+  ): Promise<Map<string, TaskListItem>> {
+    const ids = [...new Set(input.projectIds.map((id) => validateTaskId(id)))];
+    const nextActions = new Map<string, TaskListItem>();
+    if (ids.length === 0) return nextActions;
+
+    const todayIso = validateTaskDate(input.todayIso, "scheduledDate") ?? "";
+    const weekEnd = todayIso.length > 0 ? weekWindowEnd(todayIso) : "";
+    const sortSpec = this.#workspaceSortSpec("smart");
+
+    for (
+      let start = 0;
+      start < ids.length;
+      start += NEXT_ACTION_PROJECT_CHUNK_SIZE
+    ) {
+      const chunk = ids.slice(start, start + NEXT_ACTION_PROJECT_CHUNK_SIZE);
+      /*
+       * Rebuilt PER CHUNK, because `#resolveWorkspaceScope` returns bind
+       * parameters as well as SQL and reusing one array across chunks would
+       * bind the first chunk's values to the second chunk's statement.
+       */
+      const { whereParts, params } = this.#resolveWorkspaceScope(
+        NEXT_ACTION_VIEW,
+        { blocked: false },
+        todayIso,
+        input.timezone,
+      );
+      const whereSql =
+        whereParts.length > 0 ? ` AND ${whereParts.join(" AND ")}` : "";
+      const marks = new Array(chunk.length).fill("?").join(", ");
+
+      const statement = this.#db
+        .prepare(
+          `WITH ${TASK_PARENT_IDENTITY_CTE},
+           scoped AS (
+             SELECT ${TASK_DETAIL_COLUMNS},
+                    ${WAITING_TARGET_COLUMNS},
+                    pl.target_entity_id AS parent_id,
+                    pl.type AS parent_link_type,
+                    pe.title AS parent_title,
+                    ${TASK_PARENT_IDENTITY_COLUMNS},
+                    ${sortSpec.expr} AS sort_value
+             FROM entities e
+             JOIN spine_records sr
+               ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+             LEFT JOIN task_details td
+               ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+             ${TASK_RECURRENCE_JOIN}
+             JOIN entity_links pl
+               ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+                  AND pl.deleted_at IS NULL
+                  AND pl.type = '${TASK_BELONGS_TO_PROJECT}'
+                  AND pl.target_entity_id IN (${marks})
+             JOIN entities pe
+               ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+                  AND pe.type = '${PROJECT}' AND pe.deleted_at IS NULL
+             ${TASK_PARENT_IDENTITY_JOIN}
+             ${WAITING_TARGET_JOIN}
+             CROSS JOIN (SELECT ? AS today_iso, ? AS week_end) cal
+             WHERE e.workspace_id = ? AND e.type = '${TASK}'
+               AND e.deleted_at IS NULL${whereSql}
+           ),
+           ranked AS (
+             SELECT *,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY parent_id
+                      ORDER BY sort_value ASC, created_at ASC, id ASC
+                    ) AS rn
+             FROM scoped
+           )
+           SELECT * FROM ranked WHERE rn = 1`,
+        )
+        .bind(
+          this.#workspaceId,
+          ...chunk,
+          todayIso,
+          weekEnd,
+          this.#workspaceId,
+          ...params,
+        );
+
+      const result = await this.#run(statement);
+      const rows = (result.results ?? []) as (TaskListRow & {
+        readonly parent_id: string | null;
+      })[];
+      for (const row of rows) {
+        if (row.parent_id === null) continue;
+        nextActions.set(row.parent_id, this.#toTaskListItem(row));
+      }
+    }
+
+    return nextActions;
   }
 
   async listTaskDelegates(limit = 50): Promise<readonly string[]> {
