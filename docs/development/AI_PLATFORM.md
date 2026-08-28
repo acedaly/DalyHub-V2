@@ -619,7 +619,7 @@ request. For OpenAI it also reports the `store` value the provider echoed back,
 which is a statement about the retrievable application state and **not** a claim
 about abuse monitoring or legal retention (§16).
 
-### Status: STILL NOT RUN
+### Status: STILL NOT RUN — re-verified 2026-08-28
 
 **As of the AI-02 release, none of the checks above has been executed against a
 live provider.** No API key was available while AI-01 was built, and none was
@@ -627,6 +627,27 @@ available while AI-02 was built either: `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`
 were both absent from the development environment, so the script exited on its
 own guard without sending anything. Nothing in this repository has ever contacted
 Anthropic, OpenAI or a Cloudflare AI Gateway.
+
+**Re-verified on 2026-08-28 for the [V2.6 roadmap decision](../roadmap/ROADMAP_V2_6.md),
+and still true.** `git log` shows no change to `app/kernel/ai/`,
+`app/platform/ai/` or `scripts/ai-integration-check.mjs` since the AI-02 release,
+and no provider credential has been present in any environment this repository
+builds or tests in. This is the **named blocker** for which the AI programme was
+deferred out of V2.6, in preference to the word "later" — see
+[`ROADMAP_V2_6.md` → The AI decision](../roadmap/ROADMAP_V2_6.md#the-ai-decision-recorded-rather-than-postponed),
+which also records, in advance, that AI's first implementation item is this gate
+rather than a user-facing slice, and why: **a complete, thoroughly mocked AI
+platform with every suite green is precisely the evidence that does not settle
+the question.**
+
+**A second thing the first live run should expect, which is not in the checklist
+above.** The model and pricing registry (§6) is pinned to a reading taken on
+2026-08-05 and nothing schedules its re-verification, so a **retired provider
+model id** would return `404` — mapped to `model_unavailable` — and fail the
+gate for a reason that has nothing to do with the adapter under test. Recorded
+as [DEBT-213](../product/PRODUCT_DEBT.md), which closes in this gate's own pass:
+**re-verify §6 against both providers' current pages before concluding anything
+from a failure.**
 
 That is recorded here rather than glossed, because "the script now sends
 `store: false`" is a statement about the code, and only a live run would make it
@@ -661,3 +682,4 @@ a fully tested, fully supported state.
 - [`ACTIVITY_TIMELINE.md`](ACTIVITY_TIMELINE.md) — why AI writes no Activity
 - [`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md) — what AI data exports
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — the AI secrets and the preflight
+- [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2_6.md#the-ai-decision-recorded-rather-than-postponed) — why AI is deferred out of V2.6, the blocker named exactly, and the sequence AI takes when it clears

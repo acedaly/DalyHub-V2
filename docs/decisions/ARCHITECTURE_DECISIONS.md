@@ -5010,3 +5010,180 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
     exist passes for the wrong reason.**
 
 The programme this decision defines is [`ROADMAP_V2_5.md`](../roadmap/ROADMAP_V2_5.md).
+
+---
+
+## ADR-112: Retrieval and capture velocity — one tag vocabulary, a recency source that is not Activity, and the AI gate that is not yet runnable
+
+- **Status:** Accepted (2026-08-28, defining [V2.6](../roadmap/ROADMAP_V2_6.md))
+
+- **Context.** V2.4 and V2.5 made DalyHub *truthful*: follow-through derived from
+  the Activity stream and never stored ([ADR-110](#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)),
+  then a Goal layer that says one thing everywhere, carries the owner's own
+  condition beside the derived signals, and points at a step
+  ([ADR-111](#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question)).
+  Neither touched the two actions the owner performs dozens of times a day:
+  putting a thought in, and finding a record again. Both are below the product's
+  own bar, both have been deferred whole twice with the reason recorded, and
+  [DEBT-195](../product/PRODUCT_DEBT.md) (P2) carries a standing sentence that
+  the product does not claim an A on DHDS-13's scale while it is open.
+
+  V2.6 was proposed as an **AI** programme instead, on the hypothesis that
+  DalyHub should now build *"one narrow, explainable assistant capability built
+  on existing product-derived facts."* The readiness audit found that capability
+  **already shipped on 2026-08-05**: ~9,800 lines across `app/kernel/ai`,
+  `app/platform/ai`, `app/modules/ai` and `app/shared/ai`, four closed features
+  including the Weekly Review assistant, an operational usage ledger, and 29
+  E2E journeys — governed by [ADR-073](#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract),
+  whose twenty decisions already state, more strictly, every principle the
+  hypothesis proposed adopting. It also found that **nothing in this repository
+  has ever contacted a provider**, and that V2.5 simultaneously made the
+  assistant's grounding gap cheaper to close and more dangerous to leave.
+
+  Each of these decisions forecloses a wrong turn that is cheaper to refuse now
+  than to argue item by item. A tag vocabulary invites becoming a second
+  structure — a "tag" that carries progress, orders a collection or quietly
+  becomes an Area. A recency source invites becoming a *prediction* — frequency
+  weighting, learned ordering, an engagement signal — which is the one thing
+  [`AGENTS.md §8`](../../AGENTS.md#8-ai-philosophy) forbids the product to
+  optimise for, and which would arrive through the surface least able to be
+  audited. A `#tag` capture token invites the natural-language parser the
+  quick-capture grammar's own opening comment refuses. And a deferred AI
+  programme invites the word "later", which is how a named, single-action
+  blocker becomes a permanent one.
+
+- **Decision.**
+
+  1. **V2.6 is retrieval and capture velocity, and AI is deferred with a named
+     blocker rather than a reason.** The blocker is stated once, precisely: no
+     request has ever been sent from this repository to Anthropic, OpenAI or a
+     Cloudflare AI Gateway; the provider credentials are owner-held Worker
+     secrets that have never been present in any environment this repository
+     builds or tests in; until `scripts/ai-integration-check.mjs` completes green
+     against one provider, every claim DalyHub makes about its own request shape,
+     header set, response envelope, `store: false` and token accounting is a
+     claim about documentation read on 2026-08-05. The decisive argument is
+     asymmetry, not readiness: if AI is chosen and the key never arrives, the
+     programme ships nothing visible; if retrieval is chosen and the key arrives
+     mid-programme, nothing is lost and the AI work becomes *cheaper*, because a
+     tag vocabulary and a recency source are inputs to the retrieval service
+     ADR-073 §20 built — which is [DEBT-93](../product/PRODUCT_DEBT.md)'s own
+     subject. The dependency runs one way.
+
+  2. **When AI is scheduled, its first item is the infrastructure proof gate, not
+     the first user-facing slice.** Decided here, in advance, so a future
+     programme does not re-take it. The reason is this repository's own evidence:
+     a complete, thoroughly mocked AI platform exists, every automated suite is
+     green, and not one request has been made — so a green suite is precisely the
+     evidence that does not settle the question. The gate proves, against one real
+     provider with synthetic data only, a Worker → provider round trip: a
+     structured request, a schema-valid response, timeout and error handling,
+     redacted logging, an estimate reconciled against provider-reported usage, no
+     persistence, the disabled and fake-provider paths, and the production
+     configuration boundary — and it ships no AI feature and no AI UI.
+
+  3. **ADR-073 and ADR-004 are preserved unchanged and are not restated.** Every
+     AI architecture principle proposed for V2.6 — proposer never authority,
+     facts passed rather than re-derived, explicit owner confirmation, AI output
+     distinguishable from product fact, no AI-owned state, no silent mutation,
+     full usability without a provider, no model interpreting a deterministic
+     rule, inspectable grounding, and bounded measurable cost, privacy and
+     latency — is already stated there, and in several cases more strictly (a
+     citation of unsupplied evidence is *rejected*, not dropped; the budget is
+     enforced *before* the call; the ledger's privacy guarantee is a column list
+     asserted by a test). A second statement of an existing rule is a second
+     authority, and this product has one authority per rule.
+
+  4. **A tag is a VOCABULARY, never a second structure.** There is exactly one
+     tag vocabulary in the workspace, and one interaction for adding a tag
+     anywhere in the product. A tag never becomes a parent, never carries
+     progress, never orders a collection, never feeds the kernel next-action rule
+     (ADR-111), and never becomes an Area, Goal or Project by another name — the
+     spine is structure, tags are labels, and the two are not interchangeable.
+     The three existing free-text columns (`person_details.tags`,
+     `asset_details.tags`, `note_details.tags`) converge onto that one
+     vocabulary; `~/shared/forms/tags.ts` is *promoted* to its normalisation
+     authority rather than forked; and `TagsField` becomes an adapter over the
+     shared `Picker` rather than a bespoke control with a per-module list behind
+     it. Whether the model is a workspace table, a registered EntityLink type or
+     a read-time aggregate is left to the item that must migrate live data, but
+     the *singularity* is fixed here.
+
+  5. **Recency is a DATE, not a prediction — and it is not Activity's job unless
+     Activity already answers it.** No frequency weighting, no learned ordering,
+     no personalisation model and no engagement signal enters retrieval. The
+     product's standing posture (ADR-110) is derive-don't-store, and the derived
+     reading — *"the records this owner most recently changed"*, read from the
+     existing FND-05 stream — is the preferred answer, to be disproven before a
+     stored ledger is reached for. If a stored *"recently opened"* ledger is
+     taken instead, it is a new category of personal data — **what the owner
+     looked at**, which DalyHub has never held — and it carries an explicit
+     privacy decision, a prune policy, an export answer and an offline answer
+     before it is written. What is refused outright is the third option: adding a
+     *view* event to the one append-only Activity stream. Activity records
+     mutations and doubles as the audit trail (ADR-005/ADR-012); filling it with
+     navigation noise to answer a search question would degrade the audit trail
+     to buy a convenience.
+
+  6. **The capture grammar stays a CLOSED token vocabulary.** `#tag` is added as
+     one token class to `quick-capture.ts`'s existing deliberately bounded set,
+     under its existing rules — whole-word, case-insensitive, never emptying the
+     title, and *left as ordinary words when the grammar cannot fully recognise
+     it*. No natural-language understanding and no AI enters the capture path
+     without its own ADR. A token that resolves against a vocabulary may not
+     create vocabulary as a side effect of typing without a recorded decision
+     saying so, because a tag list that grows on every typo is a tag list nobody
+     can pick from.
+
+  7. **No second index, no second model, no second vocabulary.** V2.6 introduces
+     no search index, no embeddings (ADR-073 §20's refusal stands, and a recency
+     source is not a step toward one), no second tag model, no second filter
+     vocabulary beside ADR-082's declarative contract, and no second capture
+     grammar. It also introduces no fourth Task anatomy: a Task rendered into
+     Search's empty state is whatever Search already draws for a Task, so
+     DEBT-128 and DEBT-175 still close together in their own pass.
+
+  8. **A claim that data survived a change of representation is proven by moving
+     real data through the migration and reading it back.** V2.5's own review
+     found a deliberate falsifier surviving 210 export tests because the shared
+     fixture never wrote the row the assertion compared — an equality assertion
+     over a row that does not exist passes for the wrong reason. V2.6 moves tags
+     out of three live columns, which is exactly that class of change, so a test
+     that writes and reads only the new shape does not discharge the claim.
+
+- **Consequences.** *Easy:* the programme's user-visible payoff is unconditional
+  — nothing in it waits on a credential this repository cannot supply; each item
+  closes named debt on its own and can ship alone; and the AI programme that
+  follows starts from a written blocker, a written first item and a written
+  sequence rather than a blank page. *Hard:* the tag decision carries live owner
+  data across three tables, so V2.4-GATE-01's backup precondition binds this
+  programme harder than the last two; and the recency decision is genuinely
+  two-sided — the derived reading is cheaper and safer but answers *"recently
+  worked on"*, which is not literally what DEBT-195's closing condition asks for.
+  *Accepted:* the AI platform continues to age unexercised, and its pinned model
+  and pricing registry goes further out of date
+  ([DEBT-213](../product/PRODUCT_DEBT.md)) — recorded as a cost of this decision
+  rather than discovered later; and the Weekly Review assistant's fact block
+  stays narrower than the product's own derivations (DEBT-91), which is harmless
+  only for as long as no provider is configured.
+
+- **Alternatives considered.** *An AI-first V2.6 with a gate as its first item*
+  (rejected: the gate cannot be run, so the programme's first item would begin
+  blocked, and every later item would inherit the block — this is the strongest
+  rejected option and the reason is scheduling, not architecture). *An AI-first
+  V2.6 that skips the gate because the mocked suites pass* (rejected outright:
+  AI_PLATFORM.md §21 says in the platform's own words to expect a header, field
+  name or envelope that documentation did not settle). *Taking only DEBT-195 and
+  leaving tags* (rejected: it is the fourth deferral of the theme's other half
+  and would leave `#tag` capture permanently unbuildable — V2.4 and V2.5 both
+  recorded that these pieces belong together). *Closing DEBT-91 inside V2.6
+  because V2.5 made it cheap* (rejected: taking a P3 off-theme is how a programme
+  becomes the grab-bag the product direction rules out — it is recorded as the
+  deferred AI programme's second item instead). *Restating the ten proposed AI
+  principles as a V2.6 contract* (rejected: ADR-073 already states them more
+  strictly, and two statements of one rule is two authorities). *Adding a view
+  event to Activity to source recency* (rejected: see decision 5). *A tag
+  hierarchy, tag colours or tag-driven ordering* (rejected: each is the tag
+  vocabulary becoming a second structure, which decision 4 forecloses).
+
+The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2_6.md).
