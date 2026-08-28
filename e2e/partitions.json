@@ -2,6 +2,7 @@
   "about": "GENERATED — do not hand-edit `durations`, `tests`, `source` or `partitions`. Run: pnpm run e2e:partitions:generate --from <results.json> --as <label>. Only `about`, `why` and `measuredFrom` are prose, and `pnpm run e2e:partitions:check` guards the rest.",
   "why": "HARDEN-04 / DEBT-128, corrected by HARDEN-06A (F-03). Playwright --shard divides the suite by test COUNT; these seconds are what each spec file actually COSTS, and the partitions below are balanced on them. Every spec file the gate runs MUST appear in `durations`, `tests` and `source` — `check` fails while any is sized by the `defaultSpecSeconds` guess, because a guess is not evidence and ten of them are what made partition p05 of run 32321840125 exceed globalTimeout with 33 tests never executed.",
   "measuredFrom": [
+    "V2.5 STEER-01 + STEER-02, 2026-08-28 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the count both untouched: `steer-goals.spec.ts` is 32.9 s over 2 tests, measured in the sandbox that produced the change from a green run of the file, with `--as local/v2.5-steer-01-02`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: thirteen partitions now derive a heaviest of 15.4 min against the 16.7 min ceiling, worst/mean 1.04. The coverage was sized to fit rather than the gate resized to hold it, by the FOLLOW-02 method: 2 tests over 4 page LOADS, with all four widths a RESIZE in place and ONE axe scan per appearance on the genuinely new state rather than one per width. What is NOT in this file is the reason it stayed small — the ordering parity, the workspace-true counts, the condition boundary and the Area move are all proved over real D1 in `test/kernel/`, and only the three claims that are true of the running browser are paid for here. DEBT-205 is again left alone deliberately: 536 s of capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it. Every other spec file's duration is untouched.",
     "V2.4 FOLLOW-02, 2026-08-27 — ONE new spec file, MEASURED LOCALLY, and it FITS: `follow-02-goal-movement.spec.ts` is 18.7 s over 2 tests, measured in the sandbox that produced the change from a green run of the file, with `--as local/v2.4-follow-02`. PARTITION_COUNT is UNCHANGED at 13 and the ceiling was not touched: thirteen partitions derive a heaviest of 15.3 min against the 16.7 min `MAX_PARTITION_SECONDS`, which is 61% of `globalTimeout` and the same ~70% target every split since HARDEN-04 has been tuned to. The coverage was sized to fit rather than the gate resized to hold it: the journey is 2 tests over 5 page LOADS (Today, /goals with a selection, the Goal record, then Today and /goals again for the width and appearance matrix), with every other width and appearance a RESIZE or an `emulateMedia` in place, and ONE axe scan per appearance on the meaningful new state rather than one per width. DEBT-205 is therefore left alone, deliberately: 536 s of capacity is still stranded in the two exclusive `responsive.spec.ts` shards, and FOLLOW-02 did not need it, so the correct fix stays a decision for the pass that takes it rather than a repair smuggled into a feature branch. Every other spec file's duration is untouched.",
     "V2.4 FOLLOW-01, 2026-08-26 — ONE new spec file, MEASURED LOCALLY, and the partition COUNT raised on the arithmetic rather than the coverage trimmed. `follow-01-week-account.spec.ts` is 43.2 s over 4 tests, measured in the sandbox that produced the change from a green run of the file, with `--as local/v2.4-follow-01`. Every other spec file's duration is untouched; 117 of them still read `ci:32605964327` and two read `local/v2.4-gate-02`. The first CI run that publishes this file's artifact should replace it with `ci:<run id>`.",
     "PARTITION_COUNT moved 12 → 13, and this is the question V2.4-GATE-02 told the next item adding E2E coverage to confront. The arithmetic: with the new file measured in, twelve partitions derive a heaviest of 1007.7 s = 16.80 min against the 16.73 min ceiling `MAX_PARTITION_SECONDS` derives — and it does not fail by a rounding error, because the MEAN of the ten non-sliced partitions is already 1005.0 s, so no packing of any 43-second file fits and reaching the ceiling would mean deleting about a third of the new coverage. Thirteen derives a heaviest of 918.7 s = 15.31 min, 68% of `globalTimeout` — the same target every split since HARDEN-04 has been tuned to. The ceiling was NOT raised; that is the one answer HARDEN-04 removed from the table.",
@@ -115,6 +116,7 @@
     "e2e/settings.spec.ts": 123.1,
     "e2e/smoke.spec.ts": 6.3,
     "e2e/spine-workspaces.spec.ts": 79.7,
+    "e2e/steer-goals.spec.ts": 32.9,
     "e2e/task-drawer.spec.ts": 74.3,
     "e2e/tasks-capture-language.spec.ts": 26.5,
     "e2e/tasks-checklist.spec.ts": 304.6,
@@ -237,6 +239,7 @@
     "e2e/settings.spec.ts": 10,
     "e2e/smoke.spec.ts": 4,
     "e2e/spine-workspaces.spec.ts": 13,
+    "e2e/steer-goals.spec.ts": 2,
     "e2e/task-drawer.spec.ts": 16,
     "e2e/tasks-capture-language.spec.ts": 3,
     "e2e/tasks-checklist.spec.ts": 29,
@@ -359,6 +362,7 @@
     "e2e/settings.spec.ts": "ci:32605964327",
     "e2e/smoke.spec.ts": "ci:32605964327",
     "e2e/spine-workspaces.spec.ts": "ci:32605964327",
+    "e2e/steer-goals.spec.ts": "local/v2.5-steer-01-02",
     "e2e/task-drawer.spec.ts": "ci:32605964327",
     "e2e/tasks-capture-language.spec.ts": "ci:32605964327",
     "e2e/tasks-checklist.spec.ts": "ci:32605964327",
@@ -385,25 +389,97 @@
   "partitions": [
     {
       "name": "p01",
-      "estimateSeconds": 919.1,
-      "testEstimate": 97,
+      "estimateSeconds": 921.4,
+      "testEstimate": 107,
       "specs": [
-        "e2e/area-lifecycle.spec.ts",
+        "e2e/activity-actor.spec.ts",
         "e2e/audit-13-conversion-atomicity.spec.ts",
-        "e2e/keyboard.spec.ts",
-        "e2e/mobile-modules.spec.ts",
-        "e2e/plan-smart-lists.spec.ts",
-        "e2e/restore.spec.ts",
-        "e2e/task-drawer.spec.ts",
-        "e2e/tasks-daily-driver.spec.ts",
-        "e2e/tasks-dependencies.spec.ts",
-        "e2e/today-focus.spec.ts"
+        "e2e/cards-filters.spec.ts",
+        "e2e/editing-consistency.spec.ts",
+        "e2e/goal-measurement.spec.ts",
+        "e2e/reviews-guided.spec.ts",
+        "e2e/search.spec.ts",
+        "e2e/tasks-journey.spec.ts",
+        "e2e/tasks-optimistic.spec.ts",
+        "e2e/today-task-convergence.spec.ts",
+        "e2e/today.spec.ts"
       ]
     },
     {
       "name": "p02",
-      "estimateSeconds": 918.5,
-      "testEstimate": 229,
+      "estimateSeconds": 920.6,
+      "testEstimate": 135,
+      "specs": [
+        "e2e/account-security.spec.ts",
+        "e2e/color-scheme.spec.ts",
+        "e2e/dhds-11-drag-reorder.spec.ts",
+        "e2e/export.spec.ts",
+        "e2e/iphone-daily-driver.spec.ts",
+        "e2e/linked-items.spec.ts",
+        "e2e/px-03-navigation.spec.ts",
+        "e2e/restore.spec.ts",
+        "e2e/tasks-v22-daily-driver.spec.ts",
+        "e2e/touch-targets.spec.ts",
+        "e2e/ux-02-plan-habits.spec.ts"
+      ]
+    },
+    {
+      "name": "p03",
+      "estimateSeconds": 920.4,
+      "testEstimate": 108,
+      "specs": [
+        "e2e/area-lifecycle.spec.ts",
+        "e2e/forms.spec.ts",
+        "e2e/mobile-modules.spec.ts",
+        "e2e/plan-smart-lists.spec.ts",
+        "e2e/product-frame.spec.ts",
+        "e2e/task-drawer.spec.ts",
+        "e2e/tasks-daily-driver.spec.ts",
+        "e2e/tasks-dependencies.spec.ts",
+        "e2e/today-focus.spec.ts",
+        "e2e/ui-quality.spec.ts"
+      ]
+    },
+    {
+      "name": "p04",
+      "estimateSeconds": 920.4,
+      "testEstimate": 103,
+      "specs": [
+        "e2e/inline-editor-overlay.spec.ts",
+        "e2e/meetings-follow-up.spec.ts",
+        "e2e/people-timeline.spec.ts",
+        "e2e/people.spec.ts",
+        "e2e/project-activity.spec.ts",
+        "e2e/project-settings.spec.ts",
+        "e2e/project-templates.spec.ts",
+        "e2e/projects.spec.ts",
+        "e2e/pwa-budget.spec.ts",
+        "e2e/reviews.spec.ts",
+        "e2e/tasks-capture-language.spec.ts"
+      ]
+    },
+    {
+      "name": "p05",
+      "estimateSeconds": 920.2,
+      "testEstimate": 78,
+      "specs": [
+        "e2e/cross-module-views.spec.ts",
+        "e2e/doc-editor-keyboard-save.spec.ts",
+        "e2e/floating-surfaces.spec.ts",
+        "e2e/identity.spec.ts",
+        "e2e/meetings-concurrency.spec.ts",
+        "e2e/meetings-people-history.spec.ts",
+        "e2e/notes-knowledge.spec.ts",
+        "e2e/people-diary-context.spec.ts",
+        "e2e/planning.spec.ts",
+        "e2e/project-health.spec.ts",
+        "e2e/record-header-title.spec.ts"
+      ]
+    },
+    {
+      "name": "p06",
+      "estimateSeconds": 920.1,
+      "testEstimate": 233,
       "specs": [
         "e2e/accessibility.spec.ts",
         "e2e/analytics.spec.ts",
@@ -411,91 +487,38 @@
         "e2e/command-palette.spec.ts",
         "e2e/creation-controls.spec.ts",
         "e2e/follow-01-week-account.spec.ts",
-        "e2e/record-lifecycle.spec.ts",
-        "e2e/today-keyboard.spec.ts",
-        "e2e/ui-quality.spec.ts",
-        "e2e/waiting.spec.ts"
-      ]
-    },
-    {
-      "name": "p03",
-      "estimateSeconds": 918.4,
-      "testEstimate": 133,
-      "specs": [
-        "e2e/account-security.spec.ts",
-        "e2e/color-scheme.spec.ts",
-        "e2e/dhds-11-drag-reorder.spec.ts",
-        "e2e/export.spec.ts",
-        "e2e/forms.spec.ts",
-        "e2e/iphone-daily-driver.spec.ts",
-        "e2e/linked-items.spec.ts",
+        "e2e/keyboard.spec.ts",
         "e2e/owner-timezone.spec.ts",
-        "e2e/px-03-navigation.spec.ts",
-        "e2e/tasks-v22-daily-driver.spec.ts",
-        "e2e/ux-02-plan-habits.spec.ts"
-      ]
-    },
-    {
-      "name": "p04",
-      "estimateSeconds": 917.8,
-      "testEstimate": 108,
-      "specs": [
-        "e2e/cards-filters.spec.ts",
-        "e2e/design-foundation.spec.ts",
-        "e2e/doc-editor-keyboard-save.spec.ts",
-        "e2e/editing-consistency.spec.ts",
-        "e2e/goal-measurement.spec.ts",
-        "e2e/project-settings.spec.ts",
-        "e2e/reviews-guided.spec.ts",
-        "e2e/search.spec.ts",
-        "e2e/tasks-journey.spec.ts",
-        "e2e/today-task-convergence.spec.ts",
-        "e2e/today.spec.ts"
-      ]
-    },
-    {
-      "name": "p05",
-      "estimateSeconds": 916.9,
-      "testEstimate": 81,
-      "specs": [
-        "e2e/cross-module-views.spec.ts",
-        "e2e/floating-surfaces.spec.ts",
-        "e2e/identity.spec.ts",
-        "e2e/meetings-concurrency.spec.ts",
-        "e2e/meetings-people-history.spec.ts",
-        "e2e/notes-knowledge.spec.ts",
-        "e2e/people-diary-context.spec.ts",
-        "e2e/product-frame.spec.ts",
-        "e2e/project-health.spec.ts",
-        "e2e/pwa-budget.spec.ts",
-        "e2e/touch-targets.spec.ts"
-      ]
-    },
-    {
-      "name": "p06",
-      "estimateSeconds": 916.8,
-      "testEstimate": 149,
-      "specs": [
-        "e2e/appearance.spec.ts",
-        "e2e/areas.spec.ts",
-        "e2e/dhds-13-commercial-quality.spec.ts",
-        "e2e/motion.spec.ts",
-        "e2e/notes.spec.ts",
-        "e2e/planning.spec.ts",
-        "e2e/projects-mobile.spec.ts",
-        "e2e/record-anatomy.spec.ts",
-        "e2e/record-header-title.spec.ts",
-        "e2e/tasks-checklist.spec.ts",
-        "e2e/tasks-optimistic.spec.ts"
+        "e2e/today-keyboard.spec.ts",
+        "e2e/ux-01-daily-driver.spec.ts"
       ]
     },
     {
       "name": "p07",
-      "estimateSeconds": 916.6,
-      "testEstimate": 157,
+      "estimateSeconds": 919,
+      "testEstimate": 145,
       "specs": [
         "e2e/activity-feed.spec.ts",
+        "e2e/appearance.spec.ts",
+        "e2e/areas.spec.ts",
+        "e2e/design-foundation.spec.ts",
+        "e2e/dhds-13-commercial-quality.spec.ts",
+        "e2e/motion.spec.ts",
+        "e2e/notes.spec.ts",
+        "e2e/projects-mobile.spec.ts",
+        "e2e/record-anatomy.spec.ts",
+        "e2e/steer-goals.spec.ts",
+        "e2e/tasks-checklist.spec.ts"
+      ]
+    },
+    {
+      "name": "p08",
+      "estimateSeconds": 918.2,
+      "testEstimate": 156,
+      "specs": [
         "e2e/capture-settings.spec.ts",
+        "e2e/drawer.spec.ts",
+        "e2e/global-capture.spec.ts",
         "e2e/mobile-capture-journeys.spec.ts",
         "e2e/mobile-shell.spec.ts",
         "e2e/plan-weekly-planning.spec.ts",
@@ -503,58 +526,40 @@
         "e2e/spine-workspaces.spec.ts",
         "e2e/tasks-collection.spec.ts",
         "e2e/today-mobile.spec.ts",
-        "e2e/tooltip.spec.ts",
-        "e2e/ux-01-daily-driver.spec.ts"
-      ]
-    },
-    {
-      "name": "p08",
-      "estimateSeconds": 913.8,
-      "testEstimate": 128,
-      "specs": [
-        "e2e/activity-actor.spec.ts",
-        "e2e/assets-ownership.spec.ts",
-        "e2e/calendar.spec.ts",
-        "e2e/collection-header.spec.ts",
-        "e2e/csrf.spec.ts",
-        "e2e/diary.spec.ts",
-        "e2e/editor-geometry.spec.ts",
-        "e2e/feedback.spec.ts",
-        "e2e/goals.spec.ts",
-        "e2e/notifications.spec.ts",
-        "e2e/reviews-insights.spec.ts",
-        "e2e/settings.spec.ts"
+        "e2e/tooltip.spec.ts"
       ]
     },
     {
       "name": "p09",
-      "estimateSeconds": 913.5,
-      "testEstimate": 109,
+      "estimateSeconds": 915.3,
+      "testEstimate": 130,
       "specs": [
-        "e2e/global-capture.spec.ts",
-        "e2e/inline-editor-overlay.spec.ts",
-        "e2e/meetings-follow-up.spec.ts",
-        "e2e/people-timeline.spec.ts",
-        "e2e/people.spec.ts",
-        "e2e/project-activity.spec.ts",
-        "e2e/project-templates.spec.ts",
-        "e2e/projects.spec.ts",
-        "e2e/reviews.spec.ts",
+        "e2e/assets-ownership.spec.ts",
+        "e2e/calendar.spec.ts",
+        "e2e/collection-header.spec.ts",
+        "e2e/diary.spec.ts",
+        "e2e/editor-geometry.spec.ts",
+        "e2e/feedback.spec.ts",
+        "e2e/follow-02-goal-movement.spec.ts",
+        "e2e/notifications.spec.ts",
+        "e2e/reviews-insights.spec.ts",
+        "e2e/settings.spec.ts",
         "e2e/smoke.spec.ts",
-        "e2e/tasks-capture-language.spec.ts"
+        "e2e/waiting.spec.ts"
       ]
     },
     {
       "name": "p10",
-      "estimateSeconds": 908.4,
-      "testEstimate": 116,
+      "estimateSeconds": 915.2,
+      "testEstimate": 120,
       "specs": [
         "e2e/ai-assistance.spec.ts",
         "e2e/csp.spec.ts",
+        "e2e/csrf.spec.ts",
         "e2e/dhds-10-inline-manipulation.spec.ts",
         "e2e/doc-editor-responsive.spec.ts",
         "e2e/entity-icons.spec.ts",
-        "e2e/goals-alignment.spec.ts",
+        "e2e/goals.spec.ts",
         "e2e/habits.spec.ts",
         "e2e/people-relationship.spec.ts",
         "e2e/plan-responsive.spec.ts",
@@ -563,19 +568,19 @@
     },
     {
       "name": "p11",
-      "estimateSeconds": 908.2,
-      "testEstimate": 99,
+      "estimateSeconds": 910.1,
+      "testEstimate": 93,
       "specs": [
         "e2e/areas-goals-mobile.spec.ts",
         "e2e/assets.spec.ts",
-        "e2e/drawer.spec.ts",
-        "e2e/follow-02-goal-movement.spec.ts",
         "e2e/gate-02-honest-signals.spec.ts",
+        "e2e/goals-alignment.spec.ts",
         "e2e/goals-outcomes.spec.ts",
         "e2e/help-about.spec.ts",
         "e2e/interaction-consistency.spec.ts",
         "e2e/non-diary-audit.spec.ts",
         "e2e/pwa-offline-tasks.spec.ts",
+        "e2e/record-lifecycle.spec.ts",
         "e2e/tasks.spec.ts"
       ]
     },

@@ -133,9 +133,10 @@ test.describe("STEER-01 — what /goals answers", () => {
     const pane = page.getByTestId("goal-workspace-pane");
     // The stable machine value, not a sentence: the pane and the record can be
     // compared on it (FOLLOW-02's parity method).
-    await expect(
-      pane.getByTestId("goal-pane-condition-value"),
-    ).toHaveAttribute("data-goal-condition", "set_aside");
+    await expect(pane.getByTestId("goal-pane-condition-value")).toHaveAttribute(
+      "data-goal-condition",
+      "set_aside",
+    );
     const restedStatus = await pane
       .locator(".dh-goalpane__focus-state")
       .innerText();
@@ -146,7 +147,9 @@ test.describe("STEER-01 — what /goals answers", () => {
       `/goals?goal=${encodeURIComponent(STEER_GOALS.overdue.id)}`,
     );
     await expect(
-      page.getByTestId("goal-workspace-pane").getByTestId("goal-pane-condition-value"),
+      page
+        .getByTestId("goal-workspace-pane")
+        .getByTestId("goal-pane-condition-value"),
     ).toHaveAttribute("data-goal-condition", "pursuing");
     // Two Goals with identical measurement facts and opposite conditions read
     // the SAME derived status. The condition is scope, never truth.
@@ -198,9 +201,9 @@ test.describe("STEER-02 — the owner's hand", () => {
     );
 
     // …and AFTER. The owner's judgement changed; the machine's answers did not.
-    expect(
-      (await page.getByTestId("goal-progress").innerText()).trim(),
-    ).toBe(derivedBefore.trim());
+    expect((await page.getByTestId("goal-progress").innerText()).trim()).toBe(
+      derivedBefore.trim(),
+    );
 
     // Returning it to the fold is offered as the owner's own word.
     await condition.getByRole("button").click();
@@ -244,9 +247,9 @@ test.describe("STEER-02 — the owner's hand", () => {
     // Its measurement history survived the move verbatim: the readings, the
     // derived value and the status are what they were a moment ago.
     await page.reload();
-    expect(
-      (await page.getByTestId("goal-progress").innerText()).trim(),
-    ).toBe(measurementBefore.trim());
+    expect((await page.getByTestId("goal-progress").innerText()).trim()).toBe(
+      measurementBefore.trim(),
+    );
     await expect(page.getByTestId("goal-area-edit-value")).toBeVisible();
 
     // The move is in the Goal's own history, through the repository's

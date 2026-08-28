@@ -165,9 +165,7 @@ async function seedMatrix(w: World) {
   const seeded: Record<string, string> = {};
 
   // not_measured — no configuration at all.
-  seeded.unmeasured = (
-    await seedGoal(w, area.id, { title: "Unmeasured" })
-  ).id;
+  seeded.unmeasured = (await seedGoal(w, area.id, { title: "Unmeasured" })).id;
 
   // not_started — configured, nothing recorded.
   seeded.notStarted = (
@@ -504,7 +502,10 @@ describe("GoalRepository.listGoalsByOutcome — the workspace-wide outcome order
       })
     ).nextCursor!;
     await expect(
-      w.goals.listGoalsByOutcome({ ...outcomeInput(), cursor: alignmentCursor }),
+      w.goals.listGoalsByOutcome({
+        ...outcomeInput(),
+        cursor: alignmentCursor,
+      }),
     ).rejects.toThrow();
 
     // Under the SAME scope it round-trips cleanly.
@@ -673,9 +674,9 @@ describe("the outcome rank consumes GOAL-02 and adds no derivation of its own", 
     expect(new Set(ranks).size).toBe(statuses.length);
     // Explicit completion outranks every derived status.
     for (const status of statuses) {
-      expect(goalOutcomeDisplayRank({ completed: true, status })).toBeGreaterThan(
-        Math.max(...ranks),
-      );
+      expect(
+        goalOutcomeDisplayRank({ completed: true, status }),
+      ).toBeGreaterThan(Math.max(...ranks));
     }
   });
 
@@ -697,7 +698,11 @@ describe("the outcome rank consumes GOAL-02 and adds no derivation of its own", 
     expect(detail?.measurement.type).toBeNull();
     expect(
       evaluateGoalProgress(
-        { config: detail?.measurement ?? UNMEASURED_GOAL, targetDate: null, measurements: [] },
+        {
+          config: detail?.measurement ?? UNMEASURED_GOAL,
+          targetDate: null,
+          measurements: [],
+        },
         { todayIso: TODAY },
       ).status,
     ).toBe("not_measured");

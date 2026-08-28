@@ -26,7 +26,9 @@
  * "nothing else about that read changed" — but nothing on this surface
  * consumed it, so every page and every revalidation transferred a run of
  * readings per Goal to draw a component that had been deleted. The record and
- * the pane still plot the full history from their own read.
+ * the pane still plot the full history from their own `listMeasurements` read,
+ * which is a different method — so the removal costs this surface nothing, and
+ * leaves `listMeasurementSeries` with no caller ([DEBT-212]).
  *
  * **Alignment survives as a quiet state.** ADR-040's signal — whether recent
  * Task activity has contributed to a Goal — is not a measure and must not be

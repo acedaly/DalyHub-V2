@@ -660,7 +660,6 @@ describe("the Deleted view grid (DS-16)", () => {
   });
 });
 
-
 /**
  * STEER-01 — what a number beside a lens means (DEBT-121).
  *
@@ -684,7 +683,9 @@ describe("the lens rail's counts (DEBT-121)", () => {
     // page's, and a page-derived count could never produce them.
     renderCollection([goal()], { lensCounts: counts });
     const rail = screen.getByTestId("goals-views");
-    expect(within(rail).getByRole("link", { name: /On track 5/ })).toBeVisible();
+    expect(
+      within(rail).getByRole("link", { name: /On track 5/ }),
+    ).toBeVisible();
     expect(
       within(rail).getByRole("link", { name: /Needs attention 3/ }),
     ).toBeVisible();

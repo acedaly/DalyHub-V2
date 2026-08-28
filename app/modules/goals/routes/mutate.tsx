@@ -396,7 +396,9 @@ export async function action({ request, params, context }: Route.ActionArgs) {
    * be created in an archived Area, so it may not be moved into one either.
    */
   if (intent === "move") {
-    return json(await handleGoalMove(scope, goalId, String(form.get("areaId") ?? "")));
+    return json(
+      await handleGoalMove(scope, goalId, String(form.get("areaId") ?? "")),
+    );
   }
 
   if (intent === "set_measurement") {

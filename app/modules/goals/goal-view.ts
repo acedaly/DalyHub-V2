@@ -263,7 +263,9 @@ export function goalIdentitySource(goal: {
 }
 
 /** The resolved mark for a Goal — the value every Goal surface paints from. */
-export function resolveGoalIdentity(goal: Parameters<typeof goalIdentitySource>[0]) {
+export function resolveGoalIdentity(
+  goal: Parameters<typeof goalIdentitySource>[0],
+) {
   return resolveIdentity(goalIdentitySource(goal));
 }
 

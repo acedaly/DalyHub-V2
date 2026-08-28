@@ -78,7 +78,9 @@ describe("the derived evaluators cannot see the owner's condition", () => {
     // The lens vocabulary is RE-EXPORTED here and legitimately names the
     // condition-based lens, so the guard is on the derivation functions rather
     // than on the file: no evaluation helper may take a condition argument.
-    expect(text).not.toMatch(/function\s+evaluateGoalFrom\w+[\s\S]{0,400}condition/);
+    expect(text).not.toMatch(
+      /function\s+evaluateGoalFrom\w+[\s\S]{0,400}condition/,
+    );
   });
 });
 

@@ -267,16 +267,16 @@ export function GoalWorkspacePane({
           />
         ) : null}
         {/*
-          * STEER-02 — the OWNER's condition, beside the machine's three answers
-          * and never over them.
-          *
-          * Its placement is the argument: it sits in the same band as the
-          * derived status and the movement line, last, because it answers a
-          * different question from either ("am I pursuing this?" rather than
-          * "how is it going?" or "did it move?"). Nothing above it changes when
-          * it changes — asserted, by rendering the same Goal under each value
-          * and comparing the derived strings.
-          */}
+         * STEER-02 — the OWNER's condition, beside the machine's three answers
+         * and never over them.
+         *
+         * Its placement is the argument: it sits in the same band as the
+         * derived status and the movement line, last, because it answers a
+         * different question from either ("am I pursuing this?" rather than
+         * "how is it going?" or "did it move?"). Nothing above it changes when
+         * it changes — asserted, by rendering the same Goal under each value
+         * and comparing the derived strings.
+         */}
         {onSetCondition ? (
           /*
            * A DIV, not a paragraph — the same rule the context line above

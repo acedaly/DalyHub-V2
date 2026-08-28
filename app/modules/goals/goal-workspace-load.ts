@@ -79,17 +79,23 @@ export async function loadGoalWorkspaceDetail(
    * pays for the history; every collection reads the bounded summary instead
    * (`listMeasurementSummaries`). The read is still capped by the repository.
    */
-  const [details, contribution, projectPage, activityFacts, measurements, milestones] =
-    await Promise.all([
-      scope.goalDetails.get(goalId),
-      scope.goals.getGoalProjectContribution(goalId),
-      scope.goals.listGoalProjects({ goalId, limit: GOAL_PROJECT_PAGE_SIZE }),
-      scope.alignment.getGoalAlignmentFacts(goalId, {
-        recentWindowStartIso: facts.recentWindowStartIso,
-      }),
-      scope.goalMeasurements.listMeasurements(goalId),
-      scope.goalMeasurements.listMilestones(goalId),
-    ]);
+  const [
+    details,
+    contribution,
+    projectPage,
+    activityFacts,
+    measurements,
+    milestones,
+  ] = await Promise.all([
+    scope.goalDetails.get(goalId),
+    scope.goals.getGoalProjectContribution(goalId),
+    scope.goals.listGoalProjects({ goalId, limit: GOAL_PROJECT_PAGE_SIZE }),
+    scope.alignment.getGoalAlignmentFacts(goalId, {
+      recentWindowStartIso: facts.recentWindowStartIso,
+    }),
+    scope.goalMeasurements.listMeasurements(goalId),
+    scope.goalMeasurements.listMilestones(goalId),
+  ]);
 
   const alignment = evaluateGoalAlignment(
     composeGoalAlignmentFacts({

@@ -65,7 +65,6 @@ import {
   serializeGoalProjectContribution,
   serializeGoalProjectItem,
 } from "../goal-view";
-import type { GoalMeasurementMutationResult } from "./measurements";
 import type { GoalMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
@@ -469,7 +468,10 @@ function GoalDetail(props: Awaited<ReturnType<typeof loader>>) {
       try {
         result = await postMutation(body);
       } catch {
-        return { ok: false, message: "That couldn’t be saved. Please try again." };
+        return {
+          ok: false,
+          message: "That couldn’t be saved. Please try again.",
+        };
       }
       if (result.kind === "move" && result.ok) {
         revalidator.revalidate();

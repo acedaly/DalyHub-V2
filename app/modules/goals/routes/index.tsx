@@ -202,8 +202,20 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
     // AUDIT-14 — the owner's day, from the one scope-level authority.
     const timeZone = await scope.ownerTimeZone();
-    const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
-      createOwnerAlignmentContext(new Date(), timeZone);
+    /*
+     * STEER-01 — the ACTIVE boundary is no longer read here.
+     *
+     * `recentBoundaryStartIso` fed `listGoalsByAlignment`'s ordering input, and
+     * this collection no longer orders by alignment. The alignment FACTS are
+     * still read (the row's accessible name and the pane's indicator need
+     * them), so `recentWindowStartIso` stays; only the ordering boundary goes.
+     * The four surfaces that still ask the alignment question — the guided
+     * Review, insights, Today and `/projects` — read it unchanged.
+     */
+    const { evaluation, recentWindowStartIso } = createOwnerAlignmentContext(
+      new Date(),
+      timeZone,
+    );
 
     /*
      * FOLLOW-02 — started here, awaited where the window is built, so it costs
@@ -292,8 +304,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
        * `listMeasurementSeries(ids, { perGoalLimit: 12 })` transferred a run of
        * readings per Goal on every page and every revalidation to draw a
        * gallery card REDESIGN-04 deleted. The trend is not lost: selecting a
-       * row draws the full chart on the pane, from the record's own read. The
-       * repository method survives for the record; only this dead read goes.
+       * row draws the full chart on the pane, from the record's own
+       * `listMeasurements(goalId)` — a DIFFERENT read, which is why removing
+       * this one costs the surface nothing.
+       *
+       * `listMeasurementSeries` itself stays in the repository, with its tests,
+       * and now has no caller at all — recorded as [DEBT-212] rather than
+       * deleted from a route change, because a bounded multi-Goal series read
+       * is a real capability and its removal is a repository decision.
        */
       scope.goalMeasurements.listMilestoneSummaries(ids),
       scope.goalDetails.listMany(ids),

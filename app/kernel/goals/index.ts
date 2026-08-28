@@ -151,10 +151,7 @@ export {
   parseGoalCollectionView,
   goalMatchesCollectionView,
 } from "./goal-outcome";
-export type {
-  GoalCollectionView,
-  GoalOutcomeLensCounts,
-} from "./goal-outcome";
+export type { GoalCollectionView, GoalOutcomeLensCounts } from "./goal-outcome";
 
 export {
   GOAL_OUTCOME_CURSOR_VERSION,

@@ -167,7 +167,10 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
   it("creates, changes and clears through the canonical mutate path", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Health" });
-    const goal = await w.spine.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const goal = await w.spine.createGoal({
+      title: "Reach 70 kg",
+      areaId: area.id,
+    });
 
     // Default: no row at all reads as "pursuing".
     expect((await w.details.get(goal.id))?.condition ?? null).toBeNull();
@@ -199,7 +202,10 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
   it("refuses a value outside the vocabulary and writes nothing", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Health" });
-    const goal = await w.spine.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const goal = await w.spine.createGoal({
+      title: "Reach 70 kg",
+      areaId: area.id,
+    });
     await mutate(goal.id, { intent: "set_condition", condition: "set_aside" });
 
     const refused = await mutate(goal.id, {
@@ -215,7 +221,10 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
   it("records the change in Activity with BOTH directions, and never free text", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Health" });
-    const goal = await w.spine.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const goal = await w.spine.createGoal({
+      title: "Reach 70 kg",
+      areaId: area.id,
+    });
 
     await mutate(goal.id, { intent: "set_condition", condition: "set_aside" });
     await mutate(goal.id, { intent: "set_condition", condition: "" });
@@ -244,10 +253,13 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
   it("is an idempotent no-op when nothing changes — no write, no event", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Health" });
-    const goal = await w.spine.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const goal = await w.spine.createGoal({
+      title: "Reach 70 kg",
+      areaId: area.id,
+    });
     await mutate(goal.id, { intent: "set_condition", condition: "set_aside" });
-    const before = (await w.activity.listForEntity(goal.id, { limit: 50 })).items
-      .length;
+    const before = (await w.activity.listForEntity(goal.id, { limit: 50 }))
+      .items.length;
 
     await mutate(goal.id, { intent: "set_condition", condition: "set_aside" });
     const after = (await w.activity.listForEntity(goal.id, { limit: 50 })).items
@@ -258,7 +270,10 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
   it("degrades an unrecognised stored value to 'pursuing' rather than throwing", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Health" });
-    const goal = await w.spine.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const goal = await w.spine.createGoal({
+      title: "Reach 70 kg",
+      areaId: area.id,
+    });
     await mutate(goal.id, { intent: "set_condition", condition: "set_aside" });
     // The migration-0038 lesson: the column carries no CHECK, so a value from a
     // future release must read as an absence rather than break the record.
@@ -296,9 +311,9 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
     };
     const progressKeys = Object.keys(facts).sort();
     expect(progressKeys).not.toContain("condition");
-    expect(
-      evaluateGoalProgress(facts, { todayIso: TODAY }).status,
-    ).toBeTypeOf("string");
+    expect(evaluateGoalProgress(facts, { todayIso: TODAY }).status).toBeTypeOf(
+      "string",
+    );
 
     const alignmentFacts = composeGoalAlignmentFacts({
       goalId: "g-1",
@@ -348,7 +363,10 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
   it("changes no derived fact about the Goal when it changes", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Health" });
-    const goal = await w.spine.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const goal = await w.spine.createGoal({
+      title: "Reach 70 kg",
+      areaId: area.id,
+    });
     await w.details.update(goal.id, {
       measurement: { type: "accumulation", targetValue: 40 },
       targetDate: "2026-09-30",
@@ -393,8 +411,14 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
   it("leaves attention-scoped reads while staying in the collection's own read", async () => {
     const w = world(WS);
     const area = await w.spine.createArea({ title: "Health" });
-    const pursued = await w.spine.createGoal({ title: "Pursued", areaId: area.id });
-    const rested = await w.spine.createGoal({ title: "Rested", areaId: area.id });
+    const pursued = await w.spine.createGoal({
+      title: "Pursued",
+      areaId: area.id,
+    });
+    const rested = await w.spine.createGoal({
+      title: "Rested",
+      areaId: area.id,
+    });
     await w.details.update(rested.id, { condition: "set_aside" });
 
     const boundary = "2026-08-06T00:00:00.000Z";
@@ -438,7 +462,10 @@ describe("the owner-set Goal condition (DEBT-183)", () => {
       await w.details.update(goal.id, { condition: "set_aside" });
       setAside.push(goal.id);
     }
-    const pursued = await w.spine.createGoal({ title: "Pursued", areaId: area.id });
+    const pursued = await w.spine.createGoal({
+      title: "Pursued",
+      areaId: area.id,
+    });
 
     const page = await w.goals.listGoalsByAlignment({
       activeBoundaryIso: "2026-08-06T00:00:00.000Z",
@@ -508,7 +535,9 @@ describe("moving a Goal between Areas (DEBT-184)", () => {
     // recreated, so nothing could have been lost in the recreation.
     expect(after!.id).toBe(before!.id);
     expect(after!.title).toBe(before!.title);
-    expect(after!.createdAt.toISOString()).toBe(before!.createdAt.toISOString());
+    expect(after!.createdAt.toISOString()).toBe(
+      before!.createdAt.toISOString(),
+    );
     // …under the NEW Area.
     expect(after!.area.id).toBe(fitness.id);
     expect(after!.area.title).toBe("Fitness");
@@ -667,7 +696,10 @@ describe("moving a Goal between Areas (DEBT-184)", () => {
     const fitness = await w.spine.createArea({ title: "Fitness" });
     const archived = await w.spine.createArea({ title: "Fitness archive" });
     await w.areaSettings.archive(archived.id);
-    const goal = await w.spine.createGoal({ title: "A goal", areaId: health.id });
+    const goal = await w.spine.createGoal({
+      title: "A goal",
+      areaId: health.id,
+    });
 
     const response = (await areaOptionsLoader({
       request: new Request("https://app.test/goals/area-options?q=fit"),

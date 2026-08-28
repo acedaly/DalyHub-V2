@@ -725,7 +725,11 @@ export class D1GoalRepository implements GoalRepository {
            ORDER BY display_rank ASC, created_at ASC, id ASC
            LIMIT ?`,
         )
-        .bind(...this.#outcomeBinds(input.todayIso, startedJson), ...cursorParams, fetchLimit),
+        .bind(
+          ...this.#outcomeBinds(input.todayIso, startedJson),
+          ...cursorParams,
+          fetchLimit,
+        ),
     );
     const rows = (result.results ?? []) as GoalAlignmentListRow[];
     const pageRows = rows.length > limit ? rows.slice(0, limit) : rows;
@@ -767,13 +771,15 @@ export class D1GoalRepository implements GoalRepository {
         )
         .bind(...this.#outcomeBinds(input.todayIso, startedJson)),
     );
-    const row = ((result.results ?? []) as Array<{
-      readonly total: number | null;
-      readonly on_track: number | null;
-      readonly attention: number | null;
-      readonly set_aside: number | null;
-      readonly completed: number | null;
-    }>)[0];
+    const row = (
+      (result.results ?? []) as Array<{
+        readonly total: number | null;
+        readonly on_track: number | null;
+        readonly attention: number | null;
+        readonly set_aside: number | null;
+        readonly completed: number | null;
+      }>
+    )[0];
     return {
       total: Number(row?.total ?? 0),
       on_track: Number(row?.on_track ?? 0),

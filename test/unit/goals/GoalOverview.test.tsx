@@ -150,9 +150,7 @@ function renderGoal(
     onSetTargetDate: (value: string | null) => Promise<InlineSaveOutcome>;
     onSetDefinitionOfDone: (value: string) => Promise<InlineSaveOutcome>;
     /** STEER-02 — the owner's condition, through the shared control. */
-    onSetCondition: (
-      value: GoalCondition | null,
-    ) => Promise<InlineSaveOutcome>;
+    onSetCondition: (value: GoalCondition | null) => Promise<InlineSaveOutcome>;
     /** STEER-02 — re-file the Goal into another Area (DEBT-184). */
     onMoveToArea: (areaId: string) => Promise<InlineSaveOutcome>;
     onOpenProject: (id: string) => void;
@@ -553,7 +551,6 @@ describe("GoalOverview", () => {
   });
 });
 
-
 /**
  * STEER-02 — the OWNER's condition on the record (DEBT-183), and the rule that
  * makes it safe: it is stated BESIDE the machine's answers and changes none of
@@ -593,7 +590,6 @@ describe("the owner-set condition on the Goal record", () => {
     await waitFor(() =>
       expect(onSetCondition).toHaveBeenCalledWith("set_aside"),
     );
-
   });
 
   it("offers the way back, worded as the owner's intent rather than as a clear", async () => {
@@ -690,7 +686,9 @@ describe("the Goal's Area, as the control that moves it", () => {
 
   it("is absent — and the Area merely stated — when moving is not offered", () => {
     renderGoal();
-    expect(screen.queryByTestId("goal-area-edit-value")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("goal-area-edit-value"),
+    ).not.toBeInTheDocument();
     // The breadcrumb still names it, so nothing is lost by not offering the move.
     expect(screen.getByText("Health")).toHaveAttribute("aria-current", "page");
   });
