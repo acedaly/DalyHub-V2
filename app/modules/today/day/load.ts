@@ -15,6 +15,7 @@
 import { addDaysToIsoDate } from "~/kernel/alignment";
 import {
   DEFAULT_APP_PREFERENCES,
+  type DateFormat,
   type FirstDayOfWeek,
 } from "~/kernel/preferences";
 import type {
@@ -76,6 +77,11 @@ import {
   scheduleForDate,
 } from "~/platform/calendar/schedule-load.server";
 import { reflectionExcerpt, type TodayReflection } from "./reflection";
+import {
+  emptyReviewDoor,
+  readTodayReviewDoor,
+  type TodayReviewDoor,
+} from "./review-door";
 import { buildWeekStrip, weekDatesFor, type WeekStripDay } from "./week-strip";
 import { ownerLocalToUtc } from "~/shared/datetime";
 import { createDiaryEntryTypeRegistry } from "~/kernel/diary";
@@ -244,6 +250,17 @@ export interface TodayDayData {
   readonly habits: readonly SerializedHabit[];
   /** Whether more active Habits exist than this section shows. */
   readonly habitsTruncated: boolean;
+  /**
+   * STEER-05 — this week's Review, as a door: start it, continue it, or read the
+   * finished one.
+   *
+   * Never null. The offer itself is always true — the owner always has a current
+   * week — and only what it leads to changes. A Reviews read that fails degrades
+   * to the "start one" offer rather than removing the door, because a door that
+   * vanishes when a read fails is the discoverability problem DEBT-34 raised,
+   * reintroduced intermittently.
+   */
+  readonly reviewDoor: TodayReviewDoor;
 }
 
 /** One day of the Schedule panel's week: the strip's facts and that day's items. */
@@ -264,9 +281,14 @@ export function emptyDay(input: {
    * preference itself carries, so a Monday-start owner sees no difference.
    */
   readonly firstDayOfWeek?: FirstDayOfWeek;
+  /** STEER-05 — the owner's date format, optional for the same reason. */
+  readonly dateFormat?: DateFormat;
 }): TodayDayData {
-  const { firstDayOfWeek = DEFAULT_APP_PREFERENCES.firstDayOfWeek, ...rest } =
-    input;
+  const {
+    firstDayOfWeek = DEFAULT_APP_PREFERENCES.firstDayOfWeek,
+    dateFormat = DEFAULT_APP_PREFERENCES.dateFormat,
+    ...rest
+  } = input;
   return {
     ...rest,
     overdue: [],
@@ -288,6 +310,13 @@ export function emptyDay(input: {
     parents: [],
     habits: [],
     habitsTruncated: false,
+    // STEER-05 — the door survives the degraded day. Which week it is is
+    // arithmetic over a preference, not a read, so it is still correct here.
+    reviewDoor: emptyReviewDoor({
+      todayIso: input.todayIso,
+      firstDayOfWeek,
+      dateFormat,
+    }),
   };
 }
 
@@ -516,6 +545,12 @@ export async function loadTodayDay(
     readonly hour: number;
     readonly ownerName: string | null;
     readonly firstDayOfWeek: FirstDayOfWeek;
+    /**
+     * STEER-05 — the owner's date format, so the week's door names its period in
+     * the same words the Reviews collection does. A preference the loader had
+     * already read; it costs no statement.
+     */
+    readonly dateFormat: DateFormat;
   },
 ): Promise<TodayDayData> {
   const { now, timezone, todayIso } = facts;
@@ -537,6 +572,7 @@ export async function loadTodayDay(
     reflection,
     parentOptions,
     habitPage,
+    reviewDoor,
   ] = await Promise.all([
     safely(() => loadTasks(scope, todayIso, timezone), {
       overdue: [],
@@ -631,6 +667,35 @@ export async function loadTodayDay(
         hasMore: false,
       },
     ),
+    /*
+     * STEER-05 — the week's door. EXACTLY ONE bounded statement, in the parallel
+     * block, whatever the workspace holds and whichever of the three states it
+     * resolves to.
+     *
+     * It is a genuine addition to Today's budget rather than a rider on an
+     * existing statement, and it is recorded as such: DEBT-34's closing
+     * condition said "query count unchanged", and nothing Today already reads
+     * touches `review_details`, so there was no statement to ride. Measured on
+     * an empty workspace: 20 → 21. The cost, the reason and the refusal to
+     * absorb it silently are ADR-110 decision 7's posture, and the entry carries
+     * the measurement.
+     *
+     * It degrades like every other section: a Reviews read that fails leaves the
+     * "start one" offer standing rather than removing the door.
+     */
+    safely(
+      () =>
+        readTodayReviewDoor(scope, {
+          todayIso,
+          firstDayOfWeek: facts.firstDayOfWeek,
+          dateFormat: facts.dateFormat,
+        }),
+      emptyReviewDoor({
+        todayIso,
+        firstDayOfWeek: facts.firstDayOfWeek,
+        dateFormat: facts.dateFormat,
+      }),
+    ),
   ]);
 
   /*
@@ -719,6 +784,7 @@ export async function loadTodayDay(
      */
     habits: habitPage.items.filter((habit) => habit.today.checkable),
     habitsTruncated: habitPage.hasMore,
+    reviewDoor,
     parents: parentOptions.map((candidate) => ({
       id: candidate.id,
       kind: candidate.kind,

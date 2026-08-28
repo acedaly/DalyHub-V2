@@ -84,6 +84,9 @@ export async function loader({ context }: Route.LoaderArgs) {
       // HABITS-01 — the owner's week start, so a Habit's "this week" is the SAME
       // seven days Weekly Planning and a weekly Review use.
       firstDayOfWeek: preferences.firstDayOfWeek,
+      // STEER-05 — the owner's date format, so the week's door names its period
+      // exactly as the Reviews collection does. Already read; costs nothing.
+      dateFormat: preferences.dateFormat,
     });
   } catch {
     // A scope/preferences failure degrades to a quiet, correct day — the greeting

@@ -45,7 +45,7 @@
 | ASSET-03 (mobile) | ✅ Complete **in V2.1 (2026-08-08)** | Record + history surfaces verified at 320–430px in V2; phone-first capture of a NEW asset closed in V2.1 — `e2e/assets-mobile-capture.spec.ts`, `test/kernel/asset-create-route.test.ts` | — |
 | DIARY-01A, 01, 01B, 03 | ✅ Complete | `e2e/diary.spec.ts`; `test/kernel/diary-*`; ADR-041 | — |
 | DIARY-02 (day context links) | ⏭️ Not started | — | **V2.1** |
-| REVIEWS-01 | ✅ Complete | `e2e/reviews.spec.ts`; `test/kernel/reviews*`; ADR-051. **The 2026-07-27 "not cleanly verified" caveat is cleared** — its cause (DEBT-38) is closed and the spec passes. | ⚠️ [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2): period context is a bounded first cut |
+| REVIEWS-01 | ✅ Complete | `e2e/reviews.spec.ts`; `test/kernel/reviews*`; ADR-051. **The 2026-07-27 "not cleanly verified" caveat is cleared** — its cause (DEBT-38) is closed and the spec passes. | ⚠️ [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05): period context is a bounded first cut |
 | REVIEW-02 / 03 / 04 | ⏭️ Not started / partly | — | **V2.1** |
 | X-01 (global search) | ✅ Complete | `e2e/search.spec.ts`; `test/unit/search/`; `test/kernel/search-route*` | — |
 | X-02 (saved views) | ⏭️ Partly delivered | Tasks slice shipped (ADR-059) | **V2.1** — the cross-module contract |
