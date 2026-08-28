@@ -1238,13 +1238,23 @@ behind are gone with their plumbing:
 field by field, so a field added without a renderer fails a test rather than an
 audit.
 
-**Query budget.** The `/goals` composition made **eight** grouped reads per page
-(contributions, alignment facts, measurement summaries, the series, milestone
-summaries, details, movement ×2 statements) plus the selected Goal's detail
-reads. It now makes **eight** as well — the series read was removed and the
-workspace lens counts added in its place — and the selected Goal's detail is one
-read lighter (the evidence page). Every one is grouped over the page's ids or
-the whole workspace; none is per Goal.
+**Query budget.** The `/goals` composition makes **eight grouped reads per
+page**, and made eight before: the ordered page itself, then six reads over that
+page's ids (contributions, alignment facts, measurement summaries, milestone
+summaries, details, movement) and one workspace-wide read. What changed is
+*which* eight — the sparkline series read was removed (DEBT-207) and the
+workspace lens counts added in its place (DEBT-121) — plus the selected Goal's
+detail, which is one read lighter now that the pane no longer fetches alignment
+evidence it does not draw.
+
+In *statements* the shape is slightly different, and it is worth stating rather
+than rounding: the page read costs **two** (a bounded preliminary resolving each
+Goal's schedule origin in the owner's calendar, because SQLite cannot convert an
+IANA zone, and then the ranked page), the lens counts cost **two**, and movement
+costs **two**. `test/kernel/goal-outcome.test.ts` asserts the first two against a
+counting database and proves both are flat in the number of Goals: ten Goals cost
+what two cost. Every read is grouped over the page's ids or over the whole
+workspace; none is per Goal.
 
 ## One Goal identity rule
 

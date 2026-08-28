@@ -21,9 +21,10 @@
 
   **You can now set a goal aside.** One choice, on the goal's own record and in
   the list's detail pane: **Pursuing** (which every goal already was) or **Set
-  aside**. A goal you have set aside stops appearing on Today and stops `/plan`
-  telling you it has no supporting work planned — because you already know, and
-  you decided.
+  aside**. A goal you have set aside stops appearing on the three places that
+  ask for your attention without being asked — Today's goals panel, the goals
+  strip on the Projects page, and the weekly plan's "nothing planned for this
+  goal" note — because you already know, and you decided.
 
   What it does _not_ do is change a single fact. Its measurement, its status,
   its alignment and its movement line read exactly as they did before, on its

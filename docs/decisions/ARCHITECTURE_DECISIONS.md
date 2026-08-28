@@ -4902,7 +4902,8 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
     first instalment — a second member has to argue for itself against this
     clause.
   - **Decision 3 is asserted from BOTH sides, on every surface it touches.** A
-    set-aside Goal leaves Today's Goal panel and `/plan`'s unsupported-Goal
+    set-aside Goal leaves Today's Goal panel, the Projects page's Goal rail
+    and `/plan`'s unsupported-Goal
     signals — filtered *before* the three-signal cap, so a rested Goal never
     costs a pursued one its place — and stays in `/goals` at the rank its
     outcome earns, with its measurement status, alignment state and movement

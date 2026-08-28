@@ -472,7 +472,8 @@ door — sequenced so each lands on the one before it.
      (one shared control), filterable on `/goals` through the STEER-01 lens
      contract (workspace-true or uncounted), and carried in export and restore —
      an archive written before this change still validates and restores.
-  2. A set-aside Goal **leaves Today's Goal panel and `/plan`'s
+  2. A set-aside Goal **leaves Today's Goal panel, the Projects page's Goal
+     rail and `/plan`'s
      unsupported-Goal signals** — asserted — while `/goals` and its record still
      state alignment, movement and measurement unchanged — also asserted, in
      the same test, so scope and honesty are proven together.
