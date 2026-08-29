@@ -31,9 +31,19 @@ All four items are ☑ delivered, and the programme closed **every** entry it to
 [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2--resolved-2026-08-29-v26-find-01)
 (FIND-01), [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3--resolved-2026-08-29-v26-find-02)
 (FIND-02) and [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3--resolved-2026-08-29-v26-find-03)
-(FIND-03), with DHDS-13 §13 advanced by FIND-04. Four entries were raised and
-deliberately not taken (DEBT-216 by FIND-01; DEBT-217, DEBT-218 and DEBT-219 by
-the tag programme), each about a surface the item does not own.
+(FIND-03), with DHDS-13 §13 advanced by FIND-04. Six entries were raised and
+deliberately not taken (DEBT-216 by FIND-01; DEBT-217 … DEBT-221 by the tag
+programme), each about a surface the item does not own.
+
+**The E2E gate is red, and not for this programme's reasons.** Seven journeys
+fail on this branch's head, and every one of them fails for a cause that predates
+it: DEBT-215 (three assertions, left by STEER-05), DEBT-216 (left by FIND-01),
+DEBT-219, DEBT-220 and DEBT-221. Eight of the thirteen partitions are green, the
+unit and kernel suites are green, and none of the tag programme's own 19 journeys
+fails. Repairing five other items' surfaces inside this branch is the
+reviewability cost this register keeps recording, so they are written down
+instead — the truth-restoration pass that owns them now has five entries carrying
+measurements, rather than a red gate carrying no explanation.
 
 **Complete is not deployed, and the two are not conflated.** FIND-02 committed
 [`0049_create_tag_vocabulary.sql`](../../migrations/0049_create_tag_vocabulary.sql),
@@ -1089,6 +1099,8 @@ and on the entry itself, so no future reader re-derives what is scheduled.
 | **DEBT-217** — a convergence fixture seeds a Person outside the closed relationship vocabulary | P3 | **Raised** by FIND-02's People journey and deliberately not taken: the journey moved to a correctly seeded Person, and the fixture belongs to the record-convergence item. |
 | **DEBT-218** — `axe` reports `scrollable-region-focusable` on the shared anchored surface | P3 | **Raised** by FIND-03 and MEASURED as pre-existing (6206px of content against a 694px clamp *with the tag group hidden*). Its scan was narrowed to the surface it owns, with the reason in the spec; **no rule was disabled**. |
 | **DEBT-219** — an Assets journey goes red once a fixture obligation's due date passes | P2 | **Raised** by the tag programme's verification run and deliberately not taken. MEASURED: the seeded `ob-rc-inspect` was due 2026-08-28, so on 2026-08-29 a second card reads "1 obligation overdue" and an unscoped strict locator resolves to two. This branch changed no obligation row. |
+| **DEBT-220** — a Project-templates assertion reads a title STEER-04 now shows as a next action | P2 | **Raised** by reading the full gate, and deliberately not taken. The element was NAMED by walking `/today`'s text nodes with only the fixture Project seeded: it is `NextActionLine`, live work that belongs there. |
+| **DEBT-221** — `/today` overflows sideways at 200% zoom | P2 | **Raised** by reading the full gate, and deliberately not taken. MEASURED: 239px of document in a 195px viewport, from STEER-05's week-door date range at 206px. A real accessibility defect on another item's surface, reproduced on a clean `origin/main`. |
 | **DEBT-102** — no capture-processing state | P3 | **Deliberately not taken**, with its reason in LATER: a kernel decision adjacent to the theme, and FIND-04 does not need it answered. |
 | DEBT-128 · DEBT-175 | P2 | **Not taken**, unchanged from V2.5: they close together in their own pass. FIND-01 is explicitly forbidden from widening the fork. |
 | DEBT-34 | P2 | **Not V2.6's.** It is STEER-05's, and STEER-05 stayed in V2.5 — where it closed this entry on 2026-08-28. |
