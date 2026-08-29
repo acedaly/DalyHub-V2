@@ -104,7 +104,7 @@ those are absent, not merely rejected.
 
 | `kind` | What happens |
 |---|---|
-| `task` | Creates a Task. The deterministic parser reads dates, priority, sector, recurrence (both scheduling modes), waiting and delegate tokens. |
+| `task` | Creates a Task. The deterministic parser reads dates, priority, sector, recurrence (both scheduling modes), waiting, delegate and `#tag` tokens. |
 | `note` | Creates a Note with a Markdown body. |
 | `inbox` | Creates an intentionally unclassified Task with no parent — DalyHub's existing Inbox. |
 | `auto` | Deterministic, conservative classification. Falls back to Inbox. |
@@ -194,6 +194,15 @@ parameter would create the second capture protocol CAPTURE-01 was built to avoid
 The restraint travels too. A phrase the grammar cannot read whole is left as the
 owner's words, and an unrecognisable capture still lands in the Inbox with its text
 intact rather than being given invented structure.
+
+**V2.6 FIND-04 reached every transport the same way.** `Call the plumber #home p2
+friday` sent by the Shortcut, spoken to Siri, emailed in or typed into the
+quick-add row all produce one Task titled *"Call the plumber"*, tagged `home`, at
+P2, on Friday. There is no tag field in the capture contract and there will not
+be one, for the reason above: the endpoint accepts a sentence. A `#tag` the
+workspace does not hold yet is created **with** the capture on the transports that
+have no preview to offer it in — which is the same trade every other token makes
+there, and the reason the interactive surfaces show the preview instead.
 
 ---
 

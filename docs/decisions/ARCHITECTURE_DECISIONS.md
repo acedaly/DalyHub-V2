@@ -5218,4 +5218,207 @@ The programme this decision defines is [`ROADMAP_V2_5.md`](../roadmap/ROADMAP_V2
   owner asking for it — with the consequence stated on the surface in the owner's
   own words, and proven against a workspace that contains a Diary entry.
 
+- **Implementation note — decisions 4, 6 and 8, settled by [FIND-02](../roadmap/ROADMAP_V2_6.md), FIND-03 and FIND-04 (2026-08-29).**
+  The model this decision deliberately left open was taken, together with the
+  case rule, the Tasks filter decisions and the unknown-tag behaviour, and all of
+  it is recorded in its own record: [ADR-113](#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates).
+  In one line each: a tag is a workspace vocabulary row plus a polymorphic
+  attachment, **not** an EntityLink type and not a read-time aggregate; identity
+  is the ASCII case-folded key and display is the owner's first spelling; a tag is
+  one dimension in the existing declarative filter and is expressible in a saved
+  view, but is **not** an input to the smart sort or to the STEER-04 next-action
+  rule; and an unknown `#tag` is offered for creation in the existing preview
+  rather than created silently or left as literal words.
+
 The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2_6.md).
+
+---
+
+## ADR-113: A tag is a workspace VOCABULARY with a folded key and an owner's spelling — one join table, one normalisation rule, one filter dimension, and a `#tag` that offers rather than creates
+
+- **Status:** Accepted (2026-08-29, implementing [ADR-112](#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable) decisions 4, 6 and 8 in [V2.6](../roadmap/ROADMAP_V2_6.md) FIND-02, FIND-03 and FIND-04)
+
+- **Context.** ADR-112 decision 4 fixed the *singularity* of the tag vocabulary
+  and deliberately left the model to *"the item that must migrate live data"*.
+  That item is FIND-02, and the data is real: three free-text JSON columns
+  (`person_details.tags`, `asset_details.tags`, `note_details.tags`) written by
+  three modules through one normalisation helper that trims and collapses
+  whitespace but **preserves the case the owner typed**. So `Errand` on an Asset
+  and `errand` on a Note are two strings today, and any model that gives them one
+  identity is making a decision with a user-visible consequence — which is why
+  the roadmap requires the case rule to be *recorded, not assumed*.
+
+  Three further questions arrive with it, and none of them can be answered by the
+  model alone: what the Tasks collection does with a tag (ADR-082 already has one
+  declarative filter vocabulary and DEBT-49 closed a two-filter-model split once);
+  whether a tag may influence what DalyHub calls *next* (ADR-111's next-action
+  rule); and what `#` does on the capture line when the tag does not exist yet
+  (ADR-112 decision 6 forbids creating vocabulary as a side effect of typing
+  *without a recorded decision saying so*).
+
+- **Decision.**
+
+  1. **A tag is a workspace-scoped vocabulary row plus a polymorphic attachment.**
+     `workspace_tags (workspace_id, tag_key, label)` is the vocabulary — one row
+     per tag per workspace, the primary key `(workspace_id, tag_key)` being the
+     identity. `entity_tags (workspace_id, entity_id, tag_key)` attaches one to
+     any entity, with a composite foreign key to `entities (workspace_id, id)`
+     `ON DELETE CASCADE` and to the vocabulary `ON DELETE RESTRICT`. Both tables
+     are `STRICT`, and the vocabulary's key is guarded by CHECK constraints — a
+     length bound, `tag_key = lower(tag_key)`, and `lower(label) = tag_key` — so
+     the database refuses a row the application's rule would not have produced.
+
+     **Why not a reserved EntityLink type** (ADR-002's stance, which DEBT-48
+     cites): a tag would then be an *entity*, and in this product an entity has a
+     record page, a timeline, Activity events, Search presence and a place in the
+     spine. Every one of those is an explicit ADR-112 non-goal, so the link model
+     would have to be defended against its own affordances forever. EntityLinks
+     remain the one *relationship* model; a label is not a relationship.
+
+     **Why not a read-time aggregate over the three existing columns** (the
+     cheapest option): two spellings cannot be given one identity without a stored
+     identity, and rename — DEBT-182's own complaint that *"nothing can be
+     renamed"* — is unreachable by construction. It buys a suggestion list and
+     closes nothing.
+
+  2. **Identity is the ASCII case-folded, whitespace-normalised key; display is
+     the owner's FIRST spelling.** `~/shared/forms/tags.ts` is promoted into
+     `app/kernel/tags/` and becomes the one rule (the old module is now nothing
+     but re-exports, asserted by a source-level test). Folding is **ASCII-only**,
+     deliberately: SQLite's `lower()` folds ASCII only, so a JavaScript
+     `toLowerCase()` would disagree with the migration and with the CHECK
+     constraint the moment a non-ASCII capital appeared, and `toLocaleLowerCase`
+     would make a tag's identity depend on the reader's locale. Three engines
+     have to compute this value identically — the browser, the Worker and SQLite
+     — and ASCII folding is the one rule all three already agree on.
+
+     The consequence is stated rather than hidden: `Café` and `café` remain two
+     tags. That is the conservative failure — two tags the owner can merge by
+     renaming, rather than one tag they cannot split.
+
+     When the same tag arrives in two spellings, the **first** one seen wins the
+     label and the second is folded into it. Nothing is lost: the attachment is
+     to the key, and the owner sees one tag rather than two that look alike.
+
+  3. **The migration carries the data, and the proof reads the OLD shape through
+     it.** `0049_create_tag_vocabulary.sql` is one forward-only migration. It
+     builds a staging table from all three legacy columns with `json_each`, ranks
+     the spellings deterministically (person, then asset, then note; then entity
+     id, position, label) so the surviving label does not depend on row order,
+     inserts the vocabulary and the attachments, drops the staging table, and then
+     removes the three columns — `note_details.tags` by `DROP COLUMN`, and
+     `person_details`/`asset_details` by a full table rebuild, because both carry
+     constraints a bare `DROP COLUMN` would silently lose.
+
+     ADR-112 decision 8 is what shapes the test rather than the code: the fixture
+     seeds tags in all three columns — overlapping, case-differing, whitespace
+     differing, several per record, and records with none — through the **old**
+     schema, applies `0049`, and reads the **new** one. A test that writes and
+     reads only the new shape does not discharge this claim and does not count.
+
+  4. **Export keeps its schema version, and restore reconstructs.** The snapshot
+     gains two collections (`workspaceTags`, `entityTags`) but its version stays
+     **2**, so a backup taken *before* this migration — the one the owner is
+     required to hold before it is applied — remains restorable. Restore prefers
+     the two collections when they are present and otherwise rebuilds them from
+     the per-record `tags` arrays a pre-`0049` archive still carries. The tag
+     collections are optional on read for the same reason.
+
+  5. **Reads are free and writes are fixed-cost.** A record's tags ride its
+     existing `SELECT` as one correlated projection, so no surface pays an extra
+     statement to display them. A write is exactly **three** statements whatever
+     the tag count — vocabulary upsert, attachment upsert, and a delete of what is
+     no longer selected — each driven by `json_each` over one bound JSON
+     parameter, and each guarded on the fresh Activity id exactly as ADR-012
+     requires. The vocabulary read is ONE statement with a stated ceiling
+     (`TAG_VOCABULARY_READ_LIMIT`), ordered by the primary key so the index
+     supplies the order; a workspace's tag *set* is bounded by what a person will
+     type, and the ceiling is the honest statement of that rather than a promise
+     of unbounded scale. It is served by `GET /tags` rather than by seven loaders,
+     so a page that never tags pays nothing.
+
+  6. **Tasks gain the vocabulary and exactly ONE filter dimension.** No Task tag
+     model, no `label` field, no second filter engine: `tags` is one more
+     dimension in ADR-082's declarative configuration, translated by the one
+     `toWorkspaceFilters`, resolved by the repository as an `EXISTS` semi-join —
+     never a `JOIN`, which would duplicate a Task carrying two of the filtered
+     tags and corrupt the page, the count and the keyset cursor.
+
+     **A tag IS expressible in a saved view.** It needed no mechanism to be: a
+     saved view stores the declarative configuration, and the tag dimension is in
+     it. **A tag is NOT an input to the smart-sort expression, and not an input to
+     the STEER-04 next-action rule.** ADR-112 decision 4 says a tag *"never orders
+     a collection"* and *"never feeds the kernel next-action rule"*; this is that
+     sentence made structural, and it is asserted both behaviourally and at
+     source — the next-action module and the smart-sort expression contain no
+     reference to tags at all.
+
+  7. **`#tag` is one token class, and an unknown tag is OFFERED, never created
+     silently.** The capture grammar gains a single recogniser under its existing
+     rules: whole word, anywhere the other tokens may appear, resolved by the
+     rule in decision 2, removed from the title, and never emptying it. A `#` word
+     must begin with a letter or digit, contain only letters, digits, `-` and `_`,
+     and contain **at least one letter** — which is precisely what keeps
+     `the #1 priority`, `Fix #42`, a pasted `## Subheading` and `#home.` as the
+     ordinary text they are.
+
+     Of the three behaviours ADR-112 decision 6 and the roadmap put on the table
+     for an unknown tag, the middle one is taken: the token is **recognised and
+     offered for creation in the existing preview**, worded as *"New tag: …"*
+     against an existing tag's *"Tag: …"*, and removable by the control the
+     preview already gives every token. Silent creation is refused for the reason
+     ADR-112 gives — a tag list that grows on every typo is a tag list nobody can
+     pick from. *"Leave it as literal words"* was rejected because the rule it
+     appeals to is about phrases *the grammar cannot fully recognise*: `#` is an
+     explicit marker, like `due …`, and the grammar recognises this perfectly.
+     What is genuinely at stake is the vocabulary, and the preview answers that by
+     showing the word as new **before** it is saved.
+
+     **On a transport that has no preview** — the CAPTURE-01 endpoint, the Apple
+     Shortcut, Siri, capture by email — the tag is applied and created with the
+     capture, because the alternative is discarding a word the owner deliberately
+     typed. That is the same trade every other token already makes there
+     (a recurrence rule is applied without a preview too), and it is stated here
+     rather than left to be discovered: the "offer" is what an interactive
+     surface owes the owner, not a property of the grammar.
+
+     The offline contract is unchanged and is proven so rather than assumed:
+     `OFFLINE_SCHEMA_VERSION` does not move (it is an input to the namespace
+     digest, and moving it would strand every queued capture), the wire body a
+     pre-FIND-04 queue record produces is unchanged, and a frozen old record is
+     replayed through the real `POST /tasks/new` against real D1 — arriving as
+     the words the owner typed, with no tag and no vocabulary created behind
+     their back.
+
+- **Consequences.** *Easy:* a tag means one thing in every module; a tag is
+  addable through one interaction built on one `Picker`; the vocabulary is one
+  bounded query anywhere it is needed; Tasks filter by tag through the machinery
+  that already existed; and rename — DEBT-182's unreachable case — is now a
+  one-row update the model supports, whenever an item asks for the surface.
+  *Hard:* the migration touches live owner data in three tables, so the V2.4
+  backup precondition binds harder here than anywhere since; and a polymorphic
+  attachment table cannot be foreign-keyed to a *type*, so "which entity types
+  may be tagged" stays a product decision enforced above SQL rather than by it.
+  *Accepted:* `Café` and `café` remain distinct (decision 2); the vocabulary has
+  a read ceiling rather than pagination; and an unreferenced vocabulary entry is
+  **kept**, not swept — a tag the owner has removed from every record is still a
+  word they chose, and the ceiling is what bounds it. Pruning, if it is ever
+  wanted, is an owner action and its own item.
+
+- **Alternatives considered.** *A tag entity behind a reserved EntityLink type*
+  (rejected: decision 1 — it would acquire a record page, a timeline, Activity
+  and Search presence, all ADR-112 non-goals). *A read-time aggregate over the
+  three existing columns* (rejected: decision 1 — no identity, therefore no
+  rename, therefore DEBT-182 stays open). *Unicode-aware case folding*
+  (rejected: decision 2 — SQLite's `lower()` cannot compute it, so the CHECK
+  constraint and the migration would disagree with the application). *Storing
+  only the folded key and rendering it back* (rejected: `deep work` is not the
+  spelling the owner typed, and ADR-112 decision 4 calls a tag a label, which is
+  something a person reads). *Bumping the export schema version* (rejected:
+  decision 4 — it would make the backup taken immediately before this migration
+  unrestorable, which is the one moment the backup exists for). *A tag as a
+  smart-sort input, even weakly* (rejected: decision 6 — it is engagement
+  ranking with a different noun). *Creating an unknown `#tag` silently*
+  (rejected: decision 7). *Leaving an unknown `#tag` as literal words* (rejected:
+  decision 7 — the grammar recognises it, so the ordinary-words rule does not
+  apply).

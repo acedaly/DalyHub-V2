@@ -483,7 +483,7 @@ else is ONE ordinary GET `<form>` of native `<input>`/`<select>` controls
 | Filter | Param | Meaning |
 | --- | --- | --- |
 | Search | `?q=` | case-insensitive substring over title, Markdown body and tags |
-| Tag | `?tag=` | exact tag token (tags are normalised, so case never matters) |
+| Tag | `?tag=` | the canonical tag key, matched through `entity_tags` (case never matters — the key IS case-folded) |
 | Project | `?project=` | Notes explicitly linked to that Project |
 | Area | `?area=` | Notes explicitly linked to that Area |
 | Links | `?links=linked\|unlinked` | has, or has no, active non-structural relationship |
@@ -501,12 +501,17 @@ a cursor issued under one filter set is rejected under another (and the loader
 then honestly serves the first page of the newly-chosen scope rather than an
 error).
 
-**Tags** are stored on `note_details.tags` as a JSON array of normalised
-(trimmed, whitespace-collapsed, case-folded, de-duplicated, sorted) strings —
-the same convention `person_details.tags` and `asset_details.tags` already use.
-Sorting makes the stored value canonical, so an unchanged set is byte-identical
-and never records a spurious Activity event. They are edited through the shared
-DS-06 `TagsField` in a Drawer, reached from the shared overflow.
+**Tags** live in the workspace's ONE vocabulary since V2.6 FIND-02
+([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)).
+`note_details.tags` is **gone**, along with `person_details.tags` and
+`asset_details.tags`: a tag is a `workspace_tags` row keyed by its ASCII
+case-folded `tag_key`, attached to a Note by `entity_tags`, and read back on the
+Note's own `SELECT` as one correlated projection — so displaying tags costs no
+extra statement. Identity is the folded key and display is the owner's first
+spelling, so `#errand` on a Note and `Errand` on an Asset are one tag with one
+name. A set that has not changed writes nothing and records no Activity event.
+They are edited through the shared `TagsField`, which is now an adapter over the
+shared `Picker` — the same interaction People, Assets and Tasks use.
 
 ## Lifecycle: archive, delete and restore
 

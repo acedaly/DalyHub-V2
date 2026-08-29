@@ -35,7 +35,7 @@ Every control accepts the same anatomy + binding props, so it is usable standalo
 
 `Field` builds the accessible layout: a visible label, an explicit required/optional cue (words, not colour), optional help, the current validation message, and correct `aria-describedby`/`aria-invalid`/`aria-errormessage`. Disabled and read-only are distinct. Input is never trimmed/mutated unless the field contract asks for it.
 
-**Controls:** `TextField` (single/multi-line, length, autocomplete), `DateField` (`kind="date" | "datetime"`), `SelectField` (single or `multiple`, `onSearch`/`loading` for async), `TagsField` (constraints), `BooleanField` (`variant="checkbox" | "switch"`), `EntityLinkPicker`. **Long-form Markdown is not here** — see below.
+**Controls:** `TextField` (single/multi-line, length, autocomplete), `DateField` (`kind="date" | "datetime"`), `SelectField` (single or `multiple`, `onSearch`/`loading` for async), `TagsField` (constraints; a `Picker` adapter over the workspace tag vocabulary since V2.6 FIND-02), `BooleanField` (`variant="checkbox" | "switch"`), `EntityLinkPicker`. **Long-form Markdown is not here** — see below.
 
 ## Explicit-save forms
 
@@ -252,7 +252,12 @@ Every field has an accessible name; errors and save-status changes are announced
 ## What DS-06 deliberately does NOT do
 
 - No product CRUD screens (Areas/Goals/Projects/Tasks/Notes/People/Diary), no full Notes/Markdown editor, no DS-08 global search, no DS-09 command palette, no DS-10 Inspector/Settings.
-- No second EntityLink model, no tags persistence model, no new dependency, no migration.
+- No second EntityLink model, no new dependency, no migration. (The *tags*
+  persistence model DS-06 refused to invent arrived in V2.6 FIND-02 as a kernel
+  concern, not a forms one — `TagsField` is now an adapter over the shared
+  `Picker`, reading the workspace vocabulary from `GET /tags`, and the one
+  normalisation rule lives in `~/kernel/tags` with `~/shared/forms/tags.ts` as
+  re-exports. See [ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates).)
 - No product-specific validation rules — those live in the module that adopts DS-06.
 
 ## Related documents

@@ -1,5 +1,36 @@
 # Changelog
 
+- **Tags are one thing now, everywhere — and you can type them.**
+
+  A tag used to be a word you typed into whichever box happened to be in front of
+  you. `Errand` on an Asset and `errand` on a Note were two different tags, People
+  offered you one list of suggestions and Notes another, and nothing you tagged in
+  one place was offered to you in the next.
+
+  There is one tag list for your workspace now. Tag a Person `Errand` and the same
+  tag is waiting when you tag an Asset, a Note or a Task — the same control, the
+  same search, the same way to add a new one. Case no longer makes a second tag:
+  `errand`, `Errand` and `ERRAND` are the tag you already have, shown in the
+  spelling you first gave it. **Nothing you had tagged was lost**, and every tag
+  comes back through a backup and restore exactly as it went in.
+
+  **Tasks can be tagged**, which they never could, and the Tasks list can filter
+  by tag alongside everything else it already filters by — project, priority, time
+  sector, and the rest. A tag filter is savable as a view like any other. What a
+  tag deliberately does _not_ do is change what DalyHub thinks you should do next:
+  it is a label, not a priority.
+
+  And on the capture line, **`#` works**. Typing
+
+  > Call the plumber #home p2 friday
+
+  gives you a Task called _"Call the plumber"_, tagged `home`, at P2, on Friday.
+  A tag you have not used before is shown as new before anything is saved, so you
+  can take it back if it was a typo — DalyHub never invents vocabulary behind your
+  back. And `#` in ordinary writing stays ordinary writing: "the #1 priority" is
+  still about priorities, "Fix #42" is still an issue number, and a pasted
+  Markdown heading is still a heading.
+
 - **Search now answers before you type.**
 
   Opening Search used to show one sentence — "Search across everything in your

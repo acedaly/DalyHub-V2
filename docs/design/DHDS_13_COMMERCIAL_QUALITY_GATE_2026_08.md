@@ -452,7 +452,7 @@ Used for standards, not imitation.
 | Dimension | DalyHub | Reference bar |
 |---|---|---|
 | List density and inline editing | **At or above.** Four aligned metadata columns at 44px with hover-latent inline editors; Todoist opens a row to change a project | Todoist |
-| Capture speed | **Below.** Fast and focused, but no natural-language parsing ("tomorrow 5pm #Work") | Todoist |
+| Capture speed | **Below**, as measured 2026-08-21 — no natural-language parsing ("tomorrow 5pm #Work"). **Amended 2026-08-29** (see below) | Todoist |
 | Calm and restraint | **At.** No badges, no streaks, no manufactured urgency; one expressive moment per page | Things, Apple |
 | Writing surface | **At.** Notes reads as documents; content dominates | Craft, Notion |
 | Cross-module coherence | **At**, after this pass. One row grammar, one header, one floating layer | Notion |
@@ -460,6 +460,28 @@ Used for standards, not imitation.
 | Mobile as a designed surface | **At**, after this pass. A composed bottom bar and a genuinely recomposed row, not a squeezed desktop | Todoist, Things |
 | Goal→action connection | **At.** Truthful measurement, linked Projects, no vanity rings | Griply |
 | Onboarding a sparse workspace | **Below.** A new owner meets several zeroes before meeting a next action | Todoist |
+
+
+**Capture speed — amended 2026-08-29 by [V2.6 FIND-04](../roadmap/ROADMAP_V2_6.md#-find-04--tag-on-the-capture-line--delivered-2026-08-29).**
+The cell above is preserved as what was measured on 2026-08-21; this is what has
+changed since, and what has not.
+
+- **`#tag` is recognised**, which is the half of this cell's own example
+  (`"tomorrow 5pm #Work"`) that was missing. `Call the plumber #home p2 friday`
+  now produces a Task titled *"Call the plumber"*, tagged `home`, at P2, on
+  Friday — the tag shown in the existing preview as a chip the owner can remove
+  before saving, and a tag the workspace does not hold yet is **offered** rather
+  than created silently.
+- **Time of day is still not parsed**, so the cell's example is still not fully
+  answered and this reading is deliberately not raised to *"At"*. `5pm` remains
+  ordinary text, by design rather than by omission: the grammar is a closed token
+  vocabulary, and a time token is its own decision with its own timezone
+  question. The honest reading is *"Below, and narrower than it was"*.
+- **What the parser already did**, unchanged by this item and worth stating so
+  the cell is not read as harsher than the product deserves: priority, Time
+  Sectors, `someday`, `routine`, `waiting`, `delegate`, restrained calendar
+  phrases and recurrence.
+
 
 ---
 

@@ -151,7 +151,15 @@ export function TasksQuickAdd({
           "That task couldn’t be added. Your text is safe — try again.",
       );
     },
-    [title, defaultParent, busy, sessionDefaults, todayIso, revalidator],
+    [
+      title,
+      defaultParent,
+      busy,
+      sessionDefaults,
+      todayIso,
+      revalidator,
+      vocabulary,
+    ],
   );
 
   // Return focus to the field once it is interactive again, so the next task is one

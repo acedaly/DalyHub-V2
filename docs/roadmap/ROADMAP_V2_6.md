@@ -25,6 +25,27 @@
 
 ---
 
+## V2.6 IS COMPLETE (2026-08-29)
+
+All four items are ☑ delivered, and the programme closed **every** entry it took:
+[DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2--resolved-2026-08-29-v26-find-01)
+(FIND-01), [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3--resolved-2026-08-29-v26-find-02)
+(FIND-02) and [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3--resolved-2026-08-29-v26-find-03)
+(FIND-03), with DHDS-13 §13 advanced by FIND-04. Two entries were raised and
+deliberately not taken (DEBT-216 by FIND-01; DEBT-217 and DEBT-218 by the tag
+programme), each about a surface the item does not own.
+
+**Complete is not deployed, and the two are not conflated.** FIND-02 committed
+[`0049_create_tag_vocabulary.sql`](../../migrations/0049_create_tag_vocabulary.sql),
+which **carries data** — it moves every tag out of three columns and rebuilds two
+tables. It is applied locally and proven from the old schema; it is **not applied
+to production**, and it must not be until V2.4-GATE-01's owner-held backup half is
+genuinely satisfied ([DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-scheduled-production-backup-has-never-produced-a-backup-because-the-encryption-key-is-not-configured--p1),
+P1, still open). Merge readiness is established; deployment readiness is the
+owner's, and no item in this programme claims it.
+
+---
+
 ## The theme: RETRIEVAL & CAPTURE VELOCITY
 
 **V2.5 made the Goal layer decision-grade. V2.6 makes the workspace fast to put
@@ -95,8 +116,8 @@ exist. Both audits are recorded here because both changed the answer.
 | Entry | Severity | Verified against `main` (2026-08-28) |
 |---|---|---|
 | [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2--resolved-2026-08-29-v26-find-01) | **P2** | True. `app/routes/search.ts` resolves a bounded `q` against the registry's search providers. There is no recency source anywhere in the product, and no provider can answer an empty query. |
-| [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3) | P3 | True. Tags are a free-text JSON array on **three** detail tables — `person_details.tags` (0013), `asset_details.tags` (0016), `note_details.tags` (0019) — each normalised in `~/shared/forms/tags.ts` and each with its own suggestion set. No tag record, no workspace vocabulary, no rename, no search. |
-| [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3) | P3 | True. No tag field on `task_details`, no tag dimension in the Tasks filter declaration. The entry's own desired state — *"almost certainly"* a kernel primitive rather than a Task-only field — is still the open decision. |
+| [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3--resolved-2026-08-29-v26-find-02) | P3 | True. Tags are a free-text JSON array on **three** detail tables — `person_details.tags` (0013), `asset_details.tags` (0016), `note_details.tags` (0019) — each normalised in `~/shared/forms/tags.ts` and each with its own suggestion set. No tag record, no workspace vocabulary, no rename, no search. |
+| [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3--resolved-2026-08-29-v26-find-03) | P3 | True. No tag field on `task_details`, no tag dimension in the Tasks filter declaration. The entry's own desired state — *"almost certainly"* a kernel primitive rather than a Task-only field — is still the open decision. |
 | DHDS-13 §13 | — | Capture speed rated **"Below"** the reference bar, unchanged. |
 
 And the specific mechanism, which matters for scoping FIND-04: the capture
@@ -316,8 +337,8 @@ which fixes the constraints every item below inherits.
 Four items. The unconditional P2 first, then the kernel decision the theme was
 deferred whole for, then its two consumers.
 
-**FIND-01 is ☑ delivered (2026-08-29)**, and the register's standing A-scale
-sentence left with it. FIND-02 is next.
+**All four are ☑ delivered (2026-08-29)**, and the register's standing A-scale
+sentence left with FIND-01. **V2.6 is complete.**
 
 ---
 
@@ -479,12 +500,12 @@ sentence left with it. FIND-02 is next.
 
 ---
 
-### ☐ FIND-02 — One tag vocabulary
+### ☑ FIND-02 — One tag vocabulary — **delivered 2026-08-29**
 
 **A tag means the same thing everywhere, and there is one place tags come from.**
 
 - **User problem.**
-  [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3)
+  [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3--resolved-2026-08-29-v26-find-02)
   (P3): tags are a free-text string list per module — `person_details.tags`,
   `asset_details.tags`, `note_details.tags` — normalised by
   `~/shared/forms/tags.ts` but not a first-class anything. Every module offers
@@ -546,15 +567,84 @@ sentence left with it. FIND-02 is next.
      in workspace size, with a counted-statement proof.
   6. Light and dark; 1440 / 393 / 320; keyboard; accessible name; `axe` clean.
 - **Closes.** DEBT-182 (the model and the picker).
+- **Delivered 2026-08-29.** Every criterion met, and both recorded decisions
+  taken. The full reasoning is
+  [ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates).
+
+  **The model: a workspace VOCABULARY plus a polymorphic attachment.**
+  `workspace_tags (workspace_id, tag_key, label)` is the vocabulary — the primary
+  key IS the identity — and `entity_tags (workspace_id, entity_id, tag_key)`
+  attaches one to any entity, cascading from the entity and RESTRICTing against
+  the vocabulary. Both `STRICT`, both guarded by CHECK constraints the
+  application's own rule must satisfy (`tag_key = lower(tag_key)`,
+  `lower(label) = tag_key`, a length bound), so the database refuses a row the
+  rule would not have produced.
+
+  **Both rejected candidates, with their reasons.** A reserved EntityLink type
+  over a tag *entity* was rejected because an entity in this product acquires a
+  record page, a timeline, Activity events, Search presence and a place in the
+  spine — every one of them an ADR-112 non-goal, so the model would have to be
+  defended against its own affordances forever. A read-time aggregate over the
+  three existing columns was rejected because two spellings cannot be given one
+  identity without a stored identity, which makes rename — DEBT-182's own
+  complaint — unreachable by construction.
+
+  **The case decision, recorded because its consequence is user-visible.**
+  Identity is the **ASCII case-folded, whitespace-normalised key**; display is
+  the owner's **first** spelling. ASCII-only, deliberately: SQLite's `lower()`
+  folds ASCII only, so `toLowerCase()` would disagree with the migration and the
+  CHECK constraint the moment a non-ASCII capital appeared, and
+  `toLocaleLowerCase` would make a tag's identity depend on the reader's locale.
+  Three engines must compute this identically. The cost is stated rather than
+  hidden: `Café` and `café` remain two tags — the conservative failure, because
+  two tags can be merged by renaming and one cannot be split.
+
+  **The migration is proven from the OLD shape, which is the acceptance boundary
+  this programme added.** `migrations/0049_create_tag_vocabulary.sql` stages every
+  tag from all three legacy columns through `json_each`, ranks the spellings
+  deterministically so the surviving label does not depend on row order, fills
+  both tables, then drops `note_details.tags` and REBUILDS `person_details` and
+  `asset_details` (a bare `DROP COLUMN` would have silently lost constraints).
+  `test/kernel/migration-0049.test.ts` (20 tests) applies migrations `0001`…`0048`,
+  seeds tags through the **old** schema — all three columns, an overlap, a
+  case-differing trio, a whitespace pair, several per record, records with none,
+  a soft-deleted record, a second workspace — applies `0049`, and reads the new
+  one. The falsification pass removed `asset_details` from the migration and three
+  of those tests failed.
+
+  **Export and restore.** The snapshot gains `workspaceTags` and `entityTags` and
+  its version stays **2** — deliberately, so the backup taken immediately BEFORE
+  this migration stays restorable; restore prefers the collections and otherwise
+  rebuilds them from the per-record arrays a pre-`0049` archive carries. Both
+  paths are covered, including an orphan vocabulary entry and a legacy archive.
+
+  **One interaction, proven structurally AND on all three surfaces.**
+  `~/shared/forms/tags.ts` is now nothing but re-exports of `~/kernel/tags`, and
+  `test/unit/tags/vocabulary-singularity.test.ts` (7 tests) asserts it at SOURCE
+  level: one definer of the normalisation rule, one validator, every module
+  validator importing from the kernel and calling no `toLowerCase` of its own,
+  and tag SQL written from exactly one module. `TagsField` is now a `Picker`
+  adapter, and `e2e/find-tag-vocabulary.spec.ts` (7 journeys) drives People,
+  Assets and Notes through ONE helper — including a machine-value signature
+  comparison, a tag created on a Person and offered on an Asset, and the case
+  identity end to end.
+
+  **Bounded, and counted.** A record's tags ride its existing `SELECT` as one
+  correlated projection, so no surface pays a statement to display them; a write
+  is exactly **three** statements whatever the tag count. The vocabulary read is
+  ONE statement with a stated ceiling, proven identical for a workspace of two
+  records and one of twenty-two. The only budget that moved is the export
+  statement count (37 → 39), for two new FIXED collections — neither per-record —
+  and it is justified in the test that asserts it rather than quietly raised.
 
 ---
 
-### ☐ FIND-03 — Tags where the work is
+### ☑ FIND-03 — Tags where the work is — **delivered 2026-08-29**
 
 **Tasks can be tagged, and the collection can filter by tag.**
 
 - **User problem.**
-  [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3)
+  [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3--resolved-2026-08-29-v26-find-03)
   (P3): the TASKS-03 filter set was specified to include tags *"where Tasks
   already support them"* — they do not, so the collection ships no tag filter.
   The entry's own framing of the gap is the honest one: DalyHub already
@@ -598,10 +688,37 @@ sentence left with it. FIND-02 is next.
   4. Bounded, flat, counted, inside the parameter ceiling.
   5. Light and dark; 1440 / 393 / 320; keyboard; accessible name; `axe` clean.
 - **Closes.** DEBT-48.
+- **Delivered 2026-08-29.** Every criterion met, and the recorded decision taken.
+
+  **The Task adopts the model; it adds none.** `TaskDetails.tags` reads through
+  the same projection every other tagged record reads, is written by the same
+  three guarded statements in the same atomic batch as the Task's own mutation,
+  and is edited through the same `TagsField` — `e2e/find-task-tags.spec.ts` drives
+  it through the SAME helper the People, Assets and Notes journeys use, on desktop
+  and at 393px. No `label` field was smuggled in, as DEBT-48's own TASKS-04
+  warning still required.
+
+  **ONE dimension in the ONE declarative vocabulary.** `tags` is a filter
+  dimension in `TaskViewConfig`, translated by the one `toWorkspaceFilters`, and
+  resolved by the repository as an `EXISTS` **semi-join** — never a `JOIN`, which
+  would return a Task carrying two of the filtered tags twice and corrupt the
+  page, the count beside the filter and the keyset cursor. `test/kernel/task-tags.test.ts`
+  (15 tests) proves tag × parent × priority together, no duplication,
+  deterministic pagination, workspace isolation, that removing a tag changes the
+  result, and that the filter costs no extra statement.
+
+  **The recorded decision, both halves.** A tag **IS** expressible in a saved
+  view — and needed no mechanism to be, because a saved view stores the
+  declarative configuration and the dimension is in it; the round trip is proven
+  through the real view switcher. A tag is **NOT** an input to the smart-sort
+  expression and **NOT** an input to the STEER-04 next-action rule. That is
+  asserted behaviourally *and* at source: `test/unit/tasks/tag-boundary.test.ts`
+  reads `next-action.ts` and the `case "smart":` expression and requires the word
+  to be absent from both.
 
 ---
 
-### ☐ FIND-04 — `#tag` on the capture line
+### ☑ FIND-04 — `#tag` on the capture line — **delivered 2026-08-29**
 
 **One more token in the grammar the product already has.**
 
@@ -655,6 +772,44 @@ sentence left with it. FIND-02 is next.
   6. Every surface using the parser behaves identically — proven by driving the
      parser, not by checking one screen.
 - **Advances.** DHDS-13 §13 (capture *"Below"*).
+- **Delivered 2026-08-29.** Every criterion met, and the recorded decision taken.
+
+  **One token class, and the refusals are the hard half.** A `#` word is a tag
+  when it begins with a letter or digit, contains only letters, digits, `-` and
+  `_`, and carries at least one **letter**. `test/unit/tasks/quick-capture-tags.test.ts`
+  (30 tests) includes a sixteen-row adversarial table that must stay ordinary
+  text: `the #1 priority`, `Fix #42 before Friday`, `Row #1-2`, `# Heading`,
+  `## Subheading`, `### three hashes`, a stray `#`, `#-`, `#_private`, `#home.`,
+  `#home,`, `#home!`, `#home?`, `“#home”`, `end.#home` and `a/#home`. The parser's
+  own rules are preserved exactly — whole word, anywhere the other tokens may
+  appear, and a line of nothing but tags stays a Task titled with the literal
+  text rather than an untitled Task with tags.
+
+  **The unknown-tag decision: OFFERED, never created silently.** The middle of the
+  three options. The preview words it — *"New tag: …"* against an existing tag's
+  *"Tag: …"* — and the owner removes it with the control every token already has,
+  which restores the literal words. *"Leave it as literal words"* was rejected
+  with its reason: that rule is about phrases the grammar **cannot fully
+  recognise**, and `#` is an explicit marker, like `due …`, which the grammar
+  recognises perfectly. What is genuinely at stake is the vocabulary, and the
+  preview answers that by showing the word as new **before** anything is saved.
+
+  **The offline answer is a test, as the item required.**
+  `test/kernel/offline-capture-replay-compatibility.test.ts` replays a **frozen**
+  pre-FIND-04 queue record — written as a literal, not built by today's code —
+  through the shipped `captureFormData` and the shipped `POST /tasks/new` against
+  real D1. It arrives as the words the owner typed, with no tag and **no
+  vocabulary created behind their back**, and it is still idempotent. The
+  namespace digest is pinned to its literal value, because `OFFLINE_SCHEMA_VERSION`
+  is an input to it and moving it would strand every queued capture. Falsified
+  two ways: bumping that constant, and re-reading a queued title through the new
+  grammar — three assertions failed, naming the exact title that would have been
+  rewritten.
+
+  **Every surface, proven by driving the parser.** The `/tasks` quick-add row, the
+  full create form, the global capture sheet and the server-side capture service
+  all call the one parser and the one `applyCaptureTags` mapping, so they cannot
+  disagree about what a recognised tag becomes on the wire.
 
 ---
 
@@ -901,13 +1056,15 @@ and on the entry itself, so no future reader re-derives what is scheduled.
 |---|---|---|
 | **DEBT-195** — Search's empty query offers nothing to open | **P2** | **CLOSED 2026-08-29** — FIND-01. Deferred by V2.4 and V2.5; the A-scale sentence has left the register. |
 | **DEBT-216** — a palette test asserts Goals have no creation command | P2 | **Raised** by FIND-01's verification and deliberately not taken: STEER-01 shipped the surface, the assertion is stale, and it is a different item's surface. |
-| **DEBT-182** — tags have no canonical model, so no canonical picker | P3 | **Taken** — FIND-02. |
-| **DEBT-48** — Tasks have no tags, so no tag filter | P3 | **Taken** — FIND-03. |
-| DHDS-13 §13 — capture speed *"Below"* | — | **Advanced** — FIND-04. |
+| **DEBT-182** — tags have no canonical model, so no canonical picker | P3 | **CLOSED 2026-08-29** — FIND-02, on both clauses: one vocabulary source, and one interaction everywhere. The model question it left open is settled in [ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates). |
+| **DEBT-48** — Tasks have no tags, so no tag filter | P3 | **CLOSED 2026-08-29** — FIND-03, on all three clauses, including the real-D1 combined-filter test the entry names. |
+| DHDS-13 §13 — capture speed *"Below"* | — | **ADVANCED, not raised to "At"** — FIND-04 answered the `#tag` half of the cell's own example; time of day is still not parsed, and the amendment says so rather than claiming the bar. |
 | **DEBT-91** — the assistant's fact block is narrower than the product's own derivations | P3 | **Deferred, and AMENDED** with a dated V2.6 note: V2.5 made it both cheaper to close (`loadGoalStories` *is* the block) and worse if it ran (a set-aside Goal would be described as neglected). Not a new number — the same defect finding new instances. |
 | **DEBT-92** — generated AI results are not persisted | P3 | **Deferred**, unchanged. Its own closing condition needs usage data that cannot exist before a live call. |
 | **DEBT-93** — AI evidence retrieval is keyword and relationship only | P3 | **Deferred**, and **advanced by this programme without being taken**: FIND-02's vocabulary and FIND-01's recency source are inputs the retrieval service composes. Embeddings remain refused (ADR-073 §20). |
-| **DEBT-213** — the AI model and pricing registry has no re-verification mechanism | P3 | **Raised** by this pass, and the only new entry. Not previously represented; found by audit, not by prose. |
+| **DEBT-213** — the AI model and pricing registry has no re-verification mechanism | P3 | **Raised** by this pass. Not previously represented; found by audit, not by prose. |
+| **DEBT-217** — a convergence fixture seeds a Person outside the closed relationship vocabulary | P3 | **Raised** by FIND-02's People journey and deliberately not taken: the journey moved to a correctly seeded Person, and the fixture belongs to the record-convergence item. |
+| **DEBT-218** — `axe` reports `scrollable-region-focusable` on the shared anchored surface | P3 | **Raised** by FIND-03 and MEASURED as pre-existing (6206px of content against a 694px clamp *with the tag group hidden*). Its scan was narrowed to the surface it owns, with the reason in the spec; **no rule was disabled**. |
 | **DEBT-102** — no capture-processing state | P3 | **Deliberately not taken**, with its reason in LATER: a kernel decision adjacent to the theme, and FIND-04 does not need it answered. |
 | DEBT-128 · DEBT-175 | P2 | **Not taken**, unchanged from V2.5: they close together in their own pass. FIND-01 is explicitly forbidden from widening the fork. |
 | DEBT-34 | P2 | **Not V2.6's.** It is STEER-05's, and STEER-05 stayed in V2.5 — where it closed this entry on 2026-08-28. |

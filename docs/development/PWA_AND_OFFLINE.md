@@ -504,6 +504,18 @@ scope for this milestone and must not be added here without that analysis.
 
 Statuses: `pending` → `syncing` → `synced` | `failed` | `blocked`.
 
+**A queued capture is REPLAYED, never re-interpreted (V2.6 FIND-04).** The offline
+form stores the title exactly as the owner typed it and the replay posts exactly
+that — it does not run the capture grammar over a queued title, then or now. So a
+`#` typed before `#tag` existed replays as the words it was, and a grammar change
+can never rewrite work that is already on a device. It is proven rather than
+assumed: `test/kernel/offline-capture-replay-compatibility.test.ts` replays a
+FROZEN pre-FIND-04 queue record — a literal, not a record built by today's code —
+through the shipped `captureFormData` and the shipped `POST /tasks/new` against
+real D1, and asserts the title, the absence of tags and the absence of any new
+vocabulary. It also pins `OFFLINE_SCHEMA_VERSION`, because that constant is an
+input to the namespace digest and moving it strands every queued capture (§4).
+
 `blocked` is separate from `failed` on purpose: a blocked record is waiting for a
 valid sign-in, is not the owner's mistake, and **does not consume retry budget**.
 
