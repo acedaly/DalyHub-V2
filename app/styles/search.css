@@ -122,6 +122,7 @@
 }
 
 .dh-search__idle,
+.dh-search__note,
 .dh-search__partial {
   margin: 0;
   padding: var(--app-space-4);
@@ -134,6 +135,18 @@
   background: var(--dh-color-warning-subtle);
   border-radius: var(--dh-radius-control);
   margin-bottom: var(--app-space-2);
+}
+
+/*
+ * FIND-01 — the recency list's one standing line (what this list is, and that
+ * Diary is never in it). Quiet by construction: it uses the muted text role and
+ * no background, deliberately NOT `.dh-search__partial`'s warning tone, because
+ * nothing here is wrong — it is a statement of a rule, not a problem to fix.
+ * Padding is trimmed at the block start so the line sits with the list it heads
+ * rather than floating between the input and the results.
+ */
+.dh-search__note {
+  padding-block-end: var(--app-space-2);
 }
 
 .dh-search__group {
@@ -161,19 +174,6 @@
   margin-left: auto;
   font-variant-numeric: tabular-nums;
   color: var(--dh-color-text-muted);
-}
-
-.dh-search__clear {
-  margin-left: auto;
-  min-height: 1.75rem;
-  padding: 0 var(--app-space-2);
-  color: var(--dh-color-text-muted);
-  background: transparent;
-  border: var(--app-border-width-thin) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-control);
-  font: inherit;
-  text-transform: none;
-  cursor: pointer;
 }
 
 .dh-search__option {

@@ -271,16 +271,26 @@ test.describe("DS-08 Shared Search — desktop", () => {
 
     await page.keyboard.press("Escape");
     await expect(page).toHaveURL(/\/tasks(\?.*)?$/);
+
+    /*
+     * FIND-01 — re-opening Search with no query lists the workspace's recently
+     * worked-on records, from the SERVER, in the same row grammar as the
+     * results above.
+     *
+     * This block used to assert the retired client-side list: a "Recent search
+     * results" listbox filled from `localStorage` by the clicks made earlier in
+     * this journey, with a "Clear" button that returned the surface to the
+     * sentence restating its own placeholder. All three are gone.
+     */
     await openSearch(page);
     await expect(
-      page.getByRole("listbox", { name: "Recent search results" }),
+      page.getByRole("listbox", { name: "Recently worked on" }),
     ).toBeVisible();
-    await expect(optionFor(page, "Global Search E2E Task")).toBeVisible();
+    await expect(page.getByRole("option").first()).toBeVisible();
     await expect(searchPanel(page)).not.toContainText("PRIVATE-DIARY-BODY");
-    await page.getByRole("button", { name: "Clear" }).click();
-    await expect(
-      page.getByText("Search across everything in your workspace."),
-    ).toBeVisible();
+    await expect(searchPanel(page)).not.toContainText(
+      "Search across everything in your workspace.",
+    );
   });
 });
 
@@ -400,8 +410,20 @@ test.describe("DS-08 Shared Search — modal, scrim and deep links", () => {
     // The modal root is the exclusion boundary: the content column (a sibling of
     // the Search modal) is inert while Search is open.
     await expect(page.locator(".dh-main-col")).toHaveAttribute("inert", "");
-    // The scrim itself stays interactive and closes Search.
-    await page.locator(".dh-search__scrim").click();
+    /*
+     * The scrim itself stays interactive and closes Search.
+     *
+     * Clicked near the FOOT of the viewport rather than at the scrim's centre.
+     * The scrim covers the whole viewport, so its centre point — Playwright's
+     * default — is behind the Search panel, and since FIND-01 gave the empty
+     * query a list of recent records to show, the panel is tall enough to reach
+     * that point. Clicking a part of the scrim the panel does not cover tests
+     * the same behaviour without depending on how tall the panel happens to be.
+     */
+    const viewport = page.viewportSize();
+    await page.locator(".dh-search__scrim").click({
+      position: { x: 8, y: (viewport?.height ?? 720) - 8 },
+    });
     await expect(
       page.getByRole("combobox", { name: "Search everything" }),
     ).toHaveCount(0);

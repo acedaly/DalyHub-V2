@@ -13,20 +13,13 @@
  * Highlighting is plain text + `<mark>` — never raw HTML.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useId, useMemo, useRef } from "react";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon, getEntityIdentity, isEntityType } from "~/shared/entity";
-import { InboxIcon, SearchIcon } from "~/shared/icons";
+import { HistoryIcon, InboxIcon, SearchIcon } from "~/shared/icons";
 import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
 import { useInertBackground } from "~/shared/drawer/use-inert-background";
@@ -36,13 +29,7 @@ import { SearchSignals } from "./SearchSignals";
 import type { SearchFn } from "./client";
 import { buildResultDestination, destinationHref } from "./navigation";
 import { recordAnchorFromPath } from "./record-anchor";
-import {
-  clearRecentSearchResults,
-  loadRecentSearchResults,
-  recentToRankedResult,
-  saveRecentSearchResult,
-} from "./recent";
-import { nextIndex, previousIndex } from "./selection";
+import { RECENT_GROUP_LABEL } from "./recent-outcome";
 import { useSearchController } from "./useSearchController";
 import type { RankedSearchResult, SearchResultGroup } from "./types";
 
@@ -72,6 +59,11 @@ function groupPresentation(group: SearchResultGroup): {
   readonly label: string;
   readonly icon: React.ReactNode;
 } {
+  // FIND-01's single group heads itself: it is not an entity type and not a
+  // module, and `getEntityIdentity` has nothing to say about it.
+  if (group.kind === "recent") {
+    return { label: RECENT_GROUP_LABEL, icon: <HistoryIcon /> };
+  }
   if (group.kind === "entity" && group.entityType !== undefined) {
     const identity = getEntityIdentity(group.entityType);
     if (identity !== null) {
@@ -132,12 +124,6 @@ export default function SearchSurface({
   });
 
   const { flatResults, activeIndex } = controller;
-  const [recentResults, setRecentResults] = useState<RankedSearchResult[]>([]);
-  const [recentActiveIndex, setRecentActiveIndex] = useState(-1);
-
-  useEffect(() => {
-    setRecentResults(loadRecentSearchResults().map(recentToRankedResult));
-  }, []);
 
   // Map each result's global id to its flat index for aria-activedescendant.
   const indexById = useMemo(() => {
@@ -148,9 +134,6 @@ export default function SearchSurface({
 
   const activate = useCallback(
     (result: RankedSearchResult) => {
-      setRecentResults(
-        saveRecentSearchResult(result).map(recentToRankedResult),
-      );
       const destination = buildResultDestination(result.target, {
         pathname: location.pathname,
         search: location.search,
@@ -163,42 +146,10 @@ export default function SearchSurface({
 
   const handleInputKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
-      if (controller.phase === "idle" && recentResults.length > 0) {
-        switch (event.key) {
-          case "ArrowDown":
-            event.preventDefault();
-            setRecentActiveIndex((index) =>
-              nextIndex(index, recentResults.length),
-            );
-            break;
-          case "ArrowUp":
-            event.preventDefault();
-            setRecentActiveIndex((index) =>
-              previousIndex(index, recentResults.length),
-            );
-            break;
-          case "Home":
-            event.preventDefault();
-            setRecentActiveIndex(0);
-            break;
-          case "End":
-            event.preventDefault();
-            setRecentActiveIndex(recentResults.length - 1);
-            break;
-          case "Enter":
-            if (
-              recentActiveIndex >= 0 &&
-              recentActiveIndex < recentResults.length
-            ) {
-              event.preventDefault();
-              activate(recentResults[recentActiveIndex]);
-            }
-            break;
-          default:
-            break;
-        }
-        return;
-      }
+      // FIND-01 — there is no second keyboard model for the recency list. It
+      // arrives as ordinary results, so ↑/↓, Home/End and Enter are the SAME
+      // code path here as for a query's matches, and it cannot drift from them.
+      //
       // Only the CURRENT result set is navigable/activatable. While a new query
       // loads, prior results may be visible but are stale and inert.
       if (!controller.resultsAreCurrent) {
@@ -235,7 +186,7 @@ export default function SearchSurface({
           break;
       }
     },
-    [activate, controller, recentActiveIndex, recentResults],
+    [activate, controller],
   );
 
   // Escape closes Search (the top-most surface). A document-level capture
@@ -263,25 +214,15 @@ export default function SearchSurface({
     [activate],
   );
 
-  const activeDescendant =
-    controller.phase === "idle" && recentActiveIndex >= 0
-      ? optionId(recentActiveIndex)
-      : activeIndex >= 0
-        ? optionId(activeIndex)
-        : undefined;
+  const activeDescendant = activeIndex >= 0 ? optionId(activeIndex) : undefined;
 
-  const statusMessage = buildStatusMessage(controller, recentResults.length);
+  const statusMessage = buildStatusMessage(controller);
   const handleQueryChange = useCallback(
     (value: string) => {
-      setRecentActiveIndex(-1);
       controller.setQuery(value);
     },
     [controller],
   );
-  const clearRecent = useCallback(() => {
-    setRecentResults(clearRecentSearchResults().map(recentToRankedResult));
-    setRecentActiveIndex(-1);
-  }, []);
 
   return (
     <div className="dh-search" role="presentation" ref={modalRootRef}>
@@ -327,10 +268,7 @@ export default function SearchSurface({
             spellCheck={false}
             role="combobox"
             aria-label="Search everything"
-            aria-expanded={
-              controller.hasResults ||
-              (controller.phase === "idle" && recentResults.length > 0)
-            }
+            aria-expanded={controller.hasResults}
             aria-controls={listboxId}
             aria-activedescendant={activeDescendant}
             value={controller.query}
@@ -352,10 +290,6 @@ export default function SearchSurface({
             onRowClick={handleRowClick}
             onRowHover={controller.setActiveIndex}
             currentLocation={location}
-            recentResults={recentResults}
-            recentActiveIndex={recentActiveIndex}
-            onRecentHover={setRecentActiveIndex}
-            onClearRecent={clearRecent}
           />
         </div>
 
@@ -395,10 +329,6 @@ type SearchResultsProps = {
     readonly pathname: string;
     readonly search: string;
   };
-  readonly recentResults: readonly RankedSearchResult[];
-  readonly recentActiveIndex: number;
-  readonly onRecentHover: (index: number) => void;
-  readonly onClearRecent: () => void;
 };
 
 function SearchResults({
@@ -409,62 +339,20 @@ function SearchResults({
   onRowClick,
   onRowHover,
   currentLocation,
-  recentResults,
-  recentActiveIndex,
-  onRecentHover,
-  onClearRecent,
 }: SearchResultsProps) {
   const { phase, query, groups, activeIndex } = controller;
 
+  /*
+   * FIND-01 — `idle` is now only the instant BEFORE the first response.
+   *
+   * The empty query is a real request (the recency list), so this phase lasts
+   * one round trip rather than until the owner types. It renders nothing at all
+   * — not the sentence that used to live here, which restated the placeholder
+   * directly above it, and not a spinner for a read this fast. The status
+   * region announces the result when it lands.
+   */
   if (phase === "idle") {
-    if (recentResults.length > 0) {
-      return (
-        <div
-          className="dh-search__listbox"
-          id={listboxId}
-          role="listbox"
-          aria-label="Recent search results"
-        >
-          <div
-            className="dh-search__group"
-            role="group"
-            aria-labelledby={`${listboxId}-recent`}
-          >
-            <div className="dh-search__grouptitle" id={`${listboxId}-recent`}>
-              <span className="dh-search__groupicon" aria-hidden="true">
-                <SearchIcon />
-              </span>
-              Recent
-              <button
-                type="button"
-                className="dh-search__clear md-state-layer"
-                onClick={onClearRecent}
-              >
-                Clear
-              </button>
-            </div>
-            {recentResults.map((result, index) => (
-              <SearchOption
-                key={result.id}
-                result={result}
-                index={index}
-                domId={optionId(index)}
-                active={index === recentActiveIndex}
-                interactive
-                onClick={onRowClick}
-                onHover={onRecentHover}
-                currentLocation={currentLocation}
-              />
-            ))}
-          </div>
-        </div>
-      );
-    }
-    return (
-      <p className="dh-search__idle">
-        Search across everything in your workspace.
-      </p>
-    );
+    return null;
   }
 
   if (phase === "error") {
@@ -488,6 +376,22 @@ function SearchResults({
   }
 
   if (controller.isEmpty) {
+    /*
+     * Two different facts, two different sentences. "Nothing matched X" is
+     * false in a workspace that simply has no history yet, and telling a new
+     * owner their search failed when they have not searched is the kind of
+     * dead end `AGENTS.md` §6 forbids.
+     */
+    if (controller.isEmptyQuery) {
+      return (
+        <EmptyState
+          icon={<InboxIcon />}
+          title="Nothing recent yet"
+          headingLevel={3}
+          description="Records you work on will appear here. Start typing to search everything in your workspace."
+        />
+      );
+    }
     return (
       <EmptyState
         icon={<SearchIcon />}
@@ -512,11 +416,27 @@ function SearchResults({
           Some sources didn’t respond. Showing what we found.
         </p>
       ) : null}
+      {controller.isEmptyQuery ? (
+        /*
+         * The privacy consequence, in one line, on the surface — ADR-112
+         * decision 5's requirement, met where the owner can actually read it
+         * rather than only in a document. It is stated whenever the list
+         * renders, not conditionally on the workspace HAVING Diary entries,
+         * because a rule the owner can only discover by owning the excluded
+         * data is not a rule they have been told.
+         */
+        <p className="dh-search__note" role="note">
+          Your most recently worked-on records. Diary entries are never listed
+          here — search for one to find it.
+        </p>
+      ) : null}
       <div
         className="dh-search__listbox"
         id={listboxId}
         role="listbox"
-        aria-label="Search results"
+        aria-label={
+          controller.isEmptyQuery ? RECENT_GROUP_LABEL : "Search results"
+        }
         aria-busy={phase === "loading" || undefined}
       >
         {groups.map((group) => {
@@ -665,22 +585,31 @@ function SearchOption({
 
 function buildStatusMessage(
   controller: ReturnType<typeof useSearchController>,
-  recentCount: number,
 ): string {
   switch (controller.phase) {
     case "idle":
-      return recentCount > 0 ? `${recentCount} recent results.` : "";
+      return "";
     case "loading":
       return "Searching…";
     case "error":
       return "Search is unavailable. Select try again to retry.";
-    case "ready":
+    case "ready": {
+      const count = controller.flatResults.length;
+      // FIND-01 — the recency list is announced as what it IS. "8 results"
+      // after typing nothing would leave a screen-reader user with no idea
+      // what the eight things are or why they are there.
+      if (controller.isEmptyQuery) {
+        return count === 0
+          ? "No recent records yet. Type to search."
+          : `${count} recently worked-on ${count === 1 ? "record" : "records"}.`;
+      }
       if (controller.isEmpty) {
         return `No results for ${controller.query}.`;
       }
       return controller.isPartial
-        ? `${controller.flatResults.length} results. Some sources are unavailable.`
-        : `${controller.flatResults.length} results.`;
+        ? `${count} results. Some sources are unavailable.`
+        : `${count} results.`;
+    }
     default:
       return "";
   }
@@ -697,7 +626,11 @@ function buildVisibleSummary(
   }
   const count = controller.flatResults.length;
   if (count === 0) {
-    return controller.phase === "error" ? "" : "No results";
+    if (controller.phase === "error") return "";
+    return controller.isEmptyQuery ? "Nothing recent" : "No results";
+  }
+  if (controller.isEmptyQuery) {
+    return `${count} recent`;
   }
   const noun = count === 1 ? "result" : "results";
   const truncated = controller.outcome?.truncated ? "+" : "";

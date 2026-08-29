@@ -36,6 +36,7 @@ import type {
   NotificationSettingsRepository,
 } from "~/kernel/notifications";
 import type { ActivityWindowRepository } from "~/kernel/activity-window";
+import type { RecentRecordsRepository } from "~/kernel/recent-records";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import {
   DEFAULT_OWNER_TIME_ZONE,
@@ -97,6 +98,7 @@ import {
   createAiPreferencesRepository,
   createAiUsageRepository,
   createActivityWindowRepository,
+  createRecentRecordsRepository,
   createAlignmentRepository,
   createCalendarSourceRepository,
   createCaptureRateLimiter,
@@ -420,6 +422,13 @@ export interface WorkspaceScope {
    * column and no table behind it, and there never will be.
    */
   readonly activityWindow: ActivityWindowRepository;
+  /**
+   * FIND-01 — the workspace's most recently worked-on records ([ADR-112]
+   * decision 5). One bounded, derived read over the same append-only Activity
+   * stream; it owns no storage, records nothing about what the owner LOOKED at,
+   * and exists so Search's empty query has something true to offer.
+   */
+  readonly recentRecords: RecentRecordsRepository;
   readonly appPreferences: AppPreferencesRepository;
   /**
    * AI-01 — the owner's NON-SECRET AI policy (enabled, provider, budgets, allowed
@@ -689,6 +698,7 @@ export function bindWorkspaceRepositories(
   const alignment = createAlignmentRepository(env.DB, context);
   const reviewInsights = createReviewInsightRepository(env.DB, context);
   const activityWindow = createActivityWindowRepository(env.DB, context);
+  const recentRecords = createRecentRecordsRepository(env.DB, context);
   // NOTE: `appPreferences` is bound at the TOP of this function, not here — the
   // AUDIT-14 owner-timezone resolver needs it before any repository that asks
   // what day it is for the owner is constructed.
@@ -756,6 +766,7 @@ export function bindWorkspaceRepositories(
     alignment,
     reviewInsights,
     activityWindow,
+    recentRecords,
     appPreferences,
     aiPreferences,
     aiUsage,

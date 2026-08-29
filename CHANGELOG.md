@@ -1,5 +1,32 @@
 # Changelog
 
+- **Search now answers before you type.**
+
+  Opening Search used to show one sentence — "Search across everything in your
+  workspace." — which said the same thing as the box directly above it and gave
+  you nothing to click. The fastest way back to something you had been reading
+  five minutes earlier was to remember its name and type it again.
+
+  Now it opens with **the records you were just working on**, newest first. One
+  arrow key and Enter opens one. They are the same rows your search results use,
+  so nothing new to learn, and they come from your workspace rather than from
+  this browser — so they are there the first time you open Search, on a new
+  laptop, and after you clear your history.
+
+  "Recent" means one thing and it is a date: the last time a record actually
+  changed. Nothing counts how often you open something, nothing learns your
+  habits, nothing guesses what you want next, and nothing anywhere records what
+  you merely looked at. A record you touched once this morning sits above one you
+  touched fifty times last month, because that is what recent means.
+
+  **Diary entries are never in this list**, and the panel says so. Everything
+  else about Search is unchanged, and a diary entry is still found the instant
+  you type its name — the difference is only that this one list, which appears
+  without you asking for anything, does not volunteer them.
+
+  If your workspace is brand new and has no history yet, it says so plainly
+  instead of pretending a search failed.
+
 - **Every screen now tells the same story about a goal — and points at what to
   do next.**
 

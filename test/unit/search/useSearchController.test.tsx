@@ -24,6 +24,27 @@ function outcomeWith(query: string, title: string): SearchOutcome {
   ]);
 }
 
+/**
+ * FIND-01 — Search now issues ONE request the moment it opens, for the recency
+ * list. Every test below this line is about what happens to TYPED queries, so
+ * this wrapper answers that opening request immediately and keeps it out of the
+ * test's own bookkeeping. The assertions are unchanged; only the baseline moved.
+ */
+function typedOnly(fn: SearchFn): SearchFn {
+  return (q, signal, options) =>
+    q === ""
+      ? Promise.resolve(assembleOutcome("", []))
+      : fn(q, signal, options);
+}
+
+/** Let the opening recency request settle before the test's own work starts. */
+async function settleOpeningRequest(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
@@ -35,17 +56,44 @@ function deferred<T>() {
 }
 
 describe("useSearchController", () => {
-  it("stays idle and never fetches for an empty query", async () => {
+  /*
+   * FIND-01 reversed this test's subject. It used to assert that an empty query
+   * "stays idle and never fetches", which is exactly the dead end [DEBT-195]
+   * recorded: the shell was useless until a keystroke. An empty query is now a
+   * real request for the workspace's recently worked-on records.
+   *
+   * What has NOT changed, and is asserted below: an empty query still executes
+   * no PROVIDER. That decision moved to the server, which answers `q=` from the
+   * recency read — `MIN_QUERY_LENGTH` still means what it always meant.
+   */
+  it("fetches recent records for an empty query instead of dead-ending", async () => {
+    const search = vi.fn<SearchFn>(async (q) => outcomeWith(q, "Recent thing"));
+    const { result } = renderHook(() =>
+      useSearchController({ search, debounceMs: 0 }),
+    );
+    await waitFor(() => expect(result.current.phase).toBe("ready"));
+
+    expect(search).toHaveBeenCalledWith("", expect.any(AbortSignal));
+    expect(result.current.isEmptyQuery).toBe(true);
+    expect(result.current.flatResults.map((r) => r.title)).toEqual([
+      "Recent thing",
+    ]);
+  });
+
+  it("treats a whitespace-only query as the empty one", async () => {
     const search = vi.fn<SearchFn>(async (q) => outcomeWith(q, "X"));
     const { result } = renderHook(() =>
       useSearchController({ search, debounceMs: 0 }),
     );
+    await waitFor(() => expect(result.current.phase).toBe("ready"));
+    search.mockClear();
+
     act(() => result.current.setQuery("   "));
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(search).not.toHaveBeenCalled();
-    expect(result.current.phase).toBe("idle");
+    await waitFor(() => expect(result.current.isEmptyQuery).toBe(true));
+    // Normalised to "" — never sent as whitespace.
+    for (const call of search.mock.calls) {
+      expect(call[0]).toBe("");
+    }
   });
 
   it("debounces keystrokes into a single request", async () => {
@@ -53,9 +101,15 @@ describe("useSearchController", () => {
     const { result } = renderHook(() =>
       useSearchController({ search, debounceMs: 30 }),
     );
+    // Let FIND-01's mount request for the recency list settle, then measure
+    // ONLY the keystrokes — the coalescing claim is unchanged.
+    await waitFor(() => expect(result.current.phase).toBe("ready"));
+    search.mockClear();
+
     act(() => result.current.setQuery("a"));
     act(() => result.current.setQuery("al"));
     act(() => result.current.setQuery("alp"));
+    await waitFor(() => expect(result.current.query).toBe("alp"));
     await waitFor(() => expect(result.current.phase).toBe("ready"));
     expect(search).toHaveBeenCalledTimes(1);
     expect(search).toHaveBeenCalledWith("alp", expect.any(AbortSignal));
@@ -93,22 +147,42 @@ describe("useSearchController", () => {
     expect(result.current.flatResults[0]?.title).toBe("Beta");
   });
 
-  it("returns to idle and cancels pending work when cleared", async () => {
+  /*
+   * FIND-01 — clearing returns to the RECENCY LIST rather than to a dead idle
+   * state, because an empty Search now has something to open. The claim this
+   * test exists for is unchanged and still asserted: the cancelled request's
+   * late resolution must never reach state.
+   */
+  it("cancels pending work when cleared, and returns to the recency list", async () => {
     const pending = deferred<SearchOutcome>();
-    const search = vi.fn<SearchFn>(() => pending.promise);
+    const calls: string[] = [];
+    const search = vi.fn<SearchFn>((q) => {
+      calls.push(q);
+      // The mount request for the recency list resolves; the typed one hangs.
+      return q === ""
+        ? Promise.resolve(outcomeWith("", "Recent"))
+        : pending.promise;
+    });
     const { result } = renderHook(() =>
       useSearchController({ search, debounceMs: 0 }),
     );
+    await waitFor(() => expect(result.current.phase).toBe("ready"));
+
     act(() => result.current.setQuery("alpha"));
-    await waitFor(() => expect(search).toHaveBeenCalled());
+    await waitFor(() => expect(calls).toContain("alpha"));
+
     act(() => result.current.clear());
-    expect(result.current.phase).toBe("idle");
+    await waitFor(() => expect(result.current.isEmptyQuery).toBe(true));
+    await waitFor(() =>
+      expect(result.current.flatResults[0]?.title).toBe("Recent"),
+    );
+
     // A late resolution of the cancelled request must not change state.
     await act(async () => {
       pending.resolve(outcomeWith("alpha", "Late"));
       await Promise.resolve();
     });
-    expect(result.current.phase).toBe("idle");
+    expect(result.current.flatResults[0]?.title).toBe("Recent");
   });
 
   it("surfaces a retryable error and recovers on retry", async () => {
@@ -188,13 +262,15 @@ describe("useSearchController — immediate stale invalidation", () => {
       const a = deferred<SearchOutcome>();
       const b = deferred<SearchOutcome>();
       const calls: string[] = [];
-      const search: SearchFn = (q) => {
+      const search: SearchFn = typedOnly((q) => {
         calls.push(q);
         return calls.length === 1 ? a.promise : b.promise;
-      };
+      });
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 100 }),
       );
+
+      await settleOpeningRequest();
 
       // (1) query A starts, (2) A remains unresolved after its debounce fires.
       act(() => result.current.setQuery("a"));
@@ -232,15 +308,16 @@ describe("useSearchController — immediate stale invalidation", () => {
     vi.useFakeTimers();
     try {
       let signalA: AbortSignal | undefined;
-      const search: SearchFn = (_q, signal) => {
+      const search: SearchFn = typedOnly((_q, signal) => {
         if (signalA === undefined) {
           signalA = signal;
         }
         return new Promise<SearchOutcome>(() => {});
-      };
+      });
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 50 }),
       );
+      await settleOpeningRequest();
       act(() => result.current.setQuery("a"));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(50);
@@ -257,18 +334,23 @@ describe("useSearchController — immediate stale invalidation", () => {
   it("clearing before the debounced request starts cancels it", async () => {
     vi.useFakeTimers();
     try {
-      const search = vi.fn<SearchFn>(async (q) => outcomeWith(q, "X"));
+      const typed = vi.fn<SearchFn>(async (q) => outcomeWith(q, "X"));
+      const search = typedOnly(typed);
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 100 }),
       );
+      await settleOpeningRequest();
+
       act(() => result.current.setQuery("ab"));
       // Clear before the 100ms debounce fires.
       act(() => result.current.clear());
       await act(async () => {
         await vi.advanceTimersByTimeAsync(200);
       });
-      expect(search).not.toHaveBeenCalled();
-      expect(result.current.phase).toBe("idle");
+      // The typed query never reached the transport — the claim of this test.
+      expect(typed).not.toHaveBeenCalled();
+      // And clearing lands back on the recency list rather than a dead idle.
+      expect(result.current.isEmptyQuery).toBe(true);
     } finally {
       vi.useRealTimers();
     }
@@ -280,13 +362,14 @@ describe("useSearchController — immediate stale invalidation", () => {
       const a = deferred<SearchOutcome>();
       const c = deferred<SearchOutcome>();
       const calls: string[] = [];
-      const search: SearchFn = (q) => {
+      const search: SearchFn = typedOnly((q) => {
         calls.push(q);
         return q === "a" ? a.promise : c.promise;
-      };
+      });
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 100 }),
       );
+      await settleOpeningRequest();
       act(() => result.current.setQuery("a"));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(100);
@@ -315,15 +398,16 @@ describe("useSearchController — immediate stale invalidation", () => {
     try {
       const first = deferred<SearchOutcome>();
       const calls: string[] = [];
-      const search: SearchFn = (q) => {
+      const search: SearchFn = typedOnly((q) => {
         calls.push(q);
         return calls.length === 1
           ? first.promise
           : Promise.resolve(outcomeWith(q, "Retry"));
-      };
+      });
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 50 }),
       );
+      await settleOpeningRequest();
       act(() => result.current.setQuery("alpha"));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(50);
@@ -349,15 +433,16 @@ describe("useSearchController — stale active selection", () => {
     try {
       const b = deferred<SearchOutcome>();
       let calls = 0;
-      const search: SearchFn = (q) => {
+      const search: SearchFn = typedOnly((q) => {
         calls += 1;
         return calls === 1
           ? Promise.resolve(outcomeWith(q, "Alpha"))
           : b.promise;
-      };
+      });
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 100 }),
       );
+      await settleOpeningRequest();
 
       // Query A resolves; select its result with ArrowDown.
       act(() => result.current.setQuery("alpha"));
@@ -397,10 +482,11 @@ describe("useSearchController — stale active selection", () => {
   it("clears the selection on clear and on retry", async () => {
     vi.useFakeTimers();
     try {
-      const search: SearchFn = async (q) => outcomeWith(q, "Alpha");
+      const search: SearchFn = typedOnly(async (q) => outcomeWith(q, "Alpha"));
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 0 }),
       );
+      await settleOpeningRequest();
       act(() => result.current.setQuery("alpha"));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);
@@ -419,7 +505,9 @@ describe("useSearchController — stale active selection", () => {
       expect(result.current.activeResult).not.toBeNull();
       act(() => result.current.clear());
       expect(result.current.activeIndex).toBe(-1);
-      expect(result.current.phase).toBe("idle");
+      // Clearing now returns to the recency list, with no selection carried.
+      expect(result.current.isEmptyQuery).toBe(true);
+      expect(result.current.activeResult).toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -429,7 +517,7 @@ describe("useSearchController — stale active selection", () => {
     vi.useFakeTimers();
     try {
       let calls = 0;
-      const search: SearchFn = async (q) => {
+      const search: SearchFn = typedOnly(async (q) => {
         calls += 1;
         return calls === 1
           ? assembleOutcome(q, [
@@ -461,10 +549,11 @@ describe("useSearchController — stale active selection", () => {
               },
             ])
           : outcomeWith(q, "Only one");
-      };
+      });
       const { result } = renderHook(() =>
         useSearchController({ search, debounceMs: 0 }),
       );
+      await settleOpeningRequest();
       act(() => result.current.setQuery("aaa"));
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0);

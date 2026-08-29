@@ -34,6 +34,14 @@ export {
   type AssembleOptions,
 } from "./pipeline";
 export {
+  recentRecordsOutcome,
+  recentRecordToResult,
+  RECENT_GROUP_ID,
+  RECENT_GROUP_LABEL,
+  RECENT_MODULE_ID,
+  RECENT_PROVIDER_ID,
+} from "./recent-outcome";
+export {
   clampIndex,
   nextIndex,
   previousIndex,

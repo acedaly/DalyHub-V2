@@ -37,7 +37,12 @@ import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { executeSearch } from "~/shared/search/orchestrator";
 import { SEARCH_QUERY_PARAM } from "~/shared/search/client";
-import { failureOutcome } from "~/shared/search/model";
+import {
+  failureOutcome,
+  isExecutableQuery,
+  normaliseQuery,
+  recentRecordsOutcome,
+} from "~/shared/search/model";
 import type { SearchOutcome } from "~/shared/search/model";
 
 import type { Route } from "./+types/search";
@@ -68,6 +73,31 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // The trusted, request-free, D1-verified workspace scope. The client cannot
     // choose it; this is the exact FND-09 boundary the kernel tests exercise.
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+
+    /*
+     * FIND-01 — the EMPTY query is answered with the workspace's most recently
+     * worked-on records rather than with nothing.
+     *
+     * It is answered HERE, inside the same `try`, deliberately: the empty-query
+     * path fails closed exactly as the query path does, through the same
+     * workspace scope resolved the same trusted way. There is no second
+     * authentication check, no second workspace resolver and no second failure
+     * shape — a D1 failure on this branch becomes the same calm, retryable
+     * outcome a provider failure does.
+     *
+     * It returns BEFORE the registry is discovered and before any provider is
+     * constructed. `MIN_QUERY_LENGTH` still means what it always meant — a
+     * query too short to execute a provider executes none — and this branch
+     * executes none. Recency is not a provider: no module registers it, no
+     * module can contribute to it, and `listSearchProviders()` remains the only
+     * source of providers for every query that has one.
+     */
+    const normalised = normaliseQuery(rawQuery);
+    if (!isExecutableQuery(normalised)) {
+      const recent = await scope.recentRecords.listRecentlyWorkedOn();
+      return json(recentRecordsOutcome(recent));
+    }
+
     const registry = discoverModuleRegistry();
 
     let boostIds: ReadonlySet<string> | undefined;

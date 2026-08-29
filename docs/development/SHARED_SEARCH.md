@@ -156,7 +156,9 @@ HTML.
 
 Every edge is bounded ([`limits.ts`](../../app/shared/search/limits.ts)): query
 length, provider count, results per provider, total results, and each display
-field. Empty or invalid queries never execute a provider. The browser sends only
+field. Empty or invalid queries never execute a provider — they are answered
+from the recency read instead (see [The empty query](#the-empty-query--recent-records-find-01)),
+which is one bounded statement and no provider at all. The browser sends only
 the bounded query and receives only bounded results — never a workspace dataset.
 
 Repository-backed providers must perform bounded database queries over canonical
@@ -197,19 +199,109 @@ result never discards filters or other state. Result rows are real links, so
 modified/middle-click open in a new tab; a plain click/Enter opens in-app and
 closes Search. There is **no second Drawer or record viewer**.
 
-## Recent results
+## The empty query — recent records (FIND-01)
 
-When Search opens with no query, the surface shows a calm **Recent** group of the
-last opened Search results. This is device-local UI history in `localStorage`, not
-workspace domain data: maximum eight entries, newest first, deduped by target
-identity, and clearable from the Search surface. The storage helper catches
-`localStorage`/JSON failures, so server rendering and privacy-restricted browsers
-degrade to the normal idle hint.
+Opening Search with no query lists the workspace's **recently worked-on records**,
+newest first, in the same rows the results use. It is one keystroke and one Enter
+to open one. This replaced a sentence that restated the input's own placeholder
+and offered nothing to open, which is what
+[DEBT-195](../product/PRODUCT_DEBT.md) recorded.
 
-Recent entries store only safe presentation metadata. Subtitles are stripped for
-Diary, People, Meetings, Assets and Reviews so Diary prose, contact data, meeting
-notes, asset identifiers/prices and review reflections are never persisted in
-browser history.
+### The recency rule, stated once
+
+> A record's recency is the timestamp of the **most recent Activity event the
+> record is a subject of**. Newest first; an exact tie breaks by the more
+> recently created record, then by entity id. All three keys descend.
+
+It lives in [`app/kernel/recent-records/`](../../app/kernel/recent-records/) and
+nowhere else. Three properties follow, each asserted by a test:
+
+- **It is a maximum, never a count.** A record touched fifty times last month
+  ranks below one touched once this morning. Recency is a date, not a
+  prediction, and [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable)
+  decision 5 forbids frequency weighting, learned ordering, personalisation and
+  engagement signals anywhere in retrieval.
+- **It is derived, never stored.** No table, no column, no migration and no write
+  path — [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)'s
+  standing posture applied to a new question.
+- **It reads mutations, never views.** Activity records what the owner *changed*.
+  DalyHub has never stored what the owner *looked at*, and FIND-01 did not start:
+  a stored "recently opened" ledger was the more expensive option ADR-112 asked
+  to be disproven first, and adding a view event to the append-only audit stream
+  is refused outright.
+
+### Why the Activity stream and not `entities.updated_at`
+
+`entities.updated_at` looks like the obvious authority and is not one: it is
+maintained **inconsistently** across the detail tables. Some repositories bump it
+when a detail row changes and some do not — which is why
+[`d1-area-repository.ts`](../../app/platform/storage/d1/d1-area-repository.ts)
+already carries an `EFFECTIVE_PROJECT_UPDATED_AT_EXPR`, a `CASE` folding
+`project_details.updated_at` over `entities.updated_at`, to compensate. A recency
+source built on it would silently under-report every edit that touched only a
+detail table, and would need one such `CASE` per entity type to be honest.
+
+The Activity stream has no such gap: ADR-005 and ADR-012 make every meaningful
+change to any entity append exactly one event, atomically with the mutation,
+uniformly for every module. It is the only source in the product that already
+answers this question the same way for all ten record types.
+
+### What a recent row carries, and what it deliberately does not
+
+An identity, a type, a title and the date the rule selected it by — **no
+subtitle, no preview, no body excerpt and no per-type signal**. That is two
+decisions in one field list. It keeps the read to a single statement (a subtitle
+would mean joining ten detail tables or one read per type, which is the N+1 the
+bound forbids), and it makes the privacy property *structural* rather than
+conditional: this list cannot leak a record's contents because it never carries
+any.
+
+The rows are the existing `SearchOption`, in one group headed **"Recently worked
+on"** — not grouped by entity type, because a recency list has exactly one
+meaningful order and splitting it per type would scramble the one fact it exists
+to show. No fourth Task anatomy: a Task here is the row Search already draws,
+opening the Task Drawer it already opens.
+
+### The one exclusion, and why
+
+**Diary, and only Diary.** The reasoning is about *when* this list renders, not
+about who may read it: every other Search surface appears because the owner typed
+something, and this one appears because they opened Search. A query for
+"therapy" is a deliberate act; `⌘K` on a shared screen is not. A Diary entry
+stays fully findable the moment the owner types — nothing is hidden, one unbidden
+surface declines to volunteer it — and the surface says so in a standing line.
+
+People are deliberately *not* excluded: a name is not a confession, People are
+among the most valuable records to re-find, and the stronger protection is the
+structural one above.
+
+### The cost
+
+**One D1 statement**, flat in workspace size and constant in bound parameters.
+The statement bounds the *scan* before it aggregates: it walks at most
+`RECENT_ACTIVITY_SCAN_LIMIT` (600, the same figure as FOLLOW-01's
+`MAX_WINDOW_EVENTS`) rows of the existing `activities_workspace_occurred_idx`
+newest-first, expands those to their subjects, joins `entities` for the title and
+type, groups to each record's newest event and takes eight. A workspace with ten
+records and one with ten thousand cost the same.
+
+The consequence is a stated **horizon** rather than a silent approximation: a
+record whose newest event is older than the workspace's newest 600 events is not
+"recent", which is what the word means. It cannot mis-order anything —
+everything inside the horizon is exact — it can only decline to fill the list.
+
+### What this replaced
+
+Until FIND-01 the empty state showed a **device-local** list built in the
+browser: the results the owner had activated from inside Search, in
+`localStorage`, with its own encoder, decoder, sensitive-subtitle rule and Clear
+button. It could not answer the question the empty query asks — it was empty on
+first use, on a new device and after clearing site data; it knew only what had
+been opened *through Search*; and it was per-browser rather than
+workspace-scoped. DEBT-195 was open the whole time it existed, which is the
+evidence that it did not close it. Only its storage key survives, so signing out
+still purges the data from browsers that hold it
+([`recent.ts`](../../app/shared/search/recent.ts)).
 
 ---
 
@@ -366,6 +458,11 @@ No command execution, record creation, Quick Actions, `⌘K`, Inspector/Settings
 product CRUD, AI/vector/embedding search, background indexing, remote search
 tracking or workspace-persisted search history. Search exposes a clean API the
 DS-09 Command Palette can launch or incorporate.
+
+FIND-01 did not change that list. The empty query is answered from Activity the
+product already writes; **no search term, no click and no view is recorded
+anywhere** by Search, and the one place device-local history used to live is
+retired.
 
 ---
 

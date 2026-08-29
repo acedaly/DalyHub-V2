@@ -17,6 +17,7 @@ import type {
   WorkspaceEventRecorder,
 } from "~/kernel/activity";
 import type { ActivityWindowRepository } from "~/kernel/activity-window";
+import type { RecentRecordsRepository } from "~/kernel/recent-records";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type {
   CalendarSourceRepository,
@@ -102,6 +103,7 @@ import {
 import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1CrossViewQueryRepository } from "./d1-cross-view-query-repository";
 import { D1ActivityWindowRepository } from "./d1-activity-window-repository";
+import { D1RecentRecordsRepository } from "./d1-recent-records-repository";
 import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
 import {
   D1AppPreferencesRepository,
@@ -211,6 +213,7 @@ export {
 export { D1ActivityRepository };
 export { D1AlignmentRepository };
 export { D1ActivityWindowRepository };
+export { D1RecentRecordsRepository };
 export { D1ReviewInsightRepository };
 export { D1AppPreferencesRepository, type D1AppPreferencesRepositoryOptions };
 export { D1AreaRepository };
@@ -669,6 +672,18 @@ export function createActivityWindowRepository(
   context: WorkspaceContext,
 ): ActivityWindowRepository {
   return new D1ActivityWindowRepository(db, context);
+}
+
+/**
+ * Factory for FIND-01's recency repository, bound to a `WorkspaceContext`. It
+ * owns no storage of its own: the one read derives each record's recency from
+ * the append-only Activity stream over a bounded scan ([ADR-112] decision 5).
+ */
+export function createRecentRecordsRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): RecentRecordsRepository {
+  return new D1RecentRecordsRepository(db, context);
 }
 
 /**

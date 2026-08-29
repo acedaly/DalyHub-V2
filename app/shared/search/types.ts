@@ -77,7 +77,16 @@ export type RankedSearchResult = {
   readonly subtitleMatches: readonly MatchRange[];
 };
 
-export type SearchGroupKind = "entity" | "module";
+/**
+ * `entity` / `module` — how a QUERY's results group (by the result's entity
+ * type, falling back to its owning module).
+ *
+ * `recent` — FIND-01's single empty-query group. It is its own kind rather than
+ * a `module` group with a special id, because it is not a module's results and
+ * because the surface must be able to tell it apart to head it correctly and to
+ * state the one privacy fact that applies only to it.
+ */
+export type SearchGroupKind = "entity" | "module" | "recent";
 
 /**
  * A group of results. Results with an entity type group by entity type (`kind:
