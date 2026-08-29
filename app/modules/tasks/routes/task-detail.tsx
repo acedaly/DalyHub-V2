@@ -81,6 +81,7 @@ import {
 } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
 
+import { parseEntityTagInput, tagLabels } from "~/kernel/tags";
 import {
   serializeChecklist,
   serializeChecklistItem,
@@ -689,6 +690,17 @@ async function handleUpdate(
       // and leaves the Details form byte-for-byte unchanged.
       description: form.has("description")
         ? String(form.get("description"))
+        : undefined,
+      /*
+       * V2.6 FIND-03 — the Task's tags, a PATCH key like every other field
+       * above: absent means unchanged, and a present empty array clears them.
+       *
+       * Parsed by the ONE tag parser, which accepts the JSON array every shared
+       * form posts and, defensively, a comma list — so a no-JavaScript
+       * submission behaves rather than silently dropping the owner's tags.
+       */
+      tags: form.has("tags")
+        ? tagLabels(parseEntityTagInput(form.get("tags")))
         : undefined,
     });
     return {

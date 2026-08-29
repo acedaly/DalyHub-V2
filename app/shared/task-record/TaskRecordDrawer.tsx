@@ -420,6 +420,9 @@ export function TaskRecordDrawer({
       form.set("followUpOn", values.followUpOn);
       form.set("delegateNote", values.delegateNote);
       form.set("description", values.description);
+      // V2.6 FIND-03 — the whole tag set, as the JSON array every shared form
+      // posts. The route parses it through the ONE tag parser.
+      form.set("tags", JSON.stringify(values.tags));
       const result = await postAction(form);
       if (result.kind === "update" && result.status === "success") {
         notifySuccess("Task saved.");

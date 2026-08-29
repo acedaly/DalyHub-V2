@@ -77,6 +77,10 @@ export const TASKS_FILTER_PARAMS: Record<keyof TaskViewFilters, string> = {
   // collection already has, so the parameter is named after the dimension it
   // filters, exactly as `repeats` is.
   blocked: "blocked",
+  // V2.6 FIND-03 — `?tag=errand,deep-work`. Singular, like `person` above, because
+  // a link reads as "the tag filter" whatever number of members it names, and a
+  // SET already encodes as one comma-joined parameter (see `paramsFromConfig`).
+  tags: "tag",
 };
 
 /** The boolean filter keys, which encode as `1` and are absent when off. */

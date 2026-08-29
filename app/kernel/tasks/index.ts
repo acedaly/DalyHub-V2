@@ -280,6 +280,7 @@ export {
   recencyWindowStart,
   validateTaskDate,
   validateTaskDescription,
+  validateTaskTagSet,
   validateTaskLimit,
   validateWaitingNote,
   validateWaitingTargetId,

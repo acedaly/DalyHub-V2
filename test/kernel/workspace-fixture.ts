@@ -152,6 +152,15 @@ export async function seedWorkspace(): Promise<Seeded> {
     dueDate: "2026-08-03",
     scheduledDate: "2026-08-03",
     timeSector: "this_week",
+    /*
+     * V2.6 FIND-03 — a TAGGED Task, so the export proof and the restore round
+     * trip cover a Task's tags rather than comparing two empty sets.
+     *
+     * `Running` deliberately shares its identity with the Person's `running`
+     * and the Note's `Running`: one vocabulary entry, three record types, which
+     * is the claim FIND-02 makes and the one a per-type fixture could not test.
+     */
+    tags: ["Running", "Errand"],
   });
   const recurringTask = await tasks.createTask({
     title: "Weekly long run",

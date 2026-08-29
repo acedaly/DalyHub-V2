@@ -223,6 +223,7 @@ export {
 export {
   buildEntityTagStatements,
   entityTagsProjection,
+  entityTagsStatement,
   parseTagProjection,
   tagFilterPredicate,
   tagSearchPredicate,

@@ -82,6 +82,34 @@ export function parseTagProjection(
   return value.split(LABEL_DELIMITER).filter((label) => label.length > 0);
 }
 
+/**
+ * The statement that reads ONE entity's tag labels, in canonical order.
+ *
+ * Needed only AFTER a tag write, and only where the caller cannot state the
+ * result: the vocabulary keeps the FIRST spelling of a tag, which may be one
+ * another record introduced, so "what does this record display now" is a
+ * question the write's own inputs cannot answer. Every ordinary read gets its
+ * tags from {@link entityTagsProjection} and costs no statement at all.
+ */
+export function entityTagsStatement(
+  db: D1Database,
+  workspaceId: string,
+  entityId: string,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `SELECT group_concat(ordered.label, char(31)) AS tags
+         FROM (SELECT wt.label AS label
+                 FROM entity_tags et
+                 JOIN workspace_tags wt
+                   ON wt.workspace_id = et.workspace_id
+                  AND wt.tag_key = et.tag_key
+                WHERE et.workspace_id = ? AND et.entity_id = ?
+                ORDER BY et.tag_key ASC) AS ordered`,
+    )
+    .bind(workspaceId, entityId);
+}
+
 export interface EntityTagWriteInput {
   readonly db: D1Database;
   readonly workspaceId: string;

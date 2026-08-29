@@ -237,6 +237,15 @@ export type TaskDetails = {
   readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   /** Markdown SOURCE (FND-08 / ADR-015), rendered through the one shared pipeline. */
   readonly description: MarkdownSource | null;
+  /**
+   * V2.6 FIND-03 — the Task's tags, as display labels in canonical order.
+   *
+   * The SAME vocabulary People, Assets and Notes use (`~/kernel/tags`), not a
+   * Task-owned field: DEBT-48's own prediction, confirmed. A tag labels the
+   * Task and does nothing else — it never sets priority, never orders a
+   * collection and never reaches the kernel next-action rule (ADR-112 §4).
+   */
+  readonly tags: readonly string[];
 };
 
 /** The documented defaults a task takes when it has no `task_details` row yet. */
@@ -251,6 +260,7 @@ export const DEFAULT_TASK_DETAILS: TaskDetails = {
   recurrence: null,
   recurrenceSeries: null,
   description: null,
+  tags: [],
 };
 
 /**
@@ -279,6 +289,8 @@ export type TaskView = {
   readonly recurrence?: TaskRecurrenceRule | null;
   readonly recurrenceSeries?: TaskRecurrenceSeries | null;
   readonly description: MarkdownSource | null;
+  /** V2.6 FIND-03 — the Task's tags, from the ONE workspace vocabulary. */
+  readonly tags: readonly string[];
   /** The Project the task belongs to, if its structural parent is a Project. */
   readonly project: TaskRelation | null;
   /** The Goal the task advances (via its Project's `advances_goal` link), if any. */
@@ -316,6 +328,14 @@ export type UpdateTaskInput = {
    */
   readonly delegation?: TaskDelegationInput | null;
   readonly description?: string | null;
+  /**
+   * V2.6 FIND-03 — the Task's whole tag set, or an empty array to clear it.
+   *
+   * An omitted field leaves the tags unchanged, exactly like every other field
+   * here. The set is validated through the ONE tag validator, so a Task can
+   * never carry a tag People could not.
+   */
+  readonly tags?: readonly string[];
 };
 
 /** The editable delegation input (dates/note optional; `to` required when present). */
@@ -961,6 +981,23 @@ export type WorkspaceTaskFilters = {
    */
   readonly recurring?: boolean;
 
+  /**
+   * V2.6 FIND-03 — the Tasks collection's ONE tag dimension.
+   *
+   * A SET of canonical tag keys, matched as ANY (a Task carrying any one of them
+   * is included), exactly like the `priorities` set above and for the same
+   * reason: "errands or deep work" is the filter an owner reaches for, and it is
+   * one dimension with more than one accepted value rather than a nested OR.
+   *
+   * The repository resolves it with a SEMI-join, never a join, so a Task
+   * carrying two of the named tags appears once — a duplicated row would
+   * corrupt the count beside the filter and make cursor pagination skip.
+   *
+   * Bounded by `MAX_TAG_FILTER_MEMBERS`, so a crafted URL cannot widen the
+   * query past D1's bound-parameter ceiling.
+   */
+  readonly tagKeys?: readonly string[];
+
   /* ---- TASKS-12 addition. ------------------------------------------------- */
 
   /**
@@ -1184,6 +1221,13 @@ export type NewTaskInput = {
    * for the same reason as `status`. Validated as Markdown source at the boundary.
    */
   readonly description?: string | null;
+  /**
+   * V2.6 FIND-03 — the Task's tags, written in the SAME create batch as the
+   * Task itself, for the same reason `status`, `description` and `recurrence`
+   * are: a capture that said `#errand` either commits WITH its tag or not at
+   * all. Validated through the ONE tag validator at the boundary.
+   */
+  readonly tags?: readonly string[];
 };
 
 /**

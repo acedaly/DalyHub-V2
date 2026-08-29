@@ -20,6 +20,11 @@ const groups = buildTasksControlGroups({
     { id: "p-1", kind: "project", title: "Alpha" },
     { id: "a-1", kind: "area", title: "Work" },
   ],
+  // V2.6 FIND-03 — the ONE tag dimension, offered from the workspace vocabulary.
+  tags: [
+    { value: "errand", label: "Errand" },
+    { value: "deep work", label: "deep work" },
+  ],
 });
 
 const byId = (id: string) => groups.find((group) => group.id === id);
@@ -37,6 +42,7 @@ describe("the declared filter dimensions", () => {
       "project",
       "area",
       "person",
+      "tags",
       "delegated",
       "waiting",
       "someday",
@@ -103,10 +109,17 @@ describe("the declared filter dimensions", () => {
   });
 
   it("only offers a parent or delegate filter when the workspace HAS them", () => {
-    const empty = buildTasksControlGroups({ delegates: [], parents: [] });
+    const empty = buildTasksControlGroups({
+      delegates: [],
+      parents: [],
+      tags: [],
+    });
     expect(empty.find((g) => g.id === "project")).toBeUndefined();
     expect(empty.find((g) => g.id === "area")).toBeUndefined();
     expect(empty.find((g) => g.id === "person")).toBeUndefined();
+    // V2.6 FIND-03 — and a workspace with no tags offers no tag filter, for the
+    // same reason: a control that could only be set to "Any" teaches nothing.
+    expect(empty.find((g) => g.id === "tags")).toBeUndefined();
     // A control that could not narrow anything is not shown at all.
     expect(empty.find((g) => g.id === "priority")).toBeDefined();
   });

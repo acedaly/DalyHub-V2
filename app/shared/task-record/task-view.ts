@@ -83,6 +83,8 @@ export interface SerializedTaskView {
   readonly delegation: TaskDelegation | null;
   readonly recurrence?: TaskRecurrenceRule | null;
   readonly description: string | null;
+  /** V2.6 FIND-03 — the Task's tags, from the ONE workspace vocabulary. */
+  readonly tags: readonly string[];
   readonly project: TaskRelation | null;
   readonly goal: TaskRelation | null;
   readonly area: TaskRelation | null;
@@ -114,6 +116,7 @@ export function serializeTaskView(task: TaskView): SerializedTaskView {
     delegation: task.delegation,
     recurrence: task.recurrence,
     description: task.description,
+    tags: task.tags,
     project: task.project,
     goal: task.goal,
     area: task.area,

@@ -986,8 +986,11 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       buildTasksControlGroups({
         delegates: data.delegates.map((value) => ({ value, label: value })),
         parents: data.parents,
+        // The canonical KEY is what the query matches; the label is the owner's
+        // own spelling of it.
+        tags: data.tags.map((tag) => ({ value: tag.key, label: tag.label })),
       }),
-    [data.delegates, data.parents],
+    [data.delegates, data.parents, data.tags],
   );
 
   const resetKey = useMemo(() => JSON.stringify(config), [config]);
