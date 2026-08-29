@@ -7,6 +7,7 @@ import {
   gotoFixture,
   openCollectionControls,
 } from "./helpers";
+import { addTag } from "./tag-helpers";
 import {
   cleanupAllNoteFixtures,
   cleanupNoteByTitle,
@@ -215,8 +216,7 @@ test.describe("NOTES-02/03/06 — knowledge, organisation and export", () => {
     await page.getByRole("menuitem", { name: "Edit tags" }).click();
     const tagsDialog = page.getByRole("dialog", { name: "Edit tags" });
     await expect(tagsDialog).toBeVisible();
-    await tagsDialog.getByRole("textbox").first().fill(tag);
-    await page.keyboard.press("Enter");
+    await addTag(page, tag, tagsDialog);
     await tagsDialog.getByRole("button", { name: "Save tags" }).click();
     await expect(tagsDialog).toBeHidden();
 

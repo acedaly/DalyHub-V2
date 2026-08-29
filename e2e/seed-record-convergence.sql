@@ -305,23 +305,23 @@ VALUES
   ('p-rc-ana', 'local-dev-workspace', 'person', 'Ana Ruiz', '2026-06-14T00:00:00.000Z', '2026-06-14T00:00:00.000Z', NULL);
 INSERT OR IGNORE INTO person_details
   (workspace_id, entity_id, entity_type, preferred_name, first_name, last_name, pronouns, organisation, role, department,
-   email, secondary_email, mobile, work_phone, address, website, birthday, relationship, tags, notes,
+   email, secondary_email, mobile, work_phone, address, website, birthday, relationship, notes,
    favourite_contact_method, follow_up_frequency, next_follow_up, last_interaction, updated_at)
 VALUES
   ('local-dev-workspace', 'p-rc-dan', 'person', 'Dan', 'Daniel', 'Whitfield', 'he/him', 'Whitfield Building Co.', 'Site foreman', 'Residential',
    'dan@whitfieldbuilding.example', 'accounts@whitfieldbuilding.example', '+61 412 774 903', '+61 2 9412 0088',
    '3/22 Kembla Road, Marrickville NSW 2204', 'https://whitfieldbuilding.example', '1979-04-18', 'Builder',
-   '["renovation","trade"]', 'Prefers a phone call before 7am. Sends invoices fortnightly.',
+   'Prefers a phone call before 7am. Sends invoices fortnightly.',
    'phone', 'weekly', '2026-08-12', '2026-08-06', '2026-08-06T23:45:00.000Z'),
   ('local-dev-workspace', 'p-rc-ana', 'person', NULL, 'Ana', 'Ruiz', NULL, 'Marrickville Council', NULL, NULL,
-   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]', NULL, NULL, NULL, NULL, NULL, '2026-06-14T00:00:00.000Z');
+   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2026-06-14T00:00:00.000Z');
 UPDATE person_details
 SET preferred_name = 'Dan', first_name = 'Daniel', last_name = 'Whitfield', pronouns = 'he/him',
     organisation = 'Whitfield Building Co.', role = 'Site foreman', department = 'Residential',
     email = 'dan@whitfieldbuilding.example', secondary_email = 'accounts@whitfieldbuilding.example',
     mobile = '+61 412 774 903', work_phone = '+61 2 9412 0088',
     address = '3/22 Kembla Road, Marrickville NSW 2204', website = 'https://whitfieldbuilding.example',
-    birthday = '1979-04-18', relationship = 'Builder', tags = '["renovation","trade"]',
+    birthday = '1979-04-18', relationship = 'Builder',
     notes = 'Prefers a phone call before 7am. Sends invoices fortnightly.',
     favourite_contact_method = 'phone', follow_up_frequency = 'weekly', next_follow_up = '2026-08-12',
     last_interaction = '2026-08-06', archived_at = NULL
@@ -330,7 +330,7 @@ UPDATE person_details
 SET preferred_name = NULL, first_name = 'Ana', last_name = 'Ruiz', pronouns = NULL,
     organisation = 'Marrickville Council', role = NULL, department = NULL,
     email = NULL, secondary_email = NULL, mobile = NULL, work_phone = NULL,
-    address = NULL, website = NULL, birthday = NULL, relationship = NULL, tags = '[]', notes = NULL,
+    address = NULL, website = NULL, birthday = NULL, relationship = NULL, notes = NULL,
     favourite_contact_method = NULL, follow_up_frequency = NULL, next_follow_up = NULL,
     last_interaction = NULL, archived_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'p-rc-ana';
@@ -345,14 +345,14 @@ VALUES
   ('as-rc-ute', 'local-dev-workspace', 'asset', 'Hilux SR5 — work ute', '2024-05-11T00:00:00.000Z', '2026-08-01T02:00:00.000Z', NULL);
 INSERT OR IGNORE INTO asset_details
   (workspace_id, entity_id, entity_type, asset_type, status, description, manufacturer, model, serial_number,
-   reference_code, tags, location, area_id, acquisition_date, purchase_price_minor, currency_code, supplier,
+   reference_code, location, area_id, acquisition_date, purchase_price_minor, currency_code, supplier,
    replacement_value_minor, warranty_expiry, service_interval, last_service_date, next_service_date,
    service_provider, maintenance_notes, issuer, reference_number, issue_date, renewal_date,
    archived_at, updated_at, current_meter_value, current_meter_unit, current_meter_date)
 VALUES
   ('local-dev-workspace', 'as-rc-ute', 'asset', 'vehicle', 'active',
    'Dual-cab used for site runs and the trailer.', 'Toyota', 'Hilux SR5 (2021)', 'JTMHV05J004123987',
-   'RC-UTE-01', '["vehicle","work"]', 'Driveway', 'a-rc-home', '2024-05-11', 5620000, 'AUD', 'Northshore Toyota',
+   'RC-UTE-01', 'Driveway', 'a-rc-home', '2024-05-11', 5620000, 'AUD', 'Northshore Toyota',
    4100000, '2027-05-10', '10000 km / 6 months', '2026-05-02', '2026-11-02',
    'Northshore Toyota Service', 'Tows the trailer most weekends — service on the shorter interval.',
    'Transport for NSW', 'CJ88QR', '2024-05-11', '2026-09-14',
@@ -361,7 +361,7 @@ UPDATE asset_details
 SET asset_type = 'vehicle', status = 'active',
     description = 'Dual-cab used for site runs and the trailer.',
     manufacturer = 'Toyota', model = 'Hilux SR5 (2021)', serial_number = 'JTMHV05J004123987',
-    reference_code = 'RC-UTE-01', tags = '["vehicle","work"]', location = 'Driveway', area_id = 'a-rc-home',
+    reference_code = 'RC-UTE-01', location = 'Driveway', area_id = 'a-rc-home',
     acquisition_date = '2024-05-11', purchase_price_minor = 5620000, currency_code = 'AUD',
     supplier = 'Northshore Toyota', replacement_value_minor = 4100000, warranty_expiry = '2027-05-10',
     service_interval = '10000 km / 6 months', last_service_date = '2026-05-02', next_service_date = '2026-11-02',
@@ -425,7 +425,7 @@ VALUES
 INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
 VALUES
   ('n-rc-brief', 'local-dev-workspace', 'note', 'Kitchen fit-out brief', '2026-03-01T00:00:00.000Z', '2026-08-06T21:00:00.000Z', NULL);
-INSERT OR IGNORE INTO note_details (workspace_id, entity_id, entity_type, content, tags, archived_at, updated_at)
+INSERT OR IGNORE INTO note_details (workspace_id, entity_id, entity_type, content, archived_at, updated_at)
 VALUES
   ('local-dev-workspace', 'n-rc-brief', 'note',
    '## What we are actually trying to achieve
@@ -447,7 +447,7 @@ A kitchen that works for two people cooking at once, with the fridge out of the 
 ## Still open
 
 Handles. Everything hinges on the cabinetry colour, which the joiner will not confirm until the doors are sprayed.',
-   '["renovation","brief"]', NULL, '2026-08-06T21:00:00.000Z');
+   NULL, '2026-08-06T21:00:00.000Z');
 UPDATE note_details
 SET content = '## What we are actually trying to achieve
 
@@ -468,8 +468,31 @@ A kitchen that works for two people cooking at once, with the fridge out of the 
 ## Still open
 
 Handles. Everything hinges on the cabinetry colour, which the joiner will not confirm until the doors are sprayed.',
-    tags = '["renovation","brief"]', archived_at = NULL, updated_at = '2026-08-06T21:00:00.000Z'
+    archived_at = NULL, updated_at = '2026-08-06T21:00:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'n-rc-brief';
+
+-- ---------------------------------------------------------------------------
+-- V2.6 FIND-02: the workspace tag vocabulary, and who carries which word.
+--
+-- These records used to keep their tags in a JSON column each. They now share
+-- ONE vocabulary, which is what makes `renovation` on the Person and
+-- `renovation` on the Note the same tag rather than two strings that match.
+-- ---------------------------------------------------------------------------
+INSERT OR IGNORE INTO workspace_tags (workspace_id, tag_key, label, created_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'brief', 'brief', '2026-03-01T00:00:00.000Z', '2026-03-01T00:00:00.000Z'),
+  ('local-dev-workspace', 'renovation', 'renovation', '2026-03-01T00:00:00.000Z', '2026-03-01T00:00:00.000Z'),
+  ('local-dev-workspace', 'trade', 'trade', '2026-03-02T00:00:00.000Z', '2026-03-02T00:00:00.000Z'),
+  ('local-dev-workspace', 'vehicle', 'vehicle', '2024-05-11T00:00:00.000Z', '2024-05-11T00:00:00.000Z'),
+  ('local-dev-workspace', 'work', 'work', '2024-05-11T00:00:00.000Z', '2024-05-11T00:00:00.000Z');
+INSERT OR IGNORE INTO entity_tags (workspace_id, entity_id, tag_key, created_at)
+VALUES
+  ('local-dev-workspace', 'p-rc-dan', 'renovation', '2026-03-02T00:00:00.000Z'),
+  ('local-dev-workspace', 'p-rc-dan', 'trade', '2026-03-02T00:00:00.000Z'),
+  ('local-dev-workspace', 'as-rc-ute', 'vehicle', '2024-05-11T00:00:00.000Z'),
+  ('local-dev-workspace', 'as-rc-ute', 'work', '2024-05-11T00:00:00.000Z'),
+  ('local-dev-workspace', 'n-rc-brief', 'renovation', '2026-03-01T00:00:00.000Z'),
+  ('local-dev-workspace', 'n-rc-brief', 'brief', '2026-03-01T00:00:00.000Z');
 
 -- ---------------------------------------------------------------------------
 -- A Review with real written sections.

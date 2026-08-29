@@ -231,14 +231,14 @@ SET entry_type = 'reflection', body = 'PRIVATE-DIARY-BODY-SEARCH-E2E',
     source_channel = 'manual', source_reference = NULL, updated_at = '2026-07-19T02:20:05.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'd-search-e2e';
 INSERT OR IGNORE INTO person_details
-  (workspace_id, entity_id, entity_type, preferred_name, first_name, last_name, organisation, role, email, mobile, tags, notes, updated_at)
+  (workspace_id, entity_id, entity_type, preferred_name, first_name, last_name, organisation, role, email, mobile, notes, updated_at)
 VALUES
-  ('local-dev-workspace', 'p-search-e2e', 'person', 'Global', 'Global', 'Person', 'Search Lab', 'Principal', 'private-search-person@example.test', '+61 400 111 222', '["search"]', 'PRIVATE-PERSON-NOTES-SEARCH-E2E', '2026-07-19T02:20:06.000Z');
+  ('local-dev-workspace', 'p-search-e2e', 'person', 'Global', 'Global', 'Person', 'Search Lab', 'Principal', 'private-search-person@example.test', '+61 400 111 222', 'PRIVATE-PERSON-NOTES-SEARCH-E2E', '2026-07-19T02:20:06.000Z');
 UPDATE person_details
 SET preferred_name = 'Global', first_name = 'Global', last_name = 'Person',
     organisation = 'Search Lab', role = 'Principal',
     email = 'private-search-person@example.test', mobile = '+61 400 111 222',
-    tags = '["search"]', notes = 'PRIVATE-PERSON-NOTES-SEARCH-E2E',
+    notes = 'PRIVATE-PERSON-NOTES-SEARCH-E2E',
     archived_at = NULL, updated_at = '2026-07-19T02:20:06.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'p-search-e2e';
 INSERT OR IGNORE INTO meeting_details
@@ -253,19 +253,26 @@ SET starts_at = '2026-07-29T10:00:00.000Z', ends_at = NULL, timezone = 'Australi
     archived_at = NULL, updated_at = '2026-07-19T02:20:07.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'm-search-e2e';
 INSERT OR IGNORE INTO asset_details
-  (workspace_id, entity_id, entity_type, asset_type, status, description, manufacturer, model, serial_number, reference_code, tags, purchase_price_minor, currency_code, reference_number, document_notes, archived_at, updated_at)
+  (workspace_id, entity_id, entity_type, asset_type, status, description, manufacturer, model, serial_number, reference_code, purchase_price_minor, currency_code, reference_number, document_notes, archived_at, updated_at)
 VALUES
-  ('local-dev-workspace', 'as-search-e2e', 'asset', 'tool', 'active', 'Search-safe asset description', 'SearchCo', 'Model E2E', 'PRIVATE-ASSET-SERIAL-SEARCH-E2E', 'PRIVATE-ASSET-REFERENCE-SEARCH-E2E', '["search"]', 123456, 'AUD', 'PRIVATE-ASSET-POLICY-SEARCH-E2E', 'PRIVATE-ASSET-NOTES-SEARCH-E2E', NULL, '2026-07-19T02:20:08.000Z');
+  ('local-dev-workspace', 'as-search-e2e', 'asset', 'tool', 'active', 'Search-safe asset description', 'SearchCo', 'Model E2E', 'PRIVATE-ASSET-SERIAL-SEARCH-E2E', 'PRIVATE-ASSET-REFERENCE-SEARCH-E2E', 123456, 'AUD', 'PRIVATE-ASSET-POLICY-SEARCH-E2E', 'PRIVATE-ASSET-NOTES-SEARCH-E2E', NULL, '2026-07-19T02:20:08.000Z');
 UPDATE asset_details
 SET asset_type = 'tool', status = 'active', description = 'Search-safe asset description',
     manufacturer = 'SearchCo', model = 'Model E2E',
     serial_number = 'PRIVATE-ASSET-SERIAL-SEARCH-E2E',
     reference_code = 'PRIVATE-ASSET-REFERENCE-SEARCH-E2E',
-    tags = '["search"]', purchase_price_minor = 123456, currency_code = 'AUD',
+    purchase_price_minor = 123456, currency_code = 'AUD',
     reference_number = 'PRIVATE-ASSET-POLICY-SEARCH-E2E',
     document_notes = 'PRIVATE-ASSET-NOTES-SEARCH-E2E',
     archived_at = NULL, updated_at = '2026-07-19T02:20:08.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'as-search-e2e';
+-- V2.6 FIND-02: tags are the workspace vocabulary, not a column on the record.
+INSERT OR IGNORE INTO workspace_tags (workspace_id, tag_key, label, created_at, updated_at)
+VALUES ('local-dev-workspace', 'search', 'search', '2026-07-19T02:20:00.000Z', '2026-07-19T02:20:00.000Z');
+INSERT OR IGNORE INTO entity_tags (workspace_id, entity_id, tag_key, created_at)
+VALUES
+  ('local-dev-workspace', 'p-search-e2e', 'search', '2026-07-19T02:20:06.000Z'),
+  ('local-dev-workspace', 'as-search-e2e', 'search', '2026-07-19T02:20:08.000Z');
 INSERT OR IGNORE INTO review_details
   (workspace_id, entity_id, entity_type, review_type, period_start, period_end, status, template_id, completed_at, archived_at, updated_at)
 VALUES

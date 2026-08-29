@@ -168,10 +168,24 @@ export function TagsField({
     add(entry?.label ?? key);
   };
 
-  const options: readonly PickerOption[] = vocabulary.map((tag) => ({
-    id: tag.key,
-    label: tag.label,
-  }));
+  /*
+   * The workspace's words, PLUS anything already chosen on this record that the
+   * vocabulary does not know about yet.
+   *
+   * The second half matters: a tag created here is not in the workspace
+   * vocabulary until the record is saved, and without it the picker would refuse
+   * to show a word the owner can plainly see as a chip — offering to "create" it
+   * a second time under another case, and giving no way to un-choose it from the
+   * surface that chose it.
+   */
+  const options: readonly PickerOption[] = [
+    ...vocabulary,
+    ...value
+      .map((label) => ({ key: canonicalTagKey(label), label }))
+      .filter((chosen) => !vocabulary.some((tag) => tag.key === chosen.key)),
+  ]
+    .map((tag) => ({ id: tag.key, label: tag.label }))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   const rootClassName = ["dh-field", "dh-field--tags", className]
     .filter(Boolean)

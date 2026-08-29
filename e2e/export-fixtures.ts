@@ -48,8 +48,8 @@ function entityRow(id: string, title: string, deleted: string | null): string {
 
 function noteRow(id: string, content: string): string {
   return (
-    `INSERT OR REPLACE INTO note_details (workspace_id, entity_id, entity_type, content, tags, archived_at, updated_at) ` +
-    `VALUES ('${WORKSPACE_ID}', '${id}', 'note', '${content.replace(/'/g, "''")}', '[]', NULL, '${TS}');`
+    `INSERT OR REPLACE INTO note_details (workspace_id, entity_id, entity_type, content, archived_at, updated_at) ` +
+    `VALUES ('${WORKSPACE_ID}', '${id}', 'note', '${content.replace(/'/g, "''")}', NULL, '${TS}');`
   );
 }
 

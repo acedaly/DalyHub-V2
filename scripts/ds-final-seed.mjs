@@ -732,8 +732,8 @@ for (const [suffix, title, body] of NOTES) {
   const id = PREFIX + suffix;
   entity(id, "note", title);
   statements.push(
-    `INSERT INTO note_details (workspace_id, entity_id, entity_type, content, tags, archived_at, updated_at)
-     VALUES (${q(WORKSPACE)}, ${q(id)}, 'note', ${q(body)}, '[]', NULL, ${q(STAMP)})
+    `INSERT INTO note_details (workspace_id, entity_id, entity_type, content, archived_at, updated_at)
+     VALUES (${q(WORKSPACE)}, ${q(id)}, 'note', ${q(body)}, NULL, ${q(STAMP)})
      ON CONFLICT (workspace_id, entity_id) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at;`,
   );
 }

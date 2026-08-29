@@ -375,13 +375,38 @@ function meetingItemTask(meetingId, itemId, taskId) {
   );
 }
 
+/**
+ * V2.6 FIND-02 — attach tags through the workspace vocabulary.
+ *
+ * Tags stopped being a JSON column on three detail tables and became one
+ * vocabulary plus one attachment table, so a fixture that wants a tagged record
+ * writes both. The canonical key is the label, whitespace-normalised and
+ * ASCII case-folded, exactly as `canonicalTagKey` computes it.
+ */
+function tagEntity(id, tags, at) {
+  for (const raw of tags) {
+    const label = String(raw).trim().replace(/\s+/g, " ");
+    if (label.length === 0) continue;
+    const key = label.replace(/[A-Z]/g, (letter) =>
+      String.fromCharCode(letter.charCodeAt(0) + 32),
+    );
+    push(
+      `INSERT OR IGNORE INTO workspace_tags (workspace_id, tag_key, label, created_at, updated_at) VALUES (${ws}, ${q(key)}, ${q(label)}, ${q(at)}, ${q(at)});`,
+    );
+    push(
+      `INSERT OR IGNORE INTO entity_tags (workspace_id, entity_id, tag_key, created_at) VALUES (${ws}, ${q(id)}, ${q(key)}, ${q(at)});`,
+    );
+  }
+}
+
 /** One Note. `content` is the Markdown source — the only thing Notes store. */
 function note(id, title, { content = "", tags = [], dayOffset = 0 } = {}) {
   const at = ownerInstant(addDays(TODAY, dayOffset), 9, 0);
   entity(id, "note", title, { createdAt: at, updatedAt: at });
   push(
-    `INSERT INTO note_details (workspace_id, entity_id, entity_type, content, tags, updated_at) VALUES (${ws}, ${q(id)}, 'note', ${q(content)}, ${q(JSON.stringify(tags))}, ${q(at)});`,
+    `INSERT INTO note_details (workspace_id, entity_id, entity_type, content, updated_at) VALUES (${ws}, ${q(id)}, 'note', ${q(content)}, ${q(at)});`,
   );
+  tagEntity(id, tags, at);
 }
 
 /**
@@ -455,8 +480,9 @@ function person(
 ) {
   entity(id, "person", title);
   push(
-    `INSERT INTO person_details (workspace_id, entity_id, entity_type, preferred_name, first_name, middle_name, last_name, pronouns, organisation, role, department, email, secondary_email, mobile, work_phone, address, website, birthday, relationship, tags, notes, favourite_contact_method, follow_up_frequency, next_follow_up, last_interaction, photo_url, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'person', ${q(firstName)}, ${q(firstName)}, NULL, ${q(lastName)}, NULL, ${q(organisation)}, ${q(role)}, NULL, ${q(email)}, NULL, ${q(mobile)}, ${q(workPhone)}, NULL, NULL, NULL, ${q(relationship)}, ${q(JSON.stringify(tags))}, NULL, ${q(favouriteContactMethod)}, ${q(followUpFrequency)}, ${q(nextFollowUp)}, ${q(lastInteraction)}, NULL, NULL, ${q(stamp())});`,
+    `INSERT INTO person_details (workspace_id, entity_id, entity_type, preferred_name, first_name, middle_name, last_name, pronouns, organisation, role, department, email, secondary_email, mobile, work_phone, address, website, birthday, relationship, notes, favourite_contact_method, follow_up_frequency, next_follow_up, last_interaction, photo_url, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'person', ${q(firstName)}, ${q(firstName)}, NULL, ${q(lastName)}, NULL, ${q(organisation)}, ${q(role)}, NULL, ${q(email)}, NULL, ${q(mobile)}, ${q(workPhone)}, NULL, NULL, NULL, ${q(relationship)}, NULL, ${q(favouriteContactMethod)}, ${q(followUpFrequency)}, ${q(nextFollowUp)}, ${q(lastInteraction)}, NULL, NULL, ${q(stamp())});`,
   );
+  tagEntity(id, tags, stamp());
 }
 
 /**
@@ -497,7 +523,7 @@ function asset(
 ) {
   entity(id, "asset", title);
   push(
-    `INSERT INTO asset_details (workspace_id, entity_id, entity_type, asset_type, status, description, manufacturer, model, serial_number, reference_code, tags, owner_person_id, responsible_person_id, location, area_id, acquisition_date, purchase_price_minor, currency_code, supplier, replacement_value_minor, disposal_date, disposal_notes, warranty_expiry, service_interval, last_service_date, next_service_date, service_provider, maintenance_notes, issuer, reference_number, issue_date, renewal_date, url, document_notes, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'asset', ${q(assetType)}, ${q(status)}, NULL, ${q(manufacturer)}, ${q(model)}, NULL, NULL, '[]', NULL, NULL, ${q(location)}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ${q(warrantyExpiry === null ? null : addDays(TODAY, warrantyExpiry))}, NULL, NULL, ${q(nextServiceDate === null ? null : addDays(TODAY, nextServiceDate))}, NULL, NULL, NULL, NULL, NULL, ${q(renewalDate === null ? null : addDays(TODAY, renewalDate))}, NULL, NULL, NULL, ${q(stamp())});`,
+    `INSERT INTO asset_details (workspace_id, entity_id, entity_type, asset_type, status, description, manufacturer, model, serial_number, reference_code, owner_person_id, responsible_person_id, location, area_id, acquisition_date, purchase_price_minor, currency_code, supplier, replacement_value_minor, disposal_date, disposal_notes, warranty_expiry, service_interval, last_service_date, next_service_date, service_provider, maintenance_notes, issuer, reference_number, issue_date, renewal_date, url, document_notes, archived_at, updated_at) VALUES (${ws}, ${q(id)}, 'asset', ${q(assetType)}, ${q(status)}, NULL, ${q(manufacturer)}, ${q(model)}, NULL, NULL, NULL, NULL, ${q(location)}, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ${q(warrantyExpiry === null ? null : addDays(TODAY, warrantyExpiry))}, NULL, NULL, ${q(nextServiceDate === null ? null : addDays(TODAY, nextServiceDate))}, NULL, NULL, NULL, NULL, NULL, ${q(renewalDate === null ? null : addDays(TODAY, renewalDate))}, NULL, NULL, NULL, ${q(stamp())});`,
   );
 }
 
