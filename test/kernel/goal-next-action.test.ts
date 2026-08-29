@@ -403,6 +403,7 @@ describe("the next action costs one bounded statement, never one per record", ()
       hour: 9,
       ownerName: null,
       firstDayOfWeek: "monday" as const,
+      dateFormat: "d_mmm_yyyy" as const,
     };
 
     await seedProjects(2);
@@ -455,6 +456,7 @@ describe("a Goal the owner set aside", () => {
       hour: 9,
       ownerName: null,
       firstDayOfWeek: "monday" as const,
+      dateFormat: "d_mmm_yyyy" as const,
     };
     const today = await loadTodayDay(scopeFor(), facts);
     // ADR-111 decision 3 — it leaves the attention surface entirely, so there is

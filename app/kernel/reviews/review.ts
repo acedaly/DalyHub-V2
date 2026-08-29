@@ -57,6 +57,27 @@ export interface Review {
   readonly sections: readonly ReviewSection[];
 }
 
+/**
+ * STEER-05 — the smallest honest answer to *"is there a Review for this
+ * period?"*.
+ *
+ * Deliberately NOT a {@link Review}. A surface that only needs to offer a door
+ * needs the id, the name, the period it covers and whether it is finished — it
+ * does not need the authored Markdown of ten sections, and reading them would
+ * cost a second statement to answer a yes/no question. This shape is what makes
+ * the existence read exactly one bounded statement.
+ */
+export interface ReviewPeriodEntry {
+  readonly id: string;
+  readonly title: string;
+  readonly type: ReviewType;
+  readonly periodStart: string;
+  readonly periodEnd: string;
+  readonly status: ReviewStatus;
+  /** Archived Reviews are read-only until restored; a door must not lead there. */
+  readonly archived: boolean;
+}
+
 export type ReviewView = "current" | "in_progress" | "completed" | "archived";
 export type ReviewSort = "recent" | "period";
 

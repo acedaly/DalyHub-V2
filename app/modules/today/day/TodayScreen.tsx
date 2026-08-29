@@ -124,6 +124,7 @@ import {
   PlusIcon,
   ProjectIcon,
   ReflectionIcon,
+  ReviewIcon,
   ScheduleIcon,
   TaskIcon,
   ToneIcon,
@@ -176,6 +177,7 @@ import { todayMeasures, type TodayMeasure } from "./measures";
 import { weekStripDayHeading, weekStripMonthLabel } from "./week-strip";
 import type { TodayActivityTrend, TodayGoal } from "./goal-progress";
 import type { TodayDayData, TodayWeekDay } from "./load";
+import type { TodayReviewDoor } from "./review-door";
 
 export type TodayScreenProps = {
   readonly data: TodayDayData;
@@ -883,6 +885,147 @@ function ReflectionCard({
 }
 
 /* -------------------------------------------------------------------------- */
+/* This week's Review                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * STEER-05 — the week's door.
+ *
+ * ── The composition decision, and how it was measured ───────────────────────
+ * DEBT-34 framed the open half as a question about space: *which of the day's
+ * finite surfaces gives up space for a once-a-week prompt?* The answer taken
+ * here is **none of them — the week's door is a BAND at the very foot**, full
+ * width, below the last thing the day is actually asking for.
+ *
+ * The obvious alternative was to pair it with `Daily reflection` as a second
+ * six-column doorway, and it was tried and MEASURED on the seeded workspace
+ * before being rejected. At 1440 the foot row already holds `Continue working`
+ * (x 264, w 560) and `Daily reflection` (x 840, w 560) — twelve tracks, no
+ * hole — so a third six-column cell wrapped to a row of its own and left 560px
+ * of empty grid beside it. The grid's own note on the decision row says why
+ * that is not acceptable: *"a gap that reads as a panel that failed to load
+ * rather than as a panel that had nothing to say."* And it is not a fixed
+ * defect either, because `Continue working` is data-conditional: with it
+ * absent the three cells pair perfectly, so the composition would depend on
+ * whether the owner had a project with open work — which is exactly the kind
+ * of layout that cannot be reasoned about.
+ *
+ * A band is deterministic at every width and in every data state. It is the
+ * `HabitsPanel` precedent, taken for the mirror-image reason: that band is
+ * full width because a list of one-line rows would leave half a row empty, and
+ * this one is full width because three short lines would.
+ *
+ * What it costs nothing: **nothing above the first task moved by a pixel.**
+ * MEASURED at 1440 / 820 / 393 / 320 — the day's first actionable row is at
+ * 461 / 497 / 597 / 646 with and without this section, because the section is
+ * appended at the end of the grid.
+ *
+ * ── What it shows when the period's Review is COMPLETED ─────────────────────
+ * The other decision this item had to take. The choice was a quiet completed
+ * state or nothing until the next period, and it is the **quiet completed
+ * state**: one sentence saying the week is closed, and a link back into the
+ * Review to re-read it. Two reasons, in order.
+ *
+ *   1. **The absence is the bug.** DEBT-34 is a discoverability entry — the
+ *      Review "has no entry point on the screen the owner opens every day". A
+ *      door that disappears the moment it is used sends the owner back to
+ *      memory for the rest of the week, which is the same defect on a shorter
+ *      clock.
+ *   2. **A section that vanishes is a section that failed.** Same grid note as
+ *      above: a conditional cell reads as something that did not load. Here it
+ *      would also change the page's height four days out of seven.
+ *
+ * It is a STATEMENT, never a reward: no tick-count, no chain, no streak of
+ * completed Reviews (this item's explicit non-goal), and no comparison with any
+ * other week.
+ *
+ * ── The calm rules, stated because this is a once-a-week prompt ─────────────
+ * No badge, no count, no urgency colour, no notification, and nothing anywhere
+ * that calls an un-started Review overdue, missed or late. A week the owner
+ * never reviews is an absence, not a failure — ADR-110 decision 5's spirit,
+ * applied to a ritual instead of to a figure.
+ *
+ * ── It links; it does not mutate ────────────────────────────────────────────
+ * Every state is an ordinary `Link` into the Reviews module, which owns
+ * creation and resumption. "Start" lands on `/reviews/new`, whose form already
+ * opens on THIS week because it reads the same `currentReviewPeriod` with the
+ * same preference. "Continue" lands on `/reviews/:id/guide`, which resolves the
+ * owner's own resume position and redirects to it — REVIEW-02's semantics,
+ * untouched.
+ */
+function ReviewDoorCard({ door }: { readonly door: TodayReviewDoor }) {
+  const prompt =
+    door.state === "start"
+      ? "Close the week: what moved, what held, and what next week is for."
+      : door.state === "continue"
+        ? "Your Review for this week is underway."
+        : "This week’s Review is done.";
+  const action =
+    door.state === "start"
+      ? "Start this week’s Review"
+      : door.state === "continue"
+        ? "Continue this week’s Review"
+        : "Read this week’s Review";
+
+  return (
+    <section
+      className="dh-today__panel dh-today__review-door"
+      aria-labelledby="today-review-door-heading"
+      data-testid="today-review-door"
+      /* The stable machine fact, for the same reason the plan carries one: the
+         copy is product copy and may move, while "which of the three states is
+         this?" is the thing a spec and the E2E gate actually assert on. */
+      data-state={door.state}
+    >
+      <div className="dh-today__panel-head">
+        <h2 className="dh-today__panel-title" id="today-review-door-heading">
+          This week’s Review
+        </h2>
+        {/* The period, named — so the offer can never be about a different week
+            from the one the Review it opens covers. It takes the head's
+            existing note slot, which is where the plan already states "8
+            tasks": a panel's head is where this page puts the one fact that
+            qualifies its title. Both surfaces read the SAME
+            `currentReviewPeriod`. */}
+        <span className="dh-today__panel-note dh-today__review-door-period">
+          {door.periodLabel}
+        </span>
+      </div>
+      <div className="dh-today__review-door-body">
+        <p className="dh-today__review-door-prompt">{prompt}</p>
+        <p className="dh-today__panel-foot">
+          <Link
+            /* Outlined, never filled — UIX-05's finding on the Review card's
+               own control, and the reason is stronger here: a filled button on
+               the page's last band would be the loudest thing on a screen whose
+               subject is the day's work. The completed state is quieter still,
+               because it is offering a re-read rather than a step. */
+            className={
+              door.state === "completed"
+                ? "dh-today__panel-action"
+                : "dh-btn dh-btn--outlined dh-btn--sm"
+            }
+            data-testid="today-review-door-action"
+            to={door.href}
+          >
+            {door.state === "completed" ? null : (
+              <span className="dh-btn__icon" aria-hidden="true">
+                <ReviewIcon />
+              </span>
+            )}
+            {action}
+            {/* The accessible name carries the period too, so a link list reads
+                "Start this week's Review, 24 Aug 2026–30 Aug 2026" rather than
+                one of several identical-sounding links. */}
+            <span className="dh-visually-hidden">{`, ${door.periodLabel}`}</span>
+          </Link>
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* The screen                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -1546,6 +1689,16 @@ export function TodayScreen({
 
         {/* Reflection closes the day without competing with the work above. */}
         <ReflectionCard reflection={data.reflection} />
+
+        {/*
+         * STEER-05 — and the week's door closes the WEEK, LAST.
+         *
+         * A band rather than a column, and the very last thing on the page:
+         * the day's work, then the day's reflection, then a once-a-week offer
+         * that nothing above it has to make room for. See `ReviewDoorCard` for
+         * the measurement behind the band and for the completed-state decision.
+         */}
+        <ReviewDoorCard door={data.reviewDoor} />
       </div>
 
       {/* The one line the page ends on when the WHOLE page is clear — no day,

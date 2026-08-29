@@ -7,8 +7,10 @@ import type {
   ReviewDeleteResult,
   ReviewLifecycleResult,
   ReviewPage,
+  ReviewPeriodEntry,
   ReviewSectionId,
   ReviewStatus,
+  ReviewType,
   UpdateReviewSectionOptions,
 } from "./review";
 import type {
@@ -25,6 +27,24 @@ export interface ReviewRepository {
     options?: { includeDeleted?: boolean },
   ): Promise<Review | null>;
   list(input?: ListReviewsInput): Promise<ReviewPage>;
+
+  /**
+   * STEER-05 — the Review covering EXACTLY this period, or null.
+   *
+   * The same lookup {@link ReviewRepository.create} already performs to stay
+   * idempotent, exposed on the contract because a surface that offers a door to
+   * this week's Review has to ask the same question creation asks — otherwise
+   * "start one" and "one already exists" are two rules that can disagree.
+   *
+   * It answers with a {@link ReviewPeriodEntry} rather than a `Review`: one
+   * bounded statement, no section bodies. `custom` is excluded because a custom
+   * period is not unique and creation does not deduplicate it.
+   */
+  findPeriodEntry(
+    type: Exclude<ReviewType, "custom">,
+    periodStart: string,
+    periodEnd: string,
+  ): Promise<ReviewPeriodEntry | null>;
   updateTitle(id: string, title: string): Promise<ReviewChangeResult>;
   /**
    * Write one authored Markdown section.

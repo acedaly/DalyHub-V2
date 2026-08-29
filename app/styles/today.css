@@ -613,6 +613,20 @@
     grid-column: span 6;
   }
 
+  /*
+   * STEER-05 — the week's door is a BAND, not a column.
+   *
+   * MEASURED before this rule was written: at 1440 the foot row already holds
+   * `Continue working` (x 264, w 560) and `Daily reflection` (x 840, w 560), so
+   * a third six-column cell wrapped and left 560px of empty grid beside it —
+   * and whether it did so depended on `Continue working`, which is
+   * data-conditional. Full width is deterministic at every width and in every
+   * data state. It is the `HabitsPanel` rule, for the mirror-image reason.
+   */
+  .dh-today__review-door {
+    grid-column: span 12;
+  }
+
   .dh-today__grid[data-now-context="now"] .dh-today__now,
   .dh-today__grid[data-now-context="next"] .dh-today__next {
     grid-column: span 12;
@@ -831,7 +845,11 @@
 .dh-today__goals,
 .dh-today__attention,
 .dh-today__continue,
-.dh-today__reflection {
+.dh-today__reflection,
+/* STEER-05 — the week's door wears the SAME chrome as the day's reflection,
+   because it is the same kind of thing at a different cadence. Nothing here is
+   a new panel treatment. */
+.dh-today__review-door {
   padding: var(--dh-space-4);
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
@@ -1084,6 +1102,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /*
+   * STEER-05 / DEBT-213 — the same WCAG 2.2 AA floor the next-action line
+   * below now carries, for the same reason and by the same token.
+   *
+   * MEASURED at 320 on the seeded workspace: the row title is 19.6px tall, and
+   * axe's spacing fallback measured 18.2px of safe clickable space around it —
+   * a serious `target-size` violation on Today's attention rail and its
+   * "Continue working" cards, which `goal-measurement.spec.ts`'s own
+   * *"Today's progress sections fit a 320px phone"* scan was failing on. (The
+   * next-action fix alone moved it to 21.6px, which is closer and still
+   * short.) The floor takes it to a real 24px target.
+   *
+   * `align-content` rather than a flex box: this is a single-line ellipsised
+   * link, and `display: flex` would put its text in an anonymous box where
+   * `text-overflow` cannot reach it. On a browser that does not centre block
+   * content the text simply sits at the top of a 24px target, which is a
+   * cosmetic difference rather than a functional one.
+   */
+  min-block-size: var(--app-pointer-target-min);
+  align-content: center;
 }
 
 .dh-day-row__title:hover {
@@ -1993,6 +2031,60 @@
 }
 
 /* -------------------------------------------------------------------------- */
+/* This week's Review — the week's door (STEER-05)                             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The period, in the head's own note slot.
+ *
+ * It inherits `.dh-today__panel-note` entirely — the same muted meta size, the
+ * same numeric treatment and the same no-wrap rule the plan's "8 tasks" uses —
+ * and adds one thing: a date RANGE is longer than a count, so it is allowed to
+ * wrap onto its own line rather than squeezing the heading beside it at a
+ * narrow width.
+ *
+ * There is no state colour anywhere in this section. "Not started", "underway"
+ * and "done" differ in their WORDS and in the control they offer, never in a
+ * tone that would read as urgency on the one screen the owner opens every
+ * morning.
+ */
+.dh-today__review-door-period {
+  white-space: normal;
+}
+
+.dh-today__review-door-prompt {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/*
+ * The band's one row: the sentence, and the way in.
+ *
+ * A band is only calm if it does not spend a full-width rectangle on three
+ * stacked lines, so the prompt and the control share a line and the control
+ * settles at the end. It WRAPS rather than shrinking — on a phone this becomes
+ * the ordinary two-line card it would have been anyway, and the control keeps
+ * its full size at every width.
+ */
+.dh-today__review-door-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dh-space-2) var(--dh-space-4);
+}
+
+/* The `panel-foot` inside the band is a cell of that row, not a block after
+   it — so it keeps the shared foot's typography and loses its own top rule. */
+.dh-today__review-door-body .dh-today__panel-foot {
+  flex: none;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Goal progress — the mockup's additions                                      */
 /* -------------------------------------------------------------------------- */
 
@@ -2093,7 +2185,28 @@
   color: var(--dh-color-text-muted);
 }
 
+/*
+ * STEER-05 — the link occupies a REAL target on every pointer, not only a
+ * coarse one.
+ *
+ * STEER-04 shipped this floor inside `@media (pointer: coarse)`, and that is
+ * one pointer short of what WCAG 2.2 AA asks for: SC 2.5.8's 24×24 minimum is
+ * not conditional on the input device, and axe measures it on a fine pointer
+ * too. MEASURED on `/today` at 1280 with the seeded workspace, BEFORE this
+ * rule: the link is 75.7 × **16.9** px with 18.8px of safe clickable space
+ * around it, and axe reports a SERIOUS `target-size` violation on every
+ * "Continue working" card that names a next action — which is what
+ * `today-focus.spec.ts`'s own "passes axe" scan was failing on.
+ *
+ * The floor is the standard's 24px rather than the product's 45px touch
+ * target: this is a small supporting line under a card's title, and 45px would
+ * make the supporting line taller than the thing it supports. The coarse-pointer
+ * rule below still lifts it the rest of the way on touch.
+ */
 .dh-next-action__open {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--app-pointer-target-min);
   color: var(--dh-color-text);
   min-inline-size: 0;
   overflow-wrap: anywhere;

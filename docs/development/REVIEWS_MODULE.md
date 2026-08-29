@@ -126,18 +126,20 @@ Deferred deliberately: AI-generated summaries, recommendations, user-designed te
 - Bounded live period context for Tasks, Diary entries and Meetings.
 - Activity payloads carry structural metadata only — never reflection text, Diary content, Meeting notes, Task titles or Person details.
 
-**Known limitations.**
+**Known limitations — as REVIEWS-01 shipped them.** This block is the original
+2026-07 snapshot and is kept for the record; the sections below supersede it
+where they overlap, and each superseded bullet says so.
 
-- Period context is a **bounded live helper**, not a complete aggregation: it reads Tasks, Diary and Meetings, but **not Projects updated in the period**, and does not paginate beyond its bounds — [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2).
-- Source labels stay live. A completed Review preserves what the owner **wrote and linked**, but a linked record renamed later shows its new title; no immutable snapshot is stored.
-- No Today entry point for "start or continue this week's Review".
+- ~~Period context is a **bounded live helper**, not a complete aggregation: it reads Tasks, Diary and Meetings, but **not Projects updated in the period**, and does not paginate beyond its bounds~~ — the Projects half closed with [REVIEW-02](#the-guided-weekly-review-review-02--review-04-2026-08-05), the derived period facts with REVIEW-03, and the period's plan account with [FOLLOW-01](#the-periods-plan-account-and-routine-consistency-follow-01-2026-08-26). [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05) is **closed**.
+- Source labels stay live. A completed Review preserves what the owner **wrote and linked**, but a linked record renamed later shows its new title; no immutable snapshot is stored. **Still true, and deliberate** — REVIEW-03's audit concluded that freezing source labels would make a Review disagree with the records it points at.
+- ~~No Today entry point for "start or continue this week's Review".~~ **Closed 2026-08-28 by [STEER-05](../roadmap/ROADMAP_V2_5.md#-steer-05--the-weeks-door--delivered-2026-08-28)**: Today's foot carries the week's door — start, continue or read the finished one. See [the period label and the period lookup](#the-period-label-and-the-period-lookup-steer-05-2026-08-28).
 - Lifecycle actions live in a record Settings tab, matching Projects/Areas/People/Assets — but there is still no shared Record Header overflow menu anywhere in the product ([DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28)).
 
 **Deferred work.** AI-generated summaries and recommendations; user-designed templates; notifications and reminders; external integrations; PDF export; immutable source-record snapshots; charts, scores and streaks; the guided weekly flow ([REVIEW-02](../roadmap/ROADMAP_V2.md#-review-02--weekly-review)); derived reflection insights ([REVIEW-03](../roadmap/ROADMAP_V2.md#-review-03--insights--alignment)); and mobile completion beyond the DS-11 baseline ([REVIEW-04](../roadmap/ROADMAP_V2.md#-review-04--mobile)).
 
 **Relevant roadmap items.** [REVIEWS-01](../roadmap/ROADMAP_V2.md#-reviews-01--dalyhub-reviews-foundation) ☑ · [REVIEW-02](../roadmap/ROADMAP_V2.md#-review-02--weekly-review) ☐ · [REVIEW-03](../roadmap/ROADMAP_V2.md#-review-03--insights--alignment) ☐ · [REVIEW-04](../roadmap/ROADMAP_V2.md#-review-04--mobile) ☐.
 
-**Relevant product-debt items.** [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) (resolved 2026-07-27) · [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28) · [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03) (lands under REVIEW-03) · [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02).
+**Relevant product-debt items.** [DEBT-38](../product/PRODUCT_DEBT.md#-debt-38--notification-toasts-occlude-bottom-anchored-record-actions--p1) (resolved 2026-07-27) · [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05) · [DEBT-29](../product/PRODUCT_DEBT.md#-debt-29--record-removal-is-inconsistent-and-undiscoverable-no-shared-overflow-menu-exists--p1--resolved-2026-07-28) · [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03) (lands under REVIEW-03) · [DEBT-41](../product/PRODUCT_DEBT.md#-debt-41--the-e2e-suite-is-unreliable-on-main-so-ci-is-green-claims-are-unverifiable--p1--resolved-2026-08-02).
 
 ---
 
@@ -912,3 +914,69 @@ refuses.
 
 Full record:
 [`V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md`](../product/V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md).
+
+
+## The period label and the period lookup (STEER-05, 2026-08-28)
+
+[STEER-05](../roadmap/ROADMAP_V2_5.md#-steer-05--the-weeks-door--delivered-2026-08-28)
+gave Today a door onto this week's Review
+([`TODAY_DASHBOARD.md` → the week's door](TODAY_DASHBOARD.md#the-weeks-door-steer-05-2026-08-28)).
+Two things moved in this module to make that possible, and nothing else about
+Reviews changed: no new machinery, no second period authority, and no change to
+the Review's content, steps or lifecycle.
+
+### `reviewPeriodLabel` moved to the kernel
+
+It lived in `app/modules/reviews/review-view.ts`, with private `monthYear` and
+`quarterLabel` helpers that duplicated `app/kernel/reviews/review-periods.ts`'s
+own. Today naming the week it is offering would have meant either a cross-module
+import (`AGENTS.md` §9.1 forbids it) or a third implementation of a label the
+product already has two of.
+
+So the rule moved down beside `currentReviewPeriod` — the authority it labels —
+and the module **re-exports it from its old path**, so no call site changed. The
+duplicate `monthYear`/`quarterLabel` helpers went with the move. There is now
+exactly one implementation, published from `~/kernel/reviews`, and the Reviews
+collection, the Review record, the New Review form's period preview and Today's
+door all read it.
+
+### `ReviewRepository.findPeriodEntry` — the bounded existence read
+
+```ts
+findPeriodEntry(
+  type: Exclude<ReviewType, "custom">,
+  periodStart: string,
+  periodEnd: string,
+): Promise<ReviewPeriodEntry | null>;
+```
+
+A surface that offers *"start this week's Review"* has to ask the same question
+`create` asks to stay idempotent — otherwise "there isn't one yet" and "there
+already is one" become two rules that can disagree. So this is not a new lookup:
+it is `create`'s own, exposed on the contract, and both now read a single
+`PERIOD_MATCH` predicate in the D1 repository so they cannot drift.
+
+Two deliberate shapes:
+
+- **It answers with a `ReviewPeriodEntry`, not a `Review`** — id, title, type,
+  period, status, archived. A `Review` carries ten section bodies and would cost
+  a second statement to answer a yes/no question. This one is **exactly one
+  bounded statement**, found or not, asserted with a counting database.
+- **`custom` is excluded from the type**, because a custom period is not unique
+  and `create` does not deduplicate it.
+
+`ARCHIVED` is reported rather than filtered, and the caller decides. Today's
+door treats an archived current-period Review as an absence, deliberately: the
+guided flow refuses an archived Review (it redirects to the record's Settings
+tab, where restore lives), so "Continue" would be a dead end — while
+`/reviews/new` is not one, because `create` finds the archived Review for the
+period and **restores** it rather than making a second.
+
+### What Today may and may not do with them
+
+Today **links**. Review creation and resumption stay this module's: `/reviews/new`
+creates (and its form already opens on the current week from the same
+`currentReviewPeriod` and the same owner preference), `/reviews/:id/guide`
+resolves the owner's own resume step and redirects to it, and `/reviews/:id` is
+the canonical record. Today holds no resume bookmark, names no step, and writes
+nothing.

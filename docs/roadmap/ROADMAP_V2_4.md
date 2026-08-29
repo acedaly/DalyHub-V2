@@ -664,7 +664,7 @@ gate, and the reason the product closed at B rather than A.**
      names on every control; no horizontal overflow at any width; `axe` clean in
      both appearances with no rule disabled. Any geometric claim is asserted by
      **reading the live box**, per DHDS-13's one rule.
-- **Closes.** DEBT-156. **Narrows.** [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2).
+- **Closes.** DEBT-156. **Narrows.** [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05).
 - **DELIVERED 2026-08-26.** Record:
   [`V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md`](../product/V2_4_FOLLOW_01_WEEK_ACCOUNT_2026_08.md).
 

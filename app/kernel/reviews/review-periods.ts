@@ -167,3 +167,32 @@ export function defaultReviewTitle(input: {
       return `Custom Review — ${compactRange(input.periodStart, input.periodEnd, input.dateFormat)}`;
   }
 }
+
+/**
+ * STEER-05 — the label a period wears, wherever a surface names one.
+ *
+ * It lived in `app/modules/reviews/review-view.ts` (with its own private
+ * `monthYear` and `quarterLabel`, duplicating this file's) until Today needed to
+ * name the week it is offering. A module may not import another module's
+ * internals, and a second implementation is how the Reviews collection and
+ * Today come to print two different names for one week — so the rule moved down
+ * beside `currentReviewPeriod`, which is the authority it labels. The Reviews
+ * module re-exports it from its old path, so no call site changed.
+ */
+export function reviewPeriodLabel(
+  type: ReviewType,
+  periodStart: string,
+  periodEnd: string,
+  dateFormat: DateFormat,
+): string {
+  if (type === "monthly") return monthYear(periodStart);
+  if (type === "quarterly") return quarterLabel(periodStart);
+  if (type === "annual") return periodStart.slice(0, 4);
+  if (periodStart === periodEnd) {
+    return formatPreferenceDate(periodStart, dateFormat);
+  }
+  return `${formatPreferenceDate(periodStart, dateFormat)}–${formatPreferenceDate(
+    periodEnd,
+    dateFormat,
+  )}`;
+}

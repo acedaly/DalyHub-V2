@@ -824,3 +824,123 @@ action leaves the cards exactly as they were before the feature.
 
 Full detail and the parity proofs:
 [`GOALS_MODULE.md` → STEER-04](GOALS_MODULE.md#steer-04--from-signal-to-step-v25-2026-08-28).
+
+
+## The week's door (STEER-05, 2026-08-28)
+
+[DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05)'s
+last open half, in its own words: *"the weekly Review has no entry point on the
+screen the owner opens every day, so starting one is something they must
+remember rather than something the product offers."*
+
+Today's foot now carries a band, **This week's Review**, in one of three states:
+
+| The owner's week | The band says | Where it goes |
+|---|---|---|
+| has no Review | *Close the week: what moved, what held, and what next week is for.* → **Start this week's Review** | `/reviews/new` |
+| has one underway | *Your Review for this week is underway.* → **Continue this week's Review** | `/reviews/:id/guide` |
+| has a completed one | *This week's Review is done.* → **Read this week's Review** | `/reviews/:id` |
+
+The period is named in every state — in the panel head's note slot, where the
+plan already states "8 tasks", and inside the control's accessible name, so a
+screen reader's link list reads *"Start this week's Review, 24 Aug 2026–30 Aug
+2026"* rather than one of several identical "Start" links.
+
+### Today links; it does not mutate
+
+All three destinations are the Reviews module's. Today holds no Review creation
+path, no resume bookmark and no step vocabulary — the same rule that makes Task
+completion post to `/tasks/:id` rather than to a Today endpoint. "Start" lands on
+`/reviews/new`, whose form already opens on THIS week because it reads the same
+`currentReviewPeriod` with the same preference; the owner confirms there.
+"Continue" lands on `/reviews/:id/guide`, which resolves the owner's own resume
+step and redirects to it (REVIEW-02's semantics, untouched).
+
+### One period authority, one import path
+
+Which week it is comes from `currentReviewPeriod` in `~/kernel/reviews` — the
+same function `NewReviewForm` calls — with the owner's `firstDayOfWeek`. Today
+does **not** re-derive the week from `planningWeekStart`, from the Schedule
+panel's own week strip, or from anything else on this page that happens to know
+what a week is. That is asserted structurally rather than by two values agreeing
+([`review-door-authority.test.ts`](../../test/unit/today/review-door-authority.test.ts)):
+one declaration, one published import path, no deep imports, and no week
+arithmetic inside the door at all. It is DEBT-152 / DEBT-154's lesson applied in
+advance — four derivations of one week agreed, which is exactly why the drift
+was invisible.
+
+The label is `reviewPeriodLabel`, which moved into the same kernel module in
+this pass (see [`REVIEWS_MODULE.md`](REVIEWS_MODULE.md#the-period-label-and-the-period-lookup-steer-05-2026-08-28)),
+so the door and the Reviews collection cannot print two names for one week.
+
+### What it costs: ONE statement, and the clause it could not meet
+
+DEBT-34's closing condition asked for Today's query count to be **unchanged**.
+It could not be: nothing Today already reads touches `review_details`, so there
+was no existing statement for the existence read to ride on. The honest answer,
+recorded rather than absorbed (ADR-110 decision 7's posture):
+
+**MEASURED on an empty workspace: 20 → 21.** One bounded statement, in the
+existing parallel block, identical in all three door states. Both figures are
+pinned by a counting database in
+[`today-review-door.test.ts`](../../test/kernel/today-review-door.test.ts), so a
+second Reviews read — or one that varies with the door's state — fails the suite.
+
+The read is `ReviewRepository.findPeriodEntry`, which is creation's own
+idempotency lookup exposed on the contract and sharing one predicate with it. It
+answers with a small `ReviewPeriodEntry` rather than a `Review` precisely so it
+costs one statement and not two.
+
+It degrades like every other section: a Reviews read that fails leaves the "start
+one" offer standing rather than removing the door, because which week it is is
+arithmetic over a preference rather than a read.
+
+### The composition, and why it is a band
+
+DEBT-34 framed the open half as a question about space — *which of the day's
+finite surfaces gives up space for a once-a-week prompt?* The measured answer is
+**none of them**. The band takes the full twelve tracks at the very foot, below
+the day's work, its schedule, its routine, its Goals and its reflection.
+
+The six-column alternative (a second doorway paired with `Daily reflection`) was
+built first and rejected on a measurement: at 1440 the foot row already holds
+`Continue working` (x 264, w 560) and `Daily reflection` (x 840, w 560), so a
+third six-column cell wrapped and left 560px of empty grid beside it — and
+because `Continue working` is data-conditional, whether it did so depended on
+whether the owner had a project with open work. A band is deterministic at every
+width and in every data state. It is the `HabitsPanel` rule for the mirror-image
+reason: that band is full width because a list of one-line rows would leave half
+a row empty, and this one is because three short lines would.
+
+**Nothing above the first task moved.** MEASURED at 1440 / 820 / 393 / 320: the
+day's first actionable row is at 461 / 497 / 597 / 646 px with and without the
+band, because it is appended at the end of the grid. TODAY-TASK-01's standing
+constraint holds.
+
+### The completed state is a statement, never a reward
+
+The decision the item had to take and record: a quiet completed state, not
+nothing until the next period. Two reasons — a door that disappears the moment it
+is used sends the owner back to memory for the rest of the week, which is
+DEBT-34's own defect on a shorter clock; and a section that vanishes four days
+out of seven reads as a panel that failed to load, which is the grid's own
+recorded objection to conditional cells.
+
+**The calm rules, asserted.** No badge, no count, no urgency colour, no
+notification, and no streak of completed Reviews. A week the owner never reviews
+is never called overdue, missed or late — a vocabulary guard over the rendered
+band checks it in all three states
+([`steer-week-door.spec.ts`](../../e2e/steer-week-door.spec.ts)). ADR-110
+decision 5's spirit, applied to a ritual instead of to a figure.
+
+### One thing this pass fixed that it did not add
+
+`.dh-next-action__open` — STEER-04's next-action link, above — floored its
+pointer target only inside `@media (pointer: coarse)`, and WCAG 2.2 AA SC 2.5.8's
+24×24 minimum is not conditional on the pointer.
+[DEBT-214](../product/PRODUCT_DEBT.md#-debt-214--todays-small-row-links-met-no-target-size-floor-on-a-fine-pointer--p2--raised-and-resolved-2026-08-28-v25-steer-05)
+carries the measurement (75.7 × **16.9** px, 18.8px of safe clickable space) and
+the fix: a new `--app-pointer-target-min` token holding the standard's 24px,
+beside — not instead of — the product's 45px touch target. It was found because
+this item's own criterion is an axe-clean Today, and `today-focus.spec.ts`'s
+existing scan was already failing on it on `main`.

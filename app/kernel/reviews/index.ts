@@ -29,6 +29,7 @@ export type {
   CreateReviewResult,
   ListReviewsInput,
   ReviewPage,
+  ReviewPeriodEntry,
   ReviewView,
   ReviewSort,
   ReviewChangeResult,
@@ -118,6 +119,7 @@ export {
   currentReviewPeriod,
   defaultReviewTitle,
   quarterLabel,
+  reviewPeriodLabel,
 } from "./review-periods";
 export type { ReviewPeriod } from "./review-periods";
 export {
