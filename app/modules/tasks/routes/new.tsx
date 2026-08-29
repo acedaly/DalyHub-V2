@@ -14,6 +14,11 @@
 import { env } from "cloudflare:workers";
 
 import { readIdempotencyKey, withReplayGuard } from "~/platform/offline";
+import {
+  TagValidationError,
+  parseEntityTagInput,
+  tagLabels,
+} from "~/kernel/tags";
 import { requireAuthenticatedSession } from "~/platform/request";
 import {
   applyCaptureRelationship,
@@ -179,7 +184,20 @@ async function handleCreate(
   // persisted WITH its rule or not created at all: parsing without applying would be
   // a promise the product does not keep.
   const recurrence = readRecurrenceFields(form);
+  /*
+   * V2.6 FIND-04 — the `#tag`s the deterministic parser recognised, written in
+   * the SAME create batch for the same reason the recurrence rule is: a capture
+   * that said `#errand` either commits WITH its tag or is not created at all.
+   *
+   * Parsed by the ONE tag parser, which accepts the JSON array every capture
+   * surface posts and, defensively, a comma list. A malformed value raises a
+   * typed field error rather than being dropped: silently discarding a tag the
+   * owner typed is exactly the failure the preview exists to prevent.
+   */
   try {
+    const tags = form.has("tags")
+      ? tagLabels(parseEntityTagInput(form.get("tags")))
+      : [];
     const captureContext = await validateCaptureContextForCreate(
       scope,
       "task",
@@ -212,6 +230,7 @@ async function handleCreate(
       ...(dueDate ? { dueDate: String(dueDate) } : {}),
       ...(scheduledDate ? { scheduledDate: String(scheduledDate) } : {}),
       ...(recurrence ? { recurrence } : {}),
+      ...(tags.length > 0 ? { tags } : {}),
     });
     try {
       await applyCaptureRelationship(scope, task.id, captureContext);
@@ -237,6 +256,16 @@ async function handleCreate(
         kind: "create",
         ok: false,
         fieldErrors: { [cause.field]: cause.message },
+      };
+    }
+    // V2.6 FIND-04 — a tag the shared validator refused is a FIELD error, so a
+    // capture whose tag was too long is told which part failed rather than
+    // being handed the generic "try again" that loses the reason.
+    if (cause instanceof TagValidationError) {
+      return {
+        kind: "create",
+        ok: false,
+        fieldErrors: { tags: cause.message },
       };
     }
     if (cause instanceof SpineValidationError) {

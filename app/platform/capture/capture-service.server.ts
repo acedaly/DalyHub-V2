@@ -280,8 +280,21 @@ async function createCapturedTask(
   execution: CaptureExecution,
 ): Promise<{ readonly recordId: string; readonly title: string }> {
   const source = taskTitleFor(request);
+  /*
+   * V2.6 FIND-04 — the workspace's tag vocabulary, so an external capture of
+   * `#ERRAND` attaches the tag the owner already has rather than a second one.
+   *
+   * One bounded read, on the capture path only. It fails SOFT: a vocabulary
+   * that could not be read leaves every recognised tag "new", which is what an
+   * offline replay gets too — the tag still attaches, under the spelling the
+   * sentence used, because the storage layer canonicalises either way.
+   */
+  const knownTags = await scope.tags
+    .listVocabulary()
+    .catch(() => [] as readonly { key: string; label: string }[]);
   const interpretation = parseQuickCapture(source, {
     todayIso: execution.todayIso,
+    knownTags,
   });
 
   // The SAME anchor resolution the in-app surfaces use, rather than a second copy of
@@ -329,6 +342,14 @@ async function createCapturedTask(
         }
       : {}),
     ...(description === null ? {} : { description }),
+    // V2.6 FIND-04 — the recognised tags, written in the SAME create batch as
+    // the Task, so a captured `#errand` either commits with its tag or not at
+    // all. The recorded unknown-tag decision applies here without a preview to
+    // offer creation in: an external capture has no surface to confirm on, so
+    // the tag it names is the tag it gets, and the owner sees it on the Task.
+    ...(interpretation.tags.length > 0
+      ? { tags: interpretation.tags.map((tag) => tag.label) }
+      : {}),
   });
 
   return { recordId: task.id, title: task.title };

@@ -59,6 +59,23 @@ function mockFetch(response: unknown, ok = true) {
   return fetchMock;
 }
 
+/**
+ * The CREATE call, found by its path rather than by its position.
+ *
+ * V2.6 FIND-04 — the row also reads the shared tag vocabulary when it mounts
+ * (`GET /tags`), so the create is no longer the first `fetch`. These assertions
+ * were always about what was POSTED to `/tasks/new`; naming the path says so.
+ */
+function createCall(
+  fetchMock: ReturnType<typeof vi.fn>,
+): [string, RequestInit] {
+  const call = fetchMock.mock.calls.find(
+    (entry) => entry[0] === "/tasks/new",
+  ) as [string, RequestInit] | undefined;
+  expect(call, "no POST to /tasks/new").toBeDefined();
+  return call!;
+}
+
 beforeEach(() => {
   vi.restoreAllMocks();
 });
@@ -75,8 +92,12 @@ describe("quick add", () => {
     fireEvent.change(input(), { target: { value: "Draft the brief" } });
     fireEvent.submit(input().closest("form")!);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some((entry) => entry[0] === "/tasks/new"),
+      ).toBe(true),
+    );
+    const [url, init] = createCall(fetchMock);
     // There is NO list-only create path: this is the same endpoint the Drawer's
     // capture form posts to.
     expect(url).toBe("/tasks/new");
@@ -100,9 +121,12 @@ describe("quick add", () => {
     fireEvent.change(input(), { target: { value: "Urgent thing" } });
     fireEvent.submit(input().closest("form")!);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
-      .body as FormData;
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some((entry) => entry[0] === "/tasks/new"),
+      ).toBe(true),
+    );
+    const body = createCall(fetchMock)[1].body as FormData;
     expect(body.get("priority")).toBe("p1");
     expect(body.get("timeSector")).toBe("this_week");
     expect(body.get("scheduledDate")).toBe("2026-07-25");
@@ -117,9 +141,12 @@ describe("quick add", () => {
     });
     fireEvent.submit(input().closest("form")!);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
-      .body as FormData;
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some((entry) => entry[0] === "/tasks/new"),
+      ).toBe(true),
+    );
+    const body = createCall(fetchMock)[1].body as FormData;
     expect(body.get("title")).toBe("Service Hilux");
     expect(body.get("recurrenceFrequency")).toBe("month");
     expect(body.get("recurrenceInterval")).toBe("6");
@@ -139,9 +166,12 @@ describe("quick add", () => {
     });
     fireEvent.submit(input().closest("form")!);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
-      .body as FormData;
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some((entry) => entry[0] === "/tasks/new"),
+      ).toBe(true),
+    );
+    const body = createCall(fetchMock)[1].body as FormData;
     expect(body.get("title")).toBe("Pay rent");
     expect(body.get("recurrenceFrequency")).toBe("month");
     expect(body.get("recurrenceMode")).toBe("fixed");
@@ -241,7 +271,11 @@ describe("quick add", () => {
     renderRow();
     fireEvent.change(input(), { target: { value: "   " } });
     fireEvent.submit(input().closest("form")!);
-    expect(fetchMock).not.toHaveBeenCalled();
+    // Nothing was CREATED. The row's own read of the shared tag vocabulary is a
+    // GET and is not a submission, so the assertion names the create path.
+    expect(fetchMock.mock.calls.map((entry) => entry[0])).not.toContain(
+      "/tasks/new",
+    );
   });
 
   it("creates an Inbox task when there is no capture parent", async () => {
@@ -253,9 +287,12 @@ describe("quick add", () => {
     fireEvent.change(input(), { target: { value: "Capture this" } });
     fireEvent.submit(input().closest("form")!);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
-      .body as FormData;
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some((entry) => entry[0] === "/tasks/new"),
+      ).toBe(true),
+    );
+    const body = createCall(fetchMock)[1].body as FormData;
     expect(body.get("title")).toBe("Capture this");
     expect(body.has("parentId")).toBe(false);
     expect(body.has("parentKind")).toBe(false);
@@ -270,9 +307,12 @@ describe("quick add", () => {
     });
     fireEvent.submit(input().closest("form")!);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1]
-      .body as FormData;
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some((entry) => entry[0] === "/tasks/new"),
+      ).toBe(true),
+    );
+    const body = createCall(fetchMock)[1].body as FormData;
     expect(body.get("title")).toBe("Prepare OpO slides");
     expect(body.get("scheduledDate")).toBe("2026-07-31");
     expect(body.get("priority")).toBe("p1");

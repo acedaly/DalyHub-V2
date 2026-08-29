@@ -27,8 +27,10 @@ import { useRevalidator } from "react-router";
 
 import {
   applyRecurrenceFields,
+  applyCaptureTags,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
+import { useTagVocabulary } from "~/shared/tags";
 import { useCompactViewport } from "~/shared/viewport";
 
 import type { TaskParentOption, TasksCreateResult } from "./tasks-contract";
@@ -67,6 +69,9 @@ export function TasksQuickAdd({
   const fieldId = useId();
   const errorId = useId();
   const compact = useCompactViewport();
+  // V2.6 FIND-04 — the ONE workspace tag vocabulary, so `#ERRAND` resolves to
+  // the tag the owner already has rather than proposing a second spelling.
+  const vocabulary = useTagVocabulary();
 
   const submit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -77,7 +82,10 @@ export function TasksQuickAdd({
       setBusy(true);
       setError(null);
       const body = new FormData();
-      const interpretation = parseQuickCapture(trimmed, { todayIso });
+      const interpretation = parseQuickCapture(trimmed, {
+        todayIso,
+        knownTags: vocabulary,
+      });
       body.set("intent", "create");
       body.set("title", interpretation.title);
       if (defaultParent) {
@@ -112,6 +120,7 @@ export function TasksQuickAdd({
         { scheduledDate, dueDate: interpretation.dueDate },
         todayIso,
       );
+      applyCaptureTags(body, interpretation.tags);
 
       let result: TasksCreateResult;
       try {

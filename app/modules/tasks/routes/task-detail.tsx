@@ -81,7 +81,11 @@ import {
 } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
 
-import { parseEntityTagInput, tagLabels } from "~/kernel/tags";
+import {
+  TagValidationError,
+  parseEntityTagInput,
+  tagLabels,
+} from "~/kernel/tags";
 import {
   serializeChecklist,
   serializeChecklistItem,
@@ -714,6 +718,16 @@ async function handleUpdate(
         kind: "update",
         status: "error",
         fieldErrors: { [cause.field]: cause.message },
+      };
+    }
+    // V2.6 FIND-03 — a tag the shared validator refused is a FIELD error on
+    // `tags`, so the Details form points at the control that has to change
+    // rather than showing the generic "try again" that loses the reason.
+    if (cause instanceof TagValidationError) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { tags: cause.message },
       };
     }
     if (cause instanceof TaskNotFoundError) {
