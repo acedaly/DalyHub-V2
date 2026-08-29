@@ -122,9 +122,13 @@ export function TaskCapturePanel({
         defaultParent?.kind ?? parentSearch.kindOf(values.parentId);
 
       // The SAME deterministic parser `/tasks` uses — never a second vocabulary.
+      // `unknownTags: "ignore"` for the same reason the in-list quick-add row
+      // does it: this sheet renders no token preview, so it cannot OFFER a new
+      // tag, so it does not create one. An existing tag still resolves.
       const interpretation = parseQuickCapture(values.title, {
         todayIso: todayIso ?? undefined,
         knownTags: vocabulary,
+        unknownTags: "ignore",
       });
       const body = new FormData();
       body.set("intent", "create");

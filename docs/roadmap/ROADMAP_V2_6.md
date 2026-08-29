@@ -612,11 +612,22 @@ sentence left with FIND-01. **V2.6 is complete.**
   one. The falsification pass removed `asset_details` from the migration and three
   of those tests failed.
 
+  **A comma is a separator, never part of a tag — found in review (PR #238).**
+  The shared field has always split a typed string on one and the declarative
+  filter joins its members with one, so a key containing a comma could not be
+  addressed by `?tag=` at all. It is split wherever a tag can enter, including
+  migration `0049` reading a legacy JSON member (so both words survive), and the
+  database refuses one.
+
   **Export and restore.** The snapshot gains `workspaceTags` and `entityTags` and
   its version stays **2** — deliberately, so the backup taken immediately BEFORE
   this migration stays restorable; restore prefers the collections and otherwise
   rebuilds them from the per-record arrays a pre-`0049` archive carries. Both
   paths are covered, including an orphan vocabulary entry and a legacy archive.
+  The **Markdown vault** reads the same collections (corrected in review): a
+  tagged Task had been restoring perfectly from the JSON while showing no tags at
+  all in the readable copy, because the vault built Task files from a detail row
+  that no longer has a `tags` column.
 
   **One interaction, proven structurally AND on all three surfaces.**
   `~/shared/forms/tags.ts` is now nothing but re-exports of `~/kernel/tags`, and
@@ -788,11 +799,23 @@ sentence left with FIND-01. **V2.6 is complete.**
   **The unknown-tag decision: OFFERED, never created silently.** The middle of the
   three options. The preview words it — *"New tag: …"* against an existing tag's
   *"Tag: …"* — and the owner removes it with the control every token already has,
-  which restores the literal words. *"Leave it as literal words"* was rejected
-  with its reason: that rule is about phrases the grammar **cannot fully
-  recognise**, and `#` is an explicit marker, like `due …`, which the grammar
-  recognises perfectly. What is genuinely at stake is the vocabulary, and the
-  preview answers that by showing the word as new **before** anything is saved.
+  which restores the literal words. *"Leave it as literal words"* was rejected as
+  the general rule with its reason: that rule is about phrases the grammar
+  **cannot fully recognise**, and `#` is an explicit marker, like `due …`, which
+  the grammar recognises perfectly. What is genuinely at stake is the vocabulary,
+  and the preview answers that by showing the word as new **before** anything is
+  saved.
+
+  **And an offer needs somewhere to appear — corrected in review (PR #238).**
+  Only the full create form renders the preview; the in-list quick-add row, the
+  capture sheet and every external transport do not, and on those the first
+  implementation created the tag anyway — invisibly, and permanently, because an
+  unreferenced vocabulary entry is deliberately kept. A surface that cannot offer
+  now does not create: it resolves a tag the workspace already holds and leaves
+  every other `#word` as the words the owner typed. Proven on the real surface —
+  a `#typo` in the quick-add row leaves `workspace_tags` untouched and stays in
+  the title — and against real D1 on the capture endpoint, including the replay
+  path, which re-derives the title and therefore had to learn the same rule.
 
   **The offline answer is a test, as the item required.**
   `test/kernel/offline-capture-replay-compatibility.test.ts` replays a **frozen**

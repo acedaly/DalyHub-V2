@@ -52,6 +52,25 @@ export const TAG_VOCABULARY_READ_LIMIT = 200;
  */
 export const MAX_TAG_FILTER_MEMBERS = 10;
 
+/**
+ * The one character a tag may never contain, and why it is a SEPARATOR instead.
+ *
+ * `,` is the delimiter every multi-value surface in this product already uses:
+ * {@link parseEntityTagInput} splits a plain string on it, and the declarative
+ * view configuration serialises a set of filter members by joining on it. A tag
+ * whose key contained one would therefore be indivisible from two tags — the
+ * filter `?tag=a,b` cannot mean the single tag `a,b` and the pair `a`, `b` at
+ * once, so one of the two readings has to be impossible.
+ *
+ * The impossible one is the tag. A comma is read as a separator EVERYWHERE — in
+ * the shared field, in a hand-written request, and in migration `0049` reading
+ * a legacy JSON array — so `"a,b"` becomes the two tags the product's own input
+ * rule already says it is, rather than one tag no filter can address. The
+ * database enforces it too (`workspace_tags_key_has_no_comma`), so the three
+ * engines cannot drift apart.
+ */
+const TAG_SEPARATOR = ",";
+
 /** Control characters, which a tag may never contain. */
 // eslint-disable-next-line no-control-regex -- reject C0/C1 control characters.
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
@@ -107,10 +126,18 @@ export function validateEntityTags(
     throw new TagValidationError(field, "must be a list of tags");
   }
   const byKey = new Map<string, WorkspaceTag>();
+  const members: string[] = [];
   for (const raw of value) {
     if (typeof raw !== "string") {
       throw new TagValidationError(field, "must be a list of tags");
     }
+    // One member may still arrive carrying the separator — a legacy row, a
+    // hand-written JSON body, a paste. It is SPLIT rather than rejected: the
+    // owner's words are all kept, and no tag can reach storage carrying a
+    // character the filter would read as the end of it. See TAG_SEPARATOR.
+    members.push(...raw.split(TAG_SEPARATOR));
+  }
+  for (const raw of members) {
     const label = normaliseTag(raw);
     if (label.length === 0) continue;
     if (codePointLength(label) > MAX_TAG_LENGTH) {

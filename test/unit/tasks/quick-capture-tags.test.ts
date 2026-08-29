@@ -177,6 +177,81 @@ describe("FIND-04 — the unknown-tag decision, and how it is worded", () => {
   });
 });
 
+describe("FIND-04 — a surface with no preview cannot create vocabulary", () => {
+  /*
+   * Raised in review on PR #238, and correctly: the recorded decision is that an
+   * unknown tag is OFFERED before it is created, and an offer only exists where
+   * the owner is shown it. The full create form renders the token preview; the
+   * in-list quick-add row, the capture sheet and every external transport do
+   * not — so on those, an unknown `#word` used to be created permanently and
+   * invisibly, and unreferenced vocabulary entries are kept on purpose, which
+   * made a typo permanent.
+   *
+   * `unknownTags: "ignore"` is the same recorded decision applied to a surface
+   * that cannot offer: resolve what the workspace already has, and leave
+   * everything else as the words the owner typed.
+   */
+  function quiet(text: string, knownTags = VOCABULARY) {
+    return parseQuickCapture(text, {
+      todayIso: TODAY,
+      knownTags,
+      unknownTags: "ignore",
+    });
+  }
+
+  it("still resolves a tag the workspace ALREADY has", () => {
+    // Resolving an existing word is not creating vocabulary, so nothing is lost
+    // by having no preview: this is the fast path the owner asked for.
+    const result = quiet("Call the plumber #ERRAND");
+    expect(result.tags).toEqual([
+      { key: "errand", label: "Errand", known: true },
+    ]);
+    expect(result.title).toBe("Call the plumber");
+  });
+
+  it("leaves an unknown tag as the words the owner typed", () => {
+    const result = quiet("Call the plumber #newthing");
+    expect(result.tags).toEqual([]);
+    expect(result.tokens.filter((token) => token.kind === "tag")).toEqual([]);
+    // The whole point: the word SURVIVES. Nothing was created and nothing was
+    // thrown away.
+    expect(result.title).toBe("Call the plumber #newthing");
+  });
+
+  it("keeps the known one and leaves the unknown one, in the same line", () => {
+    const result = quiet("Sort it #errand #newthing");
+    expect(result.tags.map((tag) => tag.key)).toEqual(["errand"]);
+    expect(result.title).toBe("Sort it #newthing");
+  });
+
+  it("creates nothing at all when the vocabulary could not be read", () => {
+    // The soft-failure path on the capture service: no vocabulary means no tag
+    // resolves, and the capture still arrives with its text intact.
+    const result = quiet("Call the plumber #errand #newthing", []);
+    expect(result.tags).toEqual([]);
+    expect(result.title).toBe("Call the plumber #errand #newthing");
+  });
+
+  it("still recognises every OTHER token on those surfaces", () => {
+    // The narrowing is about vocabulary, not about the grammar: priority, dates
+    // and the rest are unaffected.
+    const result = quiet("Call the plumber #newthing p2 friday");
+    expect(result.priority).toBe("p2");
+    expect(result.scheduledDate).not.toBeNull();
+    expect(result.title).toBe("Call the plumber #newthing");
+  });
+
+  it("is NOT what the previewing surface does", () => {
+    // The contrast, asserted rather than described: the same text, the same
+    // vocabulary, the default option — offered, because there is a preview.
+    const offered = parse("Call the plumber #newthing");
+    expect(offered.tags).toEqual([
+      { key: "newthing", label: "newthing", known: false },
+    ]);
+    expect(offered.title).toBe("Call the plumber");
+  });
+});
+
 describe("FIND-04 — ordinary text stays ordinary text", () => {
   /**
    * The adversarial table. Each row is a real thing an owner types or pastes,

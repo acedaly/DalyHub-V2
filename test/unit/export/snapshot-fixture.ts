@@ -954,6 +954,11 @@ export function makeSnapshot(
       { key: "unused", label: "Unused", createdAt: T(1), updatedAt: T(1) },
     ],
     entityTags: [
+      // A tagged TASK, first because the collection is ordered by entity id.
+      // Tasks have no `tags` column to fall back on, so an attachment is the
+      // ONLY way one can reach the Markdown vault — and it went missing there
+      // until review caught it (PR #238).
+      { entityId: IDS.task, tagKey: "running", createdAt: T(1) },
       { entityId: IDS.asset, tagKey: "cycling", createdAt: T(1) },
       { entityId: IDS.noteA, tagKey: "running", createdAt: T(1) },
       { entityId: IDS.noteLinks, tagKey: "index", createdAt: T(1) },

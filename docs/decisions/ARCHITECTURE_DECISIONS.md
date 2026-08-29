@@ -5296,6 +5296,16 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      tags. That is the conservative failure — two tags the owner can merge by
      renaming, rather than one tag they cannot split.
 
+     **A comma is a separator, never part of a tag** (added in review, PR #238).
+     `parseEntityTagInput` has always split a typed string on one, and the
+     declarative view configuration joins a set of filter members with one — so a
+     key containing a comma could not be addressed by a filter at all: `?tag=a,b`
+     cannot mean both the single tag `a,b` and the pair. One reading has to be
+     impossible, and the tag is the one made impossible. It is split wherever a
+     tag can enter — the one validator, and migration `0049` reading a legacy
+     JSON member — so both words are kept, and the database refuses one too
+     (`workspace_tags_key_has_no_comma`).
+
      When the same tag arrives in two spellings, the **first** one seen wins the
      label and the second is folded into it. Nothing is lost: the attachment is
      to the key, and the owner sees one tag rather than two that look alike.
@@ -5323,6 +5333,14 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      the two collections when they are present and otherwise rebuilds them from
      the per-record `tags` arrays a pre-`0049` archive still carries. The tag
      collections are optional on read for the same reason.
+
+     The **Markdown vault** reads the same two collections (corrected in review,
+     PR #238). It had gone on building Task files from `taskDetails`, which has
+     no `tags` column any more — so a tagged Task restored perfectly from the
+     JSON and showed nothing at all in the readable copy, which is the one
+     asymmetry a portable-export promise cannot carry. All four tagged record
+     types now resolve through one map, with the per-record arrays as the
+     fallback a pre-`0049` archive needs.
 
   5. **Reads are free and writes are fixed-cost.** A record's tags ride its
      existing `SELECT` as one correlated projection, so no surface pays an extra
@@ -5374,13 +5392,19 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      What is genuinely at stake is the vocabulary, and the preview answers that by
      showing the word as new **before** it is saved.
 
-     **On a transport that has no preview** — the CAPTURE-01 endpoint, the Apple
-     Shortcut, Siri, capture by email — the tag is applied and created with the
-     capture, because the alternative is discarding a word the owner deliberately
-     typed. That is the same trade every other token already makes there
-     (a recurrence rule is applied without a preview too), and it is stated here
-     rather than left to be discovered: the "offer" is what an interactive
-     surface owes the owner, not a property of the grammar.
+     **An offer needs somewhere to appear, so the behaviour follows the SURFACE**
+     (corrected in review, PR #238). Only the full create form renders the token
+     preview. The in-list quick-add row, the capture sheet and every external
+     transport do not — and on those the first implementation created the tag
+     anyway, invisibly and permanently, since an unreferenced vocabulary entry is
+     deliberately retained. So a surface that cannot offer does not create: it
+     resolves a tag the workspace ALREADY holds (resolving an existing word is
+     not creating vocabulary) and leaves every other `#word` as the words the
+     owner typed. That is not a fourth behaviour — it is the same recorded
+     decision on a surface that cannot show it, landing on the grammar's own
+     failure direction rather than inventing a new one. `parseQuickCapture` takes
+     it as one option, `unknownTags: "offer" | "ignore"`, so the rule is one value
+     passed by the surface rather than a policy each one re-implements.
 
      The offline contract is unchanged and is proven so rather than assumed:
      `OFFLINE_SCHEMA_VERSION` does not move (it is an input to the namespace

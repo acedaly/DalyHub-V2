@@ -180,6 +180,11 @@ beforeAll(async () => {
   await legacyAsset(WS, "a_bike", ["ERRAND", "garage"]);
   await legacyAsset(WS, "a_bare", []);
 
+  // A legacy value carrying the SEPARATOR inside one JSON member. It is two
+  // tags by the product's own input rule, and a key containing a comma could
+  // not be addressed by the Tasks filter at all.
+  await legacyAsset(WS, "a_comma", ["errand,garage", "  spaced , out  "]);
+
   // Notes: the lower-cased spelling NOTES-02 stored, and two more.
   await legacyNote(WS, "n_list", ["errand", "reading"]);
   await legacyNote(WS, "n_deep", ["deep work"]);
@@ -209,8 +214,45 @@ describe("migration 0049 — three tag columns converge on one vocabulary", () =
       "deep work",
       "errand",
       "garage",
+      "out",
       "reading",
+      "spaced",
     ]);
+  });
+
+  it("SPLITS a legacy value on the separator, and no key carries one", async () => {
+    /*
+     * A comma is the separator every multi-value surface already uses: the
+     * shared field splits a typed string on it, and the declarative view
+     * configuration joins filter members with it. So `"errand,garage"` is two
+     * tags rather than one, and the migration reads it the way the product's
+     * own input rule reads it — keeping BOTH words rather than creating a key
+     * `?tag=` could never address.
+     */
+    expect(await tagsOf(WS, "a_comma")).toEqual([
+      "errand",
+      "garage",
+      "out",
+      "spaced",
+    ]);
+    // Whitespace either side of the separator is normalised away, exactly as it
+    // is around any other tag.
+    const vocab = await vocabulary(WS);
+    expect(vocab.get("spaced")).toBe("spaced");
+    expect(vocab.get("out")).toBe("out");
+    // And the database itself refuses one, so the three engines cannot drift.
+    const keys = await DB.prepare(
+      `SELECT tag_key FROM workspace_tags WHERE instr(tag_key, ',') > 0`,
+    ).all<{ tag_key: string }>();
+    expect(keys.results ?? []).toEqual([]);
+    await expect(
+      DB.prepare(
+        `INSERT INTO workspace_tags (workspace_id, tag_key, label, created_at, updated_at)
+         VALUES (?, 'a,b', 'a,b', ?, ?)`,
+      )
+        .bind(WS, AT, AT)
+        .run(),
+    ).rejects.toThrow();
   });
 
   it("applies the recorded CASE decision: one identity, the first spelling shown", async () => {
@@ -221,13 +263,15 @@ describe("migration 0049 — three tag columns converge on one vocabulary", () =
     // Notes is what makes "first" a rule rather than an accident of row order.
     expect(vocab.get("errand")).toBe("Errand");
     expect(canonicalTagKey("ERRAND")).toBe("errand");
-    // Three records, one tag, three rows in the join — never three tags.
+    // Four records, one tag, four rows in the join — never four tags. (Three
+    // wrote `errand` in three different cases; the fourth wrote it inside a
+    // comma-separated legacy value, and it lands on the same identity.)
     const rows = await DB.prepare(
       `SELECT COUNT(*) AS n FROM entity_tags WHERE workspace_id = ? AND tag_key = 'errand'`,
     )
       .bind(WS)
       .first<{ n: number }>();
-    expect(rows?.n).toBe(3);
+    expect(rows?.n).toBe(4);
   });
 
   it("treats a whitespace-differing pair as ONE tag, keeping the typed spelling", async () => {

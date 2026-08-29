@@ -88,6 +88,15 @@ The order is meaningful: entities first, then spine membership, then per-module
 detail rows, then module child records, then relationships, then history — so a
 restore can insert parents before children without deriving a dependency graph.
 
+**The Markdown vault reads the tag collections too.** Every tagged record type —
+Note, Person, Asset and (since FIND-03) Task — emits its tags as `tags:`
+frontmatter resolved through one map built from `workspaceTags` + `entityTags`,
+with the per-record `tags` arrays as the fallback a pre-`0049` archive needs. A
+Task has no `tags` column to read at all, which is how its tags came to be
+missing from the vault while the structured snapshot could restore them
+perfectly; caught in review on PR #238 and closed, because a readable copy that
+is poorer than the machine copy is the one asymmetry this format cannot carry.
+
 **The two tag collections (V2.6 FIND-02)** sit immediately after `entities` for
 that same reason: `entityTags` references both an entity and a `workspaceTags`
 row, so both parents must already exist. `workspaceTags` carries the vocabulary

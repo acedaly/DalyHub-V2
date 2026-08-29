@@ -82,9 +82,21 @@ export function TasksQuickAdd({
       setBusy(true);
       setError(null);
       const body = new FormData();
+      /*
+       * `unknownTags: "ignore"` — this row has NO token preview.
+       *
+       * The recorded FIND-04 decision is that a tag the workspace does not hold
+       * is OFFERED before it is created, and an offer needs somewhere to appear.
+       * This row is one input and a button: there is nothing here to show the
+       * owner a new word in, and an unreferenced vocabulary entry is kept
+       * deliberately, so a typo created here would be permanent and invisible.
+       * A tag the workspace ALREADY has still resolves — that is not creating
+       * vocabulary — and anything else stays the words they typed.
+       */
       const interpretation = parseQuickCapture(trimmed, {
         todayIso,
         knownTags: vocabulary,
+        unknownTags: "ignore",
       });
       body.set("intent", "create");
       body.set("title", interpretation.title);

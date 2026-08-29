@@ -77,6 +77,13 @@ CREATE TABLE workspace_tags (
   -- invented its own folding rule fails loudly instead of creating a duplicate
   -- identity nobody can see.
   CONSTRAINT workspace_tags_key_is_folded CHECK (tag_key = lower(tag_key)),
+  -- A comma is the SEPARATOR every multi-value surface in this product already
+  -- uses. The shared field splits a typed string on it and the declarative view
+  -- configuration joins a set of filter members with it, so a key containing one
+  -- could not be addressed by a filter at all -- `tag=a,b` would decode as two
+  -- different tags. Enforced here so the database, the kernel rule and the
+  -- migration below cannot drift apart on it.
+  CONSTRAINT workspace_tags_key_has_no_comma CHECK (instr(tag_key, ',') = 0),
   CONSTRAINT workspace_tags_label_not_empty CHECK (length(label) > 0),
   CONSTRAINT workspace_tags_label_bounded CHECK (length(label) <= 64),
   CONSTRAINT workspace_tags_label_matches_key CHECK (lower(label) = tag_key),
@@ -144,7 +151,7 @@ CREATE TABLE tag_migration_0049_staging (
 
 INSERT INTO tag_migration_0049_staging
   (workspace_id, entity_id, source_rank, position, label, tag_key)
-WITH raw_tags AS (
+WITH RECURSIVE raw_tags AS (
   SELECT d.workspace_id AS workspace_id, d.entity_id AS entity_id,
          1 AS source_rank, j.key AS position, j.value AS raw
     FROM person_details d, json_each(d.tags) j
@@ -158,12 +165,36 @@ WITH raw_tags AS (
     FROM note_details d, json_each(d.tags) j
    WHERE json_valid(d.tags) AND json_type(d.tags) = 'array' AND j.type = 'text'
 ),
+split AS (
+  -- A legacy value may itself carry the separator: `["errand,home"]` is one
+  -- JSON member and TWO tags by the product's own input rule, which splits a
+  -- typed string on a comma. Splitting here keeps both words and guarantees no
+  -- migrated key can contain the character the filter reads as its end.
+  --
+  -- Recursive rather than a fixed number of passes, because the number of
+  -- commas in a legacy value is not knowable from the schema. The anchor emits
+  -- the head of each value and carries the tail forward.
+  SELECT workspace_id, entity_id, source_rank, position,
+         CASE WHEN instr(raw, ',') > 0
+              THEN substr(raw, 1, instr(raw, ',') - 1) ELSE raw END AS piece,
+         CASE WHEN instr(raw, ',') > 0
+              THEN substr(raw, instr(raw, ',') + 1) ELSE '' END AS rest
+    FROM raw_tags
+  UNION ALL
+  SELECT workspace_id, entity_id, source_rank, position,
+         CASE WHEN instr(rest, ',') > 0
+              THEN substr(rest, 1, instr(rest, ',') - 1) ELSE rest END,
+         CASE WHEN instr(rest, ',') > 0
+              THEN substr(rest, instr(rest, ',') + 1) ELSE '' END
+    FROM split
+   WHERE length(rest) > 0
+),
 normalised AS (
   SELECT workspace_id, entity_id, source_rank, position,
          trim(replace(replace(replace(replace(replace(replace(
-           replace(replace(replace(raw, char(9), ' '), char(10), ' '), char(13), ' '),
+           replace(replace(replace(piece, char(9), ' '), char(10), ' '), char(13), ' '),
            '  ', ' '), '  ', ' '), '  ', ' '), '  ', ' '), '  ', ' '), '  ', ' ')) AS label
-    FROM raw_tags
+    FROM split
 )
 SELECT workspace_id, entity_id, source_rank, position, label, lower(label)
   FROM normalised

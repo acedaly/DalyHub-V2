@@ -705,12 +705,18 @@ and a `#` that does not start the word (`end.#home`, `a/#home`) are all ordinary
 text too. Resolution is the one canonicalisation rule
 ([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)),
 so `#ERRAND` is the `Errand` the workspace already holds and reads back in that
-spelling. A tag the workspace does **not** hold yet is recognised and **offered**
-— the preview says *"New tag: …"* rather than *"Tag: …"* — and it is created only
-when the capture is saved. Never silently, and never left as literal words: `#`
-is an explicit marker, so the "ordinary words" rule below (which is about phrases
-the grammar *cannot* recognise) does not apply to it. One line carries at most
-ten tags; beyond that the extra words stay text.
+spelling.
+
+A tag the workspace does **not** hold yet depends on whether the surface can show
+it. On the full create form, which renders the token preview, it is **offered** —
+the chip says *"New tag: …"* rather than *"Tag: …"* and the owner can remove it,
+and it is created only when the capture is saved. On a surface with **no**
+preview — the in-list quick-add row, the capture sheet, and every external
+transport — there is nowhere to offer it, so it is **not created**: the word
+simply stays in the title. An existing tag still resolves everywhere, because
+resolving a word the owner already has is not creating vocabulary. One rule, one
+option (`unknownTags`), and never a tag the owner could not see arriving. One
+line carries at most ten tags; beyond that the extra words stay text.
 
 Three rules keep it trustworthy:
 

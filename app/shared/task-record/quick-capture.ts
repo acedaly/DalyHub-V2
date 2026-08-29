@@ -551,6 +551,28 @@ export function parseQuickCapture(
       readonly key: string;
       readonly label: string;
     }[];
+    /**
+     * V2.6 FIND-04 — what a `#tag` the workspace does NOT hold yet may do here.
+     *
+     * The recorded decision is that an unknown tag is **offered**, never created
+     * silently — and an offer only exists where the owner is shown it. So the
+     * behaviour follows the SURFACE rather than the grammar:
+     *
+     *   - `"offer"` (the default) — the surface renders the token preview, so
+     *     the tag is recognised, named as new, and removable before saving.
+     *     The full create form is the only surface that does.
+     *   - `"ignore"` — the surface has NO preview (the in-list quick-add row,
+     *     the capture sheet, the CAPTURE-01 endpoint, a Shortcut, an email). An
+     *     unknown word is left as the words the owner typed, exactly as the
+     *     grammar's own failure direction requires: nothing is created that they
+     *     could not see, and nothing they typed is thrown away. A tag the
+     *     workspace already HAS still resolves on these surfaces — resolving an
+     *     existing word is not creating vocabulary.
+     *
+     * This is not a fourth behaviour: it is the same recorded decision — offer
+     * where there is a preview, leave the words alone where there is not.
+     */
+    readonly unknownTags?: "offer" | "ignore";
   } = {},
 ): QuickCaptureInterpretation {
   const original = normaliseWhitespace(raw);
@@ -658,11 +680,16 @@ export function parseQuickCapture(
   const vocabulary = new Map(
     (options.knownTags ?? []).map((tag) => [tag.key, tag.label] as const),
   );
+  const offerUnknown = (options.unknownTags ?? "offer") === "offer";
   for (let i = 0; i < words.length; i++) {
     if (removed[i]) continue;
     if (tags.length >= MAX_CAPTURE_TAGS) break;
     const read = readTagWord(words[i]!);
     if (!read) continue;
+    // A surface with no preview cannot offer, so it does not create: the word
+    // stays in the title and the vocabulary is untouched. Left BEFORE the word
+    // is consumed, so nothing the owner typed is lost.
+    if (!offerUnknown && !vocabulary.has(read.key)) continue;
     const id = `tag:${read.key}`;
     if (ignored.has(id)) continue;
     // The same tag typed twice is one tag, and the second word is still

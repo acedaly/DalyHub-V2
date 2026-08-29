@@ -138,12 +138,31 @@ export async function runCapture(
     );
   }
 
+  /*
+   * V2.6 FIND-04 — the workspace's tag vocabulary, read ONCE for this capture.
+   *
+   * It is read here rather than inside the creation so that BOTH derivations of
+   * the title — the one that creates the Task and the one a replay reports —
+   * run under exactly the same rule. Notes have no tags, so they pay nothing.
+   *
+   * It fails SOFT: a vocabulary that could not be read leaves every `#word`
+   * unresolved, which on this transport means the words stay in the title. The
+   * capture still arrives with its text intact, which is the failure direction
+   * this whole path is built to prefer.
+   */
+  const knownTags: readonly { readonly key: string; readonly label: string }[] =
+    kind === "task"
+      ? await scope.tags
+          .listVocabulary()
+          .catch(() => [] as readonly { key: string; label: string }[])
+      : [];
+
   const create = async (): Promise<{
     readonly recordId: string;
     readonly title: string;
   }> =>
     kind === "task"
-      ? await createCapturedTask(scope, request, execution)
+      ? await createCapturedTask(scope, request, execution, knownTags)
       : await createCapturedNote(scope, request);
 
   const finish = async (
@@ -213,7 +232,7 @@ export async function runCapture(
   }
   return finish(
     result.recordId,
-    createdTitle ?? fallbackTitle(request, kind, execution),
+    createdTitle ?? fallbackTitle(request, kind, execution, knownTags),
     result.replayed,
   );
 }
@@ -240,10 +259,22 @@ function fallbackTitle(
   request: CaptureRequest,
   kind: "task" | "note",
   execution: CaptureExecution,
+  knownTags: readonly { readonly key: string; readonly label: string }[],
 ): string {
   if (kind === "note") return deriveCaptureTitle(request);
+  /*
+   * The SAME parser options creation used, vocabulary included.
+   *
+   * The claim above — "a replay reports the title the record actually has" — is
+   * only true while both derivations read the same rule. Since V2.6 FIND-04 a
+   * `#tag` changes the title only when the workspace already holds it, so this
+   * derivation needs the vocabulary too: without it, a replay would report a
+   * title with the tag word still in it that the record does not have.
+   */
   const parsed = parseQuickCapture(taskTitleFor(request), {
     todayIso: execution.todayIso,
+    knownTags,
+    unknownTags: "ignore",
   });
   return truncateCaptureTitle(parsed.title, 512);
 }
@@ -278,23 +309,26 @@ async function createCapturedTask(
   scope: WorkspaceScope,
   request: CaptureRequest,
   execution: CaptureExecution,
+  /**
+   * The workspace's tag vocabulary, read once by the caller so that this
+   * derivation of the title and the one a replay reports cannot disagree.
+   */
+  knownTags: readonly { readonly key: string; readonly label: string }[],
 ): Promise<{ readonly recordId: string; readonly title: string }> {
   const source = taskTitleFor(request);
   /*
-   * V2.6 FIND-04 — the workspace's tag vocabulary, so an external capture of
-   * `#ERRAND` attaches the tag the owner already has rather than a second one.
+   * `unknownTags: "ignore"` — an external transport has no preview at all.
    *
-   * One bounded read, on the capture path only. It fails SOFT: a vocabulary
-   * that could not be read leaves every recognised tag "new", which is what an
-   * offline replay gets too — the tag still attaches, under the spelling the
-   * sentence used, because the storage layer canonicalises either way.
+   * A Shortcut, Siri, or an email cannot show the owner that a word would
+   * become a new tag, and cannot let them take it back. So the transport
+   * resolves what the workspace already has and leaves everything else as the
+   * words they sent: the Task still arrives with its text intact, and the
+   * vocabulary is only ever grown somewhere the owner could see it happening.
    */
-  const knownTags = await scope.tags
-    .listVocabulary()
-    .catch(() => [] as readonly { key: string; label: string }[]);
   const interpretation = parseQuickCapture(source, {
     todayIso: execution.todayIso,
     knownTags,
+    unknownTags: "ignore",
   });
 
   // The SAME anchor resolution the in-app surfaces use, rather than a second copy of

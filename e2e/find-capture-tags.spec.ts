@@ -209,6 +209,49 @@ test.describe("FIND-04 — `#tag` on the capture line", () => {
     await expect(field).toHaveValue("## Subheading pasted in");
   });
 
+  test("the preview-less quick-add row resolves a known tag and creates no other", async ({
+    page,
+  }) => {
+    /*
+     * Raised in review on PR #238. The in-list quick-add row has no token
+     * preview — it is one input and a button — so it cannot OFFER a new tag,
+     * and an unreferenced vocabulary entry is kept deliberately, which made a
+     * typo permanent and invisible. It now resolves what the workspace already
+     * has and leaves everything else as the words the owner typed.
+     */
+    const known = uniqueTag("qa");
+    const unknown = uniqueTag("typo");
+    const title = `E2E Quick add ${known}`;
+    try {
+      await seedVocabulary(known, known);
+      await gotoFixture(
+        page,
+        "/tasks?view=list&system=all&sort=created&dir=desc",
+      );
+      const field = page.getByTestId("tasks-quickadd-input");
+      await field.fill(`${title} #${known} #${unknown}`);
+      await field.press("Enter");
+      await expect(field).toHaveValue("");
+
+      // The known tag attached; the unknown word is still in the title.
+      const kept = `${title} #${unknown}`;
+      await expect(async () => {
+        expect(tagsOfTask(kept)).toEqual([known]);
+      }).toPass({ timeout: 15_000 });
+
+      // And nothing was added to the vocabulary behind the owner's back.
+      expect(
+        d1Query<{ n: number }>(
+          `SELECT COUNT(*) AS n FROM workspace_tags
+            WHERE workspace_id = ${sqlLiteral(WS)} AND tag_key = ${sqlLiteral(unknown)}`,
+        )[0]?.n,
+      ).toBe(0);
+    } finally {
+      await forgetTasks([`${title} #${unknown}`]);
+      await forgetTags([known, unknown]);
+    }
+  });
+
   test("works on a phone, in light and dark, and is axe-clean at 393 and 320", async ({
     page,
   }) => {

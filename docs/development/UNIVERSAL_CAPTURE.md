@@ -199,10 +199,15 @@ intact rather than being given invented structure.
 friday` sent by the Shortcut, spoken to Siri, emailed in or typed into the
 quick-add row all produce one Task titled *"Call the plumber"*, tagged `home`, at
 P2, on Friday. There is no tag field in the capture contract and there will not
-be one, for the reason above: the endpoint accepts a sentence. A `#tag` the
-workspace does not hold yet is created **with** the capture on the transports that
-have no preview to offer it in — which is the same trade every other token makes
-there, and the reason the interactive surfaces show the preview instead.
+be one, for the reason above: the endpoint accepts a sentence.
+
+A `#tag` the workspace does **not** hold yet is **not** created here. A Shortcut,
+Siri or an email cannot show the owner that a word would become a new tag and
+cannot let them take it back, so the transport resolves what the workspace
+already has and leaves everything else as the words they sent — the Task still
+arrives with its text intact. The vocabulary only ever grows somewhere the owner
+could watch it happen. (Corrected in review on PR #238; the first implementation
+created it, which made a typo sent from a phone permanent and invisible.)
 
 ---
 
