@@ -453,6 +453,17 @@ sentence left with it. FIND-02 is next.
   Task Drawer Search already opens. DEBT-128 and DEBT-175 still close together
   elsewhere.
 
+  **A defect found in review, not by any test that existed.** The first version
+  applied the SQL `LIMIT` and *then* dropped rows whose type had no destination,
+  so unopenable records spent the limit and the list came back short or empty.
+  `habit` was such a type — a record page since HABITS-01, no entry in the shared
+  destination map, and a Habits provider hard-coding its own route around the
+  gap. Ten Habits and one Area produced eight SQL rows and **zero** rendered
+  results. Fixed in both places: `habit` gained its entry in the one destination
+  authority, and the query now selects an allow-list of listable types so the
+  class cannot recur. Proven by a synthetic routeless type, and guarded by a test
+  that every registered entity type is listable or deliberately excluded.
+
   **One thing found by falsification rather than by reasoning.** The tie-break was
   originally the entity id alone. Ties are the COMMON case — creating a Task
   inside a Project makes both subjects of one event at one instant — so the list

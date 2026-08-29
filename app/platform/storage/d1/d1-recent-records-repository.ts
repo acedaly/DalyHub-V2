@@ -22,7 +22,7 @@
  *      concern, using the composite primary key's `(workspace_id, activity_id)`
  *      prefix;
  *   3. the join to `entities` supplies the title and type, filters soft-deleted
- *      records and filters the excluded types;
+ *      records and restricts to the LISTABLE types;
  *   4. `GROUP BY` reduces to one row per record at its newest event, and the
  *      `ORDER BY … LIMIT` applies the rule.
  *
@@ -31,9 +31,11 @@
  * ── The parameter count is FIXED ────────────────────────────────────────────
  * D1 accepts at most **100 bound parameters per query**, a ceiling TASKS-13 and
  * UX-02 both found the expensive way. This statement binds the workspace id
- * three times, the scan limit, the row limit, and one parameter per excluded
- * type — SIX today, and constant with respect to the number of records, events
- * or types the workspace holds. Nothing here binds a list of ids.
+ * three times, the scan limit, the row limit, and one parameter per LISTABLE
+ * record type — FIFTEEN today, and constant with respect to the number of
+ * records or events the workspace holds. It grows only when the product gains
+ * an entity type with a record page, which is a handful of times over the
+ * product's life and nowhere near the ceiling. Nothing binds a list of ids.
  *
  * ── `MAX`, never `COUNT` ────────────────────────────────────────────────────
  * The aggregate is deliberately a maximum. A `COUNT` here — or a `COUNT` used
@@ -46,7 +48,7 @@
 import { validateEntityType } from "~/kernel/entities";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import {
-  RECENCY_EXCLUDED_TYPES,
+  RECENCY_LISTABLE_TYPES,
   RECENT_ACTIVITY_SCAN_LIMIT,
   RECENT_RECORD_LIMIT,
   type RecentRecord,
@@ -86,12 +88,23 @@ export class D1RecentRecordsRepository implements RecentRecordsRepository {
       return [];
     }
 
-    const excluded = [...RECENCY_EXCLUDED_TYPES];
-    // Built from a CONSTANT set, never from a caller's input: the placeholders
-    // are generated, the values are bound.
-    const excludedPlaceholders = excluded.map(() => "?").join(", ");
-    const excludeClause =
-      excluded.length > 0 ? `AND e.type NOT IN (${excludedPlaceholders})` : "";
+    /*
+     * An ALLOW-list, not a deny-list, and that is a fix for a real defect
+     * rather than a stylistic preference. The `LIMIT` below is applied by the
+     * DATABASE; any row selected here that the surface cannot open would be
+     * dropped afterwards in JavaScript, having already spent its place in that
+     * limit. A workspace whose newest touched records were all of such a type
+     * therefore rendered the EMPTY state while holding plenty of openable
+     * history — which is exactly what ten Habits and one Area produced before
+     * this changed.
+     *
+     * Selecting only listable types makes the limit mean what it says.
+     * Built from a CONSTANT set, never from a caller's input: the placeholders
+     * are generated, the values are bound.
+     */
+    const listable = [...RECENCY_LISTABLE_TYPES];
+    if (listable.length === 0) return [];
+    const typeClause = `AND e.type IN (${listable.map(() => "?").join(", ")})`;
 
     const { results } = await this.#db
       .prepare(
@@ -113,7 +126,7 @@ export class D1RecentRecordsRepository implements RecentRecordsRepository {
          JOIN entities e
            ON e.workspace_id = ? AND e.id = s.entity_id
               AND e.deleted_at IS NULL
-              ${excludeClause}
+              ${typeClause}
          GROUP BY e.id
          ORDER BY last_worked_at DESC, e.created_at DESC, e.id DESC
          LIMIT ?`,
@@ -123,7 +136,7 @@ export class D1RecentRecordsRepository implements RecentRecordsRepository {
         scanLimit,
         this.#workspaceId,
         this.#workspaceId,
-        ...excluded,
+        ...listable,
         limit,
       )
       .all<RecentRow>();

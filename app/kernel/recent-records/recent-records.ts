@@ -43,6 +43,7 @@
  */
 
 import type { EntityType } from "~/kernel/entities";
+import { DESTINATION_ENTITY_TYPES } from "~/shared/entity/destination";
 
 /**
  * How many recent records the empty query lists.
@@ -95,6 +96,32 @@ export const RECENT_ACTIVITY_SCAN_LIMIT = 600;
  * regardless of type.
  */
 export const RECENCY_EXCLUDED_TYPES: ReadonlySet<string> = new Set(["diary"]);
+
+/**
+ * The record types the recency read may return: every type with a real
+ * destination, minus the excluded ones.
+ *
+ * ── Why the QUERY needs this, and a post-filter will not do ─────────────────
+ * The read applies a SQL `LIMIT`. If it can return a type the surface cannot
+ * open, those rows are fetched, counted against the limit, and only then
+ * dropped when `entityDestination` returns `null` — so a workspace whose newest
+ * eight touched records are all of that type renders **nothing**, and the
+ * openable records just behind them are never reached. That is not a shorter
+ * list; it is the empty state, shown to an owner who has history.
+ *
+ * This was a real defect in the first version of this item, found in review and
+ * reproduced before it was fixed: ten Habits and one Area produced eight SQL
+ * rows and zero rendered results, because `habit` had no entry in the shared
+ * destination map. `habit` gained one, and this set makes the class of bug
+ * impossible rather than fixing the one instance — a future entity type with no
+ * record page is simply never selected, so the limit always means what it says.
+ *
+ * Derived from `DESTINATION_ENTITY_TYPES` rather than restated, so the two
+ * cannot drift: a type gains a destination in one place and becomes listable
+ * here automatically.
+ */
+export const RECENCY_LISTABLE_TYPES: readonly string[] =
+  DESTINATION_ENTITY_TYPES.filter((type) => !RECENCY_EXCLUDED_TYPES.has(type));
 
 /**
  * One recently-worked-on record.
@@ -169,7 +196,11 @@ export function orderRecentRecords(
   });
 }
 
-/** True when this record type may appear in the unbidden recent list. */
+/**
+ * True when this record type may appear in the unbidden recent list — it has a
+ * real destination AND is not excluded. Both halves matter: a type the owner
+ * cannot open has no business in a list whose entire purpose is opening things.
+ */
 export function isRecencyListableType(type: string): boolean {
-  return !RECENCY_EXCLUDED_TYPES.has(type);
+  return RECENCY_LISTABLE_TYPES.includes(type);
 }

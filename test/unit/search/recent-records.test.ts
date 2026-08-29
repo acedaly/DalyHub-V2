@@ -12,6 +12,7 @@ import {
   isRecencyListableType,
   orderRecentRecords,
   RECENCY_EXCLUDED_TYPES,
+  RECENCY_LISTABLE_TYPES,
   RECENT_ACTIVITY_SCAN_LIMIT,
   RECENT_RECORD_LIMIT,
   type RecentRecord,
@@ -23,6 +24,7 @@ import {
   recentRecordToResult,
 } from "~/shared/search/recent-outcome";
 import { decodeSearchOutcome } from "~/shared/search/decode";
+import { entityDestination } from "~/shared/entity/destination";
 
 function record(
   id: string,
@@ -145,8 +147,40 @@ describe("the recency rule", () => {
   it("excludes Diary and nothing else", () => {
     expect([...RECENCY_EXCLUDED_TYPES]).toEqual(["diary"]);
     expect(isRecencyListableType("diary")).toBe(false);
-    for (const type of ["task", "project", "goal", "area", "note", "person"]) {
+    for (const type of [
+      "task",
+      "project",
+      "goal",
+      "area",
+      "note",
+      "person",
+      // `habit` is here because it was NOT, and that was a real defect: it had
+      // a record page and no entry in the shared destination map, so the
+      // recency list dropped every Habit and could render empty. See the
+      // regression in `test/kernel/recent-records.test.ts`.
+      "habit",
+    ]) {
       expect(isRecencyListableType(type)).toBe(true);
+    }
+  });
+
+  it("treats a type with no destination as unlistable, not merely unexcluded", () => {
+    /*
+     * `isRecencyListableType` asks "can this be listed AND opened?", not "is it
+     * absent from the exclusion set?". A type the product does not have — the
+     * shape any future routeless entity type would take — is unlistable, which
+     * is what keeps unopenable rows from spending the query's limit.
+     */
+    expect(isRecencyListableType("not_a_real_record_type")).toBe(false);
+    expect(RECENCY_EXCLUDED_TYPES.has("not_a_real_record_type")).toBe(false);
+  });
+
+  it("keeps every listable type openable", () => {
+    for (const type of RECENCY_LISTABLE_TYPES) {
+      expect(
+        entityDestination(type, "id-1"),
+        `${type} is listable but has no destination`,
+      ).not.toBeNull();
     }
   });
 

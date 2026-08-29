@@ -52,7 +52,34 @@ const CANONICAL_ROUTE: Partial<Record<string, (id: string) => string>> = {
   asset: (id) => `/asset/${encodeURIComponent(id)}`,
   review: (id) => `/reviews/${encodeURIComponent(id)}`,
   diary: (id) => `/diary/${encodeURIComponent(id)}`,
+  // FIND-01 added `habit`, which was missing while `/habits/:habitId` had
+  // existed since HABITS-01. The Habits search provider had worked around the
+  // gap by hard-coding its own route (`app/modules/habits/search.ts`) — exactly
+  // the per-module route table this file's contract forbids — so the omission
+  // was invisible until something consulted THIS map for a Habit and got
+  // `null`. Search's recency list was that something.
+  habit: (id) => `/habits/${encodeURIComponent(id)}`,
 };
+
+/**
+ * Every entity type with a genuine, navigable destination.
+ *
+ * Exported so a caller that must decide UP FRONT which types it can render —
+ * rather than discovering per-record that `entityDestination` returned `null` —
+ * asks this map instead of keeping its own list. FIND-01's recency read is the
+ * first such caller: it applies a SQL `LIMIT`, so a type it cannot open has to
+ * be excluded by the QUERY, or unopenable rows silently consume the limit and
+ * the owner is shown a short (or empty) list of the records they were just
+ * working on.
+ *
+ * `task` is included and is not in the route map: it opens in the shared Drawer
+ * rather than on a page of its own, which `entityDestination` handles as its
+ * one special case.
+ */
+export const DESTINATION_ENTITY_TYPES: readonly string[] = [
+  "task",
+  ...Object.keys(CANONICAL_ROUTE),
+];
 
 /**
  * Resolve the canonical destination for an entity, or `null` when no genuine

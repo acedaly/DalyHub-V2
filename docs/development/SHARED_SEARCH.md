@@ -262,6 +262,32 @@ meaningful order and splitting it per type would scramble the one fact it exists
 to show. No fourth Task anatomy: a Task here is the row Search already draws,
 opening the Task Drawer it already opens.
 
+### Only what can actually be opened, and why the QUERY decides it
+
+The read selects **only record types that have a real destination**, derived from
+`DESTINATION_ENTITY_TYPES` in
+[`~/shared/entity/destination`](../../app/shared/entity/destination.ts) minus the
+exclusion below. It is an allow-list in SQL rather than a filter afterwards, and
+that distinction is a defect fix rather than a preference.
+
+The `LIMIT` is applied by the database. A row selected here that the surface
+cannot open would be dropped afterwards in JavaScript **having already spent its
+place in that limit** — so a workspace whose newest touched records were all of
+such a type rendered the *empty state* while holding plenty of openable history,
+with the openable records sitting just behind the limit and never reached.
+
+That is not hypothetical. `habit` had a record page (`/habits/:habitId`, since
+HABITS-01) and **no entry in the shared destination map**; the Habits search
+provider had worked around the gap by hard-coding its own route, which is exactly
+the per-module route table that file's contract forbids, so the omission stayed
+invisible until something consulted the map for a Habit. Ten Habits and one Area
+produced eight SQL rows and **zero** rendered results. `habit` gained its entry,
+and the allow-list makes the whole class impossible rather than fixing the one
+instance: a future entity type with no record page is simply never selected.
+
+A test asserts every registered entity type is either listable or deliberately
+excluded, so a new type cannot be neither.
+
 ### The one exclusion, and why
 
 **Diary, and only Diary.** The reasoning is about *when* this list renders, not

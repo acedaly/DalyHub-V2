@@ -9,6 +9,7 @@ export {
   isRecencyListableType,
   orderRecentRecords,
   RECENCY_EXCLUDED_TYPES,
+  RECENCY_LISTABLE_TYPES,
   RECENT_ACTIVITY_SCAN_LIMIT,
   RECENT_RECORD_LIMIT,
   type RecentRecord,
