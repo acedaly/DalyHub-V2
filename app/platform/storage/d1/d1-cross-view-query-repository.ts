@@ -62,9 +62,15 @@ import {
   type ViewAnchor,
   type ViewScope,
 } from "~/kernel/views";
+import { canonicalTagKey } from "~/kernel/tags";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp } from "./database";
+import {
+  entityTagsProjection,
+  parseTagProjection,
+  tagFilterPredicate,
+} from "./d1-entity-tags";
 
 /** The health states that mean a Project currently needs a look. */
 const ATTENTION_HEALTH_STATES: readonly ProjectHealthState[] = [
@@ -904,7 +910,7 @@ const SCOPE_SOURCES: Readonly<Record<ViewScope, ScopeSource>> = {
     entityType: "note",
     columns: columns({
       archived_at: "nd.archived_at",
-      tags: "COALESCE(nd.tags, '[]')",
+      tags: entityTagsProjection("e", "id"),
     }),
     joins: `
       LEFT JOIN note_details nd
@@ -1196,12 +1202,13 @@ function modulePredicate(
   } else if (scope === "note") {
     const tag = config.modules.note?.tag;
     if (!tag) return null;
-    // NOTES-02 stores tags as a JSON array; membership is asked of SQLite's JSON
-    // functions with the value BOUND, never spliced into a LIKE pattern.
-    clauses.push(
-      `EXISTS (SELECT 1 FROM json_each(COALESCE(nd.tags, '[]')) tag WHERE tag.value = ?)`,
-    );
-    params.push(tag);
+    // FIND-02 — membership is an EXACT canonical-key match against the workspace
+    // vocabulary, as a semi-join, with the value BOUND. It replaces the
+    // `json_each` membership test over the old JSON column and now folds case,
+    // so a saved view naming `Errand` finds a Note tagged `errand`.
+    const predicate = tagFilterPredicate("e", [canonicalTagKey(tag)], "id");
+    clauses.push(predicate.sql);
+    params.push(...predicate.params);
   } else if (scope === "meeting") {
     const filters = config.modules.meeting;
     if (!filters) return null;
@@ -1299,18 +1306,6 @@ function sortCandidates(
 /* Row mapping                                                                */
 /* -------------------------------------------------------------------------- */
 
-function parseTags(raw: string | null): readonly string[] {
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((value): value is string => typeof value === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 function toCandidate(scope: ViewScope, row: CandidateRow): Candidate {
   const createdAt = fromStorageTimestamp(row.created_at);
   const updatedAt = fromStorageTimestamp(row.updated_at);
@@ -1353,7 +1348,7 @@ function toCandidate(scope: ViewScope, row: CandidateRow): Candidate {
       };
       break;
     case "note":
-      detail = { kind: "note", tags: parseTags(row.tags) };
+      detail = { kind: "note", tags: parseTagProjection(row.tags) };
       break;
     case "meeting":
       detail = {

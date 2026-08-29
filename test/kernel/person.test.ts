@@ -56,7 +56,10 @@ describe("PersonRepository.create", () => {
     expect(person.title).toBe("Ada Lovelace");
     expect(person.organisation).toBe("Analytical Engines");
     expect(person.relationship).toBe("colleague");
-    expect(person.tags).toEqual(["maths", "history"]);
+    // V2.6 FIND-02 — the set comes back in CANONICAL order (by folded key), not
+    // in the order it was submitted, because a canonical set is what lets an
+    // update decide "nothing changed" without a set-difference helper.
+    expect(person.tags).toEqual(["history", "maths"]);
     expect(person.archivedAt).toBeNull();
     expect(person.deletedAt).toBeNull();
 

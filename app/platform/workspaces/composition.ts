@@ -37,6 +37,7 @@ import type {
 } from "~/kernel/notifications";
 import type { ActivityWindowRepository } from "~/kernel/activity-window";
 import type { RecentRecordsRepository } from "~/kernel/recent-records";
+import type { TagVocabularyRepository } from "~/kernel/tags";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import {
   DEFAULT_OWNER_TIME_ZONE,
@@ -99,6 +100,7 @@ import {
   createAiUsageRepository,
   createActivityWindowRepository,
   createRecentRecordsRepository,
+  createTagVocabularyRepository,
   createAlignmentRepository,
   createCalendarSourceRepository,
   createCaptureRateLimiter,
@@ -429,6 +431,13 @@ export interface WorkspaceScope {
    * and exists so Search's empty query has something true to offer.
    */
   readonly recentRecords: RecentRecordsRepository;
+  /**
+   * FIND-02 — the workspace's ONE tag vocabulary ([ADR-113]). Read-only: a tag is
+   * an attribute of a record and is written by that record's own repository,
+   * inside that record's own atomic mutation, so there is no second way to change
+   * what a Person, an Asset, a Note or a Task is tagged with.
+   */
+  readonly tags: TagVocabularyRepository;
   readonly appPreferences: AppPreferencesRepository;
   /**
    * AI-01 — the owner's NON-SECRET AI policy (enabled, provider, budgets, allowed
@@ -699,6 +708,7 @@ export function bindWorkspaceRepositories(
   const reviewInsights = createReviewInsightRepository(env.DB, context);
   const activityWindow = createActivityWindowRepository(env.DB, context);
   const recentRecords = createRecentRecordsRepository(env.DB, context);
+  const tags = createTagVocabularyRepository(env.DB, context);
   // NOTE: `appPreferences` is bound at the TOP of this function, not here — the
   // AUDIT-14 owner-timezone resolver needs it before any repository that asks
   // what day it is for the owner is constructed.
@@ -767,6 +777,7 @@ export function bindWorkspaceRepositories(
     reviewInsights,
     activityWindow,
     recentRecords,
+    tags,
     appPreferences,
     aiPreferences,
     aiUsage,

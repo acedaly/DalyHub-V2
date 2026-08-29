@@ -234,6 +234,27 @@ export async function seedWorkspace(): Promise<Seeded> {
     ].join("\n"),
   );
 
+  /*
+   * V2.6 FIND-02 — two tag facts the export/restore round trip has to carry, and
+   * neither of them exists unless this fixture writes it.
+   *
+   *   1. an ORPHAN vocabulary entry: `Filing` is created here and then removed
+   *      from the only Note that carried it, so the workspace holds a word with
+   *      no record behind it. A round trip that dropped it would quietly shorten
+   *      the owner's tag list every time they emptied a tag, and no assertion
+   *      over a per-record `tags` array could ever see it.
+   *   2. a SPELLING that differs from another record's: this Note asks for
+   *      `Running` where the Person above asked for `running`. One tag, one
+   *      identity, and the first spelling wins — which is a claim about the
+   *      vocabulary, not about either record.
+   *
+   * V2.5's STEER-02 review found a deliberate falsifier surviving 210 export
+   * tests because this file never wrote the row the assertion compared. These
+   * two lines are that lesson applied before the fact.
+   */
+  await noteDetails.setTags(linkingNote.id, ["Filing", "Running"]);
+  await noteDetails.setTags(linkingNote.id, ["Running"]);
+
   const archivedNote = await entities.create({
     type: "note",
     title: "Put away",

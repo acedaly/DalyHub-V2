@@ -24,6 +24,7 @@ import {
   type SubmitOutcome,
 } from "~/shared/forms";
 import { MAX_NOTE_TAGS, MAX_NOTE_TAG_LENGTH } from "~/kernel/notes";
+import { useTagVocabulary } from "~/shared/tags";
 
 import type { NoteMutationResult } from "./routes/mutate";
 
@@ -44,6 +45,10 @@ export function NoteTagsForm({
   onDone,
   onCancel,
 }: NoteTagsFormProps) {
+  // The ONE workspace tag vocabulary, so tagging a Note is the same
+  // interaction as tagging a Person, an Asset or a Task.
+  const vocabulary = useTagVocabulary();
+
   const form = useForm<Values>({
     initialValues: { tags: currentTags },
     fields: { tags: {} },
@@ -96,11 +101,15 @@ export function NoteTagsForm({
       />
       <TagsField
         label="Tags"
-        help="Tags are lower-cased and de-duplicated when they are saved."
+        // V2.6 FIND-02 — a tag is one workspace-wide word, so the help text no
+        // longer promises that Notes lower-case it. `Reading` and `reading` are
+        // one tag everywhere in the product, and the spelling the owner typed
+        // first is the one they see.
+        help="A tag means the same thing everywhere in DalyHub."
+        vocabulary={vocabulary}
         constraints={{
           maxTags: MAX_NOTE_TAGS,
           maxTagLength: MAX_NOTE_TAG_LENGTH,
-          caseInsensitive: true,
         }}
         {...form.field("tags")}
       />

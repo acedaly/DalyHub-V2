@@ -59,6 +59,20 @@ export interface RecordAtomicMutationInput {
    * target — and never to batch unrelated events together.
    */
   readonly companions?: readonly ActivityWriteModel[];
+  /**
+   * FIND-02 — further DOMAIN statements produced by the same write, appended at
+   * the END of the batch (after the Activity statements) and therefore inside
+   * the same transaction.
+   *
+   * They go last, not beside `domainStatement`, because the event insert's
+   * `changes() > 0` guard refers to the statement IMMEDIATELY before it and
+   * nothing may come between them. A trailing statement must therefore carry its
+   * own guard — an `EXISTS` on `model.id`, which exists iff the domain statement
+   * changed a row — exactly as an `activity_subjects` insert does. The one
+   * builder that produces these (`buildEntityTagStatements`) writes that guard
+   * into every statement it returns.
+   */
+  readonly trailingStatements?: readonly D1PreparedStatement[];
   /** Test-only deterministic failure injection; omit in production. */
   readonly fault?: AtomicMutationFault;
 }
@@ -113,6 +127,7 @@ export async function recordAtomicMutation<TRow>(
   if (input.fault === "after-subjects") {
     batch.push(forcedFailure(input.db));
   }
+  batch.push(...(input.trailingStatements ?? []));
 
   const results = await input.db.batch<TRow>(batch);
   const domainResult = results[0];

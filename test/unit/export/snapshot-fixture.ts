@@ -926,6 +926,40 @@ export function makeSnapshot(
     // SET-02 — the membership row that makes the exported actor ids
     // interpretable after a restore. `subject` matches the `actorId` the
     // Activity fixtures above carry.
+    /*
+     * V2.6 FIND-02 — the tag vocabulary and its attachments, written HERE and
+     * mirroring the per-record `tags` arrays above exactly.
+     *
+     * Written deliberately rather than left empty: V2.5's own STEER-02 review
+     * found a falsifier surviving 210 export tests because this fixture never
+     * wrote the row the assertion compared, and an export test over an empty
+     * collection passes for precisely that wrong reason.
+     *
+     * `cycling` is attached to the Asset AND left with a lower-cased spelling
+     * `Cycling` in the vocabulary is NOT — the label is what the owner typed
+     * first. `unused` carries no attachment at all, which is the case a
+     * round-trip test must include: a vocabulary entry nothing references is
+     * still the owner's word and must survive.
+     */
+    workspaceTags: [
+      { key: "cycling", label: "cycling", createdAt: T(1), updatedAt: T(1) },
+      { key: "index", label: "index", createdAt: T(1), updatedAt: T(1) },
+      {
+        key: "knowledge",
+        label: "knowledge",
+        createdAt: T(1),
+        updatedAt: T(1),
+      },
+      { key: "running", label: "running", createdAt: T(1), updatedAt: T(1) },
+      { key: "unused", label: "Unused", createdAt: T(1), updatedAt: T(1) },
+    ],
+    entityTags: [
+      { entityId: IDS.asset, tagKey: "cycling", createdAt: T(1) },
+      { entityId: IDS.noteA, tagKey: "running", createdAt: T(1) },
+      { entityId: IDS.noteLinks, tagKey: "index", createdAt: T(1) },
+      { entityId: IDS.noteLinks, tagKey: "knowledge", createdAt: T(1) },
+      { entityId: IDS.person, tagKey: "running", createdAt: T(1) },
+    ],
     workspaceMembers: [
       {
         subject: "owner-subject",

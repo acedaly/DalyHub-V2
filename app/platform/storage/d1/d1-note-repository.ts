@@ -55,6 +55,7 @@ import {
   type SearchNotesInput,
 } from "~/kernel/notes";
 import { RESERVED_SPINE_LINK_TYPES } from "~/kernel/spine";
+import { canonicalTagKey } from "~/kernel/tags";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import {
   excerptAroundMatch,
@@ -63,6 +64,12 @@ import {
 } from "~/platform/markdown/note-document";
 
 import { fromStorageTimestamp } from "./database";
+import {
+  entityTagsProjection,
+  parseTagProjection,
+  tagFilterPredicate,
+  tagSearchPredicate,
+} from "./d1-entity-tags";
 import { likeContains, likePrefix } from "./like-pattern";
 
 /**
@@ -117,8 +124,9 @@ interface NoteSearchRow {
   readonly window_start: number;
 }
 
-interface TagRow {
-  readonly tags: string | null;
+interface TagFacetRow {
+  readonly label: string;
+  readonly note_count: number;
 }
 
 interface ReferenceRow {
@@ -137,17 +145,6 @@ interface ContextRow {
 
 /** How many ids/titles are bound into one statement (D1 variable-limit safe). */
 const TITLE_CHUNK = 40;
-
-function parseStoredTags(value: string | null): readonly string[] {
-  if (!value) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string");
-  } catch {
-    return [];
-  }
-}
 
 function clampLimit(value: number | undefined, max: number, fallback: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
@@ -232,16 +229,18 @@ export class D1NoteRepository implements NoteQueryRepository {
       conditions.push(
         `(lower(e.title) LIKE ? ESCAPE '\\'
           OR lower(coalesce(d.content, '')) LIKE ? ESCAPE '\\'
-          OR lower(coalesce(d.tags, '')) LIKE ? ESCAPE '\\')`,
+          OR ${tagSearchPredicate("e", "id")})`,
       );
       params.push(like, like, like);
     }
 
     if (tag !== null) {
-      // Tags are stored as a JSON array of already-normalised strings, so an
-      // exact `"tag"` token match is unambiguous — no partial-word false hits.
-      conditions.push(`instr(coalesce(d.tags, ''), ?) > 0`);
-      params.push(JSON.stringify(tag));
+      // FIND-02 — an EXACT canonical-key match against the workspace vocabulary,
+      // as a semi-join. It replaces an `instr` over the JSON text, which could
+      // not use an index and depended on the stored punctuation to disambiguate.
+      const predicate = tagFilterPredicate("e", [canonicalTagKey(tag)], "id");
+      conditions.push(predicate.sql);
+      params.push(...predicate.params);
     }
 
     if (projectId !== null) {
@@ -277,7 +276,7 @@ export class D1NoteRepository implements NoteQueryRepository {
                   e.updated_at AS updated_at,
                   e.deleted_at AS deleted_at,
                   d.updated_at AS content_updated_at,
-                  d.tags AS tags,
+                  ${entityTagsProjection("e", "id")} AS tags,
                   d.archived_at AS archived_at,
                   ${sortExpr} AS sort_value,
                   substr(coalesce(d.content, ''), 1, ${EXCERPT_WINDOW}) AS excerpt_source,
@@ -316,7 +315,7 @@ export class D1NoteRepository implements NoteQueryRepository {
           contentUpdatedAt && contentUpdatedAt > updatedAt
             ? contentUpdatedAt
             : updatedAt,
-        tags: parseStoredTags(row.tags),
+        tags: parseTagProjection(row.tags),
         archivedAt: row.archived_at
           ? fromStorageTimestamp(row.archived_at)
           : null,
@@ -370,7 +369,7 @@ export class D1NoteRepository implements NoteQueryRepository {
       "e.deleted_at IS NULL",
       `(lower(e.title) LIKE ? ESCAPE '\\'
         OR lower(coalesce(d.content, '')) LIKE ? ESCAPE '\\'
-        OR lower(coalesce(d.tags, '')) LIKE ? ESCAPE '\\')`,
+        OR ${tagSearchPredicate("e", "id")})`,
     ];
     if (input.includeArchived !== true) {
       conditions.push("d.archived_at IS NULL");
@@ -409,7 +408,7 @@ export class D1NoteRepository implements NoteQueryRepository {
                   e.title AS title,
                   e.updated_at AS updated_at,
                   d.archived_at AS archived_at,
-                  d.tags AS tags,
+                  ${entityTagsProjection("e", "id")} AS tags,
                   ${hitExpr} AS body_hit,
                   substr(coalesce(d.content, ''), ${windowStart}, ${EXCERPT_WINDOW}) AS body_window,
                   ${windowStart} AS window_start
@@ -428,7 +427,7 @@ export class D1NoteRepository implements NoteQueryRepository {
     }
 
     return rows.map<NoteSearchHit>((row) => {
-      const tags = parseStoredTags(row.tags);
+      const tags = parseTagProjection(row.tags);
       const titleMatched = row.title.toLocaleLowerCase().includes(needle);
       const tagMatched = tags.some((value) => value.includes(needle));
       const bodyOffset = row.body_hit > 0 ? row.body_hit - 1 : -1;
@@ -485,43 +484,51 @@ export class D1NoteRepository implements NoteQueryRepository {
   /* Tag facets                                                             */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * The Notes rail's tag facet: which tags active Notes carry, and how many.
+   *
+   * **V2.6 FIND-02 replaced a fold with a GROUP BY.** NOTES-02 had to project
+   * the tag JSON of up to 500 Notes and count the members in JavaScript, because
+   * a JSON column cannot be grouped — which meant the 501st Note's tags were
+   * silently absent from the rail. The vocabulary makes it ONE grouped statement
+   * over the `entity_tags_by_tag` index, bounded by the facet limit, correct for
+   * every Note in the workspace and reading no Note body at all.
+   *
+   * Only tags with a live, unarchived Note are offered: this is a FACET of the
+   * collection in front of the owner, not the whole vocabulary — which is what
+   * `tags.listVocabulary` answers, for the pickers that must offer every word.
+   */
   async listTags(limit = NOTE_TAG_FACET_MAX): Promise<readonly NoteTagFacet[]> {
     const bounded = clampLimit(limit, NOTE_TAG_FACET_MAX, NOTE_TAG_FACET_MAX);
-    let rows: TagRow[];
+    let rows: TagFacetRow[];
     try {
       const result = await this.#db
         .prepare(
-          `SELECT d.tags AS tags
-           FROM entities e
+          `SELECT wt.label AS label, COUNT(*) AS note_count
+           FROM entity_tags et
+           JOIN workspace_tags wt
+             ON wt.workspace_id = et.workspace_id AND wt.tag_key = et.tag_key
+           JOIN entities e
+             ON e.workspace_id = et.workspace_id AND e.id = et.entity_id
+                AND e.type = '${NOTE_ENTITY_TYPE}' AND e.deleted_at IS NULL
            JOIN note_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
-           WHERE e.workspace_id = ? AND e.type = '${NOTE_ENTITY_TYPE}'
-                 AND e.deleted_at IS NULL AND d.archived_at IS NULL
-                 AND d.tags != '[]'
-           ORDER BY e.created_at DESC, e.id DESC
-           LIMIT 500`,
+                AND d.archived_at IS NULL
+           WHERE et.workspace_id = ?
+           GROUP BY et.tag_key, wt.label
+           ORDER BY note_count DESC, et.tag_key ASC
+           LIMIT ?`,
         )
-        .bind(this.#workspaceId)
-        .all<TagRow>();
+        .bind(this.#workspaceId, bounded)
+        .all<TagFacetRow>();
       rows = result.results;
     } catch (cause) {
       throw new NoteQueryStorageError({ cause });
     }
-
-    // Counting distinct JSON members needs either a JSON table-valued function
-    // (not guaranteed across D1 versions) or this fold over an already-bounded,
-    // tags-only projection. It reads at most 500 short strings — never a note
-    // body — and produces a deterministic, count-then-name ordering.
-    const counts = new Map<string, number>();
-    for (const row of rows) {
-      for (const tag of parseStoredTags(row.tags)) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return [...counts.entries()]
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
-      .slice(0, bounded);
+    return rows.map((row) => ({
+      tag: row.label,
+      count: Number(row.note_count),
+    }));
   }
 
   /* ---------------------------------------------------------------------- */

@@ -22,6 +22,7 @@ export {
   parseNoteTagInput,
   validateNoteContent,
   validateNoteTags,
+  validateNoteTagSet,
   NoteDetailsValidationError,
   NoteDetailsNotFoundError,
   NoteDetailsStorageError,

@@ -18,11 +18,22 @@ describe("validatePersonTitle", () => {
 });
 
 describe("validateTags", () => {
-  it("trims, drops blanks, dedupes case-insensitively and preserves order", () => {
+  /*
+   * V2.6 FIND-02 changed the ORDER, and only the order: the returned set is now
+   * canonical (ordered by folded key) rather than input-ordered, because a
+   * canonical set is what lets a repository decide "nothing changed" without a
+   * set-difference helper. Trimming, blank-dropping and case-insensitive
+   * de-duplication with FIRST SPELLING WINS are unchanged, and the casing the
+   * owner typed is still what comes back.
+   */
+  it("trims, drops blanks, dedupes case-insensitively and returns canonical order", () => {
     expect(validateTags(["  Maths ", "maths", "History", ""])).toEqual([
-      "Maths",
       "History",
+      "Maths",
     ]);
+  });
+  it("keeps the FIRST spelling of a tag, whatever its case", () => {
+    expect(validateTags(["MATHS", "maths"])).toEqual(["MATHS"]);
   });
   it("rejects an over-long tag", () => {
     expect(() => validateTags(["x".repeat(65)])).toThrow(PersonValidationError);

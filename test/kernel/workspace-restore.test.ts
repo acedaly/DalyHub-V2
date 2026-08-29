@@ -164,7 +164,13 @@ async function loseWorkspaceRecords(workspaceId: string): Promise<void> {
     "goal_details",
     "area_details",
     "spine_records",
+    // V2.6 FIND-02 — the attachments before the entities they hang off, and the
+    // vocabulary after, so a lost workspace really has lost its tags too and the
+    // round trip has to rebuild BOTH from the archive rather than finding them
+    // still lying there.
+    "entity_tags",
     "entities",
+    "workspace_tags",
     "owner_app_preferences",
     "task_saved_views",
   ];

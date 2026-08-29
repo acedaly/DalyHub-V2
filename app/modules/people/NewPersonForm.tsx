@@ -6,6 +6,7 @@
  * the full field set is edited on the person's Contact tab.
  */
 
+import { useTagVocabulary } from "~/shared/tags";
 import {
   Form,
   FormActions,
@@ -55,6 +56,10 @@ interface NewPersonFormProps {
 }
 
 export function NewPersonForm({ onCreated, onCancel }: NewPersonFormProps) {
+  // V2.6 FIND-02 — the ONE workspace tag vocabulary, so adding a tag here is
+  // the same interaction it is everywhere else in the product.
+  const vocabulary = useTagVocabulary();
+
   const form = useForm<Values>({
     initialValues: {
       title: "",
@@ -169,7 +174,7 @@ export function NewPersonForm({ onCreated, onCancel }: NewPersonFormProps) {
         options={RELATIONSHIP_OPTIONS}
         {...form.field("relationship")}
       />
-      <TagsField label="Tags" {...form.field("tags")} />
+      <TagsField label="Tags" vocabulary={vocabulary} {...form.field("tags")} />
       <FormActions>
         {onCancel ? (
           <FormButton

@@ -466,19 +466,29 @@
   min-inline-size: 6rem;
 }
 
-.dh-tags__input {
+/*
+ * V2.6 FIND-02 — the tags control's own input became the shared Picker's search
+ * field, so what sits in the field is the TRIGGER that opens it. It keeps the
+ * old input's metrics (the same row height, the same 16px iOS floor through
+ * `--app-field-font-size`) so the field's shape did not change when its
+ * interaction did.
+ */
+.dh-tags__add {
   inline-size: 100%;
-  min-block-size: 2rem;
+  min-block-size: var(--app-touch-target-min);
   border: 0;
+  border-radius: var(--dh-radius-sm);
   background: transparent;
-  color: var(--dh-color-text);
+  color: var(--dh-color-text-muted);
   font: inherit;
   font-size: var(--app-field-font-size);
   padding: var(--app-space-1);
+  text-align: start;
+  cursor: pointer;
 }
 
-.dh-tags__input:focus {
-  outline: none;
+.dh-tags__add:disabled {
+  cursor: default;
 }
 
 /* ------------------------------------------------------------------ Combobox / listbox */
@@ -742,7 +752,7 @@
    * carry the floor as a `max()` over an enumerated list of three shared field
    * classes, and every module control written afterwards fell outside it. The
    * floor now lives in `--app-field-font-size` / `--app-field-font-size-compact`
-   * (tokens.css), which `.dh-input`, `.dh-tags__input` and the shared native
+   * (tokens.css), which `.dh-input`, `.dh-tags__add` and the shared native
    * control baseline in `base.css` all consume, so a control cannot be written
    * that misses it. Nothing is restated here.
    */

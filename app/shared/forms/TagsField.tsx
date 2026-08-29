@@ -1,19 +1,53 @@
 /**
- * DS-06 Shared Forms — the tags control.
+ * DS-06 Shared Forms — the tags control, rebuilt by V2.6 FIND-02 as an ADAPTER
+ * OVER THE SHARED PICKER.
  *
- * A CONTROLLED string collection: type a tag and press Enter (or comma) to add,
- * press Backspace in the empty input to remove the last, and each tag chip has a
- * keyboard-reachable remove button. Normalisation, duplicate prevention and the
- * count/length limits come from the pure tags model. It is NOT a tags database or
- * a suggestions service — it only edits an in-memory array the consumer owns.
+ * DHDS-09 §22 recorded why it could not be one at the time: *"a tag picker needs
+ * a tag model to pick from, and building a searchable picker over a free-text
+ * list would either invent a vocabulary source (a second model, in the UI layer)
+ * or be a combobox with nothing to complete against."* FIND-02 built the model,
+ * so this is that deferred change, taken exactly as DEBT-182's own desired state
+ * describes it: *"`TagsField` becomes an adapter over the shared `Picker` with a
+ * create command, which the picker already supports."*
  *
- * Accessibility: the field is a labelled group; the input carries the add
- * instruction via `aria-describedby`; adds/removes (and rejections like
- * duplicates or a hit limit) are announced through a polite live region; every
- * chip's remove is a real button.
+ * ── What the owner does ──────────────────────────────────────────────────────
+ *
+ * One button opens the ONE searchable picker (a `role="dialog"` holding a
+ * `combobox` and its `listbox`, a bottom sheet below `md`). Typing narrows the
+ * workspace's own words; choosing one toggles it; typing a word that is not
+ * there yet offers to create it. Each chosen tag is a chip with its own
+ * keyboard-reachable remove button, so a tag can always be taken off without
+ * opening anything.
+ *
+ * That is the SAME interaction on People, Assets, Notes and Tasks, because it is
+ * the same component over the same vocabulary — not four wrappers that behave
+ * alike today.
+ *
+ * ── What this component still is NOT ─────────────────────────────────────────
+ *
+ * A tags database or a suggestions service. It edits an in-memory array the
+ * consumer owns and renders the vocabulary it is handed. It performs no query,
+ * holds no cache and knows nothing about workspaces.
+ *
+ * ── Case ─────────────────────────────────────────────────────────────────────
+ *
+ * Duplicate detection is ALWAYS canonical here, whatever the caller's
+ * constraints say, because a tag now HAS a canonical identity: `Errand` and
+ * `errand` are one tag, so a field that let both into one record would be
+ * offering the owner a state the storage layer would immediately collapse.
+ *
+ * ── Accessibility ────────────────────────────────────────────────────────────
+ *
+ * The field is a labelled group; the trigger states what it opens
+ * (`aria-haspopup="dialog"`) and whether it is open; adds, removes and
+ * rejections are announced through a polite live region; every chip's remove is
+ * a real button with its own accessible name.
  */
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
+
+import { Picker, type PickerOption } from "~/shared/floating";
+import { canonicalTagKey, type WorkspaceTag } from "~/kernel/tags";
 
 import {
   addTag,
@@ -26,8 +60,17 @@ import type { BaseControlProps } from "./control-props";
 import type { TagConstraints } from "./types";
 
 export interface TagsFieldProps extends BaseControlProps<readonly string[]> {
-  /** Bounds and comparison behaviour for the collection. */
+  /** Bounds for the collection. Case comparison is always canonical — see above. */
   readonly constraints?: TagConstraints;
+  /**
+   * The workspace's tag vocabulary, resolved server-side by ONE bounded query.
+   *
+   * Empty is a legitimate state, not a failure: a workspace that has never had a
+   * tag offers nothing to pick and everything to create, and the picker's empty
+   * state says so in the owner's own words rather than showing "No results".
+   */
+  readonly vocabulary?: readonly WorkspaceTag[];
+  /** The trigger's wording when nothing is chosen yet. */
   readonly placeholder?: string;
 }
 
@@ -53,16 +96,25 @@ export function TagsField({
   controlRef,
   className,
   constraints,
+  vocabulary = [],
   placeholder = "Add a tag…",
 }: TagsFieldProps) {
-  const baseId = id ?? `dh-tags-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  const baseId =
+    id ??
+    `dh-tags-${label.replace(/\s+/g, " ").trim().replace(/\s/g, "-").toLowerCase()}`;
   const { helpId, errorId } = deriveFieldIds(baseId);
   const labelId = `${baseId}-label`;
   const hintId = `${baseId}-hint`;
   const invalid = Boolean(error);
-  const resolved = resolveTagConstraints(constraints);
+  // A tag has ONE identity, so the field compares canonically whatever it is told.
+  const resolved = resolveTagConstraints({
+    ...constraints,
+    caseInsensitive: true,
+  });
 
-  const [draft, setDraft] = useState("");
+  const surfaceId = `${useId()}-tags-picker`;
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [announce, setAnnounce] = useState("");
 
   const describedBy = composeDescribedBy({
@@ -71,47 +123,59 @@ export function TagsField({
     extraIds: [hintId],
   });
 
-  // Commit the current draft, returning the resulting tag collection (unchanged
-  // when nothing was added). The caller can pass this exact array to the host's
-  // blur validation so a just-added tag is not validated against the stale array.
-  const commitDraft = (): readonly string[] => {
-    if (readOnly || disabled) return value;
-    const result = addTag(value, draft, constraints);
+  const chosenKeys = value.map((tag) => canonicalTagKey(tag));
+  const atLimit = value.length >= resolved.maxTags;
+  const editable = !readOnly && !disabled;
+
+  const commit = (next: readonly string[]) => {
+    onChange(next);
+    // Validate against the EXACT committed collection, so adding the first tag
+    // cannot leave a stale "required" error against the pre-commit empty array.
+    onBlur?.(next);
+  };
+
+  const add = (raw: string) => {
+    if (!editable) return;
+    const result = addTag(value, raw, {
+      ...constraints,
+      caseInsensitive: true,
+    });
     if (result.added) {
-      onChange(result.tags);
-      setDraft("");
+      commit(result.tags);
       setAnnounce(`Added ${result.tags[result.tags.length - 1]}.`);
-      return result.tags;
+      return;
     }
     if (result.reason && result.reason !== "empty") {
       setAnnounce(REJECTION_MESSAGES[result.reason]);
     }
-    return value;
   };
 
   const remove = (index: number) => {
-    if (readOnly || disabled) return;
+    if (!editable) return;
     const removed = value[index];
-    onChange(removeTagAt(value, index));
+    commit(removeTagAt(value, index));
     setAnnounce(`Removed ${removed}.`);
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" || event.key === ",") {
-      event.preventDefault();
-      commitDraft();
+  /** Toggle one vocabulary entry: chosen becomes unchosen, and back. */
+  const toggle = (key: string) => {
+    const index = chosenKeys.indexOf(key);
+    if (index >= 0) {
+      remove(index);
       return;
     }
-    if (event.key === "Backspace" && draft.length === 0 && value.length > 0) {
-      event.preventDefault();
-      remove(value.length - 1);
-    }
+    const entry = vocabulary.find((tag) => tag.key === key);
+    add(entry?.label ?? key);
   };
+
+  const options: readonly PickerOption[] = vocabulary.map((tag) => ({
+    id: tag.key,
+    label: tag.label,
+  }));
 
   const rootClassName = ["dh-field", "dh-field--tags", className]
     .filter(Boolean)
     .join(" ");
-  const atLimit = value.length >= resolved.maxTags;
 
   return (
     <div
@@ -140,7 +204,10 @@ export function TagsField({
         <div className="dh-tags">
           <ul className="dh-tags__list">
             {value.map((tag, index) => (
-              <li key={`${tag}-${index}`} className="dh-tags__chip">
+              <li
+                key={`${canonicalTagKey(tag)}-${index}`}
+                className="dh-tags__chip"
+              >
                 <span className="dh-tags__chip-text">{tag}</span>
                 {!readOnly ? (
                   <button
@@ -157,39 +224,60 @@ export function TagsField({
             ))}
             {!readOnly ? (
               <li className="dh-tags__input-item">
-                <input
+                <button
+                  type="button"
                   id={baseId}
-                  className="dh-tags__input"
-                  type="text"
-                  value={draft}
-                  placeholder={atLimit ? "Limit reached" : placeholder}
+                  className="dh-tags__add md-state-layer"
                   disabled={disabled || atLimit}
-                  aria-labelledby={labelId}
-                  aria-invalid={invalid || undefined}
-                  aria-errormessage={invalid ? errorId : undefined}
+                  aria-haspopup="dialog"
+                  aria-expanded={open}
+                  {...(open ? { "aria-controls": surfaceId } : {})}
+                  // A button cannot carry `aria-invalid`/`aria-errormessage`
+                  // (they are unsupported on the role), so the error reaches the
+                  // trigger through `aria-describedby`, which `composeDescribedBy`
+                  // already includes the error id in when the field is invalid.
                   aria-describedby={describedBy}
-                  ref={(node) => controlRef?.(node)}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onBlur={() => {
-                    // Validate against the EXACT committed collection, so adding
-                    // the first tag and tabbing away can't leave a false
-                    // "required" error against the pre-commit empty array.
-                    const committed = commitDraft();
-                    onBlur?.(committed);
+                  ref={(node) => {
+                    triggerRef.current = node;
+                    controlRef?.(node);
                   }}
-                />
+                  onClick={() => setOpen((now) => !now)}
+                >
+                  {atLimit ? "Limit reached" : placeholder}
+                </button>
               </li>
             ) : null}
           </ul>
         </div>
         <p id={hintId} className="dh-field__hint">
-          Press Enter or comma to add. Backspace removes the last tag.
+          Choose a tag the workspace already uses, or type a new one to create
+          it.
         </p>
         <span className="dh-visually-hidden" role="status" aria-live="polite">
           {announce}
         </span>
       </div>
+
+      {open ? (
+        <Picker
+          anchorRef={triggerRef}
+          label={label}
+          id={surfaceId}
+          options={options}
+          value={null}
+          multiple
+          selectedIds={chosenKeys}
+          onSelect={(key) => toggle(key)}
+          onCreate={(name) => add(name)}
+          createLabel={(name) => `Create “${name}”`}
+          placeholder="Search tags…"
+          onClose={(restoreFocus) => {
+            setOpen(false);
+            if (restoreFocus) triggerRef.current?.focus();
+          }}
+          data-testid={`${baseId}-picker`}
+        />
+      ) : null}
 
       <div className="dh-field__messages">
         {help ? (

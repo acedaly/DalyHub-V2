@@ -77,8 +77,11 @@ describe("validateAssetDetails", () => {
 });
 
 describe("tags", () => {
-  it("trims, dedupes case-insensitively and caps", () => {
-    expect(validateTags([" Home ", "home", "Car"])).toEqual(["Home", "Car"]);
+  // V2.6 FIND-02 — the shared validator. Canonical order (by folded key), first
+  // spelling wins, the owner's casing preserved. See the People suite for the
+  // same three properties asserted against the same one implementation.
+  it("trims, dedupes case-insensitively and returns canonical order", () => {
+    expect(validateTags([" Home ", "home", "Car"])).toEqual(["Car", "Home"]);
   });
 });
 

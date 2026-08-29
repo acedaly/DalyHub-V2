@@ -475,9 +475,13 @@ describe("note tags and archive lifecycle", () => {
         )
       ).ok,
     ).toBe(true);
+    // V2.6 FIND-02 — `Reading` and `reading` are ONE tag, and the label kept is
+    // the FIRST spelling the owner typed. NOTES-02 stored the folded form and
+    // discarded the casing; the vocabulary keeps the folded form as the tag's
+    // identity and the owner's spelling as what they see.
     expect((await noteDetails().get(note.id))?.tags).toEqual([
-      "reading",
-      "research",
+      "Reading",
+      "Research",
     ]);
 
     const before = await makeActivityRepository(makeContext(WS)).listForEntity(

@@ -900,8 +900,47 @@ export interface SnapshotWorkspaceMember {
  * step: adding a module means adding one entry here and one statement in the D1
  * adapter, and every downstream consumer fails to compile until it is handled.
  */
+/**
+ * V2.6 FIND-02 — one entry in the workspace's tag vocabulary.
+ *
+ * Exported as its own collection, rather than only as the arrays on the records
+ * that carry a tag, for one reason: a vocabulary entry NOTHING currently carries
+ * is still the owner's word, and a round trip that dropped it would quietly
+ * shorten their tag list every time they emptied a tag. `key` is the canonical
+ * identity and `label` the casing the owner typed.
+ */
+export interface SnapshotWorkspaceTag {
+  readonly key: string;
+  readonly label: string;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
+/**
+ * V2.6 FIND-02 — one entity's attachment to one tag.
+ *
+ * Polymorphic by `entityId`, so this ONE collection carries the tags of every
+ * tagged record type — People, Assets, Notes and, from FIND-03, Tasks — and a
+ * later item that tags a fifth type adds nothing here.
+ *
+ * The per-record `tags` arrays on {@link SnapshotPersonDetail},
+ * {@link SnapshotAssetDetail} and {@link SnapshotNoteDetail} are kept beside it
+ * deliberately, and are NOT a second source of truth: both are projected from
+ * the same `entity_tags` rows in one read, the arrays are what a person reading
+ * the JSON (and the Obsidian vault's front-matter) expects to find on the
+ * record, and keeping them is what lets an archive written BEFORE this migration
+ * restore its tags through the same path. See `EXPORT_AND_PORTABILITY.md`.
+ */
+export interface SnapshotEntityTag {
+  readonly entityId: string;
+  readonly tagKey: string;
+  readonly createdAt: IsoInstant;
+}
+
 export interface SnapshotCollectionRowMap {
   readonly entities: SnapshotEntity;
+  readonly workspaceTags: SnapshotWorkspaceTag;
+  readonly entityTags: SnapshotEntityTag;
   readonly spineRecords: SnapshotSpineRecord;
   readonly areaDetails: SnapshotAreaDetail;
   readonly goalDetails: SnapshotGoalDetail;
@@ -993,10 +1032,23 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
      * recovery path; it has to accept the archives owners already have.
      */
     "taskChecklistItems",
+    /*
+     * V2.6 FIND-02 — added with the one tag vocabulary. Every archive written
+     * before migration `0049` carries its tags as the per-record `tags` arrays
+     * instead, and the restore reconstructs both collections from them, so an
+     * owner's existing backup keeps every tag it recorded.
+     */
+    "workspaceTags",
+    "entityTags",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "entities",
+  // FIND-02 — the vocabulary before the attachments, and both before nothing
+  // else: `entity_tags` references BOTH `entities` and `workspace_tags`, so a
+  // restore must insert them in this order and delete them in its exact reverse.
+  "workspaceTags",
+  "entityTags",
   "spineRecords",
   "areaDetails",
   "goalDetails",

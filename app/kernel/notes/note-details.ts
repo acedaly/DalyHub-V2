@@ -21,6 +21,13 @@
  */
 
 import {
+  TagValidationError,
+  canonicalTagKey,
+  tagLabels,
+  validateEntityTags,
+  type WorkspaceTag,
+} from "~/kernel/tags";
+import {
   MarkdownError,
   parseMarkdownSource,
   type MarkdownSource,
@@ -179,48 +186,64 @@ export function validateNoteContent(value: unknown): MarkdownSource {
 }
 
 /**
- * Normalise ONE tag: trim, collapse internal whitespace to single spaces and
- * case-fold. Tags are an organisational label, not free text — `"Reading "`,
- * `"reading"` and `"Reading"` are the same tag, so filtering by one finds all
- * three and a Note can never carry the "same" tag twice.
+ * Normalise ONE tag to its canonical IDENTITY.
+ *
+ * **V2.6 FIND-02 — this is the canonical key rule, promoted into
+ * `~/kernel/tags`.** It is kept as a named export because NOTES-02's own
+ * documentation and tests refer to it, and because it still says the true thing:
+ * `"Reading "`, `"reading"` and `"Reading"` are one tag. What CHANGED is that the
+ * folded form is now the tag's identity in the workspace vocabulary rather than
+ * the value stored on a Note, so the casing the owner typed survives on the
+ * vocabulary's label instead of being discarded on write.
  */
 export function normaliseNoteTag(value: string): string {
-  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  return canonicalTagKey(value);
 }
 
 /**
- * Validate and normalise a Note's whole tag set: every entry trimmed,
- * case-folded, de-duplicated and sorted, bounded by {@link MAX_NOTE_TAGS} and
- * {@link MAX_NOTE_TAG_LENGTH}. Sorting makes the stored value canonical, so an
- * unchanged set is byte-identical and never records a spurious Activity event.
+ * Validate a Note's whole tag set, returning the display labels in canonical
+ * order.
+ *
+ * **V2.6 FIND-02 — this delegates to the ONE tag validator**, so a Note, a
+ * Person and an Asset now agree on what a tag is. The Note-specific parts that
+ * remain are the ERROR TYPE and the tighter Note limits.
  */
 export function validateNoteTags(value: unknown): readonly string[] {
-  if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) {
-    throw new NoteDetailsValidationError("tags", "must be a list of tags");
-  }
-  const out = new Set<string>();
-  for (const entry of value) {
-    if (typeof entry !== "string") {
-      throw new NoteDetailsValidationError("tags", "must be a list of tags");
+  return tagLabels(validateNoteTagSet(value));
+}
+
+/** The same validation, returning the canonical key/label pairs a write needs. */
+export function validateNoteTagSet(value: unknown): readonly WorkspaceTag[] {
+  let validated: readonly WorkspaceTag[];
+  try {
+    validated = validateEntityTags(value, "tags");
+  } catch (cause) {
+    if (cause instanceof TagValidationError) {
+      throw new NoteDetailsValidationError(
+        "tags",
+        cause.message.replace(/^tags /, ""),
+      );
     }
-    const tag = normaliseNoteTag(entry);
-    if (tag === "") continue;
-    if ([...tag].length > MAX_NOTE_TAG_LENGTH) {
+    throw cause;
+  }
+  // NOTES-02's own bounds are TIGHTER than the shared ceiling, and they are
+  // preserved rather than widened: a Note is a document, and twenty labels is
+  // already more than a document earns.
+  for (const tag of validated) {
+    if ([...tag.label].length > MAX_NOTE_TAG_LENGTH) {
       throw new NoteDetailsValidationError(
         "tags",
         `each tag must be ${MAX_NOTE_TAG_LENGTH} characters or fewer`,
       );
     }
-    out.add(tag);
   }
-  if (out.size > MAX_NOTE_TAGS) {
+  if (validated.length > MAX_NOTE_TAGS) {
     throw new NoteDetailsValidationError(
       "tags",
       `a note can carry at most ${MAX_NOTE_TAGS} tags`,
     );
   }
-  return [...out].sort();
+  return validated;
 }
 
 /**
