@@ -205,7 +205,7 @@ function decodeGroup(value: unknown, budget: number): SearchResultGroup | null {
   if (
     id === null ||
     label === null ||
-    (kind !== "entity" && kind !== "module") ||
+    (kind !== "entity" && kind !== "module" && kind !== "recent") ||
     !Array.isArray(raw.results)
   ) {
     return null;

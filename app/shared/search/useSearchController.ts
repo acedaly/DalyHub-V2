@@ -8,7 +8,12 @@
  *   - each new request aborts the previous one and carries a monotonic sequence
  *     number, so a slower earlier response can NEVER replace a newer one (the
  *     sequence guard is authoritative; the abort is best-effort cleanup);
- *   - an empty/invalid query returns to idle and executes no provider;
+ *   - an EMPTY query is a real request, not a dead end (FIND-01): it asks the
+ *     server for the workspace's recently worked-on records, which arrive as an
+ *     ordinary `SearchOutcome` and move through the same selection, activation
+ *     and aria machinery as any other result. It still executes NO provider —
+ *     that decision belongs to the server, which answers an empty query from the
+ *     recency read instead;
  *   - loading keeps valid prior results visible rather than flashing empty;
  *   - a partial provider failure still shows healthy results;
  *   - clearing the query cancels pending work; nothing updates state after unmount;
@@ -94,6 +99,13 @@ export type SearchController = {
   readonly activeIndex: number;
   readonly activeResult: RankedSearchResult | null;
   readonly isEmpty: boolean;
+  /**
+   * FIND-01 — true when the input is empty, so the displayed results (if any)
+   * are the RECENCY list rather than matches. The surface reads this to head
+   * the list and to word its empty state: "nothing recent yet" and "nothing
+   * matched <query>" are different facts and must not share a sentence.
+   */
+  readonly isEmptyQuery: boolean;
   readonly isPartial: boolean;
   readonly hasResults: boolean;
   /**
@@ -199,23 +211,11 @@ export function useSearchController(
     );
   }, []);
 
-  const goIdle = useCallback(() => {
-    clearTimer();
-    invalidateInFlight();
-    currentQueryRef.current = "";
-    dispatch({ type: "idle" });
-  }, [clearTimer, invalidateInFlight]);
-
   const setQuery = useCallback(
     (next: string) => {
       dispatch({ type: "setQuery", query: next });
 
       const normalised = normaliseQuery(next);
-      if (!isExecutableQuery(normalised)) {
-        // Empty/invalid: cancel pending work and return to idle immediately.
-        goIdle();
-        return;
-      }
 
       // No meaningful change (e.g. trailing whitespace) while the same query is
       // already reserved/in-flight — keep the existing request/debounce.
@@ -238,29 +238,57 @@ export function useSearchController(
         run(normalised, generation);
       }, debounceMs);
     },
-    [clearTimer, debounceMs, goIdle, invalidateInFlight, run],
+    [clearTimer, debounceMs, invalidateInFlight, run],
   );
 
   const clear = useCallback(() => {
-    dispatch({ type: "setQuery", query: "" });
-    goIdle();
-  }, [goIdle]);
+    // Clearing returns to the recency list, not to a dead idle state — the
+    // whole point of FIND-01 is that an empty Search still has something to
+    // open, and emptying the input is the commonest way to reach it.
+    setQuery("");
+  }, [setQuery]);
 
   const retry = useCallback(() => {
+    // An empty query is retryable too: its failure mode is the recency read's,
+    // and "Try again" must mean the same thing on both.
     const normalised = normaliseQuery(state.query);
-    if (!isExecutableQuery(normalised)) {
-      goIdle();
-      return;
-    }
     clearTimer();
     const generation = invalidateInFlight(); // invalidate any previous request
     currentQueryRef.current = normalised;
     dispatch({ type: "loading" });
     run(normalised, generation);
-  }, [clearTimer, goIdle, invalidateInFlight, run, state.query]);
+  }, [clearTimer, invalidateInFlight, run, state.query]);
 
+  /*
+   * FIND-01 — ask for the recency list as soon as Search opens.
+   *
+   * Immediately rather than through the debounce: the debounce exists to
+   * coalesce KEYSTROKES, and there are none here. `AGENTS.md` §16 budgets
+   * Search's local results at 50 ms, and spending 160 ms of it waiting for a
+   * timer that is protecting against nothing would be the surface feeling slow
+   * for a reason invented in this file.
+   *
+   * It lives in the SAME effect as the mounted flag, after it, and it is
+   * deliberately NOT guarded by a "did this already run" ref. Under React's
+   * development double-invoke the guard is a deadlock rather than an
+   * optimisation: the first pass fires the request, the cleanup aborts it and
+   * marks the hook unmounted, and a ref-guarded second pass then declines to
+   * ask again — leaving the surface saying "Searching…" forever, which is
+   * exactly what it did before this comment existed. Re-running is correct and
+   * costs one extra read in development only.
+   *
+   * Every LATER empty query — clearing the input, deleting the last character —
+   * arrives through `setQuery` and is debounced normally, because those are
+   * keystrokes.
+   */
   useEffect(() => {
     mountedRef.current = true;
+
+    const generation = invalidateInFlight();
+    currentQueryRef.current = "";
+    dispatch({ type: "loading" });
+    run("", generation);
+
     return () => {
       mountedRef.current = false;
       clearTimer();
@@ -269,7 +297,7 @@ export function useSearchController(
         abortRef.current = null;
       }
     };
-  }, [clearTimer]);
+  }, [clearTimer, invalidateInFlight, run]);
 
   const outcome = state.outcome;
   const groups = useMemo(() => outcome?.groups ?? [], [outcome]);
@@ -304,6 +332,7 @@ export function useSearchController(
     activeResult,
     resultsAreCurrent,
     isEmpty: state.phase === "ready" && count === 0,
+    isEmptyQuery: !isExecutableQuery(normaliseQuery(state.query)),
     isPartial: outcome?.status === "partial",
     hasResults: count > 0,
     setQuery,

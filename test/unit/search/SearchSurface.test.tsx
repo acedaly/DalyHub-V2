@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import SearchSurface from "~/shared/search/SearchSurface";
 import { assembleOutcome, type SearchOutcome } from "~/shared/search/model";
 import type { SearchFn } from "~/shared/search/client";
+import { recentRecordsOutcome } from "~/shared/search/recent-outcome";
 
 import type { SearchResultItem } from "~/shared/search/model";
 
@@ -112,7 +113,38 @@ function renderSurface(
   return { onClose, view };
 }
 
-const healthySearch: SearchFn = async (q) => healthyOutcome(q);
+/**
+ * FIND-01 — the empty query is answered by the RECENCY read, not by providers,
+ * so the stub answers it the way the server does: through the real
+ * `recentRecordsOutcome` builder over real records. Using the genuine builder
+ * rather than a hand-made outcome means these tests exercise the same group
+ * kind, the same destinations and the same absence of subtitles the product
+ * ships.
+ */
+const RECENT_RECORDS = [
+  {
+    id: "p-1",
+    type: "project" as const,
+    title: "Kitchen renovation",
+    lastWorkedAt: "2026-08-29T09:00:00.000Z",
+    createdAt: "2026-08-01T09:00:00.000Z",
+  },
+  {
+    id: "t-9",
+    type: "task" as const,
+    title: "Call the plumber",
+    lastWorkedAt: "2026-08-29T08:00:00.000Z",
+    createdAt: "2026-08-02T09:00:00.000Z",
+  },
+];
+
+function searchOutcomeFor(query: string): SearchOutcome {
+  return query.trim() === ""
+    ? recentRecordsOutcome(RECENT_RECORDS)
+    : healthyOutcome(query);
+}
+
+const healthySearch: SearchFn = async (q) => searchOutcomeFor(q);
 
 function typeQuery(value: string): void {
   fireEvent.change(screen.getByRole("combobox"), { target: { value } });
@@ -140,9 +172,23 @@ describe("SearchSurface", () => {
     opener.remove();
   });
 
-  it("shows an idle hint before any query", () => {
+  /*
+   * FIND-01 replaced the idle hint. The sentence this test used to assert —
+   * "Search across everything in your workspace." — restated the input's own
+   * placeholder directly above it and offered nothing to open, which is what
+   * [DEBT-195] recorded. The empty query now lists the workspace's recently
+   * worked-on records, and states the one privacy rule that applies to them.
+   */
+  it("answers the empty query with recent records, not a restated placeholder", async () => {
     renderSurface(healthySearch);
-    expect(screen.getByText(/Search across everything/i)).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getAllByRole("option").length).toBeGreaterThan(0),
+    );
+    expect(screen.getByText(/Recently worked on/i)).toBeVisible();
+    expect(
+      screen.getByText(/Diary entries are never listed here/i),
+    ).toBeVisible();
+    expect(screen.queryByText(/Search across everything/i)).toBeNull();
   });
 
   it("searches on input and groups results by entity type", async () => {
@@ -410,12 +456,19 @@ describe("SearchSurface — provider identity and stale-result inertness", () =>
   it("makes stale results during loading inert (no keyboard/pointer activation, no activedescendant)", async () => {
     let calls = 0;
     const pending = new Promise<SearchOutcome>(() => {}); // never resolves
+    // FIND-01 — the surface asks for the recency list when it opens. That
+    // request is not what this test is about, so it is answered separately and
+    // the counter measures TYPED queries only.
     const search: SearchFn = (q) => {
+      if (q === "") return Promise.resolve(searchOutcomeFor(""));
       calls += 1;
       return calls === 1 ? Promise.resolve(healthyOutcome(q)) : pending;
     };
     const { onClose } = renderSurface(search);
     const input = screen.getByRole("combobox");
+    await waitFor(() =>
+      expect(screen.getAllByRole("option").length).toBeGreaterThan(0),
+    );
     typeQuery("Finish");
     await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(3));
     fireEvent.keyDown(input, { key: "ArrowDown" });

@@ -5186,4 +5186,36 @@ The programme this decision defines is [`ROADMAP_V2_5.md`](../roadmap/ROADMAP_V2
   hierarchy, tag colours or tag-driven ordering* (rejected: each is the tag
   vocabulary becoming a second structure, which decision 4 forecloses).
 
+- **Implementation note — decision 5, settled by [FIND-01](../roadmap/ROADMAP_V2_6.md#-find-01--search-answers-before-you-type--delivered-2026-08-29) (2026-08-29).**
+  The derived reading was taken and the stored ledger was not reached for, so
+  none of the costs decision 5 attached to it were incurred: no migration, no
+  write on navigation, no prune policy, no export answer, no offline answer, and
+  no new category of personal data. **The rule is: a record's recency is the
+  timestamp of the most recent Activity event it is a subject of; newest first,
+  an exact tie broken by the more recently created record, then by entity id.**
+  It lives in [`app/kernel/recent-records/`](../../app/kernel/recent-records/).
+
+  One thing this decision did not anticipate, and it is the reason Activity is
+  the *only* honest answer rather than merely the preferred one:
+  `entities.updated_at` — the obvious cheaper source — is maintained
+  **inconsistently** across the detail tables, which is why
+  `d1-area-repository.ts` already carries an `EFFECTIVE_PROJECT_UPDATED_AT_EXPR`
+  to compensate. A recency source built on it would silently under-report every
+  edit that touched only a detail table. ADR-005/ADR-012 give the Activity stream
+  no such gap.
+
+  Decision 5's ban on frequency weighting is enforced structurally rather than by
+  convention: the aggregate is a `MAX`, never a `COUNT`, and the ordering carries
+  no arithmetic — three columns, all descending, the second and third consulted
+  only to break an exact tie in the first. A test deliberately gives one record
+  thirteen events and another one, and asserts the one wins. Decision 7's "no
+  fourth Task anatomy" holds: the empty state renders the existing
+  `SearchOption`, asserted by comparing a recent row's rendered class list with a
+  searched row's.
+
+  The privacy question decision 5 left open was answered by EXCLUDING Diary and
+  only Diary — the empty state is the one Search surface that renders without the
+  owner asking for it — with the consequence stated on the surface in the owner's
+  own words, and proven against a workspace that contains a Diary entry.
+
 The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2_6.md).

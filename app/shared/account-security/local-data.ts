@@ -37,6 +37,8 @@
  */
 
 import { OFFLINE_DIAGNOSTICS_STORAGE_KEY } from "~/shared/offline/diagnostics";
+// FIND-01 retired the list this key held; sign-out still clears it so no
+// owner is left with a residue of a feature that no longer exists.
 import { RECENT_SEARCH_STORAGE_KEY } from "~/shared/search/recent";
 
 /**

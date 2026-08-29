@@ -1,267 +1,44 @@
-import { validateEntityType, type EntityType } from "~/kernel/entities";
-
-import {
-  MAX_RESULT_ID_LENGTH,
-  MAX_SUBTITLE_LENGTH,
-  MAX_TITLE_LENGTH,
-} from "./limits";
-import { validateTarget } from "./target";
-import type {
-  RankedSearchResult,
-  SearchResultSignal,
-  SearchResultSignalTone,
-  SearchResultTarget,
-} from "./types";
+/**
+ * The RETIRED client-side "recent searches" list — reduced to the one thing
+ * that still has a job (FIND-01).
+ *
+ * ── What used to be here, and why it is gone ────────────────────────────────
+ * Until FIND-01, Search's empty state offered a list built in the BROWSER: the
+ * results the owner had activated from inside Search, kept in `localStorage`
+ * under the key below, with a bespoke encoder, a bespoke decoder, a bespoke
+ * sensitive-subtitle rule and a "Clear" button. It could not answer the question
+ * the empty query actually asks, for reasons no amount of polish would fix:
+ *
+ *   - it was **empty on first use**, on a new device, in a new browser profile
+ *     and after clearing site data — which is precisely when a shell that
+ *     answers before you type is most valuable;
+ *   - it knew only what the owner had opened **through Search**, so a record
+ *     they had spent the morning editing was absent unless they had also
+ *     searched for it;
+ *   - it was per-BROWSER, not per-workspace, so it was not workspace-scoped in
+ *     any sense the product's isolation boundary (ADR-003) recognises.
+ *
+ * [DEBT-195] was open the whole time it existed, which is the evidence that it
+ * did not close it. The empty query is now answered by the server from the
+ * workspace's own Activity history — see `~/kernel/recent-records` for the rule
+ * and `recent-outcome.ts` for its presentation.
+ *
+ * ── Why the key survives its feature ────────────────────────────────────────
+ * Owners who used a build before this one still have that data in their
+ * browser. Nothing writes the key any more, but SET-03's local-data model has to
+ * be able to NAME every key it clears rather than sweeping a prefix, so signing
+ * out still purges it. Deleting the constant would strand that data in the
+ * browser of every owner who had it — a silent, permanent residue of a feature
+ * that no longer exists.
+ *
+ * When enough time has passed that no browser plausibly still holds it, this
+ * file and its entry in `local-data.ts` go together.
+ */
 
 /**
- * The key recent searches are stored under.
+ * The key the retired client-side recent-search list was stored under.
  *
- * Exported (SET-03) because recent search terms are OWNER-SPECIFIC data, and the
- * account-security local-data model has to be able to name every key it clears
- * rather than sweeping a prefix. One constant, two readers.
+ * Read by `~/shared/account-security/local-data` so sign-out clears it. Written
+ * by nothing.
  */
 export const RECENT_SEARCH_STORAGE_KEY = "dalyhub.search.recent.v1";
-const STORAGE_KEY = RECENT_SEARCH_STORAGE_KEY;
-const MAX_RECENT_RESULTS = 8;
-const SENSITIVE_SUBTITLE_TYPES = new Set([
-  "asset",
-  "diary",
-  "meeting",
-  "person",
-  "review",
-]);
-const SIGNAL_TONES: ReadonlySet<SearchResultSignalTone> = new Set([
-  "neutral",
-  "muted",
-  "accent",
-  "success",
-  "warning",
-  "danger",
-]);
-const MAX_SIGNALS = 4;
-const MAX_SIGNAL_FIELD = 64;
-
-export type RecentSearchResult = {
-  readonly id: string;
-  readonly title: string;
-  readonly subtitle?: string;
-  readonly entityType?: EntityType;
-  readonly target: SearchResultTarget;
-  readonly signals?: readonly SearchResultSignal[];
-};
-
-type StorageLike = {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-};
-
-function storage(): StorageLike | null {
-  try {
-    return typeof window === "undefined" ? null : window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function clamp(value: string, max: number): string {
-  const points = Array.from(value.trim());
-  return points.length <= max ? value.trim() : points.slice(0, max).join("");
-}
-
-function signalString(value: unknown, max = MAX_SIGNAL_FIELD): string | null {
-  return typeof value === "string" &&
-    value.trim().length > 0 &&
-    value.length <= max
-    ? value.trim()
-    : null;
-}
-
-function signalTone(value: unknown): SearchResultSignalTone | undefined {
-  return typeof value === "string" &&
-    SIGNAL_TONES.has(value as SearchResultSignalTone)
-    ? (value as SearchResultSignalTone)
-    : undefined;
-}
-
-function decodeRecentSignals(value: unknown): SearchResultSignal[] {
-  if (!Array.isArray(value)) return [];
-  const signals: SearchResultSignal[] = [];
-  for (const entry of value) {
-    if (signals.length >= MAX_SIGNALS) break;
-    if (entry === null || typeof entry !== "object") continue;
-    const raw = entry as Record<string, unknown>;
-    const id = signalString(raw.id);
-    const kind = signalString(raw.kind);
-    const label = signalString(raw.label, MAX_SUBTITLE_LENGTH);
-    if (id === null || kind === null || label === null) continue;
-    const value = signalString(raw.value);
-    const tone = signalTone(raw.tone);
-    const icon = signalString(raw.icon);
-    const accessibleLabel = signalString(
-      raw.accessibleLabel,
-      MAX_SUBTITLE_LENGTH,
-    );
-    signals.push({
-      id,
-      kind,
-      label,
-      ...(value === null ? {} : { value }),
-      ...(tone === undefined ? {} : { tone }),
-      ...(icon === null ? {} : { icon }),
-      ...(accessibleLabel === null ? {} : { accessibleLabel }),
-    });
-  }
-  return signals;
-}
-
-export function targetIdentity(target: SearchResultTarget): string {
-  return target.kind === "route"
-    ? `route:${target.to}`
-    : `drawer:${target.canonicalPath ?? ""}:${target.drawerKey}`;
-}
-
-function safeSubtitle(result: RankedSearchResult): string | undefined {
-  if (
-    result.subtitle === undefined ||
-    result.entityType === undefined ||
-    SENSITIVE_SUBTITLE_TYPES.has(result.entityType)
-  ) {
-    return undefined;
-  }
-  return clamp(result.subtitle, MAX_SUBTITLE_LENGTH);
-}
-
-function decodeEntityType(value: unknown): EntityType | undefined {
-  try {
-    return validateEntityType(value);
-  } catch {
-    return undefined;
-  }
-}
-
-export function toRecentSearchResult(
-  result: RankedSearchResult,
-): RecentSearchResult {
-  const subtitle = safeSubtitle(result);
-  return {
-    id: clamp(targetIdentity(result.target), MAX_RESULT_ID_LENGTH),
-    title: clamp(result.title, MAX_TITLE_LENGTH),
-    ...(subtitle === undefined ? {} : { subtitle }),
-    ...(result.entityType === undefined
-      ? {}
-      : { entityType: result.entityType }),
-    target: result.target,
-    ...(result.signals === undefined ? {} : { signals: result.signals }),
-  };
-}
-
-function decodeRecent(value: unknown): RecentSearchResult | null {
-  if (value === null || typeof value !== "object") return null;
-  const raw = value as Record<string, unknown>;
-  if (typeof raw.title !== "string" || raw.title.trim().length === 0)
-    return null;
-  const target = validateTarget(raw.target);
-  if (target === null) return null;
-  const id =
-    typeof raw.id === "string" && raw.id.trim().length > 0
-      ? clamp(raw.id, MAX_RESULT_ID_LENGTH)
-      : clamp(targetIdentity(target), MAX_RESULT_ID_LENGTH);
-  const subtitle =
-    typeof raw.subtitle === "string" && raw.subtitle.trim().length > 0
-      ? clamp(raw.subtitle, MAX_SUBTITLE_LENGTH)
-      : undefined;
-  const entityType = decodeEntityType(raw.entityType);
-  const signals = decodeRecentSignals(raw.signals);
-  return {
-    id,
-    title: clamp(raw.title, MAX_TITLE_LENGTH),
-    ...(subtitle === undefined ||
-    entityType === undefined ||
-    SENSITIVE_SUBTITLE_TYPES.has(entityType)
-      ? {}
-      : { subtitle }),
-    ...(entityType === undefined ? {} : { entityType }),
-    target,
-    ...(signals.length === 0 ? {} : { signals }),
-  };
-}
-
-export function loadRecentSearchResults(
-  store: StorageLike | null = storage(),
-): RecentSearchResult[] {
-  if (store === null) return [];
-  try {
-    const raw = store.getItem(STORAGE_KEY);
-    if (raw === null) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    const results: RecentSearchResult[] = [];
-    const seen = new Set<string>();
-    for (const entry of parsed) {
-      const result = decodeRecent(entry);
-      if (result === null) continue;
-      const identity = targetIdentity(result.target);
-      if (seen.has(identity)) continue;
-      seen.add(identity);
-      results.push(result);
-      if (results.length >= MAX_RECENT_RESULTS) break;
-    }
-    return results;
-  } catch {
-    return [];
-  }
-}
-
-export function saveRecentSearchResult(
-  result: RankedSearchResult,
-  store: StorageLike | null = storage(),
-): RecentSearchResult[] {
-  if (store === null) return [];
-  try {
-    const next = toRecentSearchResult(result);
-    const deduped = [
-      next,
-      ...loadRecentSearchResults(store).filter(
-        (entry) => targetIdentity(entry.target) !== targetIdentity(next.target),
-      ),
-    ].slice(0, MAX_RECENT_RESULTS);
-    store.setItem(STORAGE_KEY, JSON.stringify(deduped));
-    return deduped;
-  } catch {
-    return [];
-  }
-}
-
-export function clearRecentSearchResults(
-  store: StorageLike | null = storage(),
-): RecentSearchResult[] {
-  if (store === null) return [];
-  try {
-    store.removeItem(STORAGE_KEY);
-  } catch {
-    return [];
-  }
-  return [];
-}
-
-export function recentToRankedResult(
-  result: RecentSearchResult,
-  index: number,
-): RankedSearchResult {
-  return {
-    id: `recent:${index}`,
-    providerId: "recent.search",
-    moduleId: "recent",
-    title: result.title,
-    ...(result.subtitle === undefined ? {} : { subtitle: result.subtitle }),
-    ...(result.entityType === undefined
-      ? {}
-      : { entityType: result.entityType }),
-    target: result.target,
-    ...(result.signals === undefined ? {} : { signals: result.signals }),
-    score: 0,
-    titleMatches: [],
-    subtitleMatches: [],
-  };
-}

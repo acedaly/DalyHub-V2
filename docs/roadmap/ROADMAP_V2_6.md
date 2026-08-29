@@ -38,7 +38,7 @@ thought in** and **finding a record again**. Both are measurably below the bar
 the product set for itself, both have been deferred twice with the reason
 recorded each time, and the register carries a standing sentence about it:
 
-> *"While [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2)
+> *"While [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2--resolved-2026-08-29-v26-find-01)
 > is open the product does not claim an A on DHDS-13's own scale."*
 
 V2.6 is the programme that removes that sentence.
@@ -94,7 +94,7 @@ exist. Both audits are recorded here because both changed the answer.
 
 | Entry | Severity | Verified against `main` (2026-08-28) |
 |---|---|---|
-| [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2) | **P2** | True. `app/routes/search.ts` resolves a bounded `q` against the registry's search providers. There is no recency source anywhere in the product, and no provider can answer an empty query. |
+| [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2--resolved-2026-08-29-v26-find-01) | **P2** | True. `app/routes/search.ts` resolves a bounded `q` against the registry's search providers. There is no recency source anywhere in the product, and no provider can answer an empty query. |
 | [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3) | P3 | True. Tags are a free-text JSON array on **three** detail tables — `person_details.tags` (0013), `asset_details.tags` (0016), `note_details.tags` (0019) — each normalised in `~/shared/forms/tags.ts` and each with its own suggestion set. No tag record, no workspace vocabulary, no rename, no search. |
 | [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3) | P3 | True. No tag field on `task_details`, no tag dimension in the Tasks filter declaration. The entry's own desired state — *"almost certainly"* a kernel primitive rather than a Task-only field — is still the open decision. |
 | DHDS-13 §13 | — | Capture speed rated **"Below"** the reference bar, unchanged. |
@@ -316,14 +316,17 @@ which fixes the constraints every item below inherits.
 Four items. The unconditional P2 first, then the kernel decision the theme was
 deferred whole for, then its two consumers.
 
+**FIND-01 is ☑ delivered (2026-08-29)**, and the register's standing A-scale
+sentence left with it. FIND-02 is next.
+
 ---
 
-### ☐ FIND-01 — Search answers before you type
+### ☑ FIND-01 — Search answers before you type — **delivered 2026-08-29**
 
 **Opening Search shows the records you were just working on.**
 
 - **User problem.**
-  [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2)
+  [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2--resolved-2026-08-29-v26-find-01)
   (P2), in its own words: *"The fastest path to a record you looked at five
   minutes ago is to remember and retype its name."* Opening Search with no query
   shows one sentence that restates the placeholder directly above it. Every
@@ -398,6 +401,81 @@ deferred whole for, then its two consumers.
   6. Light and dark; 1440 / 393 / 320; keyboard reach, visible focus, accessible
      name; `axe` clean with no rule disabled.
 - **Closes.** DEBT-195.
+- **Delivered 2026-08-29.** Every criterion met, and the recorded decision taken.
+
+  **The decision: recency is the most recent Activity event a record is a subject
+  of.** The DERIVED reading, as the item preferred — newest first, an exact tie
+  broken by the more recently created record, then by entity id, all descending.
+  No migration, no table, no column, no write path, and no new category of
+  personal data: the stored *"recently opened"* ledger was not reached for, and
+  the view event decision 5 refuses was not added. It lives in
+  [`app/kernel/recent-records/`](../../app/kernel/recent-records/) and nowhere
+  else.
+
+  **What the audit changed about that plan.** The item, this file and ADR-112 all
+  named Activity as preferred; none of them said why it is the only honest
+  answer. `entities.updated_at` is the obvious cheaper authority and is
+  maintained INCONSISTENTLY across the detail tables — which is why
+  `d1-area-repository.ts` already carries an `EFFECTIVE_PROJECT_UPDATED_AT_EXPR`
+  folding `project_details.updated_at` over it. A recency source on that column
+  would silently under-report every edit that touched only a detail table. The
+  Activity stream has no such gap (ADR-005/ADR-012), so it is the authority
+  rather than merely the preference.
+
+  **A second empty state nobody had documented.** `SearchSurface` also rendered a
+  device-local `localStorage` list of results the owner had ACTIVATED inside
+  Search. It is retired rather than kept beside the new list: empty on first use,
+  on a new device and after clearing site data; aware only of what had been
+  opened *through Search*; per-browser rather than workspace-scoped. DEBT-195 was
+  open the whole time it existed, which is the evidence it did not close it. Only
+  its storage key survives so sign-out still purges it.
+
+  **Bounded, and measured rather than asserted.** ONE D1 statement, six bound
+  parameters, `countingDb`-proven identical for a workspace of two records and
+  one of thirty. Flatness is real rather than statement-count-only: the query
+  bounds the SCAN before it aggregates, walking at most 600 rows of the existing
+  `activities_workspace_occurred_idx` — the same figure as FOLLOW-01's
+  `MAX_WINDOW_EVENTS` — rather than grouping the workspace's whole history. The
+  cost is a stated horizon, pinned by its own test. **No existing budget was
+  raised**, and the heaviest E2E partition is unchanged at 15.4 min.
+
+  **The privacy consequence, stated on the surface in the owner's own words**, as
+  the item required: Diary — and only Diary — is excluded, because this is the
+  one Search surface that renders without the owner asking for it, and a standing
+  line says so where they can read it. Proven against a workspace CONTAINING a
+  Diary entry seeded as its newest record. People are deliberately included; the
+  stronger protection is structural, because a recent row carries an id, a type,
+  a title and a date and no field that could hold a record's contents.
+
+  **The fork was not widened.** The rows are the existing `SearchOption`, asserted
+  structurally by comparing a recent row's rendered class list with a searched
+  row's — not by two screenshots resembling each other. A Task here opens the
+  Task Drawer Search already opens. DEBT-128 and DEBT-175 still close together
+  elsewhere.
+
+  **A defect found in review, not by any test that existed.** The first version
+  applied the SQL `LIMIT` and *then* dropped rows whose type had no destination,
+  so unopenable records spent the limit and the list came back short or empty.
+  `habit` was such a type — a record page since HABITS-01, no entry in the shared
+  destination map, and a Habits provider hard-coding its own route around the
+  gap. Ten Habits and one Area produced eight SQL rows and **zero** rendered
+  results. Fixed in both places: `habit` gained its entry in the one destination
+  authority, and the query now selects an allow-list of listable types so the
+  class cannot recur. Proven by a synthetic routeless type, and guarded by a test
+  that every registered entity type is listable or deliberately excluded.
+
+  **One thing found by falsification rather than by reasoning.** The tie-break was
+  originally the entity id alone. Ties are the COMMON case — creating a Task
+  inside a Project makes both subjects of one event at one instant — so the list
+  led with whichever random id sorted higher, and the owner's new Task sat below
+  its Project about half the time. The kernel test was flaky across runs, which is
+  what exposed it; `createdAt` now breaks the tie first, consulted only on an
+  exact equality so it never competes with recency.
+
+  **Raised, and deliberately not taken.** [DEBT-216](../product/PRODUCT_DEBT.md) —
+  a command-palette test still asserting that Goals have no creation command,
+  which STEER-01 gave them. Failing on `main` before this item existed, reproduced
+  with its work stashed, and a different item's surface.
 
 ---
 
@@ -821,7 +899,8 @@ and on the entry itself, so no future reader re-derives what is scheduled.
 
 | Entry | Severity | Disposition |
 |---|---|---|
-| **DEBT-195** — Search's empty query offers nothing to open | **P2** | **Taken** — FIND-01. Deferred by V2.4 and V2.5; the A-scale sentence leaves the register when it closes. |
+| **DEBT-195** — Search's empty query offers nothing to open | **P2** | **CLOSED 2026-08-29** — FIND-01. Deferred by V2.4 and V2.5; the A-scale sentence has left the register. |
+| **DEBT-216** — a palette test asserts Goals have no creation command | P2 | **Raised** by FIND-01's verification and deliberately not taken: STEER-01 shipped the surface, the assertion is stale, and it is a different item's surface. |
 | **DEBT-182** — tags have no canonical model, so no canonical picker | P3 | **Taken** — FIND-02. |
 | **DEBT-48** — Tasks have no tags, so no tag filter | P3 | **Taken** — FIND-03. |
 | DHDS-13 §13 — capture speed *"Below"* | — | **Advanced** — FIND-04. |
