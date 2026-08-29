@@ -301,6 +301,9 @@ test.describe("FIND-02 — one tag vocabulary", () => {
   test("is axe-clean and overflow-free at 1440, 393 and 320, in light and dark", async ({
     page,
   }) => {
+    // Six page loads and six axe scans. The default 30s is a budget for one
+    // interaction, not for a matrix.
+    test.setTimeout(120_000);
     for (const scheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: scheme });
       for (const width of [1440, 393, 320]) {
