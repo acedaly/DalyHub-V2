@@ -55,6 +55,7 @@ import {
   type ReviewDeleteResult,
   type ReviewLifecycleResult,
   type ReviewPage,
+  type ReviewPeriodEntry,
   type ReviewRepository,
   type ReviewSection,
   type ReviewSectionId,
@@ -124,6 +125,16 @@ interface ReviewRow {
   readonly sort_primary?: string;
 }
 
+interface PeriodEntryRow {
+  readonly id: string;
+  readonly title: string;
+  readonly review_type: string;
+  readonly period_start: string;
+  readonly period_end: string;
+  readonly status: string;
+  readonly archived_at: string | null;
+}
+
 interface SectionRow {
   readonly review_id: string;
   readonly section_id: string;
@@ -162,6 +173,16 @@ const EFFECTIVE_UPDATED_EXPR = `max(
             FROM review_sections rs
             WHERE rs.workspace_id = e.workspace_id AND rs.review_id = e.id), d.updated_at)
 )`;
+
+/**
+ * STEER-05 — the ONE predicate that identifies "the Review for this period".
+ *
+ * `create` reads it to stay idempotent and `findPeriodEntry` reads it to answer
+ * a surface's "is there one?". Stated once so the two cannot drift into
+ * disagreeing about whether a Review already exists for the owner's week.
+ */
+const PERIOD_MATCH = `e.workspace_id = ? AND e.type = '${REVIEW_ENTITY_TYPE}'
+   AND d.review_type = ? AND d.period_start = ? AND d.period_end = ?`;
 
 function uniqueConstraint(error: unknown): boolean {
   return (
@@ -418,6 +439,55 @@ export class D1ReviewRepository implements ReviewRepository {
             })
           : null;
       return { items, hasMore, nextCursor };
+    } catch (cause) {
+      if (cause instanceof ReviewError) throw cause;
+      throw new ReviewStorageError({ cause });
+    }
+  }
+
+  /**
+   * STEER-05 — one bounded statement: is there a Review for exactly this period?
+   *
+   * The same `PERIOD_MATCH` predicate `create` reads, so a surface offering a
+   * door and the creation path that would open it can never disagree about
+   * whether the owner's week already has a Review. No section bodies are read:
+   * the caller asked a yes/no question and gets the four facts a door needs.
+   */
+  async findPeriodEntry(
+    type: Exclude<ReviewType, "custom">,
+    periodStart: string,
+    periodEnd: string,
+  ): Promise<ReviewPeriodEntry | null> {
+    const period = validateReviewPeriod({ type, periodStart, periodEnd });
+    try {
+      const row = await this.#db
+        .prepare(
+          `SELECT e.id AS id, e.title AS title, d.review_type AS review_type,
+                  d.period_start AS period_start, d.period_end AS period_end,
+                  d.status AS status, d.archived_at AS archived_at
+           FROM entities e
+           JOIN review_details d
+             ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
+           WHERE ${PERIOD_MATCH} AND e.deleted_at IS NULL
+           LIMIT 1`,
+        )
+        .bind(
+          this.#workspaceId,
+          period.type,
+          period.periodStart,
+          period.periodEnd,
+        )
+        .first<PeriodEntryRow>();
+      if (!row) return null;
+      return {
+        id: row.id,
+        title: row.title,
+        type: parseReviewType(row.review_type),
+        periodStart: row.period_start,
+        periodEnd: row.period_end,
+        status: parseReviewStatus(row.status),
+        archived: row.archived_at !== null,
+      };
     } catch (cause) {
       if (cause instanceof ReviewError) throw cause;
       throw new ReviewStorageError({ cause });
@@ -1096,8 +1166,7 @@ export class D1ReviewRepository implements ReviewRepository {
          FROM entities e
          JOIN review_details d
            ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
-         WHERE e.workspace_id = ? AND e.type = '${REVIEW_ENTITY_TYPE}'
-           AND d.review_type = ? AND d.period_start = ? AND d.period_end = ?
+         WHERE ${PERIOD_MATCH}
          LIMIT 1`,
       )
       .bind(this.#workspaceId, type, periodStart, periodEnd)

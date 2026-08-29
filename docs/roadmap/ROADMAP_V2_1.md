@@ -1203,7 +1203,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   exist. Every measure carries its exactness; a bounded number is never shown as exact.
 - **Closes** [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03)
   and the derived-period-facts half of
-  [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2);
+  [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05);
   DEBT-34's Today "Start this week's Review" card remains open and is recorded there.
 - **Documentation.** [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)
   · [`REVIEWS_MODULE.md → Review evidence`](../development/REVIEWS_MODULE.md#review-evidence-review-03)

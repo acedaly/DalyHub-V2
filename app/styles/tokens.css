@@ -6019,6 +6019,20 @@
   --app-control-height-md: 2.25rem; /* 36 */
   --app-control-height-lg: max(2.75rem, 45px);
   --app-touch-target-min: max(2.75rem, 45px);
+  /*
+   * STEER-05 — the POINTER-AGNOSTIC floor: WCAG 2.2 AA SC 2.5.8's 24×24 CSS
+   * pixels, which applies to every pointer rather than only a coarse one.
+   *
+   * It is a second, smaller floor beside `--app-touch-target-min` and does not
+   * replace it: 45px stays the product's comfortable touch target and stays
+   * what a control reaches for. This one exists for the places where the
+   * product deliberately draws a SMALL inline link inside dense prose — a
+   * supporting line under a card's title — where 45px would make the line taller
+   * than the title it supports and 17px is a serious `target-size` violation.
+   * Named rather than written as `24px` at the call site, because it is a
+   * standard's number and every consumer must move together if it ever changes.
+   */
+  --app-pointer-target-min: max(1.5rem, 24px);
 
   /*
    * The horizontal space a list Card's hover action rail occupies, reserved by the

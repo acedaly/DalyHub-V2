@@ -27,6 +27,37 @@
   If your workspace is brand new and has no history yet, it says so plainly
   instead of pretending a search failed.
 
+- **Today now offers this week's review, instead of expecting you to remember
+  it.**
+
+  The weekly review is where the week actually gets steered — it reads the
+  week's account, whether your goals moved, and how your routines went, and
+  turns that into next week's focus. It had one problem: nothing on the screen
+  you open every morning ever mentioned it. Starting one was something you had
+  to think of.
+
+  At the foot of Today there is now a quiet band, **This week's Review**, naming
+  the week it means. If you have not started one it offers to; if one is
+  underway it takes you back to where you left off; and once it is finished it
+  says so and offers to open it again. Nothing else on the page gave up room for
+  it — it sits below everything, after the day's work, the schedule, the
+  routines, the goals and the reflection.
+
+  It is deliberately an offer and not a nag. There is no badge, no count, no red
+  anything, no notification, and no streak of weeks reviewed. A week you never
+  reviewed is never called overdue, missed, or late — it is simply a week you
+  did not review, which is a fact and not a failure.
+
+  Both the band and the new-review form work out which week it is the same way,
+  from the same place, so they can never disagree about it — including if you
+  start your week on a Sunday.
+
+- **Two small accessibility fixes on Today.** The "next action" link added to
+  the _Continue working_ cards last week was only 17 pixels tall on a desktop,
+  and the row titles beside it were 20 — both under the accessibility standard's
+  minimum, and both easy to miss with a mouse or a thumb. They now keep a proper
+  target size on every kind of pointer.
+
 - **Every screen now tells the same story about a goal — and points at what to
   do next.**
 

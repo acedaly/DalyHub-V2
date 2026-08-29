@@ -7,11 +7,15 @@
 > holds V2.2, [`ROADMAP_V2_3.md`](ROADMAP_V2_3.md) holds V2.3 (**closed**),
 > [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md) holds V2.4 (complete apart from
 > V2.4-GATE-01's two owner-held halves), and
-> [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md) holds V2.5 — **which is not finished:
-> [STEER-05](ROADMAP_V2_5.md#-steer-05--the-weeks-door) is still ☐.**
+> [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md) holds V2.5 — **complete since
+> 2026-08-28, when
+> [STEER-05](ROADMAP_V2_5.md#-steer-05--the-weeks-door--delivered-2026-08-28)
+> landed.** This file was written while STEER-05 was still ☐, and every
+> statement below that it is unfinished is preserved as the record of what was
+> true when the decision was taken; the prerequisite is met.
 >
 > **This file is V2.6, and it is where new work goes** — *after* STEER-05, which
-> is not moved here, not re-scoped and not absorbed. V2.5 finishes in V2.5.
+> was not moved here, not re-scoped and not absorbed. V2.5 finished in V2.5.
 >
 > The rules are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to
 > build; this tells you *what*. Status is updated in the PR that changes it. No
@@ -64,12 +68,13 @@ Four of five items delivered (2026-08-28):
   kernel-owned), on Today's project cards and the Goal record, plus the door
   that creates the missing Project.
 
-**STEER-05 — the week's door — is not delivered.** It is V2.5's last item and it
-stays there. Any statement that V2.5 shipped a Today → Review entry point is
-wrong today; the register and `ROADMAP_V2_5.md` both still carry
+**STEER-05 — the week's door — was not delivered when this programme was
+defined.** It was V2.5's last item and it stayed there. **It has since landed
+(2026-08-28):** Today offers the current period's Review, and
 [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
-open on that half. **STEER-05 is completed before FIND-01 starts** (see
-[Dependencies](#dependencies)).
+is closed. The precondition this programme set itself — **STEER-05 is completed
+before FIND-01 starts** (see [Dependencies](#dependencies)) — is satisfied, and
+V2.5's five-item sequence is complete.
 
 What V2.5 did **not** touch, and what this programme is about: no tag model was
 created, no capture token was added, no recency source was built, and Search
@@ -645,10 +650,12 @@ sentence left with it. FIND-02 is next.
 ## Why this sequence
 
 **FIND-01 is first because it is the only P2 and the only item with no
-dependency.** V2.5 supplies the argument directly: its own severity-carrying
-final item, STEER-05, is still ☐ today. A programme's last item is the one that
-does not ship, so the entry carrying the register's standing A-scale sentence
-does not go last.
+dependency.** V2.5 supplied the argument directly: when this was written its own
+severity-carrying final item, STEER-05, had been ☐ for the whole programme. A
+programme's last item is the one that does not ship, so the entry carrying the
+register's standing A-scale sentence does not go last. (STEER-05 did ship, on
+2026-08-28 — which does not weaken the argument: it spent a programme as the
+last item precisely because it was last.)
 
 The cost of that ordering is stated rather than hidden: FIND-01 designs the
 recent-record row **before** the tag vocabulary exists, so a later item that
@@ -826,9 +833,10 @@ this programme than on the last two**, because FIND-02 moves existing owner data
 between representations.
 
 **Internal, and the one that must be said plainly:**
-[STEER-05](ROADMAP_V2_5.md#-steer-05--the-weeks-door) is delivered before FIND-01
-starts. It is V2.5's item, it is not moved here, and V2.6 does not begin by
-leaving its predecessor unfinished.
+[STEER-05](ROADMAP_V2_5.md#-steer-05--the-weeks-door--delivered-2026-08-28) is
+delivered before FIND-01 starts. It is V2.5's item, it was not moved here, and
+V2.6 does not begin by leaving its predecessor unfinished. **Met on 2026-08-28**,
+before any FIND item was started.
 
 Every item consumes — and none modifies — the DS-08 search orchestrator and its
 registry-discovered providers, `~/shared/forms/tags.ts`'s normalisation rules,
@@ -891,7 +899,7 @@ and on the entry itself, so no future reader re-derives what is scheduled.
 | **DEBT-213** — the AI model and pricing registry has no re-verification mechanism | P3 | **Raised** by this pass, and the only new entry. Not previously represented; found by audit, not by prose. |
 | **DEBT-102** — no capture-processing state | P3 | **Deliberately not taken**, with its reason in LATER: a kernel decision adjacent to the theme, and FIND-04 does not need it answered. |
 | DEBT-128 · DEBT-175 | P2 | **Not taken**, unchanged from V2.5: they close together in their own pass. FIND-01 is explicitly forbidden from widening the fork. |
-| DEBT-34 | P2 | **Not V2.6's.** It is STEER-05's, and STEER-05 stays in V2.5. |
+| DEBT-34 | P2 | **Not V2.6's.** It is STEER-05's, and STEER-05 stayed in V2.5 — where it closed this entry on 2026-08-28. |
 | DEBT-198 · V2.4-GATE-01 | P1 | **Standing preconditions**, more binding here than before: FIND-02 carries data. |
 | DEBT-205 · DEBT-173 · DEBT-203 | P2 | **Standing constraints**, recovered only deliberately. |
 | DEBT-69 | P3 | **Named as a precedent, not taken**: if FIND-01's recorded decision is a stored ledger, it inherits the prune question this entry already describes. |
@@ -905,7 +913,7 @@ under new numbers is the duplication this register forbids.
 
 ## Related documents
 
-- [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md) — the predecessor programme, **whose STEER-05 is finished before this one starts**
+- [`ROADMAP_V2_5.md`](ROADMAP_V2_5.md) — the predecessor programme, **whose STEER-05 was finished before this one started** (2026-08-28)
 - [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md) — V2.4, and the owner-blocked gate halves that stay recorded there
 - [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable) — the decision this programme is built on
 - [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question) — Steering, whose stored-judgement rule the deferred AI work must respect

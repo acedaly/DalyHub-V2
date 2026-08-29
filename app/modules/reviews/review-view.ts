@@ -7,6 +7,7 @@ import {
   REVIEW_SECTION_IDS,
   defaultReviewTitle,
   resolveReviewTemplate,
+  reviewPeriodLabel,
   reviewSectionLabel,
   type Review,
   type ReviewSectionId,
@@ -59,39 +60,17 @@ export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   completed: "Completed",
 };
 
-function monthYear(iso: string): string {
-  const [year, month] = iso.split("-");
-  const date = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
-  return new Intl.DateTimeFormat("en-AU", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
-
-function quarterLabel(iso: string): string {
-  const [year, month] = iso.split("-");
-  const quarter = Math.floor((Number(month) - 1) / 3) + 1;
-  return `Q${quarter} ${year}`;
-}
-
-export function reviewPeriodLabel(
-  type: ReviewType,
-  periodStart: string,
-  periodEnd: string,
-  dateFormat: DateFormat,
-): string {
-  if (type === "monthly") return monthYear(periodStart);
-  if (type === "quarterly") return quarterLabel(periodStart);
-  if (type === "annual") return periodStart.slice(0, 4);
-  if (periodStart === periodEnd) {
-    return formatPreferenceDate(periodStart, dateFormat);
-  }
-  return `${formatPreferenceDate(periodStart, dateFormat)}–${formatPreferenceDate(
-    periodEnd,
-    dateFormat,
-  )}`;
-}
+/*
+ * STEER-05 — the period label moved to `~/kernel/reviews` and is re-exported
+ * here so every existing call site is unchanged.
+ *
+ * Today now names the week it is offering, and a module may not import another
+ * module's internals. This file used to carry the rule plus private `monthYear`
+ * and `quarterLabel` helpers that duplicated the kernel's own — two
+ * implementations of one label, which is exactly how the Reviews collection and
+ * Today would come to print two different names for one week.
+ */
+export { reviewPeriodLabel };
 
 export function serializeReview(
   review: Review,

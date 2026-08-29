@@ -12,16 +12,17 @@
 > [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md) holds V2.4, whose planned product sequence
 > is **complete apart from V2.4-GATE-01's two owner-held halves** — which stay
 > recorded there and are **not re-adopted here**.
-> **This file is V2.5. Its LAST ITEM, [STEER-05](#-steer-05--the-weeks-door), is
-> still ☐ and stays here — it is not moved, not re-scoped and not absorbed.**
+> **This file is V2.5, and it is COMPLETE. Its last item,
+> [STEER-05](#-steer-05--the-weeks-door--delivered-2026-08-28), is ☑ delivered —
+> it was finished here rather than moved, re-scoped or absorbed.**
 >
 > **New work now goes in [`ROADMAP_V2_6.md`](ROADMAP_V2_6.md)** — V2.6,
 > "Retrieval & capture velocity", which takes the theme this file deferred whole
 > as the presumptive V2.6 and confirms it against its competitor: Search answers
 > an empty query with recent records (FIND-01, the P2), tags gain one workspace
 > vocabulary (FIND-02), Tasks gain tags and one filter dimension (FIND-03), and
-> `#tag` joins the capture grammar (FIND-04). **STEER-05 is delivered before
-> FIND-01 starts.** Accepted as
+> `#tag` joins the capture grammar (FIND-04). **STEER-05 was delivered before
+> FIND-01 starts**, which it now has been. Accepted as
 > [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable).
 >
 > The rules are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to build;
@@ -33,12 +34,17 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 > **Status, 2026-08-28.** STEER-01 and STEER-02 are ☑ **delivered**, together,
 > in one PR — the surface decision and the owner capability that lands on it.
 > **STEER-03 and STEER-04 are ☑ delivered**, together, in one PR — the shared
-> Goal story and the action layer that lands on it. **STEER-05 is unchanged and
-> unstarted, and it is this programme's remaining work** — the V2.6 decision
-> re-verified that on `main` and corrected the premise it was handed, which was
-> that V2.5 had shipped the Today → Review door. It has not.
+> Goal story and the action layer that lands on it. **STEER-05 is ☑ delivered** —
+> Today offers this week's Review. **The planned V2.5 product sequence is now
+> complete**, and
 > [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
-> is still open on that half.
+> is closed on the half that was still open.
+>
+> The V2.6 decision was taken while STEER-05 was still in review, and it
+> re-verified against `main` that the Today → Review door had not shipped — which
+> was true when it looked. It is true no longer, and the successor programme it
+> defined, [`ROADMAP_V2_6.md`](ROADMAP_V2_6.md), is where new work goes; its
+> FIND-01 was gated on this item and is now unblocked.
 
 ---
 
@@ -154,7 +160,7 @@ in each item below.
    drifted from the shipped surface in five recorded places (**DEBT-211**).
 7. **The loop's front door is missing.** Today still offers no *"Start / continue
    this week's Review"* — the remaining, Today-side half of
-   [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
+   [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05)
    (P2), untouched by FOLLOW-01 on purpose.
 8. **Mobile and accessibility are not the gap.** AREA-04 proved the Goal
    surfaces on a real phone; the `/goals` workspace folds to two screens with
@@ -786,12 +792,12 @@ created.**
   be a cross-module import; writing a second form would be a second creation
   surface. The move is the `NewGoalForm` precedent, taken for the same reason.
 
-### ☐ STEER-05 — The week's door
+### ☑ STEER-05 — The week's door — **delivered 2026-08-28**
 
 **Today offers this week's Review: start it, or continue it.**
 
 - **User problem.** The remaining, Today-side half of
-  [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
+  [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05)
   (P2), in its own words: *"the weekly Review has no entry point on the screen
   the owner opens every day, so starting one is something they must remember
   rather than something the product offers."* V2.4 made the Review worth
@@ -843,6 +849,102 @@ created.**
   5. Light and dark; 1440 / 393 / 320 with the entry present in every state;
      keyboard; accessible name; `axe` clean with no rule disabled.
 - **Closes.** DEBT-34.
+- **Delivered 2026-08-28.** Every criterion met.
+  1. **The three states, proven end to end.** With no Review for the owner's
+     week Today offers **Start**; following it lands on `/reviews/new`, whose
+     form already opens on that week; with one underway the same band offers
+     **Continue**, which lands on `/reviews/:id/guide` and is redirected to the
+     owner's own resume step (REVIEW-02's semantics, untouched). The wording
+     names the period in every state, visibly in the panel head and inside the
+     control's accessible name.
+     [`steer-week-door.spec.ts`](../../e2e/steer-week-door.spec.ts) drives the
+     whole lifecycle — start → create → continue → resume → complete — in one
+     journey, and [`today-review-door.test.ts`](../../test/kernel/today-review-door.test.ts)
+     proves the states against real D1, including under BOTH week-start
+     preferences: the same workspace read as a Sunday-start owner says
+     "continue" and as a Monday-start owner says "start", because the two are
+     genuinely different weeks.
+  2. **One period authority, asserted STRUCTURALLY.**
+     [`review-door-authority.test.ts`](../../test/unit/today/review-door-authority.test.ts)
+     scans every file under `app/`: `currentReviewPeriod` is DECLARED in exactly
+     one module, every consumer reaches it through the one published path
+     (`~/kernel/reviews`, no deep imports), and Today's door contains no week
+     arithmetic of its own — no `planningWeekStart`, no `weekDatesFor`, no day
+     offsets, no SQL and no table name. FALSIFIED: replacing the door's
+     `currentReviewPeriod` call with `planningWeekStart` — which agrees with it
+     on every day — fails the guard immediately, which is the point of asserting
+     the shape rather than the values.
+  3. **The query-count clause could NOT be honoured, and the cost is recorded
+     rather than absorbed.** Nothing Today already reads touches
+     `review_details`, so there was no existing statement for the existence read
+     to ride. MEASURED on an empty workspace: **20 → 21**, one bounded
+     statement, in the existing parallel block, identical in all three door
+     states. Both figures are pinned by a counting database, so a second Reviews
+     read or a per-state read fails the suite. The read is
+     `ReviewRepository.findPeriodEntry` — creation's OWN idempotency lookup,
+     exposed on the contract and sharing one `PERIOD_MATCH` predicate with it,
+     so "is there one?" and "there already is one" cannot become two rules. It
+     answers with a small `ReviewPeriodEntry` rather than a `Review` precisely so
+     it costs one statement and not two. The cost is put to DEBT-34 with the
+     measurement, per ADR-110 decision 7.
+  4. **The completed-period state is the recorded decision** — a quiet completed
+     state, not an absence: *"This week's Review is done."* and a link to the
+     canonical record to re-read it. The reason is recorded at
+     `ReviewDoorCard`: a door that vanishes the moment it is used sends the
+     owner back to memory for the rest of the week, which is DEBT-34's own
+     defect on a shorter clock. A period with a completed Review renders no
+     urging, asserted by a vocabulary guard over the rendered band ("overdue",
+     "missed", "late", "behind", "streak", "in a row") in every state.
+  5. Light and dark, 1440 / 820 / 393 / 320 with the band present in every
+     state, keyboard reach and operation, an accessible name carrying the
+     period, `axe` clean with no rule disabled.
+- **The composition decision, and the measurement behind it.** The band is
+  **full width at the very foot of the grid, below everything** — DEBT-34's
+  "which surface gives up space?" answered *none of them*. The obvious
+  alternative (a second six-column doorway paired with `Daily reflection`) was
+  built and MEASURED first: at 1440 the foot row already holds `Continue
+  working` (x 264, w 560) and `Daily reflection` (x 840, w 560), so a third
+  six-column cell wrapped and left 560px of empty grid — and because `Continue
+  working` is data-conditional, whether it did so depended on whether the owner
+  had a project with open work. A band is deterministic at every width and in
+  every data state; it is the `HabitsPanel` precedent for the mirror-image
+  reason. Nothing above the first task moved: the day's first actionable row is
+  at 461 / 497 / 597 / 646 px at 1440 / 820 / 393 / 320 with and without it.
+- **Two things it did that the criteria did not name.**
+  1. **`reviewPeriodLabel` moved to the kernel.** It lived in
+     `app/modules/reviews/review-view.ts` with private `monthYear` and
+     `quarterLabel` helpers duplicating `review-periods.ts`'s own. Today naming
+     the week it offers would have been a cross-module import or a third
+     implementation, so the rule moved down beside `currentReviewPeriod` — the
+     authority it labels — and the Reviews module re-exports it, so no call site
+     changed. The STEER-03 `goalIdentitySource` precedent, taken for the same
+     reason.
+  2. **Two `target-size` defects on Today were fixed, and neither was this
+     item's** —
+     [DEBT-214](../product/PRODUCT_DEBT.md#-debt-214--todays-small-row-links-met-no-target-size-floor-on-a-fine-pointer--p2--raised-and-resolved-2026-08-28-v25-steer-05).
+     WCAG 2.2 AA SC 2.5.8's 24×24 minimum is not conditional on the pointer, and
+     two of Today's small row links met no pointer-agnostic floor: STEER-04's
+     next-action link, floored only inside `@media (pointer: coarse)`
+     (MEASURED at 1280: 75.7 × **16.9** px, 18.8px of safe clickable space), and
+     `.dh-day-row__title`, floored nowhere at all (MEASURED at 320: 210 ×
+     **19.6** px, 18.2px). Both were **already failing tests on `main`** —
+     `today-focus.spec.ts`'s *"passes axe"* and `goal-measurement.spec.ts`'s
+     *"Today's progress sections fit a 320px phone"* — verified on a clean tree
+     with a fresh database before any of this item's code existed. Fixed with
+     one new named `--app-pointer-target-min` token (the standard's 24px, beside
+     the product's 45px touch target rather than replacing it), because this
+     item's own criterion 5 is an axe-clean Today and a red page cannot be
+     scoped around.
+- **What it found on Today's page and deliberately did NOT fix.**
+  [DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2):
+  three assertions in `goals.spec.ts` and `areas.spec.ts` still address the Area
+  record's Goals tab as the `role="article"` Card that STEER-03 replaced with the
+  shared `GoalStoryRow`, and they fail on `main` for that reason (measured on a
+  clean tree). That is a different item's surface and a different pass's repair —
+  V2.4-GATE-01's own recorded reason for the same choice: *"building three more
+  fixtures inside a pass repairing fifty-five other tests is how a gate branch
+  stops being reviewable."* It is recorded with the measurement and the worked
+  example for the fix rather than absorbed here.
 
 ---
 
@@ -869,7 +971,10 @@ created.**
 - **STEER-05 last, and unblocked throughout.** It depends on nothing above and
   may be taken earlier if an item ahead of it blocks; it is sequenced last so
   Today's composition — which STEER-04 also changes — is measured once, in its
-  final shape.
+  final shape. **That sequencing earned its keep**: measuring Today once, in its
+  final shape, is what surfaced both the composition answer (the foot row was
+  already full, so the door is a band) and the `target-size` defect STEER-04 had
+  left on the same page.
 - **E2E cost is answered per item, the FOLLOW-02 way.** Each item sizes its
   journey to fit the thirteen-partition gate before reaching for capacity
   (FOLLOW-02 fitted 18.7 s; FOLLOW-01 moved the count with arithmetic).
@@ -1002,7 +1107,7 @@ themselves in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 | DEBT-120 · DEBT-121 · DEBT-192 | P3 | **Taken** — STEER-01. |
 | DEBT-183 · DEBT-184 | P3 | **Taken** — STEER-02. |
 | DEBT-77 (and DEBT-25 if reached) | P3 | **Taken** — STEER-04. |
-| DEBT-34 | P2 | **Taken** — STEER-05, the Today half; the Review half closed with FOLLOW-01. |
+| DEBT-34 | P2 | **Taken and CLOSED** — STEER-05 delivered the Today half; the Review half closed with FOLLOW-01. The entry is ☑. |
 | DEBT-195 · DEBT-182 · DEBT-48 | P2/P3 | **Deferred whole** to the retrieval-velocity theme, with the A-scale consequence stated in [LATER](#later--real-evidenced-and-deliberately-not-v25). |
 | DEBT-128 · DEBT-175 | P2 | **Not taken**, with the reason in LATER: they close together as their own bounded pass. |
 | DEBT-205 · DEBT-173 · DEBT-203 | P2 | **Standing constraints**, recovered only deliberately. |
