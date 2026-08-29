@@ -938,7 +938,7 @@ decision 5's spirit, applied to a ritual instead of to a figure.
 `.dh-next-action__open` — STEER-04's next-action link, above — floored its
 pointer target only inside `@media (pointer: coarse)`, and WCAG 2.2 AA SC 2.5.8's
 24×24 minimum is not conditional on the pointer.
-[DEBT-213](../product/PRODUCT_DEBT.md#-debt-213--todays-small-row-links-met-no-target-size-floor-on-a-fine-pointer--p2--raised-and-resolved-2026-08-28-v25-steer-05)
+[DEBT-214](../product/PRODUCT_DEBT.md#-debt-214--todays-small-row-links-met-no-target-size-floor-on-a-fine-pointer--p2--raised-and-resolved-2026-08-28-v25-steer-05)
 carries the measurement (75.7 × **16.9** px, 18.8px of safe clickable space) and
 the fix: a new `--app-pointer-target-min` token holding the standard's 24px,
 beside — not instead of — the product's 45px touch target. It was found because

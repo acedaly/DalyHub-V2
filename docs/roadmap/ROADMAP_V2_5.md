@@ -12,7 +12,18 @@
 > [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md) holds V2.4, whose planned product sequence
 > is **complete apart from V2.4-GATE-01's two owner-held halves** — which stay
 > recorded there and are **not re-adopted here**.
-> **This file is V2.5, and it is where new work goes.**
+> **This file is V2.5, and it is COMPLETE. Its last item,
+> [STEER-05](#-steer-05--the-weeks-door--delivered-2026-08-28), is ☑ delivered —
+> it was finished here rather than moved, re-scoped or absorbed.**
+>
+> **New work now goes in [`ROADMAP_V2_6.md`](ROADMAP_V2_6.md)** — V2.6,
+> "Retrieval & capture velocity", which takes the theme this file deferred whole
+> as the presumptive V2.6 and confirms it against its competitor: Search answers
+> an empty query with recent records (FIND-01, the P2), tags gain one workspace
+> vocabulary (FIND-02), Tasks gain tags and one filter dimension (FIND-03), and
+> `#tag` joins the capture grammar (FIND-04). **STEER-05 was delivered before
+> FIND-01 starts**, which it now has been. Accepted as
+> [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable).
 >
 > The rules are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to build;
 > this tells you *what*. Status is updated in the PR that changes it. No time
@@ -24,10 +35,16 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 > in one PR — the surface decision and the owner capability that lands on it.
 > **STEER-03 and STEER-04 are ☑ delivered**, together, in one PR — the shared
 > Goal story and the action layer that lands on it. **STEER-05 is ☑ delivered** —
-> Today offers this week's Review. **The planned V2.5 product sequence is
-> complete**, and what V2.6 should be is a decision rather than a continuation:
-> the strongest candidate is recorded in [LATER](#later--real-evidenced-and-deliberately-not-v25)
-> and is deliberately not started here.
+> Today offers this week's Review. **The planned V2.5 product sequence is now
+> complete**, and
+> [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
+> is closed on the half that was still open.
+>
+> The V2.6 decision was taken while STEER-05 was still in review, and it
+> re-verified against `main` that the Today → Review door had not shipped — which
+> was true when it looked. It is true no longer, and the successor programme it
+> defined, [`ROADMAP_V2_6.md`](ROADMAP_V2_6.md), is where new work goes; its
+> FIND-01 was gated on this item and is now unblocked.
 
 ---
 
@@ -904,7 +921,7 @@ created.**
      reason.
   2. **Two `target-size` defects on Today were fixed, and neither was this
      item's** —
-     [DEBT-213](../product/PRODUCT_DEBT.md#-debt-213--todays-small-row-links-met-no-target-size-floor-on-a-fine-pointer--p2--raised-and-resolved-2026-08-28-v25-steer-05).
+     [DEBT-214](../product/PRODUCT_DEBT.md#-debt-214--todays-small-row-links-met-no-target-size-floor-on-a-fine-pointer--p2--raised-and-resolved-2026-08-28-v25-steer-05).
      WCAG 2.2 AA SC 2.5.8's 24×24 minimum is not conditional on the pointer, and
      two of Today's small row links met no pointer-agnostic floor: STEER-04's
      next-action link, floored only inside `@media (pointer: coarse)`
@@ -919,7 +936,7 @@ created.**
      item's own criterion 5 is an axe-clean Today and a red page cannot be
      scoped around.
 - **What it found on Today's page and deliberately did NOT fix.**
-  [DEBT-214](../product/PRODUCT_DEBT.md#-debt-214--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2):
+  [DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2):
   three assertions in `goals.spec.ts` and `areas.spec.ts` still address the Area
   record's Goals tab as the `role="article"` Card that STEER-03 replaced with the
   shared `GoalStoryRow`, and they fail on `main` for that reason (measured on a
@@ -974,11 +991,11 @@ decision with a named home.
 
 | Deferred | Evidence | Why not now |
 |---|---|---|
-| **Retrieval & capture velocity** — a canonical tag model, `#tag` + time in the capture grammar, Search's empty query offering recent records | [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3), [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3), [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2) (P2); DHDS-13 §13 capture *"Below"* | **The strongest competing theme and the presumptive V2.6.** One coherent programme around a kernel tag decision — V2.4's reason, still true. While DEBT-195 is open the product still does not claim an A on DHDS-13's scale, and this file says so rather than hiding it. |
+| **Retrieval & capture velocity** — a canonical tag model, `#tag` + time in the capture grammar, Search's empty query offering recent records | [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3), [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3), [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2) (P2); DHDS-13 §13 capture *"Below"* | **The strongest competing theme and the presumptive V2.6 — and it is now [V2.6](ROADMAP_V2_6.md), confirmed against its competitor rather than inherited.** One coherent programme around a kernel tag decision — V2.4's reason, still true. While DEBT-195 is open the product still does not claim an A on DHDS-13's scale, and this file says so rather than hiding it. |
 | **One Task anatomy** — Today/search/Project tab rendering Tasks as Cards | [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2) + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2) (both P2) | The two entries' own instruction is to close **together**, as one bounded convergence pass. V2.5's items do not require it — GATE-02 proved the semantics converge through the shared kernel functions — and STEER-04's card next-action row opens the canonical Drawer rather than widening the fork. Strongest non-theme candidate to ride beside V2.6. |
 | **A first-run / sparse-workspace experience** | DHDS-13 §13 (*"Below"*) | Unchanged from V2.4: a programme of its own, and this product is one owner's populated daily driver. |
 | **The offline slice** — habit check-in, template create, dependency edit, relationship/order changes | DEBT-155, DEBT-160, DEBT-161, DEBT-167, DEBT-170, DEBT-190 | One decision about what the offline contract covers, judged together. No new evidence since V2.4. |
-| **AI over the follow-through data** — daily planning proposals, the Review assistant's fact block | AI-03 ◐, [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3), DEBT-92, DEBT-93 | **Newly unblocked and still deferred.** V2.4 built the owner-verifiable data AI-03's precondition named; a live provider key remains owner-held and has never been exercised from this repository, and evidence, not novelty, schedules AI work. |
+| **AI over the follow-through data** — daily planning proposals, the Review assistant's fact block | AI-03 ◐, [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3), DEBT-92, DEBT-93 | **Newly unblocked and still deferred.** V2.4 built the owner-verifiable data AI-03's precondition named; a live provider key remains owner-held and has never been exercised from this repository, and evidence, not novelty, schedules AI work. **Deferred again by [V2.6](ROADMAP_V2_6.md#the-ai-decision-recorded-rather-than-postponed), which audited it as the working hypothesis and rejected it — not for unreadiness (the platform shipped 2026-08-05 and V2.5's own `loadGoalStories` is the fact block it needs) but because the blocker is a credential this repository has never held. The blocker, the gate and the sequence are named there.** |
 | **Stronger reporting / Analytics growth** | DEBT-103, DEBT-145, [DEBT-122](../product/PRODUCT_DEBT.md#-debt-122--expressivesummary-now-has-no-consumer--p3) | The owner's own word is *"later"*. V2.5 takes the reporting loop's two bounded gaps (the Review step's blind spots, the missing door) and leaves the rest — including the `ExpressiveSummary` / M3X-hierarchy decision, whose obvious consumer is a future reporting surface. |
 | **Project & template capabilities** — a Project description, template dates and repeats | [DEBT-137](../product/PRODUCT_DEBT.md#-debt-137--a-project-has-no-description-field-so-its-gallery-card-cannot-say-what-it-is--p2) (P2), [DEBT-165](../product/PRODUCT_DEBT.md#-debt-165--a-template-carries-no-dates-relative-or-otherwise--p2) (P2), DEBT-166, DEBT-168 | Real module capabilities, each with its own decision (a description slice; a closed offset vocabulary). Neither serves this theme, and taking P2s off-theme is how a programme becomes a grab-bag. |
 | **The E2E machinery** — stranded capacity, accumulated-state specs, timing races | [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2), DEBT-173, DEBT-203 (P2s) | Standing constraints every item works inside. Recovered or repaired only by a deliberate pass whose subject they are — machinery every job depends on is not edited as a side effect. |
@@ -1099,6 +1116,7 @@ themselves in [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md).
 
 ## Related documents
 
+- [`ROADMAP_V2_6.md`](ROADMAP_V2_6.md) — the successor programme, where new work goes once STEER-05 is delivered
 - [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md) — the predecessor programme this succeeds, and the owner-blocked gate that stays recorded there
 - [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question) — the decision this programme is built on
 - [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal) — the derived-never-stored rule every item inherits
