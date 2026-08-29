@@ -936,3 +936,9 @@ under new numbers is the duplication this register forbids.
 - [`UNIVERSAL_CAPTURE.md`](../development/UNIVERSAL_CAPTURE.md) — the capture contract FIND-04 works inside
 - [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — what is still owed
 - [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md) — the product handbook this theme is derived from
+- [`DALYHUB_POST_V2_6_PRODUCT_AUDIT_2026_08.md`](../product/DALYHUB_POST_V2_6_PRODUCT_AUDIT_2026_08.md) —
+  the post-V2.6 product audit (2026-08-29, taken after FIND-01 with
+  FIND-02/03/04 still ☐): the evidence base and proposed successor programme
+  (**RECALL**) for the roadmap decision that follows this file. It proposes;
+  the successor's own decision pass adopts, numbers its debt, and records its
+  ADR — nothing in it changes this programme's scope.
