@@ -2507,12 +2507,14 @@ that existed for exactly this purpose was incremented and never compared.
 > existing link still resolves — the same reasoning
 > [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) records for the duplicated
 > DEBT-45. Cite these two by title, not by number alone. The next free ADR number
-> is **ADR-104**. *(This line said **ADR-086** while the file already carried
+> is **ADR-115**. *(This line said **ADR-086** while the file already carried
 > headings up to ADR-099 — exactly the staleness the collision notes above warn
 > about, arriving in the authority line itself. Corrected 2026-08-17 by FINISH-01,
 > which took ADR-100 by reading the file rather than this sentence; advanced to
-> ADR-104 on 2026-08-18 by TASKS-13, which took ADR-103 the same way. Do the
-> same, and re-check on rebase.)*
+> ADR-104 on 2026-08-18 by TASKS-13, which took ADR-103 the same way; found stale
+> again at ADR-104 on 2026-08-30 by the V2.7 roadmap decision, which took ADR-114
+> by reading the file — the headings had reached ADR-113. Do the same, and
+> re-check on rebase.)*
 
 **Status.** Accepted (SET-03 / AUDIT-10). Builds on [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) (Cloudflare Access is the identity provider and DalyHub holds no session of its own), [ADR-015](#adr-015-markdown-rendering-and-sanitisation) (the sanitisation pipeline this policy sits behind), [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (one append-only Activity stream) and the AUDIT-FIX-04 mutation boundary. Findings: [AUDIT-10](../product/END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08) and the offline-data-after-logout finding ([DEBT-68](../product/PRODUCT_DEBT.md)).
 
@@ -5446,3 +5448,165 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   (rejected: decision 7). *Leaving an unknown `#tag` as literal words* (rejected:
   decision 7 — the grammar recognises it, so the ordinary-words rule does not
   apply).
+
+## ADR-114: RECALL — retrieval reaches content under an explicit-query boundary, one excerpt contract, one completion-time authority, and commitments that return without a reminder engine
+
+- **Status:** Accepted (2026-08-30, defining [V2.7](../roadmap/ROADMAP_V2_7.md))
+
+- **Context.** V2.6 completed on 2026-08-29: the empty query answers with
+  recent records, tags have one vocabulary, Tasks carry it, and `#tag` joined
+  the capture grammar. The 2026-08-29 post-V2.6 audit proposed **RECALL** as
+  the successor; this decision pass re-measured every finding against `main`
+  at `0d08cd6` (2026-08-30) rather than adopting the prose — and two material
+  facts had changed since the audit was written. First, **recoverability**: the
+  R2 backup tier was measured healthy (20/20 successful runs since
+  2026-08-13), migration `0049` was applied to production with a post-apply
+  backup taken, and a real production artefact was restored into a throwaway
+  remote D1 with matching row counts and a clean `PRAGMA foreign_key_check`
+  (DEBT-199 resolved; DEBT-198 re-scoped P1 → P2 to the off-Cloudflare copy
+  only) — so the audit's P0 no longer governs the programme choice. Second,
+  the audit's claim that Review snapshots are *"stored and unanswered"* is
+  **false on current `main`**: the previous snapshot is compared in four
+  places and feeds the cross-view change boundary; only multi-snapshot trend
+  reads are unused — which deflates the competing Insight programme.
+
+  What re-measurement **confirmed** is that retrieval is title-deep and the
+  remember-for-me contract fails in specific, evidenced places: Meetings,
+  Diary, Task descriptions and Review reflections hold their prose in columns
+  no search matches; no control anywhere answers "what did I complete
+  yesterday" and the Completed view's label promises an order its `updated`
+  sort does not deliver; `task_details.follow_up_on` is stored, edited and
+  exported with **zero query predicates** in the product; and a set of
+  measured path defects (a Diary link that opens raw JSON including the
+  private body, an unchunked `IN` that can exceed D1's 100-bind cap on a
+  60-row `/views` page, a 101-statement Meeting follow-up read, an unnamed
+  search control in the 768–1024 px band, an active-navigation rule that
+  understands only path nesting) undermine exactly the surfaces deeper
+  retrieval would send more traffic through.
+
+  Six candidates were weighed — RECALL, Insight, AI activation, Attachments,
+  Finance, Consolidation — and RECALL is the only one that is unblocked,
+  foundational, exercised many times a day, and makes three of the others
+  cheaper. AI remains gated on the owner-held provider key exactly as ADR-112
+  recorded (the gate is a tripwire, not a theme); Attachments and Finance
+  remain sequenced behind by their own prerequisites; Consolidation's genuine
+  content — five recorded red-gate E2E causes — is a bounded rider, not a
+  theme. Each decision below forecloses a wrong turn a retrieval programme
+  invites: body search invites a second index; excerpts invite per-module
+  shapes and accidental disclosure; completion time invites a second truth;
+  commitments invite a reminder engine; cross-surface facts invite a
+  composite score.
+
+- **Decision.**
+
+  1. **V2.7 is RECALL — content, time, commitment — in five items:**
+     RECALL-00 (trust the paths: seven measured defects, DEBT-222…228),
+     RECALL-01 (search reaches content), RECALL-02 (history answers by
+     completion time), RECALL-03 (commitments return when due), RECALL-04
+     (day/week facts use one truth). RECALL-00 precedes RECALL-01 because
+     deeper search must not route more traffic down paths measured untrue —
+     most sharply Diary, which must stop opening as raw JSON before its prose
+     becomes findable. RECALL-02 precedes RECALL-04, whose period reads
+     consume the completed-time window.
+
+  2. **Explicit query is the retrieval privacy boundary.** A record's *body*
+     may be matched and excerpted only in answer to a query the owner typed.
+     The line FIND-01 drew is generalised, not moved: solicitation, not
+     existence, is the boundary. Concretely — Diary bodies become matchable
+     under an explicit query (Diary entries are already returned for title
+     matches; what changes is match depth, not exposure class), while Diary
+     stays excluded from the empty-query recent list with its standing
+     surface line; People free-text notes stay unmatched (structured fields
+     only); no unsolicited surface (recency, previews, suggestions) may adopt
+     content matching without its own recorded decision; and AI evidence
+     retrieval is **unchanged** — body-search excerpts are a Search-surface
+     artefact, structurally distinct from AI evidence, and ADR-073's
+     People/Diary exclusion stands untouched. Privacy rules are proven
+     against workspaces that *contain* the protected content, with synthetic
+     distinctive fixtures, and no diagnostic, log or test failure may print a
+     record body.
+
+  3. **One excerpt contract, owned by the repository projection.** The Notes
+     mechanism is promoted from a module convention to the product rule: the
+     excerpt is cut **in SQL** (`substr` around `instr`) so a matching body
+     ships a bounded window and never the record; syntax is stripped by one
+     shared helper; the result renders in the existing
+     `SearchResultItem.subtitle` as `match source · [state] · excerpt`,
+     bounded by the existing display limits; highlighting stays
+     presentation-side over plain text; when several fields match, one result
+     carries the best source by fixed precedence (title > metadata > body).
+     No second result shape, no per-module excerpt grammar, no provider HTML,
+     and no excerpt that could carry an entire body.
+
+  4. **Completion time has one authority: `spine_records.completed_at`.** It
+     already carries the product's completion semantics — a recurring
+     occurrence keeps its own completion while its successor is a new record,
+     and reopen clears it while withdrawing an untouched successor — so it is
+     the honest answer to "what did I complete", and the Activity
+     `task.completed` event remains the audit trail, never a query authority
+     (it survives reopen and would double-count). Completed-time retrieval —
+     the sort, the window filter, the system view's order, Analytics' links —
+     reads this one field; nothing stores a second completion time; windows
+     ("yesterday", "this week") resolve against the owner's timezone and
+     week-start through the one scope-level calendar authority.
+
+  5. **An explicitly recorded commitment surfaces through existing channels,
+     and no reminder engine is built.** `followUpOn` becomes readable as one
+     filter dimension in the one declarative vocabulary, one fact on Today's
+     existing attention row, and one line in the existing daily digest — and
+     nothing else. No new Task status, no per-event nagging, and **no new
+     notification kind in this programme**: the meeting lead notice was
+     evaluated and refused for now, because the digest already states the
+     day's schedule with times, Today surfaces the next meeting all day, both
+     existing kinds are day-granularity where a lead notice is
+     minute-granularity, and external calendars carry their own alerts — a
+     duplicate-noise risk with no calm mitigation. The refusal is recorded
+     with its reversal condition: owner-stated need, weighed against the same
+     evidence, in its own decision.
+
+  6. **A cross-surface fact states its question and its bound.** No label may
+     span two predicates: surfaces answering the measurement question agree
+     on one predicate sourced from the shared Goal vocabulary; alignment
+     wears alignment words ("Recently active"/"Moving"), never the
+     measurement label; every bounded population discloses its bound the way
+     Analytics already does; and absence is reported as absence — a missing
+     health reading is "unavailable", never a default `on_track` written into
+     a snapshot. Parity between surfaces is asserted by reading the same
+     machine value from each. ADR-111's decisions 6 and 7 are preserved
+     whole: this is naming and sourcing, and no composite score, rank, grade
+     or merged "health" exists anywhere in it.
+
+- **Consequences.** Search's per-provider cost model changes shape but not
+  class: each provider remains one bounded, workspace-scoped statement, now
+  scanning body columns after the existing workspace+type index narrows the
+  candidate set — the stated `LIKE` trade-off at single-owner scale, with the
+  shared 50-byte pattern bound and ASCII case rule. The programme requires
+  **no data-carrying migration** (one optional schema-only index for the
+  completed sort, decided by measurement), so it does not wait on the
+  off-Cloudflare backup residue (DEBT-198, P2, owner-held), and programme
+  completion remains distinct from production deployment. RECALL's outputs
+  feed later programmes without adopting them: deeper deterministic
+  projections are DEBT-93's input when AI activates; the completed-time
+  vocabulary is Insight's input; nothing here builds toward embeddings.
+
+- **Alternatives considered.** *FTS5 or an external search service*
+  (rejected: a second, derived representation of canonical Markdown —
+  ADR-015's reasoning, ADR-054 §7's deferral, ADR-112's non-goal — revisited
+  only on measured single-owner pain). *Embeddings / semantic search*
+  (rejected: ADR-073 decision 20 stands). *A `/diary/:id` record page*
+  (rejected: the day surface with the inspector is Diary's canonical record
+  surface; a second one forks it — the destination map routes to it
+  instead). *Keeping Diary bodies unmatchable* (rejected: it keeps the
+  product's most personal writing write-only, while title matches already
+  return the entries — the boundary that matters is solicitation, decision
+  2). *An Activity-derived completion time* (rejected: `task.completed`
+  survives reopen; counting from it double-counts — decision 4). *A stored
+  completed-window table or snapshot* (rejected: ADR-110's
+  derived-never-stored posture; the field already exists). *A meeting lead
+  notice as a third notification kind* (refused for now with a recorded
+  reversal condition — decision 5). *Raising `/views`' 60-row page or adding
+  offset paging* (rejected: the repair is bind safety plus an honest bound;
+  a keyset cursor remains available to a later pass without changing the
+  contract). *Folding the five red-gate E2E entries into RECALL-00*
+  (rejected: other items' surfaces, owned by the truth-restoration rider —
+  the inclusion rule RECALL-00 itself states).

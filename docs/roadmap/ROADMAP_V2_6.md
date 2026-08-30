@@ -14,8 +14,20 @@
 > statement below that it is unfinished is preserved as the record of what was
 > true when the decision was taken; the prerequisite is met.
 >
-> **This file is V2.6, and it is where new work goes** — *after* STEER-05, which
-> was not moved here, not re-scoped and not absorbed. V2.5 finished in V2.5.
+> **This file is V2.6, and it is COMPLETE (2026-08-29)** — all four FIND items
+> ☑ delivered, every taken entry closed. It was where new work went *after*
+> STEER-05, which was not moved here, not re-scoped and not absorbed. V2.5
+> finished in V2.5.
+>
+> **New work now goes in [`ROADMAP_V2_7.md`](ROADMAP_V2_7.md)** — V2.7,
+> "RECALL — the whole record answers": the found-defects sweep (RECALL-00),
+> search that reaches content (RECALL-01), history retrievable by completion
+> time (RECALL-02), commitments that return when due (RECALL-03), and day/week
+> facts with one truth (RECALL-04). Its decision pass re-measured the
+> 2026-08-29 post-V2.6 audit against `main` at `0d08cd6` — including the
+> 2026-08-30 recoverability corrections (R2 tier healthy, `0049` applied to
+> production, restore proven; DEBT-199 ☑, DEBT-198 → P2) — and is accepted as
+> [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine).
 >
 > The rules are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to
 > build; this tells you *what*. Status is updated in the PR that changes it. No
