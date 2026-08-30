@@ -190,6 +190,29 @@ export interface MeetingSearchHit {
 }
 
 /**
+ * RECALL-01 — WHERE a Meeting search hit matched, in the product's fixed
+ * precedence: `title` > `location` (structured metadata) > the three body
+ * sources, themselves ordered as the record reads them — `agenda`, then
+ * `notes`, then a captured `item`.
+ */
+export type MeetingMatchSource =
+  "title" | "location" | "agenda" | "notes" | "item";
+
+/**
+ * A Meeting search hit: the four facts every Meeting result has always carried,
+ * plus the honest match source and the bounded, syntax-free excerpt the
+ * repository cut around a body match (empty for a title or location hit).
+ *
+ * A Meeting appears ONCE however many of its body sources match — the captured
+ * items are admitted by an `EXISTS` semi-join, never a row-multiplying join.
+ */
+export interface MeetingSearchResult extends MeetingSearchHit {
+  readonly matchSource: MeetingMatchSource;
+  readonly itemKind: MeetingItemKind | null;
+  readonly excerpt: string;
+}
+
+/**
  * MEET-02 — one durable source-item → Task mapping row. `itemId` is the stable
  * `MeetingItem.id` that produced the Task, or `null` for a direct meeting follow-up
  * (source is the Meeting itself). This is the smallest seam that records WHICH item

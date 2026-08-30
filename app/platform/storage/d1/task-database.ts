@@ -163,6 +163,23 @@ export const TASK_DETAIL_COLUMNS = `
   ${entityTagsProjection("e", "id")} AS tags`;
 
 /**
+ * RECALL-01 — the same columns for the SEARCH projection, with the Task's
+ * DESCRIPTION dropped.
+ *
+ * A search row never renders a description: `#toTaskListItem` builds a
+ * `TaskListItem`, which has no such field. Selecting it anyway meant a Task with
+ * a 100 KiB description shipped all 100 KiB from D1 into the Worker on every
+ * search that matched it, only to be discarded — which is exactly what the
+ * excerpt contract exists to prevent. The bounded excerpt window is projected
+ * separately (`search-excerpt.ts`); this is the only read that needs the column
+ * gone, so the shared list columns are left alone.
+ */
+export const TASK_SEARCH_DETAIL_COLUMNS = TASK_DETAIL_COLUMNS.replace(
+  "td.description AS description,",
+  "NULL AS description,",
+);
+
+/**
  * The `task_recurrence_rules` join every task read uses. Declared HERE, next to the
  * aliased columns it feeds, so a query can never select the recurrence columns
  * without the join that supplies them.

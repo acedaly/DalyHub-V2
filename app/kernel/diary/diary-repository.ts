@@ -65,12 +65,28 @@ export type DiaryTimelinePage = {
   readonly hasMore: boolean;
 };
 
+/**
+ * RECALL-01 — WHERE a Diary search hit matched: the entry's `title`, or its
+ * `body` prose. Body matching happens ONLY in answer to a non-empty query the
+ * owner typed (ADR-114 decision 2 — solicitation, not existence, is the
+ * boundary); Diary remains excluded from the empty-query recent list, which
+ * carries no subtitle, preview or excerpt of any kind.
+ */
+export type DiaryMatchSource = "title" | "body";
+
 export type DiarySearchHit = {
   readonly id: string;
   readonly title: string;
   readonly entryType: string;
   readonly occurredAt: Date;
   readonly timezone: string;
+  /** Where this hit matched. */
+  readonly matchSource: DiaryMatchSource;
+  /**
+   * A bounded, syntax-free window around a BODY match — never the entry. Empty
+   * for a title match, so a title search never returns body prose at all.
+   */
+  readonly excerpt: string;
 };
 
 export interface DiaryRepository {

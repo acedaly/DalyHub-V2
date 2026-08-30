@@ -25,6 +25,7 @@ import type {
   SearchResultItem,
 } from "~/kernel/modules";
 import type { NoteSearchHit } from "~/kernel/notes";
+import { searchSubtitle } from "~/shared/search/subtitle";
 
 /** The user-facing name for where a hit matched. Never a raw enum value. */
 function matchLabel(hit: NoteSearchHit): string {
@@ -44,13 +45,17 @@ function matchLabel(hit: NoteSearchHit): string {
  * The result subtitle: where it matched, the archive state when it is archived
  * (so an archived Note is never silently indistinguishable from an active one),
  * and the excerpt.
+ *
+ * RECALL-01 moved the composition itself into the shared
+ * `match source · state · excerpt` grammar every body-searching provider now
+ * uses — the sentence is unchanged, it is simply no longer Notes-only.
  */
 function subtitle(hit: NoteSearchHit): string | undefined {
-  const parts = [matchLabel(hit)];
-  if (hit.archivedAt) parts.push("Archived");
-  if (hit.excerpt) parts.push(hit.excerpt);
-  const text = parts.join(" · ");
-  return text === "" ? undefined : text;
+  return searchSubtitle([
+    matchLabel(hit),
+    hit.archivedAt ? "Archived" : null,
+    hit.excerpt,
+  ]);
 }
 
 const searchNotes: SearchExecutor = async (query, context) => {

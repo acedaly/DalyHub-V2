@@ -40,7 +40,9 @@ import {
   type MeetingItemKind,
   type MeetingPage,
   type MeetingRepository,
+  type MeetingMatchSource,
   type MeetingSearchHit,
+  type MeetingSearchResult,
   type MeetingSort,
   type MeetingView,
   type UpdateMeetingInput,
@@ -55,6 +57,42 @@ import {
   type AtomicMutationResult,
 } from "./d1-atomic-mutation";
 import { likeContains } from "./like-pattern";
+import {
+  readSearchExcerptRow,
+  searchExcerpt,
+  searchExcerptColumns,
+  searchExcerptMatched,
+  searchExcerptSubquery,
+} from "./search-excerpt";
+
+/**
+ * RECALL-01 — one search row: the four facts a Meeting result has always
+ * carried, plus the shared excerpt triple for each of the three body sources
+ * and the kind of the captured item that matched.
+ */
+interface MeetingSearchRow {
+  readonly id: string;
+  readonly title: string;
+  readonly location: string | null;
+  readonly starts_at: string;
+  readonly agenda_hit: number | null;
+  readonly agenda_window: string | null;
+  readonly agenda_window_start: number | null;
+  readonly notes_hit: number | null;
+  readonly notes_window: string | null;
+  readonly notes_window_start: number | null;
+  readonly item_hit: number | null;
+  readonly item_window: string | null;
+  readonly item_window_start: number | null;
+  readonly item_kind: string | null;
+}
+
+/** A stored item kind, validated against the kernel vocabulary — never trusted. */
+function parseMeetingItemKind(value: string | null): MeetingItemKind | null {
+  return value !== null && meetingItemKinds.has(value)
+    ? (value as MeetingItemKind)
+    : null;
+}
 
 interface Row {
   id: string;
@@ -455,15 +493,58 @@ export class D1MeetingRepository implements MeetingRepository {
           : null,
     };
   }
+  /**
+   * RECALL-01 — a Meeting is found by its TITLE, its LOCATION, and now by its
+   * own prose: the agenda, the notes, and the body of any captured
+   * agenda/decision/outcome item.
+   *
+   * All of it lives in ONE workspace-scoped statement. The three body sources
+   * contribute an excerpt projection each (the shared `substr`-around-`instr`
+   * contract), so a meeting whose notes run to a megabyte still ships a few
+   * hundred bytes. The captured items are admitted by an `EXISTS` **semi-join**
+   * and excerpted by bounded correlated sub-queries: a meeting with ten matching
+   * items appears exactly ONCE, and no second statement fetches item bodies
+   * after the record query.
+   *
+   * Match source follows the product's fixed precedence — title > metadata >
+   * body — and, within the body, the order the record itself reads: agenda,
+   * then notes, then the first captured item in `(kind, position, id)` order.
+   * That last order is total, so the chosen excerpt is deterministic.
+   */
   async searchMeetings(input: {
     readonly text: string;
     readonly limit?: number;
-  }): Promise<readonly MeetingSearchHit[]> {
+  }): Promise<readonly MeetingSearchResult[]> {
     const text = input.text.trim().toLowerCase();
     if (text.length === 0) return [];
     const limit = Math.max(1, Math.min(input.limit ?? 20, 50));
     const like = likeContains(text);
     const now = toStorageTimestamp(this.#clock());
+    const agendaExcerpt = searchExcerptColumns(
+      "coalesce(d.agenda_markdown, '')",
+      "agenda",
+    );
+    const notesExcerpt = searchExcerptColumns(
+      "coalesce(d.notes_markdown, '')",
+      "notes",
+    );
+    // The correlated item lookup. `ITEM_MATCH` is the same predicate the EXISTS
+    // semi-join uses, so the excerpt always describes an item that really did
+    // match; `ITEM_ORDER` is total, so which one is deterministic.
+    const ITEM_FROM = "meeting_items mi";
+    const ITEM_MATCH = `mi.workspace_id = e.workspace_id
+                 AND mi.meeting_id = e.id
+                 AND lower(mi.body_markdown) LIKE ? ESCAPE '\\'`;
+    const ITEM_ORDER = "mi.kind ASC, mi.position ASC, mi.id ASC";
+    const itemExcerpt = searchExcerptSubquery({
+      alias: "item",
+      column: "mi.body_markdown",
+      from: ITEM_FROM,
+      where: ITEM_MATCH,
+      order: ITEM_ORDER,
+    });
+    const itemKind = `(SELECT mi.kind FROM ${ITEM_FROM}
+             WHERE ${ITEM_MATCH} ORDER BY ${ITEM_ORDER} LIMIT 1) AS item_kind`;
     // One query over the whole non-archived collection — no per-view time
     // window, so upcoming and recent meetings are both findable and no window
     // overlap can duplicate a hit. Ordering: upcoming soonest-first, then past
@@ -472,43 +553,106 @@ export class D1MeetingRepository implements MeetingRepository {
     const rows = (
       await this.#db
         .prepare(
-          `SELECT e.id, e.title, d.location, d.starts_at
+          `SELECT e.id, e.title, d.location, d.starts_at,
+                  ${agendaExcerpt},
+                  ${notesExcerpt},
+                  ${itemExcerpt},
+                  ${itemKind}
            FROM entities e
            JOIN meeting_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
            WHERE e.workspace_id = ? AND e.type = ? AND e.deleted_at IS NULL
              AND d.archived_at IS NULL
              AND (lower(e.title) LIKE ? ESCAPE '\\'
-                  OR lower(coalesce(d.location,'')) LIKE ? ESCAPE '\\')
+                  OR lower(coalesce(d.location,'')) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(d.agenda_markdown,'')) LIKE ? ESCAPE '\\'
+                  OR lower(coalesce(d.notes_markdown,'')) LIKE ? ESCAPE '\\'
+                  OR EXISTS (SELECT 1 FROM ${ITEM_FROM} WHERE ${ITEM_MATCH}))
            ORDER BY CASE WHEN d.starts_at >= ? THEN 0 ELSE 1 END,
                     CASE WHEN d.starts_at >= ? THEN d.starts_at ELSE '' END ASC,
                     CASE WHEN d.starts_at < ? THEN d.starts_at ELSE '' END DESC,
                     e.id ASC
            LIMIT ?`,
         )
+        /*
+         * Placeholders bind POSITIONALLY, in the order they appear in the
+         * statement text: the three excerpt triples (each `needle, needle,
+         * needle`), the item triple and its kind probe (each `needle, like`),
+         * then the WHERE clause, the ORDER BY clock, and the LIMIT.
+         */
         .bind(
+          text, // agenda_hit
+          text, // agenda_window
+          text, // agenda_window_start
+          text, // notes_hit
+          text, // notes_window
+          text, // notes_window_start
+          text, // item_hit
+          like, // item_hit predicate
+          text, // item_window
+          like, // item_window predicate
+          text, // item_window_start
+          like, // item_window_start predicate
+          like, // item_kind predicate
           this.#workspaceId,
           MEETING_ENTITY_TYPE,
-          like,
-          like,
+          like, // title
+          like, // location
+          like, // agenda
+          like, // notes
+          like, // captured items EXISTS
           now,
           now,
           now,
           limit,
         )
-        .all<{
-          id: string;
-          title: string;
-          location: string | null;
-          starts_at: string;
-        }>()
+        .all<MeetingSearchRow>()
     ).results;
-    return rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      location: row.location,
-      startsAt: fromStorageTimestamp(row.starts_at),
-    }));
+    return rows.map((row) => {
+      const agenda = readSearchExcerptRow(
+        row as unknown as Record<string, unknown>,
+        "agenda",
+      );
+      const notes = readSearchExcerptRow(
+        row as unknown as Record<string, unknown>,
+        "notes",
+      );
+      const item = readSearchExcerptRow(
+        row as unknown as Record<string, unknown>,
+        "item",
+      );
+      const titleMatched = row.title.toLowerCase().includes(text);
+      const locationMatched = (row.location ?? "").toLowerCase().includes(text);
+      const matchSource: MeetingMatchSource = titleMatched
+        ? "title"
+        : locationMatched
+          ? "location"
+          : searchExcerptMatched(agenda)
+            ? "agenda"
+            : searchExcerptMatched(notes)
+              ? "notes"
+              : searchExcerptMatched(item)
+                ? "item"
+                : "title";
+      const excerptRow =
+        matchSource === "agenda"
+          ? agenda
+          : matchSource === "notes"
+            ? notes
+            : matchSource === "item"
+              ? item
+              : null;
+      return {
+        id: row.id,
+        title: row.title,
+        location: row.location,
+        startsAt: fromStorageTimestamp(row.starts_at),
+        matchSource,
+        itemKind:
+          matchSource === "item" ? parseMeetingItemKind(row.item_kind) : null,
+        excerpt: excerptRow ? searchExcerpt(excerptRow, text) : "",
+      };
+    });
   }
   async listStartingBetween(input: {
     readonly from: Date;

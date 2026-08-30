@@ -175,6 +175,7 @@ import {
   type TaskRelation,
   type TaskRelationKind,
   type TaskRepository,
+  type TaskMatchSource,
   type TaskSearchHit,
   type TaskStatus,
   type TaskView,
@@ -204,6 +205,12 @@ import {
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import { likeContains, likePrefix } from "./like-pattern";
 import {
+  readSearchExcerptRow,
+  searchExcerpt,
+  searchExcerptColumns,
+  searchExcerptMatched,
+} from "./search-excerpt";
+import {
   buildEntityUpdatedAtBumpStatement,
   buildSpineChildEntityInsertStatement,
   buildSpineChildLinkInsertStatement,
@@ -219,6 +226,7 @@ import {
   TASK_CHECKLIST_COLUMNS,
   TASK_CHECKLIST_ORDER,
   TASK_DETAIL_COLUMNS,
+  TASK_SEARCH_DETAIL_COLUMNS,
   TASK_RECURRENCE_JOIN,
   WAITING_TARGET_COLUMNS,
   type TaskChecklistItemRow,
@@ -433,6 +441,18 @@ type TaskListRow = TaskJoinedRow & {
   readonly parent_title: string | null;
 } & Partial<TaskParentIdentityColumns> &
   Partial<WaitingTargetColumns>;
+
+/**
+ * RECALL-01 — a task-list row plus the shared excerpt triple over
+ * `task_details.description` and the checklist-hit probe, so the match source
+ * can be resolved without a second read.
+ */
+type TaskSearchRow = TaskListRow & {
+  readonly description_hit: number | null;
+  readonly description_window: string | null;
+  readonly description_window_start: number | null;
+  readonly checklist_hit: number;
+};
 
 /** DEBT-144 — the parent identity columns, present on every task-LIST read. */
 type TaskParentIdentityColumns = {
@@ -1901,6 +1921,21 @@ export class D1TaskRepository implements TaskRepository {
     return { items };
   }
 
+  /**
+   * RECALL-01 — a Task is found by its TITLE, by its checklist-item text, and by
+   * its DESCRIPTION, in ONE bounded, workspace-scoped statement.
+   *
+   * The description is the body source this projection gained: before RECALL-01
+   * `task_details.description` was unmatched, so a Task remembered only by what
+   * was written inside it was unfindable. It joins the same statement — no
+   * second read, no "search ids then load bodies" — and the excerpt around the
+   * hit is cut in SQL by the shared excerpt contract, so a 1 MiB description
+   * ships a few hundred bytes.
+   *
+   * Match source follows the product's fixed precedence — title > metadata >
+   * body — so a Task that matches in several places still returns ONCE, labelled
+   * by the strongest reason it is here.
+   */
   async searchTasks(
     input: SearchTasksInput,
   ): Promise<readonly TaskSearchHit[]> {
@@ -1908,15 +1943,26 @@ export class D1TaskRepository implements TaskRepository {
     if (text.length === 0) return [];
     const limit = validateTaskLimit(input.limit);
     const like = likeContains(text);
+    const descriptionExcerpt = searchExcerptColumns(
+      "coalesce(td.description, '')",
+      "description",
+    );
     const statement = this.#db
       .prepare(
         `WITH ${TASK_PARENT_IDENTITY_CTE}
-         SELECT ${TASK_DETAIL_COLUMNS},
+         SELECT ${TASK_SEARCH_DETAIL_COLUMNS},
                 ${WAITING_TARGET_COLUMNS},
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
                 pe.title AS parent_title,
-                ${TASK_PARENT_IDENTITY_COLUMNS}
+                ${TASK_PARENT_IDENTITY_COLUMNS},
+                ${descriptionExcerpt},
+                EXISTS (
+                  SELECT 1 FROM task_checklist_items ci
+                  WHERE ci.workspace_id = e.workspace_id
+                    AND ci.task_id = e.id
+                    AND lower(ci.title) LIKE ? ESCAPE '\\'
+                ) AS checklist_hit
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -1949,6 +1995,12 @@ export class D1TaskRepository implements TaskRepository {
                         AND ci.task_id = e.id
                         AND lower(ci.title) LIKE ? ESCAPE '\\'
                     )
+                 /*
+                  * RECALL-01 — the Task's own DESCRIPTION. Ranked below every
+                  * title match by the CASE below, exactly as the checklist is,
+                  * and excerpted by the shared contract rather than read whole.
+                  */
+                 OR lower(coalesce(td.description, '')) LIKE ? ESCAPE '\\'
                )
          ORDER BY CASE
                     WHEN lower(e.title) = ? THEN 0
@@ -1961,20 +2013,52 @@ export class D1TaskRepository implements TaskRepository {
                   e.id ASC
          LIMIT ?`,
       )
+      /*
+       * Placeholders bind POSITIONALLY, in the order they appear in the
+       * statement text: the parent-identity CTE, the SELECT list (the shared
+       * description excerpt triple, then the checklist-hit probe), the WHERE
+       * clause, the ranking CASE, and the LIMIT. This array mirrors that order
+       * exactly.
+       */
       .bind(
         this.#workspaceId,
+        text, // description_hit
+        text, // description_window
+        text, // description_window_start
+        like, // checklist_hit probe
         this.#workspaceId,
-        like,
-        like,
-        text,
-        likePrefix(text),
-        like,
+        like, // title
+        like, // checklist EXISTS
+        like, // description
+        text, // rank: exact title
+        likePrefix(text), // rank: title prefix
+        like, // rank: title contains
         limit,
       );
 
     const result = await this.#run(statement);
-    const rows = (result.results ?? []) as TaskListRow[];
-    return rows.map((row) => this.#toTaskListItem(row));
+    const rows = (result.results ?? []) as TaskSearchRow[];
+    return rows.map((row) => {
+      const excerptRow = readSearchExcerptRow(
+        row as unknown as Record<string, unknown>,
+        "description",
+      );
+      const titleMatched = row.title.toLocaleLowerCase().includes(text);
+      // Fixed precedence: title > metadata (checklist) > body (description).
+      const matchSource: TaskMatchSource = titleMatched
+        ? "title"
+        : row.checklist_hit === 1
+          ? "checklist"
+          : searchExcerptMatched(excerptRow)
+            ? "description"
+            : "title";
+      return {
+        ...this.#toTaskListItem(row),
+        matchSource,
+        excerpt:
+          matchSource === "description" ? searchExcerpt(excerptRow, text) : "",
+      };
+    });
   }
 
   /**

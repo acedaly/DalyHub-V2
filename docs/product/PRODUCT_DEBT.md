@@ -1572,6 +1572,27 @@ authority now.)
   [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable)
   decision 1 turns on. **Embeddings remain refused** (ADR-073 §20), and FIND-01's
   recency source is explicitly *not* a step toward one.
+- **V2.7 disposition — DEFERRED, and ADVANCED again without being taken.**
+  [RECALL-01](../roadmap/ROADMAP_V2_7.md#-recall-01--search-reaches-content--delivered-2026-08-30)
+  made the search projections this service composes reach a record's CONTENT:
+  Meeting agenda/notes/captured items, Task descriptions and Review reflections
+  now match, each with a bounded SQL-cut excerpt. `evidence-retrieval.ts`
+  composes `notes.search`, `tasks.searchTasks` and `meetings.searchMeetings`, so
+  the DETERMINISTIC grounding available to any later AI programme is deeper for
+  free — the same one-way dependency
+  [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable)
+  decision 1 turns on, restated by
+  [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine).
+  Three things did NOT change, deliberately: the retrieval service's own code
+  (it builds each candidate's text from NAMED fields, so the new
+  `matchSource`/`excerpt` are simply not read); the privacy filter (Diary is not
+  composed at all, and ADR-073's People/Diary exclusion stands untouched — a
+  body-search excerpt is a Search-surface artefact, never an AI input); and the
+  answer to this entry's actual question. **Embeddings remain refused**
+  (ADR-073 §20). A question phrased entirely differently from the records it is
+  about still retrieves nothing, and deeper keyword reach does not close that —
+  which is precisely why this entry stays open rather than being marked
+  progressed into resolution.
 - **Related roadmap item.** [AI-01](../roadmap/ROADMAP_V2_1.md#-ai-01--proposal-architecture--review-ui--delivered-2026-08-05); [SHARED_SEARCH.md](../development/SHARED_SEARCH.md) is the retrieval this composes.
 
 ### ☑ DEBT-94 — AI preferences are the one kind of owner configuration the export snapshot omits — P3 — **RESOLVED 2026-08-25**
@@ -4518,13 +4539,21 @@ causes are claims to check.
 - **Related roadmap item.** [V2.7 RECALL-00-G](../roadmap/ROADMAP_V2_7.md#-recall-00--trust-the-paths).
 - **Resolution (2026-08-30, RECALL-00-G).** `ReviewsCollection.tsx` gates the Start/Continue affordance on `review.type === "weekly"` — the same predicate the record page's guided entry already uses — so the control exists only where the guide does; non-weekly rows keep their ordinary open-record affordance (the card itself), and no monthly/quarterly guide was built: when one ships, its button returns with it. E2E `reviews.spec.ts` ("RECALL-00-G") creates a weekly and a monthly Review through the product's own form and asserts, at desktop AND 393px, that the weekly card offers "Start Weekly review…" while the monthly card offers no Start/Continue and stays openable, axe-clean; falsified by removing the type predicate.
 
-### ☐ DEBT-229 — Global Search matches titles and metadata, never content: Meeting prose, Diary bodies, Task descriptions and Review reflections are unfindable — P2
+### ☑ DEBT-229 — Global Search matches titles and metadata, never content: Meeting prose, Diary bodies, Task descriptions and Review reflections are unfindable — P2 — **RESOLVED 2026-08-30**
 
 - **Current issue.** Measured per provider on `0d08cd6`: Meetings match `e.title` + `d.location` only ([`d1-meeting-repository.ts:481-482`](../../app/platform/storage/d1/d1-meeting-repository.ts)) while `meeting_details.agenda_markdown`, `notes_markdown` and `meeting_agenda_items.body_markdown` go unmatched; Diary matches `e.title` only (`d1-diary-repository.ts:345`) while `diary_entries.body` goes unmatched; Tasks match title + checklist-item titles (`d1-task-repository.ts:1741,1755`) while `task_details.description` goes unmatched; Reviews match `e.title` only (`d1-review-repository.ts:398`) while section `body_markdown` goes unmatched. Notes remain the one body-searching provider, with the match-source + SQL-cut excerpt mechanism (`d1-note-repository.ts:370-414`, [`notes/search.ts`](../../app/modules/notes/search.ts)).
 - **Impact.** The first principle — retrieval must be certain — fails for the highest-value prose in the product: what was said in a meeting, written in the Diary, described on a Task, reflected in a Review. The owner must remember which record's title holds a fact.
 - **Desired future state.** RECALL-01: those columns match under the one excerpt contract (repository-cut, syntax-stripped, subtitle-rendered, bounded), Diary behind the explicit-query boundary ADR-114 decision 2 records, People free-text notes deliberately still unmatched, `LIKE` retained within the bounded-provider model — no FTS, no embeddings, no second index.
 - **Closing condition.** RECALL-01's acceptance criteria: a distinctive phrase existing only in each body source finds its record end to end with an honest excerpt; hostile-workspace isolation per provider; Diary body matches only under an explicit query; one-statement proofs per provider.
-- **Related roadmap item.** [V2.7 RECALL-01](../roadmap/ROADMAP_V2_7.md#-recall-01--search-reaches-content).
+- **RESOLVED 2026-08-30 by [V2.7 RECALL-01](../roadmap/ROADMAP_V2_7.md#-recall-01--search-reaches-content--delivered-2026-08-30).** Every closing condition is met, and the shape of the fix is the part worth recording.
+  - **Six body sources now match**, each inside its provider's EXISTING single statement: `meeting_details.agenda_markdown`, `meeting_details.notes_markdown`, `meeting_items.body_markdown` (an `EXISTS` semi-join plus bounded correlated `LIMIT 1` windows, so a meeting with ten matching items returns once), `task_details.description`, `review_sections.body_markdown`, and `diary_entry_details.body` under a non-empty explicit query. Reviews additionally REPLACED a `list` call that read every result's sections in a second statement — a search row never needed them.
+  - **The excerpt mechanism became a module, not a fifth copy.** [`search-excerpt.ts`](../../app/platform/storage/d1/search-excerpt.ts) owns the SQL window (`substr` around `instr`, 400 chars) and the mid-line repair; [`subtitle.ts`](../../app/shared/search/subtitle.ts) owns the one `match source · state · excerpt` line, bounded by the existing `MAX_SUBTITLE_LENGTH`. **The Notes repository was converted to consume both**, which is what stops the reference implementation quietly becoming a fork. No new `SearchResultItem` shape, no per-module excerpt component, no provider HTML.
+  - **The privacy rules are tests.** A phrase living only in a Person's `notes` finds nobody while their name still finds them; a Diary entry whose BODY matches is absent from the empty-query recent list and present the moment the owner types the phrase — both asserted at the repository AND through the real surface. `evidence-retrieval.ts` needed no change and got none, so no Diary excerpt can reach an AI input (ADR-073 untouched).
+  - **One in-flight finding, fixed rather than filed.** `searchTasks` already selected `td.description` through the shared `TASK_DETAIL_COLUMNS`, for a `TaskListItem` that has no description field — so a Task with a 100 KiB description shipped all 100 KiB from D1 into the Worker on every matching search, only to be discarded. `TASK_SEARCH_DETAIL_COLUMNS` drops it from that ONE read (the shared list columns are untouched), and a boundary test now watches what the database actually returns: restoring the column reddens it with `expected 110038 to be less than 1000`. Not new debt and not scope creep — it is the same claim this entry closes on, measured where it is actually true.
+  - **The cost did not change class.** Counting-DB proofs pin ONE statement per provider, identical for one match and fifty — including a Meeting matching in all three body sources with ten matching captured items. A **100 KiB body** returns a ≤200-character syntax-free excerpt in a serialised payload under 4 KB, over 25× smaller than the body — measured as lengths and booleans, so no failure message can print a record. `LIKE` is retained: no FTS, no embeddings, no second index (ADR-114, ADR-054 §7).
+  - **FALSIFIED**, per the roadmap item: removing a body predicate reddens that source's test; turning the captured-items `EXISTS` into a join breaks the ten-item single-result assertion; cutting the excerpt in JavaScript breaks the payload measurement; removing a workspace predicate breaks isolation; dropping `diary` from `RECENCY_EXCLUDED_TYPES` breaks the empty-query boundary while the explicit query still passes.
+  - **Recorded where an implementer reads it**: [`SHARED_SEARCH.md`](../development/SHARED_SEARCH.md) gained "The excerpt contract (RECALL-01)" — generation, normalisation, rendering, match-source precedence, the privacy boundary and the per-provider cost — and its provider matrix now describes the shipped truth.
+- **Related roadmap item.** [V2.7 RECALL-01](../roadmap/ROADMAP_V2_7.md#-recall-01--search-reaches-content--delivered-2026-08-30).
 
 ### ☐ DEBT-230 — Completed work cannot be retrieved by completion time, and the Completed view's label promises an order its sort does not deliver — P2
 

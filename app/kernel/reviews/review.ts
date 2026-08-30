@@ -58,6 +58,37 @@ export interface Review {
 }
 
 /**
+ * RECALL-01 — WHERE a Review search hit matched: the Review's `title`, or the
+ * `section` reflection the owner wrote inside it.
+ */
+export type ReviewMatchSource = "title" | "section";
+
+/**
+ * RECALL-01 — the bounded Search projection for a Review.
+ *
+ * Deliberately NOT a {@link Review}: a search row needs the identity, the type
+ * and the period it covers, the honest match source and a bounded excerpt — not
+ * the authored Markdown of ten sections. Reading those would cost a second
+ * statement per page and ship whole reflections to a result row, which is
+ * exactly what the excerpt contract exists to prevent. One row per Review,
+ * however many of its sections matched.
+ */
+export interface ReviewSearchHit {
+  readonly id: string;
+  readonly title: string;
+  readonly type: ReviewType;
+  readonly periodStart: string;
+  readonly periodEnd: string;
+  readonly status: ReviewStatus;
+  readonly archived: boolean;
+  readonly matchSource: ReviewMatchSource;
+  /** Which section matched, when the match source is `section`. */
+  readonly sectionId: ReviewSectionId | null;
+  /** A bounded, syntax-free window around a section match; empty otherwise. */
+  readonly excerpt: string;
+}
+
+/**
  * STEER-05 — the smallest honest answer to *"is there a Review for this
  * period?"*.
  *

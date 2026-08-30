@@ -56,6 +56,7 @@ import {
   type DiaryEntry,
   type DiaryEntryChangeResult,
   type DiaryRepository,
+  type DiaryMatchSource,
   type DiarySearchHit,
   type DiaryTimelinePage,
   type ListDiaryTimelineInput,
@@ -77,6 +78,27 @@ import {
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
 import { likeContains, likePrefix } from "./like-pattern";
+import {
+  readSearchExcerptRow,
+  searchExcerpt,
+  searchExcerptColumns,
+  searchExcerptMatched,
+} from "./search-excerpt";
+
+/**
+ * RECALL-01 — one Diary search row: the five facts a Diary result has always
+ * carried, plus the shared excerpt triple over the entry's body.
+ */
+interface DiarySearchRow {
+  readonly id: string;
+  readonly title: string;
+  readonly entry_type: string;
+  readonly occurred_at: string;
+  readonly timezone: string;
+  readonly body_hit: number | null;
+  readonly body_window: string | null;
+  readonly body_window_start: number | null;
+}
 
 /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
 export type D1DiaryCreateFault = "after-entity" | "after-details";
@@ -325,24 +347,40 @@ export class D1DiaryRepository implements DiaryRepository {
     return row ? this.#rowToEntry(row) : null;
   }
 
+  /**
+   * RECALL-01 — a Diary entry is found by its TITLE and by its BODY prose, in
+   * one bounded, workspace-scoped statement.
+   *
+   * **The privacy boundary is solicitation, and it is structural here.** An
+   * empty query returns immediately, before any statement runs, so Diary prose
+   * can only ever be matched in answer to something the owner typed
+   * (ADR-114 decision 2). What comes back for a body hit is the shared bounded
+   * excerpt window around the match — never the entry, never a preview, never a
+   * "first paragraph". The empty-query recent list is a different read entirely
+   * and still excludes Diary outright (FIND-01, unchanged).
+   */
   async search(
     input: SearchDiaryEntriesInput,
   ): Promise<readonly DiarySearchHit[]> {
     const text = input.text.trim().toLocaleLowerCase();
+    // The explicit-query boundary, enforced before a statement exists.
     if (text.length === 0) return [];
     const limit = validateDiaryLimit(input.limit);
     const like = likeContains(text);
     const prefix = likePrefix(text);
+    const bodyExcerpt = searchExcerptColumns("coalesce(d.body, '')", "body");
     try {
       const result = await this.#db
         .prepare(
-          `SELECT e.id, e.title, d.entry_type, d.occurred_at, d.timezone
+          `SELECT e.id, e.title, d.entry_type, d.occurred_at, d.timezone,
+                  ${bodyExcerpt}
            FROM entities e
            JOIN diary_entry_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
            WHERE e.workspace_id = ? AND e.type = '${DIARY_ENTITY_TYPE}'
                  AND e.deleted_at IS NULL
-                 AND lower(e.title) LIKE ? ESCAPE '\\'
+                 AND (lower(e.title) LIKE ? ESCAPE '\\'
+                      OR lower(coalesce(d.body, '')) LIKE ? ESCAPE '\\')
            ORDER BY CASE
                       WHEN lower(e.title) = ? THEN 0
                       WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 1
@@ -352,21 +390,46 @@ export class D1DiaryRepository implements DiaryRepository {
                     e.id DESC
            LIMIT ?`,
         )
-        .bind(this.#workspaceId, like, text, prefix, limit)
-        .all<{
-          readonly id: string;
-          readonly title: string;
-          readonly entry_type: string;
-          readonly occurred_at: string;
-          readonly timezone: string;
-        }>();
-      return result.results.map((row) => ({
-        id: row.id,
-        title: row.title,
-        entryType: row.entry_type,
-        occurredAt: fromStorageTimestamp(row.occurred_at),
-        timezone: row.timezone,
-      }));
+        /*
+         * Placeholders bind POSITIONALLY: the excerpt triple in SELECT, then the
+         * workspace, the two match predicates, the ranking CASE, the LIMIT.
+         */
+        .bind(
+          text, // body_hit
+          text, // body_window
+          text, // body_window_start
+          this.#workspaceId,
+          like, // title
+          like, // body
+          text, // rank: exact title
+          prefix, // rank: title prefix
+          limit,
+        )
+        .all<DiarySearchRow>();
+      return result.results.map((row) => {
+        const bodyRow = readSearchExcerptRow(
+          row as unknown as Record<string, unknown>,
+          "body",
+        );
+        // Fixed precedence: title beats body, so an entry whose title and body
+        // both match is labelled by the reason the owner can already see.
+        const matchSource: DiaryMatchSource = row.title
+          .toLocaleLowerCase()
+          .includes(text)
+          ? "title"
+          : searchExcerptMatched(bodyRow)
+            ? "body"
+            : "title";
+        return {
+          id: row.id,
+          title: row.title,
+          entryType: row.entry_type,
+          occurredAt: fromStorageTimestamp(row.occurred_at),
+          timezone: row.timezone,
+          matchSource,
+          excerpt: matchSource === "body" ? searchExcerpt(bodyRow, text) : "",
+        };
+      });
     } catch (cause) {
       throw new DiaryStorageError({ cause });
     }
