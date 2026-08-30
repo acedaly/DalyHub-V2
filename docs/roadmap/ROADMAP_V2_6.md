@@ -50,8 +50,8 @@ measurements, rather than a red gate carrying no explanation.
 which **carries data** — it moves every tag out of three columns and rebuilds two
 tables. It is applied locally and proven from the old schema; it is **not applied
 to production**, and it must not be until V2.4-GATE-01's owner-held backup half is
-genuinely satisfied ([DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-scheduled-production-backup-has-never-produced-a-backup-because-the-encryption-key-is-not-configured--p1),
-P1, still open). Merge readiness is established; deployment readiness is the
+genuinely satisfied ([DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2),
+P2, still open). Merge readiness is established; deployment readiness is the
 owner's, and no item in this programme claims it.
 
 ---
@@ -258,7 +258,7 @@ Three are outstanding right now:
 | Owner-held blocker | Open since | Programmes it has outlived |
 |---|---|---|
 | A provider API key ([`AI_PLATFORM.md`](../development/AI_PLATFORM.md) §21) | 2026-08-05 | V2.2 · V2.3 · V2.4 · V2.5 |
-| `BACKUP_ENCRYPTION_PASSPHRASE` ([DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-scheduled-production-backup-has-never-produced-a-backup-because-the-encryption-key-is-not-configured--p1), P1) | 2026-08-22 | V2.4 · V2.5 |
+| `BACKUP_ENCRYPTION_PASSPHRASE` ([DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2), P2) | 2026-08-22 | V2.4 · V2.5 |
 | `verify:production` credentials (V2.4-GATE-01 RELEASED) | 2026-08-22 | V2.4 · V2.5 |
 
 Scheduling a programme whose headline item cannot be *proven* — not merely
@@ -1026,8 +1026,8 @@ a real backup before any migration is applied (**FIND-02 is this programme's
 migration, and FIND-01 may be a second**), and credentials for
 `verify:production`. They stay recorded in
 [`ROADMAP_V2_4.md`](ROADMAP_V2_4.md), are not re-adopted here, and no V2.6 item
-claims them. [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-scheduled-production-backup-has-never-produced-a-backup-because-the-encryption-key-is-not-configured--p1)
-(P1) is the same blocker seen from the register, and it is **more binding on
+claims them. [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2)
+(P2) is the same blocker seen from the register, and it is **more binding on
 this programme than on the last two**, because FIND-02 moves existing owner data
 between representations.
 
@@ -1104,7 +1104,7 @@ and on the entry itself, so no future reader re-derives what is scheduled.
 | **DEBT-102** — no capture-processing state | P3 | **Deliberately not taken**, with its reason in LATER: a kernel decision adjacent to the theme, and FIND-04 does not need it answered. |
 | DEBT-128 · DEBT-175 | P2 | **Not taken**, unchanged from V2.5: they close together in their own pass. FIND-01 is explicitly forbidden from widening the fork. |
 | DEBT-34 | P2 | **Not V2.6's.** It is STEER-05's, and STEER-05 stayed in V2.5 — where it closed this entry on 2026-08-28. |
-| DEBT-198 · V2.4-GATE-01 | P1 | **Standing preconditions**, more binding here than before: FIND-02 carries data. |
+| DEBT-198 · V2.4-GATE-01 | P2 | **Standing preconditions**, more binding here than before: FIND-02 carries data. |
 | DEBT-205 · DEBT-173 · DEBT-203 | P2 | **Standing constraints**, recovered only deliberately. |
 | DEBT-69 | P3 | **Named as a precedent, not taken**: if FIND-01's recorded decision is a stored ledger, it inherits the prune question this entry already describes. |
 

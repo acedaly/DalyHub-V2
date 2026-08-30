@@ -207,7 +207,7 @@ adds anything to it.**
     failed identically. The workflow is behaving **correctly**: it fails *before*
     reading the database, so no plaintext dump is ever created. The consequence is
     simply that no disaster-recovery copy exists. Raised as
-    [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-scheduled-production-backup-has-never-produced-a-backup-because-the-encryption-key-is-not-configured--p1).
+    [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2).
   - **The gate is red on `main`.** CI run [`32482182727`](https://github.com/acedaly/DalyHub-V2/actions/runs/32482182727)
     at `b31323c`: **Scope, Static, Unit and Build all green; nine of twelve E2E
     partitions failed** (p02–p10), p01/p11/p12 green, CI Gate failed. The named red
@@ -226,7 +226,7 @@ adds anything to it.**
     applied"* — was `0001`–`0025`, and the committed sequence now runs to `0047`
     (47 numbers over 49 files: `0013` and `0039` are each used twice, the first of
     which is [DEBT-40](../product/PRODUCT_DEBT.md#-debt-40--two-migrations-share-the-number-0013--p3--resolved-2026-08-25));
-    [DEBT-139](../product/PRODUCT_DEBT.md#-debt-139--migration-0042-has-not-been-applied-and-no-production-backup-has-been-taken--p1)
+    [DEBT-139](../product/PRODUCT_DEBT.md#-debt-139--migration-0042-has-not-been-applied-and-no-production-backup-has-been-taken--p1--two-of-three-clauses-met-2026-08-30-one-owner-ui-check-remains)
     records migration `0042` as unapplied to production with no pre-migration
     backup taken, and five more have landed behind it;
     [DEBT-84](../product/PRODUCT_DEBT.md#-debt-84--documentation-drift-production-state-theme-count-identity-status--p3--documentation-corrected-2026-08-11-production-still-unverified)
@@ -434,6 +434,22 @@ adds anything to it.**
   - **A gate run lost to a package download cannot happen the same way again** ([DEBT-204](../product/PRODUCT_DEBT.md), ◐). Run `32710624636` — the candidate SECOND green push for criterion 3 — lost E2E p07 eleven seconds in, on a documentation-only commit, when corepack's fetch of `pnpm-10.33.0.tgz` was truncated mid-stream. pnpm is now materialised **before** `actions/setup-node`'s cache probe, with a bounded, loud retry; the ordering is the substance, since by then pnpm is on disk and that probe cannot reach the network at all. The entry stays ◐ because its own condition is a `main` run in which no job fails before `Install dependencies`, and only merging produces one.
   - **Three journeys that reported green by never running now execute** ([DEBT-200](../product/PRODUCT_DEBT.md), ◐), which is the same class of problem GATE-01 raised the entry for. One of the three had its cause recorded WRONG — the seed holds 119 active Tasks against a page size of 50; the blocker was a grouped view drawing no "Load more" at all — so a future agent would have built a fixture and changed nothing.
   - **Criterion 3 is unmoved and is still one `main` run short.** Nothing here was run on `main`, and nothing here claims to have been. Criteria 1, 2, 4 and 5 are untouched: no backup exists, no migration was applied, no production data was read, and `wrangler whoami` still reports not authenticated.
+- **Progress, 2026-08-30 — an owner session with credentials. RECOVERABLE is met; the item stays ☐ because GREEN and RELEASED were not assessed.** The item claims three things and this pass addressed one. Recorded in [`RELEASE_CHECKLIST_V2_4_0.md` § 6](../release/RELEASE_CHECKLIST_V2_4_0.md).
+
+  **First, a correction this item has to make about itself.** Criterion 1 names `backup:verify` and `db:production:backup:list` — both **R2 (BACKUP-01)** commands — and every progress note above marks it NOT MET on the strength of a **GitHub Actions (AUDIT-11)** run failing at the `BACKUP_ENCRYPTION_PASSPHRASE` guard. **Those are two different backup systems in two different trust boundaries**, and the R2 one has been healthy the whole time: 20 runs, every one `success`, unbroken since 2026-08-13, read from `status/latest.json` in the bucket. The passphrase has nothing to do with it — the R2 dump is plaintext by design. **The NOT MET verdicts on criterion 1 dated 2026-08-23 and 2026-08-24 were reached for the wrong reason and are withdrawn.** [DEBT-198](../product/PRODUCT_DEBT.md) is re-scoped to the GitHub tier it is actually about.
+
+  | # | Criterion | State after 2026-08-30 |
+  | --- | --- | --- |
+  | 1 | A scheduled backup completes; `backup:verify` and `db:production:backup:list` non-zero | **MET in substance.** 20 consecutive successful scheduled backups; `backup:verify` clean (Workflow live, bucket private, both lifecycle rules, `D1_REST_API_TOKEN` set). A **post-`0049`** manual backup was taken this morning: `production/manual/2026/08/dalyhub-v2-2026-08-30T060746Z.sql`, 549,478 bytes, SHA-256 `853a2fe3…f244`. `db:production:backup:list` itself was **not** run — it needs a `CLOUDFLARE_API_TOKEN` with *Workers R2 Storage → Read*, which `.production.env` does not carry; the objects were evidenced by `wrangler r2 object get` and the run log instead |
+  | 2 | A restore rehearsal is recorded | **MET, and against REAL OWNER DATA for the first time.** Previously only against a scratch database with the committed schema. The 2026-08-30 rehearsal restored the production artefact into a throwaway remote D1 (`dalyhub-v2-restore-probe`, never `dalyhub-v2`): 54 tables, 107 indexes, 6,095 rows, `PRAGMA foreign_key_check` clean, and **13 of 13 `COUNT(*)` comparisons against live production matched exactly**. It required [DEBT-199](../product/PRODUCT_DEBT.md)'s `reorder` step, now canonical and tested |
+  | 3 | Twelve-partition gate green on `main`, two consecutive pushes | **NOT ASSESSED.** This was an operational pass; no CI claim is made |
+  | 4 | `spine-workspaces.spec.ts`'s measurement journey executes | **Unchanged** — MET since 2026-08-23 |
+  | 5 | `db:production:list` reports no pending migration; `verify:production` run with credentials | **MET.** `db:production:list` → *"No migrations to apply!"*, all 51 applied. `verify:production` run with credentials → **PARTIALLY VERIFIED**, four PASS and one SKIPPED, recorded verbatim. [DEBT-84](../product/PRODUCT_DEBT.md) closes on it |
+  | 6 | package.json, release notes and the running release agree; `DEPLOYMENT.md` states no migration number | **STILL MET EXCEPT "the running release"** — `/health` answered **302** to Cloudflare Access, which terminates at the edge, so the deployed version remains unread. Not guessed at |
+
+  **RECOVERABLE can be called met**: production has verified backups, one of them taken after the current schema, and a recovery path proven end to end against real data without production being touched. **The item stays ☐** because criterion 3 was not assessed and criterion 6's running-release clause is still unread — marking either would be exactly the partial-pass-as-tick this item has refused four times.
+
+  **What was NOT done.** No GitHub Actions secret was configured, no GitHub environment protection changed, no deploy, no migration applied, no production write of any kind. The backup object format, the Cloudflare Workflow, D1 export and `rehearse` are all unchanged. Production's migration ledger was read before and after every stage and is unchanged at 51 / `2026-08-30 05:56:14`. The throwaway database was deleted and both local plaintext copies overwritten and removed.
 
 ### ☑ V2.4-GATE-02 — Honest signals on a task row, and one day on a phone — **DELIVERED 2026-08-25**
 
