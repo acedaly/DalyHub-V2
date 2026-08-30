@@ -126,6 +126,32 @@ describe("frontmatter", () => {
     );
   });
 
+  it("carries a TASK's tags, which have no detail column to live in", () => {
+    /*
+     * Found in review on PR #238. FIND-03 gave Tasks tags in the structured
+     * snapshot, but the vault writer built Task files from `taskDetails` alone —
+     * which has no `tags` column, because a tag is an attachment now. So a
+     * tagged Task restored perfectly from the JSON and showed nothing at all in
+     * the readable copy. The vault reads the tag collections directly.
+     */
+    expect(file("Tasks/").contents).toContain('tags: ["running"]');
+  });
+
+  it("still carries tags from an archive written BEFORE the migration", () => {
+    // A legacy archive has no tag collections and keeps its tags on the record
+    // rows. Stripping them must not empty `tags:` on every Note, Person and
+    // Asset in the vault it builds.
+    const base = makeSnapshot();
+    const legacy = buildObsidianVault({
+      ...base,
+      records: { ...base.records, workspaceTags: [], entityTags: [] },
+    });
+    const note = legacy.files.find(
+      (entry) => entry.path === "Notes/Knowledge hub.md",
+    );
+    expect(note?.contents).toContain('tags: ["index", "knowledge"]');
+  });
+
   it("carries the linked record ids", () => {
     const project = file("Projects/12-week training block.md");
     expect(project.contents).toMatch(

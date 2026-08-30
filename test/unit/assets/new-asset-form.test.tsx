@@ -104,7 +104,12 @@ describe("New Asset — creating", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create asset" }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith("asset-new"));
-    expect(fetchMock.mock.calls[0][0]).toBe("/assets/create");
+    // The form ALSO reads the shared tag vocabulary when it mounts (V2.6
+    // FIND-02), so the create call is identified by its path rather than by
+    // being first — which is what this assertion was always about.
+    expect(fetchMock.mock.calls.map((call) => call[0])).toContain(
+      "/assets/create",
+    );
     const body = submitted();
     expect(body.title).toBe("Cub Frontier");
     expect(body.assetType).toBe("trailer");
@@ -179,7 +184,12 @@ describe("New Asset — failure is calm and recoverable", () => {
       0,
     );
     expect(await screen.findAllByText("Choose a type")).not.toHaveLength(0);
-    expect(fetchMock).not.toHaveBeenCalled();
+    // Nothing was WRITTEN. The form's own read of the shared tag vocabulary
+    // (V2.6 FIND-02) is a GET and is not a write, so the assertion names the
+    // create path rather than counting calls.
+    expect(fetchMock.mock.calls.map((call) => call[0])).not.toContain(
+      "/assets/create",
+    );
   });
 
   it("keeps every entered value when the server refuses", async () => {

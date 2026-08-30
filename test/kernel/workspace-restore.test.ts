@@ -164,7 +164,13 @@ async function loseWorkspaceRecords(workspaceId: string): Promise<void> {
     "goal_details",
     "area_details",
     "spine_records",
+    // V2.6 FIND-02 — the attachments before the entities they hang off, and the
+    // vocabulary after, so a lost workspace really has lost its tags too and the
+    // round trip has to rebuild BOTH from the archive rather than finding them
+    // still lying there.
+    "entity_tags",
     "entities",
+    "workspace_tags",
     "owner_app_preferences",
     "task_saved_views",
   ];
@@ -271,6 +277,31 @@ describe("workspace backup and restore (D1)", () => {
     expect(source.records.taskChecklistItems.length).toBeGreaterThan(0);
     expect(
       source.records.taskChecklistItems.some((item) => item.completed),
+    ).toBe(true);
+    /*
+     * V2.6 FIND-02/03 — the same guard for the tag collections, and for the same
+     * reason: the equality assertion below would compare two empty sets and pass
+     * for nothing if this fixture stopped tagging anything.
+     *
+     * Three things have to be true of the fixture for the round trip to mean
+     * what it claims: a tag reaches MORE THAN ONE record type (so convergence
+     * is exercised), one vocabulary entry is carried by NOTHING (the case a
+     * per-record array cannot express), and the whole set is non-trivial.
+     */
+    expect(source.records.workspaceTags.length).toBeGreaterThan(2);
+    expect(source.records.entityTags.length).toBeGreaterThan(2);
+    const carriedTypes = new Set(
+      source.records.entityTags.map(
+        (row) =>
+          source.records.entities.find((entity) => entity.id === row.entityId)
+            ?.type,
+      ),
+    );
+    expect(carriedTypes.size).toBeGreaterThan(2);
+    const carried = new Set(source.records.entityTags.map((row) => row.tagKey));
+    expect(
+      source.records.workspaceTags.some((tag) => !carried.has(tag.key)),
+      "the fixture must hold a vocabulary entry nothing carries",
     ).toBe(true);
     /*
      * STEER-02 — the same guard for the Goal-OWNED slice, which was EMPTY in

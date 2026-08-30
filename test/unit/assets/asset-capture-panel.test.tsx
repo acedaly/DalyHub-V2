@@ -88,7 +88,12 @@ describe("Quick Capture — Asset", () => {
     renderPanel();
     await captureAsset("Cub Frontier");
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(fetchMock.mock.calls[0][0]).toBe("/assets/create");
+    // The form ALSO reads the shared tag vocabulary when it mounts (V2.6
+    // FIND-02), so the create call is identified by its path rather than by
+    // being first — which is what this assertion was always about.
+    expect(fetchMock.mock.calls.map((call) => call[0])).toContain(
+      "/assets/create",
+    );
   });
 
   it("offers the shared next steps, and opens the real record", async () => {

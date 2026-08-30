@@ -181,10 +181,18 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   activitySubjects: (row: { activityId: string; entityId: string }) =>
     `${row.activityId}\u0000${row.entityId}`,
   workspaceMembers: (row: { subject: string }) => row.subject,
+  // FIND-02 — the vocabulary by its canonical key, the attachment by its
+  // composite primary key, which is what the repository reads them in.
+  workspaceTags: (row: { key: string }) => row.key,
+  entityTags: (row: { entityId: string; tagKey: string }) =>
+    `${row.entityId}\u0000${row.tagKey}`,
 } as unknown as Readonly<Record<SnapshotCollection, (row: never) => string>>;
 
 /** The collections whose rows reference an entity by `entityId`. */
 const ENTITY_SCOPED_COLLECTIONS: readonly SnapshotCollection[] = [
+  // FIND-02 — an attachment names an entity, and an attachment naming an entity
+  // the snapshot does not contain is a broken archive, not a tolerable one.
+  "entityTags",
   "spineRecords",
   "areaDetails",
   "goalDetails",

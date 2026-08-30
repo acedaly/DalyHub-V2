@@ -27,8 +27,10 @@ import { useRevalidator } from "react-router";
 
 import {
   applyRecurrenceFields,
+  applyCaptureTags,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
+import { useTagVocabulary } from "~/shared/tags";
 import { useCompactViewport } from "~/shared/viewport";
 
 import type { TaskParentOption, TasksCreateResult } from "./tasks-contract";
@@ -67,6 +69,9 @@ export function TasksQuickAdd({
   const fieldId = useId();
   const errorId = useId();
   const compact = useCompactViewport();
+  // V2.6 FIND-04 — the ONE workspace tag vocabulary, so `#ERRAND` resolves to
+  // the tag the owner already has rather than proposing a second spelling.
+  const vocabulary = useTagVocabulary();
 
   const submit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -77,7 +82,22 @@ export function TasksQuickAdd({
       setBusy(true);
       setError(null);
       const body = new FormData();
-      const interpretation = parseQuickCapture(trimmed, { todayIso });
+      /*
+       * `unknownTags: "ignore"` — this row has NO token preview.
+       *
+       * The recorded FIND-04 decision is that a tag the workspace does not hold
+       * is OFFERED before it is created, and an offer needs somewhere to appear.
+       * This row is one input and a button: there is nothing here to show the
+       * owner a new word in, and an unreferenced vocabulary entry is kept
+       * deliberately, so a typo created here would be permanent and invisible.
+       * A tag the workspace ALREADY has still resolves — that is not creating
+       * vocabulary — and anything else stays the words they typed.
+       */
+      const interpretation = parseQuickCapture(trimmed, {
+        todayIso,
+        knownTags: vocabulary,
+        unknownTags: "ignore",
+      });
       body.set("intent", "create");
       body.set("title", interpretation.title);
       if (defaultParent) {
@@ -112,6 +132,7 @@ export function TasksQuickAdd({
         { scheduledDate, dueDate: interpretation.dueDate },
         todayIso,
       );
+      applyCaptureTags(body, interpretation.tags);
 
       let result: TasksCreateResult;
       try {
@@ -142,7 +163,15 @@ export function TasksQuickAdd({
           "That task couldn’t be added. Your text is safe — try again.",
       );
     },
-    [title, defaultParent, busy, sessionDefaults, todayIso, revalidator],
+    [
+      title,
+      defaultParent,
+      busy,
+      sessionDefaults,
+      todayIso,
+      revalidator,
+      vocabulary,
+    ],
   );
 
   // Return focus to the field once it is interactive again, so the next task is one

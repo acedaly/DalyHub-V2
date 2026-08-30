@@ -82,6 +82,11 @@ import {
 import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
+  TagValidationError,
+  parseEntityTagInput,
+  tagLabels,
+} from "~/kernel/tags";
+import {
   serializeChecklist,
   serializeChecklistItem,
   serializeTaskDependencies,
@@ -690,6 +695,17 @@ async function handleUpdate(
       description: form.has("description")
         ? String(form.get("description"))
         : undefined,
+      /*
+       * V2.6 FIND-03 — the Task's tags, a PATCH key like every other field
+       * above: absent means unchanged, and a present empty array clears them.
+       *
+       * Parsed by the ONE tag parser, which accepts the JSON array every shared
+       * form posts and, defensively, a comma list — so a no-JavaScript
+       * submission behaves rather than silently dropping the owner's tags.
+       */
+      tags: form.has("tags")
+        ? tagLabels(parseEntityTagInput(form.get("tags")))
+        : undefined,
     });
     return {
       kind: "update",
@@ -702,6 +718,16 @@ async function handleUpdate(
         kind: "update",
         status: "error",
         fieldErrors: { [cause.field]: cause.message },
+      };
+    }
+    // V2.6 FIND-03 — a tag the shared validator refused is a FIELD error on
+    // `tags`, so the Details form points at the control that has to change
+    // rather than showing the generic "try again" that loses the reason.
+    if (cause instanceof TagValidationError) {
+      return {
+        kind: "update",
+        status: "error",
+        fieldErrors: { tags: cause.message },
       };
     }
     if (cause instanceof TaskNotFoundError) {

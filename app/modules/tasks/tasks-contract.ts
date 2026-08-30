@@ -62,6 +62,13 @@ export interface TasksPageData {
     readonly kind: "area" | "project";
     readonly title: string;
   }[];
+  /**
+   * V2.6 FIND-03 — the workspace tag vocabulary, as the closed option set the
+   * ONE tag filter dimension offers. Read in the loader beside the delegate
+   * options rather than fetched when a form mounts, because this list has to
+   * exist for the CONTROL to be rendered at all.
+   */
+  readonly tags: readonly { readonly key: string; readonly label: string }[];
   /** The owner's calendar date `YYYY-MM-DD`. */
   readonly todayIso: string;
   readonly defaultCaptureParent: TaskParentOption | null;

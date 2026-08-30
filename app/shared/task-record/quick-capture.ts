@@ -37,6 +37,8 @@ import type {
   TimeSector,
 } from "~/kernel/tasks";
 
+import { MAX_TAG_LENGTH, canonicalTagKey, normaliseTag } from "~/kernel/tags";
+
 import { taskRecurrenceLabel } from "./task-view";
 import { addCalendarDays, calendarWeekday } from "~/kernel/datetime";
 
@@ -60,8 +62,39 @@ export interface QuickCaptureInterpretation {
   readonly waiting: boolean;
   /** Whether a `delegate` token was present (offers the delegation flow). */
   readonly delegate: boolean;
+  /**
+   * V2.6 FIND-04 — the `#tag` tokens, in first-seen order.
+   *
+   * Each carries the canonical key the vocabulary identifies it by, the label
+   * the owner will see, and whether the workspace ALREADY knows the word. A
+   * capture surface writes the labels onto the created Task and shows the
+   * unknown ones as new in the preview — see {@link QuickCaptureTag}.
+   */
+  readonly tags: readonly QuickCaptureTag[];
   /** The recognised tokens, in first-seen order, for the preview. */
   readonly tokens: readonly QuickCaptureToken[];
+}
+
+/**
+ * V2.6 FIND-04 — one recognised `#tag`.
+ *
+ * `known` is the whole of the recorded unknown-tag decision, expressed as data:
+ * the token is ALWAYS recognised (`#` is an explicit marker, like `due …` and
+ * `on …`, not a phrase the grammar is guessing at), and a word the workspace
+ * does not hold yet is marked so the preview can OFFER to create it rather than
+ * creating it silently. Removing the chip restores the literal words.
+ */
+export interface QuickCaptureTag {
+  /** The canonical identity, from the ONE tag rule (`~/kernel/tags`). */
+  readonly key: string;
+  /**
+   * What the owner sees. The vocabulary's own spelling when the workspace knows
+   * the tag — so typing `#ERRAND` shows `Errand`, exactly as choosing it in the
+   * picker would — and the typed spelling when it does not.
+   */
+  readonly label: string;
+  /** False when the workspace has no such tag yet. */
+  readonly known: boolean;
 }
 
 /** A recognised token and the human label the preview shows. */
@@ -76,7 +109,8 @@ export interface QuickCaptureToken {
     | "delegate"
     | "scheduled_date"
     | "due_date"
-    | "recurrence";
+    | "recurrence"
+    | "tag";
   readonly label: string;
 }
 
@@ -431,6 +465,64 @@ function parseRecurrencePhrase(
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* V2.6 FIND-04 — the `#tag` token class                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The body a `#` must be followed by for the word to be a tag.
+ *
+ * Deliberately narrow, and every clause of it is a case the grammar has to get
+ * WRONG-FREE rather than merely usually right:
+ *
+ *   - it must start with a letter or a digit, so `#-x` and `#_x` are text;
+ *   - it may then contain letters, digits, `-` and `_`, and nothing else — so
+ *     `#home.`, `#home,` and `#home!` are text, because the word is not a tag
+ *     with punctuation attached, it is prose;
+ *   - the whole word must match, because the parser's standing rule is that a
+ *     token is a WHOLE whitespace-delimited word. `end.#home` is therefore text.
+ *
+ * Unicode-aware (`\p{L}`), so `#lürm` is a tag in the language the owner writes
+ * in rather than only in English.
+ */
+const TAG_BODY = /^[\p{L}\p{N}][\p{L}\p{N}_-]*$/u;
+
+/** At least one LETTER — the rule that keeps `the #1 priority` ordinary text. */
+const TAG_HAS_LETTER = /\p{L}/u;
+
+/**
+ * How many `#tag` tokens ONE capture line may carry.
+ *
+ * Far below the per-record ceiling on purpose: a capture line is a sentence, and
+ * a sentence with eleven tags in it is not a capture, it is a paste. Beyond the
+ * bound the extra words stay text, which is the parser's own failure direction.
+ */
+export const MAX_CAPTURE_TAGS = 10;
+
+/**
+ * Read one word as a `#tag`, or refuse it.
+ *
+ * Refusal is the important half. `#` is an explicit marker, so a word that
+ * genuinely starts with one and reads as a tag IS one — but the cases below are
+ * not tags and must survive as the words the owner typed:
+ *
+ *   - `#` alone, and `##` — a pasted Markdown heading marker;
+ *   - `#1`, `#42`, `#1-2` — "the #1 priority" is the canonical adversarial case
+ *     and the reason a digits-only body is refused;
+ *   - anything with punctuation in or after it.
+ */
+function readTagWord(word: string): { key: string; label: string } | null {
+  if (!word.startsWith("#")) return null;
+  const body = word.slice(1);
+  if (body.length === 0) return null;
+  if (!TAG_BODY.test(body)) return null;
+  if (!TAG_HAS_LETTER.test(body)) return null;
+  const label = normaliseTag(body);
+  const key = canonicalTagKey(body);
+  if (key.length === 0 || [...key].length > MAX_TAG_LENGTH) return null;
+  return { key, label };
+}
+
 /**
  * Parse a captured line into a structured interpretation. Deterministic and pure.
  * The parser removes recognised tokens from the title; if that would empty the
@@ -442,6 +534,45 @@ export function parseQuickCapture(
   options: {
     readonly ignoredTokenIds?: ReadonlySet<string>;
     readonly todayIso?: string;
+    /**
+     * V2.6 FIND-04 — the workspace's tag vocabulary, when the caller has it.
+     *
+     * OPTIONAL, and the parser is correct without it: `#tag` is recognised
+     * either way, because `#` is an explicit marker rather than something the
+     * grammar is guessing at. What the vocabulary decides is the SPELLING shown
+     * (`#ERRAND` reads back as `Errand` when the workspace already knows the
+     * tag) and whether the preview calls it a new tag.
+     *
+     * A surface that cannot supply it — an offline replay, a server-side
+     * classification — parses exactly the same title into exactly the same
+     * tags, and merely calls every one of them new.
+     */
+    readonly knownTags?: readonly {
+      readonly key: string;
+      readonly label: string;
+    }[];
+    /**
+     * V2.6 FIND-04 — what a `#tag` the workspace does NOT hold yet may do here.
+     *
+     * The recorded decision is that an unknown tag is **offered**, never created
+     * silently — and an offer only exists where the owner is shown it. So the
+     * behaviour follows the SURFACE rather than the grammar:
+     *
+     *   - `"offer"` (the default) — the surface renders the token preview, so
+     *     the tag is recognised, named as new, and removable before saving.
+     *     The full create form is the only surface that does.
+     *   - `"ignore"` — the surface has NO preview (the in-list quick-add row,
+     *     the capture sheet, the CAPTURE-01 endpoint, a Shortcut, an email). An
+     *     unknown word is left as the words the owner typed, exactly as the
+     *     grammar's own failure direction requires: nothing is created that they
+     *     could not see, and nothing they typed is thrown away. A tag the
+     *     workspace already HAS still resolves on these surfaces — resolving an
+     *     existing word is not creating vocabulary.
+     *
+     * This is not a fourth behaviour: it is the same recorded decision — offer
+     * where there is a preview, leave the words alone where there is not.
+     */
+    readonly unknownTags?: "offer" | "ignore";
   } = {},
 ): QuickCaptureInterpretation {
   const original = normaliseWhitespace(raw);
@@ -457,6 +588,7 @@ export function parseQuickCapture(
   let commitmentState: CommitmentState = "active";
   let waiting = false;
   let delegate = false;
+  const tags: QuickCaptureTag[] = [];
   const tokens: QuickCaptureToken[] = [];
   const ignored = options.ignoredTokenIds ?? new Set<string>();
 
@@ -535,6 +667,52 @@ export function parseQuickCapture(
       removed[i] = true;
       tokens.push({ id, raw: w, kind: "delegate", label: "Delegate" });
     }
+  }
+
+  /*
+   * V2.6 FIND-04 — `#tag`, its own pass over the words the passes above left.
+   *
+   * A separate pass rather than another branch in the chain above, because a
+   * capture may carry SEVERAL tags while every token above is at most one of its
+   * kind. Nothing else about the grammar changes: whole words only, anywhere the
+   * other tokens may appear, and a removed chip restores the literal word.
+   */
+  const vocabulary = new Map(
+    (options.knownTags ?? []).map((tag) => [tag.key, tag.label] as const),
+  );
+  const offerUnknown = (options.unknownTags ?? "offer") === "offer";
+  for (let i = 0; i < words.length; i++) {
+    if (removed[i]) continue;
+    if (tags.length >= MAX_CAPTURE_TAGS) break;
+    const read = readTagWord(words[i]!);
+    if (!read) continue;
+    // A surface with no preview cannot offer, so it does not create: the word
+    // stays in the title and the vocabulary is untouched. Left BEFORE the word
+    // is consumed, so nothing the owner typed is lost.
+    if (!offerUnknown && !vocabulary.has(read.key)) continue;
+    const id = `tag:${read.key}`;
+    if (ignored.has(id)) continue;
+    // The same tag typed twice is one tag, and the second word is still
+    // consumed — a title reading "Call the plumber #home" with the tag taken
+    // twice must not keep one of them as prose.
+    const already = tags.some((tag) => tag.key === read.key);
+    removed[i] = true;
+    if (already) continue;
+    const label = vocabulary.get(read.key);
+    tags.push({
+      key: read.key,
+      label: label ?? read.label,
+      known: label !== undefined,
+    });
+    tokens.push({
+      id,
+      raw: words[i]!,
+      kind: "tag",
+      // The preview WORDS the decision: an existing tag is named, and one the
+      // workspace does not hold yet is offered as new, so the owner sees that
+      // saving would add a word to their vocabulary before it happens.
+      label: label === undefined ? `New tag: ${read.label}` : `Tag: ${label}`,
+    });
   }
 
   if (options.todayIso) {
@@ -667,6 +845,7 @@ export function parseQuickCapture(
       recurrence: null,
       waiting: false,
       delegate: false,
+      tags: [],
       tokens: [],
     };
   }
@@ -681,6 +860,7 @@ export function parseQuickCapture(
     recurrence,
     waiting,
     delegate,
+    tags,
     tokens,
   };
 }
@@ -697,7 +877,10 @@ export function interpretationIsMeaningful(
     interpretation.dueDate !== null ||
     interpretation.recurrence !== null ||
     interpretation.waiting ||
-    interpretation.delegate
+    interpretation.delegate ||
+    // V2.6 FIND-04 — a recognised tag materially changes the Task, so a capture
+    // whose ONLY token is a `#tag` still shows the preview the owner corrects in.
+    interpretation.tags.length > 0
   );
 }
 
@@ -800,4 +983,25 @@ export function applyRecurrenceFields(
   if (recurrence.weekdays.length > 0) {
     body.set("recurrenceWeekdays", recurrence.weekdays.join(","));
   }
+}
+
+/**
+ * V2.6 FIND-04 — write the recognised `#tag`s onto a capture submission.
+ *
+ * The tags half of {@link applyRecurrenceFields}, and shared for the identical
+ * reason: every capture surface (the `/tasks` form, the in-list quick add and
+ * the phone capture sheet) must turn a recognised token into the SAME submitted
+ * field, so there is ONE mapping from parsed line to created Task.
+ *
+ * The LABELS travel, not the keys — the create route validates them through the
+ * one tag validator, which canonicalises identity and keeps the vocabulary's own
+ * spelling when it already holds the tag. Nothing is written for a line with no
+ * tags, so an untagged capture posts exactly the body it always did.
+ */
+export function applyCaptureTags(
+  body: FormData,
+  tags: readonly QuickCaptureTag[],
+): void {
+  if (tags.length === 0) return;
+  body.set("tags", JSON.stringify(tags.map((tag) => tag.label)));
 }

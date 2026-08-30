@@ -46,6 +46,9 @@ export type TaskValidationField =
   | "dueDate"
   | "scheduledDate"
   | "description"
+  // V2.6 FIND-03 — the Task's tags, validated by the ONE tag validator and
+  // re-typed into this family so a caller catching a Task error still does.
+  | "tags"
   | "limit"
   | "waitingTarget"
   | "waitingTargetId"

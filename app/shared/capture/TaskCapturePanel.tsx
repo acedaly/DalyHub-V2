@@ -43,8 +43,10 @@ import {
 } from "~/shared/task-record/TaskMetaControls";
 import {
   applyRecurrenceFields,
+  applyCaptureTags,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
+import { useTagVocabulary } from "~/shared/tags";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 
 import { CaptureResult } from "./CaptureResult";
@@ -104,6 +106,10 @@ export function TaskCapturePanel({
   const todayIso = context?.todayIso ?? null;
   const canChooseParent = !loading && defaultParent === null;
 
+  // V2.6 FIND-04 — the ONE workspace tag vocabulary, so a `#tag` on the capture
+  // line resolves to the word the owner already has.
+  const vocabulary = useTagVocabulary();
+
   const form = useForm<Values>({
     initialValues: { title: "", parentId: "", priority: "", dueDate: "" },
     fields: {
@@ -116,8 +122,13 @@ export function TaskCapturePanel({
         defaultParent?.kind ?? parentSearch.kindOf(values.parentId);
 
       // The SAME deterministic parser `/tasks` uses — never a second vocabulary.
+      // `unknownTags: "ignore"` for the same reason the in-list quick-add row
+      // does it: this sheet renders no token preview, so it cannot OFFER a new
+      // tag, so it does not create one. An existing tag still resolves.
       const interpretation = parseQuickCapture(values.title, {
         todayIso: todayIso ?? undefined,
+        knownTags: vocabulary,
+        unknownTags: "ignore",
       });
       const body = new FormData();
       body.set("intent", "create");
@@ -154,6 +165,7 @@ export function TaskCapturePanel({
         },
         todayIso,
       );
+      applyCaptureTags(body, interpretation.tags);
 
       let data: TasksCreateResponse;
       try {

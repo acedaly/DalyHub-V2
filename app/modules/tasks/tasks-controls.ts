@@ -58,6 +58,19 @@ export interface DelegateOption {
   readonly label: string;
 }
 
+/**
+ * V2.6 FIND-03 — a tag offered as a filter option.
+ *
+ * The value is the CANONICAL key (what the query matches) and the label is the
+ * owner's own spelling (what they read). Resolved server-side from the ONE
+ * workspace vocabulary, so the filter offers exactly the words the workspace
+ * uses and can never name one it does not.
+ */
+export interface TagFilterOption {
+  readonly value: string;
+  readonly label: string;
+}
+
 /** A Project/Area offered as a parent filter option, resolved server-side. */
 export interface ParentFilterOption {
   readonly id: string;
@@ -74,6 +87,14 @@ export interface TasksControlInputs {
   readonly delegates: readonly DelegateOption[];
   /** The Projects and Areas offered as a parent filter, bounded and workspace-scoped. */
   readonly parents: readonly ParentFilterOption[];
+  /**
+   * V2.6 FIND-03 — the workspace tag vocabulary, resolved by ONE bounded query.
+   *
+   * The same shape the delegate options above use, and for the same reason:
+   * offering only real values keeps this a CLOSED option set, so the sheet never
+   * has to search and a filter can never name a tag that does not exist.
+   */
+  readonly tags: readonly TagFilterOption[];
 }
 
 const ANY = "";
@@ -270,6 +291,30 @@ export function buildTasksControlGroups(
       options: [
         { value: ANY, label: "Anyone" },
         ...inputs.delegates.map((d) => ({ value: d.value, label: d.label })),
+      ],
+    });
+  }
+
+  if (inputs.tags.length > 0) {
+    groups.push({
+      /*
+       * V2.6 FIND-03 — ONE tag dimension (DEBT-48's closing condition).
+       *
+       * Multi-value, exactly like priority above and for the same reason:
+       * "errands or deep work" is what an owner reaches for, and it is one
+       * dimension with more than one accepted value rather than a second filter
+       * model. DEBT-49 closed a two-filter-model split once.
+       *
+       * Absent when the workspace has no tags: a filter that can only be set to
+       * "Any" is a control that teaches nothing.
+       */
+      id: "tags",
+      label: "Tags",
+      param: TASKS_FILTER_PARAMS.tags,
+      multiple: true,
+      options: [
+        { value: ANY, label: "Any tag" },
+        ...inputs.tags.map((tag) => ({ value: tag.value, label: tag.label })),
       ],
     });
   }

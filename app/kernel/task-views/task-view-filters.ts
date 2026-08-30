@@ -59,5 +59,9 @@ export function toWorkspaceFilters(
   // TASKS-12 — translated exactly like `recurring`: one declarative dimension,
   // one parameter, resolved by the repository. No second filter engine.
   if (f.blocked !== undefined) out.blocked = f.blocked;
+  // V2.6 FIND-03 — translated exactly like `priorities`: ONE declarative
+  // dimension, one repository parameter, the predicate chosen by the repository.
+  // No second filter engine, and no tag-shaped special case anywhere below.
+  if (f.tags && f.tags.length > 0) out.tagKeys = f.tags;
   return out;
 }

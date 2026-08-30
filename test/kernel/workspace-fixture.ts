@@ -152,6 +152,15 @@ export async function seedWorkspace(): Promise<Seeded> {
     dueDate: "2026-08-03",
     scheduledDate: "2026-08-03",
     timeSector: "this_week",
+    /*
+     * V2.6 FIND-03 — a TAGGED Task, so the export proof and the restore round
+     * trip cover a Task's tags rather than comparing two empty sets.
+     *
+     * `Running` deliberately shares its identity with the Person's `running`
+     * and the Note's `Running`: one vocabulary entry, three record types, which
+     * is the claim FIND-02 makes and the one a per-type fixture could not test.
+     */
+    tags: ["Running", "Errand"],
   });
   const recurringTask = await tasks.createTask({
     title: "Weekly long run",
@@ -233,6 +242,27 @@ export async function seedWorkspace(): Promise<Seeded> {
       "Missing: [[No such record]].",
     ].join("\n"),
   );
+
+  /*
+   * V2.6 FIND-02 — two tag facts the export/restore round trip has to carry, and
+   * neither of them exists unless this fixture writes it.
+   *
+   *   1. an ORPHAN vocabulary entry: `Filing` is created here and then removed
+   *      from the only Note that carried it, so the workspace holds a word with
+   *      no record behind it. A round trip that dropped it would quietly shorten
+   *      the owner's tag list every time they emptied a tag, and no assertion
+   *      over a per-record `tags` array could ever see it.
+   *   2. a SPELLING that differs from another record's: this Note asks for
+   *      `Running` where the Person above asked for `running`. One tag, one
+   *      identity, and the first spelling wins — which is a claim about the
+   *      vocabulary, not about either record.
+   *
+   * V2.5's STEER-02 review found a deliberate falsifier surviving 210 export
+   * tests because this file never wrote the row the assertion compared. These
+   * two lines are that lesson applied before the fact.
+   */
+  await noteDetails.setTags(linkingNote.id, ["Filing", "Running"]);
+  await noteDetails.setTags(linkingNote.id, ["Running"]);
 
   const archivedNote = await entities.create({
     type: "note",

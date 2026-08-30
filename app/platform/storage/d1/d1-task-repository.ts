@@ -97,6 +97,7 @@ import {
   validateSetWaitingInput,
   validateTaskDate,
   validateTaskDescription,
+  validateTaskTagSet,
   validateTaskId,
   validateTaskIdList,
   validateTaskLimit,
@@ -190,6 +191,7 @@ import {
   type WorkspaceTaskGrouping,
   type WorkspaceTaskListPage,
 } from "~/kernel/tasks";
+import { canonicalTagKey, parseTagFilterKeys } from "~/kernel/tags";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 import { ownerDayStartInstant } from "~/shared/datetime";
@@ -223,6 +225,12 @@ import {
   type TaskJoinedRow,
   type WaitingTargetColumns,
 } from "./task-database";
+import {
+  buildEntityTagStatements,
+  entityTagsStatement,
+  parseTagProjection,
+  tagFilterPredicate,
+} from "./d1-entity-tags";
 
 /** The entity columns a mutation returns, matching {@link EntityRow}. */
 const ENTITY_RETURNING =
@@ -881,6 +889,9 @@ export class D1TaskRepository implements TaskRepository {
       input.description === undefined || input.description === null
         ? null
         : validateTaskDescription(input.description);
+    // V2.6 FIND-03: tags too, through the ONE tag validator, so a Task created
+    // from a `#tag` capture can never carry a tag a Person could not.
+    const tags = input.tags === undefined ? [] : validateTaskTagSet(input.tags);
     // TASKS-04: an optional recurrence rule is validated against the dates being
     // created in this very batch, so a captured "every Monday" either commits WITH
     // its rule or not at all — never a repeating task that silently forgot to repeat.
@@ -1004,6 +1015,25 @@ export class D1TaskRepository implements TaskRepository {
           { seriesId: id, sequence: 0, scheduleAnchorDate: null },
           nowTs,
         ),
+      );
+    }
+    /*
+     * V2.6 FIND-03 — the Task's tags, written in the SAME create batch.
+     *
+     * Guarded on the entity-created Activity event, which is itself guarded on
+     * the entity insert, so a rolled-back create leaves no tag rows behind and a
+     * captured `#errand` either commits WITH its Task or not at all.
+     */
+    if (tags.length > 0) {
+      statements.push(
+        ...buildEntityTagStatements({
+          db: this.#db,
+          workspaceId: this.#workspaceId,
+          entityId: id,
+          tags,
+          now: nowTs,
+          activityId: entityModel.id,
+        }),
       );
     }
     return { taskId: id, hasParent: parentKind !== null, statements };
@@ -2048,6 +2078,10 @@ export class D1TaskRepository implements TaskRepository {
     const filterPlannedTo = validateTaskDateBound(filters.plannedTo);
     const filterRecurring =
       typeof filters.recurring === "boolean" ? filters.recurring : undefined;
+    // V2.6 FIND-03 — the tag dimension. Canonicalised and bounded by the shared
+    // parser, so a crafted URL cannot widen the query or name a key the
+    // vocabulary could not hold.
+    const filterTagKeys = parseTagFilterKeys(filters.tagKeys);
     const filterBlocked =
       typeof filters.blocked === "boolean" ? filters.blocked : undefined;
 
@@ -2281,6 +2315,24 @@ export class D1TaskRepository implements TaskRepository {
            )`;
       whereParts.push(filterBlocked ? blockedExists : `NOT ${blockedExists}`);
       params.push(this.#workspaceId, TASK_BLOCKS);
+    }
+    if (filterTagKeys.length > 0) {
+      /*
+       * V2.6 FIND-03 — the ONE tag dimension, as a SEMI-join.
+       *
+       * `EXISTS`, never a `JOIN`: a Task carrying two of the filtered tags
+       * matches a join twice, which would duplicate it in the page, corrupt the
+       * count beside the filter and make cursor pagination skip a row. `EXISTS`
+       * stops at the first match, so a Task appears exactly once however many of
+       * the named tags it carries.
+       *
+       * It rides `entity_tags_by_tag`, so it is an index seek per candidate row
+       * rather than a scan, and it adds no join to the outer query — which is
+       * what keeps the page a single bounded statement.
+       */
+      const predicate = tagFilterPredicate("e", filterTagKeys, "id");
+      whereParts.push(predicate.sql);
+      params.push(...predicate.params);
     }
     // Completed visibility is applied LAST and on top of the view, so it can widen
     // (`include` on an execution view) or narrow (`hide` on `all`) without the view
@@ -3072,6 +3124,9 @@ export class D1TaskRepository implements TaskRepository {
       input.delegation === undefined
         ? current.delegation
         : validateDelegationInput(input.delegation);
+    // V2.6 FIND-03 — the ONE tag validator, and the ONE vocabulary behind it.
+    const afterTags =
+      input.tags === undefined ? null : validateTaskTagSet(input.tags);
 
     // Only fields that ACTUALLY changed are written; a field the caller did not
     // change is never touched, so a concurrent partial update to a DIFFERENT field
@@ -3090,6 +3145,18 @@ export class D1TaskRepository implements TaskRepository {
       current.delegation,
       afterDelegation,
     );
+    /*
+     * Tags are compared by canonical KEY, never by label: a Task carries tag
+     * IDENTITIES, and the label it displays belongs to the workspace vocabulary.
+     * Re-submitting `ERRAND` for a Task already tagged `Errand` changes nothing,
+     * and must not record an Activity event saying it did.
+     */
+    const tagsChanged =
+      afterTags !== null &&
+      (afterTags.length !== current.tags.length ||
+        !afterTags.every((tag) =>
+          current.tags.some((label) => canonicalTagKey(label) === tag.key),
+        ));
 
     const changes: Record<string, JsonValue> = {};
     if (titleChanged) {
@@ -3130,6 +3197,11 @@ export class D1TaskRepository implements TaskRepository {
     if (delegationChanged) {
       changes["delegationChanged"] = true;
     }
+    // A tag can name something private, so the COUNT travels and the text does
+    // not — the same rule `note.tags_updated` follows (ADR-043 §8).
+    if (tagsChanged) {
+      changes["tagsChanged"] = true;
+    }
 
     const detailChanged =
       statusChanged ||
@@ -3141,7 +3213,7 @@ export class D1TaskRepository implements TaskRepository {
       commitmentChanged ||
       delegationChanged;
 
-    if (!titleChanged && !detailChanged) {
+    if (!titleChanged && !detailChanged && !tagsChanged) {
       // A no-op update: nothing changes, no `updated_at` churn, no Activity.
       return { task: current, changed: false };
     }
@@ -3263,6 +3335,20 @@ export class D1TaskRepository implements TaskRepository {
       event,
       detailsStmt,
       now,
+      // V2.6 FIND-03 — the tag write joins the SAME atomic batch, guarded on the
+      // Activity event this update appends, so a Task's tags change if and only
+      // if the Task genuinely changed and the change was recorded.
+      tagsChanged && afterTags !== null
+        ? (activityId) =>
+            buildEntityTagStatements({
+              db: this.#db,
+              workspaceId: this.#workspaceId,
+              entityId,
+              tags: afterTags,
+              now: nowTs,
+              activityId,
+            })
+        : undefined,
     );
     if (!entityRow) {
       // The guarded update matched nothing: the task was deleted between the read
@@ -3287,9 +3373,29 @@ export class D1TaskRepository implements TaskRepository {
         recurrence: current.recurrence,
         recurrenceSeries: current.recurrenceSeries,
         description: afterDescription,
+        // The vocabulary keeps the FIRST spelling of a tag, which may be one
+        // another record introduced, so the labels are re-read rather than
+        // assumed from what was submitted.
+        tags: tagsChanged ? await this.#readTags(entityId) : current.tags,
       },
       changed: true,
     };
+  }
+
+  /**
+   * Read one Task's tag labels, in canonical order.
+   *
+   * One bounded statement, used only after a tag WRITE — every ordinary read
+   * gets its tags from the projection in `TASK_DETAIL_COLUMNS` and costs no
+   * extra statement at all.
+   */
+  async #readTags(entityId: string): Promise<readonly string[]> {
+    const result = await this.#run(
+      entityTagsStatement(this.#db, this.#workspaceId, entityId),
+    );
+    const row = (result.results ?? [])[0] as
+      { tags: string | null } | undefined;
+    return parseTagProjection(row?.tags ?? null);
   }
 
   /* ---------------------------------------------------------------------- */
@@ -6500,6 +6606,7 @@ export class D1TaskRepository implements TaskRepository {
       recurrence: details.recurrence,
       recurrenceSeries: details.recurrenceSeries,
       description: details.description,
+      tags: details.tags,
       project: relationships.project,
       goal: relationships.goal,
       area: relationships.area,
@@ -6518,6 +6625,12 @@ export class D1TaskRepository implements TaskRepository {
     event: NewActivityEvent,
     detailsStmt: D1PreparedStatement | undefined,
     now: Date,
+    /**
+     * V2.6 FIND-03 — further guarded statements produced by the same write. A
+     * BUILDER rather than a list, because they are guarded on this event's id
+     * and the id is minted here.
+     */
+    trailing?: (activityId: string) => readonly D1PreparedStatement[],
   ): Promise<EntityRow | null> {
     const model = buildActivityWriteModel(
       event,
@@ -6536,6 +6649,7 @@ export class D1TaskRepository implements TaskRepository {
       activityInsert!,
       ...subjectInserts,
       ...(detailsStmt ? [detailsStmt] : []),
+      ...(trailing?.(model.id) ?? []),
     ];
 
     let results: D1Result<EntityRow>[];

@@ -301,6 +301,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   let saved: readonly TaskSavedView[] = [];
   let delegates: readonly string[] = [];
   let parents: TasksPageData["parents"] = [];
+  let tags: TasksPageData["tags"] = [];
   let scope: WorkspaceScope | null = null;
 
   try {
@@ -316,7 +317,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // it does not take the task list down.
     const soft = <T,>(work: Promise<T>, fallback: T): Promise<T> =>
       work.catch(() => fallback);
-    const [parent, savedViews, delegateNames, parentOptions] =
+    const [parent, savedViews, delegateNames, parentOptions, tagVocabulary] =
       await Promise.all([
         preferences.defaultTaskDestination === "chosen_parent" &&
         preferences.defaultTaskCaptureParentId
@@ -339,6 +340,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
               [],
             )
           : Promise.resolve([]),
+        // V2.6 FIND-03 — the ONE tag filter's option set. It joins the same
+        // concurrent group and fails soft like every other option read: a
+        // vocabulary that could not be read narrows the controls, it does not
+        // take the task list down.
+        isPageLoad
+          ? soft(scope.tags.listVocabulary(), [])
+          : Promise.resolve([]),
       ] as const);
 
     if (parent) {
@@ -351,6 +359,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     }
     saved = savedViews;
     delegates = delegateNames;
+    tags = tagVocabulary.map((tag) => ({ key: tag.key, label: tag.label }));
     parents = parentOptions.map((candidate) => ({
       id: candidate.id,
       kind: candidate.kind,
@@ -431,6 +440,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     views,
     delegates,
     parents,
+    tags,
     todayIso,
     defaultCaptureParent,
   };

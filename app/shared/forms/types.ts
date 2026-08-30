@@ -146,12 +146,10 @@ export interface SelectOption {
 /**
  * The bounds a tags control enforces. All optional; sensible ceilings are applied
  * even when omitted so an untrusted paste cannot create an unbounded collection.
+ *
+ * V2.6 FIND-02 moved the declaration beside the normalisation rule it belongs to
+ * (`~/kernel/tags`), so the kernel does not depend on the forms layer for its own
+ * contract. It is re-exported here unchanged: `TagsFieldProps` and every consumer
+ * still name the same type from the same path.
  */
-export interface TagConstraints {
-  /** Maximum number of tags. Defaults to a safe ceiling. */
-  readonly maxTags?: number;
-  /** Maximum length of a single tag, in characters. Defaults to a safe ceiling. */
-  readonly maxTagLength?: number;
-  /** When true, tags are compared case-insensitively for duplicate detection. */
-  readonly caseInsensitive?: boolean;
-}
+export type { TagConstraints } from "~/kernel/tags";

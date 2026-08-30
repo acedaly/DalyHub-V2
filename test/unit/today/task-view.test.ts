@@ -27,6 +27,7 @@ function view(overrides: Partial<TaskView> = {}): TaskView {
     completedAt: null,
     status: "todo",
     priority: null,
+    tags: [],
     dueDate: null,
     scheduledDate: null,
     timeSector: null,

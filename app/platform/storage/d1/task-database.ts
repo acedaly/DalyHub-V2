@@ -38,6 +38,7 @@ import { CorruptTaskRecordError } from "~/kernel/tasks";
 import { parseMarkdownSource, type MarkdownSource } from "~/kernel/markdown";
 
 import { fromStorageTimestamp } from "./database";
+import { entityTagsProjection, parseTagProjection } from "./d1-entity-tags";
 
 /** The raw `task_details` row, exactly as stored in D1. Never exposed outside the adapter. */
 export interface TaskDetailsRow {
@@ -158,7 +159,8 @@ export const TASK_DETAIL_COLUMNS = `
   rr.ordinal AS recurrence_ordinal,
   rr.weekend_rule AS recurrence_weekend_rule,
   rr.ends_after_count AS recurrence_ends_after_count,
-  rr.ends_on_date AS recurrence_ends_on_date`;
+  rr.ends_on_date AS recurrence_ends_on_date,
+  ${entityTagsProjection("e", "id")} AS tags`;
 
 /**
  * The `task_recurrence_rules` join every task read uses. Declared HERE, next to the
@@ -426,6 +428,13 @@ export function rowToTaskDetails(row: {
   readonly recurrence_mode?: string | null;
   readonly recurrence_series_anchor_date?: string | null;
   readonly description: string | null;
+  /**
+   * V2.6 FIND-03 — the `char(31)`-delimited tag labels the shared projection
+   * adds to a read. Optional so a caller that does not project them (a write's
+   * `RETURNING`, which cannot correlate a sub-select) still builds a valid
+   * record, with no tags rather than a wrong answer.
+   */
+  readonly tags?: string | null;
 }): TaskDetails {
   return {
     status: toStatus(row.status),
@@ -443,6 +452,7 @@ export function rowToTaskDetails(row: {
     recurrence: toRecurrence(row),
     recurrenceSeries: toRecurrenceSeries(row),
     description: toDescription(row.description),
+    tags: parseTagProjection(row.tags ?? null),
   };
 }
 

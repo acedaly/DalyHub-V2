@@ -360,9 +360,16 @@ describe("workspace export (D1)", () => {
     // records: HABITS-01 added three (habit details, schedule versions, check-in
     // history), TASKS-13 added one (Task checklist items) and PROJECT-02 added
     // three (template details, template tasks, template checklist items), so
-    // seven more statements — and the second half of this test is what actually
-    // holds the bound, by proving that twenty more records add none at all.
-    expect(statements).toBeLessThanOrEqual(37);
+    // seven more statements. V2.6 FIND-02 adds TWO — the tag vocabulary and its
+    // attachments — and the increase is stated here rather than absorbed: 37 to
+    // 39, both fixed, neither a per-record read. It buys a tag round trip for
+    // every tagged record type at once, including the Tasks FIND-03 tags, and
+    // the alternative (folding tags into each detail collection) would have cost
+    // nothing here only by losing a vocabulary entry no record carries.
+    //
+    // The second half of this test is what actually holds the bound, by proving
+    // that twenty more records add none at all.
+    expect(statements).toBeLessThanOrEqual(39);
     expect(statements).toBeGreaterThan(20);
 
     // Growing the workspace must not grow the statement count while the data

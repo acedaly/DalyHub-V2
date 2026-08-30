@@ -138,12 +138,31 @@ export async function runCapture(
     );
   }
 
+  /*
+   * V2.6 FIND-04 — the workspace's tag vocabulary, read ONCE for this capture.
+   *
+   * It is read here rather than inside the creation so that BOTH derivations of
+   * the title — the one that creates the Task and the one a replay reports —
+   * run under exactly the same rule. Notes have no tags, so they pay nothing.
+   *
+   * It fails SOFT: a vocabulary that could not be read leaves every `#word`
+   * unresolved, which on this transport means the words stay in the title. The
+   * capture still arrives with its text intact, which is the failure direction
+   * this whole path is built to prefer.
+   */
+  const knownTags: readonly { readonly key: string; readonly label: string }[] =
+    kind === "task"
+      ? await scope.tags
+          .listVocabulary()
+          .catch(() => [] as readonly { key: string; label: string }[])
+      : [];
+
   const create = async (): Promise<{
     readonly recordId: string;
     readonly title: string;
   }> =>
     kind === "task"
-      ? await createCapturedTask(scope, request, execution)
+      ? await createCapturedTask(scope, request, execution, knownTags)
       : await createCapturedNote(scope, request);
 
   const finish = async (
@@ -213,7 +232,7 @@ export async function runCapture(
   }
   return finish(
     result.recordId,
-    createdTitle ?? fallbackTitle(request, kind, execution),
+    createdTitle ?? fallbackTitle(request, kind, execution, knownTags),
     result.replayed,
   );
 }
@@ -240,10 +259,22 @@ function fallbackTitle(
   request: CaptureRequest,
   kind: "task" | "note",
   execution: CaptureExecution,
+  knownTags: readonly { readonly key: string; readonly label: string }[],
 ): string {
   if (kind === "note") return deriveCaptureTitle(request);
+  /*
+   * The SAME parser options creation used, vocabulary included.
+   *
+   * The claim above — "a replay reports the title the record actually has" — is
+   * only true while both derivations read the same rule. Since V2.6 FIND-04 a
+   * `#tag` changes the title only when the workspace already holds it, so this
+   * derivation needs the vocabulary too: without it, a replay would report a
+   * title with the tag word still in it that the record does not have.
+   */
   const parsed = parseQuickCapture(taskTitleFor(request), {
     todayIso: execution.todayIso,
+    knownTags,
+    unknownTags: "ignore",
   });
   return truncateCaptureTitle(parsed.title, 512);
 }
@@ -278,10 +309,26 @@ async function createCapturedTask(
   scope: WorkspaceScope,
   request: CaptureRequest,
   execution: CaptureExecution,
+  /**
+   * The workspace's tag vocabulary, read once by the caller so that this
+   * derivation of the title and the one a replay reports cannot disagree.
+   */
+  knownTags: readonly { readonly key: string; readonly label: string }[],
 ): Promise<{ readonly recordId: string; readonly title: string }> {
   const source = taskTitleFor(request);
+  /*
+   * `unknownTags: "ignore"` — an external transport has no preview at all.
+   *
+   * A Shortcut, Siri, or an email cannot show the owner that a word would
+   * become a new tag, and cannot let them take it back. So the transport
+   * resolves what the workspace already has and leaves everything else as the
+   * words they sent: the Task still arrives with its text intact, and the
+   * vocabulary is only ever grown somewhere the owner could see it happening.
+   */
   const interpretation = parseQuickCapture(source, {
     todayIso: execution.todayIso,
+    knownTags,
+    unknownTags: "ignore",
   });
 
   // The SAME anchor resolution the in-app surfaces use, rather than a second copy of
@@ -329,6 +376,14 @@ async function createCapturedTask(
         }
       : {}),
     ...(description === null ? {} : { description }),
+    // V2.6 FIND-04 — the recognised tags, written in the SAME create batch as
+    // the Task, so a captured `#errand` either commits with its tag or not at
+    // all. The recorded unknown-tag decision applies here without a preview to
+    // offer creation in: an external capture has no surface to confirm on, so
+    // the tag it names is the tag it gets, and the owner sees it on the Task.
+    ...(interpretation.tags.length > 0
+      ? { tags: interpretation.tags.map((tag) => tag.label) }
+      : {}),
   });
 
   return { recordId: task.id, title: task.title };

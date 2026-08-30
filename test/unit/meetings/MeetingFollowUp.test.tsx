@@ -46,6 +46,7 @@ function task(
     commitmentState: "active",
     delegation: null,
     description: null,
+    tags: [],
     project: null,
     goal: null,
     area: null,

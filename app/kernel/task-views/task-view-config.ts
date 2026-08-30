@@ -20,6 +20,7 @@
  *      config, so only known keys with known values are ever persisted.
  */
 
+import { parseTagFilterKeys } from "~/kernel/tags";
 import {
   TASK_COMPLETED_VISIBILITIES,
   TASK_DUE_STATES,
@@ -157,6 +158,20 @@ export interface TaskViewFilters {
    * "Blocked" is always current and never stores a stale answer.
    */
   readonly blocked?: boolean;
+  /**
+   * V2.6 FIND-03 — the ONE tag dimension (DEBT-48).
+   *
+   * A SET of canonical tag keys, matched as ANY, exactly like `priorities`
+   * above: one dimension with more than one accepted value, not a nested OR
+   * clause and not a second filter model. DEBT-49 closed a two-filter-model
+   * split once; re-opening it for tags would be the same mistake with a new
+   * noun, so a tag filter is a member of THIS declaration and nothing else.
+   *
+   * The members are canonicalised (whitespace-normalised, case-folded) on parse,
+   * so a saved view naming `Errand` and a link naming `errand` are the same
+   * view. An empty set is not a filter and is dropped.
+   */
+  readonly tags?: readonly string[];
 }
 
 /** A complete, validated Tasks workspace configuration. */
@@ -351,6 +366,10 @@ export function parseTaskViewConfig(raw: unknown): TaskViewConfig {
   if (recurring !== undefined) filters.recurring = recurring;
   const blocked = tristate(rawFilters.blocked);
   if (blocked !== undefined) filters.blocked = blocked;
+  // V2.6 FIND-03 — canonicalised, bounded and total, exactly like every other
+  // dimension: an unusable member is dropped, never thrown on.
+  const tags = parseTagFilterKeys(rawFilters.tags);
+  if (tags.length > 0) filters.tags = tags;
 
   return {
     version: TASK_VIEW_CONFIG_VERSION,
@@ -435,4 +454,5 @@ export const TASK_VIEW_FILTER_KEYS = [
   "plannedTo",
   "recurring",
   "blocked",
+  "tags",
 ] as const satisfies readonly (keyof TaskViewFilters)[];

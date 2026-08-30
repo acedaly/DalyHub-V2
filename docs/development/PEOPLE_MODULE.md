@@ -94,7 +94,6 @@ here (reads INNER-JOIN). Columns:
 | `website` | TEXT? | http(s) only |
 | `birthday`, `next_follow_up`, `last_interaction` | TEXT? | wall-calendar `YYYY-MM-DD` (no timezone) |
 | `relationship` | TEXT? | closed vocabulary |
-| `tags` | TEXT (JSON array, default `'[]'`) | bounded, deduped |
 | `notes` | TEXT? | free text |
 | `favourite_contact_method` | TEXT? | closed vocabulary |
 | `follow_up_frequency` | TEXT? | closed vocabulary |
@@ -103,6 +102,9 @@ here (reads INNER-JOIN). Columns:
 | `updated_at` | TEXT NOT NULL | detail-slice update time |
 
 The display name (`title`) and lifecycle timestamps live on `entities`.
+
+**Tags are no longer a column here.** V2.6 FIND-02 moved them to the workspace's one vocabulary — a `workspace_tags` row keyed by its ASCII case-folded `tag_key`, attached by `entity_tags`, read back on the record's own `SELECT` as one correlated projection ([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)). The domain type still exposes `tags` as an array of the owner's own spellings, so nothing above this line changed shape; the storage did.
+
 
 ### Domain type (`app/kernel/people/person.ts`)
 

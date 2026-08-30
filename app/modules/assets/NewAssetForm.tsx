@@ -26,6 +26,7 @@ import { useMemo } from "react";
 import type { RefObject } from "react";
 
 import { type AssetType } from "~/kernel/assets";
+import { useTagVocabulary } from "~/shared/tags";
 import {
   DateField,
   Form,
@@ -152,6 +153,10 @@ export function NewAssetForm({
     }),
     [],
   );
+
+  // V2.6 FIND-02 — the ONE workspace tag vocabulary, so adding a tag here is
+  // the same interaction it is everywhere else in the product.
+  const vocabulary = useTagVocabulary();
 
   const form = useForm<Values>({
     initialValues,
@@ -290,7 +295,7 @@ export function NewAssetForm({
           />
         ),
       )}
-      <TagsField label="Tags" {...form.field("tags")} />
+      <TagsField label="Tags" vocabulary={vocabulary} {...form.field("tags")} />
       {surface === "sheet" ? (
         // The capture sheet's own sticky commitment row — the same one every
         // other capture panel uses, so Create sits above the keyboard in the

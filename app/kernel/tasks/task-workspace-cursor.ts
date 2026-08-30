@@ -127,6 +127,13 @@ export function workspaceTaskFiltersSignature(
   if (filters.blocked !== undefined) {
     parts.push(`bl=${filters.blocked ? "1" : "0"}`);
   }
+  // V2.6 FIND-03 — bound into the signature exactly like every other filter, so
+  // a page-two cursor cannot survive adding or removing a tag from the filter.
+  // The set is already canonically ordered, so two equivalent filters sign
+  // identically.
+  if (filters.tagKeys !== undefined && filters.tagKeys.length > 0) {
+    parts.push(`tg=${filters.tagKeys.join(",")}`);
+  }
   return parts.join("&");
 }
 

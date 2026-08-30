@@ -44,8 +44,10 @@ import type { SelectOption } from "~/shared/forms/types";
 import {
   applyRecurrenceFields,
   interpretationIsMeaningful,
+  applyCaptureTags,
   parseQuickCapture,
 } from "~/shared/task-record/quick-capture";
+import { useTagVocabulary } from "~/shared/tags";
 import { useTaskParentSearch } from "~/shared/task-record/use-task-parent-search";
 import {
   taskPriorityLabel,
@@ -242,6 +244,11 @@ export function NewTaskForm({
         { scheduledDate, dueDate },
         todayIso ?? null,
       );
+      // V2.6 FIND-04 — and the recognised `#tag`s, through the same shared
+      // mapping every capture surface uses. The preview above is where the
+      // owner corrects them; this is where a correction they did NOT make is
+      // written.
+      applyCaptureTags(body, interpretation.tags);
 
       let data: TasksCreateResult;
       try {
@@ -302,6 +309,10 @@ export function NewTaskForm({
   // The deterministic quick-capture preview. Recomputed from the current title on
   // every render; shown only when it materially changes the task AND the user has
   // not dismissed this exact text.
+  // V2.6 FIND-04 — the ONE workspace tag vocabulary, so the preview names an
+  // existing tag by its own spelling and marks a new one as new.
+  const vocabulary = useTagVocabulary();
+
   const [ignoredTokenIds, setIgnoredTokenIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -310,8 +321,9 @@ export function NewTaskForm({
       parseQuickCapture(titleField.value, {
         ignoredTokenIds,
         todayIso: todayIso ?? undefined,
+        knownTags: vocabulary,
       }),
-    [titleField.value, ignoredTokenIds, todayIso],
+    [titleField.value, ignoredTokenIds, todayIso, vocabulary],
   );
   const showPreview =
     interpretationIsMeaningful(interpretation) &&

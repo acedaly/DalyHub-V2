@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 
 import type { SanitizedMarkdownHtml } from "~/kernel/markdown";
 import { MarkdownContent } from "~/shared/markdown";
+import { TagChipList } from "~/shared/ui";
 import {
   CalendarDateField,
   Form,
@@ -28,12 +29,14 @@ import {
   FormButton,
   FormErrorSummary,
   SelectField,
+  TagsField,
   TextField,
   UnsavedChangesGuard,
   useForm,
   type SubmitOutcome,
 } from "~/shared/forms";
 import { MarkdownEditorField } from "~/shared/markdown-editor";
+import { useTagVocabulary } from "~/shared/tags";
 
 import {
   formatCalendarDate,
@@ -49,6 +52,12 @@ export type TaskDetailsValues = {
   readonly delegatedOn: string;
   readonly followUpOn: string;
   readonly delegateNote: string;
+  /**
+   * V2.6 FIND-03 — the Task's tags, edited through the SAME shared control
+   * People, Assets and Notes use. Not a string, because a tag set is a
+   * collection the shared `TagsField` owns end to end.
+   */
+  readonly tags: readonly string[];
 };
 
 interface TaskDetailsTabProps {
@@ -89,6 +98,7 @@ const FIELD_LABELS: Record<string, string> = {
   delegatedOn: "Delegated on",
   followUpOn: "Follow up",
   delegateNote: "Delegation note",
+  tags: "Tags",
 };
 
 /** Render Markdown source safely through the ONE shared pipeline (lazy-loaded). */
@@ -146,6 +156,21 @@ export function TaskDetailsTab({
         )}
       </section>
 
+      {/*
+        V2.6 FIND-03 — the Task's tags, read-only, through the ONE shared
+        `TagChip` the Person, Asset and Note summaries render. Visible without
+        entering the edit state, because a label you have to open a form to see
+        is a label you will not use.
+      */}
+      <section aria-label="Tags" className="dh-record-section">
+        <h4 className="dh-record-section__label">Tags</h4>
+        {task.tags.length > 0 ? (
+          <TagChipList tags={task.tags} label={`Tags on ${task.title}`} />
+        ) : (
+          <p className="dh-record-muted">No tags yet.</p>
+        )}
+      </section>
+
       <dl className="dh-task-drawer__meta">
         {/* TASKS-04 — the Details tab states whether the task repeats even when it
             does not, so "does it repeat?" is answerable without hunting. The parent
@@ -185,9 +210,11 @@ function TaskDetailsForm({
       delegatedOn: task.delegation?.delegatedOn ?? "",
       followUpOn: task.delegation?.followUpOn ?? "",
       delegateNote: task.delegation?.note ?? "",
+      tags: task.tags,
     },
     fieldOrder: [
       "status",
+      "tags",
       "delegateTo",
       "delegatedOn",
       "followUpOn",
@@ -202,6 +229,9 @@ function TaskDetailsForm({
       return outcome;
     },
   });
+
+  // The ONE workspace tag vocabulary.
+  const vocabulary = useTagVocabulary();
 
   const descriptionField = form.field("description");
   const statusField = form.field("status");
@@ -224,6 +254,13 @@ function TaskDetailsForm({
         onFocusField={form.focusField}
       />
       <SelectField label="Status" options={STATUS_OPTIONS} {...statusField} />
+      {/*
+        V2.6 FIND-03 — the SAME tags control, over the SAME vocabulary, as
+        People, Assets and Notes. A Task adds no tag model of its own (DEBT-48's
+        own prediction) and no `label` field beside it (its standing TASKS-04
+        warning), so there is nothing here but the shared field.
+      */}
+      <TagsField label="Tags" vocabulary={vocabulary} {...form.field("tags")} />
       {/*
        * CONTROL-01 §4 — the Horizon and the Someday/Maybe state are NOT here.
        *

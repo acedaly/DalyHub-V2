@@ -71,6 +71,7 @@ import {
   type PersonScalarField,
   type UpdatePersonInput,
 } from "~/kernel/people";
+import { canonicalTagKey, tagLabels, type WorkspaceTag } from "~/kernel/tags";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
@@ -79,6 +80,12 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
+import {
+  buildEntityTagStatements,
+  entityTagsProjection,
+  parseTagProjection,
+  tagSearchPredicate,
+} from "./d1-entity-tags";
 import { likeContains } from "./like-pattern";
 
 /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
@@ -126,18 +133,23 @@ const SCALAR_COLUMN: Record<PersonScalarField, string> = {
 };
 
 /** The reverse map (column → domain field) for building Activity payloads. */
-const COLUMN_FIELD: ReadonlyMap<string, PersonScalarField | "tags"> = new Map([
-  ...PERSON_SCALAR_FIELDS.map(
-    (field) => [SCALAR_COLUMN[field], field] as const,
-  ),
-  ["tags", "tags"] as const,
-]);
+const COLUMN_FIELD: ReadonlyMap<string, PersonScalarField> = new Map(
+  PERSON_SCALAR_FIELDS.map((field) => [SCALAR_COLUMN[field], field] as const),
+);
 
-/** All editable detail columns, in a stable order (scalars then tags). */
-const DETAIL_COLUMNS: readonly string[] = [
-  ...PERSON_SCALAR_FIELDS.map((field) => SCALAR_COLUMN[field]),
-  "tags",
-];
+/**
+ * All editable detail columns, in a stable order.
+ *
+ * FIND-02 removed `tags` from this list, and from the column-diff machinery
+ * below, because a tag is no longer a column: it lives in the workspace
+ * vocabulary and is written by `buildEntityTagStatements` in the SAME atomic
+ * batch. Tag changes still reach the Activity payload's `fields` — they are
+ * computed separately and merged, so `person.updated` still says `tags` changed
+ * when they did.
+ */
+const DETAIL_COLUMNS: readonly string[] = PERSON_SCALAR_FIELDS.map(
+  (field) => SCALAR_COLUMN[field],
+);
 
 /** The full ordered detail-column list a create INSERT writes. */
 const CREATE_COLUMNS: readonly string[] = [
@@ -173,7 +185,7 @@ const READ_COLUMNS = `
   d.website AS website,
   d.birthday AS birthday,
   d.relationship AS relationship,
-  d.tags AS tags,
+  ${entityTagsProjection("d")} AS tags,
   d.notes AS notes,
   d.favourite_contact_method AS favourite_contact_method,
   d.follow_up_frequency AS follow_up_frequency,
@@ -207,7 +219,7 @@ interface PersonJoinedRow {
   readonly website: string | null;
   readonly birthday: string | null;
   readonly relationship: string | null;
-  readonly tags: string;
+  readonly tags: string | null;
   readonly notes: string | null;
   readonly favourite_contact_method: string | null;
   readonly follow_up_frequency: string | null;
@@ -228,19 +240,6 @@ interface CreatedEntityRow {
 /** A statement guaranteed to fail at execution, aborting/rolling back the batch. */
 function forcedFailure(db: D1Database): D1PreparedStatement {
   return db.prepare("SELECT 1 FROM __dalyhub_person_forced_fault__");
-}
-
-/** Parse the stored tags JSON defensively (a corrupt value yields no tags). */
-function parseTags(value: string): readonly string[] {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter((item): item is string => typeof item === "string");
-  } catch {
-    return [];
-  }
 }
 
 export class D1PersonRepository implements PersonRepository {
@@ -295,7 +294,6 @@ export class D1PersonRepository implements PersonRepository {
       ...PERSON_SCALAR_FIELDS.map(
         (field) => validated.scalars.get(field) ?? null,
       ),
-      JSON.stringify(validated.tags),
       null, // archived_at
       nowTs, // updated_at
     ];
@@ -338,6 +336,19 @@ export class D1PersonRepository implements PersonRepository {
     if (this.#createFault === "after-details")
       batch.push(forcedFailure(this.#db));
     batch.push(...append);
+    // FIND-02 — the tags land in the SAME transaction, guarded on the Activity
+    // event this batch appends, so a Person can never exist with tags that were
+    // not recorded (or be created with tags after a rolled-back insert).
+    batch.push(
+      ...buildEntityTagStatements({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        entityId: id,
+        tags: validated.tags,
+        now: nowTs,
+        activityId: model.id,
+      }),
+    );
 
     let entityRow: CreatedEntityRow | null;
     try {
@@ -373,7 +384,7 @@ export class D1PersonRepository implements PersonRepository {
       website: scalar("website"),
       birthday: scalar("birthday"),
       relationship: scalar("relationship") as PersonRelationship | null,
-      tags: validated.tags,
+      tags: tagLabels(validated.tags),
       notes: scalar("notes"),
       favouriteContactMethod: scalar(
         "favouriteContactMethod",
@@ -458,7 +469,7 @@ export class D1PersonRepository implements PersonRepository {
           OR lower(d.organisation) LIKE ? ESCAPE '\\'
           OR lower(d.role) LIKE ? ESCAPE '\\'
           OR lower(d.email) LIKE ? ESCAPE '\\'
-          OR lower(d.tags) LIKE ? ESCAPE '\\')`,
+          OR ${tagSearchPredicate("d")})`,
       );
       params.push(like, like, like, like, like, like);
     }
@@ -528,12 +539,7 @@ export class D1PersonRepository implements PersonRepository {
         desired.set(SCALAR_COLUMN[field], validated.scalars.get(field) ?? null);
       }
     }
-    if (validated.tagsProvided) {
-      desired.set("tags", JSON.stringify(validated.tags));
-    }
-
     const currentCol = (column: string): string | null => {
-      if (column === "tags") return JSON.stringify(current.tags);
       const field = COLUMN_FIELD.get(column) as PersonScalarField;
       const value = current[field];
       return value === undefined ? null : (value as string | null);
@@ -542,7 +548,12 @@ export class D1PersonRepository implements PersonRepository {
     const changed = [...desired.keys()].filter(
       (column) => desired.get(column) !== currentCol(column),
     );
-    if (changed.length === 0) {
+    // FIND-02 — tags are compared as a canonical LIST, not as a column. Both
+    // sides are ordered by canonical key, so "the same set typed in a different
+    // order" is correctly no change and appends no Activity event.
+    const tagsChanged =
+      validated.tagsProvided && !sameTagSet(validated.tags, current.tags);
+    if (changed.length === 0 && !tagsChanged) {
       return { person: current, changed: false };
     }
 
@@ -550,11 +561,18 @@ export class D1PersonRepository implements PersonRepository {
     const nowTs = toStorageTimestamp(now);
 
     const setSql = changed.map((column) => `${column} = ?`).join(", ");
-    const guardSql = changed.map((column) => `${column} IS NOT ?`).join(" OR ");
+    // A TAGS-ONLY edit changes no column, so it has no column guard to offer.
+    // It still touches the record — `updated_at` moves — so the statement stays
+    // the record's own conditional UPDATE and the guard reduces to "the Person
+    // is still here", which is the only thing there is to lose a race against.
+    const guardSql =
+      changed.length > 0
+        ? changed.map((column) => `${column} IS NOT ?`).join(" OR ")
+        : "1 = 1";
     const domainStatement = this.#db
       .prepare(
         `UPDATE person_details
-            SET ${setSql}, updated_at = ?
+            SET ${changed.length > 0 ? `${setSql}, ` : ""}updated_at = ?
           WHERE workspace_id = ? AND entity_id = ?
             AND EXISTS (
                   SELECT 1 FROM entities
@@ -574,11 +592,10 @@ export class D1PersonRepository implements PersonRepository {
         ...changed.map((column) => desired.get(column) ?? null),
       );
 
-    const changedFields = changed
+    const changedFields: (PersonScalarField | "tags")[] = changed
       .map((column) => COLUMN_FIELD.get(column))
-      .filter(
-        (field): field is PersonScalarField | "tags" => field !== undefined,
-      );
+      .filter((field): field is PersonScalarField => field !== undefined);
+    if (tagsChanged) changedFields.push("tags");
 
     const event: NewActivityEvent = {
       type: PERSON_UPDATED,
@@ -600,6 +617,16 @@ export class D1PersonRepository implements PersonRepository {
         domainStatement,
         recorder: this.#recorder,
         model,
+        trailingStatements: tagsChanged
+          ? buildEntityTagStatements({
+              db: this.#db,
+              workspaceId: this.#workspaceId,
+              entityId: personId,
+              tags: validated.tags,
+              now: nowTs,
+              activityId: model.id,
+            })
+          : undefined,
         fault: this.#mutationFault,
       });
     } catch (cause) {
@@ -622,7 +649,8 @@ export class D1PersonRepository implements PersonRepository {
     if (
       changed.every(
         (column) => currentColOf(refreshed, column) === desired.get(column),
-      )
+      ) &&
+      (!tagsChanged || sameTagSet(validated.tags, refreshed.tags))
     ) {
       return { person: refreshed, changed: false };
     }
@@ -763,7 +791,7 @@ export class D1PersonRepository implements PersonRepository {
         website: row.website,
         birthday: row.birthday,
         relationship: row.relationship as PersonRelationship | null,
-        tags: parseTags(row.tags),
+        tags: parseTagProjection(row.tags),
         notes: row.notes,
         favouriteContactMethod:
           row.favourite_contact_method as ContactMethod | null,
@@ -787,9 +815,26 @@ export class D1PersonRepository implements PersonRepository {
   }
 }
 
+/**
+ * True when a record already carries exactly this set of tags.
+ *
+ * Compared by canonical KEY, never by label, and the distinction is load-bearing:
+ * a record carries tag IDENTITIES, and the label it displays belongs to the
+ * workspace vocabulary. Re-submitting `READING` for a record already tagged
+ * `Reading` therefore changes nothing -- same tag, and the vocabulary keeps the
+ * first spelling -- so it must not record a change the owner did not make.
+ */
+function sameTagSet(
+  desired: readonly WorkspaceTag[],
+  current: readonly string[],
+): boolean {
+  if (desired.length !== current.length) return false;
+  const carried = new Set(current.map((label) => canonicalTagKey(label)));
+  return desired.every((tag) => carried.has(tag.key));
+}
+
 /** Read a column's current value from a Person record, for update reconciliation. */
 function currentColOf(person: Person, column: string): string | null {
-  if (column === "tags") return JSON.stringify(person.tags);
   const field = COLUMN_FIELD.get(column) as PersonScalarField;
   const value = person[field];
   return value === undefined ? null : (value as string | null);

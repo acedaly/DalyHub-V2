@@ -44,6 +44,7 @@ const TASK: SerializedTaskView = {
   commitmentState: "active",
   delegation: null,
   description: "The plan is documented here.",
+  tags: [],
   project: { kind: "project", id: "p1", title: "Ship V2" },
   goal: { kind: "goal", id: "g1", title: "Promotion" },
   area: { kind: "area", id: "a1", title: "Career" },

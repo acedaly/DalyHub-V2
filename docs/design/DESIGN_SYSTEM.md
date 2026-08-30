@@ -1423,6 +1423,13 @@ A **multi-field composition** still does not belong inline. A Task's recurrence 
 - **Name a layer, never a number.** `--dh-layer-sticky` · `-scrim` · `-drawer` · `-modal` · `-anchored` · `-toast` · `-tooltip`.
 - **Dismissal is uniform.** A menu closes after a command; a single-choice picker after a choice; a multi-select on explicit completion. Escape closes the topmost layer and stops there. An outside press does not pull focus back; Escape and a committed choice do.
 - **No floating surface pushes a history entry.** A priority picker is not navigation.
+- **Tagging is a Picker, everywhere.** Since V2.6 FIND-02, `TagsField` is an
+  adapter over this `Picker` — a chip row plus one "Add tag" trigger — reading
+  the workspace's ONE tag vocabulary and offering `onCreate` for a word it does
+  not hold. There is no per-module tag control and no second vocabulary: People,
+  Assets, Notes and Tasks resolve to the same module, asserted by import path
+  rather than by the four behaving alike today
+  ([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)).
 - **Contextual editing uses the CANONICAL mutation**, or none at all. A capture surface's controls report a value; the host's own submit creates the record.
 **Domain adapters.** `TASK_PRIORITY_OPTIONS` (the one priority vocabulary), `DateChoice` (presets, month grid, commands), `SortMenu`, and `TaskMetaControls` (a Task's date, priority and parent over a value rather than a save).
 **Realised by** the [overflow menu](#overflow-menu), [inline editing](#inline-editing-ds-16), the [forms](#forms) select and entity-link pickers, [filters](#filters), the collection controls, the saved-view switcher, Quick Capture and the three collection sorts.

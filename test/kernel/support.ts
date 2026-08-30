@@ -1,5 +1,7 @@
 import { env } from "cloudflare:test";
 
+import { canonicalTagKey, normaliseTag } from "~/kernel/tags";
+
 import {
   createActivityRepository,
   createAlignmentRepository,
@@ -812,10 +814,49 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   // tables must clear before workspaces (neither references entities).
   await env.DB.prepare("DELETE FROM workspace_restore_staged_rows").run();
   await env.DB.prepare("DELETE FROM workspace_restore_operations").run();
+  // V2.6 FIND-02 tags: the attachments cascade from entities, but clear them
+  // explicitly so the order is stated rather than relied on, and the vocabulary
+  // references workspaces ON DELETE RESTRICT so it must clear before them.
+  await env.DB.prepare("DELETE FROM entity_tags").run();
   await env.DB.prepare("DELETE FROM entities").run();
+  await env.DB.prepare("DELETE FROM workspace_tags").run();
   await env.DB.prepare("DELETE FROM workspaces").run();
   for (const id of workspaceIds) {
     await ensureWorkspace(id);
+  }
+}
+
+/**
+ * V2.6 FIND-02 — attach tags to an entity the way the product does.
+ *
+ * Seeds `workspace_tags` and `entity_tags` through the canonical
+ * {@link canonicalTagKey} rule, so a fixture cannot invent a tag identity the
+ * application would not produce. Use it wherever a test used to write a JSON
+ * array into a `tags` column.
+ */
+export async function seedEntityTags(
+  workspaceId: string,
+  entityId: string,
+  tags: readonly string[],
+  at = "2026-08-06T00:00:00.000Z",
+): Promise<void> {
+  for (const raw of tags) {
+    const label = normaliseTag(raw);
+    const key = canonicalTagKey(raw);
+    if (key.length === 0) continue;
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO workspace_tags
+         (workspace_id, tag_key, label, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(workspaceId, key, label, at, at)
+      .run();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO entity_tags (workspace_id, entity_id, tag_key, created_at)
+       VALUES (?, ?, ?, ?)`,
+    )
+      .bind(workspaceId, entityId, key, at)
+      .run();
   }
 }
 

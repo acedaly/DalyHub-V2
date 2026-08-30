@@ -44,6 +44,8 @@ import {
 } from "~/kernel/export";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
+import { entityTagsProjection, parseTagProjection } from "./d1-entity-tags";
+
 /** The most saved Tasks views one owner's export will carry. */
 const MAX_SAVED_VIEWS = 200;
 
@@ -72,22 +74,6 @@ function integer(value: unknown): number | null {
 function requiredInteger(value: unknown, fallback: number): number {
   const parsed = integer(value);
   return parsed === null ? fallback : parsed;
-}
-
-/**
- * Parse a stored JSON tag array. A corrupt value degrades to "no tags" rather
- * than failing the export — the same rule the read repositories already apply,
- * so the export and the product agree about a broken row.
- */
-function tagArray(value: unknown): readonly string[] {
-  if (typeof value !== "string") return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((tag): tag is string => typeof tag === "string");
-  } catch {
-    return [];
-  }
 }
 
 /**
@@ -141,6 +127,35 @@ const COLLECTIONS: CollectionDescriptors = {
       createdAt: requiredText(row.created_at),
       updatedAt: requiredText(row.updated_at),
       deletedAt: text(row.deleted_at),
+    }),
+  },
+  /*
+   * V2.6 FIND-02 — the tag vocabulary and its attachments.
+   *
+   * Read as their own collections so an entry NOTHING carries still survives a
+   * round trip, and so a tagged Task (FIND-03) needs no new collection of its
+   * own. Ordered by their primary keys, which is what makes two exports of
+   * unchanged data byte-identical.
+   */
+  workspaceTags: {
+    table: "workspace_tags",
+    columns: "tag_key, label, created_at, updated_at",
+    order: ["tag_key"],
+    map: (row) => ({
+      key: requiredText(row.tag_key),
+      label: requiredText(row.label),
+      createdAt: requiredText(row.created_at),
+      updatedAt: requiredText(row.updated_at),
+    }),
+  },
+  entityTags: {
+    table: "entity_tags",
+    columns: "entity_id, tag_key, created_at",
+    order: ["entity_id", "tag_key"],
+    map: (row) => ({
+      entityId: requiredText(row.entity_id),
+      tagKey: requiredText(row.tag_key),
+      createdAt: requiredText(row.created_at),
     }),
   },
   spineRecords: {
@@ -444,14 +459,15 @@ const COLLECTIONS: CollectionDescriptors = {
   },
   noteDetails: {
     table: "note_details",
-    columns: "entity_id, content, tags, archived_at, updated_at",
+    columns: `entity_id, content, archived_at, updated_at,
+      ${entityTagsProjection("note_details")} AS tags`,
     order: ["entity_id"],
     map: (row) => ({
       entityId: requiredText(row.entity_id),
       // The EXACT canonical Markdown source, byte for byte (ADR-015). Nothing
       // here trims, normalises line endings or renders.
       content: requiredText(row.content),
-      tags: tagArray(row.tags),
+      tags: parseTagProjection(row.tags as string | null),
       archivedAt: text(row.archived_at),
       updatedAt: requiredText(row.updated_at),
     }),
@@ -500,7 +516,6 @@ const COLLECTIONS: CollectionDescriptors = {
       "website",
       "birthday",
       "relationship",
-      "tags",
       "notes",
       "favourite_contact_method",
       "follow_up_frequency",
@@ -509,6 +524,7 @@ const COLLECTIONS: CollectionDescriptors = {
       "photo_url",
       "archived_at",
       "updated_at",
+      `${entityTagsProjection("person_details")} AS tags`,
     ].join(", "),
     order: ["entity_id"],
     map: (row) => ({
@@ -529,7 +545,7 @@ const COLLECTIONS: CollectionDescriptors = {
       website: text(row.website),
       birthday: text(row.birthday),
       relationship: text(row.relationship),
-      tags: tagArray(row.tags),
+      tags: parseTagProjection(row.tags as string | null),
       notes: text(row.notes),
       favouriteContactMethod: text(row.favourite_contact_method),
       followUpFrequency: text(row.follow_up_frequency),
@@ -611,7 +627,6 @@ const COLLECTIONS: CollectionDescriptors = {
       "model",
       "serial_number",
       "reference_code",
-      "tags",
       "owner_person_id",
       "responsible_person_id",
       "location",
@@ -640,6 +655,7 @@ const COLLECTIONS: CollectionDescriptors = {
       "current_meter_date",
       "archived_at",
       "updated_at",
+      `${entityTagsProjection("asset_details")} AS tags`,
     ].join(", "),
     order: ["entity_id"],
     map: (row) => ({
@@ -651,7 +667,7 @@ const COLLECTIONS: CollectionDescriptors = {
       model: text(row.model),
       serialNumber: text(row.serial_number),
       referenceCode: text(row.reference_code),
-      tags: tagArray(row.tags),
+      tags: parseTagProjection(row.tags as string | null),
       ownerPersonId: text(row.owner_person_id),
       responsiblePersonId: text(row.responsible_person_id),
       location: text(row.location),

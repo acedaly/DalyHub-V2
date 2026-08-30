@@ -64,22 +64,51 @@ exported.
   meta:        { schema, schemaVersion, application, exportedAt, consistency },
   workspace:   { id, createdAt, updatedAt },
   owner:       { preferences, taskSavedViews },
-  records:     { …24 collections, in a fixed order… },
+  records:     { …36 collections, in a fixed order… },
   limitations: [ { code, subject, detail } ]
 }
 ```
 
-The 24 collections, in serialisation order, are: `entities`, `spineRecords`,
-`areaDetails`, `goalDetails`, `projectDetails`, `taskDetails`,
-`taskRecurrenceRules`, `noteDetails`, `diaryEntryDetails`, `personDetails`,
-`meetingDetails`, `meetingItems`, `meetingItemTasks`, `assetDetails`,
-`assetEvents`, `assetObligations`, `reviewDetails`, `reviewSections`,
-`reviewWorkflowState`, `reviewStepAcknowledgements`, `reviewInsightSnapshots`,
-`entityLinks`, `activities`, `activitySubjects`, `workspaceMembers`.
+The 36 collections, in serialisation order, are: `entities`, `workspaceTags`,
+`entityTags`, `spineRecords`, `areaDetails`, `goalDetails`,
+`goalMeasurements`, `goalMilestones`, `habitDetails`, `habitSchedules`,
+`habitCompletions`, `projectDetails`, `taskDetails`, `taskRecurrenceRules`,
+`taskChecklistItems`, `projectTemplateDetails`, `projectTemplateTasks`,
+`projectTemplateChecklistItems`, `noteDetails`, `diaryEntryDetails`,
+`personDetails`, `meetingDetails`, `meetingItems`, `meetingItemTasks`,
+`assetDetails`, `assetEvents`, `assetObligations`, `reviewDetails`,
+`reviewSections`, `reviewWorkflowState`, `reviewStepAcknowledgements`,
+`reviewInsightSnapshots`, `entityLinks`, `activities`, `activitySubjects`,
+`workspaceMembers`.
+
+This list is generated from `SNAPSHOT_COLLECTION_ORDER` and was last reconciled
+against it on 2026-08-29 (V2.6 FIND-02).
 
 The order is meaningful: entities first, then spine membership, then per-module
 detail rows, then module child records, then relationships, then history — so a
 restore can insert parents before children without deriving a dependency graph.
+
+**The Markdown vault reads the tag collections too.** Every tagged record type —
+Note, Person, Asset and (since FIND-03) Task — emits its tags as `tags:`
+frontmatter resolved through one map built from `workspaceTags` + `entityTags`,
+with the per-record `tags` arrays as the fallback a pre-`0049` archive needs. A
+Task has no `tags` column to read at all, which is how its tags came to be
+missing from the vault while the structured snapshot could restore them
+perfectly; caught in review on PR #238 and closed, because a readable copy that
+is poorer than the machine copy is the one asymmetry this format cannot carry.
+
+**The two tag collections (V2.6 FIND-02)** sit immediately after `entities` for
+that same reason: `entityTags` references both an entity and a `workspaceTags`
+row, so both parents must already exist. `workspaceTags` carries the vocabulary
+(the ASCII case-folded `tag_key` and the owner's own spelling); `entityTags`
+carries the attachments. **`meta.schemaVersion` did NOT move for them**, and that
+is deliberate rather than an oversight: an archive written before the tag
+migration is the backup an owner is required to hold *before* applying it, so it
+must stay restorable. Restore prefers the two collections when they are present
+and otherwise rebuilds both from the per-record `tags` arrays a pre-migration
+archive still carries — People, then Assets, then Notes, which is the same order
+the migration itself ranks spellings in, so the label a restored tag ends up with
+is the one the migration would have chosen.
 
 ### Adding a collection without invalidating existing archives (REVIEW-02)
 

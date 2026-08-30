@@ -10,6 +10,7 @@ import {
   globalCaptureControl,
   gotoFixture,
 } from "./helpers";
+import { addTags } from "./tag-helpers";
 import {
   cleanupAllNoteFixtures,
   cleanupNoteByTitle,
@@ -830,10 +831,9 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
     await page.getByRole("menuitem", { name: "Edit tags" }).click();
     const tagsDialog = page.getByRole("dialog", { name: "Edit tags" });
     await expect(tagsDialog).toBeVisible();
-    for (const tag of ["research", "draft"]) {
-      await tagsDialog.getByRole("textbox").first().fill(tag);
-      await page.keyboard.press("Enter");
-    }
+    // V2.6 FIND-02 — through the ONE shared tag picker, the same helper every
+    // other tagged surface's spec drives.
+    await addTags(page, ["research", "draft"], tagsDialog);
     await tagsDialog.getByRole("button", { name: "Save tags" }).click();
     await expect(tagsDialog).toBeHidden();
 
@@ -843,8 +843,8 @@ test.describe("NOTES-05 — writing-first live Markdown editor", () => {
       .filter({ hasText: noteTitle });
     const chips = row.locator(".dh-tagchip");
     await expect(chips).toHaveCount(2);
-    // The SET, not the order: tags are lower-cased, de-duplicated and stored in
-    // the module's own order, which is not this test's business.
+    // The SET, not the order: tags are de-duplicated and stored in the
+    // vocabulary's canonical order, which is not this test's business.
     expect(await chips.allTextContents()).toEqual(
       expect.arrayContaining(["research", "draft"]),
     );

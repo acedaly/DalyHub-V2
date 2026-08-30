@@ -555,6 +555,11 @@ function writeTask(context: WriterContext): string {
   const rule = index.recurrence.get(entity.id);
   return document([
     commonFields(context, [
+      // V2.6 FIND-03 — a Task carries tags now, so the vault says so. Added in
+      // review on PR #238: the structured snapshot could restore them while the
+      // Markdown vault showed none, which is exactly the "readable copy is
+      // poorer than the machine copy" gap the vault exists to close.
+      ["tags", [...(index.tags.get(entity.id) ?? [])]],
       ["status", detail?.status ?? null],
       ["priority", detail?.priority ?? null],
       ["due", detail?.dueDate ?? null],
@@ -643,7 +648,7 @@ function writeNote(context: WriterContext): string {
   );
   const noteBody = body(context, detail?.content ?? null);
   return document([
-    commonFields(context, [["tags", detail ? [...detail.tags] : []]]),
+    commonFields(context, [["tags", [...(index.tags.get(entity.id) ?? [])]]]),
     titleHeading(entity.title, noteBody),
     lifecycleBanner(lifecycleOf(index, entity)),
     // The note body is the record. It is emitted with NO surrounding heading so
@@ -754,7 +759,7 @@ function writePerson(context: WriterContext): string {
   const detail = index.personDetail.get(entity.id);
   return document([
     commonFields(context, [
-      ["tags", detail ? [...detail.tags] : []],
+      ["tags", [...(index.tags.get(entity.id) ?? [])]],
       ["relationship", detail?.relationship ?? null],
       ["next_follow_up", detail?.nextFollowUp ?? null],
     ]),
@@ -886,7 +891,7 @@ function writeAsset(context: WriterContext): string {
     commonFields(context, [
       ["asset_type", detail?.assetType ?? null],
       ["status", detail?.status ?? null],
-      ["tags", detail ? [...detail.tags] : []],
+      ["tags", [...(index.tags.get(entity.id) ?? [])]],
       ["renewal_date", detail?.renewalDate ?? null],
       ["warranty_expiry", detail?.warrantyExpiry ?? null],
     ]),

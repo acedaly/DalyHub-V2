@@ -57,7 +57,7 @@ import {
   NoteDetailsNotFoundError,
   NoteDetailsStorageError,
   validateNoteContent,
-  validateNoteTags,
+  validateNoteTagSet,
   type NoteDetailsChangeResult,
   type NoteDetailsRecord,
   type NoteDetailsRepository,
@@ -70,34 +70,42 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
+import { canonicalTagKey } from "~/kernel/tags";
+
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
+import {
+  buildEntityTagStatements,
+  entityTagsProjection,
+  parseTagProjection,
+} from "./d1-entity-tags";
 
 /** The `note_details` row shape this adapter reads/writes, exactly as stored. */
 interface NoteDetailsRow {
   readonly content: string;
   readonly updated_at: string;
-  readonly tags: string | null;
   readonly archived_at: string | null;
 }
 
 /**
- * Parse the stored tags JSON defensively — a corrupt value yields no tags rather
- * than failing a read (mirrors `D1PersonRepository.parseTags`). The kernel is
- * the only writer and always stores a validated, sorted array.
+ * The same row as READ, plus the `char(31)`-delimited tag labels the read's
+ * correlated sub-select projects. A write cannot project it (a `RETURNING`
+ * clause is not a place to correlate a sub-select), which is why the two shapes
+ * are distinct rather than one optional field.
  */
-function parseStoredTags(value: string | null): readonly string[] {
-  if (!value) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string");
-  } catch {
-    return [];
-  }
+interface NoteDetailsReadRow extends NoteDetailsRow {
+  readonly tags: string | null;
 }
 
 /** Every stored column an upsert returns, so one row shape serves every write. */
-const DETAIL_RETURNING = "content, updated_at, tags, archived_at";
+/**
+ * Every stored column an upsert returns, so one row shape serves every write.
+ *
+ * FIND-02 removed `tags`: they are no longer a column on this table, and a
+ * `RETURNING` clause is not a place to correlate a sub-select. Each write path
+ * already knows the tag set the row will carry afterwards — unchanged, or the
+ * validated set it just wrote — so `#record` is told rather than re-reading.
+ */
+const DETAIL_RETURNING = "content, updated_at, archived_at";
 
 export type D1NoteDetailsRepositoryOptions = {
   readonly actorContext?: ActivityActorContext;
@@ -134,7 +142,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
   async get(id: string): Promise<NoteDetailsRecord | null> {
     const row = await this.#row(id);
     if (!row) return null;
-    return this.#record(id, row);
+    return this.#record(id, row, parseTagProjection(row.tags));
   }
 
   async update(
@@ -224,7 +232,10 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     );
 
     if (result.changed && result.row) {
-      return { details: this.#record(id, result.row), changed: true };
+      return {
+        details: this.#record(id, result.row, current.tags),
+        changed: true,
+      };
     }
 
     // The gate failed. Three distinct causes look identical here — the Note was
@@ -249,21 +260,40 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
   }
 
   /**
-   * Replace the Note's tag set. The validated set is canonical (sorted,
-   * de-duplicated), so an unchanged set serialises byte-identically and the
-   * `WHERE note_details.tags != excluded.tags` predicate makes the write — and
-   * therefore the Activity append — a genuine no-op. Same ACTIVE-Note SQL gate
-   * as `update`, so a Note deleted mid-flight cannot commit an orphaned row.
+   * Replace the Note's tag set.
+   *
+   * **V2.6 FIND-02 — the set lives in the workspace vocabulary, not in a JSON
+   * column.** The validated set is canonical (de-duplicated by canonical key,
+   * ordered by it), so comparing it to the Note's current labels answers "did
+   * anything change?" before any statement runs, and an unchanged set appends no
+   * Activity event exactly as it did when the check was a byte comparison.
+   *
+   * The domain statement keeps the same ACTIVE-Note SQL gate, so a Note deleted
+   * mid-flight still cannot commit an orphaned row — it now moves the Note's
+   * `updated_at` rather than a `tags` column, and the tag rows are written by the
+   * guarded trailing statements in the same transaction.
    */
   async setTags(
     id: string,
     tags: readonly string[],
   ): Promise<NoteDetailsChangeResult> {
     const current = await this.#require(id);
-    const validated = validateNoteTags(tags);
-    const encoded = JSON.stringify(validated);
+    const validated = validateNoteTagSet(tags);
 
-    if (encoded === JSON.stringify(current.tags)) {
+    /*
+     * Compared by canonical KEY, never by label. A Note carries tag IDENTITIES,
+     * and the label it displays belongs to the workspace vocabulary — so
+     * re-submitting `READING` for a Note already tagged `Reading` is the same
+     * set, the vocabulary keeps the first spelling, and no Activity event is
+     * appended for a change the owner did not make.
+     */
+    const carried = new Set(
+      current.tags.map((label) => canonicalTagKey(label)),
+    );
+    if (
+      validated.length === current.tags.length &&
+      validated.every((tag) => carried.has(tag.key))
+    ) {
       return { details: current, changed: false };
     }
 
@@ -273,27 +303,41 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     const domainStatement = this.#db
       .prepare(
         `INSERT INTO note_details
-           (workspace_id, entity_id, content, updated_at, tags)
-         SELECT ?, ?, '', ?, ?
+           (workspace_id, entity_id, content, updated_at)
+         SELECT ?, ?, '', ?
          WHERE EXISTS (
                  SELECT 1 FROM entities
                  WHERE workspace_id = ? AND id = ? AND type = '${NOTE_ENTITY_TYPE}'
                        AND deleted_at IS NULL
                )
          ON CONFLICT (workspace_id, entity_id) DO UPDATE SET
-           tags = excluded.tags
-         WHERE note_details.tags != excluded.tags
+           updated_at = excluded.updated_at
          RETURNING ${DETAIL_RETURNING}`,
       )
-      .bind(this.#workspaceId, id, nowTs, encoded, this.#workspaceId, id);
+      .bind(this.#workspaceId, id, nowTs, this.#workspaceId, id);
 
-    return this.#applyDetailChange(id, domainStatement, now, {
-      type: NOTE_TAGS_UPDATED,
-      subjects: [{ entityId: id, role: "subject" }],
-      // Counts only — a tag may name something private, so the text never
-      // enters the Activity stream (mirrors `note.content_updated`'s payload).
-      payload: { count: validated.length },
-    });
+    return this.#applyDetailChange(
+      id,
+      domainStatement,
+      now,
+      {
+        type: NOTE_TAGS_UPDATED,
+        subjects: [{ entityId: id, role: "subject" }],
+        // Counts only — a tag may name something private, so the text never
+        // enters the Activity stream (mirrors `note.content_updated`'s payload).
+        payload: { count: validated.length },
+      },
+      null,
+      (activityId) =>
+        buildEntityTagStatements({
+          db: this.#db,
+          workspaceId: this.#workspaceId,
+          entityId: id,
+          tags: validated,
+          now: nowTs,
+          activityId,
+        }),
+    );
   }
 
   /**
@@ -332,11 +376,17 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
       )
       .bind(this.#workspaceId, id, nowTs, archivedAt, this.#workspaceId, id);
 
-    return this.#applyDetailChange(id, domainStatement, now, {
-      type: archived ? NOTE_ARCHIVED : NOTE_UNARCHIVED,
-      subjects: [{ entityId: id, role: "subject" }],
-      payload: {},
-    });
+    return this.#applyDetailChange(
+      id,
+      domainStatement,
+      now,
+      {
+        type: archived ? NOTE_ARCHIVED : NOTE_UNARCHIVED,
+        subjects: [{ entityId: id, role: "subject" }],
+        payload: {},
+      },
+      current.tags,
+    );
   }
 
   /* ---------------------------------------------------------------------- */
@@ -355,14 +405,32 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     domainStatement: D1PreparedStatement,
     now: Date,
     event: NewActivityEvent,
+    /**
+     * The labels the row carries after this write, when the caller can state
+     * them without re-reading. A TAG write cannot: the vocabulary keeps the
+     * FIRST spelling of a tag, so the label a Note ends up displaying may be one
+     * another record introduced. `null` means "re-read", which costs one
+     * statement on a tag change and never on any other write.
+     */
+    tagsAfter: readonly string[] | null,
+    trailing?: (activityId: string) => readonly D1PreparedStatement[],
   ): Promise<NoteDetailsChangeResult> {
     const result = await this.#runAtomic<NoteDetailsRow>(
       event,
       domainStatement,
       now,
+      trailing,
     );
     if (result.changed && result.row) {
-      return { details: this.#record(id, result.row), changed: true };
+      if (tagsAfter === null) {
+        const refreshed = await this.get(id);
+        if (!refreshed) throw new NoteDetailsNotFoundError();
+        return { details: refreshed, changed: true };
+      }
+      return {
+        details: this.#record(id, result.row, tagsAfter),
+        changed: true,
+      };
     }
     const refreshed = await this.get(id);
     if (!refreshed) throw new NoteDetailsNotFoundError();
@@ -377,12 +445,13 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
 
   /** Read the current details row. Missing, deleted, wrong-type and
    * cross-workspace ids all resolve to `null` — the calm not-found contract. */
-  async #row(id: string): Promise<NoteDetailsRow | null> {
+  async #row(id: string): Promise<NoteDetailsReadRow | null> {
     try {
       const row = await this.#db
         .prepare(
           `SELECT d.content AS content, d.updated_at AS updated_at,
-                  d.tags AS tags, d.archived_at AS archived_at
+                  ${entityTagsProjection("e", "id")} AS tags,
+                  d.archived_at AS archived_at
            FROM entities e
            LEFT JOIN note_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -391,7 +460,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
            LIMIT 1`,
         )
         .bind(this.#workspaceId, id)
-        .first<NoteDetailsRow>();
+        .first<NoteDetailsReadRow>();
       return row ?? null;
     } catch (cause) {
       throw new NoteDetailsStorageError({ cause });
@@ -406,7 +475,11 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
    * `parseMarkdownSource` except for genuinely corrupt storage state) fails
    * honestly as a storage error rather than being silently coerced.
    */
-  #record(id: string, row: NoteDetailsRow | null): NoteDetailsRecord {
+  #record(
+    id: string,
+    row: NoteDetailsRow | null,
+    tags: readonly string[],
+  ): NoteDetailsRecord {
     let validatedContent;
     try {
       validatedContent = validateNoteContent(row?.content ?? "");
@@ -420,7 +493,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
       contentUpdatedAt: row?.updated_at
         ? fromStorageTimestamp(row.updated_at)
         : null,
-      tags: parseStoredTags(row?.tags ?? null),
+      tags,
       archivedAt: row?.archived_at
         ? fromStorageTimestamp(row.archived_at)
         : null,
@@ -437,6 +510,9 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
     event: NewActivityEvent,
     domainStatement: D1PreparedStatement,
     now: Date,
+    // FIND-02 — a builder rather than a list, because the tag statements are
+    // guarded on THIS event's id and the id is minted here.
+    trailing?: (activityId: string) => readonly D1PreparedStatement[],
   ) {
     const model = buildActivityWriteModel(
       event,
@@ -451,6 +527,7 @@ export class D1NoteDetailsRepository implements NoteDetailsRepository {
         domainStatement,
         recorder: this.#recorder,
         model,
+        trailingStatements: trailing?.(model.id),
         fault: this.#fault,
       });
     } catch (cause) {

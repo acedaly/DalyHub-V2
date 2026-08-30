@@ -14,6 +14,12 @@
  * and `website` accept only safe schemes, never `javascript:`.
  */
 
+import {
+  TagValidationError,
+  tagLabels,
+  validateEntityTags,
+  type WorkspaceTag,
+} from "~/kernel/tags";
 import { ID_MAX_LENGTH } from "~/kernel/entities";
 import { validateTitle } from "~/kernel/entities/entity-validation";
 
@@ -221,47 +227,33 @@ function validateOptionalEnum<T extends string>(
 }
 
 /**
- * Validate an optional tags array: each tag trimmed, non-empty, bounded; the set
- * deduplicated case-insensitively (first spelling wins) and capped at `MAX_TAGS`.
- * Returns a fresh readonly array (possibly empty).
+ * Validate an optional tags array.
+ *
+ * **V2.6 FIND-02 — this delegates to the ONE tag validator.** Until then People,
+ * Assets and Notes each carried their own copy of this function with its own
+ * case rule, which is precisely why `Errand` on a Person and `errand` on a Note
+ * were different tags (DEBT-182). The Person-specific part that remains is the
+ * ERROR TYPE: a caller catching `PersonValidationError` keeps catching one.
+ *
+ * Returns the display labels, in canonical order.
  */
 export function validateTags(value: unknown): readonly string[] {
-  if (value === undefined || value === null) {
-    return [];
-  }
-  if (!Array.isArray(value)) {
-    throw new PersonValidationError("tags", "must be an array of strings");
-  }
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of value) {
-    if (typeof raw !== "string") {
-      throw new PersonValidationError("tags", "each tag must be a string");
-    }
-    const trimmed = raw.trim();
-    if (trimmed.length === 0) {
-      continue;
-    }
-    if (codePointLength(trimmed) > TAG_MAX_LENGTH) {
+  return tagLabels(validatePersonTagSet(value));
+}
+
+/** The same validation, returning the canonical key/label pairs a write needs. */
+export function validatePersonTagSet(value: unknown): readonly WorkspaceTag[] {
+  try {
+    return validateEntityTags(value, "tags");
+  } catch (cause) {
+    if (cause instanceof TagValidationError) {
       throw new PersonValidationError(
         "tags",
-        `each tag must be at most ${TAG_MAX_LENGTH} characters`,
+        cause.message.replace(/^tags /, ""),
       );
     }
-    const key = trimmed.toLocaleLowerCase();
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    out.push(trimmed);
-    if (out.length > MAX_TAGS) {
-      throw new PersonValidationError(
-        "tags",
-        `must have at most ${MAX_TAGS} tags`,
-      );
-    }
+    throw cause;
   }
-  return out;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -360,7 +352,8 @@ function validateScalarField(
 export type ValidatedPersonDetails = {
   readonly scalars: ReadonlyMap<PersonScalarField, string | null>;
   readonly tagsProvided: boolean;
-  readonly tags: readonly string[];
+  /** The canonical key/label pairs FIND-02's storage layer writes. */
+  readonly tags: readonly WorkspaceTag[];
 };
 
 /**
@@ -390,7 +383,7 @@ export function validatePersonDetails(
   }
   const tagsProvided =
     mode === "create" || Object.prototype.hasOwnProperty.call(input, "tags");
-  const tags = tagsProvided ? validateTags(input.tags) : [];
+  const tags = tagsProvided ? validatePersonTagSet(input.tags) : [];
   return { scalars, tagsProvided, tags };
 }
 

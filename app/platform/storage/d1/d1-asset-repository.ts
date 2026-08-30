@@ -79,6 +79,7 @@ import {
   type Clock,
   type IdGenerator,
 } from "~/kernel/entities";
+import { canonicalTagKey, type WorkspaceTag } from "~/kernel/tags";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -89,6 +90,13 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
+import {
+  buildEntityTagStatements,
+  entityTagsProjection,
+  parseTagProjection,
+  tagFilterPredicate,
+  tagSearchPredicate,
+} from "./d1-entity-tags";
 import { likeContains } from "./like-pattern";
 
 /** TEST-ONLY deterministic create-batch failure injection. Never set in production. */
@@ -174,7 +182,6 @@ const COLUMN_FIELD: ReadonlyMap<string, string> = new Map([
   ["status", "status"] as const,
   ["purchase_price_minor", "purchasePriceMinor"] as const,
   ["replacement_value_minor", "replacementValueMinor"] as const,
-  ["tags", "tags"] as const,
 ]);
 
 /** Every editable detail column a create INSERT writes, in a stable order. */
@@ -184,7 +191,6 @@ const DETAIL_COLUMNS: readonly string[] = [
   ...ASSET_SCALAR_FIELDS.map((f) => SCALAR_COLUMN[f]),
   "purchase_price_minor",
   "replacement_value_minor",
-  "tags",
 ];
 
 /** The full ordered detail-column list the create INSERT writes. */
@@ -211,7 +217,7 @@ const READ_COLUMNS = `
   d.model AS model,
   d.serial_number AS serial_number,
   d.reference_code AS reference_code,
-  d.tags AS tags,
+  ${entityTagsProjection("d")} AS tags,
   d.owner_person_id AS owner_person_id,
   d.responsible_person_id AS responsible_person_id,
   d.location AS location,
@@ -255,7 +261,7 @@ interface AssetJoinedRow {
   readonly model: string | null;
   readonly serial_number: string | null;
   readonly reference_code: string | null;
-  readonly tags: string;
+  readonly tags: string | null;
   readonly owner_person_id: string | null;
   readonly responsible_person_id: string | null;
   readonly location: string | null;
@@ -295,15 +301,22 @@ interface CreatedEntityRow {
   readonly updated_at: string;
 }
 
-/** Parse stored tags JSON defensively (a corrupt value yields no tags). */
-function parseTags(value: string): readonly string[] {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string");
-  } catch {
-    return [];
-  }
+/**
+ * True when a record already carries exactly this set of tags.
+ *
+ * Compared by canonical KEY, never by label, and the distinction is load-bearing:
+ * a record carries tag IDENTITIES, and the label it displays belongs to the
+ * workspace vocabulary. Re-submitting `READING` for a record already tagged
+ * `Reading` therefore changes nothing -- same tag, and the vocabulary keeps the
+ * first spelling -- so it must not record a change the owner did not make.
+ */
+function sameTagSet(
+  desired: readonly WorkspaceTag[],
+  current: readonly string[],
+): boolean {
+  if (desired.length !== current.length) return false;
+  const carried = new Set(current.map((label) => canonicalTagKey(label)));
+  return desired.every((tag) => carried.has(tag.key));
 }
 
 /** Add `days` to a wall-calendar `YYYY-MM-DD` string (UTC math, zone-free). */
@@ -407,7 +420,6 @@ export class D1AssetRepository implements AssetRepository {
       ...ASSET_SCALAR_FIELDS.map((f) => v.scalars.get(f) ?? null),
       v.money.get("purchasePriceMinor") ?? null,
       v.money.get("replacementValueMinor") ?? null,
-      JSON.stringify(v.tags),
       null, // archived_at
       nowTs, // updated_at
     ];
@@ -449,6 +461,18 @@ export class D1AssetRepository implements AssetRepository {
     if (this.#createFault === "after-details")
       batch.push(this.#forcedFailure());
     batch.push(...append);
+    // FIND-02 — the tags land in the SAME transaction, guarded on the Activity
+    // event this batch appends.
+    batch.push(
+      ...buildEntityTagStatements({
+        db: this.#db,
+        workspaceId: this.#workspaceId,
+        entityId: id,
+        tags: v.tags,
+        now: nowTs,
+        activityId: model.id,
+      }),
+    );
 
     try {
       await this.#db.batch<CreatedEntityRow>(batch);
@@ -562,8 +586,12 @@ export class D1AssetRepository implements AssetRepository {
       params.push(filters.personId, filters.personId);
     }
     if (filters.tag) {
-      conditions.push("lower(d.tags) LIKE ? ESCAPE '\\'");
-      params.push(likeContains(`"${filters.tag.toLocaleLowerCase()}"`));
+      // FIND-02 — an EXACT canonical-key match through the vocabulary, where it
+      // used to be a `LIKE` over the JSON text that could match the punctuation
+      // between two tags. A semi-join, so an Asset appears once.
+      const predicate = tagFilterPredicate("d", [canonicalTagKey(filters.tag)]);
+      conditions.push(predicate.sql);
+      params.push(...predicate.params);
     }
 
     // Non-sensitive text query.
@@ -577,7 +605,7 @@ export class D1AssetRepository implements AssetRepository {
           OR lower(coalesce(d.supplier,'')) LIKE ? ESCAPE '\\'
           OR lower(coalesce(d.issuer,'')) LIKE ? ESCAPE '\\'
           OR lower(coalesce(d.service_provider,'')) LIKE ? ESCAPE '\\'
-          OR lower(d.tags) LIKE ? ESCAPE '\\')`,
+          OR ${tagSearchPredicate("d")})`,
       );
       params.push(like, like, like, like, like, like, like, like);
     }
@@ -665,12 +693,12 @@ export class D1AssetRepository implements AssetRepository {
         v.money.get("replacementValueMinor") ?? null,
       );
     }
-    if (v.tagsProvided) desired.set("tags", JSON.stringify(v.tags));
-
     const changed = [...desired.keys()].filter(
       (column) => desired.get(column) !== currentColumnValue(current, column),
     );
-    if (changed.length === 0) {
+    // FIND-02 — tags are compared as a canonical LIST, not as a column.
+    const tagsChanged = v.tagsProvided && !sameTagSet(v.tags, current.tags);
+    if (changed.length === 0 && !tagsChanged) {
       return { asset: current, changed: false };
     }
 
@@ -678,11 +706,17 @@ export class D1AssetRepository implements AssetRepository {
     const nowTs = toStorageTimestamp(now);
 
     const setSql = changed.map((column) => `${column} = ?`).join(", ");
-    const guardSql = changed.map((column) => `${column} IS NOT ?`).join(" OR ");
+    // A TAGS-ONLY edit changes no column and so has no column guard to offer;
+    // the guard reduces to "the Asset is still here". See the Person repository,
+    // where the same case is documented at length.
+    const guardSql =
+      changed.length > 0
+        ? changed.map((column) => `${column} IS NOT ?`).join(" OR ")
+        : "1 = 1";
     const domainStatement = this.#db
       .prepare(
         `UPDATE asset_details
-            SET ${setSql}, updated_at = ?
+            SET ${changed.length > 0 ? `${setSql}, ` : ""}updated_at = ?
           WHERE workspace_id = ? AND entity_id = ?
             AND EXISTS (
                   SELECT 1 FROM entities
@@ -707,6 +741,7 @@ export class D1AssetRepository implements AssetRepository {
     const changedFields = changed
       .map((column) => COLUMN_FIELD.get(column))
       .filter((f): f is string => f !== undefined);
+    if (tagsChanged) changedFields.push("tags");
     const statusChanged = changed.includes("status");
     const newStatus = v.status;
     const payload: { fields: string[]; status?: string } = {
@@ -739,6 +774,16 @@ export class D1AssetRepository implements AssetRepository {
         domainStatement,
         recorder: this.#recorder,
         model,
+        trailingStatements: tagsChanged
+          ? buildEntityTagStatements({
+              db: this.#db,
+              workspaceId: this.#workspaceId,
+              entityId: assetId,
+              tags: v.tags,
+              now: nowTs,
+              activityId: model.id,
+            })
+          : undefined,
         fault: this.#mutationFault,
       });
     } catch (cause) {
@@ -1063,7 +1108,7 @@ export class D1AssetRepository implements AssetRepository {
         model: row.model,
         serialNumber: row.serial_number,
         referenceCode: row.reference_code,
-        tags: parseTags(row.tags),
+        tags: parseTagProjection(row.tags),
         ownerPersonId: row.owner_person_id,
         responsiblePersonId: row.responsible_person_id,
         location: row.location,
@@ -1111,7 +1156,6 @@ function currentColumnValue(
   asset: Asset,
   column: string,
 ): string | number | null {
-  if (column === "tags") return JSON.stringify(asset.tags);
   const field = COLUMN_FIELD.get(column);
   if (field === undefined) return null;
   const value = (asset as unknown as Record<string, unknown>)[field];

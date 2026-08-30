@@ -481,6 +481,84 @@ describe("idempotency — a phone that retries must not duplicate", () => {
     );
   });
 
+  it("attaches a tag the workspace HAS, and creates no vocabulary it does not", async () => {
+    /*
+     * V2.6 FIND-04, corrected in review on PR #238.
+     *
+     * An external transport has no preview: it cannot show the owner that a
+     * word would become a new tag, and cannot let them take it back. So it
+     * resolves what the workspace already holds and leaves everything else as
+     * the words they sent. Asserted against the DATABASE, because "creates no
+     * vocabulary" is a claim about rows, not about a response body.
+     */
+    const { token } = await seedToken();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO workspace_tags (workspace_id, tag_key, label, created_at, updated_at)
+       VALUES (?1, 'errand', 'Errand', '2026-08-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z')`,
+    )
+      .bind(WS)
+      .run();
+
+    const result = await capture(token, {
+      kind: "task",
+      text: "Ring the roofer #ERRAND #newthing",
+      clientCaptureId: "cccccccc-3333-3333-3333-333333333333",
+    });
+    const taskId = (result.json as { capture: { id: string } }).capture.id;
+
+    // The known tag attached, in the workspace's own spelling.
+    const attached = await env.DB.prepare(
+      `SELECT tag_key FROM entity_tags WHERE workspace_id = ?1 AND entity_id = ?2
+        ORDER BY tag_key`,
+    )
+      .bind(WS, taskId)
+      .all<{ tag_key: string }>();
+    expect((attached.results ?? []).map((row) => row.tag_key)).toEqual([
+      "errand",
+    ]);
+
+    // The unknown one created NOTHING — and an unreferenced vocabulary entry is
+    // retained deliberately, so a typo here would have been permanent.
+    expect(await countRows("workspace_tags")).toBe(1);
+
+    // …and its words are still in the title, rather than silently dropped.
+    const title = await env.DB.prepare(
+      `SELECT title FROM entities WHERE workspace_id = ?1 AND id = ?2`,
+    )
+      .bind(WS, taskId)
+      .first<{ title: string }>();
+    expect(title?.title).toBe("Ring the roofer #newthing");
+    expect((result.json as { capture: { title: string } }).capture.title).toBe(
+      "Ring the roofer #newthing",
+    );
+  });
+
+  it("reports the same title on a REPLAY of a capture carrying a tag", async () => {
+    // The replay path re-derives the title instead of reading it, so it must
+    // parse under the same rule AND the same vocabulary. Before the review fix
+    // it had neither, and would have reported a title the record does not have.
+    const { token } = await seedToken();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO workspace_tags (workspace_id, tag_key, label, created_at, updated_at)
+       VALUES (?1, 'errand', 'Errand', '2026-08-01T00:00:00.000Z', '2026-08-01T00:00:00.000Z')`,
+    )
+      .bind(WS)
+      .run();
+    const body = {
+      kind: "task",
+      text: "Ring the roofer #errand #newthing",
+      clientCaptureId: "dddddddd-4444-4444-4444-444444444444",
+    };
+    const first = await capture(token, body);
+    const replay = await capture(token, body);
+    expect((replay.json as { capture: { title: string } }).capture.title).toBe(
+      (first.json as { capture: { title: string } }).capture.title,
+    );
+    expect((replay.json as { capture: { title: string } }).capture.title).toBe(
+      "Ring the roofer #newthing",
+    );
+  });
+
   it("does NOT deduplicate ordinary repeated human text", async () => {
     const { token } = await seedToken();
     await capture(token, {

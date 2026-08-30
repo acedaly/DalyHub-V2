@@ -13,6 +13,11 @@
  * FND-08 parser (`parseMarkdownSource`); TODAY-02 adds no second parser or policy.
  */
 
+import {
+  TagValidationError,
+  validateEntityTags,
+  type WorkspaceTag,
+} from "~/kernel/tags";
 import { addCalendarDays } from "~/kernel/datetime";
 import { ID_MAX_LENGTH, TITLE_MAX_LENGTH } from "~/kernel/entities";
 import {
@@ -598,6 +603,28 @@ export function validateTaskDescription(value: unknown): MarkdownSource | null {
   } catch (cause) {
     if (cause instanceof MarkdownError) {
       throw new TaskValidationError("description", cause.message);
+    }
+    throw cause;
+  }
+}
+
+/**
+ * V2.6 FIND-03 — validate a Task's tag set.
+ *
+ * Delegates to the ONE tag validator, exactly as People, Assets and Notes do.
+ * A Task adds NO model: the vocabulary, the canonical key, the bounds and the
+ * de-duplication rule are all the shared ones, and the only Task-specific part
+ * is the error family a caller catches.
+ */
+export function validateTaskTagSet(value: unknown): readonly WorkspaceTag[] {
+  try {
+    return validateEntityTags(value, "tags");
+  } catch (cause) {
+    if (cause instanceof TagValidationError) {
+      throw new TaskValidationError(
+        "tags",
+        cause.message.replace(/^tags /, ""),
+      );
     }
     throw cause;
   }

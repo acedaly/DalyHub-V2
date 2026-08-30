@@ -7,6 +7,7 @@
  * Presentation only — the route owns loading and revalidation.
  */
 
+import { useTagVocabulary } from "~/shared/tags";
 import {
   DateField,
   Form,
@@ -99,6 +100,10 @@ interface PersonContactFormProps {
 }
 
 export function PersonContactForm({ person, onSaved }: PersonContactFormProps) {
+  // V2.6 FIND-02 — the ONE workspace tag vocabulary, so adding a tag here is
+  // the same interaction it is everywhere else in the product.
+  const vocabulary = useTagVocabulary();
+
   const form = useForm<Values>({
     initialValues: {
       firstName: person.firstName ?? "",
@@ -283,7 +288,7 @@ export function PersonContactForm({ person, onSaved }: PersonContactFormProps) {
         help="Paste an image link, or leave blank to use generated initials."
         {...form.field("photoUrl")}
       />
-      <TagsField label="Tags" {...form.field("tags")} />
+      <TagsField label="Tags" vocabulary={vocabulary} {...form.field("tags")} />
       <FormActions>
         <FormButton type="submit" variant="primary" pending={form.isSubmitting}>
           Save details

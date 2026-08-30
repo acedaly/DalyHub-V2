@@ -156,6 +156,17 @@ export interface VaultIndex {
   readonly habitDetail: ReadonlyMap<string, SnapshotHabitDetail>;
   readonly reviewDetail: ReadonlyMap<string, SnapshotReviewDetail>;
 
+  /**
+   * V2.6 FIND-02/03 — every entity's tags, as the DISPLAY labels, sorted by the
+   * canonical key so a vault file is byte-stable between exports.
+   *
+   * Built from the two tag collections rather than from a detail row, because
+   * since FIND-02 that is where a tag lives — and because a Task has no `tags`
+   * column to read, which is how Task tags came to be missing from the vault
+   * entirely (found in review on PR #238).
+   */
+  readonly tags: ReadonlyMap<string, readonly string[]>;
+
   readonly meetingItems: ReadonlyMap<string, readonly SnapshotMeetingItem[]>;
   readonly meetingFollowUps: ReadonlyMap<
     string,
@@ -203,6 +214,64 @@ export interface VaultIndex {
 
   /** Resolve a `[[Wiki Link]]` title to an entity id, mirroring NOTES-02. */
   readonly resolveTitle: (title: string) => string | null;
+}
+
+/**
+ * Every entity's tag LABELS, keyed by entity id.
+ *
+ * The vocabulary supplies the spelling and the attachments supply the
+ * membership, so a vault file shows the tag the owner sees in the product
+ * rather than its folded key. Ordered by that key, which is what makes two
+ * exports of an unchanged workspace produce identical files.
+ *
+ * Both collections are optional on read (an archive written before the tag
+ * migration has neither), so this is empty rather than absent for an old
+ * snapshot — the per-record arrays such an archive carries are what its own
+ * writers already read.
+ */
+function tagsByEntity(
+  records: WorkspaceSnapshotV1["records"],
+): ReadonlyMap<string, readonly string[]> {
+  const labels = new Map<string, string>();
+  for (const tag of records.workspaceTags ?? []) {
+    labels.set(tag.key, tag.label);
+  }
+  const byEntity = new Map<string, { key: string; label: string }[]>();
+  for (const attachment of records.entityTags ?? []) {
+    const label = labels.get(attachment.tagKey);
+    if (label === undefined) continue;
+    const list = byEntity.get(attachment.entityId) ?? [];
+    list.push({ key: attachment.tagKey, label });
+    byEntity.set(attachment.entityId, list);
+  }
+  const out = new Map<string, readonly string[]>();
+  for (const [entityId, list] of byEntity) {
+    out.set(
+      entityId,
+      list.sort((a, b) => (a.key < b.key ? -1 : 1)).map((tag) => tag.label),
+    );
+  }
+  /*
+   * An archive written BEFORE the tag migration has no tag collections at all,
+   * and carries its tags on the per-record rows instead. Reading those as the
+   * fallback is the same rule restore applies, and it is what keeps a vault
+   * built from an old backup as complete as one built from a new export — the
+   * alternative would have quietly emptied `tags:` on every Note, Person and
+   * Asset in a legacy vault, which is the failure this whole file exists to
+   * prevent.
+   */
+  for (const rows of [
+    records.personDetails,
+    records.assetDetails,
+    records.noteDetails,
+  ]) {
+    for (const row of rows ?? []) {
+      if (out.has(row.entityId)) continue;
+      if (row.tags.length === 0) continue;
+      out.set(row.entityId, [...row.tags]);
+    }
+  }
+  return out;
 }
 
 /**
@@ -393,6 +462,7 @@ export function buildVaultIndex(snapshot: WorkspaceSnapshotV1): VaultIndex {
     assetDetail: byId(records.assetDetails, (row) => row.entityId),
     habitDetail: byId(records.habitDetails, (row) => row.entityId),
     reviewDetail: byId(records.reviewDetails, (row) => row.entityId),
+    tags: tagsByEntity(records),
     meetingItems: group(records.meetingItems, (row) => row.meetingId),
     meetingFollowUps: group(records.meetingItemTasks, (row) => row.meetingId),
     assetEvents: group(records.assetEvents, (row) => row.assetId),

@@ -35,6 +35,7 @@ import {
   makeContext,
   makeCrossViewQueryRepository,
   resetTables,
+  seedEntityTags,
 } from "./support";
 import { createCrossViewQueryRepository } from "~/platform/storage/d1";
 
@@ -184,11 +185,13 @@ async function noteDetails(
   archivedAt: string | null = null,
 ): Promise<void> {
   await env.DB.prepare(
-    `INSERT INTO note_details (workspace_id, entity_id, content, tags, archived_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO note_details (workspace_id, entity_id, content, archived_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
   )
-    .bind(ws, id, "# Note", JSON.stringify(tags), archivedAt, ts("2026-08-06"))
+    .bind(ws, id, "# Note", archivedAt, ts("2026-08-06"))
     .run();
+  // V2.6 FIND-02 — tags are the workspace vocabulary, not a column on the Note.
+  await seedEntityTags(ws, id, tags, ts("2026-08-06"));
 }
 
 async function meetingDetails(

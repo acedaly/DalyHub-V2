@@ -432,9 +432,18 @@ Exclusivity decides the wording, so the labels say what they mean:
 
 The planned states follow the same rule over the SCHEDULED date.
 
-**Tasks have no tag field**, so there is no tag filter. Inventing one would be a
-data-model change wearing a filter's clothes — recorded as
-[DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3).
+**Tags** are ONE dimension, added by V2.6 FIND-03 and adopted whole from the
+workspace's one vocabulary ([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)):
+`?tag=` takes canonical tag keys, its options come from the bounded workspace
+vocabulary, and it is resolved as an `EXISTS` **semi-join** so a Task carrying
+two of the named tags appears exactly once — a `JOIN` would duplicate it and
+corrupt the page, the count beside the filter and the keyset cursor. It is a
+dimension in the same declarative configuration every other filter uses, so it is
+expressible in a saved view for free; it is deliberately **not** an input to the
+smart sort or to the STEER-04 next-action rule
+([DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3--resolved-2026-08-29-v26-find-03),
+closed). A Task's own tags are edited through the shared `TagsField` on the
+record Drawer's Details tab — the same interaction People, Assets and Notes use.
 
 All filtering is server-side, URL-backed, bookmarkable, Back/Forward-safe,
 workspace-scoped, bounded, and bound into the pagination cursor. Nothing loads the
@@ -683,6 +692,31 @@ and removing one restores the user's words exactly as typed.
 | Australian dates | `14/8`, `14/08/2026` (day-first; a bare day/month rolls forward a year when it has passed) |
 | Recurrence (fixed schedule) | `every day`, `every weekday`, `every Monday`, `every week`, `every month`, `every year`, and **any `every N days/weeks/months/years` with N between 1 and 99** (`every 3 weeks`, `every 14 days`, `every 6 months`) |
 | Recurrence (after completion) — TASKS-11 | any counted or bare unit phrase above, followed by one of six suffixes: `after completion`, `after completed`, `after completing`, `after finishing`, `after I complete it`, `after I finish it` (`every 6 months after completion`). An optional `repeat` / `repeats` may lead the phrase. |
+| Tags — V2.6 FIND-04 | `#home`, `#deep-work`, `#ERRAND` (the workspace's own spelling is what the preview shows) |
+
+**`#tag`, and what is deliberately NOT a tag (V2.6 FIND-04).** A `#` word is a tag
+only when it begins with a letter or digit, contains only letters, digits, `-`
+and `_`, and carries at least one **letter**. That last clause is the one that
+matters: it is what keeps `the #1 priority`, `Fix #42 before Friday` and
+`Row #1-2` as the ordinary text they are. A bare `#`, a pasted Markdown heading
+(`# Heading`, `## Subheading`), a body starting with punctuation (`#-x`,
+`#_private`), punctuation attached to the word (`#home.`, `#home,`, `#home!`)
+and a `#` that does not start the word (`end.#home`, `a/#home`) are all ordinary
+text too. Resolution is the one canonicalisation rule
+([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)),
+so `#ERRAND` is the `Errand` the workspace already holds and reads back in that
+spelling.
+
+A tag the workspace does **not** hold yet depends on whether the surface can show
+it. On the full create form, which renders the token preview, it is **offered** —
+the chip says *"New tag: …"* rather than *"Tag: …"* and the owner can remove it,
+and it is created only when the capture is saved. On a surface with **no**
+preview — the in-list quick-add row, the capture sheet, and every external
+transport — there is nowhere to offer it, so it is **not created**: the word
+simply stays in the title. An existing tag still resolves everywhere, because
+resolving a word the owner already has is not creating vocabulary. One rule, one
+option (`unknownTags`), and never a tag the owner could not see arriving. One
+line carries at most ten tags; beyond that the extra words stay text.
 
 Three rules keep it trustworthy:
 

@@ -86,6 +86,10 @@ export default [
   // DS-08 global Search endpoint — a JSON resource route behind the Worker auth
   // boundary. It renders no shell, so it stays OUTSIDE the app-shell layout.
   route("search", "routes/search.ts"),
+  // V2.6 FIND-02 — the ONE tag vocabulary endpoint, read by every tagging
+  // surface in the product. A JSON resource route like Search above: it renders
+  // no shell, so it stays OUTSIDE the app-shell layout.
+  route("tags", "routes/tags.ts"),
   // NOTIFY-01 — the notification INBOX endpoint. `GET` returns the recent log
   // the bell's sheet renders; `POST` marks one row, or every row, read. A
   // shell-owned resource route: it renders no shell, so it stays outside the

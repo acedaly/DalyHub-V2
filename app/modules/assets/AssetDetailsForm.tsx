@@ -13,6 +13,7 @@
  */
 
 import { ASSET_STATUSES, ASSET_TYPES } from "~/kernel/assets";
+import { useTagVocabulary } from "~/shared/tags";
 import {
   DateField,
   Form,
@@ -141,6 +142,10 @@ export function AssetDetailsForm({
   areas,
   onSaved,
 }: AssetDetailsFormProps) {
+  // V2.6 FIND-02 — the ONE workspace tag vocabulary, so adding a tag here is
+  // the same interaction it is everywhere else in the product.
+  const vocabulary = useTagVocabulary();
+
   const form = useForm<Values>({
     initialValues: {
       assetType: asset.assetType,
@@ -265,7 +270,11 @@ export function AssetDetailsForm({
           maxLength={200}
           {...form.field("referenceCode")}
         />
-        <TagsField label="Tags" {...form.field("tags")} />
+        <TagsField
+          label="Tags"
+          vocabulary={vocabulary}
+          {...form.field("tags")}
+        />
       </FormSection>
 
       <FormSection title="Ownership and location">

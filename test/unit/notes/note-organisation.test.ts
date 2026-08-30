@@ -26,10 +26,20 @@ describe("note tags", () => {
     expect(normaliseNoteTag("  Deep   Work ")).toBe("deep work");
   });
 
-  it("de-duplicates case variants and sorts, so an unchanged set is byte-identical", () => {
+  /*
+   * V2.6 FIND-02 changed what a Note STORES, and this assertion records the
+   * change rather than being loosened around it. NOTES-02 case-folded on write,
+   * so `Reading` became `reading` and the owner's casing was gone. The one
+   * vocabulary keeps the folded form as the tag's IDENTITY and the owner's
+   * spelling as its label, so `Reading` still collapses with `reading` and
+   * `READING` -- one tag, found by any of the three -- and the label that comes
+   * back is the first one the owner typed. The canonical ORDER, which is what
+   * makes an unchanged set compare equal, is unchanged.
+   */
+  it("de-duplicates case variants and sorts, keeping the first spelling", () => {
     expect(
       validateNoteTags(["Reading", "reading", "  READING  ", "atlas"]),
-    ).toEqual(["atlas", "reading"]);
+    ).toEqual(["atlas", "Reading"]);
     expect(JSON.stringify(validateNoteTags(["b", "a"]))).toBe(
       JSON.stringify(validateNoteTags(["a", "b"])),
     );
@@ -62,8 +72,8 @@ describe("note tags", () => {
   });
 
   it("parses both wire forms — the JSON array the shared TagsField posts, and a comma list", () => {
-    expect(parseNoteTagInput('["Alpha","beta"]')).toEqual(["alpha", "beta"]);
-    expect(parseNoteTagInput("Alpha, beta ,alpha")).toEqual(["alpha", "beta"]);
+    expect(parseNoteTagInput('["Alpha","beta"]')).toEqual(["Alpha", "beta"]);
+    expect(parseNoteTagInput("Alpha, beta ,alpha")).toEqual(["Alpha", "beta"]);
     expect(parseNoteTagInput("")).toEqual([]);
   });
 

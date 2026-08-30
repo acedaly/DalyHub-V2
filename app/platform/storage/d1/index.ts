@@ -18,6 +18,7 @@ import type {
 } from "~/kernel/activity";
 import type { ActivityWindowRepository } from "~/kernel/activity-window";
 import type { RecentRecordsRepository } from "~/kernel/recent-records";
+import type { TagVocabularyRepository } from "~/kernel/tags";
 import type { AlignmentRepository } from "~/kernel/alignment";
 import type {
   CalendarSourceRepository,
@@ -104,6 +105,7 @@ import { D1AlignmentRepository } from "./d1-alignment-repository";
 import { D1CrossViewQueryRepository } from "./d1-cross-view-query-repository";
 import { D1ActivityWindowRepository } from "./d1-activity-window-repository";
 import { D1RecentRecordsRepository } from "./d1-recent-records-repository";
+import { D1TagVocabularyRepository } from "./d1-tag-repository";
 import { D1ReviewInsightRepository } from "./d1-review-insight-repository";
 import {
   D1AppPreferencesRepository,
@@ -214,6 +216,18 @@ export { D1ActivityRepository };
 export { D1AlignmentRepository };
 export { D1ActivityWindowRepository };
 export { D1RecentRecordsRepository };
+export {
+  D1TagVocabularyRepository,
+  TagVocabularyStorageError,
+} from "./d1-tag-repository";
+export {
+  buildEntityTagStatements,
+  entityTagsProjection,
+  entityTagsStatement,
+  parseTagProjection,
+  tagFilterPredicate,
+  tagSearchPredicate,
+} from "./d1-entity-tags";
 export { D1ReviewInsightRepository };
 export { D1AppPreferencesRepository, type D1AppPreferencesRepositoryOptions };
 export { D1AreaRepository };
@@ -684,6 +698,21 @@ export function createRecentRecordsRepository(
   context: WorkspaceContext,
 ): RecentRecordsRepository {
   return new D1RecentRecordsRepository(db, context);
+}
+
+/**
+ * Factory for FIND-02's tag vocabulary repository, bound to a `WorkspaceContext`.
+ *
+ * READ-ONLY by design: a tag is an attribute of a record, so it is WRITTEN by the
+ * record's own repository inside the record's own atomic mutation
+ * (`d1-entity-tags.ts`). There is deliberately no second way to change a Person's
+ * tags ([ADR-113]).
+ */
+export function createTagVocabularyRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+): TagVocabularyRepository {
+  return new D1TagVocabularyRepository(db, context);
 }
 
 /**

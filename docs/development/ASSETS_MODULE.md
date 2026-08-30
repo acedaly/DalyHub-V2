@@ -66,8 +66,10 @@ These are genuinely independent: a **disposed** asset can still be an **active
 (`ON DELETE RESTRICT`). Groups:
 
 - **Identity** — `asset_type` (required), `status` (required, default `active`),
-  `description`, `manufacturer`, `model`, `serial_number`, `reference_code`, `tags`
-  (JSON array).
+  `description`, `manufacturer`, `model`, `serial_number`, `reference_code`.
+
+**Tags are no longer a column here.** V2.6 FIND-02 moved them to the workspace's one vocabulary — a `workspace_tags` row keyed by its ASCII case-folded `tag_key`, attached by `entity_tags`, read back on the record's own `SELECT` as one correlated projection ([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)). The domain type still exposes `tags` as an array of the owner's own spellings, so nothing above this line changed shape; the storage did.
+
 - **Ownership & location** — `owner_person_id`, `responsible_person_id`, `location`
   (plain text), `area_id`. Person/Area references are **canonical ids**, never
   duplicated records.

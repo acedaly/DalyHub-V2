@@ -311,7 +311,24 @@ export function Picker({
           return;
         case "create":
           onCreate?.(row.name);
-          onClose(true);
+          /*
+           * Creating is a CHOICE, so it ends the same way choosing does.
+           *
+           * A single-choice picker is finished — the created record is the
+           * answer. A MULTI-SELECT is not: V2.6 FIND-02 gave the picker its
+           * first `multiple` + `onCreate` host (the tags field), and closing on
+           * a create there would mean re-opening the surface between every new
+           * tag while an existing tag could be chosen without leaving it. Two
+           * behaviours for one gesture, decided by whether the word happened to
+           * exist already. So the multi-select branch matches the option branch
+           * exactly, including clearing the query for the next search.
+           */
+          if (multiple) {
+            setQuery("");
+            onSearch?.("");
+          } else {
+            onClose(true);
+          }
           return;
         case "clear":
           clear?.onSelect();

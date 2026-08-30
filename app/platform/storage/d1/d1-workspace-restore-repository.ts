@@ -53,6 +53,7 @@ import {
   type SafetyBackupReceipt,
   type WorkspaceRestoreRepository,
 } from "~/kernel/restore";
+import { canonicalTagKey, normaliseTag } from "~/kernel/tags";
 import { isSavedViewKind } from "~/kernel/views";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
@@ -307,7 +308,16 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
   },
   noteDetails: {
     table: "note_details",
-    columns: ["entity_id", "content", "tags", "archived_at", "updated_at"],
+    columns: ["entity_id", "content", "archived_at", "updated_at"],
+  },
+  /* V2.6 FIND-02 — the tag vocabulary and its attachments. */
+  workspaceTags: {
+    table: "workspace_tags",
+    columns: ["tag_key", "label", "created_at", "updated_at"],
+  },
+  entityTags: {
+    table: "entity_tags",
+    columns: ["entity_id", "tag_key", "created_at"],
   },
   diaryEntryDetails: {
     table: "diary_entry_details",
@@ -342,7 +352,6 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "website",
       "birthday",
       "relationship",
-      "tags",
       "notes",
       "favourite_contact_method",
       "follow_up_frequency",
@@ -398,7 +407,6 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "model",
       "serial_number",
       "reference_code",
-      "tags",
       "owner_person_id",
       "responsible_person_id",
       "location",
@@ -623,6 +631,128 @@ function jsonText(value: unknown): string {
  * schema DEFAULT, so the database asserts the record type rather than trusting a
  * value that travelled inside an uploaded file.
  */
+/**
+ * V2.6 FIND-02 — the tag rows a restore writes, for an archive of EITHER shape.
+ *
+ * A snapshot written after migration `0049` carries `workspaceTags` and
+ * `entityTags` and those are used verbatim. An archive written BEFORE it carries
+ * neither, and its tags live in the per-record `tags` arrays on People, Assets
+ * and Notes — so they are converged here by exactly the rule the migration
+ * applies in SQL: {@link canonicalTagKey} for identity, first spelling wins for
+ * the label, People before Assets before Notes.
+ *
+ * The two paths are deliberately ONE function so they cannot drift: a
+ * `workspaceTags` entry an attachment needs but the archive omits (a hand-edited
+ * or truncated file) is synthesised from the record arrays here rather than
+ * failing the `entity_tags_tag_fk` foreign key mid-cutover.
+ *
+ * Computed once per snapshot and memoised, because `stageRows` is called once
+ * per collection and this walks three record collections.
+ */
+const TAG_ROW_CACHE = new WeakMap<
+  WorkspaceSnapshotV1,
+  {
+    readonly vocabulary: readonly Record<string, StagedValue>[];
+    readonly attachments: readonly Record<string, StagedValue>[];
+  }
+>();
+
+function tagCollections(snapshot: WorkspaceSnapshotV1): {
+  readonly vocabulary: readonly Record<string, StagedValue>[];
+  readonly attachments: readonly Record<string, StagedValue>[];
+} {
+  const cached = TAG_ROW_CACHE.get(snapshot);
+  if (cached) return cached;
+
+  const at = snapshot.meta.exportedAt;
+  // key -> { label, createdAt, updatedAt }. Insertion order is the tie-break, so
+  // the FIRST spelling encountered is the one kept.
+  const vocabulary = new Map<
+    string,
+    { label: string; createdAt: string; updatedAt: string }
+  >();
+  // `${entityId}\u0000${key}` -> createdAt, so one entity cannot attach twice.
+  const attachments = new Map<
+    string,
+    { entityId: string; createdAt: string }
+  >();
+
+  const remember = (label: string, createdAt: string, updatedAt: string) => {
+    const key = canonicalTagKey(label);
+    if (key.length === 0) return null;
+    if (!vocabulary.has(key)) {
+      vocabulary.set(key, { label: normaliseTag(label), createdAt, updatedAt });
+    }
+    return key;
+  };
+  const attach = (entityId: string, key: string, createdAt: string) => {
+    const composite = `${entityId}\u0000${key}`;
+    if (!attachments.has(composite)) {
+      attachments.set(composite, { entityId, createdAt });
+    }
+  };
+
+  // The archive's OWN vocabulary first, so its labels and timestamps win over
+  // anything reconstructed from a record array.
+  for (const tag of snapshot.records.workspaceTags ?? []) {
+    const key = canonicalTagKey(tag.label);
+    if (key.length === 0) continue;
+    vocabulary.set(key, {
+      label: normaliseTag(tag.label),
+      createdAt: tag.createdAt || at,
+      updatedAt: tag.updatedAt || at,
+    });
+  }
+  for (const attachment of snapshot.records.entityTags ?? []) {
+    const key = canonicalTagKey(attachment.tagKey);
+    if (key.length === 0) continue;
+    // An attachment whose vocabulary entry the archive omitted still resolves:
+    // the key IS a usable label, and refusing the row would lose the tag.
+    if (!vocabulary.has(key)) {
+      vocabulary.set(key, { label: key, createdAt: at, updatedAt: at });
+    }
+    attach(attachment.entityId, key, attachment.createdAt || at);
+  }
+
+  // The per-record arrays. People, then Assets, then Notes — the same
+  // source order migration `0049` uses, so a legacy archive and a legacy
+  // database converge on the same label for the same tag.
+  const fromRecords: readonly {
+    readonly entityId: string;
+    readonly tags: readonly string[];
+  }[] = [
+    ...snapshot.records.personDetails,
+    ...snapshot.records.assetDetails,
+    ...snapshot.records.noteDetails,
+  ];
+  for (const record of fromRecords) {
+    for (const label of record.tags) {
+      const key = remember(label, at, at);
+      if (key) attach(record.entityId, key, at);
+    }
+  }
+
+  const rows = {
+    vocabulary: [...vocabulary.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, value]) => ({
+        tag_key: key,
+        label: value.label,
+        created_at: value.createdAt,
+        updated_at: value.updatedAt,
+      })),
+    attachments: [...attachments.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([composite, value]) => ({
+        entity_id: value.entityId,
+        tag_key: composite.slice(value.entityId.length + 1),
+        created_at: value.createdAt,
+      })),
+  };
+  TAG_ROW_CACHE.set(snapshot, rows);
+  return rows;
+}
+
 function stageRows(
   collection: string,
   snapshot: WorkspaceSnapshotV1,
@@ -925,11 +1055,24 @@ function stageRows(
           // The canonical Markdown source, byte for byte. Nothing here trims,
           // normalises line endings or renders (ADR-015).
           content: row.content,
-          tags: jsonText(row.tags),
           archived_at: row.archivedAt,
           updated_at: row.updatedAt,
         }),
       );
+    /*
+     * V2.6 FIND-02 — the tag vocabulary and its attachments.
+     *
+     * `tagCollections` reconstructs both from the per-record `tags` arrays when
+     * the archive predates migration `0049` and therefore carries no tag
+     * collections of its own. That is not a convenience: restore is the
+     * documented recovery path, and an owner's existing backup is EXACTLY the
+     * safety net taken before this migration is applied. A restore that dropped
+     * every tag from it would make the safety net the thing that loses the data.
+     */
+    case "workspaceTags":
+      return tagCollections(snapshot).vocabulary;
+    case "entityTags":
+      return tagCollections(snapshot).attachments;
     case "diaryEntryDetails":
       return (
         rows as readonly SnapshotCollectionRowMap["diaryEntryDetails"][]
@@ -963,7 +1106,6 @@ function stageRows(
           website: row.website,
           birthday: row.birthday,
           relationship: row.relationship,
-          tags: jsonText(row.tags),
           notes: row.notes,
           favourite_contact_method: row.favouriteContactMethod,
           follow_up_frequency: row.followUpFrequency,
@@ -1024,7 +1166,6 @@ function stageRows(
           model: row.model,
           serial_number: row.serialNumber,
           reference_code: row.referenceCode,
-          tags: jsonText(row.tags),
           owner_person_id: row.ownerPersonId,
           responsible_person_id: row.responsiblePersonId,
           location: row.location,
