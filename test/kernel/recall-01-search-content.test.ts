@@ -743,6 +743,68 @@ describe("RECALL-01 — Search reaches record content", () => {
   /* Bounded inputs still degrade rather than fail the statement             */
   /* ---------------------------------------------------------------------- */
 
+  /* ---------------------------------------------------------------------- */
+  /* The bounded needle: one prefix, used by every part of the statement     */
+  /* ---------------------------------------------------------------------- */
+
+  it("labels and excerpts an over-long query's body hit honestly, not as a title match", async () => {
+    /*
+     * D1 caps a LIKE pattern at 50 bytes, so a longer query DEGRADES to
+     * matching its opening characters — documented and intended. What is not
+     * intended is the statement disagreeing with itself: bind the whole query to
+     * the excerpt `instr()` beside a bounded `LIKE` and the row is admitted by
+     * the prefix but reported as having no body hit, so a body match comes back
+     * mislabelled "Title" with no excerpt and nothing to highlight. Raised by
+     * review on PR #243; `likeContainsNeedle` is the fix, and this is the proof.
+     *
+     * 48 bytes is the contains-pattern budget (50 minus the two `%` wrappers),
+     * so the prefix below is exactly what the LIKE will match on and the four
+     * trailing characters are exactly what it must not require.
+     */
+    const prefix = "quibnarp".repeat(6);
+    expect(prefix.length).toBe(48);
+    const query = `${prefix}zzzz`;
+
+    const context = makeContext(WS);
+    const taskId = await seedTask(
+      WS,
+      "Bounded needle task",
+      `Description carrying ${prefix} and nothing after it.`,
+    );
+    const meetingId = await seedMeeting(WS, {
+      title: "Bounded needle meeting",
+      agenda: "",
+      notes: `Notes carrying ${prefix} and nothing after it.`,
+    });
+    const entry = await makeDiaryRepository(context).create({
+      entryType: "reflection",
+      title: "Bounded needle diary",
+      body: `Body carrying ${prefix} and nothing after it.`,
+    });
+
+    const taskHits = await createTaskRepository(env.DB, context).searchTasks({
+      text: query,
+    });
+    expect(taskHits.map((hit) => hit.id)).toEqual([taskId]);
+    expect(taskHits[0]?.matchSource).toBe("description");
+    expect(taskHits[0]?.excerpt).toContain(prefix);
+
+    const meetingHits = await createMeetingRepository(
+      env.DB,
+      context,
+    ).searchMeetings({ text: query });
+    expect(meetingHits.map((hit) => hit.id)).toEqual([meetingId]);
+    expect(meetingHits[0]?.matchSource).toBe("notes");
+    expect(meetingHits[0]?.excerpt).toContain(prefix);
+
+    const diaryHits = await createDiaryRepository(env.DB, context).search({
+      text: query,
+    });
+    expect(diaryHits.map((hit) => hit.id)).toEqual([entry.id]);
+    expect(diaryHits[0]?.matchSource).toBe("body");
+    expect(diaryHits[0]?.excerpt).toContain(prefix);
+  });
+
   it("bounds an over-long query on every content provider rather than erroring", async () => {
     const context = makeContext(WS);
     // Well past D1's 50-byte LIKE-pattern cap, which fails the WHOLE statement

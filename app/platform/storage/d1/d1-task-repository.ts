@@ -203,7 +203,7 @@ import {
   type EntityRow,
 } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
-import { likeContains, likePrefix } from "./like-pattern";
+import { likeContains, likeContainsNeedle, likePrefix } from "./like-pattern";
 import {
   readSearchExcerptRow,
   searchExcerpt,
@@ -1942,7 +1942,14 @@ export class D1TaskRepository implements TaskRepository {
     const text = input.text.trim().toLocaleLowerCase();
     if (text.length === 0) return [];
     const limit = validateTaskLimit(input.limit);
-    const like = likeContains(text);
+    /*
+     * ONE bounded needle. `likeContains` truncates to D1's 50-byte pattern
+     * budget, so a longer query matches on its opening characters — and the
+     * excerpt `instr()` and the match-source checks must reason about exactly
+     * that prefix, or a body hit comes back mislabelled with no excerpt.
+     */
+    const needle = likeContainsNeedle(text);
+    const like = likeContains(needle);
     const descriptionExcerpt = searchExcerptColumns(
       "coalesce(td.description, '')",
       "description",
@@ -2022,9 +2029,9 @@ export class D1TaskRepository implements TaskRepository {
        */
       .bind(
         this.#workspaceId,
-        text, // description_hit
-        text, // description_window
-        text, // description_window_start
+        needle, // description_hit
+        needle, // description_window
+        needle, // description_window_start
         like, // checklist_hit probe
         this.#workspaceId,
         like, // title
@@ -2043,7 +2050,7 @@ export class D1TaskRepository implements TaskRepository {
         row as unknown as Record<string, unknown>,
         "description",
       );
-      const titleMatched = row.title.toLocaleLowerCase().includes(text);
+      const titleMatched = row.title.toLocaleLowerCase().includes(needle);
       // Fixed precedence: title > metadata (checklist) > body (description).
       const matchSource: TaskMatchSource = titleMatched
         ? "title"
@@ -2056,7 +2063,9 @@ export class D1TaskRepository implements TaskRepository {
         ...this.#toTaskListItem(row),
         matchSource,
         excerpt:
-          matchSource === "description" ? searchExcerpt(excerptRow, text) : "",
+          matchSource === "description"
+            ? searchExcerpt(excerptRow, needle)
+            : "",
       };
     });
   }

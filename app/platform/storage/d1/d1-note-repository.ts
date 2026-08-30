@@ -70,7 +70,7 @@ import {
   tagFilterPredicate,
   tagSearchPredicate,
 } from "./d1-entity-tags";
-import { likeContains, likePrefix } from "./like-pattern";
+import { likeContains, likeContainsNeedle, likePrefix } from "./like-pattern";
 import {
   SEARCH_EXCERPT_WINDOW,
   normaliseSearchExcerptWindow,
@@ -366,7 +366,13 @@ export class D1NoteRepository implements NoteQueryRepository {
     const text = normaliseNoteQuery(input.text);
     if (text === null) return [];
     const limit = clampLimit(input.limit, NOTE_SEARCH_MAX_LIMIT, 10);
-    const needle = text.toLocaleLowerCase();
+    const lowered = text.toLocaleLowerCase();
+    // ONE bounded needle. `likeContains` truncates to D1's 50-byte pattern
+    // budget, so a longer query matches on its opening characters — and every
+    // other use of the query in this statement (the excerpt `instr()`, the
+    // match-source checks, the analyser) must reason about exactly that prefix,
+    // or a body hit is reported as a title hit with no excerpt.
+    const needle = likeContainsNeedle(lowered);
     const like = likeContains(needle);
 
     // The shared excerpt contract (RECALL-01): `instr` gives the 1-based
@@ -408,8 +414,8 @@ export class D1NoteRepository implements NoteQueryRepository {
       like,
       like,
       like,
-      needle, // rank: exact title
-      likePrefix(needle), // rank: title prefix
+      lowered, // rank: exact title — the WHOLE query, never the bound prefix
+      likePrefix(lowered), // rank: title prefix
       like, // rank: title contains
       limit,
     ];
@@ -482,7 +488,7 @@ export class D1NoteRepository implements NoteQueryRepository {
         heading,
         excerpt:
           bodyOffset >= 0
-            ? excerptAroundMatch(window, text)
+            ? excerptAroundMatch(window, needle)
             : excerptAroundMatch(window, ""),
       };
     });

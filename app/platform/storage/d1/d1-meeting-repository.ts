@@ -56,7 +56,7 @@ import {
   type AtomicMutationFault,
   type AtomicMutationResult,
 } from "./d1-atomic-mutation";
-import { likeContains } from "./like-pattern";
+import { likeContains, likeContainsNeedle } from "./like-pattern";
 import {
   readSearchExcerptRow,
   searchExcerpt,
@@ -518,7 +518,14 @@ export class D1MeetingRepository implements MeetingRepository {
     const text = input.text.trim().toLowerCase();
     if (text.length === 0) return [];
     const limit = Math.max(1, Math.min(input.limit ?? 20, 50));
-    const like = likeContains(text);
+    /*
+     * ONE bounded needle. `likeContains` truncates to D1's 50-byte pattern
+     * budget, so a longer query matches on its opening characters — and the
+     * excerpt `instr()` and the match-source checks must reason about exactly
+     * that prefix, or a body hit comes back mislabelled with no excerpt.
+     */
+    const needle = likeContainsNeedle(text);
+    const like = likeContains(needle);
     const now = toStorageTimestamp(this.#clock());
     const agendaExcerpt = searchExcerptColumns(
       "coalesce(d.agenda_markdown, '')",
@@ -581,17 +588,17 @@ export class D1MeetingRepository implements MeetingRepository {
          * then the WHERE clause, the ORDER BY clock, and the LIMIT.
          */
         .bind(
-          text, // agenda_hit
-          text, // agenda_window
-          text, // agenda_window_start
-          text, // notes_hit
-          text, // notes_window
-          text, // notes_window_start
-          text, // item_hit
+          needle, // agenda_hit
+          needle, // agenda_window
+          needle, // agenda_window_start
+          needle, // notes_hit
+          needle, // notes_window
+          needle, // notes_window_start
+          needle, // item_hit
           like, // item_hit predicate
-          text, // item_window
+          needle, // item_window
           like, // item_window predicate
-          text, // item_window_start
+          needle, // item_window_start
           like, // item_window_start predicate
           like, // item_kind predicate
           this.#workspaceId,
@@ -621,8 +628,10 @@ export class D1MeetingRepository implements MeetingRepository {
         row as unknown as Record<string, unknown>,
         "item",
       );
-      const titleMatched = row.title.toLowerCase().includes(text);
-      const locationMatched = (row.location ?? "").toLowerCase().includes(text);
+      const titleMatched = row.title.toLowerCase().includes(needle);
+      const locationMatched = (row.location ?? "")
+        .toLowerCase()
+        .includes(needle);
       const matchSource: MeetingMatchSource = titleMatched
         ? "title"
         : locationMatched
@@ -650,7 +659,7 @@ export class D1MeetingRepository implements MeetingRepository {
         matchSource,
         itemKind:
           matchSource === "item" ? parseMeetingItemKind(row.item_kind) : null,
-        excerpt: excerptRow ? searchExcerpt(excerptRow, text) : "",
+        excerpt: excerptRow ? searchExcerpt(excerptRow, needle) : "",
       };
     });
   }

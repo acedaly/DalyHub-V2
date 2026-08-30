@@ -582,6 +582,20 @@ and [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-w
    matching its opening characters instead of erroring. The shared
    `like-pattern.ts` helper is used by repository-backed Search providers so this
    behaviour is consistent.
+
+   **One bounded needle per query, and this is load-bearing.** Because the
+   pattern matches on a PREFIX, everything else in the same statement that
+   reasons about the query must reason about that same prefix:
+   `likeContainsNeedle(query)` returns the raw text `likeContains(query)` will
+   actually match on, and it is what the excerpt `instr()`, the match-source
+   `includes()` checks and the excerpt analyser bind. Binding the whole query to
+   `instr()` beside a bounded `LIKE` makes the statement disagree with itself —
+   the row is admitted by the prefix, then reported as having no body hit, so a
+   body match comes back labelled "Title" with no excerpt and nothing to
+   highlight. (The exact-title ranking arm still compares the WHOLE query, which
+   is the one place the full text is the right question.) Raised by review on the
+   RECALL-01 PR; asserted in `test/kernel/like-pattern.test.ts` and, end to end
+   over three providers, in `test/kernel/recall-01-search-content.test.ts`.
 2. **`lower()` folds ASCII only.** Matching and the excerpt offsets are therefore
    ASCII-case-insensitive, consistently across every DalyHub search.
 

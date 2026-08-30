@@ -706,6 +706,24 @@ needs to implement without re-auditing.
   falsified: removing the captured-items `EXISTS` altogether reddens eight of the
   fifteen, the ten-item single-result case among them.
 
+  **One review finding, verified and fixed** (Codex on PR #243, P2). D1 caps a
+  LIKE pattern at 50 bytes, so a longer query degrades to matching its opening
+  characters — documented and intended. What was NOT intended is the statement
+  disagreeing with itself: the excerpt `instr()` and the match-source
+  `includes()` checks bound the WHOLE query beside a bounded `LIKE`, so an
+  over-long query admitted a row by its prefix and then reported no body hit —
+  a body match labelled "Title", with no excerpt and nothing to highlight.
+  `likeContainsNeedle()` now returns the raw text the pattern will actually
+  match on, and it is the one needle the predicate, the projection, the
+  match-source checks and the analyser all share (the exact-title ranking arm
+  still compares the whole query, which is the one place the full text is the
+  right question). The defect was PRE-EXISTING in Notes — the reference
+  implementation had it first — and fixing it there too is the same rule that
+  made Notes consume the shared modules rather than remain a fifth fork.
+  Falsified: making `likeContainsNeedle` the identity reddens exactly the new
+  regression, which asserts a 48-byte-prefix hit is labelled `description` /
+  `notes` / `body` with an excerpt across Tasks, Meetings and Diary.
+
 ---
 
 ### ☐ RECALL-02 — History answers by time

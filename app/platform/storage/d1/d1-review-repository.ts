@@ -84,7 +84,7 @@ import {
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
-import { likeContains, likePrefix } from "./like-pattern";
+import { likeContains, likeContainsNeedle, likePrefix } from "./like-pattern";
 import {
   readSearchExcerptRow,
   searchExcerpt,
@@ -489,7 +489,14 @@ export class D1ReviewRepository implements ReviewRepository {
   }): Promise<readonly ReviewSearchHit[]> {
     const text = normaliseReviewQuery(input.text);
     if (text === null) return [];
-    const needle = text.toLocaleLowerCase();
+    const lowered = text.toLocaleLowerCase();
+    /*
+     * ONE bounded needle. `likeContains` truncates to D1's 50-byte pattern
+     * budget, so a longer query matches on its opening characters — and the
+     * excerpt `instr()` and the match-source checks must reason about exactly
+     * that prefix, or a body hit comes back mislabelled with no excerpt.
+     */
+    const needle = likeContainsNeedle(lowered);
     const limit = validateReviewLimit(input.limit);
     const like = likeContains(needle);
     const SECTION_FROM = "review_sections rs";
@@ -553,8 +560,8 @@ export class D1ReviewRepository implements ReviewRepository {
           this.#workspaceId,
           like, // title
           like, // sections EXISTS
-          needle, // rank: exact title
-          likePrefix(needle), // rank: title prefix
+          lowered, // rank: exact title — the WHOLE query, never the bound prefix
+          likePrefix(lowered), // rank: title prefix
           limit,
         )
         .all<ReviewSearchRow>();

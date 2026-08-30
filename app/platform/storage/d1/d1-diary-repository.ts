@@ -77,7 +77,7 @@ import {
   recordAtomicMutation,
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
-import { likeContains, likePrefix } from "./like-pattern";
+import { likeContains, likeContainsNeedle, likePrefix } from "./like-pattern";
 import {
   readSearchExcerptRow,
   searchExcerpt,
@@ -366,7 +366,14 @@ export class D1DiaryRepository implements DiaryRepository {
     // The explicit-query boundary, enforced before a statement exists.
     if (text.length === 0) return [];
     const limit = validateDiaryLimit(input.limit);
-    const like = likeContains(text);
+    /*
+     * ONE bounded needle. `likeContains` truncates to D1's 50-byte pattern
+     * budget, so a longer query matches on its opening characters — and the
+     * excerpt `instr()` and the match-source checks must reason about exactly
+     * that prefix, or a body hit comes back mislabelled with no excerpt.
+     */
+    const needle = likeContainsNeedle(text);
+    const like = likeContains(needle);
     const prefix = likePrefix(text);
     const bodyExcerpt = searchExcerptColumns("coalesce(d.body, '')", "body");
     try {
@@ -395,9 +402,9 @@ export class D1DiaryRepository implements DiaryRepository {
          * workspace, the two match predicates, the ranking CASE, the LIMIT.
          */
         .bind(
-          text, // body_hit
-          text, // body_window
-          text, // body_window_start
+          needle, // body_hit
+          needle, // body_window
+          needle, // body_window_start
           this.#workspaceId,
           like, // title
           like, // body
@@ -415,7 +422,7 @@ export class D1DiaryRepository implements DiaryRepository {
         // both match is labelled by the reason the owner can already see.
         const matchSource: DiaryMatchSource = row.title
           .toLocaleLowerCase()
-          .includes(text)
+          .includes(needle)
           ? "title"
           : searchExcerptMatched(bodyRow)
             ? "body"
@@ -427,7 +434,7 @@ export class D1DiaryRepository implements DiaryRepository {
           occurredAt: fromStorageTimestamp(row.occurred_at),
           timezone: row.timezone,
           matchSource,
-          excerpt: matchSource === "body" ? searchExcerpt(bodyRow, text) : "",
+          excerpt: matchSource === "body" ? searchExcerpt(bodyRow, needle) : "",
         };
       });
     } catch (cause) {
