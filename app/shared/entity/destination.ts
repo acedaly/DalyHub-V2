@@ -23,10 +23,14 @@
  *     renders plain text. We never link to a "Coming Soon" placeholder merely
  *     because a type is registered.
  *
- * PEOPLE-03 added the Diary entry route (`/diary/:entryId`), which DIARY-01A had
- * shipped without registering here — so a diary entry referenced from a Person's
- * relationship timeline used to degrade to plain text even though its record page
- * existed.
+ * PEOPLE-03 registered `diary` here, pointing at `/diary/:entryId` — but that
+ * path is a UI-less RESOURCE route (the JSON endpoint the details panel fetches),
+ * not a record page, so every link opened the entry's raw JSON including its
+ * private body (DEBT-222). RECALL-00-A corrected the mapping to Diary's canonical
+ * record surface: the day view with the entry's inspector open
+ * (`/diary?inspector=view:<id>`), the same target the Diary search provider uses.
+ * There is deliberately NO `/diary/:id` record page — day + inspector IS the
+ * record surface, and a second one would fork it.
  *
  * This is the single source of truth for "where does this record open"; modules
  * must not reintroduce per-module route `switch` statements.
@@ -51,7 +55,11 @@ const CANONICAL_ROUTE: Partial<Record<string, (id: string) => string>> = {
   meeting: (id) => `/meeting/${encodeURIComponent(id)}`,
   asset: (id) => `/asset/${encodeURIComponent(id)}`,
   review: (id) => `/reviews/${encodeURIComponent(id)}`,
-  diary: (id) => `/diary/${encodeURIComponent(id)}`,
+  // Diary's canonical record surface is the day view with the entry's inspector
+  // open — `/diary/:entryId` is the JSON resource route feeding that inspector,
+  // never a destination (RECALL-00-A). The id lands in a query parameter, so
+  // `encodeURIComponent` also keeps `?`/`&`/`#` in an id from splitting the URL.
+  diary: (id) => `/diary?inspector=view:${encodeURIComponent(id)}`,
   // FIND-01 added `habit`, which was missing while `/habits/:habitId` had
   // existed since HABITS-01. The Habits search provider had worked around the
   // gap by hard-coding its own route (`app/modules/habits/search.ts`) — exactly

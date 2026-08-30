@@ -59,13 +59,21 @@ describe("entityDestination", () => {
     });
   });
 
-  // PEOPLE-03 — DIARY-01A shipped `/diary/:entryId` but never registered it here,
-  // so a diary entry referenced from a Person's relationship timeline degraded to
-  // plain text even though its record page existed.
-  it("maps a Diary entry to its canonical record route", () => {
+  // RECALL-00-A (DEBT-222) — `/diary/:entryId` is a UI-less JSON resource route,
+  // so pointing links at it opened the entry's raw body as JSON. The canonical
+  // Diary record surface is the day view with the entry's inspector open — the
+  // same target the Diary search provider uses.
+  it("maps a Diary entry to the Diary day surface with its inspector open, never the JSON resource route", () => {
     expect(entityDestination("diary", "d1")).toEqual({
       kind: "route",
-      to: "/diary/d1",
+      to: "/diary?inspector=view:d1",
+    });
+  });
+
+  it("keeps a Diary id query-safe (encoded, so ?/&/# cannot split the URL)", () => {
+    expect(entityDestination("diary", "d 1&x=2")).toEqual({
+      kind: "route",
+      to: "/diary?inspector=view:d%201%26x%3D2",
     });
   });
 

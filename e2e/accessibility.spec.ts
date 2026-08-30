@@ -311,3 +311,43 @@ test.describe("automated accessibility — open overlays", () => {
     await page.keyboard.press("Escape");
   });
 });
+
+/*
+ * RECALL-00-D (DEBT-225) — the desktop top bar's search control keeps its
+ * accessible name through the collapsed-rail tablet band.
+ *
+ * The button's ONLY name source is its label span, and `shell.css` used to
+ * remove it with `display:none` below 64rem while the desktop bar renders from
+ * 48rem up — so across ~769–1023px the product's primary retrieval entry point
+ * was an unnamed <button> (axe `button-name`, WCAG 4.1.2). The jsdom unit test
+ * could not catch it (no stylesheet loads there), so the proof lives here, at
+ * real band widths, with no axe rule disabled beyond the suite's documented
+ * global set. Falsification: restore `display:none` on the label and the 820px
+ * assertions fail while 1024px still passes.
+ */
+test.describe("RECALL-00-D — the search control is named at every shell width", () => {
+  test("the search button keeps its accessible name at 820px, and the band is axe-clean", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 820, height: 900 });
+    await gotoFixture(page, "/tasks");
+    const search = page.getByRole("search", { name: "Search DalyHub" });
+    const button = search.getByRole("button");
+    await expect(button).toBeVisible();
+    // The label is visually collapsed at this width — the NAME must survive it.
+    await expect(button).toHaveAccessibleName("Search DalyHub");
+    await expectNoAxeViolations(page);
+  });
+
+  test("the widened bar at 1024px stays axe-clean with the same name", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await gotoFixture(page, "/tasks");
+    const search = page.getByRole("search", { name: "Search DalyHub" });
+    await expect(search.getByRole("button")).toHaveAccessibleName(
+      "Search DalyHub",
+    );
+    await expectNoAxeViolations(page);
+  });
+});

@@ -345,6 +345,115 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
 });
 
 /*
+ * RECALL-00-A (DEBT-222) — every path to a Diary entry opens the DIARY.
+ *
+ * `entityDestination("diary", id)` used to map to `/diary/:id`, which is the
+ * UI-less JSON resource route feeding the details panel — so Linked Items, the
+ * People relationship timeline and every other consumer of the ONE destination
+ * map opened the entry's raw JSON, private body included. The map now targets
+ * the canonical Diary surface (`/diary?inspector=view:<id>`), and this journey
+ * proves the whole path at desktop and phone width: a linked entry on a Person
+ * record opens the rendered day surface with that entry's inspector, and the
+ * destination document is HTML.
+ *
+ * Falsification: point the destination map back at `/diary/:id` and the href
+ * assertion, the content-type assertion and the landing assertions all fail.
+ *
+ * Privacy (ROADMAP_V2_7 acceptance boundary): the seeded body is a synthetic
+ * nonsense phrase, and no assertion reads it or prints it — the journey
+ * asserts titles and structure only.
+ */
+const RECALL_OWNED = `
+  SELECT id FROM entities
+  WHERE workspace_id = '${WS}' AND title LIKE '${PREFIX}%'
+`;
+const RECALL_CLEANUP_SQL = [
+  `DELETE FROM entity_links WHERE workspace_id = '${WS}' AND (source_entity_id IN (${RECALL_OWNED}) OR target_entity_id IN (${RECALL_OWNED}));`,
+  `DELETE FROM activity_subjects WHERE workspace_id = '${WS}' AND entity_id IN (${RECALL_OWNED});`,
+  `DELETE FROM activities WHERE workspace_id = '${WS}' AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+  `DELETE FROM diary_entry_details WHERE workspace_id = '${WS}' AND entity_id IN (${RECALL_OWNED});`,
+  `DELETE FROM person_details WHERE workspace_id = '${WS}' AND entity_id IN (${RECALL_OWNED});`,
+  `DELETE FROM entities WHERE workspace_id = '${WS}' AND id IN (${RECALL_OWNED});`,
+] as const;
+
+test.describe("RECALL-00-A — a linked Diary entry opens the Diary, not JSON", () => {
+  test.beforeAll(() => {
+    for (const command of RECALL_CLEANUP_SQL) d1Execute(command);
+  });
+  test.afterEach(() => {
+    for (const command of RECALL_CLEANUP_SQL) d1Execute(command);
+  });
+
+  for (const [label, viewport] of [
+    ["desktop", { width: 1280, height: 800 }],
+    ["393px phone", { width: 393, height: 851 }],
+  ] as const) {
+    test(`a Person's linked entry lands on the day surface with its inspector open (${label})`, async ({
+      page,
+    }) => {
+      test.setTimeout(120_000);
+      await page.setViewportSize(viewport);
+      const stamp = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
+      const personId = `diary-e2e-person-${stamp}`;
+      const personName = `${PREFIX}person ${stamp}`;
+      const entryId = `diary-e2e-linked-${stamp}`;
+      const entryTitle = `${PREFIX}linked ${stamp}`;
+      const occurred = new Date().toISOString();
+      // Synthetic, distinctive, never asserted on and never printed.
+      const syntheticBody = "quokka-sundial-paradox forty-seven violet anvils";
+
+      d1Execute([
+        `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${personId}', '${WS}', 'person', '${personName}', '${occurred}', '${occurred}', NULL);`,
+        `INSERT INTO person_details (workspace_id, entity_id, updated_at) VALUES ('${WS}', '${personId}', '${occurred}');`,
+        `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${entryId}', '${WS}', 'diary', '${entryTitle}', '${occurred}', '${occurred}', NULL);`,
+        `INSERT INTO diary_entry_details (workspace_id, entity_id, entry_type, body, occurred_at, timezone, source_channel, source_reference, updated_at) VALUES ('${WS}', '${entryId}', 'note', '${syntheticBody}', '${occurred}', 'Australia/Sydney', 'manual', NULL, '${occurred}');`,
+        `INSERT INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at) VALUES ('diary-e2e-link-${stamp}', '${WS}', '${personId}', '${entryId}', 'link.related', '${occurred}', '${occurred}', NULL);`,
+      ]);
+
+      // The Person's Linked surface holds the entry as a navigable link whose
+      // href is the ONE destination map's answer: the Diary day surface with
+      // the entry's inspector open — never the `/diary/:id` resource route.
+      await gotoFixture(page, `/person/${personId}?tab=linked`);
+      const entryLink = page.getByRole("link", {
+        name: new RegExp(entryTitle),
+      });
+      await expect(entryLink).toBeVisible();
+      const expectedHref = `/diary?inspector=view:${entryId}`;
+      await expect(entryLink).toHaveAttribute("href", expectedHref);
+
+      // The destination document is HTML — a regression to the resource route
+      // would serve `application/json` (the raw entry, body included) here.
+      const destinationResponse = await page.request.get(expectedHref);
+      expect(destinationResponse.ok()).toBe(true);
+      expect(destinationResponse.headers()["content-type"] ?? "").toContain(
+        "text/html",
+      );
+
+      // Activating the link opens the rendered Diary UI: the day surface with
+      // this entry's details panel (inspector) open on its title.
+      await entryLink.click();
+      await expect(page).toHaveURL(/\/diary\?/);
+      await expect(page).toHaveURL(/inspector=view/);
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Diary" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Edit entry" }),
+      ).toBeVisible();
+      await expect(
+        page.locator(".dh-diary-detail__title", { hasText: entryTitle }),
+      ).toBeVisible();
+      await expectNoAxeViolations(page);
+      await expectNoHorizontalOverflow(page);
+
+      // Back returns to the Person — the deep link is ONE navigation.
+      await page.goBack();
+      await expect(page).toHaveURL(new RegExp(`/person/${personId}`));
+    });
+  }
+});
+
+/*
  * DIARY-01B — the day's capture control, on a REAL phone.
  *
  * Split out of the long day-mode journey above, which runs at this project's

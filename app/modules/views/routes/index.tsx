@@ -219,6 +219,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     groups: buildGroups(items, config.groupBy),
     total: items.length,
     bounded: page.bounded,
+    readCount: page.readCount,
+    saturatedScopes: page.saturatedScopes,
     unavailable: page.unavailable,
     scopeOptions: buildScopeOptions(config, available, activeViewId),
     views: buildViewOptions(saved),

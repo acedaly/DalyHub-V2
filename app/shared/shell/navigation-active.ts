@@ -1,5 +1,6 @@
 /**
- * UX-01 — the ONE rule for "which navigation destination am I inside?".
+ * UX-01 / RECALL-00-E — the ONE rule for "which navigation destination am I
+ * inside?".
  *
  * Both navigation surfaces render the SAME registry-derived model, so they must
  * agree about which row is current. Before UX-01 they did not: the phone bottom
@@ -16,11 +17,29 @@
  * The rule, and why each clause exists:
  *   - a destination matches its own path OR any path nested beneath it, so a
  *     record keeps its module current;
+ *   - **a destination ALSO matches inside its module's declared route-path
+ *     prefixes** (`NavigationItem.activePathPrefixes`, derived from the module
+ *     manifests by the navigation adapter — RECALL-00-E / DEBT-226). Path
+ *     nesting alone left People, Meetings and Assets with no current row on
+ *     exactly their most-opened pages: their collections are plural (`/people`)
+ *     while their record and create routes are singular (`/person/:id`,
+ *     `/new/person`). The truth "a record route belongs to its module's
+ *     collection destination" is DATA the registry already holds, so it is
+ *     contributed once per module there — never patched per route and never
+ *     switched per consumer;
  *   - `/` matches only `/`, so the home destination never claims every route;
  *   - matching is segment-aware (`/today` does not match `/todayish`);
- *   - when several destinations match, the LONGEST href wins, so a nested
- *     destination beats its ancestor and exactly one row is ever current.
+ *   - when several destinations match, the LONGEST matched path (href or
+ *     prefix) wins, so a nested destination beats its ancestor and exactly one
+ *     row is ever current.
  */
+
+/** What the rule needs to know about a destination: its href, and optionally
+ * its module's out-of-nesting route prefixes. `NavigationItem` satisfies it. */
+export interface NavigationDestinationInput {
+  readonly href: string;
+  readonly activePathPrefixes?: readonly string[];
+}
 
 /** Whether `href` is the destination the given `pathname` sits inside. */
 export function isNavigationDestinationActive(
@@ -35,22 +54,49 @@ export function isNavigationDestinationActive(
 }
 
 /**
- * The href of the single current destination for `pathname`, or `null` when the
- * route sits under none of them. Longest match wins, so exactly one navigation
- * row is ever marked current.
+ * The length of the longest declared path (href or module route prefix) the
+ * pathname sits inside, or null when it sits inside none — the destination's
+ * ranking key for the longest-match rule.
  */
-export function activeNavigationHref(
-  hrefs: readonly string[],
+function matchLength(
+  destination: NavigationDestinationInput,
   pathname: string,
-): string | null {
-  let best: string | null = null;
-  for (const href of hrefs) {
-    if (!isNavigationDestinationActive(href, pathname)) {
-      continue;
-    }
-    if (best === null || href.length > best.length) {
-      best = href;
+): number | null {
+  let best: number | null = null;
+  if (isNavigationDestinationActive(destination.href, pathname)) {
+    best = destination.href.length;
+  }
+  for (const prefix of destination.activePathPrefixes ?? []) {
+    if (!isNavigationDestinationActive(prefix, pathname)) continue;
+    if (best === null || prefix.length > best) {
+      best = prefix.length;
     }
   }
   return best;
+}
+
+/**
+ * The href of the single current destination for `pathname`, or `null` when the
+ * route sits under none of them (hrefs and declared prefixes alike). Longest
+ * match wins, so exactly one navigation row is ever marked current. Accepts
+ * bare hrefs so the pre-RECALL-00-E callers and fixtures read unchanged.
+ */
+export function activeNavigationHref(
+  destinations: readonly (string | NavigationDestinationInput)[],
+  pathname: string,
+): string | null {
+  let bestHref: string | null = null;
+  let bestLength = -1;
+  for (const entry of destinations) {
+    const destination = typeof entry === "string" ? { href: entry } : entry;
+    const length = matchLength(destination, pathname);
+    if (length === null) {
+      continue;
+    }
+    if (length > bestLength) {
+      bestHref = destination.href;
+      bestLength = length;
+    }
+  }
+  return bestHref;
 }

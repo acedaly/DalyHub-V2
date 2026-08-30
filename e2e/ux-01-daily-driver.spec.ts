@@ -16,7 +16,12 @@
 
 import { expect, test } from "@playwright/test";
 
-import { expectNoAxeViolations, gotoFixture } from "./helpers";
+import { d1Execute } from "./d1";
+import {
+  expectNoAxeViolations,
+  gotoFixture,
+  mobileNavigationOpener,
+} from "./helpers";
 
 const rail = (page: import("@playwright/test").Page) =>
   page.getByRole("navigation", { name: "Primary" });
@@ -45,6 +50,76 @@ test.describe("UX-01 — the rail keeps its place on a record route", () => {
     await expect(
       rail(page).getByRole("link", { name: "Notes" }),
     ).not.toHaveAttribute("aria-current", "page");
+  });
+});
+
+/*
+ * RECALL-00-E (DEBT-226) — the SINGULAR record and create routes keep their
+ * module current. People, Meetings and Assets register plural collection hrefs
+ * while their record routes are `/person/:id`, `/meeting/:id`, `/asset/:id`
+ * (the exact paths the one destination map sends every link to) and their
+ * create routes are `/new/person|meeting|asset` — the six route shapes that
+ * used to leave the rail, the More sheet and the phone bar with ZERO
+ * `aria-current` rows. Falsification: revert `navigation-active.ts` to
+ * nesting-only matching and every assertion below fails.
+ */
+test.describe("RECALL-00-E — singular record routes keep their module current", () => {
+  const WS = "local-dev-workspace";
+  const personId = "ux01-recall-person";
+  const personName = "UX01 RECALL person";
+  const seed = () => {
+    const now = new Date().toISOString();
+    d1Execute([
+      `INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES ('${personId}', '${WS}', 'person', '${personName}', '${now}', '${now}', NULL);`,
+      `INSERT OR IGNORE INTO person_details (workspace_id, entity_id, updated_at) VALUES ('${WS}', '${personId}', '${now}');`,
+    ]);
+  };
+  const cleanup = () => {
+    d1Execute([
+      `DELETE FROM activity_subjects WHERE workspace_id = '${WS}' AND entity_id = '${personId}';`,
+      `DELETE FROM person_details WHERE workspace_id = '${WS}' AND entity_id = '${personId}';`,
+      `DELETE FROM entities WHERE workspace_id = '${WS}' AND id = '${personId}';`,
+    ]);
+  };
+  test.beforeAll(() => {
+    cleanup();
+    seed();
+  });
+  test.afterAll(() => cleanup());
+
+  test("People stays current on a Person record and on /new/person (desktop rail)", async ({
+    page,
+  }) => {
+    await gotoFixture(page, `/person/${personId}`);
+    await expect(
+      rail(page).getByRole("link", { name: "People" }),
+    ).toHaveAttribute("aria-current", "page");
+    // Exactly ONE current row — longest-match still holds.
+    await expect(rail(page).locator('[aria-current="page"]')).toHaveCount(1);
+
+    await gotoFixture(page, "/new/person");
+    await expect(
+      rail(page).getByRole("link", { name: "People" }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(rail(page).locator('[aria-current="page"]')).toHaveCount(1);
+  });
+
+  test("the More sheet marks People current on a Person record at phone width", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 393, height: 851 });
+    await gotoFixture(page, `/person/${personId}`);
+
+    // People is not one of the phone bar's destinations, so the path runs
+    // through More — the sheet renders the same registry model through the
+    // same one rule, and must mark the same row.
+    await mobileNavigationOpener(page).click();
+    const sheet = page.getByRole("navigation", { name: "Primary" });
+    await expect(sheet.getByRole("link", { name: "People" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expectNoAxeViolations(page);
   });
 });
 

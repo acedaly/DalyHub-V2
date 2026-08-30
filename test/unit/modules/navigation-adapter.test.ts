@@ -155,4 +155,143 @@ describe("navigation adapter", () => {
     // A module with no entity type carries none (the shell falls back to a glyph).
     expect(settings?.entityType).toBeUndefined();
   });
+
+  /*
+   * RECALL-00-E (DEBT-226) — each destination carries its module's
+   * out-of-nesting route prefixes, DERIVED from the routes the registry
+   * already holds, never a hand-kept list.
+   */
+  describe("module route prefixes (RECALL-00-E)", () => {
+    it("derives the singular record and create prefixes from the module's own routes", () => {
+      const nav = navFrom([
+        defineModule({
+          id: "people",
+          name: "People",
+          routes: [
+            {
+              id: "people.index",
+              path: "people",
+              file: "routes/index.tsx",
+              meta: { navLabel: "People" },
+            },
+            // Nested sub-view: covered by nesting, contributes no prefix.
+            {
+              id: "people.recent",
+              path: "people/recent",
+              file: "routes/recent.tsx",
+            },
+            // Fully-static create route outside the nesting.
+            { id: "people.new", path: "new/person", file: "routes/new.tsx" },
+            // Singular record routes: one prefix, deduplicated.
+            {
+              id: "people.detail",
+              path: "person/:personId",
+              file: "routes/detail.tsx",
+            },
+            {
+              id: "people.activity",
+              path: "person/:personId/activity",
+              file: "routes/activity.tsx",
+            },
+          ],
+        }),
+      ]);
+      expect(nav[0]?.activePathPrefixes).toEqual(["/new/person", "/person"]);
+    });
+
+    it("derives none for a module whose routes all nest under its destinations", () => {
+      const nav = navFrom([
+        defineModule({
+          id: "notes",
+          name: "Notes",
+          routes: [
+            {
+              id: "notes.list",
+              path: "notes",
+              file: "routes/index.tsx",
+              meta: { navLabel: "Notes" },
+            },
+            {
+              id: "notes.detail",
+              path: "notes/:noteId",
+              file: "routes/detail.tsx",
+            },
+          ],
+        }),
+      ]);
+      expect(nav[0]?.activePathPrefixes).toBeUndefined();
+    });
+
+    it("attaches a module's prefixes to its FIRST destination only", () => {
+      const nav = navFrom([
+        defineModule({
+          id: "tasks",
+          name: "Tasks",
+          routes: [
+            {
+              id: "tasks.inbox",
+              path: "inbox",
+              file: "routes/inbox.tsx",
+              meta: { navLabel: "Inbox", navOrder: 10 },
+            },
+            {
+              id: "tasks.index",
+              path: "tasks",
+              file: "routes/index.tsx",
+              meta: { navLabel: "Tasks", navOrder: 20 },
+            },
+            // A record shape outside both destinations' nesting.
+            { id: "tasks.detail", path: "task/:taskId", file: "routes/d.tsx" },
+          ],
+        }),
+      ]);
+      expect(nav.map((item) => item.id)).toEqual([
+        "tasks.inbox",
+        "tasks.index",
+      ]);
+      expect(nav[0]?.activePathPrefixes).toEqual(["/task"]);
+      expect(nav[1]?.activePathPrefixes).toBeUndefined();
+    });
+
+    it("fails composition when two modules claim the same route prefix", () => {
+      expect(() =>
+        navFrom([
+          defineModule({
+            id: "people",
+            name: "People",
+            routes: [
+              {
+                id: "people.index",
+                path: "people",
+                file: "routes/index.tsx",
+                meta: { navLabel: "People" },
+              },
+              {
+                id: "people.detail",
+                path: "record/:id",
+                file: "routes/detail.tsx",
+              },
+            ],
+          }),
+          defineModule({
+            id: "assets",
+            name: "Assets",
+            routes: [
+              {
+                id: "assets.index",
+                path: "assets",
+                file: "routes/index.tsx",
+                meta: { navLabel: "Assets" },
+              },
+              {
+                id: "assets.detail",
+                path: "record/:id2",
+                file: "routes/detail.tsx",
+              },
+            ],
+          }),
+        ]),
+      ).toThrow(/route prefix "\/record" is claimed by both/);
+    });
+  });
 });

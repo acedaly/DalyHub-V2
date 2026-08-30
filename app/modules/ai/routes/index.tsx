@@ -70,6 +70,20 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
           ? { kind: "budget_exhausted" }
           : null;
 
+  /*
+   * RECALL-00-F (DEBT-227) — the five deterministic intents (overdue/open/inbox
+   * counts, latest/upcoming meeting) are answered server-side BEFORE any
+   * provider gate, contact no provider and cost nothing — so a disabled or
+   * unconfigured provider must not hide the question form that reaches them.
+   * The calm unavailable notice stays, beside the form, for the provider-backed
+   * features; a non-deterministic question still fails closed server-side with
+   * the same calm explanation it gets today. Feature-blocked and
+   * budget-exhausted remain fully gated: both presuppose an activated provider.
+   */
+  const deterministicStillAnswers =
+    unavailable !== null &&
+    (unavailable.kind === "disabled" || unavailable.kind === "unconfigured");
+
   const ask = useCallback(
     (event: FormEvent) => {
       event.preventDefault();
@@ -103,10 +117,11 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
         </p>
       </header>
 
-      {unavailable !== null ? (
+      {unavailable !== null && !deterministicStillAnswers ? (
         <AiUnavailable state={unavailable} />
       ) : (
         <>
+          {unavailable !== null ? <AiUnavailable state={unavailable} /> : null}
           <form className="dh-ask__form" onSubmit={ask}>
             <label className="dh-ask__label" htmlFor={fieldId}>
               Your question
@@ -139,11 +154,22 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
             </div>
           </form>
 
-          <AiSendNotice>
-            Your question and the records DalyHub selects are sent to your
-            configured AI provider. Only ask about information you are permitted
-            to share with them.
-          </AiSendNotice>
+          {deterministicStillAnswers ? (
+            // Honest in the off state: nothing leaves DalyHub. The questions it
+            // can answer itself, it answers; the rest are declined calmly.
+            <AiSendNotice>
+              With AI off, DalyHub still answers the questions it can from your
+              records alone — how many tasks are overdue, open or in the Inbox,
+              and your latest or next meeting. Nothing is sent anywhere; other
+              questions are declined until a provider is set up.
+            </AiSendNotice>
+          ) : (
+            <AiSendNotice>
+              Your question and the records DalyHub selects are sent to your
+              configured AI provider. Only ask about information you are
+              permitted to share with them.
+            </AiSendNotice>
+          )}
 
           {state.kind === "running" || state.kind === "cancelling" ? (
             <AiProgress

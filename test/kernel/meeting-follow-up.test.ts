@@ -14,7 +14,15 @@ import type { WorkspaceScope } from "~/platform/workspaces";
 const MEETING_ITEM_CONVERTED_TO_TASK = "meeting.item_converted_to_task";
 
 import {
+  createActivityRepository,
+  createEntityRepository,
+  createMeetingRepository,
+  createTaskRepository,
+} from "~/platform/storage/d1";
+
+import {
   FakeClock,
+  countingDb,
   countMeetingItemTaskRows,
   countActivitiesOfType,
   makeContext,
@@ -500,6 +508,188 @@ describe("MEET-02 — lifecycle", () => {
 
     const mapping = await h.meetings.getFollowUpForItem(second.id);
     expect(mapping?.taskId).toBe(conv.taskId);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* RECALL-00-C (DEBT-224) — the follow-up read is ONE bounded batch            */
+/* -------------------------------------------------------------------------- */
+
+describe("RECALL-00-C — Meeting follow-ups resolve as one bounded batch", () => {
+  it("reads 26 follow-ups in a pinned statement budget, with every view matching the Task authority", async () => {
+    const h = harness(WS);
+    const area = await seedArea(h);
+    const meeting = await seedMeeting(h);
+
+    // 26 follow-up Tasks (the roadmap's 25+ population): under the old per-link
+    // `getTask` loop this read cost 1 + 26 × (1 joined read + relationship
+    // walks) — dozens of statements growing linearly with follow-ups.
+    const taskIds: string[] = [];
+    for (let index = 0; index < 26; index += 1) {
+      const result = await createMeetingFollowUpTask(h.scope, meeting.id, {
+        title: `Follow-up ${String(index).padStart(2, "0")}`,
+        parent: { kind: "area", id: area.id },
+      });
+      taskIds.push(result.taskId);
+    }
+    // Real, mixed follow-up state, set through the Task authority itself.
+    await h.tasks.completeTask(taskIds[3]!);
+    await h.tasks.setWaiting(taskIds[5]!, {
+      target: { kind: "text", note: "the plumber" },
+    });
+
+    // The meeting-detail read shape, over a counting DB: the bounded mapping
+    // read plus ONE chunked batch (26 ids ≤ the 90-id chunk).
+    const counting = countingDb(env.DB);
+    const context = makeContext(WS);
+    const countedMeetings = createMeetingRepository(counting.db, context);
+    const countedTasks = createTaskRepository(counting.db, context);
+    counting.reset();
+
+    const links = await countedMeetings.listFollowUps(meeting.id, {
+      limit: 100,
+    });
+    const batch = await countedTasks.getTasksByIds(
+      links.map((link) => link.taskId),
+    );
+
+    /*
+     * The pinned budget (ROADMAP_V2_7 RECALL-00-C): 1 mapping read +
+     * ceil(26/90) = 1 chunked batch = 2 statements — flat in follow-up count.
+     * Falsification: reintroduce the per-link `getTask` loop and this becomes
+     * 2 + 26 × per-task reads, failing loudly.
+     */
+    expect(links).toHaveLength(26);
+    expect(counting.prepareCount()).toBe(2);
+
+    // Every follow-up's state matches the Task authority EXACTLY: the batched
+    // view deep-equals the canonical single-task read, completion and waiting
+    // included — Task stays the one authority for follow-up state.
+    expect(batch.size).toBe(26);
+    for (const id of taskIds) {
+      expect(batch.get(id)).toEqual(await h.tasks.getTask(id));
+    }
+
+    // The caller reimposes its own (newest-first mapping) order by walking its
+    // links against the map — exactly what the meeting loader does.
+    const ordered = links.map((link) => batch.get(link.taskId)?.id);
+    expect(ordered).toEqual(links.map((link) => link.taskId));
+  });
+
+  it("resolves the full project → goal → area chain identically to getTask", async () => {
+    const h = harness(WS);
+    const meeting = await seedMeeting(h);
+    const area = await h.spine.createArea({ title: "Home" });
+    const goal = await h.spine.createGoal({
+      title: "Settle in",
+      areaId: area.id,
+    });
+    const project = await h.spine.createProject({
+      title: "Kitchen",
+      parent: { kind: "goal", id: goal.id },
+    });
+    const result = await createMeetingFollowUpTask(h.scope, meeting.id, {
+      title: "Order the benchtop",
+      parent: { kind: "project", id: project.id },
+    });
+
+    const batch = await h.tasks.getTasksByIds([result.taskId]);
+    const single = await h.tasks.getTask(result.taskId);
+    expect(single?.project?.id).toBe(project.id);
+    expect(single?.goal?.id).toBe(goal.id);
+    expect(single?.area?.id).toBe(area.id);
+    expect(batch.get(result.taskId)).toEqual(single);
+  });
+
+  it("omits missing and deleted ids, and never returns another workspace's task", async () => {
+    const h = harness(WS);
+    const hostile = harness(OTHER);
+
+    const area = await seedArea(h);
+    const meeting = await seedMeeting(h);
+    const mine = await createMeetingFollowUpTask(h.scope, meeting.id, {
+      title: "Mine",
+      parent: { kind: "area", id: area.id },
+    });
+    const deleted = await createMeetingFollowUpTask(h.scope, meeting.id, {
+      title: "Deleted later",
+      parent: { kind: "area", id: area.id },
+    });
+    await h.spine.softDelete(deleted.taskId);
+
+    // A HOSTILE row: a real follow-up Task in a second workspace.
+    const hostileArea = await seedArea(hostile, "Hostile ops");
+    const hostileMeeting = await seedMeeting(hostile, "Hostile sync");
+    const theirs = await createMeetingFollowUpTask(
+      hostile.scope,
+      hostileMeeting.id,
+      {
+        title: "HOSTILE follow-up",
+        parent: { kind: "area", id: hostileArea.id },
+      },
+    );
+
+    const batch = await h.tasks.getTasksByIds([
+      mine.taskId,
+      deleted.taskId,
+      theirs.taskId,
+      "never-existed",
+    ]);
+
+    // Present: the live task in THIS workspace. Absent (never disclosed): the
+    // soft-deleted one, the other workspace's, and the id that never existed.
+    expect([...batch.keys()]).toEqual([mine.taskId]);
+    // `includeDeleted` restores the deleted one — and STILL never the hostile row.
+    const withDeleted = await h.tasks.getTasksByIds(
+      [mine.taskId, deleted.taskId, theirs.taskId],
+      { includeDeleted: true },
+    );
+    expect([...withDeleted.keys()].sort()).toEqual(
+      [mine.taskId, deleted.taskId].sort(),
+    );
+  });
+
+  it("resolves a Task-timeline page's subjects in the page read plus one batch (task-activity shape)", async () => {
+    const h = harness(WS);
+    const area = await seedArea(h);
+    const meeting = await seedMeeting(h);
+    // Ten tasks, each generating Activity that references distinct entities —
+    // the population under which `task-activity.tsx`'s per-id `getById` loop
+    // (sitting under a comment claiming "ONE bounded batch") issued one
+    // statement per subject.
+    const tasks: string[] = [];
+    for (let index = 0; index < 10; index += 1) {
+      const created = await createMeetingFollowUpTask(h.scope, meeting.id, {
+        title: `Chase ${index}`,
+        parent: { kind: "area", id: area.id },
+      });
+      tasks.push(created.taskId);
+    }
+
+    const counting = countingDb(env.DB);
+    const context = makeContext(WS);
+    const activity = createActivityRepository(counting.db, context);
+    const entities = createEntityRepository(counting.db, context);
+
+    // The loader's read shape after RECALL-00-C: the activity page read, then
+    // ONE chunked `entities.getByIds` over every referenced subject id.
+    const page = await activity.listForEntity(tasks[0]!, { limit: 30 });
+    const ids = new Set<string>();
+    for (const record of page.items) {
+      for (const subject of record.subjects) ids.add(subject.entityId);
+    }
+    expect(ids.size).toBeGreaterThan(1);
+
+    // Pin what this fix owns: resolving EVERY subject id costs exactly ONE
+    // statement (the ids fit one ≤90-id chunk), however many subjects the page
+    // carries. The replaced loop cost one `getById` statement per id, so
+    // reintroducing it fails this loudly.
+    counting.reset();
+    const resolved = await entities.getByIds([...ids], {
+      includeDeleted: true,
+    });
+    expect(resolved.size).toBe(ids.size);
+    expect(counting.prepareCount()).toBe(1);
   });
 });
 

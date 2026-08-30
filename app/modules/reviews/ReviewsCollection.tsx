@@ -400,7 +400,19 @@ export function ReviewsCollectionView({
               }
               state={stateLine(review)}
               action={
-                finished || review.archived ? undefined : (
+                /*
+                 * RECALL-00-G (DEBT-228) — the guide affordance exists ONLY for
+                 * the type that has a guide: `weekly`, the same predicate the
+                 * record page's guided entry uses (`ReviewRecord.tsx`). The
+                 * guide route redirects every other type straight back to the
+                 * record, so "Start monthly review" announced a flow and
+                 * silently bounced — a live dead-end. Non-weekly rows keep
+                 * their ordinary open-record affordance (the card itself);
+                 * when a monthly guide ships, its button returns with it.
+                 */
+                finished ||
+                review.archived ||
+                review.type !== "weekly" ? undefined : (
                   <Link
                     /* Outlined, not filled. A filled control was the loudest
                      * thing on a card whose job is to be recognised by its

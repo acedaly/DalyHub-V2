@@ -41,9 +41,9 @@ const MEETING = "meeting-1";
 const PERSON = "person-1";
 const TASK = "task-1";
 const DIARY = "diary-1";
-// An UNREGISTERED entity type: PEOPLE-03 gave the Diary entry its canonical route
-// (`/diary/:entryId`), which DIARY-01A had shipped without registering in the
-// shared destination map — so `diary` is no longer an example of "no destination".
+// An UNREGISTERED entity type: `diary` has a genuine destination (the day
+// surface with the entry's inspector open, RECALL-00-A), so it is no longer an
+// example of "no destination".
 const UNROUTABLE = "widget-1";
 
 function subject(
@@ -202,12 +202,12 @@ describe("rendering an entity reference", () => {
     expect(trigger).toHaveAttribute("href", "/?drawer=task%3Atask-1");
   });
 
-  it("links a Diary entry to its canonical record route", () => {
+  it("links a Diary entry to the day surface with its inspector open (RECALL-00-A)", () => {
     renderItem([{ entityId: DIARY, role: "subject" }], DIARY);
 
     expect(screen.getByRole("link", { name: "Tuesday" })).toHaveAttribute(
       "href",
-      "/diary/diary-1",
+      "/diary?inspector=view:diary-1",
     );
   });
 

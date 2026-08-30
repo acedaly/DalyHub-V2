@@ -14,9 +14,14 @@
  *     own predicates and its own indexes; a UNION over six differently-shaped scopes
  *     produces a plan that depends on which filters happened to be applied. One
  *     capped, deterministically ordered read per scope merges in memory instead.
- *   - **No N+1.** Spine anchors are resolved for the WHOLE merged candidate set in a
- *     fixed number of grouped queries, and the derived dimensions (PROJ-02 health,
- *     AREA-03 alignment) reuse those features' own batched facts repositories.
+ *   - **No N+1, and no statement over D1's bind cap.** Spine anchors are resolved
+ *     for the WHOLE merged candidate set in a fixed number of grouped queries, and
+ *     every multi-id read CHUNKS its `IN (…)` list at a D1-safe size (RECALL-00-B):
+ *     titles go through `entities.getByIds` (already chunked at 90), and the
+ *     parent/link-anchor reads chunk here — a 60-row page of Notes/Meetings used
+ *     to bind 2 + 2×60 = 122 parameters into one statement against D1's 100 cap.
+ *     The derived dimensions (PROJ-02 health, AREA-03 alignment) reuse those
+ *     features' own batched facts repositories.
  *   - **Nothing derived is re-derived.** Project health comes from
  *     `evaluateProjectHealth`, Goal alignment from `evaluateGoalAlignment`, and the
  *     REVIEW-03 comparison from REVIEW-03's own stored snapshot. This file computes
@@ -65,7 +70,10 @@ import {
 import { canonicalTagKey } from "~/kernel/tags";
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
+import type { EntityRepository } from "~/kernel/entities";
+
 import { fromStorageTimestamp } from "./database";
+import { D1EntityRepository } from "./d1-entity-repository";
 import {
   entityTagsProjection,
   parseTagProjection,
@@ -134,6 +142,31 @@ interface CandidateRow {
 /** How many days "next 7 days" and "due soon" span. */
 const DUE_SOON_DAYS = 7;
 
+/**
+ * RECALL-00-B — the per-statement id chunk sizes, chosen against D1's 100
+ * bound-variable cap exactly as `entities.getByIds` chooses its 90:
+ *
+ *   - `#resolveParents` binds `1 + n` (workspace + one placeholder per id), so a
+ *     chunk of 90 peaks at 91 binds;
+ *   - `#resolveLinkAnchors` binds `2 + 2n` (each id appears in BOTH directions of
+ *     the UNION), so a chunk of 45 peaks at 92 binds — unchunked, a 60-row page
+ *     of Notes/Meetings bound 122 and the statement failed outright.
+ *
+ * Chunks partition the id list, and every id's rows come from its own chunk, so
+ * merging per-chunk results preserves the single-statement semantics exactly.
+ */
+const RESOLVE_PARENTS_CHUNK_SIZE = 90;
+const RESOLVE_LINK_ANCHORS_CHUNK_SIZE = 45;
+
+/** Split `items` into contiguous chunks of at most `size` (for bounded IN reads). */
+function chunkIds(items: readonly string[], size: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
 function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map((part) => Number.parseInt(part, 10));
   const stamp = Date.UTC(y, (m ?? 1) - 1, d ?? 1) + days * 86_400_000;
@@ -164,6 +197,9 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
   readonly #health: ProjectHealthRepository | null;
   readonly #goals: GoalRepository | null;
   readonly #alignment: AlignmentRepository | null;
+  /** Anchor titles resolve through the kernel's own chunked batch read
+   * (`entities.getByIds`), never a private unchunked twin (RECALL-00-B). */
+  readonly #entities: EntityRepository;
 
   constructor(
     db: D1Database,
@@ -172,6 +208,7 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
       readonly health?: ProjectHealthRepository;
       readonly goals?: GoalRepository;
       readonly alignment?: AlignmentRepository;
+      readonly entities?: EntityRepository;
     },
   ) {
     this.#db = db;
@@ -179,6 +216,7 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
     this.#health = derived?.health ?? null;
     this.#goals = derived?.goals ?? null;
     this.#alignment = derived?.alignment ?? null;
+    this.#entities = derived?.entities ?? new D1EntityRepository(db, context);
   }
 
   async runCrossView(
@@ -220,6 +258,8 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
       return {
         results: [],
         bounded: false,
+        readCount: 0,
+        saturatedScopes: [],
         unavailable,
         changeBoundary: null,
       };
@@ -229,7 +269,7 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
       ? `${addDays(boundary.periodEnd, 1)}T00:00:00.000Z`
       : null;
 
-    let bounded = false;
+    const saturatedScopes: ViewScope[] = [];
     const candidates: Candidate[] = [];
     for (const scope of resolved.included) {
       const rows = await this.#readScope(
@@ -238,7 +278,9 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
         context,
         changedSinceIso,
       );
-      if (rows.length >= CROSS_VIEW_SCOPE_CANDIDATE_LIMIT) bounded = true;
+      if (rows.length >= CROSS_VIEW_SCOPE_CANDIDATE_LIMIT) {
+        saturatedScopes.push(scope);
+      }
       candidates.push(...rows);
     }
 
@@ -249,15 +291,19 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
       boundary?.snapshot ?? null,
     );
 
-    const ordered = sortCandidates(withDerived, config).slice(
-      0,
-      CROSS_VIEW_PAGE_LIMIT,
-    );
-    const results = await this.#attachAnchors(ordered);
+    // RECALL-00-B — the bound is stated, not implied. `bounded` used to be true
+    // only when a SCOPE read saturated, so a merged set of 61–119 candidates was
+    // cut to the 60-row page while the surface presented it as complete. Both
+    // truncations now count: the page slice AND any saturated scope read.
+    const ordered = sortCandidates(withDerived, config);
+    const page = ordered.slice(0, CROSS_VIEW_PAGE_LIMIT);
+    const results = await this.#attachAnchors(page);
 
     return {
       results,
-      bounded,
+      bounded: saturatedScopes.length > 0 || ordered.length > page.length,
+      readCount: ordered.length,
+      saturatedScopes,
       unavailable,
       changeBoundary: boundary
         ? { periodEnd: boundary.periodEnd, reviewId: boundary.reviewId }
@@ -656,21 +702,19 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
     });
   }
 
+  /**
+   * Anchor titles, through the kernel's own chunked, workspace-scoped batch read
+   * — `entities.getByIds` exists for exactly this shape, so this file keeps no
+   * private (and formerly unchunked) twin of it (RECALL-00-B).
+   */
   async #resolveTitles(
     ids: readonly string[],
   ): Promise<Map<string, { readonly title: string }>> {
     const resolved = new Map<string, { readonly title: string }>();
     if (ids.length === 0) return resolved;
-    const placeholders = ids.map(() => "?").join(", ");
-    const result = await this.#db
-      .prepare(
-        `SELECT id, title FROM entities
-          WHERE workspace_id = ? AND deleted_at IS NULL AND id IN (${placeholders})`,
-      )
-      .bind(this.#workspaceId, ...ids)
-      .all<{ readonly id: string; readonly title: string }>();
-    for (const row of result.results ?? []) {
-      resolved.set(row.id, { title: row.title });
+    const entities = await this.#entities.getByIds(ids);
+    for (const [id, entity] of entities) {
+      resolved.set(id, { title: entity.title });
     }
     return resolved;
   }
@@ -685,33 +729,41 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
       { readonly area: string | null; readonly goal: string | null }
     >();
     if (ids.length === 0) return resolved;
-    const placeholders = ids.map(() => "?").join(", ");
-    const result = await this.#db
-      .prepare(
-        `SELECT source_entity_id, type, target_entity_id
-           FROM entity_links
-          WHERE workspace_id = ?
-            AND deleted_at IS NULL
-            AND type IN ('${PROJECT_BELONGS_TO_AREA}', '${PROJECT_ADVANCES_GOAL}', '${GOAL_BELONGS_TO_AREA}')
-            AND source_entity_id IN (${placeholders})`,
-      )
-      .bind(this.#workspaceId, ...ids)
-      .all<{
-        readonly source_entity_id: string;
-        readonly type: string;
-        readonly target_entity_id: string;
-      }>();
-    for (const row of result.results ?? []) {
-      const current = resolved.get(row.source_entity_id) ?? {
-        area: null,
-        goal: null,
-      };
-      resolved.set(
-        row.source_entity_id,
-        row.type === PROJECT_ADVANCES_GOAL
-          ? { area: current.area, goal: row.target_entity_id }
-          : { area: row.target_entity_id, goal: current.goal },
-      );
+    // Chunked at the D1-safe size (`1 + n` binds per statement); each source id
+    // lands in exactly one chunk, so merging per-chunk rows loses nothing.
+    const results = await Promise.all(
+      chunkIds(ids, RESOLVE_PARENTS_CHUNK_SIZE).map((chunk) => {
+        const placeholders = chunk.map(() => "?").join(", ");
+        return this.#db
+          .prepare(
+            `SELECT source_entity_id, type, target_entity_id
+               FROM entity_links
+              WHERE workspace_id = ?
+                AND deleted_at IS NULL
+                AND type IN ('${PROJECT_BELONGS_TO_AREA}', '${PROJECT_ADVANCES_GOAL}', '${GOAL_BELONGS_TO_AREA}')
+                AND source_entity_id IN (${placeholders})`,
+          )
+          .bind(this.#workspaceId, ...chunk)
+          .all<{
+            readonly source_entity_id: string;
+            readonly type: string;
+            readonly target_entity_id: string;
+          }>();
+      }),
+    );
+    for (const result of results) {
+      for (const row of result.results ?? []) {
+        const current = resolved.get(row.source_entity_id) ?? {
+          area: null,
+          goal: null,
+        };
+        resolved.set(
+          row.source_entity_id,
+          row.type === PROJECT_ADVANCES_GOAL
+            ? { area: current.area, goal: row.target_entity_id }
+            : { area: row.target_entity_id, goal: current.goal },
+        );
+      }
     }
     return resolved;
   }
@@ -733,51 +785,62 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
       { readonly area: string | null; readonly project: string | null }
     >();
     if (ids.length === 0) return resolved;
-    const placeholders = ids.map(() => "?").join(", ");
-    const result = await this.#db
-      .prepare(
-        `SELECT l.source_entity_id AS anchor_id, t.id AS other_id, t.type AS other_type
-           FROM entity_links l
-           JOIN entities t
-             ON t.workspace_id = l.workspace_id
-            AND t.id = l.target_entity_id
-            AND t.deleted_at IS NULL
-            AND t.type IN ('area', 'project')
-          WHERE l.workspace_id = ? AND l.deleted_at IS NULL
-            AND l.source_entity_id IN (${placeholders})
-          UNION ALL
-         SELECT l.target_entity_id AS anchor_id, s.id AS other_id, s.type AS other_type
-           FROM entity_links l
-           JOIN entities s
-             ON s.workspace_id = l.workspace_id
-            AND s.id = l.source_entity_id
-            AND s.deleted_at IS NULL
-            AND s.type IN ('area', 'project')
-          WHERE l.workspace_id = ? AND l.deleted_at IS NULL
-            AND l.target_entity_id IN (${placeholders})
-          ORDER BY anchor_id, other_type, other_id`,
-      )
-      .bind(this.#workspaceId, ...ids, this.#workspaceId, ...ids)
-      .all<{
-        readonly anchor_id: string;
-        readonly other_id: string;
-        readonly other_type: string;
-      }>();
-    for (const row of result.results ?? []) {
-      const current = resolved.get(row.anchor_id) ?? {
-        area: null,
-        project: null,
-      };
-      resolved.set(row.anchor_id, {
-        area:
-          row.other_type === "area"
-            ? (current.area ?? row.other_id)
-            : current.area,
-        project:
-          row.other_type === "project"
-            ? (current.project ?? row.other_id)
-            : current.project,
-      });
+    // Chunked at the D1-safe size. Each id appears TWICE (once per direction of
+    // the UNION), so the statement binds `2 + 2n` — unchunked, a full 60-row page
+    // bound 122 parameters and failed against D1's 100 cap. An anchor's rows all
+    // come from its own chunk, so the per-anchor `ORDER BY` (which decides the
+    // deterministic first-wins pick below) is preserved across the merge.
+    const results = await Promise.all(
+      chunkIds(ids, RESOLVE_LINK_ANCHORS_CHUNK_SIZE).map((chunk) => {
+        const placeholders = chunk.map(() => "?").join(", ");
+        return this.#db
+          .prepare(
+            `SELECT l.source_entity_id AS anchor_id, t.id AS other_id, t.type AS other_type
+               FROM entity_links l
+               JOIN entities t
+                 ON t.workspace_id = l.workspace_id
+                AND t.id = l.target_entity_id
+                AND t.deleted_at IS NULL
+                AND t.type IN ('area', 'project')
+              WHERE l.workspace_id = ? AND l.deleted_at IS NULL
+                AND l.source_entity_id IN (${placeholders})
+              UNION ALL
+             SELECT l.target_entity_id AS anchor_id, s.id AS other_id, s.type AS other_type
+               FROM entity_links l
+               JOIN entities s
+                 ON s.workspace_id = l.workspace_id
+                AND s.id = l.source_entity_id
+                AND s.deleted_at IS NULL
+                AND s.type IN ('area', 'project')
+              WHERE l.workspace_id = ? AND l.deleted_at IS NULL
+                AND l.target_entity_id IN (${placeholders})
+              ORDER BY anchor_id, other_type, other_id`,
+          )
+          .bind(this.#workspaceId, ...chunk, this.#workspaceId, ...chunk)
+          .all<{
+            readonly anchor_id: string;
+            readonly other_id: string;
+            readonly other_type: string;
+          }>();
+      }),
+    );
+    for (const result of results) {
+      for (const row of result.results ?? []) {
+        const current = resolved.get(row.anchor_id) ?? {
+          area: null,
+          project: null,
+        };
+        resolved.set(row.anchor_id, {
+          area:
+            row.other_type === "area"
+              ? (current.area ?? row.other_id)
+              : current.area,
+          project:
+            row.other_type === "project"
+              ? (current.project ?? row.other_id)
+              : current.project,
+        });
+      }
     }
     return resolved;
   }

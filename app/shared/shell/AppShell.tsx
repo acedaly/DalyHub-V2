@@ -11,7 +11,7 @@
  *   independently so Pane Headers and filter bars can pin (PRODUCT_EXPERIENCE #11).
  *   MOBILE-01 changes NOTHING here.
  * - Phone (MOBILE-01): the rail is hidden and navigation becomes a persistent
- *   BOTTOM bar within thumb reach — `Today · Tasks · Capture · Diary · More` —
+ *   BOTTOM bar within thumb reach — `Today · Tasks · Add · Projects · More` —
  *   derived from the registry (see `mobile-navigation.ts`). "More" opens the same
  *   complete navigation sheet the hamburger used to (MobileNav), so every module
  *   stays one tap away and there is no second module list. A compact top bar keeps

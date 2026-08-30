@@ -731,6 +731,8 @@ export function bindWorkspaceRepositories(
     health: projectHealth,
     goals,
     alignment,
+    // RECALL-00-B — anchor titles resolve through the ONE chunked batch read.
+    entities,
   });
   // Read-only: no actor, because it never mutates or records Activity.
   const snapshot = createWorkspaceSnapshotRepository(env.DB, context);

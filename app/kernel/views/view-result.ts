@@ -141,11 +141,27 @@ export interface UnavailableViewScope {
 export interface CrossViewPage {
   readonly results: readonly CrossViewResult[];
   /**
-   * True when at least one scope reached its candidate cap, so the page is a
-   * bounded answer rather than a complete one. Stated plainly by the surface;
+   * True when the page is a bounded answer rather than a complete one: at least
+   * one scope reached its candidate cap, OR more candidates matched than the
+   * page holds (`readCount > results.length`). Stated plainly by the surface;
    * a bounded measure is never presented as exact (REVIEW-03's rule, reused).
+   * RECALL-00-B widened this from scope saturation alone — a merged set of
+   * 61–119 candidates used to be cut to the page silently.
    */
   readonly bounded: boolean;
+  /**
+   * How many matching candidates were READ (after every filter, before the page
+   * slice) — the denominator of the surface's honest "first N of the M read"
+   * sentence. Itself bounded when a scope saturated, which `saturatedScopes`
+   * states; never a workspace total.
+   */
+  readonly readCount: number;
+  /**
+   * The scopes whose candidate read hit `CROSS_VIEW_SCOPE_CANDIDATE_LIMIT`, so
+   * even the read was bounded for them — surfaced per scope, not folded into
+   * one flag (RECALL-00-B).
+   */
+  readonly saturatedScopes: readonly ViewScope[];
   /** Scopes the owner selected that contributed nothing, and why. */
   readonly unavailable: readonly UnavailableViewScope[];
   /**

@@ -52,6 +52,18 @@ export type NavigationItem = {
    * it never maps module ids to icons itself.
    */
   readonly navIcon?: NavIconName;
+  /**
+   * RECALL-00-E (DEBT-226) — the module's OWN route-path prefixes that live
+   * OUTSIDE this destination's path nesting, derived from the routes the
+   * registry already holds. People, Meetings and Assets register plural
+   * collection hrefs (`/people`, `/meetings`, `/assets`) while their record and
+   * create routes are singular (`person/:personId`, `new/person`, …) — so the
+   * one navigation-active rule (`~/shared/shell/navigation-active`) consults
+   * these prefixes and a record route keeps its module's destination current.
+   * Present only when a module genuinely has such routes; path nesting under
+   * `href` stays the default and is never restated here.
+   */
+  readonly activePathPrefixes?: readonly string[];
 };
 
 /**
@@ -119,6 +131,57 @@ function resolveHref(
 }
 
 /**
+ * RECALL-00-E — a route's LEADING STATIC path prefix: the resolved segments up
+ * to (never including) its first dynamic one. `person/:personId/activity`
+ * yields `/person`; a fully-static route (`new/person`) yields its whole path;
+ * a route whose first segment is dynamic yields null (it claims no prefix).
+ */
+function resolveStaticPrefix(
+  route: RegisteredRoute,
+  byId: ReadonlyMap<string, RegisteredRoute>,
+): string | null {
+  const segments: string[] = [];
+  const seen = new Set<string>();
+  let current: RegisteredRoute | undefined = route;
+  while (current !== undefined) {
+    if (seen.has(current.id)) {
+      throw new Error(
+        `navigation: route "${route.id}" has a cyclic parent chain`,
+      );
+    }
+    seen.add(current.id);
+    if (current.path !== undefined) {
+      segments.unshift(...current.path.split("/"));
+    }
+    if (current.parentId === undefined) break;
+    const parent: RegisteredRoute | undefined = byId.get(current.parentId);
+    if (parent === undefined) {
+      throw new Error(
+        `navigation: route "${route.id}" references unresolved parent "${current.parentId}"`,
+      );
+    }
+    current = parent;
+  }
+  const leading: string[] = [];
+  for (const segment of segments) {
+    if (segment.length === 0) continue;
+    if (isDynamicSegment(segment)) break;
+    leading.push(segment);
+  }
+  if (leading.length === 0) return null;
+  return `/${leading.join("/")}`;
+}
+
+/** Whether `path` sits at or nested under `href` (the adapter-side twin of the
+ * shell's path-nesting primitive, used here only to derive DATA — the matching
+ * AUTHORITY stays `~/shared/shell/navigation-active`). */
+function isNestedUnder(href: string, path: string): boolean {
+  if (href === "/") return path === "/";
+  const normalised = href.endsWith("/") ? href.slice(0, -1) : href;
+  return path === normalised || path.startsWith(`${normalised}/`);
+}
+
+/**
  * Build the deterministic primary-navigation model from the registry's flat,
  * ordered route list. Only routes that declare a `meta.navLabel` appear; each is
  * resolved to a concrete href. Ordering is by `navOrder` then the route's stable
@@ -174,11 +237,51 @@ export function buildNavigationModel(
     return a.listIndex - b.listIndex;
   });
 
-  const model = items.map((entry) => entry.item);
+  /*
+   * RECALL-00-E — teach each module's destination its own out-of-nesting route
+   * prefixes, from the routes the registry already declares (never a hand-kept
+   * list). A prefix is the leading static path of any of the module's routes
+   * that does NOT nest under any of the module's navigable hrefs — with the
+   * shipped manifests exactly `/person` + `/new/person` (People),
+   * `/meeting` + `/new/meeting` (Meetings) and `/asset` + `/new/asset`
+   * (Assets). They attach to the module's FIRST destination in nav order (its
+   * collection root); every other module derives none and carries none.
+   */
+  const moduleHrefs = new Map<ModuleId, string[]>();
+  for (const entry of items) {
+    const hrefs = moduleHrefs.get(entry.item.moduleId) ?? [];
+    hrefs.push(entry.item.href);
+    moduleHrefs.set(entry.item.moduleId, hrefs);
+  }
+  const modulePrefixes = new Map<ModuleId, string[]>();
+  for (const route of routes) {
+    const hrefs = moduleHrefs.get(route.moduleId);
+    if (hrefs === undefined) continue; // no destination to keep current
+    const prefix = resolveStaticPrefix(route, byId);
+    if (prefix === null || prefix === "/") continue;
+    if (hrefs.some((href) => isNestedUnder(href, prefix))) continue;
+    const prefixes = modulePrefixes.get(route.moduleId) ?? [];
+    if (!prefixes.includes(prefix)) {
+      prefixes.push(prefix);
+      modulePrefixes.set(route.moduleId, prefixes);
+    }
+  }
+  const attributed = new Set<ModuleId>();
+  const model = items.map(({ item }) => {
+    const prefixes = modulePrefixes.get(item.moduleId);
+    if (prefixes === undefined || attributed.has(item.moduleId)) {
+      return item;
+    }
+    attributed.add(item.moduleId);
+    return { ...item, activePathPrefixes: Object.freeze([...prefixes]) };
+  });
 
-  // Fail composition on impossible navigation (duplicate id or duplicate target).
+  // Fail composition on impossible navigation (duplicate id, duplicate target,
+  // or a route prefix two modules both claim — which would make "which row is
+  // current" ambiguous for every path beneath it).
   const seenIds = new Set<string>();
   const seenHrefs = new Set<string>();
+  const seenPrefixes = new Map<string, ModuleId>();
   for (const item of model) {
     if (seenIds.has(item.id)) {
       throw new Error(`navigation: duplicate navigation id "${item.id}"`);
@@ -188,6 +291,15 @@ export function buildNavigationModel(
       throw new Error(`navigation: duplicate navigation target "${item.href}"`);
     }
     seenHrefs.add(item.href);
+    for (const prefix of item.activePathPrefixes ?? []) {
+      const owner = seenPrefixes.get(prefix);
+      if (owner !== undefined && owner !== item.moduleId) {
+        throw new Error(
+          `navigation: route prefix "${prefix}" is claimed by both "${owner}" and "${item.moduleId}"`,
+        );
+      }
+      seenPrefixes.set(prefix, item.moduleId);
+    }
   }
 
   return Object.freeze(model);

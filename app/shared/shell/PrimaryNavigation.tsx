@@ -89,11 +89,10 @@ export function PrimaryNavigation({
   collapsible = false,
 }: PrimaryNavigationProps) {
   const { pathname } = useLocation();
-  // Exactly one row is current for any route — the longest matching destination.
-  const currentHref = activeNavigationHref(
-    items.map((item) => item.href),
-    pathname,
-  );
+  // Exactly one row is current for any route — the longest matching destination,
+  // consulting each item's module route prefixes as well as path nesting
+  // (RECALL-00-E), so a singular record route keeps its module current.
+  const currentHref = activeNavigationHref(items, pathname);
 
   /*
    * DS-03 — the collapsed rail's rows are glyph-only, so each one needs its

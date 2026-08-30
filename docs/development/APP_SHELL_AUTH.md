@@ -605,10 +605,27 @@ That rule now lives once, pure and React-free, in
 [`app/shared/shell/navigation-active.ts`](../../app/shared/shell/navigation-active.ts):
 
 - a destination matches its own path **or any path nested beneath it**;
+- a destination **also matches inside its module's declared route-path
+  prefixes** (RECALL-00-E, DEBT-226, 2026-08-30). Path nesting alone left
+  People, Meetings and Assets with no current row on exactly their most-opened
+  pages: their collections are plural (`/people`, `/meetings`, `/assets`) while
+  their record routes are singular (`/person/:id`, `/meeting/:id`,
+  `/asset/:id` — the same paths the one `entityDestination` map sends every
+  link to) and their create routes are `/new/person|meeting|asset`. The
+  navigation adapter
+  ([`app/platform/modules/navigation-adapter.ts`](../../app/platform/modules/navigation-adapter.ts))
+  DERIVES each module's out-of-nesting prefixes from the routes its manifest
+  already declares (the leading static path of any route not nested under one
+  of the module's navigable hrefs, attached once to the module's first
+  destination as `NavigationItem.activePathPrefixes`) — so the truth "a record
+  route belongs to its module's collection destination" is registry data,
+  never a per-route patch, never a per-consumer switch, and a module whose
+  record paths differ contributes them by declaring its routes, nothing more.
+  Composition fails if two modules claim the same prefix;
 - `/` matches only `/`, so a home destination never claims every route;
 - matching is segment-aware (`/today` does not match `/todayish`);
-- when several match, the **longest href wins**, so exactly one row is ever
-  current.
+- when several match, the **longest matched path wins** (href or prefix), so
+  exactly one row is ever current.
 
 `PrimaryNavigation` therefore renders plain `Link`s and applies
 `aria-current="page"` and the active class from that rule;

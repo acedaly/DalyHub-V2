@@ -170,4 +170,33 @@ describe("PX-03 navigation shells", () => {
     expect(byLabel.get("Settings")).toBe("/settings");
     expect(byLabel.get("Help")).toBe("/help");
   });
+
+  /*
+   * RECALL-00-E (DEBT-226) — the REAL manifests derive exactly the singular
+   * record + create prefixes for the three modules whose routes live outside
+   * their collection's nesting, and nothing else. Pinned against the real
+   * registry so a manifest change that orphans a record route from its module
+   * (or quietly claims a foreign path) fails here, not in a rail with no
+   * current row.
+   */
+  it("derives the singular-route prefixes for People, Meetings and Assets — and only them", () => {
+    const nav = navigation();
+    const byLabel = new Map(nav.map((item) => [item.label, item]));
+    expect(byLabel.get("People")?.activePathPrefixes).toEqual([
+      "/new/person",
+      "/person",
+    ]);
+    expect(byLabel.get("Meetings")?.activePathPrefixes).toEqual([
+      "/new/meeting",
+      "/meeting",
+    ]);
+    expect(byLabel.get("Assets")?.activePathPrefixes).toEqual([
+      "/new/asset",
+      "/asset",
+    ]);
+    for (const item of nav) {
+      if (["People", "Meetings", "Assets"].includes(item.label)) continue;
+      expect(item.activePathPrefixes, item.label).toBeUndefined();
+    }
+  });
 });

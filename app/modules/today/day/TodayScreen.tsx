@@ -108,6 +108,7 @@ import { useRegisterContextualActions } from "~/shared/commands/CommandContextPr
 import type { AppAction } from "~/shared/commands/action";
 import {
   AccentIcon,
+  entityDestination,
   identityAttribute,
   resolveIdentity,
 } from "~/shared/entity";
@@ -830,6 +831,12 @@ function ReflectionCard({
   readonly reflection: TodayDayData["reflection"];
 }) {
   const diary = useCaptureOpener("diary");
+  // The ONE destination authority — a hand-built `/diary/<id>` href here used to
+  // open the entry's raw-JSON resource route (DEBT-222 / RECALL-00-A).
+  const entryDestination =
+    reflection === null ? null : entityDestination("diary", reflection.id);
+  const entryHref =
+    entryDestination?.kind === "route" ? entryDestination.to : "/diary";
   return (
     <section
       className="dh-today__panel dh-today__reflection"
@@ -866,9 +873,7 @@ function ReflectionCard({
             {reflection.entryTypeLabel ?? "Today’s entry"}
           </p>
           <p className="dh-today__reflection-title">
-            <Link to={`/diary/${encodeURIComponent(reflection.id)}`}>
-              {reflection.title}
-            </Link>
+            <Link to={entryHref}>{reflection.title}</Link>
           </p>
           {reflection.excerpt === null ? null : (
             <p className="dh-today__reflection-excerpt">{reflection.excerpt}</p>

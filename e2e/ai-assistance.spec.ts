@@ -160,8 +160,20 @@ test.describe("AI-01 — AI is off by default and says so", () => {
     await expect(
       page.getByText("AI assistance is turned off", { exact: false }),
     ).toBeVisible();
-    // No question box is offered while it is off; there is nothing to send.
-    await expect(page.getByLabel("Your question")).toHaveCount(0);
+    /*
+     * RECALL-00-F (DEBT-227) — the question form IS offered while AI is off:
+     * the five deterministic intents are answered server-side before any
+     * provider gate, contact no provider and cost nothing, and Help advertises
+     * them. Hiding the whole form behind the enabled+configured gate made a
+     * documented, free capability unreachable in the exact state the product
+     * ships in. (This assertion used to pin the DEFECT — `toHaveCount(0)` on
+     * the question box; restoring the gate is what makes it fail now.)
+     */
+    await expect(page.getByLabel("Your question")).toBeVisible();
+    // Honest off-state copy: nothing is sent anywhere.
+    await expect(
+      page.getByText("Nothing is sent anywhere", { exact: false }),
+    ).toBeVisible();
     // The way out is a link to Settings, not an error.
     await expect(
       page.getByRole("link", { name: "Open AI settings" }),
@@ -169,6 +181,51 @@ test.describe("AI-01 — AI is off by default and says so", () => {
 
     await expectNoAxeViolations(page);
   });
+
+  /*
+   * RECALL-00-F (DEBT-227) — with provider AI off end to end:
+   * a deterministic question produces the existing DalyHub-record answer with
+   * its badge, and a non-deterministic question still fails CLOSED with the
+   * calm server-side explanation. Proven at desktop and 393px (the roadmap's
+   * phone bar). Falsification: restore the enabled+configured gate on the
+   * form and the first journey fails; route deterministic questions to the
+   * provider and the second fails.
+   */
+  for (const [label, viewport] of [
+    ["desktop", { width: 1280, height: 800 }],
+    ["393px phone", { width: 393, height: 851 }],
+  ] as const) {
+    test(`deterministic questions answer, others fail closed, with AI off (${label})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await gotoFixture(page, "/ai");
+
+      // 1. A deterministic question: answered from DalyHub records, no provider.
+      await page
+        .getByLabel("Your question")
+        .fill("How many tasks are overdue?");
+      await page.getByRole("button", { name: "Ask", exact: true }).click();
+      const answer = page.getByRole("region", { name: "Answer" });
+      await expect(answer.getByText("Based on DalyHub records")).toBeVisible();
+      await expect(
+        answer.getByText("No AI provider was contacted", { exact: false }),
+      ).toBeVisible();
+      await expectNoAxeViolations(page);
+
+      // 2. A non-deterministic question: the same calm, fail-closed refusal the
+      //    server has always given — no provider call, no half answer.
+      await page
+        .getByLabel("Your question")
+        .fill("What should I focus on next quarter?");
+      await page.getByRole("button", { name: "Ask", exact: true }).click();
+      const failure = page.getByRole("alert");
+      await expect(
+        failure.getByText("AI assistance is turned off", { exact: false }),
+      ).toBeVisible();
+      await expect(page.getByRole("region", { name: "Answer" })).toHaveCount(0);
+    });
+  }
 
   test("a Meeting gains an AI tab without disturbing the rest of it", async ({
     page,

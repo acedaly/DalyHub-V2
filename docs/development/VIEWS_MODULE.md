@@ -128,9 +128,30 @@ Not one enormous UNION: each scope has different predicates and different indexe
 and a UNION over six differently-shaped scopes produces a plan that depends on which
 filters happened to be applied.
 
+**Bind safety (RECALL-00-B, DEBT-223).** Every multi-id read in step 7 chunks its
+`IN (…)` list at a D1-safe size: link anchors at 45 ids (each id appears in both
+directions of the UNION, so `2 + 2n` binds — unchunked, a full 60-row page of
+Notes/Meetings bound 122 parameters against D1's 100 cap and the statement
+failed), parents at 90, and titles through `entities.getByIds` outright (its 90-id
+chunks; the repository keeps no private twin of it). The anchor tail is therefore
+still fixed relative to the page size — worst case two or three statements per
+helper — and every statement stays inside the bind cap, asserted directly.
+
+**The bound is stated (RECALL-00-B, the recorded decision).** The 60-row page
+limit stays and `/views` discloses it instead of paginating: `CrossViewPage`
+reports `readCount` (matching candidates read, before the page slice) and
+`saturatedScopes` (scopes whose candidate read hit `CROSS_VIEW_SCOPE_CANDIDATE_LIMIT`),
+and `bounded` is true for EITHER truncation — the page slice included, which the
+old scope-saturation-only flag missed. The surface renders the Analytics-style
+sentence ("first 60 of the N records read") plus one notice per saturated scope;
+a keyset cursor over per-scope SQL ordering remains available to a later pass
+without changing this contract.
+
 **Cost.** A five-module view is an asserted **8 executed statements** against real
 D1 (`test/kernel/cross-module-view-query.test.ts`), flat with respect to how many
-records come back.
+records come back — and the adversarial 60-row Notes/Meetings page (every row
+carrying its own Project and Area anchor) is a pinned **7 statements**, every one
+within the bind cap, with hostile-workspace isolation asserted beside it.
 
 ---
 

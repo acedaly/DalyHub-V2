@@ -181,11 +181,14 @@ export function DesktopTopBar({
           <span className="dh-topbar__search-icon" aria-hidden="true">
             <SearchIcon />
           </span>
-          {/* The label is REAL text, not a placeholder and not a visually hidden
-           * name on a glyph: a control that looks like a field has to say what
-           * searching it does, and this is the accessible name as well, so
-           * pointer and screen reader are told the same thing. `aria-hidden` on
-           * the hint keeps the shortcut out of that name. */}
+          {/* The label is REAL text and the button's accessible name AT EVERY
+           * WIDTH: visible from 64rem up, collapsed with the shared
+           * visually-hidden technique (never `display:none`) in the 48–64rem
+           * band, so the name survives the visual collapse (RECALL-00-D /
+           * DEBT-225 — `display:none` used to leave an unnamed <button> across
+           * the whole tablet band). Pointer and screen reader are told the same
+           * thing; `aria-hidden` on the hint keeps the shortcut out of the
+           * name. */}
           <span className="dh-topbar__search-label">Search DalyHub</span>
           <span className="dh-topbar__search-hint" aria-hidden="true">
             /

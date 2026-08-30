@@ -1502,9 +1502,11 @@ describe("TODAY-11: the Daily reflection card", () => {
       }),
     );
     const panel = screen.getByTestId("today-reflection");
+    // RECALL-00-A (DEBT-222): the entry opens on the Diary day surface with its
+    // inspector — `/diary/d1` is the raw-JSON resource route, never a link target.
     expect(
       within(panel).getByRole("link", { name: "A good Saturday" }),
-    ).toHaveAttribute("href", "/diary/d1");
+    ).toHaveAttribute("href", "/diary?inspector=view:d1");
     expect(within(panel).getByText(/Shipped the Q3 plan/)).toBeInTheDocument();
     // A doorway, never a judge: no score, no sentiment, no streak.
     expect(within(panel).queryByText(/great|positive|streak/i)).toBeNull();
