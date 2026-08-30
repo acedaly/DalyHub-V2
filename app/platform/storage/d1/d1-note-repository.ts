@@ -70,7 +70,13 @@ import {
   tagFilterPredicate,
   tagSearchPredicate,
 } from "./d1-entity-tags";
-import { likeContains, likePrefix } from "./like-pattern";
+import { likeContains, likeContainsNeedle, likePrefix } from "./like-pattern";
+import {
+  SEARCH_EXCERPT_WINDOW,
+  normaliseSearchExcerptWindow,
+  readSearchExcerptRow,
+  searchExcerptColumns,
+} from "./search-excerpt";
 
 /**
  * The reserved structural spine link types, as a SQL literal list. They are
@@ -94,8 +100,15 @@ const RELATIONSHIP_PREDICATE = `
   AND (l.source_entity_id = e.id OR l.target_entity_id = e.id)
   AND l.type NOT IN (${STRUCTURAL_LINK_TYPES_SQL})`;
 
-/** How much raw source travels back for an excerpt. Bounded on the DB side. */
-const EXCERPT_WINDOW = 400;
+/**
+ * How much raw source travels back for an excerpt. Bounded on the DB side.
+ *
+ * RECALL-01 promoted this figure and the window mechanism around it to
+ * `search-excerpt.ts`, the ONE excerpt contract every body-searching provider
+ * now shares; the alias is kept so the collection projection below reads the
+ * same as it always did.
+ */
+const EXCERPT_WINDOW = SEARCH_EXCERPT_WINDOW;
 /** Cap on the relationship count, so a pathological record cannot dominate. */
 const LINK_COUNT_CAP = 99;
 
@@ -121,7 +134,7 @@ interface NoteSearchRow {
   readonly tags: string | null;
   readonly body_hit: number;
   readonly body_window: string | null;
-  readonly window_start: number;
+  readonly body_window_start: number;
 }
 
 interface TagFacetRow {
@@ -353,15 +366,21 @@ export class D1NoteRepository implements NoteQueryRepository {
     const text = normaliseNoteQuery(input.text);
     if (text === null) return [];
     const limit = clampLimit(input.limit, NOTE_SEARCH_MAX_LIMIT, 10);
-    const needle = text.toLocaleLowerCase();
+    const lowered = text.toLocaleLowerCase();
+    // ONE bounded needle. `likeContains` truncates to D1's 50-byte pattern
+    // budget, so a longer query matches on its opening characters — and every
+    // other use of the query in this statement (the excerpt `instr()`, the
+    // match-source checks, the analyser) must reason about exactly that prefix,
+    // or a body hit is reported as a title hit with no excerpt.
+    const needle = likeContainsNeedle(lowered);
     const like = likeContains(needle);
 
-    // `instr` gives the 1-based code-point offset of the first body hit; the
-    // window is cut around it so a huge Note never crosses the wire. Both the
-    // offset and the window travel back, so the analyser can report WHICH part
+    // The shared excerpt contract (RECALL-01): `instr` gives the 1-based
+    // code-point offset of the first body hit and the window is cut around it in
+    // SQL, so a huge Note never crosses the wire. The offset, the window and the
+    // window's own start all travel back, so the analyser can report WHICH part
     // of the note matched without a second query.
-    const hitExpr = `instr(lower(coalesce(d.content, '')), ?)`;
-    const windowStart = `max(1, ${hitExpr} - ${EXCERPT_WINDOW / 2})`;
+    const bodyExcerpt = searchExcerptColumns("coalesce(d.content, '')", "body");
 
     const conditions: string[] = [
       "e.workspace_id = ?",
@@ -383,9 +402,10 @@ export class D1NoteRepository implements NoteQueryRepository {
         ELSE 3 END`;
 
     // Placeholders bind POSITIONALLY, in the order they appear in the statement
-    // text: three in SELECT (the hit offset and the two window expressions),
-    // then WHERE, then ORDER BY, then LIMIT. This array mirrors that order
-    // exactly — get it wrong and the query silently searches for a workspace id.
+    // text: three in SELECT (the shared excerpt triple — hit offset, window,
+    // window start), then WHERE, then ORDER BY, then LIMIT. This array mirrors
+    // that order exactly — get it wrong and the query silently searches for a
+    // workspace id.
     const params: unknown[] = [
       needle, // body_hit
       needle, // substr(..., windowStart, ...)
@@ -394,8 +414,8 @@ export class D1NoteRepository implements NoteQueryRepository {
       like,
       like,
       like,
-      needle, // rank: exact title
-      likePrefix(needle), // rank: title prefix
+      lowered, // rank: exact title — the WHOLE query, never the bound prefix
+      likePrefix(lowered), // rank: title prefix
       like, // rank: title contains
       limit,
     ];
@@ -409,9 +429,7 @@ export class D1NoteRepository implements NoteQueryRepository {
                   e.updated_at AS updated_at,
                   d.archived_at AS archived_at,
                   ${entityTagsProjection("e", "id")} AS tags,
-                  ${hitExpr} AS body_hit,
-                  substr(coalesce(d.content, ''), ${windowStart}, ${EXCERPT_WINDOW}) AS body_window,
-                  ${windowStart} AS window_start
+                  ${bodyExcerpt}
            FROM entities e
            LEFT JOIN note_details d
              ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
@@ -430,21 +448,17 @@ export class D1NoteRepository implements NoteQueryRepository {
       const tags = parseTagProjection(row.tags);
       const titleMatched = row.title.toLocaleLowerCase().includes(needle);
       const tagMatched = tags.some((value) => value.includes(needle));
+      const bodyExcerptRow = readSearchExcerptRow(
+        row as unknown as Record<string, unknown>,
+        "body",
+      );
       const bodyOffset = row.body_hit > 0 ? row.body_hit - 1 : -1;
-      const rawWindow = row.body_window ?? "";
       // The window is a fragment of the document, so offsets inside it are
-      // relative to `window_start` (also 1-based, from SQL). When the window
-      // begins mid-line, drop the partial first line before analysing it —
-      // otherwise a truncated line could be misread as a heading or a fence.
-      const rawOffset =
-        bodyOffset >= 0 ? bodyOffset - (row.window_start - 1) : -1;
-      const partialLine = row.window_start > 1 ? rawWindow.indexOf("\n") : -1;
-      const trimFrom =
-        partialLine !== -1 && partialLine + 1 <= Math.max(rawOffset, 0)
-          ? partialLine + 1
-          : 0;
-      const window = rawWindow.slice(trimFrom);
-      const offsetInWindow = rawOffset >= 0 ? rawOffset - trimFrom : -1;
+      // relative to the window's own start. Repairing a mid-line window (so a
+      // truncated line is never misread as a heading or a fence) is the shared
+      // contract's job, not this repository's — RECALL-01.
+      const { window, offset: offsetInWindow } =
+        normaliseSearchExcerptWindow(bodyExcerptRow);
 
       let matchSource: NoteMatchSource;
       let heading: string | null = null;
@@ -474,7 +488,7 @@ export class D1NoteRepository implements NoteQueryRepository {
         heading,
         excerpt:
           bodyOffset >= 0
-            ? excerptAroundMatch(window, text)
+            ? excerptAroundMatch(window, needle)
             : excerptAroundMatch(window, ""),
       };
     });

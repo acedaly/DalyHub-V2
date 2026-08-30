@@ -1,5 +1,28 @@
 # Changelog
 
+- **Search now finds what you wrote, not just what you called it.**
+
+  A phrase that exists only _inside_ a record finds the record (V2.7 RECALL-01).
+  Search reaches:
+
+  - **what was said in a meeting** — the agenda, the notes, and any decision,
+    outcome or agenda item you captured;
+  - **a Task's description**;
+  - **what you reflected in a Review**;
+  - **what you wrote in your Diary**.
+
+  Every result tells you _why_ it is there — "Notes", "Decision", "Description",
+  "Lessons" — and shows a short, readable snippet of the matching text with your
+  words highlighted, in the same one-line row Search has always used. A record
+  appears once however many places inside it match.
+
+  **Your Diary is still yours.** Diary entries are matched only when you
+  actually type something: opening Search with an empty box still lists no Diary
+  entries, exactly as before, and a Diary snippet is only ever the few words
+  around what you searched for. Nothing about Diary changes for AI — it is still
+  never sent anywhere. A person's free-text notes remain deliberately
+  unsearchable; People are found by their name and details.
+
 - **Every path to a record now leads to the record — and says what it is.**
 
   Seven small repairs to the paths you travel every day, together (V2.7

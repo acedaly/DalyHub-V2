@@ -7,6 +7,7 @@ import type {
   MeetingItemKind,
   MeetingPage,
   MeetingSearchHit,
+  MeetingSearchResult,
   MeetingSort,
   MeetingView,
   UpdateMeetingInput,
@@ -147,16 +148,23 @@ export interface MeetingRepository {
    * or location whether it starts next week or happened last month — the
    * recent-only `list` view had made every upcoming meeting unfindable. Archived
    * and soft-deleted meetings stay excluded (the same lifecycle rule as the
-   * non-archived collection views), the match fields stay title + location only
-   * (never agenda/notes content), and it is ONE query — no overlapping windows,
-   * so no duplicate hits by construction. Ordering is deterministic and
+   * non-archived collection views), and it is ONE query — no overlapping
+   * windows, so no duplicate hits by construction. Ordering is deterministic and
    * proximity-useful: upcoming meetings soonest-first, then past meetings
    * newest-first, with `id` as the tiebreaker.
+   *
+   * **RECALL-01 widened WHAT it matches, not how many statements it costs.** The
+   * meeting's own prose — `agenda_markdown`, `notes_markdown` and the
+   * `body_markdown` of its captured agenda/decision/outcome items — is matched
+   * inside the SAME statement, the captured items through an `EXISTS` semi-join
+   * so a meeting with ten matching items still returns once. Each hit carries an
+   * honest match source and a bounded excerpt cut in SQL; no body column is ever
+   * read whole into application code.
    */
   searchMeetings(input: {
     readonly text: string;
     readonly limit?: number;
-  }): Promise<readonly MeetingSearchHit[]>;
+  }): Promise<readonly MeetingSearchResult[]>;
   /**
    * DIARY-02 — the non-archived meetings that START inside an explicit instant
    * window, soonest first, bounded.

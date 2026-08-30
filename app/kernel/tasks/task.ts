@@ -408,7 +408,22 @@ export type SearchTasksInput = {
   readonly limit?: number;
 };
 
-export type TaskSearchHit = TaskListItem;
+/**
+ * RECALL-01 — WHERE a Task search hit matched, in the product's fixed
+ * precedence: `title` > `checklist` (structured metadata) > `description`
+ * (body). One result per Task, whichever combination matched.
+ */
+export type TaskMatchSource = "title" | "checklist" | "description";
+
+/**
+ * A Task search hit: the list summary every other Task surface renders, plus the
+ * honest match source and the bounded, syntax-free excerpt the repository cut
+ * around a description match (empty for a title or checklist hit).
+ */
+export type TaskSearchHit = TaskListItem & {
+  readonly matchSource: TaskMatchSource;
+  readonly excerpt: string;
+};
 
 /** The completion filter for a project's task list (PROJ-01). */
 export type TaskStateFilter = "open" | "completed" | "all";

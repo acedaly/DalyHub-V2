@@ -23,6 +23,7 @@ import type {
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import type { TaskSearchHit } from "~/kernel/tasks";
 import { ownerCalendarIso } from "~/shared/datetime";
+import { searchSubtitle } from "~/shared/search/subtitle";
 import {
   taskPriorityLabel,
   taskPriorityTag,
@@ -32,19 +33,37 @@ import {
 /** The route that hosts a DrawerProvider able to open a `task:<id>` key. */
 const TASKS_PATH = "/tasks";
 
+/** The user-facing name for WHERE a hit matched. Never a raw enum value. */
+function matchLabel(task: TaskSearchHit): string {
+  switch (task.matchSource) {
+    case "title":
+      return "Title";
+    case "checklist":
+      return "Checklist";
+    case "description":
+      return "Description";
+  }
+}
+
+/**
+ * The result subtitle in the shared RECALL-01 grammar:
+ * `match source · state/metadata · excerpt`.
+ *
+ * The excerpt is present only for a DESCRIPTION hit — the repository cut it in
+ * SQL around the match and it is already plain text, syntax-stripped and
+ * bounded. A title or checklist hit carries none, because the reason the result
+ * is here is already visible in the row.
+ */
 function subtitle(task: TaskSearchHit): string | undefined {
-  const parts: string[] = [];
-  if (task.parent) {
-    parts.push(
-      `${task.parent.kind === "project" ? "Project" : "Area"}: ${task.parent.title}`,
-    );
-  }
-  if (task.completedAt) {
-    parts.push("Completed");
-  } else if (task.status === "cancelled") {
-    parts.push("Cancelled");
-  }
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  const parent = task.parent
+    ? `${task.parent.kind === "project" ? "Project" : "Area"}: ${task.parent.title}`
+    : null;
+  const state = task.completedAt
+    ? "Completed"
+    : task.status === "cancelled"
+      ? "Cancelled"
+      : null;
+  return searchSubtitle([matchLabel(task), parent, state, task.excerpt]);
 }
 
 function signals(task: TaskSearchHit, todayIso: string): SearchResultSignal[] {

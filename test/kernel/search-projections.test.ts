@@ -159,26 +159,45 @@ describe("global Search D1 projections", () => {
     expect(counter.count()).toBe(1);
   });
 
-  it("keeps diary body prose out of Search and isolates workspaces", async () => {
+  /*
+   * RECALL-01 reversed half of this test on purpose, and the reversal is the
+   * decision worth reading: ADR-114 decision 2 makes an EXPLICIT owner query the
+   * retrieval privacy boundary, so a Diary body IS matched when the owner types
+   * a phrase from it. What did not move is the rest — no cross-workspace hit, no
+   * body prose returned for a TITLE match, and nothing at all without a query.
+   * The unbidden empty-query list still excludes Diary entirely (FIND-01).
+   */
+  it("matches a Diary body under an explicit query, and never across workspaces", async () => {
     await makeDiaryRepository(makeContext(WS)).create({
       entryType: "reflection",
       title: "Public diary title",
-      body: "PrivateSearchNeedle",
+      // A synthetic distinctive phrase — never realistic private prose.
+      body: "Zappadocious quintlebrace reflection.",
     });
     await makeDiaryRepository(makeContext(OTHER)).create({
       entryType: "reflection",
       title: "Foreign diary title",
-      body: "Public diary title",
+      body: "Zappadocious quintlebrace reflection.",
     });
 
     const repo = createDiaryRepository(env.DB, makeContext(WS));
     await expect(
       repo.search({ text: "x".repeat(500), limit: 5 }),
     ).resolves.toEqual([]);
-    expect(await repo.search({ text: "PrivateSearchNeedle" })).toEqual([]);
-    const hits = await repo.search({ text: "Public diary title" });
-    expect(hits).toHaveLength(1);
-    expect(hits[0]?.title).toBe("Public diary title");
+    // No query, no statement, no body: the boundary is solicitation.
+    expect(await repo.search({ text: "   " })).toEqual([]);
+
+    const bodyHits = await repo.search({ text: "quintlebrace" });
+    expect(bodyHits).toHaveLength(1);
+    expect(bodyHits[0]?.title).toBe("Public diary title");
+    expect(bodyHits[0]?.matchSource).toBe("body");
+    expect(bodyHits[0]?.excerpt).toContain("quintlebrace");
+
+    // A title match carries no body excerpt at all.
+    const titleHits = await repo.search({ text: "Public diary title" });
+    expect(titleHits).toHaveLength(1);
+    expect(titleHits[0]?.matchSource).toBe("title");
+    expect(titleHits[0]?.excerpt).toBe("");
   });
 
   it("finds UPCOMING meetings as well as recent ones, ordered by proximity (V2.0.1)", async () => {

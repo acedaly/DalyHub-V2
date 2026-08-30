@@ -91,6 +91,7 @@ export {
   type TaskListItem,
   type TaskListPage,
   type SearchTasksInput,
+  type TaskMatchSource,
   type TaskSearchHit,
   type SetWaitingInput,
   type SetWaitingResult,

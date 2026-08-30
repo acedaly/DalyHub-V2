@@ -166,7 +166,11 @@ data or a dedicated read projection. They must not load a whole collection and
 filter in JavaScript, and they must not enrich results by calling one repository
 method per hit. The D1 search projections added for Areas, Goals, Projects, Tasks
 and Diary are query-count tested: one matching record and fifty matching Tasks use
-the same single statement.
+the same single statement. RECALL-01 extended the same proof to every
+content-searching provider — Meetings (title, location, agenda, notes and an
+`EXISTS` over captured items), Tasks (description), Diary (body), Reviews
+(section bodies) and Notes — each still ONE statement whether it matches a title,
+a metadata field or a body.
 
 ---
 
@@ -384,15 +388,131 @@ Current production providers are all registry-discovered and repository-backed:
 | Areas | `areas.search` | Area title | Structural counts only: open Goals, active Projects, direct Tasks. |
 | Goals | `goals.search` | Goal title | Parent Area, open/completed state, target date and contribution counts. |
 | Projects | `projects.search` | Project title | Area/Goal context, workflow/completion state and Task progress. |
-| Tasks | `tasks.search` | Task title | Parent Project/Area plus generic priority/urgency signals from one bounded projection. |
-| Notes | `notes.search` | Title, Markdown body/headings, tags | Existing syntax-free match source/excerpt; deleted excluded, archived labelled. |
-| Diary | `diary.search` | Diary title only | Title, entry type and owner-local occurrence time; body prose is not selected. |
-| Meetings | `meetings.search` | Meeting title and location, across **upcoming and recent** meetings (archived and deleted excluded) | No private notes or agenda content by default. Until V2.0.1 this provider queried the recent-only collection view, so a meeting starting in the future was unfindable; it now uses a dedicated `searchMeetings` projection with no time window, ordered upcoming-soonest-first then past-newest-first. |
-| People | `people.search` | Name plus accepted safe structured fields | No email, phone or private notes in snippets. |
+| Tasks | `tasks.search` | Task title, checklist-item titles, **Task description** (RECALL-01) | `Title`/`Checklist`/`Description` source, parent Project/Area, completion state, and a bounded excerpt for a description hit. Priority/urgency signals from the same bounded projection. |
+| Notes | `notes.search` | Title, Markdown body/headings, tags | Existing syntax-free match source/excerpt; deleted excluded, archived labelled. The reference implementation for the shared excerpt contract. |
+| Diary | `diary.search` | Diary title, **entry body** — under a non-empty explicit query only (RECALL-01, ADR-114 decision 2) | `Title`/`Entry` source, entry type and owner-local occurrence time, plus a bounded excerpt around an explicit body match. Never listed for the empty query; never a preview or first paragraph. |
+| Meetings | `meetings.search` | Meeting title and location, **agenda Markdown, notes Markdown and captured agenda/decision/outcome item bodies** (RECALL-01), across **upcoming and recent** meetings (archived and deleted excluded) | `Title`/`Location`/`Agenda`/`Notes`/`Decision`… source with a bounded excerpt for a body hit. Captured items are an `EXISTS` semi-join, so a meeting with ten matching items appears once. Until V2.0.1 this provider queried the recent-only collection view, so a meeting starting in the future was unfindable; it now uses a dedicated `searchMeetings` projection with no time window, ordered upcoming-soonest-first then past-newest-first. |
+| People | `people.search` | Name plus accepted safe structured fields | No email, phone or private notes in snippets. **Free-text `notes` are deliberately unmatched** — asserted, not intended (see the privacy boundary below). |
 | Assets | `assets.search` | Title/type/tags and accepted safe fields | No serial/reference numbers, prices or private notes. |
-| Reviews | `reviews.search` | Review title/type/period metadata | No section/reflection content in previews. |
+| Reviews | `reviews.search` | Review title, **authored section/reflection bodies** (RECALL-01); type/period remain displayed metadata rather than match fields | `Title` or the matching section's own name (e.g. `Lessons`), the type and period, and a bounded excerpt. Several matching sections still return ONE Review. Reads a dedicated `searchReviews` projection — it used to call `list`, which read every result's sections in a second statement. |
 
 ---
+
+## The excerpt contract (RECALL-01) — one grammar, five providers
+
+Until V2.7, Notes was the only provider that searched a record's BODY, and the
+mechanism it used — a SQL-cut excerpt window plus an honest match source — was a
+Notes convention. **RECALL-01 promoted it to the product rule**
+([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
+decision 3) and applied it to Meetings, Tasks, Diary and Reviews. There is one
+mechanism, not five.
+
+### Who generates the excerpt: the repository projection, in SQL
+
+[`app/platform/storage/d1/search-excerpt.ts`](../../app/platform/storage/d1/search-excerpt.ts)
+is the one implementation. A body source contributes three projected columns —
+the 1-based hit offset from `instr(lower(col), ?)`, a bounded window from
+`substr(col, max(1, instr(…) - W/2), W)`, and the window's own start — so **a
+matching 1 MiB body ships a few hundred bytes and the record never crosses the
+repository boundary**. Nothing reads a body column into application code to cut
+an excerpt afterwards, and no provider issues a second "now load the bodies"
+statement.
+
+A body that lives in a CHILD table (a Meeting's captured items, a Review's
+sections) uses the same three columns resolved through correlated `LIMIT 1`
+sub-queries, while the predicate that admits the parent is an **`EXISTS`
+semi-join**. That combination is what makes "one result per record" structural
+rather than a de-duplication pass: a Meeting with ten matching items cannot
+multiply into ten rows.
+
+### Normalisation: one analyser, no forks
+
+The window is raw Markdown. It is passed through the shared analyser
+(`excerptAroundMatch` in
+[`note-document.ts`](../../app/platform/markdown/note-document.ts)), which strips
+syntax, collapses whitespace and truncates deterministically — so no result ever
+shows `##`, `**` or half a code fence. A window that began mid-line has its
+partial first line dropped first, so a truncated line is never misread as a
+heading. **Providers return plain text and never HTML.**
+
+### Where it renders: the existing subtitle, in one grammar
+
+```
+match source · state/metadata · excerpt
+```
+
+composed by [`app/shared/search/subtitle.ts`](../../app/shared/search/subtitle.ts)
+and bounded by the existing `MAX_SUBTITLE_LENGTH` (300). There is **no new
+`SearchResultItem` shape, no per-module excerpt component and no extra row**: at
+phone width this stays the one-line, `text-overflow: ellipsis` subtitle the row
+has always had, and `e2e/recall-01-search-content.spec.ts` asserts the row's
+`white-space: nowrap` and single-line height at 1440 / 393 / 320 rather than
+assuming it.
+
+Highlighting is unchanged: the surface renders `<mark>` from match ranges over
+plain text.
+
+### Match source, when several fields match
+
+**One result per record**, labelled by a fixed precedence:
+
+```
+title  >  metadata  >  body
+```
+
+so a Task whose title and description both match is labelled `Title` and carries
+no excerpt — the reason it is there is already visible in the row. Within the
+body sources each provider states a deterministic order of its own: Meetings read
+`agenda`, then `notes`, then the first captured item in `(kind, position, id)`
+order; Reviews take the first matching section in `section_id` order. A title hit
+never carries a body excerpt at all.
+
+Ranking is untouched: subtitle matches already rank below title matches (tier 4),
+which is the right relevance order for a body hit.
+
+### The privacy boundary: solicitation, not existence
+
+ADR-114 decision 2 generalises the line FIND-01 drew rather than moving it. **A
+record's body may be matched and excerpted only in answer to a query the owner
+typed.** Concretely:
+
+- **Diary bodies ARE matchable** under a non-empty explicit query — Diary entries
+  were already returned for title matches, so what changed is match depth, not
+  exposure class. The repository returns before preparing a statement when the
+  query is empty, so the boundary is structural rather than a convention.
+- **Diary stays excluded from the empty-query recent list**, with its standing
+  line, unchanged. A body excerpt is only ever the window around what the owner
+  typed — never a preview, a first paragraph or a summary.
+- **AI evidence retrieval is unchanged.** Body-search excerpts are a
+  Search-surface artefact; `evidence-retrieval.ts` composes named fields from the
+  same projections and ADR-073's People/Diary exclusion stands untouched. No
+  Diary excerpt reaches an AI input.
+- **People free-text `notes` stay unmatched.** People remain findable by their
+  structured fields only.
+- **Nothing is logged with content**, test fixtures use synthetic distinctive
+  phrases rather than realistic private prose, and no diagnostic or failure
+  message prints a record body — the 100 KiB proof compares lengths and boolean
+  containment for exactly that reason.
+
+Both boundaries are TESTS, not intentions:
+`test/kernel/recall-01-search-content.test.ts` (People notes find nobody; the
+empty query cannot reach Diary), `test/kernel/recent-records.test.ts` (a Diary
+body that MATCHES is still absent from the unbidden list) and
+`e2e/recall-01-search-content.spec.ts` (both, through the real surface).
+
+### The cost, per provider
+
+Each content-searching provider remains **ONE workspace-scoped statement**, with
+filtering, ordering, the excerpt projection and the limit all in SQL, inside
+D1's 100-bind ceiling — and the statement count is identical for one match and
+fifty. `test/kernel/recall-01-search-content.test.ts` pins that per provider with
+a counting D1, including a Meeting whose captured items match fifty times over.
+
+`LIKE` remains the answer at DalyHub's scale, unchanged by the extra columns: the
+candidate set is already narrowed by the workspace+type index before any body
+scan, the shared 50-byte pattern bound and ASCII case rule still apply, and FTS5
+stays refused for the reason below (a second, derived representation of canonical
+Markdown). Revisit on MEASURED single-owner pain, not on principle.
 
 ## The Notes provider (NOTES-03) — full-content search
 
@@ -462,6 +582,20 @@ and [ADR-054](../decisions/ARCHITECTURE_DECISIONS.md#adr-054-note-knowledge--a-w
    matching its opening characters instead of erroring. The shared
    `like-pattern.ts` helper is used by repository-backed Search providers so this
    behaviour is consistent.
+
+   **One bounded needle per query, and this is load-bearing.** Because the
+   pattern matches on a PREFIX, everything else in the same statement that
+   reasons about the query must reason about that same prefix:
+   `likeContainsNeedle(query)` returns the raw text `likeContains(query)` will
+   actually match on, and it is what the excerpt `instr()`, the match-source
+   `includes()` checks and the excerpt analyser bind. Binding the whole query to
+   `instr()` beside a bounded `LIKE` makes the statement disagree with itself —
+   the row is admitted by the prefix, then reported as having no body hit, so a
+   body match comes back labelled "Title" with no excerpt and nothing to
+   highlight. (The exact-title ranking arm still compares the WHOLE query, which
+   is the one place the full text is the right question.) Raised by review on the
+   RECALL-01 PR; asserted in `test/kernel/like-pattern.test.ts` and, end to end
+   over three providers, in `test/kernel/recall-01-search-content.test.ts`.
 2. **`lower()` folds ASCII only.** Matching and the excerpt offsets are therefore
    ASCII-case-insensitive, consistently across every DalyHub search.
 
@@ -504,7 +638,13 @@ retired.
 
 The AI platform's bounded evidence-retrieval service composes the search
 projections documented above — Notes `search`, Tasks `searchTasks`, Meetings
-`searchMeetings` — plus EntityLinks and the spine. **No second search index was
+`searchMeetings` — plus EntityLinks and the spine. **RECALL-01 deepened those
+projections and deliberately changed nothing here**: `evidence-retrieval.ts`
+builds each candidate's text from NAMED fields, so the new `matchSource` and
+`excerpt` fields are simply not read, Diary is not composed at all, and ADR-073's
+People/Diary exclusion is untouched. That is the concrete sense in which
+deterministic retrieval got deeper without embeddings coming any closer
+([DEBT-93](../product/PRODUCT_DEBT.md)). **No second search index was
 built for AI, and embeddings were deliberately not introduced**: keyword and
 relationship retrieval satisfy the first release, and a vector store is a separate
 decision with its own cost, storage and staleness questions.

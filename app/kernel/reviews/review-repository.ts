@@ -8,6 +8,7 @@ import type {
   ReviewLifecycleResult,
   ReviewPage,
   ReviewPeriodEntry,
+  ReviewSearchHit,
   ReviewSectionId,
   ReviewStatus,
   ReviewType,
@@ -27,6 +28,26 @@ export interface ReviewRepository {
     options?: { includeDeleted?: boolean },
   ): Promise<Review | null>;
   list(input?: ListReviewsInput): Promise<ReviewPage>;
+
+  /**
+   * RECALL-01 — the bounded global-Search projection for Reviews.
+   *
+   * `list` cannot serve Search honestly: it reads every returned Review's
+   * sections in a SECOND statement to build full `Review` objects, which is both
+   * an extra read per page and a whole reflection shipped for a search row. This
+   * is ONE workspace-scoped statement that matches the Review's title AND the
+   * `body_markdown` of its authored sections — the sections through an `EXISTS`
+   * semi-join, so a Review whose summary, lessons and next-focus all mention the
+   * phrase still returns exactly once, with a bounded excerpt cut in SQL around
+   * the first matching section in `section_id` order.
+   *
+   * Archived and soft-deleted Reviews are excluded, matching the collection's
+   * default view and the behaviour the Search provider had before.
+   */
+  searchReviews(input: {
+    readonly text: string;
+    readonly limit?: number;
+  }): Promise<readonly ReviewSearchHit[]>;
 
   /**
    * STEER-05 — the Review covering EXACTLY this period, or null.

@@ -19,8 +19,8 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: IN PROGRESS.** RECALL-00 ☑ delivered 2026-08-30; the four
-items after it are ☐. The
+**Programme status: IN PROGRESS.** RECALL-00 and RECALL-01 ☑ delivered
+2026-08-30; the three items after them are ☐. The
 programme decision is recorded as
 [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine) and every finding it is built on
 was re-measured against `main` at `0d08cd6` on 2026-08-30 — including the
@@ -501,12 +501,12 @@ needs to implement without re-auditing.
 
 ---
 
-### ☐ RECALL-01 — Search reaches content
+### ☑ RECALL-01 — Search reaches content — **delivered 2026-08-30**
 
 **A phrase that exists only inside a record finds the record.**
 
 - **User problem.**
-  [DEBT-229](../product/PRODUCT_DEBT.md#-debt-229--global-search-matches-titles-and-metadata-never-content-meeting-prose-diary-bodies-task-descriptions-and-review-reflections-are-unfindable--p2)
+  [DEBT-229](../product/PRODUCT_DEBT.md#-debt-229--global-search-matches-titles-and-metadata-never-content-meeting-prose-diary-bodies-task-descriptions-and-review-reflections-are-unfindable--p2--resolved-2026-08-30)
   (P2): the owner must remember *which record's title* holds a fact. What was
   said in a meeting — the exact thing MEET-01's capture bar makes effortless
   to put in — cannot be found by searching for it. The current matrix, from
@@ -520,6 +520,20 @@ needs to implement without re-auditing.
   | Diary | — | — (`body` unmatched) | no (subtitle = type + occurred time) |
   | Reviews | type/period | — (section `body_markdown` unmatched) | no |
   | People | preferred name, organisation, role, email | — (notes deliberately unmatched) | no |
+  | Assets | manufacturer/model/location/supplier/issuer/provider, tags | — | no |
+  | Areas / Goals / Projects / Habits | (habit notes; goal/project state as subtitle) | title-level only | no |
+
+  **The matrix as SHIPPED** (2026-08-30 — this is the row to read now; the one
+  above is the measurement the item was scoped from):
+
+  | Provider | Metadata matched | Body matched | Excerpt shown |
+  |---|---|---|---|
+  | Notes | tags | full Markdown body + headings | yes — `Title`/`Tag`/`Heading: …`/`Under "…"` |
+  | Tasks | checklist item titles | **`task_details.description`** | **yes — `Title`/`Checklist`/`Description`** |
+  | Meetings | location | **`agenda_markdown`, `notes_markdown`, `meeting_items.body_markdown` (`EXISTS` semi-join)** | **yes — `Title`/`Location`/`Agenda`/`Notes`/`Decision`·`Outcome`·`Agenda item`** |
+  | Diary | — | **`diary_entry_details.body`, non-empty explicit query only** | **yes — `Title`/`Entry`** |
+  | Reviews | type/period (displayed, still not matched) | **`review_sections.body_markdown`** | **yes — `Title` or the section's own name** |
+  | People | preferred name, organisation, role, email | — (notes deliberately unmatched, **asserted**) | no |
   | Assets | manufacturer/model/location/supplier/issuer/provider, tags | — | no |
   | Areas / Goals / Projects / Habits | (habit notes; goal/project state as subtitle) | title-level only | no |
 
@@ -620,6 +634,95 @@ needs to implement without re-auditing.
      `axe` stay green; 1440 / 393 / 320, light and dark, keyboard reach.
 - **Closes.** DEBT-229. **Advances.** DEBT-93 (deterministic retrieval
   deepens; embeddings stay refused) without taking it.
+- **Delivered 2026-08-30.** Six body sources match, one excerpt contract, one
+  statement per provider, inside the frame — no second index, no FTS, no
+  embeddings, no ranking rewrite, no new result shape, no People `notes`, and
+  none of DEBT-215/216/219/220/221 absorbed. The recorded decisions:
+
+  **The excerpt contract is a module, not a convention.**
+  [`app/platform/storage/d1/search-excerpt.ts`](../../app/platform/storage/d1/search-excerpt.ts)
+  owns the `substr`-around-`instr` window (400 chars), the mid-line window
+  repair and the call into the one Markdown analyser; the Notes repository was
+  **converted to consume it** rather than left as a fifth implementation, which
+  is what keeps Notes the reference. Child bodies (Meeting items, Review
+  sections) use the same three columns through correlated `LIMIT 1` sub-queries
+  while the admitting predicate stays an `EXISTS` semi-join — so "one result per
+  record" is structural, not a de-duplication pass.
+  [`app/shared/search/subtitle.ts`](../../app/shared/search/subtitle.ts) is the
+  one `match source · state · excerpt` composer, bounded at the existing
+  `MAX_SUBTITLE_LENGTH`.
+
+  **Reviews gained a projection rather than a wider `list`.** The provider used
+  to call `reviews.list`, which reads every returned Review's sections in a
+  SECOND statement to assemble full `Review` objects — an extra read per page
+  and whole reflections shipped to a search row. `searchReviews` is one
+  statement, one row per Review, deterministic on `section_id` order.
+
+  **Match source is fixed precedence — title > metadata > body — and a title hit
+  carries no excerpt at all**, because the reason it is there is already visible
+  in the row. Within the body sources: Meetings read agenda → notes → first
+  captured item in `(kind, position, id)` order.
+
+  **The Diary boundary is enforced before SQL exists**: `search` returns on an
+  empty query before preparing a statement, so "explicit query only" is
+  structural. `RECENCY_EXCLUDED_TYPES` is untouched, and
+  `test/kernel/recent-records.test.ts` now proves both halves against a Diary
+  entry whose BODY matches — absent from the unbidden list, present the moment
+  the phrase is typed. AI evidence retrieval needed no change and got none:
+  `evidence-retrieval.ts` composes NAMED fields, so `matchSource`/`excerpt` are
+  simply not read and no Diary excerpt can reach a prompt.
+
+  **The proofs, and their falsifications.**
+  `test/kernel/recall-01-search-content.test.ts` (15 tests, real D1): each of the
+  six body sources found by a phrase that exists nowhere else; one result for a
+  Meeting matching in all three sources and for one with ten matching items; one
+  result for a Review matching in three sections; ONE statement per provider and
+  identical counts for 1 vs 50 matches; hostile rows in a second workspace never
+  returned, per provider; a phrase only in a Person's `notes` finds nobody while
+  their name still does; and a **100 KiB body** whose match returns a ≤200-char
+  syntax-free excerpt in a serialised payload under 4 KB — over 25× smaller than
+  the body, asserted as lengths and booleans so no failure message can print a
+  record. `e2e/recall-01-search-content.spec.ts` (10 tests) drives the real
+  `/search` endpoint for the honest source, the excerpt, `<mark>` highlighting,
+  the canonical destinations (including RECALL-00's Diary day+inspector), the
+  two privacy boundaries, one-line subtitles at 1440/393/320, keyboard reach and
+  axe in light, dark and phone.
+
+  **Four falsifications were RUN, not described.** (1) Removing the Task
+  description predicate reddens *finds a Task by its description* and three
+  budget/boundary assertions with it. (2) Restoring `td.description` to the
+  search projection reddens the boundary assertion with the measured number —
+  `expected 110038 to be less than 1000` — which is the defect this item found
+  and fixed in flight: `searchTasks` selected the whole description for a
+  `TaskListItem` that has no such field, so a 100 KiB description crossed the
+  wire on every matching search only to be discarded
+  (`TASK_SEARCH_DETAIL_COLUMNS` drops it; the shared list columns are untouched).
+  (3) Replacing Meetings' workspace predicate reddens the hostile-workspace test
+  and NOTHING else — exactly one assertion, which is what makes it an isolation
+  proof rather than a coincidence. (4) Dropping `diary` from
+  `RECENCY_EXCLUDED_TYPES` reddens the empty-query boundary while the explicit
+  query in the same test still passes — the asymmetry the privacy decision rests
+  on. The duplicate-suppression assertions are live rather than separately
+  falsified: removing the captured-items `EXISTS` altogether reddens eight of the
+  fifteen, the ten-item single-result case among them.
+
+  **One review finding, verified and fixed** (Codex on PR #243, P2). D1 caps a
+  LIKE pattern at 50 bytes, so a longer query degrades to matching its opening
+  characters — documented and intended. What was NOT intended is the statement
+  disagreeing with itself: the excerpt `instr()` and the match-source
+  `includes()` checks bound the WHOLE query beside a bounded `LIKE`, so an
+  over-long query admitted a row by its prefix and then reported no body hit —
+  a body match labelled "Title", with no excerpt and nothing to highlight.
+  `likeContainsNeedle()` now returns the raw text the pattern will actually
+  match on, and it is the one needle the predicate, the projection, the
+  match-source checks and the analyser all share (the exact-title ranking arm
+  still compares the whole query, which is the one place the full text is the
+  right question). The defect was PRE-EXISTING in Notes — the reference
+  implementation had it first — and fixing it there too is the same rule that
+  made Notes consume the shared modules rather than remain a fifth fork.
+  Falsified: making `likeContainsNeedle` the identity reddens exactly the new
+  regression, which asserts a 48-byte-prefix hit is labelled `description` /
+  `notes` / `body` with an excerpt across Tasks, Meetings and Diary.
 
 ---
 
@@ -1022,7 +1125,7 @@ disposition here and on the entry. **This pass raised DEBT-222 … DEBT-235**
 | **DEBT-226** — active navigation is nesting-only; singular routes lose the current item | P2 | **Raised · RECALL-00-E** |
 | **DEBT-227** — deterministic Ask answers gated off in error | P3 | **Raised · RECALL-00-F** |
 | **DEBT-228** — Reviews collection offers a guide the guide refuses | P3 | **Raised · RECALL-00-G** |
-| **DEBT-229** — Search matches titles, never content | P2 | **Raised · RECALL-01** |
+| **DEBT-229** — Search matches titles, never content | P2 | **Raised · RECALL-01 · ☑ CLOSED 2026-08-30** |
 | **DEBT-230** — completed work not retrievable by time; Completed label vs sort | P2 | **Raised · RECALL-02** |
 | **DEBT-231** — `followUpOn` write-only | P2 | **Raised · RECALL-03** |
 | **DEBT-232** — `/today/waiting` bounded page presented as complete | P3 | **Raised · RECALL-03** |
@@ -1034,7 +1137,7 @@ disposition here and on the entry. **This pass raised DEBT-222 … DEBT-235**
 | DEBT-139 | P1 ◐ | **Not taken.** One owner UI check remains; nothing repo-side owed. |
 | DEBT-128 · DEBT-175 | P2 | **Not taken**, fourth programme running: they close together in their own pass; RECALL-01 must not widen the fork (its non-goal). |
 | DEBT-203 · DEBT-205 · DEBT-173 | P2 | **Standing constraints**, repaired only by a pass whose subject they are. #230 (open) advances DEBT-173 and is recommended for rebase + merge **outside** this programme. |
-| DEBT-93 | P3 | **Advanced, not taken**: RECALL-01's projections deepen deterministic retrieval; embeddings stay refused (ADR-073 §20). |
+| DEBT-93 | P3 | **Advanced, not taken** (recorded on the entry 2026-08-30): RECALL-01's projections reach record content, so deterministic grounding deepened for free — `evidence-retrieval.ts` itself was not touched, no Diary excerpt can reach a prompt, and embeddings stay refused (ADR-073 §20). |
 | DEBT-91 · DEBT-92 · DEBT-213 | P3 | **Deferred, unchanged** — the AI sequence V2.6 fixed. |
 | DEBT-212 | P3 | **Deferred to Insight** — `listMeasurementSeries`' caller question, beside the multi-snapshot trend this pass found equally idle (`listSnapshotsBefore`). |
 | DEBT-102 · DEBT-188 · offline slice · DEBT-103 | P3 | **Unchanged**, per V2.6's LATER; DEBT-103's surface-or-remove decision pairs naturally with Insight, not RECALL. |

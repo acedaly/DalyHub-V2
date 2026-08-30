@@ -55,8 +55,10 @@ import {
   type ReviewDeleteResult,
   type ReviewLifecycleResult,
   type ReviewPage,
+  type ReviewMatchSource,
   type ReviewPeriodEntry,
   type ReviewRepository,
+  type ReviewSearchHit,
   type ReviewSection,
   type ReviewSectionId,
   type ReviewStatus,
@@ -82,7 +84,32 @@ import {
   type AtomicMutationFault,
 } from "./d1-atomic-mutation";
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
-import { likeContains } from "./like-pattern";
+import { likeContains, likeContainsNeedle, likePrefix } from "./like-pattern";
+import {
+  readSearchExcerptRow,
+  searchExcerpt,
+  searchExcerptMatched,
+  searchExcerptSubquery,
+} from "./search-excerpt";
+
+/**
+ * RECALL-01 — one Review search row: the identity and period facts a result
+ * shows, plus the shared excerpt triple over the first matching section body and
+ * that section's id.
+ */
+interface ReviewSearchRow {
+  readonly id: string;
+  readonly title: string;
+  readonly review_type: string;
+  readonly period_start: string;
+  readonly period_end: string;
+  readonly status: string;
+  readonly archived_at: string | null;
+  readonly section_hit: number | null;
+  readonly section_window: string | null;
+  readonly section_window_start: number | null;
+  readonly section_id: string | null;
+}
 
 export type D1ReviewCreateFault = "after-entity" | "after-details";
 
@@ -443,6 +470,136 @@ export class D1ReviewRepository implements ReviewRepository {
       if (cause instanceof ReviewError) throw cause;
       throw new ReviewStorageError({ cause });
     }
+  }
+
+  /**
+   * RECALL-01 — a Review is found by its TITLE and by the REFLECTIONS written in
+   * its sections, in ONE bounded, workspace-scoped statement.
+   *
+   * The Search provider used to call `list`, which reads sections in a second
+   * statement to assemble full `Review` objects — a search row does not need
+   * them, and shipping whole reflections to one is exactly what the excerpt
+   * contract forbids. Here the sections are a semi-join in the WHERE clause and
+   * three bounded correlated windows in the SELECT list: a Review whose summary,
+   * lessons and next-focus all mention the phrase returns exactly ONCE.
+   */
+  async searchReviews(input: {
+    readonly text: string;
+    readonly limit?: number;
+  }): Promise<readonly ReviewSearchHit[]> {
+    const text = normaliseReviewQuery(input.text);
+    if (text === null) return [];
+    const lowered = text.toLocaleLowerCase();
+    /*
+     * ONE bounded needle. `likeContains` truncates to D1's 50-byte pattern
+     * budget, so a longer query matches on its opening characters — and the
+     * excerpt `instr()` and the match-source checks must reason about exactly
+     * that prefix, or a body hit comes back mislabelled with no excerpt.
+     */
+    const needle = likeContainsNeedle(lowered);
+    const limit = validateReviewLimit(input.limit);
+    const like = likeContains(needle);
+    const SECTION_FROM = "review_sections rs";
+    const SECTION_MATCH = `rs.workspace_id = e.workspace_id
+             AND rs.review_id = e.id
+             AND lower(rs.body_markdown) LIKE ? ESCAPE '\\'`;
+    // `section_id` is a closed kernel vocabulary, so ordering by it is total and
+    // the excerpt a Review shows is deterministic.
+    const SECTION_ORDER = "rs.section_id ASC";
+    const sectionExcerpt = searchExcerptSubquery({
+      alias: "section",
+      column: "rs.body_markdown",
+      from: SECTION_FROM,
+      where: SECTION_MATCH,
+      order: SECTION_ORDER,
+    });
+    const sectionId = `(SELECT rs.section_id FROM ${SECTION_FROM}
+               WHERE ${SECTION_MATCH} ORDER BY ${SECTION_ORDER} LIMIT 1) AS section_id`;
+    let rows: readonly ReviewSearchRow[];
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT e.id AS id, e.title AS title,
+                  d.review_type AS review_type,
+                  d.period_start AS period_start,
+                  d.period_end AS period_end,
+                  d.status AS status,
+                  d.archived_at AS archived_at,
+                  ${sectionExcerpt},
+                  ${sectionId}
+           FROM entities e
+           JOIN review_details d
+             ON d.workspace_id = e.workspace_id AND d.entity_id = e.id
+           WHERE e.workspace_id = ? AND e.type = '${REVIEW_ENTITY_TYPE}'
+                 AND e.deleted_at IS NULL
+                 AND d.archived_at IS NULL
+                 AND (lower(e.title) LIKE ? ESCAPE '\\'
+                      OR EXISTS (SELECT 1 FROM ${SECTION_FROM} WHERE ${SECTION_MATCH}))
+           ORDER BY CASE
+                      WHEN lower(e.title) = ? THEN 0
+                      WHEN lower(e.title) LIKE ? ESCAPE '\\' THEN 1
+                      ELSE 2
+                    END,
+                    d.period_start DESC,
+                    e.id DESC
+           LIMIT ?`,
+        )
+        /*
+         * Placeholders bind POSITIONALLY: the section excerpt triple and the
+         * section-id probe (each `needle, like`), then the WHERE clause, the
+         * ranking CASE, and the LIMIT.
+         */
+        .bind(
+          needle, // section_hit
+          like, // section_hit predicate
+          needle, // section_window
+          like, // section_window predicate
+          needle, // section_window_start
+          like, // section_window_start predicate
+          like, // section_id predicate
+          this.#workspaceId,
+          like, // title
+          like, // sections EXISTS
+          lowered, // rank: exact title — the WHOLE query, never the bound prefix
+          likePrefix(lowered), // rank: title prefix
+          limit,
+        )
+        .all<ReviewSearchRow>();
+      rows = result.results;
+    } catch (cause) {
+      throw new ReviewStorageError({ cause });
+    }
+
+    return rows.map((row) => {
+      const sectionRow = readSearchExcerptRow(
+        row as unknown as Record<string, unknown>,
+        "section",
+      );
+      // Fixed precedence: title beats body.
+      const matchSource: ReviewMatchSource = row.title
+        .toLocaleLowerCase()
+        .includes(needle)
+        ? "title"
+        : searchExcerptMatched(sectionRow)
+          ? "section"
+          : "title";
+      return {
+        id: row.id,
+        title: row.title,
+        type: parseReviewType(row.review_type),
+        periodStart: row.period_start,
+        periodEnd: row.period_end,
+        status: parseReviewStatus(row.status),
+        archived: row.archived_at !== null,
+        matchSource,
+        sectionId:
+          matchSource === "section" && row.section_id !== null
+            ? parseReviewSectionId(row.section_id)
+            : null,
+        excerpt:
+          matchSource === "section" ? searchExcerpt(sectionRow, needle) : "",
+      };
+    });
   }
 
   /**

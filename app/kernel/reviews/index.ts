@@ -30,6 +30,8 @@ export type {
   ListReviewsInput,
   ReviewPage,
   ReviewPeriodEntry,
+  ReviewMatchSource,
+  ReviewSearchHit,
   ReviewView,
   ReviewSort,
   ReviewChangeResult,

@@ -387,6 +387,37 @@ describe("FIND-01 — an empty query has something true to answer with", () => {
     expect(list).toContain("An ordinary Area");
   });
 
+  it("RECALL-01 — a Diary body that MATCHES a query is still absent from the unbidden list", async () => {
+    const s = scopeFor();
+    await s.spine.createArea({ title: "An ordinary Area" });
+    // A synthetic distinctive phrase, in the BODY only. RECALL-01 made Diary
+    // bodies matchable under an explicit query; the boundary it must not move is
+    // this one — the surface that renders because the owner opened Search, not
+    // because they typed anything, still volunteers nothing.
+    const entry = await s.diary.create({
+      entryType: "reflection",
+      title: "Recall diary boundary",
+      body: "The wandroplex arrived.",
+    });
+
+    const list = await titles();
+    expect(list).not.toContain("Recall diary boundary");
+    expect(list).toContain("An ordinary Area");
+
+    // Nothing is hidden: the same phrase, typed, returns the entry.
+    const hits = await s.diary.search({ text: "wandroplex" });
+    expect(hits.map((hit) => hit.id)).toEqual([entry.id]);
+    expect(hits[0]?.matchSource).toBe("body");
+
+    /*
+     * The falsification this test exists for: point the recency read at Diary
+     * (remove `diary` from `RECENCY_EXCLUDED_TYPES`) and the first assertion
+     * fails while the second still passes — which is exactly the asymmetry the
+     * privacy decision rests on.
+     */
+    expect(RECENCY_EXCLUDED_TYPES.has("diary")).toBe(true);
+  });
+
   it("lists People, with no subtitle or body anywhere in the payload", async () => {
     const s = scopeFor();
     await s.people.create({ title: "Vaughn Reed", email: "v@example.com" });

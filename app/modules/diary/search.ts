@@ -8,6 +8,7 @@ import type {
   SearchResultItem,
 } from "~/kernel/modules";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
+import { searchSubtitle } from "~/shared/search/subtitle";
 
 const entryTypes = createDiaryEntryTypeRegistry();
 
@@ -31,8 +32,30 @@ function formatOccurredAt(entry: DiarySearchHit, timezone: string): string {
   }
 }
 
+/** The user-facing name for where a hit matched. Never a raw enum value. */
+function matchLabel(entry: DiarySearchHit): string {
+  return entry.matchSource === "title" ? "Title" : "Entry";
+}
+
+/**
+ * `match source · entry type · occurred time · excerpt`, in the shared RECALL-01
+ * grammar.
+ *
+ * The excerpt is present only for a BODY match, and it is only ever the bounded
+ * window the repository cut around what the owner typed — Diary prose never
+ * appears here as a preview, a first paragraph or a summary, and never at all
+ * on the empty-query surface, which lists no Diary entries and carries no
+ * subtitles (ADR-114 decision 2).
+ */
 function diarySubtitle(entry: DiarySearchHit, timezone: string): string {
-  return `${entryTypeLabel(entry.entryType)} · ${formatOccurredAt(entry, timezone)}`;
+  return (
+    searchSubtitle([
+      matchLabel(entry),
+      entryTypeLabel(entry.entryType),
+      formatOccurredAt(entry, timezone),
+      entry.excerpt,
+    ]) ?? ""
+  );
 }
 
 const searchDiary: SearchExecutor = async (query, context) => {
