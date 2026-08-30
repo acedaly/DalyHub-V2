@@ -32,19 +32,39 @@
  * small parser rather than the script's, so the assertions check the
  * implementation instead of agreeing with it — a bug in the script's splitter
  * cannot hide by being used to verify its own output.
+ *
+ * ── Why `@vitest-environment node`, and why it is load-bearing ───────────────
+ * This suite imports `node:sqlite` — the demonstration that a raw dump FAILS to
+ * restore and a reordered one succeeds is a real SQLite load, which is the
+ * point of the file. The unit project's default environment is happy-dom, and
+ * Vite refuses to bundle a Node built-in for a client environment — the exact
+ * failure `production-backup-encryption.test.ts` documents as its reason for
+ * not importing the script. As merged, #239's twenty tests therefore never ran:
+ * the file failed COLLECTION on CI (`Unit`, run 33298001651: "1 failed | 471
+ * passed", zero of its tests executed) while every locally-invoked
+ * demonstration passed. Nothing here touches the DOM — it spawns a CLI and
+ * reads files — so the Node environment is the truthful one, and it is what
+ * lets these tests actually execute.
+ *
+ * @vitest-environment node
  */
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  linkSync,
+  lstatSync,
+  mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -371,6 +391,208 @@ describe("reorder — falsification", () => {
     const result = reorderViaCli("   \n  \n", "blank");
     expect(result.status).not.toBe(0);
     expect(result.out).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The canonical source can never be the output (#239 review, post-merge)     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * "Leaves the input file untouched" used to hold only while nobody pointed
+ * `--out` back at the input: `reorder --in raw.sql --out raw.sql` exited 0 and
+ * replaced the canonical dump with its permutation — same byte length,
+ * different bytes — silently invalidating the artifact's provenance checksum.
+ * A symlink or a hard link to the input did the same through a second name.
+ * The command now resolves both paths to their OS file identity (`dev`+`ino`,
+ * with canonical-path equality as a second net) and refuses BEFORE reading the
+ * input, let alone writing anything. These tests hold that refusal in every
+ * alias form, prove a refusal writes nothing, and prove a genuinely distinct
+ * output — new or being overwritten on a re-run — still works.
+ */
+
+/**
+ * Whether this platform lets the suite CREATE the alias a test needs — Windows
+ * without Developer Mode refuses symlinks to unprivileged users, and some
+ * filesystems have no hard links. The guard under test does not depend on
+ * creating either, so an incapable platform skips that FIXTURE explicitly
+ * rather than the guard being weakened to suit it; on the suite's own CI
+ * (Linux) both probes pass and nothing is skipped.
+ */
+function canCreateAlias(kind: "symlink" | "hardlink"): boolean {
+  const probe = mkdtempSync(join(tmpdir(), "dalyhub-alias-probe-"));
+  try {
+    const target = join(probe, "target");
+    writeFileSync(target, "probe");
+    if (kind === "symlink") symlinkSync("target", join(probe, "alias"));
+    else linkSync(target, join(probe, "alias"));
+    return true;
+  } catch {
+    return false;
+  } finally {
+    rmSync(probe, { recursive: true, force: true });
+  }
+}
+const CAN_SYMLINK = canCreateAlias("symlink");
+const CAN_HARDLINK = canCreateAlias("hardlink");
+
+describe("reorder — the canonical source can never be the output", () => {
+  const SECRET = "jamie.rivers@example.test";
+  /** The raw dump with one distinctive private literal, for the leak checks. */
+  const PRIVATE_DUMP = RAW_DUMP.replace("0001_init.sql", SECRET);
+
+  const sha256 = (bytes: Buffer) =>
+    createHash("sha256").update(bytes).digest("hex");
+
+  /** An isolated directory per test, so "wrote nothing" is checkable. */
+  function aliasDir(name: string): string {
+    const dir = join(scratch, `alias-${name}`);
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+
+  /** Run the real CLI with EXPLICIT paths, unlike `reorderViaCli`'s derived ones. */
+  function reorderPaths(
+    inPath: string,
+    outPath: string,
+  ): { status: number; stderr: string } {
+    const result = spawnSync(
+      process.execPath,
+      [SCRIPT, "reorder", "--in", inPath, "--out", outPath],
+      { encoding: "utf8" },
+    );
+    return {
+      status: result.status ?? 1,
+      stderr: `${result.stderr ?? ""}${result.stdout ?? ""}`,
+    };
+  }
+
+  it("refuses when --out names the --in file itself, and writes nothing", () => {
+    const dir = aliasDir("same");
+    const src = join(dir, "raw.sql");
+    writeFileSync(src, RAW_DUMP);
+    const digestBefore = sha256(readFileSync(src));
+    const listingBefore = readdirSync(dir);
+
+    const result = reorderPaths(src, src);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/same underlying file/i);
+    // The refusal wrote NOTHING: same bytes, same digest, same directory.
+    expect(readFileSync(src, "utf8")).toBe(RAW_DUMP);
+    expect(sha256(readFileSync(src))).toBe(digestBefore);
+    expect(readdirSync(dir)).toEqual(listingBefore);
+  });
+
+  it("refuses a different path spelling that resolves to the same file", () => {
+    const dir = aliasDir("spelling");
+    mkdirSync(join(dir, "sub"));
+    const src = join(dir, "raw.sql");
+    writeFileSync(src, RAW_DUMP);
+    // Assembled by hand: `join()` would collapse the `..` lexically, and the
+    // point is that the OPERATING SYSTEM resolves two spellings to one file.
+    const spelled = [dir, "sub", "..", "raw.sql"].join(sep);
+    expect(spelled).not.toBe(src);
+
+    const result = reorderPaths(src, spelled);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/same underlying file/i);
+    expect(readFileSync(src, "utf8")).toBe(RAW_DUMP);
+  });
+
+  it.skipIf(!CAN_SYMLINK)(
+    "refuses a symlink to the input, in either direction",
+    () => {
+      const dir = aliasDir("symlink");
+      const src = join(dir, "raw.sql");
+      writeFileSync(src, RAW_DUMP);
+      const alias = join(dir, "restorable.sql");
+      // Relative, as an operator's shell would leave it.
+      symlinkSync("raw.sql", alias);
+
+      for (const [input, output] of [
+        [src, alias],
+        [alias, src],
+      ]) {
+        const result = reorderPaths(input, output);
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toMatch(/same underlying file/i);
+      }
+      expect(readFileSync(src, "utf8")).toBe(RAW_DUMP);
+      // And the refusal did not replace the link with a plain file either.
+      expect(lstatSync(alias).isSymbolicLink()).toBe(true);
+    },
+  );
+
+  it.skipIf(!CAN_HARDLINK)("refuses a hard link to the input", () => {
+    const dir = aliasDir("hardlink");
+    const src = join(dir, "raw.sql");
+    writeFileSync(src, RAW_DUMP);
+    const alias = join(dir, "restorable.sql");
+    linkSync(src, alias);
+
+    const result = reorderPaths(src, alias);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/same underlying file/i);
+    // One inode, two names, zero writes: both spellings still read raw.
+    expect(readFileSync(src, "utf8")).toBe(RAW_DUMP);
+    expect(readFileSync(alias, "utf8")).toBe(RAW_DUMP);
+  });
+
+  it("diagnoses a refusal by file name only, never by dump contents", () => {
+    const dir = aliasDir("diagnostic");
+    const src = join(dir, "raw.sql");
+    writeFileSync(src, PRIVATE_DUMP);
+
+    const result = reorderPaths(src, src);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("raw.sql");
+    expect(result.stderr).not.toContain(SECRET);
+    expect(result.stderr).not.toContain("CREATE TABLE");
+    expect(result.stderr).not.toContain("INSERT");
+    expect(readFileSync(src, "utf8")).toBe(PRIVATE_DUMP);
+  });
+
+  it("still writes a distinct output, and it is the same proven permutation", () => {
+    const dir = aliasDir("distinct");
+    const src = join(dir, "raw.sql");
+    const out = join(dir, "raw-restorable.sql");
+    writeFileSync(src, RAW_DUMP);
+
+    const result = reorderPaths(src, out);
+
+    expect(result.status).toBe(0);
+    const text = readFileSync(out, "utf8");
+    expect(sortedDigest(statementsOf(text))).toBe(
+      sortedDigest(statementsOf(RAW_DUMP)),
+    );
+    expect(Buffer.byteLength(text)).toBe(Buffer.byteLength(RAW_DUMP));
+    expect(lastIndexWhere(text, isIndex)).toBeLessThan(
+      firstIndexWhere(text, isData),
+    );
+    expect(readFileSync(src, "utf8")).toBe(RAW_DUMP);
+  });
+
+  it("overwrites an existing DISTINCT output on a re-run", () => {
+    // The guard refuses IDENTITY, not existence: re-running the documented
+    // restore step over yesterday's restorable copy must keep working.
+    const dir = aliasDir("rerun");
+    const src = join(dir, "raw.sql");
+    const out = join(dir, "raw-restorable.sql");
+    writeFileSync(src, RAW_DUMP);
+    writeFileSync(out, "-- a stale previous restorable copy\n");
+
+    const result = reorderPaths(src, out);
+
+    expect(result.status).toBe(0);
+    expect(readFileSync(out, "utf8")).not.toContain("stale");
+    expect(sortedDigest(statementsOf(readFileSync(out, "utf8")))).toBe(
+      sortedDigest(statementsOf(RAW_DUMP)),
+    );
+    expect(readFileSync(src, "utf8")).toBe(RAW_DUMP);
   });
 });
 
