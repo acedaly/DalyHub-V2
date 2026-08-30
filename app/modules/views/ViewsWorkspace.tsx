@@ -34,6 +34,11 @@ import {
   TaskRecordDrawer,
 } from "~/shared/task-record/TaskRecordDrawer";
 
+import {
+  CROSS_VIEW_SCOPE_CANDIDATE_LIMIT,
+  type ViewScope,
+} from "~/kernel/views";
+
 import type {
   ViewResultGroup,
   ViewResultItem,
@@ -80,9 +85,21 @@ function ViewsWorkspaceInner({ data }: ViewsWorkspaceProps) {
   const resetParams = viewsResetParams();
 
   const included = data.scopeOptions.filter((option) => option.selected);
-  const subtitle = `${data.total} ${data.total === 1 ? "record" : "records"}${
-    data.bounded ? " (first page)" : ""
-  } · ${included.map((option) => option.label).join(" + ")}`;
+  /*
+   * RECALL-00-B — the bound is in the sentence, not only in a note (the same
+   * honesty rule Analytics' "of the N Goals read" follows): a reader who never
+   * reaches the notices must not take a truncated page for a complete answer.
+   * "(first page)" implied a second page that no control could reach.
+   */
+  const countLabel =
+    data.readCount > data.total
+      ? `first ${data.total} of the ${data.readCount} records read`
+      : `${data.total} ${data.total === 1 ? "record" : "records"}${
+          data.bounded ? " (bounded read)" : ""
+        }`;
+  const subtitle = `${countLabel} · ${included
+    .map((option) => option.label)
+    .join(" + ")}`;
 
   const isEmpty = data.total === 0;
 
@@ -198,6 +215,8 @@ function ScopeSelector({ data }: { readonly data: ViewsPageData }) {
  */
 function ScopeNotices({ data }: { readonly data: ViewsPageData }) {
   if (data.unavailable.length === 0 && !data.bounded) return null;
+  const scopeLabel = (scope: ViewScope): string =>
+    data.scopeOptions.find((option) => option.scope === scope)?.label ?? scope;
   return (
     <div className="dh-views__notices" role="status">
       {data.unavailable.map((entry) => (
@@ -207,11 +226,27 @@ function ScopeNotices({ data }: { readonly data: ViewsPageData }) {
             : `${entry.scope} records are not shown because this view filters on something they don’t have.`}
         </p>
       ))}
-      {data.bounded ? (
+      {/*
+       * RECALL-00-B — the bound is stated as what it IS. There is no second page
+       * and no load-more (a recorded decision on the roadmap item: the 60-row
+       * bound stays and is disclosed; a keyset cursor remains a later option),
+       * so the old "Showing the first page" promised a page nothing could reach.
+       * Two distinct truths, each stated only when it holds: the merged answer
+       * was cut to the page, and/or a scope's candidate READ hit its own cap.
+       */}
+      {data.readCount > data.total ? (
         <p className="dh-views__notice">
-          Showing the first page. Narrow the view to see the rest.
+          This view shows the first {data.total} of the {data.readCount} records
+          read. Narrow the view to see the rest.
         </p>
       ) : null}
+      {data.saturatedScopes.map((scope) => (
+        <p key={`saturated-${scope}`} className="dh-views__notice">
+          Only the first {CROSS_VIEW_SCOPE_CANDIDATE_LIMIT}{" "}
+          {scopeLabel(scope).toLowerCase()} were read for this view, so more may
+          match. Narrow the view to read further.
+        </p>
+      ))}
     </div>
   );
 }

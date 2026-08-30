@@ -762,6 +762,224 @@ describe("query cost", () => {
   });
 });
 
+/* -------------------------------------------------------------------------- */
+/* RECALL-00-B (DEBT-223) — bind safety and the honest bound at the            */
+/* adversarial population the audit never built: a FULL page of Notes and     */
+/* Meetings, every row with link anchors to resolve, plus hostile rows in a   */
+/* second workspace.                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Wrap a `D1Database` so every prepared statement's bind count is recorded.
+ * The point of chunking is that NO statement exceeds D1's 100-bind cap, and the
+ * local test database may be laxer than production D1 — so the cap is asserted
+ * directly rather than trusted to error.
+ */
+function bindCountingDb(db: D1Database): {
+  db: D1Database;
+  maxBinds: () => number;
+  statements: () => number;
+} {
+  let max = 0;
+  let statements = 0;
+  const proxy = new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          statements += 1;
+          const statement = target.prepare(query);
+          return new Proxy(statement, {
+            get(stmtTarget, stmtProp, stmtReceiver) {
+              if (stmtProp === "bind") {
+                return (...values: unknown[]) => {
+                  max = Math.max(max, values.length);
+                  return stmtTarget.bind(...values);
+                };
+              }
+              const value = Reflect.get(stmtTarget, stmtProp, stmtReceiver);
+              return typeof value === "function"
+                ? value.bind(stmtTarget)
+                : value;
+            },
+          });
+        };
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as D1Database;
+  return {
+    db: proxy,
+    maxBinds: () => max,
+    statements: () => statements,
+  };
+}
+
+/**
+ * Seed `count` Notes and `count` Meetings that ALL match a plain note+meeting
+ * view, EACH linked to its own Project which belongs to its own Area — so the
+ * anchor resolution has one link-anchor, one parent and two titles to resolve
+ * per row. This is the population under which the unchunked helpers failed:
+ * `#resolveLinkAnchors` bound `2 + 2×60 = 122` parameters for a full page, and
+ * `#resolveTitles` up to `1 + 120` once every row carried a distinct anchor.
+ */
+async function seedAdversarialLinkedRows(
+  ws: string,
+  count: number,
+  prefix = "",
+): Promise<void> {
+  const q = (id: string) => `${prefix}${id}`;
+  for (let index = 0; index < count; index += 1) {
+    const n = String(index).padStart(3, "0");
+    // Distinct, descending update instants make the `updated DESC` page exact.
+    const minute = String(59 - Math.floor(index / 2)).padStart(2, "0");
+    const second = String((index % 2) * 30 + 10).padStart(2, "0");
+    const updated = `2026-08-06T10:${minute}:${second}.000Z`;
+    const noteId = q(`adv-note-${n}`);
+    const meetingId = q(`adv-meet-${n}`);
+
+    await entity(ws, noteId, "note", `${prefix}Adversarial note ${n}`, {
+      updatedAt: updated,
+    });
+    await noteDetails(ws, noteId);
+
+    await entity(
+      ws,
+      meetingId,
+      "meeting",
+      `${prefix}Adversarial meeting ${n}`,
+      {
+        updatedAt: updated.replace(".000Z", ".500Z"),
+      },
+    );
+    await meetingDetails(ws, meetingId, ts("2026-08-05", "01"), "completed");
+
+    // A DISTINCT project + area per row, so a 60-row page carries 120 anchor
+    // ids into the title read — past `entities.getByIds`' 90-id chunk, which
+    // makes the chunking load-bearing rather than incidental.
+    for (const [recordId, kind] of [
+      [noteId, "note"],
+      [meetingId, "meet"],
+    ] as const) {
+      const projectId = q(`adv-proj-${kind}-${n}`);
+      const areaId = q(`adv-area-${kind}-${n}`);
+      await entity(
+        ws,
+        projectId,
+        "project",
+        `${prefix}Adversarial project ${kind} ${n}`,
+      );
+      await entity(
+        ws,
+        areaId,
+        "area",
+        `${prefix}Adversarial area ${kind} ${n}`,
+      );
+      await link(ws, projectId, areaId, PROJECT_BELONGS_TO_AREA);
+      await link(ws, recordId, projectId, UNIVERSAL_RELATED_LINK);
+    }
+  }
+}
+
+describe("RECALL-00-B — a full page of linked Notes/Meetings is bind-safe and honestly bounded", () => {
+  it("returns the 60-row page with correct anchors, within budget and the bind cap, and states the bound", async () => {
+    // 36 + 36 = 72 matching candidates: more than the 60-row page, fewer than
+    // the 120-per-scope candidate cap — the exact population the old code
+    // truncated SILENTLY (`bounded` stayed false) when it did not fail outright
+    // on the 122-bind anchor statement.
+    await seedAdversarialLinkedRows(WS, 36);
+    // Hostile rows: the same shape in a second workspace. None of them — rows
+    // or anchors — may ever appear in this workspace's page.
+    await seedAdversarialLinkedRows(OTHER, 3, "HOSTILE-");
+
+    const counting = bindCountingDb(env.DB);
+    const repository = createCrossViewQueryRepository(
+      counting.db,
+      makeContext(WS),
+    );
+    const page = await repository.runCrossView(
+      config({ scopes: ["note", "meeting"] }),
+      context,
+    );
+
+    // The full page arrives — no statement error at the realistic population.
+    expect(page.results).toHaveLength(60);
+
+    // The bound is STATED: 74 candidates were read (72 adversarial rows plus
+    // the base world's one live note and one meeting), the page holds 60, and
+    // no scope's candidate read saturated (37 < 120 per scope) — this is the
+    // page-slice truncation the old flag missed. Falsification: restore
+    // `bounded = any scope saturated` and this fails.
+    expect(page.bounded).toBe(true);
+    expect(page.readCount).toBe(74);
+    expect(page.saturatedScopes).toEqual([]);
+
+    // EVERY row resolved its anchors — including rows past the 45-id chunk
+    // boundary of the link-anchor read and the 90-id chunk boundary of the
+    // title read, which is where an incorrect merge would lose them. Anchor
+    // titles resolve to THIS workspace's records.
+    for (const result of page.results) {
+      const n = result.id.slice(-3);
+      const kind = result.scope === "note" ? "note" : "meet";
+      expect(result.project).toEqual({
+        id: `adv-proj-${kind}-${n}`,
+        title: `Adversarial project ${kind} ${n}`,
+      });
+      expect(result.area).toEqual({
+        id: `adv-area-${kind}-${n}`,
+        title: `Adversarial area ${kind} ${n}`,
+      });
+    }
+
+    // Workspace isolation, against a workspace that CONTAINS matching rows:
+    // no hostile row and no hostile anchor is ever returned.
+    for (const result of page.results) {
+      expect(result.id).not.toContain("HOSTILE");
+      expect(result.title).not.toContain("HOSTILE");
+      expect(result.project?.title ?? "").not.toContain("HOSTILE");
+      expect(result.area?.title ?? "").not.toContain("HOSTILE");
+    }
+
+    /*
+     * The pinned query budget (ROADMAP_V2_7 RECALL-00-B): flat in workspace
+     * size, every statement within D1's 100-bind cap.
+     *
+     *   2  scope reads (note, meeting; no Project scope → no boundary read)
+     *   2  link-anchor reads   (60 ids ÷ 45-id chunks, 2 + 2×45 = 92 binds max)
+     *   1  parent read         (60 project ids ÷ 90-id chunks)
+     *   2  title reads         (120 anchor ids ÷ 90-id chunks via
+     *                           `entities.getByIds`)
+     *   —
+     *   7  statements
+     *
+     * Exact, not `lessThan`: un-chunking a helper REDUCES the count (and blows
+     * the bind cap), a reintroduced per-row read raises it — either way this
+     * fails loudly.
+     */
+    expect(counting.statements()).toBe(7);
+    expect(counting.maxBinds()).toBeLessThanOrEqual(100);
+  });
+
+  it("states per-scope saturation when even the candidate read was bounded", async () => {
+    // 125 notes: the note scope's candidate read caps at 120, so the surface
+    // must say the READ itself was bounded for that scope — not merely that
+    // the page truncated.
+    for (let index = 0; index < 125; index += 1) {
+      const n = String(index).padStart(3, "0");
+      await entity(WS, `sat-note-${n}`, "note", `Saturation note ${n}`, {
+        updatedAt: new Date(Date.UTC(2026, 7, 6, 1, 0, index)).toISOString(),
+      });
+      await noteDetails(WS, `sat-note-${n}`);
+    }
+
+    const page = await run({ scopes: ["note"] });
+    expect(page.results.length).toBe(60);
+    expect(page.bounded).toBe(true);
+    expect(page.readCount).toBe(120);
+    expect(page.saturatedScopes).toEqual(["note"]);
+  });
+});
+
 describe("scope coverage", () => {
   it("knows every declared scope", () => {
     const scopes: readonly ViewScope[] = VIEW_SCOPES;

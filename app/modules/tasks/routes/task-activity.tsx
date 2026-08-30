@@ -128,26 +128,29 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     cursor,
   });
 
-  // Resolve every referenced entity's identity in ONE bounded batch (no N+1).
+  // Resolve every referenced entity's identity in ONE bounded batch (no N+1) —
+  // the same `entities.getByIds` read every sibling activity route uses. This
+  // loop called `getById` once per id under this exact comment until
+  // RECALL-00-C (DEBT-224) made the comment true.
   const ids = new Set<string>();
   for (const record of page.items) {
     for (const subject of record.subjects) {
       ids.add(subject.entityId);
     }
   }
+  const entities = await scope.entities.getByIds([...ids], {
+    includeDeleted: true,
+  });
   const resolved = new Map<string, ResolvedEntity>();
-  for (const id of ids) {
-    const entity = await scope.entities.getById(id, { includeDeleted: true });
-    if (entity) {
-      resolved.set(id, {
-        entityId: id,
-        entityType: entity.type,
-        label: entity.title,
-        // Only tasks open in the Today Drawer today; other kinds render as calm
-        // non-link text (no cross-module drawer is built here).
-        drawerKey: entity.type === "task" ? `task:${id}` : undefined,
-      });
-    }
+  for (const [id, entity] of entities) {
+    resolved.set(id, {
+      entityId: id,
+      entityType: entity.type,
+      label: entity.title,
+      // Only tasks open in the Today Drawer today; other kinds render as calm
+      // non-link text (no cross-module drawer is built here).
+      drawerKey: entity.type === "task" ? `task:${id}` : undefined,
+    });
   }
 
   // Name every actor on the page through the ONE shared identity rule, in a

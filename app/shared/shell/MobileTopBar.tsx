@@ -38,9 +38,10 @@ export type MobileTopBarProps = {
    * surface rendering this bar without the shell's loader data is unchanged.
    *
    * It sits in the top bar on a phone rather than in the bottom navigation: the
-   * bottom bar's five slots are DESTINATIONS (Today · Tasks · Capture · Diary ·
-   * More) and the inbox is not one — it is a log you glance at, not a place you
-   * work. Adding a sixth slot would also cost every destination its width.
+   * bottom bar's five slots (Today · Tasks · Add · Projects · More) are for
+   * destinations and capture, and the inbox is neither — it is a log you glance
+   * at, not a place you work. Adding a sixth slot would also cost every
+   * destination its width.
    */
   readonly onOpenNotifications?: (opener: HTMLElement) => void;
   readonly unreadNotifications?: number;

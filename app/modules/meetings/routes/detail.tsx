@@ -107,18 +107,25 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     limit: 50,
   });
 
-  // Follow-up Tasks: resolve each mapped Task through the CANONICAL Task model, so
-  // grouping/state derive from the Task, never a cached Meeting field. A deleted
-  // Task simply drops out (safe degradation — no broken links or leaked ids). The
-  // mapping read is bounded and NEWEST-first, so the most recent follow-ups are the
-  // ones shown; a single meeting exceeding the bound is not a realistic case (deeper
-  // load-more paging is a documented follow-up).
+  // Follow-up Tasks: resolve the mapped Tasks through the CANONICAL Task model
+  // in ONE bounded batch (`getTasksByIds`, chunked at the D1-safe size —
+  // RECALL-00-C closed the per-link `getTask` loop this used to run), so
+  // grouping/state still derive from the Task, never a cached Meeting field. A
+  // deleted Task is simply absent from the map and drops out (safe degradation —
+  // no broken links or leaked ids); the caller's newest-first link order is
+  // reimposed by this walk. The mapping read is bounded and NEWEST-first, so the
+  // most recent follow-ups are the ones shown; a single meeting exceeding the
+  // bound is not a realistic case (deeper load-more paging is a documented
+  // follow-up).
   const followUpLinks = await scope.meetings.listFollowUps(meeting.id, {
     limit: FOLLOW_UP_CAP,
   });
+  const followUpTasks = await scope.tasks.getTasksByIds(
+    followUpLinks.map((link) => link.taskId),
+  );
   const followUps: FollowUpTaskEntry[] = [];
   for (const link of followUpLinks) {
-    const task = await scope.tasks.getTask(link.taskId);
+    const task = followUpTasks.get(link.taskId);
     if (task) {
       followUps.push({ task: serializeTaskView(task), itemId: link.itemId });
     }

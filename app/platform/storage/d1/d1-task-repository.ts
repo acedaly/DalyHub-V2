@@ -330,6 +330,100 @@ const WAITING_TARGET_JOIN = `
 type TaskWaitingJoinedRow = TaskJoinedRow & WaitingTargetColumns;
 
 /**
+ * RECALL-00-C — the per-statement id chunk size for `getTasksByIds`, mirroring
+ * `entities.getByIds`: D1 caps bound variables at 100 per statement and each
+ * chunk binds the ids plus one `workspace_id`, so 90 keeps every statement well
+ * within the limit while resolving a whole follow-up list in a fixed number of
+ * reads (no N+1).
+ */
+const GET_TASKS_BY_IDS_CHUNK_SIZE = 90;
+
+/** Split `items` into contiguous chunks of at most `size` (for bounded IN reads). */
+function chunkTaskIds(items: readonly string[], size: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
+/**
+ * A `getTasksByIds` row: the joined task columns plus the parent's title and the
+ * project → goal → area hops, resolved by LEFT JOINs in the SAME statement so the
+ * batch needs no per-task relationship reads.
+ */
+type TaskBatchJoinedRow = TaskWaitingJoinedRow & {
+  readonly parent_title: string | null;
+  readonly project_goal_id: string | null;
+  readonly project_goal_title: string | null;
+  readonly project_area_id: string | null;
+  readonly project_area_title: string | null;
+  readonly goal_area_id: string | null;
+  readonly goal_area_title: string | null;
+};
+
+/**
+ * Fold a batch row's joined columns into the SAME project/goal/area relationships
+ * `#resolveRelationships` walks with per-hop reads: an area parent is the area;
+ * a project parent contributes the project, its advanced Goal (whose own Area
+ * wins) or otherwise its direct Area. A hop whose entity is deleted resolves to
+ * null exactly as the per-hop `#resolveEntity` does — the link may still carry
+ * the walk (a deleted Goal's Area still resolves, matching the sequential read).
+ */
+function batchRowRelationships(row: TaskBatchJoinedRow): {
+  project: TaskRelation | null;
+  goal: TaskRelation | null;
+  area: TaskRelation | null;
+} {
+  if (row.parent_id === null || row.parent_link_type === null) {
+    return { project: null, goal: null, area: null };
+  }
+  if (row.parent_link_type === TASK_BELONGS_TO_AREA) {
+    return {
+      project: null,
+      goal: null,
+      area:
+        row.parent_title === null
+          ? null
+          : { kind: "area", id: row.parent_id, title: row.parent_title },
+    };
+  }
+  const project: TaskRelation | null =
+    row.parent_title === null
+      ? null
+      : { kind: "project", id: row.parent_id, title: row.parent_title };
+  if (row.project_goal_id !== null) {
+    return {
+      project,
+      goal:
+        row.project_goal_title === null
+          ? null
+          : {
+              kind: "goal",
+              id: row.project_goal_id,
+              title: row.project_goal_title,
+            },
+      area:
+        row.goal_area_id === null || row.goal_area_title === null
+          ? null
+          : { kind: "area", id: row.goal_area_id, title: row.goal_area_title },
+    };
+  }
+  return {
+    project,
+    goal: null,
+    area:
+      row.project_area_id === null || row.project_area_title === null
+        ? null
+        : {
+            kind: "area",
+            id: row.project_area_id,
+            title: row.project_area_title,
+          },
+  };
+}
+
+/**
  * A joined task-list row: the detail/parent columns, with the waiting-target columns
  * OPTIONAL — `listTasks` selects them, the planning bands (which exclude waiting) do
  * not. `rowToTaskWaiting` returns null when `waiting_since` is null, so their absence
@@ -1656,6 +1750,107 @@ export class D1TaskRepository implements TaskRepository {
     }
     const relationships = await this.#resolveRelationships(row);
     return this.#toView(row, rowToTaskDetails(row), relationships);
+  }
+
+  async getTasksByIds(
+    ids: readonly string[],
+    options: GetTaskOptions = {},
+  ): Promise<Map<string, TaskView>> {
+    const resolved = new Map<string, TaskView>();
+    if (ids.length === 0) {
+      return resolved;
+    }
+
+    // De-duplicate and validate up front, exactly as `entities.getByIds` does —
+    // one bad id is a clean rejection, never a silent partial read.
+    const unique = [...new Set(ids)].map((id) => validateTaskId(id));
+    const deletedClause = options.includeDeleted
+      ? ""
+      : " AND e.deleted_at IS NULL";
+
+    // A FIXED number of chunked `IN (…)` reads (one per ≤90 ids, `1 + n` binds
+    // each — inside D1's 100-bind cap), run concurrently — never one `getTask`
+    // per id. The project → goal → area chain `#resolveRelationships` walks with
+    // per-hop reads is resolved by LEFT JOINs INSIDE the same statement, so the
+    // whole batch stays at `ceil(n/chunk)` statements while every view carries
+    // the same relationships `getTask` returns. Workspace-scoped in SQL, so a
+    // cross-workspace id simply never matches.
+    const chunks = chunkTaskIds(unique, GET_TASKS_BY_IDS_CHUNK_SIZE);
+    const results = await Promise.all(
+      chunks.map((idChunk) => {
+        const placeholders = idChunk.map(() => "?").join(", ");
+        return this.#run(
+          this.#db
+            .prepare(
+              `SELECT ${TASK_DETAIL_COLUMNS},
+                      ${WAITING_TARGET_COLUMNS},
+                      pl.target_entity_id AS parent_id,
+                      pl.type AS parent_link_type,
+                      pe.title AS parent_title,
+                      pgl.target_entity_id AS project_goal_id,
+                      pge.title AS project_goal_title,
+                      pal.target_entity_id AS project_area_id,
+                      pae.title AS project_area_title,
+                      gal.target_entity_id AS goal_area_id,
+                      gae.title AS goal_area_title
+               FROM entities e
+               JOIN spine_records sr
+                 ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+               LEFT JOIN task_details td
+                 ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+               ${TASK_RECURRENCE_JOIN}
+               LEFT JOIN entity_links pl
+                 ON pl.workspace_id = e.workspace_id AND pl.source_entity_id = e.id
+                    AND pl.deleted_at IS NULL AND pl.type IN (${TASK_PARENT_LINK_LIST})
+               LEFT JOIN entities pe
+                 ON pe.workspace_id = e.workspace_id AND pe.id = pl.target_entity_id
+                    AND pe.deleted_at IS NULL
+               LEFT JOIN entity_links pgl
+                 ON pl.type = '${TASK_BELONGS_TO_PROJECT}'
+                    AND pgl.workspace_id = e.workspace_id
+                    AND pgl.source_entity_id = pl.target_entity_id
+                    AND pgl.deleted_at IS NULL AND pgl.type = '${PROJECT_ADVANCES_GOAL}'
+               LEFT JOIN entities pge
+                 ON pge.workspace_id = e.workspace_id AND pge.id = pgl.target_entity_id
+                    AND pge.deleted_at IS NULL
+               LEFT JOIN entity_links pal
+                 ON pl.type = '${TASK_BELONGS_TO_PROJECT}'
+                    AND pal.workspace_id = e.workspace_id
+                    AND pal.source_entity_id = pl.target_entity_id
+                    AND pal.deleted_at IS NULL AND pal.type = '${PROJECT_BELONGS_TO_AREA}'
+               LEFT JOIN entities pae
+                 ON pae.workspace_id = e.workspace_id AND pae.id = pal.target_entity_id
+                    AND pae.deleted_at IS NULL
+               LEFT JOIN entity_links gal
+                 ON gal.workspace_id = e.workspace_id
+                    AND gal.source_entity_id = pgl.target_entity_id
+                    AND gal.deleted_at IS NULL AND gal.type = '${GOAL_BELONGS_TO_AREA}'
+               LEFT JOIN entities gae
+                 ON gae.workspace_id = e.workspace_id AND gae.id = gal.target_entity_id
+                    AND gae.deleted_at IS NULL
+               ${WAITING_TARGET_JOIN}
+               WHERE e.workspace_id = ? AND e.type = '${TASK}'${deletedClause}
+                 AND e.id IN (${placeholders})`,
+            )
+            .bind(this.#workspaceId, ...idChunk),
+        );
+      }),
+    );
+
+    for (const result of results) {
+      for (const raw of result.results ?? []) {
+        const row = raw as TaskBatchJoinedRow;
+        // Keep the FIRST row per task (matching `#readJoined`'s `rows[0]`): a
+        // task can only carry one active structural parent, so extra rows would
+        // mean corrupt links, and first-wins keeps the read deterministic.
+        if (resolved.has(row.id)) continue;
+        resolved.set(
+          row.id,
+          this.#toView(row, rowToTaskDetails(row), batchRowRelationships(row)),
+        );
+      }
+    }
+    return resolved;
   }
 
   async listTasks(input: ListTasksInput = {}): Promise<TaskListPage> {

@@ -752,6 +752,9 @@ export function createCrossViewQueryRepository(
     readonly health?: ProjectHealthRepository;
     readonly goals?: GoalRepository;
     readonly alignment?: AlignmentRepository;
+    /** RECALL-00-B — anchor titles resolve through the kernel's chunked
+     * `entities.getByIds`; pass the composition's bound instance to reuse it. */
+    readonly entities?: EntityRepository;
   },
 ): CrossViewQueryRepository {
   return new D1CrossViewQueryRepository(db, context, derived);

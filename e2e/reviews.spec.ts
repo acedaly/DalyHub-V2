@@ -268,3 +268,72 @@ test("Review period context opens the correct Diary entry (V2.0.1)", async ({
     );
   }
 });
+
+/*
+ * RECALL-00-G (DEBT-228) — the collection offers Start/Continue ONLY for the
+ * Review type that has a guide.
+ *
+ * The guide route redirects every non-weekly type straight back to the record,
+ * so a "Start monthly review" control announced a guided flow to a screen
+ * reader and silently bounced — a live dead-end (AGENTS.md §6). The collection
+ * now uses the SAME `type === "weekly"` predicate the record page's guided
+ * entry uses; non-weekly rows keep their ordinary open-record affordance. When
+ * a monthly guide ships, its button returns with it — nothing is foreclosed.
+ *
+ * Falsification: remove the type predicate from `ReviewsCollection.tsx` and
+ * the monthly assertions fail at both widths.
+ */
+test("the guide affordance appears for a weekly Review and never for a monthly one (RECALL-00-G)", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const weeklyTitle = uniqueReviewTitle("guide-weekly");
+  const monthlyTitle = uniqueReviewTitle("guide-monthly");
+
+  await createWeeklyReview(page, weeklyTitle);
+
+  // A monthly Review, created through the product's own form.
+  owned.add(monthlyTitle);
+  await gotoFixture(page, "/reviews/new");
+  await page.getByRole("radio", { name: "Monthly" }).click();
+  await page.getByRole("textbox", { name: "Review title" }).fill(monthlyTitle);
+  await page.getByRole("button", { name: "Start Review" }).click();
+  await expect(page).toHaveURL(/\/reviews\/[^/?#]+$/);
+  // The record page itself offers no guided entry for a monthly Review —
+  // the rule the collection now shares.
+  await expect(page.getByRole("link", { name: /guided review/i })).toHaveCount(
+    0,
+  );
+
+  for (const viewport of [
+    { width: 1280, height: 800 },
+    { width: 393, height: 851 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await gotoFixture(page, "/reviews");
+
+    const weeklyCard = page
+      .getByRole("article")
+      .filter({ hasText: weeklyTitle });
+    const monthlyCard = page
+      .getByRole("article")
+      .filter({ hasText: monthlyTitle });
+    await expect(weeklyCard).toBeVisible();
+    await expect(monthlyCard).toBeVisible();
+
+    // The weekly card offers the guide; the monthly card does NOT — it keeps
+    // only its ordinary open-record affordance.
+    await expect(
+      weeklyCard.getByRole("link", { name: /^Start Weekly review/ }),
+    ).toBeVisible();
+    await expect(
+      monthlyCard.getByRole("link", { name: /^(Start|Continue)/ }),
+    ).toHaveCount(0);
+    await expect(
+      monthlyCard.getByRole("link", { name: new RegExp(monthlyTitle) }),
+    ).toBeVisible();
+  }
+
+  // The touched surface stays axe-clean at the phone width too.
+  await expectNoAxeViolations(page);
+});

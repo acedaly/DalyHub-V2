@@ -70,6 +70,12 @@ export interface ViewsPageData {
   readonly groups: readonly ViewResultGroup[];
   readonly total: number;
   readonly bounded: boolean;
+  /** RECALL-00-B — how many matching candidates the bounded query READ (before
+   * the page slice), the denominator of the honest "first N of the M read"
+   * sentence. Itself bounded when a scope saturated (see `saturatedScopes`). */
+  readonly readCount: number;
+  /** RECALL-00-B — the scopes whose candidate read hit its cap, stated each. */
+  readonly saturatedScopes: readonly ViewScope[];
   readonly unavailable: readonly UnavailableViewScope[];
   readonly scopeOptions: readonly ViewScopeOption[];
   readonly views: readonly ViewsViewOption[];

@@ -92,6 +92,27 @@ export interface TaskRepository {
   getTask(id: string, options?: GetTaskOptions): Promise<TaskView | null>;
 
   /**
+   * RECALL-00-C — resolve MANY tasks by id as full `TaskView`s in one bounded
+   * batch, mirroring `entities.getByIds`: a small, FIXED number of chunked
+   * `IN (…)` reads at the D1-safe size regardless of how many ids are requested
+   * — never one `getTask` per id (no N+1). Workspace-scoped in SQL; returns a
+   * `Map` keyed by id containing only the ids that resolve to live tasks in
+   * this workspace — missing, soft-deleted (unless `options.includeDeleted`),
+   * wrong-type and cross-workspace ids are simply absent, never disclosed.
+   * Duplicate ids are de-duplicated; an empty input yields an empty map and
+   * issues no statement. Each view carries the SAME resolved state and
+   * project/goal/area relationships `getTask` returns, so Task remains the one
+   * authority for follow-up state; the caller reimposes its own ordering by
+   * walking its id list against the map (exactly as Timeline consumers walk
+   * `entities.getByIds`). The first consumer is Meeting detail's follow-up
+   * read, which used to issue one `getTask` per follow-up link (DEBT-224).
+   */
+  getTasksByIds(
+    ids: readonly string[],
+    options?: GetTaskOptions,
+  ): Promise<Map<string, TaskView>>;
+
+  /**
    * Assign, move or clear a Task's structural parent. `null` means intentional
    * Unassigned. The repository validates destination parents inside the workspace,
    * preserves Task details/completion/waiting state, appends structural Activity and

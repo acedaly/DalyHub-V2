@@ -1191,7 +1191,28 @@
   cursor: pointer;
 }
 
-.dh-topbar__search-label,
+/*
+ * RECALL-00-D (DEBT-225) — the label COLLAPSES visually, it never leaves the
+ * accessibility tree. It is the button's ONLY name source, and `display: none`
+ * here made the control an unnamed <button> across the whole 769–1023px band
+ * (the desktop bar renders above 48rem; the visible label only returned at
+ * 64rem) — an axe `button-name` / WCAG 4.1.2 failure on the product's primary
+ * retrieval entry point. This is `.dh-visually-hidden`'s own technique
+ * (base.css), applied where a media query must undo it — one control, one name,
+ * at every width. The `/` hint is `aria-hidden` decoration and may simply hide.
+ */
+.dh-topbar__search-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .dh-topbar__search-hint {
   display: none;
 }
@@ -1228,6 +1249,12 @@
   }
 
   .dh-topbar__search-label {
+    /* Unwind the visually-hidden collapse: the label is VISIBLE from here up. */
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    clip: auto;
     display: block;
     flex: 1;
     min-inline-size: 0;

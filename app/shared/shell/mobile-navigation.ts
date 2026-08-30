@@ -75,8 +75,11 @@ export function resolveMobilePrimaryDestinations(
  * the most reachable point of the bar for either thumb — and More is always last,
  * so the layout is stable no matter how many destinations opted in.
  *
- * With the shipped manifests (Today, Tasks, Diary) this yields exactly:
- * `Today · Tasks · Capture · Diary · More`.
+ * With the shipped manifests (Today, Tasks, Projects opted in) this yields
+ * exactly `Today · Tasks · Add · Projects · More` — the capture slot renders
+ * with the label "Add" — asserted by `e2e/mobile-shell.spec.ts`. (This comment
+ * said `Today · Tasks · Capture · Diary · More` long after Projects replaced
+ * Diary in the bar; corrected by RECALL-00-D.)
  */
 export function buildBottomNavigation(
   navigation: readonly NavigationItem[],
@@ -119,8 +122,7 @@ export function activeDestinationHref(
   destinations: readonly NavigationItem[],
   pathname: string,
 ): string | null {
-  return activeNavigationHref(
-    destinations.map((destination) => destination.href),
-    pathname,
-  );
+  // The items go through whole (not just their hrefs) so the one rule can
+  // consult each module's declared route prefixes too (RECALL-00-E).
+  return activeNavigationHref(destinations, pathname);
 }

@@ -19,7 +19,8 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: DEFINED, not started.** Every item below is ☐. The
+**Programme status: IN PROGRESS.** RECALL-00 ☑ delivered 2026-08-30; the four
+items after it are ☐. The
 programme decision is recorded as
 [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine) and every finding it is built on
 was re-measured against `main` at `0d08cd6` on 2026-08-30 — including the
@@ -210,7 +211,7 @@ then cross-surface truth.
 
 ---
 
-### ☐ RECALL-00 — Trust the paths
+### ☑ RECALL-00 — Trust the paths — **delivered 2026-08-30**
 
 **Every path to a record leads to the record, and says what it is.**
 
@@ -451,6 +452,52 @@ needs to implement without re-auditing.
   definition). Nothing advanced, nothing else touched.
 - **Recommended branch.** `claude/v2-7-recall-00-trust-the-paths`
 - **Recommended PR title.** `V2.7 RECALL-00: trust the paths — seven measured defects, seven regression tests`
+- **Delivered 2026-08-30.** All seven parts, each with its regression and its
+  falsification, inside the frame — no search work, no Task filters, no Today
+  feature work, no Views feature beyond the bound decision, none of
+  DEBT-215/216/219/220/221 absorbed, no AI activation. The recorded decisions
+  and the two in-flight findings:
+
+  **B took the recommended answer: (b), the bound stays and is stated.** No
+  cursor, no offset paging, no raised limit. `CrossViewPage` gained
+  `readCount` + `saturatedScopes`, `bounded` widened to cover the page-slice
+  cut (61–119 merged candidates used to truncate with `bounded` still false),
+  and the surface's headline carries the Analytics-style sentence ("first 60 of
+  the N records read") with per-scope saturation stated in its own notice —
+  "Showing the first page" promised a page nothing could reach and is gone.
+  Option (a), a keyset cursor over per-scope SQL ordering, remains available to
+  a later pass without changing the contract, exactly as this item recorded.
+  Bind safety is chunking (45 ids for the 2+2n anchor read, 90 for parents,
+  `entities.getByIds` outright for titles — the private twin deleted), pinned
+  at 7 statements and ≤100 binds per statement at the adversarial population,
+  and falsified live: un-chunking the anchor helper reproduced D1's
+  `too many SQL variables` failure.
+
+  **C's batch is the contract addition the item named** — `getTasksByIds`,
+  mirroring `entities.getByIds` (chunked at 90, workspace-scoped in SQL,
+  missing/deleted ids absent, caller-ordered by the caller's own walk), with
+  the project → goal → area chain folded into the same chunked statement so
+  each view deep-equals `getTask`'s: 1 + ceil(n/90) statements, pinned at 2 for
+  a 26-follow-up meeting; the task-activity loop became the `entities.getByIds`
+  its comment claimed (its subject resolution pinned at 1 statement).
+  `FOLLOW_UP_CAP` unchanged.
+
+  **Two same-defect findings fixed in flight, neither a scope change.** (1)
+  Today's reflection card hand-built a `/diary/<id>` href — the exact
+  per-module hardcode the destination authority forbids, opening the same raw
+  JSON as A's measured paths — and now consults the one map (a two-line change;
+  Today gained no feature). (2) F's send-notice said records "are sent to your
+  configured AI provider" — false with AI off — so the off-state renders an
+  honest sentence instead: nothing is sent, the five answerable questions are
+  named, the rest are declined.
+
+  Every falsification named on the items holds: the destination map reverted
+  breaks A's href/content-type/landing assertions; un-chunking breaks B (proven
+  live); the reintroduced loops break C's exact statement pins; `display:none`
+  restored breaks D's 820px assertions while 1024px passes; the authority
+  reverted breaks E's six-shape fixtures; the form gate restored breaks F's
+  journey (the old test's `toHaveCount(0)` is now the inverted assertion); the
+  type predicate removed breaks G at both widths.
 
 ---
 

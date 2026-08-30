@@ -1,5 +1,36 @@
 # Changelog
 
+- **Every path to a record now leads to the record — and says what it is.**
+
+  Seven small repairs to the paths you travel every day, together (V2.7
+  RECALL-00):
+
+  - **A linked Diary entry opens the Diary.** Following a Diary entry from a
+    Person's timeline, a record's Linked items or anywhere else used to dump the
+    entry — private text included — as a raw data page. Every Diary link now
+    opens the Diary itself, on the entry's day, with the entry open.
+  - **Views tells you what you're looking at.** A view that matched more than
+    one page can hold used to fail outright at realistic sizes, and below that
+    it presented a cut-off list as complete. It now always answers, and when the
+    answer is bounded it says so plainly: _"first 60 of the 74 records read"_,
+    with a note when even the reading stopped early.
+  - **Meeting pages load their follow-ups in one go** instead of one query per
+    task — a meeting with many follow-ups opens the way every other page does.
+  - **The search button keeps its name.** At tablet widths the top bar's search
+    control had no name for a screen reader. It does now, at every width.
+  - **You always know where you are.** Opening a Person, Meeting or Asset — or
+    creating one — used to leave the navigation with nothing highlighted. The
+    module you're in stays lit, on desktop and on the phone's More sheet alike.
+  - **Ask DalyHub answers what it can with AI off.** The questions DalyHub
+    answers from your own records — overdue, open and Inbox counts, your latest
+    or next meeting — no longer hide behind an AI setting they never needed.
+    Nothing is sent anywhere; anything that would need a provider is declined
+    calmly, exactly as before.
+  - **Reviews only offer "Start" where a guide exists.** A monthly Review's
+    Start button used to announce a guided flow and silently bounce back. The
+    guide button now appears only on weekly Reviews; every other Review simply
+    opens.
+
 - **Tags are one thing now, everywhere — and you can type them.**
 
   A tag used to be a word you typed into whichever box happened to be in front of
