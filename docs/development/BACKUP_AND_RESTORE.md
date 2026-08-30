@@ -43,12 +43,14 @@ case where there is no working database to restore *into*. If you use one, the
 sequence is: restore the dump into D1 → bring the application back → take a
 DalyHub backup from Settings so you have a canonical one again.
 
-> **Read § 5.0a before restoring a D1 dump.** V2.4-GATE-01 rehearsed the D1
-> recovery path for the first time and found that a dump cannot be loaded by a
-> statement-by-statement executor with foreign keys enforced. It is a property
-> of every D1 export, it has a one-line cause, and the working command is there.
-> This paragraph exists because the instruction that used to be in § 5.2 had
-> never been run.
+> **Read § 5.0a and § 5.0b before restoring a D1 dump.** V2.4-GATE-01 rehearsed
+> the D1 recovery path for the first time and found that a dump cannot be loaded
+> by a statement-by-statement executor with foreign keys enforced; an owner
+> session on 2026-08-30 measured the **remote** import endpoint and found it
+> fails identically. It is a property of every D1 export, it has a one-line
+> cause, and the working procedure — `production-backup.mjs reorder`, then
+> import — is in § 5.0b. This paragraph exists because the instruction that used
+> to be in § 5.2 had never been run.
 
 ### Why there are two D1 dumps, and why that is deliberate
 
@@ -347,14 +349,43 @@ migrated and seeded database (49 migrations, head `0047`, 325 entities):**
 | the same wrapped in `BEGIN; … COMMIT;` | **fails** identically |
 | loaded with foreign-key enforcement off, then `PRAGMA foreign_key_check` | **succeeds**, 0 violations |
 
-**What was NOT measured, and must not be assumed either way:** the **remote**
-path, `wrangler d1 execute … --remote --file=…`, which goes through Cloudflare's
-D1 import endpoint rather than executing statements locally. It may well handle
-this — Cloudflare designs export and import as a pair — but this repository has
-no Cloudflare credentials and therefore no evidence, and a recovery document is
-the last place to write down a guess. Recorded as
-[DEBT-199](../product/PRODUCT_DEBT.md), with the exact owner command that would
-settle it.
+**The REMOTE path is affected too, and that is now MEASURED (2026-08-30).** This
+paragraph used to say the remote path was unmeasured and *"may well handle this —
+Cloudflare designs export and import as a pair"*. **It does not.**
+`wrangler d1 execute … --remote --file=…` goes through Cloudflare's D1 **import**
+endpoint rather than executing statements locally, and it fails with the
+identical error:
+
+```
+🌀 Uploading …sql
+│ 🌀 Uploading complete.
+✘ [ERROR] foreign key mismatch - "entity_links" referencing "entities": SQLITE_ERROR
+```
+
+**What was measured, and how.** An owner session on 2026-08-30 took a manual
+production backup (`production/manual/2026/08/dalyhub-v2-2026-08-30T060746Z.sql`,
+549,478 bytes, SHA-256 `853a2fe3…f244`), downloaded it through
+`backup-worker.mjs download`, and imported it into a **newly created throwaway
+database** — `dalyhub-v2-restore-probe`, uuid `cd3aaed6-…`, never `dalyhub-v2`
+(uuid `1ad29960-…`), asserted before the import ran. The production database was
+never targeted and its migration ledger was re-read before and after, unchanged.
+The throwaway database was deleted afterwards and the local plaintext overwritten
+and removed.
+
+**The cause, isolated on the real artifact.** In a 3,449-line export:
+`CREATE TABLE IF NOT EXISTS "entities"` at line 65 declares
+`id TEXT NOT NULL PRIMARY KEY` with **no inline `UNIQUE (workspace_id, id)`**;
+the first `INSERT INTO "entity_links"` — whose composite foreign keys reference
+`entities (workspace_id, id)` — is at line **215**; and
+`CREATE UNIQUE INDEX entities_workspace_id_key`, the index that is the only
+source of that parent key's uniqueness, is at line **3227**. All 107
+`CREATE INDEX` statements sit in the last 232 lines of the file. The gap between
+the row that needs the index and the statement that creates it is **3,012
+lines**.
+
+So **neither** D1 restore path accepts a raw DalyHub export. The backups are not
+the problem — the *ordering of the export* is, and it is a property of every D1
+dump rather than of any one backup.
 
 **The working restore**, and the one the pipeline's own nightly proof now runs:
 
@@ -379,6 +410,51 @@ the automated production restore § 5 refuses, and cannot become one.
 `recovered.sqlite` is an ordinary SQLite file. For a **local** recovery it can be
 put in place directly (§ 5.5); for a **remote** one it is the artefact to verify
 against before touching production at all.
+
+### 5.0b The working REMOTE restore — reorder the dump first
+
+`rehearse` proves the payload is a database. It does not put that database back
+into D1, and § 5.0a is why it cannot be done directly. **Reorder the dump before
+importing it**, with the same script the rest of the pipeline uses:
+
+```sh
+node scripts/production-backup.mjs reorder \
+  --in dalyhub-production.sql \
+  --out dalyhub-production-restorable.sql
+
+npx wrangler d1 execute <database> --remote \
+  --file=dalyhub-production-restorable.sql
+```
+
+**What `reorder` does.** It moves every `CREATE INDEX` ahead of the data, so a
+composite foreign key's parent index exists before the first row that references
+it. The output presents `PRAGMA` → all `CREATE TABLE` → all `CREATE INDEX` → all
+data, preserving each statement's original relative order within its class.
+
+**What it does not do.** It is a **permutation of whole statements and nothing
+else** — no statement is edited, split, merged, added or removed. It asserts that
+on the way out and *refuses to write a file* if any invariant fails: the parsed
+statements must reassemble into the input byte for byte, every statement must be
+classifiable, and the output must carry the same statement count, the same byte
+length and the same multiset of statements. A dump it does not understand is
+rejected rather than silently transformed, because a plausible file that restores
+something other than the backup is the one outcome worse than an error message.
+Those invariants are held by
+[`test/unit/deploy/production-backup-reorder.test.ts`](../../test/unit/deploy/production-backup-reorder.test.ts),
+which also carries the `entities` / `entity_links` fixture that fails to load in
+raw order and succeeds in restorable order.
+
+**Measured end to end on 2026-08-30**, against the real production artifact and a
+throwaway remote D1 database: the reordered import returned `"success": true`
+with 54 tables, all 107 indexes, 6,095 rows and `PRAGMA foreign_key_check`
+clean — and **thirteen `COUNT(*)` comparisons against live production matched
+exactly**, including `d1_migrations` = 51 and both FIND-02 tag tables. The
+restore reproduced the source database, not merely a valid one.
+
+The backup **artifact format is unchanged**, deliberately: reordering is a step
+in the *restore*, not a change to what gets backed up. The stored object stays a
+faithful `wrangler d1 export`, decryptable and loadable by anyone with standard
+tools and no DalyHub code — which is the property § 6 exists to protect.
 
 ### 5.1 Recent incident — D1 Time Travel
 
@@ -470,19 +546,33 @@ the binding. Restoring over the live database is irreversible and a new D1
 database costs nothing:
 
 ```sh
+# Reorder FIRST. A raw D1 export cannot be imported — § 5.0a, measured on both
+# the local executor and Cloudflare's remote import endpoint.
+node scripts/production-backup.mjs reorder \
+  --in dalyhub-production.sql \
+  --out dalyhub-production-restorable.sql
+
 npx wrangler d1 create dalyhub-v2-recovered
-npx wrangler d1 execute dalyhub-v2-recovered --remote --file=dalyhub-production.sql
+npx wrangler d1 execute dalyhub-v2-recovered --remote \
+  --file=dalyhub-production-restorable.sql
+
+# Then check the restored database before you rely on it.
+npx wrangler d1 execute dalyhub-v2-recovered --remote \
+  --command "PRAGMA foreign_key_check;"     # must return no rows
 ```
 
-> **Prove the dump loads before you get here** — § 5.0a. This step used to be
-> stated as a certainty and had never been run. Restore the dump locally first
-> (`node scripts/production-backup.mjs rehearse … --into recovered.sqlite`),
-> which takes seconds and tells you whether you are holding a database or a
-> file. If the `--remote` command above fails with `foreign key mismatch`, that
-> is § 5.0a and **not** a problem with your backup: the payload is intact and the
-> executor is the problem. Record the outcome against
-> [DEBT-199](../product/PRODUCT_DEBT.md) either way — it is the one observation
-> this repository cannot make for itself.
+> **The `reorder` step is not optional, and this is the paragraph that used to
+> get it wrong.** § 5.2 once told you to import `dalyhub-production.sql`
+> directly. That command had never been run by anybody, and when it finally was
+> — 2026-08-22 locally, 2026-08-30 remotely — it failed both times with
+> `foreign key mismatch - "entity_links" referencing "entities"`. **The payload
+> is intact; the export's statement order is the problem.** § 5.0a has the
+> mechanism and § 5.0b has the working command, which is the one above.
+>
+> Worth doing as well as, not instead of: restore the dump locally first with
+> `node scripts/production-backup.mjs rehearse … --into recovered.sqlite`. It
+> takes seconds, needs no network and no credential, and tells you whether you
+> are holding a database or a file before you create anything in Cloudflare.
 
 **6. Point the Worker at the recovered database** by supplying its id as
 `CLOUDFLARE_D1_DATABASE_ID`, deploy, and check `/health`.
@@ -517,7 +607,11 @@ a canonical, in-app-restorable copy.
    sha256sum dalyhub-production.sql
    ```
 
-4. Continue from §5.2 step 4.
+4. Continue from §5.2 step 4 — **including its `reorder` step**. The decrypted
+   GitHub artifact is a `wrangler d1 export` exactly as the R2 object is, so it
+   carries the same statement-ordering defect (§ 5.0a) and needs the same
+   treatment (§ 5.0b). Decryption changes nothing about that: it gives you the
+   dump, not a restorable dump.
 
 ### 5.4 Verify the result
 

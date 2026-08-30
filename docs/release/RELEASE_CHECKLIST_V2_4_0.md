@@ -424,6 +424,68 @@ pnpm run db:production:list               # expect: no pending migration
 
 ---
 
+### Run with credentials at last — 2026-08-30
+
+The owner ran the canonical verifier from an authenticated machine. This is the
+act [DEBT-84](../product/PRODUCT_DEBT.md) has been open on since AUDIT-06, and
+the first time `verify:production` has returned anything but five `SKIPPED`.
+
+```
+verify:production — read-only. Nothing here deploys, migrates or writes.
+
+  [PASS   ] Configuration — every required production identifier is supplied in this environment.
+             Values are never printed — only whether each name is set.
+  [PASS   ] Worker deployment — dalyhub-v2-production last deployed 2026-08-30T05:56:35.714185Z.
+             deployment: cf596658-d648-4a58-a521-09cf6c0e279f
+  [PASS   ] Worker secrets — every required Access secret is set on dalyhub-v2-production.
+             set on the Worker (NAMES only, never values): ACCESS_AUD, ACCESS_TEAM_DOMAIN,
+             APP_ENCRYPTION_KEY, CAPTURE_EMAIL_ALLOWED_SENDERS, CAPTURE_EMAIL_RECIPIENTS,
+             OPENAI_API_KEY, OWNER_EMAIL
+  [PASS   ] D1 migrations — production has no unapplied migrations.
+  [SKIPPED] Application health — https://hub.daly.id.au/health answered 302 — Cloudflare Access
+             protecting the hostname, which is the intended configuration. The RUNNING release is
+             therefore NOT confirmed from here.
+
+verify:production — PARTIALLY VERIFIED — 1 check(s) could not run here: Application health.
+```
+
+**Read the SKIPPED line as what it says.** The 302 is Cloudflare Access doing its
+job at the edge, not an outage and not a failure — but Access terminates before
+the origin, so **the running release version is still not independently
+confirmed**, and this checklist does not claim it is. Confirming it needs either
+an owner signed in at `/about`, or
+`PRODUCTION_ACCESS_SERVICE_TOKEN_ID` / `_SECRET` supplied so the check can pass
+through Access as a machine identity. No attempt was made to bypass Access.
+
+Two of DEBT-84's three unknowns are now answered: the Worker's **secret names**
+(seven, above, names only) and the **deployment identity**
+(`cf596658-d648-4a58-a521-09cf6c0e279f`, 2026-08-30T05:56:35Z). The third, the
+**running release version**, remains unread.
+
+Recorded without account ids, database ids, tokens or secret values.
+
+Two local-only adjustments were needed and are worth noting for whoever runs it
+next: `.production.env` does **not** export `CLOUDFLARE_ACCOUNT_ID`, which
+`verify-production.mjs` lists as required, and the script spawns bare `wrangler`,
+which is not on the global PATH. Neither is a production fault; both make the
+verifier under-report if unaddressed.
+
+### Recoverable — measured the same day
+
+- **R2 backups are healthy**, and have been since 2026-08-13: 20 runs, all
+  `success`, read from `status/latest.json`. A **post-`0049`** manual backup was
+  taken 2026-08-30T06:07:46Z — `production/manual/2026/08/dalyhub-v2-2026-08-30T060746Z.sql`,
+  549,478 bytes, SHA-256 `853a2fe3…f244`, R2-verified at write.
+- **A real production restore was rehearsed**, into a throwaway D1 and never
+  production: 54 tables, 107 indexes, 6,095 rows, `foreign_key_check` clean, and
+  **13 of 13 `COUNT(*)` comparisons against live production matched exactly**.
+  Production's ledger was unchanged before and after; the throwaway database was
+  deleted and the local plaintext removed.
+- **It required `production-backup.mjs reorder` first** — a raw D1 export cannot
+  be imported by either restore path. See
+  [DEBT-199](../product/PRODUCT_DEBT.md) and
+  [`BACKUP_AND_RESTORE.md` § 5.0a / § 5.0b](../development/BACKUP_AND_RESTORE.md).
+
 ## 7. If the migration history is inconsistent
 
 Stop the deployment portion and report the exact state. Specifically, **never**:

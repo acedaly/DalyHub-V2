@@ -17,6 +17,11 @@
  *   validate  structural checks on the dump — present, non-empty, complete
  *             schema, not truncated. A backup pipeline that cheerfully encrypts
  *             a corrupt dump every night is worse than none.
+ *   reorder   move every CREATE INDEX ahead of the data, so the dump can
+ *             actually be RESTORED. A raw D1 export cannot be — measured on
+ *             both restore paths, see `reorderDumpForRestore` and
+ *             BACKUP_AND_RESTORE.md § 5.0a. A permutation of whole statements
+ *             and nothing else; it refuses rather than transform on doubt.
  *   encrypt   GnuPG symmetric AES-256, passphrase read from a FILE.
  *   verify    decrypt the encrypted file back and prove, byte for byte, that it
  *             reproduces the original — and that the original's bytes do not
@@ -71,6 +76,8 @@
  *
  * ── Usage ─────────────────────────────────────────────────────────────────────
  *   node scripts/production-backup.mjs validate --in dump.sql
+ *   node scripts/production-backup.mjs reorder  --in dump.sql \
+ *                                               --out dump-restorable.sql
  *   node scripts/production-backup.mjs encrypt  --in dump.sql --out dump.sql.gpg \
  *                                               --passphrase-file key.txt
  *   node scripts/production-backup.mjs verify   --in dump.sql --encrypted dump.sql.gpg \
@@ -209,6 +216,208 @@ export function validateDumpText(text) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Reordering a dump so it can actually be restored (DEBT-199)                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The statement classes, in the order a restorable dump must present them.
+ *
+ * Named rather than inlined so the ordering contract is one readable line, and
+ * so a reader looking for "what order does this produce?" finds an answer rather
+ * than a `flatMap`.
+ */
+export const REORDER_CLASSES = ["prologue", "table", "index", "data"];
+
+/**
+ * Which class a statement belongs to, from its first non-blank line. PURE.
+ *
+ * Deliberately narrow. Anything that is not a `PRAGMA`, a `CREATE TABLE` or a
+ * `CREATE INDEX` is DATA — including `DELETE FROM sqlite_sequence`, which a D1
+ * export emits immediately before the matching `INSERT INTO sqlite_sequence`.
+ * Classifying it as data is what keeps that pair adjacent and in order: both
+ * land in the same class, and relative order within a class is preserved.
+ *
+ * @param {string[]} statement lines belonging to one statement
+ * @returns {"prologue" | "table" | "index" | "data" | null} null = unclassifiable
+ */
+export function classifyDumpStatement(statement) {
+  const head = statement.find((line) => line.trim() !== "");
+  if (head === undefined) return null;
+  if (/^PRAGMA\b/i.test(head)) return "prologue";
+  if (/^CREATE\s+TABLE\b/i.test(head)) return "table";
+  if (/^CREATE\s+(UNIQUE\s+)?INDEX\b/i.test(head)) return "index";
+  if (/^(INSERT|DELETE|UPDATE|REPLACE)\b/i.test(head)) return "data";
+  return null;
+}
+
+/**
+ * Split a dump into whole statements. PURE.
+ *
+ * A statement begins at the first line after the previous one ended and runs to
+ * the first line whose trimmed text ends with `;`. That is exact for a D1 export
+ * and it is checked rather than assumed: `reorderDumpForRestore` refuses unless
+ * re-joining the parsed statements reproduces the input BYTE FOR BYTE, so a dump
+ * whose shape this parser does not understand is rejected instead of mangled.
+ *
+ * Multi-row `INSERT`s spanning lines would break a naive line-wise split. They
+ * do not occur — a D1 export writes one `INSERT` per line — and the byte-identity
+ * check above is what turns that observation into a guarantee.
+ *
+ * @param {string} text
+ * @returns {{ statements: string[][], endsWithNewline: boolean, complete: boolean }}
+ *   `complete` is false when the input ends mid-statement — reported rather than
+ *   thrown, so the caller can fail with the rest of its evidence at once.
+ */
+export function splitDumpStatements(text) {
+  const lines = text.split("\n");
+  const endsWithNewline = lines[lines.length - 1] === "";
+  if (endsWithNewline) lines.pop();
+
+  const statements = [];
+  let current = null;
+  for (const line of lines) {
+    if (current === null) {
+      current = [];
+      statements.push(current);
+    }
+    current.push(line);
+    if (line.trimEnd().endsWith(";")) current = null;
+  }
+  // `current !== null` means the file ends mid-statement. Left for the caller
+  // to refuse, with the rest of its evidence, rather than thrown from here.
+  return { statements, endsWithNewline, complete: current === null };
+}
+
+/**
+ * Reorder a D1 SQL dump so it can be restored by `wrangler d1 execute --file`.
+ * PURE — text in, text out, no I/O.
+ *
+ * ── The defect this exists for (DEBT-199, MEASURED 2026-08-30) ────────────────
+ * A D1 export writes each table's DDL followed immediately by its rows, and
+ * emits every `CREATE [UNIQUE] INDEX` at the END of the file. `entities`
+ * declares `id TEXT NOT NULL PRIMARY KEY` with no inline `UNIQUE (workspace_id,
+ * id)`; `entity_links` carries composite foreign keys referencing
+ * `entities (workspace_id, id)`, whose parent key is unique ONLY because of
+ * `entities_workspace_id_key` — an index the dump does not create for another
+ * ~3,000 lines. SQLite therefore raises
+ *
+ *     foreign key mismatch - "entity_links" referencing "entities"
+ *
+ * on the first `INSERT INTO entity_links`, and stops. `foreign key mismatch` is
+ * a SCHEMA error rather than a constraint violation, so the
+ * `PRAGMA defer_foreign_keys=TRUE` the export itself emits on line 1 does not
+ * defer it. Measured on BOTH restore paths: the local Miniflare executor
+ * (2026-08-22) and Cloudflare's remote D1 import endpoint (2026-08-30).
+ *
+ * ── The fix, and why it is a permutation and nothing else ─────────────────────
+ * Move every `CREATE INDEX` ahead of the data, so a composite foreign key's
+ * parent index exists before the first row that depends on it. No statement is
+ * edited, split, merged, added or removed, and relative order WITHIN each class
+ * is preserved — so this cannot change what the dump means, only when each
+ * statement runs. The invariants are asserted here rather than trusted:
+ *
+ *   - re-joining the parsed statements reproduces the input byte for byte;
+ *   - every line is assigned to exactly one statement;
+ *   - every statement is classifiable;
+ *   - the output has the same statement count and the same byte length;
+ *   - the multiset of statements is unchanged.
+ *
+ * A dump that fails any of them is REFUSED. Silently transforming input this
+ * function does not understand is the one outcome worse than refusing: it would
+ * produce a plausible file that restores something other than the backup.
+ *
+ * @param {string} text a D1 SQL dump
+ * @returns {{ ok: true, text: string, census: Record<string, number> }
+ *          | { ok: false, problems: string[] }}
+ */
+export function reorderDumpForRestore(text) {
+  const problems = [];
+  if (typeof text !== "string" || text.trim().length === 0) {
+    return { ok: false, problems: ["the dump is empty"] };
+  }
+
+  const { statements, endsWithNewline, complete } = splitDumpStatements(text);
+  if (!complete) {
+    problems.push(
+      "the dump ends mid-statement, so it cannot be split into whole statements",
+    );
+  }
+
+  const join = (statement) => statement.join("\n");
+  const render = (list) =>
+    list.map(join).join("\n") + (endsWithNewline ? "\n" : "");
+
+  // The parser is exact, or nothing below it means anything.
+  if (render(statements) !== text) {
+    problems.push(
+      "the parsed statements do not reassemble into the original dump, so this is not a shape this command understands",
+    );
+  }
+
+  const by = { prologue: [], table: [], index: [], data: [] };
+  const unclassified = [];
+  for (const statement of statements) {
+    const kind = classifyDumpStatement(statement);
+    if (kind === null) {
+      // The leading SQL KEYWORDS only, and only letters — never an identifier,
+      // a literal or a row of the owner's life. `ANALYZE 'jamie@example.test'`
+      // must report `ANALYZE` and nothing more; a test asserts exactly that,
+      // because the first version of this line sliced by characters and leaked
+      // the literal into a diagnostic.
+      const head = statement.find((l) => l.trim() !== "") ?? "";
+      const keywords = (head
+        .trimStart()
+        .match(/^[A-Za-z]+(?:\s+[A-Za-z]+)?/) ?? [""])[0];
+      unclassified.push(keywords.trim().toUpperCase());
+      continue;
+    }
+    by[kind].push(statement);
+  }
+  if (unclassified.length > 0) {
+    problems.push(
+      `the dump contains ${unclassified.length} statement(s) this command cannot classify, beginning: ${[
+        ...new Set(unclassified),
+      ]
+        .slice(0, 3)
+        .map((s) => JSON.stringify(s))
+        .join(", ")}`,
+    );
+  }
+  if (problems.length > 0) return { ok: false, problems };
+
+  const ordered = REORDER_CLASSES.flatMap((kind) => by[kind]);
+  const out = render(ordered);
+
+  // Permutation invariants, checked on the way out.
+  const digest = (list) =>
+    createHash("sha256")
+      .update(list.map(join).slice().sort().join(" "))
+      .digest("hex");
+  if (ordered.length !== statements.length) {
+    problems.push("the reordered dump has a different number of statements");
+  }
+  if (Buffer.byteLength(out) !== Buffer.byteLength(text)) {
+    problems.push("the reordered dump has a different byte length");
+  }
+  if (digest(ordered) !== digest(statements)) {
+    problems.push("the reordered dump does not carry the same statements");
+  }
+  if (problems.length > 0) return { ok: false, problems };
+
+  return {
+    ok: true,
+    text: out,
+    census: {
+      prologue: by.prologue.length,
+      table: by.table.length,
+      index: by.index.length,
+      data: by.data.length,
+      total: statements.length,
+    },
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Small helpers                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -309,6 +518,35 @@ function commandValidate(args) {
   }
   console.log(
     `Dump OK: ${input} (${statSync(input).size} bytes, ${REQUIRED_DUMP_TABLES.length} required tables present). Contents are never printed.`,
+  );
+}
+
+/**
+ * Write a restorable copy of a dump. Refuses rather than transforms on doubt.
+ *
+ * The output is the file to hand `wrangler d1 execute --remote --file`. The
+ * input is left untouched: the ARTIFACT stays canonical, and the reordering is
+ * a step in the restore rather than a change to what gets backed up.
+ */
+function commandReorder(args) {
+  const input = requireFile(args.in, "in");
+  const output = args.out;
+  if (typeof output !== "string" || output.length === 0) fail("Missing --out.");
+
+  const result = reorderDumpForRestore(readFileSync(input, "utf8"));
+  if (!result.ok) {
+    for (const problem of result.problems) console.error(`::error::${problem}`);
+    fail(
+      `Refusing to reorder ${input} (${result.problems.length} problem(s)). The dump is unchanged.`,
+    );
+  }
+  writeFileSync(output, result.text);
+  const { prologue, table, index, data, total } = result.census;
+  console.log(
+    `Reordered for restore: ${output} (${statSync(output).size} bytes, ` +
+      `${total} statements — ${prologue} prologue, ${table} CREATE TABLE, ` +
+      `${index} CREATE INDEX, ${data} data). Same statements, restorable order; ` +
+      `contents are never printed.`,
   );
 }
 
@@ -753,6 +991,7 @@ export const FORBIDDEN_METADATA_KEY =
 
 const COMMANDS = {
   validate: commandValidate,
+  reorder: commandReorder,
   encrypt: commandEncrypt,
   verify: commandVerify,
   rehearse: commandRehearse,
