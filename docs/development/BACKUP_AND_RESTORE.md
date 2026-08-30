@@ -444,6 +444,17 @@ Those invariants are held by
 which also carries the `entities` / `entity_links` fixture that fails to load in
 raw order and succeeds in restorable order.
 
+**And the output may never BE the input.** Before anything is read or written,
+`reorder` resolves both paths to their underlying OS file identity and refuses
+when `--out` designates the same file as `--in` — the identical pathname, a
+second spelling of it, a symlink, or a hard link. The canonical source dump
+therefore cannot be transformed in place, even by a slip of the shell: a
+refusal writes nothing, the source stays byte-identical, and its provenance
+checksum keeps meaning what it meant. Only a genuinely distinct output — a new
+file, or a previous restorable copy being refreshed — is ever written. *(#239
+post-merge review: until this guard, `--out` naming the input exited 0 and
+replaced the artifact with its permutation.)*
+
 **Measured end to end on 2026-08-30**, against the real production artifact and a
 throwaway remote D1 database: the reordered import returned `"success": true`
 with 54 tables, all 107 indexes, 6,095 rows and `PRAGMA foreign_key_check`

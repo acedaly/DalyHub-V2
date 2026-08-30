@@ -96,6 +96,7 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -522,16 +523,62 @@ function commandValidate(args) {
 }
 
 /**
+ * Refuse an output that is the input under another name (#239 review, P2).
+ *
+ * `reorder` guarantees the source artifact stays canonical and untouched, and
+ * until this guard that guarantee held only when the operator never pointed
+ * `--out` back at the input: `reorder --in raw.sql --out raw.sql` exited 0 and
+ * replaced the canonical dump with its permutation — same byte length,
+ * different bytes — silently invalidating the artifact's provenance checksum.
+ * A symlink or a hard link to the input did the same through a second name.
+ *
+ * Identity is asked of the OPERATING SYSTEM rather than of the path strings:
+ * the write follows symlinks, so the question is whether the file the output
+ * path currently designates is the file the input designates. `dev` + `ino`
+ * (bigint, so identity is never truncated) is that answer — two spellings of
+ * one path, a symlink chain and a hard link all share it. Canonical-path
+ * equality is kept as a second, independent net for a filesystem whose inode
+ * numbers cannot be trusted. An output path that designates no existing file
+ * cannot be the input, and passes through untouched.
+ *
+ * Runs BEFORE the input is read, so a refusal provably writes nothing, prints
+ * nothing of the dump, and leaves the source byte-identical. Fail-closed on
+ * doubt, for the same reason the transformation itself is: the property being
+ * protected is that the artifact's bytes never depend on this command running.
+ */
+function assertOutputIsNotTheInput(input, output) {
+  const inputStat = statSync(input, { bigint: true });
+  const outputStat = statSync(output, {
+    bigint: true,
+    throwIfNoEntry: false,
+  });
+  if (outputStat === undefined) return;
+  const sameUnderlyingFile =
+    outputStat.dev === inputStat.dev && outputStat.ino === inputStat.ino;
+  const sameCanonicalPath = realpathSync(output) === realpathSync(input);
+  if (sameUnderlyingFile || sameCanonicalPath) {
+    fail(
+      `--out ${output} is the same underlying file as --in ${input}. ` +
+        `Refusing to reorder the canonical source dump in place — write the ` +
+        `restorable copy to a NEW file. The dump is unchanged.`,
+    );
+  }
+}
+
+/**
  * Write a restorable copy of a dump. Refuses rather than transforms on doubt.
  *
  * The output is the file to hand `wrangler d1 execute --remote --file`. The
  * input is left untouched: the ARTIFACT stays canonical, and the reordering is
- * a step in the restore rather than a change to what gets backed up.
+ * a step in the restore rather than a change to what gets backed up — which is
+ * why the output may not BE the input, however it is spelled or linked
+ * (`assertOutputIsNotTheInput`).
  */
 function commandReorder(args) {
   const input = requireFile(args.in, "in");
   const output = args.out;
   if (typeof output !== "string" || output.length === 0) fail("Missing --out.");
+  assertOutputIsNotTheInput(input, output);
 
   const result = reorderDumpForRestore(readFileSync(input, "utf8"));
   if (!result.ok) {
