@@ -823,11 +823,39 @@ describe("the completion sort and window round-trip through a saved view", () =>
 /* -------------------------------------------------------------------------- */
 
 describe("Analytics' completed figure and the list its link opens agree", () => {
-  it("states the same machine count for the same period", async () => {
-    const timezone = SYDNEY;
-    const todayIso = "2026-08-30";
-    const area = await seedArea(WS, "2026-08-01T00:00:00.000Z");
+  const timezone = SYDNEY;
+  const todayIso = "2026-08-30";
 
+  /**
+   * The span's own half-open owner-day window, built exactly as
+   * `analytics-context.ts` builds it, so the parity assertion is over the
+   * boundaries the surface actually uses rather than over a restatement of them.
+   */
+  function spanWindow(span: { startIso: string; endIso: string }) {
+    return {
+      key: "current",
+      startsAt: ownerDayStartInstant(span.startIso, timezone),
+      // Half-open: the instant the day AFTER the span's last day begins.
+      endsAt: ownerDayStartInstant("2026-08-31", timezone),
+    };
+  }
+
+  /**
+   * The fixture the whole parity claim rests on, and it deliberately contains
+   * the two lifecycle cases that used to break it:
+   *
+   *   - a Task completed inside the span and later REOPENED — its
+   *     `task.completed` Activity event survives, its `completed_at` does not;
+   *   - a Task completed inside the span and later SOFT-DELETED — the event
+   *     survives (HARDEN-06C F-07 removed the liveness predicate on purpose),
+   *     the Completed collection excludes it.
+   *
+   * Neither is exotic: reopening is an ordinary control and deleting is the
+   * ordinary tidy-up. An Activity-counted figure states 6 here while the list
+   * behind it holds 4, which is the defect Codex found on this branch.
+   */
+  async function seedSpanFixture() {
+    const area = await seedArea(WS, "2026-08-01T00:00:00.000Z");
     // Inside the seven-day span (2026-08-24 … 2026-08-30, owner-local).
     const inside = [
       "2026-08-24T02:00:00.000Z", // noon on the 24th, Sydney
@@ -849,28 +877,38 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
       );
     }
 
+    const reopened = await completeAt(
+      WS,
+      area.id,
+      "Completed inside the span, then reopened",
+      "2026-08-01T00:30:00.000Z",
+      "2026-08-25T02:00:00.000Z",
+    );
+    await taskRepo(WS, "2026-08-30T10:00:00.000Z").reopenTask(reopened);
+
+    const deleted = await completeAt(
+      WS,
+      area.id,
+      "Completed inside the span, then deleted",
+      "2026-08-01T00:30:00.000Z",
+      "2026-08-27T02:00:00.000Z",
+    );
+    await taskRepo(WS, "2026-08-30T11:00:00.000Z").deleteTasks([deleted]);
+
+    return { expected: inside.length, reopened, deleted };
+  }
+
+  it("states the same machine count for the same period", async () => {
+    const { expected, reopened, deleted } = await seedSpanFixture();
+
     const span = rangeSpan("week", todayIso);
-    const window = {
-      periodStart: span.startIso,
-      periodEnd: span.endIso,
-      startInstantIso: ownerDayStartInstant(
-        span.startIso,
-        timezone,
-      ).toISOString(),
-      endInstantIso: ownerDayStartInstant(
-        // Half-open: the instant the day AFTER the span's last day begins.
-        "2026-08-31",
-        timezone,
-      ).toISOString(),
-    };
-    const requests: PeriodCountRequest[] = [{ key: "current", window }];
-    const counted = await makeReviewInsightRepository(
-      makeContext(WS),
-    ).countPeriodCompletions(requests);
+    const counted = await makeTaskRepository(makeContext(WS), {
+      clock: new FakeClock("2026-08-30T20:00:00.000Z").now,
+    }).countCompletedTasksInWindows([spanWindow(span)]);
     const current = {
-      tasksCompleted: counted[0]?.tasksCompleted ?? 0,
-      projectsCompleted: counted[0]?.projectsCompleted ?? 0,
-      goalsCompleted: counted[0]?.goalsCompleted ?? 0,
+      tasksCompleted: counted[0]?.completed ?? 0,
+      projectsCompleted: 0,
+      goalsCompleted: 0,
     };
 
     const model = evaluateAnalytics({
@@ -889,7 +927,7 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
       overdueAvailable: false,
     });
     const metric = model.metrics.find((entry) => entry.id === "tasks");
-    expect(metric?.value).toBe(inside.length);
+    expect(metric?.value).toBe(expected);
 
     /*
      * The parity assertion, over the LINK the panel actually renders. It is
@@ -916,8 +954,47 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
       },
     );
     // Machine values, not sentences: the figure Analytics states IS the number
-    // of records the linked list returns for the same period.
+    // of records the linked list returns for the same period — a reopened Task
+    // and a deleted one included, which is where an event count would diverge.
     expect(listed.ids).toHaveLength(metric?.value ?? -1);
+    expect(listed.ids).not.toContain(reopened);
+    expect(listed.ids).not.toContain(deleted);
+  });
+
+  /**
+   * The falsification, stated as its own assertion rather than left implicit:
+   * the Activity-derived read — which is still the right answer for the
+   * question the REVIEW asks, and is untouched — counts the reopened and the
+   * deleted Task, so it does NOT equal what the linked list returns. That is
+   * why the Task figure reads the completion authority instead.
+   */
+  it("would NOT agree if the figure counted Activity events", async () => {
+    const { expected } = await seedSpanFixture();
+    const span = rangeSpan("week", todayIso);
+    const window = spanWindow(span);
+
+    const requests: PeriodCountRequest[] = [
+      {
+        key: "current",
+        window: {
+          periodStart: span.startIso,
+          periodEnd: span.endIso,
+          startInstantIso: window.startsAt.toISOString(),
+          endInstantIso: window.endsAt.toISOString(),
+        },
+      },
+    ];
+    const events = await makeReviewInsightRepository(
+      makeContext(WS),
+    ).countPeriodCompletions(requests);
+    const live = await makeTaskRepository(makeContext(WS), {
+      clock: new FakeClock("2026-08-30T20:00:00.000Z").now,
+    }).countCompletedTasksInWindows([window]);
+
+    expect(live[0]?.completed).toBe(expected);
+    // Two more: the reopened Task and the deleted one, both of whose events
+    // survive by design.
+    expect(events[0]?.tasksCompleted).toBe(expected + 2);
   });
 });
 
@@ -981,5 +1058,43 @@ describe("the completion sort and window cost nothing extra", () => {
     const within = await read("completed", { completedWithin: "7d" });
     expect(within.statements).toBe(baseline.statements);
     expect(within.binds).toBe(baseline.binds + 1);
+  });
+
+  it("counts many completion windows in ONE statement", async () => {
+    // Analytics asks for every bucket plus its two totals — nine windows on the
+    // seven-day range. That must cost ONE index range, not nine queries, or the
+    // convergence onto the completion authority would have bought truth with a
+    // per-bucket read.
+    const area = await seedArea(WS, "2026-08-20T00:00:00.000Z");
+    for (let i = 0; i < 6; i += 1) {
+      await completeAt(
+        WS,
+        area.id,
+        `Window ${i}`,
+        "2026-08-20T01:00:00.000Z",
+        `2026-08-2${3 + (i % 5)}T03:00:00.000Z`,
+      );
+    }
+
+    const counter = countedDb();
+    const repo = createTaskRepository(counter.db, makeContext(WS), {
+      clock: new FakeClock("2026-08-30T05:00:00.000Z").now,
+    });
+    const windows = Array.from({ length: 9 }, (_value, index) => ({
+      key: `w${index}`,
+      startsAt: new Date(`2026-08-2${1 + (index % 9)}T00:00:00.000Z`),
+      endsAt: new Date(`2026-08-2${1 + (index % 9)}T23:59:59.000Z`),
+    }));
+
+    counter.reset();
+    const rows = await repo.countCompletedTasksInWindows(windows);
+    expect(counter.statements()).toBe(1);
+    expect(rows).toHaveLength(windows.length);
+    expect(rows.map((row) => row.key)).toEqual(windows.map((w) => w.key));
+
+    // An empty ask costs NOTHING — the same rule every bounded read here holds.
+    counter.reset();
+    expect(await repo.countCompletedTasksInWindows([])).toEqual([]);
+    expect(counter.statements()).toBe(0);
   });
 });

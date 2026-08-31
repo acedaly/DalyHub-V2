@@ -850,16 +850,41 @@ needs to implement without re-auditing.
   INVERSION, and the E2E does the same in the browser — so restoring the old
   sort reddens a named test rather than merely failing to be noticed.
 
-  **Analytics converged its LINK, not its metric.** The "Tasks completed" figure
-  linked to a bare `/tasks?system=completed` — the whole workspace's finished
-  work in edit order, under a figure describing one period. It now carries the
-  range's own span and the completion sort, built by one kernel helper asserted
-  equal to the Tasks URL codec's own output, and machine-value parity (the
-  figure equals the count the linked list returns for the same period) is
-  asserted over real D1. The period COUNT is still the Activity read
-  HARDEN-06C (F-07) made exact for past periods and which the Review shares:
-  converging that source is RECALL-04's call with the Review, and the boundary
-  is documented rather than crossed quietly.
+  **Analytics converged its LINK *and* its figure.** The "Tasks completed"
+  metric linked to a bare `/tasks?system=completed` — the whole workspace's
+  finished work in edit order, under a figure describing one period. It now
+  carries the range's own span and the completion sort, built by one kernel
+  helper asserted equal to the Tasks URL codec's own output.
+
+  The first cut of this item stopped there and left the FIGURE counting
+  Activity events, on the reasoning that HARDEN-06C (F-07) made that read
+  deliberately immutable for past periods and that the Review shares it. **A
+  review of this branch (Codex, P2) showed that reasoning produced a quiet
+  untruth**, and it was right: a `task.completed` event outlives the state it
+  recorded, so a Task completed inside the period and later REOPENED still
+  counted, as did one later DELETED — and this surface's own contract is that
+  *"each figure links to the records behind it so a doubted number can be
+  checked"*. A card saying six opening a list of four is exactly the class of
+  defect this programme removes, in two entirely ordinary lifecycle cases.
+  `TaskRepository.countCompletedTasksInWindows` — ONE statement, one column per
+  window over `spine_records.completed_at`, under exactly the Completed
+  collection's predicate — now feeds the figure, its previous-period comparison
+  and the trend line, so the card, the chart and the linked list are one
+  population.
+
+  **Projects and Goals keep `countPeriodCompletions`, and the Review is
+  untouched.** Both reads are correct and they answer different questions:
+  immutable "what happened that week" is right for a Review's stored snapshot
+  facts, and current "what am I recorded as having finished" is right for a live,
+  linkable figure — only the second has a list standing behind it as evidence.
+  Converging the Review's own period facts is RECALL-04's, and nothing here
+  touched it. Machine-value parity is asserted over a fixture that deliberately
+  contains a reopened Task and a soft-deleted completed one, **and so is the
+  divergence**: the same fixture through `countPeriodCompletions` returns
+  `expected + 2`, which makes the choice of authority a test rather than a
+  preference. The page's budget is unchanged at eight grouped statements —
+  Projects and Goals no longer need a per-bucket call, because the trend draws
+  Tasks alone.
 
   **One in-flight finding, fixed rather than filed.** `command-palette.spec.ts`
   asked the whole listbox for the text "Tasks" to prove a record result is

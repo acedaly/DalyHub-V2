@@ -2586,20 +2586,46 @@ built by `completedRangeTasksHref` in `~/kernel/task-views` — the one place a
 surface outside the Tasks module is handed a completion-window destination, and
 asserted equal to `paramsFromConfig`'s own output so the two layers cannot drift.
 
+**And the FIGURE converged with it, not only the link.** The metric used to be
+counted from the Activity stream (`countPeriodCompletions`), which counts
+`task.completed` EVENTS — and an event outlives the state it recorded. A Task
+completed inside the period and later reopened still counted; so did one that was
+completed and then deleted (HARDEN-06C F-07 removed that read's liveness
+predicate deliberately). So a card saying "6 Tasks completed" opened a list
+holding four, in two entirely ordinary lifecycle cases. The figure's own contract
+on this surface is that *"each figure links to the records behind it so a doubted
+number can be checked"*, and a number whose evidence is shorter than itself
+breaks it.
+
+`TaskRepository.countCompletedTasksInWindows` is the read that fixes it: **one
+statement**, one `SUM(CASE …)` column per window over
+`spine_records.completed_at`, under exactly the predicate the Completed
+collection applies (this workspace, `kind = task`, a live entity). Analytics uses
+it for the "Tasks completed" figure, its previous-period comparison and the trend
+line beneath it — so the card, the chart and the linked list are one population,
+and reopening or deleting a Task moves all three together.
+
+**Projects and Goals keep `countPeriodCompletions`, and the Review is
+untouched.** Both reads are correct; they answer different questions. "How many
+completion events happened that week" is immutable history and is the right
+answer for a Review's stored snapshot facts — HARDEN-06C's reasoning stands where
+it was made. "How much am I currently recorded as having finished in that period"
+is the question a live, linkable figure asks, and only that one has a list
+standing behind it as evidence. Converging the Review's own period facts onto the
+completed window is [RECALL-04](../roadmap/ROADMAP_V2_7.md)'s, not this item's.
+
 Parity is asserted as **machine values**: the count Analytics states for a period
 equals the number of records the linked Tasks view returns for that same period,
-compared as numbers rather than sentences
-(`test/kernel/recall-02-completed-time.test.ts`). No new metric was added; an
-existing metric's LINK converged on the retrieval authority.
+compared as numbers rather than sentences — over a fixture that deliberately
+contains a reopened Task and a soft-deleted completed one. The divergence is
+asserted too: the same fixture read through `countPeriodCompletions` returns
+`expected + 2`, which is what makes the choice of authority a test rather than a
+preference (`test/kernel/recall-02-completed-time.test.ts`).
 
-One boundary is worth stating plainly, because it is deliberate. Analytics'
-period COUNT is still read from the Activity stream
-(`countPeriodCompletions`) — HARDEN-06C (F-07) made that read exact for any past
-period on purpose, and it is shared with the Review's own snapshot facts, which
-RECALL-04 owns. The two sources agree on every ordinary workspace and diverge only
-where an event outlives the state it recorded (a completion later reopened, or a
-completed record soft-deleted). Converging the COUNT itself is RECALL-04's call to
-make with the Review, not a change to smuggle in here.
+No new metric was added and the page's query budget is unchanged — eight grouped
+statements, every time. RECALL-02 changed *which authority* the completion read
+consults, never how many reads there are: Projects and Goals no longer need a
+per-bucket call, because the trend draws Tasks alone.
 
 ### Performance, and the index decision
 

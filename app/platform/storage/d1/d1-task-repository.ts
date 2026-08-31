@@ -128,6 +128,8 @@ import {
   type CommitmentState,
   type CompleteTaskOptions,
   type CompleteTaskResult,
+  type CompletedTaskWindow,
+  type CompletedTaskWindowCount,
   type GetTaskOptions,
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
@@ -4044,6 +4046,71 @@ export class D1TaskRepository implements TaskRepository {
         dateIso: day.dateIso,
         created: Number(created?.[`d${index}`] ?? 0),
         completed: Number(completed?.[`d${index}`] ?? 0),
+      }));
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
+  }
+
+  /**
+   * V2.7 RECALL-02 — how many Tasks are CURRENTLY completed inside each window.
+   *
+   * ONE statement: a `SUM(CASE …)` column per window over a single
+   * `spine_records` index range (migration 0038's
+   * `spine_records_workspace_kind_completed_idx`), bounded by the outer
+   * instants. Only the column ALIAS index is generated, and it is an integer
+   * this method produced — every instant is bound.
+   *
+   * The predicate is deliberately IDENTICAL to the one the Completed collection
+   * applies: this workspace, `kind = task`, a live entity, and
+   * `completed_at` inside the window. A figure counted here and the list a
+   * reader opens to check it therefore describe the same records — reopening a
+   * Task or deleting it moves both, together. That is the whole reason this read
+   * exists beside the Activity-derived `countPeriodCompletions`, which counts
+   * EVENTS and is deliberately immutable for past periods (HARDEN-06C F-07).
+   */
+  async countCompletedTasksInWindows(
+    windows: readonly CompletedTaskWindow[],
+  ): Promise<readonly CompletedTaskWindowCount[]> {
+    const wanted = windows.slice(0, TASK_ACTIVITY_MAX_DAYS);
+    if (wanted.length === 0) return [];
+
+    const bounds = wanted.flatMap((window) => [
+      toStorageTimestamp(window.startsAt),
+      toStorageTimestamp(window.endsAt),
+    ]);
+    // The outer range, so the scan is one index range rather than the
+    // workspace's whole completion history. The windows a period surface asks
+    // about need not be contiguous, so it is derived rather than assumed.
+    const overallStart = bounds
+      .filter((_value, index) => index % 2 === 0)
+      .reduce((earliest, value) => (value < earliest ? value : earliest));
+    const overallEnd = bounds
+      .filter((_value, index) => index % 2 === 1)
+      .reduce((latest, value) => (value > latest ? value : latest));
+    const columns = wanted
+      .map(
+        (_window, index) =>
+          `SUM(CASE WHEN sr.completed_at >= ? AND sr.completed_at < ? THEN 1 ELSE 0 END) AS d${index}`,
+      )
+      .join(", ");
+
+    try {
+      const row = await this.#db
+        .prepare(
+          `SELECT ${columns}
+           FROM spine_records sr
+           JOIN entities e
+             ON e.workspace_id = sr.workspace_id AND e.id = sr.entity_id
+                AND e.deleted_at IS NULL
+           WHERE sr.workspace_id = ? AND sr.kind = '${TASK}'
+                 AND sr.completed_at >= ? AND sr.completed_at < ?`,
+        )
+        .bind(...bounds, this.#workspaceId, overallStart, overallEnd)
+        .first<Record<string, number | null>>();
+      return wanted.map((window, index) => ({
+        key: window.key,
+        completed: Number(row?.[`d${index}`] ?? 0),
       }));
     } catch (cause) {
       throw new TaskStorageError(undefined, { cause });

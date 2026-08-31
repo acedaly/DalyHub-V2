@@ -29,6 +29,8 @@ import type {
   ListTasksInput,
   ListTaskActivityInput,
   ListWaitingTasksInput,
+  CompletedTaskWindow,
+  CompletedTaskWindowCount,
   TaskActivityDayCount,
   ListWorkspaceTaskGroupsInput,
   ListProjectNextActionsInput,
@@ -335,6 +337,30 @@ export interface TaskRepository {
   countTaskActivityByDay(
     input: ListTaskActivityInput,
   ): Promise<readonly TaskActivityDayCount[]>;
+
+  /**
+   * V2.7 RECALL-02 — how many Tasks are CURRENTLY completed inside each window.
+   *
+   * ONE bounded aggregate for the whole set — one `SUM(CASE …)` column per
+   * window over a single index range, never one query per window and never rows
+   * shipped out to be bucketed. Bounded to a small number of windows, and the
+   * boundaries are the caller's UTC instants, so this carries no timezone rule
+   * of its own (AUDIT-14).
+   *
+   * It reads the ONE completion-time authority, `spine_records.completed_at`
+   * (ADR-114 decision 4), under exactly the predicates the Completed collection
+   * applies — live Tasks only. That is the whole point of its existence: a
+   * period figure counted here and the list a reader opens to check it are the
+   * same population, so reopening or deleting a Task moves both together.
+   *
+   * Distinct from the Activity-derived `ReviewInsightRepository.countPeriodCompletions`,
+   * which counts EVENTS and is deliberately immutable for past periods
+   * (HARDEN-06C F-07). Both are correct; they answer different questions, and a
+   * surface must not present one as evidence for the other.
+   */
+  countCompletedTasksInWindows(
+    windows: readonly CompletedTaskWindow[],
+  ): Promise<readonly CompletedTaskWindowCount[]>;
 
   /**
    * Plan a task (TODAY-04): set its scheduled date to the owner's committed day

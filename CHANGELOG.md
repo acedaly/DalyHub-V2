@@ -18,7 +18,9 @@
     counts on the day you actually did it.
   - **Analytics' "Tasks completed" figure now links to exactly those tasks** —
     the same days, in the order you finished them — instead of to everything
-    you have ever completed.
+    you have ever completed. The figure counts the same thing the list shows,
+    so reopening or deleting a task moves both together; it used to count the
+    act of finishing, which meant a card could say six and open a list of four.
 
   Reopening a task takes it back out of the answer, and a repeating task's next
   occurrence never counts as finished just because the last one was. No scores,

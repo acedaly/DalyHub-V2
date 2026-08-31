@@ -1348,3 +1348,34 @@ export type ListTaskActivityInput = {
   /** Oldest first. Bounded by the repository to a small number of days. */
   readonly days: readonly TaskActivityDayWindow[];
 };
+
+/**
+ * V2.7 RECALL-02 — one window to count COMPLETED Tasks inside.
+ *
+ * The same shape as {@link TaskActivityDayWindow} and for the same reason — the
+ * CALLER computes the boundaries, because only the caller knows the owner's
+ * timezone (AUDIT-14) — with a caller-chosen `key` instead of a calendar date,
+ * because the windows a period surface asks about are buckets and spans rather
+ * than days.
+ */
+export type CompletedTaskWindow = {
+  /** The caller's own identifier for this window; echoed back on the count. */
+  readonly key: string;
+  /** Inclusive lower bound. */
+  readonly startsAt: Date;
+  /** Exclusive upper bound. */
+  readonly endsAt: Date;
+};
+
+/** How many Tasks are CURRENTLY recorded as completed inside one window. */
+export type CompletedTaskWindowCount = {
+  readonly key: string;
+  /**
+   * Tasks whose `spine_records.completed_at` falls in the window and which are
+   * still live. It is the CURRENT completion state, so a Task completed and
+   * later reopened is not counted and a soft-deleted one is not counted —
+   * exactly the population the Completed collection returns for the same
+   * window, which is what makes a figure and the list behind it agree.
+   */
+  readonly completed: number;
+};
