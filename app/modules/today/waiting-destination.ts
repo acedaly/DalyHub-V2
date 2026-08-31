@@ -18,10 +18,7 @@
  * command palette, and this file is what both of them reach it THROUGH.
  */
 
-import {
-  TASK_FOLLOW_UP_STATES,
-  type TaskFollowUpState,
-} from "~/kernel/tasks";
+import { TASK_FOLLOW_UP_STATES, type TaskFollowUpState } from "~/kernel/tasks";
 
 /** The Waiting surface's path. */
 export const WAITING_HREF = "/today/waiting";

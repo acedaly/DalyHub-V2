@@ -303,7 +303,9 @@ test.describe("RECALL-03 — Today states the fact on the row it already had", (
     ).toBeVisible();
 
     // Each row says WHY it is here — the chase date, in the owner's words.
-    await expect(page.getByText("Today", { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText("Today", { exact: true }).first(),
+    ).toBeVisible();
   });
 
   test("reaches the commitment from the palette in two interactions", async ({
@@ -446,9 +448,7 @@ test.describe("RECALL-03 — followUp is one more filter, not a second system", 
   }) => {
     await gotoFixture(page, "/tasks?system=waiting&followUp=due");
     const controls = await openCollectionControls(page);
-    const prefix = controls.compact
-      ? "collection-sheet"
-      : "collection-popover";
+    const prefix = controls.compact ? "collection-sheet" : "collection-popover";
     // The follow-up dimension is offered as a FILTER…
     await expect(
       controls.surface.getByTestId(`${prefix}-followUp-due`),

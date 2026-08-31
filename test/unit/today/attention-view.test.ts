@@ -18,7 +18,7 @@ import {
 function input(overrides: Partial<AttentionInput> = {}): AttentionInput {
   return {
     inboxCount: 0,
-    waiting: { count: 0, oldestDays: null , followUpDue: 0 },
+    waiting: { count: 0, oldestDays: null, followUpDue: 0 },
     assets: { visibleCount: 0, trackedAsTasksCount: 0, first: null },
     projects: [],
     goals: [],
@@ -58,14 +58,14 @@ describe("inclusion — an item type appears only when its condition holds", () 
 
   it("ages the oldest waiting item, because a bare count is noise", () => {
     const rail = buildAttention(
-      input({ waiting: { count: 2, oldestDays: 9 , followUpDue: 0 } }),
+      input({ waiting: { count: 2, oldestDays: 9, followUpDue: 0 } }),
     );
     expect(rail[0]?.detail).toBe("2 waiting items · oldest 9 days");
   });
 
   it("falls back to the count alone when no age is known", () => {
     const rail = buildAttention(
-      input({ waiting: { count: 1, oldestDays: null , followUpDue: 0 } }),
+      input({ waiting: { count: 1, oldestDays: null, followUpDue: 0 } }),
     );
     expect(rail[0]?.detail).toBe("1 waiting item");
   });
@@ -94,15 +94,17 @@ describe("inclusion — an item type appears only when its condition holds", () 
 
   it("pluralises the follow-up count and never states zero", () => {
     expect(
-      buildAttention(input({ waiting: { count: 5, oldestDays: 2, followUpDue: 3 } }))[0]
-        ?.detailAction?.label,
+      buildAttention(
+        input({ waiting: { count: 5, oldestDays: 2, followUpDue: 3 } }),
+      )[0]?.detailAction?.label,
     ).toBe("3 follow-ups due");
     // The rail has no "0 waiting" row and gains no "0 follow-ups" segment: a
     // surface that speaks when there is nothing to report teaches the owner to
     // stop reading it.
     expect(
-      buildAttention(input({ waiting: { count: 5, oldestDays: 2, followUpDue: 0 } }))[0]
-        ?.detailAction,
+      buildAttention(
+        input({ waiting: { count: 5, oldestDays: 2, followUpDue: 0 } }),
+      )[0]?.detailAction,
     ).toBeUndefined();
   });
 
@@ -128,7 +130,9 @@ describe("inclusion — an item type appears only when its condition holds", () 
         inboxCount: 2,
         waiting: { count: 1, oldestDays: 1, followUpDue: 1 },
         projects: [{ id: "p1", title: "Kitchen", statusLabel: "At risk" }],
-        goals: [{ id: "g1", title: "Fitness", statusLabel: "No recent action" }],
+        goals: [
+          { id: "g1", title: "Fitness", statusLabel: "No recent action" },
+        ],
       }),
     );
     for (const item of rail) {
@@ -186,7 +190,7 @@ describe("inclusion — an item type appears only when its condition holds", () 
 describe("caps and priority", () => {
   const crowded = input({
     inboxCount: 2,
-    waiting: { count: 3, oldestDays: 4 , followUpDue: 0 },
+    waiting: { count: 3, oldestDays: 4, followUpDue: 0 },
     assets: {
       visibleCount: 2,
       trackedAsTasksCount: 0,

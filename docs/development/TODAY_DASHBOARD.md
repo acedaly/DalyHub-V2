@@ -525,11 +525,48 @@ or link system.
   is a real registry route under Today (no separate sidebar module). It composes the
   PX-02 CollectionLayout + DS-04 Cards and opens tasks in the SAME DS-03 Drawer, so
   opening a waiting task keeps the owner on `/today/waiting`. Ordering is
-  deterministic: **overdue → longest-waiting → due date → id.** Bounded query.
+  deterministic: **overdue → longest-waiting → due date → id.**
+- **It PAGES, and it states what it is showing (V2.7 RECALL-03).** It read
+  `LIMIT 100` with no cursor and rendered "`${count} tasks are waiting…`", so at
+  150 waiting Tasks the surface whose entire job is "what am I waiting on" said
+  *100* and row 101 was unreachable
+  ([DEBT-232](../product/PRODUCT_DEBT.md)). It now issues the standard
+  scope-bound keyset cursor (`task-waiting-cursor.ts`, the same shape
+  `/tasks` uses) and accumulates pages behind the shared `useKeysetPagination` +
+  `LoadMore`, so the whole collection is reachable without navigating. The
+  subtitle counts what is LOADED and says so while more remain — "Showing the
+  first 50 waiting tasks — load more to see the rest." — and states a total only
+  once the collection is exhausted, so it can never present a bound as a
+  population again. The four-part order is projected into ONE comparable key so
+  the resume predicate and the ORDER BY are the same rule by construction.
+  The deliberate **no-nav-entry** decision is unchanged: Waiting is reached from
+  the attention rail and the palette.
+- **It takes the follow-up filter (V2.7 RECALL-03).** `?followUp=` names a state
+  from the ONE declarative Task vocabulary
+  ([`TASKS_MODULE.md` → Filters](TASKS_MODULE.md#filters)), resolved by the same
+  repository predicate `/tasks?followUp=` resolves. It is the destination the
+  attention rail's follow-up count links to, which is what makes the stated
+  number and the list beneath it one population rather than two that agree.
 - **Today integration.** The attention rail carries ONE waiting row when anything is
   waiting — the count and the AGE of the oldest item, linking to `/today/waiting`.
-  Waiting tasks are **excluded from the day** (blocked work is not today's work).
-  An "Open Waiting" navigation command is registered.
+  Since V2.7 RECALL-03 that same row carries the one additional fact that makes
+  waiting actionable *today*: **"N follow-ups due"**, a labelled segment with its
+  own destination (`/today/waiting?followUp=due`). Two facts, two links, one row
+  — no new card and no new band. It is absent when nothing is due, exactly as the
+  rail has no "0 waiting" row. Waiting tasks are **excluded from the day**
+  (blocked work is not today's work). "Open Waiting" and "Open follow-ups due"
+  navigation commands are registered.
+- **One definition, three surfaces.** The follow-up count is
+  `WaitingFacts.followUpDue` in the SHARED attention-facts layer
+  (`attention-facts.server.ts`), read once from
+  `countWaitingTasks({ followUp: "due" })` — ONE bounded, workspace-scoped
+  aggregate, never a bounded page counted in JavaScript. Today's rail and the
+  daily digest both render THAT field, so the screen and the notification cannot
+  state different numbers on one morning; the parity is asserted by comparing
+  machine values in `test/kernel/recall-03-commitments-due.test.ts`, and pointing
+  the digest line at the generic `waiting.count` reddens a named test. Today's
+  pinned statement budget moved **21 → 22** for this one read, deliberately (see
+  below).
 - **Activity.** Three new types (`task.waiting_started`, `task.waiting_changed`,
   `task.waiting_cleared`) are registered on the **tasks** module manifest with DS-05
   Timeline descriptors. Payloads are structured and safe; free-text content is never
@@ -885,6 +922,22 @@ existing parallel block, identical in all three door states. Both figures are
 pinned by a counting database in
 [`today-review-door.test.ts`](../../test/kernel/today-review-door.test.ts), so a
 second Reviews read — or one that varies with the door's state — fails the suite.
+
+**MEASURED again at 22 (V2.7 RECALL-03).** The attention rail's waiting row
+learned ONE additional fact — how many waiting Tasks have a follow-up due — and
+it costs exactly one bounded aggregate (`countWaitingTasks`), read in parallel
+beside the waiting page inside `readWaiting`. The roadmap budgeted "at most one
+bounded count read" and required the pinned figure to be updated *deliberately,
+never quietly*; this paragraph and the comment above the constant are that
+update.
+
+It could not ride an existing statement, for the same reason the door could not:
+the waiting PAGE is bounded at `WAITING_LIMIT` (50), so counting follow-ups over
+its rows would understate the fact on any workspace holding more waiting work
+than that — the same class of quiet untruth RECALL-03 removes from the Waiting
+subtitle. A count the database answers for the whole workspace is worth one
+statement. The figure stays ABSOLUTE and pinned: a second follow-up read, a
+per-Task count, or a digest read leaking into Today's loader fails the suite.
 
 The read is `ReviewRepository.findPeriodEntry`, which is creation's own
 idempotency lookup exposed on the contract and sharing one predicate with it. It

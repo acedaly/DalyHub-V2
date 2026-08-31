@@ -1,5 +1,36 @@
 # Changelog
 
+- **A follow-up date you wrote down now comes back to you.**
+
+  "Chase this on Friday" used to be a note only you could find (V2.7
+  RECALL-03). It is now something the product can answer with.
+
+  - **A new Follow-up filter** on the Tasks list and on Waiting: due to chase ·
+    due to chase today · overdue to chase · chase later · no follow-up date.
+    Like every other filter it lives in the address bar, so it shares, saves as
+    a view and comes back with Back and Forward.
+  - **Today tells you what you said you would chase.** The waiting row on
+    "Needs attention" now reads, for example, "3 waiting items · oldest 4 days ·
+    **1 follow-up due**" — and that number opens exactly those tasks, not the
+    whole waiting list. It appears only when something is actually due.
+  - **Your morning digest gains one line** — "2 follow-ups due" — beside the
+    waiting line, and stays silent when nothing is due.
+  - **"Open follow-ups due" in the command palette,** so the answer is two
+    keystrokes from anywhere.
+  - **Today means _your_ today.** A follow-up dated yesterday is overdue and one
+    dated tomorrow is not, resolved in your own timezone.
+
+  **Waiting stopped rounding down.** `/today/waiting` used to load 100 tasks and
+  tell you that was all of them; at 150 waiting tasks the 101st simply did not
+  exist. It now loads a page at a time with a **Load more** button, and the line
+  under the heading says what it is actually showing until you have seen
+  everything.
+
+  Nothing new to configure and nothing new to dismiss: no reminders on every
+  task, no snooze, no meeting countdowns, and no new kind of notification.
+  Reopening a task leaves its follow-up date alone — it dates a chase, not a
+  finish.
+
 - **"What did I complete yesterday?" now has an answer.**
 
   Finished work is retrievable by _when you finished it_ (V2.7 RECALL-02).

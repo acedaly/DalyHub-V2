@@ -99,7 +99,9 @@ const WAITING_PAGE_SIZE = 50;
 export async function loader({ context, request }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const url = new URL(request.url);
-  const followUp = parseWaitingFollowUp(url.searchParams.get(WAITING_FOLLOW_UP_PARAM));
+  const followUp = parseWaitingFollowUp(
+    url.searchParams.get(WAITING_FOLLOW_UP_PARAM),
+  );
   const cursor = url.searchParams.get(WAITING_CURSOR_PARAM) ?? undefined;
   const now = new Date();
   let timezone = DEFAULT_APP_PREFERENCES.timezone;

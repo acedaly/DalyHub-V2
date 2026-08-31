@@ -239,9 +239,9 @@ describe("V2.7 RECALL-03 — the follow-up dimension", () => {
     expect(group?.kind).toBeUndefined();
     // And it is nowhere near the Task lifecycle: `status` still offers exactly
     // the workflow positions it always did.
-    expect(
-      byId("status")?.options.map((option) => option.value),
-    ).not.toContain("follow_up");
+    expect(byId("status")?.options.map((option) => option.value)).not.toContain(
+      "follow_up",
+    );
   });
 
   it("does not share the word 'Due' with the deadline dimension", () => {
@@ -249,8 +249,8 @@ describe("V2.7 RECALL-03 — the follow-up dimension", () => {
     // (ADR-114 decision 6's rule, applied inside one collection).
     expect(byId("due")?.label).toBe("Due");
     expect(byId("followUp")?.label).toBe("Follow-up");
-    expect(
-      byId("followUp")?.options.map((option) => option.label),
-    ).toContain("Due to chase");
+    expect(byId("followUp")?.options.map((option) => option.label)).toContain(
+      "Due to chase",
+    );
   });
 });

@@ -280,8 +280,18 @@ describe("one seeded commitment reaches the filter, Today and the digest", () =>
    */
   async function seedThreeSurfaceFixture() {
     const area = await spineRepo(WS).createArea({ title: "Ops" });
-    const due = await seedFollowUp(WS, area.id, "Chase the signed contract", TODAY);
-    const later = await seedFollowUp(WS, area.id, "Chase the invoice", TOMORROW);
+    const due = await seedFollowUp(
+      WS,
+      area.id,
+      "Chase the signed contract",
+      TODAY,
+    );
+    const later = await seedFollowUp(
+      WS,
+      area.id,
+      "Chase the invoice",
+      TOMORROW,
+    );
     const none = await seedFollowUp(WS, area.id, "Awaiting a callback", null);
     return { areaId: area.id, due, later, none };
   }
@@ -317,7 +327,11 @@ describe("one seeded commitment reaches the filter, Today and the digest", () =>
     // …and the linked destination returns exactly that population, so the count
     // and the list it opens cannot describe different Tasks.
     const linked = waitingFollowUpHref("due");
-    expect(parseWaitingFollowUp(new URL(linked, "https://x").searchParams.get("followUp"))).toBe("due");
+    expect(
+      parseWaitingFollowUp(
+        new URL(linked, "https://x").searchParams.get("followUp"),
+      ),
+    ).toBe("due");
     const linkedIds = await waitingIds(WS, { followUp: "due" });
     expect(linkedIds.ids).toEqual([due]);
   });
@@ -362,7 +376,11 @@ describe("one seeded commitment reaches the filter, Today and the digest", () =>
     // applied to a new fact rather than a new rule invented for it.
     const dueId = (await filterIds(WS, { followUp: "due" }))[0];
     await taskRepo(WS).updateTask(dueId, {
-      delegation: { to: "Sam", delegatedOn: "2026-08-20", followUpOn: TOMORROW },
+      delegation: {
+        to: "Sam",
+        delegatedOn: "2026-08-20",
+        followUpOn: TOMORROW,
+      },
     });
     const quiet = renderDigest(await readDigestFacts(scope, digestInput));
     expect(quiet?.body).toContain("waiting items");
@@ -450,7 +468,10 @@ describe("the follow-up states partition the workspace by the owner's day", () =
     // A Task with no follow-up date is inside NO window — the rule that stops a
     // window quietly returning the whole backlog.
     expect(
-      await filterIds(WS, { followUpFrom: "2000-01-01", followUpTo: "2100-01-01" }),
+      await filterIds(WS, {
+        followUpFrom: "2000-01-01",
+        followUpTo: "2100-01-01",
+      }),
     ).not.toContain(seeded.none);
   });
 
@@ -490,7 +511,11 @@ describe("due is resolved against the OWNER's calendar day", () => {
 
     // The Sydney owner is already living on 31 August.
     expect(
-      await filterIds(WS, { followUp: "due" }, { todayIso: TODAY, timezone: SYDNEY }),
+      await filterIds(
+        WS,
+        { followUp: "due" },
+        { todayIso: TODAY, timezone: SYDNEY },
+      ),
     ).toEqual([task]);
 
     // The Californian owner is still on 30 August: the same row is upcoming.
@@ -511,7 +536,9 @@ describe("due is resolved against the OWNER's calendar day", () => {
 
     // The Waiting surface and the count agree with the collection, because all
     // three resolve the same predicate against the same supplied owner-day.
-    expect((await waitingIds(WS, { followUp: "due", todayIso: TODAY })).ids).toEqual([task]);
+    expect(
+      (await waitingIds(WS, { followUp: "due", todayIso: TODAY })).ids,
+    ).toEqual([task]);
     expect(
       (await waitingIds(WS, { followUp: "due", todayIso: YESTERDAY })).ids,
     ).toEqual([]);
@@ -522,7 +549,10 @@ describe("due is resolved against the OWNER's calendar day", () => {
       }),
     ).toBe(0);
     expect(
-      await taskRepo(WS).countWaitingTasks({ todayIso: TODAY, followUp: "due" }),
+      await taskRepo(WS).countWaitingTasks({
+        todayIso: TODAY,
+        followUp: "due",
+      }),
     ).toBe(1);
   });
 
@@ -559,7 +589,9 @@ describe("due is resolved against the OWNER's calendar day", () => {
 describe("hostile follow-ups in another workspace reach nothing", () => {
   it("is invisible to the filter, the count, Today, the digest and Waiting", async () => {
     await ensureWorkspace(HOSTILE);
-    const hostileArea = await spineRepo(HOSTILE).createArea({ title: "Theirs" });
+    const hostileArea = await spineRepo(HOSTILE).createArea({
+      title: "Theirs",
+    });
     for (const title of ["Hostile A", "Hostile B", "Hostile C"]) {
       await seedFollowUp(HOSTILE, hostileArea.id, title, TODAY);
     }
@@ -569,7 +601,10 @@ describe("hostile follow-ups in another workspace reach nothing", () => {
 
     expect(await filterIds(WS, { followUp: "due" })).toEqual([mine]);
     expect(
-      await taskRepo(WS).countWaitingTasks({ todayIso: TODAY, followUp: "due" }),
+      await taskRepo(WS).countWaitingTasks({
+        todayIso: TODAY,
+        followUp: "due",
+      }),
     ).toBe(1);
     expect((await waitingIds(WS, { followUp: "due" })).ids).toEqual([mine]);
 
@@ -629,7 +664,11 @@ describe("the Waiting collection pages past its old cap", () => {
       // also crosses a page boundary rather than fitting in one.
       if (i % 10 === 0) {
         await tasks.updateTask(task.id, {
-          delegation: { to: "Sam", delegatedOn: "2026-08-01", followUpOn: TODAY },
+          delegation: {
+            to: "Sam",
+            delegatedOn: "2026-08-01",
+            followUpOn: TODAY,
+          },
         });
       }
       await tasks.setWaiting(task.id, {
@@ -725,7 +764,11 @@ describe("the Waiting collection pages past its old cap", () => {
     ).rejects.toBeTruthy();
     // A tampered cursor is rejected, never repaired.
     await expect(
-      tasks.listWaitingTasks({ limit: 10, todayIso: TODAY, cursor: "not-a-cursor" }),
+      tasks.listWaitingTasks({
+        limit: 10,
+        todayIso: TODAY,
+        cursor: "not-a-cursor",
+      }),
     ).rejects.toBeTruthy();
   });
 });
@@ -814,7 +857,9 @@ describe("a restored commitment becomes answerable again", () => {
      * backup" but "the restored commitment becomes LIVE again". So the new
      * dimension is run against the restored workspace, and it must find it.
      */
-    expect(await filterIds(RESTORE_TARGET, { followUp: "due" })).toEqual([task]);
+    expect(await filterIds(RESTORE_TARGET, { followUp: "due" })).toEqual([
+      task,
+    ]);
     expect(
       await taskRepo(RESTORE_TARGET).countWaitingTasks({
         todayIso: TODAY,
@@ -853,7 +898,10 @@ describe("reopening leaves the chase date alone", () => {
     expect(completed?.delegation?.followUpOn).toBe(YESTERDAY);
     expect(completed?.waiting).toBeNull();
     expect(
-      await taskRepo(WS).countWaitingTasks({ todayIso: TODAY, followUp: "due" }),
+      await taskRepo(WS).countWaitingTasks({
+        todayIso: TODAY,
+        followUp: "due",
+      }),
     ).toBe(0);
 
     await tasks.reopenTask(id);
@@ -894,17 +942,21 @@ describe("the recurrence successor follows the existing delegation rule", () => 
     });
     await tasks.updateTask(task.id, {
       scheduledDate: "2026-08-24",
-      delegation: { to: "Sam", delegatedOn: "2026-08-20", followUpOn: YESTERDAY },
+      delegation: {
+        to: "Sam",
+        delegatedOn: "2026-08-20",
+        followUpOn: YESTERDAY,
+      },
     });
     await tasks.setTaskRecurrence(task.id, {
       frequency: "week",
       dateKind: "scheduled",
     });
 
-    const completed = await taskRepo(WS, "2026-08-31T02:00:00.000Z").completeTask(
-      task.id,
-      { ownerTodayIso: TODAY },
-    );
+    const completed = await taskRepo(
+      WS,
+      "2026-08-31T02:00:00.000Z",
+    ).completeTask(task.id, { ownerTodayIso: TODAY });
     const successor = completed.successor;
     expect(successor).not.toBeNull();
 
@@ -941,9 +993,9 @@ describe("the dimension round-trips like every other dimension", () => {
     expect(params.get("followUp")).toBe("due");
     const decoded = configFromParams(params);
     expect(decoded.filters.followUp).toBe("due");
-    expect(await filterIds(WS, filtersForTasksHref(`/tasks?${params}`))).toEqual([
-      due,
-    ]);
+    expect(
+      await filterIds(WS, filtersForTasksHref(`/tasks?${params}`)),
+    ).toEqual([due]);
   });
 
   it("survives a saved view, and the restored view answers identically", async () => {
@@ -971,9 +1023,9 @@ describe("the dimension round-trips like every other dimension", () => {
       serialiseTaskViewConfig(parseTaskViewConfig(config)),
     );
     expect(reloaded!.config.filters.followUp).toBe("due");
-    expect(
-      await filterIds(WS, toWorkspaceFilters(reloaded!.config)),
-    ).toEqual([due]);
+    expect(await filterIds(WS, toWorkspaceFilters(reloaded!.config))).toEqual([
+      due,
+    ]);
   });
 });
 

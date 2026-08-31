@@ -150,6 +150,20 @@ destructive migration. Choosing Delegate from the Matrix offers to set P3, recor
 the delegatee, enter Waiting through the existing accepted mechanism, and set a
 follow-up date — but P3 never *requires* a delegatee.
 
+**The follow-up date is READ since V2.7 RECALL-03.** `follow_up_on` was stored,
+validated, edited, exported and restored from migration `0012` onward with no
+query predicate anywhere reading it, so a "chase this on Friday" only ever
+returned if the owner remembered to look — the sharpest remember-for-me failure
+in the product ([DEBT-231](../product/PRODUCT_DEBT.md)). It is now one filter
+dimension (`followUp`, [above](#filters)), one fact on Today's existing waiting
+attention row, and one line in the daily digest. Deliberately nothing else: no
+new Task status, no snooze, no per-Task reminder and **no new notification
+kind** — the meeting lead-notice question was asked and answered NO with its
+reversal condition recorded
+([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
+decision 5). Reopening a Task leaves the chase date untouched: it dates a chase,
+not a completion, and is never derived from `completed_at`.
+
 ## Search & commands
 
 The Tasks module registers a **real, repository-backed** search provider
@@ -412,6 +426,8 @@ lands on the same records and the address bar stays honest about what is applied
 | Completed visibility | `completed` | `hide` · `include` · `only`, applied ON TOP of the system view. |
 | Completed recency | `completedWithin` | The SAME closed windows, over `spine_records.completed_at` (V2.7 RECALL-02). |
 | Completed range | `completedFrom` · `completedTo` | Owner-calendar `YYYY-MM-DD`, both bounds INCLUSIVE (V2.7 RECALL-02). |
+| Follow-up state | `followUp` | Derived over the delegation group's chase date: due to chase · due to chase today · overdue to chase · chase later · no follow-up date (V2.7 RECALL-03). |
+| Follow-up range | `followUpFrom` · `followUpTo` | Owner-calendar `YYYY-MM-DD`, both bounds INCLUSIVE (V2.7 RECALL-03). |
 
 The derived due and planned states are **mutually exclusive**, and deliberately so:
 ONE SQL expression defines each of them, and both the FILTER and the GROUPING
@@ -433,6 +449,52 @@ Exclusivity decides the wording, so the labels say what they mean:
 - **Due later**, **No due date**.
 
 The planned states follow the same rule over the SCHEDULED date.
+
+**The follow-up dimension** (V2.7 RECALL-03, closing
+[DEBT-231](../product/PRODUCT_DEBT.md)) is the same shape again, over
+`task_details.follow_up_on` — the chase date on a Task's **delegation** group
+("ask them again on Friday"). It had been validated, edited, exported and
+restored since migration `0012` with **no query predicate anywhere reading it**;
+this is the one vocabulary that makes it askable.
+
+| Member | Means |
+| --- | --- |
+| `due` | Recorded, and on or before the owner's calendar day. The actionable question — and the ONE definition Today's attention fact and the daily digest both read. |
+| `due_today` | Recorded, and exactly the owner's calendar day. |
+| `overdue` | Recorded, and strictly before it. |
+| `upcoming` | Recorded, and strictly after it — written down, not yet due. |
+| `none` | No follow-up date recorded at all. |
+
+Four rules keep it one dimension rather than a second system:
+
+- **It is a FILTER, never a status.** There is no `follow_up` Task status and no
+  "waiting due" lifecycle position. A Task with a chase due is an ordinary Task
+  that is usually also waiting; a date does not fork the lifecycle
+  ([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
+  decision 5).
+- **`due` is the union of `overdue` and `due_today`,** and is therefore the only
+  non-exclusive member; the other four partition the workspace.
+- **A SPECIFIC window is `followUpFrom`/`followUpTo`,** the same explicit pair
+  the due and planned ranges model — there is no third date grammar. A Task with
+  no chase date is inside no window, exactly as an undated Task is outside every
+  due range.
+- **The owner's day decides.** `follow_up_on` is a wall-calendar `YYYY-MM-DD`
+  compared against `cal.today_iso` — the owner's calendar day (ADR-022), already
+  CROSS JOINed once per query for the due and planned states, so the derived
+  state costs **no additional bind** and the explicit window costs exactly two.
+  There is no naïve UTC comparison and no second timezone authority anywhere in
+  it.
+
+The predicate itself is written **once** (`followUpStatePredicate` in
+`d1-task-repository.ts`) and consumed by the collection query, the Waiting list
+and the Waiting count — which is what makes Today's fact, the digest's line, the
+`/tasks` filter and the `/today/waiting` page comparable as machine values
+rather than as three implementations that happen to agree.
+
+`/today/waiting` takes the SAME dimension under the SAME parameter name
+(`?followUp=due`), resolved by the same predicate, so the number Today states
+and the list it opens are one population by construction. See
+[`TODAY_DASHBOARD.md` → Waiting](TODAY_DASHBOARD.md#waiting-today-03).
 
 **Tags** are ONE dimension, added by V2.6 FIND-03 and adopted whole from the
 workspace's one vocabulary ([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)):
@@ -833,6 +895,16 @@ Completing an open recurring occurrence creates **exactly one** successor, in th
 Time Sector, commitment state, the recurrence rule and the series identity (sequence
 + 1). NOT copied: completion, waiting, delegation, and workflow status (which resets
 to `todo` — an `on_hold` successor would silently vanish from Today).
+
+`follow_up_on` is part of the DELEGATION group, so it is reset with it: the
+successor inherits **no** chase date, and the finished occurrence keeps its own.
+V2.7 RECALL-03 did not change this rule — it **measured and pinned** it
+(`test/kernel/recall-03-commitments-due.test.ts`), so the successor answers the
+`followUp: "none"` filter and the predecessor answers `overdue`, and a later item
+cannot move the rule without reddening a named test. The reasoning is the one
+already stated above: a chase date is the transient state of the occurrence that
+was just finished, and a successor carrying it would tell the owner to chase
+something nobody has yet been asked to do.
 
 Bulk completion creates successors the same way, so `/tasks` and Today can never
 disagree about whether a repeating task continued.
