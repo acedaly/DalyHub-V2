@@ -13,6 +13,7 @@ import {
   activeFilterCount,
 } from "~/shared/collection-layout/collection-controls-model";
 import { buildTasksControlGroups } from "~/modules/tasks/tasks-controls";
+import { TASK_FOLLOW_UP_STATES } from "~/kernel/tasks";
 
 const groups = buildTasksControlGroups({
   delegates: [{ value: "Sam", label: "Sam" }],
@@ -53,6 +54,10 @@ describe("the declared filter dimensions", () => {
       // through the SAME declaration as every other filter.
       "repeats",
       "blocked",
+      // V2.7 RECALL-03: the follow-up dimension, offered through the SAME
+      // declaration, so it is URL-backed and saved-view-expressible by
+      // construction rather than by a second control model.
+      "followUp",
     ]) {
       expect(byId(id), `missing control group: ${id}`).toBeDefined();
     }
@@ -210,5 +215,42 @@ describe("TASKS-12 — the blocked dimension", () => {
     // Absent is not a filter, and neither is the "any" value.
     expect(activeControls(groups, params("?blocked="))).toEqual([]);
     expect(activeFilterCount(groups, params("?blocked=1"))).toBe(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.7 RECALL-03 — the follow-up dimension                                    */
+/* -------------------------------------------------------------------------- */
+
+describe("V2.7 RECALL-03 — the follow-up dimension", () => {
+  it("offers the whole published vocabulary, plus 'any' as the absence of a filter", () => {
+    const group = byId("followUp");
+    expect(group?.param).toBe("followUp");
+    expect(group?.options.map((option) => option.value)).toEqual([
+      "",
+      ...TASK_FOLLOW_UP_STATES,
+    ]);
+  });
+
+  it("is a FILTER on the shared vocabulary, never a system view or a status", () => {
+    const group = byId("followUp");
+    // No `kind` means it counts toward the active-filter badge and appears as a
+    // removable chip — the definition of a filter in this model.
+    expect(group?.kind).toBeUndefined();
+    // And it is nowhere near the Task lifecycle: `status` still offers exactly
+    // the workflow positions it always did.
+    expect(byId("status")?.options.map((option) => option.value)).not.toContain(
+      "follow_up",
+    );
+  });
+
+  it("does not share the word 'Due' with the deadline dimension", () => {
+    // Two controls answering different questions must not wear one word
+    // (ADR-114 decision 6's rule, applied inside one collection).
+    expect(byId("due")?.label).toBe("Due");
+    expect(byId("followUp")?.label).toBe("Follow-up");
+    expect(byId("followUp")?.options.map((option) => option.label)).toContain(
+      "Due to chase",
+    );
   });
 });

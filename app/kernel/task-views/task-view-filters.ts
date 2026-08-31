@@ -58,6 +58,13 @@ export function toWorkspaceFilters(
   if (f.completedWithin) out.completedWithin = f.completedWithin;
   if (f.completedFrom) out.completedFrom = f.completedFrom;
   if (f.completedTo) out.completedTo = f.completedTo;
+  // V2.7 RECALL-03 — the follow-up dimension, translated exactly like the due
+  // state and the due range beside it: three validated dimensions, three
+  // repository parameters, the predicate and the owner-day comparison both
+  // chosen by the repository. No second filtering system.
+  if (f.followUp) out.followUp = f.followUp;
+  if (f.followUpFrom) out.followUpFrom = f.followUpFrom;
+  if (f.followUpTo) out.followUpTo = f.followUpTo;
   if (f.dueFrom) out.dueFrom = f.dueFrom;
   if (f.dueTo) out.dueTo = f.dueTo;
   if (f.plannedFrom) out.plannedFrom = f.plannedFrom;

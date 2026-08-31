@@ -1609,7 +1609,30 @@ export function TodayScreen({
                     <Link className="dh-day-row__title" to={item.href}>
                       {item.label}
                     </Link>
-                    <span className="dh-day-row__meta">{item.detail}</span>
+                    {/* V2.7 RECALL-03 — the waiting row's second fact, with
+                        its own destination. `detailAction` is absent on every
+                        other row and absent here when nothing is due, so the
+                        rail grows no "0 follow-ups" segment. */}
+                    <span
+                      className={
+                        item.detailAction
+                          ? "dh-day-row__meta dh-day-row__meta--split"
+                          : "dh-day-row__meta"
+                      }
+                    >
+                      {item.detail}
+                      {item.detailAction ? (
+                        <>
+                          {" · "}
+                          <Link
+                            className="dh-day-row__meta-link"
+                            to={item.detailAction.href}
+                          >
+                            {item.detailAction.label}
+                          </Link>
+                        </>
+                      ) : null}
+                    </span>
                   </span>
                 </li>
               ))}

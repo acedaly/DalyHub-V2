@@ -5,7 +5,10 @@ import {
   formatWaitingSince,
   waitingSubjectLabel,
 } from "~/shared/task-record/task-view";
-import { toWaitingCardData } from "~/modules/today/task/waiting-view";
+import {
+  toWaitingCardData,
+  waitingSubtitle,
+} from "~/modules/today/task/waiting-view";
 
 // TODAY-03 — pure, deterministic waiting derivations (time is injected, never
 // wall-clock, so "since"/elapsed assertions are stable — no flakiness).
@@ -96,6 +99,7 @@ describe("toWaitingCardData", () => {
     dueDate: "2026-07-15",
     scheduledDate: null,
     parent: { kind: "project" as const, id: "p1", title: "Procurement uplift" },
+    followUpOn: null,
   };
 
   it("derives the subject, since, elapsed and an overdue due label", () => {
@@ -144,5 +148,148 @@ describe("toWaitingCardData", () => {
     expect(card.subjectType).toBeNull();
     expect(card.elapsedLabel).toBe("today");
     expect(card.dateLabel).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.7 RECALL-03 — the chase date on the card                                 */
+/* -------------------------------------------------------------------------- */
+
+describe("the follow-up label", () => {
+  const base = {
+    id: "t1",
+    title: "Chase the signed contract",
+    status: "todo" as const,
+    commitmentState: "active" as const,
+    priority: null,
+    dueDate: null,
+    scheduledDate: null,
+    parent: null,
+    waiting: {
+      since: "2026-07-18T00:00:00.000Z",
+      subject: { kind: "text" as const, note: "Sam" },
+    },
+  };
+
+  const card = (followUpOn: string | null, todayIso = "2026-07-20") =>
+    toWaitingCardData(
+      { ...base, followUpOn },
+      MS("2026-07-20T06:00:00.000Z"),
+      todayIso,
+    );
+
+  it("is absent when the owner recorded no chase date", () => {
+    expect(card(null).followUpLabel).toBeNull();
+  });
+
+  it("reads the owner's words against the owner's day", () => {
+    expect(card("2026-07-20").followUpLabel).toEqual({
+      label: "Today",
+      overdue: false,
+    });
+    expect(card("2026-07-19").followUpLabel).toEqual({
+      label: "Yesterday",
+      overdue: true,
+    });
+    expect(card("2026-07-21").followUpLabel).toEqual({
+      label: "Tomorrow",
+      overdue: false,
+    });
+  });
+
+  it("moves with the owner's day, not with a UTC one", () => {
+    // The SAME stored date, read on two different owner-days: overdue for the
+    // owner already living on the 21st, merely due for the one still on the
+    // 20th. Nothing here constructs a Date from a local clock.
+    expect(card("2026-07-20", "2026-07-21").followUpLabel?.overdue).toBe(true);
+    expect(card("2026-07-20", "2026-07-20").followUpLabel?.overdue).toBe(false);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.7 RECALL-03 — the honest subtitle (DEBT-232)                             */
+/* -------------------------------------------------------------------------- */
+
+describe("waitingSubtitle never states a bound as a total", () => {
+  /**
+   * The DEBT-232 fixture, in the shape the 150-row kernel proof produces.
+   *
+   * With 150 waiting Tasks and a 50-row page, the surface is showing 50 and
+   * more remain. The old line said "100 tasks are waiting…" from a 100-row cap;
+   * the new one may only describe what it is actually showing, and must say
+   * that more exist.
+   */
+  it("says what it is SHOWING while a page remains", () => {
+    const line = waitingSubtitle({
+      loaded: 50,
+      hasMore: true,
+      followUp: null,
+      failed: false,
+    });
+    expect(line).toBe(
+      "Showing the first 50 waiting tasks — load more to see the rest.",
+    );
+    // The falsification: it must not claim the loaded number is the population.
+    expect(line).not.toBe("50 tasks are waiting on someone or something else.");
+    expect(line).toContain("load more");
+  });
+
+  it("states the true total once the collection is exhausted", () => {
+    expect(
+      waitingSubtitle({
+        loaded: 150,
+        hasMore: false,
+        followUp: null,
+        failed: false,
+      }),
+    ).toBe("150 tasks are waiting on someone or something else.");
+    expect(
+      waitingSubtitle({
+        loaded: 1,
+        hasMore: false,
+        followUp: null,
+        failed: false,
+      }),
+    ).toBe("1 task is waiting on someone or something else.");
+    expect(
+      waitingSubtitle({
+        loaded: 0,
+        hasMore: false,
+        followUp: null,
+        failed: false,
+      }),
+    ).toBe("0 tasks are waiting on someone or something else.");
+  });
+
+  it("names the filter it is showing, so a filtered page is not read as the whole", () => {
+    expect(
+      waitingSubtitle({
+        loaded: 3,
+        hasMore: false,
+        followUp: "due",
+        failed: false,
+      }),
+    ).toBe(
+      "3 tasks are waiting on someone or something else with a follow-up due.",
+    );
+    expect(
+      waitingSubtitle({
+        loaded: 50,
+        hasMore: true,
+        followUp: "overdue",
+        failed: false,
+      }),
+    ).toContain("with an overdue follow-up");
+  });
+
+  it("states a failure as a failure rather than as zero", () => {
+    expect(
+      waitingSubtitle({
+        loaded: 0,
+        hasMore: false,
+        followUp: null,
+        failed: true,
+      }),
+    ).toBe("We couldn’t load your waiting tasks.");
   });
 });

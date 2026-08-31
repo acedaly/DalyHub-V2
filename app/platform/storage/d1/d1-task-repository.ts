@@ -113,6 +113,7 @@ import {
   validateTimeSector,
   validateTaskCompletedVisibility,
   validateTaskDueState,
+  validateTaskFollowUpState,
   validateTaskGroupDimension,
   validateTaskParentKind,
   validateTaskPlannedState,
@@ -137,6 +138,7 @@ import {
   type ListTaskActivityInput,
   type TaskActivityDayCount,
   type ListWaitingTasksInput,
+  type CountWaitingTasksInput,
   type ListWorkspaceTaskGroupsInput,
   type ListProjectNextActionsInput,
   type ListWorkspaceTasksInput,
@@ -161,12 +163,15 @@ import {
   type SkipTaskOccurrenceResult,
   type TaskDelegation,
   type TaskDetails,
+  type TaskFollowUpState,
   type TaskListItem,
   type TaskListPage,
   type TaskParentCandidate,
   type TaskPriority,
   type TaskRecurrenceRule,
   type TaskRecurrenceSeries,
+  decodeWaitingTaskCursorForScope,
+  encodeWaitingTaskCursor,
   MAX_CHECKLIST_ITEMS,
   TaskChecklistFullError,
   TaskChecklistItemNotFoundError,
@@ -186,6 +191,8 @@ import {
   type TimeSector,
   type UpdateTaskInput,
   type UpdateTaskResult,
+  type WaitingCounts,
+  type WaitingTaskCursorScope,
   type WaitingTaskListItem,
   type WaitingTaskPage,
   type WorkspaceTaskCursorScope,
@@ -708,6 +715,48 @@ const NEXT_ACTION_PROJECT_CHUNK_SIZE = 40;
 
 const TASK_PARENT_SEARCH_LIMIT = 25;
 const TASK_PARENT_SEARCH_MAX = 50;
+
+/**
+ * V2.7 RECALL-03 — the ONE follow-up predicate (DEBT-231).
+ *
+ * `task_details.follow_up_on` is a wall-calendar `YYYY-MM-DD`, so the comparison
+ * is a plain string comparison against the OWNER's calendar day — never a naïve
+ * UTC date, and never a second timezone authority. The owner-day value arrives
+ * already resolved (`ownerCalendarIso(now, preferences.timezone)`, ADR-022) and
+ * reaches SQL as `todayExpr` — today always the `cal.today_iso` column, which
+ * the collection query already CROSS JOINs for the due and planned states and
+ * which the Waiting list and count join once for the same reason. So the
+ * predicate costs NO bind of its own however many times it appears in one
+ * statement, which is what makes the keyset resume affordable.
+ *
+ * `todayExpr` is TRUSTED, constant SQL chosen by this module — never caller data
+ * — exactly like the grouping bucket expressions beside it. It is a parameter
+ * rather than a constant so a future caller with a differently-named calendar
+ * source cannot be tempted to write a second predicate.
+ *
+ * There is deliberately one definition. Today's attention fact, the daily
+ * digest, the `/tasks` filter and the Waiting surface all resolve "a follow-up
+ * is due" here, which is what makes their numbers comparable as machine values
+ * rather than as two implementations that happen to agree today.
+ */
+function followUpStatePredicate(
+  state: TaskFollowUpState,
+  todayExpr: string,
+): string {
+  switch (state) {
+    // The union of `overdue` and `due_today` — "who do I chase now?".
+    case "due":
+      return `(td.follow_up_on IS NOT NULL AND td.follow_up_on <= ${todayExpr})`;
+    case "due_today":
+      return `(td.follow_up_on IS NOT NULL AND td.follow_up_on = ${todayExpr})`;
+    case "overdue":
+      return `(td.follow_up_on IS NOT NULL AND td.follow_up_on < ${todayExpr})`;
+    case "upcoming":
+      return `(td.follow_up_on IS NOT NULL AND td.follow_up_on > ${todayExpr})`;
+    case "none":
+      return "td.follow_up_on IS NULL";
+  }
+}
 
 /**
  * TASKS-03 — the bucket-key expression per grouping dimension. Trusted, constant
@@ -2364,6 +2413,11 @@ export class D1TaskRepository implements TaskRepository {
     );
     const filterCompletedFrom = validateTaskDateBound(filters.completedFrom);
     const filterCompletedTo = validateTaskDateBound(filters.completedTo);
+    // V2.7 RECALL-03 — the follow-up dimension, validated through the SAME
+    // closed-set / date-bound validators the due state and the due range use.
+    const filterFollowUp = validateTaskFollowUpState(filters.followUp);
+    const filterFollowUpFrom = validateTaskDateBound(filters.followUpFrom);
+    const filterFollowUpTo = validateTaskDateBound(filters.followUpTo);
     const filterDelegatedTo =
       filters.delegatedTo === undefined || filters.delegatedTo === null
         ? undefined
@@ -2580,6 +2634,27 @@ export class D1TaskRepository implements TaskRepository {
           timezone,
         ).toISOString(),
       );
+    }
+    /*
+     * V2.7 RECALL-03 — the FOLLOW-UP dimension, over `td.follow_up_on`.
+     *
+     * The derived state costs ZERO binds: `cal.today_iso` is already CROSS
+     * JOINed once per query for the due and planned states, so the owner's day
+     * is a joined column here rather than a fifth placeholder. The explicit
+     * window costs exactly the two binds the roadmap budgets for it, and is the
+     * same `IS NOT NULL AND <= / >=` shape `dueFrom`/`dueTo` use — a Task with
+     * no chase date is inside no window.
+     */
+    if (filterFollowUp !== undefined) {
+      whereParts.push(followUpStatePredicate(filterFollowUp, "cal.today_iso"));
+    }
+    if (filterFollowUpFrom !== undefined) {
+      whereParts.push("td.follow_up_on IS NOT NULL AND td.follow_up_on >= ?");
+      params.push(filterFollowUpFrom);
+    }
+    if (filterFollowUpTo !== undefined) {
+      whereParts.push("td.follow_up_on IS NOT NULL AND td.follow_up_on <= ?");
+      params.push(filterFollowUpTo);
     }
     if (filterPriorities !== undefined) {
       /*
@@ -4117,6 +4192,41 @@ export class D1TaskRepository implements TaskRepository {
     }
   }
 
+  /**
+   * V2.7 RECALL-03 — the shared Waiting POPULATION predicate.
+   *
+   * The list and the count must describe the same set or the surface states a
+   * number its own rows contradict, which is the DEBT-232 defect wearing a
+   * different hat. So the membership rule is written once: an alive, incomplete
+   * Task that is waiting on someone or something and is not parked in
+   * Someday/Maybe.
+   */
+  static readonly #WAITING_POPULATION_SQL = `e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
+           AND sr.completed_at IS NULL AND td.waiting_since IS NOT NULL
+           AND COALESCE(td.commitment_state, 'active') <> 'someday'`;
+
+  /**
+   * V2.7 RECALL-03 — the Waiting order, as ONE lexicographically-comparable key.
+   *
+   * The documented Waiting order is four facts deep (overdue first, then
+   * longest-waiting, then dated-before-undated, then the due date itself) with
+   * `e.id` as the tiebreaker that totalises it. A keyset resume over four levels
+   * is a nest that is easy to get subtly wrong, so the four are projected into
+   * one string and the query ORDERS BY that same expression — which is what
+   * makes the resume predicate and the ordering the same rule by construction,
+   * rather than two rules that must be kept in agreement.
+   *
+   * `char(1)` is the separator because it sorts BELOW every character an ISO
+   * timestamp or a `YYYY-MM-DD` date can contain, so the concatenation compares
+   * exactly as the tuple does whatever the field widths are. The owner's day
+   * comes from the `cal` CROSS JOIN, so the expression costs no bind however
+   * many times it appears.
+   */
+  static readonly #WAITING_SORT_SQL = `((CASE WHEN td.due_date IS NOT NULL AND td.due_date < cal.today_iso THEN '0' ELSE '1' END)
+              || char(1) || td.waiting_since
+              || char(1) || (CASE WHEN td.due_date IS NULL THEN '1' ELSE '0' END)
+              || char(1) || COALESCE(td.due_date, ''))`;
+
   async listWaitingTasks(
     input: ListWaitingTasksInput = {},
   ): Promise<WaitingTaskPage> {
@@ -4124,6 +4234,33 @@ export class D1TaskRepository implements TaskRepository {
     // Empty string sorts before any real date, so with no `todayIso` nothing is
     // "overdue" and ordering falls to longest-waiting.
     const todayIso = input.todayIso ?? "";
+    const followUp = validateTaskFollowUpState(input.followUp);
+
+    const scope: WaitingTaskCursorScope = {
+      workspaceId: this.#workspaceId,
+      todayIso,
+      followUp: followUp ?? "",
+    };
+
+    const whereParts: string[] = [];
+    const params: (string | number)[] = [];
+    if (followUp !== undefined) {
+      // The ONE follow-up predicate, against the owner's day from `cal`.
+      whereParts.push(followUpStatePredicate(followUp, "cal.today_iso"));
+    }
+    if (input.cursor !== undefined) {
+      const position = decodeWaitingTaskCursorForScope(input.cursor, scope);
+      whereParts.push(
+        `(${D1TaskRepository.#WAITING_SORT_SQL} > ? OR (${D1TaskRepository.#WAITING_SORT_SQL} = ? AND e.id > ?))`,
+      );
+      params.push(position.sortValue, position.sortValue, position.id);
+    }
+    const whereSql =
+      whereParts.length > 0 ? ` AND ${whereParts.join(" AND ")}` : "";
+
+    // One row beyond the page decides whether a cursor is issued, without a
+    // second COUNT and without ever claiming a total the page cannot show.
+    const fetchLimit = limit + 1;
 
     const statement = this.#db
       .prepare(
@@ -4133,7 +4270,8 @@ export class D1TaskRepository implements TaskRepository {
                 pl.target_entity_id AS parent_id,
                 pl.type AS parent_link_type,
                 pe.title AS parent_title,
-                ${TASK_PARENT_IDENTITY_COLUMNS}
+                ${TASK_PARENT_IDENTITY_COLUMNS},
+                ${D1TaskRepository.#WAITING_SORT_SQL} AS sort_value
          FROM entities e
          JOIN spine_records sr
            ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -4148,25 +4286,28 @@ export class D1TaskRepository implements TaskRepository {
               AND pe.deleted_at IS NULL
          ${TASK_PARENT_IDENTITY_JOIN}
          ${WAITING_TARGET_JOIN}
-         WHERE e.workspace_id = ? AND e.type = '${TASK}' AND e.deleted_at IS NULL
-           AND sr.completed_at IS NULL AND td.waiting_since IS NOT NULL
-           AND COALESCE(td.commitment_state, 'active') <> 'someday'
-         ORDER BY
-           (CASE WHEN td.due_date IS NOT NULL AND td.due_date < ? THEN 0 ELSE 1 END) ASC,
-           td.waiting_since ASC,
-           (td.due_date IS NULL) ASC,
-           td.due_date ASC,
-           e.id ASC
+         CROSS JOIN (SELECT ? AS today_iso) cal
+         WHERE ${D1TaskRepository.#WAITING_POPULATION_SQL}${whereSql}
+         ORDER BY sort_value ASC, e.id ASC
          LIMIT ?`,
       )
-      .bind(this.#workspaceId, this.#workspaceId, todayIso, limit);
+      .bind(
+        this.#workspaceId,
+        todayIso,
+        this.#workspaceId,
+        ...params,
+        fetchLimit,
+      );
 
     const result = await this.#run(statement);
     const rows = (result.results ?? []) as (TaskWaitingJoinedRow & {
       readonly parent_title: string | null;
+      readonly sort_value: string | null;
     } & Partial<TaskParentIdentityColumns>)[];
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
     const items: WaitingTaskListItem[] = [];
-    for (const row of rows) {
+    for (const row of pageRows) {
       const waiting = rowToTaskWaiting(row);
       if (waiting === null) {
         continue;
@@ -4190,9 +4331,75 @@ export class D1TaskRepository implements TaskRepository {
           row,
         ),
         waiting,
+        // V2.7 RECALL-03 — the chase date, so the surface can SAY why a row is
+        // in a follow-up-filtered page instead of leaving the owner to open it.
+        followUpOn: details.delegation?.followUpOn ?? null,
       });
     }
-    return { items };
+    // The cursor names the LAST ROW OF THE PAGE, which is the last row actually
+    // returned — never the peeked row — so the next page resumes exactly after
+    // what the owner has seen.
+    const last = pageRows[pageRows.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeWaitingTaskCursor(scope, {
+            sortValue: last.sort_value ?? "",
+            id: last.id,
+          })
+        : null;
+    return { items, nextCursor };
+  }
+
+  async countWaitingTasks(
+    input: CountWaitingTasksInput = {},
+  ): Promise<WaitingCounts> {
+    const todayIso = input.todayIso ?? "";
+    /*
+     * V2.7 RECALL-03 — ONE bounded aggregate, and BOTH facts from it.
+     *
+     * This is the single definition behind Today's waiting row and the digest's
+     * waiting and follow-up lines. Two things about its shape are load-bearing:
+     *
+     *   1. **It is asked of the database, not of a page.** Counting a bounded
+     *      page in JavaScript is exactly how the old Waiting subtitle came to
+     *      state a truncated number as fact, and the rail was doing the same
+     *      thing with the same kind of read.
+     *   2. **The total and the subset are counted over the SAME rows**, in one
+     *      statement, with the follow-up subset as a conditional SUM. Reading
+     *      them separately — an unbounded subset beside a page-length total —
+     *      lets a workspace with more waiting work than the rail's page size
+     *      print "50 waiting items · 100 follow-ups due", which is not merely
+     *      wrong but impossible. Here the subset relationship is a property of
+     *      the SQL rather than a convention two call sites must remember.
+     *
+     * Two binds, one row, whatever the workspace holds.
+     */
+    try {
+      const row = await this.#db
+        .prepare(
+          `SELECT COUNT(*) AS total,
+                  SUM(CASE WHEN ${followUpStatePredicate("due", "cal.today_iso")}
+                           THEN 1 ELSE 0 END) AS follow_up_due
+           FROM entities e
+           JOIN spine_records sr
+             ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
+           JOIN task_details td
+             ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
+           CROSS JOIN (SELECT ? AS today_iso) cal
+           WHERE ${D1TaskRepository.#WAITING_POPULATION_SQL}`,
+        )
+        .bind(todayIso, this.#workspaceId)
+        .first<{
+          readonly total: number | null;
+          readonly follow_up_due: number | null;
+        }>();
+      return {
+        total: Number(row?.total ?? 0),
+        followUpDue: Number(row?.follow_up_due ?? 0),
+      };
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
   }
 
   /* ---------------------------------------------------------------------- */

@@ -18,6 +18,8 @@
 
 import type { CommandContribution } from "~/kernel/modules";
 
+import { WAITING_HREF, waitingFollowUpHref } from "./waiting-destination";
+
 export const todayCommands: readonly CommandContribution[] = [
   {
     id: "today.open",
@@ -33,6 +35,31 @@ export const todayCommands: readonly CommandContribution[] = [
     subtitle: "Tasks blocked on someone or something else",
     keywords: ["waiting", "blocked", "delegated", "waiting for", "stuck"],
     kind: "navigate",
-    target: { kind: "route", to: "/today/waiting" },
+    target: { kind: "route", to: WAITING_HREF },
+  },
+  {
+    /*
+     * V2.7 RECALL-03 — the commitment, one interaction from the palette.
+     *
+     * A DECLARATIVE navigation like its neighbour: the destination is the same
+     * Waiting surface narrowed by the one `followUp` filter dimension, so this
+     * command adds a shortcut and not a private query. "Due" is resolved
+     * SERVER-side against the owner's calendar day, which is what lets a static
+     * route string mean "today" without the palette knowing what day it is.
+     */
+    id: "today.open_follow_ups_due",
+    title: "Open follow-ups due",
+    subtitle: "Delegated work you said you would chase by today",
+    keywords: [
+      "follow up",
+      "follow-up",
+      "chase",
+      "due",
+      "delegated",
+      "waiting",
+      "commitment",
+    ],
+    kind: "navigate",
+    target: { kind: "route", to: waitingFollowUpHref("due") },
   },
 ];

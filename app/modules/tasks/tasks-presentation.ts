@@ -123,6 +123,22 @@ export const PLANNED_STATE_LABELS: Record<string, string> = {
   unplanned: "Unplanned",
 };
 
+/**
+ * V2.7 RECALL-03 — the FOLLOW-UP vocabulary, in the owner's words.
+ *
+ * "Due to chase" rather than "Due": the word this dimension needs is the ACTION
+ * the date stands for, and the collection already has a "Due" control meaning
+ * the deadline. Two controls sharing one word would be exactly the cross-surface
+ * ambiguity ADR-114 decision 6 forbids elsewhere in this programme.
+ */
+export const FOLLOW_UP_STATE_LABELS: Record<string, string> = {
+  due: "Due to chase",
+  due_today: "Due to chase today",
+  overdue: "Overdue to chase",
+  upcoming: "Chase later",
+  none: "No follow-up date",
+};
+
 export const PARENT_KIND_LABELS: Record<string, string> = {
   project: "In a Project",
   area: "In an Area",

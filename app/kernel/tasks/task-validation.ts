@@ -31,6 +31,7 @@ import {
   COMMITMENT_STATES,
   TASK_COMPLETED_VISIBILITIES,
   TASK_DUE_STATES,
+  TASK_FOLLOW_UP_STATES,
   TASK_PARENT_KINDS,
   TASK_PLANNED_STATES,
   TASK_PRIORITIES,
@@ -48,6 +49,7 @@ import {
   type TaskDelegation,
   type TaskDelegationInput,
   type TaskDueState,
+  type TaskFollowUpState,
   type TaskParentKind,
   type TaskPlannedState,
   type TaskPriority,
@@ -396,6 +398,22 @@ export function validateTaskPlannedState(
     TASK_PLANNED_STATES,
     "plannedState",
     "is not a known planned state",
+  );
+}
+
+/**
+ * V2.7 RECALL-03 — validate a derived FOLLOW-UP state filter (`undefined` = no
+ * filter). The same closed-set validator every other derived dimension uses, so
+ * a crafted URL can only ever name a member of the published vocabulary.
+ */
+export function validateTaskFollowUpState(
+  value: unknown,
+): TaskFollowUpState | undefined {
+  return validateClosedSet(
+    value,
+    TASK_FOLLOW_UP_STATES,
+    "followUp",
+    "is not a known follow-up state",
   );
 }
 

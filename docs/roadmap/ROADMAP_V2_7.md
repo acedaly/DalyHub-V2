@@ -20,7 +20,7 @@
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
 **Programme status: IN PROGRESS.** RECALL-00 and RECALL-01 ☑ delivered
-2026-08-30, RECALL-02 ☑ delivered 2026-08-31; the two items after them are ☐. The
+2026-08-30, RECALL-02 and RECALL-03 ☑ delivered 2026-08-31; RECALL-04 is ☐. The
 programme decision is recorded as
 [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine) and every finding it is built on
 was re-measured against `main` at `0d08cd6` on 2026-08-30 — including the
@@ -914,17 +914,17 @@ needs to implement without re-auditing.
 
 ---
 
-### ☐ RECALL-03 — Commitments return when due
+### ☑ RECALL-03 — Commitments return when due — **delivered 2026-08-31**
 
 **A follow-up date the owner wrote down stops being write-only.**
 
 - **User problem.**
-  [DEBT-231](../product/PRODUCT_DEBT.md#-debt-231--followupon-is-stored-edited-and-exported-and-no-query-anywhere-reads-it--p2)
+  [DEBT-231](../product/PRODUCT_DEBT.md#-debt-231--followupon-is-stored-edited-and-exported-and-no-query-anywhere-reads-it--p2--resolved-2026-08-31)
   (P2): `followUpOn` is validated, edited, exported, restored — and no query
   in the product reads it. A delegated task's "chase this on Friday" is the
   sharpest case of the remember-for-me contract failing: an explicit, dated,
   owner-recorded commitment that only returns if the owner remembers to look.
-  Beside it, [DEBT-232](../product/PRODUCT_DEBT.md#-debt-232--todaywaiting-caps-at-100-and-states-the-truncated-count-as-fact--p3)
+  Beside it, [DEBT-232](../product/PRODUCT_DEBT.md#-debt-232--todaywaiting-caps-at-100-and-states-the-truncated-count-as-fact--p3--resolved-2026-08-31)
   (P3): `/today/waiting` silently caps at 100 and states the truncated count
   as fact.
 - **Outcome — the smallest model that makes the date live, and no new status:**
@@ -996,6 +996,165 @@ needs to implement without re-auditing.
   6. Workspace isolation with hostile rows on every new predicate; counting
      proofs; 393 px; `axe` clean.
 - **Closes.** DEBT-231, DEBT-232.
+- **Delivered 2026-08-31.** One `followUp` dimension in the one declarative
+  vocabulary, one fact on Today's existing waiting row, one suppressed digest
+  line, and a Waiting surface that pages — with **no migration**, no new Task
+  status, no new notification kind, no reminder engine and nothing from
+  RECALL-04 absorbed. The recorded decisions:
+
+  **One predicate, four consumers, and the diff contains no second definition.**
+  `followUpStatePredicate` (`d1-task-repository.ts`) is the only place
+  `task_details.follow_up_on` is compared to a day, and it is consumed by the
+  collection scope, the Waiting list, the Waiting count and — through them —
+  Today's rail and the digest. That is what makes the four numbers comparable as
+  MACHINE VALUES rather than as implementations that happen to agree, and it is
+  why the three-surface parity test can compare `filter.length`,
+  `waiting.followUpDue` and `digestFacts.waiting.followUpDue` directly.
+
+  **The vocabulary was reused, not invented.** `followUp` is shaped after
+  `dueState` — a derived state over a wall-calendar date, resolved against the
+  owner's day — and `followUpFrom`/`followUpTo` are the `dueFrom`/`dueTo` pair
+  unchanged. Five members: `due` (the actionable union of the next two),
+  `due_today`, `overdue`, `upcoming`, `none`. All three live in the ONE
+  `TaskViewConfig`, are bound into the keyset cursor signature, and round-trip
+  through a saved view and a shared link by construction. The control's label is
+  **Follow-up** and its members read "Due to chase…", deliberately: the
+  collection already has a **Due** control meaning the deadline, and two controls
+  sharing one word is the ambiguity ADR-114 decision 6 forbids elsewhere in this
+  programme.
+
+  **It is a filter, and there is still no `follow_up` Task status.** Asserted in
+  three layers: the control declaration offers no such status, the E2E confirms
+  the status vocabulary is unchanged in the running sheet, and the kernel
+  regression reads an overdue-chase Task back as an ordinary `todo`.
+
+  **"Due" is the owner's day, and it is falsified.** `follow_up_on` is a
+  `YYYY-MM-DD`, so the comparison is against `cal.today_iso` — the owner's
+  calendar day, already CROSS JOINed once per query for the due and planned
+  states. The same stored date and the same instant resolve differently for a
+  Sydney owner and a Los Angeles owner: due for one, upcoming for the other,
+  asserted through the collection, the Waiting list, the count and the digest
+  read. There is no naïve UTC day and no second timezone authority.
+
+  **The Today fact rides the row that already existed.** `AttentionItem` gained
+  one optional `detailAction` — a labelled segment with its OWN destination — so
+  the waiting row states "3 waiting items · oldest 4 days" and, beside it,
+  "1 follow-up due" linking to `/today/waiting?followUp=due`. No new card, no
+  new band, no new attention kind, and the segment is absent when nothing is due
+  (the rail has no "0 waiting" row and gains no "0 follow-ups" one). The
+  destination is the FILTERED surface: a count that stated a filtered number and
+  opened the whole collection would be the same class of untruth as the
+  truncated subtitle this item also repairs, and the regression asserts the two
+  hrefs differ.
+
+  **A review of this branch found the two waiting facts could contradict each
+  other, and it was right.** The rail's waiting COUNT was `page.items.length`,
+  bounded at `WAITING_LIMIT` (50), while the new follow-up count was an
+  unbounded aggregate — so a workspace past that bound could print *"50 waiting
+  items · 100 follow-ups due"*, a sentence that is not merely wrong but
+  impossible, and a direct contradiction of the subset relationship this item
+  documents. Codex raised it P2 on `de68638`. It is fixed at the source rather
+  than in the wording: `countWaitingTasks` returns `{ total, followUpDue }`
+  counted over the SAME rows of ONE statement, so the subset relationship is a
+  property of the SQL rather than a convention two reads have to remember — and
+  the rail's waiting count became AUTHORITATIVE as a side effect, which is the
+  same honesty DEBT-232 demanded of the Waiting subtitle. The statement budget
+  is unchanged (the total rides the aggregate that already existed), and the
+  60-waiting-Task regression asserts it in the rail and the digest alike:
+  restoring `page.items.length` reddens it with the exact 50-vs-60 symptom.
+  `oldestDays` still comes from the bounded page, deliberately untouched — an
+  age cannot contradict a count, and converging it is not this item's.
+
+  **The digest line is its own line, and its suppression is the existing rule.**
+  "2 follow-ups due" appears beside the waiting line when the count is non-zero
+  and is absent otherwise — never "0 follow-ups due". It reads
+  `facts.waiting.followUpDue`, the same field the rail renders; the roadmap's
+  own falsification (point it at `waiting.count`) reddens four assertions in
+  `digest.test.ts` and one in the kernel proof, over a fixture where the two
+  numbers deliberately differ.
+
+  **The Waiting pagination decision: KEYSET, not an honest bound.** The preferred
+  answer was taken because it was straightforward, and the reason it was
+  straightforward is worth recording — the ordering was ALREADY total (`e.id` is
+  the final tiebreaker), and the repository, the shared `useKeysetPagination`
+  hook and the shared `LoadMore` control all already existed for exactly this.
+  The four-part order (overdue → longest-waiting → dated-before-undated → due
+  date) is projected into ONE `char(1)`-separated comparable key, and the query
+  ORDERS BY that same expression — so the resume predicate and the ordering are
+  the same rule by construction rather than two rules kept in step. The 150-task
+  fixture proves it: six pages at 25, every row exactly once, none omitted, the
+  same order at page size 7 and at 200, and row 101 reachable. Breaking the
+  tie-break reddens three assertions. A cursor is rejected under another
+  workspace, another owner-day or another follow-up filter.
+
+  **The subtitle can no longer state a bound as a total.** `waitingSubtitle` (in
+  the pure view-model module, so it is unit-testable away from the route's
+  `cloudflare:workers` import) counts what is LOADED and says so while more
+  remain — *"Showing the first 50 waiting tasks — load more to see the rest."* —
+  and states a total only once the collection is exhausted. Removing that wording
+  reddens the named test. The page size moved 100 → 50 deliberately: a page is
+  now the first screenful rather than the whole answer.
+
+  **The no-navigation-entry decision stands, unrelitigated.** Waiting is still
+  reached from the attention rail and the palette. One command was ADDED beside
+  "Open Waiting" — "Open follow-ups due" — and it is a declarative navigation to
+  the same surface under the same filter parameter, not a private query: "due"
+  is resolved server-side against the owner's day, which is what lets a static
+  route string mean "today".
+
+  **Recurrence and reopen were MEASURED and pinned, not invented.**
+  `follow_up_on` lives on the delegation group, and `#buildSuccessorGroup`
+  already resets delegation on a recurrence successor — so the successor inherits
+  no chase date and the finished occurrence keeps its own. That existing rule is
+  now a regression (successor answers `none`, predecessor answers `overdue`).
+  Reopen leaves `follow_up_on` untouched and the Task answers its date again;
+  completion does not clear it either. Completion DOES clear waiting — the
+  existing `completeTask` rule, asserted in the same test so the two facts are
+  not confused.
+
+  **Export → restore proves the commitment is LIVE again, not merely stored.**
+  The round trip already carried the date; the new assertion runs the new
+  dimension against the RESTORED workspace and finds it, through the collection
+  filter, the count and the Waiting surface.
+
+  **The cost is what the item budgeted.** The derived state costs **zero**
+  additional binds (the owner's day is a joined column, not a fifth placeholder)
+  and the explicit window costs exactly **two**; statement count is unchanged
+  from the unfiltered baseline for the list and for the grouped read. The
+  Waiting count is ONE bounded aggregate at two binds. Today's pinned statement
+  budget moved **21 → 22** for that one read, updated deliberately with the
+  reasoning recorded in `today-review-door.test.ts`, `TODAY_DASHBOARD.md` and
+  here — it could not ride an existing statement, because counting follow-ups
+  over the bounded waiting PAGE would understate the fact on any workspace
+  holding more than 50 waiting Tasks, which is the same quiet untruth this item
+  removes from the subtitle.
+
+  **The index decision is measured, and the answer is no migration.**
+  `EXPLAIN QUERY PLAN` over the real follow-up count on real D1:
+  `SEARCH e USING INDEX entities_active_workspace_type_created_idx (workspace_id=? AND type=?)`
+  then `SEARCH td USING INDEX sqlite_autoindex_task_details_1 (workspace_id=? AND entity_id=?)`.
+  The workspace+type index narrows the candidate set and `task_details` is
+  reached by its composite PRIMARY KEY, so the follow-up comparison is a
+  predicate on an already-fetched row rather than a lookup of its own. A
+  `task_details(workspace_id, follow_up_on)` index would buy no measured read
+  while paying write amplification on every Task edit. The falsifier is recorded
+  and asserted: a plan that ever degrades to `SCAN td` reopens the decision.
+
+  **The Meeting lead-notice decision, recorded rather than omitted: NO.** Asked
+  at implementation time against the same evidence ADR-114 decision 5 records —
+  the digest already states today's schedule with times, Today's Now band
+  surfaces the next Meeting all day, both existing kinds are day-granularity
+  where a lead notice is minute-granularity, and CAL-01 events come from external
+  calendars that already notify. Nothing found while implementing overturned it,
+  so `NOTIFICATION_KINDS` remains the closed set of two: no `meeting_lead`, no
+  countdown, no new evaluator precision. The reversal condition is unchanged —
+  an owner-stated need, weighed against the same evidence, in its own decision.
+  Written up in [`NOTIFICATIONS.md`](../development/NOTIFICATIONS.md#the-meeting-lead-notice-asked-and-answered-no-v27-recall-03)
+  so it cannot read as an accidental omission.
+
+  **Scope guard held.** DEBT-215/216/219/220/221 are untouched; no RECALL-04
+  work, no People follow-up cadence (DEBT-44), no snooze, no generic reminders,
+  no Today redesign.
 
 ---
 
@@ -1242,8 +1401,8 @@ disposition here and on the entry. **This pass raised DEBT-222 … DEBT-235**
 | **DEBT-228** — Reviews collection offers a guide the guide refuses | P3 | **Raised · RECALL-00-G** |
 | **DEBT-229** — Search matches titles, never content | P2 | **Raised · RECALL-01 · ☑ CLOSED 2026-08-30** |
 | **DEBT-230** — completed work not retrievable by time; Completed label vs sort | P2 | **Raised · RECALL-02 · ☑ CLOSED 2026-08-31** |
-| **DEBT-231** — `followUpOn` write-only | P2 | **Raised · RECALL-03** |
-| **DEBT-232** — `/today/waiting` bounded page presented as complete | P3 | **Raised · RECALL-03** |
+| **DEBT-231** — `followUpOn` write-only | P2 | **Raised · RECALL-03 · ☑ CLOSED 2026-08-31** |
+| **DEBT-232** — `/today/waiting` bounded page presented as complete | P3 | **Raised · RECALL-03 · ☑ CLOSED 2026-08-31** |
 | **DEBT-233** — no meetings-today fact; `dayChips` dead | P3 | **Raised · RECALL-04** |
 | **DEBT-234** — four "on track"/"moving" predicates; optimistic health default in snapshots | P2 | **Raised · RECALL-04** |
 | **DEBT-235** — period context today-anchored, bounded before its filter | P2 | **Raised · RECALL-04** |

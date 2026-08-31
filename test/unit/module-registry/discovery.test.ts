@@ -717,6 +717,9 @@ describe("module discovery", () => {
       expect(registry.listCommands().map((c) => c.id)).toEqual([
         "today.open",
         "today.open_waiting",
+        // V2.7 RECALL-03 — the follow-ups-due destination, which is the same
+        // Waiting surface narrowed by the one declarative follow-up filter.
+        "today.open_follow_ups_due",
         // PLAN-01 — two NAVIGATION commands, so "plan next week" is a sentence the
         // palette answers.
         "plan.open",

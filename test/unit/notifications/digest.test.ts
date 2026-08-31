@@ -20,7 +20,7 @@ const QUIET: DigestFacts = {
   dueToday: 0,
   overdue: 0,
   inboxCount: 0,
-  waiting: { count: 0, oldestDays: null },
+  waiting: { count: 0, oldestDays: null, followUpDue: 0 },
   assets: { visibleCount: 0, first: null },
   projects: [],
   events: [],
@@ -38,7 +38,9 @@ describe("an empty digest is not sent", () => {
       { ...QUIET, dueToday: 1 },
       { ...QUIET, overdue: 1 },
       { ...QUIET, inboxCount: 1 },
-      { ...QUIET, waiting: { count: 1, oldestDays: 3 } },
+      { ...QUIET, waiting: { count: 1, oldestDays: 3, followUpDue: 0 } },
+      // V2.7 RECALL-03 — a due follow-up is on its own worth saying.
+      { ...QUIET, waiting: { count: 1, oldestDays: 3, followUpDue: 1 } },
       {
         ...QUIET,
         assets: {
@@ -70,7 +72,7 @@ describe("what the digest says", () => {
       dueToday: 3,
       overdue: 2,
       inboxCount: 4,
-      waiting: { count: 2, oldestDays: 9 },
+      waiting: { count: 2, oldestDays: 9, followUpDue: 0 },
       assets: { visibleCount: 3, first: null },
       projects: [
         { title: "Kitchen renovation", statusLabel: "At risk" },
@@ -89,6 +91,70 @@ describe("what the digest says", () => {
       "3 asset obligations need attention",
       "2 projects need a look: Kitchen renovation (At risk) · Website (Stale)",
     ]);
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* V2.7 RECALL-03 — the follow-ups-due line                            */
+  /* ------------------------------------------------------------------ */
+
+  it("states follow-ups due on their own line, exactly once", () => {
+    const digest = renderDigest({
+      ...QUIET,
+      waiting: { count: 5, oldestDays: 12, followUpDue: 2 },
+    });
+    const lines = digest?.body.split("\n") ?? [];
+    // Two facts, two lines, in the rail's order: what is ageing, then what has
+    // come due. Never merged, and never stated twice.
+    expect(lines).toEqual([
+      "5 waiting items · oldest 12 days",
+      "2 follow-ups due",
+    ]);
+    expect(lines.filter((line) => line.includes("follow-up"))).toHaveLength(1);
+  });
+
+  it("says one follow-up in the singular", () => {
+    const digest = renderDigest({
+      ...QUIET,
+      waiting: { count: 1, oldestDays: 1, followUpDue: 1 },
+    });
+    expect(digest?.body).toContain("1 follow-up due");
+  });
+
+  /**
+   * THE SUPPRESSION RULE, applied to the new fact.
+   *
+   * The digest has no "0 overdue" line and no "all projects on track" line
+   * because a channel that speaks when there is nothing to report teaches the
+   * owner to stop reading it. A "0 follow-ups due" line would be exactly that,
+   * and this is the assertion that forbids it.
+   */
+  it("renders NO follow-up line when none are due", () => {
+    const digest = renderDigest({
+      ...QUIET,
+      waiting: { count: 4, oldestDays: 6, followUpDue: 0 },
+    });
+    expect(digest?.body).toContain("4 waiting items");
+    expect(digest?.body).not.toContain("follow-up");
+    expect(digest?.body).not.toContain("0 follow-ups");
+  });
+
+  /**
+   * FALSIFICATION 2 (the roadmap's own): point the follow-up line at
+   * `waiting.count`.
+   *
+   * The two fields are adjacent by design — they are two facts about one
+   * population — and the specific mistake that adjacency invites is rendering
+   * the GENERIC waiting total under follow-up words. This fixture makes the two
+   * numbers differ, so a renderer reading `count` would print "9 follow-ups
+   * due" here and fail.
+   */
+  it("falsifies a follow-up line pointed at the generic waiting count", () => {
+    const digest = renderDigest({
+      ...QUIET,
+      waiting: { count: 9, oldestDays: 30, followUpDue: 2 },
+    });
+    expect(digest?.body).toContain("2 follow-ups due");
+    expect(digest?.body).not.toContain("9 follow-ups due");
   });
 
   it("names a single obligation rather than counting it", () => {
@@ -120,7 +186,7 @@ describe("what the digest says", () => {
       ...QUIET,
       dueToday: 1,
       inboxCount: 1,
-      waiting: { count: 1, oldestDays: 1 },
+      waiting: { count: 1, oldestDays: 1, followUpDue: 0 },
       projects: [{ title: "Kitchen", statusLabel: "Stale" }],
     });
     expect(digest?.body).toContain("1 task for today");

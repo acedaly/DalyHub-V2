@@ -128,6 +128,52 @@ nothing. Silence has to mean something: a daily "nothing needs attention" is the
 fastest way to teach the owner to stop reading the channel, at which point the one
 morning it matters is the one they ignore.
 
+### The follow-ups-due line (V2.7 RECALL-03)
+
+One line, beside the waiting line, when the owner has recorded a chase date that
+has arrived: **"2 follow-ups due"**. It obeys the suppression rule above exactly
+— no follow-ups due, no line, and never "0 follow-ups due".
+
+It is its OWN line rather than a clause on the waiting line because it answers a
+different question with a different action: "two things are outstanding" is
+ageing, "one of them you said you would chase today" is a commitment that has
+come due.
+
+The number is `facts.waiting.followUpDue`, the SAME field Today's attention rail
+renders, from the same shared facts layer and the same `followUp: "due"`
+predicate in the one declarative Task vocabulary
+([`TASKS_MODULE.md` → Filters](TASKS_MODULE.md#filters)). Reading
+`facts.waiting.count` here instead would state the generic waiting total under
+follow-up words — the specific untruth
+[`digest.test.ts`](../../test/unit/notifications/digest.test.ts) falsifies, and
+the reason the two counts are asserted to DIFFER on a fixture where they do.
+
+### The meeting lead notice: asked, and answered NO (V2.7 RECALL-03)
+
+The question RECALL-03 was required to decide rather than omit: *is an upcoming
+Meeting with a known time an explicit enough commitment to justify one calm lead
+notice through the existing evaluator?* The recorded answer is **no**, and
+`NOTIFICATION_KINDS` remains the closed set of two
+([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
+decision 5). The evidence, re-checked at implementation time and unchanged:
+
+- the digest **already states today's schedule with times** each morning (the
+  events line, up to three named — see the renderer above);
+- Today's Now band surfaces the next upcoming Meeting all day, so the commitment
+  already reaches the owner twice;
+- both existing kinds are **day-granularity**; a lead notice is
+  **minute-granularity** — a genuinely new precision class, with its own
+  evaluator timing, its own dedupe shape and its own failure modes;
+- CAL-01 events come from external calendars **that already notify**, so a third
+  channel carries a real duplicate-noise risk with no calm mitigation;
+- it is the first step toward the per-event reminder engine this product has
+  explicitly refused (see *Not built, deliberately* below).
+
+Nothing about the implementation overturned that reasoning, so nothing was
+added: no `meeting_lead` kind, no countdown, no new evaluator precision. **The
+reversal condition** is the one ADR-114 records — an owner-stated need, weighed
+against this same evidence, in its own decision.
+
 ---
 
 ## Event sources
@@ -270,7 +316,9 @@ A generic outbound webhook · per-task "remind me at" reminders · Web Push
 contract they would implement · notification grouping, snoozing or actions · read
 tracking beyond `read_at` · quiet hours (there is nothing to be quiet about — the
 digest goes once a day and a rung fires at most three times in an obligation's
-life) · any AI involvement.
+life) · any AI involvement · **a Meeting lead notice** (V2.7 RECALL-03 evaluated
+it and recorded NO, [above](#the-meeting-lead-notice-asked-and-answered-no-v27-recall-03))
+· per-event overdue nagging.
 
 ---
 

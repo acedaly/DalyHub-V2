@@ -24,6 +24,7 @@ import { parseTagFilterKeys } from "~/kernel/tags";
 import {
   TASK_COMPLETED_VISIBILITIES,
   TASK_DUE_STATES,
+  TASK_FOLLOW_UP_STATES,
   TASK_PARENT_KINDS,
   TASK_PLANNED_STATES,
   TASK_PRIORITIES,
@@ -35,6 +36,7 @@ import {
   TIME_SECTORS,
   type TaskCompletedVisibility,
   type TaskDueState,
+  type TaskFollowUpState,
   type TaskParentKind,
   type TaskPlannedState,
   type TaskPriority,
@@ -154,6 +156,26 @@ export interface TaskViewFilters {
   readonly completedWithin?: TaskRecencyWindow;
   readonly completedFrom?: string;
   readonly completedTo?: string;
+  /**
+   * V2.7 RECALL-03 — the FOLLOW-UP dimension (DEBT-231).
+   *
+   * `task_details.follow_up_on` — the chase date on a Task's delegation group —
+   * has been stored, validated, edited, exported and restored since migration
+   * 0012 with no query anywhere reading it. This is the one place the product
+   * learns to ask about it, and it is deliberately a member of THIS declaration
+   * rather than a parallel filter model: it round-trips through a saved view, a
+   * shared link and the keyset cursor by construction, exactly as every
+   * dimension above it does.
+   *
+   * `followUp` is the derived state ({@link TaskFollowUpState}) against the
+   * owner's calendar day, shaped after `dueState`; `followUpFrom`/`followUpTo`
+   * are the explicit `YYYY-MM-DD` pair the due and planned ranges model. There
+   * is no new Task status here — a follow-up is a DATE, and the Task keeps the
+   * lifecycle it already had (ADR-114 decision 5).
+   */
+  readonly followUp?: TaskFollowUpState;
+  readonly followUpFrom?: string;
+  readonly followUpTo?: string;
   /**
    * PLAN-01 / SMART-01 — explicit DATE-RANGE bounds, `YYYY-MM-DD`.
    *
@@ -389,6 +411,15 @@ export function parseTaskViewConfig(raw: unknown): TaskViewConfig {
   if (completedFrom) filters.completedFrom = completedFrom;
   const completedTo = dateBound(rawFilters.completedTo);
   if (completedTo) filters.completedTo = completedTo;
+  // V2.7 RECALL-03 — parsed exactly like the derived due state and the due
+  // range it reuses: one closed-set member and two validated wall-calendar
+  // bounds, each DROPPED rather than thrown on when unusable.
+  const followUp = member(rawFilters.followUp, TASK_FOLLOW_UP_STATES);
+  if (followUp) filters.followUp = followUp;
+  const followUpFrom = dateBound(rawFilters.followUpFrom);
+  if (followUpFrom) filters.followUpFrom = followUpFrom;
+  const followUpTo = dateBound(rawFilters.followUpTo);
+  if (followUpTo) filters.followUpTo = followUpTo;
   const dueFrom = dateBound(rawFilters.dueFrom);
   if (dueFrom) filters.dueFrom = dueFrom;
   const dueTo = dateBound(rawFilters.dueTo);
@@ -486,6 +517,9 @@ export const TASK_VIEW_FILTER_KEYS = [
   "completedWithin",
   "completedFrom",
   "completedTo",
+  "followUp",
+  "followUpFrom",
+  "followUpTo",
   "dueFrom",
   "dueTo",
   "plannedFrom",

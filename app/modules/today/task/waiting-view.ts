@@ -12,6 +12,7 @@
 
 import type {
   CommitmentState,
+  TaskFollowUpState,
   TaskPriority,
   TaskRelation,
   TaskStatus,
@@ -21,6 +22,7 @@ import type {
 import {
   formatWaitingElapsed,
   formatWaitingSince,
+  relativeCalendarDate,
   taskDateLabel,
   waitingSubjectLabel,
   type SerializedTaskWaiting,
@@ -46,6 +48,20 @@ export interface WaitingCardData {
     readonly label: string;
     readonly tone?: "danger";
   } | null;
+  /**
+   * V2.7 RECALL-03 — the delegation group's chase date, in the owner's words
+   * ("Today", "Yesterday", "Friday", "12 Sep 2026"), or null when none is set.
+   *
+   * The card states it so a follow-up-filtered page says WHY each row is in it,
+   * and so the unfiltered page surfaces a commitment the owner recorded and had
+   * no way of seeing. `overdue` is the relative-date vocabulary's own judgement
+   * against the owner's calendar day — the same one the due label uses — so the
+   * two dates on a row cannot disagree about what "today" means.
+   */
+  readonly followUpLabel: {
+    readonly label: string;
+    readonly overdue: boolean;
+  } | null;
 }
 
 /**
@@ -64,11 +80,13 @@ export function toWaitingCardData(
     readonly scheduledDate: string | null;
     readonly parent: TaskRelation | null;
     readonly waiting: SerializedTaskWaiting;
+    readonly followUpOn: string | null;
   },
   nowMs: number,
   todayIso: string,
 ): WaitingCardData {
   const subject = item.waiting.subject;
+  const followUp = relativeCalendarDate(item.followUpOn, todayIso);
   return {
     id: item.id,
     title: item.title,
@@ -96,6 +114,10 @@ export function toWaitingCardData(
       },
       todayIso,
     ),
+    followUpLabel:
+      followUp === null
+        ? null
+        : { label: followUp.label, overdue: followUp.urgency === "overdue" },
   };
 }
 
@@ -110,6 +132,8 @@ export interface SerializedWaitingTaskItem {
   readonly scheduledDate: string | null;
   readonly parent: TaskRelation | null;
   readonly waiting: SerializedTaskWaiting;
+  /** V2.7 RECALL-03 — the delegation group's chase date (`YYYY-MM-DD`), or null. */
+  readonly followUpOn: string | null;
 }
 
 /** Serialise a kernel `WaitingTaskListItem` for a JSON loader response. */
@@ -129,7 +153,53 @@ export function serializeWaitingItem(
       since: item.waiting.since.toISOString(),
       subject: item.waiting.subject,
     },
+    followUpOn: item.followUpOn,
   };
+}
+
+/** How each follow-up state describes the population it narrows a page to. */
+const FOLLOW_UP_SUBTITLES: Record<TaskFollowUpState, string> = {
+  due: "with a follow-up due",
+  due_today: "with a follow-up due today",
+  overdue: "with an overdue follow-up",
+  upcoming: "with a follow-up still to come",
+  none: "with no follow-up date",
+};
+
+/**
+ * V2.7 RECALL-03 — the Waiting subtitle, which may only ever state a number the
+ * surface can actually show (DEBT-232).
+ *
+ * This is the whole of that debt. The old line read
+ * "`${count} tasks are waiting…`" over a page capped at 100, so a workspace with
+ * 150 waiting Tasks was told it had 100 — the truncated bound presented as the
+ * population, on the surface whose entire job is "what am I waiting on".
+ *
+ * It now counts what is LOADED and says so while more remain: true after the
+ * first page, true after each "Load more", and true once the collection is
+ * exhausted — without a second COUNT query to keep in step with the list. It
+ * lives here, beside the other Waiting derivations and away from the route's
+ * `cloudflare:workers` import, so it can be unit-tested directly.
+ */
+export function waitingSubtitle(input: {
+  /** How many rows the surface is actually showing. */
+  readonly loaded: number;
+  /** Whether a further page exists behind the cursor. */
+  readonly hasMore: boolean;
+  /** The follow-up filter narrowing the page, or null. */
+  readonly followUp: TaskFollowUpState | null;
+  readonly failed: boolean;
+}): string {
+  if (input.failed) return "We couldn’t load your waiting tasks.";
+  const qualifier =
+    input.followUp === null ? "" : ` ${FOLLOW_UP_SUBTITLES[input.followUp]}`;
+  if (input.hasMore) {
+    return `Showing the first ${input.loaded} waiting tasks${qualifier} — load more to see the rest.`;
+  }
+  if (input.loaded === 1) {
+    return `1 task is waiting on someone or something else${qualifier}.`;
+  }
+  return `${input.loaded} tasks are waiting on someone or something else${qualifier}.`;
 }
 
 /** A single preview row in the Today Waiting summary (display strings only). */
