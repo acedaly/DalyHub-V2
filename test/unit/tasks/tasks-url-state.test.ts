@@ -291,3 +291,66 @@ describe("TASKS-12 — the blocked dimension in the URL", () => {
     expect(TASKS_FILTER_PARAM_NAMES).toContain("blocked");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* V2.7 RECALL-03 — the follow-up dimension in the URL                         */
+/* -------------------------------------------------------------------------- */
+
+describe("V2.7 RECALL-03 — the follow-up dimension in the URL", () => {
+  it("round-trips the state and the explicit window, writing no residue for absence", () => {
+    const original = config({
+      systemView: "waiting",
+      filters: {
+        followUp: "due",
+        followUpFrom: "2026-08-01",
+        followUpTo: "2026-08-31",
+      },
+    });
+    const params = paramsFromConfig(original);
+    expect(params.get("followUp")).toBe("due");
+    expect(params.get("followUpFrom")).toBe("2026-08-01");
+    expect(params.get("followUpTo")).toBe("2026-08-31");
+    expect(taskViewConfigsEqual(configFromParams(params), original)).toBe(true);
+
+    // No filter, no parameter: a shared link stays legible.
+    expect(paramsFromConfig(config({ filters: {} })).has("followUp")).toBe(
+      false,
+    );
+  });
+
+  it("drops an unrecognised value rather than inventing a state", () => {
+    const decoded = configFromParams(
+      new URLSearchParams(
+        "followUp=whenever&followUpFrom=2026-02-31&followUpTo=nope",
+      ),
+    );
+    expect(decoded.filters.followUp).toBeUndefined();
+    // `2026-02-31` does not exist, so it is dropped rather than rolled forward.
+    expect(decoded.filters.followUpFrom).toBeUndefined();
+    expect(decoded.filters.followUpTo).toBeUndefined();
+  });
+
+  it("is translated for the repository through the ONE filter translation", () => {
+    expect(
+      toWorkspaceFilters(
+        config({
+          filters: {
+            followUp: "overdue",
+            followUpFrom: "2026-08-01",
+            followUpTo: "2026-08-31",
+          },
+        }),
+      ),
+    ).toEqual({
+      followUp: "overdue",
+      followUpFrom: "2026-08-01",
+      followUpTo: "2026-08-31",
+    });
+  });
+
+  it("is cleared by a filter RESET, like every other filter parameter", () => {
+    for (const name of ["followUp", "followUpFrom", "followUpTo"]) {
+      expect(TASKS_FILTER_PARAM_NAMES).toContain(name);
+    }
+  });
+});

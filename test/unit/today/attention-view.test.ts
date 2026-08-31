@@ -70,6 +70,73 @@ describe("inclusion — an item type appears only when its condition holds", () 
     expect(rail[0]?.detail).toBe("1 waiting item");
   });
 
+  /* ------------------------------------------------------------------ */
+  /* V2.7 RECALL-03 — the follow-up fact on the EXISTING waiting row      */
+  /* ------------------------------------------------------------------ */
+
+  it("adds the follow-up fact to the waiting row, with its own filtered link", () => {
+    const rail = buildAttention(
+      input({ waiting: { count: 3, oldestDays: 4, followUpDue: 1 } }),
+    );
+    // ONE row, the one that already existed: no new card, no new band, no new
+    // attention kind (ADR-114 decision 5).
+    expect(rail).toHaveLength(1);
+    expect(rail[0]?.kind).toBe("waiting");
+    // The two machine facts stay DISTINCT: the row's own detail is still the
+    // waiting fact, and the follow-up count is its own labelled segment.
+    expect(rail[0]?.detail).toBe("3 waiting items · oldest 4 days");
+    expect(rail[0]?.href).toBe("/today/waiting");
+    expect(rail[0]?.detailAction).toEqual({
+      label: "1 follow-up due",
+      href: "/today/waiting?followUp=due",
+    });
+  });
+
+  it("pluralises the follow-up count and never states zero", () => {
+    expect(
+      buildAttention(input({ waiting: { count: 5, oldestDays: 2, followUpDue: 3 } }))[0]
+        ?.detailAction?.label,
+    ).toBe("3 follow-ups due");
+    // The rail has no "0 waiting" row and gains no "0 follow-ups" segment: a
+    // surface that speaks when there is nothing to report teaches the owner to
+    // stop reading it.
+    expect(
+      buildAttention(input({ waiting: { count: 5, oldestDays: 2, followUpDue: 0 } }))[0]
+        ?.detailAction,
+    ).toBeUndefined();
+  });
+
+  /**
+   * FALSIFICATION — the follow-up count must not link to the unfiltered list.
+   *
+   * A segment that STATES a filtered number while OPENING the whole waiting
+   * collection is the same class of untruth as a truncated count presented as a
+   * total. The destination is the declarative filter's own address, and this is
+   * what stops it quietly becoming `/today/waiting`.
+   */
+  it("never links a filtered count at the unfiltered collection", () => {
+    const rail = buildAttention(
+      input({ waiting: { count: 8, oldestDays: 20, followUpDue: 2 } }),
+    );
+    expect(rail[0]?.detailAction?.href).not.toBe(rail[0]?.href);
+    expect(rail[0]?.detailAction?.href).toContain("followUp=due");
+  });
+
+  it("carries no follow-up segment on any other row kind", () => {
+    const rail = buildAttention(
+      input({
+        inboxCount: 2,
+        waiting: { count: 1, oldestDays: 1, followUpDue: 1 },
+        projects: [{ id: "p1", title: "Kitchen", statusLabel: "At risk" }],
+        goals: [{ id: "g1", title: "Fitness", statusLabel: "No recent action" }],
+      }),
+    );
+    for (const item of rail) {
+      if (item.kind === "waiting") continue;
+      expect(item.detailAction).toBeUndefined();
+    }
+  });
+
   it("includes asset obligations only when one is not already represented by an open task", () => {
     expect(
       buildAttention(

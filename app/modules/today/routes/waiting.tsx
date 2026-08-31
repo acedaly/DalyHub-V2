@@ -65,6 +65,7 @@ import { toWaitingCardProps } from "../task/WaitingTaskCard";
 import {
   serializeWaitingItem,
   toWaitingCardData,
+  waitingSubtitle,
   type SerializedWaitingTaskItem,
 } from "../task/waiting-view";
 import {
@@ -94,15 +95,6 @@ export function meta() {
  * a page is now the first screenful rather than the whole answer.
  */
 const WAITING_PAGE_SIZE = 50;
-
-/** How each follow-up state describes the population it narrows the page to. */
-const FOLLOW_UP_SUBTITLES: Record<TaskFollowUpState, string> = {
-  due: "with a follow-up due",
-  due_today: "with a follow-up due today",
-  overdue: "with an overdue follow-up",
-  upcoming: "with a follow-up still to come",
-  none: "with no follow-up date",
-};
 
 export async function loader({ context, request }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
@@ -210,34 +202,6 @@ function selectWaitingPage(data: WaitingPageData) {
 
 function waitingItemId(item: SerializedWaitingTaskItem): string {
   return item.id;
-}
-
-/**
- * The subtitle, which may only ever state a number the surface can actually
- * show.
- *
- * This is the whole of DEBT-232. The old line said "`${count} tasks are waiting`"
- * over a page capped at 100, so a workspace with 150 waiting tasks was told it
- * had 100. It now counts what is LOADED and says so when more remain — a
- * statement that is true after the first page, true after "Load more", and true
- * once the collection is exhausted, without a second COUNT query to keep in step.
- */
-export function waitingSubtitle(input: {
-  readonly loaded: number;
-  readonly hasMore: boolean;
-  readonly followUp: TaskFollowUpState | null;
-  readonly failed: boolean;
-}): string {
-  if (input.failed) return "We couldn’t load your waiting tasks.";
-  const qualifier =
-    input.followUp === null ? "" : ` ${FOLLOW_UP_SUBTITLES[input.followUp]}`;
-  if (input.hasMore) {
-    return `Showing the first ${input.loaded} waiting tasks${qualifier} — load more to see the rest.`;
-  }
-  if (input.loaded === 1) {
-    return `1 task is waiting on someone or something else${qualifier}.`;
-  }
-  return `${input.loaded} tasks are waiting on someone or something else${qualifier}.`;
 }
 
 function WaitingCollection({

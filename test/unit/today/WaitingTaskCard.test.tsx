@@ -84,3 +84,39 @@ describe("Waiting collection card — shared priority signal (TASKS-02)", () => 
     expect(open).toHaveAttribute("href", "?drawer=task:t1");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* V2.7 RECALL-03 — the chase date on the card                                 */
+/* -------------------------------------------------------------------------- */
+
+describe("V2.7 RECALL-03 — the follow-up date", () => {
+  it("is absent from a card with no chase date", () => {
+    renderWaitingCard(waitingCard());
+    expect(screen.queryByText(/^Follow up/)).toBeNull();
+  });
+
+  it("states the chase date, so a filtered page says WHY each row is in it", () => {
+    renderWaitingCard(
+      waitingCard({ followUpLabel: { label: "Today", overdue: false } }),
+    );
+    expect(screen.getByText(/^Follow up/)).toBeInTheDocument();
+    expect(screen.getByText("Today")).toBeInTheDocument();
+  });
+
+  it("carries the WORD for an overdue chase, never colour alone", () => {
+    renderWaitingCard(
+      waitingCard({ followUpLabel: { label: "Yesterday", overdue: true } }),
+    );
+    // The label itself says the state, so nothing is lost without the tint.
+    const value = screen.getByText("Yesterday");
+    expect(value).toHaveAttribute("data-overdue", "true");
+  });
+
+  it("keeps the waiting metadata it already had", () => {
+    renderWaitingCard(
+      waitingCard({ followUpLabel: { label: "Friday", overdue: false } }),
+    );
+    expect(screen.getByText(/^Waiting for/)).toBeInTheDocument();
+    expect(screen.getByText(/^Since/)).toBeInTheDocument();
+  });
+});
