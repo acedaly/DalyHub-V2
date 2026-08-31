@@ -558,15 +558,28 @@ or link system.
   navigation commands are registered.
 - **One definition, three surfaces.** The follow-up count is
   `WaitingFacts.followUpDue` in the SHARED attention-facts layer
-  (`attention-facts.server.ts`), read once from
-  `countWaitingTasks({ followUp: "due" })` — ONE bounded, workspace-scoped
-  aggregate, never a bounded page counted in JavaScript. Today's rail and the
-  daily digest both render THAT field, so the screen and the notification cannot
-  state different numbers on one morning; the parity is asserted by comparing
-  machine values in `test/kernel/recall-03-commitments-due.test.ts`, and pointing
-  the digest line at the generic `waiting.count` reddens a named test. Today's
-  pinned statement budget moved **21 → 22** for this one read, deliberately (see
-  below).
+  (`attention-facts.server.ts`), read from `countWaitingTasks` — ONE bounded,
+  workspace-scoped aggregate, never a bounded page counted in JavaScript.
+  Today's rail and the daily digest both render THAT field, so the screen and
+  the notification cannot state different numbers on one morning; the parity is
+  asserted by comparing machine values in
+  `test/kernel/recall-03-commitments-due.test.ts`, and pointing the digest line
+  at the generic `waiting.count` reddens a named test. Today's pinned statement
+  budget moved **21 → 22** for this one read, deliberately (see below).
+- **The waiting TOTAL comes from the same statement, and that matters.** It used
+  to be `page.items.length`, bounded by `WAITING_LIMIT` (50) — survivable while
+  it was the only number on the row, and not survivable the moment a follow-up
+  count stood beside it: an unbounded subset beside a page-length total prints
+  *"50 waiting items · 100 follow-ups due"*, which is not merely wrong but
+  impossible, and contradicts the subset relationship the fact is documented to
+  have. Found by a review of the RECALL-03 branch (Codex, P2). `countWaitingTasks`
+  therefore returns `{ total, followUpDue }` counted over the SAME rows of ONE
+  statement, so the relationship is a property of the SQL rather than a
+  convention two reads have to remember — and the rail's waiting count became
+  authoritative as a side effect. The 60-waiting-Task regression asserts it;
+  restoring `page.items.length` reddens it with the exact 50-vs-60 symptom.
+  `oldestDays` is still read from the bounded page, unchanged: it is an age
+  rather than a count, so it cannot contradict a count.
 - **Activity.** Three new types (`task.waiting_started`, `task.waiting_changed`,
   `task.waiting_cleared`) are registered on the **tasks** module manifest with DS-05
   Timeline descriptors. Payloads are structured and safe; free-text content is never
@@ -925,8 +938,9 @@ second Reviews read — or one that varies with the door's state — fails the s
 
 **MEASURED again at 22 (V2.7 RECALL-03).** The attention rail's waiting row
 learned ONE additional fact — how many waiting Tasks have a follow-up due — and
-it costs exactly one bounded aggregate (`countWaitingTasks`), read in parallel
-beside the waiting page inside `readWaiting`. The roadmap budgeted "at most one
+it costs exactly one bounded aggregate (`countWaitingTasks`, which carries both
+the waiting total and the follow-ups due), read in parallel beside the waiting
+page inside `readWaiting`. The roadmap budgeted "at most one
 bounded count read" and required the pinned figure to be updated *deliberately,
 never quietly*; this paragraph and the comment above the constant are that
 update.

@@ -106,6 +106,7 @@ export {
   type TaskActivityDayWindow,
   type ListWaitingTasksInput,
   type CountWaitingTasksInput,
+  type WaitingCounts,
   type WaitingTaskListItem,
   type WaitingTaskPage,
   type PlanTaskInput,

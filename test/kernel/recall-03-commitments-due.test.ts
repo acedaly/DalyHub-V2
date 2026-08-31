@@ -61,7 +61,10 @@ import {
   parseWaitingFollowUp,
   waitingFollowUpHref,
 } from "~/modules/today/waiting-destination";
-import { readWaiting } from "~/platform/attention/attention-facts.server";
+import {
+  WAITING_LIMIT,
+  readWaiting,
+} from "~/platform/attention/attention-facts.server";
 import {
   buildWorkspaceSnapshot,
   buildStructuredExportArchive,
@@ -413,6 +416,101 @@ describe("one seeded commitment reaches the filter, Today and the digest", () =>
 });
 
 /* -------------------------------------------------------------------------- */
+/* A2. The two waiting facts cannot contradict each other                      */
+/* -------------------------------------------------------------------------- */
+
+describe("the waiting total and the follow-ups due are one population", () => {
+  /**
+   * The defect a review of this branch (Codex, P2) found, as a regression.
+   *
+   * Today's rail read its waiting COUNT from a page bounded at `WAITING_LIMIT`
+   * (50) while the follow-up count was an unbounded aggregate. Above that bound
+   * the two disagree in a way that is not merely wrong but IMPOSSIBLE — "50
+   * waiting items · 60 follow-ups due" — and it directly contradicts the subset
+   * relationship the fact is documented to have.
+   *
+   * The fixture is deliberately just over the bound: 60 waiting Tasks, every one
+   * of them with a follow-up due today. Before the fix `count` is 50 and
+   * `followUpDue` is 60; after it, both are 60, because both are counted over
+   * the same rows of one statement.
+   */
+  const SEEDED = 60;
+
+  async function seedPastTheRailsPageSize() {
+    const area = await spineRepo(WS).createArea({ title: "Ops" });
+    const clock = new FakeClock("2026-08-01T00:00:00.000Z");
+    const tasks = makeTaskRepository(makeContext(WS), {
+      clock: clock.now,
+      idGenerator: nextEntityId,
+      activityIdGenerator: nextActivityId,
+    });
+    for (let i = 0; i < SEEDED; i += 1) {
+      const task = await tasks.createTask({
+        title: `Chase ${String(i).padStart(3, "0")}`,
+        parent: { kind: "area", id: area.id },
+      });
+      await tasks.updateTask(task.id, {
+        delegation: { to: "Sam", delegatedOn: "2026-08-01", followUpOn: TODAY },
+      });
+      await tasks.setWaiting(task.id, {
+        target: { kind: "text", note: `party ${i}` },
+      });
+      clock.advance(60_000);
+    }
+  }
+
+  it("never states more follow-ups due than there are waiting items", async () => {
+    await seedPastTheRailsPageSize();
+    const facts = await readWaiting(scopeFor(), TODAY, SYDNEY);
+
+    // Both are the WHOLE population, not the rail's page.
+    expect(facts.count).toBe(SEEDED);
+    expect(facts.followUpDue).toBe(SEEDED);
+    // The documented relationship, asserted as an inequality so it holds for
+    // every fixture rather than only for this one.
+    expect(facts.followUpDue).toBeLessThanOrEqual(facts.count);
+    // And the specific sentence that must never be printable.
+    expect(facts.count).toBeGreaterThan(WAITING_LIMIT);
+  });
+
+  it("says the same thing in the digest, from the same read", async () => {
+    await seedPastTheRailsPageSize();
+    const digest = await readDigestFacts(scopeFor(), {
+      now: new Date(`${TODAY}T23:00:00.000Z`),
+      timeZone: SYDNEY,
+      localDate: TODAY,
+    });
+    expect(digest.waiting.count).toBe(SEEDED);
+    expect(digest.waiting.followUpDue).toBe(SEEDED);
+    expect(digest.waiting.followUpDue).toBeLessThanOrEqual(
+      digest.waiting.count,
+    );
+  });
+
+  it("counts both facts in ONE statement, over the same rows", async () => {
+    await seedPastTheRailsPageSize();
+    const counter = countedDb();
+    const repo = createTaskRepository(counter.db, makeContext(WS), {});
+    counter.reset();
+    const counts = await repo.countWaitingTasks({ todayIso: TODAY });
+    // One statement is what makes the subset relationship a property of the SQL
+    // rather than of a convention two call sites have to remember.
+    expect(counter.statements()).toBe(1);
+    expect(counter.binds()).toBe(2);
+    expect(counts).toEqual({ total: SEEDED, followUpDue: SEEDED });
+  });
+
+  it("keeps the subset strict when only some are due", async () => {
+    const area = await spineRepo(WS).createArea({ title: "Ops" });
+    await seedFollowUp(WS, area.id, "Due", TODAY);
+    await seedFollowUp(WS, area.id, "Later", TOMORROW);
+    await seedFollowUp(WS, area.id, "None", null);
+    const counts = await taskRepo(WS).countWaitingTasks({ todayIso: TODAY });
+    expect(counts).toEqual({ total: 3, followUpDue: 1 });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* B. Date states                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -543,16 +641,11 @@ describe("due is resolved against the OWNER's calendar day", () => {
       (await waitingIds(WS, { followUp: "due", todayIso: YESTERDAY })).ids,
     ).toEqual([]);
     expect(
-      await taskRepo(WS).countWaitingTasks({
-        todayIso: YESTERDAY,
-        followUp: "due",
-      }),
+      (await taskRepo(WS).countWaitingTasks({ todayIso: YESTERDAY }))
+        .followUpDue,
     ).toBe(0);
     expect(
-      await taskRepo(WS).countWaitingTasks({
-        todayIso: TODAY,
-        followUp: "due",
-      }),
+      (await taskRepo(WS).countWaitingTasks({ todayIso: TODAY })).followUpDue,
     ).toBe(1);
   });
 
@@ -601,10 +694,7 @@ describe("hostile follow-ups in another workspace reach nothing", () => {
 
     expect(await filterIds(WS, { followUp: "due" })).toEqual([mine]);
     expect(
-      await taskRepo(WS).countWaitingTasks({
-        todayIso: TODAY,
-        followUp: "due",
-      }),
+      (await taskRepo(WS).countWaitingTasks({ todayIso: TODAY })).followUpDue,
     ).toBe(1);
     expect((await waitingIds(WS, { followUp: "due" })).ids).toEqual([mine]);
 
@@ -622,10 +712,8 @@ describe("hostile follow-ups in another workspace reach nothing", () => {
 
     // And symmetrically: the hostile workspace sees only its own three.
     expect(
-      await taskRepo(HOSTILE).countWaitingTasks({
-        todayIso: TODAY,
-        followUp: "due",
-      }),
+      (await taskRepo(HOSTILE).countWaitingTasks({ todayIso: TODAY }))
+        .followUpDue,
     ).toBe(3);
     expect((await waitingIds(HOSTILE, { followUp: "due" })).ids).not.toContain(
       mine,
@@ -723,7 +811,7 @@ describe("the Waiting collection pages past its old cap", () => {
     const repo = createTaskRepository(counter.db, makeContext(WS), {});
     counter.reset();
     expect(
-      await repo.countWaitingTasks({ todayIso: TODAY, followUp: "due" }),
+      (await repo.countWaitingTasks({ todayIso: TODAY })).followUpDue,
     ).toBe(15);
     expect(counter.statements()).toBe(1);
     // Two binds: the owner's day and the workspace. No per-Task read anywhere.
@@ -861,10 +949,8 @@ describe("a restored commitment becomes answerable again", () => {
       task,
     ]);
     expect(
-      await taskRepo(RESTORE_TARGET).countWaitingTasks({
-        todayIso: TODAY,
-        followUp: "due",
-      }),
+      (await taskRepo(RESTORE_TARGET).countWaitingTasks({ todayIso: TODAY }))
+        .followUpDue,
     ).toBe(1);
     const restoredWaiting = await waitingIds(RESTORE_TARGET, {
       followUp: "due",
@@ -898,10 +984,7 @@ describe("reopening leaves the chase date alone", () => {
     expect(completed?.delegation?.followUpOn).toBe(YESTERDAY);
     expect(completed?.waiting).toBeNull();
     expect(
-      await taskRepo(WS).countWaitingTasks({
-        todayIso: TODAY,
-        followUp: "due",
-      }),
+      (await taskRepo(WS).countWaitingTasks({ todayIso: TODAY })).followUpDue,
     ).toBe(0);
 
     await tasks.reopenTask(id);

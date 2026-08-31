@@ -1047,6 +1047,24 @@ needs to implement without re-auditing.
   truncated subtitle this item also repairs, and the regression asserts the two
   hrefs differ.
 
+  **A review of this branch found the two waiting facts could contradict each
+  other, and it was right.** The rail's waiting COUNT was `page.items.length`,
+  bounded at `WAITING_LIMIT` (50), while the new follow-up count was an
+  unbounded aggregate — so a workspace past that bound could print *"50 waiting
+  items · 100 follow-ups due"*, a sentence that is not merely wrong but
+  impossible, and a direct contradiction of the subset relationship this item
+  documents. Codex raised it P2 on `de68638`. It is fixed at the source rather
+  than in the wording: `countWaitingTasks` returns `{ total, followUpDue }`
+  counted over the SAME rows of ONE statement, so the subset relationship is a
+  property of the SQL rather than a convention two reads have to remember — and
+  the rail's waiting count became AUTHORITATIVE as a side effect, which is the
+  same honesty DEBT-232 demanded of the Waiting subtitle. The statement budget
+  is unchanged (the total rides the aggregate that already existed), and the
+  60-waiting-Task regression asserts it in the rail and the digest alike:
+  restoring `page.items.length` reddens it with the exact 50-vs-60 symptom.
+  `oldestDays` still comes from the bounded page, deliberately untouched — an
+  age cannot contradict a count, and converging it is not this item's.
+
   **The digest line is its own line, and its suppression is the existing rule.**
   "2 follow-ups due" appears beside the waiting line when the count is non-zero
   and is absent otherwise — never "0 follow-ups due". It reads

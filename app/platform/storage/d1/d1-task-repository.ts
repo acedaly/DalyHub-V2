@@ -191,6 +191,7 @@ import {
   type TimeSector,
   type UpdateTaskInput,
   type UpdateTaskResult,
+  type WaitingCounts,
   type WaitingTaskCursorScope,
   type WaitingTaskListItem,
   type WaitingTaskPage,
@@ -4349,37 +4350,53 @@ export class D1TaskRepository implements TaskRepository {
     return { items, nextCursor };
   }
 
-  async countWaitingTasks(input: CountWaitingTasksInput = {}): Promise<number> {
+  async countWaitingTasks(
+    input: CountWaitingTasksInput = {},
+  ): Promise<WaitingCounts> {
     const todayIso = input.todayIso ?? "";
-    const followUp = validateTaskFollowUpState(input.followUp);
     /*
-     * V2.7 RECALL-03 — ONE bounded aggregate, never a page counted in JS.
+     * V2.7 RECALL-03 — ONE bounded aggregate, and BOTH facts from it.
      *
-     * This is the single definition behind Today's "follow-ups due" fact and the
-     * digest's follow-up line. Counting a bounded PAGE is exactly how the old
-     * Waiting subtitle came to state a truncated number as though it were the
-     * whole population, so the count is asked of the database and the database
-     * answers for the whole workspace.
+     * This is the single definition behind Today's waiting row and the digest's
+     * waiting and follow-up lines. Two things about its shape are load-bearing:
+     *
+     *   1. **It is asked of the database, not of a page.** Counting a bounded
+     *      page in JavaScript is exactly how the old Waiting subtitle came to
+     *      state a truncated number as fact, and the rail was doing the same
+     *      thing with the same kind of read.
+     *   2. **The total and the subset are counted over the SAME rows**, in one
+     *      statement, with the follow-up subset as a conditional SUM. Reading
+     *      them separately — an unbounded subset beside a page-length total —
+     *      lets a workspace with more waiting work than the rail's page size
+     *      print "50 waiting items · 100 follow-ups due", which is not merely
+     *      wrong but impossible. Here the subset relationship is a property of
+     *      the SQL rather than a convention two call sites must remember.
+     *
+     * Two binds, one row, whatever the workspace holds.
      */
-    const followUpSql =
-      followUp === undefined
-        ? ""
-        : ` AND ${followUpStatePredicate(followUp, "cal.today_iso")}`;
     try {
       const row = await this.#db
         .prepare(
-          `SELECT COUNT(*) AS total
+          `SELECT COUNT(*) AS total,
+                  SUM(CASE WHEN ${followUpStatePredicate("due", "cal.today_iso")}
+                           THEN 1 ELSE 0 END) AS follow_up_due
            FROM entities e
            JOIN spine_records sr
              ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
            JOIN task_details td
              ON td.workspace_id = e.workspace_id AND td.entity_id = e.id
            CROSS JOIN (SELECT ? AS today_iso) cal
-           WHERE ${D1TaskRepository.#WAITING_POPULATION_SQL}${followUpSql}`,
+           WHERE ${D1TaskRepository.#WAITING_POPULATION_SQL}`,
         )
         .bind(todayIso, this.#workspaceId)
-        .first<{ readonly total: number | null }>();
-      return Number(row?.total ?? 0);
+        .first<{
+          readonly total: number | null;
+          readonly follow_up_due: number | null;
+        }>();
+      return {
+        total: Number(row?.total ?? 0),
+        followUpDue: Number(row?.follow_up_due ?? 0),
+      };
     } catch (cause) {
       throw new TaskStorageError(undefined, { cause });
     }

@@ -53,7 +53,13 @@ import type { WorkspaceScope } from "~/platform/workspaces";
 /* Bounds                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** How many waiting items are read to count them and age the oldest. */
+/**
+ * How many waiting items are read to age the oldest.
+ *
+ * It no longer bounds the COUNT: since V2.7 RECALL-03 both the waiting total and
+ * the follow-ups due come from one authoritative aggregate, so this page exists
+ * only to answer "how long has the oldest waited". See {@link readWaiting}.
+ */
 export const WAITING_LIMIT = 50;
 /**
  * How many active projects are read before ranking.
@@ -208,21 +214,36 @@ export async function readAssetAttention(
  * The waiting count, the age of the oldest, and how many follow-ups are due —
  * the facts that earn the row.
  *
- * TWO statements, in parallel: the bounded page (which the age of the oldest
- * needs, and which the count is taken from as it always was) and V2.7
- * RECALL-03's ONE bounded aggregate for the follow-ups due. The aggregate is
- * asked of the database rather than counted over the page on purpose — a page
- * count is bounded by `WAITING_LIMIT` and would silently understate the fact the
- * moment a workspace held more waiting work than that.
+ * TWO statements, in parallel: V2.7 RECALL-03's ONE bounded aggregate, which
+ * carries BOTH counts, and the bounded page the age of the oldest is read from.
+ *
+ * ── Why both counts come from the aggregate ─────────────────────────────────
+ *
+ * The count used to be `page.items.length` — bounded by {@link WAITING_LIMIT},
+ * so a workspace with 200 waiting Tasks was told it had 50. That was survivable
+ * while it was the only number on the row; it stopped being survivable the
+ * moment a follow-up count stood beside it, because an unbounded subset beside
+ * a page-length total can print "50 waiting items · 100 follow-ups due" — a
+ * sentence that is not merely wrong but impossible, and a direct contradiction
+ * of the subset relationship this fact is documented to have.
+ *
+ * So the total is asked of the database in the SAME statement as the subset.
+ * Both are counted over the same rows, which makes the relationship a property
+ * of the SQL rather than a convention these two reads have to remember, and it
+ * costs no additional statement.
+ *
+ * `oldestDays` is still read from the bounded page, exactly as it always has
+ * been: it is an age rather than a count, so it cannot contradict a count, and
+ * converging it is not this item's to do.
  */
 export async function readWaiting(
   scope: WorkspaceScope,
   todayIso: string,
   timezone: string,
 ): Promise<WaitingFacts> {
-  const [page, followUpDue] = await Promise.all([
+  const [page, counts] = await Promise.all([
     scope.tasks.listWaitingTasks({ limit: WAITING_LIMIT, todayIso }),
-    scope.tasks.countWaitingTasks({ todayIso, followUp: "due" }),
+    scope.tasks.countWaitingTasks({ todayIso }),
   ]);
   let oldestDays: number | null = null;
   for (const item of page.items) {
@@ -234,7 +255,11 @@ export async function readWaiting(
       oldestDays = days;
     }
   }
-  return { count: page.items.length, oldestDays, followUpDue };
+  return {
+    count: counts.total,
+    oldestDays,
+    followUpDue: counts.followUpDue,
+  };
 }
 
 /** Whole days from `from` to `to`; positive when `to` is later. */

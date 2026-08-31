@@ -690,12 +690,39 @@ export type ListWaitingTasksInput = {
   readonly cursor?: string;
 };
 
-/** Options for the bounded Waiting COUNT the attention fact and digest share. */
+/** Options for the bounded Waiting COUNTS the attention fact and digest share. */
 export type CountWaitingTasksInput = {
   /** The owner's current calendar date `YYYY-MM-DD`. */
   readonly todayIso?: string;
-  /** The follow-up state to count. Absent counts every waiting Task. */
-  readonly followUp?: TaskFollowUpState;
+};
+
+/**
+ * V2.7 RECALL-03 — the Waiting facts, from ONE statement.
+ *
+ * They are returned together, and read together, because they describe one
+ * population and one is a SUBSET of the other. Reading them separately is how a
+ * surface comes to state "50 waiting items · 100 follow-ups due" — an impossible
+ * sentence, and exactly what happens when the total is a bounded page length
+ * while the subset is an unbounded aggregate. Computing both in one query makes
+ * the subset relationship a property of the SQL rather than of a convention two
+ * call sites have to remember.
+ */
+export type WaitingCounts = {
+  /**
+   * Every waiting Task in the workspace — AUTHORITATIVE, never a page length.
+   *
+   * A count taken from a bounded page is the defect DEBT-232 named on the
+   * Waiting subtitle; the attention rail and the digest were stating the same
+   * kind of number from the same kind of read.
+   */
+  readonly total: number;
+  /**
+   * Of those, how many have a follow-up DUE (on or before the owner's today).
+   *
+   * A strict subset of {@link total} by construction, because both are counted
+   * over the same rows of the same statement.
+   */
+  readonly followUpDue: number;
 };
 
 /** A waiting task as shown in the Waiting collection. */

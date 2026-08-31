@@ -63,6 +63,7 @@ import type {
   TimeSector,
   UpdateTaskInput,
   UpdateTaskResult,
+  WaitingCounts,
   WaitingTaskPage,
   WorkspaceTaskGrouping,
   WorkspaceTaskListPage,
@@ -334,15 +335,20 @@ export interface TaskRepository {
   listWaitingTasks(input?: ListWaitingTasksInput): Promise<WaitingTaskPage>;
 
   /**
-   * V2.7 RECALL-03 — how many waiting Tasks match a follow-up state.
+   * V2.7 RECALL-03 — the waiting TOTAL and the follow-ups due, together.
    *
    * ONE bounded, workspace-scoped aggregate — never a page read and counted in
    * JavaScript, which is what made the old Waiting subtitle state a truncated
    * number as fact. It is the single definition behind Today's attention fact
    * and the daily digest's follow-up line, so the two cannot state different
    * numbers for the same morning (ADR-114 decision 5).
+   *
+   * Both numbers come back from ONE statement on purpose: the follow-ups due
+   * are a SUBSET of the total, and a total read from a bounded page beside an
+   * unbounded subset can print "50 waiting items · 100 follow-ups due". Counting
+   * both over the same rows makes that impossible rather than merely unlikely.
    */
-  countWaitingTasks(input?: CountWaitingTasksInput): Promise<number>;
+  countWaitingTasks(input?: CountWaitingTasksInput): Promise<WaitingCounts>;
 
   /**
    * GOAL-02 — the created-vs-completed counts for a handful of owner-calendar
