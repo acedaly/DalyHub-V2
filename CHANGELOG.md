@@ -1,5 +1,31 @@
 # Changelog
 
+- **"What did I complete yesterday?" now has an answer.**
+
+  Finished work is retrievable by _when you finished it_ (V2.7 RECALL-02).
+
+  - **Two new doors in the command palette** — "Completed yesterday" and
+    "Completed this week" — so the question is two keystrokes away from
+    anywhere, on the desktop and on the phone.
+  - **A new "Completed" sort** on the Tasks list, and a new **Completed**
+    filter beside Created and Updated (today · last 7 · 30 · 90 days).
+  - **The Completed view keeps its promise.** It has always said "most recent
+    first" and it used to mean _most recently edited_ — so a task you finished
+    last week and retitled today led the list. It now means most recently
+    **completed**, and says so.
+  - **Yesterday means your yesterday.** The window follows your timezone and
+    your first day of the week, so something you ticked off at ten to midnight
+    counts on the day you actually did it.
+  - **Analytics' "Tasks completed" figure now links to exactly those tasks** —
+    the same days, in the order you finished them — instead of to everything
+    you have ever completed. The figure counts the same thing the list shows,
+    so reopening or deleting a task moves both together; it used to count the
+    act of finishing, which meant a card could say six and open a list of four.
+
+  Reopening a task takes it back out of the answer, and a repeating task's next
+  occurrence never counts as finished just because the last one was. No scores,
+  no streaks, no grades, no heat-maps.
+
 - **Search now finds what you wrote, not just what you called it.**
 
   A phrase that exists only _inside_ a record finds the record (V2.7 RECALL-01).

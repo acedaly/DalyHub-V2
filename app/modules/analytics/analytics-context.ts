@@ -5,11 +5,18 @@
  * file adds NO repository, NO write, NO migration and no new kind of query to
  * the product. Every fact it works from already existed for something else:
  *
- *   - **completions**, current, previous and per bucket, come from
+ *   - **Tasks completed**, current, previous and per bucket, come from
+ *     `TaskRepository.countCompletedTasksInWindows` — one statement over
+ *     `spine_records.completed_at`, the one completion-time authority (ADR-114
+ *     decision 4), under exactly the predicate the Completed collection
+ *     applies. V2.7 RECALL-02 moved it here from the Activity stream so the
+ *     figure's LINK is its evidence: the card says N and the list it opens
+ *     holds N, through a reopen and through a deletion alike;
+ *   - **Projects and Goals completed**, current and previous, come from
  *     `ReviewInsightRepository.countPeriodCompletions` — one grouped statement
- *     over the append-only Activity stream for however many windows are asked
- *     for, capped at `MAX_TREND_PERIODS`. The ranges in `analytics-range.ts` are
- *     bucketed to fit inside that cap by construction;
+ *     over the append-only Activity stream, deliberately immutable for past
+ *     periods (HARDEN-06C F-07). Neither has a bucketed line to draw, so
+ *     neither is asked for per bucket;
  *   - **where completed work landed** comes from `listPeriodContributions`, the
  *     same read the Review's distribution section uses, with the same documented
  *     approximation (ancestry through the CURRENT spine links);
@@ -23,10 +30,11 @@
  *     query.
  *
  * The query budget is therefore FLAT with respect to workspace size and does not
- * grow with the range: one bucketed series read, one totals read, one overdue
+ * grow with the range: one completed-window read, one totals read, one overdue
  * read, one contribution read, one Area page, one Goal page, one
  * Goal-contribution read and one alignment-facts read — eight grouped
- * statements, every time.
+ * statements, every time. RECALL-02 changed WHICH authority the first of those
+ * reads, never how many there are.
  *
  * Failure is SAID, not zeroed. A read that fails leaves its half of the model
  * `null`, and the evaluator turns that into "Not available" rather than into a
@@ -54,6 +62,7 @@ import type {
   PeriodCountRequest,
   ReviewPeriodWindow,
 } from "~/kernel/review-insights";
+import type { CompletedTaskWindow } from "~/kernel/tasks";
 import { InvalidSpineCursorError } from "~/kernel/spine";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { createOwnerAlignmentContext } from "~/shared/alignment";
@@ -114,6 +123,27 @@ function toWindow(span: AnalyticsSpan, timezone: string): ReviewPeriodWindow {
   };
 }
 
+/**
+ * V2.7 RECALL-02 — the same half-open owner-day window, in the shape the Task
+ * repository's completion count takes.
+ *
+ * Deliberately built from {@link toWindow} rather than beside it: the Analytics
+ * period and the completed-time window MUST be the same two instants, and one
+ * conversion is the only way to keep them so.
+ */
+function toCompletedWindow(
+  key: string,
+  span: AnalyticsSpan,
+  timezone: string,
+): CompletedTaskWindow {
+  const window = toWindow(span, timezone);
+  return {
+    key,
+    startsAt: new Date(window.startInstantIso),
+    endsAt: new Date(window.endInstantIso),
+  };
+}
+
 function addOneDay(iso: string): string {
   const [y, m, d] = iso.split("-").map((part) => Number.parseInt(part, 10));
   return new Date(Date.UTC(y, (m ?? 1) - 1, (d ?? 1) + 1))
@@ -162,28 +192,48 @@ export async function loadAnalytics(
   const previous = previousSpan(span);
 
   /*
-   * TWO grouped statements, and deliberately not one.
+   * TWO grouped statements for the completion figures, and they read DIFFERENT
+   * authorities on purpose (V2.7 RECALL-02).
    *
-   * Both the buckets and the two totals are just windows, so the obvious move is
-   * to ask for all of them together — and it is wrong twice over. The aggregate
-   * caps one call at `MAX_TREND_PERIODS` (8) windows, and seven daily buckets
-   * plus two totals is nine. More importantly, the range total must NOT be the
-   * sum of its buckets: the count is `DISTINCT` per record per window, so a Task
-   * completed, reopened and completed again in two different buckets would be
-   * counted twice by a sum and once by the whole-range window. The headline
-   * figure is the one an owner reads, so it is asked for as its own window and
-   * the buckets are only ever the SHAPE.
+   * **Tasks completed — and its trend — read `spine_records.completed_at`**, the
+   * one completion-time authority (ADR-114 decision 4), through
+   * `TaskRepository.countCompletedTasksInWindows`: one statement, one column per
+   * window, over exactly the predicate the Completed collection applies. That is
+   * what makes the figure's LINK its evidence: the card says N, the list it
+   * opens holds N, and reopening or deleting a Task moves both together. Reading
+   * the Activity stream here instead — as this did before RECALL-02 — counted
+   * completion EVENTS, which survive a reopen and survive a deletion, so a
+   * reader who followed the link to check a doubted number found fewer records
+   * than the number promised.
    *
-   * Two statements, each one grouped scan, both flat with respect to workspace
-   * size and to the length of the range.
+   * **Projects and Goals keep `countPeriodCompletions`**, the Activity-derived
+   * read HARDEN-06C (F-07) made deliberately immutable for past periods. Both
+   * reads are correct; they answer different questions, and only the Task figure
+   * has a live list standing behind it as evidence. Converging the Review's own
+   * period facts onto the completed window is RECALL-04's, not this item's.
+   *
+   * The completion windows are asked for in ONE call — every bucket plus the two
+   * totals, at most 7 + 2 = 9 against the read's own bound — and the range total
+   * is still its OWN window rather than the sum of its buckets. With one stored
+   * `completed_at` per record the sum would now agree, but a total that is a
+   * separate question stays a separate window: it is what the owner reads, and
+   * it must not depend on how the shape happens to be cut.
+   *
+   * Two statements, each one index range, both flat with respect to workspace
+   * size and to the length of the range — the same budget as before.
    */
-  const bucketRequests: PeriodCountRequest[] = buckets.map((bucket) => ({
-    key: bucket.key,
-    window: toWindow(bucket, input.timezone),
-  }));
+  const CURRENT_KEY = "current";
+  const PREVIOUS_KEY = "previous";
+  const completedWindows: CompletedTaskWindow[] = [
+    ...buckets.map((bucket) =>
+      toCompletedWindow(bucket.key, bucket, input.timezone),
+    ),
+    toCompletedWindow(CURRENT_KEY, span, input.timezone),
+    toCompletedWindow(PREVIOUS_KEY, previous, input.timezone),
+  ];
   const totalRequests: PeriodCountRequest[] = [
-    { key: "current", window: toWindow(span, input.timezone) },
-    { key: "previous", window: toWindow(previous, input.timezone) },
+    { key: CURRENT_KEY, window: toWindow(span, input.timezone) },
+    { key: PREVIOUS_KEY, window: toWindow(previous, input.timezone) },
   ];
 
   /*
@@ -219,34 +269,35 @@ export async function loadAnalytics(
   let previousCounts: AnalyticsCompletionCounts | null = null;
   let failed = false;
   try {
-    const [bucketRows, totalRows] = await Promise.all([
-      input.scope.reviewInsights.countPeriodCompletions(bucketRequests),
+    const [completedRows, totalRows] = await Promise.all([
+      input.scope.tasks.countCompletedTasksInWindows(completedWindows),
       input.scope.reviewInsights.countPeriodCompletions(totalRequests),
     ]);
-    const byKey = new Map(
-      [...bucketRows, ...totalRows].map((row) => [row.key, row]),
+    const completedByKey = new Map(
+      completedRows.map((row) => [row.key, row.completed]),
     );
-    series = buckets.map((bucket) => {
-      const row = byKey.get(bucket.key);
-      return {
-        key: bucket.key,
-        tasksCompleted: row?.tasksCompleted ?? 0,
-        projectsCompleted: row?.projectsCompleted ?? 0,
-        goalsCompleted: row?.goalsCompleted ?? 0,
-      };
-    });
-    const currentRow = byKey.get("current");
-    const previousRow = byKey.get("previous");
+    const totalsByKey = new Map(totalRows.map((row) => [row.key, row]));
+    series = buckets.map((bucket) => ({
+      key: bucket.key,
+      tasksCompleted: completedByKey.get(bucket.key) ?? 0,
+      // The trend draws Tasks alone. Projects and Goals are period TOTALS on the
+      // metric row and have no bucketed line, so asking for them per bucket
+      // would be a statement spent on numbers nothing renders.
+      projectsCompleted: 0,
+      goalsCompleted: 0,
+    }));
+    const currentRow = totalsByKey.get(CURRENT_KEY);
+    const previousRow = totalsByKey.get(PREVIOUS_KEY);
     current = currentRow
       ? {
-          tasksCompleted: currentRow.tasksCompleted,
+          tasksCompleted: completedByKey.get(CURRENT_KEY) ?? 0,
           projectsCompleted: currentRow.projectsCompleted,
           goalsCompleted: currentRow.goalsCompleted,
         }
       : null;
     previousCounts = previousRow
       ? {
-          tasksCompleted: previousRow.tasksCompleted,
+          tasksCompleted: completedByKey.get(PREVIOUS_KEY) ?? 0,
           projectsCompleted: previousRow.projectsCompleted,
           goalsCompleted: previousRow.goalsCompleted,
         }
@@ -263,6 +314,9 @@ export async function loadAnalytics(
 
   const model = evaluateAnalytics({
     range: input.range,
+    // V2.7 RECALL-02 — the window the range TOTAL was counted over, carried
+    // through so the "Tasks completed" metric links to exactly those days.
+    span,
     buckets,
     current,
     previous: previousCounts,

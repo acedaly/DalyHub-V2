@@ -123,10 +123,24 @@ export const TASK_SYSTEM_VIEW_DEFINITIONS: readonly TaskSystemViewDefinition[] =
     derived("someday", "Someday / Maybe", "Parked, not committed to.", {
       systemView: "someday",
     }),
-    derived("completed", "Completed", "Finished work, most recent first.", {
-      systemView: "completed",
-      sort: "updated",
-    }),
+    /*
+     * V2.7 RECALL-02 — the Completed view's label became TRUE (DEBT-230).
+     *
+     * It has always been described "Finished work, most recent first" and it
+     * sorted `updated` — edit time — so a Task completed last week and retitled
+     * today led the list. There were two ways to fix that and only one of them
+     * is honest: change the sentence, or change the sort. The sentence is what
+     * an owner actually wants from this view, so the SORT changed, onto the one
+     * completion-time authority (`spine_records.completed_at`, ADR-114 decision
+     * 4). The description now says which "recent" it means, because "most
+     * recent" was exactly the word that could be read two ways.
+     */
+    derived(
+      "completed",
+      "Completed",
+      "Finished work, most recently completed first.",
+      { systemView: "completed", sort: "completed" },
+    ),
     // TASKS-06 — the durable second path back from a bulk delete. It is a real view
     // rather than a hidden route because "where did those 18 tasks go?" must have an
     // answer the owner can reach without being told about it in advance.

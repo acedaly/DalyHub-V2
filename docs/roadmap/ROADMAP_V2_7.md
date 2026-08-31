@@ -20,7 +20,7 @@
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
 **Programme status: IN PROGRESS.** RECALL-00 and RECALL-01 ☑ delivered
-2026-08-30; the three items after them are ☐. The
+2026-08-30, RECALL-02 ☑ delivered 2026-08-31; the two items after them are ☐. The
 programme decision is recorded as
 [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine) and every finding it is built on
 was re-measured against `main` at `0d08cd6` on 2026-08-30 — including the
@@ -726,12 +726,12 @@ needs to implement without re-auditing.
 
 ---
 
-### ☐ RECALL-02 — History answers by time
+### ☑ RECALL-02 — History answers by time — **delivered 2026-08-31**
 
 **"What did I complete yesterday?" is a control, not an archaeology dig.**
 
 - **User problem.**
-  [DEBT-230](../product/PRODUCT_DEBT.md#-debt-230--completed-work-cannot-be-retrieved-by-completion-time-and-the-completed-views-label-promises-an-order-its-sort-does-not-deliver--p2)
+  [DEBT-230](../product/PRODUCT_DEBT.md#-debt-230--completed-work-cannot-be-retrieved-by-completion-time-and-the-completed-views-label-promises-an-order-its-sort-does-not-deliver--p2--resolved-2026-08-31)
   (P2): no completed-date sort or window exists anywhere; the Completed view
   promises "most recent first" and delivers `updated` — edit time — so a task
   completed last week and retitled today leads the list.
@@ -796,6 +796,121 @@ needs to implement without re-auditing.
      duplicate-free across pages (real-D1, seeded past one page).
   6. Workspace isolation with hostile rows; counting-DB proofs; `axe` clean.
 - **Closes.** DEBT-230.
+- **Delivered 2026-08-31.** One completion-time authority, one sort, three
+  filter dimensions, two named entry points, an honest Completed view and an
+  Analytics link that lands on the same window — with **no migration**, no
+  second timestamp, no Activity-derived completion query and nothing from
+  RECALL-03 or RECALL-04 absorbed. The recorded decisions:
+
+  **The authority is `spine_records.completed_at`, and the diff contains no
+  second one.** The sort is `COALESCE(sr.completed_at, <sentinel>)` over the
+  join the collection query already makes; the window is three predicates over
+  the same column. The Activity `task.completed` event is asserted to SURVIVE a
+  reopen in the same test that asserts the reopened Task LEAVES the window —
+  which is the reason it is the audit trail and never the query authority,
+  written as a test rather than as an intention.
+
+  **The window grammar was reused, not invented.** `completedWithin` is the
+  existing `TaskRecencyWindow` closed set (`1d`/`7d`/`30d`/`90d`), and
+  `completedFrom`/`completedTo` are the `dueFrom`/`dueTo` shape. The visibility
+  dimension `completed` keeps its own name and meaning beside them — it decides
+  whether finished work is SHOWN, the window decides WHEN it was finished — so
+  the parameter is `completedWithin` rather than an overload of a dimension that
+  already answers a different question.
+
+  **The never-completed sentinel flips with the direction**, exactly as the
+  `parent` sort's unparented sentinel does. Reversing a completion order must
+  never promote "not finished" to the head of a list of finished work, and the
+  regression asserts the same single record order under `natural`, `asc` and
+  `desc`.
+
+  **"Yesterday" is the owner's day, and it is falsified.** Every bound is
+  converted once by `ownerDayStartInstant` — no second timezone helper — and
+  `completedTo` binds the start of the NEXT owner day so the closing day is
+  whole. Substituting a naïve `T00:00:00.000Z` bound reddens three assertions:
+  the 23:50-owner-local case, the `completedWithin` case, and the owner-week
+  case. "This week" resolves through `planningWeekStart`, so a Sunday-start and
+  a Monday-start owner asking on the same Sunday get two different weeks and
+  both are right.
+
+  **The palette command is static; the date is not — so the route redirects.**
+  `/tasks/completed/:window` owns no query and no component: it resolves the
+  owner's day and week start and redirects into
+  `/tasks?system=completed&sort=completed&completedFrom=…&completedTo=…`. A
+  *rewrite* (the `/inbox`, `/upcoming` pattern) would have kept the resolved
+  window hidden; those are sidebar PLACES and this is a question, so the address
+  bar ends up holding an ordinary configuration that round-trips, shares and
+  saves. Two interactions, proven E2E at desktop and 393 px.
+
+  **The Completed view's sentence changed with its sort.** "Finished work, most
+  recent first" was true of neither reading; it now says *"most recently
+  completed first"* and sorts by completion. The falsification the item asked
+  for is asserted in both layers: the kernel regression runs the
+  completed-then-edited fixture under `sort: "updated"` and asserts the
+  INVERSION, and the E2E does the same in the browser — so restoring the old
+  sort reddens a named test rather than merely failing to be noticed.
+
+  **Analytics converged its LINK *and* its figure.** The "Tasks completed"
+  metric linked to a bare `/tasks?system=completed` — the whole workspace's
+  finished work in edit order, under a figure describing one period. It now
+  carries the range's own span and the completion sort, built by one kernel
+  helper asserted equal to the Tasks URL codec's own output.
+
+  The first cut of this item stopped there and left the FIGURE counting
+  Activity events, on the reasoning that HARDEN-06C (F-07) made that read
+  deliberately immutable for past periods and that the Review shares it. **A
+  review of this branch (Codex, P2) showed that reasoning produced a quiet
+  untruth**, and it was right: a `task.completed` event outlives the state it
+  recorded, so a Task completed inside the period and later REOPENED still
+  counted, as did one later DELETED — and this surface's own contract is that
+  *"each figure links to the records behind it so a doubted number can be
+  checked"*. A card saying six opening a list of four is exactly the class of
+  defect this programme removes, in two entirely ordinary lifecycle cases.
+  `TaskRepository.countCompletedTasksInWindows` — ONE statement, one column per
+  window over `spine_records.completed_at`, under exactly the Completed
+  collection's predicate — now feeds the figure, its previous-period comparison
+  and the trend line, so the card, the chart and the linked list are one
+  population.
+
+  **Projects and Goals keep `countPeriodCompletions`, and the Review is
+  untouched.** Both reads are correct and they answer different questions:
+  immutable "what happened that week" is right for a Review's stored snapshot
+  facts, and current "what am I recorded as having finished" is right for a live,
+  linkable figure — only the second has a list standing behind it as evidence.
+  Converging the Review's own period facts is RECALL-04's, and nothing here
+  touched it. Machine-value parity is asserted over a fixture that deliberately
+  contains a reopened Task and a soft-deleted completed one, **and so is the
+  divergence**: the same fixture through `countPeriodCompletions` returns
+  `expected + 2`, which makes the choice of authority a test rather than a
+  preference. The page's budget is unchanged at eight grouped statements —
+  Projects and Goals no longer need a per-bucket call, because the trend draws
+  Tasks alone.
+
+  **One in-flight finding, fixed rather than filed.** `command-palette.spec.ts`
+  asked the whole listbox for the text "Tasks" to prove a record result is
+  grouped by its entity type — an assertion that was unambiguous only while no
+  Tasks-module COMMAND happened to match the query, because every command row
+  carries its module label in a chip with the same text. "Completed yesterday"
+  and "Completed this week" legitimately match "Finish", so the loose locator
+  resolved to three elements. The assertion now names the record group's own
+  heading, which is what it always meant. Caused by this branch, so repaired by
+  it; the claim is stronger, not weaker. **DEBT-216 is left alone**, deliberately
+  and per the scope guard: the palette's stale "no create-Goal command"
+  assertion is red on clean `main` (re-measured on this branch with the work
+  stashed) and belongs to the truth-restoration pass that owns it.
+
+  **The index decision is measured, and the answer is no migration.**
+  `EXPLAIN QUERY PLAN` over the real generated SQL: the completed sort with no
+  window plans IDENTICALLY to the `updated` baseline, and the sort WITH the
+  window already flips to
+  `SEARCH sr USING INDEX spine_records_workspace_kind_completed_idx (… completed_at>? AND completed_at<?)`
+  — the index migration **0038** added, whose own comment predicted exactly this
+  use. A `spine_records(workspace_id, completed_at)` index would be a
+  near-duplicate of one already chosen, costing write amplification on every
+  completion for no measured read. Statement count is unchanged from the
+  baseline in all four shapes; the window costs two binds and the recency form
+  one, asserted. The falsifier is recorded: a plan that ever falls back to
+  scanning `entities` reopens the decision.
 
 ---
 
@@ -1126,7 +1241,7 @@ disposition here and on the entry. **This pass raised DEBT-222 … DEBT-235**
 | **DEBT-227** — deterministic Ask answers gated off in error | P3 | **Raised · RECALL-00-F** |
 | **DEBT-228** — Reviews collection offers a guide the guide refuses | P3 | **Raised · RECALL-00-G** |
 | **DEBT-229** — Search matches titles, never content | P2 | **Raised · RECALL-01 · ☑ CLOSED 2026-08-30** |
-| **DEBT-230** — completed work not retrievable by time; Completed label vs sort | P2 | **Raised · RECALL-02** |
+| **DEBT-230** — completed work not retrievable by time; Completed label vs sort | P2 | **Raised · RECALL-02 · ☑ CLOSED 2026-08-31** |
 | **DEBT-231** — `followUpOn` write-only | P2 | **Raised · RECALL-03** |
 | **DEBT-232** — `/today/waiting` bounded page presented as complete | P3 | **Raised · RECALL-03** |
 | **DEBT-233** — no meetings-today fact; `dayChips` dead | P3 | **Raised · RECALL-04** |

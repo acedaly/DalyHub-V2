@@ -57,6 +57,9 @@ export const SORT_LABELS: Record<TaskSort, string> = {
   priority: "Priority",
   created: "Created",
   updated: "Updated",
+  // V2.7 RECALL-02 — named for the QUESTION, not the column: "Completed" beside
+  // "Created" and "Updated" reads as the third moment in a Task's life.
+  completed: "Completed",
   title: "Title",
   parent: "Parent",
 };

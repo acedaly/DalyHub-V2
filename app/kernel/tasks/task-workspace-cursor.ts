@@ -107,6 +107,17 @@ export function workspaceTaskFiltersSignature(
   ) {
     parts.push(`cv=${filters.completedVisibility}`);
   }
+  // V2.7 RECALL-02 — the completion-time window. Additive in exactly the way
+  // every dimension before it was: a query that applies none of the three signs
+  // precisely as it did before, so every existing cursor and link stays valid.
+  // All three are bound in because each changes WHICH Tasks appear, and the
+  // completed SORT is already bound through `scope.sort` — so a page-two cursor
+  // can never survive widening the window or switching the order.
+  if (filters.completedWithin != null) {
+    parts.push(`kw=${filters.completedWithin}`);
+  }
+  if (filters.completedFrom != null) parts.push(`kf=${filters.completedFrom}`);
+  if (filters.completedTo != null) parts.push(`kt=${filters.completedTo}`);
   // PLAN-01 / SMART-01 filters. Additive in the same way: a query that applies
   // none of them signs exactly as it did before, so every existing cursor and
   // every existing link stays valid.

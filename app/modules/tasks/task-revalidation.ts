@@ -180,6 +180,12 @@ const SORT_EFFECTS: Readonly<Record<TaskSort, readonly TaskMutationEffect[]>> =
     created: [],
     // `updated` orders by a column EVERY mutation writes — handled as `anyChange`.
     updated: [],
+    // V2.7 RECALL-02 — the completion sort orders by `spine_records.completed_at`
+    // and nothing else, so completing or reopening a Task is the ONLY mutation
+    // that can move a row inside it. That precision is the point of the
+    // completion authority: `updated` had to be treated as `anyChange` because
+    // every write touches it.
+    completed: ["completion"],
     title: ["title"],
     parent: ["parent"],
   };
@@ -241,6 +247,15 @@ export function taskViewSensitivity(
   if (filters.completed !== undefined) effects.add("completion");
   // `createdWithin` reads `created_at`, which no mutation moves.
   if (filters.updatedWithin !== undefined) anyChange = true;
+  // V2.7 RECALL-02 — every completion window reads `spine_records.completed_at`,
+  // so membership moves exactly when a Task is completed or reopened.
+  if (
+    filters.completedWithin !== undefined ||
+    filters.completedFrom !== undefined ||
+    filters.completedTo !== undefined
+  ) {
+    effects.add("completion");
+  }
 
   const dimension = groupDimensionFor(config);
   if (dimension !== null) {

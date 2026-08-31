@@ -98,6 +98,8 @@ export {
   type ClearWaitingResult,
   type CompleteTaskResult,
   type ListTaskActivityInput,
+  type CompletedTaskWindow,
+  type CompletedTaskWindowCount,
   type TaskActivityDayCount,
   type TaskActivityDayWindow,
   type ListWaitingTasksInput,

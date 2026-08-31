@@ -118,6 +118,7 @@ import {
   validateTaskPlannedState,
   validateTaskRecencyWindow,
   recencyWindowStart,
+  shiftCalendarDate,
   weekWindowEnd,
   NEXT_ACTION_VIEW,
   type BulkFieldResult,
@@ -127,6 +128,8 @@ import {
   type CommitmentState,
   type CompleteTaskOptions,
   type CompleteTaskResult,
+  type CompletedTaskWindow,
+  type CompletedTaskWindowCount,
   type GetTaskOptions,
   type ListPlanningTasksInput,
   type ListProjectTasksInput,
@@ -2353,6 +2356,14 @@ export class D1TaskRepository implements TaskRepository {
     const filterCompletedVisibility = validateTaskCompletedVisibility(
       filters.completedVisibility,
     );
+    // V2.7 RECALL-02 — the completion-time window, validated through the SAME
+    // closed-set / date-bound validators the created-updated window and the
+    // due-planned range already use. Nothing new reaches SQL as text.
+    const filterCompletedWithin = validateTaskRecencyWindow(
+      filters.completedWithin,
+    );
+    const filterCompletedFrom = validateTaskDateBound(filters.completedFrom);
+    const filterCompletedTo = validateTaskDateBound(filters.completedTo);
     const filterDelegatedTo =
       filters.delegatedTo === undefined || filters.delegatedTo === null
         ? undefined
@@ -2521,6 +2532,51 @@ export class D1TaskRepository implements TaskRepository {
       params.push(
         ownerDayStartInstant(
           recencyWindowStart(todayIso, filterUpdatedWithin),
+          timezone,
+        ).toISOString(),
+      );
+    }
+    /*
+     * V2.7 RECALL-02 — the COMPLETION-TIME window, over the one authority.
+     *
+     * `sr.completed_at` is a UTC instant and every bound below is an OWNER
+     * calendar day, so each is converted ONCE, outside SQL, by the same
+     * `ownerDayStartInstant` the created/updated windows use (HARDEN-06C F-05).
+     * "Completed yesterday" therefore means the owner's yesterday: a completion
+     * at 23:50 local is inside their day, and the same UTC instant is outside it
+     * for an owner living in another zone. There is no second timezone helper
+     * and no UTC-day assumption anywhere in this window.
+     *
+     * Each dimension costs exactly ONE bind and ONE comparison against a single
+     * instant, so the index use is the same shape as the existing windows'. The
+     * `IS NOT NULL` guard is written out rather than implied: it states that an
+     * unfinished Task is not inside a completion window, which is the rule that
+     * stops "completed this week" quietly returning the open backlog.
+     */
+    if (filterCompletedWithin !== undefined) {
+      whereParts.push("sr.completed_at IS NOT NULL AND sr.completed_at >= ?");
+      params.push(
+        ownerDayStartInstant(
+          recencyWindowStart(todayIso, filterCompletedWithin),
+          timezone,
+        ).toISOString(),
+      );
+    }
+    if (filterCompletedFrom !== undefined) {
+      whereParts.push("sr.completed_at IS NOT NULL AND sr.completed_at >= ?");
+      params.push(
+        ownerDayStartInstant(filterCompletedFrom, timezone).toISOString(),
+      );
+    }
+    if (filterCompletedTo !== undefined) {
+      // INCLUSIVE of the whole named day: the bound is the instant the owner's
+      // NEXT day begins, compared with `<`. Binding the start of `completedTo`
+      // itself would silently drop everything finished that day — the same
+      // off-by-a-day the analytics window closes with its own next-day bound.
+      whereParts.push("sr.completed_at IS NOT NULL AND sr.completed_at < ?");
+      params.push(
+        ownerDayStartInstant(
+          shiftCalendarDate(filterCompletedTo, 1),
           timezone,
         ).toISOString(),
       );
@@ -3170,6 +3226,29 @@ export class D1TaskRepository implements TaskRepository {
         return oriented("e.created_at", "ASC");
       case "updated":
         return oriented("e.updated_at", "DESC");
+      case "completed": {
+        /*
+         * V2.7 RECALL-02 — COMPLETION TIME, from the one authority.
+         *
+         * `sr.completed_at` is already joined by this query (the `smart` order
+         * reads it), so the sort is one more ORDER BY arm over the existing
+         * statement rather than a new join, a new column or a second truth
+         * (ADR-114 decision 4). It is a UTC ISO-8601 instant, which sorts
+         * correctly as text.
+         *
+         * Natural direction is DESC — most recently completed first, which is
+         * what the Completed view has always CLAIMED to show. A Task that has
+         * never been completed has no place in a completion order at all, so the
+         * sentinel FLIPS with the direction to keep it last under both, exactly
+         * as `parent` keeps unparented Tasks last: an empty string sorts below
+         * every timestamp (last under DESC) and `￿` above every one (last
+         * under ASC). Reversing the order must never promote "not finished" to
+         * the head of a list of finished work.
+         */
+        const dir = direction === "asc" ? "ASC" : "DESC";
+        const sentinel = dir === "DESC" ? "" : "\uffff";
+        return { expr: `COALESCE(sr.completed_at, '${sentinel}')`, dir };
+      }
       case "title":
         return oriented("lower(e.title)", "ASC");
       case "parent": {
@@ -3967,6 +4046,71 @@ export class D1TaskRepository implements TaskRepository {
         dateIso: day.dateIso,
         created: Number(created?.[`d${index}`] ?? 0),
         completed: Number(completed?.[`d${index}`] ?? 0),
+      }));
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
+  }
+
+  /**
+   * V2.7 RECALL-02 — how many Tasks are CURRENTLY completed inside each window.
+   *
+   * ONE statement: a `SUM(CASE …)` column per window over a single
+   * `spine_records` index range (migration 0038's
+   * `spine_records_workspace_kind_completed_idx`), bounded by the outer
+   * instants. Only the column ALIAS index is generated, and it is an integer
+   * this method produced — every instant is bound.
+   *
+   * The predicate is deliberately IDENTICAL to the one the Completed collection
+   * applies: this workspace, `kind = task`, a live entity, and
+   * `completed_at` inside the window. A figure counted here and the list a
+   * reader opens to check it therefore describe the same records — reopening a
+   * Task or deleting it moves both, together. That is the whole reason this read
+   * exists beside the Activity-derived `countPeriodCompletions`, which counts
+   * EVENTS and is deliberately immutable for past periods (HARDEN-06C F-07).
+   */
+  async countCompletedTasksInWindows(
+    windows: readonly CompletedTaskWindow[],
+  ): Promise<readonly CompletedTaskWindowCount[]> {
+    const wanted = windows.slice(0, TASK_ACTIVITY_MAX_DAYS);
+    if (wanted.length === 0) return [];
+
+    const bounds = wanted.flatMap((window) => [
+      toStorageTimestamp(window.startsAt),
+      toStorageTimestamp(window.endsAt),
+    ]);
+    // The outer range, so the scan is one index range rather than the
+    // workspace's whole completion history. The windows a period surface asks
+    // about need not be contiguous, so it is derived rather than assumed.
+    const overallStart = bounds
+      .filter((_value, index) => index % 2 === 0)
+      .reduce((earliest, value) => (value < earliest ? value : earliest));
+    const overallEnd = bounds
+      .filter((_value, index) => index % 2 === 1)
+      .reduce((latest, value) => (value > latest ? value : latest));
+    const columns = wanted
+      .map(
+        (_window, index) =>
+          `SUM(CASE WHEN sr.completed_at >= ? AND sr.completed_at < ? THEN 1 ELSE 0 END) AS d${index}`,
+      )
+      .join(", ");
+
+    try {
+      const row = await this.#db
+        .prepare(
+          `SELECT ${columns}
+           FROM spine_records sr
+           JOIN entities e
+             ON e.workspace_id = sr.workspace_id AND e.id = sr.entity_id
+                AND e.deleted_at IS NULL
+           WHERE sr.workspace_id = ? AND sr.kind = '${TASK}'
+                 AND sr.completed_at >= ? AND sr.completed_at < ?`,
+        )
+        .bind(...bounds, this.#workspaceId, overallStart, overallEnd)
+        .first<Record<string, number | null>>();
+      return wanted.map((window, index) => ({
+        key: window.key,
+        completed: Number(row?.[`d${index}`] ?? 0),
       }));
     } catch (cause) {
       throw new TaskStorageError(undefined, { cause });

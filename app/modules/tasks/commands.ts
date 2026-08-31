@@ -75,6 +75,39 @@ export const tasksCommands: readonly CommandContribution[] = [
     kind: "navigate",
     target: { kind: "route", to: "/tasks?view=sectors" },
   },
+  /*
+   * V2.7 RECALL-02 — the two questions the palette exists to shorten.
+   *
+   * "What did I complete yesterday?" must be answerable in no more than two
+   * interactions from anywhere: open the palette, pick this. The target is a
+   * plain navigation like every other command here — `/tasks/completed/:window`
+   * resolves the owner's day and week start server-side and redirects into the
+   * ordinary `/tasks` configuration, so the owner lands on a URL they can share,
+   * save as a view, or widen with the controls.
+   */
+  {
+    id: "tasks.completed_yesterday",
+    title: "Completed yesterday",
+    subtitle: "What you finished yesterday, most recent first",
+    keywords: [
+      "completed",
+      "yesterday",
+      "done",
+      "finished",
+      "history",
+      "recap",
+    ],
+    kind: "navigate",
+    target: { kind: "route", to: "/tasks/completed/yesterday" },
+  },
+  {
+    id: "tasks.completed_this_week",
+    title: "Completed this week",
+    subtitle: "What you have finished since your week began",
+    keywords: ["completed", "this week", "done", "finished", "history", "week"],
+    kind: "navigate",
+    target: { kind: "route", to: "/tasks/completed/this-week" },
+  },
   {
     id: "tasks.someday",
     title: "Open Someday / Maybe",

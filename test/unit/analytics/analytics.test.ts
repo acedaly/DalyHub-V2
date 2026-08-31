@@ -21,6 +21,7 @@ function facts(over: Partial<AnalyticsFacts> = {}): AnalyticsFacts {
   const span = rangeSpan("week", "2026-08-10");
   return {
     range: "week",
+    span,
     buckets: rangeBuckets("week", span),
     current: { tasksCompleted: 24, projectsCompleted: 3, goalsCompleted: 0 },
     previous: { tasksCompleted: 18, projectsCompleted: 4, goalsCompleted: 0 },

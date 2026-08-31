@@ -88,6 +88,19 @@ const routes: readonly RouteContribution[] = [
     path: "tasks/views",
     file: "routes/views.tsx",
   },
+  /*
+   * V2.7 RECALL-02 — the two named completion-time windows.
+   *
+   * A static segment declared before `tasks/:taskId`, and two segments deep, so
+   * it can never be read as a task id. It owns nothing: it resolves the owner's
+   * day and week start and redirects into the ordinary `/tasks` vocabulary.
+   * No nav entry — this is a question the palette asks, not a place.
+   */
+  {
+    id: "tasks.completed_window",
+    path: "tasks/completed/:window",
+    file: "routes/completed.tsx",
+  },
   // TASKS-04: Review Inbox — the focused triage flow over the built-in Inbox query
   // (active, unassigned Tasks). A static segment, declared before `tasks/:taskId` so
   // it can never be read as a task id.
