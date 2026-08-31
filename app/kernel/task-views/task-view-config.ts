@@ -132,6 +132,29 @@ export interface TaskViewFilters {
   /** Completed/terminal visibility on top of the system view. */
   readonly completed?: TaskCompletedVisibility;
   /**
+   * V2.7 RECALL-02 — the COMPLETION-TIME window (DEBT-230).
+   *
+   * Three dimensions over the one completion authority,
+   * `spine_records.completed_at` (ADR-114 decision 4), and deliberately shaped
+   * like the dimensions already here rather than like a new date-filter system:
+   * `completedWithin` is the SAME closed {@link TaskRecencyWindow} vocabulary
+   * `createdWithin`/`updatedWithin` use, and `completedFrom`/`completedTo` are
+   * the same explicit `YYYY-MM-DD` pair the due and planned ranges model.
+   *
+   * `completed` above is a different question and stays beside them: it decides
+   * whether finished work is VISIBLE in a view, while these decide WHEN it was
+   * finished. Both are expressible together ("show completed, finished last
+   * week") and neither implies the other.
+   *
+   * Every bound is an OWNER calendar day, resolved to a UTC instant by the
+   * repository through the one scope-level timezone authority — a saved view
+   * naming `completedFrom: 2026-08-30` means the owner's 30 August wherever it
+   * is restored.
+   */
+  readonly completedWithin?: TaskRecencyWindow;
+  readonly completedFrom?: string;
+  readonly completedTo?: string;
+  /**
    * PLAN-01 / SMART-01 — explicit DATE-RANGE bounds, `YYYY-MM-DD`.
    *
    * The derived `dueState`/`plannedState` dimensions above answer relative
@@ -354,6 +377,18 @@ export function parseTaskViewConfig(raw: unknown): TaskViewConfig {
   if (updatedWithin) filters.updatedWithin = updatedWithin;
   const completed = member(rawFilters.completed, TASK_COMPLETED_VISIBILITIES);
   if (completed && completed !== "default") filters.completed = completed;
+  // V2.7 RECALL-02 — parsed exactly like the recency windows and the date
+  // ranges it reuses: a closed-set member and two validated wall-calendar
+  // bounds, each dropped rather than thrown on when unusable.
+  const completedWithin = member(
+    rawFilters.completedWithin,
+    TASK_RECENCY_WINDOWS,
+  );
+  if (completedWithin) filters.completedWithin = completedWithin;
+  const completedFrom = dateBound(rawFilters.completedFrom);
+  if (completedFrom) filters.completedFrom = completedFrom;
+  const completedTo = dateBound(rawFilters.completedTo);
+  if (completedTo) filters.completedTo = completedTo;
   const dueFrom = dateBound(rawFilters.dueFrom);
   if (dueFrom) filters.dueFrom = dueFrom;
   const dueTo = dateBound(rawFilters.dueTo);
@@ -448,6 +483,9 @@ export const TASK_VIEW_FILTER_KEYS = [
   "createdWithin",
   "updatedWithin",
   "completed",
+  "completedWithin",
+  "completedFrom",
+  "completedTo",
   "dueFrom",
   "dueTo",
   "plannedFrom",

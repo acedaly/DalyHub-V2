@@ -263,6 +263,9 @@ export async function loadAnalytics(
 
   const model = evaluateAnalytics({
     range: input.range,
+    // V2.7 RECALL-02 — the window the range TOTAL was counted over, carried
+    // through so the "Tasks completed" metric links to exactly those days.
+    span,
     buckets,
     current,
     previous: previousCounts,

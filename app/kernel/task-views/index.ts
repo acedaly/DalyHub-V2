@@ -39,6 +39,21 @@ export {
 
 export { TASK_VIEW_CODEC } from "./task-view-codec";
 
+/**
+ * V2.7 RECALL-02 — the two named completion-time windows, resolved against the
+ * owner's calendar day and their own first day of the week.
+ */
+export {
+  COMPLETED_WINDOW_IDS,
+  COMPLETED_WINDOW_LABELS,
+  completedRangeTasksHref,
+  completedWindowBounds,
+  completedWindowConfig,
+  parseCompletedWindowId,
+  type CompletedWindowBounds,
+  type CompletedWindowId,
+} from "./task-completed-windows";
+
 export {
   TASK_SYSTEM_VIEW_DEFINITIONS,
   findTaskSystemView,

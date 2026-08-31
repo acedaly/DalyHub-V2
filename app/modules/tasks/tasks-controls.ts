@@ -381,6 +381,29 @@ export function buildTasksControlGroups(
         label: COMPLETED_VISIBILITY_LABELS[visibility] ?? visibility,
       })),
     },
+    {
+      /*
+       * V2.7 RECALL-02 — WHEN it was finished, beside Created and Updated.
+       *
+       * The same closed recency vocabulary those two offer, over the one
+       * completion-time authority. It is deliberately the ONLY completion
+       * control in the sheet: the explicit `completedFrom`/`completedTo` pair is
+       * a specific window rather than a closed option set, exactly like
+       * `dueFrom`/`dueTo`, so it travels in the URL, in a saved view and from
+       * the palette's "Completed yesterday" — never as a pair of date pickers
+       * the sheet would have to grow for it.
+       */
+      id: "completedWithin",
+      label: "Completed",
+      param: TASKS_FILTER_PARAMS.completedWithin,
+      options: [
+        { value: ANY, label: "Any time" },
+        ...TASK_RECENCY_WINDOWS.map((window) => ({
+          value: window,
+          label: RECENCY_LABELS[window] ?? window,
+        })),
+      ],
+    },
     // Shaping controls. `kind` keeps them OUT of the active-filter badge and the
     // chip row: changing a sort or a layout does not make a collection filtered,
     // and a badge that claimed otherwise would be useless.

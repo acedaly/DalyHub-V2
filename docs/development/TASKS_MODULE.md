@@ -410,6 +410,8 @@ lands on the same records and the address bar stays honest about what is applied
 | Delegated / Waiting / Someday | `delegated` · `waiting` · `someday` | Flags. Someday maps to the COMMITMENT state, never a status. |
 | Created / updated recency | `created` · `updated` | Closed windows: today · 7 · 30 · 90 days. |
 | Completed visibility | `completed` | `hide` · `include` · `only`, applied ON TOP of the system view. |
+| Completed recency | `completedWithin` | The SAME closed windows, over `spine_records.completed_at` (V2.7 RECALL-02). |
+| Completed range | `completedFrom` · `completedTo` | Owner-calendar `YYYY-MM-DD`, both bounds INCLUSIVE (V2.7 RECALL-02). |
 
 The derived due and planned states are **mutually exclusive**, and deliberately so:
 ONE SQL expression defines each of them, and both the FILTER and the GROUPING
@@ -451,12 +453,13 @@ collection into the browser to filter it.
 
 ### Sorting and grouping
 
-Sorts: `smart` · due date · planned date · priority · created · updated · title ·
-**parent**. `?dir=asc|desc` reverses where reversing is meaningful; `smart`
-deliberately ignores a reversal, because "least relevant first" is not a useful
-order. Unparented tasks sort last under BOTH directions of the parent sort. Order
-is total — `(sort value, created_at, id)` — so it is stable across reloads and
-pages.
+Sorts: `smart` · due date · planned date · priority · created · updated ·
+**completed** · title · **parent**. `?dir=asc|desc` reverses where reversing is
+meaningful; `smart` deliberately ignores a reversal, because "least relevant
+first" is not a useful order. Unparented tasks sort last under BOTH directions of
+the parent sort, and a never-completed Task sorts last under both directions of
+the completed sort for the same reason. Order is total — `(sort value,
+created_at, id)` — so it is stable across reloads and pages.
 
 Grouping (`?group=`): priority · due state · planned date · status · parent ·
 delegated person · time sector. Every grouped view — including the Matrix and the
@@ -2461,3 +2464,193 @@ type before the ids, and D1 accepts at most 100 bound parameters.
   advanced recurrence fields at the trusted boundary.
 - `e2e/tasks-dependencies.spec.ts` — the journeys, every surface, phone, keyboard
   and axe.
+
+---
+
+## History answers by completion time (V2.7 RECALL-02, 2026-08-31)
+
+**"What did I complete yesterday?" is a control, not an archaeology dig.**
+
+[DEBT-230](../product/PRODUCT_DEBT.md) recorded two halves of one gap: no
+completed-date sort or window existed anywhere, and the Completed system view
+promised "most recent first" while sorting `updated` — edit time — so a Task
+completed last week and retitled today led the list. Both halves are closed here.
+
+### The one completion-time authority
+
+**`spine_records.completed_at`, and nothing else**
+([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
+decision 4). It already carries the product's completion semantics, and those
+semantics are exactly what makes it the honest answer:
+
+- a recurring occurrence keeps **its own** `completed_at` while its successor is a
+  new, incomplete record — so the occurrence is in the window and the successor is
+  not;
+- reopening a Task **clears** it (and withdraws an untouched successor) — so a
+  reopened Task honestly stops counting as completed, with nothing to reconcile.
+
+The Activity `task.completed` event remains the **audit trail** and is never a
+query authority for this question. It survives a reopen, so counting from it would
+report work the owner has explicitly un-finished. There is no second completion
+timestamp, no backfill column and no duplicated completion state anywhere in this
+capability.
+
+### The vocabulary
+
+One sort and three filter dimensions, all in the ONE declarative
+`TaskViewConfig` — nothing here is a private route state, a second date-filter
+system or a repository field name:
+
+| Name | Shape | Reads |
+| --- | --- | --- |
+| `sort=completed` | A `TaskSort` member | `COALESCE(sr.completed_at, <sentinel>)`, naturally DESC |
+| `completedWithin` | The existing `TaskRecencyWindow` grammar (`1d`/`7d`/`30d`/`90d`) | `sr.completed_at >= <instant>` |
+| `completedFrom` | Owner-calendar `YYYY-MM-DD` | `sr.completed_at >= <instant>` |
+| `completedTo` | Owner-calendar `YYYY-MM-DD`, INCLUSIVE | `sr.completed_at < <instant of the next day>` |
+
+The window grammar is `createdWithin`/`updatedWithin`'s, reused verbatim; the
+from/to pair is `dueFrom`/`dueTo`'s, reused verbatim. `completed` (the VISIBILITY
+dimension) keeps its own meaning and its own parameter name beside them — it
+decides whether finished work is *shown*, these decide *when* it was finished —
+which is why the window parameter is `completedWithin` rather than an overload.
+
+Every one of them is server-side, URL-backed, bound into the pagination cursor
+(`kw` / `kf` / `kt` in the filter signature) and expressible in a saved view by
+construction, exactly like every dimension before it.
+
+**The never-completed sentinel flips with the direction.** An empty string sorts
+below every ISO timestamp and `￿` above every one, so a Task with no
+completion is last under both `asc` and `desc` — the same rule the `parent` sort
+uses for unparented Tasks, and for the same reason: reversing an order must never
+promote "not finished" to the head of a list of finished work.
+
+### Owner-day boundaries
+
+`completed_at` is a **UTC instant** in storage; "yesterday" and "this week" are
+the **owner's**. So every bound is an owner-calendar day converted ONCE, outside
+SQL, by `ownerDayStartInstant` — the same HARDEN-06C helper the created/updated
+windows use. There is no second timezone helper and no UTC-day assumption:
+
+- `completedFrom` binds the instant the owner's *from* day begins;
+- `completedTo` binds the instant the owner's day AFTER *to* begins, compared with
+  `<`, so a completion at 23:50 owner-local on the closing day is inside the
+  window;
+- `completedWithin` binds the start of `recencyWindowStart(todayIso, window)`.
+
+"This week" additionally uses the owner's **first day of the week**, through
+`planningWeekStart` — the product's one answer to where a week begins
+(DEBT-152/DEBT-154). A Sunday-start owner and a Monday-start owner asking on a
+Sunday are asking about two different weeks, and both are right.
+
+### The entry points
+
+"What did I complete yesterday?" is answerable in **no more than two
+interactions from anywhere**:
+
+1. **Palette → "Completed yesterday"** (or "Completed this week"). A command
+   contribution is a static route string and "yesterday" is not a static date, so
+   the target is `/tasks/completed/:window` — a route that owns no query and no
+   component, resolves the owner's day and week start server-side, and
+   **redirects** into `/tasks?system=completed&sort=completed&completedFrom=…&completedTo=…`.
+   The address bar therefore ends up holding an ordinary configuration: shareable,
+   saveable as a view, and adjustable with the ordinary controls. (A *rewrite*,
+   the `/inbox` and `/upcoming` pattern, would have kept the resolved window
+   hidden; those routes are sidebar PLACES, this is a question.)
+2. **Tasks → Completed → the "Completed" window control**, which offers the same
+   closed recency vocabulary Created and Updated offer.
+
+The explicit `completedFrom`/`completedTo` pair has no control of its own, for
+the reason `dueFrom`/`dueTo` has none: it is a specific window rather than a
+closed option set, and it travels in the URL, in a saved view and from the
+palette.
+
+### The Completed system view
+
+Its config is now `{ systemView: "completed", sort: "completed" }` and its
+sentence reads **"Finished work, most recently completed first."** — the word
+"recent" was the ambiguity, so the view says which recent it means. Filtering and
+ordering agree because both read the one authority; reopening removes a Task from
+the window on the very next query; a recurring successor never appears merely
+because its predecessor completed.
+
+No productivity score, no streak, no weekly grade and no completion heat-map: the
+same refusal [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md) makes, unchanged.
+
+### Analytics parity
+
+The completed-trend panel's "Tasks completed" metric used to link to a bare
+`/tasks?system=completed` — the whole of the workspace's finished work, ordered by
+EDIT time, under a figure describing one period. Two questions, one link. It now
+carries the range's own span as the completion window plus the completion sort,
+built by `completedRangeTasksHref` in `~/kernel/task-views` — the one place a
+surface outside the Tasks module is handed a completion-window destination, and
+asserted equal to `paramsFromConfig`'s own output so the two layers cannot drift.
+
+Parity is asserted as **machine values**: the count Analytics states for a period
+equals the number of records the linked Tasks view returns for that same period,
+compared as numbers rather than sentences
+(`test/kernel/recall-02-completed-time.test.ts`). No new metric was added; an
+existing metric's LINK converged on the retrieval authority.
+
+One boundary is worth stating plainly, because it is deliberate. Analytics'
+period COUNT is still read from the Activity stream
+(`countPeriodCompletions`) — HARDEN-06C (F-07) made that read exact for any past
+period on purpose, and it is shared with the Review's own snapshot facts, which
+RECALL-04 owns. The two sources agree on every ordinary workspace and diverge only
+where an event outlives the state it recorded (a completion later reopened, or a
+completed record soft-deleted). Converging the COUNT itself is RECALL-04's call to
+make with the Review, not a change to smuggle in here.
+
+### Performance, and the index decision
+
+The sort is **one more `ORDER BY` arm** over the collection's existing statement —
+`spine_records` is already joined (the `smart` order reads `sr.completed_at`), so
+nothing new is joined, selected or counted. Measured over real D1
+(`test/kernel/recall-02-completed-time.test.ts`):
+
+| Query | Statements | Binds |
+| --- | --- | --- |
+| `sort=updated`, no window (the baseline) | 1 | *n* |
+| `sort=completed`, no window | 1 | *n* |
+| `sort=completed` + `completedFrom`/`completedTo` | 1 | *n* + 2 |
+| `sort=completed` + `completedWithin` | 1 | *n* + 1 |
+
+**No index was added, and the measurement is why.** `EXPLAIN QUERY PLAN` over the
+real generated SQL (40 Tasks, half completed, local D1, 2026-08-31):
+
+- `sort=completed` with no window plans **identically to the `updated`
+  baseline** — driven from `entities_active_workspace_type_created_idx`, with
+  `spine_records` reached by its primary key and a temp B-tree for the ORDER BY.
+  No regression to answer.
+- `sort=completed` **with** the window flips the planner to
+  `SEARCH sr USING INDEX spine_records_workspace_kind_completed_idx (ANY(workspace_id) AND ANY(kind) AND completed_at>? AND completed_at<?)`
+  — a bounded index range, with `entities` then joined by
+  `entities_workspace_id_type_key`. The index migration **0038** already added
+  (`spine_records (workspace_id, kind, completed_at)`) serves this read, exactly as
+  its own comment predicted it would: *"it serves any future 'what was completed
+  between these instants' read as well."*
+
+So the roadmap's candidate `spine_records(workspace_id, completed_at)` is a
+near-duplicate of an index that already exists and is already chosen. At
+single-owner scale the leading `ANY(workspace_id)` skip-scan degenerates to a
+direct range over the one workspace, and a second index would cost write
+amplification on every completion for no measured read. **Decision: ship no
+migration.** The falsifier is written down rather than left implicit: if a plan on
+a real workspace ever shows this read falling back to a scan of `entities`, the
+decision reopens with that evidence.
+
+### Tests
+
+- `test/unit/tasks/completed-time-vocabulary.test.ts` — the sort and the three
+  dimensions in the one vocabulary, the Completed view's sentence, the URL round
+  trip, the hostile-URL degradation, the named windows' owner-day/owner-week
+  arithmetic, and the Analytics link's equality with the Tasks URL codec.
+- `test/kernel/recall-02-completed-time.test.ts` — over real D1: the
+  completed-then-edited order truth (with the `sort: "updated"` inversion asserted
+  beside it), the 23:50 owner-local boundary and the same instant under another
+  zone, the owner's week, reopen, recurrence, keyset pagination past one page with
+  tied `completed_at` values, workspace isolation, the saved-view round trip,
+  Analytics machine-value parity, and the statement/bind budget.
+- `e2e/recall-02-completed-time.spec.ts` — two interactions from anywhere at
+  desktop and 393 px, the ordinary round-trippable URL, the Completed view's order,
+  the window control in the ordinary sheet, and axe.

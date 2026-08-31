@@ -54,7 +54,13 @@
  * calm empty state, not five empty panels.
  */
 
-import type { AnalyticsBucket, AnalyticsRangeId } from "./analytics-range";
+import { completedRangeTasksHref } from "~/kernel/task-views";
+
+import type {
+  AnalyticsBucket,
+  AnalyticsRangeId,
+  AnalyticsSpan,
+} from "./analytics-range";
 
 /* -------------------------------------------------------------------------- */
 /* Input facts                                                                 */
@@ -114,6 +120,16 @@ export interface AnalyticsGoalTally {
 
 export interface AnalyticsFacts {
   readonly range: AnalyticsRangeId;
+  /**
+   * V2.7 RECALL-02 — the range's own owner-calendar span.
+   *
+   * `current` is counted over exactly this window, so the "Tasks completed"
+   * metric's LINK is built from it: the figure and the list it opens describe
+   * the same days. Deriving the span from `buckets` instead would be a second
+   * definition of the range, and the bucket layout is deliberately allowed to
+   * differ from the total's window (see `analytics-range.ts`).
+   */
+  readonly span: AnalyticsSpan;
   readonly buckets: readonly AnalyticsBucket[];
   /** Exact totals for the range, or `null` when the read failed. */
   readonly current: AnalyticsCompletionCounts | null;
@@ -329,7 +345,22 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
       value: current?.tasksCompleted ?? null,
       supporting: deltaSentence(tasksDelta, "Tasks"),
       delta: tasksDelta,
-      to: "/tasks?system=completed",
+      /*
+       * V2.7 RECALL-02 — the link lands on the SAME days this figure counts.
+       *
+       * It used to be a bare `/tasks?system=completed`: the whole of the
+       * workspace's finished work, ordered by EDIT time, under a figure that
+       * described one period. Two different questions, one link. It now carries
+       * the range's own span as the completion window and the completion sort,
+       * built by the one kernel helper both surfaces share — so the count stated
+       * here and the count the list returns are the same machine value over the
+       * same window, which `test/kernel/recall-02-completed-time.test.ts`
+       * asserts by comparing values rather than sentences.
+       */
+      to: completedRangeTasksHref({
+        from: facts.span.startIso,
+        to: facts.span.endIso,
+      }),
     },
     {
       id: "projects",

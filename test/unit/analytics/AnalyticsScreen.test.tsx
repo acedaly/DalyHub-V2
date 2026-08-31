@@ -20,6 +20,7 @@ function pageData(
 ): AnalyticsPageData {
   const facts: AnalyticsFacts = {
     range: "week",
+    span: SPAN,
     buckets: BUCKETS,
     current: { tasksCompleted: 24, projectsCompleted: 3, goalsCompleted: 0 },
     previous: { tasksCompleted: 18, projectsCompleted: 4, goalsCompleted: 0 },
@@ -94,7 +95,13 @@ describe("Analytics screen (UIX-05)", () => {
     renderScreen(pageData());
     expect(
       within(screen.getByTestId("analytics-metric-tasks")).getByRole("link"),
-    ).toHaveAttribute("href", "/tasks?system=completed");
+    ).toHaveAttribute(
+      // V2.7 RECALL-02 — the figure's link lands on the SAME days it counts, in
+      // completion order, rather than on the whole of the workspace's finished
+      // work in edit order.
+      "href",
+      "/tasks?system=completed&sort=completed&completedFrom=2026-08-04&completedTo=2026-08-10",
+    );
   });
 
   it("states the comparison as a checkable sentence, never a percentage", () => {

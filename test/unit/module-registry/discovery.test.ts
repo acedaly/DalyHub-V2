@@ -394,6 +394,13 @@ describe("module discovery", () => {
         },
         // TASKS-03 adds the saved-view mutation endpoint (no nav entry).
         { id: "tasks.views", moduleId: "tasks", file: "routes/views.tsx" },
+        // V2.7 RECALL-02 adds the named completion-time windows — a redirect
+        // into the ordinary `/tasks` vocabulary, with no nav entry of its own.
+        {
+          id: "tasks.completed_window",
+          moduleId: "tasks",
+          file: "routes/completed.tsx",
+        },
         // TASKS-04 adds Review Inbox — the triage flow over the built-in Inbox query.
         { id: "tasks.review", moduleId: "tasks", file: "routes/review.tsx" },
         // PROJ-01 / ADR-033 re-homed the task record resource routes to the Tasks
@@ -742,6 +749,9 @@ describe("module discovery", () => {
         "tasks.this_week",
         "tasks.by_priority",
         "tasks.sectors",
+        // V2.7 RECALL-02 — "what did I complete yesterday?" in two interactions.
+        "tasks.completed_yesterday",
+        "tasks.completed_this_week",
         "tasks.someday",
         // X-02 — the cross-module views: the surface plus its four built-in
         // questions, each a plain navigation to a `/views` URL.

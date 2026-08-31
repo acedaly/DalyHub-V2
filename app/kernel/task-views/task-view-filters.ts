@@ -51,6 +51,13 @@ export function toWorkspaceFilters(
   if (f.createdWithin) out.createdWithin = f.createdWithin;
   if (f.updatedWithin) out.updatedWithin = f.updatedWithin;
   if (f.completed) out.completedVisibility = f.completed;
+  // V2.7 RECALL-02 — the completion-time window, translated exactly like the
+  // created/updated windows and the due/planned bounds beside it: three
+  // validated dimensions, three repository parameters, the predicate and the
+  // owner-day → instant conversion both chosen by the repository.
+  if (f.completedWithin) out.completedWithin = f.completedWithin;
+  if (f.completedFrom) out.completedFrom = f.completedFrom;
+  if (f.completedTo) out.completedTo = f.completedTo;
   if (f.dueFrom) out.dueFrom = f.dueFrom;
   if (f.dueTo) out.dueTo = f.dueTo;
   if (f.plannedFrom) out.plannedFrom = f.plannedFrom;

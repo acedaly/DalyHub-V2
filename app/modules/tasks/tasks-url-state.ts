@@ -68,6 +68,14 @@ export const TASKS_FILTER_PARAMS: Record<keyof TaskViewFilters, string> = {
   createdWithin: "created",
   updatedWithin: "updated",
   completed: "completed",
+  // V2.7 RECALL-02 — the completion-time window. `completed` above is already
+  // the VISIBILITY dimension, so the window names itself in full rather than
+  // overloading that parameter; the from/to pair matches `dueFrom`/`dueTo`
+  // exactly, which is what makes a completed range read like every other range
+  // in a shared link.
+  completedWithin: "completedWithin",
+  completedFrom: "completedFrom",
+  completedTo: "completedTo",
   dueFrom: "dueFrom",
   dueTo: "dueTo",
   plannedFrom: "plannedFrom",

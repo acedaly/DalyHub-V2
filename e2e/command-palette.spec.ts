@@ -137,15 +137,28 @@ test.describe("DS-09 Command Palette — desktop", () => {
     await page.goto("/today");
     const input = await openPalette(page);
     await input.fill("Finish");
-    const listbox = page.getByRole("listbox", {
-      name: "Commands and records",
-    });
-    await expect(listbox.getByText("Tasks")).toBeVisible();
+    await expect(
+      page.getByRole("listbox", { name: "Commands and records" }),
+    ).toBeVisible();
+    /*
+     * The RECORD group is headed "Tasks", and the assertion names that HEADING
+     * rather than asking the whole listbox for the word.
+     *
+     * `listbox.getByText("Tasks")` was unambiguous only while no Tasks-module
+     * COMMAND happened to match this query — every command row carries its
+     * module label in a chip with the same text. V2.7 RECALL-02's "Completed
+     * yesterday" / "Completed this week" match "Finish" (they are about
+     * finished work), so two more "Tasks" chips appeared and the loose locator
+     * resolved to several elements. The group title is what this test actually
+     * means, and it will not be broken by the next Tasks command.
+     */
+    await expect(
+      page.locator(".dh-command__grouptitle").filter({ hasText: "Tasks" }),
+    ).toBeVisible();
+    const record = option(page, /Finish PX-02/).first();
+    await expect(record).toBeVisible();
     // Open the record result directly (its option is a real link).
-    await option(page, /Finish PX-02/)
-      .first()
-      .getByRole("link")
-      .click();
+    await record.getByRole("link").click();
     // TASKS-01: the task record is resolved by the real Tasks provider and opens on
     // the canonical /tasks surface (its canonicalPath), not /today.
     await expect(page).toHaveURL(/\/tasks\?.*drawer=/);

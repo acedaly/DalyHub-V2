@@ -786,6 +786,26 @@ export const TASK_SORTS = [
   "priority",
   "created",
   "updated",
+  /**
+   * V2.7 RECALL-02 — order by WHEN THE WORK WAS FINISHED.
+   *
+   * The one completion-time authority is `spine_records.completed_at` (ADR-114
+   * decision 4), which the collection query already joins. It is the honest
+   * per-record truth: a recurring occurrence keeps its own completion while its
+   * successor is a new, incomplete record, and reopening a Task clears it — so a
+   * reopened Task stops counting as completed with nothing to reconcile.
+   *
+   * Its natural direction is DESCENDING — most recently completed first — and a
+   * Task with NO completion is not "completed a very long time ago": it has no
+   * position in this order at all, so it sorts LAST under both directions (the
+   * sentinel flips, exactly as `parent` flips its unparented sentinel).
+   *
+   * `updated` is deliberately NOT a stand-in for it. Edit time moves whenever
+   * anything about a Task changes, so a Task completed last week and retitled
+   * today leads an `updated` list — the defect DEBT-230 recorded, and the reason
+   * the Completed system view now names THIS sort.
+   */
+  "completed",
   "title",
   /**
    * TASKS-03: order by the structural parent's title (tasks with no parent last),
@@ -944,6 +964,37 @@ export type WorkspaceTaskFilters = {
   readonly updatedWithin?: TaskRecencyWindow;
   /** Completed/terminal visibility applied on top of the system view. */
   readonly completedVisibility?: TaskCompletedVisibility;
+
+  /* ---- V2.7 RECALL-02 — the COMPLETION-TIME window. ------------------------
+     Three dimensions over the one completion authority, `spine_records.completed_at`
+     (ADR-114 decision 4). They are the completion-time twins of the created/updated
+     recency window and of the due/planned from-to pair, deliberately reusing both
+     grammars rather than introducing a third date-filter model.
+
+     Every one of them is a window over an INSTANT resolved against the OWNER's
+     calendar day: `completed_at` is stored UTC, "yesterday" is the owner's, and
+     the repository converts the owner-local day bounds to instants exactly as the
+     created/updated windows do (HARDEN-06C F-05). A Task with no completion is
+     never inside any of these windows — the same rule the due/planned ranges hold
+     to, and what stops "completed this week" quietly returning the open backlog. */
+
+  /**
+   * Only Tasks COMPLETED within this window (inclusive of the owner's today).
+   *
+   * The closed {@link TaskRecencyWindow} vocabulary, unchanged: a bounded set
+   * keeps the URL, the cursor signature and the saved-view config validatable.
+   */
+  readonly completedWithin?: TaskRecencyWindow;
+  /** Only Tasks completed on or after this owner-calendar date (`YYYY-MM-DD`). */
+  readonly completedFrom?: string;
+  /**
+   * Only Tasks completed on or before this owner-calendar date (`YYYY-MM-DD`).
+   *
+   * INCLUSIVE of the whole named day: the bound is the instant the owner's NEXT
+   * day begins, so a completion at 23:50 owner-local on the last day of the
+   * window is inside it.
+   */
+  readonly completedTo?: string;
 
   /* ---- PLAN-01 / SMART-01 additions. -------------------------------------
      Every one is resolved SERVER-side and bound into the cursor signature, so a

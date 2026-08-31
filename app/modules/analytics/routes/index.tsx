@@ -63,6 +63,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     const failedPage: AnalyticsPageData = {
       model: evaluateAnalytics({
         range,
+        span,
         buckets: rangeBuckets(range, span),
         current: null,
         previous: null,
