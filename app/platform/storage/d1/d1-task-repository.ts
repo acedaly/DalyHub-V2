@@ -722,12 +722,16 @@ const TASK_PARENT_SEARCH_MAX = 50;
  * is a plain string comparison against the OWNER's calendar day — never a naïve
  * UTC date, and never a second timezone authority. The owner-day value arrives
  * already resolved (`ownerCalendarIso(now, preferences.timezone)`, ADR-022) and
- * reaches SQL as `todayExpr`, which is either the `cal.today_iso` column the
- * collection query already CROSS JOINs (costing no additional bind) or a `?`
- * placeholder for the queries that have no `cal` (the Waiting list and count).
+ * reaches SQL as `todayExpr` — today always the `cal.today_iso` column, which
+ * the collection query already CROSS JOINs for the due and planned states and
+ * which the Waiting list and count join once for the same reason. So the
+ * predicate costs NO bind of its own however many times it appears in one
+ * statement, which is what makes the keyset resume affordable.
  *
  * `todayExpr` is TRUSTED, constant SQL chosen by this module — never caller data
- * — exactly like the grouping bucket expressions beside it.
+ * — exactly like the grouping bucket expressions beside it. It is a parameter
+ * rather than a constant so a future caller with a differently-named calendar
+ * source cannot be tempted to write a second predicate.
  *
  * There is deliberately one definition. Today's attention fact, the daily
  * digest, the `/tasks` filter and the Waiting surface all resolve "a follow-up
