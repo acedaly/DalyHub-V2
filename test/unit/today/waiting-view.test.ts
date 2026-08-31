@@ -96,6 +96,7 @@ describe("toWaitingCardData", () => {
     dueDate: "2026-07-15",
     scheduledDate: null,
     parent: { kind: "project" as const, id: "p1", title: "Procurement uplift" },
+    followUpOn: null,
   };
 
   it("derives the subject, since, elapsed and an overdue due label", () => {

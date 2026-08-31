@@ -30,6 +30,7 @@ function waitingCard(over: Partial<WaitingCardData> = {}): WaitingCardData {
     sinceLabel: "18 Jul 2026",
     elapsedLabel: "3 days",
     dateLabel: null,
+    followUpLabel: null,
     ...over,
   };
 }

@@ -8,6 +8,7 @@ describe("today search provider removal", () => {
     expect(todayModule.commands?.map((command) => command.id)).toEqual([
       "today.open",
       "today.open_waiting",
+      "today.open_follow_ups_due",
     ]);
     expect(todayModule.searchProviders).toBeUndefined();
   });

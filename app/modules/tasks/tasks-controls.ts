@@ -22,6 +22,7 @@ import type { CollectionControlGroup } from "~/shared/collection-layout";
 import {
   TASK_COMPLETED_VISIBILITIES,
   TASK_DUE_STATES,
+  TASK_FOLLOW_UP_STATES,
   TASK_PARENT_KINDS,
   TASK_PLANNED_STATES,
   TASK_RECENCY_WINDOWS,
@@ -39,6 +40,7 @@ import {
 import {
   COMPLETED_VISIBILITY_LABELS,
   DUE_STATE_LABELS,
+  FOLLOW_UP_STATE_LABELS,
   GROUP_BY_LABELS,
   PARENT_KIND_LABELS,
   PLANNED_STATE_LABELS,
@@ -336,6 +338,30 @@ export function buildTasksControlGroups(
       options: [
         { value: ANY, label: "Waiting or not" },
         { value: "1", label: "Waiting only" },
+      ],
+    },
+    {
+      /*
+       * V2.7 RECALL-03 — the follow-up dimension, beside Delegated and Waiting.
+       *
+       * It sits with them because that is where the date lives: `follow_up_on`
+       * is part of a Task's DELEGATION group ("chase them on Friday"), and the
+       * owner reaching for "who am I waiting on?" is one control away from "and
+       * which of them did I say I would chase today?".
+       *
+       * A SPECIFIC follow-up window is said with `followUpFrom`/`followUpTo` in
+       * the URL or a saved view, exactly as a specific due window is — so the
+       * sheet offers the closed states and grows no date pickers for it.
+       */
+      id: "followUp",
+      label: "Follow-up",
+      param: TASKS_FILTER_PARAMS.followUp,
+      options: [
+        { value: ANY, label: "Any follow-up" },
+        ...TASK_FOLLOW_UP_STATES.map((state) => ({
+          value: state,
+          label: FOLLOW_UP_STATE_LABELS[state] ?? state,
+        })),
       ],
     },
     {

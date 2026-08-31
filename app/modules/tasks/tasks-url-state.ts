@@ -76,6 +76,13 @@ export const TASKS_FILTER_PARAMS: Record<keyof TaskViewFilters, string> = {
   completedWithin: "completedWithin",
   completedFrom: "completedFrom",
   completedTo: "completedTo",
+  // V2.7 RECALL-03 — the follow-up dimension. `followUp` is the derived state
+  // ("due", "overdue", "none"); the from/to pair matches `dueFrom`/`dueTo`
+  // exactly, so a follow-up window reads like every other range in a shared
+  // link and needs no second grammar to explain it.
+  followUp: "followUp",
+  followUpFrom: "followUpFrom",
+  followUpTo: "followUpTo",
   dueFrom: "dueFrom",
   dueTo: "dueTo",
   plannedFrom: "plannedFrom",

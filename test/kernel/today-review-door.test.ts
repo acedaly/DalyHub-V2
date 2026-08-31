@@ -265,16 +265,36 @@ describe("Today offers the current period's Review", () => {
 /**
  * What Today's loader costs on an empty workspace.
  *
- * MEASURED at **20** on `main` immediately before STEER-05, and **21** with the
- * week's door. DEBT-34's closing condition asked for "query count unchanged",
- * and this item could not honour it: nothing Today already reads touches
- * `review_details`, so there was no existing statement for the existence read
- * to ride on. The cost is therefore recorded rather than absorbed — ADR-110
- * decision 7's posture — here, in `TODAY_DASHBOARD.md`, and in the debt entry
- * itself. Pinning the absolute figure is what makes a SECOND Reviews read, or a
- * per-state read, fail this file rather than pass unnoticed.
+ * MEASURED at **20** on `main` immediately before STEER-05, **21** with the
+ * week's door, and **22** since V2.7 RECALL-03. DEBT-34's closing condition
+ * asked for "query count unchanged", and this item could not honour it: nothing
+ * Today already reads touches `review_details`, so there was no existing
+ * statement for the existence read to ride on. The cost is therefore recorded
+ * rather than absorbed — ADR-110 decision 7's posture — here, in
+ * `TODAY_DASHBOARD.md`, and in the debt entry itself. Pinning the absolute
+ * figure is what makes a SECOND Reviews read, or a per-state read, fail this
+ * file rather than pass unnoticed.
+ *
+ * ── Why it moved to 22 (V2.7 RECALL-03) ─────────────────────────────────────
+ *
+ * The attention rail's waiting row learned ONE additional fact — how many
+ * waiting Tasks have a follow-up due — and that fact costs exactly ONE bounded
+ * aggregate (`countWaitingTasks`), read in parallel beside the waiting page
+ * inside `readWaiting`. The roadmap budgeted "at most one bounded count read"
+ * and "Today's 21-statement budget moves by at most 1, and the test that pins
+ * it is updated deliberately, never quietly"; this comment IS that deliberate
+ * update.
+ *
+ * It could not ride an existing statement. The waiting PAGE is bounded at
+ * `WAITING_LIMIT` (50), so counting follow-ups over its rows would understate
+ * the fact on any workspace holding more waiting work than that — the same
+ * class of quiet untruth RECALL-03 removes from the Waiting subtitle. A count
+ * the database answers for the whole workspace is worth one statement.
+ *
+ * The figure stays ABSOLUTE and pinned: a second follow-up read, a per-Task
+ * count, or a digest read leaking into Today's loader fails here.
  */
-const TODAY_STATEMENT_BUDGET = 21;
+const TODAY_STATEMENT_BUDGET = 22;
 
 describe("the door costs exactly one bounded statement", () => {
   it("is one statement on its own, found or not", async () => {

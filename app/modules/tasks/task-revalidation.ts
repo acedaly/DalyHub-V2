@@ -256,6 +256,16 @@ export function taskViewSensitivity(
   ) {
     effects.add("completion");
   }
+  // V2.7 RECALL-03 — `follow_up_on` lives on the DELEGATION group, so membership
+  // of a follow-up filter moves exactly when the delegation changes. It is not
+  // coupled to completion: a follow-up dates a chase, not a finish.
+  if (
+    filters.followUp !== undefined ||
+    filters.followUpFrom !== undefined ||
+    filters.followUpTo !== undefined
+  ) {
+    effects.add("delegation");
+  }
 
   const dimension = groupDimensionFor(config);
   if (dimension !== null) {

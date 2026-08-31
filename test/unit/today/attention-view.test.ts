@@ -18,7 +18,7 @@ import {
 function input(overrides: Partial<AttentionInput> = {}): AttentionInput {
   return {
     inboxCount: 0,
-    waiting: { count: 0, oldestDays: null },
+    waiting: { count: 0, oldestDays: null , followUpDue: 0 },
     assets: { visibleCount: 0, trackedAsTasksCount: 0, first: null },
     projects: [],
     goals: [],
@@ -58,14 +58,14 @@ describe("inclusion — an item type appears only when its condition holds", () 
 
   it("ages the oldest waiting item, because a bare count is noise", () => {
     const rail = buildAttention(
-      input({ waiting: { count: 2, oldestDays: 9 } }),
+      input({ waiting: { count: 2, oldestDays: 9 , followUpDue: 0 } }),
     );
     expect(rail[0]?.detail).toBe("2 waiting items · oldest 9 days");
   });
 
   it("falls back to the count alone when no age is known", () => {
     const rail = buildAttention(
-      input({ waiting: { count: 1, oldestDays: null } }),
+      input({ waiting: { count: 1, oldestDays: null , followUpDue: 0 } }),
     );
     expect(rail[0]?.detail).toBe("1 waiting item");
   });
@@ -119,7 +119,7 @@ describe("inclusion — an item type appears only when its condition holds", () 
 describe("caps and priority", () => {
   const crowded = input({
     inboxCount: 2,
-    waiting: { count: 3, oldestDays: 4 },
+    waiting: { count: 3, oldestDays: 4 , followUpDue: 0 },
     assets: {
       visibleCount: 2,
       trackedAsTasksCount: 0,

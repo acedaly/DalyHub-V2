@@ -20,7 +20,7 @@ const QUIET: DigestFacts = {
   dueToday: 0,
   overdue: 0,
   inboxCount: 0,
-  waiting: { count: 0, oldestDays: null },
+  waiting: { count: 0, oldestDays: null , followUpDue: 0 },
   assets: { visibleCount: 0, first: null },
   projects: [],
   events: [],
@@ -38,7 +38,7 @@ describe("an empty digest is not sent", () => {
       { ...QUIET, dueToday: 1 },
       { ...QUIET, overdue: 1 },
       { ...QUIET, inboxCount: 1 },
-      { ...QUIET, waiting: { count: 1, oldestDays: 3 } },
+      { ...QUIET, waiting: { count: 1, oldestDays: 3 , followUpDue: 0 } },
       {
         ...QUIET,
         assets: {
@@ -70,7 +70,7 @@ describe("what the digest says", () => {
       dueToday: 3,
       overdue: 2,
       inboxCount: 4,
-      waiting: { count: 2, oldestDays: 9 },
+      waiting: { count: 2, oldestDays: 9 , followUpDue: 0 },
       assets: { visibleCount: 3, first: null },
       projects: [
         { title: "Kitchen renovation", statusLabel: "At risk" },
@@ -120,7 +120,7 @@ describe("what the digest says", () => {
       ...QUIET,
       dueToday: 1,
       inboxCount: 1,
-      waiting: { count: 1, oldestDays: 1 },
+      waiting: { count: 1, oldestDays: 1 , followUpDue: 0 },
       projects: [{ title: "Kitchen", statusLabel: "Stale" }],
     });
     expect(digest?.body).toContain("1 task for today");

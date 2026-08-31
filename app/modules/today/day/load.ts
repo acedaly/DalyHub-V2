@@ -600,6 +600,7 @@ export async function loadTodayDay(
     safely(() => readWaiting(scope, todayIso, timezone), {
       count: 0,
       oldestDays: null,
+      followUpDue: 0,
     }),
     safely(
       () => readActiveProjects(scope, now, todayIso, timezone),

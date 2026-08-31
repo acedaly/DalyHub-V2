@@ -68,6 +68,8 @@ export type TaskValidationField =
   | "direction"
   | "dueState"
   | "plannedState"
+  // V2.7 RECALL-03 — the derived follow-up dimension over `follow_up_on`.
+  | "followUp"
   | "parentKind"
   | "recencyWindow"
   | "completedVisibility"

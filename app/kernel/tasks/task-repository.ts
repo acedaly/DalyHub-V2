@@ -29,6 +29,7 @@ import type {
   ListTasksInput,
   ListTaskActivityInput,
   ListWaitingTasksInput,
+  CountWaitingTasksInput,
   CompletedTaskWindow,
   CompletedTaskWindowCount,
   TaskActivityDayCount,
@@ -318,10 +319,30 @@ export interface TaskRepository {
 
   /**
    * List the workspace's currently-waiting, active (non-completed) tasks as a
-   * bounded, deterministic page for the Waiting collection. Ordered overdue-first,
-   * then longest-waiting, then due date, then id. Never an unbounded query.
+   * KEYSET page for the Waiting collection. Ordered overdue-first, then
+   * longest-waiting, then due date, then id. Never an unbounded query.
+   *
+   * V2.7 RECALL-03 (DEBT-232) — the page now carries a `nextCursor`, so the
+   * collection can be walked past its page size instead of ending silently at
+   * it. The ordering was already total (`id` is the final tiebreaker), which is
+   * what makes a deterministic keyset resume possible without changing what the
+   * surface shows.
+   *
+   * `followUp` narrows to a follow-up state from the ONE declarative vocabulary
+   * ({@link TaskFollowUpState}), resolved by the same predicate `/tasks` uses.
    */
   listWaitingTasks(input?: ListWaitingTasksInput): Promise<WaitingTaskPage>;
+
+  /**
+   * V2.7 RECALL-03 — how many waiting Tasks match a follow-up state.
+   *
+   * ONE bounded, workspace-scoped aggregate — never a page read and counted in
+   * JavaScript, which is what made the old Waiting subtitle state a truncated
+   * number as fact. It is the single definition behind Today's attention fact
+   * and the daily digest's follow-up line, so the two cannot state different
+   * numbers for the same morning (ADR-114 decision 5).
+   */
+  countWaitingTasks(input?: CountWaitingTasksInput): Promise<number>;
 
   /**
    * GOAL-02 — the created-vs-completed counts for a handful of owner-calendar

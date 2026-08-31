@@ -137,7 +137,7 @@ async function buildTasks(
         todayIso: window.todayIso,
         limit: WAITING_TASK_LIMIT,
       }),
-    { items: [] as const },
+    { items: [] as const, nextCursor: null },
   );
 
   const sources: SnapshotTaskSource[] = [

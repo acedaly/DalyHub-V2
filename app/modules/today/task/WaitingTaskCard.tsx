@@ -59,6 +59,30 @@ export function toWaitingCardProps(
       : card.elapsedLabel,
   });
 
+  /*
+   * V2.7 RECALL-03 — the chase date the owner wrote down (DEBT-231).
+   *
+   * Absent from every row that has no follow-up date, so the card grows nothing
+   * for the ordinary waiting task. Where it IS set, it is the fact that decides
+   * whether to act today — and it is what a follow-up-filtered page needs in
+   * order to say why each row is in it. An overdue chase wears the word (the
+   * relative label already reads "Yesterday" / "5 days ago") and the shared
+   * `danger` tone beside it, never colour alone.
+   */
+  if (card.followUpLabel) {
+    metadata.push({
+      id: "follow-up",
+      label: "Follow up",
+      value: card.followUpLabel.overdue ? (
+        <span className="dh-waiting-card__follow-up" data-overdue="true">
+          {card.followUpLabel.label}
+        </span>
+      ) : (
+        card.followUpLabel.label
+      ),
+    });
+  }
+
   return {
     id: card.id,
     title: card.title,

@@ -52,6 +52,17 @@ export interface DigestFacts {
     readonly count: number;
     /** Owner-calendar days the oldest waiting item has waited, or null. */
     readonly oldestDays: number | null;
+    /**
+     * V2.7 RECALL-03 — waiting Tasks whose FOLLOW-UP date has arrived.
+     *
+     * The SAME field Today's attention rail reads, from the same shared facts
+     * layer and the same `followUp: "due"` predicate — so the digest's follow-up
+     * line and Today's follow-up fact are one number with two renderings, not
+     * two counts that happen to agree. Reading `count` here instead would state
+     * the generic waiting total under follow-up words, which is the specific
+     * untruth `digest.test.ts` falsifies.
+     */
+    readonly followUpDue: number;
   };
   readonly assets: {
     /** Obligations needing attention that no open Task already carries. */
@@ -168,6 +179,21 @@ export function renderDigest(facts: DigestFacts): NewNotification | null {
       facts.waiting.oldestDays === null
         ? count
         : `${count} · oldest ${plural(facts.waiting.oldestDays, "day", "days")}`,
+    );
+  }
+
+  /*
+   * V2.7 RECALL-03 — the follow-ups-due line, beside the waiting line.
+   *
+   * Its own line rather than a clause on the waiting line, because it is a
+   * different fact with a different action: "two things are outstanding" is
+   * ageing, "one of them you said you would chase today" is a commitment that
+   * has come due. It obeys the file's suppression rule exactly as every line
+   * above it does — no follow-ups due, no line, and never "0 follow-ups due".
+   */
+  if (facts.waiting.followUpDue > 0) {
+    lines.push(
+      `${plural(facts.waiting.followUpDue, "follow-up", "follow-ups")} due`,
     );
   }
 

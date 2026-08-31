@@ -118,6 +118,13 @@ export function workspaceTaskFiltersSignature(
   }
   if (filters.completedFrom != null) parts.push(`kf=${filters.completedFrom}`);
   if (filters.completedTo != null) parts.push(`kt=${filters.completedTo}`);
+  // V2.7 RECALL-03 — the follow-up dimension. Bound in for the same reason every
+  // dimension before it is: each of the three changes WHICH Tasks appear, so a
+  // page-two cursor must not survive turning the follow-up filter on, off or
+  // widening its window. A query applying none of them signs exactly as before.
+  if (filters.followUp != null) parts.push(`fu=${filters.followUp}`);
+  if (filters.followUpFrom != null) parts.push(`ff=${filters.followUpFrom}`);
+  if (filters.followUpTo != null) parts.push(`ft=${filters.followUpTo}`);
   // PLAN-01 / SMART-01 filters. Additive in the same way: a query that applies
   // none of them signs exactly as it did before, so every existing cursor and
   // every existing link stays valid.

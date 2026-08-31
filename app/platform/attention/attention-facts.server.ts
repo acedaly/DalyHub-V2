@@ -71,11 +71,25 @@ const GOALS_EXAMINED = 8;
 /* Shapes                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** The waiting fact: how many, and how long the oldest has waited. */
+/** The waiting fact: how many, how long the oldest has waited, and what is due. */
 export interface WaitingFacts {
   readonly count: number;
   /** Owner-calendar days the oldest waiting item has waited, or null. */
   readonly oldestDays: number | null;
+  /**
+   * V2.7 RECALL-03 — how many waiting Tasks have a FOLLOW-UP due (DEBT-231).
+   *
+   * "Due" is the owner's today or earlier, resolved by the ONE `followUp: "due"`
+   * predicate in the declarative Task vocabulary — never a second definition
+   * written here. It is a strict SUBSET of {@link count}: the waiting row states
+   * both because they answer different questions ("what is outstanding?" and
+   * "what did I say I would chase today?"), and confusing the two is exactly the
+   * mistake the machine-value parity tests exist to catch.
+   *
+   * Today's attention rail and the daily digest both read THIS field, so the
+   * screen and the notification cannot state different numbers on one morning.
+   */
+  readonly followUpDue: number;
 }
 
 /**
@@ -190,16 +204,26 @@ export async function readAssetAttention(
   );
 }
 
-/** The waiting count and the age of the oldest — the fact that earns the row. */
+/**
+ * The waiting count, the age of the oldest, and how many follow-ups are due —
+ * the facts that earn the row.
+ *
+ * TWO statements, in parallel: the bounded page (which the age of the oldest
+ * needs, and which the count is taken from as it always was) and V2.7
+ * RECALL-03's ONE bounded aggregate for the follow-ups due. The aggregate is
+ * asked of the database rather than counted over the page on purpose — a page
+ * count is bounded by `WAITING_LIMIT` and would silently understate the fact the
+ * moment a workspace held more waiting work than that.
+ */
 export async function readWaiting(
   scope: WorkspaceScope,
   todayIso: string,
   timezone: string,
 ): Promise<WaitingFacts> {
-  const page = await scope.tasks.listWaitingTasks({
-    limit: WAITING_LIMIT,
-    todayIso,
-  });
+  const [page, followUpDue] = await Promise.all([
+    scope.tasks.listWaitingTasks({ limit: WAITING_LIMIT, todayIso }),
+    scope.tasks.countWaitingTasks({ todayIso, followUp: "due" }),
+  ]);
   let oldestDays: number | null = null;
   for (const item of page.items) {
     const days = daysBetween(
@@ -210,7 +234,7 @@ export async function readWaiting(
       oldestDays = days;
     }
   }
-  return { count: page.items.length, oldestDays };
+  return { count: page.items.length, oldestDays, followUpDue };
 }
 
 /** Whole days from `from` to `to`; positive when `to` is later. */
@@ -337,6 +361,7 @@ export async function readAttentionFacts(
     safely(() => readWaiting(scope, facts.todayIso, facts.timezone), {
       count: 0,
       oldestDays: null,
+      followUpDue: 0,
     }),
     safely(() => readAssetAttention(scope, facts.todayIso), {
       items: [],

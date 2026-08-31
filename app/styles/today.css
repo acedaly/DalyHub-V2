@@ -1274,6 +1274,43 @@
 }
 
 /*
+ * V2.7 RECALL-03 — a meta line carrying TWO facts.
+ *
+ * The waiting row states what is outstanding AND how much of it the owner said
+ * they would chase today. Two facts do not fit the single-line, ellipsised meta
+ * the rail draws on a wide container, and an ellipsised fact is a fact the
+ * surface has quietly stopped stating — the same class of untruth as the
+ * truncated waiting count this item repairs. So the row that carries a second
+ * fact wraps instead of truncating. It is the only row that ever does.
+ */
+.dh-day-row--attention .dh-day-row__meta--split {
+  white-space: normal;
+  overflow: visible;
+}
+
+/*
+ * The second fact's own destination, inside the meta line.
+ *
+ * The count names a FILTERED population, so it opens the filtered list rather
+ * than the whole one. It keeps the muted meta colour (it is still supporting
+ * text) and earns its underline, and it carries the same WCAG 2.2 AA target
+ * floor `.dh-day-row__title` carries — an inline link in a 16px meta line would
+ * otherwise fail `target-size` on exactly the phone this rail is read on.
+ */
+.dh-day-row__meta-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  display: inline-block;
+  min-block-size: var(--app-pointer-target-min);
+  align-content: center;
+}
+
+.dh-day-row__meta-link:hover {
+  color: var(--dh-color-text);
+}
+
+/*
  * TODAY-TASK-01 §B5 — on a wide rail the attention row is ONE line.
  *
  * "Needs attention" answers "what has gone wrong?", and the answer should read
@@ -1304,6 +1341,14 @@
     padding-inline-start: 0;
     max-inline-size: 55%;
     white-space: nowrap;
+  }
+
+  /* The two-fact row keeps its whole answer at every width: it may take a
+     second line rather than lose the follow-up count to an ellipsis. */
+  .dh-day-row--attention .dh-day-row__meta--split {
+    max-inline-size: 60%;
+    white-space: normal;
+    text-align: end;
   }
 }
 
@@ -1435,6 +1480,18 @@
   align-items: center;
   gap: var(--app-space-1);
   min-inline-size: 0;
+}
+
+/*
+ * V2.7 RECALL-03 — a follow-up date the owner has already passed.
+ *
+ * Colour is the SECOND signal, never the only one: the label itself reads
+ * "Yesterday" or "5 days ago", so a colour-blind or high-contrast reader loses
+ * nothing when the tint is unavailable (AGENTS.md §15).
+ */
+.dh-waiting-card__follow-up[data-overdue="true"] {
+  color: var(--dh-color-danger);
+  font-weight: 600;
 }
 
 /* -------------------------------------------------------------------------- */

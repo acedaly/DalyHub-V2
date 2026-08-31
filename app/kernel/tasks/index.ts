@@ -40,6 +40,7 @@ export {
   TASK_SORTS,
   TASK_SORT_DIRECTIONS,
   TASK_DUE_STATES,
+  TASK_FOLLOW_UP_STATES,
   TASK_PLANNED_STATES,
   TASK_PARENT_KINDS,
   TASK_RECENCY_WINDOWS,
@@ -49,6 +50,7 @@ export {
   DEFAULT_TASK_DETAILS,
   type TaskSortDirection,
   type TaskDueState,
+  type TaskFollowUpState,
   type TaskPlannedState,
   type TaskParentKind,
   type TaskRecencyWindow,
@@ -103,6 +105,7 @@ export {
   type TaskActivityDayCount,
   type TaskActivityDayWindow,
   type ListWaitingTasksInput,
+  type CountWaitingTasksInput,
   type WaitingTaskListItem,
   type WaitingTaskPage,
   type PlanTaskInput,
@@ -223,6 +226,23 @@ export type {
   DecodedWorkspaceTaskCursor,
 } from "./task-workspace-cursor";
 
+/**
+ * V2.7 RECALL-03 — the Waiting collection's keyset cursor (DEBT-232), in the
+ * standard scope-bound shape.
+ */
+export {
+  WAITING_TASK_CURSOR_VERSION,
+  encodeWaitingTaskCursor,
+  decodeWaitingTaskCursor,
+  decodeWaitingTaskCursorForScope,
+  waitingTaskCursorScopeMatches,
+} from "./task-waiting-cursor";
+export type {
+  WaitingTaskCursorPosition,
+  WaitingTaskCursorScope,
+  DecodedWaitingTaskCursor,
+} from "./task-waiting-cursor";
+
 export {
   TaskError,
   TaskValidationError,
@@ -270,6 +290,7 @@ export {
   validateTaskSort,
   validateTaskSortDirection,
   validateTaskDueState,
+  validateTaskFollowUpState,
   validateTaskPlannedState,
   validateTaskParentKind,
   validateTaskRecencyWindow,

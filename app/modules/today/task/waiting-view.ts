@@ -21,6 +21,7 @@ import type {
 import {
   formatWaitingElapsed,
   formatWaitingSince,
+  relativeCalendarDate,
   taskDateLabel,
   waitingSubjectLabel,
   type SerializedTaskWaiting,
@@ -46,6 +47,20 @@ export interface WaitingCardData {
     readonly label: string;
     readonly tone?: "danger";
   } | null;
+  /**
+   * V2.7 RECALL-03 — the delegation group's chase date, in the owner's words
+   * ("Today", "Yesterday", "Friday", "12 Sep 2026"), or null when none is set.
+   *
+   * The card states it so a follow-up-filtered page says WHY each row is in it,
+   * and so the unfiltered page surfaces a commitment the owner recorded and had
+   * no way of seeing. `overdue` is the relative-date vocabulary's own judgement
+   * against the owner's calendar day — the same one the due label uses — so the
+   * two dates on a row cannot disagree about what "today" means.
+   */
+  readonly followUpLabel: {
+    readonly label: string;
+    readonly overdue: boolean;
+  } | null;
 }
 
 /**
@@ -64,11 +79,13 @@ export function toWaitingCardData(
     readonly scheduledDate: string | null;
     readonly parent: TaskRelation | null;
     readonly waiting: SerializedTaskWaiting;
+    readonly followUpOn: string | null;
   },
   nowMs: number,
   todayIso: string,
 ): WaitingCardData {
   const subject = item.waiting.subject;
+  const followUp = relativeCalendarDate(item.followUpOn, todayIso);
   return {
     id: item.id,
     title: item.title,
@@ -96,6 +113,10 @@ export function toWaitingCardData(
       },
       todayIso,
     ),
+    followUpLabel:
+      followUp === null
+        ? null
+        : { label: followUp.label, overdue: followUp.urgency === "overdue" },
   };
 }
 
@@ -110,6 +131,8 @@ export interface SerializedWaitingTaskItem {
   readonly scheduledDate: string | null;
   readonly parent: TaskRelation | null;
   readonly waiting: SerializedTaskWaiting;
+  /** V2.7 RECALL-03 — the delegation group's chase date (`YYYY-MM-DD`), or null. */
+  readonly followUpOn: string | null;
 }
 
 /** Serialise a kernel `WaitingTaskListItem` for a JSON loader response. */
@@ -129,6 +152,7 @@ export function serializeWaitingItem(
       since: item.waiting.since.toISOString(),
       subject: item.waiting.subject,
     },
+    followUpOn: item.followUpOn,
   };
 }
 

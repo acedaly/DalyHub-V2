@@ -672,6 +672,30 @@ export type ListWaitingTasksInput = {
   readonly limit?: number;
   /** The owner's current calendar date `YYYY-MM-DD`, for the overdue-first sort. */
   readonly todayIso?: string;
+  /**
+   * V2.7 RECALL-03 — narrow to a FOLLOW-UP state, from the one declarative
+   * vocabulary ({@link TASK_FOLLOW_UP_STATES}).
+   *
+   * The Waiting surface is where a chase is actually done, so it takes the same
+   * dimension `/tasks` takes and resolves it through the same predicate. It is
+   * the destination Today's attention fact links to, which is what makes the
+   * stated number and the list beneath it the same population by construction.
+   */
+  readonly followUp?: TaskFollowUpState;
+  /**
+   * V2.7 RECALL-03 — the keyset cursor from a previous page's `nextCursor`
+   * (DEBT-232). A cursor is bound to its workspace, its owner-day and its
+   * follow-up filter, and is rejected under any other scope.
+   */
+  readonly cursor?: string;
+};
+
+/** Options for the bounded Waiting COUNT the attention fact and digest share. */
+export type CountWaitingTasksInput = {
+  /** The owner's current calendar date `YYYY-MM-DD`. */
+  readonly todayIso?: string;
+  /** The follow-up state to count. Absent counts every waiting Task. */
+  readonly followUp?: TaskFollowUpState;
 };
 
 /** A waiting task as shown in the Waiting collection. */
@@ -696,11 +720,28 @@ export type WaitingTaskListItem = {
   readonly parent: TaskRelation | null;
   /** The active waiting state (always present in this list). */
   readonly waiting: TaskWaiting;
+  /**
+   * V2.7 RECALL-03 — the delegation group's chase date (`YYYY-MM-DD`), or null.
+   *
+   * Carried so the Waiting card can SAY why a row is in a follow-up-filtered
+   * page, rather than leaving the owner to open each record to find out.
+   */
+  readonly followUpOn: string | null;
 };
 
-/** A bounded page of waiting tasks. */
+/** A keyset page of waiting tasks. */
 export type WaitingTaskPage = {
   readonly items: readonly WaitingTaskListItem[];
+  /**
+   * V2.7 RECALL-03 (DEBT-232) — the cursor for the page after this one, or null
+   * when the collection is exhausted.
+   *
+   * The Waiting surface used to end at `LIMIT 100` with no cursor and state the
+   * truncated count as fact. It now pages in the standard keyset shape every
+   * other DalyHub collection uses, so row 101 is reachable and the surface can
+   * only ever claim a number it can actually show.
+   */
+  readonly nextCursor: string | null;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -871,6 +912,48 @@ export const TASK_PARENT_KINDS = ["project", "area", "none"] as const;
 export type TaskParentKind = (typeof TASK_PARENT_KINDS)[number];
 
 /**
+ * V2.7 RECALL-03 — the DERIVED FOLLOW-UP state over `task_details.follow_up_on`
+ * (DEBT-231), resolved against the owner's calendar day (ADR-022).
+ *
+ * `followUpOn` is the chase date on a Task's DELEGATION group — "ask them again
+ * on Friday". It has been stored, validated, edited, exported and restored since
+ * migration 0012 with no query predicate anywhere reading it, so the date the
+ * owner wrote down only ever returned if they remembered to look. This is the one
+ * vocabulary that makes it askable.
+ *
+ * It is a FILTER DIMENSION and deliberately not a new Task status (ADR-114
+ * decision 5): a Task with a follow-up due is an ordinary Task that is usually
+ * also waiting, and inventing a "follow-up" state would fork the lifecycle for a
+ * date. `follow_up_on` is a wall-calendar `YYYY-MM-DD`, compared against the
+ * owner's `todayIso` — never a naïve UTC day — exactly as the due and planned
+ * states are.
+ *
+ * The members are shaped after {@link TASK_DUE_STATES} rather than invented:
+ *
+ * - `due`        — recorded and on or before the owner's today. The actionable
+ *                  question ("who do I chase now?"), and the ONE definition
+ *                  Today's attention fact and the daily digest both read.
+ * - `due_today`  — recorded and exactly the owner's today.
+ * - `overdue`    — recorded and strictly before the owner's today.
+ * - `upcoming`   — recorded and strictly after it (written down, not yet due).
+ * - `none`       — no follow-up date recorded at all.
+ *
+ * `due` is the union of `overdue` and `due_today` and is therefore the only
+ * non-exclusive member; the other four partition the workspace. A SPECIFIC window
+ * ("follow-ups between these two dates") is said with `followUpFrom`/`followUpTo`,
+ * the same explicit pair the due and planned ranges already use — there is no
+ * third date grammar here.
+ */
+export const TASK_FOLLOW_UP_STATES = [
+  "due",
+  "due_today",
+  "overdue",
+  "upcoming",
+  "none",
+] as const;
+export type TaskFollowUpState = (typeof TASK_FOLLOW_UP_STATES)[number];
+
+/**
  * TASKS-03 — the closed set of created/updated recency windows. A closed set (not
  * a free-form day count) keeps the URL, the cursor signature and the saved-view
  * config validatable and bounded.
@@ -995,6 +1078,26 @@ export type WorkspaceTaskFilters = {
    * window is inside it.
    */
   readonly completedTo?: string;
+
+  /* ---- V2.7 RECALL-03 — the FOLLOW-UP dimension (DEBT-231). ---------------
+     `task_details.follow_up_on` is a wall-calendar date on the delegation group.
+     The derived state is resolved against the OWNER's calendar day exactly as
+     `dueState` is — the same `cal.today_iso` the repository already binds once
+     per query — and the explicit pair below is the `dueFrom`/`dueTo` grammar,
+     unchanged. No second date-filter model, and no new Task status. */
+
+  /** The derived follow-up state against the owner's calendar day. */
+  readonly followUp?: TaskFollowUpState;
+  /** Only Tasks whose FOLLOW-UP date is on or after this date (`YYYY-MM-DD`). */
+  readonly followUpFrom?: string;
+  /**
+   * Only Tasks whose FOLLOW-UP date is on or before this date (`YYYY-MM-DD`).
+   *
+   * A Task with no follow-up date is inside no window — the same rule the due
+   * and planned ranges hold to, and what stops "follow up this week" quietly
+   * returning every Task that was never given a chase date.
+   */
+  readonly followUpTo?: string;
 
   /* ---- PLAN-01 / SMART-01 additions. -------------------------------------
      Every one is resolved SERVER-side and bound into the cursor signature, so a

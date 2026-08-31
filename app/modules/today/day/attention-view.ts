@@ -19,6 +19,8 @@
 
 import type { SerializedNextAction } from "~/shared/task-record/NextActionLine";
 
+import { WAITING_HREF, waitingFollowUpHref } from "../waiting-destination";
+
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
 /* -------------------------------------------------------------------------- */
@@ -48,6 +50,24 @@ export interface AttentionItem {
   /** The supporting fact that makes the row worth a row. Never a bare count. */
   readonly detail: string;
   readonly href: string;
+  /**
+   * V2.7 RECALL-03 — one extra fact on the SAME row, with its own destination.
+   *
+   * The waiting row learns "1 follow-up due today" beside "3 waiting items".
+   * They are two facts, so they carry two links: the row's title still opens the
+   * whole waiting list, and this segment opens the waiting list FILTERED to the
+   * follow-ups it counts. A count that stated a filtered number and linked to an
+   * unfiltered list would be the same class of untruth as the truncated waiting
+   * subtitle this item also repairs.
+   *
+   * Absent on every other row, and absent on the waiting row when nothing is
+   * due — the rail has no "0 follow-ups" segment for the same reason it has no
+   * "0 waiting" row.
+   */
+  readonly detailAction?: {
+    readonly label: string;
+    readonly href: string;
+  };
 }
 
 /** The facts the rail is built from. Every one already read by the loader. */
@@ -64,6 +84,13 @@ export interface AttentionInput {
     readonly count: number;
     /** Owner-calendar days the OLDEST waiting item has waited, or null. */
     readonly oldestDays: number | null;
+    /**
+     * V2.7 RECALL-03 — waiting Tasks whose follow-up date has arrived, from the
+     * ONE `followUp: "due"` predicate the shared facts layer reads (DEBT-231).
+     *
+     * A strict SUBSET of `count`, and the same number the daily digest states.
+     */
+    readonly followUpDue: number;
   };
   /**
    * Asset obligations that need attention and are NOT already represented by an
@@ -127,6 +154,7 @@ export function buildAttention(
 
   if (input.waiting.count > 0) {
     const count = `${input.waiting.count} waiting ${input.waiting.count === 1 ? "item" : "items"}`;
+    const due = input.waiting.followUpDue;
     items.push({
       id: "waiting",
       kind: "waiting",
@@ -135,7 +163,25 @@ export function buildAttention(
         input.waiting.oldestDays === null
           ? count
           : `${count} · oldest ${ageLabel(input.waiting.oldestDays)}`,
-      href: "/today/waiting",
+      href: WAITING_HREF,
+      /*
+       * V2.7 RECALL-03 — the one fact that makes waiting actionable TODAY.
+       *
+       * It rides the row the owner already reads rather than becoming a card or
+       * a band of its own (ADR-114 decision 5: one filter dimension, one
+       * attention fact, one digest line — and nothing else). The destination is
+       * the waiting surface narrowed by the declarative follow-up filter, so
+       * the number and the list behind it are the same population by
+       * construction rather than by coincidence.
+       */
+      ...(due > 0
+        ? {
+            detailAction: {
+              label: `${due} ${due === 1 ? "follow-up" : "follow-ups"} due`,
+              href: waitingFollowUpHref("due"),
+            },
+          }
+        : {}),
     });
   }
 
