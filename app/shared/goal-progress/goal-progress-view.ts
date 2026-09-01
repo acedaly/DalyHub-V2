@@ -33,6 +33,7 @@ import {
   GOAL_TREND_WINDOW_DAYS,
   evaluateGoalProgress,
   goalDaysBetween,
+  goalMeasurementIsOnTrack,
 } from "~/kernel/goals";
 import type { PillTone } from "~/shared/pill";
 import type { MeterStatus } from "~/shared/progress";
@@ -358,21 +359,19 @@ export function goalNeedsAttention(status: GoalProgressStatus): boolean {
 /**
  * Statuses that genuinely mean "on track", for counting.
  *
- * NOT the inverse of {@link goalNeedsAttention}. The evaluator has nine states
- * and only two of them need attention, so `!goalNeedsAttention(…)` also sweeps
- * in `not_measured` (never told how to measure), `not_started` (nothing recorded
- * yet), `in_progress` (moving, but with no target date to be on track AGAINST)
- * and `stale` (nothing recorded for a month). Counting those as on track is how
- * a figure reads "4 of 4" for a set of Goals that are mostly not being measured
- * at all — the most flattering possible reading of the data and the least true.
+ * **V2.7 RECALL-04 — this is no longer a local set.** It is the kernel's
+ * {@link goalMeasurementIsOnTrack}, re-exported under the name the shared
+ * vocabulary has always used, so the ONE measurement predicate reaches Today's
+ * card, Today's panel note, the `/goals` lens's pure filter and the `/goals`
+ * lens's SQL from a single declaration (DEBT-234, ADR-114 decision 6). Before
+ * this, the shared predicate counted `achieved` and the `/goals` SQL did not,
+ * and two surfaces could honestly report different numbers for one workspace.
  *
- * The three here are the ones with a real, positive answer: level with the line,
- * ahead of it, or already there. `achieved` counts because Today excludes
- * completed Goals, so an achieved-but-still-open Goal is a Goal going well.
+ * The reasoning is recorded once, on the kernel constant — including the
+ * `achieved` decision and why this is NOT the complement of
+ * {@link goalNeedsAttention}. Do not restate it here; do not fork it.
  */
-export function goalIsOnTrack(status: GoalProgressStatus): boolean {
-  return status === "on_track" || status === "ahead" || status === "achieved";
-}
+export const goalIsOnTrack = goalMeasurementIsOnTrack;
 
 /* -------------------------------------------------------------------------- */
 /* Sentences                                                                   */
@@ -607,6 +606,7 @@ export function goalAbsenceNote(
 export {
   GOAL_COLLECTION_VIEWS,
   GOAL_COLLECTION_VIEW_LABELS,
+  GOAL_MEASUREMENT_ON_TRACK_STATUSES,
   parseGoalCollectionView,
   goalMatchesCollectionView,
 } from "~/kernel/goals";

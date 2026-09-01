@@ -34,7 +34,7 @@ function facts(over: Partial<AnalyticsFacts> = {}): AnalyticsFacts {
     areas: [],
     areasBounded: false,
     areasAvailable: true,
-    goals: { onTrack: 5, total: 9, bounded: false },
+    goals: { moving: 5, total: 9, bounded: false },
     overdueSeries: rangeBuckets("week", span).map((bucket, index) => ({
       key: bucket.key,
       overdue: 10 + index,
@@ -184,7 +184,7 @@ describe("analytics evaluator", () => {
     ).toBe("Comparison not available");
   });
 
-  it("marks Goals on track as a state, with no comparison at all", () => {
+  it("marks Goals moving as a state, with no comparison at all", () => {
     const model = evaluateAnalytics(facts());
     const goals = model.metrics.find((metric) => metric.id === "goals");
     expect(goals?.value).toBe(5);
@@ -259,7 +259,7 @@ describe("analytics evaluator", () => {
   // halves of the fraction describe a subset the reader cannot see.
   it("says the Goal tally is bounded, in the sentence and in a note", () => {
     const model = evaluateAnalytics(
-      facts({ goals: { onTrack: 12, total: 40, bounded: true } }),
+      facts({ goals: { moving: 12, total: 40, bounded: true } }),
     );
     const goals = model.metrics.find((metric) => metric.id === "goals");
     expect(goals?.supporting).toBe("of the 40 Goals read, right now");

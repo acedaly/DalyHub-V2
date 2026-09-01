@@ -668,7 +668,19 @@ export class D1MeetingRepository implements MeetingRepository {
     readonly to: Date;
     readonly limit?: number;
   }): Promise<readonly MeetingSearchHit[]> {
-    const limit = Math.max(1, Math.min(input.limit ?? 20, 50));
+    /*
+     * V2.7 RECALL-04 — the safety ceiling is 100, not 50.
+     *
+     * It exists to keep this read bounded whatever a caller asks for, and 100
+     * still is. Fifty was too tight for the one idiom the codebase uses to learn
+     * whether a read TRUNCATED: ask for one row more than the page you will
+     * show. The Review's period context shows fifty meetings and asks for
+     * fifty-one, and under the old ceiling that request was silently clamped
+     * back to fifty — so a full page and a period with exactly fifty meetings
+     * were indistinguishable and the surface could not honestly state its bound.
+     * The Diary timeline's own ceiling is 100 for the same class of reason.
+     */
+    const limit = Math.max(1, Math.min(input.limit ?? 20, 100));
     const from = toStorageTimestamp(input.from);
     const to = toStorageTimestamp(input.to);
     // A backwards window is an empty result, never an unbounded scan.

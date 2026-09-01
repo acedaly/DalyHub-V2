@@ -1284,6 +1284,100 @@ describe("Today's summary strip states only what was actually measured", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* V2.7 RECALL-04 — the facts the day states about itself                      */
+/* -------------------------------------------------------------------------- */
+
+describe("V2.7 RECALL-04: the meetings-today fact (DEBT-233)", () => {
+  it("states the day's meetings, and keeps saying so once they are all past", () => {
+    /*
+     * The defect, exactly: three meetings, all already started. `nextUp` has
+     * fallen through to tasks and the Schedule panel's rows say "these
+     * happened" without ever counting them — so before RECALL-04 nothing on
+     * this screen answered "did I have meetings today?", while the morning
+     * digest answered it with times.
+     */
+    const entries = [
+      scheduleEntry("m1", "Standup", "09:00"),
+      scheduleEntry("m2", "Design review", "12:00"),
+      scheduleEntry("m3", "One-to-one", "15:00"),
+    ];
+    renderScreen(
+      day({
+        meetings: [
+          meeting("m1", "Standup", "09:00", { upcoming: false }),
+          meeting("m2", "Design review", "12:00", { upcoming: false }),
+          meeting("m3", "One-to-one", "15:00", { upcoming: false }),
+        ],
+        schedule: scheduleOf(entries),
+        week: weekWith(TODAY, entries),
+      }),
+    );
+
+    const fact = screen.getByTestId("today-meetings-today");
+    expect(fact).toHaveTextContent("3 meetings today");
+    // The machine value travels beside the words, so a parity test never has to
+    // read prose off the screen.
+    expect(fact).toHaveAttribute("data-count", "3");
+    // It lives in the Schedule panel's existing head — no new card, no new row.
+    expect(scheduleSection()).toContainElement(fact);
+  });
+
+  it("says nothing at all on a day with no meetings", () => {
+    renderScreen(day({ today: [task("a", "Alpha")] }));
+    expect(screen.queryByTestId("today-meetings-today")).toBeNull();
+  });
+
+  it("singularises against the count", () => {
+    const entries = [scheduleEntry("m1", "Standup", "09:00")];
+    renderScreen(
+      day({
+        meetings: [meeting("m1", "Standup", "09:00", { upcoming: false })],
+        schedule: scheduleOf(entries),
+        week: weekWith(TODAY, entries),
+      }),
+    );
+    expect(screen.getByTestId("today-meetings-today")).toHaveTextContent(
+      "1 meeting today",
+    );
+  });
+});
+
+describe("V2.7 RECALL-04: a bounded Goal figure names its set (DEBT-234)", () => {
+  it("states the fraction plainly when the read saw the whole workspace", () => {
+    renderScreen(day({ goals: [measuredGoal()], goalsBounded: false }));
+    const panel = screen.getByTestId("today-goal-progress");
+    expect(within(panel).getByText(/on track/)).toHaveTextContent(
+      "1 of 1 on track",
+    );
+    expect(
+      within(screen.getByTestId("today-summary")).getByText(
+        "of 1 measurable goal",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says which set the figures describe once the read is capped", () => {
+    /*
+     * ADR-111 decision 5's rule, applied: a count beside a label that reads as
+     * the workspace is true of the collection or says whose set it is. This
+     * panel is an attention-first sample of at most four Goals, so on a larger
+     * workspace both halves of "1 of 1 on track" describe a set the reader
+     * cannot see.
+     */
+    renderScreen(day({ goals: [measuredGoal()], goalsBounded: true }));
+    const panel = screen.getByTestId("today-goal-progress");
+    expect(within(panel).getByText(/on track/)).toHaveTextContent(
+      "1 of 1 shown here on track",
+    );
+    expect(
+      within(screen.getByTestId("today-summary")).getByText(
+        "of the 1 measurable goal shown here",
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
 /* TODAY-11 — the command centre                                              */
 /* -------------------------------------------------------------------------- */
 

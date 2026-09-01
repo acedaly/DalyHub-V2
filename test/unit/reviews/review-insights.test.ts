@@ -138,7 +138,26 @@ describe("Project health change", () => {
 
   it("treats an unchanged state as unchanged and an unseen Project as new", () => {
     expect(classifyProjectHealthChange("stale", "stale")).toBe("unchanged");
-    expect(classifyProjectHealthChange(null, "at_risk")).toBe("new");
+    // V2.7 RECALL-04 — "not in the previous snapshot" is `undefined`; `null` now
+    // means the previous Review recorded that it had NO reading, which is a
+    // different fact and gets a different answer (below).
+    expect(classifyProjectHealthChange(undefined, "at_risk")).toBe("new");
+  });
+
+  /*
+   * V2.7 RECALL-04 (DEBT-234) — a missing READING is not a state, and two
+   * absences are not a transition.
+   *
+   * Restoring the old `health?.state ?? "on_track"` default in
+   * `review-insights-context.ts` puts a real state on both sides of these
+   * comparisons, and every assertion below flips to `unchanged`, `improved` or
+   * `deteriorated` — which is exactly the false story the default could tell.
+   */
+  it("says nothing at all when either side has no health reading", () => {
+    expect(classifyProjectHealthChange(null, null)).toBe("unknown");
+    expect(classifyProjectHealthChange(null, "at_risk")).toBe("unknown");
+    expect(classifyProjectHealthChange("at_risk", null)).toBe("unknown");
+    expect(classifyProjectHealthChange("on_track", null)).toBe("unknown");
   });
 
   it("shows the transition in words, both states named", () => {

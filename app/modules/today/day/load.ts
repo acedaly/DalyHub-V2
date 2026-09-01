@@ -209,6 +209,15 @@ export interface TodayDayData {
   /** GOAL-02 — the measurable Goals worth a look today (up to four). */
   readonly goals: readonly TodayGoal[];
   /**
+   * V2.7 RECALL-04 — whether that read saw every open Goal (DEBT-234).
+   *
+   * The Goal panel is a bounded, attention-first sample, and the figures drawn
+   * from it ("3 of 4 on track") read as claims about the workspace. When this is
+   * true the surface says which set the figures describe, the way Analytics has
+   * always said it of its own Goal tile.
+   */
+  readonly goalsBounded: boolean;
+  /**
    * GOAL-02 — the 7-day created-vs-completed workload trend, or `null` when the
    * week is genuinely empty. `null` is a real state, not a failure: an empty
    * chart says less than no chart.
@@ -305,6 +314,7 @@ export function emptyDay(input: {
     attention: [],
     continueProjects: [],
     goals: [],
+    goalsBounded: false,
     activityTrend: null,
     reflection: null,
     parents: [],
@@ -636,7 +646,7 @@ export async function loadTodayDay(
               todayIso,
             }).then((read) => read.movements),
         }),
-      [],
+      { items: [], bounded: false },
     ),
     safely(() => loadActivityTrend(scope, { timezone, todayIso }), null),
     safely(() => loadReflection(scope, todayIso, timezone), null),
@@ -774,7 +784,8 @@ export async function loadTodayDay(
         nextAction: next ? { id: next.id, title: next.title } : null,
       };
     }),
-    goals: measurableGoals,
+    goals: measurableGoals.items,
+    goalsBounded: measurableGoals.bounded,
     activityTrend,
     reflection,
     /*

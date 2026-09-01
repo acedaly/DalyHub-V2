@@ -436,19 +436,22 @@ async function readDistribution(
 }
 
 /**
- * The Goal tally, from AREA-03's evaluator over one bounded, alignment-ranked
- * page of Goals — never a second Goal-health model, and never a count invented
- * in SQL.
+ * The Goal ALIGNMENT tally, from AREA-03's evaluator over one bounded,
+ * alignment-ranked page of Goals — never a second Goal-health model, and never a
+ * count invented in SQL.
  *
- * "On track" is the alignment evaluator's `active` state: a Goal with
- * contributing work recorded inside the recent window. `completed` Goals are
- * excluded from BOTH halves of the fraction, because "4 of 12 on track" reading
- * as an indictment when eight of the twelve are finished would be the surface
- * lying by omission.
+ * The figure is the alignment evaluator's `active` state: a Goal with
+ * contributing work recorded inside the recent window. **V2.7 RECALL-04 renamed
+ * it `moving` (DEBT-234)**: this read has never consulted a measurement, a
+ * target or a schedule, so calling its result "on track" gave GOAL-02's words to
+ * ADR-040's answer and let two surfaces disagree in public about one workspace.
+ * `completed` Goals are excluded from BOTH halves of the fraction, because
+ * "4 of 12 moving" reading as an indictment when eight of the twelve are
+ * finished would be the surface lying by omission.
  */
 async function readGoalTally(
   input: AnalyticsContextInput,
-): Promise<{ onTrack: number; total: number; bounded: boolean } | null> {
+): Promise<{ moving: number; total: number; bounded: boolean } | null> {
   try {
     const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
       createOwnerAlignmentContext(input.now, input.timezone);
@@ -487,7 +490,7 @@ async function readGoalTally(
       }),
     ]);
 
-    let onTrack = 0;
+    let moving = 0;
     let total = 0;
     for (const goal of goalItems) {
       const alignment = evaluateGoalAlignment(
@@ -509,9 +512,9 @@ async function readGoalTally(
       );
       if (alignment.state === "completed") continue;
       total += 1;
-      if (alignment.state === "active") onTrack += 1;
+      if (alignment.state === "active") moving += 1;
     }
-    return { onTrack, total, bounded };
+    return { moving, total, bounded };
   } catch {
     return null;
   }

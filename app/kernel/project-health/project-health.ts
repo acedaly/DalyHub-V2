@@ -90,6 +90,53 @@ export const PROJECT_HEALTH_STATES = [
 export type ProjectHealthState = (typeof PROJECT_HEALTH_STATES)[number];
 
 /**
+ * The health states that mean a Project currently needs a look.
+ *
+ * One authority for a question three surfaces ask: the cross-view "needs
+ * attention" boundary, the Review's attention insight, and the Review's
+ * "was it in the same position last time?" comparison. It was spelled out
+ * inline in each, and V2.7 RECALL-04 promoted it here after the third copy —
+ * written as `health !== "on_track"` — silently acquired a fourth member the
+ * moment a health reading could be absent (see
+ * {@link PROJECT_HEALTH_UNAVAILABLE_LABEL}): `null !== "on_track"` is true, so
+ * "we had no reading for this Project last time" counted as "it was in the same
+ * concerning position last time".
+ *
+ * `completed` is deliberately not in it (a finished Project is calm, not a
+ * warning), and neither is absence — which is the point.
+ */
+export const PROJECT_HEALTH_ATTENTION_STATES: readonly ProjectHealthState[] = [
+  "at_risk",
+  "stale",
+  "blocked",
+];
+
+/** Does this reading — which may be absent — mean the Project needs a look? */
+export function projectHealthNeedsLook(
+  state: ProjectHealthState | null | undefined,
+): boolean {
+  return state != null && PROJECT_HEALTH_ATTENTION_STATES.includes(state);
+}
+
+/**
+ * V2.7 RECALL-04 — what a surface says when there is NO reading (DEBT-234).
+ *
+ * Absence is deliberately not a sixth member of the vocabulary above. The five
+ * states are answers the evaluator gives; this is what a surface says when the
+ * evaluator was never able to answer, because the facts for that Project were
+ * not returned. Keeping it out of the state set is what stops a filter, a rank
+ * or a Review's transition rule from treating "we could not look" as "we looked
+ * and it is fine" — the specific untruth `review-insights-context.ts` shipped,
+ * where a missing reading defaulted to `on_track`, was stored in a snapshot as a
+ * real reading, and could manufacture a health transition at the next Review.
+ *
+ * The words follow the product's existing absence style: an absence is stated,
+ * never toned, and never dressed as a judgement ("No measurement", "No recent
+ * update", "Not available").
+ */
+export const PROJECT_HEALTH_UNAVAILABLE_LABEL = "No health reading";
+
+/**
  * A stable, machine-readable reason code. Every health result carries one or more,
  * primary reason first — the UI shows secondary causes without discarding them, and
  * tests assert on the code (and its structured numbers), never on display prose.

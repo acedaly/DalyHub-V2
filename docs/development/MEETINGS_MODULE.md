@@ -688,3 +688,23 @@ component and defined nowhere.
 
 Attendees are deliberately absent from collection rows: resolving them for a page
 of meetings needs one `listForEntity` call per row. Tracked as DEBT-124.
+
+## `listStartingBetween`'s ceiling moved 50 → 100 (V2.7 RECALL-04, 2026-09-01)
+
+The read is unchanged in every other respect — one bounded, workspace-scoped
+statement over the existing `meeting_details_collection` index, instants supplied
+by the caller, archived and soft-deleted meetings excluded.
+
+Only the safety clamp moved. It exists to keep the read bounded whatever a caller
+asks for, and 100 still is. Fifty was too tight for the one idiom the codebase
+uses to learn whether a read TRUNCATED: **ask for one row more than the page you
+will show.** The Review's period context shows fifty meetings and asks for
+fifty-one; under the old ceiling that request was silently clamped back to fifty,
+so a full page and a period holding exactly fifty meetings were
+indistinguishable and the surface could not honestly state its bound
+([DEBT-235](../product/PRODUCT_DEBT.md#-debt-235--the-review-records-period-context-is-today-anchored-and-bounded-before-its-filter--p2--resolved-2026-09-01)).
+The Diary timeline's own ceiling is 100 for the same class of reason.
+
+RECALL-04 also made this the Review's ONLY Meetings read for a period: the record
+used to page `recent` and `upcoming` and filter the union in JavaScript against a
+window neither view is anchored to.

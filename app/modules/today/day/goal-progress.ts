@@ -19,11 +19,17 @@ import {
   goalSummaryRank,
   loadGoalSummaries,
   type GoalSummary,
+  type GoalSummaryPage,
 } from "~/shared/goal-progress";
 
 /** Today's own names for the shared Goal summary read. */
 export const TODAY_GOAL_LIMIT = GOAL_SUMMARY_LIMIT;
 export type TodayGoal = GoalSummary;
+/**
+ * V2.7 RECALL-04 — the read's result now carries its own BOUND (DEBT-234), so
+ * the figures Today prints from it can say which set they describe.
+ */
+export type TodayGoalPage = GoalSummaryPage;
 export const todayGoalRank = goalSummaryRank;
 export const loadTodayGoals = loadGoalSummaries;
 

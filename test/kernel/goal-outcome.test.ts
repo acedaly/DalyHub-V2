@@ -592,7 +592,16 @@ describe("the lenses filter the WORKSPACE, and their counts are workspace-true (
 
     // And they are the real figures for this matrix, not merely self-consistent.
     expect(counts.total).toBe(10);
-    expect(counts.on_track).toBe(2); // on_track + ahead
+    /*
+     * V2.7 RECALL-04 (DEBT-234) — THREE, not two. The lens now uses the one
+     * measurement predicate `GOAL_MEASUREMENT_ON_TRACK_STATUSES`, and `achieved`
+     * is in it: a Goal that has reached the target the owner set, and is still
+     * open, is the best outcome a measured Goal can report, and excluding it
+     * here was the reason `/goals` and Today could state different fractions
+     * over one workspace. Explicit completion is unaffected and still wins
+     * first — the completed Goal below is in `completed` and nowhere else.
+     */
+    expect(counts.on_track).toBe(3); // on_track + ahead + achieved
     expect(counts.attention).toBe(2); // needs_attention + overdue
     expect(counts.completed).toBe(1);
     expect(counts.set_aside).toBe(0);

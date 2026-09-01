@@ -69,7 +69,24 @@ export const SNAPSHOT_LIMITS = {
 /** One Project's state at a Review point. Ids and states only. */
 export interface SnapshotProjectState {
   readonly id: string;
-  readonly health: ProjectHealthState;
+  /**
+   * PROJ-02's health at that point, or **null when there was no reading**.
+   *
+   * V2.7 RECALL-04 (DEBT-234) — a Project whose health facts the read did not
+   * return used to be stored here as `"on_track"`, because that is what the
+   * context defaulted to. The snapshot's own stated rule is that it records what
+   * was TRUE at a Review point; a state nothing measured is not a truth, and once
+   * stored it was indistinguishable from a measured one — so the next Review
+   * could compare a real reading against a fabricated one and announce an
+   * improvement or a deterioration that never happened. The absence is now
+   * stored as an absence, and {@link classifyProjectHealthChange} refuses to
+   * make a transition out of one.
+   *
+   * Reading is backwards-compatible in the direction that matters: an existing
+   * v1 row carries a health STRING for every project and still parses exactly as
+   * it did, so the version is not bumped and no stored snapshot is discarded.
+   */
+  readonly health: ProjectHealthState | null;
   readonly openTasks: number;
   readonly overdueTasks: number;
 }
@@ -273,11 +290,27 @@ export function parseReviewInsightSnapshot(
     for (const entry of value.projects) {
       if (!isRecord(entry)) continue;
       if (typeof entry.id !== "string" || entry.id.length === 0) continue;
-      if (typeof entry.health !== "string" || !HEALTH_STATES.has(entry.health))
-        continue;
+      /*
+       * V2.7 RECALL-04 — three cases, and only one of them is a reading.
+       *
+       * A recognised state is a reading. An explicit `null` is an absence this
+       * snapshot recorded honestly, and it is KEPT as one — dropping the row
+       * would make the Project look as though it did not exist at that Review,
+       * which `classifyProjectHealthChange` reads as "new" and is a different
+       * (and equally untrue) story. Anything else — a state this version does
+       * not recognise, a number, a missing key — is malformed and the row is
+       * skipped, exactly as before.
+       */
+      const storedHealth =
+        entry.health === null
+          ? null
+          : typeof entry.health === "string" && HEALTH_STATES.has(entry.health)
+            ? (entry.health as ProjectHealthState)
+            : undefined;
+      if (storedHealth === undefined) continue;
       projects.push({
         id: entry.id,
-        health: entry.health as ProjectHealthState,
+        health: storedHealth,
         openTasks: readCount(entry.openTasks),
         overdueTasks: readCount(entry.overdueTasks),
       });

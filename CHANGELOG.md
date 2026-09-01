@@ -1,5 +1,46 @@
 # Changelog
 
+- **The day and the week now account for themselves.**
+
+  Three small untruths, removed (V2.7 RECALL-04). Nothing new to learn and
+  nothing new on screen to dismiss — the same surfaces, saying what they
+  actually mean.
+
+  - **Today says how many meetings you had.** The Schedule panel's heading now
+    reads "3 meetings today", and it keeps saying so after the last one has
+    started — which is exactly when you want to look back at the day. It is the
+    same number your morning digest states, from the same read.
+  - **"On track" means one thing.** Today and the Goals page had two slightly
+    different definitions of a Goal being on track, so the same workspace could
+    be described two ways. There is now one: level with your target, ahead of
+    it, or already there. A Goal that has reached its target counts on both.
+  - **Analytics' Goal figure says which question it answers.** It counted Goals
+    with work recorded recently and called them "on track", which is a
+    different question from whether a Goal's target is on schedule. It is now
+    "Goals moving" — the word `/views` has always used for the same thing.
+  - **A figure that is a sample says so.** Today shows at most four Goals, so
+    its "1 of 4 on track" now reads "1 of 4 shown here"; the full picture is one
+    tap away on Goals.
+  - **A Project with no health information says so.** It used to be reported as
+    "On track" simply because there was nothing to report, and that guess was
+    then stored in your Review — where it could later be announced as an
+    improvement or a decline that never happened. Missing information now reads
+    as missing.
+  - **A Review's tabs describe the Review's period.** Completed tasks are the
+    ones you completed _in that period_, most recently finished first — not a
+    slice of everything you have ever completed. Diary entries and meetings are
+    the period's too, to the right day boundary in your own timezone. When a
+    list has more than it can show, it says so.
+  - **Today's overdue work stopped hiding under last month's heading.** The
+    Review's second task list is about _now_, so it is called "Open and overdue
+    now" and sits plainly beside the period's own list.
+  - **The "People & Meetings" tab is called "Meetings",** because that is what
+    it holds.
+
+  Your Today screen keeps its shape: no new cards, no week summary, no scores.
+  The week's account still lives where the weekly ritual does — in `/plan` and
+  in the Review — and Today remains the door into it.
+
 - **A follow-up date you wrote down now comes back to you.**
 
   "Chase this on Friday" used to be a note only you could find (V2.7

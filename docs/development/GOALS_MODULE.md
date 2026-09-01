@@ -1736,3 +1736,71 @@ count — the assertion an implementation that asked per Project would fail.
 smart sort; letting a blocked Task become next; creating a Project without
 `project.advances_goal`; implementing the Goal's next action with a read per
 Project.
+
+## One measurement predicate, and the `achieved` decision (V2.7 RECALL-04, 2026-09-01)
+
+[DEBT-234](../product/PRODUCT_DEBT.md#-debt-234--on-track-and-moving-carry-four-different-predicates-across-surfaces-and-a-project-with-no-health-facts-defaults-to-on-track-inside-snapshots--p2--resolved-2026-09-01):
+DalyHub asks **two** questions about a Goal, and one set of words was answering
+both.
+
+| question | answer | its authority |
+|---|---|---|
+| *"is this Goal's measured outcome on track?"* | measurement status | `evaluateGoalProgress` (GOAL-02) |
+| *"has this Goal had contributing work recorded recently?"* | alignment | `evaluateGoalAlignment` (ADR-040) |
+
+They are different predicates over different inputs, and a Goal can honestly be
+one and not the other. ADR-111 decisions 6 and 7 are unchanged: this is naming
+and sourcing, and **no composite score, rank, grade or merged "health" exists
+anywhere in it.**
+
+### The measurement predicate has one declaration
+
+`GOAL_MEASUREMENT_ON_TRACK_STATUSES` in [`app/kernel/goals/goal-outcome.ts`](../../app/kernel/goals/goal-outcome.ts).
+Everything derives from it:
+
+- `goalMeasurementIsOnTrack` — the pure predicate;
+- `goalMatchesCollectionView("on_track", …)` — the `/goals` lens's pure filter;
+- `MEASUREMENT_ON_TRACK_LIST` in `d1-goal-repository.ts` — the lens's SQL
+  `IN (…)` list and its workspace-true counts, built from the constant the same
+  way `MEANINGFUL_TYPE_LIST` and `MEASUREMENT_TYPE_LIST` are built from theirs;
+- `goalIsOnTrack` in `~/shared/goal-progress` — the function Today's stat card
+  and its Goal panel count with, now a **re-export** rather than a second set.
+
+### `achieved` counts. That is the decision, taken once
+
+`{on_track, ahead, achieved}`. `achieved` means the target the owner set has been
+reached while the Goal is still open — the single best outcome a measured Goal
+can report. It was in the shared predicate and out of the `/goals` SQL, which is
+precisely how Today and `/goals` came to state different fractions over one
+workspace without either being wrong about its own set. Explicit spine completion
+is a different fact and still wins first: a completed Goal leaves every status
+lens for **Completed**.
+
+The set is **not** the complement of `goalNeedsAttention`. The evaluator has nine
+states and only two ask for attention, so a negation also sweeps in
+`not_measured`, `not_started`, `in_progress` and `stale` — which is how a figure
+comes to read "4 of 4" for a set of Goals that are mostly not measured at all.
+
+**Proven** over all nine statuses (shared predicate ≡ lens predicate) and over a
+four-Goal fixture where every seeded Goal is on Today's page, so the contested one
+cannot pass by being absent (`test/kernel/recall-04-day-week-truth.test.ts`).
+Dropping `achieved` from the SQL list reddens both parity assertions; forking
+`goalIsOnTrack` reddens the nine-status one.
+
+### Alignment wears alignment words
+
+`evaluateGoalAlignment`'s `active` state is **"Moving"** (`/views`) and
+**"Recently active"** (the evaluator's own label). Analytics' Goal tile counted
+that state and called it **"Goals on track"**; it is now **"Goals moving"**, and
+its machine field moved `onTrack` → `moving` so a future surface cannot borrow
+the wrong word from the wrong key. One standing note on that surface names the
+question and disclaims the other. Nothing was renamed in the other direction: a
+genuine measurement surface still says "On track", and
+`test/unit/alignment/recall-04-label-truth.test.ts` asserts both halves.
+
+### Every bounded Goal population states its bound
+
+Analytics already did (*"of the 40 Goals read, right now"*). Today now does too:
+`loadGoalSummaries` returns `{ items, bounded }` and the two figures drawn from
+it say *"shown here"* when the read did not see every open Goal. See
+[`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md#todays-goal-figures-state-their-bound-v27-recall-04-2026-09-01).

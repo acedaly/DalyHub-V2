@@ -37,6 +37,7 @@ import {
 } from "~/kernel/alignment";
 import type { GoalRepository } from "~/kernel/goals";
 import {
+  PROJECT_HEALTH_ATTENTION_STATES,
   evaluateProjectHealth,
   type HealthEvaluationContext,
   type ProjectHealthRepository,
@@ -81,11 +82,6 @@ import {
 } from "./d1-entity-tags";
 
 /** The health states that mean a Project currently needs a look. */
-const ATTENTION_HEALTH_STATES: readonly ProjectHealthState[] = [
-  "at_risk",
-  "stale",
-  "blocked",
-];
 
 /** The alignment states that mean a Goal currently needs a look. */
 const ATTENTION_ALIGNMENT_STATES: readonly GoalAlignmentState[] = [
@@ -533,6 +529,15 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
     const snapshotHealth = new Map<string, ProjectHealthState>();
     if (snapshot) {
       for (const project of snapshot.projects) {
+        /*
+         * V2.7 RECALL-04 (DEBT-234) — a snapshot may now record that it had NO
+         * health reading for a Project. That is not a previous state to compare
+         * against, so it does not enter this map: the "changed since your last
+         * Review" boundary below already treats a missing previous reading as
+         * "cannot say" and excludes the row, which is the honest answer and the
+         * one it would have given before the default fabricated a reading.
+         */
+        if (project.health === null) continue;
         snapshotHealth.set(project.id, project.health);
       }
     }
@@ -554,7 +559,8 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
           }
           if (
             config.shared.attention === true &&
-            (health === null || !ATTENTION_HEALTH_STATES.includes(health))
+            (health === null ||
+              !PROJECT_HEALTH_ATTENTION_STATES.includes(health))
           ) {
             continue;
           }

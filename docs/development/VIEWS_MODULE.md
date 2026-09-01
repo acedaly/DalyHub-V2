@@ -280,3 +280,26 @@ workspace-wide, and inventing a per-page one would repeat the mistake DEBT-23 fi
 | Saved views: two kinds, one table; Task-view backward compatibility; isolation | `test/kernel/cross-module-saved-views.test.ts` |
 | Cross-module querying: combined results, anchors, lifecycle, attention, REVIEW-03, module visibility, workspace isolation, query cost | `test/kernel/cross-module-view-query.test.ts` |
 | The journey: create / reopen / edit / delete, canonical navigation, empty states, phone, keyboard, axe | `e2e/cross-module-views.spec.ts` |
+
+## The alignment vocabulary is the product's, and other surfaces adopted it (V2.7 RECALL-04, 2026-09-01)
+
+`/views` has always drawn `evaluateGoalAlignment`'s `active` state as **"Moving"**
+(`ALIGNMENT_LABELS`, `views-controls.ts` and `views-presentation.ts`), and that
+was already correct: alignment asks *"has this Goal had contributing work
+recorded recently?"*, which consults no target, no schedule and no reading.
+
+Analytics counted the identical state and called it **"Goals on track"** —
+GOAL-02's phrase for a different question — so one label spanned two predicates
+and two surfaces could honestly disagree about one workspace
+([DEBT-234](../product/PRODUCT_DEBT.md#-debt-234--on-track-and-moving-carry-four-different-predicates-across-surfaces-and-a-project-with-no-health-facts-defaults-to-on-track-inside-snapshots--p2--resolved-2026-09-01),
+ADR-114 decision 6). **RECALL-04 moved Analytics onto this module's word rather
+than inventing a third**: its tile is now "Goals moving".
+
+Nothing in `/views` changed, and that is the point — `HEALTH_LABELS.on_track`
+("On track") is untouched, because **Project health** legitimately owns that
+phrase for its own state. The rule is not "the words 'on track' are banned"; it
+is that no word may span two predicates.
+`test/unit/alignment/recall-04-label-truth.test.ts` asserts every option in this
+module's `goal-alignment` group stays in alignment words, and that every
+alignment state is offered — so no state can quietly borrow another vocabulary by
+being absent from the group.

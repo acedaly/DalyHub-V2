@@ -5451,7 +5451,18 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
 
 ## ADR-114: RECALL — retrieval reaches content under an explicit-query boundary, one excerpt contract, one completion-time authority, and commitments that return without a reminder engine
 
-- **Status:** Accepted (2026-08-30, defining [V2.7](../roadmap/ROADMAP_V2_7.md))
+- **Status:** Accepted (2026-08-30, defining [V2.7](../roadmap/ROADMAP_V2_7.md)).
+  **Fully implemented 2026-09-01** — all five RECALL items delivered and all
+  fourteen entries the programme raised (DEBT-222 … DEBT-235) closed. Every
+  decision below landed as written and none was amended in implementation. The
+  two that needed an implementation-time choice recorded theirs on their items:
+  decision 5's meeting lead notice was asked again and **refused** (RECALL-03),
+  and decision 6's `achieved` question was **answered "it counts"** with the
+  predicate given one kernel declaration, while the Review's open/overdue list
+  was **renamed rather than re-scoped** because ADR-110 decision 3 stores no plan
+  membership to scope it by (RECALL-04). No new ADR was required: every choice
+  RECALL-04 made is one this decision or ADR-111 decisions 6 and 7 already
+  foreclosed or delegated.
 
 - **Context.** V2.6 completed on 2026-08-29: the empty query answers with
   recent records, tags have one vocabulary, Tasks carry it, and `#tag` joined

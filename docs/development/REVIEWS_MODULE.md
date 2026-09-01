@@ -980,3 +980,105 @@ creates (and its form already opens on the current week from the same
 resolves the owner's own resume step and redirects to it, and `/reviews/:id` is
 the canonical record. Today holds no resume bookmark, names no step, and writes
 nothing.
+
+## The period context tells the period's truth (V2.7 RECALL-04, 2026-09-01)
+
+[DEBT-235](../product/PRODUCT_DEBT.md#-debt-235--the-review-records-period-context-is-today-anchored-and-bounded-before-its-filter--p2--resolved-2026-09-01).
+The Review record's four context lists sat under a historic period's label and
+none of them was a period query:
+
+- **Completed tasks** read the `completed` system view at `limit: 50` with no
+  sort — so `smart`, priority-then-due over the workspace's ENTIRE completed
+  history — and then filtered those fifty rows in JavaScript. A busy owner's
+  Review could legitimately render an empty "Completed tasks" list under copy
+  claiming completeness.
+- **Open tasks** read the `overdue` view, which is bound to TODAY in SQL, and
+  drew today's backlog under a heading about last March.
+- **Diary and Meetings** took fifty recent rows (Meetings took two pages,
+  `recent` and `upcoming`) and filtered them in JS, with no bound signal — so a
+  truncated answer and a complete one were the same list.
+
+### Four period-scoped statements, bounded after the predicate
+
+[`review-period-context.ts`](../../app/modules/reviews/review-period-context.ts):
+
+| list | predicate, in SQL | order |
+|---|---|---|
+| Completed tasks | `completedFrom` / `completedTo` (RECALL-02's window over `spine_records.completed_at`) | `completed`, most recent first |
+| Open and overdue **now** | the `overdue` system view — current state, named as such | the view's own |
+| Diary entries | `occurredFrom` / `occurredTo` | newest first |
+| Meetings | `listStartingBetween` | earliest first |
+
+Each asks for `REVIEW_PERIOD_CONTEXT_LIMIT + 1` so a full page and an exact-fit
+period are distinguishable, returns at most 50, and carries `bounded` — which the
+record states on the surface when it is true. **The cost fell**: five statements
+to four, and no list is filtered in JavaScript.
+
+Owner-calendar day bounds are resolved once, through `ownerDayStartInstant`, from
+the owner's midnight on `periodStart` to the start of the day after `periodEnd` —
+so a 23:50 entry on the last day is inside the window and a 00:10 entry on the
+next day is not, asserted at thirty-minute resolution either side of both
+instants.
+
+`listStartingBetween`'s safety ceiling moved 50 → 100 so a caller can use the
+`limit + 1` idiom at the Review's own page size; the Diary timeline's ceiling has
+been 100 for the same class of reason.
+
+### Open/overdue: renamed, not re-scoped — and why
+
+RECALL-04 left implementation one choice: scope the list to a period question it
+can honestly answer, or rename it to the truth it shows. **It is renamed —
+"Open and overdue now".**
+
+DalyHub stores no plan membership. [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)
+decision 3 keeps the period account DERIVED and explicitly refuses a snapshot
+table for a plan, so *"still open from this period's plan"* has no stored fact
+behind it and answering it would mean inventing history the product deliberately
+does not keep. What the query can answer truthfully is the CURRENT state, so the
+heading says `now`. A historic Review therefore shows two clearly separated time
+words: **"Completed in this period"** and **"Open and overdue now"**.
+
+### The tab label matches its content
+
+**"People & Meetings" → "Meetings".** The smaller half on purpose: RECALL-04's
+non-goals forbid building People functionality to save a label, and no existing
+period-scoped People read belongs there — a Person is not an event with a date
+inside a window, so *"the People of this period"* is not a question the data
+answers today.
+
+The tab **id** (`people`) and its stored section id
+(`people_meetings.commentary`) are UNCHANGED. They are storage keys, not copy;
+renaming them would orphan every commentary the owner has already written.
+
+### A Project with no health reading, inside the Review
+
+`review-insights-context.ts` mapped a missing health reading to `"on_track"` —
+the best of the five states, chosen because there was nothing to choose from. It
+was then written into the snapshot as though measured and compared at the next
+Review as a real reading, so a Project that merely became readable could be
+announced as having deteriorated, and one that stopped being readable as having
+improved.
+
+- `projectStateFact` (exported, pure, and therefore falsifiable without arranging
+  for a read to fail) resolves an absent reading to `healthState: null` and
+  `PROJECT_HEALTH_UNAVAILABLE_LABEL`.
+- The snapshot stores `health: null` rather than dropping the row — a dropped row
+  reads as *"did not exist at that Review"*, which is a different untruth.
+  `parseReviewInsightSnapshot` keeps an explicit `null`, still refuses a
+  malformed value, and the stored version is unchanged (an existing v1 row parses
+  exactly as it did).
+- `classifyProjectHealthChange` gained **`unknown`**: `undefined` is "not in the
+  previous snapshot" (still `new`); `null` on either side is "no reading" and
+  yields no transition at all. The cross-view *"changed since your last Review"*
+  boundary skips absent readings for the same reason.
+
+### Testing
+
+`test/kernel/recall-04-day-week-truth.test.ts` seeds a Review across a month
+boundary with **62 in-period completions**, one before, one after, and one
+completed inside then retitled a week after the period closed. Exactly 50 rows
+come back, all in-period, in completion order, with the bound stated. Falsified
+three ways: restore the history-wide limit before the filter, restore
+`sort: "updated"`, restore `smart`.
+`test/unit/reviews/ReviewRecordContext.test.tsx` holds the labels;
+`test/unit/reviews/review-project-state.test.ts` holds the absent-reading rule.

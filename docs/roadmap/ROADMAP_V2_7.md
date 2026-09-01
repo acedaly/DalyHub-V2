@@ -12,15 +12,28 @@
 > (**complete 2026-08-29** — all four FIND items delivered, every taken entry
 > closed).
 >
-> **This file is V2.7, and it is where new work goes.** The rules are
-> unchanged: [`AGENTS.md`](../../AGENTS.md) tells you *how* to build; this
-> tells you *what*. Status is updated in the PR that changes it. No time
-> estimates, no dates on unstarted work.
+> **This file is V2.7, and it is COMPLETE (2026-09-01)** — all five RECALL
+> items ☑ delivered, every taken entry closed (DEBT-222 … DEBT-235). The rules
+> it was built under are unchanged: [`AGENTS.md`](../../AGENTS.md) tells you
+> *how* to build; this told you *what*. Status is updated in the PR that
+> changes it. No time estimates, no dates on unstarted work.
+>
+> **The successor programme is not yet decided, and this file does not decide
+> it.** V2.8 is created the way V2.7 was: by its own decision pass, which takes
+> a post-V2.7 audit as evidence, chooses a theme, numbers its debt from
+> **DEBT-236** (the next free number) and records its ADR. New work goes there
+> once it exists; until then, the standing riders and the LATER table below are
+> the honest statement of what is known to be owed — the E2E truth-restoration
+> pass (DEBT-215/216/219/220/221) and the one-Task-anatomy pair (DEBT-128 +
+> DEBT-175) chief among them. Nothing in this file may be re-scoped to hold new
+> work.
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: IN PROGRESS.** RECALL-00 and RECALL-01 ☑ delivered
-2026-08-30, RECALL-02 and RECALL-03 ☑ delivered 2026-08-31; RECALL-04 is ☐. The
+**Programme status: COMPLETE (2026-09-01).** RECALL-00 and RECALL-01 ☑
+delivered 2026-08-30, RECALL-02 and RECALL-03 ☑ delivered 2026-08-31, RECALL-04
+☑ delivered 2026-09-01 — the convergence item, and the last. All fourteen
+entries this programme raised are closed: DEBT-222 … DEBT-235. The
 programme decision is recorded as
 [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine) and every finding it is built on
 was re-measured against `main` at `0d08cd6` on 2026-08-30 — including the
@@ -48,6 +61,20 @@ V2.6 made the title layer fast (recency, tags, `#tag`). V2.7 finishes the
 sentence: the **whole record** becomes retrievable, the **time** dimension of
 the owner's own history becomes answerable, and an **explicitly recorded
 commitment** comes back when it is due.
+
+> **Read the paragraph above in the past tense (2026-09-01).** It states the
+> product as it was at `0d08cd6`, when this programme was decided, and it is
+> kept as that record rather than rewritten. **Every clause in it is now
+> resolved**: search reaches meeting prose, Diary bodies, Task descriptions and
+> Review reflections under an explicit query (RECALL-01); completed work is
+> listed by completion time from `spine_records.completed_at`, with a sort, a
+> window filter and two palette doors (RECALL-02); `followUpOn` is read by one
+> filter dimension, one Today fact and one digest line (RECALL-03); and the
+> cross-surface facts those answers land beside say what they mean and what
+> they are bounded by (RECALL-04). The same past tense applies to the
+> [audit table](#confirmed-with-current-evidence) and the
+> [chain scoring](#the-chain-scored) below — both are dated evidence, not
+> current state.
 
 ---
 
@@ -112,6 +139,12 @@ verdicts:
 
 ### Confirmed, with current evidence
 
+**All twelve findings below were measured at `0d08cd6` (2026-08-30) and all
+twelve are now RESOLVED** — the table is the evidence the programme was decided
+on, preserved unedited, not a description of `main` today. Each row's repair is
+recorded on its item and on its debt entry (DEBT-222 … DEBT-235, every one
+closed).
+
 | Finding | Evidence on `0d08cd6` |
 |---|---|
 | **Search is title-deep.** | Meetings match `e.title` + `d.location` only (`d1-meeting-repository.ts:481-482`); Diary `e.title` only (`d1-diary-repository.ts:345`); Tasks `e.title` + checklist-item titles, never `description` (`d1-task-repository.ts:1741,1755`); Reviews `e.title` only (`d1-review-repository.ts:398`). The unsearched columns exist and hold the prose: `meeting_details.agenda_markdown` / `notes_markdown`, `meeting_agenda_items.body_markdown` (0014), `diary_entries.body` (0011), `task_details.description` (0006), review sections' `body_markdown` (0018). Notes remain the one body-searching provider (`d1-note-repository.ts:370-371`), with the match-source + SQL-cut excerpt mechanism RECALL-01 generalises. |
@@ -167,6 +200,14 @@ commitment recorded for later (`followUpOn`): write-only. **Remember-for-me**:
 the digest and asset rungs reach out; an explicitly dated follow-up never does.
 The chain breaks at exactly the three verbs RECALL names: **content, time,
 commitment.**
+
+**Re-scored at completion (2026-09-01):** **retrieve** is no longer the break —
+content is matchable under an explicit query, completion time is answerable, and
+a recorded commitment returns; **review** no longer misreports, because the
+period tabs are period-scoped in SQL and each label names its own time window
+(RECALL-04). **learn** is unchanged and still fair: single-step snapshot
+comparison ships, multi-Review trend does not, and it stays deferred to a later
+Insight programme — this programme did not touch it.
 
 ---
 
@@ -1158,7 +1199,7 @@ needs to implement without re-auditing.
 
 ---
 
-### ☐ RECALL-04 — The day and the week account for themselves
+### ☑ RECALL-04 — The day and the week account for themselves — **delivered 2026-09-01**
 
 **Cross-surface facts use one truth, and every label names the question it
 answers.**
@@ -1240,6 +1281,123 @@ answers.**
   5. All proven at 393 px; `axe` clean; light and dark.
 - **Closes.** DEBT-233, DEBT-234, DEBT-235. **Depends on** RECALL-02 (the
   completed-window read).
+- **Delivered 2026-09-01.** Four bounded parts, no fifth. One stated fact on
+  Today, one measurement predicate, one alignment vocabulary, one honest absence,
+  four period-scoped Review reads and one recorded decision not to build
+  anything. **No migration**, no composite score, no new Today card and no new
+  Review dashboard. The recorded decisions:
+
+  **Meetings today: the Schedule panel's note slot, from the read Today already
+  held.** `meetingsTodayFact(day.meetings)` renders in the panel head beside the
+  heading — the same quiet trailing fact the plan panel draws its "8 tasks" in —
+  so the day gains a fact and no height, and no new card. It counts the day's
+  Meetings rather than the ones still ahead, which is the whole defect: `nextUp`
+  falls through to tasks the moment the last meeting starts. **Zero new reads**:
+  the count is the length of a list `loadTodayDay` already returned, derived from
+  the same `loadScheduleWindow` → `scheduleForDate` projection the morning digest
+  is rendered from. Machine parity is asserted on the roadmap's own fixture —
+  three Meetings, all in the past — as four readings of one value (`schedule.count`,
+  `day.meetings.length`, `meetingsTodayFact(...).count`, `digestFacts.events.length`),
+  compared as values.
+
+  **`dayChips` / `dayProgress`: REMOVED.** The roadmap allowed either; removal is
+  the honest half. They were three figures and a ratio, and only ONE of the four
+  had no home: the day's task count is already the plan panel's note (the
+  canonical `/tasks?system=today` figure), overdue is already a NAMED band with
+  its own honest "+n more overdue" row, and `dayProgress` is a ratio REDESIGN-03
+  §4 removed on purpose — reviving it would have re-opened a settled question
+  rather than closing this one. So the meetings chip survives as
+  `meetingsTodayFact`, narrowed to the question it answers and given the consumer
+  the chip never had, and the rest left with their tests.
+
+  **The measurement predicate, and the `achieved` decision.**
+  `GOAL_MEASUREMENT_ON_TRACK_STATUSES = {on_track, ahead, achieved}` in
+  `~/kernel/goals`, and everything else derives from it: `goalMatchesCollectionView`'s
+  `on_track` lens, the `/goals` SQL `IN (…)` list, the lens counts, and
+  `~/shared/goal-progress`'s `goalIsOnTrack` (now a re-export, not a second set)
+  which Today's stat card and Goal panel already counted with. **`achieved` is
+  IN**: it means the target the owner set has been reached while the Goal is
+  still open — the best outcome a measured Goal can report — and excluding it,
+  which the `/goals` SQL alone did, is exactly how Today and `/goals` came to
+  state different fractions over one workspace. Explicit completion is unchanged
+  and still wins first. Proven over all nine statuses (shared predicate ≡ lens)
+  and over a four-Goal fixture where every seeded Goal is on Today's page, so the
+  contested one cannot pass by being absent.
+
+  **Alignment naming: Analytics' tile is "Goals moving".** Its number is
+  `evaluateGoalAlignment`'s `active` — a Goal with contributing work recorded
+  recently — which consults no target, no schedule and no reading. It wore
+  "Goals on track", GOAL-02's phrase, and `/views` drew the identical state as
+  "Moving". `/views` was already right, so Analytics adopted its word rather than
+  inventing a third; the machine field moved `onTrack` → `moving` too, so a
+  future surface cannot borrow the wrong word from the wrong key. One standing
+  note names the question and disclaims the other; the bound note is unchanged.
+  Nothing renamed in the other direction: a genuine measurement surface still
+  says "On track".
+
+  **Bounds: Today's Goal figures say whose set they describe.**
+  `loadGoalSummaries` returns `{ items, bounded }`, and when the read did not see
+  every open Goal the stat card reads "of the 4 measurable goals **shown here**"
+  and the panel note "1 of 4 **shown here** on track" — Analytics' own honest-bound
+  pattern, and ADR-111 decision 5's rule applied to a sample chosen
+  attention-first. The bound is a property of a page already read: no count
+  statement, no per-Goal read.
+
+  **A Project with no health evidence is UNAVAILABLE.** `healthState` is now
+  `ProjectHealthState | null` with `PROJECT_HEALTH_UNAVAILABLE_LABEL` ("No health
+  reading") beside it; absence is deliberately NOT a sixth health state, so no
+  filter or rank can treat "we could not look" as a reading. The snapshot stores
+  `health: null` rather than dropping the row (a dropped row reads as "did not
+  exist", which is a different untruth), and `classifyProjectHealthChange` gained
+  `unknown`: `undefined` is "not in the previous snapshot" (still `new`), `null`
+  on either side is "no reading" and yields no transition at all. The
+  cross-view "changed since your last Review" boundary skips absent readings for
+  the same reason. Falsified by restoring `?? "on_track"`.
+
+  **Review open/overdue: RENAMED, not re-scoped — "Open and overdue now".**
+  Option 1 was checked and refused on evidence, not preference: DalyHub stores no
+  plan membership (ADR-110 decision 3 keeps the period account DERIVED and
+  refuses a snapshot table for a plan), so "still open from this period's plan"
+  has no stored fact behind it and answering it would mean inventing history the
+  product deliberately does not keep. The query answers CURRENT state, so the
+  heading says `now`. A historic Review now shows two clearly separated time
+  words: what you finished then, and what is open today.
+
+  **The period reads are four period-scoped statements.** Completed Tasks use
+  RECALL-02's `completedFrom`/`completedTo` window and the `completed` sort
+  (`spine_records.completed_at`), Diary uses `occurredFrom`/`occurredTo`, and
+  Meetings use `listStartingBetween` — every predicate in SQL, every limit
+  applied AFTER it, every list asking for `limit + 1` so a full page and an
+  exact-fit period are distinguishable and a truncated list says so. Owner-day
+  instants come from the one `ownerDayStartInstant` helper. **Cost fell**: five
+  statements (two of them Meetings views, three filtered afterwards in JS) → four.
+  `listStartingBetween`'s safety ceiling moved 50 → 100 so a caller can use the
+  `limit + 1` idiom at the Review's own page size; the Diary timeline's ceiling
+  has been 100 for the same class of reason.
+
+  **The tab label matches its content: "Meetings".** The smaller half on purpose
+  — RECALL-04's non-goals forbid building People functionality to save a label,
+  and no existing period-scoped People read belongs there (a Person is not an
+  event with a date inside a window). The tab **id** and its stored section id
+  `people_meetings.commentary` are untouched: they are storage keys, and renaming
+  them would orphan every commentary already written.
+
+  **The week account: THE DOOR IS ENOUGH.** The roadmap's recommended answer,
+  taken unchanged — nothing found at implementation time overturned it. STEER-05
+  made Today's week-boundary surface strictly a door by design; `/plan` holds the
+  completed-week account at its foot and its own header records why it is not a
+  dashboard; the Review holds the ritual. A fourth statement of the same account
+  would be a duplicate the owner has to reconcile. So: **no week-summary card on
+  Today, no duplicate account, zero reads.** Asserted as the intended composition
+  (the door is present, complete and points at the ritual; no week-account field
+  appears on Today's payload) rather than as a brittle "this component must never
+  exist".
+
+  **Scope guard held.** DEBT-215/216/219/220/221 are untouched. No composite Goal
+  score (ADR-111 d7 intact — this was naming and sourcing throughout), no new KPI,
+  no Today redesign, no new Review dashboard, no guided monthly/quarterly flow, no
+  multi-snapshot trend, no Insight work, no RECALL-03 follow-ups, no reminder, AI,
+  Finance or Attachment work, and no unrelated E2E or design repair.
 
 ---
 
@@ -1392,20 +1550,20 @@ disposition here and on the entry. **This pass raised DEBT-222 … DEBT-235**
 
 | Entry | Severity | Disposition |
 |---|---|---|
-| **DEBT-222** — Diary links open raw JSON | P2 | **Raised · RECALL-00-A** |
-| **DEBT-223** — cross-view unchunked binds; result 61 unreachable | P2 | **Raised · RECALL-00-B** |
-| **DEBT-224** — Meeting follow-up N+1; task-activity loop under a "one batch" comment | P2 | **Raised · RECALL-00-C** |
-| **DEBT-225** — unnamed search button 768–1024 px | P2 | **Raised · RECALL-00-D** |
-| **DEBT-226** — active navigation is nesting-only; singular routes lose the current item | P2 | **Raised · RECALL-00-E** |
-| **DEBT-227** — deterministic Ask answers gated off in error | P3 | **Raised · RECALL-00-F** |
-| **DEBT-228** — Reviews collection offers a guide the guide refuses | P3 | **Raised · RECALL-00-G** |
+| **DEBT-222** — Diary links open raw JSON | P2 | **Raised · RECALL-00-A · ☑ CLOSED 2026-08-30** |
+| **DEBT-223** — cross-view unchunked binds; result 61 unreachable | P2 | **Raised · RECALL-00-B · ☑ CLOSED 2026-08-30** |
+| **DEBT-224** — Meeting follow-up N+1; task-activity loop under a "one batch" comment | P2 | **Raised · RECALL-00-C · ☑ CLOSED 2026-08-30** |
+| **DEBT-225** — unnamed search button 768–1024 px | P2 | **Raised · RECALL-00-D · ☑ CLOSED 2026-08-30** |
+| **DEBT-226** — active navigation is nesting-only; singular routes lose the current item | P2 | **Raised · RECALL-00-E · ☑ CLOSED 2026-08-30** |
+| **DEBT-227** — deterministic Ask answers gated off in error | P3 | **Raised · RECALL-00-F · ☑ CLOSED 2026-08-30** |
+| **DEBT-228** — Reviews collection offers a guide the guide refuses | P3 | **Raised · RECALL-00-G · ☑ CLOSED 2026-08-30** |
 | **DEBT-229** — Search matches titles, never content | P2 | **Raised · RECALL-01 · ☑ CLOSED 2026-08-30** |
 | **DEBT-230** — completed work not retrievable by time; Completed label vs sort | P2 | **Raised · RECALL-02 · ☑ CLOSED 2026-08-31** |
 | **DEBT-231** — `followUpOn` write-only | P2 | **Raised · RECALL-03 · ☑ CLOSED 2026-08-31** |
 | **DEBT-232** — `/today/waiting` bounded page presented as complete | P3 | **Raised · RECALL-03 · ☑ CLOSED 2026-08-31** |
-| **DEBT-233** — no meetings-today fact; `dayChips` dead | P3 | **Raised · RECALL-04** |
-| **DEBT-234** — four "on track"/"moving" predicates; optimistic health default in snapshots | P2 | **Raised · RECALL-04** |
-| **DEBT-235** — period context today-anchored, bounded before its filter | P2 | **Raised · RECALL-04** |
+| **DEBT-233** — no meetings-today fact; `dayChips` dead | P3 | **Raised · RECALL-04 · ☑ CLOSED 2026-09-01** |
+| **DEBT-234** — four "on track"/"moving" predicates; optimistic health default in snapshots | P2 | **Raised · RECALL-04 · ☑ CLOSED 2026-09-01** |
+| **DEBT-235** — period context today-anchored, bounded before its filter | P2 | **Raised · RECALL-04 · ☑ CLOSED 2026-09-01** |
 | DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **Deliberately not taken** — the red gate's five recorded causes, on other items' surfaces; owned by the truth-restoration rider, per the inclusion rule RECALL-00 states. |
 | DEBT-198 | P2 | **Not taken; not a gate.** Off-Cloudflare copy, owner-held by construction; recorded in LATER. |
 | DEBT-139 | P1 ◐ | **Not taken.** One owner UI check remains; nothing repo-side owed. |

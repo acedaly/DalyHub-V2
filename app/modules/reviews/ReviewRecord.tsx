@@ -33,9 +33,10 @@ import {
 } from "~/shared/settings";
 import { SelectField } from "~/shared/forms";
 
-import type {
-  ReviewPeriodContext,
-  ReviewContextItem,
+import {
+  REVIEW_PERIOD_CONTEXT_LIMIT,
+  type ReviewContextList,
+  type ReviewPeriodContext,
 } from "./review-period-context";
 import { ReviewInsightsPanel } from "./insights/ReviewInsightsPanel";
 import { ReviewTimelineTab } from "./ReviewTimelineTab";
@@ -151,20 +152,36 @@ function SectionEditor({
 
 function ContextList({
   title,
-  items,
+  list,
   empty,
+  boundedNote,
 }: {
   readonly title: string;
-  readonly items: readonly ReviewContextItem[];
+  readonly list: ReviewContextList;
   readonly empty: string;
+  /**
+   * V2.7 RECALL-04 — what this list says when it TRUNCATED (DEBT-235).
+   *
+   * Every list here is bounded after its period predicate, and a bounded list
+   * that says nothing reads as a complete answer. The sentence is the caller's
+   * because only the caller knows what the rows are — "this period's" is a claim
+   * about a window, and the component does not know the window.
+   */
+  readonly boundedNote: string;
 }) {
   const { openDrawer } = useDrawer();
+  const items = list.items;
   return (
     <section
       className="dh-review-context-list"
       aria-labelledby={`${title}-heading`}
     >
       <h2 id={`${title}-heading`}>{title}</h2>
+      {list.bounded ? (
+        <p className="dh-review-muted" data-testid="review-context-bounded">
+          {boundedNote}
+        </p>
+      ) : null}
       {items.length === 0 ? (
         <p className="dh-review-muted">{empty}</p>
       ) : (
@@ -473,15 +490,26 @@ export function ReviewRecord({
             label: "Tasks",
             content: (
               <div className="dh-record-stack">
+                {/*
+                 * V2.7 RECALL-04 — two lists, two clearly different time words
+                 * (DEBT-235). The first is a PERIOD fact, read by completion
+                 * time inside this Review's own window. The second is a fact
+                 * about NOW, and says so in its own heading rather than
+                 * borrowing the period's — the recorded decision, because
+                 * DalyHub stores no plan membership to answer "still open from
+                 * this period" with.
+                 */}
                 <ContextList
-                  title="Completed tasks"
-                  items={context.completedTasks}
-                  empty="No completed tasks were found in this bounded period context."
+                  title="Completed in this period"
+                  list={context.completedTasks}
+                  empty="Nothing was completed in this period."
+                  boundedNote={`Showing the first ${REVIEW_PERIOD_CONTEXT_LIMIT} of this period's completed tasks — more were completed than are listed here.`}
                 />
                 <ContextList
-                  title="Open or overdue tasks"
-                  items={context.openTasks}
-                  empty="No overdue open tasks were found."
+                  title="Open and overdue now"
+                  list={context.openNowTasks}
+                  empty="Nothing is open and overdue right now."
+                  boundedNote={`Showing the first ${REVIEW_PERIOD_CONTEXT_LIMIT} — more are open and overdue than are listed here.`}
                 />
                 <SectionEditor
                   review={review}
@@ -498,9 +526,10 @@ export function ReviewRecord({
             content: (
               <div className="dh-record-stack">
                 <ContextList
-                  title="Diary entries"
-                  items={context.diaryEntries}
-                  empty="No diary entries were found in this bounded period context."
+                  title="Diary entries in this period"
+                  list={context.diaryEntries}
+                  empty="No diary entries were written in this period."
+                  boundedNote={`Showing the first ${REVIEW_PERIOD_CONTEXT_LIMIT} of this period's diary entries — more were written than are listed here.`}
                 />
                 <SectionEditor
                   review={review}
@@ -513,13 +542,27 @@ export function ReviewRecord({
           },
           {
             id: "people",
-            label: "People & Meetings",
+            /*
+             * V2.7 RECALL-04 — the label matches the contents (DEBT-235).
+             *
+             * It read "People & Meetings" and held meetings alone. The fix is
+             * the smaller one on purpose: RECALL-04's non-goals forbid building
+             * People functionality to save a label, and no existing
+             * period-scoped People read belongs here — a Person is not an event
+             * with a date inside a window, so "the People of this period" is not
+             * a question the data answers today. The tab id and its stored
+             * section id (`people_meetings.commentary`) are UNCHANGED: they are
+             * storage keys, not copy, and renaming them would orphan every
+             * commentary the owner has already written.
+             */
+            label: "Meetings",
             content: (
               <div className="dh-record-stack">
                 <ContextList
-                  title="Meetings"
-                  items={context.meetings}
-                  empty="No meetings were found in this bounded period context."
+                  title="Meetings in this period"
+                  list={context.meetings}
+                  empty="No meetings were held in this period."
+                  boundedNote={`Showing the first ${REVIEW_PERIOD_CONTEXT_LIMIT} of this period's meetings — more were held than are listed here.`}
                 />
                 <SectionEditor
                   review={review}

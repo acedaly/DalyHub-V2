@@ -422,9 +422,12 @@ in a second list beside it would have given the owner two chronologies of one da
 — and a Meeting created FROM an event would have appeared in both. So the panel
 holds one list: external occurrences, plus the Meetings no occurrence represents.
 
-The **"Meetings today" figure** still counts DalyHub Meetings and still links to
-`/meetings`, but it is now DERIVED from that same read rather than from a second
-pair of Meeting queries. The figure and the panel therefore cannot disagree.
+The **"Meetings today" figure** still counts DalyHub Meetings, and it is DERIVED
+from that same read rather than from a second pair of Meeting queries — so the
+figure and the panel cannot disagree. Since **V2.7 RECALL-04** it is a stated
+fact on the panel's own heading rather than a chip with no consumer; see
+[The day states its meetings](#the-day-states-its-meetings-v27-recall-04-2026-09-01)
+below, which also records why the `dayChips` model it used to live in was removed.
 
 `MeetingRow` is gone from `TodayScreen`, and with it a pre-existing defect: it
 linked to `/meetings/:id` when the Meeting RECORD route is `/meeting/:id`
@@ -771,6 +774,84 @@ from the reference:
 
 ---
 
+## The day states its meetings (V2.7 RECALL-04, 2026-09-01)
+
+[DEBT-233](../product/PRODUCT_DEBT.md#-debt-233--today-never-states-the-meetings-today-fact-daychips-computes-it-with-no-consumer--p3--resolved-2026-09-01):
+Today held the day's Meeting data and stopped being able to STATE it. `nextUp`
+falls through to tasks the moment the last meeting starts; the Schedule panel's
+rows survive the day, but a row is not a fact, and no count or statement existed
+anywhere on the screen — while the morning digest stated exactly this with times.
+The screen the owner opens said less than the notification.
+
+**One fact, in the panel's existing note slot.** `meetingsTodayFact`
+(`day/day-view.ts`) is a pure helper over the day's Meetings; `SchedulePanel`
+renders it beside the "Schedule" heading, in `.dh-today__panel-note` — the same
+quiet trailing fact the plan panel draws its "8 tasks" in. **No new card, and no
+new height**: the fact shares the head's existing line, grouped with the title by
+`.dh-today__panel-heading` so the head's `space-between` still pushes "View full
+schedule" to the right edge.
+
+**It is about the owner's TODAY, whichever day the strip has selected**, which is
+why the sentence carries the word "today". The strip changes which timeline is
+drawn; it does not change what day it is, and a fact that quietly re-based itself
+on the selection would be the same class of untruth as a "Now" badge on next
+Thursday.
+
+**It counts the day's meetings, not the ones still ahead.** A fact derived from
+`upcoming` would evaporate at exactly the moment the owner wants it. The
+regression seeds three Meetings that have all already started.
+
+**Zero new reads, and one machine value.** The count is the length of a list the
+loader already returned (`data.meetings`), derived from the same
+`loadScheduleWindow` → `scheduleForDate` projection `readDigestFacts` renders the
+digest's day line from. `test/kernel/recall-04-day-week-truth.test.ts` reads four
+values — `schedule.count`, `day.meetings.length`, `meetingsTodayFact(…).count`
+and `digestFacts.events.length` — and compares them as values, and a counting
+test proves the statement count does not move with one meeting or three. (The
+digest states EVENTS, every entry on the day; this states MEETINGS. On a
+workspace with no external calendar they are the same number, and the parity
+fixture is exactly that workspace.)
+
+**`dayChips` and `dayProgress` were REMOVED, not revived.** RECALL-04 was told to
+decide and record, and this is the decision. They were three figures and a ratio
+with no consumer since REDESIGN-03 removed the hero they were drawn in — and only
+ONE of the four had no home elsewhere. The day's task count is already the plan
+panel's note (the canonical `/tasks?system=today` figure); overdue is already a
+NAMED band with its own honest "+n more overdue" row; `dayProgress` is a ratio
+REDESIGN-03 §4 removed on purpose, and reviving it would have re-opened a settled
+question rather than closing this one. So the meetings chip survives as
+`meetingsTodayFact`, narrowed to the question it answers, and the rest left with
+their tests. **The UIX-01 glance-row description above is a historical record of
+a composition that no longer exists** — it is kept as the account of what was
+built, not as a description of the current screen.
+
+## Today's Goal figures state their bound (V2.7 RECALL-04, 2026-09-01)
+
+The Goal panel is a bounded, attention-first sample: `loadGoalSummaries` scans
+twelve and shows at most four, ranked so that the Goals needing attention lead.
+Both figures drawn from it — the stat card's "Goals on track" and the panel's own
+"1 of 4 on track" — read as claims about the workspace, which is ADR-111 decision
+5's rule broken in the one place it is easiest to break
+([DEBT-234](../product/PRODUCT_DEBT.md#-debt-234--on-track-and-moving-carry-four-different-predicates-across-surfaces-and-a-project-with-no-health-facts-defaults-to-on-track-inside-snapshots--p2--resolved-2026-09-01)).
+
+`loadGoalSummaries` now returns `{ items, bounded }`, `TodayDayData` carries
+`goalsBounded`, and when the read did not see every open Goal the card reads *"of
+the 4 measurable goals **shown here**"* and the note *"1 of 4 **shown here** on
+track"* — the honest-bound pattern Analytics already ships for its own Goal tile.
+`/goals`, one tap away through both surfaces' own links, answers the workspace
+question with a workspace-true count.
+
+**The bound costs nothing.** It is a property of a page the loader already read:
+no count statement, no per-Goal read, and a counting test pins that growing the
+Goal population past the cap does not move Today's statement count.
+
+**And the predicate behind the figure is no longer Today's own.**
+`goalIsOnTrack` is now a re-export of the kernel's
+`GOAL_MEASUREMENT_ON_TRACK_STATUSES` — `{on_track, ahead, achieved}` — which the
+`/goals` lens, its SQL and its counts all derive from, so the two surfaces cannot
+state different fractions over one workspace. See
+[`GOALS_MODULE.md`](GOALS_MODULE.md) for the `achieved` decision.
+
 ## The Goal panel after FOLLOW-02 (2026-08-27)
 
 Today's Goal panel used to render **measurable Goals only**. A workspace with
@@ -1011,3 +1092,37 @@ the fix: a new `--app-pointer-target-min` token holding the standard's 24px,
 beside — not instead of — the product's 45px touch target. It was found because
 this item's own criterion is an axe-clean Today, and `today-focus.spec.ts`'s
 existing scan was already failing on it on `main`.
+
+## The week account stays where the ritual is (V2.7 RECALL-04, 2026-09-01)
+
+RECALL-04's fourth part was a decision, not a feature, and it is recorded here so
+it cannot be mistaken for unfinished work.
+
+**The question.** Should Today surface an additional account of the completed
+week at the week boundary — "you finished 24 of the 31 things you planned"?
+
+**The answer: no. The door is enough.**
+
+The evidence, all of it already in the repository:
+
+- **STEER-05 made Today's week-boundary surface strictly a door, by recorded
+  design.** It states no facts. Three links, one period label, no count, no
+  badge, no urgency colour, no streak (see [The week's door](#the-weeks-door-steer-05-2026-08-28)
+  above). That was a decision, not an omission.
+- **`/plan` already holds the completed week's account**, at its foot, and its
+  own header records why `/plan` is not to become another dashboard.
+- **The Review holds the ritual**, and the account is part of it — the period's
+  own evidence surface, beside the owner's own words.
+- **Today already links the owner into that ritual**, from the door.
+
+A fourth statement of one account is a fourth thing to keep in step and a fourth
+place for it to disagree with the other three. So: **no week-summary card on
+Today, no duplicate account, and zero reads.** Today remains the door.
+
+**How it is held.** Not by a brittle "this component must never exist"
+assertion — the repository does not use that style — but by asserting the
+intended composition: the door is present, complete, and points at the ritual,
+and Today's payload carries no week-account field
+(`test/kernel/recall-04-day-week-truth.test.ts`). A future pass that wants this
+surface is reopening a recorded decision, which is legitimate — and has to say
+so.

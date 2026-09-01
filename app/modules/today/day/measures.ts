@@ -111,9 +111,17 @@ export function completedNote(trend: TodayActivityTrend): string {
 export function todayMeasures(input: {
   readonly trend: TodayActivityTrend | null;
   readonly goals: readonly TodayGoal[];
+  /**
+   * V2.7 RECALL-04 — whether the Goal read saw every open Goal (DEBT-234).
+   *
+   * Optional so a caller that genuinely does not know says nothing rather than
+   * asserting completeness; every real caller passes the loader's own flag.
+   */
+  readonly goalsBounded?: boolean;
 }): readonly TodayMeasure[] {
   const measures: TodayMeasure[] = [];
   const { trend, goals } = input;
+  const goalsBounded = input.goalsBounded === true;
 
   if (trend !== null) {
     const points: DayPoint[] = trend.days.map((day) => ({
@@ -181,14 +189,34 @@ export function todayMeasures(input: {
     const onTrack = measured.filter((goal) =>
       goalIsOnTrack(goal.progress.status),
     ).length;
-    const valueText = `${onTrack} of ${measured.length} measurable ${
+    /*
+     * V2.7 RECALL-04 — the BOUND is in the sentence, not only in a footnote
+     * (DEBT-234, ADR-114 decision 6).
+     *
+     * This card counts over the Goals the panel above it read: at most
+     * `GOAL_SUMMARY_LIMIT`, chosen attention-first, which biases the sample
+     * pessimistic. "1 of 4 measurable goals" beside the label "Goals on track"
+     * reads as a workspace total — the exact shape ADR-111 decision 5 forbids —
+     * and it is the reason Today and `/goals` could state different fractions
+     * over one workspace without either being wrong about its own set.
+     *
+     * The wording follows the pattern Analytics already ships for its own
+     * bounded Goal tile ("of the N Goals read"): the figure keeps its
+     * denominator and gains the word that says whose set it is. `/goals`, one
+     * tap away through this card's own link, answers the workspace question.
+     */
+    const denominator = `${measured.length} measurable ${
       measured.length === 1 ? "goal" : "goals"
-    } on track`;
+    }`;
+    const note = goalsBounded
+      ? `of the ${denominator} shown here`
+      : `of ${denominator}`;
+    const valueText = `${onTrack} ${note} on track`;
     measures.push({
       id: "goals",
       label: "Goals on track",
       value: String(onTrack),
-      note: `of ${measured.length} measurable ${measured.length === 1 ? "goal" : "goals"}`,
+      note,
       href: "/goals",
       chart: {
         kind: "meter",
