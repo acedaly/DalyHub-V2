@@ -34,7 +34,12 @@ import {
 } from "~/kernel/review-insights";
 import { projectStateFact } from "~/modules/reviews/insights/review-insights-context";
 
-import { insightFacts, projectFact } from "../../support/review-insights";
+import {
+  buildInsights,
+  insightFacts,
+  previousSnapshot,
+  projectFact,
+} from "../../support/review-insights";
 
 /** A real PROJ-02 evaluation, for the contrast case. */
 function health(): ProjectHealth {
@@ -143,5 +148,65 @@ describe("the snapshot records the absence, and no transition comes from it", ()
     expect(classifyProjectHealthChange("at_risk", null)).toBe("unknown");
     // The one absence that IS a finding: the Project was not there before.
     expect(classifyProjectHealthChange(undefined, "on_track")).toBe("new");
+  });
+});
+
+describe("an absent PREVIOUS reading is not a previous position", () => {
+  /**
+   * Codex review, PR #246 — the defect this item's own change introduced.
+   *
+   * The attention insight asked `previous.health !== "on_track"` to decide
+   * whether a concerning Project "was in the same position at your last
+   * Review". That was written when a snapshot's health was always one of the
+   * five states; the moment RECALL-04 let it record an ABSENCE, `null !==
+   * "on_track"` became true and a Project the last Review could not read was
+   * reported as having been in the same concerning position it is in now —
+   * exactly the class of untruth this item exists to remove.
+   *
+   * Both halves of the sentence now ask one question, through the kernel's
+   * `projectHealthNeedsLook`.
+   */
+  function stuckProjectReason(previousHealth: "at_risk" | "on_track" | null) {
+    const insights = buildInsights({
+      previousReviewId: "review-previous",
+      previousSnapshot: previousSnapshot({
+        projects: [
+          {
+            id: "project-1",
+            health: previousHealth,
+            openTasks: 4,
+            overdueTasks: 2,
+          },
+        ],
+      }),
+      projects: [
+        projectFact({ healthState: "at_risk", tasksCompletedInPeriod: 0 }),
+      ],
+    });
+    return insights.attention.find(
+      (insight) => insight.id === "attention.projects",
+    )?.reason;
+  }
+
+  it("says nothing about last time when last time had no reading", () => {
+    const reason = stuckProjectReason(null);
+    expect(reason).toContain("open, with nothing completed this period");
+    expect(reason).not.toContain("same position at your last Review");
+  });
+
+  it("still says so when the last Review DID read a concerning state", () => {
+    expect(stuckProjectReason("at_risk")).toContain(
+      "was in the same position at your last Review",
+    );
+  });
+
+  it("does not reach the attention insight at all when the health MOVED", () => {
+    /*
+     * On track → at risk is a health CHANGE, so the Project is reported there
+     * and deliberately not again here: a Project belongs in one place, or a
+     * two-Project week reads like a four-Project one. Asserted so the null case
+     * above cannot pass merely because this branch swallowed everything.
+     */
+    expect(stuckProjectReason("on_track")).toBeUndefined();
   });
 });

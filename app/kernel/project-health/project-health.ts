@@ -90,6 +90,35 @@ export const PROJECT_HEALTH_STATES = [
 export type ProjectHealthState = (typeof PROJECT_HEALTH_STATES)[number];
 
 /**
+ * The health states that mean a Project currently needs a look.
+ *
+ * One authority for a question three surfaces ask: the cross-view "needs
+ * attention" boundary, the Review's attention insight, and the Review's
+ * "was it in the same position last time?" comparison. It was spelled out
+ * inline in each, and V2.7 RECALL-04 promoted it here after the third copy —
+ * written as `health !== "on_track"` — silently acquired a fourth member the
+ * moment a health reading could be absent (see
+ * {@link PROJECT_HEALTH_UNAVAILABLE_LABEL}): `null !== "on_track"` is true, so
+ * "we had no reading for this Project last time" counted as "it was in the same
+ * concerning position last time".
+ *
+ * `completed` is deliberately not in it (a finished Project is calm, not a
+ * warning), and neither is absence — which is the point.
+ */
+export const PROJECT_HEALTH_ATTENTION_STATES: readonly ProjectHealthState[] = [
+  "at_risk",
+  "stale",
+  "blocked",
+];
+
+/** Does this reading — which may be absent — mean the Project needs a look? */
+export function projectHealthNeedsLook(
+  state: ProjectHealthState | null | undefined,
+): boolean {
+  return state != null && PROJECT_HEALTH_ATTENTION_STATES.includes(state);
+}
+
+/**
  * V2.7 RECALL-04 — what a surface says when there is NO reading (DEBT-234).
  *
  * Absence is deliberately not a sixth member of the vocabulary above. The five

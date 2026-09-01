@@ -34,7 +34,10 @@ import {
   type TaskPlanOutcome,
 } from "~/kernel/activity-window";
 import type { GoalAlignmentState } from "~/kernel/alignment";
-import type { ProjectHealthState } from "~/kernel/project-health";
+import {
+  projectHealthNeedsLook,
+  type ProjectHealthState,
+} from "~/kernel/project-health";
 
 import {
   measureLabel,
@@ -857,16 +860,26 @@ function buildAttention(
       !alreadyReported.has(project.id) &&
       !project.completedInPeriod &&
       project.tasksCompletedInPeriod === 0 &&
-      (project.healthState === "stale" ||
-        project.healthState === "at_risk" ||
-        project.healthState === "blocked"),
+      projectHealthNeedsLook(project.healthState),
   );
   if (stuck.length > 0) {
+    /*
+     * "In the same position" needs the previous reading to have BEEN a
+     * position. This was `previous.health !== "on_track"`, which was true of
+     * every state that is not on track — and, once V2.7 RECALL-04 let a
+     * snapshot record an ABSENT reading, true of `null` as well. A Project the
+     * last Review could not read was then reported as having been in the same
+     * concerning position it is in now, which is the class of untruth this item
+     * exists to remove. `projectHealthNeedsLook` is the same predicate the
+     * `stuck` filter above uses, so the two halves of the sentence ask one
+     * question.
+     */
     const repeatedFromSnapshot = snapshot
       ? stuck.filter((project) =>
           snapshot.projects.some(
             (previous) =>
-              previous.id === project.id && previous.health !== "on_track",
+              previous.id === project.id &&
+              projectHealthNeedsLook(previous.health),
           ),
         )
       : [];
