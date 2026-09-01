@@ -50,6 +50,7 @@ export {
   goalTargetLabel,
   goalDaysToTarget,
   goalLastUpdatedText,
+  GOAL_MEASUREMENT_ON_TRACK_STATUSES,
   goalIsOnTrack,
   goalNeedsAttention,
   goalPaceLabel,
@@ -151,4 +152,5 @@ export {
   goalSummaryRank,
   loadGoalSummaries,
   type GoalSummary,
+  type GoalSummaryPage,
 } from "./goal-summary-load";

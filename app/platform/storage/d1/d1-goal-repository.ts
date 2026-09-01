@@ -33,6 +33,7 @@ import {
   encodeGoalListCursor,
   encodeGoalOutcomeCursor,
   evaluateGoalProjectContribution,
+  GOAL_MEASUREMENT_ON_TRACK_STATUSES,
   GOAL_MEASUREMENT_TYPES,
   GOAL_OUTCOME_COMPLETED_RANK,
   GOAL_OUTCOME_DISPLAY_RANK,
@@ -173,6 +174,24 @@ const MEANINGFUL_TYPE_LIST = MEANINGFUL_HEALTH_ACTIVITY_TYPES.map(
  * `goalMeasurementAcceptsReadings` accepts — everything but `milestone`, whose
  * value derives from stages.
  */
+/**
+ * V2.7 RECALL-04 — the ONE measurement predicate as a trusted, inlined SQL list
+ * (DEBT-234).
+ *
+ * Derived from `GOAL_MEASUREMENT_ON_TRACK_STATUSES`, exactly as the lists above
+ * derive from their kernel vocabularies, so the `on_track` lens's SQL and the
+ * pure `goalMatchesCollectionView` / `goalIsOnTrack` predicate are one
+ * declaration with two renderings rather than two sets that must be kept in
+ * step. The literal used to be hand-written here as `('on_track', 'ahead')` —
+ * it omitted `achieved`, which is precisely how `/goals` and Today came to count
+ * different numbers over one workspace. The parity is asserted by
+ * `test/kernel/recall-04-day-week-truth.test.ts` over every one of the nine
+ * statuses.
+ */
+const MEASUREMENT_ON_TRACK_LIST = GOAL_MEASUREMENT_ON_TRACK_STATUSES.map(
+  (status) => `'${status}'`,
+).join(", ");
+
 const MEASUREMENT_TYPE_LIST = GOAL_MEASUREMENT_TYPES.map(
   (type) => `'${type}'`,
 ).join(", ");
@@ -196,7 +215,7 @@ function outcomeLensPredicate(view: GoalCollectionView): string {
     case "completed":
       return "completed_at IS NOT NULL";
     case "on_track":
-      return "(completed_at IS NULL AND status IN ('on_track', 'ahead'))";
+      return `(completed_at IS NULL AND status IN (${MEASUREMENT_ON_TRACK_LIST}))`;
     case "attention":
       return "(completed_at IS NULL AND status IN ('needs_attention', 'overdue'))";
     case "set_aside":

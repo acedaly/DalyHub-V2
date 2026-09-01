@@ -155,6 +155,7 @@ import {
   focusTodaySlice,
   greetingFor,
   dayPartForHour,
+  meetingsTodayFact,
   nextUp,
   overdueSlice,
   tasksForTodayCount,
@@ -504,11 +505,14 @@ function MeasurePlot({ measure }: { readonly measure: TodayMeasure }) {
 function TodayStatRank({
   trend,
   goals,
+  goalsBounded,
 }: {
   readonly trend: TodayActivityTrend | null;
   readonly goals: readonly TodayGoal[];
+  /** V2.7 RECALL-04 — whether the Goal read saw the whole workspace. */
+  readonly goalsBounded: boolean;
 }) {
-  const measures = todayMeasures({ trend, goals });
+  const measures = todayMeasures({ trend, goals, goalsBounded });
   if (measures.length === 0) return null;
   return (
     <div className="dh-today__summary" data-testid="today-summary">
@@ -703,6 +707,7 @@ function WeekStrip({
 function SchedulePanel({
   week,
   todayIso,
+  meetingsToday,
   stale,
   hasSources,
   onOpenEvent,
@@ -710,6 +715,13 @@ function SchedulePanel({
 }: {
   readonly week: readonly TodayWeekDay[];
   readonly todayIso: string;
+  /**
+   * V2.7 RECALL-04 — the day's Meetings, as the loader already read them
+   * (DEBT-233). Passed as the LIST rather than as a number so the panel states
+   * the fact through the one pure helper that owns its wording, and no surface
+   * gets to re-count or re-word it.
+   */
+  readonly meetingsToday: readonly { readonly id: string }[];
   readonly stale: boolean;
   readonly hasSources: boolean;
   readonly onOpenEvent?: (entryId: string) => void;
@@ -729,6 +741,15 @@ function SchedulePanel({
     week.find((day) => day.dateIso === selectedIso) ??
     week.find((day) => day.dateIso === todayIso) ??
     week[0];
+  /*
+   * V2.7 RECALL-04 — stated about the owner's TODAY, whichever day of the strip
+   * is selected, which is why the sentence carries the word "today". The strip
+   * changes which timeline is drawn; it does not change what day it is, and a
+   * fact that quietly re-based itself on the selection would be the same class
+   * of untruth as a "Now" badge on next Thursday (`ScheduleList` refuses that
+   * one for the same reason).
+   */
+  const meetingsFact = meetingsTodayFact(meetingsToday);
   if (selected === undefined) return null;
 
   return (
@@ -738,9 +759,29 @@ function SchedulePanel({
       data-testid="today-schedule"
     >
       <div className="dh-today__panel-head">
-        <h2 className="dh-today__panel-title" id="today-schedule-heading">
-          Schedule
-        </h2>
+        <div className="dh-today__panel-heading">
+          <h2 className="dh-today__panel-title" id="today-schedule-heading">
+            Schedule
+          </h2>
+          {/*
+           * DEBT-233 — the day's meetings, STATED. The panel's rows survive the
+           * day (a past meeting keeps its row), but rows are not a fact: after
+           * the last meeting starts, "did I have meetings today?" had no answer
+           * anywhere on this screen while the morning digest stated it plainly.
+           * It sits in the panel's existing note slot beside the heading — the
+           * same quiet trailing fact the plan panel draws its "8 tasks" in — so
+           * the day gains a fact and no height.
+           */}
+          {meetingsFact === null ? null : (
+            <span
+              className="dh-today__panel-note"
+              data-testid="today-meetings-today"
+              data-count={meetingsFact.count}
+            >
+              {meetingsFact.label}
+            </span>
+          )}
+        </div>
         <Link className="dh-today__panel-action" to="/today/upcoming">
           View full schedule
         </Link>
@@ -1551,6 +1592,7 @@ export function TodayScreen({
         <SchedulePanel
           week={data.week}
           todayIso={data.todayIso}
+          meetingsToday={data.meetings}
           stale={data.scheduleStale}
           hasSources={data.scheduleHasSources}
           onOpenEvent={onOpenEvent}
@@ -1567,7 +1609,11 @@ export function TodayScreen({
           todayIso={data.todayIso}
         />
 
-        <GoalProgressSection goals={data.goals} onUpdateGoal={onUpdateGoal} />
+        <GoalProgressSection
+          goals={data.goals}
+          goalsBounded={data.goalsBounded}
+          onUpdateGoal={onUpdateGoal}
+        />
 
         {/*
          * ── The DECISION row ─────────────────────────────────────────────────
@@ -1640,7 +1686,11 @@ export function TodayScreen({
           </section>
         ) : null}
 
-        <TodayStatRank trend={data.activityTrend} goals={data.goals} />
+        <TodayStatRank
+          trend={data.activityTrend}
+          goals={data.goals}
+          goalsBounded={data.goalsBounded}
+        />
 
         {/* Absent entirely when no project has open work — "continue working"
             on a project with nothing left to do is not a suggestion. */}
@@ -1913,9 +1963,16 @@ function AddTaskButton({
  */
 function GoalProgressSection({
   goals,
+  goalsBounded,
   onUpdateGoal,
 }: {
   readonly goals: readonly TodayGoal[];
+  /**
+   * V2.7 RECALL-04 — whether the read behind this panel saw every open Goal
+   * (DEBT-234). The panel is a bounded, attention-first sample; its one-line
+   * statement says which set it is counting when it is not the workspace.
+   */
+  readonly goalsBounded: boolean;
   readonly onUpdateGoal?: (
     goal: TodayGoal,
     trigger: HTMLElement | null,
@@ -1979,7 +2036,16 @@ function GoalProgressSection({
           {measured.length > 0 || movedNote ? (
             <p className="dh-today__goals-note">
               {measured.length > 0
-                ? `${onTrack} of ${measured.length} on track`
+                ? /*
+                   * V2.7 RECALL-04 — the same figure the stat card prints, from
+                   * the same predicate, and now saying the same thing about its
+                   * set: "shown here" when the panel is a sample of a larger
+                   * workspace. `/goals`, one tap away through the heading's own
+                   * link, answers the workspace question.
+                   */
+                  `${onTrack} of ${measured.length}${
+                    goalsBounded ? " shown here" : ""
+                  } on track`
                 : null}
               {measured.length > 0 && movedNote ? " · " : null}
               {movedNote}

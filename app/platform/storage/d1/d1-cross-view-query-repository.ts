@@ -533,6 +533,15 @@ export class D1CrossViewQueryRepository implements CrossViewQueryRepository {
     const snapshotHealth = new Map<string, ProjectHealthState>();
     if (snapshot) {
       for (const project of snapshot.projects) {
+        /*
+         * V2.7 RECALL-04 (DEBT-234) — a snapshot may now record that it had NO
+         * health reading for a Project. That is not a previous state to compare
+         * against, so it does not enter this map: the "changed since your last
+         * Review" boundary below already treats a missing previous reading as
+         * "cannot say" and excludes the row, which is the honest answer and the
+         * one it would have given before the default fabricated a reading.
+         */
+        if (project.health === null) continue;
         snapshotHealth.set(project.id, project.health);
       }
     }

@@ -101,9 +101,25 @@ export interface AnalyticsAreaRow {
   readonly colourRank: number | null;
 }
 
-/** The current Goal alignment tally — a state count, never a period figure. */
+/**
+ * The current Goal ALIGNMENT tally — a state count, never a period figure, and
+ * never a measurement-status figure.
+ *
+ * **V2.7 RECALL-04 renamed the field from `onTrack` (DEBT-234).** The number is
+ * `evaluateGoalAlignment`'s `active` state — *"does this Goal have contributing
+ * work recorded inside the recent window?"* — which is ADR-040's question, not
+ * GOAL-02's *"is the measured outcome on track?"*. The two are different
+ * predicates over different inputs, and a Goal can honestly be one and not the
+ * other. Carrying the measurement word on the alignment value is how the label
+ * above it came to say "Goals on track" for a set no measurement was consulted
+ * about, and how `/views` came to draw the identical state as "Moving" while
+ * Analytics called it "On track" (ADR-114 decision 6: no word may span two
+ * predicates). The machine key now says which question it answers, so a future
+ * surface cannot borrow the wrong word from the wrong field.
+ */
 export interface AnalyticsGoalTally {
-  readonly onTrack: number;
+  /** Goals whose alignment state is `active` — the moving ones. */
+  readonly moving: number;
   readonly total: number;
   /**
    * True when the Goal read hit its bound, so BOTH figures describe the Goals
@@ -374,15 +390,25 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
       /*
        * A STATE, not a period figure — and the only metric on the row that is.
        *
-       * "Goals on track" is true right now; it is not something that happened
+       * "Goals moving" is true right now; it is not something that happened
        * during the range, so it carries no comparison and its supporting line
        * says what it is instead of pretending to a delta. Mixing a state into a
        * row of period figures is defensible only if the row says which is which,
        * so it does.
+       *
+       * ── V2.7 RECALL-04: the label names the question (DEBT-234) ──────────
+       * It read "Goals on track" over a number that counts ALIGNMENT — Goals
+       * with contributing work recorded inside the recent window (ADR-040) —
+       * while Today and `/goals` used the same three words for GOAL-02's
+       * measurement status. One label, two predicates, and a workspace where
+       * they legitimately disagree; the owner had no way to tell which question
+       * this tile answered. "Moving" is the product's existing word for exactly
+       * this state (`/views` has always drawn it), so this tile adopts it rather
+       * than inventing a third vocabulary.
        */
       id: "goals",
-      label: "Goals on track",
-      value: facts.goals?.onTrack ?? null,
+      label: "Goals moving",
+      value: facts.goals?.moving ?? null,
       supporting:
         facts.goals === null
           ? "Not available"
@@ -456,6 +482,19 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     }));
 
   const notes: string[] = [];
+  /*
+   * V2.7 RECALL-04 — the tile's question, named (DEBT-234).
+   *
+   * "Moving" is the product's word for the alignment state and `/views` has
+   * always used it, but this is the surface that states every figure's
+   * provenance, so it says out loud which of the two Goal questions it is
+   * answering — and, by saying so, that it is NOT answering the other one.
+   */
+  if (facts.goals !== null && facts.goals.total > 0) {
+    notes.push(
+      "Goals moving counts Goals with contributing work recorded recently. It is not a measurement reading — whether a Goal's own target is on track is answered on Today and on Goals.",
+    );
+  }
   if (facts.goals?.bounded) {
     notes.push(
       "Goal figures cover the Goals this reads, ordered by alignment — not every Goal in the workspace.",

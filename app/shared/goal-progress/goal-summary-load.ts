@@ -86,6 +86,27 @@ const COMPARISON_WINDOW_DAYS = 30;
 /** "Approaching" — a target date inside a month is close enough to act on. */
 const TARGET_SOON_DAYS = 30;
 
+/**
+ * V2.7 RECALL-04 — the read's own result, WITH its bound (DEBT-234).
+ *
+ * The figures a glance surface prints from these Goals ("3 of 4 on track") were
+ * stated as if they described the workspace, over a set chosen attention-first
+ * and cut at {@link GOAL_SUMMARY_LIMIT} — a deliberately pessimism-biased sample
+ * presented as a total. ADR-111 decision 5's rule (a count beside a label that
+ * reads as the workspace is true of the collection or is not shown) and ADR-114
+ * decision 6's (every bounded population discloses its bound) both apply, and
+ * the honest fix is the one Analytics already ships: carry the bound out with
+ * the rows and let the surface say so.
+ *
+ * `bounded` is true when this read did NOT see every open Goal the surface's
+ * question is about — either more Goals were available than were scanned, or
+ * more had something to say than the surface shows.
+ */
+export interface GoalSummaryPage {
+  readonly items: readonly GoalSummary[];
+  readonly bounded: boolean;
+}
+
 /** One Goal's bounded summary, for a rail or a compact section. JSON-safe. */
 export interface GoalSummary {
   readonly id: string;
@@ -239,7 +260,7 @@ export async function loadGoalSummaries(
       goalIds: readonly string[],
     ) => Promise<ReadonlyMap<string, GoalMovement>>;
   },
-): Promise<readonly GoalSummary[]> {
+): Promise<GoalSummaryPage> {
   const page = await scope.goals.listGoalsByAlignment({
     activeBoundaryIso: facts.recentBoundaryStartIso,
     /*
@@ -260,11 +281,20 @@ export async function loadGoalSummaries(
      */
     omitSetAside: true,
   });
-  const items = page.items
-    .filter((item) => item.completedAt === null)
-    .slice(0, GOAL_SCAN_LIMIT);
+  const open = page.items.filter((item) => item.completedAt === null);
+  const items = open.slice(0, GOAL_SCAN_LIMIT);
   const ids = items.map((item) => item.id);
-  if (ids.length === 0) return [];
+  /*
+   * V2.7 RECALL-04 — the bound, decided where the cutting happens.
+   *
+   * Two places can hide a Goal from this read: the scan (more open Goals than
+   * `GOAL_SCAN_LIMIT`, or an alignment page that had a further page behind it)
+   * and the display slice below. Either one means the figures the caller prints
+   * describe the Goals this saw rather than the workspace, which is exactly what
+   * the caller has to be able to say.
+   */
+  const scanBounded = open.length > GOAL_SCAN_LIMIT || page.nextCursor !== null;
+  if (ids.length === 0) return { items: [], bounded: scanBounded };
 
   const comparisonFromIso = addDaysToIsoDate(
     facts.todayIso,
@@ -320,7 +350,7 @@ export async function loadGoalSummaries(
     });
   }
 
-  return goals
+  const ranked = goals
     .map((goal, index) => ({ goal, index }))
     .sort((a, b) => {
       const rank =
@@ -330,6 +360,10 @@ export async function loadGoalSummaries(
       // the same bucket keep the order the collection would show them in.
       return rank !== 0 ? rank : a.index - b.index;
     })
-    .slice(0, GOAL_SUMMARY_LIMIT)
     .map((entry) => entry.goal);
+
+  return {
+    items: ranked.slice(0, GOAL_SUMMARY_LIMIT),
+    bounded: scanBounded || ranked.length > GOAL_SUMMARY_LIMIT,
+  };
 }

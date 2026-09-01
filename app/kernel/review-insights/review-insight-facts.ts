@@ -168,8 +168,27 @@ export interface ReviewPeriodHistory {
 export interface ReviewProjectStateFact {
   readonly id: string;
   readonly title: string;
-  readonly healthState: ProjectHealthState;
-  /** PROJ-02's own calm label for that state, reused verbatim. */
+  /**
+   * PROJ-02's derived health state, or **null when there is no reading**.
+   *
+   * V2.7 RECALL-04 (DEBT-234, ADR-114 decision 6) — this was
+   * `health?.state ?? "on_track"`: a Project the health read returned no facts
+   * for was reported as healthy, snapshotted as a real reading, and could
+   * manufacture a false "improved"/"deteriorated" transition at the next Review
+   * against a reading that never existed. "We could not look" and "we looked and
+   * it is fine" are different facts and now have different values, exactly as
+   * `GoalMovement.available` distinguishes them for movement and
+   * `areasAvailable` does for the Analytics distribution.
+   *
+   * Absence is NOT a health state: it is deliberately `null` rather than a sixth
+   * member of `PROJECT_HEALTH_STATES`, so no filter, rank or transition rule can
+   * accidentally treat "no reading" as a reading.
+   */
+  readonly healthState: ProjectHealthState | null;
+  /**
+   * PROJ-02's own calm label for that state, reused verbatim — or the product's
+   * absence wording when there is no reading.
+   */
   readonly healthLabel: string;
   readonly openTasks: number;
   readonly overdueTasks: number;

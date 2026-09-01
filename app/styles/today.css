@@ -903,6 +903,25 @@
 }
 
 /*
+ * V2.7 RECALL-04 — a panel's HEADING GROUP: the title and the fact it states,
+ * kept together on the left so the head's `space-between` still pushes the one
+ * trailing action to the right edge.
+ *
+ * Without it a head with three children distributes all three across the line
+ * and the fact drifts into the middle of the panel, unattached to the heading it
+ * belongs to. `baseline` rather than `center` because the fact is meta-sized
+ * text sitting beside a section title, and centring two different type sizes
+ * against each other is what makes a number look like it is floating.
+ */
+.dh-today__panel-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/*
  * TODAY-11 — a panel's ONE optional trailing action.
  *
  * "View all", "View full schedule", "View analytics", "View all reflections" —

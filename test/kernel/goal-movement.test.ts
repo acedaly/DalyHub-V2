@@ -709,7 +709,9 @@ describe("a Goal earns its place by having something TRUE to say", () => {
    */
   async function summaries(withMovement: boolean) {
     const scope = scopeFor(env.DB, WS);
-    return loadGoalSummaries(scope, {
+    // V2.7 RECALL-04 — the read now returns its rows WITH its bound; these
+    // assertions are about which rows it chooses, so they take the rows.
+    const page = await loadGoalSummaries(scope, {
       now: new Date(`${TODAY}T00:00:00.000Z`),
       timezone: TZ,
       todayIso: MON,
@@ -724,6 +726,7 @@ describe("a Goal earns its place by having something TRUE to say", () => {
             }).then((read) => read.movements)
         : undefined,
     });
+    return page.items;
   }
 
   it("includes a MEASURABLE Goal with no reading yet, so the panel can say what moved it", async () => {

@@ -36,7 +36,11 @@ import {
   formatPreferenceDate,
   type FirstDayOfWeek,
 } from "~/kernel/preferences";
-import { evaluateProjectHealth } from "~/kernel/project-health";
+import {
+  PROJECT_HEALTH_UNAVAILABLE_LABEL,
+  evaluateProjectHealth,
+  type ProjectHealth,
+} from "~/kernel/project-health";
 import type { Review } from "~/kernel/reviews";
 import {
   MAX_TREND_PERIODS,
@@ -457,6 +461,49 @@ async function readCurrentState(
   }
 }
 
+/**
+ * V2.7 RECALL-04 — one Project's state fact, and the honest treatment of a
+ * MISSING health reading (DEBT-234).
+ *
+ * Extracted as a pure function for one reason: this is where the untruth lived,
+ * and a rule that decides what to say when a read came back empty has to be
+ * testable without arranging for a read to come back empty. It was
+ * `health?.state ?? "on_track"` — an absent reading rendered as the best of the
+ * five states, snapshotted as though it had been measured, and available to
+ * manufacture a health transition at the next Review against a reading that was
+ * never taken. Restoring that default reddens
+ * `test/unit/reviews/review-project-state.test.ts` and
+ * `test/kernel/recall-04-day-week-truth.test.ts`.
+ *
+ * The counts beside it are treated the same way: they were `?? 0`, which is the
+ * same false confidence in numeric form ("this Project has no open Tasks" is a
+ * claim; "we have no reading" is not). With no health facts they stay at zero
+ * only because there is nothing else honest to put in a count, and the null
+ * state above is what tells every reader that the zeroes are not measurements.
+ */
+export function projectStateFact(input: {
+  readonly id: string;
+  readonly title: string;
+  /** PROJ-02's evaluation, or null when the health read returned no facts. */
+  readonly health: ProjectHealth | null;
+  readonly tasksCompletedInPeriod: number;
+  readonly completedInPeriod: boolean;
+}): ReviewProjectStateFact {
+  const { health } = input;
+  return {
+    id: input.id,
+    title: input.title,
+    healthState: health?.state ?? null,
+    healthLabel: health?.label ?? PROJECT_HEALTH_UNAVAILABLE_LABEL,
+    openTasks: health?.summary.openTotal ?? 0,
+    overdueTasks: health?.summary.overdueOpen ?? 0,
+    waitingTasks: health?.summary.waitingOpen ?? 0,
+    tasksCompletedInPeriod: input.tasksCompletedInPeriod,
+    daysSinceActivity: health?.summary.daysSinceActivity ?? null,
+    completedInPeriod: input.completedInPeriod,
+  };
+}
+
 async function readProjectState(
   scope: WorkspaceScope,
   input: ReviewInsightsContextInput,
@@ -519,19 +566,13 @@ async function readProjectState(
   const healthContext = createOwnerHealthContext(now, timezone);
   const items = selected.map<ReviewProjectStateFact>((project) => {
     const facts = healthFacts.get(project.id);
-    const health = facts ? evaluateProjectHealth(facts, healthContext) : null;
-    return {
+    return projectStateFact({
       id: project.id,
       title: project.title,
-      healthState: health?.state ?? "on_track",
-      healthLabel: health?.label ?? "On track",
-      openTasks: health?.summary.openTotal ?? 0,
-      overdueTasks: health?.summary.overdueOpen ?? 0,
-      waitingTasks: health?.summary.waitingOpen ?? 0,
+      health: facts ? evaluateProjectHealth(facts, healthContext) : null,
       tasksCompletedInPeriod: completedByProject.get(project.id) ?? 0,
-      daysSinceActivity: health?.summary.daysSinceActivity ?? null,
       completedInPeriod: completedInThisPeriod.has(project.id),
-    };
+    });
   });
 
   return {

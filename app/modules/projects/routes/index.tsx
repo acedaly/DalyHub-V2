@@ -308,7 +308,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         todayIso: evaluation.todayIso,
         recentBoundaryStartIso,
       })
-    ).slice(0, PROJECTS_GOAL_SUMMARY_LIMIT);
+    ).items.slice(0, PROJECTS_GOAL_SUMMARY_LIMIT);
   } catch {
     goalsFailed = true;
   }

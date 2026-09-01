@@ -217,7 +217,17 @@ const HEALTH_CONCERN_RANK: Readonly<Record<ProjectHealthState, number>> = {
 };
 
 export type ProjectHealthChangeKind =
-  "improved" | "deteriorated" | "unchanged" | "new";
+  | "improved"
+  | "deteriorated"
+  | "unchanged"
+  | "new"
+  /**
+   * V2.7 RECALL-04 — one side of the comparison has NO reading (DEBT-234), so
+   * there is no movement to report in either direction. Distinct from
+   * `unchanged` on purpose: "it is where it was" is a finding about the Project;
+   * this is a finding about the evidence.
+   */
+  | "unknown";
 
 /** One Project's health movement between two Review points. */
 export interface ProjectChangeInsight {
@@ -232,13 +242,34 @@ export interface ProjectChangeInsight {
   readonly links: readonly InsightLink[];
 }
 
-/** The pure transition rule. `previous` is null when the Project did not exist
- * — or was not within the snapshot's bound — at the previous Review. */
+/**
+ * The pure transition rule.
+ *
+ * Three different absences, three different answers — V2.7 RECALL-04 (DEBT-234)
+ * made the second and third distinguishable, because before it they were the
+ * same value and the wrong one was chosen:
+ *
+ *   - `previous` **undefined** — the Project was not in the previous snapshot at
+ *     all: it did not exist yet, or fell outside the snapshot's bound. That is
+ *     `new`, and it is not reported as a change.
+ *   - `previous` **null** — the previous Review recorded that it had NO health
+ *     reading for this Project. There is nothing to compare against, so nothing
+ *     can be said: `unknown`.
+ *   - `current` **null** — there is no reading NOW. Same answer, same reason.
+ *
+ * The defect this closes: a missing reading used to arrive as `"on_track"`, was
+ * stored in the snapshot as though measured, and then compared as a real
+ * reading — so a Project that simply became readable between two Reviews could
+ * be announced as having "deteriorated", and one that stopped being readable as
+ * having "improved". Both are stories the data does not support. Restoring the
+ * `"on_track"` default reddens the RECALL-04 regressions.
+ */
 export function classifyProjectHealthChange(
-  previous: ProjectHealthState | null,
-  current: ProjectHealthState,
+  previous: ProjectHealthState | null | undefined,
+  current: ProjectHealthState | null,
 ): ProjectHealthChangeKind {
-  if (previous === null) return "new";
+  if (previous === undefined) return "new";
+  if (previous === null || current === null) return "unknown";
   if (previous === current) return "unchanged";
   const before = HEALTH_CONCERN_RANK[previous];
   const after = HEALTH_CONCERN_RANK[current];
@@ -686,20 +717,35 @@ function buildProjectChanges(input: ResolvedInput): ProjectChangeInsight[] {
   const changes: ProjectChangeInsight[] = [];
   for (const project of input.facts.state.projects) {
     if (project.completedInPeriod) continue; // movement, not health.
-    const previous = previousHealth.get(project.id) ?? null;
-    const kind = classifyProjectHealthChange(previous, project.healthState);
-    if (kind === "unchanged" || kind === "new") continue;
-    const fromLabel = previous === null ? null : HEALTH_LABELS[previous];
+    /*
+     * V2.7 RECALL-04 — `has` rather than `??`, because the map's VALUE can now
+     * legitimately be null ("the last Review had no reading for this Project")
+     * and that is a different fact from "this Project was not in the last
+     * snapshot". Collapsing them is what let an absence be read as a state.
+     */
+    const previous = previousHealth.has(project.id)
+      ? (previousHealth.get(project.id) ?? null)
+      : undefined;
+    // No reading NOW is not a transition; the guard is here as well as inside
+    // the rule so the narrowing below is the compiler's rather than a cast.
+    const currentState = project.healthState;
+    if (currentState === null) continue;
+    const kind = classifyProjectHealthChange(previous, currentState);
+    if (kind !== "improved" && kind !== "deteriorated") continue;
+    const fromLabel =
+      previous === null || previous === undefined
+        ? null
+        : HEALTH_LABELS[previous];
     changes.push({
       projectId: project.id,
       title: project.title,
       kind,
-      from: previous,
-      to: project.healthState,
+      from: previous ?? null,
+      to: currentState,
       label:
         fromLabel === null
-          ? HEALTH_LABELS[project.healthState]
-          : `${fromLabel} → ${HEALTH_LABELS[project.healthState]}`,
+          ? HEALTH_LABELS[currentState]
+          : `${fromLabel} → ${HEALTH_LABELS[currentState]}`,
       tone: kind === "improved" ? "success" : "warning",
       reason:
         kind === "improved"

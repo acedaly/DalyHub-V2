@@ -90,6 +90,24 @@ export const PROJECT_HEALTH_STATES = [
 export type ProjectHealthState = (typeof PROJECT_HEALTH_STATES)[number];
 
 /**
+ * V2.7 RECALL-04 — what a surface says when there is NO reading (DEBT-234).
+ *
+ * Absence is deliberately not a sixth member of the vocabulary above. The five
+ * states are answers the evaluator gives; this is what a surface says when the
+ * evaluator was never able to answer, because the facts for that Project were
+ * not returned. Keeping it out of the state set is what stops a filter, a rank
+ * or a Review's transition rule from treating "we could not look" as "we looked
+ * and it is fine" — the specific untruth `review-insights-context.ts` shipped,
+ * where a missing reading defaulted to `on_track`, was stored in a snapshot as a
+ * real reading, and could manufacture a health transition at the next Review.
+ *
+ * The words follow the product's existing absence style: an absence is stated,
+ * never toned, and never dressed as a judgement ("No measurement", "No recent
+ * update", "Not available").
+ */
+export const PROJECT_HEALTH_UNAVAILABLE_LABEL = "No health reading";
+
+/**
  * A stable, machine-readable reason code. Every health result carries one or more,
  * primary reason first — the UI shows secondary causes without discarding them, and
  * tests assert on the code (and its structured numbers), never on display prose.

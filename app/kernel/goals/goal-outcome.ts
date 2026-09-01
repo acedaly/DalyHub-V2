@@ -80,6 +80,55 @@ export const GOAL_OUTCOME_DISPLAY_RANK: Readonly<
   not_measured: 8,
 };
 
+/**
+ * V2.7 RECALL-04 — the ONE measurement-status predicate (DEBT-234, ADR-114
+ * decision 6).
+ *
+ * The question is GOAL-02's and only GOAL-02's: *"is this Goal's measured
+ * outcome on track?"* Every surface that asks it — Today's Goal panel and its
+ * stat card, the `/goals` collection's On track lens and that lens's count —
+ * answers it from this one set, so two surfaces cannot honestly disagree about
+ * the same workspace. `~/shared/goal-progress`'s `goalIsOnTrack` is this set as
+ * a predicate, and `d1-goal-repository.ts` builds the lens's SQL `IN (…)` list
+ * from it, under a parity test.
+ *
+ * ── The three members, and the `achieved` decision, taken once ──────────────
+ * `on_track` (level with the line the owner set) and `ahead` (past it) are the
+ * uncontested two. **`achieved` is IN**, and that is the decision RECALL-04 was
+ * asked to take and record: it means the target has been reached while the Goal
+ * is still open, which is the single best outcome a measured Goal can report.
+ * Excluding it — which the `/goals` lens did, alone among the surfaces — put a
+ * Goal that had done everything it set out to do outside the lens named for
+ * Goals that are going well, and made Today count four where `/goals` counted
+ * three over one workspace. Explicit completion is a different fact and still
+ * wins first: a completed Goal leaves every status lens for Completed.
+ *
+ * ── What is deliberately NOT in it ─────────────────────────────────────────
+ * The set is NOT the complement of "needs attention". The evaluator has nine
+ * states and only two of them ask for attention, so a negation also sweeps in
+ * `not_measured` (never told how to measure), `not_started` (nothing recorded
+ * yet), `in_progress` (moving, with no target date to be on track AGAINST) and
+ * `stale` (silent for a month). Counting those as on track is how a figure comes
+ * to read "4 of 4" for a set of Goals that are mostly not measured at all — the
+ * most flattering possible reading of the data and the least true.
+ *
+ * And it is NOT alignment. "Has this Goal had work recently?" is ADR-040's
+ * separate question with its own separate words ("Moving", "Recently active");
+ * no label may span the two (ADR-114 decision 6).
+ */
+export const GOAL_MEASUREMENT_ON_TRACK_STATUSES = [
+  "on_track",
+  "ahead",
+  "achieved",
+] as const satisfies readonly GoalProgressStatus[];
+
+/** The measurement predicate itself — one function, one meaning, everywhere. */
+export function goalMeasurementIsOnTrack(status: GoalProgressStatus): boolean {
+  return (GOAL_MEASUREMENT_ON_TRACK_STATUSES as readonly string[]).includes(
+    status,
+  );
+}
+
 /** The rank of a Goal the spine says is explicitly complete — always last. */
 export const GOAL_OUTCOME_COMPLETED_RANK = 9;
 
@@ -173,7 +222,8 @@ export function goalMatchesCollectionView(
   if (goal.completed) return view === "all";
   switch (view) {
     case "on_track":
-      return goal.status === "on_track" || goal.status === "ahead";
+      // V2.7 RECALL-04 — the ONE measurement predicate, `achieved` included.
+      return goalMeasurementIsOnTrack(goal.status);
     case "attention":
       return goal.status === "needs_attention" || goal.status === "overdue";
     case "set_aside":

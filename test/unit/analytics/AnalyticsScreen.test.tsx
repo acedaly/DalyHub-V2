@@ -46,7 +46,7 @@ function pageData(
     ],
     areasBounded: false,
     areasAvailable: true,
-    goals: { onTrack: 5, total: 9, bounded: false },
+    goals: { moving: 5, total: 9, bounded: false },
     overdueSeries: BUCKETS.map((bucket, index) => ({
       key: bucket.key,
       overdue: 10 + index,

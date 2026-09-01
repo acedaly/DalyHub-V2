@@ -153,12 +153,12 @@ export interface DayBuckets {
   /**
    * The day's own work — `dueToday` followed by `plannedToday`.
    *
-   * The two bands as one list, because that is what the progress figure measures
-   * and what the display bound is applied to. Overdue work is deliberately NOT
-   * in it (see {@link dayProgress}).
+   * The two bands as one list, because that is what the display bound is applied
+   * to. Overdue work is deliberately NOT in it: a bound that swept slipped work
+   * into the day's own list would make "+n more" untrue of the view it links to.
    */
   readonly today: readonly DayTask[];
-  /** The subset of `today` that is already complete, for the progress figure. */
+  /** The subset of `today` that is already complete, drawn after the open rows. */
   readonly completedToday: readonly DayTask[];
 }
 
@@ -166,9 +166,8 @@ export interface DayBuckets {
  * Where a task completed earlier today is drawn.
  *
  * The contract offers two honest options — dimmed at the end of the day's list,
- * or omitted entirely. DalyHub keeps them, because the progress indicator's
- * denominator COUNTS them ("3 of 8 done today"), and a denominator you cannot see
- * the parts of is a number the owner has to take on trust. Dimming also makes
+ * or omitted entirely. DalyHub keeps them, because a day that hides what was
+ * finished in it says less about the day than it knows, and because dimming makes
  * ticking a task a continuous motion — the row stays where it is and changes
  * state — rather than a disappearance.
  *
@@ -539,132 +538,74 @@ export function greetingFor(part: DayPart, name: string | null): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Progress                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/** The day's completion, or null when nothing has been finished yet. */
-export interface DayProgress {
-  readonly done: number;
-  readonly total: number;
-}
-
-/**
- * The day's progress — completions over everything on today's list, INCLUDING
- * the completions themselves.
- *
- * Null until at least one task is done: a progress bar at 0/8 first thing in the
- * morning is a guilt meter, not a measure, and the anti-guilt mandate
- * (PRODUCT_PRINCIPLES) rules it out. Overdue work is excluded from the
- * denominator for the same reason it always has been — a bar that cannot reach
- * the end is not progress.
- *
- * TODAY-10 made that exclusion hold in both directions. It did not before:
- * completing an overdue task moved it into the day's list, so finishing slipped
- * work grew the denominator it was supposed to be outside of ("3 of 8" became
- * "4 of 9"). A completed overdue task now stays in the overdue band, so this
- * measures exactly what it says — today's own work, and what of it is done.
- */
-export function dayProgress(buckets: DayBuckets): DayProgress | null {
-  const done = buckets.completedToday.length;
-  if (done < 1) {
-    return null;
-  }
-  return { done, total: buckets.today.length };
-}
-
-/* -------------------------------------------------------------------------- */
-/* Chips                                                                       */
+/* The day's stated facts                                                      */
 /* -------------------------------------------------------------------------- */
 
 /**
- * One informational figure about the day. Never a toggle — it states or it goes.
+ * V2.7 RECALL-04 — the MEETINGS-TODAY fact (DEBT-233).
  *
- * The name is historical: until M3X these rendered as a row of assist chips
- * above the day. They now render as the figures on Today's expressive summary,
- * which is the same three facts in the one place the eye lands first. The MODEL
- * did not change, which is why this stayed where it was rather than being
- * rebuilt beside a hero.
+ * ── What was here before, and why it is gone ────────────────────────────────
+ * `dayChips` and `dayProgress` used to live in this section: three figures and a
+ * completion ratio, exported, unit-tested and — since REDESIGN-03 removed the
+ * hero they were drawn in — rendered by nothing. RECALL-04 took the decision the
+ * roadmap asked for and **removed them**. They were not one fact waiting for a
+ * home; they were three, and two of them already have better homes than a chip
+ * could give: the day's task count is the plan panel's own note ("8 tasks", the
+ * canonical `/tasks?system=today` figure) and overdue is a NAMED band in the
+ * plan with its own honest "+n more overdue" row. `dayProgress` was a ratio no
+ * surface asked for and REDESIGN-03 §4 removed on purpose — reviving it would be
+ * re-opening a settled question, not closing this one.
  *
- * `count` and `noun` are the same information as `label`, split — a summary
- * draws the number and its noun at different weights, and re-splitting a
- * formatted string at the call site is how "1 tasks" happens.
+ * What was genuinely missing is the third: the day could not say that it HAD
+ * meetings once the last one started, because `nextUp` falls through to tasks at
+ * that moment and the Schedule panel's rows say "these happened" without ever
+ * counting them. So one fact survives its chip, narrowed to the question it
+ * answers and given the consumer the chip never had.
+ *
+ * ── One read, two surfaces, one machine value ───────────────────────────────
+ * The count is the length of the day's Meetings as Today ALREADY loaded them —
+ * the entries of `scheduleForDate`'s projection that carry a `meetingId`. There
+ * is no new query, no second definition of "today" and no Meeting read of its
+ * own: the morning digest's day line is rendered from the same
+ * `loadScheduleWindow` → `scheduleForDate` projection, which is why the two can
+ * be compared as VALUES rather than as sentences
+ * (`test/kernel/recall-04-day-week-truth.test.ts`).
+ *
+ * The digest states EVENTS — every entry on the day, external occurrences
+ * included — where this states MEETINGS, because that is the question DEBT-233
+ * asked and the noun the product owns. On a workspace with no external calendar
+ * the two figures are the same number, and the parity fixture is exactly that
+ * workspace.
+ *
+ * ── Why it survives the day ─────────────────────────────────────────────────
+ * It counts the day's meetings, not the ones still ahead. A fact derived from
+ * `upcoming` would evaporate at the moment the owner most wants it — after the
+ * last meeting, looking back at the day — which is the defect itself.
  */
-export interface DayChip {
-  readonly id: "tasks" | "meetings" | "overdue";
-  readonly label: string;
-  /** The figure alone. */
+export interface MeetingsTodayFact {
+  /** How many DalyHub Meetings belong to the owner's calendar day. */
   readonly count: number;
-  /** What the figure counts, already pluralised against `count`. */
-  readonly noun: string;
-  /**
-   * The figure's name as a HEADING — "Tasks for today", not "6 tasks".
-   *
-   * A stat card reads label-then-figure, and a heading over a number is not the
-   * same string as the number's own noun phrase: "6 tasks" above "6" says it
-   * twice, and "tasks" alone above "6" does not say *which* tasks. It lives here
-   * with the rest of the vocabulary so the row and the chip cannot drift.
-   */
-  readonly heading: string;
-  /** The obvious filtered view this chip's number lives in. */
-  readonly href: string;
-  /** `error` is spent on slipped work ALONE; everything else is a plain fact. */
-  readonly tone: "neutral" | "error";
-}
-
-/** Pluralise a count against its noun ("1 task" / "2 tasks"). */
-function counted(count: number, singular: string, plural: string): string {
-  return `${count} ${count === 1 ? singular : plural}`;
+  /** The whole fact in words, as the Schedule panel states it. */
+  readonly label: string;
 }
 
 /**
- * The chip row. Every chip is conditional on its own count being > 0, so a quiet
- * day renders no row at all rather than a line of zeroes. The caller renders
- * nothing when this returns an empty array — and leaves no gap behind it.
+ * The day's meetings fact, or null when the day holds none.
+ *
+ * Null rather than "0 meetings today", for the reason every other figure on this
+ * screen is conditional: a surface that speaks when there is nothing to report
+ * teaches the owner to stop reading it, and the Schedule panel's empty state
+ * already says the day is clear in a full sentence.
  */
-export function dayChips(input: {
-  readonly taskCount: number;
-  readonly meetingCount: number;
-  readonly overdueCount: number;
-}): readonly DayChip[] {
-  const chips: DayChip[] = [];
-  if (input.taskCount > 0) {
-    const noun = input.taskCount === 1 ? "task" : "tasks";
-    chips.push({
-      id: "tasks",
-      label: counted(input.taskCount, "task", "tasks"),
-      heading: "Tasks for today",
-      count: input.taskCount,
-      noun,
-      href: "/tasks?system=today",
-      tone: "neutral",
-    });
-  }
-  if (input.meetingCount > 0) {
-    const noun = input.meetingCount === 1 ? "meeting" : "meetings";
-    chips.push({
-      id: "meetings",
-      label: counted(input.meetingCount, "meeting", "meetings"),
-      heading: "Meetings today",
-      count: input.meetingCount,
-      noun,
-      href: "/meetings",
-      tone: "neutral",
-    });
-  }
-  if (input.overdueCount > 0) {
-    chips.push({
-      id: "overdue",
-      label: `${input.overdueCount} overdue`,
-      heading: "Overdue",
-      count: input.overdueCount,
-      // Not pluralised: "overdue" is an adjective standing in for "overdue
-      // tasks", and "1 overdues" is the failure mode of pluralising it blindly.
-      noun: "overdue",
-      href: "/tasks?system=overdue",
-      tone: "error",
-    });
-  }
-  return chips;
+export function meetingsTodayFact(
+  meetings: readonly { readonly id: string }[],
+): MeetingsTodayFact | null {
+  const count = meetings.length;
+  if (count < 1) return null;
+  return {
+    count,
+    label: `${count} ${count === 1 ? "meeting" : "meetings"} today`,
+  };
 }
 
 /* -------------------------------------------------------------------------- */

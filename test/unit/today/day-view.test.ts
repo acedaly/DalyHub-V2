@@ -11,14 +11,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   bucketDay,
-  dayChips,
   dayPartForHour,
-  dayProgress,
   FOCUS_BAND_MIN,
   FOCUS_TODAY_SHOWN,
   focusBand,
   focusTodaySlice,
   greetingFor,
+  meetingsTodayFact,
   overdueLabel,
   overdueSlice,
   relativePastLabel,
@@ -248,13 +247,12 @@ describe("TODAY-10: which Focus band a task lands in", () => {
       TODAY,
     );
     // Open first, the completion dimmed at the END of the band it was already
-    // in — never in the day's own list, and never in the progress denominator.
+    // in — never in the day's own list.
     expect(buckets.overdue.map((item) => item.id)).toEqual([
       "open-late",
       "done-late",
     ]);
     expect(buckets.today).toEqual([]);
-    expect(dayProgress(buckets)).toBeNull();
   });
 });
 
@@ -496,84 +494,31 @@ describe("TODAY-10: the canonical count and the display bound", () => {
   });
 });
 
-describe("progress", () => {
-  it("does not render before the first completion — a 0/8 bar is a guilt meter", () => {
-    const buckets = bucketDay(
-      [task({ id: "a", dueDate: TODAY }), task({ id: "b", dueDate: TODAY })],
-      TODAY,
-    );
-    expect(dayProgress(buckets)).toBeNull();
+describe("V2.7 RECALL-04: the meetings-today fact (DEBT-233)", () => {
+  it("says nothing at all on a day with no meetings", () => {
+    expect(meetingsTodayFact([])).toBeNull();
   });
 
-  it("counts completions over everything on today, completions included", () => {
-    const buckets = bucketDay(
-      [
-        task({ id: "a", dueDate: TODAY }),
-        task({ id: "b", dueDate: TODAY }),
-        task({
-          id: "c",
-          dueDate: TODAY,
-          completed: true,
-          completedDate: TODAY,
-        }),
-      ],
-      TODAY,
-    );
-    expect(dayProgress(buckets)).toEqual({ done: 1, total: 3 });
-  });
-});
-
-describe("chips", () => {
-  it("renders nothing at all on a quiet day", () => {
+  it("states the day's count, and singularises against it", () => {
+    expect(meetingsTodayFact([{ id: "m1" }])).toEqual({
+      count: 1,
+      label: "1 meeting today",
+    });
     expect(
-      dayChips({ taskCount: 0, meetingCount: 0, overdueCount: 0 }),
-    ).toEqual([]);
+      meetingsTodayFact([{ id: "m1" }, { id: "m2" }, { id: "m3" }]),
+    ).toEqual({ count: 3, label: "3 meetings today" });
   });
 
-  it("omits each chip independently, and never paints a zero", () => {
-    const chips = dayChips({
-      taskCount: 3,
-      meetingCount: 0,
-      overdueCount: 0,
-    });
-    expect(chips.map((chip) => chip.id)).toEqual(["tasks"]);
-    expect(chips[0]?.label).toBe("3 tasks");
-  });
-
-  it("singularises against the noun", () => {
-    const chips = dayChips({
-      taskCount: 1,
-      meetingCount: 1,
-      overdueCount: 1,
-    });
-    expect(chips.map((chip) => chip.label)).toEqual([
-      "1 task",
-      "1 meeting",
-      "1 overdue",
-    ]);
-  });
-
-  it("spends the error tone on overdue and nothing else", () => {
-    const chips = dayChips({
-      taskCount: 2,
-      meetingCount: 2,
-      overdueCount: 2,
-    });
-    expect(chips.filter((chip) => chip.tone === "error")).toHaveLength(1);
-    expect(chips.find((chip) => chip.tone === "error")?.id).toBe("overdue");
-  });
-
-  it("sends each chip to the view that holds its number", () => {
-    const chips = dayChips({
-      taskCount: 1,
-      meetingCount: 1,
-      overdueCount: 1,
-    });
-    expect(chips.map((chip) => chip.href)).toEqual([
-      "/tasks?system=today",
-      "/meetings",
-      "/tasks?system=overdue",
-    ]);
+  it("counts the day's meetings, not the ones still ahead", () => {
+    /*
+     * The defect itself: `nextUp` falls through to tasks once the last meeting
+     * starts, so a fact derived from what is UPCOMING evaporates at exactly the
+     * moment the owner looks back at the day. This helper is handed the day's
+     * meetings and has no notion of "upcoming" to be tempted by — three meetings
+     * that have all already happened are still three meetings today.
+     */
+    const allInThePast = [{ id: "m1" }, { id: "m2" }, { id: "m3" }];
+    expect(meetingsTodayFact(allInThePast)?.count).toBe(3);
   });
 });
 

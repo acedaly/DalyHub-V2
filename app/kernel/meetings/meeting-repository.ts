@@ -186,7 +186,7 @@ export interface MeetingRepository {
     readonly from: Date;
     /** Exclusive upper bound (UTC instant). */
     readonly to: Date;
-    /** Page size, clamped to a safe maximum. */
+    /** Page size, clamped to a safe maximum (100). */
     readonly limit?: number;
   }): Promise<readonly MeetingSearchHit[]>;
   /**
