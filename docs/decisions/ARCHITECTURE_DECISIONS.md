@@ -5711,12 +5711,16 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      capability in every scope.** A Task on its Project's record uses the
      same row anatomy and exposes every action valid in that scope; a
      capability whose domain precondition is absent in a scope — drag where
-     no order is stored (DEBT-188), the worked example — stays disabled or
-     absent there through the row's existing capability contract (a slot the
-     caller does not pass, a prop the caller sets off), never by forking the
-     row and never by inventing the missing domain semantics so it can be
-     switched on. Convergence adopts the row; it does not manufacture a
-     Project-local manual order to make the row's every affordance appear.
+     the surface draws no drop destination and stores no order (DHDS-11's
+     licence: a real destination or a real stored order; DEBT-188), the
+     worked example — stays disabled or absent there through the row's
+     existing capability contract (a slot the caller does not pass, a prop
+     the caller sets off), never by forking the row and never by inventing
+     the missing domain semantics so it can be switched on. Convergence
+     adopts the row; it does not manufacture a Project-local manual order or
+     a grouped destination to make the row's every affordance appear, and
+     `/tasks`'s bucket-to-bucket drag — which changes a stored field and
+     orders nothing — is untouched.
 
   3. **A reference to a Task is a link, not a row.** A search result, a
      cross-view row, a Meeting follow-up row and a next-action line carry a
@@ -5736,16 +5740,21 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      either computed at seed or run time from the owner's day through the
      product's own calendar helpers, or annotated on the same line with why
      it is safe; the annotation applies to every supported format, not to
-     ISO alone. A Static-tier check enforces it; its first run enumerates
-     every existing literal in every supported format and classifies each
-     (derived · fixed historical · deliberately fixed and annotated ·
-     time-bomb to convert); and the check is proven by making it fail on
-     **both** an unannotated future ISO literal and an unannotated future
-     long-form picker label — an ISO-only catch is not the rule. Picker
-     target labels are generated with the picker's own formatter and locale
-     semantics, never typed; month walking in a picker test is derived from
-     the asserted opening month and the computed target, never counted by
-     hand. DEBT-219's and DEBT-236's class — a test whose meaning depends on
+     ISO alone. A picker-action label — the long-form label a spec clicks
+     inside a date grid — is flagged whatever its date, past or future,
+     because the month walk that reaches it is counted from where the grid
+     opens, which is the owner's current month whenever the value is unset;
+     "earlier than the commit" is a defence for a data literal, not for a
+     label. A Static-tier check enforces it; its first run enumerates every
+     existing literal in every supported format and classifies each (derived
+     · fixed historical · deliberately fixed and annotated · time-bomb to
+     convert); and the check is proven by making it fail on **both** an
+     unannotated future ISO literal and an unannotated long-form picker label
+     whose date is already past — an ISO-only catch, or a future-only catch
+     of picker labels, is not the rule. Picker target labels are generated
+     with the picker's own formatter and locale semantics, never typed; month
+     walking in a picker test is derived from the asserted opening month and
+     the computed target, never counted by hand. DEBT-219's and DEBT-236's class — a test whose meaning depends on
      the day it runs — is closed as a class, not an instance.
 
   5. **A gate that cannot say green is a truth defect with an owner and an
@@ -5776,8 +5785,9 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   every power the shared row has that is valid in their scope (inline title,
   overflow menu, selection and bulk through the one `/tasks/bulk` contract,
   recurrence signal, swipe, departure with focus handoff, ADR-086
-  reconciliation — not drag, which no order-less scope stores) and lose the
-  phone rule that hid priority; the waiting list becomes actionable and its
+  reconciliation — not drag, which needs a real destination or a real stored
+  order that neither surface draws or stores) and lose the phone rule that
+  hid priority; the waiting list becomes actionable and its
   follow-up fact becomes a row fact visible on `/tasks?followUp=due` too.
   Two completion toggles, two responsive ladders, two optimistic strategies
   and two bulk paths become one each; ~930 lines of CSS and the private
@@ -5812,9 +5822,13 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   bomb). *A fixture-date check that reads ISO literals only* (rejected by the
   2026-09-02 amendment: the two regressions that motivate decision 4 click
   long-form labels, so an ISO-only check stays green while the defect class
-  returns). *Inventing a Project-local manual order so the converged tab can
-  drag* (rejected: decision 2 — the row's `dragHandle` slot stays unpassed
-  where no order is stored; DEBT-188 is its own decision). *Adopting the row on the Project tab while leaving `/today/waiting`
+  returns). *Exempting picker labels whose date has passed* (rejected by the
+  same amendment: the label that broke was already in the past on the
+  amending commit, and the presses that reach it are counted from the run
+  day). *Inventing a Project-local manual order, or a grouped bucket, so the
+  converged tab can drag* (rejected: decision 2 — the row's `dragHandle`
+  slot stays unpassed where the surface draws no destination and stores no
+  order; DEBT-188 is its own decision). *Adopting the row on the Project tab while leaving `/today/waiting`
   a Card* (rejected: the override layer would survive on one consumer and the
   follow-up fact would stay off the row). *A third, "reference" anatomy with
   its own metadata run for search and views rows* (rejected: decision 3).

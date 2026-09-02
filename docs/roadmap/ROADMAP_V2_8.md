@@ -33,11 +33,12 @@ CONV-00 … CONV-03, all ☐.
 > fixture-date literal format that can recreate DEBT-236 — the two motivating
 > regressions click long-form picker labels (*"Wednesday 29 July 2026"*), which
 > an ISO-only check would never see — and must prove the check fails on both
-> an ISO literal and a long-form picker label. **CONV-01** now states that
-> adopting the shared row is capability-aware: a capability whose domain
-> precondition is absent in a scope (drag, where no order is stored) stays
-> absent through the row's existing contract, and is never invented to
-> complete the convergence. ADR-115 decisions 2 and 4 carry the same wording.
+> a future ISO literal and a long-form picker label of any date. **CONV-01**
+> now states that adopting the shared row is capability-aware: a capability
+> whose domain precondition is absent in a scope (drag, where the surface
+> draws no drop destination and stores no order) stays absent through the
+> row's existing contract, and is never invented to complete the convergence.
+> ADR-115 decisions 2 and 4 carry the same wording.
 
 ---
 
@@ -617,8 +618,13 @@ rides.**
   formatter and locale semantics the picker uses for its day names, never
   typed as a literal; and the `PageUp`/`PageDown` count is derived from the
   source and target months, never from the month the test was authored in.
-  A raw future long-date label in picker E2E code is therefore prohibited
-  unless annotated (below) — the label is generated, or it is explained.
+  A raw long-form label in picker E2E code is therefore prohibited
+  **whatever its date** unless annotated (below): the presses that reach a
+  day are counted from where the grid opens, and when the value is unset
+  that is the owner's current month — so a label from last month is as
+  run-dependent as one from next month. `Wednesday 29 July 2026` is already
+  in the past on the amending commit and is exactly the literal that broke.
+  The label is generated, or it is explained.
 - **The rule, made checkable.** A small Static-tier script
   (`scripts/e2e-fixture-dates.mjs --check`, wired beside
   `e2e:partitions:check`) fails the build if any `e2e/**/*.sql` or
@@ -642,7 +648,17 @@ rides.**
      (`editing-consistency.spec.ts:263`, `dhds-10-inline-manipulation.spec.ts:509`,
      `goals.spec.ts:97`), with or without a weekday prefix.
 
-  A literal earlier than the commit's date is fine; the future is what arms.
+  The date test differs by what the literal *is*. For **data literals** —
+  seed values in `e2e/*.sql`, a rendered-format assertion on a value the
+  same test typed — a literal earlier than the commit's date is fine; the
+  future is what arms. For **picker-action labels** — the long-form
+  weekday-day-month-year form a spec clicks inside a date grid — the date
+  is no defence: every one is flagged, past or future, unless annotated,
+  because the month walk that reaches it starts from wherever the grid
+  opens. (`editing-consistency.spec.ts:280`'s `Saturday 15 August 2026`,
+  one press from the *seeded* July month, is run-independent and is the
+  worked example of class 3 below — annotated to say so, or generated
+  anyway.)
   The check is **not** a naive regex that fails on every match: its first run
   enumerates every current match in every supported format (111 ISO literals
   in `e2e/*.sql` at `036d3da`, plus the long-form and abbreviated literals in
@@ -661,11 +677,13 @@ rides.**
   ones still pass. Then prove the Static check with **both** of these, each
   introduced on a scratch tree and each observed to fail Static: an
   **unannotated future ISO literal** in an `e2e/*.sql` seed, and an
-  **unannotated future long-form picker label** (the `Wednesday 29 July
-  2026` form, dated after the commit) in an `e2e/*.ts` picker journey.
-  Annotate each with `fixed-date:` and watch the check pass again. **The
-  invariant is not complete until both are caught**; a check that catches
-  the ISO literal alone does not close this part.
+  **unannotated long-form picker label whose date is already past** (the
+  `Wednesday 29 July 2026` form, dated before the commit — so the proof
+  cannot be satisfied by the data-literal date test) in an `e2e/*.ts`
+  picker journey. Annotate each with `fixed-date:` and watch the check pass
+  again. **The invariant is not complete until both are caught**; a check
+  that catches the ISO literal alone, or that only catches a picker label
+  when its date is in the future, does not close this part.
 
 #### F. Today reflows at 200% zoom — closes [DEBT-221](../product/PRODUCT_DEBT.md#-debt-221--today-overflows-sideways-at-200-zoom-because-the-week-doors-date-range-cannot-wrap--p2)
 
@@ -777,15 +795,22 @@ every action valid in that scope.**
   there **through the row's existing capability contract** — a slot the
   caller does not pass, a prop the caller sets off — never by forking the
   row, and never by inventing the missing domain semantics so the capability
-  can be switched on. Drag is the worked example: `TaskRow` draws a grip only
-  when its caller passes a `dragHandle` (`TaskRow.tsx:172-185` — *"A row is
-  never draggable 'because it is a Task row'"*), and the Project tab stores
-  no manual order
+  can be switched on. Drag is the worked example. AGENTS.md §7 and DHDS-11
+  license a drag only where the object has **a real destination or a real
+  stored order**. `TaskRow` draws a grip only when its caller passes a
+  `dragHandle` (`TaskRow.tsx:172-185` — *"A row is never draggable 'because
+  it is a Task row'"*), and `/tasks` passes one only where it draws
+  destinations: the buckets of a grouped dimension (`TASK_DROP_DIMENSIONS`
+  — parent, priority, status, sector; `task-drop-targets.ts:63-68`) whose
+  membership is a stored field a drop changes. That drag orders nothing
+  within a list and is untouched by this item. The Project tab draws no
+  destination — it is a flat list of one Project's tasks under an
+  open/completed/all filter — and stores no manual order
   ([DEBT-188](../product/PRODUCT_DEBT.md#-debt-188--tasks-have-no-manual-ranking-model-so-a-task-cannot-be-dragged-up-a-list--p3)
-  stands), so the tab passes none — exactly as Today, Plan and Search pass
-  none today. The tab does **not** introduce a Project-local ranking model to
-  "complete" the convergence; it gains drag only if and when the scope
-  already stores an order.
+  stands), so it passes none — exactly as Today, Plan and Search pass none
+  today. The tab does **not** add a grouped bucket or a Project-local
+  ranking model to "complete" the convergence; it gains drag only if and
+  when it draws a real destination or its scope stores a real order.
 - **What stays the tab's.** Its scope (this Project's tasks), its grouping and
   its "all / open" toggle, the Project-level empty state, and the create
   affordance. Nothing else is bespoke.
@@ -813,14 +838,15 @@ every action valid in that scope.**
   5. A fact added to `TaskRow` in a later change appears here with no
      per-surface change — asserted by the shared-row contract test that
      enumerates its importers.
-  6. The tab passes no `dragHandle` and issues no reorder request; the row
-     renders without a grip there while `/tasks` grouped by Project still
-     renders one — asserted, so the capability contract is proven rather than
-     assumed.
-- **Non-goals.** No `/today/waiting` work (CONV-02); no manual ranking model
-  (DEBT-188 stands — the tab gains drag only where an order is stored, which
-  it is not, and the row's `dragHandle` slot is left unpassed rather than the
-  row being forked or a Project-local order invented); no Project description
+  6. The tab passes no `dragHandle` and issues no move or reorder request;
+     the row renders without a grip there while `/tasks` grouped by a drop
+     dimension still renders one and still moves a Task between buckets —
+     asserted, so the capability contract is proven rather than assumed.
+- **Non-goals.** No `/today/waiting` work (CONV-02); no drag on the tab and
+  no manual ranking model (DEBT-188 stands — the tab draws no drop
+  destination and stores no order, so the row's `dragHandle` slot is left
+  unpassed rather than the row being forked, a Project-local order invented
+  or a grouped bucket added to justify a grip); no Project description
   (DEBT-137); no CSS deletion yet (the override layer has one more consumer
   until CONV-02).
 - **Closes.** DEBT-175. **Advances.** DEBT-128 (one of its two consumers).

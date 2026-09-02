@@ -4723,14 +4723,18 @@ this register's own warning on DEBT-200: causes are claims to check.
   defect — ISO `YYYY-MM-DD`, the long-form accessible label the picker tests
   click (`Wednesday 29 July 2026`) and the abbreviated display form the specs
   assert on (`29 Jul 2026`); an ISO-only scan would stay green on exactly the
-  two literals above. Its first run enumerates the 111 ISO literals and the
+  two literals above. A picker-action label is flagged whatever its date,
+  past or future — the presses that reach it are counted from where the grid
+  opens, which is the run day when the value is unset — so a label from last
+  month cannot re-arm this defect either. Its first run enumerates the 111
+  ISO literals and the
   long-form and abbreviated ones in the specs, and the item classifies each
   as derived, fixed historical, deliberately fixed and annotated, or a
   time-bomb to convert (the full contract is CONV-00-E, amended 2026-09-02).
 - **Closing condition.** Both journeys pass on a clean tree with a freshly
   seeded database in any month; the Static check is green and would go red on
-  a bare future literal in **both** the ISO and the long-form picker-label
-  form (falsified by adding one of each); no fixture date arms.
+  **both** a bare future ISO literal and a bare long-form picker label of any
+  date (falsified by adding one of each); no fixture date arms.
 - **Related roadmap item.** [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-E.
 
 ### ☐ DEBT-237 — The AI gate names a fake-provider path that the repository deliberately does not have — P3
