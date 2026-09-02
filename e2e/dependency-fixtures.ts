@@ -14,6 +14,7 @@
  * entity.
  */
 
+import { futureInstant } from "./calendar-dates";
 import { d1Execute, d1Query, sqlLiteral } from "./d1";
 
 export const WORKSPACE_ID = "local-dev-workspace";
@@ -24,9 +25,11 @@ export const DEPENDENCY_ID_PREFIX = "e2e-dep-";
 /**
  * A creation instant far ahead of every other seeded fixture, so a Tasks list
  * sorted newest-first puts these rows at the top of a collection that already
- * holds ninety-odd others. Deterministic placement rather than luck.
+ * holds ninety-odd others. Deterministic placement rather than luck — and
+ * derived from the run, because a fixed "far ahead" instant is ahead only
+ * until the calendar reaches it (CONV-00-E).
  */
-const SEEDED_AT = "2027-03-01T00:00:00.000Z";
+const SEEDED_AT = futureInstant(366);
 
 /** The advanced recurrence shape a fixture may attach. */
 export interface SeedRecurrence {

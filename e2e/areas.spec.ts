@@ -2,9 +2,11 @@ import { expect, test } from "@playwright/test";
 
 import {
   RESPONSIVE_VIEWPORTS,
+  expectGoalStoryOpenLink,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  goalStoryRow,
   gotoFixture,
 } from "./helpers";
 
@@ -86,14 +88,19 @@ test.describe("AREA-01 — Areas", () => {
 
     await page.getByRole("tab", { name: /Goals/ }).click();
     await expect(page).toHaveURL(/\/areas\/a-dh\?tab=goals/);
-    await expect(
-      page.getByRole("article", { name: "Launch the site" }),
-    ).toBeVisible();
-    // AREA-02: a Goal card is now a real link to its canonical record.
-    const openGoalLink = page.getByRole("link", {
-      name: "Open Launch the site",
-    });
-    await expect(openGoalLink).toHaveAttribute("href", /^\/goals\//);
+    /*
+     * STEER-03 — the Goals tab draws the shared `GoalStoryRow`, found by the
+     * machine key every row stamps; its open affordance is a real link to the
+     * canonical record, named as the product composes it — the title, then the
+     * derived answers — not `Open <title>` (DEBT-215, CONV-00-B).
+     */
+    const seededGoal = goalStoryRow(page, "g-launch");
+    await expect(seededGoal).toBeVisible();
+    const openGoalLink = await expectGoalStoryOpenLink(
+      seededGoal,
+      "Launch the site",
+    );
+    await expect(openGoalLink).toHaveAttribute("href", /^\/goals\/g-launch$/);
 
     await page.getByRole("tab", { name: /Projects/ }).click();
     await expect(page).toHaveURL(/\/areas\/a-dh\?tab=projects/);

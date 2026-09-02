@@ -601,8 +601,14 @@ test("the collection surfaces the obligation signal and filters on it", async ({
     page.getByRole("list", { name: "Overdue obligations" }),
   ).toBeVisible();
 
-  await gotoFixture(page, "/assets");
-  await expect(page.getByText("1 obligation overdue")).toBeVisible();
+  /*
+   * The signal is asserted on the card THIS journey created. The fixture seeds
+   * other assets with obligations of their own, and an unscoped
+   * `getByText("1 obligation overdue")` became ambiguous the day one of them
+   * crossed its due date (DEBT-219, CONV-00-D): a workspace-wide text count
+   * is a statement about the fixture's calendar, not about this asset.
+   */
+  await expectCollectionSignal(page, overdue, "1 obligation overdue");
 
   /*
    * The obligation facet lives behind the shared Filter & sort trigger, not

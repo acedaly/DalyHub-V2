@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { ownerDayPlus } from "./calendar-dates";
 import { gotoFixture, ownerToday, waitForInteractive } from "./helpers";
 
 const OUT = join(
@@ -153,7 +154,7 @@ async function seedMeasurableGoals(page: Page): Promise<string> {
     unit: "kg",
     baseline: "85",
     target: "70",
-    targetDate: "2026-12-20",
+    targetDate: ownerDayPlus(110),
   });
   await logReadings(page, [
     ["85.0", "2026-05-01"],
@@ -169,7 +170,7 @@ async function seedMeasurableGoals(page: Page): Promise<string> {
     type: "accumulation",
     unit: "books",
     target: "12",
-    targetDate: "2026-12-31",
+    targetDate: ownerDayPlus(120),
   });
   await logReadings(page, [
     ["2", "2026-05-20"],
@@ -183,7 +184,7 @@ async function seedMeasurableGoals(page: Page): Promise<string> {
     unit: "$",
     baseline: "0",
     target: "15000",
-    targetDate: "2026-12-31",
+    targetDate: ownerDayPlus(120),
   });
   await logReadings(page, [
     ["2400", "2026-05-15"],
@@ -194,7 +195,7 @@ async function seedMeasurableGoals(page: Page): Promise<string> {
   const milestoneUrl = await createGoal(page, {
     title: MILESTONE_GOAL,
     type: "milestone",
-    targetDate: "2026-11-15",
+    targetDate: ownerDayPlus(75),
   });
   await gotoFixture(page, milestoneUrl);
   const stages = [

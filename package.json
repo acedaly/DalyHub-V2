@@ -23,6 +23,8 @@
     "e2e:partitions": "node scripts/e2e-partitions.mjs plan",
     "e2e:partitions:check": "node scripts/e2e-partitions.mjs check",
     "e2e:partitions:generate": "node scripts/e2e-partitions.mjs generate",
+    "e2e:fixture-dates:check": "node scripts/e2e-fixture-dates.mjs check",
+    "e2e:fixture-dates:list": "node scripts/e2e-fixture-dates.mjs list",
     "e2e:gate": "node scripts/e2e-gate.mjs",
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run dhds:check && pnpm run scheme:check && pnpm run test && pnpm run build && pnpm run test:e2e",
     "deploy:dry-run": "pnpm run build && wrangler deploy --dry-run --config build/server/wrangler.json",

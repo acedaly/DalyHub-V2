@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import {
+  dayInMonthsAhead,
+  ownerTodayIso,
+  shortCalendarDate,
+} from "./calendar-dates";
+import {
   comboboxOption,
   expectMinTouchTarget,
   expectNoAxeViolations,
@@ -234,9 +239,15 @@ test.describe("AREA-04 — mobile Areas & Goals", () => {
     await expectMinTouchTarget(
       datePopover.getByRole("button", { name: "Next month" }),
     );
-    await pickCalendarDate(datePopover, "2027-03-15");
+    // Half a year out from the owner's day, asserted back in the product's
+    // rendered form — derived, so the walk to it never depends on the month
+    // the suite runs in (CONV-00-E).
+    const target = dayInMonthsAhead(ownerTodayIso(), 6, 15);
+    await pickCalendarDate(datePopover, target);
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByText(/15 Mar 2027/).first()).toBeVisible();
+    await expect(
+      page.getByText(shortCalendarDate(target)).first(),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     const definitionTrigger = page.getByRole("button", {

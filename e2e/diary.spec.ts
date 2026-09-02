@@ -307,7 +307,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
      */
     await page.getByRole("link", { name: "Previous week" }).click();
     await expect(page).toHaveURL(/date=2026-05-25/);
-    await page.getByRole("link", { name: "Sunday, 31 May 2026" }).click();
+    await page.getByRole("link", { name: "Sunday, 31 May 2026" }).click(); // fixed-date: the strip is anchored on the seeded 2026-06-01 week, not the run day
     await expect(page).toHaveURL(/date=2026-05-31/);
     await expect(
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),
@@ -321,7 +321,7 @@ test.describe("DIARY-01B — Diary day-timeline workspace", () => {
      */
     await page.getByRole("link", { name: "Next week" }).click();
     await expect(page).toHaveURL(/date=2026-06-07/);
-    await page.getByRole("link", { name: "Monday, 1 June 2026" }).click();
+    await page.getByRole("link", { name: "Monday, 1 June 2026" }).click(); // fixed-date: the strip is anchored on the seeded 2026-06-01 week, not the run day
     await expect(page).toHaveURL(/date=2026-06-01/);
     await expect(
       page.getByRole("heading", { level: 3, name: `${PREFIX}seed 00` }),

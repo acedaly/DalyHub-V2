@@ -98,6 +98,67 @@ export function taskRow(scope: Page | Locator, title: string): Locator {
   return taskRows(scope).filter({ hasText: title });
 }
 
+/* -------------------------------------------------------------------------- */
+/* STEER-03 — one Goal, one story: the shared `GoalStoryRow`                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One Goal's story row, wherever it is drawn (`/goals`, an Area's Goals tab,
+ * Today), by the machine key every row stamps — `data-goal-story="<id>"`. The
+ * row's other `data-goal-*` attributes are its comparable facts (ADR-111
+ * decision 6), which is what `steer-goal-story.spec.ts` asserts across surfaces.
+ */
+export function goalStoryRow(scope: Page | Locator, goalId: string): Locator {
+  return scope.locator(`[data-goal-story="${goalId}"]`);
+}
+
+/**
+ * The row's open affordance, asserted by the accessible name the product
+ * composes for it (`goalStoryRowAccessibleName`): the Goal's TITLE, then each
+ * derived answer the drawing keeps quiet — ADR-040's alignment state and
+ * FOLLOW-02's movement — joined by " — ". The name is asserted in that shape
+ * rather than as `Open <title>`, which the STEER-03 row never carried and
+ * three assertions kept asking for (DEBT-215).
+ *
+ * The row says which answers it holds (`data-goal-alignment-state`,
+ * `data-goal-movement-available`), so the expected shape is read from the row
+ * rather than assumed: a Goal with an alignment state names it, and a Goal
+ * whose movement could be read names that too. Change the composition — the
+ * order, the separator, an `Open` prefix — and this fails naming the link it
+ * found.
+ */
+export async function expectGoalStoryOpenLink(
+  row: Locator,
+  title: string,
+): Promise<Locator> {
+  const link = row.getByRole("link", {
+    name: new RegExp(`^${escapeRegExp(title)}( — .+)?$`),
+  });
+  await expect(link).toHaveCount(1);
+  const [alignmentState, movementAvailable] = await Promise.all([
+    row.getAttribute("data-goal-alignment-state"),
+    row.getAttribute("data-goal-movement-available"),
+  ]);
+  const derivedAnswers =
+    (alignmentState ? 1 : 0) + (movementAvailable === "true" ? 1 : 0);
+  const name = await link.evaluate(
+    (node) => node.getAttribute("aria-label") ?? node.textContent ?? "",
+  );
+  // Title first, then at least one " — " per derived answer the row holds.
+  expect(name.startsWith(title), `open link is named for "${title}"`).toBe(
+    true,
+  );
+  expect(
+    name.slice(title.length).split(" — ").length - 1,
+    `"${name}" carries the row's ${derivedAnswers} derived answer(s)`,
+  ).toBeGreaterThanOrEqual(derivedAnswers);
+  return link;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** The WCAG 2.2 target-size minimum (44px), mirrored from `--dh-touch-target-min`. */
 export const TOUCH_TARGET_MIN = 44;
 

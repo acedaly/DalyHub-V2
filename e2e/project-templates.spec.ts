@@ -27,6 +27,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRows,
 } from "./helpers";
 import {
   FIXTURE,
@@ -311,16 +312,25 @@ test.describe("PROJECT-02 — Project templates", () => {
     );
     expect(Number(asEntities[0]?.n ?? 0)).toBe(0);
 
-    /* 12. Today. */
-    await gotoFixture(page, "/today");
-    for (const title of templateTaskTitles) {
-      await expect(page.getByText(title, { exact: true })).toHaveCount(0);
-    }
-
-    /* 13. Weekly Planning. */
-    await gotoFixture(page, "/plan");
-    for (const title of templateTaskTitles) {
-      await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+    /*
+     * 12–13. Today and Weekly Planning show no TASK ROW for a template task.
+     *
+     * Scoped to the shared task row rather than to the words: the template's
+     * titles were copied from the source Project's REAL Tasks, and STEER-04's
+     * next-action line (`.dh-next-action`) legitimately prints that Project's
+     * next action on Today — the same words, a different object. A text-count
+     * assertion therefore reported a shipped feature as a defect (DEBT-220,
+     * CONV-00-C). What must be absent is a Task the owner can act on, and the
+     * row is where a Task is acted on.
+     */
+    for (const surface of ["/today", "/plan"]) {
+      await gotoFixture(page, surface);
+      for (const title of templateTaskTitles) {
+        await expect(
+          taskRows(page).filter({ hasText: title }),
+          `${surface} draws no task row for template task "${title}"`,
+        ).toHaveCount(0);
+      }
     }
 
     /*
