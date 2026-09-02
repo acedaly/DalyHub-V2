@@ -18,15 +18,21 @@
 > *how* to build; this told you *what*. Status is updated in the PR that
 > changes it. No time estimates, no dates on unstarted work.
 >
-> **The successor programme is not yet decided, and this file does not decide
-> it.** V2.8 is created the way V2.7 was: by its own decision pass, which takes
-> a post-V2.7 audit as evidence, chooses a theme, numbers its debt from
-> **DEBT-236** (the next free number) and records its ADR. New work goes there
-> once it exists; until then, the standing riders and the LATER table below are
-> the honest statement of what is known to be owed — the E2E truth-restoration
-> pass (DEBT-215/216/219/220/221) and the one-Task-anatomy pair (DEBT-128 +
-> DEBT-175) chief among them. Nothing in this file may be re-scoped to hold new
-> work.
+> **New work now goes in [`ROADMAP_V2_8.md`](ROADMAP_V2_8.md)** — V2.8,
+> "CONVERGE — one Task, one proof", defined 2026-09-02 against `main` at
+> `036d3da` by its own decision pass, which re-measured the product rather
+> than inheriting this file's LATER table, numbered its debt from **DEBT-236**
+> and is accepted as
+> [ADR-115](../decisions/ARCHITECTURE_DECISIONS.md#adr-115-converge--a-task-is-rendered-by-the-shared-row-wherever-it-can-be-acted-on-a-fixture-never-carries-the-month-it-was-written-in-and-a-gate-that-cannot-say-green-is-a-truth-defect-not-a-rider).
+> The two "riders" this file named — the E2E truth-restoration pass
+> (DEBT-215/216/219/220/221) and the one-Task-anatomy pair (DEBT-128 +
+> DEBT-175) — became that programme's theme rather than riding beside it:
+> CONV-00 (the gate tells the truth again — those five, plus two September
+> time-bombs that arrived unrecorded while the gate was red, plus the one real
+> defect among them), CONV-01 and CONV-02 (the Project record and
+> `/today/waiting` render the shared row; the Card override layer is deleted),
+> and CONV-03 (a deterministic suite and a usable gate: DEBT-203/173/205).
+> Nothing in this file may be re-scoped to hold new work.
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
@@ -1579,6 +1585,7 @@ disposition here and on the entry. **This pass raised DEBT-222 … DEBT-235**
 ## Related documents
 
 - [`ROADMAP_V2_6.md`](ROADMAP_V2_6.md) — the predecessor programme, complete 2026-08-29
+- [`ROADMAP_V2_8.md`](ROADMAP_V2_8.md) — the successor programme, CONVERGE, defined 2026-09-02
 - [`DALYHUB_POST_V2_6_PRODUCT_AUDIT_2026_08.md`](../product/DALYHUB_POST_V2_6_PRODUCT_AUDIT_2026_08.md) — the proposing audit (2026-08-29, at `b928fd4`); this file re-verified its findings at `0d08cd6` and records the corrections above
 - [ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine) — this programme's decision record
 - [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable) · [ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates) — V2.6's decisions, all binding
