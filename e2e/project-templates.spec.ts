@@ -143,17 +143,21 @@ async function projectTaskTitles(
   projectUrl: string,
 ): Promise<string[]> {
   await gotoFixture(page, projectUrl);
-  // The Project's Tasks tab draws the shared card collection labelled
-  // "Project tasks"; each Task is one card with its title as the heading.
-  const cards = page
-    .getByRole("list", { name: "Project tasks" })
-    .getByRole("article");
-  await expect(cards.first()).toBeVisible({ timeout: 15_000 });
-  const count = await cards.count();
+  // The Project's Tasks tab draws the SHARED Task row (V2.8 CONV-01) inside
+  // the list labelled "Project tasks"; each row's open link carries its title.
+  const rows = taskRows(page.getByRole("list", { name: "Project tasks" }));
+  await expect(rows.first()).toBeVisible({ timeout: 15_000 });
+  const count = await rows.count();
   const titles: string[] = [];
   for (let index = 0; index < count; index += 1) {
     titles.push(
-      (await cards.nth(index).getByRole("heading").first().innerText()).trim(),
+      (
+        await rows
+          .nth(index)
+          .getByRole("link", { name: /^Open / })
+          .first()
+          .innerText()
+      ).trim(),
     );
   }
   return titles;
