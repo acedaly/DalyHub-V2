@@ -599,6 +599,18 @@ written in.**
 >   artefact — the first credible green candidate since #777. The merge's
 >   `main` run is the first of the two consecutive greens DEBT-125 and
 >   DEBT-157 close on; the second is still required.
+> - **H, one run later** — [#826](https://github.com/acedaly/DalyHub-V2/actions/runs/33636916922) on the
+>   documentation-only final head `f6ece99` (E2E code byte-identical to
+>   `27ba4dc`) went red on p02 and p03: three journeys this PR does not
+>   touch and `main` has never failed (`appearance.spec.ts:92`,
+>   `tasks-collection.spec.ts:634`, `people-diary-context.spec.ts:196`),
+>   on a runner that ran both partitions 10–18% over the durations they
+>   were balanced on. Each mechanism is named on DEBT-203 — an optimistic
+>   attribute asserted before its save lands, a `networkidle` wait standing
+>   in for the row's server state, an unsized 5 s budget — and none is
+>   taken here, by the inclusion rule. That is DEBT-203's rate seen on a
+>   green tree, which is CONV-03's subject and the reason its verdict is
+>   ten runs rather than one.
 > - **Ride-along.** `SETUP_AND_CI.md` says thirteen partitions and documents
 >   the fixture-date rule; the changelog records the reflow fix.
 > - **Scope guard held.** No product feature; no Task convergence; no
@@ -1188,7 +1200,7 @@ cross-references (DEBT-215, DEBT-221, DEBT-128, DEBT-151).
 | **DEBT-236** — two date-editor journeys assert the month they were written in | P2 | **Raised · CONV-00-E** (reproduced locally 2026-09-02) · **RESOLVED 2026-09-02 by CONV-00** |
 | **DEBT-237** — the AI gate names a fake-provider path the repository does not have | P3 | **Raised · not taken** — the code-held half of a tripwire, in its own PR the day the secret exists |
 | DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **RESOLVED 2026-09-02 by CONV-00** (A, B, C, D, F); DEBT-215's and DEBT-221's stale cause claims corrected 2026-09-02 and confirmed by measurement |
-| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; the merge's `main` run is the first consecutive green, and both close on the second |
+| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; the merge's `main` run is the first consecutive green, and both close on the second; #826 on the documentation-only head was red on three DEBT-203-class journeys the PR never touched, recorded there |
 | DEBT-175 | P2 | **TAKEN · CONV-01** |
 | DEBT-128 | P2 | **TAKEN · CONV-02**; title corrected 2026-09-02 (Today moved 2026-08-17; search never was a Card; `/today/waiting` is) |
 | DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance reproduced in partition order by CONV-00-G (2 of 2 local runs, `main` #815) and repaired as an unsized budget |
