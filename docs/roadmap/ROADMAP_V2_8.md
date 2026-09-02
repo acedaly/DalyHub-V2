@@ -590,7 +590,12 @@ written in.**
 >   wait, so it is repaired the way `goals.spec.ts` repaired its own:
 >   `test.setTimeout(90_000)`, assertions unchanged, no product change.
 >   «P01-FIXED». Recorded on DEBT-203; the ten-run verdict stays CONV-03's.
-> - **H** — «CI»
+> - **H** — the PR's own gate run, [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) on `27ba4dc`, is **18 of 18
+>   jobs green** (Static with the new fixture-date step, Unit, Build, all
+>   thirteen E2E partitions, CI Gate), and no partition uploaded a failure
+>   artefact — the first credible green candidate since #777. The merge's
+>   `main` run is the first of the two consecutive greens DEBT-125 and
+>   DEBT-157 close on; the second is still required.
 > - **Ride-along.** `SETUP_AND_CI.md` says thirteen partitions and documents
 >   the fixture-date rule; the changelog records the reflow fix.
 > - **Scope guard held.** No product feature; no Task convergence; no
@@ -1180,7 +1185,7 @@ cross-references (DEBT-215, DEBT-221, DEBT-128, DEBT-151).
 | **DEBT-236** — two date-editor journeys assert the month they were written in | P2 | **Raised · CONV-00-E** (reproduced locally 2026-09-02) · **RESOLVED 2026-09-02 by CONV-00** |
 | **DEBT-237** — the AI gate names a fake-provider path the repository does not have | P3 | **Raised · not taken** — the code-held half of a tripwire, in its own PR the day the secret exists |
 | DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **RESOLVED 2026-09-02 by CONV-00** (A, B, C, D, F); DEBT-215's and DEBT-221's stale cause claims corrected 2026-09-02 and confirmed by measurement |
-| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** («CI-TABLE»); closed by the second consecutive green |
+| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; the merge's `main` run is the first consecutive green, and both close on the second |
 | DEBT-175 | P2 | **TAKEN · CONV-01** |
 | DEBT-128 | P2 | **TAKEN · CONV-02**; title corrected 2026-09-02 (Today moved 2026-08-17; search never was a Card; `/today/waiting` is) |
 | DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance reproduced in partition order by CONV-00-G (2 of 2 local runs, `main` #815) and repaired as an unsized budget |
