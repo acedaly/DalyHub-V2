@@ -524,7 +524,7 @@ property rather than a lottery.
 real defect is fixed, and no fixture ever again carries the month it was
 written in.**
 
-> **Delivered 2026-09-02** (PR «PR», branch `claude/v2-8-conv-00-gate-truth-nptkjp`).
+> **Delivered 2026-09-02** (PR [#249](https://github.com/acedaly/DalyHub-V2/pull/249), branch `claude/v2-8-conv-00-gate-truth-nptkjp`).
 > What was decided and what was measured, part by part; the entries carry the
 > detail.
 >
