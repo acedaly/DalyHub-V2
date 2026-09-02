@@ -4444,7 +4444,7 @@ how a branch stops being reviewable.
 - **Related roadmap item.** [STEER-04](../roadmap/ROADMAP_V2_5.md), which added
   the line; PROJECT-02, which owns the spec; [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again), which repaired it.
 
-### ☐ DEBT-221 — Today overflows sideways at 200% zoom, because the week door's date range cannot wrap — P2
+### ☑ DEBT-221 — Today overflows sideways at 200% zoom, because the week door's date range cannot wrap — P2 — **RESOLVED 2026-09-02**
 
 - **Current issue.** [`mobile-shell.spec.ts`](../../e2e/mobile-shell.spec.ts)
   `:502` drives `/today` at **195 × 422** — a 390px phone at 200% zoom, which is
@@ -4477,9 +4477,9 @@ how a branch stops being reviewable.
   `/today` on a clean tree, with the week door still reachable and still naming
   its period.
 - **CORRECTED 2026-09-02 by [the V2.8 decision pass](../roadmap/ROADMAP_V2_8.md), and TAKEN by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-F.** The named offender does not hold on `main` at `036d3da`: `span.dh-today__review-door-period` sits in the panel HEAD and has carried `white-space: normal` since STEER-05 itself (`app/styles/today.css:2127-2129`); the door button's period is a `.dh-visually-hidden` span (`app/styles/base.css:563-573`) that cannot drive layout width; no code has touched the door since `bc26fd2`. **RE-MEASURED locally at 195 × 422 on a fresh seed (2026-09-02)**: `scrollWidth` **239** against `clientWidth` **195** — the defect is real and unchanged — and exactly three elements pass the right edge: `a.dh-viewtabs__tab` (the deliberately scrollable strip, not document overflow), `p.dh-today__panel-foot` at 206px, and inside it the door itself, `a.dh-btn.dh-btn--outlined.dh-btn--sm`, laid out **206px** wide. The button's VISIBLE label — *"Start this week's Review"* — is what cannot wrap, because the shared button is `white-space: nowrap`; the date range is not in the visible box at all. The fix is at the button (let the label wrap below the phone tier, or a shorter label there), judged by re-measuring `scrollWidth`, and the closing condition is unchanged.
+- **RESOLVED 2026-09-02 by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-F, at the offender the correction named.** The door's link carries one more class, `dh-today__review-door-open`, whose rule in `today.css` is the `.dh-today__reflection-write` treatment already on the same screen: `white-space: normal`, `min-inline-size: 0`, `max-inline-size: 100%`, `text-align: start`; and the door's foot may shrink once it has wrapped onto its own line (`flex: 0 1 auto; min-inline-size: 0` instead of `flex: none`). Nothing about the shared button changes — this is one label on one panel — and the button semantics, the outlined geometry, the glyph and the accessible name with its period are untouched. **RE-MEASURED after the fix with the same element walk, on a fresh seed:** at 195 × 422, `scrollWidth` **195** against `clientWidth` **195**, the door laid out **129 × 49** (two lines, `white-space: normal`, name *"Start this week’s Review, 31 Aug 2026–6 Sep 2026"*), and the only element past the right edge is `a.dh-viewtabs__tab` in the deliberately scrollable strip; at 393 px the door is **206 × 32** on one line and nothing passes the edge, so the phone appearance is unchanged. `mobile-shell.spec.ts` *"stays usable at 200% zoom: /today"* passes with no rule disabled. **Falsified** by restoring `white-space: nowrap` on the door: the 195 px assertion fails again (`scrollWidth` 239) while 393 px still passes.
 - **Related roadmap item.** [STEER-05](../roadmap/ROADMAP_V2_5.md#-steer-05--the-weeks-door--delivered-2026-08-28),
-  which owns the door; a truth-restoration pass in the
-  [HARDEN-05](HARDEN_05_GREEN_MAIN_2026_08.md) mould owns the repair.
+  which owns the door; [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again), which repaired it.
 
 ## Debt raised by the V2.7 roadmap decision (2026-08-30)
 

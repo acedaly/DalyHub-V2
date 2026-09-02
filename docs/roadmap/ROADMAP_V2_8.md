@@ -23,8 +23,8 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: DEFINED (2026-09-02), nothing started.** Four items,
-CONV-00 … CONV-03, all ☐.
+**Programme status: IN PROGRESS (2026-09-02).** CONV-00 ☑ delivered
+2026-09-02; **CONV-01 is next**; CONV-02 and CONV-03 ☐.
 
 > **Amended 2026-09-02, before CONV-00 began**, as the follow-up resolution of
 > the two review findings left unresolved on the defining PR (#247, merged
@@ -518,11 +518,75 @@ property rather than a lottery.
 
 ---
 
-### ☐ CONV-00 — The gate tells the truth again
+### ☑ CONV-00 — The gate tells the truth again — **DELIVERED 2026-09-02**
 
 **Every failing journey on `main` is repaired for the reason it fails, one
 real defect is fixed, and no fixture ever again carries the month it was
 written in.**
+
+> **Delivered 2026-09-02** (PR «PR», branch `claude/v2-8-conv-00-gate-truth-nptkjp`).
+> What was decided and what was measured, part by part; the entries carry the
+> detail.
+>
+> - **A** — `command-palette.spec.ts` now asserts the one-flow contract:
+>   exactly one `New Goal` option under the title, the verb and the noun, no
+>   `Create/Add Goal`; running it lands on `/goals?drawer=new-goal` and opens
+>   the one shared `NewGoalForm` (one dialog, one form). `goals.new` is
+>   untouched. Falsified both ways (unregister → count and click fail; reroute
+>   to `/goals` → URL assertion fails). Closes DEBT-216.
+> - **B** — `goalStoryRow` / `expectGoalStoryOpenLink` in `e2e/helpers.ts`:
+>   rows by `[data-goal-story]`, the open link by the composed name (title,
+>   then one " — " segment per derived answer the row's own `data-goal-*`
+>   facts say it holds). No `article` wrapper, no `Open <title>`. Falsified
+>   by an `Open` prefix and a `" · "` separator. Closes DEBT-215.
+> - **C** — the structural guarantee stays; the surface half is scoped to
+>   `taskRows()` on `/today` and `/plan`, because a Task is acted on in a row
+>   and the next-action line is a reference (ADR-115 decision 3). The template
+>   fixture's March-2027 source-Task dates were a second bomb and are derived.
+>   Falsified by materialising the template task as a live Task on the owner's
+>   day. Closes DEBT-220.
+> - **D** — both repairs: the assertion is scoped to the journey's own card
+>   (`expectCollectionSignal`), and every open seeded obligation, plus the
+>   ute's next-service and renewal dates, is `date('now', '+N days')` with the
+>   fixture's authoring offsets. Falsified with the pre-repair seed: the
+>   unscoped locator fails strict mode on two cards; the scoped one passes.
+>   Closes DEBT-219.
+> - **E** — one shared module, `e2e/calendar-dates.ts`: targets from the
+>   owner's day or the test's own value, labels generated in the grid's shape,
+>   the opening month asserted, the press count derived
+>   (`pickCalendarDayByKeyboard`), rendered forms read through
+>   `shortCalendarDate`. **Decided:** the seeded `2026-07-29` stays a fixed
+>   historical datum; the walk to it became run-relative. The Static check,
+>   `scripts/e2e-fixture-dates.mjs check` (`pnpm run e2e:fixture-dates:check`,
+>   a `Static` step beside `e2e:partitions:check`), reads ISO, long-form
+>   picker labels and the abbreviated form, both September spellings, strips
+>   comments string-aware, judges data literals against `HEAD`'s committer
+>   date and picker labels whatever their date, and honours a same-line
+>   `fixed-date:` annotation in both comment syntaxes. **First-run inventory:
+>   1,315 literals in 42 files** (the "111" counted date-only seed literals;
+>   the check also reads the date leading every timestamp) — 1,255 fixed
+>   historical, 56 future data literals and 2 bare picker labels resolved as
+>   **42 derived** and **16 annotated**, leaving 0 offenders. Falsified on a
+>   scratch tree with **both** a bare future ISO in a seed and a bare *past*
+>   long-form picker label in a picker journey: each fails Static naming file,
+>   line, literal and form; each passes once annotated. Sixteen unit tests pin
+>   the contract. Closes DEBT-236.
+> - **F** — at the button: `dh-today__review-door-open` (`white-space: normal`,
+>   `min-inline-size: 0`, start-aligned when wrapped) and a foot that may
+>   shrink once it has wrapped — the `.dh-today__reflection-write` treatment,
+>   not a change to the shared button. Re-measured with the same walk: 195 px
+>   `scrollWidth` 195 / `clientWidth` 195, door 129 × 49 on two lines, only the
+>   scrollable tab strip past the edge; 393 px door 206 × 32 on one line,
+>   nothing past the edge. Falsified by restoring `nowrap` (239 at 195 px,
+>   393 still green). Closes DEBT-221.
+> - **G** — «P01»
+> - **H** — «CI»
+> - **Ride-along.** `SETUP_AND_CI.md` says thirteen partitions and documents
+>   the fixture-date rule; the changelog records the reflow fix.
+> - **Scope guard held.** No product feature; no Task convergence; no
+>   partition-machinery change; `retries: 0`, `workers: 1`; no skip, fixme,
+>   quarantine, allowlist, sleep or empty commit. The two product changes are
+>   one class on one link and one CSS rule.
 
 This item's full implementation brief follows, at the depth a fresh session
 needs to implement without re-running this audit. Each part names the
@@ -1103,13 +1167,13 @@ cross-references (DEBT-215, DEBT-221, DEBT-128, DEBT-151).
 
 | Entry | Severity | Disposition |
 |---|---|---|
-| **DEBT-236** — two date-editor journeys assert the month they were written in | P2 | **Raised · CONV-00-E** (reproduced locally 2026-09-02) |
+| **DEBT-236** — two date-editor journeys assert the month they were written in | P2 | **Raised · CONV-00-E** (reproduced locally 2026-09-02) · **RESOLVED 2026-09-02 by CONV-00** |
 | **DEBT-237** — the AI gate names a fake-provider path the repository does not have | P3 | **Raised · not taken** — the code-held half of a tripwire, in its own PR the day the secret exists |
-| DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **TAKEN · CONV-00** (A, B, C, D, F); DEBT-215's and DEBT-221's stale cause claims corrected 2026-09-02 |
-| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H, closed by the second consecutive green** |
+| DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **RESOLVED 2026-09-02 by CONV-00** (A, B, C, D, F); DEBT-215's and DEBT-221's stale cause claims corrected 2026-09-02 and confirmed by measurement |
+| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** («CI-TABLE»); closed by the second consecutive green |
 | DEBT-175 | P2 | **TAKEN · CONV-01** |
 | DEBT-128 | P2 | **TAKEN · CONV-02**; title corrected 2026-09-02 (Today moved 2026-08-17; search never was a Card; `/today/waiting` is) |
-| DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed) |
+| DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance investigated in partition order by CONV-00-G («P01-TABLE») |
 | DEBT-151 | P2 | **Corrected, not taken** — headline 30/1,320,668 B → 32/1,383,217 B per the PWA authority's own table; ceilings unchanged |
 | DEBT-70 | P2 | **Not taken** — the offline slice's first item if the slice is ever taken; recorded in LATER |
 | DEBT-212 · DEBT-103 | P3 | **Deferred to Insight (presumptive V2.9)** |
