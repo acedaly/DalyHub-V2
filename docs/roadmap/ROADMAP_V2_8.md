@@ -589,7 +589,10 @@ written in.**
 >   axe scans against the 30 s default — not a leaked record or a stale
 >   wait, so it is repaired the way `goals.spec.ts` repaired its own:
 >   `test.setTimeout(90_000)`, assertions unchanged, no product change.
->   «P01-FIXED». Recorded on DEBT-203; the ten-run verdict stays CONV-03's.
+>   With the correction, the same fresh-database p01 order passed 208 of
+>   208 (one deliberate skip), the journey at 30.5 s — over the old budget,
+>   inside the new one — and `main` #823's p01 passed it too. Recorded on
+>   DEBT-203; the ten-run verdict stays CONV-03's.
 > - **H** — the PR's own gate run, [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) on `27ba4dc`, is **18 of 18
 >   jobs green** (Static with the new fixture-date step, Unit, Build, all
 >   thirteen E2E partitions, CI Gate), and no partition uploaded a failure
