@@ -347,6 +347,36 @@ describe("CONV-01 — completion is the shared optimistic path", () => {
   });
 });
 
+describe("CONV-01 — a rename queued offline is painted and said to be waiting", () => {
+  it("keeps the queued title on the row and announces it as waiting to sync", async () => {
+    // The editor's own poster reports the rename was QUEUED (DalyHub could not
+    // be reached), so it calls `onQueued` rather than `onSaved`.
+    vi.mocked(postTaskRecordActionOffline).mockResolvedValueOnce({
+      kind: "queued",
+    } as never);
+    renderTab({
+      tasks: [task({ id: "t1", title: "Alpha task" })],
+      nextCursor: null,
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "More actions for Alpha task" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    const input = screen.getByRole("textbox", { name: "Rename Alpha task" });
+    fireEvent.change(input, { target: { value: "Alpha task, queued" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    // The row shows the owner's change, and the words say it is not confirmed.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: "Open Alpha task, queued" }),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Renamed to Alpha task, queued. Waiting to sync.",
+    );
+  });
+});
+
 describe("CONV-01 — selection and bulk through the one /tasks/bulk contract", () => {
   it("selects three rows and completes them with ONE request carrying three ids", async () => {
     const posted: FormData[] = [];

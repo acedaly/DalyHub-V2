@@ -111,6 +111,18 @@ export interface TaskSurfaceActions {
   /** Report a save the ROW's own inline field already persisted. */
   readonly reportInlineSave: (save: TaskRowFieldSave) => void;
   /**
+   * PWA-12 — report a rename that was accepted LOCALLY because DalyHub could
+   * not be reached (`TaskTitleEditor`'s `onQueued`).
+   *
+   * It paints the new title — the owner's change is real and the row must
+   * show it — and announces it as waiting to sync. It does NOT revalidate:
+   * there is nothing new on the server to read, and asking would be a request
+   * this device has just proven it cannot make. The same rule `/tasks` applies
+   * in its own host; without it a queued rename snapped the row back to the
+   * old title and then replayed later, renaming the Task with no warning.
+   */
+  readonly reportQueuedTitle: (taskId: string, title: string) => void;
+  /**
    * V2.8 CONV-01 — announce a COMMITTED outcome the surface did not paint, and
    * re-read.
    *
@@ -354,6 +366,11 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
     [markDeparting, revalidator],
   );
 
+  const reportQueuedTitle = useCallback((taskId: string, title: string) => {
+    setPatches((previous) => withPatch(previous, taskId, { title }));
+    setAnnouncement(`Renamed to ${title}. Waiting to sync.`);
+  }, []);
+
   const announce = useCallback(
     (message: string) => {
       setAnnouncement(message);
@@ -372,5 +389,6 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
     setField,
     setRecord,
     reportInlineSave,
+    reportQueuedTitle,
   };
 }

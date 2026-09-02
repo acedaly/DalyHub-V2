@@ -506,6 +506,10 @@ export function ProjectTasksTab({
                       patch: { title },
                     })
                   }
+                  // PWA-12 — a rename accepted locally while offline is painted
+                  // and said to be waiting, never silently dropped to replay
+                  // later as a surprise.
+                  onQueued={actions.reportQueuedTitle}
                 />
               ),
             }
