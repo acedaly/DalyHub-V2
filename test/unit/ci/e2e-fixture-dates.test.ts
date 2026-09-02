@@ -29,6 +29,7 @@ let stripComments: (source: string, kind: "sql" | "ts") => string;
 let scanFixtures: (options: { today: string }) => Finding[];
 let offenders: (findings: Finding[]) => Finding[];
 let referenceDay: () => string;
+let listFixtureFiles: () => string[];
 
 const TODAY = "2026-09-02";
 
@@ -41,9 +42,16 @@ beforeAll(async () => {
     scanFixtures: typeof scanFixtures;
     offenders: typeof offenders;
     referenceDay: typeof referenceDay;
+    listFixtureFiles: typeof listFixtureFiles;
   };
-  ({ scanSource, stripComments, scanFixtures, offenders, referenceDay } =
-    module);
+  ({
+    scanSource,
+    stripComments,
+    scanFixtures,
+    offenders,
+    referenceDay,
+    listFixtureFiles,
+  } = module);
 });
 
 function verdicts(source: string, kind: "sql" | "ts" = "ts") {
@@ -105,10 +113,15 @@ describe("the three literal forms", () => {
 });
 
 describe("the verdicts", () => {
-  it("a data literal on or before the reference day is history, after it is a bomb", () => {
-    expect(verdicts(`"${TODAY}" "2026-09-03" "2000-01-01"`)).toEqual([
-      [TODAY, "past"],
+  it("a data literal before the reference day is history; the reference day itself, and after, is a bomb", () => {
+    // A fixture dated TODAY reads "due today" today and "overdue" tomorrow —
+    // the same calendar-armed class, one day later.
+    expect(
+      verdicts(`"${TODAY}" "2026-09-03" "2026-09-01" "2000-01-01"`),
+    ).toEqual([
+      [TODAY, "future"],
       ["2026-09-03", "future"],
+      ["2026-09-01", "past"],
       ["2000-01-01", "past"],
     ]);
   });
@@ -221,7 +234,7 @@ describe("the repository's own fixtures", () => {
     ).toEqual([]);
   });
 
-  it("scan every kind of E2E source, not the seeds alone", () => {
+  it("scan every kind of E2E source, the generator form included", async () => {
     const files = new Set(
       scanFixtures({ today: referenceDay() }).map((finding) =>
         finding.file?.slice(finding.file.lastIndexOf(".")),
@@ -229,5 +242,15 @@ describe("the repository's own fixtures", () => {
     );
     expect(files.has(".sql")).toBe(true);
     expect(files.has(".ts")).toBe(true);
+    // `e2e/seed-calendar-evidence.mts` is an executable fixture generator; a
+    // date hard-coded there seeds exactly as one in a `.sql` file does, so it
+    // is scanned whether or not it currently carries a literal.
+    const listed = listFixtureFiles();
+    expect(listed.some((path) => path.endsWith(".mts"))).toBe(true);
+    expect(
+      listed.every((path) =>
+        [".sql", ".ts", ".mts", ".mjs"].some((ext) => path.endsWith(ext)),
+      ),
+    ).toBe(true);
   });
 });

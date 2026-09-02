@@ -561,12 +561,14 @@ written in.**
 >   a `Static` step beside `e2e:partitions:check`), reads ISO, long-form
 >   picker labels and the abbreviated form, both September spellings, strips
 >   comments string-aware, judges data literals against `HEAD`'s committer
->   date and picker labels whatever their date, and honours a same-line
+>   date (on or after it is flagged — a fixture dated today arms tomorrow)
+>   and picker labels whatever their date, and honours a same-line
 >   `fixed-date:` annotation in both comment syntaxes. **First-run inventory:
 >   1,315 literals in 42 files** (the "111" counted date-only seed literals;
 >   the check also reads the date leading every timestamp) — 1,255 fixed
->   historical, 56 future data literals and 2 bare picker labels resolved as
->   **42 derived** and **16 annotated**, leaving 0 offenders. Falsified on a
+>   historical, 57 data literals on or after the reference day and 2 bare
+>   picker labels resolved as **43 derived** and **16 annotated**, leaving 0
+>   offenders. Falsified on a
 >   scratch tree with **both** a bare future ISO in a seed and a bare *past*
 >   long-form picker label in a picker journey: each fails Static naming file,
 >   line, literal and form; each passes once annotated. Sixteen unit tests pin

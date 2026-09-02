@@ -16,16 +16,18 @@
  * either kind before it can arm.
  *
  * ── What it scans ───────────────────────────────────────────────────────────
- * Every `.sql`, `.ts` and `.mjs` file under `e2e/` — the seeds, the specs, the
- * fixtures and the helpers. Comments are stripped first (`--` in SQL, `//` and
+ * Every `.sql`, `.ts`, `.mts` and `.mjs` file under `e2e/` — the seeds, the
+ * specs, the fixtures, the generators and the helpers. Comments are stripped first (`--` in SQL, `//` and
  * `/* … *\/` in TypeScript, both string-aware), because a date in prose is a
  * date in prose; only a literal in CODE can arm.
  *
  * ── The three literal forms, and how each is judged ─────────────────────────
  *
  *   1. ISO `YYYY-MM-DD`, alone or leading a timestamp — the seeds' form.
- *      A DATA literal: fine when it is on or before the reference day (the
- *      past is what it is), flagged when it lies in the future.
+ *      A DATA literal: fine when it is BEFORE the reference day (the past is
+ *      what it is), flagged when it is the reference day or later — a
+ *      literal equal to today reads "due today" today and "overdue"
+ *      tomorrow, which is the class this guard exists for.
  *   2. The long-form spoken label the picker's cells carry and a picker test
  *      clicks — weekday, day, month, year: "Wednesday 29 July 2026". A
  *      PICKER-ACTION label: flagged WHATEVER its date, past or future. The
@@ -78,8 +80,13 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURE_DIR = join(ROOT, "e2e");
 
-/** The file kinds the E2E layer keeps its fixtures, specs and helpers in. */
-export const FIXTURE_EXTENSIONS = [".sql", ".ts", ".mjs"];
+/**
+ * The file kinds the E2E layer keeps its fixtures, specs, generators and
+ * helpers in. `.mts` is the fixture GENERATOR form (`seed-calendar-evidence.mts`
+ * runs under `vite-node`); a date hard-coded there seeds exactly as one in a
+ * `.sql` file does.
+ */
+export const FIXTURE_EXTENSIONS = [".sql", ".ts", ".mts", ".mjs"];
 
 /** The same-line marker that classifies a literal as deliberately fixed. */
 export const ANNOTATION = "fixed-date:";
@@ -225,9 +232,10 @@ export function stripComments(source, kind) {
  * its calendar `iso`, its `line`, whether the line is `annotated`, and the
  * `verdict` against `today`:
  *
- *   past        — a data literal on or before the reference day (class 2)
+ *   past        — a data literal before the reference day (class 2)
  *   annotated   — deliberately fixed, and says why (class 3)
- *   future      — an unannotated data literal after the reference day (class 4)
+ *   future      — an unannotated data literal on or after the reference day
+ *                 (class 4; "today" arms tomorrow)
  *   label       — an unannotated picker-action label, any date (class 4)
  */
 export function scanSource(source, { kind, today }) {
@@ -249,7 +257,7 @@ export function scanSource(source, { kind, today }) {
         ? "annotated"
         : isLabel
           ? "label"
-          : iso > today
+          : iso >= today
             ? "future"
             : "past";
       findings.push({ form, text, iso, line, annotated, verdict });

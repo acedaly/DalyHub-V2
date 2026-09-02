@@ -174,12 +174,12 @@ obligation's due date passed — none of them a regression, and a gate that is
 red for the calendar cannot report one (DEBT-219, DEBT-236).
 
 `scripts/e2e-fixture-dates.mjs check` makes the rule a Static check. It reads
-every `.sql`, `.ts` and `.mjs` under `e2e/`, strips comments (string-aware), and
+every `.sql`, `.ts`, `.mts` and `.mjs` under `e2e/`, strips comments (string-aware), and
 recognises three literal forms:
 
 | Form | Example | Judged as |
 | --- | --- | --- |
-| ISO `YYYY-MM-DD`, alone or leading a timestamp | `'2026-09-14'` | a **data literal**: fine on or before the reference day, flagged after it |
+| ISO `YYYY-MM-DD`, alone or leading a timestamp | `'2026-09-14'` | a **data literal**: fine before the reference day, flagged on or after it (a fixture dated today arms tomorrow) |
 | the long-form label a picker cell carries and a spec clicks | `"Wednesday 29 July 2026"` | a **picker-action label**: flagged **whatever its date** — the month walk that reaches it is counted from where the grid opens, which is the owner's current month when the value is unset |
 | the abbreviated display form a spec asserts on, with or without a weekday | `"29 Jul 2026"`, `"Thu, 12 Jun 2027"` | a data literal, as ISO |
 
@@ -203,8 +203,8 @@ asserts the month the grid opened on and walks by the computed delta
 (`pickCalendarDayByKeyboard`), and reads the rendered value back through
 `shortCalendarDate`. `pnpm run e2e:fixture-dates:list` prints the inventory the
 check reads, classified — the first run (2026-09-02) found 1,315 literals, of
-which 56 future data literals and 2 bare picker labels were converted or
-annotated by CONV-00.
+which 57 data literals on or after the reference day and 2 bare picker labels
+were converted or annotated by CONV-00.
 
 **And the guess is not allowed to survive the merge (HARDEN-06A).** The 120 s
 fallback exists so a spec file added between two runs still lands in a partition;
