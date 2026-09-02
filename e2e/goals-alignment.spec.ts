@@ -28,6 +28,23 @@ test.describe("AREA-03 — Alignment view", () => {
   test("attributes recent activity, surfaces a neglected Goal with an understandable reason, and navigates to real records", async ({
     page,
   }) => {
+    /*
+     * A real budget for the longest journey in this file — the same
+     * correction `goals.spec.ts` carries for its own, and for the same
+     * reason. This journey creates a Goal, a Project and a Task live, then
+     * reads `/goals`, the Goal record, the Project record and the Goal record
+     * again, scanning with axe twice — a dozen product navigations, each
+     * settling the network. MEASURED (CONV-00-G, DEBT-203): 28.3 s in
+     * isolation on a fresh seed; 24.0 s on `main` run #820 (p01, passed);
+     * **31.0 s on `main` run #815 (p01) — "Test timeout of 30000ms
+     * exceeded"**; 34.2 s in the committed p01 order locally under load,
+     * timing out inside `gotoFixture` at the second return to the Goal
+     * record. The default 30 s was never sized for it: the journey runs at
+     * 80–100% of its budget on a good day, so runner variance alone turns it
+     * red with no regression and no leaked state. This is a budget
+     * correction, not a retry, and every assertion is unchanged.
+     */
+    test.setTimeout(90_000);
     const stamp = Date.now();
     const goalTitle = `Alignment e2e ${stamp}`;
     const projectTitle = `Alignment e2e project ${stamp}`;
