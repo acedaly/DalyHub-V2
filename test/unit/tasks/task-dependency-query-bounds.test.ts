@@ -22,8 +22,13 @@ const PROJECTING_LOADERS = [
   ["the Tasks collection", "app/modules/tasks/routes/index.tsx"],
   ["Today", "app/modules/today/day/load.ts"],
   ["Weekly Planning", "app/modules/plan/plan-load.server.ts"],
-  ["a Project's record", "app/modules/projects/routes/detail.tsx"],
-  ["a Project's task page", "app/modules/projects/routes/tasks.tsx"],
+  // V2.8 CONV-01 — the record loader and the "Load more" endpoint read a
+  // Project's task page through ONE shared function, so the aggregate is
+  // called there and nowhere in either route.
+  [
+    "a Project's Tasks tab (the record and its Load more)",
+    "app/modules/projects/project-tasks-load.server.ts",
+  ],
 ] as const;
 
 /**

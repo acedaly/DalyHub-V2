@@ -109,17 +109,31 @@ a.dh-btn {
 }
 
 /*
- * UIX-02 — a refused completion, reported where it was attempted.
+ * V2.8 CONV-01 — WHERE the Project's Tasks tab puts the shared bulk bar.
  *
- * The Project's task list writes nothing optimistically (see the tab's own
- * note), so a refusal leaves the row exactly as it was and this line explains
- * why. `role="alert"` because the owner has just acted and the answer is "no".
+ * The bar itself is the shared `TaskBulkActionBar` (`tasks.css`), unchanged;
+ * this is only its placement on a record tab, which has no `CollectionLayout`
+ * selection slot to hand it to. Bottom-anchored and sticky, exactly as the
+ * collection slot anchors it (`collection-layout.css`), so a selection is acted
+ * on in the same place wherever it is made — and above the phone's bottom
+ * navigation rather than under it.
+ *
+ * The old `.dh-project-tasks__error` line went with the private completion
+ * path it reported for: a refusal now reaches the owner through the shared
+ * host's notification, the same way it does on `/tasks`, Today and Plan.
  */
-.dh-project-tasks__error {
-  margin: 0 0 var(--app-space-3);
-  color: var(--dh-color-danger);
-  font-size: var(--dh-text-meta-size);
-  line-height: var(--dh-text-meta-line-height);
+.dh-project-tasks__selection {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: var(--dh-layer-sticky);
+  padding-block: var(--app-space-3);
+  background: var(--dh-color-surface);
+}
+
+@media (max-width: 48rem) {
+  .dh-project-tasks__selection {
+    inset-block-end: var(--app-bottomnav-height, 0px);
+  }
 }
 
 /* ==========================================================================

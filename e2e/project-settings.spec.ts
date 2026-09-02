@@ -5,6 +5,7 @@ import {
   expectNoHorizontalOverflow,
   gotoFixture,
   reopenTaskRow,
+  taskRow as sharedTaskRow,
 } from "./helpers";
 
 /**
@@ -277,9 +278,10 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
       .getByRole("navigation", { name: "Filter tasks by state" })
       .getByRole("link", { name: "All", exact: true })
       .click();
-    const taskRow = page.getByRole("article", {
-      name: "Open Today rail open task",
-    });
+    // V2.8 CONV-01 — the tab renders the shared `TaskRow` (a list item, which
+    // has no accessible name of its own), so the row is found the way every
+    // Task surface's rows are found: by the shared locator and its title.
+    const taskRow = sharedTaskRow(page, "Today rail open task");
     await expect(taskRow).toBeVisible();
     // Start from OPEN whatever an interrupted previous run left behind: the seed
     // resets this task, but only when the dev server (and so the seeding step)

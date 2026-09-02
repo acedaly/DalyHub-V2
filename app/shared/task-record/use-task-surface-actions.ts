@@ -51,7 +51,7 @@
  * switch for each caller.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRevalidator } from "react-router";
 
 import { useFeedback } from "~/shared/feedback";
@@ -74,6 +74,21 @@ export interface TaskSurfaceActions {
   /** Drop every patch — the screen calls this when fresh loader data arrives. */
   readonly clearPatches: () => void;
   readonly announcement: string | null;
+  /**
+   * V2.8 CONV-01 — the ids this surface has JUST changed, and the whole of what
+   * makes a departing row legitimate (DHDS-11, `use-departing-rows.ts`).
+   *
+   * A row may LEAVE — collapse while its neighbours close the gap and focus is
+   * handed on — only when the owner's own act is what removed it from the
+   * loader's answer. Changing a filter, paging and navigating remove rows too,
+   * and none of those is a departure. An id is added here when the SERVER
+   * accepts a change to it and drops out again once the exit could have run,
+   * exactly as `/tasks` has done since DHDS-11; a surface that keeps completed
+   * work never produces a departure, because the id is still in its list.
+   *
+   * Today and Plan do not pass this to `useDepartingRows` and are unchanged.
+   */
+  readonly departing: ReadonlySet<string>;
   readonly setCompleted: (
     taskId: string,
     completed: boolean,
@@ -95,6 +110,17 @@ export interface TaskSurfaceActions {
   ) => void;
   /** Report a save the ROW's own inline field already persisted. */
   readonly reportInlineSave: (save: TaskRowFieldSave) => void;
+  /**
+   * V2.8 CONV-01 — announce a COMMITTED outcome the surface did not paint, and
+   * re-read.
+   *
+   * The shared bulk bar's success path: a bulk change is a deliberate operation
+   * over a whole selection, the selection is cleared by the same commit, and
+   * there is no row left on screen for a patch to belong to — so it announces
+   * and revalidates, through THIS channel, so a surface has exactly one live
+   * region whatever produced the sentence.
+   */
+  readonly announce: (message: string) => void;
 }
 
 function withPatch(
@@ -128,11 +154,55 @@ function withoutKeys(
   return next;
 }
 
+/**
+ * How long an accepted change keeps its row ELIGIBLE to depart.
+ *
+ * Long enough for the loader's answer to arrive and the exit to run, short
+ * enough that an unrelated later removal of the same row — a filter change a
+ * few seconds afterwards — is not mistaken for the consequence of an act the
+ * owner has stopped thinking about. The same figure `/tasks` uses.
+ */
+const DEPARTURE_ELIGIBILITY_MS = 2_000;
+
+/** The steady state: nothing has been changed, so nothing may depart. */
+const NO_DEPARTING_TASKS: ReadonlySet<string> = new Set<string>();
+
 export function useTaskSurfaceActions(): TaskSurfaceActions {
   const revalidator = useRevalidator();
   const { notifyError } = useFeedback();
   const [patches, setPatches] = useState<TaskSurfacePatches>(new Map());
   const [announcement, setAnnouncement] = useState<string | null>(null);
+  const [departing, setDeparting] =
+    useState<ReadonlySet<string>>(NO_DEPARTING_TASKS);
+  const departTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const markDeparting = useCallback((taskId: string) => {
+    setDeparting((current) => {
+      const next = new Set(current);
+      next.add(taskId);
+      return next;
+    });
+    const existing = departTimers.current.get(taskId);
+    if (existing !== undefined) clearTimeout(existing);
+    departTimers.current.set(
+      taskId,
+      setTimeout(() => {
+        departTimers.current.delete(taskId);
+        setDeparting((current) => {
+          if (!current.has(taskId)) return current;
+          const next = new Set(current);
+          next.delete(taskId);
+          return next;
+        });
+      }, DEPARTURE_ELIGIBILITY_MS),
+    );
+  }, []);
+  useEffect(() => {
+    const timers = departTimers.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+    };
+  }, []);
 
   const clearPatches = useCallback(() => {
     setPatches((previous) => (previous.size === 0 ? previous : new Map()));
@@ -198,6 +268,9 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
             );
             return;
           }
+          // The change is the SERVER's now, so the row may legitimately leave
+          // a surface that does not keep completed work.
+          markDeparting(taskId);
           setAnnouncement(
             completed ? `Completed ${title}.` : `Reopened ${title}.`,
           );
@@ -205,7 +278,7 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
         })
         .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, ["completedAt"]));
     },
-    [refuse, revalidator],
+    [markDeparting, refuse, revalidator],
   );
 
   const setField = useCallback(
@@ -223,12 +296,13 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
             refuse(taskId, outcome.message, keys);
             return;
           }
+          markDeparting(taskId);
           setAnnouncement(label);
           revalidator.revalidate();
         })
         .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, keys));
     },
-    [refuse, revalidator],
+    [markDeparting, refuse, revalidator],
   );
 
   const setRecord = useCallback(
@@ -259,18 +333,30 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
             );
             return;
           }
+          markDeparting(taskId);
           setAnnouncement(label);
           revalidator.revalidate();
         })
         .catch(() => refuse(taskId, GENERIC_ROW_REFUSAL, keys));
     },
-    [refuse, revalidator],
+    [markDeparting, refuse, revalidator],
   );
 
   const reportInlineSave = useCallback(
     (save: TaskRowFieldSave) => {
       setPatches((previous) => withPatch(previous, save.taskId, save.patch));
+      // An accepted inline save is a server-accepted change too: re-filing a
+      // Task out of the Project it is read on is how a row leaves that scope.
+      markDeparting(save.taskId);
       setAnnouncement(save.message);
+      revalidator.revalidate();
+    },
+    [markDeparting, revalidator],
+  );
+
+  const announce = useCallback(
+    (message: string) => {
+      setAnnouncement(message);
       revalidator.revalidate();
     },
     [revalidator],
@@ -280,6 +366,8 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
     patches,
     clearPatches,
     announcement,
+    departing,
+    announce,
     setCompleted,
     setField,
     setRecord,

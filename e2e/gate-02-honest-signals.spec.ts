@@ -311,11 +311,11 @@ test("Weekly Planning: both acts stay reachable, at rest and in selection mode",
 /**
  * How many checkbox-like controls each rendered Task row draws on this page.
  *
- * The row selector is a parameter because a Project's Tasks tab is still the
- * generic `Card` rather than the shared `TaskRow` (DEBT-175, which this item
- * deliberately does not take on). The INVARIANT is the same on both anatomies,
- * and asserting it on both is what makes criterion 1 a claim about the product
- * rather than about one component.
+ * The row selector was a parameter because a Project's Tasks tab was the
+ * generic `Card` rather than the shared `TaskRow` (DEBT-175). V2.8 CONV-01
+ * moved the tab onto the shared row, so both surfaces now answer through the
+ * same locator — and the claim is still made on both, because criterion 1 is a
+ * claim about the PRODUCT, not about one component.
  */
 async function signalsPerRow(
   page: Page,
@@ -339,7 +339,7 @@ const AT_REST_SURFACES = [
   { route: "/today", rows: "[data-testid='task-row']" },
   {
     route: `/projects/${GATE_02_PROJECT_ID}?tasks=all`,
-    rows: ".dh-card",
+    rows: "[data-testid='task-row']",
   },
   // `/tasks` — criterion 1's fourth surface — is asserted in the test below,
   // which already has that page open for the colour measurements. A page load on
@@ -357,7 +357,7 @@ test("no Task row on Today or a Project draws two checkbox-like controls at rest
   for (const surface of AT_REST_SURFACES) {
     await gotoFixture(page, surface.route);
     // Only containers that actually hold a control are rows for this purpose: a
-    // Project record draws cards that are not Tasks, and they have none.
+    // read-only row (an archived Project's) draws none.
     const counts = (await signalsPerRow(page, surface.rows)).filter(
       (count) => count > 0,
     );
@@ -371,15 +371,19 @@ test("no Task row on Today or a Project draws two checkbox-like controls at rest
 
     /*
      * While the Project's Tasks tab is open — the SECOND surface the semantic
-     * rule has to hold on, and the interesting one.
+     * rule has to hold on.
      *
-     * It is still the generic `Card` rather than the shared `TaskRow`
-     * (DEBT-175), so it does not inherit the row's answer; what it shares is the
-     * inline date CONTROL. If the two ever disagreed, this is where it would
-     * show, and DEBT-197's entry names exactly this pair.
+     * Since V2.8 CONV-01 it IS the shared `TaskRow`, so it inherits the row's
+     * answer rather than merely sharing the inline date control with it. The
+     * measurement stays: it is the proof that adopting the row kept the
+     * kernel's "still owed" answer painted here, which DEBT-197 names.
      */
     if (surface.route.startsWith("/projects/")) {
-      const live = await dateColour(page, gate02Task("live").title, ".dh-card");
+      const live = await dateColour(
+        page,
+        gate02Task("live").title,
+        "[data-testid='task-row']",
+      );
       expect(
         live.painted,
         "the Project tab did not render the live overdue fixture Task",
@@ -388,7 +392,7 @@ test("no Task row on Today or a Project draws two checkbox-like controls at rest
         const measured = await dateColour(
           page,
           gate02Task(suffix).title,
-          ".dh-card",
+          "[data-testid='task-row']",
         );
         expect(
           measured.painted,

@@ -27,8 +27,7 @@ import { healthReasonText } from "~/shared/project-health/health-view";
 import type { PillTone } from "~/shared/pill";
 import {
   formatCalendarDate,
-  serializeTaskWaiting,
-  type SerializedTaskWaiting,
+  type SerializedTaskListItem,
 } from "~/shared/task-record/task-view";
 import type {
   ProjectListItem,
@@ -36,15 +35,6 @@ import type {
   ProjectRelation,
 } from "~/kernel/projects";
 import type { CompletionRollup } from "~/kernel/spine";
-import type {
-  TaskBlockedSummary,
-  TaskChecklistProgress,
-  CommitmentState,
-  TaskListItem,
-  TaskPriority,
-  TaskStatus,
-  TimeSector,
-} from "~/kernel/tasks";
 
 /** JSON-serialised project collection item (Dates → ISO strings). */
 export interface SerializedProjectListItem {
@@ -624,71 +614,21 @@ export interface ProjectCardData {
 }
 
 /**
- * A JSON-serialised task summary for a project's task list (includes the waiting
- * state, which the generic `serializeTaskListItem` omits, so a project shows its
- * blocked work with the TODAY-03 waiting representation).
+ * V2.8 CONV-01 — a Project's task is the SAME serialised list item every other
+ * Task surface renders.
+ *
+ * Until CONV-01 this was a Project-private shape (`SerializedProjectTask` with
+ * its own `serializeProjectTask`), which is exactly how the Project's Tasks tab
+ * came to lack the recurrence signal and the parent mark the shared row draws:
+ * the fields were on the kernel item all along — `listProjectTasks` joins the
+ * recurrence and the parent identity in its one statement — and the private
+ * serialiser simply did not carry them. The tab now renders the shared
+ * `TaskRow` over the shared shape, serialised by the shared
+ * `serializeTaskListPage`, so a fact added to the row reaches this surface
+ * with no per-surface change (DEBT-175). The alias is kept as the tab's stated
+ * contract rather than a second type: it IS the list item.
  */
-export interface SerializedProjectTask {
-  readonly id: string;
-  readonly title: string;
-  readonly completedAt: string | null;
-  readonly status: TaskStatus;
-  readonly priority: TaskPriority | null;
-  readonly dueDate: string | null;
-  readonly scheduledDate: string | null;
-  /** Planning window — carried so the ONE `taskDisplayState` evaluator applies. */
-  readonly timeSector: TimeSector | null;
-  /** Commitment state — carried so Someday/Maybe resolves via `taskDisplayState`. */
-  readonly commitmentState: CommitmentState;
-  readonly waiting: SerializedTaskWaiting | null;
-  /**
-   * TASKS-12 — blocked state, when the loader projected it.
-   *
-   * A blocked Task is still an OPEN Task: it counts towards the Project exactly
-   * as it did before, and Project progress stays a function of completion alone.
-   * There is deliberately no dependency-weighted progress anywhere in DalyHub.
-   */
-  readonly blocked?: TaskBlockedSummary;
-  /**
-   * TASKS-13 — this Task's checklist progress, on the same terms as `blocked`.
-   *
-   * HARDEN-06E (F-09) — it was missing here, and only here. The same Task showed
-   * "2 of 5" on `/tasks`, `/today` and `/plan` and nothing at all inside its own
-   * Project's Tasks tab, which is the surface an owner works a Project FROM. The
-   * invariant is that one Task means one Task wherever it is viewed;
-   * `TaskRowProjection` making the field optional is a sound performance
-   * contract and an unsound consistency one, because it makes the absence
-   * invisible.
-   *
-   * `undefined` means the loader did not project it, which stays deliberately
-   * different from `{ total: 0 }` — a Task with no checklist at all.
-   */
-  readonly checklist?: TaskChecklistProgress;
-}
-
-/** Serialise a kernel `TaskListItem` for a project's task list (Dates → ISO). */
-export function serializeProjectTask(
-  item: TaskListItem,
-  /** TASKS-12 — this Task's entry from the page's ONE bounded aggregate. */
-  blocked?: TaskBlockedSummary,
-  /** TASKS-13 — this Task's entry from the page's other bounded aggregate. */
-  checklist?: TaskChecklistProgress,
-): SerializedProjectTask {
-  return {
-    id: item.id,
-    title: item.title,
-    completedAt: item.completedAt ? item.completedAt.toISOString() : null,
-    status: item.status,
-    priority: item.priority,
-    dueDate: item.dueDate,
-    scheduledDate: item.scheduledDate,
-    timeSector: item.timeSector,
-    commitmentState: item.commitmentState,
-    waiting: item.waiting ? serializeTaskWaiting(item.waiting) : null,
-    ...(blocked ? { blocked } : {}),
-    ...(checklist ? { checklist } : {}),
-  };
-}
+export type SerializedProjectTask = SerializedTaskListItem;
 
 /**
  * The parent context line.

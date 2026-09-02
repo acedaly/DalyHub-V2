@@ -66,7 +66,7 @@ export const RESPONSIVE_VIEWPORTS = [
 ] as const;
 
 /**
- * DS-04 — ONE locator for a task row on `/tasks`.
+ * DS-04 — ONE locator for a task row, wherever a Task can be acted on.
  *
  * The workspace list stopped being the generic `Card` (an `<article>`) and became
  * the product-level `TaskRow` (an `<li>` in a real `<ul>`, so a screen reader
@@ -74,12 +74,12 @@ export const RESPONSIVE_VIEWPORTS = [
  * always a statement about the CARD rather than about the task, and would have
  * had to be re-decided in six files.
  *
- * A Project's task list is the LAST task-bearing surface that has not adopted
- * the row; it still renders cards, and its specs still say `article`, which is
- * correct — they are asking about a different component. (This comment used to
- * name Today alongside it. TODAY-TASK-01 adopted the shared row there, so the
- * sentence had been false since; corrected by HARDEN-06E, F-15. The remaining
- * fork is DEBT-175.)
+ * It finds a Task on `/tasks`, on Today, on `/plan` and — since V2.8 CONV-01
+ * closed DEBT-175 — on a Project record's Tasks tab. This comment used to carry
+ * an exception for the Project tab, whose specs asked for an `article` because
+ * that surface drew the generic Card; there is no exception left, and a spec
+ * that asks a Task surface for an `article` is asking for a component that
+ * does not draw one.
  */
 export function taskRows(scope: Page | Locator): Locator {
   return scope.locator("[data-testid='task-row']");

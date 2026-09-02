@@ -142,11 +142,14 @@ same pattern the shared task record surface uses).
   `link.related`, so it appears in Project Knowledge; New meeting and New diary
   entry create canonical records linked to the Project with `link.related`.
 - **Tasks tab** — [`ProjectTasksTab.tsx`](../../app/modules/projects/ProjectTasksTab.tsx):
-  the project's real child tasks as DS-04 Cards with the shared task semantics
-  (completion = the spine's `completedAt`; waiting = the TODAY-03 state; scheduled ≠
-  due), an Open/Completed/All filter, "Add task" and the shared `LoadMore` affordance. A
+  the project's real child tasks as the **shared `TaskRow`** inside the shared
+  `TaskList` (V2.8 CONV-01, ADR-115 — see *The shared row on the Project record*
+  below), over the shared list-item shape read by
+  [`project-tasks-load.server.ts`](../../app/modules/projects/project-tasks-load.server.ts),
+  with an Open/Completed/All filter, "Select tasks", "Add task" and the shared
+  `LoadMore` affordance. A
   task opens the **shared `TaskRecordDrawer`** (ADR-033) over the project
-  (`?drawer=task:<id>`). "Load more" fetches the dedicated `/projects/:id/tasks` endpoint
+  (`?drawer=task:<id>`; `task-move:<id>` resolves to the same record). "Load more" fetches the dedicated `/projects/:id/tasks` endpoint
   with `useFetcher().load` so the `?drawer=` param, scroll and focus are **never**
   disturbed by loading more rows; pages are appended and de-duplicated. The
   accumulation is **reconciled** — dropped back to the fresh first page — when the task
@@ -777,6 +780,52 @@ all fail closed. The client names ids — never a workspace, and never a link ty
 The first page is server-rendered by the record loader (so the tab is populated
 without JavaScript); this route serves further pages, the picker's search, and
 the three mutations.
+
+## The shared row on the Project record (V2.8 CONV-01, ADR-115)
+
+**Rule.** A Task on its Project's record is drawn by the shared `TaskRow` and
+exposes every action valid in that scope. The tab owns its SCOPE — this
+Project's tasks, the `?tasks=` filter, the record-level empty state, "Add
+task", the never-navigating "Load more" and where the bulk bar sits — and
+nothing about a ROW: no Card, no metadata run, no completion control, no
+mutation path, no responsive ladder of its own. A fact added to the row
+appears here with no per-surface change, which
+`test/unit/task-record/shared-row-consumers.test.ts` enumerates and asserts.
+
+**What the record gets, and through which shared contract.**
+
+| Capability | Shared authority |
+|---|---|
+| Inline title, due-date, priority and Project editors | `TaskRowFields`, `TaskTitleEditor` |
+| Overflow: Plan for today · Rename · Move to Project or Area… · Someday / Maybe · Skip this occurrence · Stop repeating · Open task | `buildTaskRowActions` |
+| Completion / reopen, with departure and focus handoff on the Open scope | `useTaskSurfaceActions.setCompleted`, `useDepartingRows` |
+| Selection (toolbar toggle, touch hold, Shift-range) and bulk actions | `taskSelectionReducer`, `TaskBulkActionBar` → `/tasks/bulk` |
+| Optimistic patch map, single announcement, rollback on refusal | `useTaskSurfaceActions` (ADR-086) |
+| Recurrence, blocked and checklist signals; the parent mark; swipe; the current-record mark | the row itself |
+| Responsive composition at every width | `task-list.css` container queries |
+
+**What it deliberately does not get — drag.** The tab passes no `dragHandle`.
+A drag is licensed only where the object has a real destination or a real
+stored order (AGENTS.md §7, DHDS-11, ADR-109); the tab is a flat list of one
+Project's tasks under a filter, draws no destination and stores no manual
+order ([DEBT-188](../product/PRODUCT_DEBT.md#-debt-188--tasks-have-no-manual-ranking-model-so-a-task-cannot-be-dragged-up-a-list--p3)
+stands). The capability stays absent THROUGH the row's own slot — never by
+forking the row and never by inventing a Project-local order to fill it
+(ADR-115 decision 2). An archived Project's rows take the row's `readOnly`
+form.
+
+**The Project's own facts are the server's.** Progress, health and the overdue
+counts on the record move with an accepted mutation because the shared host
+revalidates the record loader after every accepted save; nothing is faked
+client-side, and the CONV-01 E2E journey reads the band before and after a
+completion, a reopen, a move and a bulk completion.
+
+**Budget** (`test/kernel/conv-01-project-tasks-budget.test.ts`): a page of
+tasks is three statements — the keyset page (which already joins the parent
+identity and the recurrence), the blocked aggregate and the checklist
+aggregate — plus one bounded `searchTaskParents` (limit 50) per record load
+for the row's inline Project editor and the bar's Move. Flat with task count;
+never a read per row.
 
 ## What remains for the Projects module
 

@@ -30,12 +30,21 @@
  * not know about routes beyond the href it is handed, and it holds no state
  * except the hover/focus its stylesheet reads.
  *
- * ── Why it is SHARED but wired only into `/tasks` ───────────────────────────
- * It lives here, beside the other shared task surfaces, because Today and a
- * Project's task list show the same object and will adopt it. DS-04 wires it
- * into `/tasks` alone so that the module that is being redesigned is the only
- * one whose rows move — the others keep the generic Card and cannot regress
- * (DS-04 §61).
+ * ── Where it is drawn ──────────────────────────────────────────────────────
+ * DS-04 wired it into `/tasks` alone, so the module being redesigned was the
+ * only one whose rows moved. Today adopted it (TODAY-TASK-01), then Weekly
+ * Planning (PLAN-01), and V2.8 CONV-01 closed DEBT-175 by moving the Project
+ * record's Tasks tab onto it — so every surface on which a Task can be ACTED
+ * ON renders this row, and `test/unit/task-record/shared-row-consumers.test.ts`
+ * enumerates them (ADR-115 decision 2). A fact added here reaches all of them
+ * with no per-surface change; a surface that needs a fact adds it here, once,
+ * as an optional slot, or does not have it.
+ *
+ * Shared anatomy is not every capability in every scope. A capability whose
+ * domain precondition is absent on a surface — drag, where the surface draws no
+ * drop destination and stores no order — stays absent THROUGH this contract (a
+ * slot the caller does not pass, a prop it sets off), never by forking the row
+ * and never by inventing the missing semantics so it can be switched on.
  */
 
 import { useCallback, useId, useRef, type ReactNode } from "react";
@@ -172,10 +181,11 @@ export interface TaskRowProps {
    * DHDS-11 — the reorder/move grip, when the SURFACE has somewhere to drop.
    *
    * A slot rather than a capability the row grants itself, and that is the whole
-   * design: a Task row is drawn on six surfaces and only some of them draw
-   * visible destinations. `/tasks` grouped by Project passes one; Today, Plan,
-   * a Project's task list and Search pass nothing, and are byte-identical to
-   * what they were. A row is never draggable "because it is a Task row".
+   * design: a Task row is drawn on several surfaces and only some of them draw
+   * visible destinations. `/tasks` grouped by a drop dimension passes one;
+   * Today, Plan and a Project's Tasks tab pass nothing — the tab draws no
+   * destination and stores no order (DEBT-188), so it draws no grip (ADR-115
+   * decision 2). A row is never draggable "because it is a Task row".
    *
    * The grip is a shared `DragHandle` supplied by the caller, so this component
    * imports no drag machinery and holds no drag state.

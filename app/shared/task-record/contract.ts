@@ -175,6 +175,24 @@ export type TaskActionData =
       readonly checklist?: readonly SerializedChecklistItem[];
     };
 
+/**
+ * The discriminated result of the canonical `/tasks/bulk` action.
+ *
+ * V2.8 CONV-01 moved it here from the Tasks module's own contract, because the
+ * shared `TaskBulkActionBar` — drawn on `/tasks` AND on a Project's Tasks tab —
+ * reads it, and a shared component may not import a module. The route that
+ * produces it is still the Tasks module's (`routes/bulk.tsx`); only the SHAPE is
+ * shared, exactly as `TaskActionData` above is the shape of `/tasks/:id`.
+ */
+export type TaskBulkResult =
+  | {
+      readonly kind: "bulk";
+      readonly ok: true;
+      readonly changed: number;
+      readonly unchanged: number;
+    }
+  | { readonly kind: "bulk"; readonly ok: false; readonly formError: string };
+
 /** The JSON-safe shape of an `ActivityItem` (its only `Date` → ISO string). */
 export type SerializedActivityItem = Omit<ActivityItem, "occurredAt"> & {
   readonly occurredAt: string;

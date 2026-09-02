@@ -2752,3 +2752,54 @@ decision reopens with that evidence.
 - `e2e/recall-02-completed-time.spec.ts` — two interactions from anywhere at
   desktop and 393 px, the ordinary round-trippable URL, the Completed view's order,
   the window control in the ordinary sheet, and axe.
+
+## The shared row, and what a scope may switch off (V2.8 CONV-01, 2026-09-03)
+
+**The rule ([ADR-115](../decisions/ARCHITECTURE_DECISIONS.md#adr-115-converge--a-task-is-rendered-by-the-shared-row-wherever-it-can-be-acted-on-a-fixture-never-carries-the-month-it-was-written-in-and-a-gate-that-cannot-say-green-is-a-truth-defect-not-a-rider)
+decision 2).** A Task is rendered by the shared `TaskRow`, inside the shared
+`TaskList`, wherever it can be ACTED ON. A reference to a Task — a search
+result, a `/views` row, a Meeting follow-up row, the next-action line — is a
+link and never a row (decision 3; CONV-02 records it). The actionable
+consumers are an enumerated set, asserted by
+`test/unit/task-record/shared-row-consumers.test.ts`: `/tasks`, Today,
+`/plan`, and — since CONV-01 closed DEBT-175 — the Project record's Tasks
+tab. A fact added to the row appears on all four with no per-surface change;
+a surface that needs a fact adds it to the row once, as an optional slot, or
+does not have it.
+
+**What the row draws by itself, on every consumer.** The completion control,
+the title link, the inline due/planned, Project and priority editors, the
+state pill, the recurrence, blocked and checklist signals, the overflow
+trigger, the swipe accelerators, the long-press, the selection control (in
+selection mode, replacing completion), the departure exit, the current-record
+mark — and the responsive composition, through the `tasklist` container
+queries in `task-list.css`. No consumer declares a breakpoint of its own or
+hides a row fact at any width.
+
+**What the scope decides, and how.** Shared anatomy is not every capability in
+every scope. A capability whose domain precondition is absent on a surface
+stays absent THROUGH the row's own contract — a slot the caller does not pass,
+a prop it sets off — never by forking the row and never by inventing the
+missing semantics so it can be switched on:
+
+| Capability | Precondition | `/tasks` | Today | `/plan` | Project tab |
+|---|---|---|---|---|---|
+| Drag (`dragHandle`) | a real drop destination or a real stored order (DHDS-11, ADR-109) | grouped by a drop dimension only | — | — | — (flat list, no order: DEBT-188) |
+| "Plan for today" | the row is not already today's work | ✔ | — | ✔ | ✔ |
+| Placement on a week day (`planDays`) | the surface draws a week | — | — | ✔ | — |
+| Selection and bulk | the surface can act on many rows at once | ✔ | — | queue only | ✔ (`TaskBulkActionBar`) |
+| Rename in place | the surface is one the owner tidies from | ✔ | ✔ | ✔ | ✔ |
+| `readOnly` | every mutation would be refused | Deleted view | — | — | archived Project |
+
+**One host, one bar, one bulk contract.** A bounded surface hosts its row
+mutations through `useTaskSurfaceActions` (ADR-086's patch map, one
+announcement channel, rollback on refusal, a `departing` set for DHDS-11's
+exit, and `announce` for the bulk bar); `/tasks` keeps its own host because
+it also owns a grouped collection's revalidation predicate. Every surface that
+selects rows renders the shared `TaskBulkActionBar` (moved out of
+`TasksWorkspace.tsx` by CONV-01) over the one `/tasks/bulk` route, whose
+result shape `TaskBulkResult` lives on the shared task-record contract.
+
+**The Project tab specifically** is documented in
+[`PROJECTS_MODULE.md` → *The shared row on the Project record*](PROJECTS_MODULE.md#the-shared-row-on-the-project-record-v28-conv-01-adr-115),
+including its statement budget (`test/kernel/conv-01-project-tasks-budget.test.ts`).

@@ -272,7 +272,7 @@ order is unchanged and remains **when → where → importance**.
 | `/tasks`, `/inbox`, `/upcoming` | full | ✔ | the collection you file and tidy from |
 | Today | full | ✔ | where the working day is actually run (§9) |
 | Plan (weekly) | full | ✔ | where a week is read and tidied |
-| Project → Tasks tab | date, priority | ✘ | the parent is fixed by the surface; renaming belongs where filing happens |
+| Project → Tasks tab | full | ✔ | since V2.8 CONV-01 it is the shared row: the same editors and the same overflow as `/tasks`. (Until then: date and priority only, and no rename — the row it drew was a Card.) |
 | Task record (Drawer) | every property | ✔ | it is the record |
 | Quick Capture | date, priority, parent | n/a | the title *is* the input |
 | Global search | ✘ | ✘ | §12 — search navigates |
