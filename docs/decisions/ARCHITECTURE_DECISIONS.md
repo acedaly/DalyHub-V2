@@ -2507,14 +2507,15 @@ that existed for exactly this purpose was incremented and never compared.
 > existing link still resolves — the same reasoning
 > [`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) records for the duplicated
 > DEBT-45. Cite these two by title, not by number alone. The next free ADR number
-> is **ADR-115**. *(This line said **ADR-086** while the file already carried
+> is **ADR-116**. *(This line said **ADR-086** while the file already carried
 > headings up to ADR-099 — exactly the staleness the collision notes above warn
 > about, arriving in the authority line itself. Corrected 2026-08-17 by FINISH-01,
 > which took ADR-100 by reading the file rather than this sentence; advanced to
 > ADR-104 on 2026-08-18 by TASKS-13, which took ADR-103 the same way; found stale
 > again at ADR-104 on 2026-08-30 by the V2.7 roadmap decision, which took ADR-114
-> by reading the file — the headings had reached ADR-113. Do the same, and
-> re-check on rebase.)*
+> by reading the file — the headings had reached ADR-113; advanced to ADR-116
+> on 2026-09-02 by the V2.8 roadmap decision, which took ADR-115 the same way.
+> Do the same, and re-check on rebase.)*
 
 **Status.** Accepted (SET-03 / AUDIT-10). Builds on [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) (Cloudflare Access is the identity provider and DalyHub holds no session of its own), [ADR-015](#adr-015-markdown-rendering-and-sanitisation) (the sanitisation pipeline this policy sits behind), [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (one append-only Activity stream) and the AUDIT-FIX-04 mutation boundary. Findings: [AUDIT-10](../product/END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08) and the offline-data-after-logout finding ([DEBT-68](../product/PRODUCT_DEBT.md)).
 
@@ -5621,3 +5622,175 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   contract). *Folding the five red-gate E2E entries into RECALL-00*
   (rejected: other items' surfaces, owned by the truth-restoration rider —
   the inclusion rule RECALL-00 itself states).
+
+---
+
+## ADR-115: CONVERGE — a Task is rendered by the shared row wherever it can be acted on, a fixture never carries the month it was written in, and a gate that cannot say green is a truth defect, not a rider
+
+- **Status:** Accepted (2026-09-02, defining [V2.8](../roadmap/ROADMAP_V2_8.md)).
+
+- **Context.** V2.7 completed on 2026-09-01: retrieval reaches content, time
+  and commitment, and the cross-surface facts use one truth. This decision
+  pass re-measured the product against `main` at `036d3da` rather than
+  inheriting the 2026-08-29 audit or V2.7's LATER table, and found that the
+  daily-driver chain (`capture → organise → decide → do → review → learn →
+  retrieve`) has **no broken verb** for the first time. What it found instead
+  are two structural properties that cut across every verb and that every
+  programme since V2.4 deferred as "a rider that rides beside":
+
+  1. **The gate cannot say green.** `main`'s CI has concluded failure on
+     fifteen consecutive runs (#779, 2026-08-28 → #815, 2026-09-01). On #815,
+     7 of 13 E2E partitions and ten tests are red: seven for the five recorded
+     causes (DEBT-215/216/219/220/221 — three stale assertions, one fixture
+     time-bomb, one real WCAG 1.4.10 reflow defect on Today), two for a
+     September time-bomb no entry named (DEBT-236, reproduced locally), and
+     one that passes on a fresh seed (DEBT-203's shape). Static, Unit and
+     Build are green throughout. Two P1 entries (DEBT-125, DEBT-157) owe
+     nothing but two consecutive green trunk runs and cannot get them. The
+     measured cost is not "CI is red": it is that in the fortnight the gate
+     was red, two new causes arrived unrecorded and a possible regression
+     cannot be told from a race without a local reproduction — the gate had
+     stopped carrying information, which is the property DEBT-41 was raised
+     for at the V2 release.
+  2. **The most-used object has two anatomies on high-frequency surfaces.**
+     The Project record's Tasks tab and `/today/waiting` render a generic
+     `Card` with hand-built props where `/tasks`, `/today` and `/plan` render
+     the shared `TaskRow`: no overflow menu, no inline title, no selection or
+     bulk from the row, no recurrence signal, no swipe, a page re-fetch where
+     ADR-086's patch map exists, a second bulk path, a second responsive ladder
+     that hides priority/repeat/waiting-for below 26rem, and ~930 lines of the
+     UIX-01 override layer (`tasks.css:996-1928`) alive on exactly those two
+     consumers. The fork widened in V2.7 in the direction DEBT-175 did not
+     predict: RECALL-03's follow-up fact landed on the Card path
+     (`WaitingTaskCard.tsx:72-81`) and the row has no field for it.
+     Formatting logic is single-sourced; the duplication is anatomy and
+     interaction — the expensive kind to keep, the cheap kind to close.
+
+  Seven candidates were weighed — CONVERGE, Insight, AI activation,
+  Attachments, Finance, Offline/resilience, a broad polish pass — and
+  CONVERGE is the only one that is unblocked, foundational, exercised many
+  times a day and makes every other cheaper. Insight is coherent, small and
+  additive and becomes the presumptive V2.9. AI remains gated on an owner-held
+  secret, with the gate now stated precisely enough to run in one session and
+  a small code-held half named (DEBT-237: the fake-provider seam ADR-112's
+  gate assumes). Attachments and Finance stay sequenced behind by their own
+  prerequisites, with their smallest shapes recorded so they are not
+  re-derived. Offline has no measured owner pain and a deliberate contract.
+  Each decision below forecloses a wrong turn a consolidation programme
+  invites: a red gate invites quarantine and retries; a stale test invites
+  deleting the feature it contradicts; a time-bomb invites moving the date;
+  a fork invites a third anatomy; a machinery item invites a grab-bag.
+
+- **Decision.**
+
+  1. **V2.8 is CONVERGE — one Task, one proof — in four items:** CONV-00
+     (the gate tells the truth again: every journey red on `main` repaired
+     for the reason it fails, the one real defect fixed, the fixture rule
+     made checkable), CONV-01 (the Project record renders the shared row),
+     CONV-02 (`/today/waiting` renders it, the row gains the waiting facts
+     once, the reference-row rule is recorded, the override layer is
+     deleted), CONV-03 (the suite is deterministic and the whole gate is
+     usable: DEBT-205 by splitting the sliced spec, DEBT-173 by owned
+     fixtures and a wiping local gate, DEBT-203 by a ten-run measurement on
+     an unchanged tree). CONV-00 precedes everything because every later
+     item proves itself through the gate; CONV-01 precedes CONV-02 because
+     they are the CSS layer's two consumers; CONV-03 is last because its
+     proof is stability over a finished tree. Nothing rides beside.
+
+  2. **A Task is rendered by the shared `TaskRow` wherever it can be acted
+     on.** No surface grows a second Task anatomy because a panel wants one;
+     a fact about a Task goes on the row — as one optional slot, decided once
+     — or it goes nowhere. The row's contract test enumerates its importers
+     so a fact added to it is proven to appear on every surface with no
+     per-surface change. ADR-095's accepted consequence ("two different
+     components for the same object until a later stage adopts the row") is
+     discharged by this decision, not extended.
+
+  3. **A reference to a Task is a link, not a row.** A search result, a
+     cross-view row, a Meeting follow-up row and a next-action line carry a
+     title, a destination and at most the shared signal primitives
+     (`PriorityIndicator`, `UrgencyChip`); they never grow a second metadata
+     run, a completion control or an action set. The offline snapshot
+     viewer's row is a read-only snapshot row and is named as one; exactly
+     one exported component in `app/` is called `TaskRow`.
+
+  4. **A fixture never carries the month it was written in.** A date in an
+     E2E fixture or spec that lies in the future relative to the commit is
+     either computed at seed or run time from the owner's day through the
+     product's own calendar helpers, or annotated on the same line with why
+     it is safe; a Static-tier check enforces it and its first run
+     enumerates every existing literal. Month walking in a picker test is
+     derived from the asserted opening month and the computed target, never
+     counted by hand. DEBT-219's and DEBT-236's class — a test whose meaning
+     depends on the day it runs — is closed as a class, not an instance.
+
+  5. **A gate that cannot say green is a truth defect with an owner and an
+     item, never a rider.** V2.6 and V2.7 each named "the truth-restoration
+     pass" as work that would ride beside the theme; it did not ride, and the
+     measured cost is in the context. From this decision on, a red trunk is
+     recorded on DEBT-125's successor the day it appears, with the failing
+     tests classified (stale assertion · fixture time-bomb · product defect ·
+     race), and it is scheduled — as part of the current programme's first
+     item if one is open, or as its own item if not. A stale assertion is
+     repaired to assert the invariant it always meant; the feature it
+     contradicts is never deleted to make it pass.
+
+  6. **Green is measured, never retried.** `retries: 0` and `workers: 1`
+     stay; no quarantine, no expected-failure allowlist, no `test.fixme`
+     to reach green, no empty commit and no close-and-reopen to kick CI. A
+     `workflow_dispatch` trigger is the one sanctioned way to repeat a run on
+     an unchanged tree, and stability is DEBT-203's own condition: ten
+     consecutive green runs on one tree, every failure in the count repaired
+     at a shared wait or a published readiness signal.
+
+  7. **The only visual change in V2.8 is the consequence of one component
+     replacing another.** No redesign, no DHDS-14, no polish pass; the
+     screenshot baselines for the two converged surfaces are regenerated with
+     the change and reviewed, and every other baseline is unchanged.
+
+- **Consequences.** The Project record's Tasks tab and `/today/waiting` gain
+  every power the shared row has (inline title, overflow menu, selection and
+  bulk through the one `/tasks/bulk` contract, recurrence signal, swipe,
+  departure with focus handoff, ADR-086 reconciliation) and lose the phone
+  rule that hid priority; the waiting list becomes actionable and its
+  follow-up fact becomes a row fact visible on `/tasks?followUp=due` too.
+  Two completion toggles, two responsive ladders, two optimistic strategies
+  and two bulk paths become one each; ~930 lines of CSS and the private
+  card-prop builder are deleted. The gate returns to carrying information:
+  every later programme lands on a trunk whose state is known, and DEBT-125,
+  DEBT-157, DEBT-203, DEBT-173 and DEBT-205 close. The programme ships **no
+  migration and no data-carrying change**, so it waits on neither the
+  off-Cloudflare backup residue (DEBT-198, owner-held) nor DEBT-139's last
+  clause, and programme completion remains distinct from deployment. Insight
+  (multi-Review trend over the 52 stored snapshots a year, a series consumer
+  or the removal of `listMeasurementSeries`, the `/today/activity` decision)
+  is cheaper afterwards because it renders a Task once and is verified by a
+  gate that can say green.
+
+- **Alternatives considered.** *Insight as V2.8* (rejected for now: coherent,
+  small, additive; a learning surface built on a red gate and a forked
+  anatomy is one more thing verified by reading logs and rendered twice — it
+  is the presumptive V2.9). *AI activation* (rejected: the credential is
+  owner-held with a 0-for-4 record on owner-held blockers; the gate is a
+  tripwire, now stated precisely, and its code-held half is DEBT-237 in its
+  own PR). *Attachments* (rejected: foundational for Finance only; its first
+  real item is backup/restore for a second store; smallest shape recorded).
+  *Finance* (rejected: behind Attachments and DEBT-198 by its own logic; no
+  import architecture exists). *Offline expansion* (rejected: no measured
+  owner pain since V2.4; a loaded surface already survives a network drop;
+  DEBT-70 would come first if the slice is ever taken). *A broad polish pass*
+  (rejected: measured friction is P3 residue; a programme without a theme).
+  *Quarantining or retrying the red journeys* (rejected: decision 6 — that
+  is how a gate becomes a rubber stamp). *Deleting `goals.new` or the
+  next-action line to satisfy their stale assertions* (rejected: decision 5).
+  *Moving the fixture dates forward* (rejected: decision 4 — it re-arms the
+  bomb). *Adopting the row on the Project tab while leaving `/today/waiting`
+  a Card* (rejected: the override layer would survive on one consumer and the
+  follow-up fact would stay off the row). *A third, "reference" anatomy with
+  its own metadata run for search and views rows* (rejected: decision 3).
+  *Changing the partition packer to let a sliced group carry whole files*
+  (DEBT-205 option 1, rejected in favour of option 2: splitting the one
+  oversized file changes no machinery every job depends on). *Restating the
+  Insight, AI, Attachments and Finance rules as new decisions here*
+  (rejected: they are ADRs 073/079/110/111/112/114 already, and a second
+  statement of an existing rule is a second authority).
