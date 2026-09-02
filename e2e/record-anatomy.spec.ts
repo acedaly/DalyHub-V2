@@ -17,7 +17,11 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoHorizontalOverflow, gotoFixture } from "./helpers";
+import {
+  expectNoHorizontalOverflow,
+  gotoFixture,
+  recordOverflowTrigger,
+} from "./helpers";
 
 const LAPTOP_SMALL = { width: 1280, height: 800 };
 const LAPTOP = { width: 1440, height: 900 };
@@ -179,7 +183,7 @@ test.describe("the record header", () => {
 
     // The overflow menu is the header's last action on every record, and stays
     // hit-testable rather than being pushed off the row by the title.
-    const overflow = page.getByRole("button", { name: /^More actions for/ });
+    const overflow = recordOverflowTrigger(page);
     await expect(overflow).toBeVisible();
     const box = await overflow.boundingBox();
     expect(box).not.toBeNull();
@@ -521,7 +525,8 @@ test.describe("contextual creation defaults", () => {
     page,
   }) => {
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    await page.getByRole("button", { name: /^More actions for/ }).click();
+    // The HEADER's ⋯: the 20+ shared Task rows below each carry their own.
+    await recordOverflowTrigger(page).click();
     const menu = page.getByRole("menu");
     // Notes/Meetings/Diary have no local path on this record, so they stay.
     await expect(

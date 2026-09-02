@@ -98,6 +98,21 @@ export function taskRow(scope: Page | Locator, title: string): Locator {
   return taskRows(scope).filter({ hasText: title });
 }
 
+/**
+ * The RECORD HEADER's overflow trigger (DS-12: the header's last action).
+ *
+ * Since V2.8 CONV-01 a record whose tab draws Tasks also draws the shared row,
+ * and every row carries its own `More actions for <task>` trigger. A page-wide
+ * query for `/More actions for/` therefore resolves to the header's AND each
+ * row's, and fails strict mode; the header's own action row is the honest
+ * scope for a question about the record.
+ */
+export function recordOverflowTrigger(scope: Page | Locator): Locator {
+  return scope
+    .locator(".record-header__actions")
+    .getByRole("button", { name: /^More actions for / });
+}
+
 /* -------------------------------------------------------------------------- */
 /* STEER-03 — one Goal, one story: the shared `GoalStoryRow`                   */
 /* -------------------------------------------------------------------------- */
