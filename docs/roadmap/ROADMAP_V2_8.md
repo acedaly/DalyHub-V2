@@ -579,7 +579,15 @@ written in.**
 >   scrollable tab strip past the edge; 393 px door 206 × 32 on one line,
 >   nothing past the edge. Falsified by restoring `nowrap` (239 at 195 px,
 >   393 still green). Closes DEBT-221.
-> - **G** — «P01»
+>   - **G** — reproduced in the committed p01 order on a fresh database per
+>   run (isolated worktree, own servers): failed 2 of 2 runs before the fix
+>   (34.2 s and 31.8 s, timing out at different steps); `main` #815 failed
+>   it at 31.0 s and #820 passed it at 24.0 s; isolation 28.3 s. The
+>   mechanism is an unsized budget — a dozen settled navigations and two
+>   axe scans against the 30 s default — not a leaked record or a stale
+>   wait, so it is repaired the way `goals.spec.ts` repaired its own:
+>   `test.setTimeout(90_000)`, assertions unchanged, no product change.
+>   «P01-FIXED». Recorded on DEBT-203; the ten-run verdict stays CONV-03's.
 > - **H** — «CI»
 > - **Ride-along.** `SETUP_AND_CI.md` says thirteen partitions and documents
 >   the fixture-date rule; the changelog records the reflow fix.
@@ -1173,7 +1181,7 @@ cross-references (DEBT-215, DEBT-221, DEBT-128, DEBT-151).
 | DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** («CI-TABLE»); closed by the second consecutive green |
 | DEBT-175 | P2 | **TAKEN · CONV-01** |
 | DEBT-128 | P2 | **TAKEN · CONV-02**; title corrected 2026-09-02 (Today moved 2026-08-17; search never was a Card; `/today/waiting` is) |
-| DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance investigated in partition order by CONV-00-G («P01-TABLE») |
+| DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance reproduced in partition order by CONV-00-G (2 of 2 local runs, `main` #815) and repaired as an unsized budget |
 | DEBT-151 | P2 | **Corrected, not taken** — headline 30/1,320,668 B → 32/1,383,217 B per the PWA authority's own table; ceilings unchanged |
 | DEBT-70 | P2 | **Not taken** — the offline slice's first item if the slice is ever taken; recorded in LATER |
 | DEBT-212 · DEBT-103 | P3 | **Deferred to Insight (presumptive V2.9)** |
