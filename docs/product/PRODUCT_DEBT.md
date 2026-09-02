@@ -4718,13 +4718,19 @@ this register's own warning on DEBT-200: causes are claims to check.
   and derive the number of month presses from the difference between the
   month the grid opens on (asserted first, not assumed) and the target. A
   Static-tier check (`scripts/e2e-fixture-dates.mjs --check`, beside
-  `e2e:partitions:check`) fails the build on any ISO date literal in an E2E
-  fixture or spec that is later than the commit's date and not annotated with
-  why it is safe; its first run enumerates the 111 and the item annotates or
-  converts each.
+  `e2e:partitions:check`) fails the build on any unannotated future date
+  literal in an E2E fixture or spec, in every format that can recreate this
+  defect — ISO `YYYY-MM-DD`, the long-form accessible label the picker tests
+  click (`Wednesday 29 July 2026`) and the abbreviated display form the specs
+  assert on (`29 Jul 2026`); an ISO-only scan would stay green on exactly the
+  two literals above. Its first run enumerates the 111 ISO literals and the
+  long-form and abbreviated ones in the specs, and the item classifies each
+  as derived, fixed historical, deliberately fixed and annotated, or a
+  time-bomb to convert (the full contract is CONV-00-E, amended 2026-09-02).
 - **Closing condition.** Both journeys pass on a clean tree with a freshly
   seeded database in any month; the Static check is green and would go red on
-  a bare future literal (falsified by adding one); no fixture date arms.
+  a bare future literal in **both** the ISO and the long-form picker-label
+  form (falsified by adding one of each); no fixture date arms.
 - **Related roadmap item.** [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-E.
 
 ### ☐ DEBT-237 — The AI gate names a fake-provider path that the repository deliberately does not have — P3

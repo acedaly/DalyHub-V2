@@ -26,6 +26,19 @@
 **Programme status: DEFINED (2026-09-02), nothing started.** Four items,
 CONV-00 … CONV-03, all ☐.
 
+> **Amended 2026-09-02, before CONV-00 began**, as the follow-up resolution of
+> the two review findings left unresolved on the defining PR (#247, merged
+> before they were addressed). Two contracts were tightened; the theme, the
+> sequence and the decision are unchanged. **CONV-00-E** now covers every
+> fixture-date literal format that can recreate DEBT-236 — the two motivating
+> regressions click long-form picker labels (*"Wednesday 29 July 2026"*), which
+> an ISO-only check would never see — and must prove the check fails on both
+> an ISO literal and a long-form picker label. **CONV-01** now states that
+> adopting the shared row is capability-aware: a capability whose domain
+> precondition is absent in a scope (drag, where no order is stored) stays
+> absent through the row's existing contract, and is never invented to
+> complete the convergence. ADR-115 decisions 2 and 4 carry the same wording.
+
 ---
 
 ## The theme: CONVERGE — one Task, one proof
@@ -597,19 +610,62 @@ rides.**
   restore step targets the seeded date by walking from the opened month to
   July 2026 by computed count, or the fixture's date becomes run-relative —
   decide once and record.
+- **The invariant.** *A fixture or E2E journey must not hard-code a future
+  calendar date whose correctness depends on the month or day the test runs.*
+  For date-picker interactions specifically: the target date is derived from
+  the run/owner day; its accessible label is **generated** with the same
+  formatter and locale semantics the picker uses for its day names, never
+  typed as a literal; and the `PageUp`/`PageDown` count is derived from the
+  source and target months, never from the month the test was authored in.
+  A raw future long-date label in picker E2E code is therefore prohibited
+  unless annotated (below) — the label is generated, or it is explained.
 - **The rule, made checkable.** A small Static-tier script
   (`scripts/e2e-fixture-dates.mjs --check`, wired beside
   `e2e:partitions:check`) fails the build if any `e2e/**/*.sql` or
-  `e2e/**/*.ts` fixture carries an ISO date literal later than the commit's
-  date **that is not annotated** with the reason it is safe (an explicit
-  `-- fixed-date: <why>` / `// fixed-date: <why>` on the same line). Past
-  dates are fine; the future is what arms. 111 such literals exist in
-  `e2e/*.sql` today; the check's first run enumerates them and the item
-  annotates or converts each — that enumeration is part of the deliverable,
-  not a follow-up.
+  `e2e/**/*.ts` fixture or spec carries a **future date literal in any
+  supported format** — later than the commit's date — **that is not
+  annotated** with the reason it is safe (an explicit `-- fixed-date: <why>`
+  / `// fixed-date: <why>` on the same line). The annotation applies to every
+  supported format, not to ISO alone. **An ISO-only scan is insufficient and
+  does not close DEBT-236**: both motivating regressions click long-form
+  accessible labels (*"Wednesday 29 July 2026"*, *"Friday 25 December
+  2026"*), so a check that reads only `YYYY-MM-DD` stays green while the
+  exact month-dependent picker defect is reintroduced. The supported formats
+  are, at minimum:
+  1. **ISO `YYYY-MM-DD`** — the seeds' form (`e2e/*.sql`).
+  2. **The long-form English label** the picker's accessible names use and
+     the Playwright picker tests click — weekday, day, month, year, e.g.
+     `Wednesday 29 July 2026` (`editing-consistency.spec.ts:302`,
+     `inline-editor-overlay.spec.ts:453`).
+  3. **The abbreviated display form** the specs already assert on — day,
+     abbreviated month, year, e.g. `29 Jul 2026`
+     (`editing-consistency.spec.ts:263`, `dhds-10-inline-manipulation.spec.ts:509`,
+     `goals.spec.ts:97`), with or without a weekday prefix.
+
+  A literal earlier than the commit's date is fine; the future is what arms.
+  The check is **not** a naive regex that fails on every match: its first run
+  enumerates every current match in every supported format (111 ISO literals
+  in `e2e/*.sql` at `036d3da`, plus the long-form and abbreviated literals in
+  `e2e/*.ts`), and the item classifies each one, in the PR, as exactly one
+  of — (1) **derived / safe**: computed from the run day, no literal remains;
+  (2) **fixed historical datum**: in the past, ignored by the check;
+  (3) **deliberately fixed future datum**, annotated with why it is safe
+  (a Goal target of `2099-12-31` no run will reach; a rendered-format
+  assertion on a value the same test just typed); (4) **time-bomb**,
+  converted to derived. That enumeration and classification are part of the
+  deliverable, not a follow-up. The detection mechanics — tokenising,
+  month-name tables, how a label's date is parsed — belong to the
+  implementation; this contract fixes what the check must catch.
 - **Falsification.** Set the machine clock (or the owner timezone fixture) to
   a month in which the old assertions would have passed and confirm the new
-  ones still pass; reintroduce a bare future literal and watch Static fail.
+  ones still pass. Then prove the Static check with **both** of these, each
+  introduced on a scratch tree and each observed to fail Static: an
+  **unannotated future ISO literal** in an `e2e/*.sql` seed, and an
+  **unannotated future long-form picker label** (the `Wednesday 29 July
+  2026` form, dated after the commit) in an `e2e/*.ts` picker journey.
+  Annotate each with `fixed-date:` and watch the check pass again. **The
+  invariant is not complete until both are caught**; a check that catches
+  the ISO literal alone does not close this part.
 
 #### F. Today reflows at 200% zoom — closes [DEBT-221](../product/PRODUCT_DEBT.md#-debt-221--today-overflows-sideways-at-200-zoom-because-the-week-doors-date-range-cannot-wrap--p2)
 
@@ -690,13 +746,15 @@ rides.**
 
 ### ☐ CONV-01 — The Project record renders the shared Task row
 
-**A Task on its Project's record has every power it has on `/tasks`.**
+**A Task on its Project's record uses the same `TaskRow` anatomy and exposes
+every action valid in that scope.**
 
 - **User problem.** [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2)
   (P2): `ProjectTasksTab.tsx` builds `Card` props by hand (`:51-513`) and says
   so at `:452`. Measured delta against `TaskRow` on 2026-09-02: no overflow
   action menu, no inline title editor, no row selection or shift-range, no
-  long-press, no swipe, no drag handle, no departure animation with focus
+  long-press, no swipe, no drag handle (a correct absence, not a gap — see
+  the capability contract below), no departure animation with focus
   handoff, no recurrence signal, no pending patch map (the tab re-fetches a
   page, `:184`, where `TasksWorkspace.tsx:522` patches optimistically), its
   own bulk path (`postTaskBulkAction`, `:581`), and a second responsive ladder
@@ -710,6 +768,24 @@ rides.**
   and the exception comment there is deleted. The Project's health, overdue
   counts and progress band keep reporting the accepted save the way DHDS-10
   made them (that behaviour is asserted, not assumed, before and after).
+- **Capability contract — shared anatomy is not every capability in every
+  scope.** Adopting `TaskRow` means adopting its anatomy: the inline title
+  editor, the inline priority and due editors, the overflow menu, selection
+  and bulk where the scope allows them, the recurrence signal, the shared
+  responsive ladder and the ADR-086 optimistic reconciliation. A capability
+  whose domain precondition is absent in a scope stays disabled or absent
+  there **through the row's existing capability contract** — a slot the
+  caller does not pass, a prop the caller sets off — never by forking the
+  row, and never by inventing the missing domain semantics so the capability
+  can be switched on. Drag is the worked example: `TaskRow` draws a grip only
+  when its caller passes a `dragHandle` (`TaskRow.tsx:172-185` — *"A row is
+  never draggable 'because it is a Task row'"*), and the Project tab stores
+  no manual order
+  ([DEBT-188](../product/PRODUCT_DEBT.md#-debt-188--tasks-have-no-manual-ranking-model-so-a-task-cannot-be-dragged-up-a-list--p3)
+  stands), so the tab passes none — exactly as Today, Plan and Search pass
+  none today. The tab does **not** introduce a Project-local ranking model to
+  "complete" the convergence; it gains drag only if and when the scope
+  already stores an order.
 - **What stays the tab's.** Its scope (this Project's tasks), its grouping and
   its "all / open" toggle, the Project-level empty state, and the create
   affordance. Nothing else is bespoke.
@@ -737,10 +813,16 @@ rides.**
   5. A fact added to `TaskRow` in a later change appears here with no
      per-surface change — asserted by the shared-row contract test that
      enumerates its importers.
+  6. The tab passes no `dragHandle` and issues no reorder request; the row
+     renders without a grip there while `/tasks` grouped by Project still
+     renders one — asserted, so the capability contract is proven rather than
+     assumed.
 - **Non-goals.** No `/today/waiting` work (CONV-02); no manual ranking model
   (DEBT-188 stands — the tab gains drag only where an order is stored, which
-  it is not); no Project description (DEBT-137); no CSS deletion yet (the
-  override layer has one more consumer until CONV-02).
+  it is not, and the row's `dragHandle` slot is left unpassed rather than the
+  row being forked or a Project-local order invented); no Project description
+  (DEBT-137); no CSS deletion yet (the override layer has one more consumer
+  until CONV-02).
 - **Closes.** DEBT-175. **Advances.** DEBT-128 (one of its two consumers).
 
 ---
@@ -909,8 +991,10 @@ adds its own, from ADR-115:
   follow-up rows and next-action lines never grow a second metadata run or a
   second action set.
 - **A fixture never carries the month it was written in.** Future dates in
-  fixtures are computed at seed/run time or annotated with why they are safe;
-  Static enforces it.
+  fixtures — in any literal format that can recreate the defect, ISO or the
+  long-form and abbreviated labels the specs click and assert on — are
+  computed at seed/run time or annotated with why they are safe; Static
+  enforces it, and is proven on both an ISO literal and a picker label.
 - **A gate that cannot say green is a truth defect, not a rider.** Its
   repair has an owner and an item, every time.
 - **Green is measured, never retried.** `retries: 0`; no quarantine, no
