@@ -2154,10 +2154,40 @@
 }
 
 /* The `panel-foot` inside the band is a cell of that row, not a block after
-   it — so it keeps the shared foot's typography and loses its own top rule. */
+   it — so it keeps the shared foot's typography and loses its own top rule.
+   It may SHRINK once it has wrapped onto its own line (`min-inline-size: 0`
+   lifts the flex item's intrinsic floor), which is what lets the door below
+   reflow instead of widening the document. */
 .dh-today__review-door-body .dh-today__panel-foot {
-  flex: none;
+  flex: 0 1 auto;
+  min-inline-size: 0;
   margin: 0;
+}
+
+/*
+ * WCAG 1.4.10 (Reflow) — the door's label wraps (DEBT-221, CONV-00-F).
+ *
+ * The shared button is `white-space: nowrap`, which is right for a control in a
+ * row of controls and wrong for a sentence-length call to action: at 195px — a
+ * 390px phone at 200% zoom — "Start this week’s Review" plus its glyph is laid
+ * out 206px wide inside the panel's inset, and the document scrolled sideways.
+ * MEASURED before the fix, 195 × 422 on a fresh seed: `scrollWidth` 239 against
+ * a `clientWidth` of 195, and the door was the one element past the edge that
+ * is not the deliberately scrollable tab strip.
+ *
+ * The same treatment as `.dh-today__reflection-write` above, for the same
+ * reason: wrapping is conditional by construction — `normal` wraps only when
+ * the line does not fit — so every width that fitted before is unchanged (the
+ * 393px phone still draws one line), the outlined geometry, the glyph and the
+ * accessible name (label, then the visually hidden period) are untouched, and
+ * the label is start-aligned once it takes more than one line. Nothing about
+ * the shared button changes; this is one label on one panel.
+ */
+.dh-today__review-door-open {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  white-space: normal;
+  text-align: start;
 }
 
 /* -------------------------------------------------------------------------- */

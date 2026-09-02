@@ -44,11 +44,11 @@ UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'g-rc-move';
 INSERT OR IGNORE INTO goal_details (workspace_id, entity_id, entity_type, target_date, definition_of_done, updated_at)
 VALUES
-  ('local-dev-workspace', 'g-rc-move', 'goal', '2026-11-30',
+  ('local-dev-workspace', 'g-rc-move', 'goal', date('now', '+118 days'),
    'Kitchen, laundry and hallway are finished, signed off by the builder, and the temporary kitchen is gone. No outstanding defects list.',
    '2026-08-04T18:30:00.000Z');
 UPDATE goal_details
-SET target_date = '2026-11-30',
+SET target_date = date('now', '+118 days'),
     definition_of_done = 'Kitchen, laundry and hallway are finished, signed off by the builder, and the temporary kitchen is gone. No outstanding defects list.',
     updated_at = '2026-08-04T18:30:00.000Z'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'g-rc-move';
@@ -225,7 +225,7 @@ VALUES
   ('local-dev-workspace', 't-rc-k14', 'task', 'todo', 'p1', '2026-08-07', NULL, 'this_week', 'active', NULL, NULL, NULL, '2026-03-05T04:31:00.000Z'),
   ('local-dev-workspace', 't-rc-k15', 'task', 'todo', 'p2', '2026-08-14', NULL, 'this_week', 'active', NULL, NULL, NULL, '2026-03-06T05:38:00.000Z'),
   ('local-dev-workspace', 't-rc-k16', 'task', 'todo', 'p3', '2026-08-18', NULL, 'next_week', 'active', NULL, NULL, NULL, '2026-03-07T06:45:00.000Z'),
-  ('local-dev-workspace', 't-rc-k17', 'task', 'todo', 'p2', '2026-09-04', NULL, 'this_month', 'active', NULL, NULL, NULL, '2026-03-08T07:52:00.000Z'),
+  ('local-dev-workspace', 't-rc-k17', 'task', 'todo', 'p2', date('now', '+31 days'), NULL, 'this_month', 'active', NULL, NULL, NULL, '2026-03-08T07:52:00.000Z'),
   ('local-dev-workspace', 't-rc-k18', 'task', 'todo', 'p2', NULL, NULL, 'this_week', 'active', NULL, '2026-07-27T00:00:00.000Z', 'Supplier said ''end of the month'' on 27 July.', '2026-03-09T08:59:00.000Z'),
   ('local-dev-workspace', 't-rc-k19', 'task', 'todo', 'p1', NULL, NULL, 'this_month', 'active', NULL, '2026-07-15T00:00:00.000Z', 'Lodged 15 July; 20 business days quoted.', '2026-03-01T00:06:00.000Z'),
   ('local-dev-workspace', 't-rc-k20', 'task', 'on_hold', 'p3', NULL, NULL, NULL, 'active', 'Paused until the cabinetry colour is locked in.', NULL, NULL, '2026-03-02T01:13:00.000Z'),
@@ -249,7 +249,7 @@ UPDATE task_details SET status = 'todo', priority = 'p2', due_date = '2026-08-03
 UPDATE task_details SET status = 'todo', priority = 'p1', due_date = '2026-08-07', scheduled_date = NULL, time_sector = 'this_week', commitment_state = 'active', description = NULL, waiting_since = NULL, waiting_note = NULL WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k14';
 UPDATE task_details SET status = 'todo', priority = 'p2', due_date = '2026-08-14', scheduled_date = NULL, time_sector = 'this_week', commitment_state = 'active', description = NULL, waiting_since = NULL, waiting_note = NULL WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k15';
 UPDATE task_details SET status = 'todo', priority = 'p3', due_date = '2026-08-18', scheduled_date = NULL, time_sector = 'next_week', commitment_state = 'active', description = NULL, waiting_since = NULL, waiting_note = NULL WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k16';
-UPDATE task_details SET status = 'todo', priority = 'p2', due_date = '2026-09-04', scheduled_date = NULL, time_sector = 'this_month', commitment_state = 'active', description = NULL, waiting_since = NULL, waiting_note = NULL WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k17';
+UPDATE task_details SET status = 'todo', priority = 'p2', due_date = date('now', '+31 days'), scheduled_date = NULL, time_sector = 'this_month', commitment_state = 'active', description = NULL, waiting_since = NULL, waiting_note = NULL WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k17';
 UPDATE task_details SET status = 'todo', priority = 'p2', due_date = NULL, scheduled_date = NULL, time_sector = 'this_week', commitment_state = 'active', description = NULL, waiting_since = '2026-07-27T00:00:00.000Z', waiting_note = 'Supplier said ''end of the month'' on 27 July.' WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k18';
 UPDATE task_details SET status = 'todo', priority = 'p1', due_date = NULL, scheduled_date = NULL, time_sector = 'this_month', commitment_state = 'active', description = NULL, waiting_since = '2026-07-15T00:00:00.000Z', waiting_note = 'Lodged 15 July; 20 business days quoted.' WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k19';
 UPDATE task_details SET status = 'on_hold', priority = 'p3', due_date = NULL, scheduled_date = NULL, time_sector = NULL, commitment_state = 'active', description = 'Paused until the cabinetry colour is locked in.', waiting_since = NULL, waiting_note = NULL WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-rc-k20';
@@ -339,6 +339,15 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'p-rc-ana';
 -- An Asset with a real maintenance/renewal situation: open obligations with a
 -- next one due, plus a history of services, repairs, meter readings and a
 -- valuation. This is what the Asset overview and History action hierarchy need.
+--
+-- CONV-00-E / DEBT-219 — every OPEN obligation's due date, and the asset's own
+-- next-service and renewal dates, are `date('now', …)` offsets rather than
+-- fixed days: the offsets are the ones the fixture was written with (from
+-- 2026-08-01), so the situation it describes is the same on every run and no
+-- obligation ever crosses its due date because the calendar advanced. The
+-- inspection used to be '2026-08-28'; on 2026-08-29 it went overdue and an
+-- Assets journey went red for no regression at all. Completed history keeps
+-- its real dates.
 -- ---------------------------------------------------------------------------
 INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
 VALUES
@@ -353,9 +362,9 @@ VALUES
   ('local-dev-workspace', 'as-rc-ute', 'asset', 'vehicle', 'active',
    'Dual-cab used for site runs and the trailer.', 'Toyota', 'Hilux SR5 (2021)', 'JTMHV05J004123987',
    'RC-UTE-01', 'Driveway', 'a-rc-home', '2024-05-11', 5620000, 'AUD', 'Northshore Toyota',
-   4100000, '2027-05-10', '10000 km / 6 months', '2026-05-02', '2026-11-02',
+   4100000, '2027-05-10', '10000 km / 6 months', '2026-05-02', date('now', '+93 days'), -- fixed-date: the warranty runs three years from the 2024-05-11 purchase; nothing asserts on it
    'Northshore Toyota Service', 'Tows the trailer most weekends — service on the shorter interval.',
-   'Transport for NSW', 'CJ88QR', '2024-05-11', '2026-09-14',
+   'Transport for NSW', 'CJ88QR', '2024-05-11', date('now', '+44 days'),
    NULL, '2026-08-01T02:00:00.000Z', 74210, 'km', '2026-08-01');
 UPDATE asset_details
 SET asset_type = 'vehicle', status = 'active',
@@ -363,12 +372,12 @@ SET asset_type = 'vehicle', status = 'active',
     manufacturer = 'Toyota', model = 'Hilux SR5 (2021)', serial_number = 'JTMHV05J004123987',
     reference_code = 'RC-UTE-01', location = 'Driveway', area_id = 'a-rc-home',
     acquisition_date = '2024-05-11', purchase_price_minor = 5620000, currency_code = 'AUD',
-    supplier = 'Northshore Toyota', replacement_value_minor = 4100000, warranty_expiry = '2027-05-10',
-    service_interval = '10000 km / 6 months', last_service_date = '2026-05-02', next_service_date = '2026-11-02',
+    supplier = 'Northshore Toyota', replacement_value_minor = 4100000, warranty_expiry = '2027-05-10', -- fixed-date: the warranty runs three years from the 2024-05-11 purchase; nothing asserts on it
+    service_interval = '10000 km / 6 months', last_service_date = '2026-05-02', next_service_date = date('now', '+93 days'),
     service_provider = 'Northshore Toyota Service',
     maintenance_notes = 'Tows the trailer most weekends — service on the shorter interval.',
     issuer = 'Transport for NSW', reference_number = 'CJ88QR', issue_date = '2024-05-11',
-    renewal_date = '2026-09-14', archived_at = NULL,
+    renewal_date = date('now', '+44 days'), archived_at = NULL,
     current_meter_value = 74210, current_meter_unit = 'km', current_meter_date = '2026-08-01'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'as-rc-ute';
 
@@ -379,16 +388,16 @@ INSERT INTO asset_obligations
    completed_at, completed_event_id, series_id, sequence, created_at, updated_at)
 VALUES
   ('ob-rc-rego', 'local-dev-workspace', 'as-rc-ute', 'asset', 'registration', 'Registration renewal',
-   'Renew with Transport for NSW; needs the pink slip first.', '2026-09-14', 30, 'years', 1, NULL, NULL, NULL, 'open',
+   'Renew with Transport for NSW; needs the pink slip first.', date('now', '+44 days'), 30, 'years', 1, NULL, NULL, NULL, 'open',
    NULL, NULL, 'srs-rc-rego', 0, '2024-05-11T00:00:00.000Z', '2026-08-01T02:00:00.000Z'),
   ('ob-rc-inspect', 'local-dev-workspace', 'as-rc-ute', 'asset', 'inspection', 'Safety inspection (pink slip)',
-   NULL, '2026-08-28', 14, 'years', 1, NULL, NULL, NULL, 'open',
+   NULL, date('now', '+27 days'), 14, 'years', 1, NULL, NULL, NULL, 'open',
    NULL, NULL, 'srs-rc-inspect', 0, '2024-05-11T00:00:01.000Z', '2026-08-01T02:00:00.000Z'),
   ('ob-rc-service', 'local-dev-workspace', 'as-rc-ute', 'asset', 'service', 'Scheduled service',
-   'Whichever comes first: 6 months or 10,000 km.', '2026-11-02', 21, 'meter', NULL, 80000, 10000, 'km', 'open',
+   'Whichever comes first: 6 months or 10,000 km.', date('now', '+93 days'), 21, 'meter', NULL, 80000, 10000, 'km', 'open',
    NULL, NULL, 'srs-rc-service', 1, '2024-05-11T00:00:02.000Z', '2026-08-01T02:00:00.000Z'),
   ('ob-rc-insurance', 'local-dev-workspace', 'as-rc-ute', 'asset', 'insurance', 'Comprehensive insurance renewal',
-   NULL, '2027-02-01', 30, 'years', 1, NULL, NULL, NULL, 'open',
+   NULL, date('now', '+184 days'), 30, 'years', 1, NULL, NULL, NULL, 'open',
    NULL, NULL, 'srs-rc-insurance', 0, '2024-05-11T00:00:03.000Z', '2026-08-01T02:00:00.000Z'),
   ('ob-rc-service-past', 'local-dev-workspace', 'as-rc-ute', 'asset', 'service', 'Scheduled service',
    NULL, '2026-05-02', 21, 'meter', NULL, 70000, 10000, 'km', 'completed',
@@ -402,7 +411,7 @@ INSERT INTO asset_events
 VALUES
   ('ev-rc-purchase', 'local-dev-workspace', 'as-rc-ute', 'asset', 'purchase', 'Purchased from Northshore Toyota',
    '2024-05-11', '2024-05-11T00:00:00.000Z', 'Demo model, 4,100 km on the clock.', 'Northshore Toyota',
-   5620000, NULL, 'AUD', 4100, 'km', '2027-05-10', NULL, NULL, '2024-05-11T00:00:00.000Z', '2024-05-11T00:00:00.000Z'),
+   5620000, NULL, 'AUD', 4100, 'km', '2027-05-10', NULL, NULL, '2024-05-11T00:00:00.000Z', '2024-05-11T00:00:00.000Z'), -- fixed-date: the warranty recorded at purchase, three years from 2024-05-11
   ('ev-rc-service-1', 'local-dev-workspace', 'as-rc-ute', 'asset', 'service', '40,000 km service',
    '2025-06-18', '2025-06-18T06:00:00.000Z', NULL, 'Northshore Toyota Service',
    48900, NULL, 'AUD', 41240, 'km', NULL, '2025-12-18', NULL, '2025-06-18T06:00:00.000Z', '2025-06-18T06:00:00.000Z'),
@@ -411,7 +420,7 @@ VALUES
    31500, NULL, 'AUD', NULL, NULL, NULL, NULL, NULL, '2025-11-03T04:30:00.000Z', '2025-11-03T04:30:00.000Z'),
   ('ev-rc-service-2', 'local-dev-workspace', 'as-rc-ute', 'asset', 'service', '70,000 km service',
    '2026-05-02', '2026-05-02T05:00:00.000Z', 'Brake fluid and front pads done at the same time.', 'Northshore Toyota Service',
-   62400, NULL, 'AUD', 69880, 'km', NULL, '2026-11-02', 'ob-rc-service-past', '2026-05-02T05:00:00.000Z', '2026-05-02T05:00:00.000Z'),
+   62400, NULL, 'AUD', 69880, 'km', NULL, '2026-11-02', 'ob-rc-service-past', '2026-05-02T05:00:00.000Z', '2026-05-02T05:00:00.000Z'), -- fixed-date: the "next due" this history event recorded on 2026-05-02; the open obligation carries the live date
   ('ev-rc-meter', 'local-dev-workspace', 'as-rc-ute', 'asset', 'history', 'Odometer reading',
    '2026-08-01', '2026-08-01T02:00:00.000Z', NULL, NULL,
    NULL, NULL, NULL, 74210, 'km', NULL, NULL, NULL, '2026-08-01T02:00:00.000Z', '2026-08-01T02:00:00.000Z'),

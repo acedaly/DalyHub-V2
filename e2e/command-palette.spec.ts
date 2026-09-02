@@ -554,8 +554,9 @@ test.describe("DS-09 Command Palette — touch targets (mobile 44px)", () => {
  * same registry contract every other module uses. Each command must appear in
  * the palette and land on a surface that really exists — the create commands
  * open the DS-03 create Drawer (the create ROUTES are action-only and render
- * nothing), and Goals contributes no create command at all because a Goal is
- * created from an Area record.
+ * nothing). Goals gained its create command in V2.5 STEER-03 (`goals.new`),
+ * through the same Drawer-in-the-URL contract; the test below asserts that
+ * contract rather than the absence it once asserted (DEBT-216, CONV-00-A).
  */
 test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", () => {
   async function runCommand(
@@ -613,27 +614,48 @@ test.describe("V2.0.1 — Projects, Areas, Goals and Diary palette commands", ()
     await expect(page.getByRole("form", { name: "New Area" })).toBeVisible();
   });
 
-  test("contributes NO create-Goal command, because there is no such surface", async ({
+  test("creates a Goal through the ONE shared creation Drawer, and offers no second flow", async ({
     page,
   }) => {
-    // A Goal is created from an Area record (the only host of `NewGoalForm`).
-    // A workspace-level "New Goal" command would promise something the product
-    // cannot do, so the palette must not offer one.
+    /*
+     * This test asserted, until CONV-00, that the palette offered NO create-Goal
+     * command — true when a Goal could only be created from an Area record, and
+     * false since STEER-03 registered `goals.new`. The invariant it was really
+     * protecting is unchanged: creating a Goal from anywhere goes through the
+     * one shared `NewGoalForm`, reached the same way the Areas and Projects
+     * create commands reach theirs — the collection with its create Drawer in
+     * the URL (ADR-018) — and never through a second creation surface.
+     */
     await gotoFixture(page, "/today");
     await page.keyboard.press("ControlOrMeta+k");
     const input = palette(page);
     await expect(input).toBeVisible();
 
-    // The Goals command that DOES exist is offered…
+    // The Goals commands are offered under the words that would find them, and
+    // there is exactly ONE creation command among them, however it is asked for
+    // — by its title, by the verb (a registered keyword) or by the noun.
     await input.fill("Goals");
     await expect(option(page, /Open Goals/).first()).toBeVisible();
-
-    // …and no create-Goal command is, under any of the words that would find one.
-    for (const query of ["New Goal", "Create Goal"]) {
+    for (const query of ["New Goal", "create", "goal"]) {
       await input.fill(query);
-      await expect(option(page, /^New Goal/)).toHaveCount(0);
-      await expect(option(page, /^Create Goal/)).toHaveCount(0);
+      await expect(option(page, /^New Goal/)).toHaveCount(1);
+      await expect(option(page, /^(Create|Add) Goal/)).toHaveCount(0);
     }
+
+    // Running it lands on the canonical destination — the Goals collection with
+    // its create Drawer open — and the Drawer that opens IS the shared form.
+    await input.fill("New Goal");
+    await option(page, /^New Goal/).click();
+    await expect(page).toHaveURL(/\/goals\?drawer=new-goal$/);
+    await expect(palette(page)).toHaveCount(0);
+    const drawer = page.getByRole("dialog", { name: "New Goal" });
+    await expect(drawer).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: "Create Goal" }),
+    ).toBeVisible();
+    // One creation flow on the page: one dialog, one form named for it.
+    await expect(page.getByRole("dialog")).toHaveCount(1);
+    await expect(page.getByRole("form", { name: "New Goal" })).toHaveCount(1);
   });
 
   test("opens the Diary for today and the Diary capture panel", async ({

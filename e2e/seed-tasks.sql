@@ -67,7 +67,7 @@ VALUES
 -- fixture below, in the opposite direction.
 INSERT OR IGNORE INTO task_details (workspace_id, entity_id, entity_type, status, priority, due_date, scheduled_date, description, updated_at)
 VALUES
-  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2099-12-31', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z'),
+  ('local-dev-workspace', 't-drawer', 'task', 'todo', 'p1', '2099-12-31', NULL, 'Draft the **proposal** document.', '2026-07-19T01:00:03.000Z'), -- fixed-date: far future on purpose; the Drawer asserts the chip's absolute "Due <date>" form (see above)
   ('local-dev-workspace', 't-overdue-signal', 'task', 'todo', NULL, '2000-01-01', NULL, 'Dedicated non-mutated overdue signal fixture.', '2026-07-19T01:00:04.000Z');
 
 -- Reset the seeded tasks' MUTABLE state so every e2e run starts from a known,
@@ -78,7 +78,7 @@ UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace'
   AND entity_id IN ('t-px02', 't-pr', 't-gym', 't-drawer', 't-overdue-signal', 't-waiting', 't-complete');
 UPDATE task_details
-SET status = 'todo', priority = 'p1', due_date = '2099-12-31',
+SET status = 'todo', priority = 'p1', due_date = '2099-12-31', -- fixed-date: far future on purpose; the Drawer asserts the chip's absolute "Due <date>" form (see above)
     scheduled_date = NULL, description = 'Draft the **proposal** document.',
     waiting_since = NULL, waiting_note = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 't-drawer';
@@ -1325,13 +1325,13 @@ INSERT OR IGNORE INTO task_details
    time_sector, commitment_state, delegate_to, waiting_since, waiting_note, updated_at)
 VALUES
   ('local-dev-workspace', 't-ds-00', 'task', 'todo', 'p3', NULL, NULL, 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:00.000Z'),
-  ('local-dev-workspace', 't-ds-01', 'task', 'todo', 'p2', '2026-09-12', NULL, 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:01.000Z'),
+  ('local-dev-workspace', 't-ds-01', 'task', 'todo', 'p2', date('now', '+55 days'), NULL, 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:01.000Z'),
   ('local-dev-workspace', 't-ds-02', 'task', 'todo', 'p3', NULL, NULL, NULL, 'active', NULL, NULL, NULL, '2026-07-19T07:00:02.000Z'),
   ('local-dev-workspace', 't-ds-03', 'task', 'in_progress', NULL, '2026-08-19', '2026-08-02', 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:03.000Z'),
   ('local-dev-workspace', 't-ds-04', 'task', 'todo', NULL, NULL, NULL, 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:00:04.000Z'),
-  ('local-dev-workspace', 't-ds-05', 'task', 'todo', 'p1', '2026-09-18', NULL, 'next_week', 'someday', NULL, NULL, NULL, '2026-07-19T07:00:05.000Z'),
+  ('local-dev-workspace', 't-ds-05', 'task', 'todo', 'p1', date('now', '+61 days'), NULL, 'next_week', 'someday', NULL, NULL, NULL, '2026-07-19T07:00:05.000Z'),
   ('local-dev-workspace', 't-ds-06', 'task', 'on_hold', 'p4', NULL, NULL, 'next_week', 'active', 'Sam Okafor', '2026-07-22T09:00:00.000Z', 'Waiting on the supplier', '2026-07-19T07:00:06.000Z'),
-  ('local-dev-workspace', 't-ds-07', 'task', 'in_progress', 'p4', '2026-09-21', '2026-08-21', 'long_term', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:07.000Z'),
+  ('local-dev-workspace', 't-ds-07', 'task', 'in_progress', 'p4', date('now', '+64 days'), '2026-08-21', 'long_term', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:07.000Z'),
   ('local-dev-workspace', 't-ds-08', 'task', 'on_hold', 'p4', NULL, '2026-08-19', 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:08.000Z'),
   ('local-dev-workspace', 't-ds-09', 'task', 'cancelled', 'p1', '2026-08-09', '2026-07-28', 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:09.000Z'),
   ('local-dev-workspace', 't-ds-10', 'task', 'on_hold', 'p2', NULL, NULL, 'routines', 'active', NULL, NULL, NULL, '2026-07-19T07:00:10.000Z'),
@@ -1339,15 +1339,15 @@ VALUES
   ('local-dev-workspace', 't-ds-12', 'task', 'todo', 'p4', NULL, '2026-08-12', 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:12.000Z'),
   ('local-dev-workspace', 't-ds-13', 'task', 'todo', 'p2', '2026-07-20', NULL, NULL, 'active', NULL, NULL, NULL, '2026-07-19T07:00:13.000Z'),
   ('local-dev-workspace', 't-ds-14', 'task', 'todo', 'p4', NULL, NULL, 'next_week', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:14.000Z'),
-  ('local-dev-workspace', 't-ds-15', 'task', 'in_progress', 'p1', '2026-09-12', '2026-08-24', 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:15.000Z'),
+  ('local-dev-workspace', 't-ds-15', 'task', 'in_progress', 'p1', date('now', '+55 days'), '2026-08-24', 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:15.000Z'),
   ('local-dev-workspace', 't-ds-16', 'task', 'on_hold', 'p4', NULL, NULL, 'next_month', 'someday', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:16.000Z'),
-  ('local-dev-workspace', 't-ds-17', 'task', 'todo', NULL, '2026-09-22', '2026-08-08', 'this_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:17.000Z'),
+  ('local-dev-workspace', 't-ds-17', 'task', 'todo', NULL, date('now', '+65 days'), '2026-08-08', 'this_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:17.000Z'),
   ('local-dev-workspace', 't-ds-18', 'task', 'todo', 'p2', NULL, NULL, NULL, 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:18.000Z'),
   ('local-dev-workspace', 't-ds-19', 'task', 'todo', NULL, '2026-07-30', NULL, 'long_term', 'active', NULL, '2026-07-22T09:00:00.000Z', 'Waiting on the supplier', '2026-07-19T07:00:19.000Z'),
   ('local-dev-workspace', 't-ds-20', 'task', 'todo', NULL, NULL, '2026-08-05', 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:20.000Z'),
-  ('local-dev-workspace', 't-ds-21', 'task', 'todo', 'p1', '2026-09-08', '2026-07-30', 'next_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:21.000Z'),
+  ('local-dev-workspace', 't-ds-21', 'task', 'todo', 'p1', date('now', '+51 days'), '2026-07-30', 'next_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:21.000Z'),
   ('local-dev-workspace', 't-ds-22', 'task', 'on_hold', 'p3', NULL, '2026-07-27', 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:22.000Z'),
-  ('local-dev-workspace', 't-ds-23', 'task', 'todo', 'p3', '2026-09-21', NULL, 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:00:23.000Z'),
+  ('local-dev-workspace', 't-ds-23', 'task', 'todo', 'p3', date('now', '+64 days'), NULL, 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:00:23.000Z'),
   ('local-dev-workspace', 't-ds-24', 'task', 'todo', 'p1', NULL, '2026-07-20', NULL, 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:24.000Z'),
   ('local-dev-workspace', 't-ds-25', 'task', 'cancelled', 'p2', '2026-08-28', '2026-07-29', 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:25.000Z'),
   ('local-dev-workspace', 't-ds-26', 'task', 'todo', 'p3', NULL, '2026-08-05', 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:26.000Z'),
@@ -1355,7 +1355,7 @@ VALUES
   ('local-dev-workspace', 't-ds-28', 'task', 'todo', 'p3', NULL, '2026-08-05', 'routines', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:28.000Z'),
   ('local-dev-workspace', 't-ds-29', 'task', 'cancelled', 'p1', '2026-08-27', NULL, 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:29.000Z'),
   ('local-dev-workspace', 't-ds-30', 'task', 'todo', 'p4', NULL, '2026-07-15', 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:30.000Z'),
-  ('local-dev-workspace', 't-ds-31', 'task', 'cancelled', 'p3', '2026-09-17', NULL, 'this_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:31.000Z'),
+  ('local-dev-workspace', 't-ds-31', 'task', 'cancelled', 'p3', date('now', '+60 days'), NULL, 'this_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:31.000Z'),
   ('local-dev-workspace', 't-ds-32', 'task', 'on_hold', 'p4', NULL, NULL, 'this_month', 'active', 'Sam Okafor', '2026-07-22T09:00:00.000Z', 'Waiting on the supplier', '2026-07-19T07:00:32.000Z'),
   ('local-dev-workspace', 't-ds-33', 'task', 'todo', 'p2', '2026-07-18', NULL, 'this_week', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:33.000Z'),
   ('local-dev-workspace', 't-ds-34', 'task', 'on_hold', 'p4', NULL, NULL, 'this_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:34.000Z'),
@@ -1365,7 +1365,7 @@ VALUES
   ('local-dev-workspace', 't-ds-38', 'task', 'on_hold', 'p4', NULL, '2026-07-24', 'next_month', 'someday', NULL, NULL, NULL, '2026-07-19T07:00:38.000Z'),
   ('local-dev-workspace', 't-ds-39', 'task', 'in_progress', 'p2', '2026-08-13', NULL, 'this_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:39.000Z'),
   ('local-dev-workspace', 't-ds-40', 'task', 'on_hold', 'p2', NULL, NULL, 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:00:40.000Z'),
-  ('local-dev-workspace', 't-ds-41', 'task', 'todo', NULL, '2026-09-16', '2026-08-11', 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:00:41.000Z'),
+  ('local-dev-workspace', 't-ds-41', 'task', 'todo', NULL, date('now', '+59 days'), '2026-08-11', 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:00:41.000Z'),
   ('local-dev-workspace', 't-ds-42', 'task', 'todo', 'p3', NULL, '2026-07-23', 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:42.000Z'),
   ('local-dev-workspace', 't-ds-43', 'task', 'todo', 'p1', '2026-07-26', NULL, 'next_week', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:00:43.000Z'),
   ('local-dev-workspace', 't-ds-44', 'task', 'todo', 'p2', NULL, NULL, NULL, 'active', NULL, NULL, NULL, '2026-07-19T07:00:44.000Z'),
@@ -1377,31 +1377,31 @@ VALUES
   ('local-dev-workspace', 't-ds-50', 'task', 'on_hold', 'p2', NULL, NULL, 'next_week', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:50.000Z'),
   ('local-dev-workspace', 't-ds-51', 'task', 'cancelled', 'p3', '2026-08-24', NULL, 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:51.000Z'),
   ('local-dev-workspace', 't-ds-52', 'task', 'on_hold', 'p3', NULL, '2026-08-24', 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:52.000Z'),
-  ('local-dev-workspace', 't-ds-53', 'task', 'cancelled', 'p4', '2026-09-06', NULL, 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:53.000Z'),
+  ('local-dev-workspace', 't-ds-53', 'task', 'cancelled', 'p4', date('now', '+49 days'), NULL, 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:00:53.000Z'),
   ('local-dev-workspace', 't-ds-54', 'task', 'on_hold', 'p1', NULL, NULL, 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:54.000Z'),
   ('local-dev-workspace', 't-ds-55', 'task', 'cancelled', 'p2', '2026-07-31', '2026-07-16', 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:00:55.000Z'),
   ('local-dev-workspace', 't-ds-56', 'task', 'todo', 'p3', NULL, '2026-08-10', 'this_week', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:56.000Z'),
-  ('local-dev-workspace', 't-ds-57', 'task', 'cancelled', 'p1', '2026-09-23', NULL, 'this_week', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:57.000Z'),
+  ('local-dev-workspace', 't-ds-57', 'task', 'cancelled', 'p1', date('now', '+66 days'), NULL, 'this_week', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:00:57.000Z'),
   ('local-dev-workspace', 't-ds-58', 'task', 'on_hold', 'p3', NULL, NULL, 'routines', 'active', 'Priya Raman', '2026-07-22T09:00:00.000Z', 'Waiting on the supplier', '2026-07-19T07:00:58.000Z'),
   ('local-dev-workspace', 't-ds-59', 'task', 'in_progress', 'p1', '2026-07-25', '2026-08-15', 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:00:59.000Z'),
   ('local-dev-workspace', 't-ds-60', 'task', 'todo', 'p3', NULL, '2026-08-12', 'this_week', 'someday', NULL, NULL, NULL, '2026-07-19T07:01:00.000Z'),
-  ('local-dev-workspace', 't-ds-61', 'task', 'todo', 'p4', '2026-09-23', '2026-07-20', 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:01.000Z'),
+  ('local-dev-workspace', 't-ds-61', 'task', 'todo', 'p4', date('now', '+66 days'), '2026-07-20', 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:01.000Z'),
   ('local-dev-workspace', 't-ds-62', 'task', 'todo', 'p1', NULL, NULL, 'next_week', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:01:02.000Z'),
   ('local-dev-workspace', 't-ds-63', 'task', 'in_progress', 'p2', '2026-07-10', NULL, 'routines', 'active', NULL, NULL, NULL, '2026-07-19T07:01:03.000Z'),
   ('local-dev-workspace', 't-ds-64', 'task', 'todo', 'p4', NULL, '2026-07-31', 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:01:04.000Z'),
-  ('local-dev-workspace', 't-ds-65', 'task', 'in_progress', 'p4', '2026-09-15', '2026-07-30', 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:01:05.000Z'),
+  ('local-dev-workspace', 't-ds-65', 'task', 'in_progress', 'p4', date('now', '+58 days'), '2026-07-30', 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:01:05.000Z'),
   ('local-dev-workspace', 't-ds-66', 'task', 'todo', 'p1', NULL, NULL, 'routines', 'active', NULL, NULL, NULL, '2026-07-19T07:01:06.000Z'),
   ('local-dev-workspace', 't-ds-67', 'task', 'todo', 'p1', '2026-08-30', '2026-07-28', 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:07.000Z'),
   ('local-dev-workspace', 't-ds-68', 'task', 'on_hold', NULL, NULL, '2026-07-28', NULL, 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:01:08.000Z'),
-  ('local-dev-workspace', 't-ds-69', 'task', 'in_progress', 'p3', '2026-09-03', '2026-08-03', 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:01:09.000Z'),
+  ('local-dev-workspace', 't-ds-69', 'task', 'in_progress', 'p3', date('now', '+46 days'), '2026-08-03', 'long_term', 'active', NULL, NULL, NULL, '2026-07-19T07:01:09.000Z'),
   ('local-dev-workspace', 't-ds-70', 'task', 'todo', 'p1', NULL, NULL, 'this_month', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:01:10.000Z'),
   ('local-dev-workspace', 't-ds-71', 'task', 'in_progress', 'p1', '2026-07-06', '2026-07-30', 'this_week', 'someday', NULL, '2026-07-22T09:00:00.000Z', 'Waiting on the supplier', '2026-07-19T07:01:11.000Z'),
   ('local-dev-workspace', 't-ds-72', 'task', 'on_hold', 'p1', NULL, NULL, 'long_term', 'active', 'Priya Raman', NULL, NULL, '2026-07-19T07:01:12.000Z'),
-  ('local-dev-workspace', 't-ds-73', 'task', 'cancelled', NULL, '2026-09-08', NULL, 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:13.000Z'),
+  ('local-dev-workspace', 't-ds-73', 'task', 'cancelled', NULL, date('now', '+51 days'), NULL, 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:13.000Z'),
   ('local-dev-workspace', 't-ds-74', 'task', 'todo', 'p2', NULL, '2026-07-18', 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:14.000Z'),
   ('local-dev-workspace', 't-ds-75', 'task', 'todo', 'p3', '2026-07-30', NULL, 'next_month', 'active', NULL, NULL, NULL, '2026-07-19T07:01:15.000Z'),
   ('local-dev-workspace', 't-ds-76', 'task', 'on_hold', NULL, NULL, NULL, 'this_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:16.000Z'),
-  ('local-dev-workspace', 't-ds-77', 'task', 'in_progress', 'p4', '2026-09-20', '2026-07-16', 'next_month', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:01:17.000Z'),
+  ('local-dev-workspace', 't-ds-77', 'task', 'in_progress', 'p4', date('now', '+63 days'), '2026-07-16', 'next_month', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:01:17.000Z'),
   ('local-dev-workspace', 't-ds-78', 'task', 'on_hold', NULL, NULL, NULL, 'next_month', 'active', 'Sam Okafor', NULL, NULL, '2026-07-19T07:01:18.000Z'),
   ('local-dev-workspace', 't-ds-79', 'task', 'cancelled', 'p1', '2026-07-06', NULL, 'next_week', 'active', NULL, NULL, NULL, '2026-07-19T07:01:19.000Z');
 

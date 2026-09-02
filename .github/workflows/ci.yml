@@ -152,6 +152,18 @@ jobs:
         # `main` as a spec nothing runs or a partition nobody sized.
         run: pnpm run e2e:partitions:check
 
+      - name: E2E fixtures carry no date that arms with the calendar
+        # V2.8 CONV-00-E / DEBT-236. A seed or a spec that hard-codes a future
+        # calendar date — an ISO due date, a picker's spoken day label, the
+        # abbreviated form a spec asserts on — is a test whose meaning changes
+        # on the day the calendar reaches it, and the gate then goes red for
+        # no regression at all. Each such literal is either derived from the
+        # run day or annotated on its line with why it is safe; this fails on
+        # the first one that is neither. Same tier and same reason as the
+        # partition check above: a fixture is source, and this is a rule about
+        # the source.
+        run: pnpm run e2e:fixture-dates:check
+
       - name: Icon assets match the canonical geometry
         # The rasteriser and encoders are deterministic, so this regenerates in
         # memory and compares bytes: a hand-edited PNG, or a geometry change

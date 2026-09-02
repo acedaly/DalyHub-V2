@@ -1,5 +1,15 @@
 # Changelog
 
+- **Today reflows at 200% zoom.**
+
+  At double zoom on a phone (the width WCAG's reflow rule is about) Today
+  scrolled sideways, because the week's Review door — "Start this week's
+  Review" — could not wrap and pushed the page wider than the screen. The
+  label now wraps onto a second line at that width and nothing else about the
+  door changes: same outlined button, same glyph, same period read out to
+  assistive technology, and one line on an ordinary phone (V2.8 CONV-00,
+  DEBT-221).
+
 - **The day and the week now account for themselves.**
 
   Three small untruths, removed (V2.7 RECALL-04). Nothing new to learn and

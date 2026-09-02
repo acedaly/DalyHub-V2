@@ -1049,7 +1049,10 @@ function ReviewDoorCard({ door }: { readonly door: TodayReviewDoor }) {
             className={
               door.state === "completed"
                 ? "dh-today__panel-action"
-                : "dh-btn dh-btn--outlined dh-btn--sm"
+                : /* `dh-today__review-door-open` lets this one sentence-length
+                     label wrap where the shared button's `nowrap` would push
+                     the document sideways — see `today.css` (DEBT-221). */
+                  "dh-btn dh-btn--outlined dh-btn--sm dh-today__review-door-open"
             }
             data-testid="today-review-door-action"
             to={door.href}

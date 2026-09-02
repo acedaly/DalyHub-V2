@@ -2,6 +2,13 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import {
+  dayInMonthsAhead,
+  ownerTodayIso,
+  pickCalendarDayByKeyboard,
+  shortCalendarMonth,
+} from "./calendar-dates";
+
+import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -441,19 +448,26 @@ test.describe("EDIT-03 — inline editors on a Task row, at desktop width", () =
     ).toContainText("Today");
     await settle(page);
 
-    // An arbitrary date, by walking the month — which is what a calendar is for
-    // and the reason the picker cannot only offer presets.
+    /*
+     * An arbitrary date, by walking the month — which is what a calendar is for
+     * and the reason the picker cannot only offer presets.
+     *
+     * CONV-00-E / DEBT-236 — the value is "Today", so the grid opens on the
+     * owner's own month, which is ASSERTED; the target is the 25th of the month
+     * two ahead, DERIVED from the owner's day; the press count is derived from
+     * those two months and the day is clicked by its generated label. This
+     * used to press `PageDown` four times and click "Friday 25 December 2026",
+     * which reached December from August and nowhere else.
+     */
     await openEditor(page, row, "task-row-due-date");
-    const grid = page
-      .getByRole("dialog", { name: "Edit due date" })
-      .getByRole("grid", { name: "Due date" });
-    for (let month = 0; month < 4; month += 1) {
-      await grid.press("PageDown");
-    }
-    await grid.getByRole("button", { name: "Friday 25 December 2026" }).click();
+    const dialog = page.getByRole("dialog", { name: "Edit due date" });
+    const grid = dialog.getByRole("grid", { name: "Due date" });
+    const today = ownerTodayIso();
+    const target = dayInMonthsAhead(today, 2, 25);
+    await pickCalendarDayByKeyboard(dialog, grid, today, target);
     await expect(
       row.locator('[data-testid="task-row-due-date"]'),
-    ).toContainText("Dec");
+    ).toContainText(shortCalendarMonth(target));
     await settle(page);
 
     await openEditor(page, row, "task-row-due-date");

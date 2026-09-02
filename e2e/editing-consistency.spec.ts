@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  dayInMonthsAhead,
+  ownerTodayIso,
+  pickCalendarDayByKeyboard,
+  shortCalendarDate,
+} from "./calendar-dates";
+import {
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -260,7 +266,9 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
     await expect(record).toBeVisible();
 
     const due = record.getByRole("button", { name: /^Due date: / });
-    await expect(due).toHaveAccessibleName(/29 Jul 2026/);
+    await expect(due).toHaveAccessibleName(
+      new RegExp(shortCalendarDate(SEEDED_TASK.dueDate)),
+    );
     await due.click();
 
     const popover = page.getByRole("dialog", { name: "Edit due date" });
@@ -273,13 +281,27 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
      * Days are addressed by their FULL spoken date, which is what a screen
      * reader hears; "15" alone would name nothing. `PageDown` walks the month,
      * which is the keyboard contract the grid publishes.
+     *
+     * CONV-00-E / DEBT-236 — every date below is DERIVED. The first target is
+     * the 15th of the month after the seeded date; the grid opens on the
+     * seeded month (the value is set), which is asserted rather than assumed,
+     * and the press count comes from the two months. This step used to press
+     * `PageDown` once and click "Saturday 15 August 2026" by name — a label
+     * that was only reachable because the seed says July.
      */
     const grid = popover.getByRole("grid", { name: "Due date" });
     await expect(popover.locator('input[type="date"]')).toHaveCount(0);
-    await grid.press("PageDown");
-    await grid.getByRole("button", { name: "Saturday 15 August 2026" }).click();
+    const nextMonth = dayInMonthsAhead(SEEDED_TASK.dueDate, 1, 15);
+    await pickCalendarDayByKeyboard(
+      popover,
+      grid,
+      SEEDED_TASK.dueDate,
+      nextMonth,
+    );
     await expect(
-      record.getByRole("button", { name: /^Due date: .*15 Aug 2026/ }),
+      record.getByRole("button", {
+        name: new RegExp(`^Due date: .*${shortCalendarDate(nextMonth)}`),
+      }),
     ).toBeVisible();
 
     // Clearing is possible because the data model permits it…
@@ -292,17 +314,32 @@ test.describe("EDIT-02 §4 — a simple date is edited where it is shown", () =>
       record.getByRole("button", { name: "Due date: No due date" }),
     ).toBeVisible();
 
-    // …and the fixture goes back to the date it was seeded with.
+    /*
+     * …and the fixture goes back to the date it was seeded with.
+     *
+     * Unset, so the grid opens on the OWNER'S OWN month (ADR-022) — whatever
+     * month the suite runs in. The walk back to the seeded month is therefore
+     * counted from `ownerTodayIso()` at run time, and the seeded day is
+     * clicked by its generated label. This used to press `PageUp` once with
+     * the comment "July is one back", which was true for exactly one month.
+     * The seeded date stays a fixed HISTORICAL datum (`search.spec.ts` asserts
+     * it reads as overdue); what became run-relative is the walk to it.
+     */
     await record.getByRole("button", { name: /^Due date: / }).click();
     const restore = page.getByRole("dialog", { name: "Edit due date" });
     const restoreGrid = restore.getByRole("grid", { name: "Due date" });
-    // Unset, so the grid opens on the owner's own month; July is one back.
-    await restoreGrid.press("PageUp");
-    await restoreGrid
-      .getByRole("button", { name: "Wednesday 29 July 2026" })
-      .click();
+    await pickCalendarDayByKeyboard(
+      restore,
+      restoreGrid,
+      ownerTodayIso(),
+      SEEDED_TASK.dueDate,
+    );
     await expect(
-      record.getByRole("button", { name: /^Due date: .*29 Jul 2026/ }),
+      record.getByRole("button", {
+        name: new RegExp(
+          `^Due date: .*${shortCalendarDate(SEEDED_TASK.dueDate)}`,
+        ),
+      }),
     ).toBeVisible();
   });
 });

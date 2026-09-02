@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { ownerDayPlus } from "./calendar-dates";
+
 import {
   expectMinTouchTarget,
   expectNoAxeViolations,
@@ -51,7 +53,9 @@ async function createMeasurableGoal(page: Page, title: string) {
   await dialog.getByRole("textbox", { name: /^Measure in/ }).fill("kg");
   await dialog.getByRole("textbox", { name: /^Starting value/ }).fill("85");
   await dialog.getByRole("textbox", { name: /^Target value/ }).fill("70");
-  await dialog.getByLabel("Target date").fill("2026-12-31");
+  // Four months out, from the owner's day — never a fixed date the calendar
+  // will pass (CONV-00-E).
+  await dialog.getByLabel("Target date").fill(ownerDayPlus(120));
 
   // The direction is INFERRED and stated back — the owner never picks one.
   await expect(

@@ -25,6 +25,7 @@
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { futureInstant } from "./calendar-dates";
 import { d1Execute, d1Query, sqlLiteral } from "./d1";
 import { clickCardAction, completeTaskRow, taskRow } from "./helpers";
 
@@ -189,9 +190,10 @@ async function goOnline(context: BrowserContext): Promise<void> {
  * puts these tasks at the top of a list that already holds ninety-odd others.
  * Deterministic placement, not luck — a journey that depends on where a row
  * happens to paginate is a journey that fails for a reason unrelated to what it
- * is testing.
+ * is testing. Derived from the run: a fixed instant is ahead only until the
+ * calendar reaches it (CONV-00-E).
  */
-const NOW = "2027-01-01T00:00:00.000Z";
+const NOW = futureInstant(366);
 
 /**
  * The Tasks list with no grouping, newest first — the one configuration in which

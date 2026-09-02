@@ -4201,7 +4201,7 @@ branch (**DEBT-215**). Both were issued as DEBT-213 / DEBT-214 on the branch and
   against [STEER-04](../roadmap/ROADMAP_V2_5.md#-steer-04--from-signal-to-step--delivered-2026-08-28)'s
   shipped component.
 
-### ☐ DEBT-215 — Three E2E assertions still address the Area record's Goals tab as a Card — P2
+### ☑ DEBT-215 — Three E2E assertions still address the Area record's Goals tab as a Card — P2 — **RESOLVED 2026-09-02**
 
 - **Current issue.** [STEER-03](../roadmap/ROADMAP_V2_5.md#-steer-03--one-goal-one-story--delivered-2026-08-28)
   replaced the Area record's Goals tab cards with the shared
@@ -4242,9 +4242,9 @@ branch (**DEBT-215**). Both were issued as DEBT-213 / DEBT-214 on the branch and
   tree with a freshly seeded database, asserting the Area Goals tab through the
   shared row's own contract.
 - **CORRECTED 2026-09-02 by [the V2.8 decision pass](../roadmap/ROADMAP_V2_8.md), and TAKEN by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-B.** The claim above that *"there is no `article` role on the tab at all"* is false on `main` at `036d3da`: `ProgressRow` renders `<article aria-label={title}>` (`app/shared/card/ProgressRow.tsx:126-131`), so `goals.spec.ts:148` / `areas.spec.ts:90` DO resolve; what cannot resolve is the `Open <title>` link name (`goals.spec.ts:151, :286`, `areas.spec.ts:94`), because the row names its link `"<title> — <alignment> — <movement>"` (`GoalStoryRow.tsx:162-176`). Red on every `main` run from #779 (2026-08-28) to #815 (2026-09-01). Repair per the desired state above — `[data-goal-story]` and the row's real accessible name; no `article` wrapper or `Open <title>` label is re-added.
+- **RESOLVED 2026-09-02 by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-B.** The three assertions now address what the tab renders, through two shared helpers in `e2e/helpers.ts`: `goalStoryRow(scope, id)` finds a row by the machine key every row stamps (`[data-goal-story="<id>"]`), and `expectGoalStoryOpenLink(row, title)` asserts the open affordance by the name the product composes — the title, then one " — " segment per derived answer the row says it holds (`data-goal-alignment-state`, `data-goal-movement-available`) — and returns the link. `goals.spec.ts` locates the Goal it created by the id in its own URL and the seeded `g-launch` for the overflow journey; `areas.spec.ts` asserts `g-launch`'s link `href` is its canonical record. No `article` wrapper and no `Open <title>` label was added to the product. **Falsified** by changing the composition to `Open <title>` and to a `" · "` separator on a scratch tree: `areas.spec.ts:12` and both `goals.spec.ts` journeys fail naming the link found. All three pass on a fresh seed (23.6 s, 32.7 s and the overflow journey).
 - **Related roadmap item.** [STEER-03](../roadmap/ROADMAP_V2_5.md#-steer-03--one-goal-one-story--delivered-2026-08-28),
-  which made the change; a future truth-restoration pass in the
-  [HARDEN-05](HARDEN_05_GREEN_MAIN_2026_08.md) mould owns the repair.
+  which made the change; [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again), which repaired it.
 
 
 ---
@@ -4257,7 +4257,7 @@ change and found one failing assertion that has nothing to do with it. It is
 recorded rather than fixed, because it is a different item's surface and a
 different pass's repair.
 
-### ☐ DEBT-216 — A command-palette test still asserts that Goals have no creation command, which STEER-01 gave them — P2
+### ☑ DEBT-216 — A command-palette test still asserts that Goals have no creation command, which STEER-01 gave them — P2 — **RESOLVED 2026-09-02**
 
 - **Current issue.** [`e2e/command-palette.spec.ts`](../../e2e/command-palette.spec.ts) `:603`
   — *"contributes NO create-Goal command, because there is no such surface"* —
@@ -4292,10 +4292,9 @@ different pass's repair.
 - **Closing condition.** `command-palette.spec.ts` passes on a clean tree with a
   freshly seeded database, asserting the Goal creation command's real contract.
 - **V2.8 disposition — TAKEN by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-A (2026-09-02).** Still red on #815; the test moved to `:616` (assertion `:634`) and survived RECALL-02's edit of the same file. Repair per the desired state; `goals.new` stays and the test asserts the one-flow invariant it always meant.
+- **RESOLVED 2026-09-02 by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-A.** The test is now *"creates a Goal through the ONE shared creation Drawer, and offers no second flow"*: under the title, the verb (a registered keyword) and the noun, exactly one `New Goal` option and no `Create Goal`/`Add Goal`; running it lands on `/goals?drawer=new-goal`, closes the palette, and the Drawer that opens is the shared `NewGoalForm` (one dialog, one form named "New Goal", its "Create Goal" control) — the Areas/Projects create commands' contract, asserted the same way. `goals.new` is untouched. **Falsified**: unregistering `goals.new` fails the count and the click; pointing it at `/goals` fails the URL assertion.
 - **Related roadmap item.** [STEER-01](../roadmap/ROADMAP_V2_5.md), which made
-  the change; a future truth-restoration pass in the
-  [HARDEN-05](HARDEN_05_GREEN_MAIN_2026_08.md) mould owns the repair, alongside
-  the Area-Goals-tab assertions STEER-05 recorded for the same reason.
+  the change; [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again), which repaired the assertion.
 
 ---
 
@@ -4342,7 +4341,7 @@ how a branch stops being reviewable.
   truth-restoration pass in the [HARDEN-05](HARDEN_05_GREEN_MAIN_2026_08.md)
   mould owns the repair.
 
-### ☐ DEBT-219 — An Assets journey went red on 2026-08-29 because a fixture obligation's due date passed — P2
+### ☑ DEBT-219 — An Assets journey went red on 2026-08-29 because a fixture obligation's due date passed — P2 — **RESOLVED 2026-09-02**
 
 - **Current issue.** [`e2e/assets-ownership.spec.ts`](../../e2e/assets-ownership.spec.ts)
   `:605` asserts `getByText("1 obligation overdue")` is visible — unscoped, and
@@ -4375,9 +4374,8 @@ how a branch stops being reviewable.
 - **Closing condition.** `assets-ownership.spec.ts` passes on a clean tree with a
   freshly seeded database, on a day after 2026-08-28.
 - **V2.8 disposition — TAKEN by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-D (2026-09-02).** Still red on #815, five days past due. **A second bomb is armed**: `ob-rc-rego`, `due_date = '2026-09-14'` (`e2e/seed-record-convergence.sql:382`). CONV-00 scopes the assertion to the journey's own card AND makes seeded obligation dates run-relative under the fixture rule [DEBT-236](#-debt-236--two-task-date-editor-journeys-assert-the-calendar-month-they-were-written-in--p2) records.
-- **Related roadmap item.** ASSET-03, which owns the journey; a
-  truth-restoration pass in the [HARDEN-05](HARDEN_05_GREEN_MAIN_2026_08.md)
-  mould owns the repair, alongside DEBT-216 and DEBT-217.
+- **RESOLVED 2026-09-02 by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-D — both repairs, in the order the entry ranked them.** (1) The assertion is scoped to the card the journey created, through the spec's own `expectCollectionSignal(page, title, signal)` — the list item carrying the asset's title, then the signal inside it — so the fixture's other cards are free to say anything. **Falsified** with the pre-repair seed (the Hilux's inspection five days overdue): the unscoped `getByText("1 obligation overdue")` fails strict mode on two elements while the scoped assertion passes. (2) Every OPEN obligation in `seed-record-convergence.sql`, and the ute's `next_service_date` / `renewal_date`, are now `date('now', '+N days')` offsets — the offsets the fixture was written with, from 2026-08-01 (`ob-rc-rego` +44, `ob-rc-inspect` +27, `ob-rc-service` +93, `ob-rc-insurance` +184) — so no seeded obligation crosses its due date because the calendar advanced; completed history keeps its real dates and the warranty stays a fixed, annotated fact. The Static check CONV-00-E added ([DEBT-236](#-debt-236--two-task-date-editor-journeys-assert-the-calendar-month-they-were-written-in--p2--resolved-2026-09-02)) fails on the next such literal.
+- **Related roadmap item.** ASSET-03, which owns the journey; [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again), which repaired it.
 
 ### ☐ DEBT-218 — The shared anchored surface scrolls, and `axe` reports `scrollable-region-focusable` on the collection controls popover — P3
 
@@ -4409,7 +4407,7 @@ how a branch stops being reviewable.
 - **Related roadmap item.** [DHDS-09](../design/DHDS_09_FLOATING_SURFACES_AND_CONTEXTUAL_CHOICE_2026_08.md),
   which owns the anchored surface.
 
-### ☐ DEBT-220 — A Project-templates assertion reads a template task's TITLE, which STEER-04 now shows as a Project's next action — P2
+### ☑ DEBT-220 — A Project-templates assertion reads a template task's TITLE, which STEER-04 now shows as a Project's next action — P2 — **RESOLVED 2026-09-02**
 
 - **Current issue.** [`project-templates.spec.ts`](../../e2e/project-templates.spec.ts)
   `:317` asserts, on `/today`, that `getByText(<template task title>)` has count
@@ -4442,9 +4440,9 @@ how a branch stops being reviewable.
   a freshly seeded database, with the template-vs-live-work guarantee still
   asserted at the database.
 - **V2.8 disposition — TAKEN by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-C (2026-09-02).** Still red on #815 (`:316-325`, on `/today` and again on `/plan`); the structural guarantee at `:307-313` passes. Repair per the desired state; the next-action line stays.
+- **RESOLVED 2026-09-02 by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-C.** The structural guarantee (no `entities` row joins a `project_template_tasks` row) is kept as the claim; the surface half on `/today` and `/plan` is scoped to the shared task row — `taskRows(page).filter({ hasText: title })` has count 0 — because a Task is acted on in a row and the next-action line is a reference to a Project's Task, not a Task (ADR-115 decision 3). The next-action line stays. The template fixture's source Task dates (`project-template-fixtures.ts`) were also a bomb this pass could see arming — a fixed March 2027 due/scheduled pair would have put the source Task on Today that March and failed the scoped assertion — and are now derived from the owner's day. **Falsified** by inserting a live Task entity titled "Pull the numbers" scheduled for the owner's day on a scratch tree: the scoped `/today` assertion fails on one task row; inserting an `entities` row with a template task's id fails the structural assertion.
 - **Related roadmap item.** [STEER-04](../roadmap/ROADMAP_V2_5.md), which added
-  the line; PROJECT-02, which owns the spec; a truth-restoration pass in the
-  [HARDEN-05](HARDEN_05_GREEN_MAIN_2026_08.md) mould owns the repair.
+  the line; PROJECT-02, which owns the spec; [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again), which repaired it.
 
 ### ☐ DEBT-221 — Today overflows sideways at 200% zoom, because the week door's date range cannot wrap — P2
 
@@ -4679,7 +4677,7 @@ role", DEBT-221's named offender, DEBT-128's title, DEBT-151's headline). Two
 findings had no entry at all, and are raised here with their evidence. Read
 this register's own warning on DEBT-200: causes are claims to check.
 
-### ☐ DEBT-236 — Two Task date-editor journeys assert the calendar month they were written in — P2
+### ☑ DEBT-236 — Two Task date-editor journeys assert the calendar month they were written in — P2 — **RESOLVED 2026-09-02**
 
 - **Current issue.** Two E2E journeys walk the DalyHub date picker's month
   grid by a FIXED number of `PageUp`/`PageDown` presses from the month the
@@ -4735,6 +4733,11 @@ this register's own warning on DEBT-200: causes are claims to check.
   seeded database in any month; the Static check is green and would go red on
   **both** a bare future ISO literal and a bare long-form picker label of any
   date (falsified by adding one of each); no fixture date arms.
+- **RESOLVED 2026-09-02 by [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-E — the class, not the instance.**
+  - **The two journeys are derived end to end**, through one shared test-side module, [`e2e/calendar-dates.ts`](../../e2e/calendar-dates.ts): the target comes from the owner's day (`ownerTodayIso`, the same `ownerToday` resolution as ADR-022) or from the value the test itself set; its label is generated in the grid's own shape (`calendarDayLabel` — weekday, day, month, year, English names, no comma); the grid's opening month is **asserted** by its live heading (`expectCalendarMonth`) and the `PageUp`/`PageDown` count is the difference between that month and the target's (`pickCalendarDayByKeyboard`); the rendered form is read back through `shortCalendarDate`, which mirrors the product's `formatCalendarDate` ("Sep", where `Intl` en-AU says "Sept"). `editing-consistency.spec.ts` walks from the seeded July month to the 15th of the month after the seeded date, then — after clearing — from the owner's current month back to the seeded day; `inline-editor-overlay.spec.ts` walks from the owner's month to the 25th of the month two ahead. The seeded `2026-07-29` stays a fixed historical datum (the decision: the walk to it became run-relative, not the seed). Both pass on a fresh seed in September (16.3 s and 11.7 s) — the month in which the old assertions timed out.
+  - **The Static check exists and is wired**: `scripts/e2e-fixture-dates.mjs check` (`pnpm run e2e:fixture-dates:check`, a `Static` step beside `e2e:partitions:check`). It scans every `.sql`, `.ts` and `.mjs` under `e2e/`, strips comments string-aware, and reads three forms — ISO (alone or leading a timestamp), the long-form picker label, and the abbreviated display form with or without a weekday, "Sep" and "Sept" alike. A data literal is flagged when it is later than `HEAD`'s committer date; a long-form picker label is flagged **whatever its date**; a same-line `// fixed-date: <why>` / `-- fixed-date: <why>` annotation classifies a literal as deliberately fixed in every form. `list` prints the inventory. Sixteen unit tests (`test/unit/ci/e2e-fixture-dates.test.ts`) pin the contract, including that the repository's own fixtures are clean.
+  - **The first run's inventory, classified.** 1,315 literals in 42 files on `036d3da` (the entry's "111" counted date-only literals in the seeds; the check also reads the date leading every timestamp, which is why the total is larger): **1,255 fixed historical** (ignored), **56 future data literals** and **2 bare picker labels** to resolve, 2 already annotated. Of the 58: **42 converted to derived** — 16 `seed-tasks.sql` dataset dues/schedules and 10 `seed-record-convergence.sql` dates as `date('now', '+N days')` with the fixture's own authoring offsets; six "far ahead" creation instants (`checklist-`, `dependency-`, `drag-`, `project-template-fixtures.ts`, `pwa-offline-tasks.spec.ts`) as `futureInstant(366)`, because a fixed 2027 instant sorts above live records only until 2027; eight typed Goal targets and picker targets (`goal-fixtures.ts`, `goal-measurement`, `goals-outcomes`, `goals`, `areas-goals-mobile`, `dhds-10-inline-manipulation`, four in `visual-convergence-screenshots`) as `ownerDayPlus` / `dayInMonthsAhead`, read back through `shortCalendarDate`; and the template fixture's source-Task dates (DEBT-220). **16 annotated as deliberately fixed**: `2099-12-31` (`t-drawer`, twice, and its "Due 31 Dec 2099" assertion), the Hilux's warranty (`2027-05-10`, a purchase fact, three places), a history event's recorded "next due", the drag fixture's milestone Goal target, and the Diary strip's two long-form day links, which are walked from a fixed seeded `?date=` rather than from the run day. After the pass: 1,264 literals, 1,248 past, 16 annotated, **0 offenders**.
+  - **Falsified, both halves, on a scratch tree**: an unannotated future ISO literal in a seed and an unannotated long-form picker label whose date is already past each fail `Static`'s check with the file, line, literal and form named; each passes again once annotated. The clock could not be moved on this machine; the derivation is instead pinned by the unit tests over a fixed reference day and proven by the two journeys passing in the month that broke them.
 - **Related roadmap item.** [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again)-E.
 
 ### ☐ DEBT-237 — The AI gate names a fake-provider path that the repository deliberately does not have — P3

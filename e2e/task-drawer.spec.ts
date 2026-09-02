@@ -95,7 +95,7 @@ test.describe("TODAY-02 — desktop", () => {
     // past, so a near-future fixture would make this assertion fail on one
     // specific calendar day and every day after it.
     await expect(
-      dialog.locator(".dh-urgency").getByText("Due 31 Dec 2099"),
+      dialog.locator(".dh-urgency").getByText("Due 31 Dec 2099"), // fixed-date: the seed's far-future due date, which no run reaches (see seed-tasks.sql)
     ).toBeVisible();
   });
 

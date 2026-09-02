@@ -12,6 +12,7 @@
  * template detail row, then the entity.
  */
 
+import { futureInstant, ownerDayPlus } from "./calendar-dates";
 import { d1Execute, d1Query, sqlLiteral } from "./d1";
 
 export const WORKSPACE_ID = "local-dev-workspace";
@@ -22,9 +23,10 @@ export const TEMPLATE_ID_PREFIX = "e2e-tpl-";
 /**
  * A creation instant far ahead of every other seeded fixture, so these records
  * sort to the top of any recency-ordered collection. Deterministic placement
- * rather than luck.
+ * rather than luck — and derived from the run, because a fixed "far ahead"
+ * instant is ahead only until the calendar reaches it (CONV-00-E).
  */
-const SEEDED_AT = "2027-03-01T00:00:00.000Z";
+const SEEDED_AT = futureInstant(366);
 
 function lit(value: string): string {
   return sqlLiteral(value);
@@ -253,8 +255,16 @@ export function seedCanonicalProject(): void {
       {
         title: "Pull the numbers",
         priority: "p2",
-        dueDate: "2027-03-31",
-        scheduledDate: "2027-03-20",
+        /*
+         * Far enough ahead that the SOURCE Project's real Task never reaches
+         * Today or the current planning week, so the only place its title
+         * appears on Today is the Project's next-action line — which is what
+         * the "never live work" journey relies on. Derived from the owner's
+         * day: a fixed March 2027 pair would have put the Task on Today that
+         * March (CONV-00-E).
+         */
+        dueDate: ownerDayPlus(400),
+        scheduledDate: ownerDayPlus(390),
       },
       {
         title: "Write the summary",

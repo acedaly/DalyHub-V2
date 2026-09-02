@@ -104,10 +104,10 @@ opening a job:
 | Job | What it does | What its red means |
 | --- | --- | --- |
 | **Scope** | Decides whether the change touches anything executable | (never red in practice — it fails open) |
-| **Static** | `format:check` → `lint` → `typecheck` → `scheme:check` → `icons:check` | the source does not meet the repository's own rules |
+| **Static** | `format:check` → `lint` → `typecheck` → `scheme:check` → `e2e:partitions:check` → `e2e:fixture-dates:check` → `icons:check` | the source does not meet the repository's own rules |
 | **Unit** | `pnpm run test:unit`, then `pnpm run test:kernel` (real Workers runtime + local D1) | application or kernel logic is wrong |
 | **Build** | `pnpm run build`, `wrangler deploy --dry-run` against the generated config, then uploads `build/` as the `production-build` artifact | it does not build, or it would not deploy |
-| **E2E p01…p12** | A **twelve-way** matrix, one job per time-balanced partition of the suite; each downloads the `production-build` artifact and runs its own spec files on its own runner | the product misbehaves in a real browser — or a partition did not finish, which the job says in those words |
+| **E2E p01…p13** | A **thirteen-way** matrix, one job per time-balanced partition of the suite; each downloads the `production-build` artifact and runs its own spec files on its own runner | the product misbehaves in a real browser — or a partition did not finish, which the job says in those words |
 | **CI Gate** | Depends on every job above; the one stable required check (see below) | something above is not green |
 
 `Static` and `Scope` have no `if:`, so they always run. `Unit`, `Build` and the
@@ -152,6 +152,8 @@ checked, exactly like the generated colour scheme and the icon assets:
 | `pnpm run e2e:partitions:check` | fails if the manifest is not what the committed durations derive, if any spec file on disk belongs to no partition, if any spec file on disk has **no measured duration or test count**, or if any partition is budgeted past the ceiling (run by **Static**) |
 | `pnpm run e2e:partitions:generate` | re-derives it; `--from playwright-report/results.json` refreshes the durations from a finished run first |
 | `pnpm run e2e:gate` | runs every partition locally, in sequence, exactly as CI runs them |
+| `pnpm run e2e:fixture-dates:check` | fails if any `e2e/**` seed, spec, fixture or helper carries an **unannotated future date literal** in any supported form, or an **unannotated long-form picker label** of any date (run by **Static**; see "Fixture dates" below) |
+| `pnpm run e2e:fixture-dates:list` | enumerates every date literal the check reads, with its classification |
 
 The derivation is a pure function of those two inputs — longest-processing-time
 greedy packing over whole spec files — so it is deterministic and reviewable in
@@ -161,6 +163,48 @@ partitions and is divided between them with `--shard` applied to that ONE file,
 where a test's count genuinely is its cost. A brand-new spec file with no
 measurement is sized pessimistically at 120 s until a run measures it — it can
 never be silently left out, because `check` fails first.
+
+### Fixture dates (V2.8 CONV-00-E)
+
+A fixture or E2E journey **must not hard-code a future calendar date whose
+correctness depends on the month or day the test runs** ([ADR-115](../decisions/ARCHITECTURE_DECISIONS.md#adr-115-converge--a-task-is-rendered-by-the-shared-row-wherever-it-can-be-acted-on-a-fixture-never-carries-the-month-it-was-written-in-and-a-gate-that-cannot-say-green-is-a-truth-defect-not-a-rider)
+decision 4). Two date-picker journeys went red the day the owner's calendar
+turned to September 2026, and an Assets journey went red the day a seeded
+obligation's due date passed — none of them a regression, and a gate that is
+red for the calendar cannot report one (DEBT-219, DEBT-236).
+
+`scripts/e2e-fixture-dates.mjs check` makes the rule a Static check. It reads
+every `.sql`, `.ts` and `.mjs` under `e2e/`, strips comments (string-aware), and
+recognises three literal forms:
+
+| Form | Example | Judged as |
+| --- | --- | --- |
+| ISO `YYYY-MM-DD`, alone or leading a timestamp | `'2026-09-14'` | a **data literal**: fine on or before the reference day, flagged after it |
+| the long-form label a picker cell carries and a spec clicks | `"Wednesday 29 July 2026"` | a **picker-action label**: flagged **whatever its date** — the month walk that reaches it is counted from where the grid opens, which is the owner's current month when the value is unset |
+| the abbreviated display form a spec asserts on, with or without a weekday | `"29 Jul 2026"`, `"Thu, 12 Jun 2027"` | a data literal, as ISO |
+
+The reference day is `HEAD`'s committer date (a pull request's merge commit is
+dated when CI runs it), so "future" means later than the commit under test;
+`--today YYYY-MM-DD` overrides it. A literal that is deliberately fixed says
+why **on the same line**, in every form:
+
+```ts
+const far = "2099-12-31"; // fixed-date: a target no run will reach
+```
+
+```sql
+  ('t-drawer', 'task', 'todo', 'p1', '2099-12-31', …), -- fixed-date: the Drawer asserts the chip's absolute form
+```
+
+Everything else is **derived**: a seed writes `date('now', '+44 days')`; a spec
+takes its target from the owner's day (`ownerToday`, `e2e/calendar-dates.ts`),
+generates the picker label with the grid's own shape (`calendarDayLabel`),
+asserts the month the grid opened on and walks by the computed delta
+(`pickCalendarDayByKeyboard`), and reads the rendered value back through
+`shortCalendarDate`. `pnpm run e2e:fixture-dates:list` prints the inventory the
+check reads, classified — the first run (2026-09-02) found 1,315 literals, of
+which 56 future data literals and 2 bare picker labels were converted or
+annotated by CONV-00.
 
 **And the guess is not allowed to survive the merge (HARDEN-06A).** The 120 s
 fallback exists so a spec file added between two runs still lands in a partition;
@@ -183,7 +227,7 @@ the p05 that could not finish satisfied at 19.4 min.
 When a partition exceeds it the lever is `PARTITION_COUNT`, or a genuinely
 cheaper spec file — never a larger `globalTimeout`.
 
-**Twelve partitions, and the number is bounded from both ends.** Above, by the
+**Thirteen partitions since V2.4 FOLLOW-01 (twelve from HARDEN-06A until then), and the number is bounded from both ends.** Above, by the
 runner pool: on run `31445526789` six of eighteen shards sat QUEUED for 5.5–7.0
 minutes, so past roughly twelve concurrent jobs the pool saturates and extra
 jobs buy no wall-clock. Below, by setup cost: MEASURED at ~0.8 min of
@@ -204,7 +248,15 @@ the ~70%-of-ceiling target against Playwright's **unchanged** 25-minute
 `globalTimeout`. Run `32333645709` also confirmed twelve is not contended: all
 twelve E2E jobs started within **one second** of each other, none queued. A
 queued job would cost wall clock only — it has not started, so it spends none of
-its `globalTimeout`.
+its `globalTimeout`. **V2.4 FOLLOW-01 then moved the count to thirteen** for the
+same reason in the same direction: its one new spec file (43.2 s, measured) put
+the heaviest of twelve partitions at 16.80 min against the 16.73 min ceiling,
+and no packing of any 43-second file fits when the MEAN of the non-sliced
+partitions is already at the ceiling — so the count moved, the ceiling did not.
+The arithmetic, the setup cost of the thirteenth job and the one better fix
+deliberately not taken are recorded on `PARTITION_COUNT` in
+`scripts/e2e-partitions.mjs`. (This section said "twelve" until V2.8 CONV-00
+corrected it; the manifest and the workflow had been thirteen since 2026-08-26.)
 
 **Browser lifetime is a sizing variable too, not just minutes.** Fewer, fatter
 shards give each shard's one long-lived Chromium more to survive, which is the
@@ -296,7 +348,7 @@ artefacts at all and were invisible unless someone read the raw log
    later became seven, ten, fourteen and eighteen; #158 cut it to **eight** on
    the queueing measurement above; HARDEN-04 replaced count-based sharding
    altogether with the measured partition described above (ten, then twelve
-   after HARDEN-06A), because the
+   after HARDEN-06A, then thirteen after V2.4 FOLLOW-01), because the
    evidence below is what a count-based split looks like when it fails. The
    tables in this item are kept as that evidence: they are what established the
    ~70%-of-ceiling target every later split has been tuned to, and what proved

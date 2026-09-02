@@ -16,6 +16,7 @@
  * ordinary product filter.
  */
 
+import { futureInstant } from "./calendar-dates";
 import { d1Execute, d1Query, sqlLiteral } from "./d1";
 
 export const WORKSPACE_ID = "local-dev-workspace";
@@ -93,9 +94,10 @@ export const CHECKLIST_STEPS = [
 /**
  * Far ahead of every other seeded fixture, so a newest-first collection puts
  * these rows where the journeys expect them. Deterministic placement rather
- * than luck.
+ * than luck — and derived from the run, because a fixed "far ahead" instant
+ * is ahead only until the calendar reaches it (CONV-00-E).
  */
-const AT = "2027-03-01T00:00:00.000Z";
+const AT = futureInstant(366);
 
 /**
  * The committed seed's DalyHub Area.
@@ -136,7 +138,7 @@ export function seedDragFixture(): void {
     { ...CHECKLIST_TASK, project: WORK_PROJECT.id },
   ];
   tasks.forEach((task, index) => {
-    const stamp = lit(`2027-03-01T00:00:0${index}.000Z`);
+    const stamp = lit(futureInstant(366, index));
     statements.push(
       `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
          VALUES (${lit(task.id)}, ${WS}, 'task', ${lit(task.title)}, ${stamp}, ${stamp}, NULL);`,
@@ -174,7 +176,7 @@ export function seedDragFixture(): void {
        (workspace_id, entity_id, entity_type, target_date, definition_of_done,
         measurement_type, measurement_unit, measurement_direction, baseline_value,
         target_value, updated_at)
-     VALUES (${WS}, ${lit(STAGED_GOAL.id)}, 'goal', '2027-12-31', NULL,
+     VALUES (${WS}, ${lit(STAGED_GOAL.id)}, 'goal', '2027-12-31', NULL, -- fixed-date: the drag journeys reorder stages; no assertion reads the target
              'milestone', NULL, NULL, NULL, NULL, ${lit(AT)});`,
   );
   GOAL_STAGES.forEach((title, index) => {

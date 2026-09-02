@@ -1,13 +1,31 @@
 import { expect, test } from "@playwright/test";
 
 import {
+  dayInMonthsAhead,
+  ownerTodayIso,
+  shortCalendarDate,
+} from "./calendar-dates";
+import {
   comboboxOption,
   RESPONSIVE_VIEWPORTS,
+  expectGoalStoryOpenLink,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
+  goalStoryRow,
   gotoFixture,
   pickCalendarDate,
 } from "./helpers";
+
+/**
+ * The two target dates the journey chooses in the picker and then reads back
+ * in the product's rendered form. Derived from the owner's day, so the walk
+ * to them is counted at run time and neither is a date the calendar can pass
+ * (CONV-00-E).
+ */
+const FIRST_TARGET = dayInMonthsAhead(ownerTodayIso(), 4, 1);
+const SECOND_TARGET = dayInMonthsAhead(ownerTodayIso(), 5, 1);
+/** The seeded Goal under the fixture Area (`e2e/seed-tasks.sql`). */
+const SEEDED_GOAL = { id: "g-launch", title: "Launch the site" } as const;
 
 test.describe("AREA-02 — Goals", () => {
   test("create, edit details, link a Project, complete/reopen, review Activity", async ({
@@ -45,6 +63,7 @@ test.describe("AREA-02 — Goals", () => {
     // 2. Lands on the canonical /goals/:goalId record.
     await expect(page).toHaveURL(/\/goals\/[^/?#]+$/);
     const goalUrl = page.url();
+    const goalId = goalUrl.slice(goalUrl.lastIndexOf("/") + 1);
     await expect(page.getByRole("heading", { name: goalTitle })).toBeVisible();
     const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
     await expect(
@@ -92,9 +111,11 @@ test.describe("AREA-02 — Goals", () => {
      * selection: a calendar day is a complete answer, so there is no Save after
      * it. The same interface the Task row's due date opens.
      */
-    await pickCalendarDate(datePopover, "2027-01-01");
+    await pickCalendarDate(datePopover, FIRST_TARGET);
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByText(/1 Jan 2027/).first()).toBeVisible();
+    await expect(
+      page.getByText(shortCalendarDate(FIRST_TARGET)).first(),
+    ).toBeVisible();
 
     await definitionTrigger.click();
     await page
@@ -122,7 +143,7 @@ test.describe("AREA-02 — Goals", () => {
     await page.getByRole("button", { name: /^Target date: / }).click();
     await pickCalendarDate(
       page.getByRole("dialog", { name: "Edit target date" }),
-      "2027-02-01",
+      SECOND_TARGET,
     );
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
@@ -131,24 +152,38 @@ test.describe("AREA-02 — Goals", () => {
     // (rendered alongside whichever tab is active, not a tab itself) reflects
     // the new target date too.
     await expect(activityFeed.getByText("Updated goal details")).toHaveCount(3);
-    await expect(page.getByText(/1 Feb 2027/).first()).toBeVisible();
+    await expect(
+      page.getByText(shortCalendarDate(SECOND_TARGET)).first(),
+    ).toBeVisible();
 
     // 4. Verify persistence after navigation (reload the canonical record).
     await gotoFixture(page, goalUrl);
     await expect(page.getByRole("heading", { name: goalTitle })).toBeVisible();
-    await expect(page.getByText(/1 Feb 2027/).first()).toBeVisible();
+    await expect(
+      page.getByText(shortCalendarDate(SECOND_TARGET)).first(),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /^Definition of done: Cross the/ }),
     ).toBeVisible();
 
-    // 5. The Area Goal card links back to the canonical record and shows the
-    // target date, batched with every other Goal card (no per-Goal fetch).
+    /*
+     * 5. The Area's Goals tab tells this Goal's story through the shared
+     * `GoalStoryRow` (STEER-03), batched with every other Goal (no per-Goal
+     * fetch). The row is found by the machine key every row stamps, and its
+     * open affordance by the accessible name the product composes — title,
+     * then the derived answers (DEBT-215, CONV-00-B). This used to ask for a
+     * Card named `Open <title>`, which the tab has not drawn since STEER-03.
+     */
     await gotoFixture(page, "/areas/a-dh");
     await page.getByRole("tab", { name: "Goals" }).click();
-    const goalCard = page.getByRole("article", { name: goalTitle });
-    await expect(goalCard).toBeVisible();
-    await expect(goalCard.getByText("1 Feb 2027")).toBeVisible();
-    await goalCard.getByRole("link", { name: `Open ${goalTitle}` }).click();
+    const goalRow = goalStoryRow(page, goalId);
+    await expect(goalRow).toBeVisible();
+    await expect(
+      goalRow.getByText(shortCalendarDate(SECOND_TARGET)),
+    ).toBeVisible();
+    const openGoal = await expectGoalStoryOpenLink(goalRow, goalTitle);
+    await expect(openGoal).toHaveAttribute("href", /^\/goals\//);
+    await openGoal.click();
     await expect(page).toHaveURL(goalUrl);
 
     // 6. Create a Project through the EXISTING New Project flow, selecting
@@ -283,7 +318,15 @@ test.describe("AREA-02 — Goals", () => {
   }) => {
     await gotoFixture(page, "/areas/a-dh");
     await page.getByRole("tab", { name: "Goals" }).click();
-    await page.getByRole("link", { name: "Open Launch the site" }).click();
+    // The seeded Goal's row on the Area's Goals tab, opened through the shared
+    // row's own accessible name (STEER-03; DEBT-215).
+    await (
+      await expectGoalStoryOpenLink(
+        goalStoryRow(page, SEEDED_GOAL.id),
+        SEEDED_GOAL.title,
+      )
+    ).click();
+    await expect(page).toHaveURL(new RegExp(`/goals/${SEEDED_GOAL.id}$`));
     for (const viewport of [
       RESPONSIVE_VIEWPORTS[0],
       RESPONSIVE_VIEWPORTS[3],

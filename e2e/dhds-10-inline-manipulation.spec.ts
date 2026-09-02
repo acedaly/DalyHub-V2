@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import {
+  dayInMonthsAhead,
+  ownerTodayIso,
+  shortCalendarDate,
+} from "./calendar-dates";
+import {
   expectMinTouchTarget,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -504,16 +509,18 @@ test.describe("DHDS-10 — beyond Tasks", () => {
      * month grid is the control, and it is the same one the canonical record
      * opens.
      */
-    const chosen = "2027-03-31";
+    // Derived from the owner's day and read back in the product's rendered
+    // form (CONV-00-E); the pointer walk to it is counted at run time.
+    const chosen = dayInMonthsAhead(ownerTodayIso(), 6, 28);
     await pickCalendarDate(page.getByRole("dialog"), chosen);
-    await expect(field).toContainText("31 Mar 2027");
+    await expect(field).toContainText(shortCalendarDate(chosen));
 
     // The pane and the Goal's own record post the SAME focused
     // `set_target_date` intent, so the two can never write it differently.
     await page.reload();
     await waitForInteractive(page);
     await expect(page.getByTestId("goal-pane-target-date")).toContainText(
-      "31 Mar 2027",
+      shortCalendarDate(chosen),
     );
 
     // Progress is NOT editable here, and must not become so: a Goal's status is

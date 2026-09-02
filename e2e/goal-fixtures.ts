@@ -43,6 +43,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import { d1Execute, sqlLiteral } from "./d1";
+import { ownerDayPlus } from "./calendar-dates";
 import { gotoFixture, waitForInteractive } from "./helpers";
 
 /**
@@ -98,7 +99,9 @@ export async function createMeasurableGoal(
     unit = "km",
     baseline = "0",
     target = "100",
-    targetDate = "2026-12-31",
+    // Four months out, from the owner's day: a fixed target stops being a
+    // target the day the calendar passes it (CONV-00-E).
+    targetDate = ownerDayPlus(120),
   } = options;
 
   await gotoFixture(page, `/areas/${FIXTURE_AREA_ID}`);

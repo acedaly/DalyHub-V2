@@ -38,6 +38,8 @@
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { ownerDayPlus, shortCalendarDate } from "./calendar-dates";
+
 import {
   RESPONSIVE_VIEWPORTS,
   expectNoAxeViolations,
@@ -49,6 +51,11 @@ import {
 
 /** A unique suffix, so a re-run never collides with the last one's records. */
 const RUN = String(Date.now());
+/**
+ * The target date the journey types and reads back rendered — derived from the
+ * owner's day rather than fixed, so the calendar cannot pass it (CONV-00-E).
+ */
+const TARGET_DATE = ownerDayPlus(100);
 
 /** Create a measurable Goal through the product and return its record URL. */
 async function createMeasurableGoal(
@@ -118,7 +125,7 @@ test.describe("UIX-03 — the Goal row reads as an outcome", () => {
       unit: "kg",
       start: "85",
       target: "70",
-      targetDate: "2026-12-10",
+      targetDate: TARGET_DATE,
     });
 
     // Enough history for a real chart: two readings is the floor, and below it
@@ -154,7 +161,7 @@ test.describe("UIX-03 — the Goal row reads as an outcome", () => {
     await expect(pane.locator(".dh-goal-measure__state")).toContainText(
       "9.3 kg to go",
     );
-    await expect(pane).toContainText("10 Dec 2026");
+    await expect(pane).toContainText(shortCalendarDate(TARGET_DATE));
   });
 
   test("a Goal with one reading gets no trend line, and says the value instead", async ({
