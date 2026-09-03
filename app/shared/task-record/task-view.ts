@@ -21,6 +21,7 @@ import type {
   TaskDependencies,
   TaskDependencyEndpoint,
   TaskDelegation,
+  TaskFollowUpState,
   TaskListItem,
   TaskPriority,
   TaskRecurrenceRule,
@@ -1114,6 +1115,111 @@ export function formatWaitingElapsed(sinceIso: string, nowMs: number): string {
   }
   const months = Math.floor(days / 30);
   return months === 1 ? "1 month" : `${months} months`;
+}
+
+/* -------------------------------------------------------------------------- */
+/* V2.8 CONV-02 — the row's ONE optional waiting fact                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The waiting/delegation facts a Task ROW draws, when the SURFACE provides them
+ * (ADR-115 decision 2: *a fact about a Task goes on the row — as one optional
+ * slot, decided once — or it goes nowhere*).
+ *
+ * Until CONV-02 these three facts lived only on `/today/waiting`'s generic
+ * Card: the waiting-for subject, "since · elapsed", and RECALL-03's follow-up
+ * date. They are ONE group rather than three slots because they are one fact
+ * about the Task — it is blocked on someone, has been since a moment, and the
+ * owner may have written down when to chase — and a surface either has that
+ * fact or does not.
+ *
+ * The shape is INPUTS, not prose: the row formats them through the same
+ * `waitingSubjectLabel` / `formatWaitingSince` / `formatWaitingElapsed` /
+ * `relativeCalendarDate` the Task record and the old card used, so no second
+ * waiting formatter exists anywhere. `nowMs` is the SERVER's instant (a loader
+ * fact), which is what keeps the elapsed phrase hydration-stable and what stops
+ * a browser clock from deciding how long something has waited.
+ */
+export interface TaskRowWaitingFact {
+  /** Who or what the Task is waiting on, exactly as the kernel resolved it. */
+  readonly subject: SerializedTaskWaitingSubject;
+  /** When the waiting began — an ISO instant. */
+  readonly since: string;
+  /** The reference instant for the elapsed phrase; server-derived. */
+  readonly nowMs: number;
+  /** V2.7 RECALL-03 — the delegation group's chase date (`YYYY-MM-DD`), or null. */
+  readonly followUpOn: string | null;
+}
+
+/**
+ * Build the row's waiting fact from a serialised list item, or `null` when the
+ * Task is not currently waiting — a completed Task is never waiting (completion
+ * clears the state atomically, ADR-029 §29.4a), and a Task with no waiting state
+ * has no fact to draw, whatever its delegation group says.
+ *
+ * Structural in its input so `SerializedTaskListItem`, the Waiting loader's
+ * item and `/tasks`'s card data all satisfy it without an adapter each.
+ */
+export function taskRowWaitingFact(
+  item: {
+    readonly waiting: SerializedTaskWaiting | null;
+    readonly completedAt: string | null;
+    readonly delegation: { readonly followUpOn: string | null } | null;
+  },
+  nowMs: number,
+): TaskRowWaitingFact | null {
+  if (item.waiting === null || item.completedAt !== null) return null;
+  return {
+    subject: item.waiting.subject,
+    since: item.waiting.since,
+    nowMs,
+    followUpOn: item.delegation?.followUpOn ?? null,
+  };
+}
+
+/**
+ * The three follow-up states a ROW can be in once a chase date exists — the
+ * kernel's own vocabulary ({@link TaskFollowUpState}) minus the two members
+ * that are not a state of ONE Task (`due` is the union of two, `none` is the
+ * absence this function answers with `null`).
+ */
+export type TaskFollowUpPresentationState = Extract<
+  TaskFollowUpState,
+  "overdue" | "due_today" | "upcoming"
+>;
+
+export interface TaskFollowUpPresentation {
+  /** The MACHINE state, comparable with the filter's, the rail's and the digest's. */
+  readonly state: TaskFollowUpPresentationState;
+  /** The owner's words for the date ("Today", "Yesterday", "Fri", "12 Sep 2026"). */
+  readonly label: string;
+}
+
+/**
+ * V2.7 RECALL-03 / V2.8 CONV-02 — the follow-up state a row STATES, resolved
+ * against the OWNER's calendar day.
+ *
+ * The same arithmetic as the repository's `followUpStatePredicate`, in the
+ * same terms: strictly before the owner's today is `overdue`, exactly today is
+ * `due_today`, strictly after is `upcoming`. It is derived through the ONE
+ * relative-date vocabulary the due column already reads (`relativeCalendarDate`),
+ * so the words on a row and the colour beside them cannot disagree with the
+ * date column about what "today" means — and the kernel parity test compares
+ * this `state` with the filter's membership as MACHINE VALUES, never as prose.
+ */
+export function taskFollowUpPresentation(
+  followUpOn: string | null,
+  todayIso: string,
+): TaskFollowUpPresentation | null {
+  const relative = relativeCalendarDate(followUpOn, todayIso);
+  if (relative === null) return null;
+  const state: TaskFollowUpPresentationState =
+    relative.urgency === "overdue"
+      ? "overdue"
+      : relative.urgency === "today"
+        ? "due_today"
+        : "upcoming";
+  return { state, label: relative.label };
 }
 
 /* -------------------------------------------------------------------------- */

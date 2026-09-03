@@ -557,6 +557,83 @@
   block-size: var(--dh-space-4);
 }
 
+/* -- The waiting fact (V2.8 CONV-02) ---------------------------------------- */
+
+/*
+ * The row's ONE optional waiting fact: "Waiting for Sam · Since 18 Jul 2026 ·
+ * 3 days · Follow up due · Today". Drawn only when a surface passes it, on a
+ * SECOND line under the title in the title's own column, so it costs the
+ * shared column grid no track and the row is byte-identical without it. The
+ * three parts wrap as a run rather than truncating: a subject is the reason an
+ * owner opens a waiting Task, and a fact that reads "Waiting for Lodg…" has
+ * stopped carrying its information (D32). `min-inline-size: 0` and
+ * `overflow-wrap: anywhere` are what keep a long free-text subject inside the
+ * row instead of taking the document wide — the exact overflow the old Card
+ * ladder hid the fact to avoid.
+ */
+.dh-taskrow__waiting {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--dh-space-2);
+  row-gap: var(--dh-space-1);
+  min-inline-size: 0;
+  margin: 0;
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-taskrow__waiting > * {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dh-space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A middot between the parts, drawn rather than typed, so the text nodes stay
+ * three clean facts. The same separator grammar the project cell uses. */
+.dh-taskrow__waiting > * + *::before {
+  content: "·";
+  margin-inline-end: var(--dh-space-1);
+}
+
+.dh-taskrow__waiting .dh-entity-icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.dh-taskrow__waiting .dh-entity-icon svg {
+  inline-size: var(--dh-space-4);
+  block-size: var(--dh-space-4);
+}
+
+/*
+ * The follow-up state, as a SECOND signal beside the words that already carry
+ * it: "Follow up overdue" takes the overdue colour and the label weight, "Follow
+ * up due" the ink colour, an upcoming one the metadata tone. Never colour alone
+ * (AGENTS.md §15) — the state is in the text on every row.
+ */
+.dh-taskrow__waiting-follow-up[data-state="overdue"] {
+  color: var(--dh-color-overdue);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-taskrow__waiting-follow-up[data-state="due_today"] {
+  color: var(--dh-color-text);
+  font-weight: var(--dh-text-label-weight);
+}
+
+/*
+ * Nothing else moves. The lead, the title and the metadata cells are all on
+ * row 1 (auto-placed, or pinned there by the cell rules above) and stay
+ * centred on it, so the completion ring and the overflow sit beside the title
+ * exactly as they do on a row with no second line.
+ */
+
 /* -- The metadata columns -------------------------------------------------- */
 
 /*
@@ -1370,6 +1447,24 @@
     min-inline-size: 0;
   }
 
+  /*
+   * V2.8 CONV-02 — the waiting fact is the row's THIRD line on a phone.
+   *
+   * Only a row that carries one gets the third area, through `:has()`: naming
+   * the area on every row would spend a row-gap on an empty track under every
+   * ordinary Task.
+   */
+  .dh-taskrow:has(.dh-taskrow__waiting) {
+    grid-template-areas:
+      "lead main actions"
+      "lead meta actions"
+      "lead waiting actions";
+  }
+
+  .dh-taskrow__waiting {
+    grid-area: waiting;
+  }
+
   .dh-taskrow__cell {
     grid-column: auto;
     grid-row: auto;
@@ -1613,6 +1708,14 @@
     grid-template-areas:
       "lead main actions"
       "meta meta meta";
+  }
+
+  /* V2.8 CONV-02 — and the waiting fact takes a full line of its own too. */
+  .dh-taskrow:has(.dh-taskrow__waiting) {
+    grid-template-areas:
+      "lead main actions"
+      "meta meta meta"
+      "waiting waiting waiting";
   }
 
   .dh-taskrow__meta {

@@ -51,6 +51,7 @@ import { useCallback, useId, useRef, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { useCardLongPress } from "~/shared/card/useCardLongPress";
+import { EntityIcon, isEntityType } from "~/shared/entity";
 import { Checkbox, Menu, type MenuItem } from "~/shared/ui";
 import { CheckCircleIcon, RepeatIcon, ScheduleIcon } from "~/shared/icons";
 import {
@@ -71,8 +72,15 @@ import {
   type TaskRowFieldSave,
 } from "./TaskRowFields";
 import { InlineTaskPriority } from "./TaskRowFields";
-import { relativeCalendarDate, taskRecurrenceLabel } from "./task-view";
-import type { SerializedTaskListItem } from "./task-view";
+import {
+  formatWaitingElapsed,
+  formatWaitingSince,
+  relativeCalendarDate,
+  taskFollowUpPresentation,
+  taskRecurrenceLabel,
+  waitingSubjectLabel,
+} from "./task-view";
+import type { SerializedTaskListItem, TaskRowWaitingFact } from "./task-view";
 
 /**
  * Everything a row draws. Structurally the `TaskCardData` the Tasks module
@@ -154,6 +162,18 @@ export interface TaskRowProps {
   readonly overflowActions: readonly MenuItem[];
   /** Replaces the title with an editor while this row is being renamed. */
   readonly titleEditor?: ReactNode;
+  /**
+   * V2.8 CONV-02 — the row's ONE optional waiting fact.
+   *
+   * Who the Task waits on, since when, and RECALL-03's follow-up state, as
+   * INPUTS the row formats through the canonical waiting and date helpers
+   * (`task-view.ts`). Rendered only when the caller provides it: the Waiting
+   * surface always does, `/tasks` does when its configuration is a waiting or
+   * follow-up context and it already holds the data, and a surface whose
+   * context does not need it passes nothing and is byte-identical to before.
+   * Built by `taskRowWaitingFact`, never assembled by hand.
+   */
+  readonly waiting?: TaskRowWaitingFact;
   /**
    * DHDS-10 — the project menu's escape hatch, when the SURFACE wants to own it.
    *
@@ -242,6 +262,7 @@ export function TaskRow({
   onInlineSave,
   overflowActions,
   titleEditor,
+  waiting,
   onSearchParents,
   selection,
   onLongPress,
@@ -669,6 +690,19 @@ export function TaskRow({
       </Heading>
 
       {/*
+       * V2.8 CONV-02 — the waiting fact, on the row's SECOND line.
+       *
+       * Drawn only when the surface passed it. It sits under the title in the
+       * title's own column on a desktop and becomes the row's third line on a
+       * phone (`task-list.css`), so it costs the shared column grid no track
+       * and no other cell moves by a pixel when it is absent. It is not inside
+       * the heading, so a long subject never becomes part of the row's heading
+       * text, and it carries no live region: the outcome of an act on the row
+       * is announced once, by the surface, never by a fact.
+       */}
+      {waiting ? <WaitingFact fact={waiting} todayIso={todayIso} /> : null}
+
+      {/*
        * The metadata columns.
        *
        * `display: contents` on a desktop, so these four are GRID ITEMS of the
@@ -771,5 +805,79 @@ export function TaskRow({
         />
       </span>
     </li>
+  );
+}
+
+/**
+ * The waiting fact, formatted through the canonical helpers and nothing else.
+ *
+ * Three facts, in the order the old Waiting Card stated them: the subject
+ * ("Waiting for" plus the entity's glyph where it has one), the moment it
+ * began with the elapsed phrase, and — only where the owner recorded one — the
+ * follow-up date with its STATE in words. "Follow up overdue · Yesterday" and
+ * "Follow up due · Today" carry the state as text, so the overdue colour the
+ * stylesheet adds is a second signal, never the only one (AGENTS.md §15). The
+ * machine state rides `data-follow-up-state`, which is what the parity proofs
+ * compare with the filter's, the rail's and the digest's answer.
+ */
+function WaitingFact({
+  fact,
+  todayIso,
+}: {
+  readonly fact: TaskRowWaitingFact;
+  readonly todayIso: string;
+}) {
+  const subject = waitingSubjectLabel(fact.subject);
+  const subjectType =
+    fact.subject.kind === "entity" && isEntityType(fact.subject.type)
+      ? fact.subject.type
+      : null;
+  const since = formatWaitingSince(fact.since);
+  const elapsed = formatWaitingElapsed(fact.since, fact.nowMs);
+  const followUp = taskFollowUpPresentation(fact.followUpOn, todayIso);
+  const sinceLabel =
+    since === null
+      ? elapsed
+      : elapsed.length === 0
+        ? `Since ${since}`
+        : `Since ${since} · ${elapsed}`;
+  return (
+    <span
+      className="dh-taskrow__waiting"
+      data-testid="task-row-waiting"
+      data-follow-up-state={followUp?.state}
+    >
+      <span
+        className="dh-taskrow__waiting-subject"
+        data-testid="task-row-waiting-subject"
+      >
+        <span className="dh-taskrow__waiting-label">Waiting for</span>
+        {subjectType !== null ? <EntityIcon type={subjectType} /> : null}
+        <span className="dh-taskrow__waiting-name">{subject}</span>
+      </span>
+      {sinceLabel.length > 0 ? (
+        <span
+          className="dh-taskrow__waiting-since"
+          data-testid="task-row-waiting-since"
+        >
+          {sinceLabel}
+        </span>
+      ) : null}
+      {followUp !== null ? (
+        <span
+          className="dh-taskrow__waiting-follow-up"
+          data-testid="task-row-follow-up"
+          data-state={followUp.state}
+        >
+          {followUp.state === "overdue"
+            ? "Follow up overdue"
+            : followUp.state === "due_today"
+              ? "Follow up due"
+              : "Follow up"}
+          {" · "}
+          {followUp.label}
+        </span>
+      ) : null}
+    </span>
   );
 }

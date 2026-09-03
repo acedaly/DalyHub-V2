@@ -29,7 +29,7 @@
  * `dragHandle` from the tab each make exactly one assertion below fail.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -58,7 +58,59 @@ const ACTIONABLE_TASK_SURFACES = [
   "app/modules/today/day/TodayScreen.tsx",
   "app/modules/plan/PlanWorkspace.tsx",
   "app/modules/projects/ProjectTasksTab.tsx",
+  // V2.8 CONV-02 — the Waiting list, the layer's last Card consumer.
+  "app/modules/today/task/WaitingTasks.tsx",
 ] as const;
+
+const WAITING_SURFACE = "app/modules/today/task/WaitingTasks.tsx";
+const WAITING_ROUTE = "app/modules/today/routes/waiting.tsx";
+
+/**
+ * V2.8 CONV-02 / ADR-115 decision 3 — the REFERENCE surfaces: a Task named on
+ * them is a link with at most the signal primitives, never a row. They must
+ * not adopt the row, and they must not grow a completion control, a Task
+ * overflow menu or an inline editor of their own.
+ */
+const TASK_REFERENCE_SURFACES = [
+  "app/shared/search/SearchSurface.tsx",
+  "app/modules/views/ViewsWorkspace.tsx",
+  "app/modules/meetings/MeetingFollowUp.tsx",
+  "app/shared/task-record/NextActionLine.tsx",
+] as const;
+
+/**
+ * Where a Task is RENDERED. Any file under these roots that imports the shared
+ * generic Card must be in the allow-list below with the non-Task thing it
+ * draws — so a future Task surface cannot quietly fork back into the Card.
+ */
+const TASK_RENDERING_ROOTS = [
+  "app/modules/tasks",
+  "app/modules/projects",
+  "app/modules/today",
+  "app/modules/plan",
+  "app/shared/task-record",
+] as const;
+
+/** Generic-Card importers under those roots, each drawing something that is NOT a Task. */
+const CARD_IMPORTERS_NOT_FOR_TASKS: Readonly<Record<string, string>> = {
+  "app/modules/projects/ProjectKnowledgeTab.tsx": "linked Notes and Meetings",
+  "app/modules/projects/ProjectsCollection.tsx": "the Projects gallery",
+  "app/modules/projects/GoalSummarySection.tsx": "Goal progress rows",
+  "app/modules/projects/project-view.ts": "a tone type and a progress helper",
+};
+
+function sourceFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(path.join(ROOT, dir))) {
+    const rel = `${dir}/${entry}`;
+    if (statSync(path.join(ROOT, rel)).isDirectory()) {
+      out.push(...sourceFiles(rel));
+    } else if (/\.(ts|tsx)$/.test(entry) && !/\.test\./.test(entry)) {
+      out.push(rel);
+    }
+  }
+  return out;
+}
 
 const PROJECT_TAB = "app/modules/projects/ProjectTasksTab.tsx";
 
@@ -134,6 +186,165 @@ describe("ADR-115 — one Task row, and its consumers are enumerated", () => {
         `${file} no longer claims the tab is not a TaskRow`,
       ).not.toMatch(
         /does not render `?TaskRow`? yet|LAST task-bearing surface that has not adopted|still renders cards/,
+      );
+    }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.8 CONV-02 — the Waiting consumer, the reference rule, the CSS guard      */
+/* -------------------------------------------------------------------------- */
+
+describe("CONV-02 — the Waiting list is a consumer, not a second anatomy", () => {
+  it("renders the shared row through the shared host, and nothing Card-shaped", () => {
+    const surface = code(read(WAITING_SURFACE));
+    const route = code(read(WAITING_ROUTE));
+    for (const source of [surface, route]) {
+      expect(source).not.toContain('from "~/shared/card"');
+      expect(source).not.toMatch(
+        /\bCardProps\b|\bCardMetaItem\b|\bCardCollection\b|WaitingTaskCard|toWaitingCardProps|toWaitingCardData/,
+      );
+    }
+    expect(surface).toContain(
+      'from "~/shared/task-record/use-task-surface-actions"',
+    );
+    expect(surface).toContain('from "~/shared/task-record/use-departing-rows"');
+    expect(surface).toContain('from "~/shared/task-record/TaskTitleEditor"');
+    expect(surface).not.toMatch(/\bfetch\s*\(/);
+    expect(surface).not.toMatch(
+      /\bpostTaskBulkAction\b|\bpostTaskRecordAction\b/,
+    );
+  });
+
+  it("passes the waiting fact through the row's ONE slot, built by the shared helper", () => {
+    const surface = code(read(WAITING_SURFACE));
+    expect(surface).toMatch(/\btaskRowWaitingFact\b/);
+    // No second formatter: the surface never formats a subject, a since or a
+    // follow-up date itself.
+    expect(surface).not.toMatch(
+      /formatWaitingSince|formatWaitingElapsed|waitingSubjectLabel|relativeCalendarDate|taskFollowUpPresentation/,
+    );
+    // And the route file is a loader: nothing about a row lives there.
+    const route = code(read(WAITING_ROUTE));
+    expect(route).not.toMatch(/<TaskRow\b|<Card\b/);
+  });
+
+  it("switches selection, drag and 'Plan for today' OFF through the row's contract — never by forking it", () => {
+    const surface = code(read(WAITING_SURFACE));
+    expect(surface).not.toMatch(/\bselection\s*:/);
+    expect(surface).not.toMatch(
+      /\bonLongPress\b|TaskBulkActionBar|taskSelectionReducer/,
+    );
+    expect(surface).not.toMatch(/\bdragHandle\b|DragHandle|TaskDragging/);
+    expect(surface).not.toMatch(/\bonPlanToday\b/);
+    // …and it invents no waiting-specific system: no snooze, no reminder, no
+    // second follow-up editor.
+    expect(surface).not.toMatch(/snooze|reminder|followUpOn\s*:/i);
+  });
+
+  it("the waiting Card, its test and its stylesheet block are gone", () => {
+    expect(() => read("app/modules/today/task/WaitingTaskCard.tsx")).toThrow();
+    expect(() => read("test/unit/today/WaitingTaskCard.test.tsx")).toThrow();
+    expect(read("app/styles/today.css")).not.toContain("dh-waiting-card");
+  });
+});
+
+describe("CONV-02 — no Task surface imports the generic Card to draw a Task", () => {
+  it("every generic-Card importer under a Task-rendering root is an allow-listed non-Task use", () => {
+    const importers = TASK_RENDERING_ROOTS.flatMap(sourceFiles).filter((file) =>
+      code(read(file)).includes('from "~/shared/card"'),
+    );
+    for (const file of importers) {
+      expect(
+        CARD_IMPORTERS_NOT_FOR_TASKS[file],
+        `${file} imports the generic Card and is not allow-listed as a non-Task use`,
+      ).toBeDefined();
+    }
+    // The allow-list is not stale either: every entry still imports it.
+    for (const file of Object.keys(CARD_IMPORTERS_NOT_FOR_TASKS)) {
+      expect(importers, `${file} no longer imports the Card`).toContain(file);
+    }
+  });
+
+  it("the roadmap's own grep is empty on the surfaces it names", () => {
+    for (const file of [
+      ...sourceFiles("app/modules/tasks"),
+      ...sourceFiles("app/modules/today/task"),
+      WAITING_ROUTE,
+    ]) {
+      expect(code(read(file)), `${file}`).not.toContain('from "~/shared/card"');
+    }
+  });
+});
+
+describe("CONV-02 — the Card override layer is gone", () => {
+  it("tasks.css carries no Task-collection Card rule", () => {
+    const css = read("app/styles/tasks.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    // Every selector in the file, with whitespace collapsed.
+    const selectors = [...css.matchAll(/([^{}]+)\{/g)].map((match) =>
+      match[1]!.replace(/\s+/g, " ").trim(),
+    );
+    const offenders = selectors.filter(
+      (selector) =>
+        /dh-collection--tasks|dh-tasklist/.test(selector) &&
+        /\.dh-card\b|\.dh-card__|dh-card-collection/.test(selector),
+    );
+    expect(offenders).toEqual([]);
+    // Nothing else in the file addresses the Card's metadata anatomy either.
+    expect(css).not.toMatch(
+      /\.dh-card__meta\b|data-field="waiting-for"|container-name: tasks-list/,
+    );
+  });
+
+  it("no stylesheet declares a Task-specific container ladder outside the shared list", () => {
+    const styles = sourceFilesCss("app/styles").filter(
+      (file) => !file.endsWith("task-list.css"),
+    );
+    for (const file of styles) {
+      expect(read(file), `${file}`).not.toMatch(/@container tasks-list\b/);
+    }
+  });
+});
+
+function sourceFilesCss(dir: string): string[] {
+  return readdirSync(path.join(ROOT, dir))
+    .filter((entry) => entry.endsWith(".css"))
+    .map((entry) => `${dir}/${entry}`);
+}
+
+describe("ADR-115 decision 3 — exactly one TaskRow, and a reference is a link", () => {
+  it("exactly one component in app/ is declared TaskRow, and it is the shared exported row", () => {
+    const declaration = /\b(?:function|const|class)\s+TaskRow\b/;
+    const declared = sourceFiles("app").filter((file) =>
+      declaration.test(code(read(file))),
+    );
+    expect(declared).toEqual(["app/shared/task-record/TaskRow.tsx"]);
+    expect(code(read("app/shared/task-record/TaskRow.tsx"))).toMatch(
+      /export function TaskRow\b/,
+    );
+    // The offline snapshot's read-only row is named as one, and stays private.
+    const snapshot = code(read("app/shared/offline/OfflineSnapshotView.tsx"));
+    expect(snapshot).toMatch(/\bfunction SnapshotTaskRow\b/);
+    expect(snapshot).not.toMatch(/export function SnapshotTaskRow\b/);
+    expect(snapshot).not.toContain('from "~/shared/task-record/TaskRow"');
+  });
+
+  it("the four reference surfaces do not adopt the row and grow no Task controls", () => {
+    for (const file of TASK_REFERENCE_SURFACES) {
+      const source = code(read(file));
+      expect(source, `${file} must not import the shared row`).not.toContain(
+        'from "~/shared/task-record/TaskRow"',
+      );
+      expect(source, `${file} must not import the row's editors`).not.toMatch(
+        /task-record\/TaskRowFields|task-record\/TaskList|task-record\/task-row-actions|task-record\/TaskBulkActionBar|task-record\/use-task-surface-actions|task-record\/TaskTitleEditor/,
+      );
+      // No completion control and no Task overflow menu, by their product-wide
+      // names rather than by a CSS class.
+      expect(source, `${file} draws no completion control`).not.toMatch(
+        /dh-check-circle|task-complete|Complete \$\{|Reopen \$\{/,
+      );
+      expect(source, `${file} draws no Task overflow menu`).not.toMatch(
+        /More actions for|\boverflowActions\b/,
       );
     }
   });

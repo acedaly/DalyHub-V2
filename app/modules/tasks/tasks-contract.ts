@@ -72,6 +72,16 @@ export interface TasksPageData {
   readonly tags: readonly { readonly key: string; readonly label: string }[];
   /** The owner's calendar date `YYYY-MM-DD`. */
   readonly todayIso: string;
+  /**
+   * V2.8 CONV-02 — the SERVER's instant, for the row's waiting fact.
+   *
+   * "Waiting for Sam · Since 18 Jul 2026 · 3 days" needs a reference instant
+   * for the elapsed phrase, and it is a loader fact so the words are the same
+   * on the server and after hydration and a browser clock never decides how
+   * long something has waited. Read once per page, used only when the
+   * configuration is a waiting or follow-up context.
+   */
+  readonly nowMs: number;
   readonly defaultCaptureParent: TaskParentOption | null;
   /**
    * The flat, cursor-paginated page. Empty for a grouped view, which renders from

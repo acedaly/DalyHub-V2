@@ -1,5 +1,23 @@
 # Changelog
 
+- **Waiting is the same row as everywhere else, and it can be acted on.**
+
+  The list of tasks you are waiting on (`/today/waiting`) used to draw its
+  own kind of task card, and it was read-only: you could see who you were
+  waiting on and when to chase them, but to do anything you had to open the
+  task. It now shows the very same task row as Tasks, Today, Weekly Planning
+  and a Project's record (V2.8 CONV-02). Tick a task off and it leaves the
+  list with focus handed to the next one; rename it, set its date, priority
+  or Project inline; move it, park it in Someday / Maybe, skip or stop a
+  repeat; open it — all from the row, on a phone too. What the old card said
+  is still said, on the row itself: who you are waiting for, since when and
+  for how long, and whether the follow-up you wrote down is upcoming, due
+  today or overdue — in words, not just a colour. The same follow-up fact now
+  appears on Tasks when you filter by follow-up. The follow-up date is still
+  changed on the task's record (Open task → Edit details). Nothing here can
+  be dragged into a new order or selected in bulk, on purpose: the list has
+  no order of its own, and no reason yet to act on several at once.
+
 - **A Project's tasks are the same rows as everywhere else.**
 
   On a Project's record, its Tasks tab used to draw its own kind of task

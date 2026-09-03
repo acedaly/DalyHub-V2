@@ -2759,13 +2759,13 @@ decision reopens with that evidence.
 decision 2).** A Task is rendered by the shared `TaskRow`, inside the shared
 `TaskList`, wherever it can be ACTED ON. A reference to a Task — a search
 result, a `/views` row, a Meeting follow-up row, the next-action line — is a
-link and never a row (decision 3; CONV-02 records it). The actionable
-consumers are an enumerated set, asserted by
+link and never a row (decision 3; CONV-02 records and asserts it below). The
+actionable consumers are an enumerated set, asserted by
 `test/unit/task-record/shared-row-consumers.test.ts`: `/tasks`, Today,
-`/plan`, and — since CONV-01 closed DEBT-175 — the Project record's Tasks
-tab. A fact added to the row appears on all four with no per-surface change;
-a surface that needs a fact adds it to the row once, as an optional slot, or
-does not have it.
+`/plan`, the Project record's Tasks tab (CONV-01 closed DEBT-175) and — since
+CONV-02 closed DEBT-128 — `/today/waiting`. A fact added to the row appears on
+all five with no per-surface change; a surface that needs a fact adds it to
+the row once, as an optional slot, or does not have it.
 
 **What the row draws by itself, on every consumer.** The completion control,
 the title link, the inline due/planned, Project and priority editors, the
@@ -2782,14 +2782,15 @@ stays absent THROUGH the row's own contract — a slot the caller does not pass,
 a prop it sets off — never by forking the row and never by inventing the
 missing semantics so it can be switched on:
 
-| Capability | Precondition | `/tasks` | Today | `/plan` | Project tab |
-|---|---|---|---|---|---|
-| Drag (`dragHandle`) | a real drop destination or a real stored order (DHDS-11, ADR-109) | grouped by a drop dimension only | — | — | — (flat list, no order: DEBT-188) |
-| "Plan for today" | the row is not already today's work | ✔ | — | ✔ | ✔ |
-| Placement on a week day (`planDays`) | the surface draws a week | — | — | ✔ | — |
-| Selection and bulk | the surface can act on many rows at once | ✔ | — | queue only | ✔ (`TaskBulkActionBar`) |
-| Rename in place | the surface is one the owner tidies from | ✔ | ✔ | ✔ | ✔ |
-| `readOnly` | every mutation would be refused | Deleted view | — | — | archived Project |
+| Capability | Precondition | `/tasks` | Today | `/plan` | Project tab | `/today/waiting` |
+|---|---|---|---|---|---|---|
+| Drag (`dragHandle`) | a real drop destination or a real stored order (DHDS-11, ADR-109) | grouped by a drop dimension only | — | — | — (flat list, no order: DEBT-188) | — (derived order, no destination) |
+| "Plan for today" | the row is not already today's work, and the day would draw it | ✔ | — | ✔ | ✔ | — (the day excludes waiting work) |
+| Placement on a week day (`planDays`) | the surface draws a week | — | — | ✔ | — | — |
+| Selection and bulk | the surface can act on many rows at once, and there is a reason to | ✔ | — | queue only | ✔ (`TaskBulkActionBar`) | — (no evidence for a bulk Waiting workflow; recorded in `WaitingTasks.tsx`) |
+| Rename in place | the surface is one the owner tidies from | ✔ | ✔ | ✔ | ✔ | ✔ |
+| The waiting fact (`waiting`) | the surface holds the waiting state, since and chase date | in a waiting/follow-up configuration | — | — | — | ✔ |
+| `readOnly` | every mutation would be refused | Deleted view | — | — | archived Project | — |
 
 **One host, one bar, one bulk contract.** A bounded surface hosts its row
 mutations through `useTaskSurfaceActions` (ADR-086's patch map, one
@@ -2803,3 +2804,105 @@ result shape `TaskBulkResult` lives on the shared task-record contract.
 **The Project tab specifically** is documented in
 [`PROJECTS_MODULE.md` → *The shared row on the Project record*](PROJECTS_MODULE.md#the-shared-row-on-the-project-record-v28-conv-01-adr-115),
 including its statement budget (`test/kernel/conv-01-project-tasks-budget.test.ts`).
+
+## One anatomy, one waiting fact, and a reference is a link (V2.8 CONV-02, 2026-09-03)
+
+**The last fork is closed.** `/today/waiting` rendered a read-only generic
+`Card` with hand-built props until CONV-02; it now renders the shared `TaskRow`
+inside the shared `TaskList` (`app/modules/today/task/WaitingTasks.tsx`),
+hosted by `useTaskSurfaceActions`, departing through `useDepartingRows`, and
+paging through the shared keyset hook. `WaitingTaskCard.tsx`, its view-model and
+the UIX-01 Card override layer in `tasks.css` (829 lines, re-measured at
+`:978–1937` on the tree it was deleted from) are gone — so no product surface
+renders a Task through `~/shared/card`, and `tasks.css` has no selector pairing
+a Task collection with `.dh-card`. Both are asserted by
+`test/unit/task-record/shared-row-consumers.test.ts`, which also requires every
+generic-Card importer under the Task-rendering roots to be allow-listed with the
+NON-Task thing it draws, so a future Task surface cannot quietly fork back.
+The Waiting read itself returns the shared list-item shape narrowed
+(`WaitingTaskListItem = TaskListItem & { waiting; followUpOn }`), through the
+one list-item mapper, from the one statement it always ran.
+
+**The optional waiting fact — the row's contract.** The three facts the Card
+drew that the row lacked are ONE optional slot, decided once:
+
+```ts
+interface TaskRowWaitingFact {
+  subject: SerializedTaskWaitingSubject; // who or what, as the kernel resolved it
+  since: string;                          // ISO instant the waiting began
+  nowMs: number;                          // the SERVER's instant — the loader's fact
+  followUpOn: string | null;              // RECALL-03's chase date, `YYYY-MM-DD`
+}
+```
+
+- Built by `taskRowWaitingFact(item, nowMs)` (`task-view.ts`) from any
+  `{ waiting, completedAt, delegation }` — `null` for a Task that is not
+  waiting or is completed (completion clears waiting atomically). Never
+  assembled by hand.
+- Formatted by the row through the canonical helpers only:
+  `waitingSubjectLabel`, `formatWaitingSince`, `formatWaitingElapsed`, and
+  `taskFollowUpPresentation(followUpOn, todayIso)` over `relativeCalendarDate`,
+  whose `state` is the kernel's follow-up vocabulary (`overdue` · `due_today` ·
+  `upcoming`; `none` is `null`) and rides `data-follow-up-state` on the fact.
+  No second waiting formatter exists.
+- Drawn on a second line under the title, in the title's column, so it costs
+  the shared grid no track and a row without it is byte-identical; a third
+  line on a phone (`task-list.css`, via `:has()`). The state is WORDS —
+  "Follow up overdue · Yesterday", "Follow up due · Today", "Follow up · Fri" —
+  and the overdue colour is a second signal. The fact is outside the heading,
+  takes no tab stop and carries no live region.
+- Passed by `/today/waiting` always, and by `/tasks` when its configuration is
+  a waiting or follow-up context (the Waiting system view, `followUp=`, or a
+  follow-up window) from data the page already holds (`TaskCardData` carries
+  the inputs; the loader adds `nowMs`). A surface whose context does not need
+  it passes nothing.
+- Contract: `test/unit/task-record/task-row-waiting-fact.test.tsx`. Parity:
+  the row's state against the filter, the rail and the digest, as machine
+  values, in `test/kernel/recall-03-commitments-due.test.ts` (section A1).
+
+**Follow-up editing** stays where RECALL-03 left it: the Task record's Details
+form (`TaskDetailsTab` → Edit details → Follow up, a `CalendarDateField`),
+reached from the row's "Open task". No inline calendar and no second editor
+were built; the row states the fact, the record changes it.
+
+**Capability-aware, through the row's contract** — see the table above.
+Waiting passes no `dragHandle` (derived order, no destination), no selection
+(no evidence for a bulk Waiting workflow — recorded in the surface header,
+revisit only with evidence) and no `onPlanToday` (Today's day excludes waiting
+work, so the act would write a date the day never draws). It adds no snooze,
+no follow-up status, no reminder and no delegation workflow.
+
+**Pagination survives the work done on it, now in the shared hook.** The
+TASKS-09 rule `/tasks` held privately (`task-pagination.ts`) is available to any
+actionable collection as `useKeysetPagination({ refresh: "merge" })`: a
+mutation's revalidation refreshes page one and merges it in by id, keeping every
+loaded page; with nothing loaded beneath, the cursor re-seeds from the fresh
+first page. Read-only collections keep the default `reset`. A merged surface
+retires its guesses with the same care: the shared host's `clearPatches`
+takes the ids the fresh page one HOLDS, so a patch on a row the re-read did not
+answer — an accepted completion or rename on a loaded page two, where the
+accumulator still holds the copy the owner loaded — is kept as the surface's
+one current value for that row until a read answers for it (the row slides
+into page one, or the scope changes and the accumulation restarts). Dropping it
+unconditionally snapped such a row back to open; the review finding on the
+CONV-02 PR, reproduced and closed by `WaitingTasks.test.tsx` ("keeps an
+accepted change on a row the refreshed first page did not answer") and by the
+E2E journey's second-page completion. Surfaces whose loader returns the whole
+of what they show keep calling it with no argument.
+
+**A reference is a link (ADR-115 decision 3).** A search result, a `/views`
+row, a Meeting follow-up row and `NextActionLine` name a Task and open it, with
+at most the signal primitives, and never a completion control, a Task overflow
+menu, an inline editor or a metadata run. `test/unit/task-record/reference-surfaces.test.tsx`
+renders each with a Task and asserts it; `shared-row-consumers.test.ts`
+asserts none imports the row or its editors, and that exactly one component
+in `app/` is declared `TaskRow` (the offline snapshot's read-only row is
+`SnapshotTaskRow`).
+
+**Budget** (`test/kernel/conv-02-waiting-budget.test.ts`): a Waiting page is
+ONE statement before and after, flat with task count; the parent candidates
+for the row's inline Project editor are one bounded read
+(`task-parent-options.server.ts`, limit 50 — the same read the Project record
+now calls) per surface load, never per "Load more" page, never per row. The
+waiting count stays RECALL-03's one aggregate.
+

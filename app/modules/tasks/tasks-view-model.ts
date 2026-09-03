@@ -13,7 +13,10 @@
  * `resolveGroupedSections`.
  */
 
-import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
+import type {
+  SerializedTaskListItem,
+  SerializedTaskWaiting,
+} from "~/shared/task-record/task-view";
 import {
   relativeCalendarDate,
   taskPriorityTag,
@@ -25,6 +28,7 @@ import {
   collectionStateSegment,
 } from "~/shared/collection-layout";
 import type {
+  TaskDelegation,
   TaskPriority,
   TaskRelation,
   TaskSystemView,
@@ -126,6 +130,16 @@ export interface TaskCardData {
   readonly completed: boolean;
   readonly waiting: boolean;
   /**
+   * V2.8 CONV-02 — the INPUTS of the shared row's optional waiting fact,
+   * carried whole so a waiting or follow-up configuration can hand them to
+   * `taskRowWaitingFact` (`task-view.ts`) rather than assemble the fact here.
+   * Read from the same list item; nothing is derived or formatted in this
+   * module.
+   */
+  readonly completedAt: string | null;
+  readonly waitingState: SerializedTaskWaiting | null;
+  readonly delegation: TaskDelegation | null;
+  /**
    * V2.4-GATE-02 — the kernel's "still owed" answer, from the shared projection.
    *
    * Spread in by `toTaskRowProjection` rather than derived here: this module
@@ -155,6 +169,9 @@ export function toTaskCardData(item: SerializedTaskListItem): TaskCardData {
     sectorLabel: timeSectorLabel(item.timeSector),
     parentLabel: item.parent?.title ?? null,
     delegatedTo: item.delegation?.to ?? null,
+    completedAt: item.completedAt,
+    waitingState: item.waiting,
+    delegation: item.delegation,
   };
 }
 

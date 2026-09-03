@@ -1448,6 +1448,7 @@ export function TaskRecordDrawer({
                 onCancel={() => setEditing(false)}
                 onSubmit={submitUpdate}
                 onSaved={() => setEditing(false)}
+                todayIso={data.todayIso}
               />
             ),
           },

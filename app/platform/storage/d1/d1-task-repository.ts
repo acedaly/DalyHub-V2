@@ -4312,28 +4312,21 @@ export class D1TaskRepository implements TaskRepository {
       if (waiting === null) {
         continue;
       }
-      const details = rowToTaskDetails(row);
+      /*
+       * V2.8 CONV-02 — the SHARED list-item mapper, so the Waiting surface's
+       * rows are the same shape every other Task surface renders. The
+       * statement above already joins the recurrence rule, the parent identity
+       * and the delegation group; the private mapper this replaced simply
+       * threw them away, and the shared row would have had to be forked to do
+       * without them. One statement, one mapper, no second read.
+       */
+      const item = this.#toTaskListItem(row);
       items.push({
-        id: row.id,
-        workspaceId: parseWorkspaceId(row.workspace_id),
-        title: row.title,
-        createdAt: fromStorageTimestamp(row.created_at),
-        updatedAt: fromStorageTimestamp(row.updated_at),
-        status: details.status,
-        commitmentState: details.commitmentState,
-        priority: details.priority,
-        dueDate: details.dueDate,
-        scheduledDate: details.scheduledDate,
-        parent: this.#parentRelation(
-          row.parent_link_type,
-          row.parent_id,
-          row.parent_title,
-          row,
-        ),
+        ...item,
         waiting,
         // V2.7 RECALL-03 — the chase date, so the surface can SAY why a row is
         // in a follow-up-filtered page instead of leaving the owner to open it.
-        followUpOn: details.delegation?.followUpOn ?? null,
+        followUpOn: item.delegation?.followUpOn ?? null,
       });
     }
     // The cursor names the LAST ROW OF THE PAGE, which is the last row actually

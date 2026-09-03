@@ -427,7 +427,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     selectedConfig !== null && !taskViewConfigsEqual(selectedConfig, config);
 
   const views = buildViewOptions(saved, defaultViewId);
-  const todayIso = ownerCalendarIso(new Date(), timezone);
+  const now = new Date();
+  const todayIso = ownerCalendarIso(now, timezone);
   const groupDimension = groupDimensionFor(config);
 
   const base: Omit<
@@ -442,6 +443,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     parents,
     tags,
     todayIso,
+    // V2.8 CONV-02 — the one clock the row's waiting fact is read against.
+    nowMs: now.getTime(),
     defaultCaptureParent,
   };
 

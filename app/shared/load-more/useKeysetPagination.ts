@@ -52,6 +52,26 @@ export interface UseKeysetPaginationOptions<TItem, TData> {
   readonly select: (data: TData) => KeysetPage<TItem>;
   /** A stable identity for an item, so a boundary duplicate appears once. */
   readonly getId: (item: TItem) => string;
+  /**
+   * V2.8 CONV-02 — what a REFRESHED first page does to the accumulation.
+   *
+   * `reset` (the default, and what every read-only collection wants): the
+   * scope is the path AND the first page's cursor, so a first page whose tail
+   * moved restarts the accumulation.
+   *
+   * `merge`: the scope is the PATH alone. A re-run of the same query — which is
+   * what a mutation's revalidation is — keeps every accumulated page and merges
+   * the fresh first page in by id, first appearance winning, so a row the
+   * server just re-sorted onto page one appears once, in its new place, and the
+   * pages beneath it are still there. This is the rule `/tasks` has held since
+   * TASKS-09 (`task-pagination.ts`: *"'Load more' survives the work done on
+   * it"*), stated once here so a second actionable collection does not grow a
+   * second copy of it. A keyset cursor is derived from page one's tail and
+   * moves whenever a row leaves page one, so keying the reset on it would
+   * collapse the owner's loaded pages after every completion — the defect
+   * TASKS-09 measured in the browser.
+   */
+  readonly refresh?: "reset" | "merge";
 }
 
 export interface KeysetPagination<TItem> {
@@ -73,6 +93,7 @@ export function useKeysetPagination<TItem, TData>({
   path,
   select,
   getId,
+  refresh = "reset",
 }: UseKeysetPaginationOptions<TItem, TData>): KeysetPagination<TItem> {
   const fetcher = useFetcher<TData>();
   const [appended, setAppended] = useState<readonly TItem[]>([]);
@@ -93,7 +114,8 @@ export function useKeysetPagination<TItem, TData>({
   // The scope this accumulation belongs to. Compared by VALUE, and seeded with the
   // scope the hook mounted in, so the reset below fires on a genuine scope CHANGE
   // and never merely because an effect ran.
-  const scopeKey = `${path}\u0000${initialCursor ?? ""}`;
+  const scopeKey =
+    refresh === "merge" ? path : `${path}\u0000${initialCursor ?? ""}`;
   const scope = useRef(scopeKey);
 
   // A scope change (new filter, new view, new first page) restarts the accumulation.
@@ -122,6 +144,21 @@ export function useKeysetPagination<TItem, TData>({
     applied.current = null;
     started.current = false;
   }, [scopeKey, initialCursor]);
+
+  /*
+   * Under `merge`, a refreshed first page RE-SEEDS the cursor only while nothing
+   * has been loaded beneath it: with no appended page the next page is whatever
+   * follows the fresh first page's tail, and a cursor left pointing after the
+   * OLD tail would skip a row that slid up into page one. Once a page has been
+   * appended the cursor is that page's own, exactly as `/tasks` keeps it.
+   */
+  const appendedCount = appended.length;
+  useEffect(() => {
+    if (refresh !== "merge") return;
+    if (appendedCount === 0 && requested.current === null) {
+      setCursor(initialCursor);
+    }
+  }, [refresh, initialCursor, appendedCount]);
 
   useEffect(() => {
     if (fetcher.state !== "idle") {
