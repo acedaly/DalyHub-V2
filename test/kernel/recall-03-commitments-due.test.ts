@@ -61,6 +61,7 @@ import {
   parseWaitingFollowUp,
   waitingFollowUpHref,
 } from "~/modules/today/waiting-destination";
+import { taskFollowUpPresentation } from "~/shared/task-record/task-view";
 import {
   WAITING_LIMIT,
   readWaiting,
@@ -412,6 +413,133 @@ describe("one seeded commitment reaches the filter, Today and the digest", () =>
     const facts = await readWaiting(scopeFor(), TODAY, SYDNEY);
     // The exact substitution the falsification names: `followUpDue = count`.
     expect(facts.followUpDue).not.toBe(facts.count);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A1. V2.8 CONV-02 — the ROW states the same machine value                   */
+/* -------------------------------------------------------------------------- */
+
+describe("the shared row's follow-up state is the filter's, the rail's and the digest's", () => {
+  /**
+   * RECALL-03's three-surface parity, EXTENDED to the fourth consumer the
+   * Waiting surface gained in V2.8 CONV-02: the shared `TaskRow`'s optional
+   * waiting fact, whose follow-up state is `taskFollowUpPresentation` over the
+   * same `followUpOn` the Waiting read returns, against the same owner-day.
+   *
+   * The claim is stated as MACHINE VALUES — the row's `state` against the
+   * declarative filter's membership, the count and the digest — never as
+   * prose. One fixture, every date state, so a row that called an upcoming
+   * chase "due" (or a due one "upcoming") disagrees with the filter that
+   * would return it, and the assertion names the row.
+   */
+  async function seedEveryState() {
+    const area = await spineRepo(WS).createArea({ title: "Ops" });
+    return {
+      yesterday: await seedFollowUp(WS, area.id, "Yesterday", YESTERDAY),
+      today: await seedFollowUp(WS, area.id, "Today", TODAY),
+      tomorrow: await seedFollowUp(WS, area.id, "Tomorrow", TOMORROW),
+      none: await seedFollowUp(WS, area.id, "None", null),
+    };
+  }
+
+  /** Every waiting row, with the state the row would draw for it. */
+  async function rowStates() {
+    const page = await taskRepo(WS).listWaitingTasks({
+      limit: 50,
+      todayIso: TODAY,
+    });
+    return new Map(
+      page.items.map((item) => [
+        item.id,
+        taskFollowUpPresentation(item.followUpOn, TODAY)?.state ?? null,
+      ]),
+    );
+  }
+
+  it("agrees with the declarative filter for every state, as machine values", async () => {
+    const seeded = await seedEveryState();
+    const rows = await rowStates();
+    expect(rows.size).toBe(4);
+    // Each row's state is exactly the filter that returns it.
+    expect(rows.get(seeded.yesterday)).toBe("overdue");
+    expect(rows.get(seeded.today)).toBe("due_today");
+    expect(rows.get(seeded.tomorrow)).toBe("upcoming");
+    expect(rows.get(seeded.none)).toBeNull();
+    const withState = (state: string | null) =>
+      [...rows.entries()]
+        .filter(([, value]) => value === state)
+        .map(([id]) => id)
+        .sort();
+    expect((await filterIds(WS, { followUp: "overdue" })).sort()).toEqual(
+      withState("overdue"),
+    );
+    expect((await filterIds(WS, { followUp: "due_today" })).sort()).toEqual(
+      withState("due_today"),
+    );
+    expect((await filterIds(WS, { followUp: "upcoming" })).sort()).toEqual(
+      withState("upcoming"),
+    );
+    expect((await filterIds(WS, { followUp: "none" })).sort()).toEqual(
+      withState(null),
+    );
+    // `due` is the union of the two actionable states — the rows that read
+    // "Follow up overdue" and "Follow up due" are exactly the filter's `due`.
+    expect((await filterIds(WS, { followUp: "due" })).sort()).toEqual(
+      [...withState("overdue"), ...withState("due_today")].sort(),
+    );
+  });
+
+  it("agrees with Today's attention fact and the digest, as one number", async () => {
+    await seedEveryState();
+    const rows = await rowStates();
+    const dueRows = [...rows.values()].filter(
+      (state) => state === "overdue" || state === "due_today",
+    ).length;
+    expect(dueRows).toBe(2);
+
+    const scope = scopeFor();
+    const waiting = await readWaiting(scope, TODAY, SYDNEY);
+    const digest = await readDigestFacts(scope, {
+      now: new Date(`${TODAY}T23:00:00.000Z`),
+      timeZone: SYDNEY,
+      localDate: TODAY,
+    });
+    expect(waiting.followUpDue).toBe(dueRows);
+    expect(digest.waiting.followUpDue).toBe(dueRows);
+    expect(waiting.count).toBe(rows.size);
+    // …and the surface the rail links to shows exactly the rows that read
+    // as due, in the row's own state.
+    const linked = await waitingIds(WS, { followUp: "due" });
+    expect(linked.ids.every((id) => rows.get(id) !== "upcoming")).toBe(true);
+    expect(linked.ids.every((id) => rows.get(id) !== null)).toBe(true);
+    expect(linked.ids).toHaveLength(dueRows);
+  });
+
+  it("moves with the owner's day exactly as the filter does", async () => {
+    const seeded = await seedEveryState();
+    // Read on the owner's NEXT day: today's chase is now overdue, tomorrow's
+    // is due today — and the filter says the same of the same rows.
+    const page = await taskRepo(WS).listWaitingTasks({
+      limit: 50,
+      todayIso: TOMORROW,
+    });
+    const states = new Map(
+      page.items.map((item) => [
+        item.id,
+        taskFollowUpPresentation(item.followUpOn, TOMORROW)?.state ?? null,
+      ]),
+    );
+    expect(states.get(seeded.today)).toBe("overdue");
+    expect(states.get(seeded.tomorrow)).toBe("due_today");
+    expect(
+      (
+        await filterIds(WS, { followUp: "overdue" }, { todayIso: TOMORROW })
+      ).sort(),
+    ).toEqual([seeded.yesterday, seeded.today].sort());
+    expect(
+      await filterIds(WS, { followUp: "due_today" }, { todayIso: TOMORROW }),
+    ).toEqual([seeded.tomorrow]);
   });
 });
 

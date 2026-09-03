@@ -87,6 +87,7 @@ import {
 } from "~/shared/task-record/usePendingTasks";
 import {
   formatCalendarDate,
+  taskRowWaitingFact,
   type SerializedTaskListItem,
   type TaskListItemPatch,
 } from "~/shared/task-record/task-view";
@@ -992,6 +993,20 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
 
   const resetKey = useMemo(() => JSON.stringify(config), [config]);
 
+  /*
+   * V2.8 CONV-02 — when the collection IS a waiting/follow-up context, the row
+   * draws the same waiting fact `/today/waiting` draws, through the row's one
+   * optional slot: the Waiting system view, and any configuration that asks
+   * the follow-up question (`followUp=`, or a follow-up window). Every other
+   * configuration passes nothing and its rows are unchanged — a fact the
+   * context does not need is not forced onto every generic row.
+   */
+  const waitingContext =
+    config.systemView === "waiting" ||
+    config.filters.followUp !== undefined ||
+    config.filters.followUpFrom !== undefined ||
+    config.filters.followUpTo !== undefined;
+
   /**
    * The CANONICAL parameters for this page: exactly the configuration the server
    * actually applied, written back over the parameters the module does not own.
@@ -1386,8 +1401,20 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
       );
 
       const key = `task:${card.id}`;
+      const waitingFact = waitingContext
+        ? taskRowWaitingFact(
+            {
+              waiting: card.waitingState,
+              completedAt: card.completedAt,
+              delegation: card.delegation,
+            },
+            data.nowMs,
+          )
+        : null;
       return {
         task: card,
+        // The row's ONE optional waiting fact, only in a waiting context.
+        ...(waitingFact !== null ? { waiting: waitingFact } : {}),
         /*
          * DHDS-11 §"Inspector continuity" — the row whose record is open keeps
          * a quiet current marker, so closing the Inspector returns the owner's
@@ -1477,7 +1504,9 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
     },
     [
       data.todayIso,
+      data.nowMs,
       data.parents,
+      waitingContext,
       searchParams,
       openRecordIds,
       openDrawer,

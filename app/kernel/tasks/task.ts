@@ -725,33 +725,31 @@ export type WaitingCounts = {
   readonly followUpDue: number;
 };
 
-/** A waiting task as shown in the Waiting collection. */
-export type WaitingTaskListItem = {
-  readonly id: string;
-  readonly workspaceId: WorkspaceId;
-  readonly title: string;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
-  readonly status: TaskStatus;
-  /**
-   * V2.4-GATE-02 — carried so the Waiting card can ask
-   * {@link isTaskStillOwed} rather than assume. The query already excludes
-   * Someday/Maybe and completed work; `cancelled` it does not exclude, and a
-   * cancelled Task's passed deadline must not paint as late here either.
-   */
-  readonly commitmentState: CommitmentState;
-  readonly priority: TaskPriority | null;
-  readonly dueDate: string | null;
-  readonly scheduledDate: string | null;
-  /** The structural parent (a Project or an Area) as a context line, or null. */
-  readonly parent: TaskRelation | null;
+/**
+ * A waiting task as shown in the Waiting collection.
+ *
+ * V2.8 CONV-02 — the SHARED list-item shape, narrowed. `/today/waiting` renders
+ * the shared `TaskRow` (ADR-115 decision 2), which reads every fact
+ * {@link TaskListItem} carries — the recurrence signal, the time sector, the
+ * delegation group, the parent identity — so the Waiting read now returns that
+ * shape rather than a Waiting-private subset the row would have had to be
+ * forked around. Nothing is read twice: the one Waiting statement already
+ * joined every column; the old item simply dropped them on the way out.
+ *
+ * Two facts are narrowed, not added: `waiting` is always PRESENT here (the
+ * population predicate requires it), and `followUpOn` is lifted out of the
+ * delegation group so the surface can say why a row is in a follow-up-filtered
+ * page without re-deriving it (V2.7 RECALL-03).
+ */
+export type WaitingTaskListItem = TaskListItem & {
   /** The active waiting state (always present in this list). */
   readonly waiting: TaskWaiting;
   /**
    * V2.7 RECALL-03 — the delegation group's chase date (`YYYY-MM-DD`), or null.
    *
-   * Carried so the Waiting card can SAY why a row is in a follow-up-filtered
-   * page, rather than leaving the owner to open each record to find out.
+   * Carried so the Waiting surface can SAY why a row is in a follow-up-filtered
+   * page, rather than leaving the owner to open each record to find out. The
+   * same value as `delegation?.followUpOn`; lifted, never a second authority.
    */
   readonly followUpOn: string | null;
 };

@@ -1,8 +1,8 @@
 {
   "about": "GENERATED — do not hand-edit `durations`, `tests`, `source` or `partitions`. Run: pnpm run e2e:partitions:generate --from <results.json> --as <label>. Only `about`, `why` and `measuredFrom` are prose, and `pnpm run e2e:partitions:check` guards the rest.",
-  "why": "HARDEN-04 / DEBT-128, corrected by HARDEN-06A (F-03). Playwright --shard divides the suite by test COUNT; these seconds are what each spec file actually COSTS, and the partitions below are balanced on them. Every spec file the gate runs MUST appear in `durations`, `tests` and `source` — `check` fails while any is sized by the `defaultSpecSeconds` guess, because a guess is not evidence and ten of them are what made partition p05 of run 32321840125 exceed globalTimeout with 33 tests never executed.",
+  "why": "HARDEN-04 / DEBT-128, corrected by HARDEN-06A (F-03). Playwright --shard divides the suite by test COUNT; these seconds are what each spec file actually COSTS, and the partitions below are balanced on them. Every spec file the gate runs MUST appear in `durations`, `tests` and `source` — `check` fails while any is sized by the `defaultSpecSeconds` guess, because a guess is not evidence and ten of them are what made partition p05 of run 32321840125 exceed globalTimeout with 33 tests never executed. V2.8 CONV-02, 2026-09-03 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `conv-02-waiting-taskrow.spec.ts` is 91.5 s over 8 tests, measured in the sandbox that produced the change from a green run of the file (`8 passed`), with `--as local/v2.8-conv-02`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is 203.0 min of measured test time and thirteen partitions derive a heaviest of 16.3 min against the 16.7 min ceiling, worst/mean 1.04. Sized by the same method as CONV-01: 8 tests over ONE seeded fixture shared by the whole file, each a different CLAIM — anatomy with the waiting fact and no Card/grip/selection; the row's follow-up state against the filter, the rail and `/tasks`; open, a row edit and the follow-up through the Details form surviving a reload; completion with departure, focus handoff, one announcement and server-truth counts, then reopen; loaded pages surviving a mutation; keyboard reach and axe at 1440; 393 px; 320 px — with exactly four axe scans. The statement budget is proved over real D1 in `test/kernel/conv-02-waiting-budget.test.ts`, the row-state parity in `recall-03-commitments-due.test.ts`, the slot contract and the surface's optimistic paths in unit tests; only the claims true of the running browser are paid for here. `recall-03-commitments-due.spec.ts` was re-pointed to the shared row and keeps its measured duration. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again.",
   "measuredFrom": [
-    "V2.8 CONV-01, 2026-09-03 \u2014 ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `conv-01-project-taskrow.spec.ts` is 44.9 s over 7 tests, measured in the sandbox that produced the change from a green run of the file (`7 passed`), with `--as local/v2.8-conv-01`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is now 201.5 min of measured test time and thirteen partitions derive a heaviest of 16.1 min against the 16.7 min ceiling, worst/mean 1.04. Sized by the same method as the items before it: 7 tests over ONE seeded fixture set shared by the whole file (`beforeAll`/`afterAll`, not per test), each test a different CLAIM rather than a different width \u2014 anatomy and no grip; rename, due and priority surviving a reload; completion with departure, focus handoff, one announcement and the progress band, then reopen; the move via the picker; the three-row bulk through `/tasks/bulk`; keyboard reach at 1440; the 393 px row \u2014 with exactly three axe scans (two at 1440 around a selection, one on the phone). What is NOT in this file is why it stopped there: the statement budget is proved over real D1 in `test/kernel/conv-01-project-tasks-budget.test.ts`, the optimistic patch, the refusal rollback, the read-only form and the three-id bulk request are proved by `test/unit/projects/ProjectTasksTab.test.tsx`, and the enumerated-consumer contract is `test/unit/task-record/shared-row-consumers.test.ts`; only the claims that are true of the running browser are paid for here. The three specs CONV-01 re-pointed (`gate-02-honest-signals`, `project-settings`, `iphone-daily-driver`) keep their measured durations. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again: 536 s of capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it.",
+    "V2.8 CONV-01, 2026-09-03 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `conv-01-project-taskrow.spec.ts` is 44.9 s over 7 tests, measured in the sandbox that produced the change from a green run of the file (`7 passed`), with `--as local/v2.8-conv-01`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is now 201.5 min of measured test time and thirteen partitions derive a heaviest of 16.1 min against the 16.7 min ceiling, worst/mean 1.04. Sized by the same method as the items before it: 7 tests over ONE seeded fixture set shared by the whole file (`beforeAll`/`afterAll`, not per test), each test a different CLAIM rather than a different width — anatomy and no grip; rename, due and priority surviving a reload; completion with departure, focus handoff, one announcement and the progress band, then reopen; the move via the picker; the three-row bulk through `/tasks/bulk`; keyboard reach at 1440; the 393 px row — with exactly three axe scans (two at 1440 around a selection, one on the phone). What is NOT in this file is why it stopped there: the statement budget is proved over real D1 in `test/kernel/conv-01-project-tasks-budget.test.ts`, the optimistic patch, the refusal rollback, the read-only form and the three-id bulk request are proved by `test/unit/projects/ProjectTasksTab.test.tsx`, and the enumerated-consumer contract is `test/unit/task-record/shared-row-consumers.test.ts`; only the claims that are true of the running browser are paid for here. The three specs CONV-01 re-pointed (`gate-02-honest-signals`, `project-settings`, `iphone-daily-driver`) keep their measured durations. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again: 536 s of capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it.",
     "V2.7 RECALL-04, 2026-09-01 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `recall-04-day-week-truth.spec.ts` is 26.3 s over 6 tests, measured in the sandbox that produced the change from a green run of the file (`6 passed`), with `--as local/v2.7-recall-04`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is now 200.7 min of measured test time and thirteen partitions derive a heaviest of 16.1 min against the 16.7 min ceiling, worst/mean 1.04. It is the CHEAPEST of the four RECALL spec files, and that is the point rather than an accident: RECALL-04 is a convergence item whose claims are almost all about MACHINE VALUES — the meetings/digest/schedule parity, one measurement predicate across `/goals` and Today over the whole nine-status matrix, the honest bound, the absent health reading and its refusal to manufacture a transition, the 62-completion period window with its before/after/edited-later rows, the owner-day boundaries either side of a Diary and a Meeting instant, and every statement budget — and every one of those is proved over real D1 in `test/kernel/recall-04-day-week-truth.test.ts` where it can be falsified deterministically against a fixed clock. What is paid for HERE is only what the running browser can prove: the fact rendered inside the Schedule panel's existing head and agreeing with the rows the panel draws, a Goal that has REACHED its target appearing in `/goals`' On track lens (the `achieved` decision made visible), Analytics' tile wearing the movement word and naming the question it answers, and a Review's period tabs carrying two different time words with the meetings tab named after its contents. 6 tests over ONE seeded fixture set shared by the whole file (`beforeAll`/`afterAll`, not per test), each test a different CLAIM rather than a different width — every additional width is a resize in place — and four axe scans: Today on the phone in both appearances, `/goals`, `/analytics` and the Review's phone tier. The meetings fixture asserts the COUNT rather than the pastness of its three Meetings, deliberately: pastness against the runner's wall clock is not a deterministic claim, and the all-in-the-past fixture belongs to the kernel test's fixed clock. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again: 536 s of capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it.",
     "V2.7 RECALL-03, 2026-08-31 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `recall-03-commitments-due.spec.ts` is 54.2 s over 11 tests, measured in the sandbox that produced the change from a green run of the file (`11 passed`), with `--as local/v2.7-recall-03`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is now 200.3 min of measured test time and thirteen partitions derive a heaviest of 16.1 min against the 16.7 min ceiling, worst/mean 1.04. It is the dearest of the three RECALL spec files and the reason is stated rather than absorbed: DEBT-232's honesty proof needs a 150-row fixture, and the one test that walks the whole Waiting keyset to reach row 101 costs a seed of 153 Tasks plus three `Load more` round trips. That seed is FIVE multi-row statements rather than 750 single-row ones, which is not a micro-optimisation: the suite drives one dev server against one local SQLite file while the fixture helper opens it from a second process, and the long version measurably starved a concurrent `today.spec` load whose reads degrade rather than throw — a green-looking page missing a panel. The rest of the file was sized by the same method as the items before it: 11 tests over ONE seeded fixture set shared by the whole file (`beforeAll`/`afterAll`, not per test), each test a different CLAIM rather than a different width, and three axe scans — the filtered Waiting surface, the filtered Tasks collection, and the phone. What is NOT in this file is why it stopped there: the follow-up predicate, every date state, the owner-timezone boundary, hostile-workspace isolation, the keyset determinism, export/restore, reopen, recurrence inheritance, the saved-view round trip and the statement/bind budgets are all proved over real D1 in `test/kernel/recall-03-commitments-due.test.ts`, and only the claims that are true of the running browser — the fact on the existing rail row, its filtered destination, the two-interaction palette path, the honest subtitle at 150 rows and the 393 px journey — are paid for here. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again: 536 s of capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it.",
     "V2.7 RECALL-02, 2026-08-31 — ONE new spec file, MEASURED LOCALLY, and it FITS with the ceiling and the partition count both untouched: `recall-02-completed-time.spec.ts` is 30.5 s over 7 tests, measured in the sandbox that produced the change from a green run of the file (`7 passed`), with `--as local/v2.7-recall-02`. PARTITION_COUNT stays 13 and `MAX_PARTITION_SECONDS` was not touched: the suite is now 199.4 min of measured test time and thirteen partitions derive a heaviest of 16.0 min against the 16.7 min ceiling, worst/mean 1.04. The coverage was sized to fit rather than the gate resized to hold it, by the same method as the items before it: 7 tests over ONE seeded fixture set shared by the whole file (`beforeAll`/`afterAll`, not per test), each test a different CLAIM rather than a different width, and exactly two axe scans — one on the completed-window collection at desktop and one on the phone. What is NOT in this file is the reason it stayed small: the completion order over `spine_records.completed_at`, the owner-day and owner-week boundaries, reopen, recurrence, keyset pagination past one page, hostile-workspace isolation, the saved-view round trip, Analytics machine-value parity and the statement/bind budget are all proved over real D1 in `test/kernel/recall-02-completed-time.test.ts`, and only the claims that are true of the running browser — two interactions from anywhere, an ordinary round-trippable URL in the address bar, the Completed view's order agreeing with its sentence (with the `sort=updated` inversion asserted beside it), the window control in the ordinary sheet, and the 393 px journey — are paid for here. Only the assignment of files to partitions moved; no other spec file's measured duration, test count or provenance changed. DEBT-205 is left alone deliberately again: 536 s of capacity is still stranded in the two exclusive `responsive.spec.ts` shards, this item did not need it, and the correct fix stays a decision for the pass that takes it.",
@@ -46,6 +46,7 @@
     "e2e/color-scheme.spec.ts": 110.9,
     "e2e/command-palette.spec.ts": 104.2,
     "e2e/conv-01-project-taskrow.spec.ts": 44.9,
+    "e2e/conv-02-waiting-taskrow.spec.ts": 91.5,
     "e2e/creation-controls.spec.ts": 61.1,
     "e2e/cross-module-views.spec.ts": 146.3,
     "e2e/csp.spec.ts": 50.8,
@@ -180,6 +181,7 @@
     "e2e/color-scheme.spec.ts": 14,
     "e2e/command-palette.spec.ts": 25,
     "e2e/conv-01-project-taskrow.spec.ts": 7,
+    "e2e/conv-02-waiting-taskrow.spec.ts": 8,
     "e2e/creation-controls.spec.ts": 15,
     "e2e/cross-module-views.spec.ts": 9,
     "e2e/csp.spec.ts": 9,
@@ -314,6 +316,7 @@
     "e2e/color-scheme.spec.ts": "ci:32605964327",
     "e2e/command-palette.spec.ts": "ci:32605964327",
     "e2e/conv-01-project-taskrow.spec.ts": "local/v2.8-conv-01",
+    "e2e/conv-02-waiting-taskrow.spec.ts": "local/v2.8-conv-02",
     "e2e/creation-controls.spec.ts": "ci:32605964327",
     "e2e/cross-module-views.spec.ts": "ci:32605964327",
     "e2e/csp.spec.ts": "ci:32605964327",
@@ -429,130 +432,36 @@
   "partitions": [
     {
       "name": "p01",
-      "estimateSeconds": 968.7,
-      "testEstimate": 209,
+      "estimateSeconds": 976,
+      "testEstimate": 99,
       "specs": [
-        "e2e/accessibility.spec.ts",
         "e2e/activity-actor.spec.ts",
-        "e2e/command-palette.spec.ts",
-        "e2e/export.spec.ts",
-        "e2e/find-empty-search.spec.ts",
-        "e2e/find-tag-vocabulary.spec.ts",
-        "e2e/goal-measurement.spec.ts",
-        "e2e/goals.spec.ts",
-        "e2e/record-lifecycle.spec.ts",
-        "e2e/reviews.spec.ts",
-        "e2e/spine-workspaces.spec.ts"
+        "e2e/audit-13-conversion-atomicity.spec.ts",
+        "e2e/editing-consistency.spec.ts",
+        "e2e/find-capture-tags.spec.ts",
+        "e2e/iphone-daily-driver.spec.ts",
+        "e2e/linked-items.spec.ts",
+        "e2e/notifications.spec.ts",
+        "e2e/project-health.spec.ts",
+        "e2e/projects-mobile.spec.ts",
+        "e2e/reviews-guided.spec.ts",
+        "e2e/tasks-journey.spec.ts",
+        "e2e/today-keyboard.spec.ts"
       ]
     },
     {
       "name": "p02",
-      "estimateSeconds": 968.4,
-      "testEstimate": 136,
-      "specs": [
-        "e2e/doc-editor-responsive.spec.ts",
-        "e2e/floating-surfaces.spec.ts",
-        "e2e/forms.spec.ts",
-        "e2e/linked-items.spec.ts",
-        "e2e/notes.spec.ts",
-        "e2e/people-timeline.spec.ts",
-        "e2e/plan-weekly-planning.spec.ts",
-        "e2e/project-health.spec.ts",
-        "e2e/record-anatomy.spec.ts",
-        "e2e/steer-goal-story.spec.ts",
-        "e2e/tasks-checklist.spec.ts",
-        "e2e/ui-quality.spec.ts"
-      ]
-    },
-    {
-      "name": "p03",
-      "estimateSeconds": 968.4,
-      "testEstimate": 105,
-      "specs": [
-        "e2e/audit-13-conversion-atomicity.spec.ts",
-        "e2e/cross-module-views.spec.ts",
-        "e2e/keyboard.spec.ts",
-        "e2e/meetings-people-history.spec.ts",
-        "e2e/notes-knowledge.spec.ts",
-        "e2e/people-diary-context.spec.ts",
-        "e2e/px-03-navigation.spec.ts",
-        "e2e/restore.spec.ts",
-        "e2e/tasks-daily-driver.spec.ts",
-        "e2e/today-focus.spec.ts",
-        "e2e/today-keyboard.spec.ts",
-        "e2e/today-task-convergence.spec.ts"
-      ]
-    },
-    {
-      "name": "p04",
-      "estimateSeconds": 967.8,
-      "testEstimate": 169,
-      "specs": [
-        "e2e/appearance.spec.ts",
-        "e2e/feedback.spec.ts",
-        "e2e/mobile-modules.spec.ts",
-        "e2e/mobile-shell.spec.ts",
-        "e2e/owner-timezone.spec.ts",
-        "e2e/pwa-offline.spec.ts",
-        "e2e/recall-01-search-content.spec.ts",
-        "e2e/recall-02-completed-time.spec.ts",
-        "e2e/search.spec.ts",
-        "e2e/tasks-collection.spec.ts",
-        "e2e/tasks-optimistic.spec.ts",
-        "e2e/today-mobile.spec.ts"
-      ]
-    },
-    {
-      "name": "p05",
-      "estimateSeconds": 966.5,
-      "testEstimate": 142,
-      "specs": [
-        "e2e/analytics.spec.ts",
-        "e2e/non-diary-audit.spec.ts",
-        "e2e/people.spec.ts",
-        "e2e/plan-responsive.spec.ts",
-        "e2e/planning.spec.ts",
-        "e2e/product-frame.spec.ts",
-        "e2e/project-settings.spec.ts",
-        "e2e/project-templates.spec.ts",
-        "e2e/projects-mobile.spec.ts",
-        "e2e/projects.spec.ts",
-        "e2e/task-drawer.spec.ts",
-        "e2e/ux-02-plan-habits.spec.ts"
-      ]
-    },
-    {
-      "name": "p06",
-      "estimateSeconds": 966.3,
+      "estimateSeconds": 975.7,
       "testEstimate": 116,
       "specs": [
-        "e2e/ai-assistance.spec.ts",
-        "e2e/areas-goals-mobile.spec.ts",
-        "e2e/conv-01-project-taskrow.spec.ts",
-        "e2e/dhds-10-inline-manipulation.spec.ts",
-        "e2e/habits.spec.ts",
-        "e2e/identity.spec.ts",
-        "e2e/mobile-capture-journeys.spec.ts",
-        "e2e/motion.spec.ts",
-        "e2e/pwa-budget.spec.ts",
-        "e2e/steer-week-door.spec.ts",
-        "e2e/tasks-capture-language.spec.ts",
-        "e2e/touch-targets.spec.ts"
-      ]
-    },
-    {
-      "name": "p07",
-      "estimateSeconds": 965.8,
-      "testEstimate": 118,
-      "specs": [
+        "e2e/assets-mobile-capture.spec.ts",
         "e2e/assets.spec.ts",
-        "e2e/creation-controls.spec.ts",
-        "e2e/design-foundation.spec.ts",
-        "e2e/diary.spec.ts",
         "e2e/drawer.spec.ts",
+        "e2e/find-tag-vocabulary.spec.ts",
         "e2e/follow-02-goal-movement.spec.ts",
         "e2e/goals-outcomes.spec.ts",
         "e2e/inline-editor-overlay.spec.ts",
+        "e2e/owner-timezone.spec.ts",
         "e2e/pwa-offline-tasks.spec.ts",
         "e2e/recall-03-commitments-due.spec.ts",
         "e2e/record-header-title.spec.ts",
@@ -561,78 +470,173 @@
       ]
     },
     {
-      "name": "p08",
-      "estimateSeconds": 964.5,
-      "testEstimate": 149,
-      "specs": [
-        "e2e/area-lifecycle.spec.ts",
-        "e2e/assets-mobile-capture.spec.ts",
-        "e2e/assets-ownership.spec.ts",
-        "e2e/calendar.spec.ts",
-        "e2e/capture-settings.spec.ts",
-        "e2e/cards-filters.spec.ts",
-        "e2e/collection-header.spec.ts",
-        "e2e/goals-alignment.spec.ts",
-        "e2e/help-about.spec.ts",
-        "e2e/settings.spec.ts",
-        "e2e/steer-goals.spec.ts",
-        "e2e/tooltip.spec.ts",
-        "e2e/visual-system.spec.ts"
-      ]
-    },
-    {
-      "name": "p09",
-      "estimateSeconds": 962,
-      "testEstimate": 120,
-      "specs": [
-        "e2e/account-security.spec.ts",
-        "e2e/csp.spec.ts",
-        "e2e/csrf.spec.ts",
-        "e2e/dhds-13-commercial-quality.spec.ts",
-        "e2e/doc-editor-keyboard-save.spec.ts",
-        "e2e/editing-consistency.spec.ts",
-        "e2e/gate-02-honest-signals.spec.ts",
-        "e2e/iphone-daily-driver.spec.ts",
-        "e2e/meetings-concurrency.spec.ts",
-        "e2e/reviews-guided.spec.ts",
-        "e2e/tasks-journey.spec.ts",
-        "e2e/ux-01-daily-driver.spec.ts"
-      ]
-    },
-    {
-      "name": "p10",
-      "estimateSeconds": 962,
-      "testEstimate": 114,
-      "specs": [
-        "e2e/activity-feed.spec.ts",
-        "e2e/entity-icons.spec.ts",
-        "e2e/follow-01-week-account.spec.ts",
-        "e2e/interaction-consistency.spec.ts",
-        "e2e/people-relationship.spec.ts",
-        "e2e/plan-smart-lists.spec.ts",
-        "e2e/project-activity.spec.ts",
-        "e2e/reviews-insights.spec.ts",
-        "e2e/smoke.spec.ts",
-        "e2e/tasks-dependencies.spec.ts",
-        "e2e/waiting.spec.ts"
-      ]
-    },
-    {
-      "name": "p11",
-      "estimateSeconds": 956.4,
-      "testEstimate": 101,
+      "name": "p03",
+      "estimateSeconds": 975.4,
+      "testEstimate": 128,
       "specs": [
         "e2e/areas.spec.ts",
         "e2e/color-scheme.spec.ts",
         "e2e/dhds-11-drag-reorder.spec.ts",
-        "e2e/editor-geometry.spec.ts",
-        "e2e/find-capture-tags.spec.ts",
+        "e2e/doc-editor-responsive.spec.ts",
         "e2e/find-task-tags.spec.ts",
-        "e2e/global-capture.spec.ts",
-        "e2e/meetings-follow-up.spec.ts",
-        "e2e/notifications.spec.ts",
+        "e2e/interaction-consistency.spec.ts",
+        "e2e/keyboard.spec.ts",
+        "e2e/plan-responsive.spec.ts",
+        "e2e/steer-week-door.spec.ts",
+        "e2e/task-drawer.spec.ts",
+        "e2e/tasks-v22-daily-driver.spec.ts",
+        "e2e/touch-targets.spec.ts"
+      ]
+    },
+    {
+      "name": "p04",
+      "estimateSeconds": 975.4,
+      "testEstimate": 103,
+      "specs": [
+        "e2e/cross-module-views.spec.ts",
+        "e2e/editor-geometry.spec.ts",
+        "e2e/entity-icons.spec.ts",
+        "e2e/meetings-people-history.spec.ts",
+        "e2e/mobile-modules.spec.ts",
+        "e2e/notes-knowledge.spec.ts",
+        "e2e/plan-weekly-planning.spec.ts",
+        "e2e/project-settings.spec.ts",
+        "e2e/recall-01-search-content.spec.ts",
+        "e2e/restore.spec.ts",
+        "e2e/tasks-daily-driver.spec.ts",
+        "e2e/tasks-optimistic.spec.ts"
+      ]
+    },
+    {
+      "name": "p05",
+      "estimateSeconds": 975.2,
+      "testEstimate": 127,
+      "specs": [
+        "e2e/areas-goals-mobile.spec.ts",
+        "e2e/conv-01-project-taskrow.spec.ts",
+        "e2e/forms.spec.ts",
+        "e2e/help-about.spec.ts",
+        "e2e/motion.spec.ts",
+        "e2e/plan-smart-lists.spec.ts",
+        "e2e/product-frame.spec.ts",
+        "e2e/project-activity.spec.ts",
+        "e2e/steer-goal-story.spec.ts",
+        "e2e/tasks-dependencies.spec.ts",
+        "e2e/ui-quality.spec.ts"
+      ]
+    },
+    {
+      "name": "p06",
+      "estimateSeconds": 974.4,
+      "testEstimate": 153,
+      "specs": [
+        "e2e/account-security.spec.ts",
+        "e2e/appearance.spec.ts",
+        "e2e/conv-02-waiting-taskrow.spec.ts",
+        "e2e/feedback.spec.ts",
+        "e2e/floating-surfaces.spec.ts",
+        "e2e/gate-02-honest-signals.spec.ts",
+        "e2e/notes.spec.ts",
+        "e2e/pwa-budget.spec.ts",
+        "e2e/record-anatomy.spec.ts",
+        "e2e/tasks-capture-language.spec.ts",
+        "e2e/tasks-checklist.spec.ts",
+        "e2e/waiting.spec.ts"
+      ]
+    },
+    {
+      "name": "p07",
+      "estimateSeconds": 974.2,
+      "testEstimate": 135,
+      "specs": [
+        "e2e/assets-ownership.spec.ts",
+        "e2e/calendar.spec.ts",
+        "e2e/collection-header.spec.ts",
+        "e2e/creation-controls.spec.ts",
+        "e2e/export.spec.ts",
+        "e2e/find-empty-search.spec.ts",
+        "e2e/goal-measurement.spec.ts",
+        "e2e/goals.spec.ts",
+        "e2e/planning.spec.ts",
+        "e2e/reviews.spec.ts",
+        "e2e/settings.spec.ts",
+        "e2e/spine-workspaces.spec.ts",
+        "e2e/visual-system.spec.ts"
+      ]
+    },
+    {
+      "name": "p08",
+      "estimateSeconds": 973,
+      "testEstimate": 128,
+      "specs": [
+        "e2e/analytics.spec.ts",
+        "e2e/design-foundation.spec.ts",
+        "e2e/doc-editor-keyboard-save.spec.ts",
+        "e2e/mobile-capture-journeys.spec.ts",
+        "e2e/people-relationship.spec.ts",
+        "e2e/people.spec.ts",
+        "e2e/project-templates.spec.ts",
+        "e2e/projects.spec.ts",
+        "e2e/recall-02-completed-time.spec.ts",
+        "e2e/reviews-insights.spec.ts",
+        "e2e/today-mobile.spec.ts",
+        "e2e/ux-02-plan-habits.spec.ts"
+      ]
+    },
+    {
+      "name": "p09",
+      "estimateSeconds": 971.7,
+      "testEstimate": 118,
+      "specs": [
+        "e2e/ai-assistance.spec.ts",
+        "e2e/area-lifecycle.spec.ts",
+        "e2e/capture-settings.spec.ts",
+        "e2e/cards-filters.spec.ts",
+        "e2e/dhds-10-inline-manipulation.spec.ts",
+        "e2e/diary.spec.ts",
+        "e2e/goals-alignment.spec.ts",
+        "e2e/habits.spec.ts",
+        "e2e/identity.spec.ts",
+        "e2e/record-lifecycle.spec.ts",
+        "e2e/steer-goals.spec.ts",
+        "e2e/tooltip.spec.ts"
+      ]
+    },
+    {
+      "name": "p10",
+      "estimateSeconds": 968.7,
+      "testEstimate": 236,
+      "specs": [
+        "e2e/accessibility.spec.ts",
+        "e2e/command-palette.spec.ts",
+        "e2e/csrf.spec.ts",
+        "e2e/non-diary-audit.spec.ts",
+        "e2e/people-diary-context.spec.ts",
+        "e2e/px-03-navigation.spec.ts",
         "e2e/recall-04-day-week-truth.spec.ts",
-        "e2e/tasks-v22-daily-driver.spec.ts"
+        "e2e/search.spec.ts",
+        "e2e/today-focus.spec.ts",
+        "e2e/today-task-convergence.spec.ts",
+        "e2e/ux-01-daily-driver.spec.ts"
+      ]
+    },
+    {
+      "name": "p11",
+      "estimateSeconds": 968.6,
+      "testEstimate": 144,
+      "specs": [
+        "e2e/activity-feed.spec.ts",
+        "e2e/csp.spec.ts",
+        "e2e/dhds-13-commercial-quality.spec.ts",
+        "e2e/follow-01-week-account.spec.ts",
+        "e2e/global-capture.spec.ts",
+        "e2e/meetings-concurrency.spec.ts",
+        "e2e/meetings-follow-up.spec.ts",
+        "e2e/mobile-shell.spec.ts",
+        "e2e/people-timeline.spec.ts",
+        "e2e/pwa-offline.spec.ts",
+        "e2e/smoke.spec.ts",
+        "e2e/tasks-collection.spec.ts"
       ]
     },
     {

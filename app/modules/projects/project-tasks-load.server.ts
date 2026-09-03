@@ -28,6 +28,10 @@ import type { TaskRepository } from "~/kernel/tasks";
 import type { TaskBlockedSummary, TaskChecklistProgress } from "~/kernel/tasks";
 import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
 import {
+  TASK_PARENT_OPTION_LIMIT,
+  loadTaskParentOptions,
+} from "~/shared/task-record/task-parent-options.server";
+import {
   serializeTaskListPage,
   type SerializedTaskListItem,
 } from "~/shared/task-record/task-view";
@@ -42,10 +46,10 @@ export interface ProjectTasksPage {
 
 /**
  * How many candidate parents the row's inline Project editor offers before its
- * searchable escape hatch takes over — `/tasks`'s and Today's own bound,
- * restated at this call site rather than a second number.
+ * searchable escape hatch takes over — `/tasks`'s and Today's own bound. The
+ * number now lives on the shared read (V2.8 CONV-02); this is its name here.
  */
-export const PROJECT_TASK_PARENT_OPTION_LIMIT = 50;
+export const PROJECT_TASK_PARENT_OPTION_LIMIT = TASK_PARENT_OPTION_LIMIT;
 
 /** Parse the tab's `?tasks=` / `?state=` value; anything unknown is `open`. */
 export function parseProjectTaskState(value: string | null): ProjectTaskState {
@@ -84,24 +88,11 @@ export async function loadProjectTasksPage(
 
 /**
  * The bounded parent candidates for the row's inline Project editor and the
- * bulk bar's "Move". Fails SOFT to none: a candidate read that could not be
- * made narrows the menu to its searchable escape hatch, it never takes the
- * record down.
+ * bulk bar's "Move" — the SHARED read (V2.8 CONV-02), which fails soft to none
+ * and is counted once per record load, never per row.
  */
 export async function loadProjectTaskParents(
   tasks: TaskRepository,
 ): Promise<readonly TaskParentOption[]> {
-  const candidates = await tasks
-    .searchTaskParents({ limit: PROJECT_TASK_PARENT_OPTION_LIMIT })
-    .catch(() => []);
-  return candidates.map((candidate) => ({
-    id: candidate.id,
-    kind: candidate.kind,
-    title: candidate.title,
-    // DEBT-144 — the option carries the parent's identity, so the row's
-    // optimistic mark is the parent's own colour from the moment it is chosen.
-    iconKey: candidate.iconKey ?? null,
-    colourSlot: candidate.colourSlot ?? null,
-    colourRank: candidate.colourRank ?? null,
-  }));
+  return loadTaskParentOptions(tasks);
 }

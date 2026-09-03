@@ -13,7 +13,12 @@
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { createRoutesStub } from "react-router";
+import {
+  createRoutesStub,
+  useLoaderData,
+  useRevalidator,
+  useSearchParams,
+} from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { useKeysetPagination } from "~/shared/load-more";
@@ -32,10 +37,12 @@ function Harness({
   firstPage,
   initialCursor,
   path,
+  refresh,
 }: {
   readonly firstPage: readonly Item[];
   readonly initialCursor: string | null;
   readonly path: string;
+  readonly refresh?: "reset" | "merge";
 }) {
   const pagination = useKeysetPagination<Item, PageData>({
     firstPage,
@@ -43,6 +50,7 @@ function Harness({
     path,
     select,
     getId,
+    ...(refresh ? { refresh } : {}),
   });
   return (
     <div>
@@ -210,5 +218,165 @@ describe("useKeysetPagination", () => {
     // A `loadMore` with no cursor is a no-op: no failure state, no lost rows.
     expect(screen.queryByText("failed")).toBeNull();
     expect(itemIds()).toEqual(["a"]);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.8 CONV-02 — `refresh: "merge"`: loaded pages survive a re-read           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The TASKS-09 rule (`/tasks`'s `task-pagination.ts`), stated once in the
+ * shared hook so an actionable collection that mutates its rows does not grow a
+ * second copy: a re-run of the SAME query keeps every accumulated page and
+ * merges the fresh first page in by id. The default `reset` mode is unchanged
+ * and is what the read-only collections keep.
+ */
+describe("useKeysetPagination — refresh: merge", () => {
+  /** A harness whose FIRST PAGE is read back from the route's loader, so a
+   * revalidation re-reads it exactly as a mutation's would. */
+  function renderMerging(server: {
+    first: readonly Item[];
+    firstCursor: string | null;
+    pages: Record<string, PageData>;
+  }) {
+    const Stub = createRoutesStub([
+      {
+        path: "/things",
+        loader: ({ request }) => {
+          const cursor = new URL(request.url).searchParams.get("cursor");
+          if (cursor !== null) {
+            return (
+              server.pages[cursor] ?? {
+                items: [],
+                nextCursor: null,
+                failed: true,
+              }
+            );
+          }
+          return {
+            items: server.first,
+            nextCursor: server.firstCursor,
+            failed: false,
+          };
+        },
+        Component: () => {
+          const data = useLoaderData() as PageData;
+          const revalidator = useRevalidator();
+          return (
+            <>
+              <Harness
+                firstPage={data.items}
+                initialCursor={data.nextCursor}
+                path="/things"
+                refresh="merge"
+              />
+              <button type="button" onClick={() => revalidator.revalidate()}>
+                Revalidate
+              </button>
+            </>
+          );
+        },
+      },
+    ]);
+    return render(<Stub initialEntries={["/things"]} />);
+  }
+
+  it("keeps accumulated pages across a refreshed first page whose cursor moved", async () => {
+    const server = {
+      first: [{ id: "a" }, { id: "b" }],
+      firstCursor: "c1",
+      pages: {
+        c1: {
+          items: [{ id: "c" }, { id: "d" }],
+          nextCursor: null,
+          failed: false,
+        },
+      } as Record<string, PageData>,
+    };
+    renderMerging(server);
+    fireEvent.click(await loadMoreButton());
+    await waitFor(
+      () => expect(itemIds()).toEqual(["a", "b", "c", "d"]),
+      SETTLED,
+    );
+
+    // The server's truth changes: `a` is gone and `c` slid up into page one,
+    // so page one's tail — and therefore its cursor — moved.
+    server.first = [{ id: "b" }, { id: "c" }];
+    server.firstCursor = "c2";
+    fireEvent.click(screen.getByRole("button", { name: "Revalidate" }));
+
+    // Merged by id, first appearance winning; nothing repeated, nothing lost,
+    // and the owner is NOT dropped back to page one.
+    await waitFor(() => expect(itemIds()).toEqual(["b", "c", "d"]), SETTLED);
+    expect(screen.getByText("exhausted")).toBeInTheDocument();
+  });
+
+  it("re-seeds the cursor from a refreshed first page while nothing is loaded beneath it", async () => {
+    const server = {
+      first: [{ id: "a" }, { id: "b" }],
+      firstCursor: "c1",
+      pages: {
+        c1: { items: [{ id: "c" }], nextCursor: null, failed: false },
+        c2: { items: [{ id: "d" }], nextCursor: null, failed: false },
+      } as Record<string, PageData>,
+    };
+    renderMerging(server);
+    await loadMoreButton();
+    // A row leaves page one before anything was loaded: the fresh page's
+    // cursor is the one the next "Load more" must use, or `c` — which slid up
+    // into page one — would be skipped.
+    server.first = [{ id: "b" }, { id: "c" }];
+    server.firstCursor = "c2";
+    fireEvent.click(screen.getByRole("button", { name: "Revalidate" }));
+    await waitFor(() => expect(itemIds()).toEqual(["b", "c"]), SETTLED);
+    fireEvent.click(await loadMoreButton());
+    await waitFor(() => expect(itemIds()).toEqual(["b", "c", "d"]), SETTLED);
+  });
+
+  it("still resets on a genuine scope change — a different path", async () => {
+    const Stub = createRoutesStub([
+      {
+        path: "/things",
+        loader: ({ request }) => {
+          const url = new URL(request.url);
+          const cursor = url.searchParams.get("cursor");
+          const filtered = url.searchParams.get("f") === "1";
+          if (cursor !== null) {
+            return { items: [{ id: "c" }], nextCursor: null, failed: false };
+          }
+          return {
+            items: filtered ? [{ id: "x" }] : [{ id: "a" }, { id: "b" }],
+            nextCursor: filtered ? null : "c1",
+            failed: false,
+          };
+        },
+        Component: () => {
+          const data = useLoaderData() as PageData;
+          const [params, setParams] = useSearchParams();
+          const filtered = params.get("f") === "1";
+          return (
+            <>
+              <Harness
+                firstPage={data.items}
+                initialCursor={data.nextCursor}
+                path={filtered ? "/things?f=1" : "/things"}
+                refresh="merge"
+              />
+              <button type="button" onClick={() => setParams({ f: "1" })}>
+                Filter
+              </button>
+            </>
+          );
+        },
+      },
+    ]);
+    render(<Stub initialEntries={["/things"]} />);
+    fireEvent.click(await loadMoreButton());
+    await waitFor(() => expect(itemIds()).toEqual(["a", "b", "c"]), SETTLED);
+    fireEvent.click(screen.getByRole("button", { name: "Filter" }));
+    // A different query is a different collection: the accumulation restarts.
+    await waitFor(() => expect(itemIds()).toEqual(["x"]), SETTLED);
   });
 });

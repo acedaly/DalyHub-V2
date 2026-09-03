@@ -1491,29 +1491,6 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* TODAY-03 — the "Waiting for" subject cell in a Waiting card                 */
-/* -------------------------------------------------------------------------- */
-
-.dh-waiting-card__subject {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-inline-size: 0;
-}
-
-/*
- * V2.7 RECALL-03 — a follow-up date the owner has already passed.
- *
- * Colour is the SECOND signal, never the only one: the label itself reads
- * "Yesterday" or "5 days ago", so a colour-blind or high-contrast reader loses
- * nothing when the tint is unavailable (AGENTS.md §15).
- */
-.dh-waiting-card__follow-up[data-overdue="true"] {
-  color: var(--dh-color-danger);
-  font-weight: 600;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Phone                                                                       */
 /* -------------------------------------------------------------------------- */
 

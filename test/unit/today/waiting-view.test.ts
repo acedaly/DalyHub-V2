@@ -5,13 +5,16 @@ import {
   formatWaitingSince,
   waitingSubjectLabel,
 } from "~/shared/task-record/task-view";
-import {
-  toWaitingCardData,
-  waitingSubtitle,
-} from "~/modules/today/task/waiting-view";
+import { waitingSubtitle } from "~/modules/today/task/waiting-view";
 
 // TODAY-03 — pure, deterministic waiting derivations (time is injected, never
 // wall-clock, so "since"/elapsed assertions are stable — no flakiness).
+//
+// V2.8 CONV-02 — the Card-shaped derivations that used to be tested here
+// (`toWaitingCardData` and the follow-up label) went with the Waiting Card. The
+// same facts are now the shared row's optional waiting fact, and their contract
+// is `test/unit/task-record/task-row-waiting-fact.test.tsx`; the canonical
+// formatters below are unchanged and are what that fact is rendered through.
 
 const MS = (iso: string) => Date.parse(iso);
 
@@ -84,125 +87,6 @@ describe("waitingSubjectLabel", () => {
         title: null,
       }),
     ).toBe("someone no longer available");
-  });
-});
-
-describe("toWaitingCardData", () => {
-  const base = {
-    id: "t1",
-    title: "Prepare supplier agreement",
-    // V2.4-GATE-02 — a waiting Task is still OWED, and the card now says so from
-    // the Task's own facts rather than from completion alone.
-    status: "todo" as const,
-    commitmentState: "active" as const,
-    priority: "p1" as const,
-    dueDate: "2026-07-15",
-    scheduledDate: null,
-    parent: { kind: "project" as const, id: "p1", title: "Procurement uplift" },
-    followUpOn: null,
-  };
-
-  it("derives the subject, since, elapsed and an overdue due label", () => {
-    const card = toWaitingCardData(
-      {
-        ...base,
-        waiting: {
-          since: "2026-07-18T00:00:00.000Z",
-          subject: {
-            kind: "entity",
-            id: "person-1",
-            type: "person",
-            title: "Sarah Chen",
-          },
-        },
-      },
-      MS("2026-07-21T00:00:00.000Z"),
-      "2026-07-20",
-    );
-    expect(card.subjectLabel).toBe("Sarah Chen");
-    expect(card.subjectType).toBe("person");
-    expect(card.sinceLabel).toBe("18 Jul 2026");
-    expect(card.elapsedLabel).toBe("3 days");
-    // Due 2026-07-15 is before today 2026-07-20 → overdue: the WORD is carried
-    // (TASKS-02), not just the danger tone.
-    expect(card.dateLabel).toEqual({
-      label: "Overdue · due 15 Jul 2026",
-      tone: "danger",
-    });
-  });
-
-  it("carries a free-text subject with no subject type", () => {
-    const card = toWaitingCardData(
-      {
-        ...base,
-        dueDate: null,
-        waiting: {
-          since: "2026-07-20T00:00:00.000Z",
-          subject: { kind: "text", note: "finance confirmation" },
-        },
-      },
-      MS("2026-07-20T06:00:00.000Z"),
-      "2026-07-20",
-    );
-    expect(card.subjectLabel).toBe("finance confirmation");
-    expect(card.subjectType).toBeNull();
-    expect(card.elapsedLabel).toBe("today");
-    expect(card.dateLabel).toBeNull();
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* V2.7 RECALL-03 — the chase date on the card                                 */
-/* -------------------------------------------------------------------------- */
-
-describe("the follow-up label", () => {
-  const base = {
-    id: "t1",
-    title: "Chase the signed contract",
-    status: "todo" as const,
-    commitmentState: "active" as const,
-    priority: null,
-    dueDate: null,
-    scheduledDate: null,
-    parent: null,
-    waiting: {
-      since: "2026-07-18T00:00:00.000Z",
-      subject: { kind: "text" as const, note: "Sam" },
-    },
-  };
-
-  const card = (followUpOn: string | null, todayIso = "2026-07-20") =>
-    toWaitingCardData(
-      { ...base, followUpOn },
-      MS("2026-07-20T06:00:00.000Z"),
-      todayIso,
-    );
-
-  it("is absent when the owner recorded no chase date", () => {
-    expect(card(null).followUpLabel).toBeNull();
-  });
-
-  it("reads the owner's words against the owner's day", () => {
-    expect(card("2026-07-20").followUpLabel).toEqual({
-      label: "Today",
-      overdue: false,
-    });
-    expect(card("2026-07-19").followUpLabel).toEqual({
-      label: "Yesterday",
-      overdue: true,
-    });
-    expect(card("2026-07-21").followUpLabel).toEqual({
-      label: "Tomorrow",
-      overdue: false,
-    });
-  });
-
-  it("moves with the owner's day, not with a UTC one", () => {
-    // The SAME stored date, read on two different owner-days: overdue for the
-    // owner already living on the 21st, merely due for the one still on the
-    // 20th. Nothing here constructs a Date from a local clock.
-    expect(card("2026-07-20", "2026-07-21").followUpLabel?.overdue).toBe(true);
-    expect(card("2026-07-20", "2026-07-20").followUpLabel?.overdue).toBe(false);
   });
 });
 

@@ -39,6 +39,7 @@ import {
   openCollectionControls,
   ownerToday,
   taskRow,
+  taskRows,
 } from "./helpers";
 
 const WS = "local-dev-workspace";
@@ -238,9 +239,16 @@ function waitingRow(page: Page) {
   });
 }
 
-/** A Waiting card by its title. */
+/**
+ * A Waiting ROW by its title.
+ *
+ * V2.8 CONV-02 — the Waiting list renders the shared Task row (ADR-115
+ * decision 2), so the locator is the same one every other Task surface uses.
+ * The name is kept: every journey here is about the SURFACE's honesty, not
+ * about the anatomy that draws a row on it.
+ */
 function waitingCard(page: Page, title: string) {
-  return page.getByRole("link", { name: new RegExp(title) });
+  return taskRow(page, title);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -302,10 +310,14 @@ test.describe("RECALL-03 — Today states the fact on the row it already had", (
       ),
     ).toBeVisible();
 
-    // Each row says WHY it is here — the chase date, in the owner's words.
+    // Each row says WHY it is here — the chase date, in the owner's words,
+    // through the shared row's own waiting fact (V2.8 CONV-02).
     await expect(
-      page.getByText("Today", { exact: true }).first(),
-    ).toBeVisible();
+      waitingCard(page, TITLE.dueToday).getByTestId("task-row-follow-up"),
+    ).toHaveText("Follow up due · Today");
+    await expect(
+      waitingCard(page, TITLE.overdue).getByTestId("task-row-follow-up"),
+    ).toHaveText("Follow up overdue · Yesterday");
   });
 
   test("reaches the commitment from the palette in two interactions", async ({
@@ -359,9 +371,8 @@ test.describe("RECALL-03 — /today/waiting no longer states a bound as a total"
     const loadMore = page.getByRole("button", {
       name: "Load more waiting tasks",
     });
-    // DIRECT children only: each card renders its own metadata `<ul>`, so a
-    // descendant `listitem` query would count meta rows as cards.
-    const cards = page.locator('ul[aria-label="Waiting tasks"] > li');
+    // The shared rows of the surface's own list (V2.8 CONV-02).
+    const cards = taskRows(page.getByRole("list", { name: "Waiting tasks" }));
 
     /*
      * Walk the keyset to the end. Each click appends a page and the control

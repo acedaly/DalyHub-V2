@@ -5,13 +5,16 @@
  * that is blocked on someone or something else. It reads the bounded, deterministic
  * Waiting collection through the trusted authenticated composition boundary
  * (`resolveAuthenticatedWorkspaceScope` → `tasks.listWaitingTasks`), composes the
- * shared PX-02 CollectionLayout + DS-04 Cards, and opens each task in the SAME DS-03
- * Task Drawer used on Today — so opening a waiting task keeps the owner on
- * `/today/waiting` while the shared Drawer opens (Back/Forward/Escape all work).
+ * shared PX-02 CollectionLayout over the shared Task row, and opens each task in
+ * the SAME DS-03 Task Drawer used on Today — so opening a waiting task keeps the
+ * owner on `/today/waiting` while the shared Drawer opens (Back/Forward/Escape all
+ * work).
  *
- * "Since" and elapsed-duration labels are computed SERVER-side against one clock, so
- * they are hydration-stable (no client/server drift). Ordering is deterministic:
- * overdue first, then longest-waiting, then due date, then id (ADR-029).
+ * The server's instant and the owner's calendar day are resolved HERE, once, so
+ * the row's "since · elapsed" and follow-up wording are computed against one
+ * clock and are hydration-stable (no client/server drift). Ordering is
+ * deterministic: overdue first, then longest-waiting, then due date, then id
+ * (ADR-029).
  *
  * ── V2.7 RECALL-03: the surface became honest, and askable (DEBT-232/DEBT-231) ──
  *
@@ -31,47 +34,46 @@
  *      links its "N follow-ups due" fact to, which is what makes the stated
  *      number and this list the same population by construction.
  *
+ * ── V2.8 CONV-02: the rows are the SHARED Task row (DEBT-128) ──────────────
+ *
+ * The route reads the same list-item shape every other Task surface reads and
+ * hands it to `WaitingTasks`, which renders the shared `TaskRow` inside the
+ * shared `TaskList` with the shared host — so a waiting Task can be completed,
+ * renamed, re-dated, re-prioritised, re-filed and opened HERE, and the waiting
+ * fact it carries is the row's own optional slot rather than a Card's metadata
+ * run. The read is widened, not multiplied: the page is still ONE statement,
+ * and the parent candidates the row's inline Project editor offers are ONE
+ * bounded read per surface load (never per row, never per "Load more" page).
+ *
  * The deliberate absence of a navigation entry is unchanged: Waiting is reached
  * from the attention rail and the command palette (`routes.manifest.ts`).
  */
 
 import { env } from "cloudflare:workers";
-import { useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
-import type { TaskFollowUpState } from "~/kernel/tasks";
-import { Card, CardCollection } from "~/shared/card";
-import { CollectionLayout } from "~/shared/collection-layout";
 import {
   DrawerProvider,
-  useDrawer,
-  withDrawerPushed,
   type DrawerEntry,
   type DrawerRenderResult,
 } from "~/shared/drawer";
-import { EntityIcon } from "~/shared/entity";
-import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import { TASK_DRAWER_TITLE } from "~/shared/task-record/TaskRecordDrawer";
-import { EmptyState } from "~/shared/empty-state";
-import { ButtonLink } from "~/shared/ui";
+import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
+import { loadTaskParentOptions } from "~/shared/task-record/task-parent-options.server";
+import {
+  serializeTaskListItem,
+  type SerializedTaskListItem,
+} from "~/shared/task-record/task-view";
 
 import { formatTodayDate, ownerCalendarIso } from "../date";
 import { renderKeyboardHelpDrawer } from "../keyboard/KeyboardHelp";
 import { TaskDrawerContent } from "../task/TaskDrawerContent";
-import { toWaitingCardProps } from "../task/WaitingTaskCard";
-import {
-  serializeWaitingItem,
-  toWaitingCardData,
-  waitingSubtitle,
-  type SerializedWaitingTaskItem,
-} from "../task/waiting-view";
+import { WaitingTasks } from "../task/WaitingTasks";
 import {
   WAITING_CURSOR_PARAM,
   WAITING_FOLLOW_UP_PARAM,
-  WAITING_HREF,
   parseWaitingFollowUp,
 } from "../waiting-destination";
 import type { Route } from "./+types/waiting";
@@ -94,7 +96,7 @@ export function meta() {
  * collection needs. It is deliberately smaller than the old 100-row cap, because
  * a page is now the first screenful rather than the whole answer.
  */
-const WAITING_PAGE_SIZE = 50;
+export const WAITING_PAGE_SIZE = 50;
 
 export async function loader({ context, request }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
@@ -108,22 +110,35 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   let date = formatTodayDate(now, timezone);
   let todayIso = ownerCalendarIso(now, timezone);
 
-  let items: readonly SerializedWaitingTaskItem[];
+  let items: readonly SerializedTaskListItem[];
   let nextCursor: string | null;
+  let parents: readonly TaskParentOption[];
   try {
     const scope = await resolveAuthenticatedWorkspaceScope(env, session);
     const preferences = await scope.appPreferences.get(session.user.subject);
     timezone = preferences.timezone;
     date = formatTodayDate(now, timezone);
     todayIso = ownerCalendarIso(now, timezone);
-    const page = await scope.tasks.listWaitingTasks({
-      limit: WAITING_PAGE_SIZE,
-      todayIso,
-      followUp,
-      cursor,
-    });
-    items = page.items.map(serializeWaitingItem);
+    /*
+     * V2.8 CONV-02 — the page, and (on a SURFACE load only) the parent
+     * candidates, concurrently. A "Load more" request carries a cursor and
+     * reads the page alone: the candidates do not change with the cursor, and
+     * a read per page would be a read the row does not need.
+     */
+    const [page, candidates] = await Promise.all([
+      scope.tasks.listWaitingTasks({
+        limit: WAITING_PAGE_SIZE,
+        todayIso,
+        followUp,
+        cursor,
+      }),
+      cursor === undefined
+        ? loadTaskParentOptions(scope.tasks)
+        : Promise.resolve<readonly TaskParentOption[]>([]),
+    ]);
+    items = page.items.map((item) => serializeTaskListItem(item));
     nextCursor = page.nextCursor;
+    parents = candidates;
   } catch {
     // A scope/list failure degrades to an empty, clearly-labelled error state
     // rather than a 500 — the shell stays usable. A stale or tampered cursor
@@ -136,6 +151,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       date,
       todayIso,
       nowMs: now.getTime(),
+      parents: [],
       failed: true,
     };
   }
@@ -147,6 +163,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     date,
     todayIso,
     nowMs: now.getTime(),
+    parents,
     failed: false,
   };
 }
@@ -161,7 +178,15 @@ function renderWaitingDrawer(entry: DrawerEntry): DrawerRenderResult | null {
   const separator = entry.key.indexOf(":");
   const kind = separator === -1 ? entry.key : entry.key.slice(0, separator);
   const id = separator === -1 ? "" : entry.key.slice(separator + 1);
-  if (kind !== "task" || id.length === 0) {
+  /*
+   * V2.8 CONV-02 — `task-move:` resolves to the SAME record.
+   *
+   * The shared row's overflow carries "Move to Project or Area…", which opens
+   * `task-move:<id>` — the key `/tasks`, Today, Plan and the Project record
+   * have resolved to the Task's record since CONTROL-01 §4. There is no
+   * Waiting-specific move surface.
+   */
+  if ((kind !== "task" && kind !== "task-move") || id.length === 0) {
     return null;
   }
   return {
@@ -174,151 +199,15 @@ function renderWaitingDrawer(entry: DrawerEntry): DrawerRenderResult | null {
 export default function WaitingRoute({ loaderData }: Route.ComponentProps) {
   return (
     <DrawerProvider renderDrawer={renderWaitingDrawer}>
-      <WaitingCollection
+      <WaitingTasks
         items={loaderData.items}
         nextCursor={loaderData.nextCursor}
         followUp={loaderData.followUp}
         nowMs={loaderData.nowMs}
         todayIso={loaderData.todayIso}
+        parents={loaderData.parents}
         failed={loaderData.failed}
       />
     </DrawerProvider>
-  );
-}
-
-/** The subset of this loader's payload a "Load more" fetch reads back. */
-interface WaitingPageData {
-  readonly items: readonly SerializedWaitingTaskItem[];
-  readonly nextCursor: string | null;
-  readonly failed: boolean;
-}
-
-/** Stable module-level selector, so the shared hook's memo identity is stable. */
-function selectWaitingPage(data: WaitingPageData) {
-  return {
-    items: data.items,
-    nextCursor: data.nextCursor,
-    failed: data.failed,
-  };
-}
-
-function waitingItemId(item: SerializedWaitingTaskItem): string {
-  return item.id;
-}
-
-function WaitingCollection({
-  items: firstPage,
-  nextCursor,
-  followUp,
-  nowMs,
-  todayIso,
-  failed,
-}: {
-  readonly items: readonly SerializedWaitingTaskItem[];
-  readonly nextCursor: string | null;
-  readonly followUp: TaskFollowUpState | null;
-  readonly nowMs: number;
-  readonly todayIso: string;
-  readonly failed: boolean;
-}) {
-  const { openDrawer } = useDrawer();
-  const [searchParams] = useSearchParams();
-
-  // The follow-up filter is part of the cursor's SCOPE, so it must be part of the
-  // path a later page is requested from — a cursor issued under one filter is
-  // rejected under another rather than reinterpreted.
-  const path = useMemo(
-    () =>
-      followUp === null
-        ? WAITING_HREF
-        : `${WAITING_HREF}?${WAITING_FOLLOW_UP_PARAM}=${encodeURIComponent(followUp)}`,
-    [followUp],
-  );
-
-  const { items, hasMore, loading, loadFailed, loadMore } = useKeysetPagination<
-    SerializedWaitingTaskItem,
-    WaitingPageData
-  >({
-    firstPage,
-    initialCursor: nextCursor,
-    path,
-    select: selectWaitingPage,
-    getId: waitingItemId,
-  });
-
-  const cards = useMemo(
-    () => items.map((item) => toWaitingCardData(item, nowMs, todayIso)),
-    [items, nowMs, todayIso],
-  );
-
-  const count = items.length;
-  const subtitle = waitingSubtitle({
-    loaded: count,
-    hasMore,
-    followUp,
-    failed,
-  });
-
-  const openProps = useCallback(
-    (key: string) => ({
-      href: `?${withDrawerPushed(searchParams, key).toString()}`,
-      onOpen: () => openDrawer(key),
-    }),
-    [searchParams, openDrawer],
-  );
-
-  return (
-    <CollectionLayout
-      title="Waiting"
-      subtitle={subtitle}
-      error={
-        failed ? (
-          <EmptyState
-            title="We couldn’t load your waiting tasks"
-            description="Something went wrong. Please try again."
-          />
-        ) : undefined
-      }
-      isEmpty={!failed && count === 0}
-      emptySlot={
-        <EmptyState
-          icon={<EntityIcon type="task" />}
-          title={
-            followUp === null
-              ? "Nothing’s waiting"
-              : "No follow-ups match this filter"
-          }
-          description={
-            followUp === null
-              ? "When a task is blocked on someone or something else, mark it as waiting from the task’s drawer and it will appear here."
-              : "Every waiting task with a follow-up date has been dealt with. Open Waiting without a filter to see them all."
-          }
-          primaryAction={
-            followUp === null ? undefined : (
-              <ButtonLink href={WAITING_HREF} variant="secondary">
-                Show all waiting tasks
-              </ButtonLink>
-            )
-          }
-        />
-      }
-    >
-      <CardCollection
-        items={cards}
-        getItemId={(card) => card.id}
-        ariaLabel="Waiting tasks"
-        presentation="list"
-        density="comfortable"
-        renderCard={(card) => <Card {...toWaitingCardProps(card, openProps)} />}
-      />
-      {hasMore ? (
-        <LoadMore
-          loading={loading}
-          loadFailed={loadFailed}
-          onLoadMore={loadMore}
-          label="Load more waiting tasks"
-        />
-      ) : null}
-    </CollectionLayout>
   );
 }

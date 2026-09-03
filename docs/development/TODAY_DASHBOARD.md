@@ -526,9 +526,40 @@ or link system.
   `/tasks/:taskId` action (PROJ-01 / ADR-033).
 - **The Waiting view.** [`/today/waiting`](../../app/modules/today/routes/waiting.tsx)
   is a real registry route under Today (no separate sidebar module). It composes the
-  PX-02 CollectionLayout + DS-04 Cards and opens tasks in the SAME DS-03 Drawer, so
-  opening a waiting task keeps the owner on `/today/waiting`. Ordering is
-  deterministic: **overdue → longest-waiting → due date → id.**
+  PX-02 CollectionLayout over the **shared `TaskRow`** (V2.8 CONV-02 — below) and
+  opens tasks in the SAME DS-03 Drawer, so opening a waiting task keeps the owner
+  on `/today/waiting`. Ordering is deterministic: **overdue → longest-waiting →
+  due date → id.**
+- **It is the shared row, and it is actionable (V2.8 CONV-02, DEBT-128).** The
+  list used to draw a read-only generic Card (`WaitingTaskCard`, deleted) with
+  its own metadata run and its own responsive ladder. It now renders the shared
+  `TaskRow` inside the shared `TaskList` from
+  [`WaitingTasks.tsx`](../../app/modules/today/task/WaitingTasks.tsx), hosted by
+  the shared `useTaskSurfaceActions` (ADR-086 patch map, one live region,
+  rollback on refusal), departing through `useDepartingRows`, renaming through
+  `TaskTitleEditor` and offering the shared `buildTaskRowActions` set. From the
+  row: complete/reopen (a completed row leaves with focus handed on, because
+  completion clears waiting atomically and the loader's next answer no longer
+  holds it — membership is the server's), open, rename, due/planned, priority
+  and Project (bounded candidates read once per surface load), Move to Project
+  or Area…, Someday / Maybe, Skip / Stop repeating, swipe with visible
+  non-swipe equivalents, keyboard reach. The waiting facts the Card drew —
+  **Waiting for · Since · elapsed · Follow up state** — are the row's own
+  optional `waiting` slot (`taskRowWaitingFact`; see
+  [`TASKS_MODULE.md` → *One anatomy, one waiting fact*](TASKS_MODULE.md#one-anatomy-one-waiting-fact-and-a-reference-is-a-link-v28-conv-02-2026-09-03)),
+  so the same fact renders on `/tasks?followUp=…` with no second presentation.
+  Deliberately OFF through the row's contract: selection/bulk (no evidence for
+  a bulk Waiting workflow), drag (derived order, no destination), "Plan for
+  today" (the day excludes waiting work). The follow-up date is edited where it
+  always was — the record's Details form — from the row's "Open task". The
+  route keeps the loader (page + parent candidates concurrently, the candidates
+  on a surface load only), the honest subtitle, the empty states, the filter,
+  the keyset cursor, the page size and "Load more"; the shared hook runs in
+  `merge` mode so a mutation keeps the loaded pages. Budget:
+  `test/kernel/conv-02-waiting-budget.test.ts` — one statement per page, flat,
+  plus one bounded candidate read per surface load. No Waiting-specific
+  responsive CSS: the shared `tasklist` ladder governs, and the long waiting
+  subject the old 26rem rule hid now WRAPS inside the row at 320 px.
 - **It PAGES, and it states what it is showing (V2.7 RECALL-03).** It read
   `LIMIT 100` with no cursor and rendered "`${count} tasks are waiting…`", so at
   150 waiting Tasks the surface whose entire job is "what am I waiting on" said
@@ -715,6 +746,17 @@ What survives, and where it lives:
   open work; plus the day itself, proving a task due today lands on the day with no
   plan set, a task past its due date lands in the timeline and never in the rail,
   and an unfiled task is counted as the inbox.
+- **Waiting on the shared row (V2.8 CONV-02)** —
+  [`test/unit/today/WaitingTasks.test.tsx`](../../test/unit/today/WaitingTasks.test.tsx):
+  the rows are the shared row with the waiting fact and no Card, grip or
+  selection; the overflow set (and no "Plan for today"); the optimistic
+  completion, its single announcement, the departure when the loader no longer
+  holds the Task and the subtitle counting the server's answer; a refused
+  completion rolled back; loaded pages surviving a mutation's re-read.
+  [`test/unit/task-record/task-row-waiting-fact.test.tsx`](../../test/unit/task-record/task-row-waiting-fact.test.tsx)
+  is the slot's contract; [`test/kernel/conv-02-waiting-budget.test.ts`](../../test/kernel/conv-02-waiting-budget.test.ts)
+  the statement budget; [`e2e/conv-02-waiting-taskrow.spec.ts`](../../e2e/conv-02-waiting-taskrow.spec.ts)
+  the journey at 1440/393/320 on an owned fixture (`conv-02-fixtures.ts`).
 - **Navigation** — [`test/unit/modules/today-navigation.test.ts`](../../test/unit/modules/today-navigation.test.ts).
 - **End-to-end** — [`e2e/today.spec.ts`](../../e2e/today.spec.ts) and
   [`e2e/today-mobile.spec.ts`](../../e2e/today-mobile.spec.ts).

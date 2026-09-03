@@ -24,7 +24,8 @@
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
 **Programme status: IN PROGRESS (2026-09-03).** CONV-00 ☑ delivered
-2026-09-02; CONV-01 ☑ delivered 2026-09-03; **CONV-02 is next**; CONV-03 ☐.
+2026-09-02; CONV-01 ☑ delivered 2026-09-03; CONV-02 ☑ delivered 2026-09-03;
+**CONV-03 is next**.
 
 > **Amended 2026-09-02, before CONV-00 began**, as the follow-up resolution of
 > the two review findings left unresolved on the defining PR (#247, merged
@@ -1053,10 +1054,148 @@ every action valid in that scope.**
 
 ---
 
-### ☐ CONV-02 — One anatomy, everywhere a Task can be acted on — **NEXT**
+### ☑ CONV-02 — One anatomy, everywhere a Task can be acted on — **DELIVERED 2026-09-03**
 
 **Where a Task can be acted on it is the shared row; where it is only
 referred to it is a link; and the Card layer that drew it twice is gone.**
+
+> **Delivered 2026-09-03** (branch `claude/daly-v2-8-conv-02-majyhu`). What
+> was built, what was removed, what was measured, and what was deliberately
+> switched off.
+>
+> - **The Waiting Card is gone.** `WaitingTaskCard.tsx`, its Card-shaped
+>   view-model (`WaitingCardData`, `toWaitingCardData`, the preview shape,
+>   the private `serializeWaitingItem`), its unit test and its `today.css`
+>   block are deleted. `/today/waiting` renders the shared `TaskRow` inside
+>   the shared `TaskList` from a new surface module
+>   (`app/modules/today/task/WaitingTasks.tsx`, a consumer in the enumerated
+>   set), over the shared `SerializedTaskListItem`: the kernel's
+>   `WaitingTaskListItem` is now the shared `TaskListItem` narrowed (waiting
+>   always present, `followUpOn` lifted), mapped by the ONE list-item mapper
+>   the Waiting statement already had every column for. The route keeps the
+>   loader, the drawer renderer (now resolving `task-move:` too) and nothing
+>   about a row.
+> - **The shared waiting fact, decided once.** `TaskRow` gains one optional
+>   `waiting` slot — `TaskRowWaitingFact { subject, since, nowMs, followUpOn }`
+>   — INPUTS, not prose. The row formats them through the canonical
+>   `waitingSubjectLabel` / `formatWaitingSince` / `formatWaitingElapsed` and a
+>   new `taskFollowUpPresentation(followUpOn, todayIso)` over
+>   `relativeCalendarDate`, whose `state` is the kernel's own vocabulary
+>   (`overdue` · `due_today` · `upcoming`) and rides `data-follow-up-state`.
+>   The fact is built by `taskRowWaitingFact(item, nowMs)` (null for a
+>   completed or non-waiting Task) and drawn on a second line under the title
+>   in the title's column — no grid track, no change to a row without it; a
+>   third line on a phone via `:has()`. The state is WORDS ("Follow up
+>   overdue · Yesterday", "Follow up due · Today", "Follow up · Fri"); the
+>   overdue colour is a second signal. No second formatter exists anywhere.
+> - **Same fact on `/tasks`.** `TasksWorkspace` passes the slot when its
+>   configuration is a waiting/follow-up context (the Waiting system view,
+>   `followUp=`, or a follow-up window) from data it already holds
+>   (`TaskCardData` carries the inputs; the loader adds one `nowMs`). Every
+>   other configuration is byte-identical.
+> - **Actions on `/today/waiting`.** Complete/reopen (with DHDS-11 departure
+>   and focus handoff), open, inline title (Rename), inline due/planned,
+>   priority and Project editors (bounded candidates read once per surface
+>   load), the overflow (Rename · Move to Project or Area… · Move to Someday /
+>   Maybe · Skip this occurrence · Stop repeating · Open task), the recurrence,
+>   blocked and checklist signals, swipe with visible non-swipe equivalents,
+>   keyboard reach, the current-record mark, ADR-086 reconciliation through
+>   the shared `useTaskSurfaceActions`, one live region.
+> - **Deliberately switched off, through the row's contract.** Selection and
+>   bulk (no evidence for a bulk Waiting workflow; recorded in the surface
+>   header), drag (no destination, no stored order — DEBT-188 stands), "Plan
+>   for today" (Today's day excludes waiting work, so the act would write a
+>   date the day never draws). No snooze, no follow-up status, no reminder,
+>   no delegation workflow.
+> - **Follow-up editing.** Through the established Task record: the row's
+>   "Open task" → Details → Edit details → Follow up (`CalendarDateField`),
+>   which the E2E journey drives; no inline calendar was built.
+> - **RECALL-03 parity, extended to the row.** `recall-03-commitments-due.test.ts`
+>   gains a section comparing every row's `taskFollowUpPresentation` state
+>   with the filter's membership for all five states, with the rail's and
+>   the digest's `followUpDue`, and across two owner-days — as machine
+>   values. The E2E journey compares the row's `data-follow-up-state` with
+>   `/today/waiting?followUp=due`, Today's rail count and `/tasks?followUp=`.
+> - **Pagination preserved.** The shared `useKeysetPagination` gains an
+>   opt-in `refresh: "merge"` (the TASKS-09 rule `/tasks` held privately): a
+>   mutation's revalidation refreshes page one and merges it by id, keeping
+>   loaded pages; with nothing loaded beneath, the cursor re-seeds. The
+>   RECALL-03 kernel walk (150 rows, six pages, no duplicate, no omission,
+>   row 101, stable order across page sizes, cursor rejected across scopes,
+>   filtered paging) is unchanged and green over the widened item; the
+>   RECALL-03 E2E walk is re-pointed to rows; the CONV-02 journey completes a
+>   page-one row after a second page loaded and keeps the accumulation.
+> - **Statement budget** (`test/kernel/conv-02-waiting-budget.test.ts`, real
+>   D1): **before 1 statement per page; after 1 per page** — flat at 3 and 30
+>   waiting Tasks — **plus 1 bounded `searchTaskParents`** (limit 50, the
+>   shared `task-parent-options.server.ts` the Project record now also
+>   calls) on a surface load only, never on a "Load more" page, never per
+>   row. The count remains RECALL-03's one aggregate (unchanged, still
+>   pinned at one statement and two binds).
+> - **Card CSS deleted, re-measured.** On `main` @ `6fadd27` the layer sat at
+>   `tasks.css:978–1937` (line numbers had moved from the roadmap's
+>   `996–1928`). Deleted: the whole "The row" + "trailing facts" + "Phone"
+>   region, the "Row rhythm and the parent mark" region, the metadata-run
+>   nowrap rule and both `@container tasks-list` ladders — **829 lines**, every
+>   rule addressing `.dh-card*` under a Task collection, the Card `data-priority`
+>   tiers, the Card's `data-field` columns and the 26rem waiting-for hiding
+>   rule. Kept: the `/tasks` chrome that shares the file (grouped sections,
+>   quick-add, the control row, the phone bands) — live, not Card. The one
+>   generic rule in the range (`.dh-card__leading`, the Card's own slot)
+>   moved to `card.css`. `tasks.css` now has no selector pairing a Task
+>   collection with `.dh-card`, asserted by test.
+> - **Reference surfaces left as references.** Search result, `/views` row,
+>   Meeting follow-up row and `NextActionLine` are untouched, and
+>   `reference-surfaces.test.tsx` renders each with a Task and asserts no
+>   completion control, no Task overflow menu and no row anatomy;
+>   `shared-row-consumers.test.ts` asserts none imports the row or its
+>   editors.
+> - **`SnapshotTaskRow`.** The offline snapshot's private `TaskRow` is
+>   renamed and its header states it is read-only; the same test asserts
+>   exactly one `TaskRow` declaration exists in `app/` and it is the exported
+>   shared row.
+> - **Card-import guard.** Every generic-Card importer under the Task-rendering
+>   roots must be in an allow-list naming the non-Task thing it draws (the
+>   Projects gallery, Goal rows, linked Notes/Meetings); `app/modules/tasks`,
+>   `app/modules/today/task` and the Waiting route import none. The roadmap's
+>   literal grep is not empty on `app/modules/projects` — the gallery draws
+>   Projects as Cards, which is what the allow-list records — and the test
+>   is the durable form of the criterion.
+> - **Responsive and accessibility.** No Waiting-specific ladder; the shared
+>   `tasklist` queries govern. The CONV-02 journey proves at 1440, 393 and
+>   320: the shared recomposition, the long free-text subject wrapping inside
+>   the viewport (the fact the old 26rem rule hid to avoid overflow), the
+>   overdue words at 320, priority on the row, touch-floor targets, keyboard
+>   reach with the fact taking no tab stop, no horizontal overflow, axe clean
+>   with no rule disabled.
+> - **Falsified**, each restoring exactly one failure: the old Card back on
+>   the Waiting route (consumer contract); the facts rendered beside the row
+>   rather than through the slot (the slot contract); a completion control on
+>   a reference surface (reference rule); a `.dh-collection--tasks .dh-card`
+>   rule back in `tasks.css` (CSS guard); a per-row parent read in the loader
+>   (budget); a due-today chase reported as upcoming (RECALL-03 parity); a
+>   broken keyset tie-break (the RECALL-03 walk); a broken focus handoff (the
+>   E2E completion journey).
+> - **E2E, measured.** `conv-02-waiting-taskrow.spec.ts` — eight journeys on
+>   an owned fixture (`conv-02-fixtures.ts`: eight named waiting Tasks and 55
+>   fillers under one Project, every chase date derived from the owner's day)
+>   — is 91.5 s over 8 tests, measured locally from a green run and placed in
+>   the manifest with `--as local/v2.8-conv-02`; thirteen partitions, heaviest
+>   16.3 min against the 16.7 min ceiling, worst/mean 1.04; no other spec's
+>   duration or provenance changed. `recall-03-commitments-due.spec.ts` is
+>   re-pointed to the shared row (its 150-row walk, row 101 and the honest
+>   subtitle unchanged) and passes.
+> - **One thing the journey found and fixed on the way.** The Task record's
+>   Details form never passed the drawer's owner-day to its two delegation
+>   date fields, so an UNSET "Follow up" opened its calendar on January 1970
+>   (the grid's documented fallback for "no honest today"). `TaskDetailsTab`
+>   now takes `todayIso` and the drawer passes `data.todayIso` it always held;
+>   the fields open on the owner's month and mark today. Two lines, no new
+>   editor — the journey drives the follow-up edit through the grid by a
+>   derived label (CONV-00-E).
+> - **Closes** DEBT-128. `TASKS_MODULE.md`, `TODAY_DASHBOARD.md` and the
+>   design authority's TaskRow contract carry the slot, the reference rule
+>   and the capability table.
 
 - **User problem.** [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2)
   (P2, title corrected by this pass): `/today/waiting` renders a read-only
@@ -1110,7 +1249,7 @@ referred to it is a link; and the Card layer that drew it twice is gone.**
 
 ---
 
-### ☐ CONV-03 — Green is a property, not a lottery
+### ☐ CONV-03 — Green is a property, not a lottery — **NEXT**
 
 **An unchanged tree gets the same answer every time, and the whole gate is
 usable.**
@@ -1306,9 +1445,9 @@ cross-references (DEBT-215, DEBT-221, DEBT-128, DEBT-151).
 | **DEBT-236** — two date-editor journeys assert the month they were written in | P2 | **Raised · CONV-00-E** (reproduced locally 2026-09-02) · **RESOLVED 2026-09-02 by CONV-00** |
 | **DEBT-237** — the AI gate names a fake-provider path the repository does not have | P3 | **Raised · not taken** — the code-held half of a tripwire, in its own PR the day the secret exists |
 | DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **RESOLVED 2026-09-02 by CONV-00** (A, B, C, D, F); DEBT-215's and DEBT-221's stale cause claims corrected 2026-09-02 and confirmed by measurement |
-| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; #826 on the documentation-only head was red on three DEBT-203-class journeys the PR never touched, recorded there. **Measured again by CONV-01 (2026-09-03): the merge's `main` run [#828](https://github.com/acedaly/DalyHub-V2/actions/runs/33680967861) is 17/18 — p04 red on one DEBT-203-class journey (`tasks-journey.spec.ts:334`) at 18.5 min against a 16.1 min budget — so it is NOT the first consecutive green; the count restarts, and neither entry is closed** |
+| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; #826 on the documentation-only head was red on three DEBT-203-class journeys the PR never touched, recorded there. **Measured again by CONV-01 (2026-09-03): the merge's `main` run [#828](https://github.com/acedaly/DalyHub-V2/actions/runs/33680967861) is 17/18 — p04 red on one DEBT-203-class journey (`tasks-journey.spec.ts:334`) at 18.5 min against a 16.1 min budget — so it is NOT the first consecutive green; the count restarts, and neither entry is closed. Measured again by CONV-02 (2026-09-03): the CONV-01 merge's `main` run [#833](https://github.com/acedaly/DalyHub-V2/actions/runs/33716224737) concluded cancelled — 11/13 partitions green, p02 red on one DEBT-203-class journey (`notes.spec.ts:506`) at 19.0 min against 16.1, p04 red on two (`pwa-offline.spec.ts:716`, `tasks-collection.spec.ts:634`) at 19.4 min against 16.1, and the Unit job cancelled by its own 15-minute `timeout-minutes` mid-kernel-suite — so the count stays zero and neither entry is closed; the overruns are CONV-03's subject** |
 | DEBT-175 | P2 | **TAKEN · CONV-01 · RESOLVED 2026-09-03** — the tab renders the shared row; the consumer contract test enumerates it |
-| DEBT-128 | P2 | **TAKEN · CONV-02**; title corrected 2026-09-02 (Today moved 2026-08-17; search never was a Card; `/today/waiting` is); **advanced 2026-09-03 by CONV-01** — the Project tab no longer paints from the Card layer, leaving `/today/waiting` its only consumer |
+| DEBT-128 | P2 | **TAKEN · CONV-02 · RESOLVED 2026-09-03** — `/today/waiting` renders the shared row, the row carries the waiting fact once, the reference rule is asserted, and the UIX-01 Card override layer (829 lines of `tasks.css`) is deleted with its last consumer; title corrected 2026-09-02, advanced 2026-09-03 by CONV-01 |
 | DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance reproduced in partition order by CONV-00-G (2 of 2 local runs, `main` #815) and repaired as an unsized budget |
 | DEBT-151 | P2 | **Corrected, not taken** — headline 30/1,320,668 B → 32/1,383,217 B per the PWA authority's own table; ceilings unchanged |
 | DEBT-70 | P2 | **Not taken** — the offline slice's first item if the slice is ever taken; recorded in LATER |

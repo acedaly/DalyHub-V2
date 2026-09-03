@@ -210,7 +210,7 @@ export function OfflineSnapshotView({
         count={overdue.length}
       >
         {overdue.map((task) => (
-          <TaskRow key={task.id} task={task} />
+          <SnapshotTaskRow key={task.id} task={task} />
         ))}
       </Section>
       <Section
@@ -219,7 +219,7 @@ export function OfflineSnapshotView({
         count={today.length}
       >
         {today.map((task) => (
-          <TaskRow key={task.id} task={task} />
+          <SnapshotTaskRow key={task.id} task={task} />
         ))}
       </Section>
       <Section
@@ -228,7 +228,7 @@ export function OfflineSnapshotView({
         count={upcoming.length}
       >
         {upcoming.map((task) => (
-          <TaskRow key={task.id} task={task} />
+          <SnapshotTaskRow key={task.id} task={task} />
         ))}
       </Section>
       <Section
@@ -296,7 +296,7 @@ export function OfflineSnapshotView({
         count={completed.length}
       >
         {completed.map((task) => (
-          <TaskRow key={task.id} task={task} />
+          <SnapshotTaskRow key={task.id} task={task} />
         ))}
       </Section>
 
@@ -336,7 +336,21 @@ function Section({
   );
 }
 
-function TaskRow({ task }: { readonly task: OfflineDataset["tasks"][number] }) {
+/**
+ * V2.8 CONV-02 — a READ-ONLY snapshot row, named as one (ADR-115 decision 3).
+ *
+ * This component was called `TaskRow`, which misdirected: the product has
+ * exactly one interactive `TaskRow` (`~/shared/task-record/TaskRow`), and this
+ * is not it and must not become it. A stored snapshot is rendered, never acted
+ * on — no completion control, no editor, no menu — because every mutation here
+ * would silently fail (see the file header). The rename states that; offline
+ * expansion is outside V2.8, and this row's contract is unchanged.
+ */
+function SnapshotTaskRow({
+  task,
+}: {
+  readonly task: OfflineDataset["tasks"][number];
+}) {
   const planned = task.scheduledDate ?? task.dueDate;
   return (
     <li className="dh-offline-row" data-status={task.status}>

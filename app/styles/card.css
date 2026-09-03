@@ -168,6 +168,19 @@
 /* Body                                                                        */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * The leading slot's column — a state or completion control drawn before the
+ * body (`Card`'s `leading` prop). A GENERIC rule: it lived in `tasks.css`
+ * inside the UIX-01 Task-Card override layer and moved here when V2.8 CONV-02
+ * deleted that layer with its last consumer, because the slot is the Card's,
+ * not a Task's.
+ */
+.dh-card__leading {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
 .dh-card__body {
   flex: 1 1 auto;
   min-width: 0;

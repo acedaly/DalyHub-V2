@@ -71,6 +71,16 @@ interface TaskDetailsTabProps {
   ) => Promise<SubmitOutcome<TaskDetailsValues>>;
   /** Called after a successful save so the parent can leave edit mode + refresh. */
   readonly onSaved: () => void;
+  /**
+   * V2.8 CONV-02 — the OWNER's calendar day (ADR-022), for the two delegation
+   * date fields: it marks "today" in their grids and is the month an UNSET
+   * field opens on. The drawer has always held it (`data.todayIso`) and the
+   * form never passed it, so an empty "Follow up" opened on January 1970 —
+   * found by the CONV-02 journey that edits the chase date through this form.
+   * Null on a surface with no honest today, exactly as `CalendarDateField`
+   * documents.
+   */
+  readonly todayIso?: string | null;
 }
 
 const STATUS_OPTIONS = [
@@ -130,6 +140,7 @@ export function TaskDetailsTab({
   onCancel,
   onSubmit,
   onSaved,
+  todayIso = null,
 }: TaskDetailsTabProps) {
   if (isEditing) {
     return (
@@ -138,6 +149,7 @@ export function TaskDetailsTab({
         onCancel={onCancel}
         onSubmit={onSubmit}
         onSaved={onSaved}
+        todayIso={todayIso}
       />
     );
   }
@@ -201,6 +213,7 @@ function TaskDetailsForm({
   onCancel,
   onSubmit,
   onSaved,
+  todayIso = null,
 }: Omit<TaskDetailsTabProps, "isEditing" | "onEdit">) {
   const form = useForm<TaskDetailsValues>({
     initialValues: {
@@ -290,8 +303,16 @@ function TaskDetailsForm({
        * on `DateField`: editing a wall clock is the one thing the native control
        * genuinely does better.
        */}
-      <CalendarDateField label="Delegated on" {...delegatedOnField} />
-      <CalendarDateField label="Follow up" {...followUpOnField} />
+      <CalendarDateField
+        label="Delegated on"
+        todayIso={todayIso}
+        {...delegatedOnField}
+      />
+      <CalendarDateField
+        label="Follow up"
+        todayIso={todayIso}
+        {...followUpOnField}
+      />
       <TextField
         label="Delegation note"
         maxLength={500}
