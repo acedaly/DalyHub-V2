@@ -5,6 +5,7 @@ import {
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
+  taskRow,
   taskRows,
 } from "./helpers";
 
@@ -62,22 +63,40 @@ test.describe("MOBILE-01 no avoidable horizontal overflow", () => {
     });
   }
 
-  test("and the phone task row drops the waiting subject rather than growing", async ({
+  test("and the phone task row is the shared row, with priority still reachable", async ({
     page,
   }) => {
+    /*
+     * V2.8 CONV-01 — this used to assert that the Project tab's Card HID the
+     * waiting subject below 26rem, which was the tab's own responsive ladder
+     * doing what the shared row never did. The tab renders the shared `TaskRow`
+     * now, under the row's own phone rule: the row recomposes to two lines,
+     * keeps priority (DHDS-10's inline editor stays reachable) and states the
+     * waiting Task's condition through the row's own state pill — and the
+     * document still fits.
+     */
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    // The fact is not on the row at phone width…
+    const waiting = taskRow(
+      page,
+      "Await council sign-off on the window change",
+    ).first();
+    await expect(waiting).toBeVisible();
+    // The old anatomy is gone from the tab entirely.
+    await expect(page.locator(".dh-tasklist .dh-card")).toHaveCount(0);
+    // Priority is on the row at phone width, and it is the inline EDITOR. Its
+    // touch floor is the shared row's own pseudo-element hit area, which a
+    // bounding box cannot see; `dhds-10-inline-manipulation.spec.ts` measures
+    // it on the same row, and `conv-01-project-taskrow.spec.ts` on this record.
     await expect(
-      page
-        .locator('.dh-tasklist .dh-card__meta[data-field="waiting-for"]')
-        .first(),
-    ).toBeHidden();
-    // …and the Task it belongs to is still listed, with its title readable.
+      waiting.getByTestId("task-row-priority").getByRole("button"),
+    ).toBeVisible();
+    // …and the Task is still listed, with its title readable.
     await expect(
       page.getByRole("link", {
         name: "Open Await council sign-off on the window change",
       }),
     ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   });
 });
 

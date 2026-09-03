@@ -4,6 +4,7 @@
  * share one shape.
  */
 
+import type { TaskBulkResult } from "~/shared/task-record/contract";
 import type { SerializedTaskListItem } from "~/shared/task-record/task-view";
 import type { WorkspaceTaskGroupDimension } from "~/kernel/tasks";
 import type { TaskViewConfig } from "~/kernel/task-views";
@@ -132,15 +133,15 @@ export type TasksCreateResult =
       readonly createdId?: string;
     };
 
-/** The discriminated result of a `/tasks/bulk` action. */
-export type TasksBulkResult =
-  | {
-      readonly kind: "bulk";
-      readonly ok: true;
-      readonly changed: number;
-      readonly unchanged: number;
-    }
-  | { readonly kind: "bulk"; readonly ok: false; readonly formError: string };
+/**
+ * The discriminated result of a `/tasks/bulk` action.
+ *
+ * V2.8 CONV-01 — the SHAPE now lives in the shared task-record contract
+ * (`TaskBulkResult`), because the bulk bar that consumes it is drawn on two
+ * surfaces. Re-exported under the module's own name so the route and every
+ * existing importer read as they did.
+ */
+export type TasksBulkResult = TaskBulkResult;
 
 /** The discriminated result of a `/tasks/views` saved-view action. */
 export type TasksViewResult =

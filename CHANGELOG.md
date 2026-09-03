@@ -1,5 +1,21 @@
 # Changelog
 
+- **A Project's tasks are the same rows as everywhere else.**
+
+  On a Project's record, its Tasks tab used to draw its own kind of task
+  card: you could tick a task and change its date or priority, but not rename
+  it in place, select several and act on them together, see that it repeats,
+  or swipe it on a phone — and on a phone the priority disappeared altogether.
+  The tab now shows the very same task row as Tasks, Today and Weekly Planning
+  (V2.8 CONV-01). Rename from the row's menu, set the date, priority and
+  Project inline, plan it for today, skip a repeat or stop it, select rows and
+  complete, reprioritise or move them together, and watch a finished task leave
+  the open list with focus handed to the next one. The Project's progress and
+  health update from what was actually saved. On a phone the row keeps its
+  priority and recomposes rather than hiding things. Nothing can be dragged
+  into a new order here, on purpose: a Project's task list has no stored
+  order, and a drag that did not stick would be worse than none.
+
 - **Today reflows at 200% zoom.**
 
   At double zoom on a phone (the width WCAG's reflow rule is about) Today

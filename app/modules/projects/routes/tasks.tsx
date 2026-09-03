@@ -19,26 +19,22 @@
 import { env } from "cloudflare:workers";
 
 import { InvalidSpineCursorError } from "~/kernel/spine";
-import type { TaskBlockedSummary, TaskChecklistProgress } from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import {
-  serializeProjectTask,
-  type SerializedProjectTask,
-} from "../project-view";
+  loadProjectTasksPage,
+  parseProjectTaskState,
+  type ProjectTasksPage,
+} from "../project-tasks-load.server";
 import type { Route } from "./+types/tasks";
 
-type TaskState = "open" | "completed" | "all";
-
-export interface ProjectTasksPageData {
-  readonly tasks: readonly SerializedProjectTask[];
-  readonly nextCursor: string | null;
-}
-
-function parseTaskState(value: string | null): TaskState {
-  return value === "completed" || value === "all" ? value : "open";
-}
+/**
+ * V2.8 CONV-01 — the page is the SHARED list-item shape, read by the same
+ * function the record loader uses, so an appended page and the first page can
+ * never disagree about what a task carries.
+ */
+export type ProjectTasksPageData = ProjectTasksPage;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -54,37 +50,17 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const projectId = params.projectId;
   const url = new URL(request.url);
-  const state = parseTaskState(url.searchParams.get("state"));
+  const state = parseProjectTaskState(url.searchParams.get("state"));
   const cursor = url.searchParams.get("cursor") ?? undefined;
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
   try {
-    const page = await scope.tasks.listProjectTasks(projectId, {
+    const page = await loadProjectTasksPage(scope.tasks, projectId, {
       state,
-      cursor,
+      ...(cursor !== undefined ? { cursor } : {}),
     });
-    // TASKS-12 — ONE bounded aggregate for the page, guarded on its own so a
-    // dependency read failure costs the blocked state rather than the page.
-    const blocked = await scope.tasks
-      .listBlockedSummaries(page.items.map((item) => item.id))
-      .catch(() => new Map() as ReadonlyMap<string, TaskBlockedSummary>);
-    // TASKS-13 / HARDEN-06E (F-09) — and ONE for the page's checklist figures,
-    // on exactly the same terms: a figure that cannot be read costs the figure,
-    // never the page.
-    const checklist = await scope.tasks
-      .listChecklistProgress(page.items.map((item) => item.id))
-      .catch(() => new Map() as ReadonlyMap<string, TaskChecklistProgress>);
-    return json({
-      tasks: page.items.map((item) =>
-        serializeProjectTask(
-          item,
-          blocked.get(item.id),
-          checklist.get(item.id),
-        ),
-      ),
-      nextCursor: page.nextCursor,
-    } satisfies ProjectTasksPageData);
+    return json(page satisfies ProjectTasksPageData);
   } catch (error) {
     // A tampered or cross-scope cursor is a client error, not a 500 — the tab
     // surfaces a calm retry and can recover by re-reading the first page.

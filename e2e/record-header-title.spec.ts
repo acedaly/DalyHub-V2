@@ -1,6 +1,10 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { expectNoHorizontalOverflow, gotoFixture } from "./helpers";
+import {
+  expectNoHorizontalOverflow,
+  gotoFixture,
+  recordOverflowTrigger,
+} from "./helpers";
 
 /**
  * M3-INT — the record header gives the record's NAME width priority.
@@ -187,9 +191,8 @@ test.describe("M3-INT — the real Project record", () => {
       ".record-header__actions button, .record-header__actions a",
     );
     expect(await controls.count()).toBeLessThanOrEqual(3); // primary + secondary + ⋯
-    await expect(
-      page.getByRole("button", { name: /More actions/ }),
-    ).toBeVisible();
+    // The header's own ⋯ — each shared Task row below carries one too (CONV-01).
+    await expect(recordOverflowTrigger(page)).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 });

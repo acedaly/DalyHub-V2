@@ -19,7 +19,11 @@
 
 import { expect, test } from "@playwright/test";
 
-import { expectNoAxeViolations, gotoFixture } from "./helpers";
+import {
+  expectNoAxeViolations,
+  gotoFixture,
+  recordOverflowTrigger,
+} from "./helpers";
 
 /** The dev-only design fixtures — each renders a shared component in the real shell. */
 const DESIGN_FIXTURES = [
@@ -257,7 +261,8 @@ test.describe("automated accessibility — open overlays", () => {
   // home for lifecycle actions, so it is scanned like every other overlay.
   test("record overflow menu has no violations", async ({ page }) => {
     await gotoFixture(page, "/projects/pr-website");
-    await page.getByRole("button", { name: /^More actions for / }).click();
+    // The record's own ⋯, not one of the shared Task rows' (CONV-01).
+    await recordOverflowTrigger(page).click();
     await page.getByRole("menu").waitFor();
     await expectNoAxeViolations(page);
     await page.keyboard.press("Escape");

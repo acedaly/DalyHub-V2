@@ -11,9 +11,10 @@ import {
   projectStateLabel,
   serializeProjectListItem,
   serializeProjectOverview,
-  serializeProjectTask,
   toProjectCardData,
 } from "~/modules/projects/project-view";
+import type { SerializedProjectTask } from "~/modules/projects/project-view";
+import { serializeTaskListPage } from "~/shared/task-record/task-view";
 import type { TaskListItem } from "~/kernel/tasks";
 
 import { stubHealth } from "../../support/project-health";
@@ -240,7 +241,14 @@ describe("serialisation", () => {
     expect(s.healthVisible).toBe(false);
   });
 
-  it("serialises a project task’s waiting state (which the generic serializer omits)", () => {
+  it("serialises a project task through the SHARED list-item serialiser, waiting, recurrence and parent included", () => {
+    /*
+     * V2.8 CONV-01 — the Project's task is the same serialised item every other
+     * Task surface renders. The private serialiser this test used to cover
+     * dropped the recurrence rule and the parent identity, which is exactly why
+     * the tab's rows lacked the repeat signal and the parent mark: the facts
+     * were on the kernel item all along.
+     */
     const task: TaskListItem = {
       id: "t1",
       workspaceId: WS,
@@ -255,17 +263,38 @@ describe("serialisation", () => {
       timeSector: null,
       commitmentState: "active",
       delegation: null,
+      recurrence: {
+        frequency: "week",
+        interval: 2,
+        dateKind: "due",
+        mode: "fixed",
+        weekdays: [],
+        ordinal: null,
+        weekendRule: "allow",
+        endsAfterCount: null,
+        endsOnDate: null,
+        anchorDay: null,
+        anchorMonth: null,
+      },
       parent: { kind: "project", id: "p1", title: "P" },
       waiting: {
         since: new Date("2026-07-19T00:00:00.000Z"),
         subject: { kind: "text", note: "finance sign-off" },
       },
     };
-    const s = serializeProjectTask(task);
-    expect(s.waiting?.since).toBe("2026-07-19T00:00:00.000Z");
-    expect(s.waiting?.subject).toEqual({
+    const [s] = serializeTaskListPage([task], new Map(), new Map());
+    // The tab's contract IS the shared shape — a type-level assertion.
+    const projectTask: SerializedProjectTask = s!;
+    expect(projectTask.waiting?.since).toBe("2026-07-19T00:00:00.000Z");
+    expect(projectTask.waiting?.subject).toEqual({
       kind: "text",
       note: "finance sign-off",
+    });
+    expect(projectTask.recurrence).toEqual(task.recurrence);
+    expect(projectTask.parent).toEqual({
+      kind: "project",
+      id: "p1",
+      title: "P",
     });
   });
 });

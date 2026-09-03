@@ -23,8 +23,8 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: IN PROGRESS (2026-09-02).** CONV-00 ☑ delivered
-2026-09-02; **CONV-01 is next**; CONV-02 and CONV-03 ☐.
+**Programme status: IN PROGRESS (2026-09-03).** CONV-00 ☑ delivered
+2026-09-02; CONV-01 ☑ delivered 2026-09-03; **CONV-02 is next**; CONV-03 ☐.
 
 > **Amended 2026-09-02, before CONV-00 began**, as the follow-up resolution of
 > the two review findings left unresolved on the defining PR (#247, merged
@@ -856,10 +856,116 @@ rides.**
 
 ---
 
-### ☐ CONV-01 — The Project record renders the shared Task row
+### ☑ CONV-01 — The Project record renders the shared Task row — **DELIVERED 2026-09-03**
 
 **A Task on its Project's record uses the same `TaskRow` anatomy and exposes
 every action valid in that scope.**
+
+> **Delivered 2026-09-03** (branch `claude/v2-8-conv-01-project-taskrow`).
+> What was built, what was removed, what was measured, and what was
+> deliberately left for CONV-02.
+>
+> - **Anatomy, before → after.** `ProjectTasksTab.tsx` built generic `Card`
+>   props by hand (`toTaskCardProps`, a private `ProjectTaskCompleteToggle`, a
+>   Card metadata run, a `pendingCompletion` map and `postTaskBulkAction` for
+>   one-row completion, an error paragraph, and a page re-fetch after every
+>   save) inside `CardCollection` under the `dh-tasklist` opt-in. It now
+>   renders the shared `TaskRow` inside the shared `TaskList`, over the shared
+>   `SerializedTaskListItem` (the Project-private `SerializedProjectTask` shape
+>   and `serializeProjectTask` are gone — the type is an alias of the shared
+>   one, serialised by `serializeTaskListPage`), projected by
+>   `toTaskRowProjection`, hosted by the shared `useTaskSurfaceActions`, selected
+>   through the shared `taskSelectionReducer`, departing through
+>   `useDepartingRows`, renaming through `TaskTitleEditor`, and offering the
+>   shared `buildTaskRowActions` set. The tab keeps only what is the tab's:
+>   the scope, the Open/Completed/All rail, the record-level empty state, "Add
+>   task", the never-navigating "Load more", and WHERE the bulk bar sits.
+> - **Capability set now on the record.** Inline title, due-date, priority and
+>   Project editors; the overflow (Plan for today · Rename · Move to Project or
+>   Area… · Move to Someday / Maybe · Skip this occurrence · Stop repeating ·
+>   Open task); completion and reopen; selection (toolbar toggle and touch
+>   hold) with Shift-range; bulk actions; the recurrence, blocked and
+>   checklist signals; the parent mark; swipe; the current-record mark; the
+>   departure with focus handoff; ADR-086 reconciliation; the shared container
+>   ladder. An archived Project's rows take the row's own `readOnly` form
+>   (no completion control, every editor disabled, one door to the record).
+> - **Deliberately absent by scope — drag.** The tab passes no `dragHandle`
+>   and issues no move or reorder request: it draws no drop destination and
+>   stores no order (DEBT-188 stands). Asserted structurally
+>   (`shared-row-consumers.test.ts`), by rendering (no `[data-dh-drag-item]`,
+>   no `.dh-taskrow__handle`) and E2E on the record, while `/tasks` grouped
+>   by a drop dimension still renders a grip (`dhds-11-drag-reorder.spec.ts`,
+>   unchanged). No order column, migration, ranking API or reorder action was
+>   added.
+> - **One bulk path.** The `/tasks` bulk bar moved out of `TasksWorkspace.tsx`
+>   into the shared `TaskBulkActionBar` (with the empty-selection
+>   `TaskSelectionPrompt`), and both surfaces render it over the one
+>   `/tasks/bulk` contract (`TaskBulkResult` now on the shared task-record
+>   contract; the module re-exports it). Proven: select three rows on the
+>   record, Complete → ONE POST to `/tasks/bulk` carrying three ids, rows
+>   reconcile, the progress band reads the accepted count. The tab's private
+>   completion-through-bulk path is deleted.
+> - **Optimistic reconciliation.** The shared host's patch map: an accepted
+>   inline save paints at once, the server stays authoritative (every patch is
+>   dropped when the loader answers), a refusal rolls back exactly the keys it
+>   painted, and the outcome is announced once through the tab's single live
+>   region. The host gained two things every bounded surface can use and
+>   Today/Plan simply do not pass: a `departing` set (ids the server has just
+>   accepted a change to, DHDS-11's eligibility rule) and `announce` (the bulk
+>   bar's channel). The Project's progress, health and overdue counts are never
+>   faked: the host revalidates the record loader after every accepted
+>   mutation, and the E2E journey reads the band before and after a
+>   completion, a reopen, a move and a bulk completion.
+> - **Statement budget, measured** (`test/kernel/conv-01-project-tasks-budget.test.ts`,
+>   real D1, `prepare` counted on the very `loadProjectTasksPage` both routes
+>   run): **before 3 per page** (page · blocked aggregate · checklist
+>   aggregate), **after 3 per page + 1** bounded `searchTaskParents` (limit 50,
+>   `/tasks`'s and Today's own bound) per record load for the row's inline
+>   Project editor and the bar's Move — flat at 3 and at 30 tasks, no per-row
+>   read. The parent identity and the recurrence the row now draws were
+>   already joined by `listProjectTasks`'s one statement; the old serialiser
+>   simply dropped them.
+> - **Responsive.** The tab's own ladder is gone from its rows; the shared
+>   `tasklist` container queries govern. At 393 px the row is two lines,
+>   priority is on it and its inline editor opens the shared sheet at the
+>   touch floor, the recurrence signal follows the row's rule, no horizontal
+>   overflow, axe clean; `iphone-daily-driver.spec.ts` now asserts that
+>   instead of the hidden waiting-for meta.
+> - **Dead code removed.** `toTaskCardProps`, `ProjectTaskCompleteToggle`,
+>   `ROUTINE_TASK_STATES`, the `pendingCompletion` map, the completion error
+>   paragraph and `.dh-project-tasks__error`, `serializeProjectTask` and the
+>   `SerializedProjectTask` interface, the duplicated loader reads in
+>   `detail.tsx`/`tasks.tsx` (now `project-tasks-load.server.ts`), the private
+>   `BulkActionBar`/`BulkMenu` in `TasksWorkspace.tsx`, and the `helpers.ts`
+>   exception comment. **Retained for CONV-02**: the UIX-01 Card override
+>   layer in `tasks.css` (`:996-1928`), because `/today/waiting` still draws a
+>   Card under it — the tab no longer wears `dh-tasklist` as a Card opt-in, so
+>   nothing on the record paints from that layer any more.
+> - **Tests re-pointed, not deleted.** `gate-02-honest-signals.spec.ts`
+>   (`.dh-card` → the shared row locator, colour read unchanged),
+>   `project-settings.spec.ts` (`article` → `taskRow`),
+>   `iphone-daily-driver.spec.ts` (hidden meta → priority reachable on the
+>   shared row), `ProjectTasksTab.test.tsx` (all seven PROJ-01 pagination and
+>   reconciliation journeys kept on the new anatomy, plus optimistic,
+>   refusal, bulk, read-only and no-grip proofs), `project-view.test.ts`
+>   (the shared serialiser). New: `shared-row-consumers.test.ts` (the
+>   enumerated-consumer contract), the kernel budget test, and
+>   `conv-01-project-taskrow.spec.ts` (seven journeys on an owned fixture:
+>   anatomy/no grip; rename · due · priority survive a reload; complete with
+>   departure, focus handoff, one announcement and the band; reopen on All;
+>   move via the picker leaves the Project; three-row bulk through
+>   `/tasks/bulk`; keyboard reach and axe at 1440; 393 px). Screenshot passes
+>   are opt-in captures with no committed baselines, so none was regenerated.
+> - **Falsified**, each restoring exactly one failure: the old `Card` import
+>   back in the tab (consumer contract); a `postTaskBulkAction` for the
+>   selection (contract + unit bulk proof); a `dragHandle` on the tab (no-grip
+>   assertions); the 26rem priority-hiding rule (393 px journey); a re-fetch
+>   in place of the patch (unit optimistic proof); a per-row read in the
+>   loader (kernel budget); a broken focus handoff (E2E completion journey).
+> - **Closes** DEBT-175. **Advances** DEBT-128 (one of its two consumers).
+>   DHDS-10's surface table is corrected (the tab now renames and moves);
+>   `TASKS_MODULE.md` and `PROJECTS_MODULE.md` carry the scope/capability
+>   rule.
 
 - **User problem.** [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2)
   (P2): `ProjectTasksTab.tsx` builds `Card` props by hand (`:51-513`) and says
@@ -947,7 +1053,7 @@ every action valid in that scope.**
 
 ---
 
-### ☐ CONV-02 — One anatomy, everywhere a Task can be acted on
+### ☐ CONV-02 — One anatomy, everywhere a Task can be acted on — **NEXT**
 
 **Where a Task can be acted on it is the shared row; where it is only
 referred to it is a link; and the Card layer that drew it twice is gone.**
@@ -1200,9 +1306,9 @@ cross-references (DEBT-215, DEBT-221, DEBT-128, DEBT-151).
 | **DEBT-236** — two date-editor journeys assert the month they were written in | P2 | **Raised · CONV-00-E** (reproduced locally 2026-09-02) · **RESOLVED 2026-09-02 by CONV-00** |
 | **DEBT-237** — the AI gate names a fake-provider path the repository does not have | P3 | **Raised · not taken** — the code-held half of a tripwire, in its own PR the day the secret exists |
 | DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **RESOLVED 2026-09-02 by CONV-00** (A, B, C, D, F); DEBT-215's and DEBT-221's stale cause claims corrected 2026-09-02 and confirmed by measurement |
-| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; the merge's `main` run is the first consecutive green, and both close on the second; #826 on the documentation-only head was red on three DEBT-203-class journeys the PR never touched, recorded there |
-| DEBT-175 | P2 | **TAKEN · CONV-01** |
-| DEBT-128 | P2 | **TAKEN · CONV-02**; title corrected 2026-09-02 (Today moved 2026-08-17; search never was a Card; `/today/waiting` is) |
+| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; #826 on the documentation-only head was red on three DEBT-203-class journeys the PR never touched, recorded there. **Measured again by CONV-01 (2026-09-03): the merge's `main` run [#828](https://github.com/acedaly/DalyHub-V2/actions/runs/33680967861) is 17/18 — p04 red on one DEBT-203-class journey (`tasks-journey.spec.ts:334`) at 18.5 min against a 16.1 min budget — so it is NOT the first consecutive green; the count restarts, and neither entry is closed** |
+| DEBT-175 | P2 | **TAKEN · CONV-01 · RESOLVED 2026-09-03** — the tab renders the shared row; the consumer contract test enumerates it |
+| DEBT-128 | P2 | **TAKEN · CONV-02**; title corrected 2026-09-02 (Today moved 2026-08-17; search never was a Card; `/today/waiting` is); **advanced 2026-09-03 by CONV-01** — the Project tab no longer paints from the Card layer, leaving `/today/waiting` its only consumer |
 | DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance reproduced in partition order by CONV-00-G (2 of 2 local runs, `main` #815) and repaired as an unsized budget |
 | DEBT-151 | P2 | **Corrected, not taken** — headline 30/1,320,668 B → 32/1,383,217 B per the PWA authority's own table; ceilings unchanged |
 | DEBT-70 | P2 | **Not taken** — the offline slice's first item if the slice is ever taken; recorded in LATER |

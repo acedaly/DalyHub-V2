@@ -66,7 +66,7 @@ export const RESPONSIVE_VIEWPORTS = [
 ] as const;
 
 /**
- * DS-04 — ONE locator for a task row on `/tasks`.
+ * DS-04 — ONE locator for a task row, wherever a Task can be acted on.
  *
  * The workspace list stopped being the generic `Card` (an `<article>`) and became
  * the product-level `TaskRow` (an `<li>` in a real `<ul>`, so a screen reader
@@ -74,12 +74,12 @@ export const RESPONSIVE_VIEWPORTS = [
  * always a statement about the CARD rather than about the task, and would have
  * had to be re-decided in six files.
  *
- * A Project's task list is the LAST task-bearing surface that has not adopted
- * the row; it still renders cards, and its specs still say `article`, which is
- * correct — they are asking about a different component. (This comment used to
- * name Today alongside it. TODAY-TASK-01 adopted the shared row there, so the
- * sentence had been false since; corrected by HARDEN-06E, F-15. The remaining
- * fork is DEBT-175.)
+ * It finds a Task on `/tasks`, on Today, on `/plan` and — since V2.8 CONV-01
+ * closed DEBT-175 — on a Project record's Tasks tab. This comment used to carry
+ * an exception for the Project tab, whose specs asked for an `article` because
+ * that surface drew the generic Card; there is no exception left, and a spec
+ * that asks a Task surface for an `article` is asking for a component that
+ * does not draw one.
  */
 export function taskRows(scope: Page | Locator): Locator {
   return scope.locator("[data-testid='task-row']");
@@ -96,6 +96,21 @@ export function taskRows(scope: Page | Locator): Locator {
  */
 export function taskRow(scope: Page | Locator, title: string): Locator {
   return taskRows(scope).filter({ hasText: title });
+}
+
+/**
+ * The RECORD HEADER's overflow trigger (DS-12: the header's last action).
+ *
+ * Since V2.8 CONV-01 a record whose tab draws Tasks also draws the shared row,
+ * and every row carries its own `More actions for <task>` trigger. A page-wide
+ * query for `/More actions for/` therefore resolves to the header's AND each
+ * row's, and fails strict mode; the header's own action row is the honest
+ * scope for a question about the record.
+ */
+export function recordOverflowTrigger(scope: Page | Locator): Locator {
+  return scope
+    .locator(".record-header__actions")
+    .getByRole("button", { name: /^More actions for / });
 }
 
 /* -------------------------------------------------------------------------- */

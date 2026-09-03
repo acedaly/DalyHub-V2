@@ -1,73 +1,100 @@
 /**
  * The Project record's Tasks tab.
  *
- * ── UIX-02 — the rows are TASKS rows now ─────────────────────────────────────
+ * ── V2.8 CONV-01 — the rows ARE the shared Task row ─────────────────────────
  *
- * The brief's rule for this surface is blunt: tasks inside a Project must reuse
- * the Tasks design language, and there must not be a Project-specific task card.
- * There was one. While UIX-01 rebuilt the Tasks list into a single ~45px line —
- * a leading completion circle, a dominant title, a right-aligned relative date,
- * and nothing else permanent — this tab kept the old two-line card: a green
- * check GLYPH that could not be clicked, a "P1" pill, an "Overdue · due 7 Aug
- * 2026" pill and an "Unscheduled" pill on the right of every row.
+ * Until this item the tab built generic `Card` props by hand from the same
+ * pieces `/tasks` once used, and said so in a comment: *"This tab does not
+ * render `TaskRow` yet (DEBT-175)"*. UIX-02 had made the rows "the SAME `Card`
+ * props Tasks builds", which was true then; DS-04 then replaced the Tasks card
+ * with `TaskRow`, Today and Plan followed, and this surface did not. Measured on
+ * 2026-09-02, what the owner could not do here that they could on `/tasks`: open
+ * the overflow menu, rename inline, select rows and act in bulk, see the
+ * recurrence signal, swipe, watch a completed row leave with focus handed on —
+ * and below 26rem see priority at all, including the inline editor DHDS-10 had
+ * added to this very tab.
  *
- * So it now builds the SAME `Card` props Tasks builds, from the same shared
- * pieces:
+ * So the tab now renders the shared `TaskRow` inside the shared `TaskList`, fed
+ * by the same list-item shape `/tasks` reads, and everything about a ROW is the
+ * row's:
  *
- *   - `leadingControl` is the shared `.dh-check-circle`, and it WORKS — a task
- *     can be completed from the Project it belongs to, through the same
- *     canonical `/tasks/bulk` route the Tasks list and the bulk bar use, so
- *     there is one authority and one Activity trail for completion.
- *   - the date is `InlineTaskDate`, which reads "Yesterday / Today / Tomorrow /
- *     Thu, 12 Jun" and takes the overdue colour when it has slipped. That is
- *     what let UIX-01 delete the urgency chip, and deleting it here too is what
- *     makes these rows the same object.
- *   - the routine status pills are gone for the same reason they went from
- *     Tasks: "Unscheduled" is the absence of a planned date restated as a chip,
- *     on every row. The states that appear nowhere else — Waiting, On hold,
- *     Cancelled — still paint.
- *   - the Project MARK is not drawn. Every row in this list belongs to the
- *     Project whose record it is being read on, so a per-row Project column
- *     would be the page title repeated once per task.
+ *   - the anatomy and its responsive ladder (`task-list.css` container queries —
+ *     the tab declares no breakpoint of its own and hides no fact);
+ *   - the inline title, due, priority and Project editors, the overflow set
+ *     (`buildTaskRowActions`), the recurrence and blocked signals, the
+ *     checklist figure, selection, long-press and swipe;
+ *   - completion, with DHDS-11's departure: on the Open scope a completed row
+ *     collapses when the loader's answer no longer contains it and focus is
+ *     handed to the row that takes its place (`useDepartingRows`);
+ *   - ADR-086's optimistic patch map, hosted by the shared
+ *     `useTaskSurfaceActions` — the same host Today and Plan use — so an
+ *     accepted save is painted at once, the server stays the authority, a
+ *     refusal rolls back exactly what it painted, and the outcome is announced
+ *     once through one live region.
  *
- * Unchanged: the open/completed/all filter (URL `?tasks=`), the "Add task"
- * Drawer, and opening a row into the SAME shared Task Drawer used on Today
- * (`?drawer=task:<id>`), so a task is edited the one canonical way.
+ * ── What stays the tab's ───────────────────────────────────────────────────
+ * Its scope (this Project's tasks), the Open / Completed / All filter (URL
+ * `?tasks=`), the record-level empty state, the "Add task" affordance, the
+ * "Load more" pagination that never navigates, and WHERE the bulk bar sits.
+ * Nothing else here is bespoke, and there is no Project-specific row, card,
+ * metadata run, completion control or mutation path any more.
+ *
+ * ── Capability contract: shared anatomy is not every capability ────────────
+ * The row draws a drag grip only when its caller passes a `dragHandle`, and
+ * this surface passes none — deliberately, and permanently until its domain
+ * changes. A drag is licensed only where the object has a real destination or
+ * a real stored order (AGENTS.md §7, DHDS-11, ADR-109). `/tasks` grouped by a
+ * drop dimension draws destinations, so it passes a grip; this tab is a flat
+ * list of one Project's tasks and stores no manual order (DEBT-188 stands), so
+ * it draws no grip, adds no order column and issues no reorder request. The
+ * slot is left unpassed rather than the row forked or a Project-local ranking
+ * invented to fill it (ADR-115 decision 2).
+ *
+ * An ARCHIVED Project's tasks are read-only until it is restored (PROJ-05 §5):
+ * the row's own `readOnly` mode draws no completion control, disables every
+ * inline editor and offers one door to the record — the same anatomy the
+ * Deleted view uses, for the same reason: every mutation would be refused.
+ *
+ * ── The Project's own facts ────────────────────────────────────────────────
+ * Progress, health and the overdue counts on the record are the SERVER's, and
+ * they move with the accepted save because the shared host revalidates this
+ * record's loader after every accepted mutation. Nothing here fakes them.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  useFetcher,
-  useLocation,
-  useRevalidator,
-  useSearchParams,
-} from "react-router";
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { useFetcher, useLocation, useSearchParams } from "react-router";
 
-import {
-  checklistProgressLabel,
-  isTaskBlocked,
-  taskBlockedLabel,
-} from "~/kernel/tasks";
-import { Card, CardCollection } from "~/shared/card";
-import type { CardMetaItem, CardProps } from "~/shared/card";
 import { DrawerTrigger, useDrawer, withDrawerPushed } from "~/shared/drawer";
-import { EntityIcon, isEntityType } from "~/shared/entity";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
 import { ViewTabs } from "~/shared/view-switcher";
 import {
-  InlineTaskDate,
-  InlineTaskPriority,
-  type TaskRowFieldSave,
-} from "~/shared/task-record/TaskRowFields";
-import { postTaskBulkAction } from "~/shared/task-record/task-inline-edit";
+  TaskBulkActionBar,
+  TaskSelectionPrompt,
+} from "~/shared/task-record/TaskBulkActionBar";
+import { TaskList } from "~/shared/task-record/TaskList";
+import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
+import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
+import { TaskTitleEditor } from "~/shared/task-record/TaskTitleEditor";
+import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
 import {
-  isTaskWaiting,
-  taskDisplayState,
-  taskStillOwed,
-  taskUrgency,
-  waitingSubjectLabel,
+  EMPTY_TASK_SELECTION,
+  boundBulkSelection,
+  taskSelectionReducer,
+} from "~/shared/task-record/task-selection";
+import {
+  applyTaskListItemPatch,
+  toTaskRowProjection,
 } from "~/shared/task-record/task-view";
+import { useDepartingRows } from "~/shared/task-record/use-departing-rows";
+import { useTaskSurfaceActions } from "~/shared/task-record/use-task-surface-actions";
 
 import type { SerializedProjectTask } from "./project-view";
 
@@ -87,12 +114,17 @@ interface ProjectTasksTabProps {
   readonly tasks: readonly SerializedProjectTask[];
   /** Opaque cursor for the next task page from the loader, or null when exhausted. */
   readonly nextCursor: string | null;
+  /**
+   * The loader's bounded parent candidates, for the row's inline Project editor
+   * and the bulk bar's "Move" — the same fifty `/tasks` and Today offer.
+   */
+  readonly parents: readonly TaskParentOption[];
   readonly taskState: TaskState;
   readonly todayIso: string;
   /**
    * PROJ-05: an archived project is read-only — creating a Task under it is
    * always rejected server-side, so "Add task" is HIDDEN (not disabled) rather
-   * than offered and failing.
+   * than offered and failing, and every row is the shared row's read-only form.
    */
   readonly archived?: boolean;
 }
@@ -128,14 +160,14 @@ function isDrawerOnlyChange(prev: string, next: string): boolean {
  * record route's `?drawer=task:<id>` state, scroll position and focus are never
  * disturbed by loading more rows (pagination state and drawer state stay wholly
  * independent). The loader's first page seeds the list; duplicate ids are collapsed
- * defensively so a task card can never render twice.
+ * defensively so a task row can never render twice.
  *
  * Reset policy — the accumulation is dropped when (and only when) the task set may
  * have changed underneath it:
  *   - the `?tasks=` filter changed (a different result set), OR
  *   - the loader re-ran with the URL otherwise UNCHANGED — the signature of a
- *     **mutation revalidation** (a task was completed, edited or created via the
- *     shared Drawer / the create form, whose action triggers a revalidation of this
+ *     **mutation revalidation** (a task was completed, edited or created from a
+ *     row, the shared Drawer or the create form, whose outcome revalidates this
  *     record loader). Dropping the appended pages here means a completed/edited/new
  *     task is RECONCILED from the authoritative fresh first page — no stale row
  *     lingers, and the roll-up and list stay consistent.
@@ -259,381 +291,253 @@ function useProjectTaskPagination(
   };
 }
 
-/**
- * UIX-01's rule, applied here: a list row draws a status pill only when it says
- * something the rest of the row does not. `planned` is "there is a planned date"
- * and `inbox` is "there is not", and both are restatements — on the old Project
- * card every single row carried one of them as an "Unscheduled" chip.
- */
-const ROUTINE_TASK_STATES: ReadonlySet<string> = new Set(["planned", "inbox"]);
-
-/**
- * The row's leading COMPLETION control — the shared `.dh-check-circle`, the same
- * one Today and Tasks lead with.
- *
- * It replaces a decorative green check glyph that looked like a completion
- * control and was not one: the only way to finish a task from a Project was to
- * open the drawer first. Completing posts to the canonical `/tasks/bulk` route,
- * so the Project's list, the Tasks list and the bulk bar all complete a task the
- * same way and produce the same Activity.
- */
-function ProjectTaskCompleteToggle({
-  task,
-  completed,
-  urgent,
-  disabled,
-  onToggle,
-}: {
-  readonly task: SerializedProjectTask;
-  /** Includes an unconfirmed completion, so the control follows the click. */
-  readonly completed: boolean;
-  readonly urgent: boolean;
-  readonly disabled: boolean;
-  readonly onToggle: (complete: boolean) => void;
-}) {
-  return (
-    <label className="dh-check-circle-target">
-      <input
-        type="checkbox"
-        className="dh-check-circle"
-        checked={completed}
-        disabled={disabled}
-        data-urgency={urgent && !completed ? "overdue" : undefined}
-        aria-label={
-          completed ? `Reopen ${task.title}` : `Complete ${task.title}`
-        }
-        onChange={(event) => onToggle(event.currentTarget.checked)}
-        // The row's open link sits beside this; a click here must never open it.
-        onClick={(event) => event.stopPropagation()}
-      />
-    </label>
-  );
-}
-
-function toTaskCardProps(
-  task: SerializedProjectTask,
-  todayIso: string,
-  openProps: (key: string) => { href: string; onOpen: () => void },
-  onToggleComplete: (task: SerializedProjectTask, complete: boolean) => void,
-  archived: boolean,
-  /** An unconfirmed completion for THIS task, or undefined when settled. */
-  pending: boolean | undefined,
-  /** Report an inline field's accepted save, so the Project can re-read. */
-  onInlineSave: (save: TaskRowFieldSave) => void,
-): CardProps {
-  const waiting = isTaskWaiting(task);
-  // The ONE canonical display-state evaluator (TASKS-02 retired the legacy
-  // `taskDisplayStatus`, so every surface now resolves state identically).
-  const status = taskDisplayState({
-    deletedAt: null,
-    completedAt: task.completedAt,
-    status: task.status,
-    commitmentState: task.commitmentState,
-    timeSector: task.timeSector,
-    scheduledDate: task.scheduledDate,
-    waiting: task.waiting,
-    // TASKS-12 — through the SAME evaluator every other surface uses, so a
-    // blocked Task reads identically on Today, on /tasks, on /plan and here.
-    blocked: isTaskBlocked(task.blocked),
-  });
-  const urgency = taskUrgency(task, todayIso);
-  // The owner's unconfirmed intent wins over the loader's value while it is in
-  // flight, so the control never contradicts the click that produced it.
-  const completed = pending ?? task.completedAt !== null;
-
-  const metadata: CardMetaItem[] = [];
-  /*
-   * Priority stays, because it is a fact about the task that appears nowhere
-   * else on the row — and, since DHDS-10, as the shared INLINE editor rather
-   * than as a static "P1" pill.
-   *
-   * The comment above this block claimed it already was one; it was a
-   * `PriorityIndicator`, which is a read-only mark. So the SAME Task's priority
-   * was one press away on `/tasks`, on Today and on `/plan`, and required
-   * opening the record on the surface an owner works the Project FROM — the
-   * cross-surface inconsistency §35 asks every migrated property to be checked
-   * for. It is now `InlineTaskPriority`, posting the same `set_priority` intent
-   * through the same shared control.
-   *
-   * A task with no stored priority reads P4, because that is what an untriaged
-   * task IS (CONTROL-01), so the row is drawn unconditionally rather than only
-   * when a value happens to be stored — the previous rule made the column
-   * disappear on exactly the rows where setting a priority is most useful.
-   */
-  metadata.push({
-    id: "priority",
-    value: (
-      <InlineTaskPriority
-        taskId={task.id}
-        title={task.title}
-        priority={task.priority}
-        onSaved={onInlineSave}
-        disabled={completed || archived}
-      />
-    ),
-    /*
-     * HIGH, which is the default and which it must be to be DRAWN at all: this
-     * list opts into `.dh-tasklist`, and a task row hides its `low` tier
-     * entirely (`tasks.css`) because the sector, the delegate and the waiting
-     * note are the "everything else" D18 keeps off a row. Priority is not that
-     * tier — it is the "importance" in the product's when → where → importance
-     * order, and the stylesheet has carried a `[data-field="priority"]` rule
-     * for it since before this surface drew one.
-     */
-  });
-  /*
-   * TASKS-12 — the blocked reason, as a metadata line rather than as a second
-   * status pill: the card's status already reads "Blocked" from the shared
-   * evaluator, and what this line adds is WHICH task, which is the actionable
-   * half. Drawn only for an open Task, because a completed one is not blocked by
-   * anything any more.
-   */
-  const blockedLabel = completed ? null : taskBlockedLabel(task.blocked);
-  if (blockedLabel !== null) {
-    metadata.push({
-      id: "blocked-by",
-      value: <span data-testid="project-task-blocked">{blockedLabel}</span>,
-    });
-  }
-  /*
-   * TASKS-13 / HARDEN-06E (F-09) — the checklist figure, in the ONE wording the
-   * product uses for it (`checklistProgressLabel`, "2 of 5").
-   *
-   * It was missing here and only here, on the surface an owner works a Project
-   * FROM: the same Task showed its steps on `/tasks`, `/today` and `/plan` and
-   * nothing at all in its own Project. `null` covers both "the loader did not
-   * project it" and "this Task has no checklist", which is exactly the absence
-   * rule the rest of this row follows.
-   */
-  const checklistLabel = checklistProgressLabel(task.checklist);
-  if (checklistLabel !== null) {
-    metadata.push({
-      id: "checklist",
-      value: <span data-testid="project-task-checklist">{checklistLabel}</span>,
-      priority: "low",
-    });
-  }
-  if (waiting && task.waiting) {
-    metadata.push({
-      id: "waiting-for",
-      label: "Waiting for",
-      value: (
-        <span className="dh-waiting-card__subject">
-          {task.waiting.subject.kind === "entity" &&
-          task.waiting.subject.type &&
-          isEntityType(task.waiting.subject.type) ? (
-            <EntityIcon type={task.waiting.subject.type} />
-          ) : null}
-          <span>{waitingSubjectLabel(task.waiting.subject)}</span>
-        </span>
-      ),
-    });
-  }
-  /*
-   * The DUE date last and pinned to the row's trailing edge, which is what makes
-   * it a column: a date column only reads as one when every date in it starts at
-   * the same x. It reads "Yesterday / Today / Tomorrow / Thu, 12 Jun" and takes
-   * the overdue colour when it has slipped — the words are what let UIX-01
-   * delete the urgency chip that used to sit beside it here.
-   */
-  metadata.push({
-    id: "due",
-    priority: task.dueDate === null ? "quiet" : "high",
-    value: (
-      <InlineTaskDate
-        taskId={task.id}
-        title={task.title}
-        kind="due"
-        value={task.dueDate}
-        todayIso={todayIso}
-        /*
-         * V2.4-GATE-02 — the SHARED commitment answer, from the shared adapter.
-         *
-         * This tab does not render `TaskRow` yet (DEBT-175), so it is the one
-         * surface that has to pass this itself. It passes the same function's
-         * answer rather than a second rule: `taskStillOwed` delegates to the
-         * kernel, so a cancelled Task's passed date reads here exactly as it
-         * does on `/tasks`, `/today` and `/plan`.
-         */
-        stillOwed={taskStillOwed(task)}
-        /*
-         * DHDS-10 — the accepted save is REPORTED, which it was not.
-         *
-         * The field posted `set_due` and the server accepted it, and nothing on
-         * this surface was told: the row kept the date it had painted itself,
-         * the Project's health, its overdue counts and its progress band all
-         * kept the answer they were loaded with, and the change appeared only
-         * on the next navigation. A date is one of the two inputs the health
-         * evaluator reads, so this was the surface disagreeing with itself.
-         */
-        onSaved={onInlineSave}
-        disabled={completed || archived}
-      />
-    ),
-  });
-
-  return {
-    id: task.id,
-    title: task.title,
-    typeLabel: "Task",
-    /*
-     * No leading entity glyph. On a list of nothing but tasks a small check
-     * before every title said only "this is a task" — and it sat directly beside
-     * the completion circle, which is a check-shaped control that means
-     * something. `typeLabel` stays, so a screen reader still hears "Task".
-     */
-    // h3 under the tab's section h2 (record h1 → section h2 → card h3): a
-    // non-skipping outline on the bare project record (DEBT-21).
-    headingLevel: 3,
-    completed,
-    leadingControl: (
-      <ProjectTaskCompleteToggle
-        task={task}
-        completed={completed}
-        urgent={urgency?.kind === "overdue"}
-        disabled={archived}
-        onToggle={(complete) => onToggleComplete(task, complete)}
-      />
-    ),
-    status: ROUTINE_TASK_STATES.has(status.kind)
-      ? undefined
-      : { label: status.label, tone: status.tone },
-    metadata,
-    density: "comfortable",
-    presentation: "list",
-    openAriaLabel: `Open ${task.title}`,
-    ...openProps(`task:${task.id}`),
-  };
-}
-
 export function ProjectTasksTab({
   projectId,
   tasks,
   nextCursor,
+  parents,
   taskState,
   todayIso,
   archived = false,
 }: ProjectTasksTabProps) {
   const { openDrawer } = useDrawer();
   const [searchParams] = useSearchParams();
-  const revalidator = useRevalidator();
-  const [completionError, setCompletionError] = useState<string | null>(null);
-  /*
-   * The completions the owner has asked for but the server has not confirmed.
-   *
-   * The circle is a CONTROLLED checkbox drawn from loader data, so without this
-   * a click painted the new state for one frame and then snapped back to the old
-   * one until `/tasks/bulk` and the route revalidation had both finished —
-   * visibly undoing the thing the owner just did. That is a worse interaction
-   * than the one this tab replaced, because the old surface had no clickable
-   * control at all.
-   *
-   * It is a narrow optimism, deliberately: only the ROW's own checked state is
-   * patched, and only until the server answers. The roll-up, the progress bar
-   * and the health chip still come from the revalidation, so the figures on the
-   * record are never optimistic — they simply arrive a moment after the tick,
-   * which is the honest order. A refusal drops the entry and the row returns to
-   * the server's truth with the message beside it.
-   */
-  const [pendingCompletion, setPendingCompletion] = useState<
-    ReadonlyMap<string, boolean>
-  >(() => new Map());
   const { items, hasMore, loading, loadFailed, loadMore } =
     useProjectTaskPagination(projectId, tasks, nextCursor, taskState);
 
-  const openProps = (key: string) => ({
-    href: `?${withDrawerPushed(searchParams, key).toString()}`,
-    onOpen: () => openDrawer(key),
-  });
+  /*
+   * ADR-086, through the SHARED host.
+   *
+   * `useTaskSurfaceActions` holds the in-flight patch map, posts every row
+   * mutation to the canonical `/tasks/:id` and `/tasks/bulk` routes, announces
+   * the SERVER's outcome once, rolls back exactly what a refused write painted,
+   * and revalidates this record's loader — which is how the Project's progress
+   * band, health and overdue counts come back agreeing with the row. It is the
+   * same host Today and Plan use; this tab holds no optimistic state of its own.
+   */
+  const actions = useTaskSurfaceActions();
+  const { clearPatches } = actions;
+  // Fresh loader data is the truth; every client guess is dropped the moment it
+  // arrives, which is what keeps a patch a guess rather than a second state.
+  useEffect(() => {
+    clearPatches();
+  }, [tasks, clearPatches]);
+
+  /** DHDS-10 — which row (if any) is being renamed in place. At most one. */
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
 
   /*
-   * Completing from the Project record.
+   * The page, re-painted against the OPTIMISTIC state.
    *
-   * The canonical `/tasks/bulk` route, which is the SAME authority the Tasks
-   * list, the row quick-edit and the bulk bar all post to — so completion has
-   * one server-side rule, one recurrence behaviour and one Activity entry
-   * wherever it is done from.
-   *
-   * No optimistic patch here, deliberately. The Tasks list has one (ADR-086)
-   * because it is the surface an owner completes ninety rows on and the
-   * latency is the product; a Project's task list is read far less often and
-   * its roll-up, its progress bar and its health all have to move with the
-   * change. Revalidating means every one of those comes back from the server
-   * agreeing with the row, rather than a bar that says 63% next to a list that
-   * says otherwise until the next load.
+   * Every patch is applied to the SOURCE record and the shared projection is
+   * re-run over the result, so a ticked row reads as completed at once through
+   * the same pure functions that read the server's own answer. Membership is
+   * NOT re-decided here: a completed row stays in an Open list, struck through,
+   * until the loader's answer no longer contains it — and then it departs.
    */
-  /**
-   * DHDS-10 — an inline field's accepted save, reported to the Project.
-   *
-   * The same reason completion revalidates: a Task's due date and its priority
-   * are inputs to the Project's health, its overdue counts and its ordering, so
-   * the surface re-reads rather than guessing which of those moved. It is the
-   * SERVER's outcome — the fields never call this for a refusal.
-   */
-  const onInlineSave = useCallback(() => {
-    revalidator.revalidate();
-  }, [revalidator]);
+  const painted = useMemo(
+    () =>
+      items.map((task) =>
+        applyTaskListItemPatch(task, actions.patches.get(task.id)),
+      ),
+    [items, actions.patches],
+  );
+  const visibleIds = useMemo(() => painted.map((task) => task.id), [painted]);
 
-  const onToggleComplete = useCallback(
-    (task: SerializedProjectTask, complete: boolean) => {
-      setCompletionError(null);
-      setPendingCompletion((prev) => new Map(prev).set(task.id, complete));
-      void postTaskBulkAction(
-        [task.id],
-        { intent: complete ? "complete" : "reopen" },
-        {
-          fallback: complete
-            ? "That task couldn’t be completed. Please try again."
-            : "That task couldn’t be reopened. Please try again.",
-        },
-      ).then((outcome) => {
-        if (!outcome.ok) {
-          setCompletionError(outcome.message);
-        }
+  /*
+   * V2.4-GATE-02 / TASKS-06 — the SHARED selection model.
+   *
+   * The same reducer `/tasks` and Plan use: selection mode is explicit and
+   * separate from having a selection, a Shift-click extends a range in the
+   * order the rows are on screen, a selection never outlives its query (reset
+   * on a scope change) and a row that disappears takes its selection with it
+   * (prune). Entering is deliberate — the toolbar's "Select tasks", or a touch
+   * hold on a row — never a mode the surface simply starts in.
+   */
+  const [selection, dispatchSelection] = useReducer(
+    taskSelectionReducer,
+    EMPTY_TASK_SELECTION,
+  );
+  const selected = selection.ids;
+  const selecting = selection.mode || selected.size > 0;
+  useEffect(() => dispatchSelection({ type: "reset" }), [projectId, taskState]);
+  useEffect(() => {
+    dispatchSelection({ type: "prune", visibleIds });
+  }, [visibleIds]);
+  const clearSelection = useCallback(
+    () => dispatchSelection({ type: "reset" }),
+    [],
+  );
+  const bound = useMemo(() => boundBulkSelection(visibleIds), [visibleIds]);
+  const selectedTasks = useMemo(
+    () =>
+      painted
+        .filter((task) => selected.has(task.id))
+        .map((task) => toTaskRowProjection(task)),
+    [painted, selected],
+  );
+
+  /*
+   * DHDS-11 — a completed row LEAVES; it does not vanish.
+   *
+   * Derived from what happened rather than declared: a row departs only when
+   * the id the owner just acted on is no longer in the loader's answer. On the
+   * Completed and All scopes a completed Task stays in the list, so nothing
+   * departs; on Open it goes, and focus is handed to the row that takes its
+   * place — or to the list itself when none is left.
+   */
+  const listElement = useRef<HTMLUListElement | null>(null);
+  const { rendered, isLeaving } = useDepartingRows(
+    painted,
+    actions.departing,
+    listElement,
+  );
+
+  const openTask = useCallback((key: string) => openDrawer(key), [openDrawer]);
+
+  /**
+   * One Project task, as SHARED `TaskRow` props.
+   *
+   * Only data and callbacks: the completion control, the inline editors and the
+   * overflow all post the same canonical intents to the same canonical routes
+   * they post from `/tasks`. No `dragHandle` — see the file header.
+   */
+  const rowProps = useCallback(
+    (task: SerializedProjectTask): TaskRowProps => {
+      const key = `task:${task.id}`;
+      const row = toTaskRowProjection(task);
+      return {
+        task: row,
+        todayIso,
+        parents,
+        // Record h1 → the tab's hidden h2 → the row's h3: a non-skipping
+        // outline on the bare Project record (DEBT-21).
+        headingLevel: 3,
+        href: `?${withDrawerPushed(searchParams, key).toString()}`,
+        onOpen: () => openTask(key),
+        onCompletedChange: (complete: boolean) =>
+          actions.setCompleted(task.id, complete, task.title),
+        onInlineSave: actions.reportInlineSave,
+        readOnly: archived,
+        // DHDS-11 — object continuity: the row whose record is open keeps a
+        // quiet current mark while the Drawer is up.
+        current: searchParams.get("drawer") === key,
+        leaving: isLeaving(task.id),
+        overflowActions: buildTaskRowActions(
+          row,
+          {
+            onOpenRecord: () => openTask(key),
+            onPlanToday: () =>
+              actions.setField(
+                task.id,
+                { intent: "plan", scheduledDate: todayIso },
+                `Planned ${task.title} for today.`,
+                { scheduledDate: todayIso },
+              ),
+            onRename: () => setEditingTitleId(task.id),
+            onMoveToParent: () => openTask(`task-move:${task.id}`),
+            onSomeday: () =>
+              actions.setField(
+                task.id,
+                { intent: "set_commitment", commitment: "someday" },
+                `${task.title} moved to Someday / Maybe.`,
+                { commitmentState: "someday" },
+              ),
+            onSkipOccurrence: () =>
+              actions.setRecord(
+                task.id,
+                { intent: "skip_occurrence" },
+                `Skipped this occurrence of ${task.title}.`,
+              ),
+            onStopRepeating: () =>
+              actions.setRecord(
+                task.id,
+                { intent: "set_recurrence" },
+                `${task.title} no longer repeats.`,
+              ),
+          },
+          { readOnly: archived },
+        ),
         /*
-         * The entry is dropped either way. On success the revalidation brings
-         * back a row that already says what the patch said, so releasing it is
-         * invisible; on a refusal the row reverts to the server's answer, which
-         * is the whole point of reporting the SERVER's outcome rather than
-         * inventing one (DALYHUB_DESIGN_SYSTEM §7).
+         * V2.4-GATE-02 — the row draws ONE leading control, and which one is
+         * the mode: the selection control replaces completion in the same box
+         * while the tab is selecting, and completion returns when it stops.
          */
-        setPendingCompletion((prev) => {
-          const next = new Map(prev);
-          next.delete(task.id);
-          return next;
-        });
-        if (outcome.ok) {
-          revalidator.revalidate();
-        }
-      });
+        ...(selecting && !archived
+          ? {
+              selection: {
+                selected: selected.has(task.id),
+                onSelectedChange: (
+                  on: boolean,
+                  modifiers?: { readonly shift: boolean },
+                ) =>
+                  dispatchSelection({
+                    type: "toggle",
+                    id: task.id,
+                    selected: on,
+                    shift: modifiers?.shift ?? false,
+                    visibleIds,
+                  }),
+                label: `Select ${task.title}`,
+              },
+            }
+          : {}),
+        // The touch way in: a hold enters the mode and selects the held row.
+        ...(archived
+          ? {}
+          : {
+              onLongPress: () =>
+                dispatchSelection({ type: "enter", id: task.id }),
+            }),
+        // The editor replaces the title ONLY while this row is being renamed;
+        // every other row keeps its ordinary open link.
+        ...(editingTitleId === task.id
+          ? {
+              titleEditor: (
+                <TaskTitleEditor
+                  taskId={task.id}
+                  title={task.title}
+                  onDone={() => setEditingTitleId(null)}
+                  onSaved={(id, title) =>
+                    actions.reportInlineSave({
+                      taskId: id,
+                      intent: "rename",
+                      message: `Renamed to ${title}.`,
+                      patch: { title },
+                    })
+                  }
+                  // PWA-12 — a rename accepted locally while offline is painted
+                  // and said to be waiting, never silently dropped to replay
+                  // later as a surprise.
+                  onQueued={actions.reportQueuedTitle}
+                />
+              ),
+            }
+          : {}),
+      };
     },
-    [revalidator],
+    [
+      todayIso,
+      parents,
+      searchParams,
+      openTask,
+      actions,
+      archived,
+      isLeaving,
+      selecting,
+      selected,
+      visibleIds,
+      editingTitleId,
+    ],
   );
 
   return (
-    /*
-     * `dh-tasklist` is the OPT-IN that gives this list the Tasks row treatment
-     * (see `tasks.css`): one ~45px line, the leading completion circle, the
-     * title dominant, the date right-aligned in its own track. Declaring it is
-     * how a surface asks for that language rather than inheriting it by
-     * accident.
-     */
-    <div className="dh-project-tasks dh-tasklist">
+    <div className="dh-project-tasks">
       <h2 className="dh-visually-hidden">Tasks</h2>
-      {/* A refusal is reported where the action was taken, and politely: the
-       * row keeps its previous state because nothing was written optimistically. */}
-      {completionError ? (
-        <p className="dh-project-tasks__error" role="alert">
-          {completionError}
-        </p>
-      ) : null}
       <div className="dh-record-toolbar">
         {/*
          * UIX-02 — the shared TAB RAIL, the same control the Projects gallery
-         * and the Tasks list take. The sunken segmented track it replaces was
-         * the heaviest object in the tab panel, sitting directly under the
-         * record's own tab strip: two rows of chrome, in two different visual
-         * languages, before the first task.
+         * and the Tasks list take.
          */}
         <ViewTabs
           param="tasks"
@@ -643,21 +547,29 @@ export function ProjectTasksTab({
           defaultValue="open"
         />
         {/*
-         * RECORD-01 — the ONE local creation action on this record.
-         *
-         * The contract keeps a local create only where context materially
-         * matters and it beats the global +, and this one does: the form
+         * The way INTO selection on a pointer device — the same act `/tasks`
+         * offers from its header overflow. Absent on an archived Project, where
+         * every bulk action would be refused.
+         */}
+        {archived || items.length === 0 ? null : (
+          <button
+            type="button"
+            className="dh-btn dh-btn--ghost"
+            data-testid="project-tasks-select"
+            aria-pressed={selection.mode}
+            onClick={() =>
+              dispatchSelection(
+                selection.mode ? { type: "reset" } : { type: "enter" },
+              )
+            }
+          >
+            {selection.mode ? "Stop selecting" : "Select tasks"}
+          </button>
+        )}
+        {/*
+         * RECORD-01 — the ONE local creation action on this record. The form
          * already receives `projectId`, so a task created here lands in this
-         * project with nothing for the owner to pick. It is low-emphasis
-         * because it sits beside a filter, not because it is unimportant — the
-         * loud tonal button it used to be competed with the tab strip and the
-         * task rows for the same attention.
-         *
-         * The duplicate route was the header overflow's "New task", which
-         * opened the GLOBAL capture sheet pre-seeded with this project: a
-         * second mechanism for the same outcome, which is exactly the
-         * local-vs-global confusion this PR set out to resolve. It is gone;
-         * this is the local path and the global + is the generic one.
+         * project with nothing for the owner to pick.
          */}
         {archived ? null : (
           <DrawerTrigger
@@ -671,12 +583,9 @@ export function ProjectTasksTab({
 
       {items.length === 0 ? (
         /*
-         * RECORD-01 — a record-level empty state is one calm line.
-         *
-         * An icon, a headline, a description and a primary button is the
-         * COLLECTION treatment, and it was being spent here to say "no open
-         * tasks" directly beneath an "Add task" control that was already
-         * visible. The compact variant states the absence and stops.
+         * RECORD-01 — a record-level empty state is one calm line: the compact
+         * variant states the absence and stops, directly beneath an "Add task"
+         * control that is already visible.
          */
         <EmptyState
           size="inline"
@@ -696,26 +605,16 @@ export function ProjectTasksTab({
         />
       ) : (
         <>
-          <CardCollection
-            items={items}
-            getItemId={(task) => task.id}
+          <TaskList
             ariaLabel="Project tasks"
-            presentation="list"
-            density="comfortable"
-            renderCard={(task) => (
-              <Card
-                {...toTaskCardProps(
-                  task,
-                  todayIso,
-                  openProps,
-                  onToggleComplete,
-                  archived,
-                  pendingCompletion.get(task.id),
-                  onInlineSave,
-                )}
-              />
-            )}
-          />
+            listRef={(element) => {
+              listElement.current = element;
+            }}
+          >
+            {rendered.map((task) => (
+              <TaskRow key={task.id} {...rowProps(task)} />
+            ))}
+          </TaskList>
           {hasMore ? (
             <LoadMore
               loading={loading}
@@ -726,6 +625,45 @@ export function ProjectTasksTab({
           ) : null}
         </>
       )}
+
+      {/*
+       * The SHARED bulk bar, over the SHARED `/tasks/bulk` contract — the same
+       * component `/tasks` renders in its selection slot. Bottom-anchored here
+       * too, so the owner acts where every other selection in the product is
+       * acted on.
+       */}
+      {selected.size > 0 ? (
+        <div className="dh-project-tasks__selection">
+          <TaskBulkActionBar
+            tasks={selectedTasks}
+            ids={[...selected]}
+            todayIso={todayIso}
+            parents={parents}
+            viewingDeleted={false}
+            onCleared={clearSelection}
+            onAnnounce={actions.announce}
+          />
+        </div>
+      ) : selection.mode ? (
+        <div className="dh-project-tasks__selection">
+          <TaskSelectionPrompt
+            loadedCount={visibleIds.length}
+            selectableIds={bound.selectableIds}
+            capped={bound.capped}
+            onSelectAll={(ids) =>
+              dispatchSelection({ type: "select_visible", visibleIds: ids })
+            }
+            onDone={clearSelection}
+          />
+        </div>
+      ) : null}
+
+      {/* Every row mutation announces its outcome once, politely — the SAME
+          channel `/tasks`, Today and Plan use. A refusal is a notification
+          instead, because a failure has to interrupt. */}
+      <p className="dh-visually-hidden" role="status" aria-live="polite">
+        {actions.announcement ?? ""}
+      </p>
     </div>
   );
 }

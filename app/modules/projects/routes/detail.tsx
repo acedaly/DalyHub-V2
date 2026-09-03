@@ -28,7 +28,6 @@ import {
   loadProjectKnowledge,
 } from "~/platform/entity-links/project-knowledge";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
-import type { TaskBlockedSummary, TaskChecklistProgress } from "~/kernel/tasks";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { evaluateProjectHealth } from "~/kernel/project-health";
@@ -57,6 +56,7 @@ import {
   TASK_DRAWER_TITLE,
   TaskRecordDrawer,
 } from "~/shared/task-record/TaskRecordDrawer";
+import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
 
 import { NewProjectTaskForm } from "../NewProjectTaskForm";
 import { ProjectActivityTab } from "../ProjectActivityTab";
@@ -70,10 +70,15 @@ import { ProjectSettingsTab } from "../ProjectSettingsTab";
 import { NEW_TASK_KEY, ProjectTasksTab } from "../ProjectTasksTab";
 import { PROJECT_RELATES_TO } from "../project-links";
 import {
+  loadProjectTaskParents,
+  loadProjectTasksPage,
+  parseProjectTaskState,
+  type ProjectTaskState,
+} from "../project-tasks-load.server";
+import {
   isProjectArchived,
   projectProgressFromRollup,
   serializeProjectOverview,
-  serializeProjectTask,
   type ProjectProgress,
   type SerializedProjectOverview,
   type SerializedProjectTask,
@@ -81,20 +86,16 @@ import {
 import type { ProjectMutationResult } from "./mutate";
 import type { Route } from "./+types/detail";
 
-type TaskState = "open" | "completed" | "all";
+type TaskState = ProjectTaskState;
 
 export function meta() {
   return [{ title: "Project · DalyHub" }];
 }
 
-function parseTaskState(value: string | null): TaskState {
-  return value === "completed" || value === "all" ? value : "open";
-}
-
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
   const projectId = params.projectId;
-  const taskState = parseTaskState(
+  const taskState = parseProjectTaskState(
     new URL(request.url).searchParams.get("tasks"),
   );
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
@@ -152,47 +153,35 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   // existing `/projects/parent-options?q=` search, so this loader (and every
   // ordinary revalidation of it — a task edit, a completion, a settings
   // change) stays independent of how many Areas/Goals the workspace has.
-  const [taskPage, links, knowledge, settings] = await Promise.all([
-    scope.tasks.listProjectTasks(projectId, { state: taskState }),
-    listActiveLinks(
-      { entities: scope.entities, entityLinks: scope.entityLinks },
-      {
-        anchorId: projectId,
-        direction: "outgoing",
-        linkTypes: [PROJECT_RELATES_TO],
-      },
-    ),
-    // PROJ-03 — the first page of the project's linked Notes, server-rendered so
-    // the Knowledge tab is populated without JavaScript. A relationship failure
-    // degrades to an empty page rather than costing the whole record.
-    loadProjectKnowledge(scope, projectId, {
-      limit: DEFAULT_KNOWLEDGE_PAGE,
-    }).catch(() => ({ notes: [], nextCursor: null })),
-    scope.projectSettings.get(projectId),
-  ]);
-
   /*
-   * TASKS-12 — the page's blocked state, in ONE bounded aggregate.
-   *
-   * Read after the page (it needs the ids) and guarded on its own: a Project's
-   * task list must render even when the dependency read does not, and a Project
-   * that cannot show blocked state still shows its work.
+   * V2.8 CONV-01 — the task page and, beside it, the bounded parent candidates
+   * the shared row's inline Project editor and the bulk bar's "Move" offer. The
+   * candidates are ONE read per record load at the same fifty-bound `/tasks`
+   * and Today use — never a read per row — and the page itself is the same
+   * three-statement read the "Load more" endpoint makes
+   * (`project-tasks-load.server.ts`, pinned by the kernel budget test).
    */
-  const taskBlocked = await scope.tasks
-    .listBlockedSummaries(taskPage.items.map((item) => item.id))
-    .catch(() => new Map() as ReadonlyMap<string, TaskBlockedSummary>);
-
-  /*
-   * TASKS-13 / HARDEN-06E (F-09) — the page's checklist figures, in ONE bounded
-   * aggregate, on exactly the same terms.
-   *
-   * It was absent here and only here: the same Task showed "2 of 5" on `/tasks`,
-   * `/today` and `/plan` and nothing at all on the surface an owner works a
-   * Project FROM. One Task means one Task wherever it is viewed.
-   */
-  const taskChecklist = await scope.tasks
-    .listChecklistProgress(taskPage.items.map((item) => item.id))
-    .catch(() => new Map() as ReadonlyMap<string, TaskChecklistProgress>);
+  const [taskPage, taskParents, links, knowledge, settings] = await Promise.all(
+    [
+      loadProjectTasksPage(scope.tasks, projectId, { state: taskState }),
+      loadProjectTaskParents(scope.tasks),
+      listActiveLinks(
+        { entities: scope.entities, entityLinks: scope.entityLinks },
+        {
+          anchorId: projectId,
+          direction: "outgoing",
+          linkTypes: [PROJECT_RELATES_TO],
+        },
+      ),
+      // PROJ-03 — the first page of the project's linked Notes, server-rendered so
+      // the Knowledge tab is populated without JavaScript. A relationship failure
+      // degrades to an empty page rather than costing the whole record.
+      loadProjectKnowledge(scope, projectId, {
+        limit: DEFAULT_KNOWLEDGE_PAGE,
+      }).catch(() => ({ notes: [], nextCursor: null })),
+      scope.projectSettings.get(projectId),
+    ],
+  );
 
   return {
     // The KEY only. The settings repository has already normalised it, so a key
@@ -205,17 +194,9 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     ),
     progress,
     health,
-    // TASKS-12 — ONE bounded aggregate for the page's blocked state, guarded on
-    // its own: a Project's task list must render even when the dependency read
-    // does not, and then it simply reads as it did before TASKS-12.
-    tasks: taskPage.items.map((item) =>
-      serializeProjectTask(
-        item,
-        taskBlocked.get(item.id),
-        taskChecklist.get(item.id),
-      ),
-    ),
+    tasks: taskPage.tasks,
     tasksNextCursor: taskPage.nextCursor,
+    taskParents,
     taskState,
     links,
     knowledge: {
@@ -241,6 +222,7 @@ export default function ProjectDetailRoute({
     health,
     tasks,
     tasksNextCursor,
+    taskParents,
     taskState,
     links,
     knowledge,
@@ -260,6 +242,7 @@ export default function ProjectDetailRoute({
         health={health}
         tasks={tasks}
         tasksNextCursor={tasksNextCursor}
+        taskParents={taskParents}
         taskState={taskState}
         links={links}
         knowledge={knowledge}
@@ -292,7 +275,16 @@ function createProjectDrawerRenderer(overview: SerializedProjectOverview) {
     const kind = separator === -1 ? entry.key : entry.key.slice(0, separator);
     const id = separator === -1 ? "" : entry.key.slice(separator + 1);
 
-    if (kind === "task" && id.length > 0) {
+    /*
+     * V2.8 CONV-01 — `task-move:` resolves to the SAME record.
+     *
+     * The shared row's overflow offers "Move to Project or Area…", which opens
+     * `task-move:<id>` — the key `/tasks`, Today and Plan have resolved to the
+     * canonical Task record since CONTROL-01 §4, because that is where the full
+     * searchable parent picker lives. The Project record draws that row now, so
+     * it resolves the key the same way: one drawer key, one editor.
+     */
+    if ((kind === "task" || kind === "task-move") && id.length > 0) {
       return {
         title: TASK_DRAWER_TITLE,
         children: <TaskRecordDrawer taskId={id} />,
@@ -349,6 +341,7 @@ function ProjectDetail({
   health,
   tasks,
   tasksNextCursor,
+  taskParents,
   taskState,
   links,
   knowledge,
@@ -359,6 +352,7 @@ function ProjectDetail({
   readonly health: ProjectHealth;
   readonly tasks: readonly SerializedProjectTask[];
   readonly tasksNextCursor: string | null;
+  readonly taskParents: readonly TaskParentOption[];
   readonly taskState: TaskState;
   readonly links: readonly EntityLinkSelection[];
   readonly knowledge: SerializedKnowledgePage;
@@ -735,6 +729,7 @@ function ProjectDetail({
           projectId={overview.id}
           tasks={tasks}
           nextCursor={tasksNextCursor}
+          parents={taskParents}
           taskState={taskState}
           todayIso={todayIso}
           archived={archived}
