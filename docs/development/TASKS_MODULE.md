@@ -2877,7 +2877,18 @@ TASKS-09 rule `/tasks` held privately (`task-pagination.ts`) is available to any
 actionable collection as `useKeysetPagination({ refresh: "merge" })`: a
 mutation's revalidation refreshes page one and merges it in by id, keeping every
 loaded page; with nothing loaded beneath, the cursor re-seeds from the fresh
-first page. Read-only collections keep the default `reset`.
+first page. Read-only collections keep the default `reset`. A merged surface
+retires its guesses with the same care: the shared host's `clearPatches`
+takes the ids the fresh page one HOLDS, so a patch on a row the re-read did not
+answer — an accepted completion or rename on a loaded page two, where the
+accumulator still holds the copy the owner loaded — is kept as the surface's
+one current value for that row until a read answers for it (the row slides
+into page one, or the scope changes and the accumulation restarts). Dropping it
+unconditionally snapped such a row back to open; the review finding on the
+CONV-02 PR, reproduced and closed by `WaitingTasks.test.tsx` ("keeps an
+accepted change on a row the refreshed first page did not answer") and by the
+E2E journey's second-page completion. Surfaces whose loader returns the whole
+of what they show keep calling it with no argument.
 
 **A reference is a link (ADR-115 decision 3).** A search result, a `/views`
 row, a Meeting follow-up row and `NextActionLine` name a Task and open it, with

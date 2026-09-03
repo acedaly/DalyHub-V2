@@ -71,8 +71,22 @@ export type TaskSurfacePatches = ReadonlyMap<string, TaskListItemPatch>;
 
 export interface TaskSurfaceActions {
   readonly patches: TaskSurfacePatches;
-  /** Drop every patch — the screen calls this when fresh loader data arrives. */
-  readonly clearPatches: () => void;
+  /**
+   * Drop the guesses fresh loader data has ANSWERED — the screen calls this
+   * when that data arrives.
+   *
+   * With no argument every patch is dropped: the surface's loader returns the
+   * whole of what it shows, so a fresh answer retires every guess made against
+   * the previous one. A surface that accumulates keyset pages beneath a
+   * revalidated first page (V2.8 CONV-02, `useKeysetPagination`'s `merge`
+   * mode) passes the ids that fresh page holds instead: a patch on a row the
+   * re-read did not mention — an accepted completion on a loaded page two —
+   * is the only current value the surface has, and dropping it would snap the
+   * row back to the stale copy the accumulator still holds. It stays until a
+   * read answers for that row (it slides into page one, or the scope changes
+   * and the accumulation restarts).
+   */
+  readonly clearPatches: (answered?: Iterable<string>) => void;
   readonly announcement: string | null;
   /**
    * V2.8 CONV-01 — the ids this surface has JUST changed, and the whole of what
@@ -216,8 +230,14 @@ export function useTaskSurfaceActions(): TaskSurfaceActions {
     };
   }, []);
 
-  const clearPatches = useCallback(() => {
-    setPatches((previous) => (previous.size === 0 ? previous : new Map()));
+  const clearPatches = useCallback((answered?: Iterable<string>) => {
+    setPatches((previous) => {
+      if (previous.size === 0) return previous;
+      if (answered === undefined) return new Map();
+      const next = new Map(previous);
+      for (const id of answered) next.delete(id);
+      return next.size === previous.size ? previous : next;
+    });
   }, []);
 
   /**

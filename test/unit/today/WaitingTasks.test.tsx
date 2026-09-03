@@ -101,6 +101,8 @@ interface Server {
     string,
     { items: readonly SerializedTaskListItem[]; nextCursor: string | null }
   >;
+  /** How many times page one has been read — a revalidation is the second. */
+  reads?: number;
 }
 
 function renderWaiting(
@@ -141,8 +143,11 @@ function renderWaiting(
               failed: false,
             };
           }
+          server.reads = (server.reads ?? 0) + 1;
+          // A fresh array on every read, as a loader's JSON is over the wire:
+          // a revalidation that changed nothing still delivers a NEW page one.
           return {
-            items: server.first,
+            items: [...server.first],
             nextCursor: server.firstCursor,
             failed: false,
           };
@@ -457,5 +462,77 @@ describe("CONV-02 — completion is the shared optimistic path, and membership i
     expect(
       screen.queryByRole("button", { name: "Load more waiting tasks" }),
     ).toBeNull();
+  });
+
+  it("keeps an accepted change on a row the refreshed first page did not answer", async () => {
+    const server: Server = {
+      first: [
+        task({ id: "t1", title: "First page one" }),
+        task({ id: "t2", title: "First page two" }),
+      ],
+      firstCursor: "c1",
+      pages: {
+        c1: {
+          items: [
+            task({ id: "t3", title: "Second page one" }),
+            task({ id: "t4", title: "Second page two" }),
+          ],
+          nextCursor: null,
+        },
+      },
+    };
+    const router = renderWaiting(server);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Load more waiting tasks" }),
+    );
+    await waitFor(
+      () =>
+        expect(
+          within(
+            screen.getByRole("list", { name: "Waiting tasks" }),
+          ).getAllByTestId("task-row"),
+        ).toHaveLength(4),
+      { timeout: 5_000 },
+    );
+
+    // Complete a SECOND-page row. The server accepts; its fresh page one is
+    // the same two rows it was, and says nothing about the row that changed.
+    const row = within(
+      screen.getByRole("list", { name: "Waiting tasks" }),
+    ).getAllByTestId("task-row")[2]!;
+    fireEvent.click(
+      within(row).getByRole("checkbox", { name: "Complete Second page one" }),
+    );
+    expect(row).toHaveAttribute("data-completed", "true");
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Completed Second page one.",
+      ),
+    );
+    // The re-read arrived (the first page is a fresh array) and dropped the
+    // guesses it ANSWERED — not the one it did not: the accepted completion is
+    // still on the row, struck through, rather than snapped back to open.
+    await waitFor(() => expect(server.reads).toBe(2));
+    await waitFor(() => expect(router.state.revalidation).toBe("idle"));
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("list", { name: "Waiting tasks" }))
+          .getAllByTestId("task-row-open")
+          .map((link) => link.textContent),
+      ).toEqual([
+        "First page one",
+        "First page two",
+        "Second page one",
+        "Second page two",
+      ]),
+    );
+    expect(
+      within(
+        screen.getByRole("list", { name: "Waiting tasks" }),
+      ).getAllByTestId("task-row")[2],
+    ).toHaveAttribute("data-completed", "true");
+    expect(
+      screen.getByRole("checkbox", { name: "Reopen Second page one" }),
+    ).toBeChecked();
   });
 });

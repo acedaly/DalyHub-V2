@@ -1124,7 +1124,12 @@ referred to it is a link; and the Card layer that drew it twice is gone.**
 >   row 101, stable order across page sizes, cursor rejected across scopes,
 >   filtered paging) is unchanged and green over the widened item; the
 >   RECALL-03 E2E walk is re-pointed to rows; the CONV-02 journey completes a
->   page-one row after a second page loaded and keeps the accumulation.
+>   page-one row after a second page loaded and keeps the accumulation, then
+>   a page-two row and keeps its accepted completion: the shared host's
+>   `clearPatches` now takes the ids the fresh page one holds, so a guess on
+>   a row the re-read did not answer is retained rather than snapped back to
+>   the accumulator's stale copy (the PR's one review finding, reproduced in
+>   `WaitingTasks.test.tsx` before the fix).
 > - **Statement budget** (`test/kernel/conv-02-waiting-budget.test.ts`, real
 >   D1): **before 1 statement per page; after 1 per page** — flat at 3 and 30
 >   waiting Tasks — **plus 1 bounded `searchTaskParents`** (limit 50, the

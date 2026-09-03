@@ -172,10 +172,15 @@ export function WaitingTasks({
    */
   const actions = useTaskSurfaceActions();
   const { clearPatches } = actions;
-  // Fresh loader data is the truth; every client guess is dropped the moment it
-  // arrives, which is what keeps a patch a guess rather than a second state.
+  // Fresh loader data is the truth for the rows it HOLDS: every guess made
+  // against those is dropped the moment it arrives, which is what keeps a patch
+  // a guess rather than a second state. A revalidation re-reads page one only,
+  // and the pages accumulated beneath it (merge mode) are still the copies the
+  // owner loaded — so a guess on a row the fresh page did not answer (an
+  // accepted completion or rename on page two) is kept: it is the one current
+  // value this surface has for that row, and it stays until a read answers.
   useEffect(() => {
-    clearPatches();
+    clearPatches(firstPage.map(waitingItemId));
   }, [firstPage, clearPatches]);
 
   /** DHDS-10 — which row (if any) is being renamed in place. At most one. */

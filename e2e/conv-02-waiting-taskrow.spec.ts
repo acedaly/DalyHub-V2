@@ -12,6 +12,7 @@ import {
   CONV02_TASKS,
   CONV02_TASK_TOTAL,
   cleanupConv02Fixture,
+  fillerId,
   fillerTitle,
   seedConv02Fixture,
 } from "./conv-02-fixtures";
@@ -530,6 +531,33 @@ test.describe("CONV-02 — the Waiting list renders the shared Task row", () => 
         `${loaded - 1} tasks are waiting on someone or something else.`,
       ),
     ).toBeVisible();
+
+    // Complete a row on a LOADED page. The re-read answers for page one only,
+    // so the accepted completion is the one current value the surface has for
+    // this row: it stays ticked and struck through rather than snapping back
+    // to open (the review finding on this surface). The subtitle counts the
+    // rows the list SHOWS, and the struck-through row is still one of them.
+    const deep = fillerTitle(54);
+    const deepRow = taskRow(list(page), deep).first();
+    await deepRow.getByRole("checkbox", { name: `Complete ${deep}` }).click();
+    await expect(
+      page.locator("[role='status']").filter({ hasText: `Completed ${deep}.` }),
+    ).toHaveCount(1);
+    await expect(deepRow).toHaveAttribute("data-completed", "true");
+    await expect(
+      deepRow.getByRole("checkbox", { name: `Reopen ${deep}` }),
+    ).toBeChecked();
+    await expect(rows).toHaveCount(loaded - 1);
+    await expect(
+      page.getByText(
+        `${loaded - 1} tasks are waiting on someone or something else.`,
+      ),
+    ).toBeVisible();
+    // The server holds the completion; the row is showing the record's value.
+    const [deepStored] = d1Query<{ completed_at: string | null }>(
+      `SELECT completed_at FROM spine_records WHERE entity_id = '${fillerId(54)}'`,
+    );
+    expect(deepStored?.completed_at).toEqual(expect.any(String));
   });
 
   test("the keyboard reaches the editors and the menu, the fact is text, and the surface is axe-clean", async ({

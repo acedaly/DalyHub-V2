@@ -555,7 +555,9 @@ or link system.
   route keeps the loader (page + parent candidates concurrently, the candidates
   on a surface load only), the honest subtitle, the empty states, the filter,
   the keyset cursor, the page size and "Load more"; the shared hook runs in
-  `merge` mode so a mutation keeps the loaded pages. Budget:
+  `merge` mode so a mutation keeps the loaded pages, and the patch clear on
+  a re-read is scoped to the ids page one holds so an accepted change on a
+  loaded page beneath it is kept, not snapped back. Budget:
   `test/kernel/conv-02-waiting-budget.test.ts` — one statement per page, flat,
   plus one bounded candidate read per surface load. No Waiting-specific
   responsive CSS: the shared `tasklist` ladder governs, and the long waiting
