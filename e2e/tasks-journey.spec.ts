@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { cleanupAllJourneyTasks } from "./tasks-journey-fixtures";
 import {
   comboboxOption,
   enterTaskSelection,
@@ -21,6 +22,11 @@ import {
  * confirms Today and Projects project the SAME records. Every task it creates uses
  * the fixed "Journey task …" title prefix, which the seed cleans up on each run, so
  * it never disturbs the other journeys.
+ *
+ * DEBT-173 — and, since the priority-grouped surface is now SCOPED to this journey's
+ * own Project (see `PRIORITY_GROUPS`), the other journeys no longer disturb IT. The
+ * isolation runs both ways, which is what the entry asks for: no assertion here
+ * depends on which specs happened to run earlier in the partition.
  */
 
 /** Open the "New Task" quick-capture form and create a task, returning once it opens
@@ -172,8 +178,63 @@ async function chooseBulk(
  */
 const JOURNEY_LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 
-/** The banded triage surface V2.2 kept when the Eisenhower Matrix was removed. */
-const PRIORITY_GROUPS = "/tasks?view=list&system=active&group=priority";
+/**
+ * The seeded Project this journey creates every task under (`e2e/seed-tasks.sql`),
+ * addressed by its stable id so the collection can be SCOPED to rows this spec owns.
+ */
+const JOURNEY_PROJECT_ID = "pr-tasksjourney";
+
+/**
+ * The banded triage surface V2.2 kept when the Eisenhower Matrix was removed —
+ * SCOPED to this journey's own Project.
+ *
+ * DEBT-173 — the scope is the fix, and it is load-bearing rather than tidiness.
+ * The Tasks collection pages at `DEFAULT_TASK_PAGE_SIZE` (50), so a band holds the
+ * first page and nothing else. Unscoped, this URL asks "is my task in the Priority 1
+ * band of the WHOLE workspace?", and the answer depends on how many active Tasks
+ * every EARLIER spec in the partition happened to leave behind — measured at 138
+ * active of 222 total after one p05 run, against a page of 50, of which just 7 were
+ * this spec's. That is the entry's exact shape: a bounded band, asserted against
+ * accumulated state, so the result is a property of the SPLIT rather than of the
+ * product. It failed that way on `main` at 868540d (p05) and again under HARDEN-06A's
+ * run C, and it passed at e1ba3e4 only because a repartition gave it kinder
+ * neighbours — never because the spec was made sound.
+ *
+ * Scoping does not weaken a single assertion; it removes a false one. The
+ * `toHaveCount(0)` below ("on hold leaves the active planning scope") could
+ * previously pass because the row had simply PAGINATED OUT — indistinguishable from
+ * being excluded, which is the false green this gate exists to refuse.
+ */
+const PRIORITY_GROUPS = `/tasks?view=list&system=active&group=priority&project=${JOURNEY_PROJECT_ID}`;
+
+/*
+ * DEBT-173 — the journey owns its records, at both ends, for the WHOLE FILE.
+ *
+ * BEFORE, because a crashed or interrupted run leaves `Journey task …` rows
+ * behind and the seed only clears them once per partition, so a retry would
+ * otherwise assert against its own debris — which is how the scoped band below
+ * resolved to four identical rows instead of one during this fix's own
+ * verification.
+ *
+ * AFTER, because leaving them costs every spec that runs later in the partition:
+ * they are active Tasks in a collection that pages at 50, and this entry is about
+ * bounded bands filling with rows nobody asserted on.
+ *
+ * FILE SCOPE, not inside the first `describe`, and that distinction is the whole
+ * point. This file holds TWO sibling suites, and the second one ("journey
+ * accessibility & responsive") creates `Journey task Echo`. Hooks inside the first
+ * suite finish BEFORE the second one starts, so they would sweep everything except
+ * the one task created last — leaving exactly the leaker this change exists to
+ * remove — and running an accessibility test on its own would bypass them
+ * altogether. At file scope both suites are covered, in every selection.
+ */
+test.beforeAll(() => {
+  cleanupAllJourneyTasks();
+});
+
+test.afterAll(() => {
+  cleanupAllJourneyTasks();
+});
 
 test.describe("TASKS-01 — full journey", () => {
   /*
