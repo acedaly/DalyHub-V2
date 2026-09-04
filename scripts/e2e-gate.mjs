@@ -49,8 +49,15 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createConnection } from "node:net";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -212,10 +219,70 @@ async function resetLocalDatabase() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* What tree this evidence is about                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The identity of the SOURCE TREE this run exercised.
+ *
+ * `e2e-order-proof.mjs`'s central claim is "the same tree, under two derived
+ * splits", and until this existed nothing in the evidence said which tree
+ * either arrangement ran. Run arrangement A, check out something else, run
+ * arrangement B, and the comparison would report agreement on two different
+ * products — a proof that cannot fail, which is the exact defect this whole
+ * item exists to remove from the suite. Raised in review on PR #252.
+ *
+ * The commit alone is not enough: a gate is usually run on a working tree with
+ * uncommitted changes in it, so the fingerprint is the commit PLUS a digest of
+ * the working tree's diff against it (staged and unstaged, tracked files). Two
+ * runs agree only when both are identical. Nothing here needs to be reversible
+ * or readable — it is a fingerprint, not a record — so a short digest is enough.
+ */
+function treeIdentity() {
+  const git = (args) => {
+    try {
+      return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" });
+    } catch {
+      return null;
+    }
+  };
+  const head = git(["rev-parse", "HEAD"])?.trim() ?? null;
+  const diff = git(["diff", "HEAD"]);
+  if (head === null || diff === null) return null;
+  return {
+    commit: head,
+    // Empty digest ⇒ a clean checkout of `commit`.
+    dirty:
+      diff.length === 0
+        ? ""
+        : createHash("sha256").update(diff).digest("hex").slice(0, 16),
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* The run                                                                     */
 /* -------------------------------------------------------------------------- */
 
 mkdirSync(outDir, { recursive: true });
+
+/*
+ * Clear the evidence this gate owns before it writes any (raised in review on
+ * PR #252).
+ *
+ * `mkdirSync` creates the directory and removes nothing, so a previous run's
+ * `pNN.json` survived — and after a change of partition count, a run of a
+ * SUBSET, or an interruption, the comparator (which reads every report in the
+ * directory) would fold stale rows in beside the current ones and could
+ * overwrite a current outcome with an old one. Evidence that mixes two runs is
+ * worse than no evidence, so the directory is emptied of the files this script
+ * writes — and only those, so `--out` pointed at a shared directory never
+ * deletes something it did not create.
+ */
+for (const name of readdirSync(outDir)) {
+  if (name === "gate-summary.json" || /^p\d+\.json$/.test(name)) {
+    rmSync(join(outDir, name), { force: true });
+  }
+}
 
 if (reset) await resetLocalDatabase();
 const censusBefore = entityCensus();
@@ -328,6 +395,16 @@ writeFileSync(
     {
       arrangement:
         derivedCount === undefined ? "committed" : `derived:${derivedCount}`,
+      // WHICH TREE this evidence is about. `e2e-order-proof.mjs` refuses to
+      // compare two arrangements that do not agree on it.
+      tree: treeIdentity(),
+      // Whether the run started from the committed seed. An arrangement run
+      // with `--no-reset` began from whatever the last one left, which is not a
+      // property two runs can be compared across.
+      cleanStart: reset,
+      // Which partitions were RUN, as against the whole arrangement below: a
+      // subset run is not a gate, and the comparator says so.
+      ran: results.map((result) => result.name),
       partitions: arrangement.map((partition) => ({
         name: partition.name,
         specs: partition.specs,

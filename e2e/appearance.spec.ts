@@ -278,13 +278,36 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     await gotoFixture(page, "/settings");
     await holdAppearanceWrite(page, { delayMs: 3000 });
 
-    await chooseAppearance(page, "Dark");
+    /*
+     * NOT `chooseAppearance` — this journey's whole subject is the window
+     * BEFORE the answer.
+     *
+     * Everywhere else in this file the wait belongs on the POST, because the
+     * claim is that the STORED choice survives a navigation. Here the claim is
+     * that the repaint does not wait for the write at all, so awaiting the
+     * response first would start the 1.5 s assertion below AFTER persistence
+     * completes — and a product that repainted only on the server's answer
+     * would pass it. That is an assertion that cannot fail at the moment it
+     * runs, which is precisely the defect DEBT-203 is named for; CONV-03
+     * introduced it here for one commit and it was caught in review.
+     *
+     * So the click is raw, the optimistic paint is asserted against a write
+     * still three seconds from landing, and the response is awaited AFTERWARDS
+     * so the rest of the journey is ordered.
+     */
+    const written = page.waitForResponse(
+      (response) =>
+        APPEARANCE_ACTION_PATH.test(new URL(response.url()).pathname) &&
+        response.request().method() === "POST",
+    );
+    await appearanceOption(page, "Dark").click();
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
       "dark",
       { timeout: 1500 },
     );
     await expect.poll(() => paintsDark(page)).toBe(true);
+    await written;
 
     // ...and it is still dark once the slow write lands and revalidation runs.
     await expect
@@ -299,15 +322,11 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     await holdAppearanceWrite(page, { delayMs: 1500, fail: true });
 
     /*
-     * NOT `chooseAppearance` — this is the one journey whose subject is the
-     * window between the click and the answer.
-     *
-     * Everywhere else in this file the wait belongs on the POST, because the
-     * claim is that the STORED choice survives a navigation. Here the claim is
-     * that the optimistic paint is reversible, so waiting for the response
-     * before asserting the optimistic state would assert it after the rollback
-     * it is meant to precede. Measured: with the wait in place the "Optimistic
-     * first" assertion below failed, on a product doing exactly what it should.
+     * NOT `chooseAppearance`, for the reason the journey above states: this one
+     * is about the window between the click and the answer too, from the other
+     * side. Waiting for the response before asserting the optimistic state
+     * would assert it after the rollback it is meant to precede — measured, on
+     * a product doing exactly what it should.
      */
     await appearanceOption(page, "Dark").click();
     // Optimistic first...

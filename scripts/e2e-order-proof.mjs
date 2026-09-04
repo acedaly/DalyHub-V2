@@ -123,16 +123,89 @@ const differing = [...a.keys()]
   }))
   .sort((one, other) => one.label.localeCompare(other.label));
 
-const summary = JSON.parse(
-  existsSync(join(left, "gate-summary.json"))
-    ? readFileSync(join(left, "gate-summary.json"), "utf8")
-    : "{}",
-);
-const summaryB = JSON.parse(
-  existsSync(join(right, "gate-summary.json"))
-    ? readFileSync(join(right, "gate-summary.json"), "utf8")
-    : "{}",
-);
+/**
+ * The arrangement's own account of itself, and it is MANDATORY.
+ *
+ * It used to fall back to `{}` when a directory came from an interrupted gate,
+ * which produced an empty neighbour map — and an empty neighbour map skips the
+ * same-split rejection below, so two identical arrangements with no summaries
+ * exited zero having demonstrated nothing at all. A proof whose evidence is
+ * missing is not a weaker proof; it is not one. Raised in review on PR #252.
+ */
+function loadSummary(dir) {
+  const path = join(dir, "gate-summary.json");
+  if (!existsSync(path)) {
+    console.error(
+      `::error::${dir} has no gate-summary.json, so nothing says which ` +
+        `arrangement produced it or which tree it ran. Re-run the gate for ` +
+        `this arrangement; an interrupted run's reports are not evidence.`,
+    );
+    process.exit(2);
+  }
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  if (!Array.isArray(parsed.partitions) || parsed.partitions.length === 0) {
+    console.error(
+      `::error::${dir}/gate-summary.json names no partitions, so the split it ` +
+        `ran cannot be compared with anything.`,
+    );
+    process.exit(2);
+  }
+  return parsed;
+}
+
+const summary = loadSummary(left);
+const summaryB = loadSummary(right);
+
+/*
+ * ONE TREE. This is the claim in the sentence at the top of this file, and
+ * until it was checked the comparison could pass across two different products
+ * — run arrangement A, check something else out, run arrangement B, and
+ * identical test identities and statuses would report agreement.
+ */
+const treeOf = (s) =>
+  s.tree ? `${s.tree.commit}${s.tree.dirty ? `+${s.tree.dirty}` : ""}` : null;
+if (treeOf(summary) === null || treeOf(summaryB) === null) {
+  console.error(
+    "::error::One of the arrangements does not record which source tree it " +
+      "ran. Re-run it with a gate that does — the claim being made is about " +
+      "ONE tree, and a proof that cannot check that is not a proof.",
+  );
+  process.exit(2);
+}
+if (treeOf(summary) !== treeOf(summaryB)) {
+  console.error(
+    `::error::The two arrangements ran DIFFERENT trees — ${treeOf(summary)} ` +
+      `and ${treeOf(summaryB)}. Nothing can be concluded from comparing them.`,
+  );
+  process.exit(2);
+}
+
+/*
+ * And both have to be WHOLE gates from a clean start: a subset run is not a
+ * gate, and an arrangement that began from whatever the last run left is not
+ * one this comparison can attribute a difference to.
+ */
+for (const [dir, s] of [
+  [left, summary],
+  [right, summaryB],
+]) {
+  if (s.cleanStart === false) {
+    console.error(
+      `::error::${dir} was produced with --no-reset, so it did not start from ` +
+        `the committed seed. Two arrangements are only comparable from the ` +
+        `same starting database.`,
+    );
+    process.exit(2);
+  }
+  if (Array.isArray(s.ran) && s.ran.length !== s.partitions.length) {
+    console.error(
+      `::error::${dir} ran ${s.ran.length} of its ${s.partitions.length} ` +
+        `partitions. A subset is not the gate, and the tests the other ` +
+        `partitions hold would read as missing rather than as unrun.`,
+    );
+    process.exit(2);
+  }
+}
 
 /**
  * How much the two arrangements actually differ.
@@ -182,7 +255,10 @@ for (const row of differing) {
   console.log(`  DIFFERS    ${row.label}  (A: ${row.left}, B: ${row.right})`);
 }
 
-if (moved === 0 && neighboursA.size > 0) {
+// Unconditional now: `loadSummary` has already refused a directory whose
+// summary names no partitions, so an empty neighbour map can only mean the two
+// arrangements are the same split — which is the case this rejects.
+if (moved === 0) {
   console.error(
     "::error::The two arrangements are the same split — nothing was reshuffled, " +
       "so an identical result proves nothing. Derive the second arrangement at a " +
