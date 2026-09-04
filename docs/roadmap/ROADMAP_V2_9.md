@@ -157,6 +157,28 @@ INS-00 ──► INS-01 ──► INS-02
                   └──► INS-04 (what changed)
 ```
 
+**All five delivered 2026-09-04, in that order.** What each actually shipped is
+recorded under its own heading below, including three places where implementing
+it corrected the definition:
+
+- **INS-00's baseline was wrong, and re-measuring was part of the item.** The
+  defining pass measured 447 broken links of 6,601; a fresh measurement found
+  **422 of 6,737** (233 anchors, 39 non-image files, 150 screenshots), because
+  that pass repaired eleven of its own as it went and because the checker reads
+  reference definitions and nested image links the estimate did not.
+- **DEBT-238's "five adapters" was wrong in BOTH directions.** Three of the five
+  named carry no window predicate at all; two the entry did not name do. The
+  proposed `grep` closing condition was replaced by a registry test that
+  enumerates every remaining bound with the reason it did not converge.
+- **INS-03's statement budget was first measured on a fixture with no Goals**,
+  which understated the page by three conditional reads. The honest figure is
+  **12**, still flat at every window and grain.
+
+One item's non-goal was tested and held: **nothing was migrated and nothing new
+is stored.** Every figure V2.9 shows is derived at read time from
+`spine_records`, `activities`, `goal_measurements` and the Review snapshots the
+product was already writing.
+
 ---
 
 ### ☑ INS-00 — The map tells the truth — **delivered 2026-09-04** — closes [DEBT-241](../product/PRODUCT_DEBT.md#-debt-241--no-documentation-link-or-anchor-check-exists-and-447-local-links-are-broken--p2--resolved-2026-09-04-v29-ins-00)
