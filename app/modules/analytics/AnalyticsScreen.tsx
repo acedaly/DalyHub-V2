@@ -48,19 +48,28 @@
  * the pure evaluator server-side and handed here already worded.
  */
 
+import type { ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import {
-  ANALYTICS_RANGES,
+  DEFAULT_INSIGHT_WINDOW,
+  GRAIN_LABELS,
+  GRAIN_NOUNS,
+  INSIGHT_WINDOWS,
   type AnalyticsModel,
-  type AnalyticsRangeId,
+  type InsightWindowId,
 } from "~/kernel/analytics";
 import { DashboardCard } from "~/shared/card";
-import { TrendLine, type TrendLinePoint } from "~/shared/charts";
-import { CollectionLayout } from "~/shared/collection-layout";
+import { Sparkline, TrendLine, type TrendLinePoint } from "~/shared/charts";
+import {
+  CollectionLayout,
+  useCollectionLoading,
+} from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { areaAccentForRank } from "~/shared/pill";
+import { SegmentedFilter } from "~/shared/segmented-filter";
+import { Skeleton } from "~/shared/skeleton";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
 import type { AnalyticsPageData } from "./analytics-context";
@@ -72,32 +81,75 @@ export function AnalyticsScreen({
 }) {
   const [searchParams] = useSearchParams();
   const { model } = data;
+  /*
+   * PX-06 — the ONE shared collection loading signal.
+   *
+   * V2.9 INS-03 made the window and the grain real controls, and both are
+   * ordinary links, so choosing one is a same-route navigation. Without this the
+   * previous window's figures would sit on screen unchanged while the new ones
+   * were read, and a 24-month read is the slowest the page has: the owner would
+   * be looking at last week's numbers under this week's label.
+   */
+  const isReloading = useCollectionLoading();
 
-  const rangeHref = (id: AnalyticsRangeId) => {
+  /*
+   * V2.9 INS-03 — the URL IS the configuration (ADR-059's rule), so a view can
+   * be shared and comes back identical. Both controls are ordinary links: Back
+   * works, and the page works with JavaScript off.
+   *
+   * Changing the WINDOW drops the grain, because a grain the new window cannot
+   * hold would otherwise be silently substituted — the loader would fall back
+   * and the URL would keep claiming the grain it is not showing. Dropping it
+   * lets the new window's own default answer, and the control says which.
+   */
+  const windowHref = (id: InsightWindowId) => {
     const next = new URLSearchParams(searchParams);
-    if (id === "week") next.delete("range");
-    else next.set("range", id);
+    next.delete("grain");
+    if (id === DEFAULT_INSIGHT_WINDOW) next.delete("window");
+    else next.set("window", id);
     const qs = next.toString();
     return qs ? `/analytics?${qs}` : "/analytics";
   };
 
   /*
-   * The range rail is a genuine VIEW switcher, not a filter: exactly one span is
-   * always active, and changing it changes what the whole surface is about
+   * The window rail is a genuine VIEW switcher, not a filter: exactly one span
+   * is always active, and changing it changes what the whole surface is about
    * rather than narrowing a set of records. That is the header's view slot by
    * the design system's own definition (DESIGN_SYSTEM.md → Collection header).
    */
   const viewSwitcher = (
     <ViewSwitcher
-      options={ANALYTICS_RANGES.map((range) => ({
-        value: range.id,
-        label: range.label,
-        href: rangeHref(range.id),
+      options={INSIGHT_WINDOWS.map((window) => ({
+        value: window.id,
+        label: window.label,
+        href: windowHref(window.id),
       }))}
-      value={data.range}
-      label="Analytics range"
+      value={data.window}
+      label="Insight window"
     />
   );
+
+  /*
+   * The GRAIN sits beside the chart rather than in the header, at subordinate
+   * weight: it changes how the same window is CUT, not what the page is about.
+   *
+   * It offers only the grains this window can actually hold — computed from the
+   * grain maximums, not listed — so a grain the series would have to bound is
+   * never offered at all. That is the refusal INS-03 asks for: two years is
+   * months only, because 730 days exceeds 366 and 105 weeks exceeds 52.
+   */
+  const grainControl =
+    data.grains.length > 1 ? (
+      <SegmentedFilter
+        param="grain"
+        options={data.grains.map((grain) => ({
+          value: grain,
+          label: GRAIN_LABELS[grain],
+        }))}
+        value={data.grain}
+        label="Insight grain"
+      />
+    ) : null;
 
   /*
    * The shared `CollectionLayout`, even though Analytics collects no records.
@@ -128,6 +180,8 @@ export function AnalyticsScreen({
           />
         ) : undefined
       }
+      isLoading={isReloading}
+      loadingSlot={<AnalyticsSkeleton />}
       isEmpty={model.isEmpty}
       emptySlot={
         <EmptyState
@@ -145,9 +199,10 @@ export function AnalyticsScreen({
       <div className="dh-analytics__body">
         <MetricRow model={model} />
         <div className="dh-analytics__panels">
-          <TrendPanel data={data} />
+          <TrendPanel data={data} grainControl={grainControl} />
           <DistributionPanel model={model} />
           <OverduePanel data={data} />
+          <GoalSeriesPanel model={model} />
         </div>
         {model.notes.length > 0 ? (
           <aside
@@ -218,7 +273,13 @@ function MetricRow({ model }: { readonly model: AnalyticsModel }) {
  * line means anything at, which every range in the table exceeds; the panel
  * still guards it rather than drawing a dot and calling it a trend.
  */
-function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
+function TrendPanel({
+  data,
+  grainControl,
+}: {
+  readonly data: AnalyticsPageData;
+  readonly grainControl: ReactNode;
+}) {
   const { model } = data;
   const points: TrendLinePoint[] = model.series.map((point, index) => ({
     key: point.key,
@@ -248,10 +309,48 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
    * long form stays in the document, visually hidden, so nothing is taken from
    * anyone.
    */
+  const noun = GRAIN_NOUNS[model.grain];
+  // V2.9 INS-03 — every figure names its window AND its grain, so a
+  // Saturday-to-Friday week is stated rather than implied.
   const headline =
     points.length < 2
       ? "Not enough of this period has passed to show a trend."
-      : `Tasks completed across ${points.length} periods, ${total} in total.`;
+      : `Tasks completed across ${points.length} ${noun}s, ${total} in total.`;
+  /*
+   * V2.9 INS-03 — the Projects and Goals lines, under the Tasks trend.
+   *
+   * Three series on one plot would need a legend, three colours and a key, and
+   * the two smaller ones are almost always near-flat beside a Task count an
+   * order of magnitude larger — a shared axis would flatten them into the
+   * baseline and say nothing. So each gets the design system's compact
+   * primitive with its FIGURES in words beside it, which is the same rule the
+   * Goals panel follows and the one `Sparkline` itself records.
+   *
+   * A series with no completions at all is not drawn: absence renders less
+   * (ADR-079 d8), and a flat line at zero is a shape asserting nothing
+   * happened in a way a missing row says better.
+   */
+  const secondary = (
+    [
+      ["Projects completed", "projectsCompleted"],
+      ["Goals completed", "goalsCompleted"],
+    ] as const
+  ).flatMap(([label, key]) => {
+    const values = model.series.map((point) => point[key]);
+    const total = values.reduce((sum, value) => sum + value, 0);
+    if (total === 0) return [];
+    return [
+      {
+        label,
+        total,
+        points: model.series.map((point, index) => ({
+          key: point.key,
+          date: data.bucketDates[index] ?? data.bucketDates[0] ?? "",
+          value: point[key],
+        })),
+      },
+    ];
+  });
   const summary =
     points.length < 2
       ? headline
@@ -263,7 +362,11 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
           .join("; ")}.`;
 
   return (
-    <DashboardCard title="Completion trend" density="standard">
+    <DashboardCard
+      title="Completion trend"
+      density="standard"
+      headerAction={grainControl}
+    >
       {points.length < 2 ? (
         <p className="dh-analytics__absent">{headline}</p>
       ) : (
@@ -288,6 +391,21 @@ function TrendPanel({ data }: { readonly data: AnalyticsPageData }) {
           data-testid="analytics-trend"
         />
       )}
+      {secondary.length > 0 ? (
+        <ul className="dh-analytics__secondary" aria-label="Also completed">
+          {secondary.map((entry) => (
+            <li key={entry.label} className="dh-analytics__secondary-row">
+              <span className="dh-analytics__secondary-label">
+                {entry.label}
+              </span>
+              <Sparkline points={entry.points} />
+              <span className="dh-analytics__secondary-figure">
+                {entry.total}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </DashboardCard>
   );
 }
@@ -489,5 +607,141 @@ function DistributionPanel({ model }: { readonly model: AnalyticsModel }) {
         ))}
       </ul>
     </DashboardCard>
+  );
+}
+
+/**
+ * V2.9 INS-03 — a compact series for every measured Goal (DEBT-212's caller).
+ *
+ * A sparkline beside the Goal's name, linking to its record where the full
+ * chart lives. It is `aria-hidden` by design — the one chart in DalyHub that
+ * is — because it always sits beside the same figures in text, which is the
+ * rule `Sparkline` itself records.
+ *
+ * A Goal with fewer than two readings never reaches here: the loader drops it,
+ * because drawing one point as a line asserts a shape it does not have.
+ */
+function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
+  if (!model.measuredGoalsAvailable) {
+    return (
+      <DashboardCard
+        className="dh-analytics__goals-panel"
+        title="Measured Goals"
+        density="standard"
+      >
+        <p className="dh-analytics__absent">
+          This panel could not be read just now. Nothing in your workspace has
+          changed — the figures above are unaffected.
+        </p>
+      </DashboardCard>
+    );
+  }
+  if (
+    model.measuredGoals.length === 0 &&
+    model.goalContributions.length === 0
+  ) {
+    return (
+      <DashboardCard
+        className="dh-analytics__goals-panel"
+        title="Goals"
+        density="standard"
+      >
+        <p className="dh-analytics__absent">
+          No Goal has two readings yet, and your Reviews have not yet recorded
+          enough to say how work reached them. Log a measurement on a Goal, or
+          complete another Review, and its shape appears here.
+        </p>
+      </DashboardCard>
+    );
+  }
+
+  return (
+    <DashboardCard
+      className="dh-analytics__goals-panel"
+      title="Goals"
+      supporting={
+        model.measuredGoals.length > 0
+          ? `${model.measuredGoals.length} measured`
+          : undefined
+      }
+      density="standard"
+    >
+      <ul className="dh-analytics__goals" aria-label="Goals">
+        {model.measuredGoals.map((goal) => {
+          const first = goal.points[0];
+          const last = goal.points[goal.points.length - 1];
+          return (
+            <li key={goal.goalId} className="dh-analytics__goal">
+              <Link className="dh-analytics__goal-name" to={goal.to}>
+                {goal.title}
+              </Link>
+              <Sparkline points={goal.points} />
+              {/*
+               * The reading, in words, beside the shape — so the sparkline is
+               * decoration over a fact rather than the fact itself. The bound
+               * is said where it applies: a compact series is a recent shape.
+               */}
+              <span className="dh-analytics__goal-reading">
+                {`${first.value} → ${last.value}`}
+                <span className="dh-analytics__goal-window">
+                  {goal.bounded
+                    ? `${goal.points.length} most recent readings`
+                    : `${goal.points.length} readings`}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+        {/*
+         * A Goal with no measurement, after every measured one — the shapes
+         * read as a group, and a sentence between two sparklines breaks the
+         * comparison they exist for. Its reading is the Reviews' own words and
+         * names its own window, so the two kinds of row are never mistaken for
+         * each other.
+         */}
+        {model.goalContributions.map((goal) => (
+          <li key={goal.goalId} className="dh-analytics__goal">
+            <Link className="dh-analytics__goal-name" to={goal.to}>
+              {goal.title}
+            </Link>
+            <span className="dh-analytics__goal-reading dh-analytics__goal-reading--wide">
+              {goal.reading}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </DashboardCard>
+  );
+}
+
+/**
+ * The Insight page's own loading shape (PX-02 → Loading).
+ *
+ * The shared `CollectionSkeleton` draws a column of record cards, which is the
+ * wrong shape here: this surface is a figure row above two wide panels, and a
+ * ghost that promises a list and resolves into panels is a worse answer than
+ * no ghost at all. Same skeleton PRIMITIVE, laid out as what actually arrives.
+ */
+function AnalyticsSkeleton() {
+  return (
+    <div className="dh-analytics__body" aria-hidden="true">
+      <ul className="dh-analytics__metrics">
+        {[0, 1, 2, 3].map((index) => (
+          <li key={index} className="dh-analytics__metric">
+            <Skeleton width="5rem" height="0.75rem" />
+            <Skeleton width="3rem" height="1.75rem" />
+            <Skeleton width="80%" height="0.75rem" />
+          </li>
+        ))}
+      </ul>
+      <div className="dh-analytics__panels">
+        {[0, 1, 2, 3].map((index) => (
+          <div key={index} className="dh-analytics__panel-skeleton">
+            <Skeleton width="8rem" height="0.875rem" />
+            <Skeleton width="100%" height="9rem" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

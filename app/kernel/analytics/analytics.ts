@@ -56,11 +56,25 @@
 
 import { completedRangeTasksHref } from "~/kernel/task-views";
 
-import type {
-  AnalyticsBucket,
-  AnalyticsRangeId,
-  AnalyticsSpan,
-} from "./analytics-range";
+import type { Grain } from "~/kernel/history";
+
+/*
+ * The across-Reviews sentence comes from the Review-insight kernel rather than
+ * being re-worded here: INS-02 built it, the Review panel and the Goal story
+ * already say it, and a second phrasing of one classification is exactly the
+ * duplicated fact ADR-079 d2 refuses.
+ */
+import {
+  goalContributionAcrossReviewsLine,
+  type GoalContributionAcrossReviews,
+} from "~/kernel/review-insights";
+
+import {
+  GRAIN_NOUNS,
+  type AnalyticsBucket,
+  type AnalyticsSpan,
+  type InsightWindowId,
+} from "./insight-range";
 
 /* -------------------------------------------------------------------------- */
 /* Input facts                                                                 */
@@ -135,7 +149,10 @@ export interface AnalyticsGoalTally {
 }
 
 export interface AnalyticsFacts {
-  readonly range: AnalyticsRangeId;
+  /** V2.9 INS-03 — the named window the owner chose. */
+  readonly window: InsightWindowId;
+  /** The grain its series is cut at. */
+  readonly grain: Grain;
   /**
    * V2.7 RECALL-02 — the range's own owner-calendar span.
    *
@@ -143,7 +160,7 @@ export interface AnalyticsFacts {
    * metric's LINK is built from it: the figure and the list it opens describe
    * the same days. Deriving the span from `buckets` instead would be a second
    * definition of the range, and the bucket layout is deliberately allowed to
-   * differ from the total's window (see `analytics-range.ts`).
+   * differ from the total's window (see `~/kernel/history`'s bucket rule).
    */
   readonly span: AnalyticsSpan;
   readonly buckets: readonly AnalyticsBucket[];
@@ -189,6 +206,67 @@ export interface AnalyticsFacts {
    * reason: "nothing is overdue" is a claim about the workspace.
    */
   readonly overdueAvailable: boolean;
+  /**
+   * V2.9 INS-03 — one compact series per MEASURED Goal: the caller DEBT-212
+   * asked for. Empty when no Goal has two readings in the window, which is an
+   * ordinary absence rather than a failure.
+   */
+  readonly measuredGoals: readonly AnalyticsGoalSeries[];
+  /** True when the Goal page was cut to its bound before the series were read. */
+  readonly measuredGoalsBounded: boolean;
+  readonly measuredGoalsAvailable: boolean;
+  /**
+   * V2.9 INS-03 — the across-Reviews contribution for a Goal with no
+   * measurement, from INS-02's stored snapshots.
+   *
+   * A measured Goal has a shape to draw; an unmeasured one has none, and this
+   * is what it has instead. The window is REVIEWS rather than the page's own
+   * window, which is why the sentence says so — a Review period is not the span
+   * the owner selected.
+   */
+  readonly goalContributions: readonly GoalContributionAcrossReviews[];
+  /**
+   * True when the grain's stated maximum shortened the window that was asked
+   * for. The surface says so rather than presenting a shortened window as the
+   * one it was given (ADR-079 d11).
+   */
+  readonly seriesBounded: boolean;
+  readonly seriesBound: number | null;
+  /**
+   * How many moments the overdue LEVEL was read at, when that read's own bound
+   * is below the number of buckets. Zero means every bucket carries a reading.
+   */
+  readonly overdueMoments: number;
+}
+
+/**
+ * One measured Goal's readings over the window (V2.9 INS-03).
+ *
+ * The points are the Goal's OWN measurements rather than a bucketed count,
+ * because a measurement is a level the owner recorded on a day: bucketing
+ * levels would invent readings between them, and averaging them would be a
+ * derived figure nobody asked for. Bounded per Goal, and the bound travels, so
+ * a compact series can never be read as a whole history.
+ */
+export interface AnalyticsGoalContribution {
+  readonly goalId: string;
+  readonly title: string;
+  /** The kernel's own sentence — the classification AND the Reviews it read. */
+  readonly reading: string;
+  readonly to: string;
+}
+
+export interface AnalyticsGoalSeries {
+  readonly goalId: string;
+  readonly title: string;
+  /** Oldest first. `date` is the owner-calendar day the reading was taken. */
+  readonly points: readonly {
+    readonly key: string;
+    readonly date: string;
+    readonly value: number;
+  }[];
+  readonly bounded: boolean;
+  readonly to: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -240,7 +318,8 @@ export interface AnalyticsDistributionRow {
 }
 
 export interface AnalyticsModel {
-  readonly range: AnalyticsRangeId;
+  readonly window: InsightWindowId;
+  readonly grain: Grain;
   readonly metrics: readonly AnalyticsMetric[];
   readonly series: readonly AnalyticsSeriesPoint[];
   /** Every bucket, with its span, so the surface labels the axis itself. */
@@ -254,6 +333,23 @@ export interface AnalyticsModel {
   readonly distributionTotal: number;
   /** False when the distribution read failed — the panel then says so. */
   readonly distributionAvailable: boolean;
+  /** V2.9 INS-03 — the measured Goals, ready to draw. */
+  readonly measuredGoals: readonly AnalyticsGoalSeries[];
+  readonly measuredGoalsAvailable: boolean;
+  /**
+   * V2.9 INS-03 — one row per unmeasured Goal that the Reviews have something
+   * to say about, already worded by the kernel INS-02 built. Never a Goal that
+   * also appears in `measuredGoals`: one Goal, one row.
+   */
+  readonly goalContributions: readonly AnalyticsGoalContribution[];
+  /** True when the grain's maximum shortened the window that was asked for. */
+  readonly seriesBounded: boolean;
+  readonly seriesBound: number | null;
+  /**
+   * How many moments the overdue LEVEL was read at, when that read's own bound
+   * is below the number of buckets. Zero means every bucket has a reading.
+   */
+  readonly overdueMoments: number;
   /** Calm sentences about the limits of what is shown. Never a disclaimer wall. */
   readonly notes: readonly string[];
   /** True when there is genuinely nothing to show — ONE empty state, not five. */
@@ -528,6 +624,34 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     );
   }
 
+  /*
+   * V2.9 INS-03 — every bound this page applied, said out loud.
+   *
+   * The V2.9 acceptance rule: a figure about the owner's history names its
+   * window AND its bound. A shortened series that did not say so would be a
+   * capped population presented as a complete one (ADR-079 d11).
+   */
+  if (facts.seriesBounded && facts.seriesBound !== null) {
+    notes.push(
+      `This window is longer than a ${GRAIN_NOUNS[facts.grain]} series can hold, so the most recent ${facts.seriesBound} ${GRAIN_NOUNS[facts.grain]}s are shown. Choose a coarser grain to cover the whole window.`,
+    );
+  }
+  if (facts.overdueMoments > 0) {
+    notes.push(
+      `Overdue is a level rather than a count, so it is read at a limited number of moments: the most recent ${facts.overdueMoments} of this window.`,
+    );
+  }
+  if (facts.measuredGoalsBounded) {
+    notes.push(
+      "Goal series cover the Goals this page reads, ordered by alignment — not every measured Goal in the workspace.",
+    );
+  }
+  if (facts.measuredGoals.some((goal) => goal.bounded)) {
+    notes.push(
+      "A Goal with many readings shows its most recent ones, so a compact series is a recent shape rather than the whole history.",
+    );
+  }
+
   const degraded =
     current === null ||
     facts.goals === null ||
@@ -548,16 +672,39 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
    * hiding it behind a calm empty state would be the surface reporting nought
    * for something it actually read.
    */
+  /*
+   * V2.9 INS-03 — the contribution rows, for the Goals with no series only.
+   *
+   * A Goal that already has a sparkline says more with it than a Review count
+   * would add, and two rows for one Goal is the panel repeating itself. The
+   * sentence is the kernel's, so the Insight page and the Review cannot word
+   * the same classification differently.
+   */
+  const measuredIds = new Set(facts.measuredGoals.map((goal) => goal.goalId));
+  const goalContributions: AnalyticsGoalContribution[] = facts.goalContributions
+    .filter((contribution) => !measuredIds.has(contribution.goalId))
+    .map((contribution) => ({
+      goalId: contribution.goalId,
+      title: contribution.title,
+      reading: goalContributionAcrossReviewsLine(contribution),
+      to: `/goals/${encodeURIComponent(contribution.goalId)}`,
+    }));
+
   const isEmpty =
     !degraded &&
     (current?.tasksCompleted ?? 0) === 0 &&
     (current?.projectsCompleted ?? 0) === 0 &&
     (current?.goalsCompleted ?? 0) === 0 &&
     facts.areas.length === 0 &&
-    (overdueNow ?? 0) === 0;
+    (overdueNow ?? 0) === 0 &&
+    // V2.9 INS-03 — a measured Goal with readings in this window is something
+    // to show, for the same reason a backlog is: the empty state asserts a fact
+    // about the period, and it would be false here.
+    facts.measuredGoals.length === 0;
 
   return {
-    range: facts.range,
+    window: facts.window,
+    grain: facts.grain,
     metrics,
     series: facts.series,
     buckets: facts.buckets,
@@ -566,6 +713,12 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     distribution,
     distributionTotal: attributed,
     distributionAvailable: facts.areasAvailable,
+    measuredGoals: facts.measuredGoals,
+    measuredGoalsAvailable: facts.measuredGoalsAvailable,
+    goalContributions,
+    seriesBounded: facts.seriesBounded,
+    seriesBound: facts.seriesBound,
+    overdueMoments: facts.overdueMoments,
     notes,
     isEmpty,
     degraded,

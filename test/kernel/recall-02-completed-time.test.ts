@@ -39,7 +39,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { evaluateAnalytics, rangeBuckets, rangeSpan } from "~/kernel/analytics";
+import { evaluateAnalytics, insightWindowDays } from "~/kernel/analytics";
 import type { PeriodCountRequest } from "~/kernel/review-insights";
 import type { TaskSort, WorkspaceTaskFilters } from "~/kernel/tasks";
 import {
@@ -901,7 +901,7 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
   it("states the same machine count for the same period", async () => {
     const { expected, reopened, deleted } = await seedSpanFixture();
 
-    const span = rangeSpan("week", todayIso);
+    const span = insightWindowDays("this-week", todayIso);
     const counted = await makeTaskRepository(makeContext(WS), {
       clock: new FakeClock("2026-08-30T20:00:00.000Z").now,
     }).countCompletedTasksInWindows([spanWindow(span)]);
@@ -912,9 +912,13 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
     };
 
     const model = evaluateAnalytics({
-      range: "week",
+      window: "this-week",
+      grain: "day",
       span,
-      buckets: rangeBuckets("week", span),
+      // No buckets and no series: this test is about the FIGURE and the link
+      // beneath it, and a trend the assertions never read would only be a
+      // second copy of the bucketer's rules in the wrong file.
+      buckets: [],
       current,
       previous: null,
       series: [],
@@ -925,6 +929,13 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
       overdueSeries: [],
       overduePrevious: null,
       overdueAvailable: false,
+      measuredGoals: [],
+      measuredGoalsBounded: false,
+      measuredGoalsAvailable: true,
+      goalContributions: [],
+      seriesBounded: false,
+      seriesBound: null,
+      overdueMoments: 0,
     });
     const metric = model.metrics.find((entry) => entry.id === "tasks");
     expect(metric?.value).toBe(expected);
@@ -970,7 +981,7 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
    */
   it("would NOT agree if the figure counted Activity events", async () => {
     const { expected } = await seedSpanFixture();
-    const span = rangeSpan("week", todayIso);
+    const span = insightWindowDays("this-week", todayIso);
     const window = spanWindow(span);
 
     const requests: PeriodCountRequest[] = [

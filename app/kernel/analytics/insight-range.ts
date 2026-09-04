@@ -28,7 +28,11 @@
  * `allowedGrains` exists rather than a list somebody has to keep true.
  */
 
-import { addCalendarDays, addCalendarMonths } from "~/kernel/datetime";
+import {
+  addCalendarDays,
+  addCalendarMonths,
+  calendarDaysBetween,
+} from "~/kernel/datetime";
 import {
   GRAIN_MAXIMUMS,
   isGrain,
@@ -204,3 +208,54 @@ export const GRAIN_NOUNS: Readonly<Record<Grain, string>> = {
   month: "month",
   review_period: "Review",
 };
+
+/**
+ * How a grain is named on the control that selects it.
+ *
+ * Spelled out rather than derived from `GRAIN_NOUNS`, because English does not
+ * derive them: "day" gives "Dayly". A per-grain word here is one line; a rule
+ * that is wrong for a quarter of the vocabulary is a bug the compiler cannot
+ * see.
+ */
+export const GRAIN_LABELS: Readonly<Record<Grain, string>> = {
+  day: "Daily",
+  week: "Weekly",
+  month: "Monthly",
+  review_period: "Per Review",
+};
+
+/* -------------------------------------------------------------------------- */
+/* Spans                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * An inclusive owner-calendar span.
+ *
+ * Moved here from `analytics-range.ts`, which V2.9 INS-03 deleted. Instants are
+ * added by the loader, which is the only layer that knows the owner's timezone
+ * — the same division `ActivityWindow` makes.
+ */
+export interface AnalyticsSpan {
+  readonly startIso: string;
+  readonly endIso: string;
+}
+
+/** One bucket of a trend — a span, and the key the read answers under. */
+export interface AnalyticsBucket extends AnalyticsSpan {
+  readonly key: string;
+}
+
+/**
+ * The equally-long span immediately BEFORE `span`.
+ *
+ * Same length, no gap and no overlap, so "12 more than the previous 12 weeks"
+ * is a statement about two comparable windows rather than two arbitrary ones.
+ * Unchanged from `analytics-range.ts`, where the reasoning was first recorded.
+ */
+export function previousSpan(span: AnalyticsSpan): AnalyticsSpan {
+  const length = calendarDaysBetween(span.startIso, span.endIso) + 1;
+  return {
+    startIso: addCalendarDays(span.startIso, -length),
+    endIso: addCalendarDays(span.startIso, -1),
+  };
+}

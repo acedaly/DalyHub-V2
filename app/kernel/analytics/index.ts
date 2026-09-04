@@ -10,22 +10,12 @@
  */
 
 export {
-  ANALYTICS_RANGES,
-  addDays,
-  analyticsRange,
-  daysBetween,
-  parseAnalyticsRange,
-  previousSpan,
-  rangeBuckets,
-  rangeSpan,
-  type AnalyticsBucket,
-  type AnalyticsRangeId,
-  type AnalyticsSpan,
-} from "./analytics-range";
-
-export {
   allowedGrains,
+  previousSpan,
+  type AnalyticsBucket,
+  type AnalyticsSpan,
   DEFAULT_INSIGHT_WINDOW,
+  GRAIN_LABELS,
   GRAIN_NOUNS,
   INSIGHT_GRAINS,
   INSIGHT_WINDOWS,
@@ -46,6 +36,7 @@ export {
   type AnalyticsDelta,
   type AnalyticsDistributionRow,
   type AnalyticsFacts,
+  type AnalyticsGoalSeries,
   type AnalyticsGoalTally,
   type AnalyticsMetric,
   type AnalyticsModel,

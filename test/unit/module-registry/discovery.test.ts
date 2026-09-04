@@ -792,9 +792,14 @@ describe("module discovery", () => {
         "assets.archived",
         // UIX-05 — Analytics: navigation only, one per range.
         "analytics.open",
-        "analytics.week",
-        "analytics.month",
-        "analytics.quarter",
+        // V2.9 INS-03 — one command per Insight window, derived from
+        // `INSIGHT_WINDOWS` rather than written out.
+        "analytics.window_this_week",
+        "analytics.window_4_weeks",
+        "analytics.window_12_weeks",
+        "analytics.window_6_months",
+        "analytics.window_12_months",
+        "analytics.window_24_months",
         "reviews.open",
         "reviews.new",
         "settings.open",

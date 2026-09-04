@@ -4,22 +4,38 @@ import { describe, expect, it } from "vitest";
 
 import {
   evaluateAnalytics,
-  rangeBuckets,
-  rangeSpan,
+  insightWindowDays,
+  type AnalyticsBucket,
   type AnalyticsFacts,
 } from "~/kernel/analytics";
 import { AnalyticsScreen } from "~/modules/analytics/AnalyticsScreen";
 import type { AnalyticsPageData } from "~/modules/analytics/analytics-context";
 
-const SPAN = rangeSpan("week", "2026-08-10");
-const BUCKETS = rangeBuckets("week", SPAN);
+const TODAY = "2026-08-10";
+const SPAN = insightWindowDays("this-week", TODAY);
+
+/**
+ * The seven daily buckets of the "7 days" window, spelled out rather than cut
+ * by the bucketer — these tests are about the SCREEN, and a fixture that
+ * recomputed the bucketer would test it a second time in the wrong file.
+ */
+const BUCKETS: readonly AnalyticsBucket[] = Array.from(
+  { length: 7 },
+  (_value, index) => {
+    const day = new Date(`${SPAN.startIso}T00:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + index);
+    const iso = day.toISOString().slice(0, 10);
+    return { key: `b${index}`, startIso: iso, endIso: iso };
+  },
+);
 
 function pageData(
   over: Partial<AnalyticsFacts> = {},
   page: Partial<AnalyticsPageData> = {},
 ): AnalyticsPageData {
   const facts: AnalyticsFacts = {
-    range: "week",
+    window: "this-week",
+    grain: "day",
     span: SPAN,
     buckets: BUCKETS,
     current: { tasksCompleted: 24, projectsCompleted: 3, goalsCompleted: 0 },
@@ -53,11 +69,20 @@ function pageData(
     })),
     overduePrevious: 12,
     overdueAvailable: true,
+    measuredGoals: [],
+    measuredGoalsBounded: false,
+    measuredGoalsAvailable: true,
+    goalContributions: [],
+    seriesBounded: false,
+    seriesBound: null,
+    overdueMoments: 0,
     ...over,
   };
   return {
     model: evaluateAnalytics(facts),
-    range: facts.range,
+    window: facts.window,
+    grain: facts.grain,
+    grains: ["day"],
     rangeLabel: "4 August 2026 – 10 August 2026",
     bucketLabels: BUCKETS.map((bucket) => bucket.endIso),
     bucketShortLabels: BUCKETS.map((bucket) => bucket.endIso.slice(5)),
@@ -112,16 +137,92 @@ describe("Analytics screen (UIX-05)", () => {
     expect(screen.queryByText(/%\s*vs/)).toBeNull();
   });
 
-  it("offers the three spans as the surface's one view rail", () => {
+  it("offers every Insight window as the surface's one view rail", () => {
     renderScreen(pageData());
-    const rail = screen.getByRole("group", { name: "Analytics range" });
+    const rail = screen.getByRole("group", { name: "Insight window" });
     expect(within(rail).getByRole("link", { name: /7 days/ })).toHaveAttribute(
       "href",
-      "/analytics",
+      "/analytics?window=this-week",
     );
+    // The DEFAULT window carries no parameter, so two equivalent states always
+    // produce the same link.
     expect(
       within(rail).getByRole("link", { name: /12 weeks/ }),
-    ).toHaveAttribute("href", "/analytics?range=quarter");
+    ).toHaveAttribute("href", "/analytics");
+    expect(
+      within(rail).getByRole("link", { name: /24 months/ }),
+    ).toHaveAttribute("href", "/analytics?window=24-months");
+  });
+
+  /*
+   * V2.9 INS-03 — changing the WINDOW drops the grain.
+   *
+   * A grain the new window cannot hold would otherwise be silently substituted
+   * by the loader while the URL kept claiming it, which is the page describing
+   * a series it is not showing.
+   */
+  it("drops the grain when the window changes", () => {
+    renderScreen(
+      pageData({}, { window: "12-months", grain: "week", grains: ["week"] }),
+      "/analytics?window=12-months&grain=week",
+    );
+    const rail = screen.getByRole("group", { name: "Insight window" });
+    expect(within(rail).getByRole("link", { name: /7 days/ })).toHaveAttribute(
+      "href",
+      "/analytics?window=this-week",
+    );
+  });
+
+  /*
+   * The grain control offers only the grains the window can actually hold, and
+   * is absent entirely where there is nothing to choose — a control with one
+   * option is a label pretending to be a choice.
+   */
+  it("offers the grain only where the window has more than one", () => {
+    const { unmount } = renderScreen(pageData());
+    expect(screen.queryByRole("group", { name: "Insight grain" })).toBeNull();
+    unmount();
+
+    renderScreen(
+      pageData(
+        {},
+        { window: "12-weeks", grain: "week", grains: ["day", "week"] },
+      ),
+    );
+    const control = screen.getByRole("group", { name: "Insight grain" });
+    expect(within(control).getByRole("link", { name: "Daily" })).toBeTruthy();
+    expect(within(control).getByRole("link", { name: "Weekly" })).toBeTruthy();
+    expect(within(control).queryByRole("link", { name: "Monthly" })).toBeNull();
+  });
+
+  /*
+   * V2.9 INS-03 — Projects and Goals completed get their own compact lines
+   * rather than a third and fourth line on the Tasks plot: a shared axis would
+   * flatten them into the baseline, and the figure is always in words beside
+   * the shape.
+   */
+  it("gives Projects and Goals their own line, with the figure in words", () => {
+    renderScreen(
+      pageData({
+        series: BUCKETS.map((bucket, index) => ({
+          key: bucket.key,
+          tasksCompleted: index + 1,
+          projectsCompleted: index % 2,
+          goalsCompleted: 0,
+        })),
+      }),
+    );
+    const list = screen.getByRole("list", { name: "Also completed" });
+    expect(within(list).getByText("Projects completed")).toBeInTheDocument();
+    expect(within(list).getByText("3")).toBeInTheDocument();
+    // Absence renders less: a series with no completions is not drawn at all,
+    // because a flat line at zero asserts a shape a missing row says better.
+    expect(within(list).queryByText("Goals completed")).toBeNull();
+  });
+
+  it("draws no secondary lines at all when neither had a completion", () => {
+    renderScreen(pageData());
+    expect(screen.queryByRole("list", { name: "Also completed" })).toBeNull();
   });
 
   // Horizontal proportion bars, not a donut — and never colour alone.
@@ -252,5 +353,114 @@ describe("Analytics screen (UIX-05)", () => {
     expect(
       screen.getByText(/attributed to the Area its Project belongs to today/),
     ).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.9 INS-03 — the measured-Goal series                                      */
+/* -------------------------------------------------------------------------- */
+
+describe("the Goals panel", () => {
+  const GOAL = {
+    goalId: "g1",
+    title: "Reach 70 kg",
+    to: "/goals/g1",
+    unit: "kg",
+    bounded: false,
+    points: [
+      { key: "2026-06-01", value: 85 },
+      { key: "2026-07-01", value: 82 },
+      { key: "2026-08-01", value: 79 },
+    ],
+  };
+
+  it("states each Goal's reading in words beside its shape", () => {
+    renderScreen(pageData({ measuredGoals: [GOAL] }));
+    const list = screen.getByRole("list", { name: "Goals" });
+    expect(
+      within(list).getByRole("link", { name: "Reach 70 kg" }),
+    ).toHaveAttribute("href", "/goals/g1");
+    expect(within(list).getByText(/85 → 79/)).toBeInTheDocument();
+    expect(within(list).getByText("3 readings")).toBeInTheDocument();
+    // The sparkline is the one chart in DalyHub that is decoration: it always
+    // sits beside the same figures in text, so it is hidden from assistive tech.
+    expect(list.querySelector("[aria-hidden='true']")).not.toBeNull();
+  });
+
+  // ADR-079 d11 — a bounded series says so where it is drawn, never elsewhere.
+  it("says a compact series is the RECENT readings, not all of them", () => {
+    renderScreen(pageData({ measuredGoals: [{ ...GOAL, bounded: true }] }));
+    expect(screen.getByText("3 most recent readings")).toBeInTheDocument();
+  });
+
+  it("says a failed read rather than drawing an unmeasured workspace", () => {
+    renderScreen(pageData({ measuredGoalsAvailable: false }));
+    expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
+    expect(
+      screen.getByText(/This panel could not be read just now/),
+    ).toBeInTheDocument();
+  });
+
+  it("distinguishes no measured Goal from a failed read", () => {
+    renderScreen(pageData({ measuredGoals: [], current: null }));
+    expect(
+      screen.getByText(/No Goal has two readings yet/),
+    ).toBeInTheDocument();
+  });
+
+  /*
+   * A Goal with no measurement has no shape to draw, so it gets the Reviews'
+   * own sentence instead — and that sentence names its own window, because a
+   * Review period is not the span the owner selected.
+   */
+  it("gives an unmeasured Goal the across-Reviews sentence, with its window", () => {
+    renderScreen(
+      pageData({
+        measuredGoals: [],
+        goalContributions: [
+          {
+            goalId: "g2",
+            title: "Run a half marathon",
+            state: "moving",
+            count: 3,
+            of: 4,
+            everyReview: false,
+            states: [],
+          },
+        ],
+      }),
+    );
+    const list = screen.getByRole("list", { name: "Goals" });
+    expect(
+      within(list).getByText("Moving at 3 of your last 4 Reviews"),
+    ).toBeInTheDocument();
+    expect(
+      within(list).getByRole("link", { name: "Run a half marathon" }),
+    ).toHaveAttribute("href", "/goals/g2");
+  });
+
+  // One Goal, one row: a sparkline says more than a Review count would add.
+  it("never gives a measured Goal a second row", () => {
+    renderScreen(
+      pageData({
+        measuredGoals: [GOAL],
+        goalContributions: [
+          {
+            goalId: GOAL.goalId,
+            title: GOAL.title,
+            state: "moving",
+            count: 3,
+            of: 4,
+            everyReview: false,
+            states: [],
+          },
+        ],
+      }),
+    );
+    const list = screen.getByRole("list", { name: "Goals" });
+    expect(
+      within(list).getAllByRole("link", { name: GOAL.title }),
+    ).toHaveLength(1);
+    expect(within(list).queryByText(/of your last 4 Reviews/)).toBeNull();
   });
 });

@@ -160,6 +160,40 @@ completion-time authority `spine_records.completed_at`;
 `GoalMeasurementRepository.listMeasurementSeries`), because a history read is a
 read of a store.
 
+#### Insight, the first surface built on it (V2.9 INS-03)
+
+`/analytics` is where the vocabulary above became a control. Its own module
+kernel ([`insight-range.ts`](../../app/kernel/analytics/insight-range.ts))
+names six **windows** — 7 days, 4 weeks, 12 weeks, 6 months, 12 months, 24
+months — and both the window and the **grain** live in the URL, so a view can
+be shared and comes back identical (ADR-059). Three properties are worth
+knowing before adding to it:
+
+- **The grain control is computed, not listed.** `allowedGrains` runs
+  `requestedBucketCount` against `GRAIN_MAXIMUMS`, so the offer and the series'
+  bound cannot drift apart: 24 months is months-only, 12 months is
+  days-or-months. A grain the window cannot hold is never offered, and a URL
+  asking for one falls back to a grain that fits rather than shortening the
+  series in silence.
+- **The buckets and the range TOTAL are separate reads, deliberately.** A Task
+  can be completed, reopened and completed again, so the sum of the buckets is
+  not the total ([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
+  decision 4). Both read `spine_records.completed_at`; neither reads
+  `task.completed` Activity events.
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 8`,
+  asserted against real D1 at every window and grain the surface offers
+  ([`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)).
+  24 months at month grain costs what 7 days at day grain costs, because every
+  windowed read is one grouped statement whose shape is independent of the
+  window. A budget that grew with the window would mean a bucketed read had
+  gone back to a column per bucket.
+
+The one bound the surface could not lift is the overdue LEVEL series: its
+moments do not partition anything, so each needs its own `SUM(CASE …)` column,
+and two bound parameters per column against D1's ceiling of 100 caps it at
+`MAX_OVERDUE_MOMENTS = 40`. A long window reads the most recent 40 closes and
+the page **says so** — a stated bound rather than an invisible one.
+
 ### Module registry: self-registering module capabilities
 
 Modules self-register their capabilities through the **Module Registry** ([FND-06](../roadmap/ROADMAP_V2.md#-fnd-06--module-registry) / [ADR-013](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery), implementing [ADR-007](../decisions/ARCHITECTURE_DECISIONS.md#adr-007-module-registry)). Adding a module means adding a directory and a manifest — never editing a central switch statement. FND-06 builds the registry and its discovery mechanism only; the shell that consumes them is [FND-09](../roadmap/ROADMAP_V2.md#-fnd-09--app-shell-routing--auth).

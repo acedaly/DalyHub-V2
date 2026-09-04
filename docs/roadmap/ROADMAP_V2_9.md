@@ -55,7 +55,7 @@ This is the presumptive V2.9 that V2.8 named, confirmed by re-measurement —
   (`review-insights-context.ts:801-804`). `listSnapshotsBefore`
   (`d1-review-insight-repository.ts:537-557`) has zero production callers.
 - `listMeasurementSeries` (`d1-goal-measurement-repository.ts:583`) has zero
-  production callers ([DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--snapshot-half-delivered-2026-09-04-v29-ins-02)).
+  production callers ([DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--resolved-2026-09-04-v29-ins-02--ins-03)).
 - The kernel `ActivityRepository` (`app/kernel/activity/activity-repository.ts:53-113`)
   has **no time-window read** — its inputs carry `type?`, `limit?`, `cursor?`
   and no from/to — so five adapters carry their own windowed SQL
@@ -64,7 +64,7 @@ This is the presumptive V2.9 that V2.8 named, confirmed by re-measurement —
   to fit `MAX_TREND_PERIODS = 8` (`analytics-range.ts:20-27, 44-70`); its
   bucketer is module-private; "completions per week for twelve weeks" is not
   askable; Projects and Goals completed have no line
-  ([DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--primitive-delivered-2026-09-04-v29-ins-01)).
+  ([DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--resolved-2026-09-04-v29-ins-01--ins-03)).
 - `/today/activity` is a tested resource route with no UI
   ([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3)).
 
@@ -221,7 +221,7 @@ check keeps it that way.**
     own heading forms and the repository's own zero-finding state.
 - **Non-goals.** External links; prose style; a docs site.
 
-### ☑ INS-01 — The history kernel — **delivered 2026-09-04** — closes [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01), [DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--primitive-delivered-2026-09-04-v29-ins-01)
+### ☑ INS-01 — The history kernel — **delivered 2026-09-04** — closes [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01), [DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--resolved-2026-09-04-v29-ins-01--ins-03)
 
 **One vocabulary for "over time" — window, grain, bucket, series — and one
 kernel read for each store that has a time axis, with nothing stored.**
@@ -338,7 +338,7 @@ kernel read for each store that has a time axis, with nothing stored.**
 - **Non-goals.** A query language; a cache; any stored aggregate; any
   surface.
 
-### ☑ INS-02 — Across Reviews — **delivered 2026-09-04** — takes the `listSnapshotsBefore` half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--snapshot-half-delivered-2026-09-04-v29-ins-02)'s disposition
+### ☑ INS-02 — Across Reviews — **delivered 2026-09-04** — takes the `listSnapshotsBefore` half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--resolved-2026-09-04-v29-ins-02--ins-03)'s disposition
 
 **The Review reads more than one snapshot back, and says in words what
 changed across them.**
@@ -418,7 +418,7 @@ changed across them.**
 - **Non-goals.** A chart of health over time; any change to snapshot
   capture; monthly/quarterly *guided* Reviews (their own decision, unchanged).
 
-### ☐ INS-03 — Insight with a real range — closes the caller half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--snapshot-half-delivered-2026-09-04-v29-ins-02)
+### ☑ INS-03 — Insight with a real range — **delivered 2026-09-04** — closes the caller half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--resolved-2026-09-04-v29-ins-02--ins-03)
 
 **Analytics asks the question the owner has, over the window the owner
 chooses.**
@@ -458,6 +458,50 @@ chooses.**
   back identical.
 - **Non-goals.** Saved definitions (V2.13); any Finance or obligation series
   (their stores do not exist); a chart library; a dashboard; the nav label.
+
+**Delivered 2026-09-04.**
+
+- **`analytics-range.ts` is deleted, not aliased.** `ANALYTICS_RANGES`,
+  `rangeSpan`, `rangeBuckets` and `parseAnalyticsRange` are gone;
+  [`insight-range.ts`](../../app/kernel/analytics/insight-range.ts) holds the
+  six windows, the grain vocabulary and the spans, and the buckets come from
+  [the history kernel](../../app/kernel/history/index.ts). A thin alias would
+  have kept a second range vocabulary alive behind a re-export.
+- **The grain control offers only what the window can hold, computed.**
+  `allowedGrains` runs `requestedBucketCount` against `GRAIN_MAXIMUMS`, so 24
+  months is months-only and 12 months is days-or-months (53 week-buckets
+  exceeds the 52 maximum). A grain that would need bounding is never offered,
+  and `resolveInsightGrain` falls back to one the window holds rather than
+  shortening the series — the refusal the falsification asks for.
+- **Changing the window drops the grain**, so the URL can never claim a grain
+  the loader silently substituted. Both controls are ordinary links: Back
+  works, the page works with JavaScript off, and the view can be shared.
+- **Three completion series, reading the right authorities.** Tasks from
+  `countCompletedInBuckets` over `spine_records.completed_at`; Projects and
+  Goals from `countByTypeInBuckets` over the Activity stream, in the same
+  event semantics their totals use. The range TOTAL stays its own window read,
+  never the sum of the buckets — proved by a reopened-and-recompleted Task
+  counting once in both, and a deleted one leaving both.
+- **The Goals panel closes DEBT-212's caller half.** Every measured Goal gets a
+  compact `listMeasurementSeries` series with its bound stated; a Goal with one
+  reading is dropped rather than drawn as a flat line; and a Goal with no
+  measurement gets INS-02's across-Reviews sentence instead, which names its
+  own window because a Review period is not the span the owner selected.
+- **One bound survived, and the page says so.** The overdue LEVEL read could
+  not be lifted the way the counting reads were — its moments do not partition
+  anything, so each needs its own `SUM(CASE …)` column, and two bound
+  parameters per column against D1's ceiling of 100 puts the limit at
+  `MAX_OVERDUE_MOMENTS = 40`. A 366-day or 52-week window reads the most recent
+  40 closes, and `overdueMoments` carries that number into a note on the
+  surface. A stated bound replacing an invisible one is the whole of DEBT-239.
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 8`,
+  asserted in [`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)
+  against the real D1 at **every** window and grain the surface offers — 24
+  months at month grain costs exactly what 7 days at day grain costs.
+- **The page is a page.** The shared collection loading signal drives a
+  dashboard-shaped skeleton (`AnalyticsSkeleton`) rather than the shared column
+  of record cards, because a ghost that promises a list and resolves into
+  panels is worse than none.
 
 ### ☐ INS-04 — What changed — closes [DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3)
 
@@ -571,11 +615,11 @@ every entry it touched a dated disposition.
 | Entry | Severity | Disposition |
 |---|---|---|
 | **DEBT-238** — the kernel Activity contract has no window read | P3 | **Raised · CLOSED by INS-01 (2026-09-04)**, with its own measurement corrected |
-| **DEBT-239** — three Analytics presets, an inherited eight-bucket cap, no shared series primitive | P3 | **Raised · ◐ primitive delivered by INS-01 (2026-09-04)**; the range is **INS-03**'s |
+| **DEBT-239** — three Analytics presets, an inherited eight-bucket cap, no shared series primitive | P3 | **Raised · ☑ resolved by INS-01 + INS-03 (2026-09-04)** |
 | **DEBT-240** — an obligation cannot exist without an Asset and carries no amount | P3 | **Raised · owner V2.10 LIFE ADMIN** — not taken here |
 | **DEBT-241** — no docs link/anchor check; 447 broken local links | P2 | **Raised · CLOSED by INS-00 (2026-09-04)**; the eleven in `ROADMAP_V2_8.md` repaired by the defining pass |
 | **DEBT-242** — no workspace or account deletion path | P3 | **Raised · owner V2.16 CONSOLIDATE**; re-rated at V2.12's definition if Finance's pass finds it must precede money |
-| DEBT-212 · DEBT-103 | P3 | **Taken by INS-02/INS-03 and INS-04** |
+| DEBT-212 · DEBT-103 | P3 | DEBT-212 **☑ resolved by INS-02 + INS-03 (2026-09-04)**; DEBT-103 is **INS-04**'s |
 | DEBT-35 | P3 | **Re-homed**: attachments → V2.11; renewals and reminders for non-Asset things → V2.10; the entry closes empty as it always said it would |
 | DEBT-198 | P2 | **Owner-held, unchanged, and now a hard gate for V2.12** — recorded on the entry |
 | DEBT-237 · DEBT-213 · DEBT-91 · DEBT-92 · DEBT-93 | P3 | **The V2.14 sequence**: gate, registry, fact block, then the Weekly Review assistant live; unchanged in order, re-dated |
