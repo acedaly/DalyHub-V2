@@ -814,6 +814,49 @@ tab that can render empty if a revalidation does not happen. A weekly page payin
   390/1280/1440 with no horizontal overflow, axe in light and dark on both
   surfaces, and keyboard reach.
 
+## Across recent Reviews (V2.9 INS-02, 2026-09-04)
+
+The product has written one snapshot per completed Review since REVIEW-03 —
+Project states, Goal contribution classifications and carry-over ids — and read
+exactly one of them back. Every fact below was already stored and unreadable.
+
+`ReviewInsightRepository.listSnapshotSeries(reviewId, n)` returns the anchor
+Review's snapshot and the ones before it, oldest first, in ONE statement, with
+the **same-type rule enforced in SQL** — a monthly Review never appears in a
+weekly Review's series, because a period four times the length would make "at
+risk in 3 of the last 4" a comparison of unlike things that looks exactly like
+a comparison of like ones.
+
+[`across-reviews.ts`](../../app/kernel/review-insights/across-reviews.ts) reads
+that series into three facts, rendered as an **"Across recent Reviews"** section
+of the existing evidence panel:
+
+| Fact | When it appears | What it says |
+|---|---|---|
+| Project health across Reviews | only when the Project's state **differs** across the series (ADR-079 d8/d9) | "Kitchen renovation: At risk at 3 of the last 4 Reviews", with the states it held |
+| Goal contribution across Reviews | when the Goal appears in two or more snapshots | "Moving at 5 of your last 6 Reviews" / "No contribution path at every one" |
+| Repeated carry-over | when a Task carried over at **every** Review in the series | the commitments named in prose, with one door to `/tasks?system=overdue` |
+
+Four rules it inherits, each load-bearing:
+
+- **A Review that recorded no reading is skipped, never counted as a state.** A
+  Project with two readings across four Reviews says "2 of the 2 that recorded
+  one" (RECALL-04 / DEBT-234).
+- **A missing snapshot shrinks the window rather than leaving a hole.** The
+  sentence says the N the series actually holds (ADR-079 d5).
+- **Every title is live, through the stored id.** Snapshots hold ids, states and
+  counts and never a title, so a renamed record reads under its current name and
+  a deleted one drops out (ADR-079 d3).
+- **No score.** "3 of the last 4" is a count of Reviews, stated as one.
+
+**It cost no statement.** `listSnapshotSeries` replaced the single `getSnapshot`
+read, and the previous snapshot is derived from the series with the old
+semantics exactly — the immediately prior Review's, or null. The evidence load's
+budget stays at **17**. The guided flow's Goals step pays one more (12 → 13,
+declared) for the same read, because the guided flow loads one step per request,
+and that read is what gives every Goal in the ritual its
+`contributionAcrossReviews` line (ADR-111 d6).
+
 Evidence set: `docs/design/assets/review-03-2026-08/` (the folder was not committed;
 the browser cases above record what the captures showed).
 

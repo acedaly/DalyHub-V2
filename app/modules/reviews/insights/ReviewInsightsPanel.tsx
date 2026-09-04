@@ -301,6 +301,20 @@ export function ReviewInsightsPanel({
         </Section>
       )}
 
+      {insights.acrossReviews.length > 0 ? (
+        <Section
+          id="across"
+          heading="Across recent Reviews"
+          headingLevel={headingLevel}
+        >
+          <ul className="dh-insights__list">
+            {insights.acrossReviews.map((insight) => (
+              <InsightRow key={insight.id} insight={insight} />
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
       {insights.trends.length > 0 ? (
         <Section
           id="trend"

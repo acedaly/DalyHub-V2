@@ -39,6 +39,7 @@
 
 import type { GoalAlignment, GoalMovement } from "~/kernel/alignment";
 import type { GoalCondition, GoalProgressEvaluation } from "~/kernel/goals";
+import type { GoalContributionAcrossReviews } from "~/kernel/review-insights";
 
 import { goalRowValue } from "./goal-progress-view";
 
@@ -81,6 +82,20 @@ export interface GoalStory {
   readonly targetDate: string | null;
   /** The structural contribution, where the surface reads it. */
   readonly contribution: GoalStoryContribution | null;
+  /**
+   * V2.9 INS-02 — how this Goal's contribution has been classified ACROSS the
+   * owner's recent Reviews, or `null` when the surface did not ask.
+   *
+   * `null` here means the same thing it means on `alignment` and `movement`:
+   * this surface did not read it, never "there is none". The Review's Goals
+   * step reads it because the snapshot series is already loaded there for the
+   * evidence panel; the Area record, `/goals` and search do not, because
+   * reading it would mean a workspace-wide snapshot read on three routes to
+   * add one line — a cost no surface has asked for. The story composes it
+   * WHEREVER a caller supplies it, which is what ADR-111 decision 6 requires:
+   * one story, told from one place, showing what each surface asked for.
+   */
+  readonly contributionAcrossReviews: GoalContributionAcrossReviews | null;
 }
 
 /**
@@ -100,6 +115,8 @@ export const GOAL_STORY_FACT_KEYS = [
   "movementPeriodEnd",
   "condition",
   "targetDate",
+  "contributionAcrossReviews",
+  "contributionAcrossReviewsOf",
 ] as const;
 
 export type GoalStoryFactKey = (typeof GOAL_STORY_FACT_KEYS)[number];
@@ -134,6 +151,11 @@ export function goalStoryFacts(story: GoalStory): GoalStoryFacts {
     // has spoken about and one explicitly returned to the fold compare equal.
     condition: story.condition ?? "pursuing",
     targetDate: story.targetDate,
+    // V2.9 INS-02 — the classification and the number of Reviews it was read
+    // over. Both are projected so a surface can never show the state without
+    // the window that produced it (ADR-079 decision 6).
+    contributionAcrossReviews: story.contributionAcrossReviews?.state ?? null,
+    contributionAcrossReviewsOf: story.contributionAcrossReviews?.of ?? null,
   };
 }
 

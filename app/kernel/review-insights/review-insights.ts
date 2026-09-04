@@ -40,6 +40,13 @@ import {
 } from "~/kernel/project-health";
 
 import {
+  MAX_REPEATED_CARRY_OVER,
+  MIN_ACROSS_REVIEWS,
+  readAcrossReviews,
+} from "./across-reviews";
+import {
+  boundedMeasure,
+  exactMeasure,
   measureLabel,
   type InsightMeasure,
   type PeriodCompletionPoint,
@@ -49,6 +56,7 @@ import {
 import type {
   ReviewInsightSnapshot,
   SnapshotGoalContribution,
+  StoredReviewInsightSnapshot,
 } from "./review-insight-snapshot";
 
 /* -------------------------------------------------------------------------- */
@@ -434,6 +442,13 @@ export interface ReviewInsights {
   readonly attention: readonly Insight[];
   /** Which Areas received completed work, and which received none. */
   readonly distribution: readonly Insight[];
+  /**
+   * V2.9 INS-02 — what the SERIES of stored snapshots says that one cannot: a
+   * Project's health across several Reviews, a Goal's contribution across them,
+   * and the commitments that carried over at every one. Empty when the series
+   * is shorter than two Reviews, or when nothing in it changed.
+   */
+  readonly acrossReviews: readonly Insight[];
   /** Small bounded trends over recent Reviews. */
   readonly trends: readonly InsightTrend[];
   /** Calm sentences about the limits of what is shown. Never a disclaimer wall. */
@@ -494,6 +509,13 @@ export interface ReviewInsightsInput {
   readonly seriesShortLabels?: Readonly<Record<string, string>>;
   /** The key in `series` that is this Review's own period. */
   readonly currentSeriesKey: string;
+  /**
+   * V2.9 INS-02 — the snapshots of this Review and the ones before it, oldest
+   * first (`listSnapshotSeries`). Absent, or shorter than two, produces no
+   * across-Reviews section at all — which is the point: one Review is the
+   * period this panel is already about, not a series.
+   */
+  readonly snapshotSeries?: readonly StoredReviewInsightSnapshot[];
   /**
    * The owner's date format, for the plan account's per-Task reasons. Supplied
    * by the caller like every other label on this input, so the evaluator formats
@@ -708,6 +730,19 @@ const HEALTH_LABELS: Readonly<Record<ProjectHealthState, string>> = {
   blocked: "Waiting on something",
   at_risk: "At risk",
   completed: "Completed",
+};
+
+/**
+ * The tone each health state carries when it is the SUBJECT of a claim rather
+ * than one end of a transition. `danger` is absent, as everywhere in this
+ * model: nothing in a Review is an emergency (ADR-079 decision 6).
+ */
+const HEALTH_TONES: Readonly<Record<ProjectHealthState, InsightTone>> = {
+  on_track: "success",
+  stale: "info",
+  blocked: "info",
+  at_risk: "warning",
+  completed: "neutral",
 };
 
 function buildProjectChanges(input: ResolvedInput): ProjectChangeInsight[] {
@@ -1200,6 +1235,112 @@ function buildHabitConsistency(input: ResolvedInput): Insight | null {
   };
 }
 
+/* -- Across Reviews (V2.9 INS-02) ------------------------------------------ */
+
+/**
+ * What several Reviews say that one cannot.
+ *
+ * Every fact names its window in words — "over your last 4 Reviews, since 9
+ * August" — with the N the series ACTUALLY holds, because a Review whose
+ * snapshot was never captured is absent from it rather than counted as an
+ * unknown (ADR-079 decision 5). Titles come from today's live facts through the
+ * stored id, never from the snapshot (ADR-079 decision 3), so a renamed record
+ * reads under its current name and a deleted one drops out silently.
+ *
+ * `alreadyReported` carries the Projects the one-step health section already
+ * named, so a Project is described in ONE place — the rule `buildAttention`
+ * follows for the same reason.
+ *
+ * The carry-over fact names its commitments in PROSE and offers one door that
+ * works, rather than a link per Task: `/tasks?task=…` is a parameter nothing
+ * reads (the Tasks drawer contract is `?drawer=task:<id>`), and this section
+ * will not add a seventh caller of a dead link. That pre-existing defect spans
+ * the AI, Plan and Reviews surfaces, so it is recorded rather than fixed here.
+ */
+function buildAcrossReviews(
+  input: ResolvedInput,
+  alreadyReported: ReadonlySet<string>,
+): Insight[] {
+  const series = input.snapshotSeries ?? [];
+  if (series.length < MIN_ACROSS_REVIEWS) return [];
+
+  const facts = readAcrossReviews({
+    series,
+    projects: input.facts.state.projects.map((project) => ({
+      id: project.id,
+      title: project.title,
+    })),
+    goals: input.facts.state.goals.map((goal) => ({
+      id: goal.id,
+      title: goal.title,
+    })),
+    tasks: input.facts.state.carryOver.map((task) => ({
+      id: task.id,
+      title: task.title,
+    })),
+  });
+
+  const since =
+    facts.sinceIso === null
+      ? null
+      : (input.formatDay?.(facts.sinceIso) ?? facts.sinceIso);
+  /** The window, in words: "over your last 4 Reviews, since 9 August". */
+  const over = (of: number) =>
+    since === null
+      ? `over your last ${plural(of, "Review", "Reviews")}`
+      : `over your last ${plural(of, "Review", "Reviews")}, since ${since}`;
+
+  const insights: Insight[] = [];
+
+  for (const project of facts.projects) {
+    if (alreadyReported.has(project.projectId)) continue;
+    insights.push({
+      id: `across.project.${project.projectId}`,
+      tone: HEALTH_TONES[project.state],
+      label: `${project.title}: ${HEALTH_LABELS[project.state]} at ${project.count} of the last ${plural(project.of, "Review", "Reviews")}`,
+      reason: `Its health has not held one state ${over(project.of)} — ${project.states
+        .map((state) => HEALTH_LABELS[state].toLocaleLowerCase())
+        .join(", ")}.`,
+      measure: exactMeasure(project.count),
+      links: [projectLink(project.projectId, project.title)],
+      entityIds: [project.projectId],
+    });
+  }
+
+  for (const goal of facts.goals) {
+    const label = GOAL_CONTRIBUTION_LABELS[goal.state];
+    insights.push({
+      id: `across.goal.${goal.goalId}`,
+      tone: GOAL_CONTRIBUTION_TONES[goal.state],
+      label: goal.everyReview
+        ? `${goal.title}: ${label} at every one of your last ${plural(goal.of, "Review", "Reviews")}`
+        : `${goal.title}: ${label} at ${goal.count} of the last ${plural(goal.of, "Review", "Reviews")}`,
+      reason: `Read from the contribution recorded at each Review ${over(goal.of)}.`,
+      measure: exactMeasure(goal.count),
+      links: [goalLink(goal.goalId, goal.title)],
+      entityIds: [goal.goalId],
+    });
+  }
+
+  if (facts.repeatedCarryOver.length > 0) {
+    const count = facts.repeatedCarryOver.length;
+    const measure = facts.repeatedCarryOverBounded
+      ? boundedMeasure(count, MAX_REPEATED_CARRY_OVER)
+      : exactMeasure(count);
+    insights.push({
+      id: "across.carry_over",
+      tone: "warning",
+      label: `${measureLabel(measure)} ${count === 1 ? "commitment" : "commitments"} carried over at every one of your last ${plural(facts.reviews, "Review", "Reviews")}`,
+      reason: `${nameList(facts.repeatedCarryOver.map((task) => task.title))} ${count === 1 ? "was" : "were"} already carrying over at each Review ${over(facts.reviews)}.`,
+      measure,
+      links: [taskLink("overdue", "Open overdue Tasks")],
+      entityIds: facts.repeatedCarryOver.map((task) => task.taskId),
+    });
+  }
+
+  return insights;
+}
+
 /* -- Notes ----------------------------------------------------------------- */
 
 function buildNotes(input: ResolvedInput): string[] {
@@ -1278,6 +1419,10 @@ export function evaluateReviewInsights(
     new Set(projectChanges.map((change) => change.projectId)),
   );
   const distribution = buildDistribution(input);
+  const acrossReviews = buildAcrossReviews(
+    input,
+    new Set(projectChanges.map((change) => change.projectId)),
+  );
   const trends = buildTrends(input);
 
   const isEmpty =
@@ -1288,6 +1433,7 @@ export function evaluateReviewInsights(
     projectChanges.length === 0 &&
     attention.length === 0 &&
     distribution.length === 0 &&
+    acrossReviews.length === 0 &&
     trends.length === 0;
 
   return {
@@ -1300,6 +1446,7 @@ export function evaluateReviewInsights(
     projectChanges,
     attention,
     distribution,
+    acrossReviews,
     trends,
     notes: isEmpty ? buildNotes(input).slice(0, 1) : buildNotes(input),
     isEmpty,

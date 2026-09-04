@@ -206,6 +206,9 @@ export async function loadGoalStories(
       condition: details?.condition ?? null,
       targetDate: details?.targetDate ?? null,
       contribution: toContribution(contribution),
+      // The shared loader reads no Review snapshots; a caller that has the
+      // series composes it in (V2.9 INS-02).
+      contributionAcrossReviews: null,
       iconKey: details?.iconKey ?? null,
       colourSlot: details?.colourSlot ?? null,
     });

@@ -45,7 +45,10 @@ import {
 
 /** The product default, used only when a caller did not resolve the owner's. */
 const DEFAULT_FIRST_DAY_OF_WEEK = DEFAULT_APP_PREFERENCES.firstDayOfWeek;
-import type { ReviewInsights } from "~/kernel/review-insights";
+import {
+  readAcrossReviews,
+  type ReviewInsights,
+} from "~/kernel/review-insights";
 import type { WorkspaceScope } from "~/platform/workspaces";
 
 import { loadReviewInsights } from "../insights/review-insights-context";
@@ -140,8 +143,15 @@ export const REVIEW_GUIDE_QUERY_BUDGET: Readonly<
    * Every one is grouped over the page's ids and flat in the number of Goals —
    * asserted by `test/kernel/review-guide-context.test.ts`, which drives the
    * step over a three-Goal and a ten-Goal workspace and demands the same count.
+   *
+   * V2.9 INS-02 took it from 12 to 13, STATED rather than absorbed, for the
+   * same reason STEER-03 stated its six: **one** grouped `listSnapshotSeries`
+   * read, flat in the number of Reviews the workspace holds, which gives every
+   * Goal in the step its contribution ACROSS the owner's recent Reviews. It is
+   * the same read the evidence step makes, on the same contract; the two steps
+   * are separate loads, so it is paid once in each rather than shared.
    */
-  alignment: 12,
+  alignment: 13,
   reflection: 1,
   focus: 2,
   complete: 1,
@@ -667,32 +677,56 @@ async function readAlignment(
      * What it costs is stated and asserted rather than absorbed — the FOLLOW-01
      * precedent. See `REVIEW_GUIDE_QUERY_BUDGET.alignment`.
      */
-    const [stories, areaPage, activeProjects] = await Promise.all([
-      loadGoalStories(
-        scope,
-        goalItems.map((goal) => ({
-          id: goal.id,
-          title: goal.title,
-          createdAt: goal.createdAt,
-          completedAt: goal.completedAt,
-        })),
-        {
-          now: input.now,
-          timezone: input.timezone,
-          todayIso: input.todayIso,
-          firstDayOfWeek: input.firstDayOfWeek ?? DEFAULT_FIRST_DAY_OF_WEEK,
-          evaluation,
-          recentWindowStartIso,
-        },
-      ),
-      scope.areas.listAreas({ limit: REVIEW_GUIDE_LIMITS.areas + 1 }),
-      scope.projects.listProjects({
-        state: "open",
-        workflowStatus: "active",
-        orderBy: "recent",
-        limit: REVIEW_GUIDE_LIMITS.projects,
-      }),
-    ]);
+    const [stories, areaPage, activeProjects, snapshotSeries] =
+      await Promise.all([
+        loadGoalStories(
+          scope,
+          goalItems.map((goal) => ({
+            id: goal.id,
+            title: goal.title,
+            createdAt: goal.createdAt,
+            completedAt: goal.completedAt,
+          })),
+          {
+            now: input.now,
+            timezone: input.timezone,
+            todayIso: input.todayIso,
+            firstDayOfWeek: input.firstDayOfWeek ?? DEFAULT_FIRST_DAY_OF_WEEK,
+            evaluation,
+            recentWindowStartIso,
+          },
+        ),
+        scope.areas.listAreas({ limit: REVIEW_GUIDE_LIMITS.areas + 1 }),
+        scope.projects.listProjects({
+          state: "open",
+          workflowStatus: "active",
+          orderBy: "recent",
+          limit: REVIEW_GUIDE_LIMITS.projects,
+        }),
+        /*
+         * V2.9 INS-02 — the snapshot series, so each Goal's story can carry its
+         * contribution ACROSS recent Reviews (ADR-111 decision 6: every surface
+         * that presents a Goal's progress composes the ONE story).
+         *
+         * Read here rather than passed from the evidence step because the guided
+         * flow loads one step at a time — they are separate requests. Fails soft:
+         * an unreadable series leaves the line absent, never wrong.
+         */
+        scope.reviewInsights
+          .listSnapshotSeries(input.review.id, REVIEW_GUIDE_LIMITS.goals)
+          .catch(() => []),
+      ]);
+
+    // The classification per Goal, from the series that was just read. An empty
+    // or single-Review series yields an empty map, and every line is absent.
+    const acrossByGoal = new Map(
+      readAcrossReviews({
+        series: snapshotSeries,
+        projects: [],
+        goals: goalItems.map((goal) => ({ id: goal.id, title: goal.title })),
+        tasks: [],
+      }).goals.map((entry) => [entry.goalId, entry]),
+    );
 
     const goals = goalItems.flatMap<ReviewGoalAlignmentSummary>((goal) => {
       const story = stories.get(goal.id);
@@ -709,7 +743,10 @@ async function readAlignment(
           alignment,
           contributingProjects: story.contribution?.total ?? 0,
           activeContributingProjects: story.contribution?.active ?? 0,
-          story,
+          story: {
+            ...story,
+            contributionAcrossReviews: acrossByGoal.get(goal.id) ?? null,
+          },
         },
       ];
     });

@@ -9,6 +9,20 @@
  */
 
 export {
+  MAX_ACROSS_REVIEWS_GOALS,
+  MAX_ACROSS_REVIEWS_PROJECTS,
+  MAX_REPEATED_CARRY_OVER,
+  MIN_ACROSS_REVIEWS,
+  goalContributionAcrossReviewsLine,
+  readAcrossReviews,
+  type AcrossReviewsFacts,
+  type AcrossReviewsSubject,
+  type GoalContributionAcrossReviews,
+  type ProjectHealthAcrossReviews,
+  type RepeatedCarryOver,
+} from "./across-reviews";
+
+export {
   INSIGHT_EXACTNESS,
   exactMeasure,
   boundedMeasure,

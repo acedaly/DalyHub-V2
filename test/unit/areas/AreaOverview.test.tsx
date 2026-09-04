@@ -95,6 +95,7 @@ const goalStory: LoadedGoalStory = {
   condition: null,
   targetDate: null,
   contribution: { total: 1, completed: 0, active: 1 },
+  contributionAcrossReviews: null,
   iconKey: null,
   colourSlot: null,
 };

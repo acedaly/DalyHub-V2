@@ -20,6 +20,7 @@ import { describe, expect, it } from "vitest";
 import type { ReactElement } from "react";
 
 import { UNMEASURED_GOAL_PROGRESS } from "~/kernel/goals";
+import { goalContributionAcrossReviewsLine } from "~/kernel/review-insights";
 import { NO_NEXT_ACTION_TEXT } from "~/kernel/tasks";
 import { DrawerProvider } from "~/shared/drawer";
 import {
@@ -108,6 +109,7 @@ function story(over: Partial<GoalStory> = {}): GoalStory {
     condition: null,
     targetDate: "2026-12-31",
     contribution: { total: 2, completed: 1, active: 1 },
+    contributionAcrossReviews: null,
     ...over,
   };
 }
@@ -147,6 +149,56 @@ describe("the shared Goal-story row", () => {
     expect(wrapper.getAttribute("data-goal-progress-percent")).toBe("40");
     expect(wrapper.getAttribute("data-goal-condition")).toBe("pursuing");
     expect(wrapper.getAttribute("data-goal-movement-moved")).toBe("true");
+  });
+
+  it("projects the across-Reviews contribution as its state AND its window", () => {
+    // V2.9 INS-02 — a surface can never show the classification without the
+    // number of Reviews it was read over, because both are facts of the story.
+    const withSeries = story({
+      contributionAcrossReviews: {
+        goalId: "g1",
+        title: "Reach 70 kg",
+        state: "moving",
+        count: 5,
+        of: 6,
+        everyReview: false,
+        states: ["moving", "moving", "limited", "moving", "moving", "moving"],
+      },
+    });
+    const facts = goalStoryFacts(withSeries);
+    expect(facts.contributionAcrossReviews).toBe("moving");
+    expect(facts.contributionAcrossReviewsOf).toBe(6);
+
+    // A surface that did not ask projects null for both — the same meaning
+    // `alignment` and `movement` already carry, never "there is none".
+    const notAsked = goalStoryFacts(story());
+    expect(notAsked.contributionAcrossReviews).toBeNull();
+    expect(notAsked.contributionAcrossReviewsOf).toBeNull();
+  });
+
+  it("says the classification and the window in ONE set of words, from the kernel", () => {
+    expect(
+      goalContributionAcrossReviewsLine({
+        goalId: "g1",
+        title: "Reach 70 kg",
+        state: "moving",
+        count: 5,
+        of: 6,
+        everyReview: false,
+        states: [],
+      }),
+    ).toBe("Moving at 5 of your last 6 Reviews");
+    expect(
+      goalContributionAcrossReviewsLine({
+        goalId: "g1",
+        title: "Reach 70 kg",
+        state: "no_structure",
+        count: 4,
+        of: 4,
+        everyReview: true,
+        states: [],
+      }),
+    ).toBe("No contribution path at every one of your last 4 Reviews");
   });
 
   it("gives an unmeasured Goal no bar and no percentage", () => {

@@ -33,7 +33,7 @@
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
 **Programme status: V2.9 INSIGHT — in progress.** Five items, INS-00 … INS-04,
-in order; **INS-00 and INS-01 delivered 2026-09-04**.
+in order; **INS-00, INS-01 and INS-02 delivered 2026-09-04**.
 
 **Successor: V2.10 LIFE ADMIN, PLANNED** — see [the sequence](#the-remaining-v2-sequence).
 
@@ -55,7 +55,7 @@ This is the presumptive V2.9 that V2.8 named, confirmed by re-measurement —
   (`review-insights-context.ts:801-804`). `listSnapshotsBefore`
   (`d1-review-insight-repository.ts:537-557`) has zero production callers.
 - `listMeasurementSeries` (`d1-goal-measurement-repository.ts:583`) has zero
-  production callers ([DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3)).
+  production callers ([DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--snapshot-half-delivered-2026-09-04-v29-ins-02)).
 - The kernel `ActivityRepository` (`app/kernel/activity/activity-repository.ts:53-113`)
   has **no time-window read** — its inputs carry `type?`, `limit?`, `cursor?`
   and no from/to — so five adapters carry their own windowed SQL
@@ -338,7 +338,7 @@ kernel read for each store that has a time axis, with nothing stored.**
 - **Non-goals.** A query language; a cache; any stored aggregate; any
   surface.
 
-### ☐ INS-02 — Across Reviews — takes the `listSnapshotsBefore` half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3)'s disposition
+### ☑ INS-02 — Across Reviews — **delivered 2026-09-04** — takes the `listSnapshotsBefore` half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--snapshot-half-delivered-2026-09-04-v29-ins-02)'s disposition
 
 **The Review reads more than one snapshot back, and says in words what
 changed across them.**
@@ -376,10 +376,49 @@ changed across them.**
   count is asserted and flat in Review count; the Goal story's three
   surfaces (Area record, Review Goals step, search) show the same machine
   value; light and dark; 320 → 1440 plus the 195px zoom case; `axe` clean.
+- **Delivered 2026-09-04.** The Review reads a SERIES of snapshots and says, in
+  words, what changed across them.
+  - **The three facts** are built by `app/kernel/review-insights/across-reviews.ts`
+    — pure, reading no repository and formatting no date — and rendered as an
+    "Across recent Reviews" section of the existing evidence panel, so both
+    mount points (the guided flow's evidence step and the Review record's
+    Progress tab) gained it with no change of their own.
+  - **A Project appears only when its state DIFFERS** across the series, and a
+    Review that recorded NO reading is skipped rather than counted as one — so
+    a Project with two readings across four Reviews says "2 of the 2 that
+    recorded one" instead of inventing two (RECALL-04/DEBT-234). A Project the
+    one-step health section already named is not repeated.
+  - **Every title is live, through the stored id** (ADR-079 d3): the snapshots
+    hold ids only, and a record absent from today's facts is simply not named.
+  - **It cost NO statement.** `listSnapshotSeries` REPLACED the single
+    `getSnapshot` read, and the previous snapshot is derived from the series
+    with the old semantics exactly — the immediately prior Review's, or null,
+    never "the most recent Review that happens to have one".
+    `REVIEW_INSIGHTS_QUERY_BUDGET` stays at **17**, asserted against real D1.
+    The guided flow's Goals step pays **one** more (12 → 13, declared) for the
+    same read, because the guided flow loads one step per request.
+  - **The Goal story gained the line** (ADR-111 d6):
+    `GoalStory.contributionAcrossReviews`, projected into
+    `GOAL_STORY_FACT_KEYS` as the state AND the number of Reviews it was read
+    over, so no surface can show the classification without its window. It is
+    `null` where a surface did not ask — the same meaning `alignment` and
+    `movement` already carry — and populated in the Review's Goals step, which
+    is where the series is affordable. The words come from one kernel helper,
+    so two surfaces cannot phrase the same machine value differently.
+  - **Falsified.** Four Reviews with alternating Project states assert the
+    sentence names the count; deleting two snapshots makes the sentence shrink
+    to "the last 2 Reviews" rather than invent a state — and the pair the
+    falsification keeps is the pair whose states differ, because a Project that
+    held ONE state is correctly not a finding at all.
+  - **Two precisions the disposition predicted differently**, recorded on
+    DEBT-212: the caller is `listSnapshotSeries`, so `listSnapshotsBefore`
+    is superseded and *still has no caller*; and the `/views` boundary read did
+    not converge, because routing a `LIMIT 1` read of the same table through
+    another repository's contract crosses a boundary for no measured gain.
 - **Non-goals.** A chart of health over time; any change to snapshot
   capture; monthly/quarterly *guided* Reviews (their own decision, unchanged).
 
-### ☐ INS-03 — Insight with a real range — closes the caller half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3)
+### ☐ INS-03 — Insight with a real range — closes the caller half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--snapshot-half-delivered-2026-09-04-v29-ins-02)
 
 **Analytics asks the question the owner has, over the window the owner
 chooses.**

@@ -20,6 +20,7 @@ import { FormButton } from "~/shared/forms";
 import { AiWeeklyReviewSurface } from "~/shared/ai";
 import type { ReviewInsights } from "~/kernel/review-insights";
 import { AlignmentIndicator, GoalMovementLine } from "~/shared/alignment";
+import { goalContributionAcrossReviewsLine } from "~/kernel/review-insights";
 /*
  * STEER-03 — the SHARED Goal vocabulary. The Reviews module reaches it through
  * `~/shared`, never through `~/modules/goals`, and it renders the same
@@ -500,6 +501,22 @@ export function AlignmentStep({
                     ? "No active Project currently contributes to this Goal"
                     : `${goal.activeContributingProjects} of ${goal.contributingProjects} contributing Projects are active`}
                 </span>
+                {/*
+                 * V2.9 INS-02 — the one line the Goal story gained: how this
+                 * Goal's contribution has been classified ACROSS recent
+                 * Reviews. It states the count AND the window it counted over,
+                 * because a classification is never shown without the reason
+                 * that produced it. Absent when the workspace has fewer than
+                 * two snapshotted Reviews, which is an ordinary absence rather
+                 * than a finding.
+                 */}
+                {goal.story.contributionAcrossReviews ? (
+                  <span className="dh-review-guide__note">
+                    {goalContributionAcrossReviewsLine(
+                      goal.story.contributionAcrossReviews,
+                    )}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
