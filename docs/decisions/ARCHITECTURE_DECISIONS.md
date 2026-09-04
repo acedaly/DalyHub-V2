@@ -6091,7 +6091,7 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      shape independent of its window: measured at one statement for 365 daily
      buckets and for 52 weekly ones. A history read whose statement count grows
      with the window is a defect, and the budgets that pin this
-     (`ANALYTICS_QUERY_BUDGET = 8`, `REVIEW_INSIGHTS_QUERY_BUDGET = 17`) are
+     (`ANALYTICS_QUERY_BUDGET = 12`, `REVIEW_INSIGHTS_QUERY_BUDGET = 17`) are
      asserted against real D1 at every window a surface offers.
 
   4. **Reuse is justified by the QUESTION being identical, never by the SQL

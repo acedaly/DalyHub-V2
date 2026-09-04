@@ -223,6 +223,31 @@ describe("Analytics screen (UIX-05)", () => {
   });
 
   /*
+   * EVERY grain writes itself into the URL, including the first.
+   *
+   * An absent `?grain=` does not mean "daily" — it means "this window's own
+   * default", which is weekly for 12 weeks and daily for 4. A "Daily" link
+   * that merely dropped the parameter would hand back weekly on exactly the
+   * windows where the owner pressed it to get away from weekly, which is a
+   * control that silently does nothing.
+   */
+  it("makes every grain state itself in the URL, not just the non-default ones", () => {
+    renderScreen(
+      pageData(
+        {},
+        { window: "12-weeks", grain: "week", grains: ["day", "week"] },
+      ),
+    );
+    const control = screen.getByRole("group", { name: "Insight grain" });
+    expect(
+      within(control).getByRole("link", { name: "Daily" }),
+    ).toHaveAttribute("href", "/analytics?grain=day");
+    expect(
+      within(control).getByRole("link", { name: "Weekly" }),
+    ).toHaveAttribute("href", "/analytics?grain=week");
+  });
+
+  /*
    * V2.9 INS-03 — Projects and Goals completed get their own compact lines
    * rather than a third and fourth line on the Tasks plot: a shared axis would
    * flatten them into the baseline, and the figure is always in words beside

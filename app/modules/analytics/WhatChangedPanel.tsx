@@ -78,7 +78,12 @@ export function WhatChangedPanel({
         loadPage={loadPage}
         ariaLabel={`What changed, ${rangeLabel}`}
         maxHeight="28rem"
-        dayHeadingLevel={4}
+        /*
+         * The card's own title is an `h2` (the `DashboardCard` default under
+         * the page's `h1`), so the day headings inside it are `h3`. An `h4`
+         * here skips a level and axe is right to say so.
+         */
+        dayHeadingLevel={3}
       />
     </DashboardCard>
   );

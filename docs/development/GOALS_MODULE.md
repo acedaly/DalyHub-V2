@@ -1449,9 +1449,18 @@ rolled into a score:
 | **movement** | *"Did it move inside a NAMED window?"* | `evaluateGoalMovement` (FOLLOW-02) |
 | **condition** | *"Am I currently pursuing this?"* | the **owner** (STEER-02) |
 | **contribution** | *"What structure is advancing it?"* | `listGoalProjectContributions` |
+| **contribution across Reviews** (V2.9 INS-02) | *"How often has work reached it, over the last few Reviews?"* | `readAcrossReviews` over the stored Review snapshots |
 
 A Goal can be on track and unmoved; set aside and moving; aligned and behind.
 Every cross-combination stays expressible, and **no surface may collapse them**.
+
+The across-Reviews fact is `null` on a surface that did not ask for it — the
+same meaning `alignment` and `movement` already carry, never "there is none". A
+surface that shows it shows the classification AND the number of Reviews it was
+read over, in one sentence from the kernel
+(`goalContributionAcrossReviewsLine`), because both are facts of the story and a
+classification without its window is a claim without its reason (ADR-079 d6).
+Its window is REVIEWS, not the period the surface is otherwise about.
 
 ## Where the story lives
 

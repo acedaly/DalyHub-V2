@@ -180,13 +180,15 @@ knowing before adding to it:
   not the total ([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
   decision 4). Both read `spine_records.completed_at`; neither reads
   `task.completed` Activity events.
-- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 8`,
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 12`,
   asserted against real D1 at every window and grain the surface offers
   ([`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)).
   24 months at month grain costs what 7 days at day grain costs, because every
   windowed read is one grouped statement whose shape is independent of the
   window. A budget that grew with the window would mean a bucketed read had
-  gone back to a column per bucket.
+  gone back to a column per bucket. It is the FULL page: three of the reads
+  return before touching the database on a workspace with no Goals, so the
+  budget's fixture seeds Goals with readings rather than understating it.
 
 **"What changed" (V2.9 INS-04)** is the same window in events rather than
 figures. `/analytics/activity` is the ONE door onto the workspace-wide FND-05

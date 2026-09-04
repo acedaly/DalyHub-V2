@@ -39,7 +39,7 @@ const WINDOWS = [
   { label: "12 weeks", path: "/analytics" },
   { label: "6 months", path: "/analytics?window=6-months" },
   { label: "12 months", path: "/analytics?window=12-months" },
-  { label: "2 years", path: "/analytics?window=24-months" },
+  { label: "24 months", path: "/analytics?window=24-months" },
 ] as const;
 
 test.describe("UIX-05 — Analytics", () => {

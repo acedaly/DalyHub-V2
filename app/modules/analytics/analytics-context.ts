@@ -116,8 +116,14 @@ export const ANALYTICS_LIMITS = {
  * windowed read on this page is one grouped statement whose shape is
  * independent of the window (DEBT-239). A budget that grew with the window
  * would mean a bucketed read had gone back to a column per bucket.
+ *
+ * This is the FULL page: a workspace with Goals that carry measurements, so
+ * every conditional read fires. A workspace with no Goal at all costs less,
+ * because three of these return before touching the database rather than
+ * asking a question about an empty set — which is why the budget's fixture
+ * seeds Goals and readings, and why it would understate the page if it did not.
  */
-export const ANALYTICS_QUERY_BUDGET = 8;
+export const ANALYTICS_QUERY_BUDGET = 12;
 
 /** Everything the Analytics route hands the browser. Fully JSON-safe. */
 export interface AnalyticsPageData {

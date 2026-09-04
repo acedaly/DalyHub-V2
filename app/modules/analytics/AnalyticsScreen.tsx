@@ -149,6 +149,15 @@ export function AnalyticsScreen({
         }))}
         value={data.grain}
         label="Insight grain"
+        /*
+         * Every grain states itself in the URL, because an ABSENT `?grain=`
+         * does not mean the first option — it means "the window's own
+         * default", which is weekly for 12 weeks and daily for 4. A "Daily"
+         * link that merely dropped the param would do nothing at all on the
+         * windows whose default is already daily, and would hand back weekly
+         * on the ones where it is not.
+         */
+        alwaysWriteValue
       />
     ) : null;
 

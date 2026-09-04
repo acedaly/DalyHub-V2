@@ -498,7 +498,7 @@ chooses.**
   `MAX_OVERDUE_MOMENTS = 40`. A 366-day or 52-week window reads the most recent
   40 closes, and `overdueMoments` carries that number into a note on the
   surface. A stated bound replacing an invisible one is the whole of DEBT-239.
-- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 8`,
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 12`,
   asserted in [`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)
   against the real D1 at **every** window and grain the surface offers — 24
   months at month grain costs exactly what 7 days at day grain costs.

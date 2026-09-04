@@ -361,10 +361,17 @@ describe("the trend and the total agree, and both read completion time", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("the page's cost is stated, and does not grow with the window", () => {
+  /*
+   * A workspace with EVERY read's subject in it.
+   *
+   * The budget is only honest if every conditional read on the page actually
+   * fires: two of them (the measured-Goal series and the across-Reviews
+   * contributions) return early on a workspace with no Goals, so a fixture of
+   * bare completions would measure a smaller page than any real owner sees.
+   */
   async function seedYear() {
-    const area = await spineRepo(WS, "2024-06-01T00:00:00.000Z").createArea({
-      title: "Ops",
-    });
+    const spine = spineRepo(WS, "2024-06-01T00:00:00.000Z");
+    const area = await spine.createArea({ title: "Ops" });
     // A completion in each of thirty different weeks, spread across two years,
     // so every window under test has real rows in several of its buckets.
     for (let index = 0; index < 30; index += 1) {
@@ -377,6 +384,24 @@ describe("the page's cost is stated, and does not grow with the window", () => {
         "2024-06-01T00:00:00.000Z",
         day.toISOString(),
       );
+    }
+    // Two Goals with readings, so the Goal tally, the measurement series and
+    // the across-Reviews read all have something to do.
+    const measurements = makeGoalMeasurementRepository(makeContext(WS), {
+      clock: new FakeClock("2026-09-01T00:00:00.000Z").now,
+      idGenerator: nextEntityId,
+      activityIdGenerator: nextActivityId,
+    });
+    for (const title of ["Reach 70 kg", "Read 24 books"]) {
+      const goal = await spine.createGoal({ title, areaId: area.id });
+      await measurements.createMeasurement(goal.id, {
+        value: 10,
+        measuredOn: "2026-07-01",
+      });
+      await measurements.createMeasurement(goal.id, {
+        value: 14,
+        measuredOn: "2026-08-01",
+      });
     }
     return area;
   }
