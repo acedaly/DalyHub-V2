@@ -37,6 +37,7 @@
 import {
   MAX_CARRY_OVER_TASKS,
   MAX_CONTRIBUTION_ROWS,
+  MAX_OVERDUE_MOMENTS,
   MAX_TREND_PERIODS,
   parseReviewInsightSnapshot,
   serializeReviewInsightSnapshot,
@@ -205,7 +206,7 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
   async countOverdueAtPeriodEnd(
     requests: readonly PeriodCountRequest[],
   ): Promise<readonly PeriodOverdueResult[]> {
-    const wanted = requests.slice(0, MAX_TREND_PERIODS);
+    const wanted = requests.slice(0, MAX_OVERDUE_MOMENTS);
     if (wanted.length === 0) return [];
 
     /*
@@ -220,7 +221,9 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
      * the same single scan, rather than its own row.
      *
      * That is still one statement and one pass over the workspace's tasks; the
-     * column count is bounded by `MAX_TREND_PERIODS`. Only the column ALIAS
+     * column count is bounded by `MAX_OVERDUE_MOMENTS` — larger than the Review
+     * panel's display bound because this is a storage bound (two bound
+     * parameters per column against D1's ceiling of 100). Only the column ALIAS
      * index is generated, and it is an integer this method produced — every
      * date and instant is bound.
      */

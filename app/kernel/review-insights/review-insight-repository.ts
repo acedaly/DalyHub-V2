@@ -62,6 +62,26 @@ export interface PeriodOverdueResult {
  * is exactly the thing this limit exists to prevent. */
 export const MAX_TREND_PERIODS = 8;
 
+/**
+ * How many MOMENTS one overdue-level read may be asked about (V2.9 INS-03).
+ *
+ * Deliberately larger than `MAX_TREND_PERIODS`, and for a different reason.
+ * The Review panel's eight is a DISPLAY bound — a trend is a recent shape.
+ * This is a STORAGE bound: the overdue read is a level rather than a flow, so
+ * the moments do not partition anything and each gets its own `SUM(CASE …)`
+ * column over one scan. Two bound parameters per column against D1's ceiling of
+ * 100 puts the real limit near 48, and 40 leaves room while covering every
+ * window Insight offers except the longest daily and weekly ones — which say so
+ * rather than truncating quietly.
+ *
+ * It could NOT be lifted the way the counting reads were: those partition their
+ * window, so a bucket's boundaries can travel as JSON and be joined; a level
+ * asked at N moments genuinely needs N answers from one pass over the Tasks,
+ * and a JSON join would re-scan per moment instead. The column-per-moment shape
+ * is the cheap one, and its ceiling is the honest cost of that.
+ */
+export const MAX_OVERDUE_MOMENTS = 40;
+
 /** The upper bound on the contribution breakdown, per period. */
 export const MAX_CONTRIBUTION_ROWS = 100;
 
@@ -124,7 +144,8 @@ export interface ReviewInsightRepository {
    * a history table, which is a migration, which this read deliberately is not.
    *
    * One grouped statement regardless of how many moments are requested (capped
-   * at `MAX_TREND_PERIODS`); an empty request list performs no read at all.
+   * at `MAX_OVERDUE_MOMENTS` — a level read's storage bound, larger than the
+   * Review panel's display bound); an empty request list performs no read at all.
    */
   countOverdueAtPeriodEnd(
     requests: readonly PeriodCountRequest[],

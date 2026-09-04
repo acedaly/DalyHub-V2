@@ -84,6 +84,7 @@ export type {
 } from "./review-insights";
 
 export {
+  MAX_OVERDUE_MOMENTS,
   MAX_TREND_PERIODS,
   MAX_CONTRIBUTION_ROWS,
   MAX_CARRY_OVER_TASKS,
