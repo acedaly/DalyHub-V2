@@ -129,7 +129,7 @@ At the end of V2.9 the owner can:
   Reviews — beside the measurement trend it already plots;
 - open Insight (today's Analytics, same URL), choose a real window and a
   grain, and read Tasks, Projects and Goals completed per week or per month
-  for as far back as the workspace goes, with every figure naming its window
+  up to two years back, with every figure naming its window
   and its bound, plus a compact series for every measured Goal and a bounded
   list of what changed in that window;
 - trust that every one of those figures is computed once, in the database or
@@ -216,10 +216,21 @@ kernel read for each store that has a time axis, with nothing stored.**
   - `Series<Point>` — points with their bucket, a `bounded` flag and the
     bound's value, so a surface can never present a capped series as exact
     (ADR-079 d11).
-  - Three kernel reads, each one grouped statement whatever the window:
-    `ActivityRepository.countByTypeInBuckets({ types, window, grain })` and
-    `listInWindow({ window, types?, limit, cursor })` (the five adapter reads
-    converge on these); `ReviewInsightRepository.listSnapshotSeries(reviewId,
+  - Four kernel reads, each one grouped statement whatever the window:
+    `TaskRepository.countCompletedInBuckets({ window, grain })` over
+    `spine_records.completed_at` — **the one completion-time authority
+    (RECALL-02, ADR-114)**, never over `task.completed` events, which survive
+    a reopen and a delete; a Task completed, reopened and completed again
+    counts once per bucket exactly as `analytics-context.ts:198-218` already
+    makes the range total count it once, and the bucketed read is the
+    unbucketed `countCompletedTasksInWindows` generalised, not a second
+    authority; `ActivityRepository.countByTypeInBuckets({ types, window,
+    grain })` and `listInWindow({ window, types?, limit, cursor })` for the
+    *event* series and the window list (the five adapter reads converge on
+    these; `project.completed` and `goal.completed` keep the ADR-079 d2
+    Activity semantics they have today unless the PR proves
+    `spine_records.completed_at` answers them identically for Projects and
+    Goals, and records which); `ReviewInsightRepository.listSnapshotSeries(reviewId,
     n)` over `listSnapshotsBefore`, returning per-Review Project states, Goal
     states and carry-over ids in Review order; and
     `GoalMeasurementRepository.listMeasurementSeries` unchanged, given its
@@ -298,12 +309,15 @@ chooses.**
 - **Intended.** On `/analytics` (URL, module id and nav label unchanged — the
   label becomes *Insight* when Reports arrive in V2.13):
   - a **window** control (this week, 4 weeks, 12 weeks, 6 months, 12 months,
-    all — each a named preset over `Window`) and a **grain** (day / week /
-    month) the preset defaults sensibly and the owner may change within the
-    grain's stated maximum;
-  - three completion series — Tasks, Projects, Goals — from
-    `countByTypeInBuckets`, drawn with the design system's existing bounded
-    trend primitive; the range total stays a separate window, never the sum
+    24 months — each a named preset over `Window`, and none wider than its
+    grain's stated maximum, so no preset promises more than the series can
+    hold; a workspace older than two years reads its earlier history through
+    the Review's across-Reviews facts and, from V2.13, a Report) and a
+    **grain** (day / week / month) the preset defaults sensibly and the owner
+    may change within the grain's stated maximum;
+  - three completion series — Tasks from `countCompletedInBuckets` over
+    `completed_at`, Projects and Goals from the Activity read — drawn with
+    the design system's existing bounded trend primitive; the range total stays a separate window, never the sum
     of buckets (the existing reopen rule);
   - the overdue *level* series unchanged in shape, never summed;
   - a **Goals** section listing every measured Goal with a compact series
@@ -315,7 +329,8 @@ chooses.**
 - **Falsification.** Choose 12 weeks / week and assert twelve points from a
   fixture with known completions; choose a grain above its maximum and assert
   the control refuses rather than truncating silently; reopen and recomplete
-  a Task and assert the range total counts it once.
+  a Task and assert that both its bucket and the range total count it once,
+  and that a deleted Task leaves both.
 - **Acceptance.** Loader statement count asserted per window and flat; the
   page is a page (skeleton, never a spinner-blocked blank); keyboard-complete
   controls built from `app/shared/ui`; 320 → 2560; light and dark; `axe`
@@ -482,8 +497,13 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 - **Implementation items** (directional; the defining pass fixes them):
   1. **LIFE-00 — the Obligation kernel.** `app/kernel/obligations`
      generalised from `app/kernel/assets/asset-obligation.ts`: an `obligation`
-     **entity** type with an `obligation_details` slice; optional
-     `subject_entity_id` (Asset, Person, Project, Area or none); optional
+     **entity** type with an `obligation_details` slice; an optional subject
+     — a nullable `subject_entity_id` foreign key to `entities` (any kind) for
+     the structural reads the Assets lens and the canonical-fact update need,
+     **and** a reserved typed EntityLink (`obligation.subject`) written in the
+     same transaction so the subject's record shows the obligation in its
+     linked items and timeline, on the Meeting-item → Task pair's precedent
+     (ADR-083) and never as a second relationship system; optional
      expected `amount_minor` + `currency_code` (ADR-049); the closed category
      set widened to life shapes (bill, subscription, membership, fee, tax,
      filing, appointment, …), still closed; the obligation recurrence engine
@@ -598,17 +618,27 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
   a standalone app — the boundary is [§4.4 of the strategy](../product/DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md#44-finance--the-first-release-boundary)
   and must not grow):
   1. **FIN-00 — accounts, transactions, the import ledger; export first.**
-     `finance_account_details` (an entity), `finance_transactions` (rows,
-     not entities), `finance_imports` (file hash, mapping, counts — the
+     `finance_account_details` (an entity), `finance_transaction_details`
+     — a transaction is a **light entity**: an `entities` row so a receipt
+     (V2.11) or an Obligation links to it by EntityLink, with no Activity
+     per edit, no record page (a drawer) and payee-only search under the
+     explicit-query boundary; this is V2.12's first recorded decision,
+     because the alternative is a second attachment-linking system —
+     `finance_imports` (file hash, mapping, counts — the
      audited unit, one Activity event per applied import),
      `finance_categories` (one level, structure not tags), `finance_budgets`;
      every collection in the snapshot and the restore rehearsal **before any
      UI**; balances derived from opening balance plus transactions, never
      stored.
   2. **FIN-01 — CSV import, idempotent.** One bounded parser; a per-bank
-     column mapping saved once; dedupe by `(account, date, amount, normalised
-     payee)` plus the import fingerprint with duplicates *shown and skipped*;
-     transfers as linked pairs excluded from spend; a desktop flow.
+     column mapping saved once; identity by the bank's stable transaction id
+     where the file carries one, otherwise an **occurrence-aware** row
+     fingerprint — `(account, date, amount, normalised payee, n)`, where `n`
+     counts identical rows within one file — so two same-day purchases at one
+     merchant are both kept and both recognised again across overlapping
+     exports; a suspected cross-file duplicate is *shown and skipped*, never
+     silently merged; transfers as linked pairs excluded from spend; a
+     desktop flow.
   3. **FIN-02 — the month and the budget.** Spend and income by category for
      a month, computed by the V2.9 history layer (`sum-by-group-per-bucket`);
      mixed-currency totals reporting exclusions as Assets do; a monthly budget
@@ -635,6 +665,8 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
   are acceptance criteria, not follow-ups. DEBT-242's rating is revisited
   here.
 - **Completion criteria.** A repeated import yields zero rows and says so;
+  two identical legitimate rows in one file both import and both survive a
+  re-import of an overlapping export;
   every balance recomputes identically after export → restore; a transfer
   never appears in spend; the month's category totals equal the sum of their
   rows on a known fixture; logs carry no payee or amount; a hostile
