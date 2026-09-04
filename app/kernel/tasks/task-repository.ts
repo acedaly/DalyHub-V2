@@ -31,6 +31,7 @@ import type {
   ListWaitingTasksInput,
   CountWaitingTasksInput,
   CompletedTaskWindow,
+  CountCompletedInBucketsInput,
   CompletedTaskWindowCount,
   TaskActivityDayCount,
   ListWorkspaceTaskGroupsInput,
@@ -387,6 +388,38 @@ export interface TaskRepository {
    */
   countCompletedTasksInWindows(
     windows: readonly CompletedTaskWindow[],
+  ): Promise<readonly CompletedTaskWindowCount[]>;
+
+  /**
+   * V2.9 INS-01 — the same question over a SERIES of buckets: how many Tasks
+   * are currently completed inside each (DEBT-238).
+   *
+   * This is {@link countCompletedTasksInWindows} generalised, **not a second
+   * completion authority**. It reads the same store, under the same predicate,
+   * with the same meaning: `spine_records.completed_at`, live Tasks only, the
+   * one completion-time truth (RECALL-02, ADR-114 decision 4). A Task completed,
+   * reopened and completed again counts once in the bucket its CURRENT
+   * completion falls in and nowhere else; a deleted Task counts nowhere. Both
+   * follow from reading current state rather than events, which is the whole
+   * reason this authority exists — `task.completed` events survive both.
+   *
+   * What it adds is the ability to answer over a long window in ONE statement.
+   * The sibling binds two parameters per window against D1's 100-parameter
+   * ceiling and is capped at fourteen; a twelve-week or two-year series does not
+   * fit that shape. Here the bucket boundaries travel as a single bound
+   * parameter, so:
+   *   - ONE statement whatever the bucket count — 366 daily buckets included;
+   *   - flat in workspace size (one index range over
+   *     `spine_records_workspace_kind_completed_idx`, bounded by the outermost
+   *     boundaries) and in the number of Tasks;
+   *   - every requested bucket comes back, zero included.
+   *
+   * The two reads agree exactly where they overlap, which
+   * `test/kernel/history-kernel.test.ts` asserts on one fixture rather than
+   * assuming.
+   */
+  countCompletedInBuckets(
+    input: CountCompletedInBucketsInput,
   ): Promise<readonly CompletedTaskWindowCount[]>;
 
   /**

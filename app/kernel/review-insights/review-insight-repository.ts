@@ -188,6 +188,42 @@ export interface ReviewInsightRepository {
   ): Promise<readonly StoredReviewInsightSnapshot[]>;
 
   /**
+   * V2.9 INS-01 — the snapshots of one Review and the `n - 1` before it, in
+   * REVIEW ORDER (oldest first), as the series an across-Reviews fact is read
+   * from (INS-02).
+   *
+   * The product has written one snapshot per completed Review since REVIEW-03
+   * — roughly fifty a year, each holding up to 40 Project states, 25 Goal
+   * states, 20 Area counts and 50 carry-over ids — and until V2.9 read exactly
+   * one of them (`priorReviews[0]`). Every fact needed to say *"at risk in 3 of
+   * the last 4 Reviews"* was already stored and unreadable. This is the read
+   * that makes the series available; nothing new is captured or stored to
+   * provide it.
+   *
+   * Semantics:
+   *   - the anchor Review's own snapshot is INCLUDED when it has one, as the
+   *     most recent element, so a completed Review's panel describes the period
+   *     it is about rather than only the ones before it;
+   *   - `n` counts snapshots, and the result is bounded by it and by
+   *     `MAX_TREND_PERIODS` — a series is a recent shape, not an archive;
+   *   - ONE statement whatever `n`, and flat in the number of Reviews the
+   *     workspace holds;
+   *   - **the same-type rule holds**: a weekly Review's series contains only
+   *     weekly Reviews, so a monthly Review never dilutes a weekly trend with a
+   *     period four times its length;
+   *   - a missing snapshot SHORTENS the series rather than leaving a hole. A
+   *     Review whose snapshot was never captured is simply absent, and the
+   *     surface says "over the last N Reviews" with the N it actually has
+   *     (ADR-079 decision 5 — never invent a state);
+   *   - workspace-scoped, and an anchor from another workspace yields an empty
+   *     series rather than disclosing anything.
+   */
+  listSnapshotSeries(
+    reviewId: string,
+    n: number,
+  ): Promise<readonly StoredReviewInsightSnapshot[]>;
+
+  /**
    * Write (or overwrite) one Review's snapshot. Idempotent for identical facts
    * — the same facts serialise identically — and safe to call again after a
    * reopen-and-complete, which is the only way a Review's snapshot changes.

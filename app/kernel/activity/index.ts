@@ -24,6 +24,10 @@ export type {
   ListEntityActivityInput,
   ListEntitiesActivityInput,
   ActivityPage,
+  ActivityBucketWindow,
+  ActivityTypeBucketCount,
+  CountActivityByTypeInput,
+  ListActivityInWindowInput,
 } from "./activity";
 
 export {
@@ -81,6 +85,7 @@ export type {
 export {
   ACTIVITY_CURSOR_VERSION,
   activityAnchorKey,
+  activityWindowKey,
   encodeActivityCursor,
   decodeActivityCursor,
   decodeActivityCursorForScope,

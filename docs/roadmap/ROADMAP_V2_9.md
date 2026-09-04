@@ -33,7 +33,7 @@
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
 **Programme status: V2.9 INSIGHT — in progress.** Five items, INS-00 … INS-04,
-in order; **INS-00 delivered 2026-09-04**.
+in order; **INS-00 and INS-01 delivered 2026-09-04**.
 
 **Successor: V2.10 LIFE ADMIN, PLANNED** — see [the sequence](#the-remaining-v2-sequence).
 
@@ -59,12 +59,12 @@ This is the presumptive V2.9 that V2.8 named, confirmed by re-measurement —
 - The kernel `ActivityRepository` (`app/kernel/activity/activity-repository.ts:53-113`)
   has **no time-window read** — its inputs carry `type?`, `limit?`, `cursor?`
   and no from/to — so five adapters carry their own windowed SQL
-  ([DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3)).
+  ([DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01)).
 - Analytics offers three fixed ranges (7×1 day, 4×7 days, 6×14 days) chosen
   to fit `MAX_TREND_PERIODS = 8` (`analytics-range.ts:20-27, 44-70`); its
   bucketer is module-private; "completions per week for twelve weeks" is not
   askable; Projects and Goals completed have no line
-  ([DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3)).
+  ([DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--primitive-delivered-2026-09-04-v29-ins-01)).
 - `/today/activity` is a tested resource route with no UI
   ([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3)).
 
@@ -221,7 +221,7 @@ check keeps it that way.**
     own heading forms and the repository's own zero-finding state.
 - **Non-goals.** External links; prose style; a docs site.
 
-### ☐ INS-01 — The history kernel — closes [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3), [DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3)
+### ☑ INS-01 — The history kernel — **delivered 2026-09-04** — closes [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01), [DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--primitive-delivered-2026-09-04-v29-ins-01)
 
 **One vocabulary for "over time" — window, grain, bucket, series — and one
 kernel read for each store that has a time axis, with nothing stored.**
@@ -284,6 +284,57 @@ kernel read for each store that has a time axis, with nothing stored.**
   month-end edges in the owner's timezone; hostile second workspace on every
   read; zero behaviour change on the Review and `/plan` measured by the same
   machine values before and after (the V2.5 rule).
+- **Delivered 2026-09-04.** [`app/kernel/history`](../../app/kernel/history/index.ts)
+  holds the vocabulary; the reads live on the contracts they belong to.
+  - **The name.** `history`, as the roadmap proposed. `Window` is the existing
+    `ActivityWindow` re-exported, not duplicated — one definition, now five
+    consumers.
+  - **The bucket rule is preserved verbatim and generalised.** Backward from
+    the window's end, remainder clamped at the oldest end. **There is no
+    `weekStart` parameter, and that is a decision rather than an omission**:
+    aligning a week bucket to the owner's Monday would make the most recent
+    bucket partial whenever the window ends mid-week — the exact defect the
+    backward rule exists to prevent, and the falsification below measures it as
+    a 29% phantom dip. A caller wanting calendar weeks ends the window on the
+    owner's week end and gets them exactly; both cases are asserted.
+    `planningWeekStart` remains the product's one week-start authority.
+  - **The inherited eight is gone.** `GRAIN_MAXIMUMS` states 366 days, 52
+    weeks, 24 months and 12 Review periods, and a wider window comes back with
+    `bounded`, the bound and the count that was asked for — never silently
+    shortened (ADR-079 d11). `requestedBucketCount` exists so INS-03 can refuse
+    before building anything.
+  - **The obstacle nobody had measured, and the shape it forced.** D1 binds at
+    most 100 parameters. Both existing bucketed shapes — a `SUM(CASE …)` column
+    per window (RECALL-02) and a `CASE WHEN … THEN index` arm per period
+    (`countPeriodCompletions`) — bind two per bucket, so both stop at about 48
+    while a grain maximum here is 366. The boundaries now travel as ONE bound
+    JSON parameter expanded by `json_each`, making the statement's shape
+    independent of the window: **measured at one statement for 365 daily
+    buckets and for 52 weekly ones.**
+  - **What converged, and what did not.** `countPeriodCompletions` and
+    `ActivityRepository.countByTypeInBuckets` now share
+    [`history-window-read.ts`](../../app/platform/storage/d1/history-window-read.ts)
+    — one predicate, two callers, and `COMPLETION_TYPE_MATCH`'s event-type-to-
+    entity-type table replaced by a generic primary-subject role filter.
+    FOLLOW-01/02's plan history did NOT converge and should not: it is a
+    three-arm UNION that also extracts each event's plan-before and plan-after
+    from `payload_json` and looks *after* the window for the event that moved a
+    plan out of it. **DEBT-238's "five adapters" was wrong in both directions**
+    — three of the five carry no window predicate at all, and two it did not
+    name do — so the grep the entry proposed is replaced by a registry test
+    that enumerates every remaining bound with its reason and fails when any
+    count moves.
+  - **Falsified.** A 40-week window asserts one statement. Laying the same
+    buckets out FORWARD from the window's start drops the most recent point
+    from 7 to 5 on a flat week — the artefact the backward rule prevents,
+    measured rather than argued. A hostile second workspace's identical fixture
+    leaves every count at its known value.
+  - **Parity, not a second authority.** `countCompletedInBuckets` and
+    `countCompletedTasksInWindows` return identical results on one fixture; a
+    Task completed, reopened and completed again counts once, in its current
+    bucket; a deleted Task counts nowhere. The Review's own 47 kernel tests
+    pass unchanged through the converged read, and `MAX_TREND_PERIODS` is now
+    purely the panel's display bound rather than also a limit D1 was imposing.
 - **Non-goals.** A query language; a cache; any stored aggregate; any
   surface.
 
@@ -480,8 +531,8 @@ every entry it touched a dated disposition.
 
 | Entry | Severity | Disposition |
 |---|---|---|
-| **DEBT-238** — the kernel Activity contract has no window read | P3 | **Raised · taken by INS-01** |
-| **DEBT-239** — three Analytics presets, an inherited eight-bucket cap, no shared series primitive | P3 | **Raised · taken by INS-01** (the primitive) and **INS-03** (the range) |
+| **DEBT-238** — the kernel Activity contract has no window read | P3 | **Raised · CLOSED by INS-01 (2026-09-04)**, with its own measurement corrected |
+| **DEBT-239** — three Analytics presets, an inherited eight-bucket cap, no shared series primitive | P3 | **Raised · ◐ primitive delivered by INS-01 (2026-09-04)**; the range is **INS-03**'s |
 | **DEBT-240** — an obligation cannot exist without an Asset and carries no amount | P3 | **Raised · owner V2.10 LIFE ADMIN** — not taken here |
 | **DEBT-241** — no docs link/anchor check; 447 broken local links | P2 | **Raised · CLOSED by INS-00 (2026-09-04)**; the eleven in `ROADMAP_V2_8.md` repaired by the defining pass |
 | **DEBT-242** — no workspace or account deletion path | P3 | **Raised · owner V2.16 CONSOLIDATE**; re-rated at V2.12's definition if Finance's pass finds it must precede money |

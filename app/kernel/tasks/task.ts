@@ -1495,6 +1495,18 @@ export type CompletedTaskWindow = {
   readonly endsAt: Date;
 };
 
+/**
+ * V2.9 INS-01 — a whole completion SERIES to count in one statement.
+ *
+ * The buckets are the caller's, cut from a window at a grain by
+ * `~/kernel/history`, which resolved the owner-local midnights once. Bounded by
+ * the repository, and the bound is reported rather than silently applied.
+ */
+export type CountCompletedInBucketsInput = {
+  /** Oldest first, non-overlapping. */
+  readonly buckets: readonly CompletedTaskWindow[];
+};
+
 /** How many Tasks are CURRENTLY recorded as completed inside one window. */
 export type CompletedTaskWindowCount = {
   readonly key: string;

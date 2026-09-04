@@ -194,3 +194,106 @@ export type ActivityPage = {
   readonly nextCursor: string | null;
   readonly hasMore: boolean;
 };
+
+/**
+ * V2.9 INS-01 — input to count events by type across a series of buckets
+ * (DEBT-238).
+ *
+ * The buckets are the CALLER's: `~/kernel/history` cut them from a window at a
+ * grain, resolving owner-local midnights to instants once, so this contract
+ * carries no timezone rule of its own (AUDIT-14) and the surface's buckets and
+ * the database's cannot drift apart.
+ *
+ * There is deliberately no `workspaceId` — scope comes from the repository's
+ * bound `WorkspaceContext` (ADR-010/ADR-012).
+ */
+export type CountActivityByTypeInput = {
+  /**
+   * The event types to count. Non-empty and bounded; an empty list is a caller
+   * bug rather than "count everything", because an unfiltered count over the
+   * whole stream is a different and unbounded question.
+   */
+  readonly types: readonly string[];
+  /**
+   * Oldest first, non-overlapping, each with its half-open instant range.
+   * Bounded by the repository; the bucket count is stated back on the result so
+   * a truncated series can never be presented as a complete one.
+   */
+  readonly buckets: readonly ActivityBucketWindow[];
+};
+
+/**
+ * One bucket to count inside: the caller's key and the half-open instant range
+ * the events are matched against.
+ *
+ * Structurally the same shape as `CompletedTaskWindow` (`~/kernel/tasks`) and
+ * for the same reason — the caller computes the boundaries because only the
+ * caller knows the owner's timezone.
+ */
+export type ActivityBucketWindow = {
+  /** The caller's own identifier for this bucket; echoed back on the count. */
+  readonly key: string;
+  /** Inclusive lower bound. */
+  readonly startsAt: Date;
+  /** Exclusive upper bound. */
+  readonly endsAt: Date;
+};
+
+/**
+ * How many events of each requested type occurred inside one bucket.
+ *
+ * Every requested bucket comes back, and every requested type appears in
+ * `counts` — with zero when nothing happened, because an absent bucket is
+ * indistinguishable from a quiet one.
+ *
+ * The count is of DISTINCT PRIMARY-SUBJECT ENTITIES per type, not of raw event
+ * rows: a `task.completed` event carries the Task as its subject, and one Task
+ * completed twice inside one bucket is one completion of one Task. That is the
+ * semantics `countPeriodCompletions` already has (ADR-079 decision 2) and this
+ * read preserves it rather than inventing a second answer to the same question.
+ *
+ * "Primary subject" is the role a mutation writes its own entity under; the
+ * endpoints of a relationship event (`source`, `target`) are deliberately not
+ * counted. So this read answers *"how many distinct things had this happen to
+ * them in this bucket?"* — which is the entity-centric question every V2.9
+ * series asks. A caller wanting "how many link events occurred" is asking a
+ * different question and would read zero here rather than a wrong number.
+ */
+export type ActivityTypeBucketCount = {
+  readonly key: string;
+  /** Keyed by the requested event type. */
+  readonly counts: Readonly<Record<string, number>>;
+};
+
+/**
+ * V2.9 INS-01 — input to list the events inside one window, newest first
+ * (DEBT-238).
+ *
+ * The kernel's first WINDOWED list. `listForWorkspace` pages the whole stream
+ * from now backwards; this pages the stream inside a named period, which is the
+ * question "what changed in this fortnight?" actually asks.
+ */
+export type ListActivityInWindowInput = {
+  /** Inclusive lower bound. */
+  readonly startsAt: Date;
+  /** Exclusive upper bound. */
+  readonly endsAt: Date;
+  /**
+   * Optional filter to a set of event types. Omitted means every type — which
+   * is legitimate here, unlike in the counting read, because the page is
+   * bounded by `limit` whatever the filter.
+   */
+  readonly types?: readonly string[];
+  /**
+   * Maximum number of events to return. Clamped to `[1, MAX_ACTIVITY_PAGE_SIZE]`;
+   * defaults to `DEFAULT_ACTIVITY_PAGE_SIZE` when omitted. Never unbounded.
+   */
+  readonly limit?: number;
+  /**
+   * Opaque cursor from a previous page's `nextCursor`. Must be a cursor this
+   * kernel issued for the SAME window under the SAME type filter; anything else
+   * is rejected as an invalid cursor, so a page of one window can never be
+   * continued into another.
+   */
+  readonly cursor?: string;
+};

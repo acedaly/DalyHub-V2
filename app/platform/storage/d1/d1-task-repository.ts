@@ -130,6 +130,7 @@ import {
   type CompleteTaskOptions,
   type CompleteTaskResult,
   type CompletedTaskWindow,
+  type CountCompletedInBucketsInput,
   type CompletedTaskWindowCount,
   type GetTaskOptions,
   type ListPlanningTasksInput,
@@ -915,6 +916,18 @@ function delegationEquals(
  * feature is explicitly scoped out of.
  */
 const TASK_ACTIVITY_MAX_DAYS = 14;
+
+/**
+ * The most buckets one completion SERIES will count over (V2.9 INS-01).
+ *
+ * The largest of the history kernel's `GRAIN_MAXIMUMS` (366 days). Unlike
+ * `TASK_ACTIVITY_MAX_DAYS` above — which is a real limit, imposed by D1's
+ * 100-bound-variable ceiling on a column-per-window statement — this is a
+ * policy: the `json_each` shape costs the same three bound parameters at any
+ * bucket count, and this simply keeps the storage layer's own ceiling rather
+ * than trusting a caller's.
+ */
+const MAX_COMPLETION_BUCKETS = 366;
 
 export class D1TaskRepository implements TaskRepository {
   readonly #db: D1Database;
@@ -4186,6 +4199,97 @@ export class D1TaskRepository implements TaskRepository {
       return wanted.map((window, index) => ({
         key: window.key,
         completed: Number(row?.[`d${index}`] ?? 0),
+      }));
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
+  }
+
+  /**
+   * V2.9 INS-01 — the completion SERIES: how many Tasks are currently completed
+   * inside each bucket, in ONE statement whatever the window (DEBT-238).
+   *
+   * ── The same authority, read over a longer window ─────────────────────────
+   * The predicate is character-for-character the sibling's above:
+   * `spine_records.completed_at` inside the bucket, `kind = task`, live entity,
+   * this workspace. It is the ONE completion-time truth (RECALL-02, ADR-114
+   * decision 4), so a Task completed, reopened and completed again is counted
+   * once — in the bucket its CURRENT completion falls in — and a deleted Task
+   * is counted nowhere. Reading current state rather than events is what makes
+   * both true, and it is why a Task series is never derived from
+   * `task.completed` Activity, which survives both.
+   *
+   * ── Why a different SQL shape from the sibling ────────────────────────────
+   * `countCompletedTasksInWindows` binds two parameters per window against
+   * D1's 100-bound-variable ceiling, and is capped at fourteen accordingly. A
+   * twelve-week, 52-week or 366-day series does not fit that shape at all. Here
+   * the bucket boundaries travel as ONE bound JSON parameter expanded by
+   * `json_each`, so the statement's shape is independent of the window: three
+   * bound parameters for one bucket or for 366. The outer boundaries still
+   * bound the scan to a single index range over
+   * `spine_records_workspace_kind_completed_idx` (migration 0038), so the read
+   * stays flat in workspace size — it touches the completions inside the
+   * window, once, and nothing else.
+   *
+   * `LEFT JOIN` rather than an inner one, so a bucket in which nothing was
+   * completed comes back as a zero rather than as an absent row: an absent
+   * bucket is indistinguishable from a quiet one.
+   */
+  async countCompletedInBuckets(
+    input: CountCompletedInBucketsInput,
+  ): Promise<readonly CompletedTaskWindowCount[]> {
+    const buckets = input.buckets.slice(0, MAX_COMPLETION_BUCKETS);
+    if (buckets.length === 0) return [];
+
+    // Only the bucket INDEX is generated into the JSON, and it is an integer
+    // this method produced; every instant is bound.
+    const boundaries = JSON.stringify(
+      buckets.map((bucket, index) => [
+        index,
+        toStorageTimestamp(bucket.startsAt),
+        toStorageTimestamp(bucket.endsAt),
+      ]),
+    );
+    const overallStart = buckets
+      .map((bucket) => toStorageTimestamp(bucket.startsAt))
+      .reduce((earliest, value) => (value < earliest ? value : earliest));
+    const overallEnd = buckets
+      .map((bucket) => toStorageTimestamp(bucket.endsAt))
+      .reduce((latest, value) => (value > latest ? value : latest));
+
+    try {
+      const { results } = await this.#db
+        .prepare(
+          `WITH b AS (
+             SELECT CAST(json_extract(value, '$[0]') AS INTEGER) AS idx,
+                    json_extract(value, '$[1]') AS start_at,
+                    json_extract(value, '$[2]') AS end_at
+             FROM json_each(?)
+           )
+           SELECT b.idx AS idx, COUNT(sr.entity_id) AS n
+           FROM b
+           LEFT JOIN spine_records sr
+             ON sr.workspace_id = ? AND sr.kind = '${TASK}'
+                AND sr.completed_at >= b.start_at
+                AND sr.completed_at < b.end_at
+                AND sr.completed_at >= ? AND sr.completed_at < ?
+                AND EXISTS (
+                  SELECT 1 FROM entities e
+                  WHERE e.workspace_id = sr.workspace_id
+                    AND e.id = sr.entity_id
+                    AND e.deleted_at IS NULL
+                )
+           GROUP BY b.idx`,
+        )
+        .bind(boundaries, this.#workspaceId, overallStart, overallEnd)
+        .all<{ idx: number; n: number }>();
+
+      const byBucket = new Map(
+        results.map((row) => [Number(row.idx), Number(row.n)]),
+      );
+      return buckets.map((bucket, index) => ({
+        key: bucket.key,
+        completed: byBucket.get(index) ?? 0,
       }));
     } catch (cause) {
       throw new TaskStorageError(undefined, { cause });
