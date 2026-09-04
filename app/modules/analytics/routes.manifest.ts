@@ -30,8 +30,10 @@ const routes: readonly RouteContribution[] = [
    * V2.9 INS-04 — the workspace-wide "What changed" feed endpoint
    * (loader-only resource route, no nav entry), moved here from
    * `today/activity` in the change that gave it a consumer (DEBT-103). The
-   * Insight page renders its first page server-side and this route serves every
-   * page after it, so there is one door onto the stream and one mapping.
+   * Insight page's panel pages through it — every page, including the first,
+   * because the shared DS-05 stream loads its own first page and a
+   * server-rendered one would be replaced on mount rather than reused. One
+   * door onto the stream, one mapping.
    */
   {
     id: "analytics.activity",

@@ -73,7 +73,7 @@ function json(data: unknown, status = 200): Response {
  * rather than being rejected: a stale bookmark should show the default period,
  * not an error.
  */
-export function activityWindowFor(
+function activityWindowFor(
   value: string | null,
   todayIso: string,
   timezone: string,
@@ -124,12 +124,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 /**
  * One page of records, turned into the DS-05 items the shared feed renders.
  *
- * Exported because the Insight page's own loader renders the FIRST page
- * server-side and this route serves every page after it: two callers, one
- * mapping, so a server-rendered event and a paged-in one cannot read
- * differently.
+ * This route is the ONLY caller, and deliberately so: the Insight page's panel
+ * fetches every page — including its first — from here rather than having the
+ * page's own loader render one and this route serve the rest. Two producers of
+ * the same list is two things that can drift, and the shared `ActivityStream`
+ * loads its first page itself anyway, so a server-rendered first page would be
+ * replaced on mount rather than reused.
  */
-export async function serializeActivityPage(
+async function serializeActivityPage(
   scope: WorkspaceScope,
   page: ActivityPage,
 ): Promise<InsightActivityPage> {

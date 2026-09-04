@@ -573,6 +573,8 @@ at, and `/today/activity` finally has a consumer — or goes.**
   supplying a page loader and nothing else; it names its window on the card,
   because a list of events at the bottom of a long page needs its period
   stated. It sits LAST: the figures answer "how much", this answers "what".
+  Every page comes from the route, the first included — the shared stream loads
+  its own first page, so a server-rendered one would be replaced on mount.
 - **Bounded, with a cursor rather than a total.** 30 events a page, `hasMore`
   and `nextCursor`, and no count anywhere in the payload — a bounded list
   stating a total would claim a completeness it does not have (ADR-079 d11).
