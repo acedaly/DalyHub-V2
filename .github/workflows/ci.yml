@@ -4,8 +4,22 @@ on:
   push:
     branches: [main]
   pull_request:
+  # V2.8 CONV-03 / DEBT-203 — run this exact gate again, on an unchanged tree.
+  #
+  # The entry closes on "ten consecutive green runs on ONE unchanged tree", and
+  # until now the only ways to obtain a second run of one commit were an empty
+  # commit (forbidden, and it changes the SHA anyway) or a re-run of individual
+  # jobs (which re-runs the failed ones, not the gate). A manual dispatch runs
+  # the same workflow, on the same ref, with nothing added and nothing skipped:
+  # `Scope` below consults its path filter only for a pull request, so a
+  # dispatched run is a full run by the rule that was already there.
+  #
+  # NO INPUTS, deliberately. An input is a way for two runs of "the same gate" to
+  # differ, and a stability measurement whose runs can differ measures nothing.
+  workflow_dispatch:
 
-# Cancel superseded PR runs, never superseded `main` runs.
+# Cancel superseded PR runs, never superseded `main` runs — and never a run that
+# was dispatched deliberately.
 #
 # The previous `cancel-in-progress: true` was unconditional, so merging twice in
 # quick succession cancelled the FIRST merge's verification of `main` — the one
@@ -13,8 +27,14 @@ on:
 # indistinguishable at a glance from a failed one, so this quietly manufactured
 # red on `main`. PRs keep the behaviour that matters: push a new commit and the
 # obsolete run stops consuming runners.
+#
+# A dispatched run gets a group of its OWN (`github.run_id`), because the ten-run
+# measurement is ten runs of one ref: sharing a group would make them queue
+# behind each other for hours, and any future `cancel-in-progress` would make
+# them cancel each other — which is how a stability count silently becomes a
+# count of one. It changes nothing about what a run checks.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'shared' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege: this workflow only reads the repository. It holds no

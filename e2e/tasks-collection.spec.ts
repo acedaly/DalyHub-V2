@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 import {
+  awaitMutation,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   expectMinTouchTarget,
@@ -49,11 +50,25 @@ async function planForToday(page: Page, title: string) {
   const card = taskRow(page, title).first();
   await card.hover();
   await card.getByRole("button", { name: /^More actions for / }).click();
-  await page
-    .getByRole("menu")
-    .last()
-    .getByRole("menuitem", { name: "Plan for today", exact: true })
-    .click();
+  /*
+   * DEBT-203 — wait for the PLAN to land, not for the optimistic paint.
+   *
+   * "Plan for today" is a single-id `/tasks/bulk` field change painted while it
+   * is in flight (`TasksWorkspace`), so the row says "Today" the instant the
+   * menu item is pressed. Both callers then either navigate or open a menu on
+   * that same row. On a slow server the first abandoned the POST in flight, and
+   * the second met the revalidation re-creating the row under its open menu —
+   * measured on `main` as `tasks-collection.spec.ts:634` and `:700`, twice
+   * each, on a tree neither PR had touched. The wait belongs on the answer the
+   * product publishes.
+   */
+  await awaitMutation(page, "/tasks/bulk", () =>
+    page
+      .getByRole("menu")
+      .last()
+      .getByRole("menuitem", { name: "Plan for today", exact: true })
+      .click(),
+  );
 }
 
 /** Open the ONE shared collection sheet. */
@@ -634,6 +649,24 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
   test("sets a due date from the row without touching the planned date", async ({
     page,
   }) => {
+    /*
+     * A measured BUDGET correction (DEBT-203) — the second half of this
+     * journey's repair, and the mechanism the wait above does not cover.
+     *
+     * MEASURED three ways on the same code: **9.4 s** in isolation on an idle
+     * machine, **22.0 s** on the gate's own runner (#823, 73% of the 30 s
+     * default), and **30.7 s** as the 138th test of a loaded sequential run.
+     * A journey whose honest runtime is three quarters of its budget on a good
+     * runner has no budget at all on an ordinary one, and that is why it went
+     * red on `main` #833's p04 with nothing about it changed.
+     *
+     * It is a quick-add, an inline date popover driven through the shared
+     * calendar, a revalidation, an overflow menu, a plan and a Drawer — eight
+     * server round trips. Ninety seconds is the same size `tasks-journey.spec.ts`
+     * gives its own multi-step journeys and `goals-alignment.spec.ts` got from
+     * CONV-00. No assertion changes, `retries` stays 0.
+     */
+    test.setTimeout(90_000);
     await gotoFixture(
       page,
       "/tasks?view=list&system=all&sort=created&dir=desc",
@@ -665,7 +698,9 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
      * selection, because a calendar day is a complete answer, so the Save this
      * journey used to press no longer exists.
      */
-    await pickCalendarDate(duePopover, ownerToday());
+    await awaitMutation(page, "/tasks/bulk", () =>
+      pickCalendarDate(duePopover, ownerToday()),
+    );
     await expect(duePopover).toHaveCount(0);
     // UIX-01 — the row states the due date as the word "Today". The separate
     // "Due today" urgency chip is gone: a relative date says it itself.
@@ -679,6 +714,12 @@ test.describe("TASKS-03 — quick capture and quick edits", () => {
      * menu open on it with it ("element was detached from the DOM"). HARDEN-04
      * added the same wait to `tasks-journey` for the same reason, and it was
      * missing here: the next step opens this row's overflow.
+     *
+     * DEBT-203 — this wait alone was not enough, and #833's p04 proved it: the
+     * save above is now awaited on its own `/tasks/bulk` response, so this waits
+     * for the REVALIDATION rather than for a write that may not have been sent
+     * yet. Silence before the request goes out is silence, and that is the race
+     * the two together close.
      */
     await page.waitForLoadState("networkidle");
 
@@ -700,6 +741,19 @@ test.describe("TASKS-03 — Today integration", () => {
   test("plans from the list and Today reflects it immediately", async ({
     page,
   }) => {
+    /*
+     * The same budget correction, on the journey CONV-00 recorded beside it
+     * (DEBT-203).
+     *
+     * MEASURED: **22.0 s** on the gate's own runner (#823, 73% of the 30 s
+     * default) and 30 s exactly — a timeout — 5 of 5 times in CONV-00's sandbox,
+     * on the branch AND on an unchanged `origin/main` checkout, so it is not a
+     * regression and never was. It is seven settled navigations, a quick-add,
+     * two menus and a Drawer. The other half of its repair is the wait on the
+     * `/tasks/bulk` answer in `planForToday` above; this is the half measurement
+     * says the wait cannot fix.
+     */
+    test.setTimeout(90_000);
     await gotoFixture(
       page,
       "/tasks?view=list&system=all&sort=created&dir=desc",

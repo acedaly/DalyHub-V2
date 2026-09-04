@@ -595,13 +595,28 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
       page.getByRole("heading", { name: "No follow-up tasks yet" }),
     ).toBeVisible();
 
+    /*
+     * DEBT-173 — the accepted Task's title is OWNED by this journey.
+     *
+     * `/ai/apply` creates a REAL Task through the real mutation path, and this
+     * spec's only cleanup is `cleanupMeetingByTitle`, which sweeps by the
+     * meeting's own title prefix. An accepted item called "Send the draft to
+     * Vaughn" matches no prefix, so every full run left one more behind: the
+     * measured rate was one leaked Task per run per acceptance journey, and the
+     * sibling below put FOUR rows titled "Book the venue" in front of
+     * `tasks-dependencies.spec.ts`, which matches a row by that substring.
+     *
+     * Prefixing the item with the meeting's own unique title puts it inside the
+     * sweep that already exists — the shape V2.4 FOLLOW-01 established when it
+     * gave `cleanupMeetingByTitle` its prefix wildcard — rather than adding a
+     * second cleanup path to keep in step with the first.
+     */
+    const taskTitle = `${title} — Send the draft to Vaughn`;
     const result = await apply(request, {
       intent: "accept",
       usageId: usageId("accept-task"),
       sourceRecordId: meetingId,
-      items: JSON.stringify([
-        { kind: "task", title: "Send the draft to Vaughn" },
-      ]),
+      items: JSON.stringify([{ kind: "task", title: taskTitle }]),
     });
     expect(result.ok).toBe(true);
     expect(result.applied?.[0]?.ok).toBe(true);
@@ -619,7 +634,7 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
     // rather than create a second one.
     await page.getByRole("tab", { name: "Notebook" }).click();
     const item = page.locator(".dh-meeting-item", {
-      hasText: "Send the draft to Vaughn",
+      hasText: taskTitle,
     });
     await expect(item).toBeVisible();
     await expect(item.getByRole("button", { name: "Open task" })).toBeVisible();
@@ -640,7 +655,14 @@ test.describe("AI-02 — accepting a proposal produces ordinary DalyHub records"
       intent: "accept",
       usageId: usageId("accept-replay"),
       sourceRecordId: meetingId,
-      items: JSON.stringify([{ kind: "task", title: "Book the venue" }]),
+      // DEBT-173, as above: owned by this journey's meeting title, so the
+      // existing sweep removes it. This is the leaker the register names by
+      // name — a bare "Book the venue" is also the substring
+      // `tasks-dependencies.spec.ts` matches a row on, and four of them had
+      // accumulated in one local database.
+      items: JSON.stringify([
+        { kind: "task", title: `${title} — Book the venue` },
+      ]),
     };
     const first = await apply(request, fields);
     const second = await apply(request, fields);

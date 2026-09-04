@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  awaitMotionSettled,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -188,23 +189,50 @@ test.describe("MOBILE-01 mobile forms", () => {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The ⋯ trigger on the first task row of `/tasks`.
+ * A Tasks collection scoped to ONE seeded Area, so the row below is the same
+ * row on every run (DEBT-173).
+ *
+ * `a-tk-ops` holds seventeen seeded tasks — comfortably inside the first
+ * keyset page — and this file mutates nothing, so it reads them without
+ * disturbing anything.
+ */
+const OVERFLOW_COLLECTION =
+  "/tasks?view=list&group=none&system=active&area=a-tk-ops";
+
+/** A seeded, active, unassigned-to-nobody task: a FULL overflow action set. */
+const OVERFLOW_TASK = "Dataset task 01";
+
+/**
+ * The ⋯ trigger on a task row of `/tasks`.
  *
  * DS-04 replaced the generic Card on this collection with `TaskRow`, so the
  * trigger moved from `.dh-card__actions` to `.dh-taskrow__actions`. It is the
  * SAME shared `OverflowMenu` — `.dh-overflow-menu__trigger` is still on it —
  * which is exactly what these three journeys are about: one overlay
  * architecture, whatever hosts the trigger.
+ *
+ * ── Why it is a NAMED row and not `taskRows(page).first()` (DEBT-173) ────────
+ * It was the first row of a bare `/tasks`, and the sheet's height is a function
+ * of HOW MANY ACTIONS the menu offers — which is a function of the task. A
+ * completed task offers one item, an active one offers seven; whichever task
+ * happened to be first was decided by everything every earlier spec in the
+ * partition had created. HARDEN-06A's re-derived split duly sat a different
+ * task there and the last row measured 853.85px against an 845px viewport:
+ * `iphone-daily-driver.spec.ts:185`, red on run C and green on run B of the
+ * same tree. The geometry claim is real; the row it was asked about was not
+ * this spec's to choose.
  */
 function taskRowOverflow(page: Page) {
-  return taskRows(page).first().locator(".dh-overflow-menu__trigger");
+  return taskRow(page, OVERFLOW_TASK)
+    .first()
+    .locator(".dh-overflow-menu__trigger");
 }
 
 test.describe("MOBILE-01 the shared overflow menu", () => {
   test("opens as a full-width sheet with comfortable rows", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks");
+    await gotoFixture(page, OVERFLOW_COLLECTION);
 
     const trigger = taskRowOverflow(page);
     await expectMinTouchTarget(trigger);
@@ -218,6 +246,23 @@ test.describe("MOBILE-01 the shared overflow menu", () => {
       '.dh-overflow-menu__panel[data-presentation="sheet"]',
     );
     await expect(panel).toBeVisible();
+
+    /*
+     * DEBT-203 — measure the sheet WHERE IT LANDS, not where it is passing
+     * through.
+     *
+     * The sheet rises from below the fold on the shared `.dh-motion-*` grammar,
+     * so `toBeVisible()` is true from the first frame of the rise and the
+     * geometry below is a measurement of whichever frame the machine happened to
+     * be on. That is the whole of this journey's intermittency: the last row
+     * measured **853.85 against 845** on run C of an identical tree and
+     * **845.28 against 845** in this sandbox — the same defect eight pixels and
+     * a third of a pixel from the end of the same animation — while the settled
+     * sheet clears the fold by seventeen. `Animation.finished` is the browser's
+     * own "it has arrived", so this waits for the product rather than for a
+     * duration, and collapses to nothing under reduced motion.
+     */
+    await awaitMotionSettled(page);
 
     // Every action is a full-width row that clears the target floor, and the
     // LAST one is on screen — the anchored panel measured 208px wide with items
@@ -240,7 +285,7 @@ test.describe("MOBILE-01 the shared overflow menu", () => {
   test("dismisses on Escape and returns focus to the trigger", async ({
     page,
   }) => {
-    await gotoFixture(page, "/tasks");
+    await gotoFixture(page, OVERFLOW_COLLECTION);
     const trigger = taskRowOverflow(page);
     await trigger.click();
     await expect(page.getByRole("dialog")).toBeVisible();
@@ -252,7 +297,7 @@ test.describe("MOBILE-01 the shared overflow menu", () => {
 
   test("but stays an anchored menu on a pointer device", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await gotoFixture(page, "/tasks");
+    await gotoFixture(page, OVERFLOW_COLLECTION);
     await taskRowOverflow(page).click();
 
     await expect(

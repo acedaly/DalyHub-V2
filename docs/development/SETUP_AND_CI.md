@@ -151,18 +151,59 @@ checked, exactly like the generated colour scheme and the icon assets:
 | `pnpm run e2e:partitions` | prints the split with its estimates |
 | `pnpm run e2e:partitions:check` | fails if the manifest is not what the committed durations derive, if any spec file on disk belongs to no partition, if any spec file on disk has **no measured duration or test count**, or if any partition is budgeted past the ceiling (run by **Static**) |
 | `pnpm run e2e:partitions:generate` | re-derives it; `--from playwright-report/results.json` refreshes the durations from a finished run first |
-| `pnpm run e2e:gate` | runs every partition locally, in sequence, exactly as CI runs them |
+| `pnpm run e2e:gate` | **the whole local gate** — wipes and reseeds the local D1, then runs every partition in sequence, exactly as CI runs them |
+| `pnpm run e2e:order-proof <dir-a> <dir-b>` | compares two gate runs test by test — DEBT-173's proof that a re-derived split changes no result |
 | `pnpm run e2e:fixture-dates:check` | fails if any `e2e/**` seed, spec, fixture or helper carries an **unannotated future date literal** in any supported form, or an **unannotated long-form picker label** of any date (run by **Static**; see "Fixture dates" below) |
 | `pnpm run e2e:fixture-dates:list` | enumerates every date literal the check reads, with its classification |
 
 The derivation is a pure function of those two inputs — longest-processing-time
 greedy packing over whole spec files — so it is deterministic and reviewable in
-a diff. A spec file heavier than one partition's share (today only
-`responsive.spec.ts`, a 465-test generated matrix at 19 minutes) gets its own
-partitions and is divided between them with `--shard` applied to that ONE file,
-where a test's count genuinely is its cost. A brand-new spec file with no
-measurement is sized pessimistically at 120 s until a run measures it — it can
-never be silently left out, because `check` fails first.
+a diff. A spec file heavier than one partition's share would get its own
+partitions and be divided between them with `--shard` applied to that ONE file,
+where a test's count genuinely is its cost; **since V2.8 CONV-03 no spec file is,
+and the mechanism is dormant** (see "Stranded capacity" below). A brand-new spec
+file with no measurement is sized pessimistically at 120 s until a run measures
+it — it can never be silently left out, because `check` fails first.
+
+#### Stranded capacity, and why the split has no slices any more (V2.8 CONV-03)
+
+A partition that runs a `--shard` slice of one spec file holds nothing else —
+every shard of a sliced group must run an identical spec list or tests are lost
+and duplicated — so every second between such a partition's budget and the
+ceiling is capacity the gate **cannot reach**. `responsive.spec.ts` was 519 tests
+and **1471.6 s** in one generated matrix file, larger than any partition's
+budget, so it took two exclusive partitions of 735.8 s apiece: p12 and p13 sat at
+**73%** of the ceiling while p01–p11 sat at **97%**, stranding **536 s — 8.9
+minutes, 4.7% of the suite** ([DEBT-205](../product/PRODUCT_DEBT.md)). It is why
+two successive programmes concluded the split was exhausted when it was not.
+
+CONV-03 took the entry's option 2 and split the file along the matrix's own
+seam — `responsive-phone.spec.ts` (320/375/390/430 plus the 844×390 landscape)
+and `responsive-desktop.spec.ts` (768/1024/1280/1440/2560, the POLISH-01
+audit band and the wide overlay extreme), over shared route lists in
+`e2e/responsive-matrix.ts`. **All 519 test titles are unchanged and every one
+still runs**; `test/unit/ci/responsive-matrix.test.ts` asserts that the two tiers
+concatenate to `RESPONSIVE_VIEWPORTS` so a viewport cannot leave the contract by
+leaving a tier. Two ~700 s files pack like any other file, and the packer was not
+changed.
+
+| | spec files | partitions | heaviest | lightest | stranded |
+| --- | --- | --- | --- | --- | --- |
+| before (CONV-02) | 133 | 13 (2 sliced) | 16.3 min · **97%** | 12.3 min · **73%** | **536 s** |
+| after (CONV-03) | 134 | 13 (0 sliced) | 15.7 min · **94%** | 15.5 min · **93%** | **0 s** |
+
+`worst/mean` is **1.00**. The count stayed at thirteen because thirteen is still
+the smallest that fits: derived over the same durations, eleven gives an
+18.5 min heaviest partition and twelve a 16.95 min one, both over the 16.73 min
+ceiling. Nothing was forced to preserve history — the arithmetic simply did not
+move, because the split's total did not.
+
+`e2e:partitions:check` now **fails** on the condition rather than leaving it to
+be rediscovered: when the heaviest partition is at or above 90% of the ceiling
+while any partition sits more than 15% of a ceiling below it. Run against the
+pre-split committed manifest it reports *"the split strands capacity … a spread
+of 24% of the ceiling against the 15% this split allows"*, which is the check
+falsified against the state it was written for.
 
 ### Fixture dates (V2.8 CONV-00-E)
 
@@ -257,6 +298,13 @@ The arithmetic, the setup cost of the thirteenth job and the one better fix
 deliberately not taken are recorded on `PARTITION_COUNT` in
 `scripts/e2e-partitions.mjs`. (This section said "twelve" until V2.8 CONV-00
 corrected it; the manifest and the workflow had been thirteen since 2026-08-26.)
+**V2.8 CONV-03 took that "better fix" and re-derived the split, and the count did
+not move**: the suite's total did not change, so eleven still gives an 18.5 min
+heaviest partition and twelve a 16.95 min one — both over the 16.73 min ceiling —
+and thirteen remains the smallest count that fits. What changed is what the
+thirteen HOLD: with `responsive.spec.ts` split in two, no partition is exclusive
+to a slice, and the spread closed from 16.3/12.3 min to 15.7/15.5. Thirteen was
+kept because the arithmetic keeps it, not because it was already there.
 
 **Browser lifetime is a sizing variable too, not just minutes.** Fewer, fatter
 shards give each shard's one long-lived Chromium more to survive, which is the
@@ -295,6 +343,97 @@ Each partition:
 - installs the **full** Chromium build (`playwright install --with-deps
   chromium`) and launches it through `channel: "chromium"` — see the browser
   section above; the headless shell is the binary that segfaults.
+
+### The local whole gate, and its clean-start invariant (V2.8 CONV-03)
+
+There is **one** command for the full E2E gate on a developer machine:
+
+```bash
+pnpm run e2e:gate                    # every partition, from a deterministic seed
+pnpm run e2e:gate p03 p07            # only these
+pnpm run e2e:gate --partitions=14    # an alternative DERIVED arrangement
+pnpm run e2e:gate --out=/tmp/order-b # write the evidence somewhere else
+pnpm run e2e:gate --no-reset         # keep the database as it is (falsification only)
+```
+
+It reads the same manifest, builds the same Playwright arguments and runs the
+same `e2e-partition-summary.mjs` the workflow runs, so a green run here means
+what a green run means there. It exits non-zero if any partition fails, any test
+is left unexecuted, or any partition produces no report.
+
+**The invariant is: one gate invocation starts clean.** Every CI partition gets
+its own container and its own freshly migrated, freshly seeded D1; a local run
+used to get whatever the last one left behind, because `setup-local-db.mjs`
+migrates, seeds and sweeps five named fixture prefixes but has never *wiped*.
+V2.4-GATE-02 measured what that costs — one complete run leaves **217 records**
+behind against a 325-entity seed — so the second gate run of a day was asking a
+different database the same questions, and three journeys duly failed on it that
+had passed an hour earlier. `e2e:gate` now deletes `.wrangler/state/v3/d1` and
+re-migrates and re-seeds **before any server starts**, and prints the workspace's
+live-entity count before and after, so the leak rate is a number the gate reports
+rather than one somebody has to go and measure.
+
+It is deliberately **not** a per-test reset. Inside an invocation the specs still
+share one seeded workspace exactly as a CI partition does — that is the condition
+[DEBT-173](../product/PRODUCT_DEBT.md)'s fixture ownership has to hold under, and
+resetting between tests would hide the dependence rather than remove it.
+
+If a dev or preview server is already listening on 4173/4174 the gate **refuses
+to start**, because wiping the database underneath a live Miniflare leaves the
+server serving a deleted file while the seed writes a new one beside it. The
+message says exactly what to do.
+
+### Repeating a run, and proving the order does not matter (V2.8 CONV-03)
+
+Two questions the gate could not answer before, and the two mechanisms that
+answer them:
+
+**"Does an unchanged tree get the same answer twice?"** `ci.yml` carries a
+`workflow_dispatch` trigger with **no inputs**, so the identical gate can be run
+again on the identical commit without an empty commit (forbidden), a branch
+mutation or a code change. `Scope` consults its path filter only for a pull
+request, so a dispatched run is a full run by the rule that was already there,
+and a dispatched run gets a concurrency group of its own so ten of them neither
+queue behind nor cancel each other. `test/unit/ci/stability-run.test.ts` pins all
+four properties.
+
+**"Does the ORDER matter?"** `derivePartitions` takes a partition count, so a
+second legitimate arrangement of the same tree is one call away — the same pure
+function `generate` and `check` use, over the same committed durations. Run the
+gate twice, once per arrangement, then compare:
+
+```bash
+pnpm run e2e:gate --out=playwright-report/order-a
+pnpm run e2e:gate --partitions=14 --out=playwright-report/order-b
+pnpm run e2e:order-proof playwright-report/order-a playwright-report/order-b
+```
+
+`e2e:order-proof` keys every test on its own identity rather than on the
+partition that ran it, and reports tests present on one side only (a coverage
+change) and tests whose outcome differs. It **fails if nothing was reshuffled**,
+so a comparison of two identical splits cannot pass vacuously. That is
+DEBT-173's closing condition, performed rather than argued about.
+
+### Green is measured, never retried
+
+`retries: 0` in `playwright.config.ts`, and it is not a preference. A retry hides
+the property that makes an intermittent failure diagnosable — DEBT-125's browser
+crash was found because it landed at a *position* rather than on a test — and it
+converts "this suite is unreliable" into "this suite is fine, mostly". So:
+
+- **no retries**, in the config or in any spec (`stability-run.test.ts` fails on
+  a `retries:` anywhere under `e2e/`, and on any `test.only`);
+- **no quarantine and no allowlist** — the CI Gate accepts nothing but `success`
+  from a required job, with one named exception (a `Scope`-caused skip on a
+  documentation-only pull request, which it cross-checks);
+- **no empty commits** to re-run CI — that is what `workflow_dispatch` is for;
+- **no `waitForTimeout`** as a substitute for a readiness signal. A mutation is
+  awaited on the product's own answer through `awaitMutation` in
+  `e2e/helpers.ts`, which waits for the HTTP response that IS the answer, so a
+  slow runner makes a test slower and never makes it wrong;
+- a **timeout increase** is legitimate only where measurement shows the journey
+  is deterministic and its honest runtime exceeds the old budget. Each one says
+  so on its own line, with the measurement.
 
 ### Reading an E2E result
 

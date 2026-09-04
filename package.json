@@ -26,6 +26,7 @@
     "e2e:fixture-dates:check": "node scripts/e2e-fixture-dates.mjs check",
     "e2e:fixture-dates:list": "node scripts/e2e-fixture-dates.mjs list",
     "e2e:gate": "node scripts/e2e-gate.mjs",
+    "e2e:order-proof": "node scripts/e2e-order-proof.mjs",
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run dhds:check && pnpm run scheme:check && pnpm run test && pnpm run build && pnpm run test:e2e",
     "deploy:dry-run": "pnpm run build && wrangler deploy --dry-run --config build/server/wrangler.json",
     "deploy:production:preflight": "node scripts/deploy-production.mjs --preflight-only",

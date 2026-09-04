@@ -43,6 +43,21 @@ const TEMPLATES_URL = "/projects/templates";
 const PROJECT_RECORD_URL =
   /\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/*
+ * Sweep BEFORE the file runs, not only after it (DEBT-173).
+ *
+ * `removeTemplateFixtures` removes every `project_template` in the workspace and
+ * every Project an instantiation created, so a run that died between its seed
+ * and its `afterAll` used to leave templates and instantiated Projects behind —
+ * and the templates collection is a surface later journeys read. Cleaning at
+ * both ends makes the file idempotent: it repairs whatever the last run left
+ * before it asserts anything, which is the half a cleanup-only-at-the-end
+ * fixture can never provide.
+ */
+test.beforeAll(() => {
+  removeTemplateFixtures();
+});
+
 test.beforeEach(() => {
   /*
    * Every journey in this file drives a multi-step flow — capture, instantiate,

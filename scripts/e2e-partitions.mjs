@@ -194,6 +194,40 @@ export const MAX_PARTITION_SECONDS = Math.round(
     PARTITION_OVERHEAD_FACTOR,
 );
 
+/**
+ * When a partition counts as PRESSED against the ceiling — V2.8 CONV-03,
+ * DEBT-205.
+ *
+ * Above this share of `MAX_PARTITION_SECONDS` a partition has no room to absorb
+ * anything, so a lighter partition elsewhere is capacity the gate genuinely
+ * cannot reach rather than ordinary slack.
+ */
+export const PARTITION_PRESSURE_THRESHOLD = 0.9;
+
+/**
+ * How far below the heaviest partition the lightest one may sit, as a share of
+ * the ceiling, once the heaviest is pressed — V2.8 CONV-03, DEBT-205.
+ *
+ * This is the invariant that entry was raised for, stated as a rule the split
+ * has to satisfy rather than as a number somebody remembers. Before CONV-03,
+ * `responsive.spec.ts` was one generated matrix file of 1471.6 s — bigger than
+ * any partition's budget — so `derivePartitions` gave it two EXCLUSIVE
+ * partitions of 735.8 s divided by `--shard`, and nothing else could be packed
+ * into them. Measured on the committed manifest: p01–p11 at 974–976 s, 97% of
+ * the ceiling, while p12 and p13 sat at 73% — **536 s, 8.9 minutes, of gate
+ * capacity no partition could use**, permanently, and the reason two successive
+ * programmes concluded the twelve-way split was exhausted when it was not.
+ *
+ * 0.15 is a QUARTER of the slack the ceiling already carries
+ * (`PARTITION_CEILING_UTILISATION` leaves 25%), which is what makes it a real
+ * bound rather than a restatement of the ceiling: the old arrangement's spread
+ * was 23.9% of the ceiling and fails it; an ordinary greedy pack of whole files
+ * lands inside a per-mille of the mean and passes it comfortably. A single file
+ * heavier than the mean but lighter than the ceiling — the shape that would
+ * legitimately unbalance a pack — moves the spread by single-digit percent.
+ */
+export const PARTITION_SPREAD_TOLERANCE = 0.15;
+
 /** Spec files the run itself ignores unless a capture variable is set. */
 const CAPTURE_SUFFIX = "-screenshots.spec.ts";
 
@@ -560,6 +594,52 @@ export function manifestProblems(manifest, files) {
       );
     }
   }
+  /*
+   * No partition may strand capacity while another is pressed against the
+   * ceiling (DEBT-205).
+   *
+   * The ceiling above bounds a partition from ABOVE and says nothing about a
+   * partition that is far too light — which is the failure this rule exists for,
+   * because the reason a partition is light can be that nothing is ALLOWED to
+   * share it. A file heavier than one partition's share of the work gets its own
+   * partitions, divided by `--shard`, and a sliced partition may hold nothing
+   * else; every second between its budget and the ceiling is then capacity no
+   * partition can use, while the packed partitions sit at 100% and the next item
+   * to add coverage is told the split is full.
+   *
+   * Stated as a SPREAD rather than as a floor, because a floor would fire on a
+   * suite that is simply small: it is only a defect when something is pressed.
+   * See `PARTITION_PRESSURE_THRESHOLD` and `PARTITION_SPREAD_TOLERANCE` for the
+   * measurement this is derived from.
+   */
+  if (manifest.partitions.length > 1) {
+    const budgets = manifest.partitions.map(
+      (partition) => partition.estimateSeconds,
+    );
+    const heaviest = Math.max(...budgets);
+    const lightest = Math.min(...budgets);
+    const spread = (heaviest - lightest) / MAX_PARTITION_SECONDS;
+    if (
+      heaviest >= MAX_PARTITION_SECONDS * PARTITION_PRESSURE_THRESHOLD &&
+      spread > PARTITION_SPREAD_TOLERANCE
+    ) {
+      const light = manifest.partitions
+        .filter((partition) => partition.estimateSeconds === lightest)
+        .map((partition) => partition.name)
+        .join(", ");
+      problems.push(
+        `the split strands capacity: the heaviest partition is budgeted ` +
+          `${minutes(heaviest)} (${Math.round((heaviest / MAX_PARTITION_SECONDS) * 100)}% of ` +
+          `the ${minutes(MAX_PARTITION_SECONDS)} ceiling) while ${light} sits at ` +
+          `${minutes(lightest)} (${Math.round((lightest / MAX_PARTITION_SECONDS) * 100)}%) — ` +
+          `a spread of ${Math.round(spread * 100)}% of the ceiling against the ` +
+          `${Math.round(PARTITION_SPREAD_TOLERANCE * 100)}% this split allows. ` +
+          `A partition that cannot be filled is usually one an oversized spec ` +
+          `file has taken exclusively: split the file, do not raise the ceiling.`,
+      );
+    }
+  }
+
   const derived = derivePartitions(manifest.durations, files);
   const shape = (partitions) =>
     JSON.stringify(
