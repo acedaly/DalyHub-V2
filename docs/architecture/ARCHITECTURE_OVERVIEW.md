@@ -114,8 +114,51 @@ Every meaningful entity and EntityLink mutation appends one uniform event to a s
 - **Event types & payloads.** Types are validated, branded, lowercase dotted identifiers stored verbatim (`entity.created`, `entity.updated`, `entity.deleted`, `entity.restored`, `entity_link.created`, `entity_link.unlinked`, `entity_link.restored`) — no database enum, so modules add types without a migration. Each event has a small JSON-object payload, recursively validated, bounded in nesting depth and encoded byte size, serialised once and re-validated on read.
 - **Atomic mutation & event recording.** A domain mutation and its Activity append are ONE `D1Database.batch()` (a single transaction that rolls back entirely on any failure). The domain statement is first and `RETURNING`; the event insert is guarded `WHERE changes() > 0` and each subject insert `WHERE EXISTS` the event — so the append happens **iff the domain statement actually changed a row**. Failed mutations, idempotent no-ops and losing concurrent racers append nothing; an Activity-insert failure rolls back the domain change. The `changes()`-across-a-batch and per-statement `meta.changes` behaviour is proven against real D1.
 - **Workspace & entity query scopes.** `listForWorkspace` is the whole-workspace feed; `listForEntity` is one entity's Timeline (the events it is a subject of, anchor active *or* soft-deleted). Both are workspace-isolated, newest-first by `(occurredAt, id)`, bounded and cursor-paginated with a dedicated versioned cursor bound to workspace + scope-kind + anchor + type filter, and free of N+1 subject lookups. A cross-workspace entity is indistinguishable from a nonexistent one.
+- **Time-window scopes (V2.9 INS-01).** `countByTypeInBuckets` counts distinct primary-subject entities per event type across a series of buckets, and `listInWindow` pages the events inside one half-open window — the contract's first reads with a from/to, closing [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01). The buckets are the CALLER's, cut from a window at a grain by the [history kernel](#the-history-kernel-one-vocabulary-for-over-time-v29), so no timezone rule lives in SQL (AUDIT-14). Both are one statement — the counting read's bucket boundaries travel as a single bound JSON parameter expanded by `json_each`, because a column or `CASE` arm per bucket binds two parameters each against D1's ceiling of 100 and cannot express a 52-week or 366-day series at all. A window cursor is bound to the window as well as the workspace and type filter, so a page of one fortnight cannot be continued into another.
 - **Composition boundary.** `resolveWorkspaceScope` now returns `entities`, `entityLinks` and a read-only `activity`, all bound to the same `WorkspaceContext`, and constructs one trusted actor context used by both mutation repositories.
 - **Future UI & governance.** The Timeline and Activity Feed **UI** are later Design System work; FND-05 builds the model only. Custom event types and their registration are governed by the [Module Registry](#module-registry-self-registering-module-capabilities) below — the kernel accepts them as validated identifiers, and a module now declares which custom Activity types it owns.
+
+### The history kernel: one vocabulary for "over time" (V2.9)
+
+Every surface that asks *"what happened over this period?"* asks it in the same
+terms ([INS-01](../roadmap/ROADMAP_V2_9.md#-ins-01--the-history-kernel--delivered-2026-09-04--closes-debt-238-debt-239),
+[ADR-116](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+decision 2). `app/kernel/history` holds four ideas and **nothing is stored** to
+support them: every figure is exactly reconstructible from stores the product
+already writes.
+
+- **`Window`** is the existing `ActivityWindow` (FOLLOW-01), re-exported rather
+  than duplicated: inclusive owner wall-calendar days, half-open UTC instants,
+  the owner's timezone authoritative.
+- **`Grain`** is `day | week | month | review_period`, and **`bucketWindow`**
+  cuts a window into buckets **backward from the window's end**, so the most
+  recent bucket is always whole and any remainder falls at the oldest end. A
+  partial bucket at the recent end would draw the current period as a dip every
+  time the page is opened mid-week. There is deliberately **no `weekStart`
+  parameter** — aligning to the owner's Monday is exactly what would make the
+  recent bucket partial; a caller wanting calendar weeks ends the window on the
+  owner's week end and gets them exactly, and `planningWeekStart` remains the
+  product's one week-start authority. `review_period` buckets are the periods
+  the owner's Reviews actually covered, so they are supplied by `bucketPeriods`
+  rather than derived from a calendar.
+- **`GRAIN_MAXIMUMS`** states 366 days, 52 weeks, 24 months and 12 Review
+  periods, replacing the eight the Analytics bucketer had inherited from
+  `MAX_TREND_PERIODS`. A window wider than its grain's maximum comes back with
+  `bounded`, the bound and the count that was asked for — never silently
+  shortened.
+- **`Series<Point>`** carries its points, its buckets and its bound together, so
+  a surface cannot present a capped population as a complete one
+  ([ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)
+  decision 11) without ignoring a field.
+
+The slice is **pure** — no D1, no JSX, no clock, no timezone database; owner-day
+resolution arrives as an argument. The READS live on the repositories that own
+the stores (`TaskRepository.countCompletedInBuckets` over the one
+completion-time authority `spine_records.completed_at`;
+`ActivityRepository.countByTypeInBuckets` and `listInWindow`;
+`ReviewInsightRepository.listSnapshotSeries`;
+`GoalMeasurementRepository.listMeasurementSeries`), because a history read is a
+read of a store.
 
 ### Module registry: self-registering module capabilities
 
