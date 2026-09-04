@@ -668,11 +668,14 @@ falsification named on each item.
 ## The debt, reconciled
 
 **This pass raised DEBT-238 … DEBT-242** and gave every entry it touched a
-dated disposition. **Implementing it raised one more, DEBT-243** (next free
-**DEBT-244**): seven surfaces link a Task with `/tasks?task=<id>`, a parameter
+dated disposition. **Implementing it raised two more, DEBT-243 and DEBT-244**
+(next free **DEBT-245**). DEBT-243: seven surfaces link a Task with `/tasks?task=<id>`, a parameter
 the Tasks module does not read, so the link opens the collection rather than
 the record. Found while INS-02 was reading the Review's own claim links;
-recorded rather than silently becoming an eighth caller.
+recorded rather than silently becoming an eighth caller. DEBT-244 is the one
+E2E journey the programme's own full-suite run left red — bisected to `main`
+at `082f01e` in a clean worktree rather than assumed to be V2.9's, and left
+open rather than quietly re-run until green.
 
 | Entry | Severity | Disposition |
 |---|---|---|
@@ -683,6 +686,7 @@ recorded rather than silently becoming an eighth caller.
 | **DEBT-242** — no workspace or account deletion path | P3 | **Raised · owner V2.16 CONSOLIDATE**; re-rated at V2.12's definition if Finance's pass finds it must precede money |
 | DEBT-212 · DEBT-103 | P3 | Both **☑ resolved (2026-09-04)** — DEBT-212 by INS-02 + INS-03, DEBT-103 by INS-04 |
 | **DEBT-243** — seven surfaces link a Task with a parameter Tasks does not read | P3 | **Raised by INS-02 (2026-09-04)**, not taken: it is a Tasks-module link contract, not an Insight defect |
+| **DEBT-244** — one colour-scheme journey times out reading computed styles | P3 | **Raised by V2.9's own full-suite run (2026-09-04)**, not taken: reproduced on `main` at `082f01e` in a clean worktree, so it is not this programme's; it belongs with DEBT-203's stability work |
 | DEBT-35 | P3 | **Re-homed**: attachments → V2.11; renewals and reminders for non-Asset things → V2.10; the entry closes empty as it always said it would |
 | DEBT-198 | P2 | **Owner-held, unchanged, and now a hard gate for V2.12** — recorded on the entry |
 | DEBT-237 · DEBT-213 · DEBT-91 · DEBT-92 · DEBT-93 | P3 | **The V2.14 sequence**: gate, registry, fact block, then the Weekly Review assistant live; unchanged in order, re-dated |
