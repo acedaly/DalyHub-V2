@@ -24,6 +24,19 @@ export {
 } from "./analytics-range";
 
 export {
+  allowedGrains,
+  DEFAULT_INSIGHT_WINDOW,
+  GRAIN_NOUNS,
+  INSIGHT_GRAINS,
+  INSIGHT_WINDOWS,
+  insightWindow,
+  insightWindowDays,
+  parseInsightWindow,
+  resolveInsightGrain,
+  type InsightWindowId,
+} from "./insight-range";
+
+export {
   MAX_DISTRIBUTION_ROWS,
   deltaSentence,
   evaluateAnalytics,
