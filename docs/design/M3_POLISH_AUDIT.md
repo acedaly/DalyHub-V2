@@ -352,9 +352,9 @@ This is the commit sequence (restated in full in Appendix A.5). Nothing below is
 
 ## 8. Open questions for approval
 
-1. **The reference mock-up** is checked in at
-   [`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png).
-   Appendix A still restates everything the implementation depends on, so the requirements survive
+1. **The reference mock-up** (`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`)
+   was not committed to the repository; only the audit's `measurements.json` in that folder was.
+   Appendix A restates everything the implementation depends on, so the requirements survive
    independently of the image.
 2. **The date-dependent kernel test** (section 0) — approval to fix it properly with a pinned clock, so
    `verify` can be green at branch head.
@@ -377,13 +377,16 @@ Where a value came from the reference mock-up it is marked *(measured)*; where i
 written direction it is marked *(specified)*.
 
 **The reference:**
-[`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png)
-— a Today dashboard showing the intended shell, surface and card language. It is the authoritative
-visual reference for the whole product, not only for Today: the drawer, the top app bar, the card
-family, the metric row, the timeline and the entity-icon treatment it shows are what every other
-surface is being brought into line with.
+`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png` (supplied in the design
+session; not committed to the repository) — a Today dashboard showing the intended shell, surface
+and card language. It is the authoritative visual reference for the whole product, not only for
+Today: the drawer, the top app bar, the card family, the metric row, the timeline and the
+entity-icon treatment it shows are what every other surface is being brought into line with.
 
-![The DalyHub dashboard reference](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png)
+The mock-up showed a light-appearance Today dashboard: a compact navigation drawer on the left, a
+top app bar carrying the primary search, a page title, a row of metric tiles, a card grid on a
+tinted page surface, a timeline of the day's items and entity icons on the cards. The *(measured)*
+values in the tables that follow were read off that image and are the record of it.
 
 ### A.1 Application surfaces
 

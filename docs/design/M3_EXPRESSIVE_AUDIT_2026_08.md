@@ -3,7 +3,8 @@
 > Phase A of the Material 3 Expressive pass. What the product looked like before
 > the work, read off a captured evidence set rather than off memory.
 >
-> **Evidence:** [`docs/design/assets/m3x-2026-08/`](assets/m3x-2026-08/), captured by
+> **Evidence:** `docs/design/assets/m3x-2026-08/` (the folder was not
+> committed; the findings below record what each capture showed), captured by
 > [`e2e/expressive-screenshots.spec.ts`](../../e2e/expressive-screenshots.spec.ts)
 > at 1280, 1440 and 390 in **both** appearances against the seeded development
 > database. The `before-*` files are the state this audit describes; the

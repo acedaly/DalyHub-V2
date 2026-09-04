@@ -72,8 +72,8 @@ mobile 390px and narrow 320px — see [Screen inventory](#3-screen-inventory).
 diagnosis has been substantially fixed: a persistent left sidebar with per-entity nav icons, a shared
 entity-identity system adopted across nearly every surface, a single record layout, a URL-driven
 drawer, a grouped command palette and a genuinely lovely Diary timeline. **Record surfaces feel
-finished and premium.** ([`project-record-light.png`](assets/ui-audit-2026-07/project-record-light.png),
-[`diary-timeline-light.png`](assets/ui-audit-2026-07/diary-timeline-light.png)).
+finished and premium.** (seen in the desktop-light `project-record-light` and
+`diary-timeline-light` captures).
 
 The gap is no longer the *frame* — it is the **collection surfaces and the lifecycle layer**. Three
 problems recur and reinforce each other:
@@ -81,7 +81,7 @@ problems recur and reinforce each other:
 1. **Scanning is hard.** Cards are a flat wall of near-identical rows. The signals that should let a
    power user triage at a glance — priority, real urgency, entity subtype — are either rendered as
    low-emphasis grey text or not rendered at all. Today shows 48 "Anytime" cards that look identical
-   ([`shell-today-light.png`](assets/ui-audit-2026-07/shell-today-light.png)).
+   (the `shell-today-light` capture shows the undifferentiated card wall).
 2. **Removal is hidden or missing.** "How do I delete this Project or Area?" has no good answer.
    Project archive is buried one tab deep in Settings with no header or collection entry point; Area,
    Goal and Diary entries have **no removal UI at all** despite the kernel supporting soft-delete.
@@ -126,12 +126,12 @@ lifecycle action) and adopt them consistently.
    that "other modules are visually generic" is only **partly** true — see §5.
 3. **The Diary timeline is the strongest scanning surface in the product.** Per-entry subtype icons +
    subtype badges + timestamps make it instantly legible
-   ([`diary-timeline-light.png`](assets/ui-audit-2026-07/diary-timeline-light.png)). It should be the
+   (the `diary-timeline-light` capture). It should be the
    *model* for a shared subtype pattern, not copied ad hoc, and must be **preserved**.
 4. **The record surface is premium.** The project/area/goal/note records — type icon, title, one
    status pill, a health/momentum summary, a rollup, and Activity/Settings-last tabs — feel finished
-   and consistent ([`project-record-light.png`](assets/ui-audit-2026-07/project-record-light.png),
-   [`area-record-light.png`](assets/ui-audit-2026-07/area-record-light.png)).
+   and consistent (the `project-record-light` and `area-record-light` captures show the
+   same header anatomy on both records).
 5. **The task data model is genuinely first-class.** Priority P1–P4, due vs scheduled vs sector kept
    strictly distinct, waiting, on-hold, someday, cancellation, delegation and a single canonical
    display-state precedence evaluator (`task-view.ts:311-340`). The problem is presentation, not model.
@@ -140,7 +140,7 @@ lifecycle action) and adopt them consistently.
    discipline that status pills always pair tone with a text label.
 7. **The command palette and search are correct and calm.** Grouped, keyboard-first, deep-linkable,
    and properly separated (search never runs commands)
-   ([`command-palette-light.png`](assets/ui-audit-2026-07/command-palette-light.png)).
+   (the `command-palette-light` capture shows the grouped palette).
 8. **Notes' delete/restore is the reference lifecycle.** Header "Delete" → real mutation + Undo toast;
    Restore from an Active/Deleted segmented filter; the deleted canonical route 404s. It is the pattern
    the other modules should adopt (ADR-042).
@@ -149,8 +149,9 @@ lifecycle action) and adopt them consistently.
 
 ## 3. Screen inventory
 
-53 screenshots retained under [`docs/product/assets/ui-audit-2026-07/`](assets/ui-audit-2026-07/).
-Naming: `<screen>-<theme>[-m<width>].png`. Every screen was captured desktop **light** and **dark**;
+53 screenshots were captured under `docs/product/assets/ui-audit-2026-07/` during the audit. The
+folder was not committed to the repository; the inventory below and the findings register record
+what each capture showed. Naming: `<screen>-<theme>[-m<width>].png`. Every screen was captured desktop **light** and **dark**;
 a mobile-390 pass covers the highest-traffic screens; two 320px shots probe the tightest layouts.
 
 | Screen / mode | Light | Dark | Mobile 390 | Narrow 320 |

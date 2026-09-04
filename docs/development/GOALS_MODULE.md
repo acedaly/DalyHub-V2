@@ -632,7 +632,7 @@ It shows Goals with their alignment state and how many of their contributing Pro
 active, plus how many active Projects have no Goal linked. Wording stays calm and factual —
 "No active Project currently contributes to this Goal" — with no scores, streaks,
 gamification or moral language. Trend and history remain
-[REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) /
+[REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment--delivered-2026-08-08) /
 [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03).
 
 ---

@@ -19,7 +19,7 @@
 | **Verdict** | **Ready to release, subject to one outstanding gate: the CI run.** Every blocker found is fixed and the full suite was run locally, but this repository's CI triggers only on a pull request or a push to `main`, so the authoritative run does not exist until a PR is opened. Open the PR, confirm the CI Gate is green, then deploy. |
 | **Version** | `2.0.0`, release name `V2`, from [`app/lib/version.ts`](../../app/lib/version.ts) |
 | **Blocking issues outstanding** | **0.** Five were found during closure; all fixed (§7). Four were test defects; the other was a **product defect** in the shared pagination hook that silently dropped a page in all eight collections. |
-| **The one thing V2 knowingly does not do** | Read an export back in. [SET-02 is deferred to V2.1](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) and is not claimed anywhere in the product. |
+| **The one thing V2 knowingly does not do** | Read an export back in. [SET-02 is deferred to V2.1](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21--delivered-2026-08-08) and is not claimed anywhere in the product. |
 | **Production state at time of writing** | Schema `0001`–`0005`, pre-V2 Worker. Deploying V2 is a twenty-migration step. |
 | **Roadmap arithmetic** | 99 items: **85 complete** (3 of them with a documented limitation), **9 deferred to V2.1**, **5 deferred later**. Counted from the item headings, not asserted. |
 

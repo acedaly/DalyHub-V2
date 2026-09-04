@@ -4,7 +4,7 @@
 > Today / Tomorrow / Next 7 days → optional canonical DalyHub Meeting.
 >
 > Governed by [`AGENTS.md`](../../AGENTS.md). The architectural decision is
-> [ADR-091](../decisions/ARCHITECTURE_DECISIONS.md#adr-091); the design contract
+> [ADR-091](../decisions/ARCHITECTURE_DECISIONS.md#adr-091-external-calendars-as-a-read-only-projection--a-sealed-secret-kernel-primitive-an-rfc-5545-parser-at-the-edge-and-an-explicit-link-to-the-meeting-authority); the design contract
 > is [`DESIGN_SYSTEM.md → The Today screen`](../design/DESIGN_SYSTEM.md#the-today-screen);
 > the deployment configuration is [`DEPLOYMENT.md`](../development/DEPLOYMENT.md).
 

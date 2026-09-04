@@ -37,7 +37,7 @@ Legend: **☐** not started **◐** in progress **◑** partly delivered **☑**
 > Goal story and the action layer that lands on it. **STEER-05 is ☑ delivered** —
 > Today offers this week's Review. **The planned V2.5 product sequence is now
 > complete**, and
-> [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
+> [DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05)
 > is closed on the half that was still open.
 >
 > The V2.6 decision was taken while STEER-05 was still in review, and it
@@ -126,8 +126,8 @@ in each item below.
    *measurement* lenses (All / On track / Needs attention / Completed) whose
    filter runs client-side over the loaded page and whose counts describe the
    page while reading as workspace facts. That is
-   [DEBT-120](../product/PRODUCT_DEBT.md#-debt-120--the-goals-gallery-is-ordered-by-alignment-not-by-outcome--p3)'s
-   open half and [DEBT-121](../product/PRODUCT_DEBT.md#-debt-121--status-view-counts-describe-the-loaded-page-not-the-workspace--p3)'s
+   [DEBT-120](../product/PRODUCT_DEBT.md#-debt-120--the-goals-gallery-is-ordered-by-alignment-not-by-outcome--p3--resolved-2026-08-28-v25-steer-01)'s
+   open half and [DEBT-121](../product/PRODUCT_DEBT.md#-debt-121--status-view-counts-describe-the-loaded-page-not-the-workspace--p3--resolved-2026-08-28-v25-steer-01)'s
    trust cost, exactly as written.
 3. **Three surfaces tell three different progress stories about one Goal.**
    Today and `/goals` lead with the measurement; the record's summary band draws
@@ -149,7 +149,7 @@ in each item below.
    create any — `GoalProjectChips` only re-parents an *existing* Project, and
    the Projects tab's empty state offers nothing (**DEBT-210**; Today's project
    cards have carried the same gap as
-   [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3)
+   [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3--resolved-2026-08-28-v25-steer-04)
    since POLISH-02).
 6. **The collection route does dead work and the module carries stale prose.**
    `/goals` loads a sparkline series, the definition of done and five alignment
@@ -301,7 +301,7 @@ door — sequenced so each lands on the one before it.
   outcomes going?"*; an unmeasured Goal with no recent activity sits above a
   measured Goal that is behind its own target date. The lens counts ("On track
   3") are computed from the **loaded page** and read as workspace facts —
-  [DEBT-121](../product/PRODUCT_DEBT.md#-debt-121--status-view-counts-describe-the-loaded-page-not-the-workspace--p3)
+  [DEBT-121](../product/PRODUCT_DEBT.md#-debt-121--status-view-counts-describe-the-loaded-page-not-the-workspace--p3--resolved-2026-08-28-v25-steer-01)
   names this a **trust cost**, and its own rule is the bar: *"a count that
   describes the page must not remain beside a label that reads as the
   workspace."* Underneath, the route loads three things it never renders (the
@@ -320,7 +320,7 @@ door — sequenced so each lands on the one before it.
   shared measurement section, so the wiring exists once.
 - **Why it belongs in this programme.** It is the recorded decision the Goal
   layer has been queuing behind:
-  [DEBT-120](../product/PRODUCT_DEBT.md#-debt-120--the-goals-gallery-is-ordered-by-alignment-not-by-outcome--p3)'s
+  [DEBT-120](../product/PRODUCT_DEBT.md#-debt-120--the-goals-gallery-is-ordered-by-alignment-not-by-outcome--p3--resolved-2026-08-28-v25-steer-01)'s
   closing condition asks exactly this (*"`/goals` states which question it
   answers (recorded, not implied), and its order is established workspace-wide
   in SQL before pagination for THAT question"*), and FOLLOW-02 deliberately
@@ -376,7 +376,7 @@ door — sequenced so each lands on the one before it.
   5. One identity rule: the row and the pane resolve the **same mark** for the
      same Goal, asserted on a Goal that has its own identity and one that
      inherits its Area's.
-  6. [DEBT-192](../product/PRODUCT_DEBT.md#-debt-192--a-goals-measurement-callbacks-are-declared-twice-on-the-record-and-on-the-workspace-pane--p3)'s
+  6. [DEBT-192](../product/PRODUCT_DEBT.md#-debt-192--a-goals-measurement-callbacks-are-declared-twice-on-the-record-and-on-the-workspace-pane--p3--resolved-2026-08-28-v25-steer-01)'s
      closing condition, verbatim: `detail.tsx` declares no measurement or
      milestone callback of its own, and the Goals E2E journeys pass unchanged on
      both surfaces.
@@ -426,7 +426,7 @@ door — sequenced so each lands on the one before it.
 **A Goal takes the owner's judgement, and a mis-filed Goal can be re-filed.**
 
 - **User problem.** Two halves, both recorded since DHDS-10.
-  1. [DEBT-183](../product/PRODUCT_DEBT.md#-debt-183--a-goal-has-no-status-vocabulary-so-a-goals-condition-cannot-be-set--p3):
+  1. [DEBT-183](../product/PRODUCT_DEBT.md#-debt-183--a-goal-has-no-status-vocabulary-so-a-goals-condition-cannot-be-set--p3--resolved-2026-08-28-v25-steer-02):
      every judgement on a Goal surface is the machine's. An owner who has
      deliberately set a Goal aside for the winter cannot say so — and since
      FOLLOW-02, that silence is *printed*: a resting Goal reads *"No movement
@@ -434,7 +434,7 @@ door — sequenced so each lands on the one before it.
      which is precisely the manufactured guilt
      [`AGENTS.md` §2.4](../../AGENTS.md#2-product-philosophy) rules out — except
      the owner has no way to answer it.
-  2. [DEBT-184](../product/PRODUCT_DEBT.md#-debt-184--a-goals-area-cannot-be-changed-after-creation--p3):
+  2. [DEBT-184](../product/PRODUCT_DEBT.md#-debt-184--a-goals-area-cannot-be-changed-after-creation--p3--resolved-2026-08-28-v25-steer-02):
      a Goal filed under the wrong Area stays there. A Project has `move`; a Goal
      does not, and the only remedy — recreate and re-link — destroys the Goal's
      Activity and measurement history.
@@ -679,7 +679,7 @@ created.**
 - **User problem.** The product tells the owner *where* attention is needed and
   stops. Today's "Continue working" cards carry health, progress and counts but
   no next action —
-  [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3)'s
+  [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3--resolved-2026-08-28-v25-steer-04)'s
   words: *"on a surface whose whole purpose is 'what should I do now?', that is
   one click more than it should be."* A Goal is worse
   ([DEBT-210](../product/PRODUCT_DEBT.md)): its record shows past contribution
@@ -936,7 +936,7 @@ created.**
      item's own criterion 5 is an axe-clean Today and a red page cannot be
      scoped around.
 - **What it found on Today's page and deliberately did NOT fix.**
-  [DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2):
+  [DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2--resolved-2026-09-02):
   three assertions in `goals.spec.ts` and `areas.spec.ts` still address the Area
   record's Goals tab as the `role="article"` Card that STEER-03 replaced with the
   shared `GoalStoryRow`, and they fail on `main` for that reason (measured on a
@@ -978,7 +978,7 @@ created.**
 - **E2E cost is answered per item, the FOLLOW-02 way.** Each item sizes its
   journey to fit the thirteen-partition gate before reaching for capacity
   (FOLLOW-02 fitted 18.7 s; FOLLOW-01 moved the count with arithmetic).
-  [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2)'s
+  [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2--resolved-2026-09-04-v28-conv-03)'s
   536 stranded seconds are recovered **only** by an item that measures it
   cannot fit — a deliberate pass over `derivePartitions`, never a side effect.
 
@@ -992,13 +992,13 @@ decision with a named home.
 | Deferred | Evidence | Why not now |
 |---|---|---|
 | **Retrieval & capture velocity** — a canonical tag model, `#tag` + time in the capture grammar, Search's empty query offering recent records | [DEBT-182](../product/PRODUCT_DEBT.md#-debt-182--tags-have-no-canonical-model-so-they-have-no-canonical-picker--p3--resolved-2026-08-29-v26-find-02), [DEBT-48](../product/PRODUCT_DEBT.md#-debt-48--tasks-have-no-tags-so-the-collection-offers-no-tag-filter--p3--resolved-2026-08-29-v26-find-03), [DEBT-195](../product/PRODUCT_DEBT.md#-debt-195--searchs-empty-query-offers-nothing-to-open--p2--resolved-2026-08-29-v26-find-01) (P2); DHDS-13 §13 capture *"Below"* | **The strongest competing theme and the presumptive V2.6 — and it is now [V2.6](ROADMAP_V2_6.md), confirmed against its competitor rather than inherited.** One coherent programme around a kernel tag decision — V2.4's reason, still true. While DEBT-195 is open the product still does not claim an A on DHDS-13's scale, and this file says so rather than hiding it. |
-| **One Task anatomy** — Today/search/Project tab rendering Tasks as Cards | [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2) + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2) (both P2) | The two entries' own instruction is to close **together**, as one bounded convergence pass. V2.5's items do not require it — GATE-02 proved the semantics converge through the shared kernel functions — and STEER-04's card next-action row opens the canonical Drawer rather than widening the fork. Strongest non-theme candidate to ride beside V2.6. |
+| **One Task anatomy** — Today/search/Project tab rendering Tasks as Cards | [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2--resolved-2026-09-03-v28-conv-02) + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2--resolved-2026-09-03-v28-conv-01) (both P2) | The two entries' own instruction is to close **together**, as one bounded convergence pass. V2.5's items do not require it — GATE-02 proved the semantics converge through the shared kernel functions — and STEER-04's card next-action row opens the canonical Drawer rather than widening the fork. Strongest non-theme candidate to ride beside V2.6. |
 | **A first-run / sparse-workspace experience** | DHDS-13 §13 (*"Below"*) | Unchanged from V2.4: a programme of its own, and this product is one owner's populated daily driver. |
 | **The offline slice** — habit check-in, template create, dependency edit, relationship/order changes | DEBT-155, DEBT-160, DEBT-161, DEBT-167, DEBT-170, DEBT-190 | One decision about what the offline contract covers, judged together. No new evidence since V2.4. |
 | **AI over the follow-through data** — daily planning proposals, the Review assistant's fact block | AI-03 ◐, [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3), DEBT-92, DEBT-93 | **Newly unblocked and still deferred.** V2.4 built the owner-verifiable data AI-03's precondition named; a live provider key remains owner-held and has never been exercised from this repository, and evidence, not novelty, schedules AI work. **Deferred again by [V2.6](ROADMAP_V2_6.md#the-ai-decision-recorded-rather-than-postponed), which audited it as the working hypothesis and rejected it — not for unreadiness (the platform shipped 2026-08-05 and V2.5's own `loadGoalStories` is the fact block it needs) but because the blocker is a credential this repository has never held. The blocker, the gate and the sequence are named there.** |
 | **Stronger reporting / Analytics growth** | DEBT-103, DEBT-145, [DEBT-122](../product/PRODUCT_DEBT.md#-debt-122--expressivesummary-now-has-no-consumer--p3) | The owner's own word is *"later"*. V2.5 takes the reporting loop's two bounded gaps (the Review step's blind spots, the missing door) and leaves the rest — including the `ExpressiveSummary` / M3X-hierarchy decision, whose obvious consumer is a future reporting surface. |
 | **Project & template capabilities** — a Project description, template dates and repeats | [DEBT-137](../product/PRODUCT_DEBT.md#-debt-137--a-project-has-no-description-field-so-its-gallery-card-cannot-say-what-it-is--p2) (P2), [DEBT-165](../product/PRODUCT_DEBT.md#-debt-165--a-template-carries-no-dates-relative-or-otherwise--p2) (P2), DEBT-166, DEBT-168 | Real module capabilities, each with its own decision (a description slice; a closed offset vocabulary). Neither serves this theme, and taking P2s off-theme is how a programme becomes a grab-bag. |
-| **The E2E machinery** — stranded capacity, accumulated-state specs, timing races | [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2), DEBT-173, DEBT-203 (P2s) | Standing constraints every item works inside. Recovered or repaired only by a deliberate pass whose subject they are — machinery every job depends on is not edited as a side effect. |
+| **The E2E machinery** — stranded capacity, accumulated-state specs, timing races | [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2--resolved-2026-09-04-v28-conv-03), DEBT-173, DEBT-203 (P2s) | Standing constraints every item works inside. Recovered or repaired only by a deliberate pass whose subject they are — machinery every job depends on is not edited as a side effect. |
 | **Plan's board proportions** | DEBT-162, DEBT-163 | Unchanged from V2.4: composition questions, none costing the owner information. |
 
 ### Standing non-goals, carried forward unchanged

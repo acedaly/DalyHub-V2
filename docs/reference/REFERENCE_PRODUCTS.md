@@ -101,7 +101,7 @@
 | **dnd-kit** | Accessible drag-and-drop | `clauderic/dnd-kit` | 🟢 MIT | For reordering/scheduling with keyboard equivalents ([DS-04](../design/DESIGN_SYSTEM.md#cards)). |
 | **TanStack Query / Table / Virtual** | Data fetching, tables, list virtualisation | `TanStack/*` | 🟢 MIT | Virtualisation for [Timeline/Activity/Search](../../AGENTS.md#16-performance-expectations). |
 | **date-fns** | Date math | `date-fns/date-fns` | 🟢 MIT | Lightweight, tree-shakeable date utilities. |
-| **Lucide** | Icon set | `lucide-icons/lucide` | 🟢 ISC | Consistent iconography ([Foundations](../design/DESIGN_SYSTEM.md#foundations)). |
+| **Lucide** | Icon set | `lucide-icons/lucide` | 🟢 ISC | Consistent iconography ([Foundations](../design/DESIGN_SYSTEM.md#foundations--the-dalyhub-design-system-over-material-3-machinery)). |
 | **Zod** (or similar) | Runtime validation | `colinhacks/zod` | 🟢 MIT | Validate boundaries/imports ([security](../../AGENTS.md#17-security-requirements)). |
 | **rehype-sanitize** (`hast-util-sanitize`) | XSS-safe rendering | `rehypejs/rehype-sanitize` | 🟢 MIT | **Adopted** (tree-based, no DOM/JSDOM — Workers-safe) for [FND-08](../roadmap/ROADMAP_V2.md#-fnd-08--markdown-pipeline); DOMPurify+JSDOM was **rejected** (needs a DOM). See the [FND-08 evaluation](#markdown-pipeline-evaluation-fnd-08). |
 

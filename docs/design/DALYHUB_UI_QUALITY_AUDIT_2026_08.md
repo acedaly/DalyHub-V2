@@ -19,8 +19,9 @@
 > overflow, elements past the viewport edge, controls clipped by ancestors,
 > heading line counts vs available width).
 >
-> Evidence: [`assets/uiq-2026-08/`](assets/uiq-2026-08/) — before/after pairs
-> named by finding id.
+> Evidence: `assets/uiq-2026-08/` — before/after pairs named by finding id,
+> captured during the pass but not committed to the repository; each finding
+> below records what its captures showed.
 
 ## How to read severity
 
@@ -85,7 +86,12 @@ should not re-litigate them.
   the tray stays opaque under every state, present and future. Visual result is
   identical (the mix resolves to the same colour the eye saw over the group
   surface).
-- **Evidence:** [`uiq-001-002-before-today-hover.png`](assets/uiq-2026-08/uiq-001-002-before-today-hover.png) · [`uiq-001-002-before-tasks-hover.png`](assets/uiq-2026-08/uiq-001-002-before-tasks-hover.png) · [`uiq-001-before-dark-hover.png`](assets/uiq-2026-08/uiq-001-before-dark-hover.png) → [`uiq-001-002-after-today-hover.png`](assets/uiq-2026-08/uiq-001-002-after-today-hover.png) · [`uiq-001-002-after-tasks-hover.png`](assets/uiq-2026-08/uiq-001-002-after-tasks-hover.png).
+- **Evidence:** hover captures of a Today row and a Tasks row (light) and a
+  Today row (dark) before the fix, each showing the purple swipe tray painting
+  through the hovered surface; the same Today and Tasks hover captures after
+  the fix show only the 8% state layer and the row's quick actions
+  (`uiq-001-002-before-*`, `uiq-001-before-dark-hover`, `uiq-001-002-after-*`
+  — not committed).
 
 ### UIQ-002 — Invisible hover-action rail permanently consumes a third of the row
 
@@ -117,7 +123,10 @@ should not re-litigate them.
   than before (nothing is reserved, nothing reflows), titles and metadata get
   the full row at rest, and rest-state hit-testing matches what the eye sees.
   Touch keeps the always-visible in-flow rail unchanged.
-- **Evidence:** [`uiq-002-before-today-rest.png`](assets/uiq-2026-08/uiq-002-before-today-rest.png) (ragged three-line rows) → [`uiq-002-after-today-rest.png`](assets/uiq-2026-08/uiq-002-after-today-rest.png) (uniform two-line rows), plus the hover pair above.
+- **Evidence:** a rest-state capture of Today's My day list before the fix
+  (ragged three-line rows, a third of each row empty) and after it (uniform
+  two-line rows owning the full width) — `uiq-002-before/after-today-rest`,
+  not committed — plus the hover pair above.
 
 ### UIQ-003 — Renaming a record collapses the title editor to ~300px
 
@@ -144,7 +153,10 @@ should not re-litigate them.
   (`.record-title:has(> .dh-inline-edit[data-editing])`), the title flex item
   grows (`flex: 1 1 auto`). Read-state layout is untouched — chips keep sitting
   beside short titles — because the rule binds to the editing state only.
-- **Evidence:** [`uiq-003-before-title-edit.png`](assets/uiq-2026-08/uiq-003-before-title-edit.png) → [`uiq-003-after-title-edit.png`](assets/uiq-2026-08/uiq-003-after-title-edit.png).
+- **Evidence:** a record title in rename state before the fix (the ~301px
+  input showing only the tail of the name, the rest of the row empty) and
+  after it (the editor spanning the width the heading had) —
+  `uiq-003-before/after-title-edit`, not committed.
 
 ### UIQ-004 — Grid cards shatter their heading when the title wraps
 
@@ -172,7 +184,10 @@ should not re-litigate them.
   auto` (icon · title · status), title wrapping inside its column, icon and
   status pinned to the first row. List rows keep the dense-row flex line
   unchanged.
-- **Evidence:** [`uiq-004-before-grid-cards.png`](assets/uiq-2026-08/uiq-004-before-grid-cards.png) → [`uiq-004-after-grid-cards.png`](assets/uiq-2026-08/uiq-004-after-grid-cards.png).
+- **Evidence:** Today's Continue working grid before the fix (orphaned glyph,
+  title starting beneath it, status chip dangling after the last line) and
+  after it (icon beside the first line, status pinned to the heading row) —
+  `uiq-004-before/after-grid-cards`, not committed.
 
 ### UIQ-005 — Meeting status pills are lowercase
 
@@ -186,7 +201,10 @@ should not re-litigate them.
   `meeting.status` straight through instead of a derived label.
 - **Fix:** one `meetingStatusLabel` derivation in `meeting-view.ts`, consumed
   by the collection row, the record header pill and the details list.
-- **Evidence:** [`uiq-005-007-before-meeting.png`](assets/uiq-2026-08/uiq-005-007-before-meeting.png) → [`uiq-005-007-after-meeting.png`](assets/uiq-2026-08/uiq-005-007-after-meeting.png) (shared with UIQ-006/007).
+- **Evidence:** a Meeting record before the fix (lowercase "planned" pill,
+  US-order date, browser-default definition list) and after it (Sentence-case
+  pill, day-first date, shared metadata grid) — `uiq-005-007-before/after-meeting`,
+  not committed (shared with UIQ-006/007).
 
 ### UIQ-006 — Meetings speak a different date language
 
@@ -230,7 +248,9 @@ should not re-litigate them.
 - **Root cause:** the Waiting band simply never adopted the section's existing
   `action` slot.
 - **Fix:** move the link into the heading row via the existing slot.
-- **Evidence:** [`uiq-008-before-waiting.png`](assets/uiq-2026-08/uiq-008-before-waiting.png) → [`uiq-008-after-waiting.png`](assets/uiq-2026-08/uiq-008-after-waiting.png).
+- **Evidence:** Today's Waiting section before the fix ("View all waiting (6)"
+  after the last row) and after it (the link in the heading row) —
+  `uiq-008-before/after-waiting`, not committed.
 
 ### UIQ-009 — Assets filter fields are three different controls in one row
 
@@ -243,7 +263,10 @@ should not re-litigate them.
   leaves its text inputs on component defaults.
 - **Fix:** the filter bar's inputs share the selects' height, border and
   radius; the tag input gains a placeholder naming what it filters.
-- **Evidence:** [`uiq-009-before-assets-filters.png`](assets/uiq-2026-08/uiq-009-before-assets-filters.png) → [`uiq-009-after-assets-filters.png`](assets/uiq-2026-08/uiq-009-after-assets-filters.png).
+- **Evidence:** the Assets filter bar before the fix (three control heights,
+  bare Tag box, misaligned baselines) and after it (one height, border and
+  radius across the row, Tag placeholder present) —
+  `uiq-009-before/after-assets-filters`, not committed.
 
 ### UIQ-010 — Reviews duplicates the period on every row
 
@@ -254,7 +277,9 @@ should not re-litigate them.
   stated twice is a value nobody reads.
 - **Fix:** the subtitle keeps the period; the metadata keeps Updated /
   progress facts and drops the duplicate.
-- **Evidence:** [`uiq-010-before-review-row.png`](assets/uiq-2026-08/uiq-010-before-review-row.png) → [`uiq-010-after-review-row.png`](assets/uiq-2026-08/uiq-010-after-review-row.png).
+- **Evidence:** a Reviews row before the fix (period in the subtitle and again
+  as a "Period:" fact) and after it (period once, in the subtitle) —
+  `uiq-010-before/after-review-row`, not committed.
 
 ---
 
@@ -278,23 +303,26 @@ should not re-litigate them.
 
 Before/after pairs for the three findings #130 resolved, captured by
 [`e2e/collection-header-screenshots.spec.ts`](../../e2e/collection-header-screenshots.spec.ts)
-(opt-in: `CAPTURE_SCREENSHOTS=1 SHOT_STAGE=before|after`).
+(opt-in: `CAPTURE_SCREENSHOTS=1 SHOT_STAGE=before|after`). The captures were
+taken during the pass and not committed to the repository; the filenames
+below name each surface and width, and the **What it showed** column records
+the evidence. Re-run the spec to regenerate them.
 
-| Surface | Before | After |
-| --- | --- | --- |
-| Tasks header, 1440 | [`uiq-013-before-tasks-1440.png`](assets/uiq-2026-08/uiq-013-before-tasks-1440.png) | [`uiq-013-after-tasks-1440.png`](assets/uiq-2026-08/uiq-013-after-tasks-1440.png) |
-| Goals header, 1440 | [`uiq-013-before-goals-1440.png`](assets/uiq-2026-08/uiq-013-before-goals-1440.png) | [`uiq-013-after-goals-1440.png`](assets/uiq-2026-08/uiq-013-after-goals-1440.png) |
-| People header, 1440 | [`uiq-013-before-people-1440.png`](assets/uiq-2026-08/uiq-013-before-people-1440.png) | [`uiq-013-after-people-1440.png`](assets/uiq-2026-08/uiq-013-after-people-1440.png) |
-| Reviews header, 1440 | [`uiq-013-before-reviews-1440.png`](assets/uiq-2026-08/uiq-013-before-reviews-1440.png) | [`uiq-013-after-reviews-1440.png`](assets/uiq-2026-08/uiq-013-after-reviews-1440.png) |
-| Assets header (five views), 1440 | [`uiq-013-before-assets-1440.png`](assets/uiq-2026-08/uiq-013-before-assets-1440.png) | [`uiq-013-after-assets-1440.png`](assets/uiq-2026-08/uiq-013-after-assets-1440.png) |
-| Areas gallery header, 1440 | [`uiq-013-before-areas-gallery-1440.png`](assets/uiq-2026-08/uiq-013-before-areas-gallery-1440.png) | [`uiq-013-after-areas-gallery-1440.png`](assets/uiq-2026-08/uiq-013-after-areas-gallery-1440.png) |
-| Meetings header, 1440 | [`uiq-013-before-meetings-1440.png`](assets/uiq-2026-08/uiq-013-before-meetings-1440.png) | [`uiq-013-after-meetings-1440.png`](assets/uiq-2026-08/uiq-013-after-meetings-1440.png) |
-| Tasks / People, 1280 laptop | [`uiq-013-before-tasks-1280.png`](assets/uiq-2026-08/uiq-013-before-tasks-1280.png) · [`uiq-013-before-people-1280.png`](assets/uiq-2026-08/uiq-013-before-people-1280.png) | [`uiq-013-after-tasks-1280.png`](assets/uiq-2026-08/uiq-013-after-tasks-1280.png) · [`uiq-013-after-people-1280.png`](assets/uiq-2026-08/uiq-013-after-people-1280.png) |
-| Phone 390 (People, Reviews) | [`uiq-013-before-people-390.png`](assets/uiq-2026-08/uiq-013-before-people-390.png) · [`uiq-013-before-reviews-390.png`](assets/uiq-2026-08/uiq-013-before-reviews-390.png) | [`uiq-013-after-people-390.png`](assets/uiq-2026-08/uiq-013-after-people-390.png) · [`uiq-013-after-reviews-390.png`](assets/uiq-2026-08/uiq-013-after-reviews-390.png) |
-| UIQ-014 — Reviews full pane | [`uiq-014-before-reviews-full-1440.png`](assets/uiq-2026-08/uiq-014-before-reviews-full-1440.png) | [`uiq-014-after-reviews-full-1440.png`](assets/uiq-2026-08/uiq-014-after-reviews-full-1440.png) |
-| UIQ-021 — long menu low on a 1280×800 screen | [`uiq-021-before-menu-bottom-1280.png`](assets/uiq-2026-08/uiq-021-before-menu-bottom-1280.png) | [`uiq-021-after-menu-bottom-1280.png`](assets/uiq-2026-08/uiq-021-after-menu-bottom-1280.png) |
-| Project identity colour, light | [`project-colour-before-gallery-light-1440.png`](assets/uiq-2026-08/project-colour-before-gallery-light-1440.png) | [`project-colour-after-gallery-light-1440.png`](assets/uiq-2026-08/project-colour-after-gallery-light-1440.png) |
-| Project identity colour, dark | [`project-colour-before-gallery-dark-1440.png`](assets/uiq-2026-08/project-colour-before-gallery-dark-1440.png) | [`project-colour-after-gallery-dark-1440.png`](assets/uiq-2026-08/project-colour-after-gallery-dark-1440.png) |
+| Surface | Before | After | What it showed |
+| --- | --- | --- | --- |
+| Tasks header, 1440 | `uiq-013-before-tasks-1440.png` | `uiq-013-after-tasks-1440.png` | Menu + button row → the shared segmented switcher on one row with the title and create action. |
+| Goals header, 1440 | `uiq-013-before-goals-1440.png` | `uiq-013-after-goals-1440.png` | Module-local segmented control → the shared switcher; layout otherwise unchanged. |
+| People header, 1440 | `uiq-013-before-people-1440.png` | `uiq-013-after-people-1440.png` | Pill tabs under the header → the shared switcher in the header row. |
+| Reviews header, 1440 | `uiq-013-before-reviews-1440.png` | `uiq-013-after-reviews-1440.png` | View pills with "New Review" inline → shared switcher, create action at the trailing end. |
+| Assets header (five views), 1440 | `uiq-013-before-assets-1440.png` | `uiq-013-after-assets-1440.png` | Pill row inside the pane header → the shared switcher holding all five views on one row. |
+| Areas gallery header, 1440 | `uiq-013-before-areas-gallery-1440.png` | `uiq-013-after-areas-gallery-1440.png` | The reference anatomy (title · switcher · action) that the other collections were measured against. |
+| Meetings header, 1440 | `uiq-013-before-meetings-1440.png` | `uiq-013-after-meetings-1440.png` | Module-local segmented control → the shared switcher. |
+| Tasks / People, 1280 laptop | `uiq-013-before-tasks-1280.png` · `uiq-013-before-people-1280.png` | `uiq-013-after-tasks-1280.png` · `uiq-013-after-people-1280.png` | Title, switcher and action share one row at laptop width after; before, the switcher sat on its own row with width unused. |
+| Phone 390 (People, Reviews) | `uiq-013-before-people-390.png` · `uiq-013-before-reviews-390.png` | `uiq-013-after-people-390.png` · `uiq-013-after-reviews-390.png` | After: title and create action on row one, the switcher one row tall on row two, scrolling rather than wrapping; no horizontal overflow. |
+| UIQ-014 — Reviews full pane | `uiq-014-before-reviews-full-1440.png` | `uiq-014-after-reviews-full-1440.png` | "New Review" moved from inline after the view pills to the pane-header primary slot every other module uses. |
+| UIQ-021 — long menu low on a 1280×800 screen | `uiq-021-before-menu-bottom-1280.png` | `uiq-021-after-menu-bottom-1280.png` | A Tasks row's ~12-item menu running past the viewport bottom → flipped above its trigger, 8px clear of the edge. |
+| Project identity colour, light | `project-colour-before-gallery-light-1440.png` | `project-colour-after-gallery-light-1440.png` | Projects gallery, light: uniform cards → each project carrying its stable identity colour. |
+| Project identity colour, dark | `project-colour-before-gallery-dark-1440.png` | `project-colour-after-gallery-dark-1440.png` | The same gallery in dark, colours resolving from the one scheme. |
 
 ## Verified healthy (so the next audit starts ahead)
 

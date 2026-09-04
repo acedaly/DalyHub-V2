@@ -32,8 +32,8 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: V2.9 INSIGHT — DEFINED, not started.** Five items,
-INS-00 … INS-04, in order.
+**Programme status: V2.9 INSIGHT — in progress.** Five items, INS-00 … INS-04,
+in order; **INS-00 delivered 2026-09-04**.
 
 **Successor: V2.10 LIFE ADMIN, PLANNED** — see [the sequence](#the-remaining-v2-sequence).
 
@@ -155,7 +155,7 @@ INS-00 ──► INS-01 ──► INS-02
 
 ---
 
-### ☐ INS-00 — The map tells the truth — closes [DEBT-241](../product/PRODUCT_DEBT.md#-debt-241--no-documentation-link-or-anchor-check-exists-and-447-local-links-are-broken--p2)
+### ☑ INS-00 — The map tells the truth — **delivered 2026-09-04** — closes [DEBT-241](../product/PRODUCT_DEBT.md#-debt-241--no-documentation-link-or-anchor-check-exists-and-447-local-links-are-broken--p2--resolved-2026-09-04-v29-ins-00)
 
 **Every local link and anchor in the documentation resolves, and a Static
 check keeps it that way.**
@@ -189,6 +189,36 @@ check keeps it that way.**
   (`☐ DEBT-NN — … — P2`, `ADR-NNN: …`, headings with backticks, apostrophes,
   `/`, `+`, `%`, and non-ASCII); CI's Static job runs it; `SETUP_AND_CI.md`
   documents it.
+- **Delivered 2026-09-04.** `scripts/docs-links.mjs check` (`pnpm run
+  docs:links:check`) is a `Static` step beside `e2e:fixture-dates:check`, and the
+  count is **zero**: 6,564 local links across 149 files, all resolving.
+  - **Re-measured rather than inherited.** The permanent checker's first run on
+    this branch found **422 of 6,737** broken — 233 drifted anchors, 39 missing
+    non-image files, 150 missing screenshots — against the 447 of 6,601 this file
+    recorded. The difference is the defining pass's own eleven repairs plus the
+    reference definitions and nested image-links this checker reads and the
+    temporary one did not. The three classes are the ones the item named.
+  - **Repaired at the correct end.** 213 anchors were rewritten mechanically
+    (exactly one heading in the target file extended the broken anchor, or shared
+    its `DEBT-NNN`/`ADR-NNN` identifier); 20 by hand, where a heading had been
+    rewritten or its document retired. **No heading was renamed back.** The
+    missing code files were retired or renamed rather than lost — `responsive.spec.ts`
+    (split by CONV-03) and ASSET-03's folder were re-pointed; `theme-preference.ts`,
+    `TodayDashboard.tsx`, `task-selection.ts`, `menu-placement.ts`, `CaptureFab.tsx`
+    and `today/routes/plan.tsx` were unlinked to plain code text naming the pass
+    that removed each. **No image was invented**: every missing screenshot folder
+    was checked against `git log --all` and had never been committed, so each
+    reference became prose saying what the capture showed, derived from its alt
+    text, its filename and the surrounding analysis.
+  - **Falsified, then reverted.** Breaking one anchor and one path each made
+    `Static` fail naming file, line and target. The rule caught its own first real
+    case unprompted: resolving DEBT-241's heading in this same change broke the
+    link to it from this file, and the check named it before the commit.
+  - **The rule is recorded** in [`AGENTS.md` §12](../../AGENTS.md#12-development-workflow),
+    in the register's [how to use](../product/PRODUCT_DEBT.md#how-to-use-this-register)
+    section and in [`SETUP_AND_CI.md`](../development/SETUP_AND_CI.md#documentation-links-v29-ins-00).
+    `test/unit/ci/docs-links.test.ts` pins the slug rule against this repository's
+    own heading forms and the repository's own zero-finding state.
 - **Non-goals.** External links; prose style; a docs site.
 
 ### ☐ INS-01 — The history kernel — closes [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3), [DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3)
@@ -453,7 +483,7 @@ every entry it touched a dated disposition.
 | **DEBT-238** — the kernel Activity contract has no window read | P3 | **Raised · taken by INS-01** |
 | **DEBT-239** — three Analytics presets, an inherited eight-bucket cap, no shared series primitive | P3 | **Raised · taken by INS-01** (the primitive) and **INS-03** (the range) |
 | **DEBT-240** — an obligation cannot exist without an Asset and carries no amount | P3 | **Raised · owner V2.10 LIFE ADMIN** — not taken here |
-| **DEBT-241** — no docs link/anchor check; 447 broken local links | P2 | **Raised · taken by INS-00**; the eleven in `ROADMAP_V2_8.md` repaired by the defining pass |
+| **DEBT-241** — no docs link/anchor check; 447 broken local links | P2 | **Raised · CLOSED by INS-00 (2026-09-04)**; the eleven in `ROADMAP_V2_8.md` repaired by the defining pass |
 | **DEBT-242** — no workspace or account deletion path | P3 | **Raised · owner V2.16 CONSOLIDATE**; re-rated at V2.12's definition if Finance's pass finds it must precede money |
 | DEBT-212 · DEBT-103 | P3 | **Taken by INS-02/INS-03 and INS-04** |
 | DEBT-35 | P3 | **Re-homed**: attachments → V2.11; renewals and reminders for non-Asset things → V2.10; the entry closes empty as it always said it would |

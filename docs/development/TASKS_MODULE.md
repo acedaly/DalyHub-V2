@@ -1254,7 +1254,7 @@ showing both would be the same fact twice.
 ### Bulk management
 
 Selection is a pure reducer
-([`task-selection.ts`](../../app/modules/tasks/task-selection.ts)) with four rules:
+(`task-selection.ts` (removed by V2.4-GATE-02)) with four rules:
 
 1. a **range** extends from the last toggled row in DISPLAY order. Only the collection
    knows that order, so the shared Card REPORTS the Shift modifier

@@ -182,18 +182,23 @@ Deliberately a small curated set, not a route dump: the pass photographs what it
 **materially changed**, plus the two surfaces whose non-change is a claim the
 document makes.
 
-| Surface | Before | After |
-|---|---|---|
-| A task row's ⋯ menu (the complex sheet) | [`before-overflow-menu-390.png`](assets/mobile-01-iphone-2026-08/before-overflow-menu-390.png) | [`after-overflow-sheet-390.png`](assets/mobile-01-iphone-2026-08/after-overflow-sheet-390.png) · dark: [`after-overflow-sheet-390-dark.png`](assets/mobile-01-iphone-2026-08/after-overflow-sheet-390-dark.png) |
-| Diary | [`before-diary-390.png`](assets/mobile-01-iphone-2026-08/before-diary-390.png) | [`after-diary-390.png`](assets/mobile-01-iphone-2026-08/after-diary-390.png) |
-| Goals collection | [`before-goals-collection-390.png`](assets/mobile-01-iphone-2026-08/before-goals-collection-390.png) | [`after-goals-collection-390.png`](assets/mobile-01-iphone-2026-08/after-goals-collection-390.png) |
-| Project record | [`before-project-record-390.png`](assets/mobile-01-iphone-2026-08/before-project-record-390.png) | [`after-project-record-390.png`](assets/mobile-01-iphone-2026-08/after-project-record-390.png) · 320: [`after-project-record-320.png`](assets/mobile-01-iphone-2026-08/after-project-record-320.png) |
-| Tasks | [`before-tasks-390.png`](assets/mobile-01-iphone-2026-08/before-tasks-390.png) | [`after-tasks-390.png`](assets/mobile-01-iphone-2026-08/after-tasks-390.png) |
-| A form's commitment row | — (Save sat at y≈1,160) | [`after-form-sticky-commitment-390.png`](assets/mobile-01-iphone-2026-08/after-form-sticky-commitment-390.png) |
-| Today *(deliberate non-change)* | [`before-today-390.png`](assets/mobile-01-iphone-2026-08/before-today-390.png) | [`after-today-390.png`](assets/mobile-01-iphone-2026-08/after-today-390.png) |
-| Note editor *(deliberate non-change)* | [`before-note-editor-390.png`](assets/mobile-01-iphone-2026-08/before-note-editor-390.png) | [`after-note-editor-390.png`](assets/mobile-01-iphone-2026-08/after-note-editor-390.png) |
-| Goal record | [`before-goal-record-390.png`](assets/mobile-01-iphone-2026-08/before-goal-record-390.png) | [`after-goal-record-390.png`](assets/mobile-01-iphone-2026-08/after-goal-record-390.png) |
-| Task Drawer | — | [`after-task-drawer-390.png`](assets/mobile-01-iphone-2026-08/after-task-drawer-390.png) |
+The captures were taken during the pass and were not committed to the repository.
+The filenames are kept so the opt-in spec's output can be matched against them, and
+the last column records what each pair showed, with the §2 entry that holds the
+measurements.
+
+| Surface | Before | After | What the pair showed |
+|---|---|---|---|
+| A task row's ⋯ menu (the complex sheet) | `before-overflow-menu-390.png` | `after-overflow-sheet-390.png` · dark: `after-overflow-sheet-390-dark.png` | §2.3 — a 208px anchored popover with wrapping rows floating mid-list, then the same six actions as full-width 56px sheet rows behind a scrim, in both appearances |
+| Diary | `before-diary-390.png` | `after-diary-390.png` | §2.7 — five of seven days visible in a scrolling strip, then all seven on their own line at equal width |
+| Goals collection | `before-goals-collection-390.png` | `after-goals-collection-390.png` | §2.11 — 188–272px cards that were mostly padding and a 64px mark, then compact rungs with the mark at the Project card's size |
+| Project record | `before-project-record-390.png` | `after-project-record-390.png` · 320: `after-project-record-320.png` | §2.1 — the page scrolled sideways behind a stretched bottom bar, then 0px overflow, the 320 capture confirming the tightest width |
+| Tasks | `before-tasks-390.png` | `after-tasks-390.png` | §2.6, §2.10 — the same 45px rows; the quick-add placeholder no longer cut mid-word |
+| A form's commitment row | — (Save sat at y≈1,160) | `after-form-sticky-commitment-390.png` | §2.4 — the commitment row pinned inside the first viewport, above the bottom navigation |
+| Today *(deliberate non-change)* | `before-today-390.png` | `after-today-390.png` | §3 — header, glance cards and Focus panel at the same positions before and after; only the completion circle's hit area grew (§2.5) |
+| Note editor *(deliberate non-change)* | `before-note-editor-390.png` | `after-note-editor-390.png` | §3 — the editor and its toolbar identical before and after |
+| Goal record | `before-goal-record-390.png` | `after-goal-record-390.png` | §2.8 — the record tab strip with the per-tab target floor and scroll-shadow cue |
+| Task Drawer | — | `after-task-drawer-390.png` | the full-screen phone Drawer with its commitment row reachable (§2.4) |
 
 The "before" images were taken against the pre-change build at 2× device pixel
 ratio during the audit; the "after" set is re-capturable at any time with

@@ -198,7 +198,7 @@ A module is a self-contained feature area (Today, Projects, Notes, …). Each on
 
 **Module rules:**
 - A module never imports another module's internals — enforced by a repository import-boundary test ([`MODULES.md`](../development/MODULES.md)). Cross-module relationships go through **EntityLinks**.
-- A module builds its UI from the **shared Design System** — no bespoke duplicates ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke)).
+- A module builds its UI from the **shared Design System** — no bespoke duplicates ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)).
 - A module is independently implementable, matching the [ROADMAP](../roadmap/ROADMAP_V2.md) structure — one item, one PR.
 
 ---

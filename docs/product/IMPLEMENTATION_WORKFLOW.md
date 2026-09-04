@@ -56,7 +56,7 @@ Each step is expanded below with its inputs, actions, and the authority that gov
 
 ### 3. Inspect existing implementation
 - **Goal.** Reuse what the repo already has before adding anything.
-- **Do.** Look hard at the [Design System](../design/DESIGN_SYSTEM.md) and kernel: is there already a shared Card, Drawer, Form, link picker, activity renderer you should use? Prefer extending a shared pattern over inventing one ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke)).
+- **Do.** Look hard at the [Design System](../design/DESIGN_SYSTEM.md) and kernel: is there already a shared Card, Drawer, Form, link picker, activity renderer you should use? Prefer extending a shared pattern over inventing one ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)).
 - **Governed by.** [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md).
 - **Output.** The set of existing shared pieces this item will build on.
 

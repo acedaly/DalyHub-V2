@@ -104,7 +104,7 @@ opening a job:
 | Job | What it does | What its red means |
 | --- | --- | --- |
 | **Scope** | Decides whether the change touches anything executable | (never red in practice — it fails open) |
-| **Static** | `format:check` → `lint` → `typecheck` → `scheme:check` → `e2e:partitions:check` → `e2e:fixture-dates:check` → `icons:check` | the source does not meet the repository's own rules |
+| **Static** | `format:check` → `lint` → `typecheck` → `scheme:check` → `e2e:partitions:check` → `e2e:fixture-dates:check` → `docs:links:check` → `icons:check` | the source does not meet the repository's own rules |
 | **Unit** | `pnpm run test:unit`, then `pnpm run test:kernel` (real Workers runtime + local D1) | application or kernel logic is wrong |
 | **Build** | `pnpm run build`, `wrangler deploy --dry-run` against the generated config, then uploads `build/` as the `production-build` artifact | it does not build, or it would not deploy |
 | **E2E p01…p13** | A **thirteen-way** matrix, one job per time-balanced partition of the suite; each downloads the `production-build` artifact and runs its own spec files on its own runner | the product misbehaves in a real browser — or a partition did not finish, which the job says in those words |
@@ -155,6 +155,8 @@ checked, exactly like the generated colour scheme and the icon assets:
 | `pnpm run e2e:order-proof <dir-a> <dir-b>` | compares two gate runs test by test — DEBT-173's proof that a re-derived split changes no result |
 | `pnpm run e2e:fixture-dates:check` | fails if any `e2e/**` seed, spec, fixture or helper carries an **unannotated future date literal** in any supported form, or an **unannotated long-form picker label** of any date (run by **Static**; see "Fixture dates" below) |
 | `pnpm run e2e:fixture-dates:list` | enumerates every date literal the check reads, with its classification |
+| `pnpm run docs:links:check` | fails if any **local** documentation link or `#anchor` does not resolve, naming file, line and target (run by **Static**; see "Documentation links" below) |
+| `pnpm run docs:links:list` | enumerates every local link the check reads, with its verdict |
 
 The derivation is a pure function of those two inputs — longest-processing-time
 greedy packing over whole spec files — so it is deterministic and reviewable in
@@ -204,6 +206,56 @@ while any partition sits more than 15% of a ceiling below it. Run against the
 pre-split committed manifest it reports *"the split strands capacity … a spread
 of 24% of the ceiling against the 15% this split allows"*, which is the check
 falsified against the state it was written for.
+
+### Documentation links (V2.9 INS-00)
+
+**Every local link and anchor in the documentation resolves** ([`AGENTS.md` §12](../../AGENTS.md#12-development-workflow),
+[DEBT-241](../product/PRODUCT_DEBT.md#-debt-241--no-documentation-link-or-anchor-check-exists-and-447-local-links-are-broken--p2--resolved-2026-09-04-v29-ins-00)).
+The repository is the product's memory by constitution and its documents are
+held together by anchors into files thousands of lines long, so a heading that
+gains its `— **RESOLVED …**` suffix silently sends every link naming it to the
+top of a 4,900-line register instead. `docs/` is in `.prettierignore`, so until
+this check existed the only gate a documentation change met was a Prettier run
+that did not read it. **Measured on 2026-09-04: 6,601 local links, 447 broken**
+— 254 drifted anchors, 43 missing non-image files, 150 missing screenshots.
+
+`scripts/docs-links.mjs check` reads every `docs/**/*.md` plus `AGENTS.md` and
+`README.md`, and resolves:
+
+| Target | Checked as |
+| --- | --- |
+| `../product/PRODUCT_DEBT.md` | a path, relative to the linking file (or to the repository root when it starts with `/`), percent-decoded, query string dropped — a file **or** a directory |
+| `PRODUCT_DEBT.md#-debt-241--…` | the path, then the anchor against that file's headings |
+| `#12-development-workflow` | an anchor in the linking file itself |
+| `app/kernel/history/window.ts#L40` | the file only — an anchor on a non-Markdown target is GitHub's line anchor |
+| `https:`, `mailto:`, `dalyhub:` | **not checked.** External links are out of scope (the INS-00 non-goal) |
+
+Inline links, images and reference definitions are read; a link inside a fenced
+code block, a code span or an HTML comment is an example, not a reference.
+
+**The slug rule is GitHub's**, and it is the half worth knowing: the heading's
+*rendered* text (a link's text without its URL, image alt, code-span content,
+emphasis markers gone), lower-cased; every character that is not a letter,
+number, `_`, space or hyphen **removed**; spaces to hyphens; nothing collapsed;
+duplicates suffixed `-1`, `-2`. So an em-dash leaves two hyphens behind and a
+leading `☐` leaves one:
+
+```
+### ☐ DEBT-241 — No documentation link or anchor check exists, and 447 local links are broken — P2
+  →  #-debt-241--no-documentation-link-or-anchor-check-exists-and-447-local-links-are-broken--p2
+```
+
+`test/unit/ci/docs-links.test.ts` pins that rule against the repository's own
+heading forms — a debt entry with and without its RESOLVED suffix, an ADR title,
+backticks, apostrophes, `/`, `+`, `%`, `×`, underscores, non-ASCII and
+duplicates — because every expected anchor there is one GitHub already resolves
+today.
+
+**There is no allowlist and no annotation.** A drifted anchor is repaired at the
+*link*; a missing file is repaired at whichever end is wrong; a missing
+screenshot is repaired by committing the image or by replacing the reference
+with a sentence that says what it showed. Never rename a heading back to
+resurrect an old anchor — the resolution is the record.
 
 ### Fixture dates (V2.8 CONV-00-E)
 

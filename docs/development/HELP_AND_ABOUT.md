@@ -143,7 +143,7 @@ version and preferences-schema version, which links to the full screen.
 
 No environment sets it today, and About says "Not recorded" rather than inventing one.
 A deployment that wants it sets it as a production var; see
-[`DEPLOYMENT.md`](DEPLOYMENT.md#optional-recording-the-build-identifier). Requiring it
+[`DEPLOYMENT.md`](DEPLOYMENT.md#recording-the-build-identifier). Requiring it
 would make every local run and every unconfigured deployment display a lie.
 
 ---

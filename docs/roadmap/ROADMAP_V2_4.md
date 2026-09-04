@@ -125,7 +125,7 @@ thing from different directions:
    exists to answer."*
 4. **Routines report to nobody.** HABITS-01 built consistency figures and
    deliberately gave the Review nothing, recording the gap as
-   [DEBT-156](../product/PRODUCT_DEBT.md#-debt-156--the-weekly-review-says-nothing-about-habit-consistency--p3)
+   [DEBT-156](../product/PRODUCT_DEBT.md#-debt-156--the-weekly-review-says-nothing-about-habit-consistency--p3--resolved-2026-08-26-v24-follow-01)
    rather than shipping a half-considered number.
 
 Against DalyHub's stated direction — *"information and progress that help the
@@ -229,7 +229,7 @@ adds anything to it.**
     [DEBT-139](../product/PRODUCT_DEBT.md#-debt-139--migration-0042-has-not-been-applied-and-no-production-backup-has-been-taken--p1--two-of-three-clauses-met-2026-08-30-one-owner-ui-check-remains)
     records migration `0042` as unapplied to production with no pre-migration
     backup taken, and five more have landed behind it;
-    [DEBT-84](../product/PRODUCT_DEBT.md#-debt-84--documentation-drift-production-state-theme-count-identity-status--p3--documentation-corrected-2026-08-11-production-still-unverified)
+    [DEBT-84](../product/PRODUCT_DEBT.md#-debt-84--documentation-drift-production-state-theme-count-identity-status--p3--resolved-2026-08-30)
     is ◐ precisely because production state has never been stated with evidence.
     **The repository cannot know what production runs** — `pnpm run db:production:list`
     and `pnpm run verify:production` are the only honest answers, and both need
@@ -815,9 +815,9 @@ gate, and the reason the product closed at B rather than A.**
 - **Explicit non-goals.** **No goal snapshot table.** No ring that empties, no
   streak, no score, no forecast beyond the pace GOAL-02 already computes and
   already refuses to fake. No AI goal coaching. **No Goal status vocabulary**
-  ([DEBT-183](../product/PRODUCT_DEBT.md#-debt-183--a-goal-has-no-status-vocabulary-so-a-goals-condition-cannot-be-set--p3))
+  ([DEBT-183](../product/PRODUCT_DEBT.md#-debt-183--a-goal-has-no-status-vocabulary-so-a-goals-condition-cannot-be-set--p3--resolved-2026-08-28-v25-steer-02))
   and **no Goal→Area move**
-  ([DEBT-184](../product/PRODUCT_DEBT.md#-debt-184--a-goals-area-cannot-be-changed-after-creation--p3)) —
+  ([DEBT-184](../product/PRODUCT_DEBT.md#-debt-184--a-goals-area-cannot-be-changed-after-creation--p3--resolved-2026-08-28-v25-steer-02)) —
   both are separate domain decisions and stay open. No change to the measurable
   Goal's one formula. No new entity type and no second Goal identity model.
 - **Schema / API changes.** **None expected**, for the reason DEBT-78 states.
@@ -844,9 +844,9 @@ gate, and the reason the product closed at B rather than A.**
      existing unit set passing without modification.
   6. Light and dark; the phone widths; keyboard; accessible names; `axe` clean
      with no rule disabled.
-- **Closes.** DEBT-78. **Narrows.** [DEBT-120](../product/PRODUCT_DEBT.md#-debt-120--the-goals-gallery-is-ordered-by-alignment-not-by-outcome--p3).
+- **Closes.** DEBT-78. **Narrows.** [DEBT-120](../product/PRODUCT_DEBT.md#-debt-120--the-goals-gallery-is-ordered-by-alignment-not-by-outcome--p3--resolved-2026-08-28-v25-steer-01).
   **Closes if the record adopts the shared section.**
-  [DEBT-192](../product/PRODUCT_DEBT.md#-debt-192--a-goals-measurement-callbacks-are-declared-twice-on-the-record-and-on-the-workspace-pane--p3).
+  [DEBT-192](../product/PRODUCT_DEBT.md#-debt-192--a-goals-measurement-callbacks-are-declared-twice-on-the-record-and-on-the-workspace-pane--p3--resolved-2026-08-28-v25-steer-01).
 - **DELIVERED 2026-08-27.** Record:
   [`V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md`](../product/V2_4_FOLLOW_02_GOAL_MOVEMENT_2026_08.md).
 

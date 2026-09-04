@@ -3,7 +3,7 @@
 > How the owner gets **everything** out of DalyHub, and what the exported files
 > mean. This implements [X-04](../roadmap/ROADMAP_V2.md#-x-04--export--data-portability)
 > and establishes the canonical snapshot contract
-> [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21) restores
+> [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21--delivered-2026-08-08) restores
 > from. **The structured export IS the backup format** — how it is read back in
 > is [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md).
 >

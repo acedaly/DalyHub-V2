@@ -375,7 +375,7 @@ have survived it. Its derived facts are unchanged by that word; only the reader'
 understanding is.
 
 Richer per-period Area attention history and alignment trend remain
-[REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) and
+[REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment--delivered-2026-08-08) and
 [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03).
 
 ### Reflection
@@ -814,7 +814,8 @@ tab that can render empty if a revalidation does not happen. A weekly page payin
   390/1280/1440 with no horizontal overflow, axe in light and dark on both
   surfaces, and keyboard reach.
 
-Evidence set: [`docs/design/assets/review-03-2026-08/`](../design/assets/review-03-2026-08/).
+Evidence set: `docs/design/assets/review-03-2026-08/` (the folder was not committed;
+the browser cases above record what the captures showed).
 
 ### What REVIEW-03 deliberately does not do
 
