@@ -50,12 +50,18 @@ for (const dir of [left, right]) {
 }
 
 /**
- * Every test in one arrangement, as `file › title` → outcome.
+ * Every test in one arrangement, as identity → { label, outcome }.
  *
- * Keyed on the test's own identity — its spec file, its full title path — and
- * NOT on its partition, because the whole point is that the partition changed.
- * The line number is deliberately excluded from neither: it is part of the file
- * and moves only when the file does, and both sides are the same commit.
+ * Keyed on the test's OWN identity and never on its partition, because the whole
+ * point is that the partition changed. Playwright's `spec.id` is that identity —
+ * the same string it uses to match a test across reports, which is why
+ * `durationsFromReports` keys on it too. The fallback is the file, the line and
+ * the full title path together: two tests in one file can share a title under
+ * different `describe`s, and a key that merged them would quietly compare four
+ * results as two. Both sides are the same commit, so a line number is stable.
+ *
+ * The label is what a difference is REPORTED as, and it carries the describe
+ * path so the line naming a disagreement is readable without opening a report.
  */
 function outcomes(dir) {
   const rows = new Map();
@@ -68,22 +74,31 @@ function outcomes(dir) {
   }
   for (const report of reports) {
     const parsed = JSON.parse(readFileSync(join(dir, report), "utf8"));
-    const visit = (suite, file, titles) => {
+    // `depth` rather than the presence of `suite.file`: EVERY suite carries the
+    // file it came from, including the nested `describe`s, so a test's describe
+    // path is the titles of every suite below the top-level file suite.
+    const visit = (suite, file, titles, depth) => {
       const current = suite.file
         ? `e2e/${String(suite.file).replace(/^e2e\//, "")}`
         : file;
-      const path =
-        suite.title && !suite.file ? [...titles, suite.title] : titles;
+      const path = depth === 0 ? titles : [...titles, suite.title];
       for (const spec of suite.specs ?? []) {
         for (const test of spec.tests ?? []) {
-          const key = `${current} › ${[...path, spec.title].join(" › ")}`;
+          const label = `${current} › ${[...path, spec.title].join(" › ")}`;
+          const key =
+            spec.id ??
+            `${current}:${spec.line}:${[...path, spec.title].join("›")}`;
           const executed = (test.results ?? []).length > 0;
-          rows.set(key, executed ? test.status : "never-executed");
+          rows.set(key, {
+            label,
+            outcome: executed ? test.status : "never-executed",
+          });
         }
       }
-      for (const child of suite.suites ?? []) visit(child, current, path);
+      for (const child of suite.suites ?? [])
+        visit(child, current, path, depth + 1);
     };
-    for (const suite of parsed.suites ?? []) visit(suite, null, []);
+    for (const suite of parsed.suites ?? []) visit(suite, null, [], 0);
   }
   return rows;
 }
@@ -91,11 +106,22 @@ function outcomes(dir) {
 const a = outcomes(left);
 const b = outcomes(right);
 
-const onlyLeft = [...a.keys()].filter((key) => !b.has(key)).sort();
-const onlyRight = [...b.keys()].filter((key) => !a.has(key)).sort();
-const differing = [...a.keys()]
-  .filter((key) => b.has(key) && a.get(key) !== b.get(key))
+const onlyLeft = [...a.keys()]
+  .filter((key) => !b.has(key))
+  .map((key) => a.get(key).label)
   .sort();
+const onlyRight = [...b.keys()]
+  .filter((key) => !a.has(key))
+  .map((key) => b.get(key).label)
+  .sort();
+const differing = [...a.keys()]
+  .filter((key) => b.has(key) && a.get(key).outcome !== b.get(key).outcome)
+  .map((key) => ({
+    label: a.get(key).label,
+    left: a.get(key).outcome,
+    right: b.get(key).outcome,
+  }))
+  .sort((one, other) => one.label.localeCompare(other.label));
 
 const summary = JSON.parse(
   existsSync(join(left, "gate-summary.json"))
@@ -150,10 +176,10 @@ console.log(`outcomes that differ  ${differing.length}`);
 console.log(`tests only in A       ${onlyLeft.length}`);
 console.log(`tests only in B       ${onlyRight.length}`);
 
-for (const key of onlyLeft) console.log(`  ONLY IN A  ${key}`);
-for (const key of onlyRight) console.log(`  ONLY IN B  ${key}`);
-for (const key of differing) {
-  console.log(`  DIFFERS    ${key}  (A: ${a.get(key)}, B: ${b.get(key)})`);
+for (const label of onlyLeft) console.log(`  ONLY IN A  ${label}`);
+for (const label of onlyRight) console.log(`  ONLY IN B  ${label}`);
+for (const row of differing) {
+  console.log(`  DIFFERS    ${row.label}  (A: ${row.left}, B: ${row.right})`);
 }
 
 if (moved === 0 && neighboursA.size > 0) {
