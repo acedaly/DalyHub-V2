@@ -44,11 +44,28 @@ if (!name) {
 const manifest = JSON.parse(
   readFileSync(join(ROOT, "e2e", "partitions.json"), "utf8"),
 );
-const partition = manifest.partitions.find((entry) => entry.name === name);
+/*
+ * The partition being summarised, from the committed manifest — or, when the
+ * caller is running a DERIVED arrangement, from the caller (V2.8 CONV-03).
+ *
+ * DEBT-173's closing condition is two runs of one commit under two different
+ * derived splits, and the second split's partitions are by construction not in
+ * the committed manifest. This is a description of what to report on, not a
+ * decision about what to run: every number below is read out of Playwright's own
+ * report either way, and the honesty rules — an unexecuted test fails the
+ * partition, a partition that collected nothing fails the partition — are
+ * unchanged and unconditional.
+ */
+const adHoc = process.env.E2E_PARTITION_SPECS
+  ? JSON.parse(process.env.E2E_PARTITION_SPECS)
+  : null;
+const partition =
+  adHoc ?? manifest.partitions.find((entry) => entry.name === name);
 if (!partition) {
   console.error(`::error::No E2E partition "${name}" in e2e/partitions.json.`);
   process.exit(2);
 }
+const partitionCount = adHoc?.of ?? manifest.partitions.length;
 
 const lines = [];
 const say = (line) => {
@@ -120,7 +137,7 @@ const timedOut = runErrors.some((error) =>
 
 const minutes = (ms) => `${(ms / 60000).toFixed(1)} min`;
 
-say(`──────── E2E partition ${name} of ${manifest.partitions.length} ────────`);
+say(`──────── E2E partition ${name} of ${partitionCount} ────────`);
 say(
   `spec files assigned   ${partition.specs.length}${partition.shard ? ` (slice ${partition.shard})` : ""}`,
 );

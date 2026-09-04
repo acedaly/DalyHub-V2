@@ -35,11 +35,36 @@ import {
   expectNoAxeViolations,
   gotoFixture,
 } from "./helpers";
+import { d1Execute } from "./d1";
 
 const AREA_WITH_ICON = "/areas/a-health";
 const AREA_WITHOUT_ICON = "/areas/a-dh";
 const PROJECT_WITH_ICON = "/projects/pr-website";
 const PROJECT_WITHOUT_ICON = "/projects/pr-launch";
+
+const WORKSPACE_ID = "local-dev-workspace";
+
+/**
+ * ESTABLISH the "no identity yet" precondition rather than assume it (DEBT-173).
+ *
+ * `a-dh` is a SHARED seeded Area, and this file's `AREA_WITHOUT_ICON` claim is a
+ * claim about it. `identity.spec.ts` chooses an identity for the same Area — it
+ * restores it at the end, but a test that fails before its cleanup leaves the
+ * icon behind for good, and the two files are nine partitions apart. That is
+ * exactly how this file went red on `Received "heart"` and
+ * `Received "Wellbeing, Emerald"` on a re-derived split, with nothing about the
+ * product changed: one record, two beliefs, and whichever spec ran first won.
+ *
+ * A precondition a spec owns is a precondition a spec sets. This heals whatever
+ * the last run left, before anything is asserted, and it is idempotent — the
+ * same shape `identity.spec.ts:268` adopted for its own Goal.
+ */
+function clearSharedAreaIdentity(): void {
+  d1Execute(
+    `UPDATE area_details SET icon_key = NULL, colour_slot = NULL ` +
+      `WHERE workspace_id = '${WORKSPACE_ID}' AND entity_id = 'a-dh';`,
+  );
+}
 
 /** The record header's icon element, whatever glyph it currently resolves to. */
 function headerIcon(page: Page) {
@@ -50,6 +75,14 @@ async function openSettingsTab(page: Page, path: string) {
   await gotoFixture(page, `${path}?tab=settings`);
   await expect(page.getByRole("region", { name: "Appearance" })).toBeVisible();
 }
+
+/*
+ * Before every test, and after the file, `a-dh` carries no identity. Both ends
+ * matter: the first heals whatever a previous run or a sibling spec left, and
+ * the second leaves the shared workspace as this file found it.
+ */
+test.beforeEach(() => clearSharedAreaIdentity());
+test.afterAll(() => clearSharedAreaIdentity());
 
 test.describe("ICON-01 — a persisted icon reaches the record", () => {
   test("an Area with a chosen icon renders it; one without renders the default", async ({

@@ -47,13 +47,29 @@ import { DEV_ORIGIN } from "./dev-server";
  *     different constraint — a very SHORT viewport carrying sticky top chrome, a
  *     bottom navigation bar and, often, an on-screen keyboard. Height was
  *     previously never the binding dimension anywhere in the matrix.
+ *
+ * ── The two TIERS (V2.8 CONV-03, DEBT-205) ───────────────────────────────────
+ * The matrix is now declared as two named tiers whose concatenation IS
+ * `RESPONSIVE_VIEWPORTS`, unchanged in value and in order. The tiers exist
+ * because the responsive sweep is the suite's largest spec file and had to be
+ * split into two real files to stop stranding gate capacity; the seam is the
+ * one the matrix already had — a phone is a phone and a desktop is a desktop —
+ * rather than an arbitrary halving, so which file a viewport belongs to is a
+ * property of the viewport rather than of last week's timings.
+ *
+ * `test/unit/ci/responsive-matrix.test.ts` asserts the concatenation, so a
+ * viewport cannot be dropped from the product's canonical matrix by being
+ * dropped from a tier.
  */
-export const RESPONSIVE_VIEWPORTS = [
+export const PHONE_VIEWPORTS = [
   { label: "mobile-320", width: 320, height: 720 },
   { label: "mobile-375", width: 375, height: 812 },
   { label: "mobile-390", width: 390, height: 844 },
   { label: "mobile-430", width: 430, height: 932 },
   { label: "phone-landscape", width: 844, height: 390 },
+] as const;
+
+export const WIDE_VIEWPORTS = [
   { label: "tablet-768", width: 768, height: 1024 },
   { label: "desktop-1024", width: 1024, height: 768 },
   // DS-14 brief §10 sets the verification widths at 320/375/390/430/768/1280/1440.
@@ -63,6 +79,11 @@ export const RESPONSIVE_VIEWPORTS = [
   { label: "desktop-1280", width: 1280, height: 800 },
   { label: "desktop-1440", width: 1440, height: 900 },
   { label: "ultrawide-2560", width: 2560, height: 1440 },
+] as const;
+
+export const RESPONSIVE_VIEWPORTS = [
+  ...PHONE_VIEWPORTS,
+  ...WIDE_VIEWPORTS,
 ] as const;
 
 /**
@@ -492,6 +513,94 @@ export function postSameOrigin(
     ...rest,
     headers: { ...SAME_ORIGIN_MUTATION_HEADERS, ...headers },
   } as Parameters<APIRequestContext["post"]>[1]);
+}
+
+/**
+ * Perform an act that mutates a record, and do not return until the PRODUCT has
+ * answered (V2.8 CONV-03, DEBT-203).
+ *
+ * DalyHub's lists paint optimistically (ADR-086): a checkbox, a menu item or a
+ * date pick repaints the row from the client's patch map the instant it is
+ * pressed, and the server's answer — plus the revalidation it asks for —
+ * arrives some milliseconds later. A spec that reads the optimistic paint and
+ * moves on is therefore racing the mutation it just made, and it loses in two
+ * distinguishable ways: it navigates away before the write lands (so the next
+ * assertion reads a document rendered from state that was never stored), or the
+ * revalidation RE-CREATES the row underneath whatever it opened on it (so the
+ * next click reports "element was detached from the DOM").
+ *
+ * Both had been repaired one journey at a time — `meetings-concurrency`,
+ * `doc-editor-keyboard-save`, `tasks-journey`'s create — each with its own
+ * hand-rolled `waitForResponse`. This is that wait, shared, so the next spec
+ * that needs it does not invent a twelfth spelling of it.
+ *
+ * It is NOT `networkidle` and it is NOT a timeout. `networkidle` waits for
+ * silence, which a busy page never quite reaches and a quiet one reaches before
+ * the write is even sent; a timeout waits for a duration, which is a guess about
+ * a runner. This waits for the one HTTP response that IS the product's answer,
+ * so a slow runner makes it slower and never makes it wrong.
+ *
+ *   await awaitMutation(page, "/tasks/bulk", () => menuItem.click());
+ *
+ * A string route also matches React Router's single-fetch spelling of the same
+ * action (`/tasks/bulk.data`), because which of the two the runtime submits is
+ * an implementation detail of the router rather than a fact about the product,
+ * and a wait that missed it would wait out its whole budget on a mutation that
+ * had already landed. Pass a `RegExp` when a journey needs to be exact.
+ */
+export async function awaitMutation<T>(
+  page: Page,
+  pathname: string | RegExp,
+  act: () => Promise<T>,
+  options: { readonly method?: string; readonly timeout?: number } = {},
+): Promise<T> {
+  const method = options.method ?? "POST";
+  const settled = page.waitForResponse(
+    (response) => {
+      if (response.request().method() !== method) return false;
+      const path = new URL(response.url()).pathname;
+      return typeof pathname === "string"
+        ? path === pathname || path === `${pathname}.data`
+        : pathname.test(path);
+    },
+    options.timeout === undefined ? undefined : { timeout: options.timeout },
+  );
+  const [, result] = await Promise.all([settled, act()]);
+  return result;
+}
+
+/**
+ * Wait until every animation running in the document has finished (V2.8
+ * CONV-03, DEBT-203).
+ *
+ * A GEOMETRY assertion taken while a surface is still moving is a measurement of
+ * a moment, not of a layout — and the moment it lands on is decided by how busy
+ * the machine is. `iphone-daily-driver.spec.ts:185` is the case that named it:
+ * it opens the phone overflow SHEET, which rises from below the fold on the
+ * shared `.dh-motion-*` grammar, and then asserts that the menu's last row sits
+ * inside the viewport. Measured mid-rise the last row is still below the fold —
+ * **853.85 against 845** on CI run C, and **845.28 against 845** in this
+ * sandbox, the same defect at two points along the same animation — while a
+ * settled sheet clears it by seventeen pixels.
+ *
+ * `Animation.finished` is the browser's own answer to "has it arrived", so this
+ * is a readiness signal rather than a sleep: under `prefers-reduced-motion` the
+ * animations do not exist and it returns immediately, and on a slow machine it
+ * waits exactly as long as the machine took. Rejections are swallowed because an
+ * animation CANCELLED by a state change (a sheet dismissed while opening) is a
+ * legitimate end, and `Promise.all` over a rejection would fail the test for it.
+ *
+ * The five `*-screenshots.spec.ts` capture passes each carry their own copy of
+ * this; they are outside the gate and are left alone rather than churned here.
+ */
+export async function awaitMotionSettled(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await Promise.all(
+      document
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
 }
 
 /**

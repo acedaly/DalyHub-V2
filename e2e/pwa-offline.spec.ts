@@ -716,6 +716,27 @@ test.describe("offline lifecycle", () => {
   test("clearing offline data removes everything DalyHub stored on the device", async ({
     page,
   }) => {
+    /*
+     * A BUDGET correction, and the only kind CONV-03 permits: measured, stated,
+     * and with no assertion changed (DEBT-203).
+     *
+     * This journey primes a complete offline session TWICE — register the
+     * service worker, wait for it to control the page, wait for a snapshot to
+     * land, wait for the shell cache to hold `/offline` — once at the start and
+     * again after it has unregistered the worker and deleted every cache. Its
+     * own helpers declare a 60 s wait for the worker and two 30 s polls for the
+     * snapshot and the shell, and it was running all of that against the 30 s
+     * DEFAULT test budget: the file's stated waits could never be reached,
+     * because the test died first. That is not a race and not a leak — it is a
+     * budget that was never sized for the work, the same finding CONV-00
+     * recorded for `goals-alignment.spec.ts`.
+     *
+     * MEASURED on `main` #833's p04, where it went red at the 30 s budget on a
+     * partition already 19.4 min against its 16.1 min balance. Two full offline
+     * primings do not fit in thirty seconds on any runner; they fit comfortably
+     * in two minutes on every one.
+     */
+    test.setTimeout(120_000);
     await primeOfflineSession(page);
     expect((await readMeta(page)).length).toBe(1);
 

@@ -100,11 +100,30 @@ async function createJourneyTask(
   const body = (await response.json()) as { ok?: boolean };
   expect(body.ok, JSON.stringify(body)).toBe(true);
 
-  // Close whatever Drawer is open (the created task's, or the lingering form) so the
-  // caller starts from the collection.
-  for (let i = 0; i < 3 && (await page.getByRole("dialog").count()) > 0; i++) {
+  /*
+   * Close whatever Drawer is open (the created task's, or the lingering form) so
+   * the caller starts from the collection.
+   *
+   * CONV-03 — this used to press Escape and then SLEEP 150 ms, three times over.
+   * A sleep is a guess about how long a close animation takes, and the guess is
+   * wrong in exactly the direction that matters: on the loaded runner where a
+   * drawer takes longer, the loop spent its three presses and the assertion
+   * below failed on a dialog that was on its way out. Escaping until the product
+   * says there is no dialog left is the same act with the guess removed —
+   * `toHaveCount(0)` retries on its own budget, so each press is followed by a
+   * real wait rather than a timed one.
+   */
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if ((await page.getByRole("dialog").count()) === 0) break;
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(150);
+    // A dialog that needs a second Escape (a stacked drawer) is the reason the
+    // loop exists, so this waits for the close and lets the loop try again if it
+    // does not come. The unconditional assertion after the loop is what fails.
+    await page
+      .getByRole("dialog")
+      .first()
+      .waitFor({ state: "hidden", timeout: 5_000 })
+      .catch(() => undefined);
   }
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }
@@ -172,8 +191,25 @@ async function chooseBulk(
  */
 const JOURNEY_LIST = "/tasks?view=list&system=all&sort=created&dir=desc";
 
-/** The banded triage surface V2.2 kept when the Eisenhower Matrix was removed. */
-const PRIORITY_GROUPS = "/tasks?view=list&system=active&group=priority";
+/**
+ * The banded triage surface V2.2 kept when the Eisenhower Matrix was removed,
+ * SCOPED to this journey's own Project (DEBT-173).
+ *
+ * The scope is not decoration. Unscoped, the `Priority 1` band is a bounded
+ * slice of the workspace's first keyset page, so whether this journey's own task
+ * appears in it depends on how many other active P1 tasks the run has
+ * accumulated by the time it gets here — a property of the SPLIT rather than of
+ * the product. That is the register's own description of this entry, and it is
+ * how `tasks-journey.spec.ts:379` went red on run C of an identical tree, and
+ * `:334` on `main` #828 with `Journey task Charlie` missing from the band after
+ * a reopen that had demonstrably worked.
+ *
+ * Every task this file creates is created under `Tasks journey project`, so the
+ * filter changes nothing about what is asserted and everything about whether the
+ * answer is this spec's to determine.
+ */
+const PRIORITY_GROUPS =
+  "/tasks?view=list&system=active&group=priority&project=pr-tasksjourney";
 
 test.describe("TASKS-01 — full journey", () => {
   /*
@@ -371,6 +407,19 @@ test.describe("TASKS-01 — full journey", () => {
     await expect(
       dialog.getByRole("button", { name: "Complete task" }),
     ).toBeVisible();
+    /*
+     * DEBT-203 — the button flip above is OPTIMISTIC.
+     *
+     * `TaskRecordDrawer.toggleCompletion` sets `optimisticComplete` before it
+     * posts, so the label reads "Complete task" the instant the click lands and
+     * would read it even if the write were still in flight — or had failed. The
+     * product publishes a truthful signal for exactly this moment: it announces
+     * "Task reopened." only on the server's `ok`, and only then does it refresh.
+     * Waiting on the announcement rather than on the repaint is the difference
+     * between asserting that the record was reopened and asserting that the
+     * button was pressed.
+     */
+    await expect(page.getByText("Task reopened.").first()).toBeVisible();
     await page.keyboard.press("Escape");
 
     // Reopened → back in the active P1 band.

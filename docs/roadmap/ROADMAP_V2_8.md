@@ -23,9 +23,27 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: IN PROGRESS (2026-09-03).** CONV-00 ☑ delivered
-2026-09-02; CONV-01 ☑ delivered 2026-09-03; CONV-02 ☑ delivered 2026-09-03;
-**CONV-03 is next**.
+**Programme status: V2.8 CONVERGE — COMPLETE (2026-09-04), less one
+owner-held measurement.** CONV-00 ☑ delivered 2026-09-02; CONV-01 ☑ delivered
+2026-09-03; CONV-02 ☑ delivered 2026-09-03; CONV-03 ◐ delivered 2026-09-04.
+Every item's code, tests and documentation are done and every acceptance
+criterion is met except one, which is not a repository change: **DEBT-203's
+ten-run stability count**. The `workflow_dispatch` trigger it needs exists and
+is pinned by a test; dispatching a run needs an `actions: write` credential the
+automation does not hold. It is recorded in the Owner-held table below, exactly
+as this programme's definition anticipated ("Dispatch ten CI runs on one tree
+— or approve a session doing it — once CONV-03 lands"), and DEBT-203, DEBT-125
+and DEBT-157 stay open on their own unweakened conditions until it is taken.
+This is the same shape V2.4 closed in: complete apart from a clause a pull
+request cannot produce.
+
+**Successor: not yet defined.** [ADR-115](../decisions/ARCHITECTURE_DECISIONS.md#adr-115-converge--a-task-is-rendered-by-the-shared-row-wherever-it-can-be-acted-on-a-fixture-never-carries-the-month-it-was-written-in-and-a-gate-that-cannot-say-green-is-a-truth-defect-not-a-rider)
+and the LATER table below name **Insight over stored history** as the
+*presumptive* V2.9, and presumptive is the whole of the claim: V2.9 is defined
+by its own decision pass, against a re-measurement of `main` rather than
+against this table, exactly as V2.8 was defined against `036d3da` rather than
+inherited from V2.7's LATER list. **This programme does not define V2.9**, and
+nothing here should be read as having chosen it.
 
 > **Amended 2026-09-02, before CONV-00 began**, as the follow-up resolution of
 > the two review findings left unresolved on the defining PR (#247, merged
@@ -1254,10 +1272,103 @@ referred to it is a link; and the Card layer that drew it twice is gone.**
 
 ---
 
-### ☐ CONV-03 — Green is a property, not a lottery — **NEXT**
+### ◐ CONV-03 — Green is a property, not a lottery — **DELIVERED 2026-09-04, less one owner-held measurement**
 
 **An unchanged tree gets the same answer every time, and the whole gate is
 usable.**
+
+> **Delivered 2026-09-04** (branch `claude/v2-8-conv-03-green-6xunq4`, PR
+> [#252](https://github.com/acedaly/DalyHub-V2/pull/252)). Machinery only: no
+> product code was changed, no test was deleted, weakened, skipped or
+> quarantined, and `retries` stays **0**.
+>
+> - **DEBT-205 — the 536 stranded seconds are gone, by splitting the file
+>   rather than teaching the packer about slices.** Re-measured on `main` at
+>   `7c52987` first: `responsive.spec.ts` **1471.5 s over 519 tests**, p12 and
+>   p13 running it alone at 735.8 s (**73%** of the 1004 s ceiling) while
+>   p01–p11 sat at 974–976 s (**97%**). It is now `responsive-phone.spec.ts`
+>   (the 320/375/390/430 portrait widths plus the 844×390 landscape, the narrow
+>   overlay extreme and the mobile navigation sheet — **248 tests**) and
+>   `responsive-desktop.spec.ts` (768/1024/1280/1440/2560, the POLISH-01 audit
+>   band and the wide overlay extreme — **271 tests**), over shared route lists
+>   and shared overlay scenarios in `e2e/responsive-matrix.ts`. **248 + 271 =
+>   519, and the two files' test titles are identical AS A SET to the file they
+>   replace** — compared by listing all three and diffing, not by reading them.
+>   `PHONE_VIEWPORTS ++ WIDE_VIEWPORTS === RESPONSIVE_VIEWPORTS` is asserted in
+>   `test/unit/ci/responsive-matrix.test.ts`, so a viewport cannot leave the
+>   product's canonical matrix by leaving a tier.
+>
+>   | | spec files | partitions | heaviest | lightest | `worst/mean` | stranded |
+>   | --- | --- | --- | --- | --- | --- | --- |
+>   | before | 133 | 13, two of them slices | 16.3 min · **97%** | 12.3 min · **73%** | 1.33 (utilisation) | **536 s** |
+>   | after | 134 | 13, **none** sliced | 15.7 min · **94%** | 15.5 min · **93%** | **1.00** | **0 s** |
+>
+>   **Thirteen was kept because the arithmetic keeps it**, not to preserve
+>   history: derived over the same durations, **11 →** 18.49 min and **12 →**
+>   16.95 min are both over the 16.73 min ceiling, and **14 →** 14.54 min buys
+>   nothing for a thirteenth job's worth of setup. `PARTITION_COUNT` and the
+>   ceiling were not touched, and `derivePartitions` is unchanged — its slicing
+>   branch stays for the day a single file outgrows a partition again.
+>   The condition is now a CHECK: `manifestProblems` fails when the heaviest
+>   partition is at or above 90% of the ceiling while any partition sits more
+>   than 15% of a ceiling below it, and run against the pre-split manifest it
+>   reports *"a spread of 24% of the ceiling against the 15% this split
+>   allows"*.
+>
+> - **DEBT-173 — every named leaker owns what it creates, and the closing
+>   condition became a command.** The AI proposal's accepted Tasks carry their
+>   meeting's own title prefix, so the sweep that already existed removes them
+>   (a bare *"Book the venue"* was also the substring `tasks-dependencies`
+>   matches a row on, and four had accumulated in one database);
+>   `entity-icons.spec.ts` **establishes** its "no identity yet" precondition on
+>   the shared `a-dh` Area rather than assuming `identity.spec.ts` cleaned up;
+>   `project-templates` sweeps at both ends; the responsive overlay scan asserts
+>   every dialog and both inline editors it opened are closed;
+>   `iphone-daily-driver` drives a NAMED seeded row instead of whatever the
+>   accumulated collection put first; and `tasks-journey`'s `Priority 1` band —
+>   a bounded slice of the workspace's first keyset page — is scoped to the
+>   Project the file creates under.
+>
+> - **The local gate starts clean.** `pnpm run e2e:gate` deletes the local D1
+>   and re-migrates and re-seeds it before any server starts, refuses to run
+>   while a server holds the database, and prints the workspace's live-entity
+>   count before and after — the first run under it reported **325 live
+>   entities (freshly seeded)**, exactly the committed seed V2.4-GATE-02
+>   measured. It is not a per-test reset: inside an invocation the specs share
+>   one seeded workspace exactly as a CI partition does, which is the condition
+>   the fixture ownership above has to hold under.
+>
+> - **DEBT-203 — every instance repaired at its own mechanism.** A shared
+>   `awaitMutation` waits on the response that IS the product's answer (the
+>   appearance preference POST, the `/tasks/bulk` field change and plan, the
+>   Person create); a shared `awaitMotionSettled` waits on `Animation.finished`
+>   before the phone sheet's geometry is measured — which is why that assertion
+>   had been failing **8.85 px** and **0.28 px** from the end of the same rise;
+>   the Drawer reopen waits for *"Task reopened."*, which the product announces
+>   only on the server's `ok`, rather than for its own optimistic repaint; and
+>   `tasks-journey`'s dialog-closing loop no longer sleeps 150 ms three times.
+>   **Three budget increases, each on one test with its measurement beside it
+>   and no assertion weakened**, and two instances (`notifications.spec.ts:214`,
+>   `notes.spec.ts:506`) recorded as **not reproduced** rather than patched
+>   blind.
+>
+> - **`workflow_dispatch`, with no inputs.** The identical gate can be run again
+>   on an identical commit without an empty commit; a dispatched run gets a
+>   concurrency group of its own so ten runs of one ref neither queue behind nor
+>   cancel each other; `Scope` still runs everything for a non-pull-request
+>   event, so a dispatched run is a full run. `test/unit/ci/stability-run.test.ts`
+>   pins all of that plus `retries: 0`, the absence of any per-spec retry or
+>   `test.only`, and the CI Gate's refusal of anything but success.
+>
+> - **WHAT IS OWED, and it is owner-held.** The ten-run stability measurement
+>   DEBT-203 closes on was NOT taken: dispatching a workflow run needs an
+>   `actions: write` credential, and the automation that built the trigger holds
+>   `contents: read` (`403 Resource not accessible by integration`). This is the
+>   action the Owner-held table below already anticipated. DEBT-203 stays open on
+>   its count, and DEBT-125 and DEBT-157 stay open on the two consecutive green
+>   `main` runs they have always asked for — the last `main` sample is still
+>   #833, cancelled, so the count is **zero**. None of the three had its
+>   condition weakened.
 
 - **User problem.** Three P2 machinery entries that every programme has
   worked inside and none has owned:
@@ -1395,7 +1506,7 @@ honesty layer in `e2e-partition-summary.mjs`.
 | Set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` as a Worker secret in a non-production environment | The AI gate, as stated above | AI_PLATFORM §21, ADR-112 d2, this file |
 | Four GitHub `production` secrets + the public-repo protection decision | DEBT-198 | DEBT-198 |
 | ~30 seconds in production: choose an identity colour, reload, confirm | DEBT-139's last clause | DEBT-139 |
-| Dispatch ten CI runs on one tree (or approve a session doing it) once CONV-03 lands | DEBT-203's closing count | CONV-03 |
+| **Dispatch ten CI runs on one unchanged tree** — Actions → CI → *Run workflow*, ten times on one SHA, no inputs. CONV-03 built the trigger and pinned it; dispatching needs an `actions: write` credential the automation does not hold (`403 Resource not accessible by integration`), so this is owner-held by construction rather than by choice | DEBT-203's closing count, and with it DEBT-125 and DEBT-157 | CONV-03 (delivered 2026-09-04; the count is what remains) |
 
 ---
 
@@ -1450,10 +1561,10 @@ cross-references (DEBT-215, DEBT-221, DEBT-128, DEBT-151).
 | **DEBT-236** — two date-editor journeys assert the month they were written in | P2 | **Raised · CONV-00-E** (reproduced locally 2026-09-02) · **RESOLVED 2026-09-02 by CONV-00** |
 | **DEBT-237** — the AI gate names a fake-provider path the repository does not have | P3 | **Raised · not taken** — the code-held half of a tripwire, in its own PR the day the secret exists |
 | DEBT-215 · DEBT-216 · DEBT-219 · DEBT-220 · DEBT-221 | P2 | **RESOLVED 2026-09-02 by CONV-00** (A, B, C, D, F); DEBT-215's and DEBT-221's stale cause claims corrected 2026-09-02 and confirmed by measurement |
-| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; #826 on the documentation-only head was red on three DEBT-203-class journeys the PR never touched, recorded there. **Measured again by CONV-01 (2026-09-03): the merge's `main` run [#828](https://github.com/acedaly/DalyHub-V2/actions/runs/33680967861) is 17/18 — p04 red on one DEBT-203-class journey (`tasks-journey.spec.ts:334`) at 18.5 min against a 16.1 min budget — so it is NOT the first consecutive green; the count restarts, and neither entry is closed. Measured again by CONV-02 (2026-09-03): the CONV-01 merge's `main` run [#833](https://github.com/acedaly/DalyHub-V2/actions/runs/33716224737) concluded cancelled — 11/13 partitions green, p02 red on one DEBT-203-class journey (`notes.spec.ts:506`) at 19.0 min against 16.1, p04 red on two (`pwa-offline.spec.ts:716`, `tasks-collection.spec.ts:634`) at 19.4 min against 16.1, and the Unit job cancelled by its own 15-minute `timeout-minutes` mid-kernel-suite — so the count stays zero and neither entry is closed; the overruns are CONV-03's subject** |
+| DEBT-125 · DEBT-157 | P1 ◐ | **Advanced by CONV-00-H** — the PR's gate run [#823](https://github.com/acedaly/DalyHub-V2/actions/runs/33631003222) is 18/18 green with every partition's `e2e-results-*` published and no failure artefact; #826 on the documentation-only head was red on three DEBT-203-class journeys the PR never touched, recorded there. **Measured again by CONV-01 (2026-09-03): the merge's `main` run [#828](https://github.com/acedaly/DalyHub-V2/actions/runs/33680967861) is 17/18 — p04 red on one DEBT-203-class journey (`tasks-journey.spec.ts:334`) at 18.5 min against a 16.1 min budget — so it is NOT the first consecutive green; the count restarts, and neither entry is closed. Measured again by CONV-02 (2026-09-03): the CONV-01 merge's `main` run [#833](https://github.com/acedaly/DalyHub-V2/actions/runs/33716224737) concluded cancelled — 11/13 partitions green, p02 red on one DEBT-203-class journey (`notes.spec.ts:506`) at 19.0 min against 16.1, p04 red on two (`pwa-offline.spec.ts:716`, `tasks-collection.spec.ts:634`) at 19.4 min against 16.1, and the Unit job cancelled by its own 15-minute `timeout-minutes` mid-kernel-suite — so the count stays zero and neither entry is closed; the overruns are CONV-03's subject** **Measured again by CONV-03 (2026-09-04): no new `main` sample exists — a pull request cannot produce one — so the last is still #833, cancelled, and the count of consecutive green `main` runs stays ZERO. Both entries stay ◐ on their own conditions, unweakened. What CONV-03 changed is the thing that had been losing those runs: every DEBT-203 instance recorded on the trunk is repaired at its mechanism, and the `workflow_dispatch` trigger that would let the question be settled rather than waited out now exists** |
 | DEBT-175 | P2 | **TAKEN · CONV-01 · RESOLVED 2026-09-03** — the tab renders the shared row; the consumer contract test enumerates it |
 | DEBT-128 | P2 | **TAKEN · CONV-02 · RESOLVED 2026-09-03** — `/today/waiting` renders the shared row, the row carries the waiting fact once, the reference rule is asserted, and the UIX-01 Card override layer (829 lines of `tasks.css`) is deleted with its last consumer; title corrected 2026-09-02, advanced 2026-09-03 by CONV-01 |
-| DEBT-203 · DEBT-173 · DEBT-205 | P2 | **TAKEN · CONV-03**; two new DEBT-203 instances recorded from `main`'s own runs (`notifications.spec.ts:214` on #812, `goals-alignment.spec.ts:28` on #815 — the latter passes on a fresh seed); the alignment instance reproduced in partition order by CONV-00-G (2 of 2 local runs, `main` #815) and repaired as an unsized budget |
+| DEBT-203 · DEBT-173 · DEBT-205 | P2 | **DEBT-205 and DEBT-173 RESOLVED 2026-09-04 by CONV-03** — the sliced spec file is split into two real files and nothing is stranded (`e2e:partitions:check` now fails on the condition itself); every named leaker owns what it creates, the local gate wipes and reseeds, and the two-arrangement proof is a command rather than an argument. **DEBT-203 stays ☐ on its COUNT**: every instance it names is repaired at its own mechanism and the `workflow_dispatch` trigger exists, but ten dispatched runs need an `actions: write` credential the automation does not hold, so the count is owner-held and unweakened |
 | DEBT-151 | P2 | **Corrected, not taken** — headline 30/1,320,668 B → 32/1,383,217 B per the PWA authority's own table; ceilings unchanged |
 | DEBT-70 | P2 | **Not taken** — the offline slice's first item if the slice is ever taken; recorded in LATER |
 | DEBT-212 · DEBT-103 | P3 | **Deferred to Insight (presumptive V2.9)** |

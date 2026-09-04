@@ -1,29 +1,49 @@
 /**
- * DS-11 — responsive regression tests.
+ * The responsive sweep's shared matrix — DS-11's routes, the POLISH-01 audit
+ * band, and the overlay scenarios — declared ONCE and consumed by the two tier
+ * spec files that run it.
  *
- * Proves the baseline the roadmap requires: no horizontal overflow on any shared
- * surface from 320px through ultra-wide. Every `/design/*` fixture and every real
- * product route is swept across the canonical viewport matrix
- * (`RESPONSIVE_VIEWPORTS`), in portrait phone widths, the tablet/`md` and `lg`
- * boundaries, a laptop, and a 2560px ultra-wide monitor.
+ * ── Why this module exists (V2.8 CONV-03, DEBT-205) ──────────────────────────
+ * `responsive.spec.ts` was 519 tests and 1471.6 s in ONE file — bigger than a
+ * partition's share of the gate — so `derivePartitions` had to give it two
+ * EXCLUSIVE partitions and divide it with Playwright's `--shard`. Nothing else
+ * could share those two partitions, and at 735.8 s apiece against a 1004 s
+ * ceiling that stranded 536 s of gate capacity while every other partition sat
+ * hard against the ceiling.
  *
- * The check is deliberately structural (the document never scrolls sideways) rather
- * than pixel snapshots, so it is robust to copy/spacing changes while still catching
- * a genuine layout regression (an unwrapped token, a fixed width, a min-width that
- * overflows a phone). Interactive overlays are swept separately at the extremes so a
- * Drawer/Search/Palette sheet is proven not to overflow either.
+ * The fix is the one DEBT-205 names as option 2: split the file near 50/50 into
+ * two REAL spec files, so both are packed like any other file and the packer is
+ * not taught about slices. The seam is the matrix's own tiers — phones in one
+ * file, tablet-and-wider in the other — because that is a property of the
+ * product's breakpoints rather than of a duration measured on one afternoon.
+ *
+ * Coverage is preserved by CONSTRUCTION rather than by review: the route lists
+ * and the overlay scenarios live here, each tier file iterates them over its own
+ * viewports, and `PHONE_VIEWPORTS ++ WIDE_VIEWPORTS === RESPONSIVE_VIEWPORTS`
+ * (asserted in `test/unit/ci/responsive-matrix.test.ts`). Every route × every
+ * viewport that ran before this split still runs after it, under the same test
+ * title.
+ *
+ * This module holds DATA and per-scenario BODIES only — never a `test()` call.
+ * Playwright attributes a test to the file its `test()` was declared in, and the
+ * partition manifest is keyed on that attribution: declaring the sweeps here
+ * would file all 519 tests under a module that is not a spec file at all, and
+ * `pnpm run e2e:partitions:check` would have nothing to balance. The loops stay
+ * in the two spec files, where they are ten lines each and where the gate can
+ * see them.
  */
 
-import { test } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-import {
-  RESPONSIVE_VIEWPORTS,
-  expectNoHorizontalOverflow,
-  gotoFixture,
-  mobileNavigationOpener,
-} from "./helpers";
+import { expectNoHorizontalOverflow, gotoFixture } from "./helpers";
 
-const DESIGN_FIXTURES = [
+export type ResponsiveViewport = {
+  readonly label: string;
+  readonly width: number;
+  readonly height: number;
+};
+
+export const DESIGN_FIXTURES = [
   "/design/record-layout",
   "/design/drawer",
   "/design/cards-filters",
@@ -40,7 +60,7 @@ const DESIGN_FIXTURES = [
 // shares the shell + placeholder layout and is covered by the accessibility
 // sweep; the responsive matrix focuses on the surfaces with real content so the
 // full 7-viewport sweep stays fast at `workers: 1`.
-const PRODUCT_ROUTES = [
+export const PRODUCT_ROUTES = [
   "/",
   "/today",
   // AREA-01 — real Areas collection + record tabs.
@@ -109,23 +129,6 @@ const PRODUCT_ROUTES = [
   "/help",
 ] as const;
 
-test.describe("responsive — no horizontal overflow across the breakpoint matrix", () => {
-  for (const path of [...DESIGN_FIXTURES, ...PRODUCT_ROUTES]) {
-    for (const viewport of RESPONSIVE_VIEWPORTS) {
-      test(`${path} at ${viewport.label} (${viewport.width}px)`, async ({
-        page,
-      }) => {
-        await page.setViewportSize({
-          width: viewport.width,
-          height: viewport.height,
-        });
-        await gotoFixture(page, path);
-        await expectNoHorizontalOverflow(page);
-      });
-    }
-  }
-});
-
 /**
  * POLISH-01 — the LAPTOP/TABLET band the canonical matrix stepped over.
  *
@@ -133,22 +136,25 @@ test.describe("responsive — no horizontal overflow across the breakpoint matri
  * August 2026 UX audit found a page-level horizontal scrollbar on `/tasks`
  * between roughly 820 and 1100px — an inline-flex select value sizing to a
  * Project's name and running out of a 4rem grid cell — and every one of those
- * widths falls in a gap in the list above. The suite was proving both sides of
- * the defect and not the defect.
+ * widths falls in a gap in that list. The suite was proving both sides of the
+ * defect and not the defect.
  *
  * So this sweeps the audit's own widths over the surfaces it named. `/tasks`,
  * `/inbox` and `/upcoming` are absent from `PRODUCT_ROUTES` entirely (that list
  * was written when Tasks was a placeholder), which is the other half of why the
  * regression was invisible; they are the densest grids in the product and the
  * ones a fixed column is most likely to break.
+ *
+ * Every one of these widths is a tablet or a laptop, so the band belongs to the
+ * WIDE tier file and is declared there.
  */
-const AUDIT_WIDTHS = [
+export const AUDIT_WIDTHS = [
   { label: "laptop-1100", width: 1100, height: 800 },
   { label: "tablet-900", width: 900, height: 800 },
   { label: "tablet-820", width: 820, height: 1180 },
 ] as const;
 
-const DENSE_GRID_ROUTES = [
+export const DENSE_GRID_ROUTES = [
   "/tasks",
   "/inbox",
   "/upcoming",
@@ -159,73 +165,61 @@ const DENSE_GRID_ROUTES = [
   "/areas",
 ] as const;
 
-test.describe("responsive — the laptop/tablet band the audit measured", () => {
-  for (const path of DENSE_GRID_ROUTES) {
-    for (const viewport of AUDIT_WIDTHS) {
-      test(`${path} at ${viewport.width}px`, async ({ page }) => {
-        await page.setViewportSize({
-          width: viewport.width,
-          height: viewport.height,
-        });
-        await gotoFixture(page, path);
-        await expectNoHorizontalOverflow(page);
-      });
-    }
-  }
-});
+/**
+ * The open-overlay scenarios, as data.
+ *
+ * They have always run at the two EXTREMES — the narrowest phone and the
+ * ultra-wide desktop — because those bound the behaviour. Each tier spec file
+ * now runs the extreme that belongs to it, so the same twelve scenarios run at
+ * 320 and at 2560 exactly as before, under the same titles.
+ *
+ * Each scenario LEAVES THE SURFACE AS IT FOUND IT and proves that it did
+ * (DEBT-173). A dialog dismissed with `Escape` and never awaited is a mutation
+ * this scan declined to make but cannot show it declined: on a slow render the
+ * next test in the file inherits an open sheet, or — for the two inline editors
+ * on the shared `a-dh` and `g-launch` fixtures — an open editor. The closing
+ * assertion is the difference between cleaning up and hoping.
+ */
+export type OverlayScenario = {
+  readonly title: string;
+  readonly run: (page: Page) => Promise<void>;
+};
 
-test.describe("responsive — open overlays never overflow", () => {
-  // The extremes bound the behaviour: the narrowest phone and an ultra-wide desktop.
-  const EXTREMES = [
-    RESPONSIVE_VIEWPORTS[0], // mobile-320
-    RESPONSIVE_VIEWPORTS[RESPONSIVE_VIEWPORTS.length - 1], // ultrawide-2560
-  ] as const;
-
-  for (const viewport of EXTREMES) {
-    test(`Drawer sheet at ${viewport.label}`, async ({ page }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+export const OVERLAY_SCENARIOS: readonly OverlayScenario[] = [
+  {
+    title: "Drawer sheet",
+    run: async (page) => {
       await gotoFixture(page, "/design/drawer");
       await page
         .getByRole("link", { name: /Project Website relaunch/ })
         .click();
       await page.getByRole("dialog", { name: "Website relaunch" }).waitFor();
       await expectNoHorizontalOverflow(page);
-    });
-
-    test(`Search surface at ${viewport.label}`, async ({ page }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+    },
+  },
+  {
+    title: "Search surface",
+    run: async (page) => {
       await gotoFixture(page, "/design/search");
       await page.keyboard.press("/");
       await page.getByRole("dialog").waitFor();
       await expectNoHorizontalOverflow(page);
-    });
-
-    test(`Command Palette at ${viewport.label}`, async ({ page }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+    },
+  },
+  {
+    title: "Command Palette",
+    run: async (page) => {
       await gotoFixture(page, "/design/command-palette");
       await page.keyboard.press("ControlOrMeta+k");
       await page.getByRole("dialog").waitFor();
       await expectNoHorizontalOverflow(page);
-    });
-
-    // PROJ-05 Slice 4 — the Project Settings archive/restore confirmation
-    // dialogs at the viewport extremes.
-    test(`Project Settings archive dialog at ${viewport.label}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+    },
+  },
+  // PROJ-05 Slice 4 — the Project Settings archive/restore confirmation dialogs
+  // at the viewport extremes.
+  {
+    title: "Project Settings archive dialog",
+    run: async (page) => {
       await gotoFixture(page, "/projects/pr-settings?tab=settings");
       await page.getByRole("button", { name: "Archive project…" }).click();
       await page
@@ -234,15 +228,14 @@ test.describe("responsive — open overlays never overflow", () => {
       await expectNoHorizontalOverflow(page);
       // Cancel — never actually archive `pr-settings` from a responsive scan.
       await page.keyboard.press("Escape");
-    });
-
-    test(`Project Settings restore dialog at ${viewport.label}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      await expect(
+        page.getByRole("dialog", { name: "Archive this project?" }),
+      ).toBeHidden();
+    },
+  },
+  {
+    title: "Project Settings restore dialog",
+    run: async (page) => {
       await gotoFixture(page, "/projects/pr-archived-demo?tab=settings");
       await page.getByRole("button", { name: "Restore project…" }).click();
       await page
@@ -251,73 +244,73 @@ test.describe("responsive — open overlays never overflow", () => {
       await expectNoHorizontalOverflow(page);
       // Cancel — `pr-archived-demo` stays permanently archived for other scans.
       await page.keyboard.press("Escape");
-    });
-
-    test(`Projects new-project sheet at ${viewport.label}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      await expect(
+        page.getByRole("dialog", { name: "Restore this project?" }),
+      ).toBeHidden();
+    },
+  },
+  {
+    title: "Projects new-project sheet",
+    run: async (page) => {
       await gotoFixture(page, "/projects");
       await page.getByRole("link", { name: "New project" }).first().click();
       await page.getByRole("dialog", { name: "New Project" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
-    });
-
-    test(`Areas new-area sheet at ${viewport.label}`, async ({ page }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      await expect(
+        page.getByRole("dialog", { name: "New Project" }),
+      ).toBeHidden();
+    },
+  },
+  {
+    title: "Areas new-area sheet",
+    run: async (page) => {
       await gotoFixture(page, "/areas");
       await page.getByRole("link", { name: "New area" }).first().click();
       await page.getByRole("dialog", { name: "New Area" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
-    });
-
-    // DS-16 — the Area rename is no longer a sheet: the heading IS the control.
-    // The overflow question it used to answer still has to be answered, so it
-    // moved with the interaction rather than being deleted. The editing state is
-    // where the risk actually is: a full-width input replaces a heading that was
-    // already wrapping, at the two viewport extremes.
-    test(`Area inline rename at ${viewport.label}`, async ({ page }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      await expect(page.getByRole("dialog", { name: "New Area" })).toBeHidden();
+    },
+  },
+  // DS-16 — the Area rename is no longer a sheet: the heading IS the control.
+  // The overflow question it used to answer still has to be answered, so it
+  // moved with the interaction rather than being deleted. The editing state is
+  // where the risk actually is: a full-width input replaces a heading that was
+  // already wrapping, at the two viewport extremes.
+  {
+    title: "Area inline rename",
+    run: async (page) => {
       await gotoFixture(page, "/areas/a-dh");
       await page.getByRole("button", { name: /^Area name:/ }).click();
       await page.getByRole("textbox", { name: "Area name" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
-    });
-
-    // AREA-04 — the New Goal sheet (opened from the Area record's Goals tab)
-    // and (EDIT-02) the inline fields that replaced the Goal record's Edit
-    // details sheet, at the viewport extremes.
-    test(`Areas new-goal sheet at ${viewport.label}`, async ({ page }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      // DEBT-173 — `identity.spec.ts` taught this rule: an inline editor left
+      // open on the shared `a-dh` fixture is state the next spec inherits. The
+      // scan owns closing it, and proves it closed rather than assuming it.
+      await expect(
+        page.getByRole("textbox", { name: "Area name" }),
+      ).toBeHidden();
+    },
+  },
+  // AREA-04 — the New Goal sheet (opened from the Area record's Goals tab) and
+  // (EDIT-02) the inline fields that replaced the Goal record's Edit details
+  // sheet, at the viewport extremes.
+  {
+    title: "Areas new-goal sheet",
+    run: async (page) => {
       await gotoFixture(page, "/areas/a-dh?tab=goals");
       await page.getByRole("link", { name: "New Goal" }).first().click();
       await page.getByRole("dialog", { name: "New Goal" }).waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
-    });
-
-    test(`Goal inline target-date popover at ${viewport.label}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      await expect(page.getByRole("dialog", { name: "New Goal" })).toBeHidden();
+    },
+  },
+  {
+    title: "Goal inline target-date popover",
+    run: async (page) => {
       await gotoFixture(page, "/goals/g-launch");
       await page.getByRole("button", { name: /^Target date: / }).click();
       await page.getByRole("dialog", { name: "Edit target date" }).waitFor();
@@ -325,26 +318,30 @@ test.describe("responsive — open overlays never overflow", () => {
       // off the viewport, so opening it never produces a page scrollbar.
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
-    });
-
-    test(`Goal inline definition editor at ${viewport.label}`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      await expect(
+        page.getByRole("dialog", { name: "Edit target date" }),
+      ).toBeHidden();
+    },
+  },
+  {
+    title: "Goal inline definition editor",
+    run: async (page) => {
       await gotoFixture(page, "/goals/g-launch");
       await page.getByRole("button", { name: /^Definition of done: / }).click();
       await page.getByRole("textbox", { name: "Definition of done" }).waitFor();
       await expectNoHorizontalOverflow(page);
-    });
-
-    test(`Project task Drawer at ${viewport.label}`, async ({ page }) => {
-      await page.setViewportSize({
-        width: viewport.width,
-        height: viewport.height,
-      });
+      // DEBT-173 — this scenario was the one in the sweep that walked away with
+      // an editor OPEN on the shared `g-launch` fixture. Escape discards the
+      // (unmade) edit; the assertion is what makes the discard a fact.
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByRole("textbox", { name: "Definition of done" }),
+      ).toBeHidden();
+    },
+  },
+  {
+    title: "Project task Drawer",
+    run: async (page) => {
       await gotoFixture(page, "/projects/pr-website");
       await page
         .getByRole("link", { name: "Open Design the homepage" })
@@ -353,23 +350,21 @@ test.describe("responsive — open overlays never overflow", () => {
       await page.getByRole("dialog").waitFor();
       await expectNoHorizontalOverflow(page);
       await page.keyboard.press("Escape");
-    });
-  }
-});
+      await expect(page.getByRole("dialog")).toBeHidden();
+    },
+  },
+];
 
-test.describe("responsive — mobile navigation overlay", () => {
-  test.use({ viewport: { width: 320, height: 720 } });
-
-  test("mobile nav opens as a focus-trapped sheet without overflow", async ({
-    page,
-  }) => {
-    await gotoFixture(page, "/today");
-    // Below `md` the rail collapses to the mobile bar; open the overlay.
-    await mobileNavigationOpener(page).click();
-    await page.getByRole("dialog", { name: /navigation/i }).waitFor();
-    await expectNoHorizontalOverflow(page);
-    // Escape closes it and returns focus to the toggle.
-    await page.keyboard.press("Escape");
-    await expectNoHorizontalOverflow(page);
+/** Set the viewport, go to the route, and prove the document never scrolls sideways. */
+export async function expectRouteFitsViewport(
+  page: Page,
+  path: string,
+  viewport: ResponsiveViewport,
+) {
+  await page.setViewportSize({
+    width: viewport.width,
+    height: viewport.height,
   });
-});
+  await gotoFixture(page, path);
+  await expectNoHorizontalOverflow(page);
+}

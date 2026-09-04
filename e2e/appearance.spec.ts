@@ -19,6 +19,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  awaitMutation,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -28,6 +29,24 @@ import { d1Execute } from "./d1";
 
 const WORKSPACE_ID = "local-dev-workspace";
 const OWNER_ID = "local-development-user";
+
+/**
+ * The route the selector posts to (`APPEARANCE_ACTION_PATH` in
+ * `app/shared/shell/AppearanceSelector.tsx`, and `app/routes.ts`).
+ *
+ * Restated here rather than imported: the E2E suite is a browser client of the
+ * product, not a consumer of its modules, and importing the selector would pull
+ * React into a Playwright process to read one string. The REFUSES journey below
+ * already writes the same path out by hand for the same reason, and the pair is
+ * kept honest by the journeys themselves — a path that stopped matching would
+ * make every `chooseAppearance` below time out at once, loudly.
+ *
+ * A REGEX, not a string: React Router's single fetch submits the action as
+ * `/preferences/appearance.data`, and matching only the bare path would wait for
+ * a request the product never makes. The REFUSES journey below has always
+ * written it this way.
+ */
+const APPEARANCE_ACTION_PATH = /^\/preferences\/appearance(\.data)?$/;
 
 /** Put the owner back on the shipped default, so specs cannot leak into each other. */
 function resetAppearance(): void {
@@ -57,6 +76,26 @@ function appearanceOption(page: Page, label: string) {
   return page
     .getByRole("group", { name: "Appearance" })
     .getByRole("radio", { name: new RegExp(label) });
+}
+
+/**
+ * Choose an appearance and wait for the CHOICE TO BE STORED (DEBT-203).
+ *
+ * `AppearanceSelector` writes `<html data-appearance>` OPTIMISTICALLY and posts
+ * to `/preferences/appearance` behind it, so the attribute this file asserts on
+ * is true about the browser before it is true about the record. Every journey
+ * here then navigates or reloads, and the claim under test is that the STORED
+ * choice survives that — so on a slow server the navigation beat the save and
+ * the new document was rendered from a cookie not yet written. Measured on the
+ * gate as `appearance.spec.ts:92`, on a tree the PR had not touched.
+ *
+ * The wait is the response, not a duration: the shape `meetings-concurrency`
+ * already used, now shared through `awaitMutation`.
+ */
+async function chooseAppearance(page: Page, label: string): Promise<void> {
+  await awaitMutation(page, APPEARANCE_ACTION_PATH, () =>
+    appearanceOption(page, label).click(),
+  );
 }
 
 /** The `<html data-appearance>` value the server rendered. */
@@ -100,7 +139,7 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     expect(await paintsDark(page)).toBe(true);
 
     await accountTrigger(page).click();
-    await appearanceOption(page, "Light").click();
+    await chooseAppearance(page, "Light");
 
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
@@ -122,7 +161,7 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     await page.emulateMedia({ colorScheme: "light" });
     await gotoFixture(page, "/settings");
 
-    await appearanceOption(page, "Dark").click();
+    await chooseAppearance(page, "Dark");
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
       "dark",
@@ -139,7 +178,7 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     page,
   }) => {
     await gotoFixture(page, "/settings");
-    await appearanceOption(page, "Dark").click();
+    await chooseAppearance(page, "Dark");
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
       "dark",
@@ -169,13 +208,13 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
 
     // An explicit Light must then IGNORE the same device changes.
     await accountTrigger(page).click();
-    await appearanceOption(page, "Light").click();
+    await chooseAppearance(page, "Light");
     await expect.poll(() => paintsDark(page)).toBe(false);
     await page.emulateMedia({ colorScheme: "dark" });
     await expect.poll(() => paintsDark(page)).toBe(false);
 
     // ...and going back to System hands the decision back to the device.
-    await appearanceOption(page, "System").click();
+    await chooseAppearance(page, "System");
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
       "system",
@@ -194,10 +233,10 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
       );
     expect(await colorScheme()).toBe("light dark");
 
-    await appearanceOption(page, "Light").click();
+    await chooseAppearance(page, "Light");
     await expect.poll(colorScheme).toBe("light");
 
-    await appearanceOption(page, "Dark").click();
+    await chooseAppearance(page, "Dark");
     await expect.poll(colorScheme).toBe("dark");
   });
 
@@ -239,6 +278,28 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     await gotoFixture(page, "/settings");
     await holdAppearanceWrite(page, { delayMs: 3000 });
 
+    /*
+     * NOT `chooseAppearance` — this journey's whole subject is the window
+     * BEFORE the answer.
+     *
+     * Everywhere else in this file the wait belongs on the POST, because the
+     * claim is that the STORED choice survives a navigation. Here the claim is
+     * that the repaint does not wait for the write at all, so awaiting the
+     * response first would start the 1.5 s assertion below AFTER persistence
+     * completes — and a product that repainted only on the server's answer
+     * would pass it. That is an assertion that cannot fail at the moment it
+     * runs, which is precisely the defect DEBT-203 is named for; CONV-03
+     * introduced it here for one commit and it was caught in review.
+     *
+     * So the click is raw, the optimistic paint is asserted against a write
+     * still three seconds from landing, and the response is awaited AFTERWARDS
+     * so the rest of the journey is ordered.
+     */
+    const written = page.waitForResponse(
+      (response) =>
+        APPEARANCE_ACTION_PATH.test(new URL(response.url()).pathname) &&
+        response.request().method() === "POST",
+    );
     await appearanceOption(page, "Dark").click();
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
@@ -246,6 +307,7 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
       { timeout: 1500 },
     );
     await expect.poll(() => paintsDark(page)).toBe(true);
+    await written;
 
     // ...and it is still dark once the slow write lands and revalidation runs.
     await expect
@@ -259,6 +321,13 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
     await gotoFixture(page, "/settings");
     await holdAppearanceWrite(page, { delayMs: 1500, fail: true });
 
+    /*
+     * NOT `chooseAppearance`, for the reason the journey above states: this one
+     * is about the window between the click and the answer too, from the other
+     * side. Waiting for the response before asserting the optimistic state
+     * would assert it after the rollback it is meant to precede — measured, on
+     * a product doing exactly what it should.
+     */
     await appearanceOption(page, "Dark").click();
     // Optimistic first...
     await expect(page.locator("html")).toHaveAttribute(
@@ -430,14 +499,14 @@ test.describe("APPEARANCE-01 — choosing an appearance", () => {
   }) => {
     await gotoFixture(page, "/settings");
 
-    await appearanceOption(page, "Light").click();
+    await chooseAppearance(page, "Light");
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
       "light",
     );
     await expectNoAxeViolations(page);
 
-    await appearanceOption(page, "Dark").click();
+    await chooseAppearance(page, "Dark");
     await expect(page.locator("html")).toHaveAttribute(
       "data-appearance",
       "dark",

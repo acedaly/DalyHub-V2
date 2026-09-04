@@ -5631,6 +5631,25 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   Decisions 2 and 4 tightened 2026-09-02, before CONV-00 began, by the V2.8
   definition amendment that resolved PR #247's two unresolved review
   findings; the programme decision itself was not reopened.
+  **IMPLEMENTED 2026-09-04 by CONV-03, the programme's last item** — decision 1
+  (all four items delivered), decision 2 and decision 3 (CONV-01 and CONV-02;
+  the row's consumer contract test enumerates its importers), decision 4
+  (CONV-00's Static-tier fixture-date check, proven on both an ISO literal and
+  a picker label), decision 5 (CONV-00 classified and repaired every red trunk
+  journey; CONV-01, CONV-02 and CONV-03 each recorded the trunk's state on
+  DEBT-125 rather than inheriting it), decision 7 (no visual change beyond one
+  component replacing another). **Decision 6 is implemented in its machinery
+  and OWED in its count.** `retries: 0` and `workers: 1` stand; there is no
+  quarantine, no allowlist, no `test.fixme` and no empty commit; the
+  `workflow_dispatch` trigger decision 6 names as "the one sanctioned way to
+  repeat a run on an unchanged tree" exists, takes no inputs, and is pinned by
+  `test/unit/ci/stability-run.test.ts`. The ten-run stability measurement it
+  gates is an owner-held action — dispatching a workflow needs an `actions:
+  write` credential this repository's automation does not hold — and is
+  recorded as outstanding on
+  [DEBT-203](../product/PRODUCT_DEBT.md), unweakened. **No new ADR was raised
+  by CONV-03**: it implements this one and produced no architectural decision
+  of its own.
 
 - **Context.** V2.7 completed on 2026-09-01: retrieval reaches content, time
   and commitment, and the cross-surface facts use one truth. This decision

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  awaitMutation,
   expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
@@ -72,7 +73,21 @@ async function createPerson(page: Page, name: string): Promise<string> {
   await page.getByRole("link", { name: "New person" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New Person" });
   await dialog.getByRole("textbox", { name: /^Name/ }).fill(name);
-  await dialog.getByRole("button", { name: "Create person" }).click();
+  /*
+   * DEBT-203 — wait for the CREATE, then for the record it redirects to.
+   *
+   * Creating a Person is a POST to `/people/create`, a redirect, and the record
+   * route's own loader — three server round trips — and the URL assertion after
+   * it was running against `expect`'s 5 s DEFAULT budget. On `main` #826's p03,
+   * 9% over its own balance, the journey was still at `/people?drawer=new-person`
+   * when that budget expired and reported a hand-off that had not failed, merely
+   * not finished. Waiting on the create's own response first means the 5 s that
+   * follows covers a redirect the browser has already been handed, rather than a
+   * whole write.
+   */
+  await awaitMutation(page, "/people/create", () =>
+    dialog.getByRole("button", { name: "Create person" }).click(),
+  );
   await expect(page).toHaveURL(/\/person\/[^/?#]+$/);
   await waitForInteractive(page);
   return page.url();
