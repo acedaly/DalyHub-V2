@@ -1,5 +1,56 @@
 # Changelog
 
+- **Analytics asks about the period you choose, not one of three.**
+
+  Analytics used to offer 7 days, 4 weeks or 12 weeks and nothing else, and it
+  cut them into buckets nobody thinks in — the quarter was drawn fortnightly.
+  You can now choose the window (7 days, 4 weeks, 12 weeks, 6 months, 12 months
+  or 2 years) and, where the window can hold more than one, whether to read it
+  by day, by week or by month (V2.9 INS-03). Both live in the address bar, so a
+  view can be bookmarked or sent to yourself and comes back exactly as it was,
+  and Back works. Where a window can only be read one way — two years is months,
+  because 730 daily bars is not a chart — the choice is simply not offered
+  rather than quietly given to you shortened.
+
+  Projects and Goals completed now have their own lines under the task trend,
+  and every Goal you measure has a small shape of its own beside its figures,
+  linking to the Goal where the full chart lives. A Goal you do not measure
+  shows what your Reviews recorded about it instead — "Moving at 3 of your last
+  4 Reviews" — which names Reviews rather than the period on screen, because
+  they are not the same thing.
+
+  One limit could not be removed, so the page says it out loud: the overdue
+  backlog can be read at 40 points at most, and on a long window the page tells
+  you it is showing the most recent 40 rather than one per bar.
+
+- **What changed, in the period you are looking at.**
+
+  Analytics now ends with the events themselves: what was created, completed,
+  planned, written or held, newest first, grouped by day, in the same window as
+  the figures above them (V2.9 INS-04). A task in the list opens in the same
+  drawer it opens everywhere else, and every other kind of record links to
+  itself. It loads thirty at a time with a "Load more" — a long history is not a
+  page you scroll to the bottom of.
+
+  This is the feed that was built for a Today widget the redesign removed; it
+  has had no way in since. It now has one, in the place that was already about
+  history.
+
+- **Your Reviews compare themselves to each other.**
+
+  DalyHub has recorded a snapshot at the end of every Review for a year — which
+  Projects were on track, which Goals work was reaching, what was carried over —
+  and only ever read the most recent one back. The Review's evidence now reads
+  several, and says what it finds in words: a Project at risk at three of your
+  last four Reviews, a Goal nothing has contributed to at every one of them, a
+  task that has carried over at all of them (V2.9 INS-02). Every claim comes
+  with the count behind it and links to the record, and nothing that has not
+  changed is listed. Two Reviews is the fewest that can say anything; before
+  that the section is simply absent.
+
+  Nothing new is recorded to make this work. It is what was already there,
+  finally read.
+
 - **Waiting is the same row as everywhere else, and it can be acted on.**
 
   The list of tasks you are waiting on (`/today/waiting`) used to draw its

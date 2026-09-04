@@ -32,8 +32,12 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: V2.9 INSIGHT — in progress.** Five items, INS-00 … INS-04,
-in order; **INS-00, INS-01 and INS-02 delivered 2026-09-04**.
+**Programme status: V2.9 INSIGHT — COMPLETE, 2026-09-04.** All five items,
+INS-00 … INS-04, delivered in order, closing **DEBT-241, DEBT-238, DEBT-239,
+DEBT-212 and DEBT-103**. The implementation decisions are recorded in
+[ADR-117](../decisions/ARCHITECTURE_DECISIONS.md#adr-117-insight--one-history-vocabulary-over-stores-already-written-a-bound-that-is-stated-rather-than-applied-and-a-link-check-that-makes-the-map-a-gate);
+what each item actually delivered is under its own heading below, including
+where the measurement that defined it turned out to be wrong.
 
 **Successor: V2.10 LIFE ADMIN, PLANNED** — see [the sequence](#the-remaining-v2-sequence).
 
@@ -66,7 +70,7 @@ This is the presumptive V2.9 that V2.8 named, confirmed by re-measurement —
   askable; Projects and Goals completed have no line
   ([DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--resolved-2026-09-04-v29-ins-01--ins-03)).
 - `/today/activity` is a tested resource route with no UI
-  ([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3)).
+  ([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)).
 
 Unanswerable today although the data exists: a Goal's contribution over the
 last six Reviews; which Projects were at risk in three consecutive Reviews;
@@ -503,7 +507,7 @@ chooses.**
   of record cards, because a ghost that promises a list and resolves into
   panels is worse than none.
 
-### ☐ INS-04 — What changed — closes [DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3)
+### ☑ INS-04 — What changed — **delivered 2026-09-04** — closes [DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)
 
 **The workspace's history is readable in the window the owner is looking
 at, and `/today/activity` finally has a consumer — or goes.**
@@ -527,6 +531,36 @@ at, and `/today/activity` finally has a consumer — or goes.**
   manifest comment recording the move; phone widths; `axe` clean.
 - **Non-goals.** A widget on Today (the redesign removed it for a reason
   recorded on DEBT-103); a notification; filtering by actor.
+
+**Delivered 2026-09-04.**
+
+- **One door, and the old one is gone.** The endpoint is
+  [`/analytics/activity`](../../app/modules/analytics/routes/activity.tsx) and
+  its model is [`activity-feed.ts`](../../app/modules/analytics/activity-feed.ts);
+  the Today route and its descriptor map moved with them and the Today entry
+  was retired in the same change. `grep -rn "today/activity" app/` finds two
+  comments recording the move and no route.
+- **It reads `listInWindow`.** The window travels in the query string as the
+  SAME `window=` vocabulary the page's address bar uses, resolved by the same
+  parser — so the list and the charts above it cannot be describing different
+  periods, and a caller cannot ask this route for a span the surface does not
+  offer. A stale value (`?window=quarter`, from the deleted range vocabulary)
+  falls back to the default rather than erroring.
+- **The panel is the shared DS-05 feed**
+  ([`WhatChangedPanel.tsx`](../../app/modules/analytics/WhatChangedPanel.tsx)),
+  supplying a page loader and nothing else; it names its window on the card,
+  because a list of events at the bottom of a long page needs its period
+  stated. It sits LAST: the figures answer "how much", this answers "what".
+- **Bounded, with a cursor rather than a total.** 30 events a page, `hasMore`
+  and `nextCursor`, and no count anywhere in the payload — a bounded list
+  stating a total would claim a completeness it does not have (ADR-079 d11).
+- **Falsified and hostile-tested** in
+  [`test/kernel/ins-04-what-changed.test.ts`](../../test/kernel/ins-04-what-changed.test.ts):
+  an event outside the window is absent and stays absent at the widest window;
+  paging past the bound continues without repeating; a cursor issued for
+  another window is refused with a calm 400, as is a tampered one; another
+  workspace's events never appear, by id or by title; and the per-page
+  statement count does not move between a 3-event page and a 28-event one.
 
 ---
 
@@ -609,8 +643,12 @@ falsification named on each item.
 
 ## The debt, reconciled
 
-**This pass raised DEBT-238 … DEBT-242** (next free **DEBT-243**) and gave
-every entry it touched a dated disposition.
+**This pass raised DEBT-238 … DEBT-242** and gave every entry it touched a
+dated disposition. **Implementing it raised one more, DEBT-243** (next free
+**DEBT-244**): seven surfaces link a Task with `/tasks?task=<id>`, a parameter
+the Tasks module does not read, so the link opens the collection rather than
+the record. Found while INS-02 was reading the Review's own claim links;
+recorded rather than silently becoming an eighth caller.
 
 | Entry | Severity | Disposition |
 |---|---|---|
@@ -619,7 +657,8 @@ every entry it touched a dated disposition.
 | **DEBT-240** — an obligation cannot exist without an Asset and carries no amount | P3 | **Raised · owner V2.10 LIFE ADMIN** — not taken here |
 | **DEBT-241** — no docs link/anchor check; 447 broken local links | P2 | **Raised · CLOSED by INS-00 (2026-09-04)**; the eleven in `ROADMAP_V2_8.md` repaired by the defining pass |
 | **DEBT-242** — no workspace or account deletion path | P3 | **Raised · owner V2.16 CONSOLIDATE**; re-rated at V2.12's definition if Finance's pass finds it must precede money |
-| DEBT-212 · DEBT-103 | P3 | DEBT-212 **☑ resolved by INS-02 + INS-03 (2026-09-04)**; DEBT-103 is **INS-04**'s |
+| DEBT-212 · DEBT-103 | P3 | Both **☑ resolved (2026-09-04)** — DEBT-212 by INS-02 + INS-03, DEBT-103 by INS-04 |
+| **DEBT-243** — seven surfaces link a Task with a parameter Tasks does not read | P3 | **Raised by INS-02 (2026-09-04)**, not taken: it is a Tasks-module link contract, not an Insight defect |
 | DEBT-35 | P3 | **Re-homed**: attachments → V2.11; renewals and reminders for non-Asset things → V2.10; the entry closes empty as it always said it would |
 | DEBT-198 | P2 | **Owner-held, unchanged, and now a hard gate for V2.12** — recorded on the entry |
 | DEBT-237 · DEBT-213 · DEBT-91 · DEBT-92 · DEBT-93 | P3 | **The V2.14 sequence**: gate, registry, fact block, then the Weekly Review assistant live; unchanged in order, re-dated |
@@ -990,6 +1029,7 @@ becoming four islands, and they outlive any one release's ordering.
 - [`DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md`](../product/DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md) — the analysis this file is the roadmap truth of
 - [`ROADMAP_V2_8.md`](ROADMAP_V2_8.md) — the predecessor programme, complete 2026-09-04
 - [ADR-116](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export) — this pass's decision record
+- [ADR-117](../decisions/ARCHITECTURE_DECISIONS.md#adr-117-insight--one-history-vocabulary-over-stores-already-written-a-bound-that-is-stated-rather-than-applied-and-a-link-check-that-makes-the-map-a-gate) — what implementing V2.9 decided
 - [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score) · [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal) · [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question) — the rules every INS item inherits
 - [ADR-082 (saved views)](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract) — the seam V2.13 reuses
 - [`REVIEWS_MODULE.md`](../development/REVIEWS_MODULE.md) · [`GOALS_MODULE.md`](../development/GOALS_MODULE.md) · [`ACTIVITY_TIMELINE.md`](../development/ACTIVITY_TIMELINE.md) · [`TODAY_DASHBOARD.md`](../development/TODAY_DASHBOARD.md) — the module authorities INS-02/03/04 touch

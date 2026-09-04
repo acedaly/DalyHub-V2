@@ -72,6 +72,7 @@ import { SegmentedFilter } from "~/shared/segmented-filter";
 import { Skeleton } from "~/shared/skeleton";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
+import { WhatChangedPanel } from "./WhatChangedPanel";
 import type { AnalyticsPageData } from "./analytics-context";
 
 export function AnalyticsScreen({
@@ -203,6 +204,14 @@ export function AnalyticsScreen({
           <DistributionPanel model={model} />
           <OverduePanel data={data} />
           <GoalSeriesPanel model={model} />
+          {/*
+           * V2.9 INS-04 — the events themselves, LAST.
+           *
+           * The figures above answer "how much"; this answers "what", and it
+           * is the conclusion drawn under them rather than the lead. DOM
+           * order, so the reading order and the tab order agree with it.
+           */}
+          <WhatChangedPanel window={data.window} rangeLabel={data.rangeLabel} />
         </div>
         {model.notes.length > 0 ? (
           <aside

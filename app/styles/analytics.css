@@ -197,6 +197,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* V2.9 INS-04 — the event list spans both tracks: it is a list of sentences. */
+.dh-analytics__changed {
+  grid-column: 1 / -1;
+}
+
 /*
  * V2.9 INS-03 — the measured-Goal panel also spans both tracks, for the reason
  * above rather than a different one: its rows are `name · shape · reading`, a

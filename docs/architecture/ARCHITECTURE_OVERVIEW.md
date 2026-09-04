@@ -188,6 +188,17 @@ knowing before adding to it:
   window. A budget that grew with the window would mean a bucketed read had
   gone back to a column per bucket.
 
+**"What changed" (V2.9 INS-04)** is the same window in events rather than
+figures. `/analytics/activity` is the ONE door onto the workspace-wide FND-05
+stream — it moved here from `/today/activity`, which had no consumer
+([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)),
+and the Today route was retired in the same change rather than left as a second
+door. It reads `listInWindow` and takes its window as the same `window=`
+parameter the page uses, resolved by the same parser, so a caller cannot ask it
+for a span the surface does not offer and the list cannot describe a different
+period from the charts. The panel is the shared DS-05 feed; the page is bounded
+at 30 events and answers with a cursor, never a total.
+
 The one bound the surface could not lift is the overdue LEVEL series: its
 moments do not partition anything, so each needs its own `SUM(CASE …)` column,
 and two bound parameters per column against D1's ceiling of 100 caps it at

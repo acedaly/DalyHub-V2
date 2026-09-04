@@ -23,7 +23,15 @@ single shared Activity stream at two scopes:
   read to a bounded SET of anchors with `activity.listForEntities(entityIds, …)`
   (see [Multi-anchor timelines](#multi-anchor-timelines) below) — still one
   Timeline, still one stream.
-- **Activity Feed** — a workspace/scope stream (`activity.listForWorkspace(…)`).
+- **Activity Feed** — a workspace/scope stream (`activity.listForWorkspace(…)`,
+  or `activity.listInWindow(…)` when the surface is about a PERIOD). The
+  product's one feed is Insight's "What changed" panel
+  ([`WhatChangedPanel.tsx`](../../app/modules/analytics/WhatChangedPanel.tsx)
+  over [`/analytics/activity`](../../app/modules/analytics/routes/activity.tsx)),
+  which reads the windowed form so the events it lists are the events inside the
+  window the page's figures are about. It moved there from `/today/activity` in
+  V2.9 INS-04, and the Today route was retired in the same change — one door
+  onto the stream, not two.
 
 Both are **the same `ActivityStream`**, differing only in the loader they are given
 and their label. There is no forked Timeline/Feed implementation.

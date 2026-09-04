@@ -6016,3 +6016,134 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   AI, Attachments and Finance rules that already exist as ADRs 073, 079, 110,
   111, 112 and 114* (rejected: a second statement of an existing rule is a
   second authority; this ADR adds only the four boundaries above).
+
+---
+
+## ADR-117: INSIGHT — one history vocabulary over stores already written, a bound that is stated rather than applied, and a link check that makes the map a gate
+
+- **Status:** Accepted (2026-09-04, implementing
+  [V2.9 INSIGHT](../roadmap/ROADMAP_V2_9.md) —
+  [ADR-116](#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+  decision 2 chose it; this records what implementing it decided).
+
+- **Context.** DalyHub had written history for a year and read almost none of it
+  back. One `review_insight_snapshots` row per completed Review — roughly fifty a
+  year, each holding up to 40 Project states, 25 Goal contribution
+  classifications, 20 Area counts and 50 carry-over ids — and only
+  `priorReviews[0]` was ever read. `listSnapshotsBefore` and
+  `listMeasurementSeries` had zero production callers. Analytics offered three
+  fixed presets bucketed to fit `MAX_TREND_PERIODS = 8`, so "completions per week
+  for twelve weeks" was not askable. The kernel `ActivityRepository` had no
+  time-window read at all. `/today/activity` rendered nothing. And 422 of the
+  repository's own 6,737 local documentation links did not resolve, with no check
+  that would have caught one.
+
+  Four boundary questions had to be answered to give any of it back, and none of
+  them is obvious from the roadmap item that raised it.
+
+- **Decision.**
+
+  1. **One history vocabulary, in the kernel, over stores the product already
+     writes — and nothing new is stored.** `app/kernel/history` holds `Window`
+     (the existing `ActivityWindow`, re-exported and not duplicated), `Grain`
+     (`day | week | month | review_period`), `bucketWindow` and `Series<Point>`.
+     It is pure: no D1, no JSX, no clock, no timezone database — owner-day
+     resolution arrives as an argument. Every figure any surface derives from it
+     is exactly reconstructible from `spine_records`, `activities`,
+     `goal_measurements` and `review_insight_snapshots`, so
+     [ADR-110](#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)
+     decisions 3 and 7 hold unchanged: the Review's versioned snapshot remains
+     the one stored period artefact.
+
+     **There is deliberately no `weekStart` parameter.** Buckets are cut
+     *backward from the window's end* so the most recent bucket is always whole;
+     aligning to the owner's Monday is exactly what would make it partial, and a
+     partial recent bucket draws the current period as a dip every time the page
+     is opened mid-week. A caller wanting calendar weeks ends its window on the
+     owner's week end and gets them exactly. `planningWeekStart` remains the
+     product's one week-start authority.
+
+  2. **A window wider than its grain's maximum comes back bounded, with the
+     bound and the count that was asked for — never silently shortened.**
+     `GRAIN_MAXIMUMS` states 366 days, 52 weeks, 24 months and 12 Review
+     periods, replacing an eight the Analytics bucketer had inherited from the
+     Review's display cap. Where a surface offers a control, the control is
+     *computed from those maximums* rather than listed, so the offer and the
+     series' bound cannot drift apart, and a grain that would need bounding is
+     never offered at all.
+
+     Where a bound could not be lifted it is **stated on the surface**. The
+     overdue level read is the one that could not: its moments do not partition
+     anything, so each needs its own `SUM(CASE …)` column, and two bound
+     parameters per column against D1's ceiling of 100 caps it at 40. A long
+     window reads the most recent 40 closes and the page says so. This is
+     [ADR-079](#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)
+     decision 11 applied to a second surface: a capped population presented as a
+     complete one is the failure, not the cap.
+
+  3. **The bound-parameter ceiling is an architectural constraint on this
+     product's history reads, and the answer is one bound JSON parameter.**
+     Both shapes the codebase already had — a `SUM(CASE …)` column per window
+     and a `CASE WHEN … THEN index` arm per period — bind two parameters per
+     bucket, so both stop at roughly 48 buckets and neither can express a
+     52-week or 366-day series at all. Bucket boundaries now travel as a single
+     bound JSON parameter expanded by `json_each`, which makes a statement's
+     shape independent of its window: measured at one statement for 365 daily
+     buckets and for 52 weekly ones. A history read whose statement count grows
+     with the window is a defect, and the budgets that pin this
+     (`ANALYTICS_QUERY_BUDGET = 8`, `REVIEW_INSIGHTS_QUERY_BUDGET = 17`) are
+     asserted against real D1 at every window a surface offers.
+
+  4. **Reuse is justified by the QUESTION being identical, never by the SQL
+     looking alike — and where reads did not converge, a registry says so.**
+     `countPeriodCompletions` and `countByTypeInBuckets` were asking exactly the
+     same question and now share one predicate.
+     `d1-activity-window-repository.ts` keeps its own twelve bounds because
+     FOLLOW-01's plan history is genuinely different: a three-arm UNION that
+     extracts each event's plan-before and plan-after from `payload_json`, plus
+     an open-ended arm that looks *after* the window for the event that moved a
+     plan out of it. Forcing it through a shared read would be reuse for its own
+     sake. What replaces the grep DEBT-238 proposed is
+     `test/unit/architecture/history-window-reads.test.ts`: every remaining
+     windowed bound, per file, with the reason it did not converge, failing when
+     any count moves in either direction.
+
+  5. **A PR that changes a heading repairs the links to it, and Static proves
+     it.** `pnpm run docs:links:check` resolves every local Markdown link and
+     anchor across `docs/**`, `AGENTS.md` and the root `README.md`, implementing
+     GitHub's own slug rule, and fails with file, line and target. **No
+     allowlist and no annotation escape**: a check with an exemption mechanism
+     becomes a list of exemptions. Where evidence a link pointed at no longer
+     exists, the repair is prose stating what it showed — never a fabricated
+     screenshot, and never a heading renamed to match a stale link.
+
+- **Consequences.** "Completions per week over twelve weeks", "months over two
+  years" and "at risk at 3 of the last 4 Reviews" are askable, and the next
+  domain that needs a series — Reports, Finance, grounded AI — consumes the same
+  four ideas rather than growing a fifth bucketer. Nothing was migrated and
+  nothing new is stored, so a workspace's history reads identically before and
+  after. The cost is accepted in two places: a surface must now carry a bound
+  through to its wording rather than trimming quietly, and a windowed SQL read
+  must either converge or be entered in the registry with its reason. The docs
+  check is a real gate on a real repository, so a heading rename is now work
+  rather than a rename.
+
+- **Alternatives considered.** *A stored aggregates table* (rejected: ADR-110
+  d3/d7 — every figure here is exactly reconstructible, and a cache is a second
+  authority that can disagree with the stream). *A free date-range picker*
+  (rejected: a control that must refuse most of what it offers; named windows
+  whose grains are computed from the maximums cannot offer a series they cannot
+  hold). *A `weekStart` parameter on the bucketer* (rejected: decision 1 — it
+  would make the most recent bucket partial, which is the one thing the
+  backward rule exists to prevent). *Keeping `rangeBuckets` as a thin alias*
+  (rejected: an alias keeps a second range vocabulary alive behind a re-export;
+  `analytics-range.ts` is deleted). *Slicing the overdue series at its cap
+  silently, as before* (rejected: decision 2). *Routing every `occurred_at`
+  window predicate through one shared read* (rejected: decision 4 — reuse for
+  its own sake, which the roadmap item itself refuses). *An allowlist for the
+  documentation link check* (rejected: decision 5). *Regenerating missing
+  screenshots* (rejected: decision 5 — inventing evidence to satisfy a check
+  about evidence). *A "Recent activity" widget back on Today* (rejected: the
+  Today redesign removed it because the layout contract is the day and the
+  attention rail; `/analytics/activity` belongs to the module whose question is
+  "what happened over this period?").

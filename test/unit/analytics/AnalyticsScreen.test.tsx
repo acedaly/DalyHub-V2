@@ -1,6 +1,6 @@
 import { RouterProvider, createMemoryRouter } from "react-router";
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   evaluateAnalytics,
@@ -92,6 +92,30 @@ function pageData(
   };
 }
 
+/*
+ * V2.9 INS-04 — the "What changed" panel fetches its first page on mount, so
+ * every render in this file would otherwise attempt a real request. An empty
+ * page is the right default: these tests are about the rest of the surface,
+ * and the feed's own behaviour is proved against real D1 in
+ * `test/kernel/ins-04-what-changed.test.ts`.
+ */
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ items: [], nextCursor: null, hasMore: false }),
+          { headers: { "content-type": "application/json" } },
+        ),
+    ),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 function renderScreen(data: AnalyticsPageData, entry = "/analytics") {
   const router = createMemoryRouter(
     [{ path: "/analytics", element: <AnalyticsScreen data={data} /> }],
@@ -106,9 +130,12 @@ describe("Analytics screen (UIX-05)", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Analytics" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("4 August 2026 – 10 August 2026"),
-    ).toBeInTheDocument();
+    // Twice, deliberately (V2.9 INS-04): once as the page's subtitle and once
+    // on the "What changed" panel, which sits below a full page of scroll and
+    // would otherwise be a list of events with no stated period.
+    expect(screen.getAllByText("4 August 2026 – 10 August 2026")).toHaveLength(
+      2,
+    );
     expect(screen.getByTestId("analytics-metric-tasks")).toHaveTextContent(
       "24",
     );
@@ -353,6 +380,39 @@ describe("Analytics screen (UIX-05)", () => {
     expect(
       screen.getByText(/attributed to the Area its Project belongs to today/),
     ).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.9 INS-04 — "What changed"                                                */
+/* -------------------------------------------------------------------------- */
+
+describe("the What changed panel", () => {
+  it("names the window it is showing, and asks the endpoint for that window", async () => {
+    const requested: string[] = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      requested.push(String(input));
+      return new Response(
+        JSON.stringify({ items: [], nextCursor: null, hasMore: false }),
+        { headers: { "content-type": "application/json" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    {
+      renderScreen(
+        pageData({}, { window: "12-weeks", grain: "week", grains: ["week"] }),
+      );
+      // The panel names its period, so the list and the charts above it can
+      // never be read as different windows.
+      expect(
+        screen.getByRole("heading", { name: "What changed" }),
+      ).toBeInTheDocument();
+      await waitFor(() => expect(requested.length).toBeGreaterThan(0));
+      // …and it asks for exactly that window, in the SAME vocabulary the
+      // address bar uses.
+      expect(requested[0]).toContain("/analytics/activity?window=12-weeks");
+      expect(requested[0]).not.toContain("cursor");
+    }
   });
 });
 

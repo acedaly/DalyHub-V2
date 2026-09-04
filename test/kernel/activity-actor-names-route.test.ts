@@ -6,7 +6,7 @@ import type { AuthenticatedSession } from "~/kernel/auth";
 import { parseWorkspaceId } from "~/kernel/workspaces";
 import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
 import { convertMeetingItemToTask } from "~/platform/meetings";
-import { loader as todayActivityLoader } from "~/modules/today/routes/activity";
+import { loader as insightActivityLoader } from "~/modules/analytics/routes/activity";
 import { loader as taskActivityLoader } from "~/modules/tasks/routes/task-activity";
 import {
   provisionMemberSafely,
@@ -54,12 +54,12 @@ async function scope() {
   return resolveAuthenticatedWorkspaceScope(boundaryEnv, session());
 }
 
-async function readTodayFeed() {
-  const response = await todayActivityLoader({
-    request: new Request("https://app.test/today/activity"),
+async function readInsightFeed() {
+  const response = await insightActivityLoader({
+    request: new Request("https://app.test/analytics/activity"),
     context: authedContext(),
     params: {},
-  } as unknown as Parameters<typeof todayActivityLoader>[0]);
+  } as unknown as Parameters<typeof insightActivityLoader>[0]);
   return (await (response as Response).json()) as {
     items: {
       type: string;
@@ -149,7 +149,7 @@ describe("authenticated activity shows the real user's name", () => {
       seeded.person.id,
     );
 
-    const feed = await readTodayFeed();
+    const feed = await readInsightFeed();
     expect(feed.items.length).toBeGreaterThan(8);
 
     for (const item of feed.items) {
@@ -202,7 +202,7 @@ describe("authenticated activity shows the real user's name", () => {
       expect(item.actor.source).toBe("auth_name");
     }
 
-    const feed = await readTodayFeed();
+    const feed = await readInsightFeed();
     expect(new Set(feed.items.map((item) => item.actor.label))).toEqual(
       new Set(["Aidan Daly"]),
     );
@@ -212,7 +212,7 @@ describe("authenticated activity shows the real user's name", () => {
     await provisionMemberSafely(boundaryEnv, session());
     await seedTheReportedActivity();
 
-    const feed = await readTodayFeed();
+    const feed = await readInsightFeed();
     for (const item of feed.items) {
       expect(item.actor.label).toBe(EMAIL);
       expect(item.actor.source).toBe("email");
@@ -223,7 +223,7 @@ describe("authenticated activity shows the real user's name", () => {
     // No provisioning: the events carry a stable actor id nothing can resolve.
     await seedTheReportedActivity();
 
-    const feed = await readTodayFeed();
+    const feed = await readInsightFeed();
     for (const item of feed.items) {
       expect(item.actor.label).toBe("Unknown user");
       expect(item.actor.kind).toBe("unknown");
@@ -237,7 +237,7 @@ describe("authenticated activity shows the real user's name", () => {
       title: "a scheduled thing",
     });
 
-    const feed = await readTodayFeed();
+    const feed = await readInsightFeed();
     expect(feed.items).toHaveLength(1);
     expect(feed.items[0]!.actor.label).toBe("System");
     expect(feed.items[0]!.actor.kind).toBe("system");
@@ -257,7 +257,7 @@ describe("authenticated activity shows the real user's name", () => {
 
     // …and the serialised API payload carries the resolved identity, while never
     // exposing the Access subject to the client.
-    const feed = await readTodayFeed();
+    const feed = await readInsightFeed();
     expect(JSON.stringify(feed)).not.toContain(SUB);
     for (const item of feed.items) {
       expect(item.actor.label).toBe("Aidan Daly");

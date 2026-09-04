@@ -62,7 +62,7 @@ import {
   TASK_WAITING_STARTED,
 } from "~/kernel/tasks";
 import { discoverModuleRegistry } from "~/modules/discover-modules";
-import { todayActivityDescriptors } from "~/modules/today/landing/activity";
+import { insightActivityDescriptors } from "~/modules/analytics/activity-feed";
 import {
   DEFAULT_ACTIVITY_DESCRIPTORS,
   buildWorkspaceActivityDescriptors,
@@ -154,7 +154,7 @@ function plainText(presentation: ActivityItemPresentation): string {
 }
 
 describe("every persisted activity type has a renderer", () => {
-  const descriptors = todayActivityDescriptors();
+  const descriptors = insightActivityDescriptors();
 
   it("covers every type the module registry declares", () => {
     const missing = discoverModuleRegistry()

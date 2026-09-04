@@ -57,14 +57,11 @@ const routes: readonly RouteContribution[] = [
    * only the door. Its four route-level journeys moved with it
    * (`test/kernel/task-planning.test.ts`), which `/tasks/bulk` had none of.
    */
-  // TODAY-08 Command centre: the workspace-wide Recent Activity feed endpoint
-  // (action/loader-only resource route, no nav entry). The Recent Activity widget's
-  // shared DS-05 feed pages through this; it renders the ONE FND-05 Activity stream.
-  {
-    id: "today.activity",
-    path: "today/activity",
-    file: "routes/activity.tsx",
-  },
+  // V2.9 INS-04 — TODAY-08's workspace-wide Activity endpoint MOVED to the
+  // Analytics module as `/analytics/activity` (`analytics.activity`), where the
+  // Insight page's "What changed" panel finally renders it (DEBT-103). The
+  // widget this route was built for was removed by the redesign; the route
+  // went with the panel rather than staying as a second door onto one stream.
   // CAL-02 Tomorrow: "what does tomorrow look like?", built from the SAME daily
   // primitives Today uses — the shared schedule read and the shared Focus date
   // classifier. No sidebar entry: it is reached from Today's own day rail, and a

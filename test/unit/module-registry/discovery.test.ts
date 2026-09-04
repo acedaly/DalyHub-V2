@@ -189,12 +189,10 @@ describe("module discovery", () => {
         // only caller and the 2026-08 redesign replaced that collection with
         // plain rows. `/tasks/bulk` dispatches `plan`/`clear_plan` to the same
         // kernel authority, so Tasks owns bulk planning and there is one door.
-        // TODAY-08 adds the workspace-wide Recent Activity feed endpoint (no nav).
-        {
-          id: "today.activity",
-          moduleId: "today",
-          file: "routes/activity.tsx",
-        },
+        // TODAY-08's workspace-wide Activity endpoint is NOT here: V2.9 INS-04
+        // moved it to the Analytics module (`analytics.activity`, below), where
+        // the Insight page's "What changed" panel renders it — the Today route
+        // was retired in the same change rather than left as a second door.
         // CAL-02 adds Tomorrow and Next 7 days as real routes under Today (no
         // nav entry — they are reached from Today's own day rail), and CAL-03
         // the POST-only endpoint that turns an imported occurrence into a
@@ -604,11 +602,18 @@ describe("module discovery", () => {
           moduleId: "assets",
           file: "routes/history.tsx",
         },
-        // UIX-05 adds Analytics: ONE route, no entity type and no writes.
+        // UIX-05 adds Analytics: no entity type and no writes. V2.9 INS-04 adds
+        // the second route — the workspace-wide "What changed" feed endpoint,
+        // moved here from Today (no nav entry).
         {
           id: "analytics.index",
           moduleId: "analytics",
           file: "routes/index.tsx",
+        },
+        {
+          id: "analytics.activity",
+          moduleId: "analytics",
+          file: "routes/activity.tsx",
         },
         {
           id: "reviews.index",
