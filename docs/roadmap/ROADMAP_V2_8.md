@@ -11,7 +11,8 @@
 > V2.6 (**complete 2026-08-29**) and [`ROADMAP_V2_7.md`](ROADMAP_V2_7.md) holds
 > V2.7 (**complete 2026-09-01** — all five RECALL items delivered).
 >
-> **This file is V2.8, and it is where new work goes.** It was defined on
+> **This file is V2.8, and it is COMPLETE (2026-09-04), less one owner-held
+> measurement; new work goes in [`ROADMAP_V2_9.md`](ROADMAP_V2_9.md).** It was defined on
 > 2026-09-02 against `main` at `036d3da` (RECALL-04 merged, PR #246) by its
 > own decision pass — which re-measured the product rather than inheriting the
 > 2026-08-29 audit or V2.7's LATER table, chose a theme, numbered its debt from
@@ -37,13 +38,24 @@ and DEBT-157 stay open on their own unweakened conditions until it is taken.
 This is the same shape V2.4 closed in: complete apart from a clause a pull
 request cannot produce.
 
-**Successor: not yet defined.** [ADR-115](../decisions/ARCHITECTURE_DECISIONS.md#adr-115-converge--a-task-is-rendered-by-the-shared-row-wherever-it-can-be-acted-on-a-fixture-never-carries-the-month-it-was-written-in-and-a-gate-that-cannot-say-green-is-a-truth-defect-not-a-rider)
-and the LATER table below name **Insight over stored history** as the
-*presumptive* V2.9, and presumptive is the whole of the claim: V2.9 is defined
-by its own decision pass, against a re-measurement of `main` rather than
-against this table, exactly as V2.8 was defined against `036d3da` rather than
-inherited from V2.7's LATER list. **This programme does not define V2.9**, and
-nothing here should be read as having chosen it.
+**Successor: V2.9 INSIGHT, defined 2026-09-04 — new work now goes in
+[`ROADMAP_V2_9.md`](ROADMAP_V2_9.md).** The presumptive successor this file
+named was confirmed by its own decision pass, against a re-measurement of
+`main` at `6b4d4a8` rather than against the LATER table below, and it is
+*not* charts: V2.9 is the deterministic history and aggregation layer the
+product already has the data for (one window/grain/series vocabulary, a
+kernel Activity window read, the multi-Review trend, Insight with a real
+range, the workspace Activity list given its consumer), numbered from
+**DEBT-238** and recorded as
+[ADR-116](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export).
+The same pass sequenced the rest of V2 — Life Admin, Evidence (attachments),
+Finance core, Reports, grounded then assisted AI, one consolidation release —
+and drew the V3 boundary; the analysis is
+[`DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md`](../product/DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md).
+Two of this file's assessments were adopted unchanged (the AI gate's passing
+condition; the smallest legitimate Attachments shape) and one was sharpened
+(Finance is behind Attachments *and* Life Admin, with DEBT-198 as its hard
+gate). Nothing in this file may be re-scoped to hold new work.
 
 > **Amended 2026-09-02, before CONV-00 began**, as the follow-up resolution of
 > the two review findings left unresolved on the defining PR (#247, merged
@@ -80,7 +92,7 @@ and that tax every programme that could follow:
    red from an old one. A repository-driven product whose gate cannot say green
    has lost the memory it is supposed to be.
 2. **The most-used object has two anatomies on high-frequency surfaces**, and
-   the fork widened again in V2.7 exactly as [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2)
+   the fork widened again in V2.7 exactly as [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2--resolved-2026-09-03-v28-conv-01)
    predicted — in the other direction this time: RECALL-03's follow-up fact
    landed on the *Card* path (`WaitingTaskCard`) and the shared row does not
    carry it.
@@ -161,7 +173,7 @@ E2E matrix is **7 of 13 partitions red, ten failing tests**:
 | `project-templates.spec.ts:292` — template titles absent from `/today` | DEBT-220 | stale assertion; the structural guarantee beside it passes | 2026-08-29 |
 | `assets-ownership.spec.ts:582` — obligation signal | DEBT-219 | **fixture time-bomb**: `ob-rc-inspect` due `2026-08-28` (`seed-record-convergence.sql:384-386`); a second arms on **2026-09-14** (`ob-rc-rego`, `:382`) | 2026-08-29 |
 | `mobile-shell.spec.ts:502` — `/today` at 200% zoom | DEBT-221 | **real product defect** (WCAG 1.4.10) — see the correction below on its cause | 2026-08-28 |
-| `editing-consistency.spec.ts:253` — set/change/clear a due date from the record | **not recorded** | **fixture time-bomb**: `PageUp` from an unset picker "opens on the owner's own month; July is one back" (`:301-303`) — true in August, false since 1 September. **Reproduced locally 2026-09-02** on a fresh seed: timeout at `:304`. Raised as [DEBT-236](../product/PRODUCT_DEBT.md#-debt-236--two-task-date-editor-journeys-assert-the-calendar-month-they-were-written-in--p2) | 2026-08-31 (#812) |
+| `editing-consistency.spec.ts:253` — set/change/clear a due date from the record | **not recorded** | **fixture time-bomb**: `PageUp` from an unset picker "opens on the owner's own month; July is one back" (`:301-303`) — true in August, false since 1 September. **Reproduced locally 2026-09-02** on a fresh seed: timeout at `:304`. Raised as [DEBT-236](../product/PRODUCT_DEBT.md#-debt-236--two-task-date-editor-journeys-assert-the-calendar-month-they-were-written-in--p2--resolved-2026-09-02) | 2026-08-31 (#812) |
 | `inline-editor-overlay.spec.ts:390` — the due-date editor's whole interface | **not recorded** | same class: four `PageDown`s from today then "Friday 25 December 2026" (`:450-454`) — reaches December only from August. **Reproduced locally 2026-09-02**: timeout at `:454`. DEBT-236 | 2026-09-01 (#815; the file sat in a partition that was red for another reason on #812) |
 | `goals-alignment.spec.ts:28` — AREA-03 alignment journey | **not recorded** | **passed on #812, failed on #815** — the first run after RECALL-04, which touched `goal-outcome.ts`, `goal-progress-view.ts` and the alignment vocabulary. **Passes locally on a fresh seed, 2026-09-02** (28.3 s), so it is not a deterministic regression: DEBT-203's or DEBT-173's shape, recorded on DEBT-203, and CONV-00-G reproduces it in partition order before saying which | 2026-09-01 (#815) |
 
@@ -644,7 +656,7 @@ and the falsification. The inclusion rule: **a test is in scope if it is red on
 `main` at `036d3da` or is a time-bomb this pass can see arming; nothing else
 rides.**
 
-#### A. The palette says what is true about Goal creation — closes [DEBT-216](../product/PRODUCT_DEBT.md#-debt-216--a-command-palette-test-still-asserts-that-goals-have-no-creation-command-which-steer-01-gave-them--p2)
+#### A. The palette says what is true about Goal creation — closes [DEBT-216](../product/PRODUCT_DEBT.md#-debt-216--a-command-palette-test-still-asserts-that-goals-have-no-creation-command-which-steer-01-gave-them--p2--resolved-2026-09-02)
 
 - **Reproduced.** `e2e/command-palette.spec.ts:616-634` asserts
   `getByRole("option", { name: /^New Goal/ })` has count 0; the product
@@ -660,7 +672,7 @@ rides.**
 - **Falsification.** Unregister `goals.new` and watch the renamed test fail;
   point it at a second URL and watch the one-flow assertion fail.
 
-#### B. The Area Goals tab is asserted through the row's own contract — closes [DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2)
+#### B. The Area Goals tab is asserted through the row's own contract — closes [DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2--resolved-2026-09-02)
 
 - **Reproduced.** `goals.spec.ts:151` and `:286`, `areas.spec.ts:94` ask for a
   link named `Open <title>`; the row names its link
@@ -675,7 +687,7 @@ rides.**
 - **Falsification.** Change the row's name composition and watch all three
   assertions name the change.
 
-#### C. A template's tasks are asserted absent by identity — closes [DEBT-220](../product/PRODUCT_DEBT.md#-debt-220--a-project-templates-assertion-reads-a-template-tasks-title-which-steer-04-now-shows-as-a-projects-next-action--p2)
+#### C. A template's tasks are asserted absent by identity — closes [DEBT-220](../product/PRODUCT_DEBT.md#-debt-220--a-project-templates-assertion-reads-a-template-tasks-title-which-steer-04-now-shows-as-a-projects-next-action--p2--resolved-2026-09-02)
 
 - **Reproduced.** `project-templates.spec.ts:316-325` asserts every template
   task title has count 0 on `/today` and `/plan`; `NextActionLine`
@@ -690,7 +702,7 @@ rides.**
 - **Falsification.** Instantiate the template as live work in the fixture and
   watch the scoped assertion fail.
 
-#### D. The obligation journey asserts on the card it created — closes [DEBT-219](../product/PRODUCT_DEBT.md#-debt-219--an-assets-journey-went-red-on-2026-08-29-because-a-fixture-obligations-due-date-passed--p2)
+#### D. The obligation journey asserts on the card it created — closes [DEBT-219](../product/PRODUCT_DEBT.md#-debt-219--an-assets-journey-went-red-on-2026-08-29-because-a-fixture-obligations-due-date-passed--p2--resolved-2026-09-02)
 
 - **Reproduced.** `assets-ownership.spec.ts:605` asserts
   `getByText("1 obligation overdue")` unscoped; `ob-rc-inspect` (due
@@ -704,7 +716,7 @@ rides.**
 - **Falsification.** Un-scope the locator and watch strict mode fail on a
   seed with two overdue obligations.
 
-#### E. No fixture carries the month it was written in — closes [DEBT-236](../product/PRODUCT_DEBT.md#-debt-236--two-task-date-editor-journeys-assert-the-calendar-month-they-were-written-in--p2)
+#### E. No fixture carries the month it was written in — closes [DEBT-236](../product/PRODUCT_DEBT.md#-debt-236--two-task-date-editor-journeys-assert-the-calendar-month-they-were-written-in--p2--resolved-2026-09-02)
 
 - **Reproduced, locally, 2026-09-02, on a fresh seed.**
   `editing-consistency.spec.ts:253` clears the due date, reopens the picker
@@ -798,7 +810,7 @@ rides.**
   that catches the ISO literal alone, or that only catches a picker label
   when its date is in the future, does not close this part.
 
-#### F. Today reflows at 200% zoom — closes [DEBT-221](../product/PRODUCT_DEBT.md#-debt-221--today-overflows-sideways-at-200-zoom-because-the-week-doors-date-range-cannot-wrap--p2)
+#### F. Today reflows at 200% zoom — closes [DEBT-221](../product/PRODUCT_DEBT.md#-debt-221--today-overflows-sideways-at-200-zoom-because-the-week-doors-date-range-cannot-wrap--p2--resolved-2026-09-02)
 
 - **Reproduced, locally, 2026-09-02, on a fresh seed.**
   `mobile-shell.spec.ts:502-505` drives `/today` at 195 × 422 and requires
@@ -986,7 +998,7 @@ every action valid in that scope.**
 >   `TASKS_MODULE.md` and `PROJECTS_MODULE.md` carry the scope/capability
 >   rule.
 
-- **User problem.** [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2)
+- **User problem.** [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2--resolved-2026-09-03-v28-conv-01)
   (P2): `ProjectTasksTab.tsx` builds `Card` props by hand (`:51-513`) and says
   so at `:452`. Measured delta against `TaskRow` on 2026-09-02: no overflow
   action menu, no inline title editor, no row selection or shift-range, no
@@ -1220,7 +1232,7 @@ referred to it is a link; and the Card layer that drew it twice is gone.**
 >   design authority's TaskRow contract carry the slot, the reference rule
 >   and the capability table.
 
-- **User problem.** [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2)
+- **User problem.** [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2--resolved-2026-09-03-v28-conv-02)
   (P2, title corrected by this pass): `/today/waiting` renders a read-only
   `Card` (`waiting.tsx:312`, `WaitingTaskCard.tsx:26`) that draws three facts
   the shared row has no field for — the waiting-for subject, "since ·
@@ -1378,7 +1390,7 @@ usable.**
   [DEBT-173](../product/PRODUCT_DEBT.md#-debt-173--e2e-specs-assert-against-the-shared-workspaces-accumulated-state-so-re-ordering-the-suite-changes-what-they-see--p2)
   (specs assert against accumulated state; one full run leaks ~217 records;
   named leakers include `ai-assistance.spec.ts`'s "Book the venue" Task);
-  [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2)
+  [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2--resolved-2026-09-04-v28-conv-03)
   (536 s stranded because `responsive.spec.ts` takes two partitions
   exclusively at 73% each while p01–p11 sit at 100%).
 - **Outcome, in three parts.**

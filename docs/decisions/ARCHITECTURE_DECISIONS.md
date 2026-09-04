@@ -5857,3 +5857,162 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   Insight, AI, Attachments and Finance rules as new decisions here*
   (rejected: they are ADRs 073/079/110/111/112/114 already, and a second
   statement of an existing rule is a second authority).
+
+## ADR-116: The post-V2.8 domain boundaries — one Obligation model for Life Admin and Finance, deterministic facts before AI explanation, saved reports before dashboards, and no domain without its export
+
+- **Status:** Accepted (2026-09-04, defining [V2.9](../roadmap/ROADMAP_V2_9.md)
+  and the sequence to V3). This ADR records **boundaries**, not ordering: the
+  release sequence lives in the roadmap and may be re-ordered by any later
+  definition pass; the four decisions below outlive that ordering and bind
+  every release from V2.9 to V3. The analysis is
+  [`DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md`](../product/DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md).
+
+- **Context.** V2.8 completed on 2026-09-04 with the daily-driver spine
+  mature: one Task anatomy, a truthful gate, retrieval that reaches content,
+  a Goal layer that is decision-grade. The owner's priorities after it are
+  Finance, Life Admin, Reports/Insight and AI — four domains that, built as
+  four modules, would each arrive with its own answer to three questions the
+  product already half-answers, and would become four islands. The pass that
+  defined V2.9 re-measured `main` at `6b4d4a8` and found:
+
+  1. **"Something due, recurring, optionally with money attached" already
+     exists once, and is about to be needed twice.** `asset_obligations`
+     carries a closed category set, a recurrence chain, one-batch completion
+     with a proof event and a successor (ADR-083), 30/7/1 notification rungs
+     and one Today attention row — and `asset_id NOT NULL` with no amount
+     column, so a commitment that is not about an Asset has nowhere to live
+     but a recurring Task, and a Finance "recurring transaction" would be a
+     second model of the same thing with a fourth recurrence engine beside
+     Tasks', obligations' and Habits'.
+  2. **"What is changing over time?" has the data and none of the API.**
+     Review snapshots are written weekly and only the most recent is read;
+     `listSnapshotsBefore` and `listMeasurementSeries` have no caller; the
+     kernel `ActivityRepository` has no time-window read so five adapters
+     carry their own; Analytics buckets three presets to fit the Review's
+     eight-period cap. Finance's budget-vs-actual, Reports' executor and
+     AI's fact blocks all need the same window/grain/series/aggregate reads.
+  3. **The AI platform is complete, idle, and already fact-fed where it
+     matters** — the Weekly Review assistant reads a computed fact block
+     (the wrong one, DEBT-91) — while the request for "why was August more
+     expensive than July?" would invite a model to add up transactions.
+  4. **Every new domain is a new store**, and the register already holds the
+     lesson of stores that arrived before their export (X-04's audit) and of
+     a backup tier that was assumed rather than measured (DEBT-198's
+     correction). Attachments would be the product's first second data
+     store; Finance would be its first high-volume one.
+
+- **Decision.**
+
+  1. **Obligation is the one model for everything due and recurring, in
+     every domain.** An `obligation` becomes an entity type with an optional
+     subject (an Asset, a Person, a Project, an Area or none), an optional
+     expected amount in integer minor units with a currency code (ADR-049),
+     a closed category set that is structure and never tags (ADR-113's
+     non-goal), the existing obligation recurrence kinds, one evaluator for
+     urgency, one completion transaction (ADR-083) whose Activity event
+     carries the date and the actual amount as the proof of record, and one
+     successor rule. The Assets module's obligation surfaces become lenses
+     over the shared records; `canonicalFactForCategory` keeps updating the
+     Asset's dates. **Finance has no recurring-transaction engine**: a
+     subscription, a bill, a premium, a mortgage payment or a school fee is
+     an Obligation with an amount, settled by the transaction linked to it,
+     and a projection of future commitments is a Report over Obligations,
+     not a schedule store. **No release may add a due-and-recurring concept
+     anywhere else**, and the product's recurrence engines stay at three
+     (Tasks, obligations, Habits), each with its recorded reason.
+
+  2. **One deterministic history layer computes every machine fact about
+     the owner's past, and nothing new is stored to do it.** A kernel
+     vocabulary — `Window` (the existing `ActivityWindow`), `Grain`,
+     `bucket`, `Series` with its bound — and one kernel read per store with a
+     time axis (Activity by type per bucket and in a window; snapshot series
+     by Review; measurement series by Goal; later obligation and transaction
+     aggregates by group per bucket), each one grouped statement whatever the
+     window, proven flat in the store's size. Every figure names its window
+     and its bound, emits nothing for zero and carries its reason; nothing is
+     scored, graded or ranked (ADR-079 d6, ADR-110 d4, ADR-111 d7); nothing
+     is cached or pre-aggregated, and a bounded read that would need new
+     storage is a finding under ADR-110 d7. **Reports are saved definitions
+     over this layer** — a third saved-view `kind` through the existing
+     `SavedViewCodec` seam (the ADR-082 saved-view decision, d3/d10): a
+     config blob, not an entity, never a source of truth, executed on open,
+     with a closed per-source vocabulary of grains, groups and measures and
+     no expression, formula or SQL fragment. **A dashboard — any saved
+     arrangement of reports — is out of V2**, because the arrangement is not
+     built before the thing arranged is stable.
+
+  3. **AI explains facts it is handed; deterministic code computes them; and
+     reading precedes acting.** Every AI feature receives a *fact block*
+     produced by the layer in decision 2 — totals, counts, trends, variances,
+     overdue state, date logic, Goal movement — each fact carrying an
+     evidence id, and the model's schema refuses a figure that is not one of
+     the supplied facts, exactly as it already refuses an unsupplied evidence
+     id (ADR-073). The fact block is rendered beside the prose so the owner
+     can disagree with the explanation by reading the facts, and every AI
+     surface degrades to its facts and one honest sentence when the provider
+     is disabled, slow, refused or over budget. **Stage A (reads)** —
+     retrieve, compare, summarise, explain, identify patterns — ships and
+     runs live for at least one release before **Stage B (acts)** — proposals
+     to create, categorise, correct or draft — and every Stage B mutation is
+     a structured proposal through the one existing apply path (ADR-004,
+     ADR-073), extended with new item kinds and never a second path, applied
+     as the owner, idempotent on acceptance, undoable. Attachment content
+     never enters AI evidence in V2 (a file is cited by name and link only);
+     imported text — payees, memos, filenames — is data inside the evidence
+     block and never instruction. There is no autonomous agent: nothing runs
+     unattended, schedules itself, or mutates without a click.
+
+  4. **No domain ships without its export, its restore and its backup, in
+     the release that creates its store.** A new collection enters the
+     canonical snapshot under the compatibility protocol (ADR-065) in the
+     same PR as its table; a restore rehearsal covers it before the release
+     completes; a second data store (the attachments bucket) is backed up
+     and restored from — with objects verified against restored rows by
+     content hash — **before the first owner file is accepted**; and the
+     off-Cloudflare copy of the first store (DEBT-198) is a **hard gate for
+     Finance**, because the cost of a single-provider loss rises from a
+     fortnight of notes to a year of reconciliation the day the first
+     statement is imported. "Export later" is not a disposition any release
+     from V2.9 on may record.
+
+- **Consequences.** *Easy:* Life Admin and Finance share one row, one rung,
+  one Today fact and one completion rule, so the owner learns "deal with it"
+  once; Reports, Finance's month view and AI's explanations all read the
+  same figures, so two surfaces cannot disagree about the same window; an AI
+  answer is auditable by construction; a new store is recoverable on the day
+  it exists. *Hard:* Obligation's category set and evaluator must widen
+  before Finance can lean on them (V2.10 before V2.12, whatever else moves);
+  every history question is bounded and says so, which is less than a
+  spreadsheet offers; Finance's first release is smaller than any
+  personal-finance app it would replace, by design; the AI cannot answer a
+  question the deterministic layer cannot first compute, which is the point.
+  *Accepted:* the owner's first priority ships fourth in order because the
+  three releases before it are its prerequisites and its hard gate is
+  owner-held; splits, bank feeds, document text as evidence, dashboards and
+  any autonomous behaviour are refused for V2 and named as V3 candidates.
+
+- **Alternatives considered.** *A Finance "recurring transaction" beside
+  Life Admin's Obligation* (rejected: decision 1 — a fourth engine, a second
+  "due" fact competing for the Today row, and a second place to record what
+  something costs). *A generic "Commitment" above both* (rejected: the same
+  model with a vaguer name; the product's noun already has a surface, rungs
+  and a proof rule). *A stored aggregates table for Insight and Reports*
+  (rejected: ADR-110 d3/d7 — the one stored period artefact remains the
+  Review snapshot; every figure here is exactly reconstructible). *Report
+  definitions as entity records with timelines and links* (rejected: ADR-082
+  d10 — a definition describes a query and never becomes a source of truth;
+  nothing in the six example reports needs a timeline). *A dashboard builder
+  in V2* (rejected: decision 2). *Letting the model compute the comparison
+  it explains* (rejected: decision 3 — a wrong-but-confident number about
+  money is the worst output the product could produce, and "fail honest" is
+  §8 of the constitution). *Shipping Stage A and Stage B together* (rejected:
+  decision 3 — proposals over facts nobody has yet read live are proposals
+  over an unproven layer). *Attachments inside Life Admin or inside Finance*
+  (rejected: decision 4 — a second data store is a decision of its own, and a
+  file primitive born inside one domain is the second storage primitive the
+  architecture forbids). *Finance first with the backup gate "in parallel"*
+  (rejected: decision 4 — a 0-for-4 record on owner-held blockers is not a
+  schedule to build the most sensitive domain on). *Restating the Insight,
+  AI, Attachments and Finance rules that already exist as ADRs 073, 079, 110,
+  111, 112 and 114* (rejected: a second statement of an existing rule is a
+  second authority; this ADR adds only the four boundaries above).
