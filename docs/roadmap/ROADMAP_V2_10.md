@@ -770,7 +770,7 @@ implements it; the Assets module reads it as a lens.
   the database and asserted to be; and the concurrency test caught the guard
   defect above before any of this was called done.
 
-### ☐ LIFE-02 — Life Admin has a home
+### ☑ LIFE-02 — Life Admin has a home — **delivered 2026-09-05**
 
 **`/obligations` answers "what do I need to deal with?" and is comfortable on a
 phone.**
@@ -798,6 +798,68 @@ phone.**
   flat at 1, 30 and 100+ obligations.
 - **Non-goals.** A dashboard; a wizard; an onboarding flow; a capture-grammar
   token; a phone-bar slot; any upload control.
+
+**Delivered 2026-09-05.** [`/obligations`](../../app/modules/obligations/module.ts)
+is the Life Admin surface, banded Overdue · This week · This month · Later ·
+Done, with each heading carrying the count of its band across the whole
+collection. [`app/shared/obligations`](../../app/shared/obligations/index.ts)
+owns the ONE row, the ONE completion form and the ONE mutation path; the Asset
+record's Obligations tab draws them. The module is documented in
+[`LIFE_ADMIN_MODULE.md`](../development/LIFE_ADMIN_MODULE.md).
+
+- **Six corrections and additions the definition did not anticipate**, each
+  recorded here because each is a decision:
+  - **The obligation entity type was RESERVED in name only.** The predicate
+    existed; the generic entity repository's reservation chain did not consult
+    it, so a bare `create` could produce an `entities` row with no detail slice
+    — a commitment to nothing, invisible to every read that joins that table.
+    Fixed and asserted on LIFE-01's branch, where it belonged.
+  - **The accent test checked INEQUALITY, not distinguishability.** Of the ten
+    candidate hues measured for the new identity, three came back within a CIE76
+    distance of 1.3 of an existing accent in at least one scheme — visually
+    identical, and passing every assertion the file then held. It asserts a
+    perceptual floor now, which surfaced three PRE-EXISTING pairs below it (all
+    involving Diary's violet), recorded as
+    [DEBT-245](../product/PRODUCT_DEBT.md) rather than absorbed into a lowered
+    bar. `#795548` was chosen because it holds ΔE 19.1 against its nearest
+    neighbour in the worst scheme.
+  - **`obligation.subject` cannot be the Task link.** The completion path needed
+    a link between an obligation and the Task carrying it, and the subject
+    projection was the only obligation link that existed. Reusing it would have
+    made "what this is about" and "what is tracking this" one type;
+    `obligation.linked_task` is its own.
+  - **A COUNT that ignored the search would describe a different list.** The
+    band counts and the row read take the same query, the same filters and the
+    same subject scope, through one shared predicate rather than two copies —
+    the specific defect D10 exists to prevent, one forgotten argument away.
+  - **The Search predicate was wrong on first write, and nothing said so.** It
+    matched `o.title`, a column that does not exist: the title lives on the
+    `entities` row, one title in one place. The orchestrator isolates a provider
+    failure to `ok: false` with no message, so the only visible symptom was a
+    `partial` status in an unrelated route test. Covered now by repository tests
+    that match by title, by category LABEL and by subject title, and by the
+    amount refusals D11 asks for.
+  - **A component may not import a `.server` module, and the production build is
+    where that is enforced.** The collection imported its loader for two types
+    and a constant; `pnpm build` refuses it, and rightly — it would drag the
+    composition boundary and D1 into the client bundle. The client-safe half is
+    its own file, and the band grouping (pure) moved to the view model.
+- **A shared money field, and one fewer thing to get right separately.** Four
+  hand-rolled amount-plus-code pairs existed across three Asset forms — not the
+  three the definition counted. Two put the code behind a "More details"
+  disclosure two sections from the amount it labelled; one used
+  `inputMode="text"`, which is the alphabetic keyboard for a number. All four are
+  now `MoneyField`.
+- **Measured.** `e2e/life-admin.spec.ts` — five journeys, 49 s — runs the
+  acceptance path with no Asset anywhere in it: create → appears in its band →
+  Search finds it → open → complete → the successor exists. `axe` clean in light
+  AND dark across the collection, the record, the record with its completion
+  form open, and the create page. No horizontal overflow at 320, 375, 390, 430,
+  phone landscape, 768, 1024, 1280, 1440 and 2560. The record joins
+  `FOLD_RECORDS` twice — about an Asset, and about nothing.
+- **Falsified.** The amount refusal is a test that fails when the predicate
+  reaches an amount; the band ordering is a test that fails when the SQL's cases
+  are reordered (verified by reordering them, and reverted).
 
 ### ☐ LIFE-03 — One due signal
 

@@ -28,13 +28,16 @@
 
 import { formatMinorUnits } from "~/kernel/money";
 import {
+  OBLIGATION_BANDS,
   OBLIGATION_STATE_LABELS,
   describeObligationRecurrence,
   evaluateObligation,
   obligationBand,
+  obligationBandLabel,
   obligationCategoryLabel,
   type Obligation,
   type ObligationBand,
+  type ObligationBandCounts,
   type ObligationCategory,
   type ObligationEvaluation,
   type ObligationMeterEvaluation,
@@ -274,3 +277,22 @@ export type ObligationBandGroup = {
    */
   readonly total: number;
 };
+
+/**
+ * Group a page's rows into the collection's bands, carrying the WHOLE
+ * collection's count on each heading.
+ *
+ * The rows are already in the repository's order (open work first, then soonest
+ * due), so a band's rows keep that order rather than being re-sorted here.
+ */
+export function groupObligationsByBand(
+  items: readonly SerializedObligation[],
+  counts: ObligationBandCounts,
+): readonly ObligationBandGroup[] {
+  return OBLIGATION_BANDS.map((band: ObligationBand) => ({
+    band,
+    label: obligationBandLabel(band),
+    items: items.filter((item) => item.band === band),
+    total: counts[band],
+  }));
+}

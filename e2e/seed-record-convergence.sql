@@ -384,8 +384,14 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'as-rc-ute';
 -- V2.10 LIFE-01 — an obligation is an ordinary entity with a detail slice and
 -- a subject link, so the fixture seeds all three exactly as the product writes
 -- them. The ids are unchanged, so every reference to them still resolves.
-DELETE FROM entity_links WHERE workspace_id = 'local-dev-workspace' AND type = 'obligation.subject' AND target_entity_id = 'as-rc-ute';
-DELETE FROM obligation_details WHERE workspace_id = 'local-dev-workspace' AND subject_entity_id = 'as-rc-ute';
+-- Every fixture obligation is removed by ITS OWN id prefix, dependents first.
+-- Scoping the detail delete to the ute's subject instead was fine while every
+-- fixture obligation was about the ute; the subject-less ones added below are
+-- the whole point of V2.10, and they left a detail row behind that made the
+-- entity delete violate its foreign key on the SECOND run of this seed.
+DELETE FROM entity_links WHERE workspace_id = 'local-dev-workspace' AND source_entity_id LIKE 'ob-rc-%';
+DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
+DELETE FROM obligation_details WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
 DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND type = 'obligation' AND id LIKE 'ob-rc-%';
 
 INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
@@ -420,6 +426,31 @@ VALUES
   ('obl-subject-ob-rc-service', 'local-dev-workspace', 'ob-rc-service', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:02.000Z', '2026-08-01T02:00:00.000Z', NULL),
   ('obl-subject-ob-rc-insurance', 'local-dev-workspace', 'ob-rc-insurance', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:03.000Z', '2026-08-01T02:00:00.000Z', NULL),
   ('obl-subject-ob-rc-service-past', 'local-dev-workspace', 'ob-rc-service-past', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:04.000Z', '2026-05-02T05:00:00.000Z', NULL);
+
+-- ---------------------------------------------------------------------------
+-- V2.10 LIFE-02 — obligations about NOTHING, which is the whole point of the
+-- programme and therefore the fixture that has to exist.
+--
+-- A tax return has no asset, no parent and no owner record to hang from. Life
+-- Admin's acceptance journey runs end to end on these two without an Asset
+-- appearing anywhere in it, which is exactly what the journey is for. One bears
+-- money (so the completion form's amount field has a case) and one does not.
+-- ---------------------------------------------------------------------------
+INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
+VALUES
+  ('ob-rc-tax', 'local-dev-workspace', 'obligation', 'RC: Lodge the tax return', '2026-07-01T00:00:00.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('ob-rc-passport', 'local-dev-workspace', 'obligation', 'RC: Renew the passport', '2026-07-01T00:00:01.000Z', '2026-08-01T02:00:00.000Z', NULL);
+
+INSERT INTO obligation_details
+  (workspace_id, entity_id, entity_type, subject_entity_id, subject_entity_type, category, description,
+   due_date, lead_days, recurrence_kind, recurrence_interval, meter_threshold, meter_interval, meter_unit,
+   expected_amount_minor, currency_code,
+   status, completed_at, completed_event_id, series_id, sequence, created_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'ob-rc-tax', 'obligation', NULL, NULL, 'tax', 'The accountant needs the receipts folder first.', date('now', '+9 days'), 21,
+   'years', 1, NULL, NULL, NULL, 44000, 'AUD', 'open', NULL, NULL, 'srs-rc-tax', 0, '2026-07-01T00:00:00.000Z', '2026-08-01T02:00:00.000Z'),
+  ('local-dev-workspace', 'ob-rc-passport', 'obligation', NULL, NULL, 'licence', NULL, date('now', '+200 days'), 60,
+   'none', NULL, NULL, NULL, NULL, NULL, NULL, 'open', NULL, NULL, 'srs-rc-passport', 0, '2026-07-01T00:00:01.000Z', '2026-08-01T02:00:00.000Z');
 
 DELETE FROM asset_events WHERE workspace_id = 'local-dev-workspace' AND asset_id = 'as-rc-ute';
 INSERT INTO asset_events

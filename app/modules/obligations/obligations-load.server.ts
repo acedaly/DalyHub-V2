@@ -27,6 +27,11 @@ import {
   type ObligationBandCounts,
 } from "~/kernel/obligations";
 import {
+  OBLIGATION_STATUS_FILTERS,
+  type ObligationStatusFilter,
+  type ObligationsCollectionData,
+} from "./obligations-view";
+import {
   readObligationPage,
   type ObligationPageResult,
 } from "~/platform/obligations/obligation-facts.server";
@@ -34,30 +39,6 @@ import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import type { WorkspaceScopeEnv } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
-import type { SerializedObligation } from "~/shared/obligations";
-
-/** The status lens, which is the owner's, not the domain's. */
-export const OBLIGATION_STATUS_FILTERS = [
-  { value: "open", label: "Open" },
-  { value: "on_hold", label: "On hold" },
-  { value: "dismissed", label: "Dismissed" },
-  { value: "completed", label: "Completed" },
-  { value: "any", label: "Any status" },
-] as const;
-
-export type ObligationStatusFilter =
-  (typeof OBLIGATION_STATUS_FILTERS)[number]["value"];
-
-export interface ObligationsCollectionData {
-  readonly obligations: readonly SerializedObligation[];
-  readonly nextCursor: string | null;
-  readonly counts: ObligationBandCounts;
-  readonly query: string;
-  readonly category: string;
-  readonly status: ObligationStatusFilter;
-  readonly todayIso: string;
-  readonly failed: boolean;
-}
 
 const EMPTY_COUNTS: ObligationBandCounts = {
   overdue: 0,

@@ -1,5 +1,27 @@
 # Changelog
 
+- **Life Admin: everything with a date on it that is not a task.**
+
+  A new place in the sidebar, under More. It lists your renewals, registrations,
+  bills, subscriptions, inspections and services in the order they matter —
+  overdue first, then this week, then this month, then later — with a count
+  beside each heading that is the real count, not the number that happens to be
+  on screen (V2.10 LIFE-02).
+
+  You can add one without saying what it is about. A tax return is about
+  nothing; so is a passport renewal. That was the one thing DalyHub could not
+  record before, and the form asks for the title first and what it is about last
+  to say so.
+
+  Everything an Asset's Obligations tab could do, it still does, in the same
+  rows and with the same buttons — because they are now literally the same rows.
+  An obligation opened from Life Admin and the same one opened from the ute are
+  one record with one page.
+
+  Recording an amount is optional and stays private: it is on the obligation's
+  own page and nowhere else. It is never in a search result, never in the
+  activity feed, and searching for a number will not find it.
+
 - **Obligations became their own thing, and nothing about your Assets moved.**
 
   A renewal, a service, an inspection or a warranty used to exist only as a row

@@ -37,19 +37,15 @@ import {
   isAssetMeterUnit,
   type MeterReading,
 } from "~/kernel/assets";
-import {
-  OBLIGATION_BANDS,
-  obligationBandLabel,
-  type Obligation,
-  type ObligationBand,
-  type ObligationBandCounts,
-  type ObligationFilters,
-  type ObligationSubject,
+import type {
+  Obligation,
+  ObligationBandCounts,
+  ObligationFilters,
+  ObligationSubject,
 } from "~/kernel/obligations";
 import { entityDestination } from "~/shared/entity";
 import {
   serializeObligation,
-  type ObligationBandGroup,
   type SerializedObligation,
   type SerializedObligationSubject,
 } from "~/shared/obligations";
@@ -177,23 +173,4 @@ export async function readObligationPage(
     hasMore: page.hasMore,
     counts,
   };
-}
-
-/**
- * Group a page's rows into the collection's bands, carrying the WHOLE
- * collection's count on each heading.
- *
- * The rows are already in the repository's order (open work first, then soonest
- * due), so a band's rows keep that order rather than being re-sorted here.
- */
-export function groupObligationsByBand(
-  items: readonly SerializedObligation[],
-  counts: ObligationBandCounts,
-): readonly ObligationBandGroup[] {
-  return OBLIGATION_BANDS.map((band: ObligationBand) => ({
-    band,
-    label: obligationBandLabel(band),
-    items: items.filter((item) => item.band === band),
-    total: counts[band],
-  }));
 }

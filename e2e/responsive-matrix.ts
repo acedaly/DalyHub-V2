@@ -111,6 +111,12 @@ export const PRODUCT_ROUTES = [
   "/assets/expiring",
   "/assets/service-due",
   "/new/asset",
+  // V2.10 LIFE-02 — Life Admin: the banded collection, the record of an
+  // obligation about NOTHING (the case the programme exists for), and the
+  // creation form whose height changes as the owner answers it.
+  "/obligations",
+  "/obligations/ob-rc-tax",
+  "/obligations/new",
   "/reviews",
   // HABITS-01 — the Habits collection, its Archived view and the creation
   // form. The form earns its place: its sticky action bar bleeds past the

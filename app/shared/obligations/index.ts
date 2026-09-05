@@ -39,6 +39,7 @@ export {
 } from "./ObligationList";
 export {
   formatObligationDate,
+  groupObligationsByBand,
   obligationStateTone,
   serializeObligation,
   type ObligationBandGroup,

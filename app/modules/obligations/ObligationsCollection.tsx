@@ -46,6 +46,7 @@ import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
 import {
+  groupObligationsByBand,
   ObligationBands,
   ObligationRow,
   type SerializedObligation,
@@ -55,8 +56,7 @@ import {
 import {
   OBLIGATION_STATUS_FILTERS,
   type ObligationsCollectionData,
-} from "./obligations-load.server";
-import { groupObligationsByBand } from "~/platform/obligations/obligation-facts.server";
+} from "./obligations-view";
 
 /** Stable module-level selectors, so the shared hook's memo identity is stable. */
 function selectObligationsPage(data: ObligationsCollectionData) {
