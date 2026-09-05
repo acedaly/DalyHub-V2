@@ -27,6 +27,7 @@ import {
   type DeliveryStatus,
   type NewNotification,
   type NotificationDelivery,
+  isNotificationKind,
   type NotificationKind,
   type NotificationRecord,
   type NotificationRepository,
@@ -69,7 +70,7 @@ function rowToNotification(row: NotificationRow): NotificationRecord {
     workspaceId: row.workspace_id,
     // Re-validated on the way out, so a hand-edited row cannot introduce a kind
     // the application does not recognise.
-    kind: (row.kind === "digest" || row.kind === "asset_obligation"
+    kind: (isNotificationKind(row.kind)
       ? row.kind
       : "digest") as NotificationKind,
     subjectEntityId: row.subject_entity_id,

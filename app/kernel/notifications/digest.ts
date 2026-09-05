@@ -21,11 +21,14 @@
  * for itself (see `pushover-format.ts`); this module decides what is SAID.
  */
 
+import { obligationAttentionHref } from "~/kernel/obligations";
+
 import {
   NOTIFICATION_BODY_MAX,
   NOTIFICATION_TITLE_MAX,
-  assetObligationDedupeKey,
   digestDedupeKey,
+  notificationSubjectName,
+  obligationDedupeKey,
   type NewNotification,
 } from "./notification";
 import type { ObligationRung } from "./notification-evaluator";
@@ -64,11 +67,24 @@ export interface DigestFacts {
      */
     readonly followUpDue: number;
   };
-  readonly assets: {
+  readonly obligations: {
     /** Obligations needing attention that no open Task already carries. */
     readonly visibleCount: number;
+    /**
+     * V2.10 LIFE-03 — the one obligation the line names, where there is exactly
+     * one. It names its SUBJECT when it has one and ITSELF when it does not; a
+     * passport renewal has no asset to be announced under.
+     *
+     * The subject arrives with its TYPE, because whether it may be named at all
+     * is this module's decision: a digest is delivered externally, and People
+     * and Diary do not leave the building in one (AGENTS.md §17).
+     */
     readonly first: {
-      readonly assetTitle: string;
+      readonly title: string;
+      readonly subject: {
+        readonly type: string;
+        readonly title: string;
+      } | null;
       readonly text: string;
     } | null;
   };
@@ -197,14 +213,27 @@ export function renderDigest(facts: DigestFacts): NewNotification | null {
     );
   }
 
-  if (facts.assets.visibleCount > 0) {
-    if (facts.assets.visibleCount === 1 && facts.assets.first !== null) {
-      lines.push(
-        `${facts.assets.first.assetTitle}: ${facts.assets.first.text}`,
-      );
+  if (facts.obligations.visibleCount > 0) {
+    const first = facts.obligations.first;
+    if (facts.obligations.visibleCount === 1 && first !== null) {
+      /*
+       * "Ute — Renew registration: due in 14 days" where there is a subject,
+       * "Lodge the tax return: due in 9 days" where there is not. The subject
+       * leads because it is how the owner holds the thing in mind, and the
+       * obligation's own title is never dropped — the Asset-shaped line used to
+       * name the Asset and the obligation and no state, or the Asset and the
+       * state and never what was due.
+       *
+       * A subject the digest may not name reads exactly like one that does not
+       * exist, which is the point: the obligation still reaches the owner.
+       */
+      const subjectName = notificationSubjectName(first.subject);
+      const named =
+        subjectName === null ? first.title : `${subjectName} — ${first.title}`;
+      lines.push(`${named}: ${first.text}`);
     } else {
       lines.push(
-        `${plural(facts.assets.visibleCount, "asset obligation needs", "asset obligations need")} attention`,
+        `${plural(facts.obligations.visibleCount, "obligation needs", "obligations need")} attention`,
       );
     }
   }
@@ -243,14 +272,18 @@ export function renderDigest(facts: DigestFacts): NewNotification | null {
 /** The facts one obligation rung is announced from. */
 export interface ObligationNoticeFacts {
   readonly obligationId: string;
-  readonly assetId: string;
-  readonly assetTitle: string;
+  /** What it is about, where it is about anything. Null is the ordinary case. */
+  readonly subject: {
+    readonly id: string;
+    readonly type: string;
+    readonly title: string;
+  } | null;
   /** The obligation's own title — "Registration renewal". */
   readonly title: string;
   /**
-   * The obligation's owner-facing sentence, written by the ONE Assets evaluator
-   * (`evaluateObligation`). Reused verbatim so the notification, the Asset record
-   * and Today's rail all say the same words about the same fact.
+   * The obligation's owner-facing sentence, written by the ONE shared evaluator
+   * (`evaluateObligation`). Reused verbatim so the notification, the record and
+   * Today's rail all say the same words about the same fact.
    */
   readonly text: string;
   readonly rung: ObligationRung;
@@ -259,22 +292,38 @@ export interface ObligationNoticeFacts {
 /**
  * Announce one obligation crossing one rung.
  *
- * The subject is the ASSET (that is what the owner opens), while the dedupe key
- * names the OBLIGATION (that is what fired) — an Asset with a registration
- * renewal and a service due in the same week must produce two notices, not one.
+ * The dedupe key names the OBLIGATION, because that is what fired: a subject
+ * with a registration renewal and a service due in the same week must produce
+ * two notices, not one.
+ *
+ * V2.10 LIFE-03 — the notice is the obligation's, not its subject's. It names
+ * the subject in the TITLE where naming it is allowed, links to the obligation's
+ * own record either way, and carries the subject id so the inbox can still say
+ * what a historical row concerned.
+ *
+ * TWO things never leave the building in it. No AMOUNT, ever
+ * ([ADR-049](../../../docs/decisions/ARCHITECTURE_DECISIONS.md) decision 5). And
+ * no PERSON'S NAME: AGENTS.md §17 keeps People and Diary out of external
+ * services without a per-action opt-in, and a channel enabled once is not that.
+ * A licence renewal about a person announces itself instead — which is the fact
+ * the owner needs, and none of the one they did not agree to publish. A lock
+ * screen is the single surface an owner cannot choose who is looking at.
  */
 export function renderObligationNotice(
   facts: ObligationNoticeFacts,
 ): NewNotification {
+  const nameableSubject = notificationSubjectName(facts.subject);
   return {
-    kind: "asset_obligation",
-    subjectEntityId: facts.assetId,
-    dedupeKey: assetObligationDedupeKey(facts.obligationId, facts.rung),
+    kind: "obligation",
+    subjectEntityId: facts.subject?.id ?? facts.obligationId,
+    dedupeKey: obligationDedupeKey(facts.obligationId, facts.rung),
     title: clamp(
-      `${facts.assetTitle} — ${facts.title}`,
+      nameableSubject === null
+        ? facts.title
+        : `${nameableSubject} — ${facts.title}`,
       NOTIFICATION_TITLE_MAX,
     ),
     body: clamp(facts.text, NOTIFICATION_BODY_MAX),
-    href: `/asset/${facts.assetId}?tab=obligations`,
+    href: obligationAttentionHref(facts.obligationId),
   };
 }

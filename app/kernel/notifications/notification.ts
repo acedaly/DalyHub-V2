@@ -38,15 +38,61 @@
  * interrupted for.
  *
  *   - `digest` — the day, assembled once, at a time the owner chose.
- *   - `asset_obligation` — an obligation crossing a fixed lead-time rung.
+ *   - `obligation` — an obligation crossing a fixed lead-time rung. Named for
+ *     the obligation rather than the Asset since V2.10 LIFE-03, because an
+ *     obligation need not be about an Asset and most are not.
  *
  * Overdue tasks and ageing waiting items are deliberately NOT kinds. They change
  * every day, so a per-event channel would deliver the same anxiety daily, which
  * is the nagging failure mode this design exists to prevent. They reach the owner
  * inside the digest instead.
  */
-export const NOTIFICATION_KINDS = ["digest", "asset_obligation"] as const;
+export const NOTIFICATION_KINDS = ["digest", "obligation"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+/**
+ * The record types DalyHub will NOT name in anything it sends outside itself.
+ *
+ * AGENTS.md §17: People and Diary are never sent to an external service without
+ * an explicit per-action opt-in, and a notification has no such opt-in — the
+ * owner enables a channel once, and every notice after that goes to Pushover's
+ * servers and onto a lock screen.
+ *
+ * Until V2.10 LIFE-03 this was true by accident: the notification path read only
+ * obligations whose subject was an Asset, so a Person's name could not reach it.
+ * Widening the set made the boundary explicit rather than incidental.
+ */
+const UNNAMEABLE_SUBJECT_TYPES: ReadonlySet<string> = new Set([
+  "person",
+  "diary",
+]);
+
+/**
+ * The subject's name, where naming it is allowed — otherwise null.
+ *
+ * Null does not mean the obligation is silenced. It means the notice announces
+ * itself ("Renew the licence") rather than the record it is about, which is the
+ * whole fact the owner needs at a glance and none of the one they did not agree
+ * to publish.
+ */
+export function notificationSubjectName(
+  subject: { readonly type: string; readonly title: string } | null,
+): string | null {
+  if (subject === null) return null;
+  return UNNAMEABLE_SUBJECT_TYPES.has(subject.type) ? null : subject.title;
+}
+
+/**
+ * Whether a stored string is a kind this application recognises.
+ *
+ * The storage adapter re-validates on the way OUT, so a hand-edited row — or a
+ * row written by a Worker one deploy ahead of this one — cannot introduce a
+ * kind nothing can render. It reads the vocabulary rather than restating it: a
+ * second hand-written list is how a new kind comes to be silently discarded.
+ */
+export function isNotificationKind(value: string): value is NotificationKind {
+  return (NOTIFICATION_KINDS as readonly string[]).includes(value);
+}
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                      */
@@ -183,16 +229,21 @@ export function digestDedupeKey(localDate: string): string {
 }
 
 /**
- * One notification per obligation per rung. `asset:<obligationId>:7`.
+ * One notification per obligation per rung. `obligation:<obligationId>:7`.
  *
- * Keyed on the OBLIGATION rather than on the Asset: an Asset can carry a
+ * Keyed on the OBLIGATION rather than on its subject: an Asset can carry a
  * registration renewal and a service due in the same week, and collapsing them
- * would silently drop one. (The Asset is carried separately as the row's
- * subject, which is what the inbox links to.)
+ * would silently drop one. Most obligations have no subject at all.
+ *
+ * V2.10 LIFE-03 renamed the prefix from `asset:`, and migration 0051 rewrites
+ * every historical key in the same statement that rewrites the kind. Changing
+ * the prefix WITHOUT carrying the rows across would make every historical rung
+ * unseen, and re-fire years of renewals at the owner in one tick
+ * ([ADR-118](../../../docs/decisions/ARCHITECTURE_DECISIONS.md) decision 4).
  */
-export function assetObligationDedupeKey(
+export function obligationDedupeKey(
   obligationId: string,
   rungDays: number,
 ): string {
-  return `asset:${obligationId}:${rungDays}`;
+  return `obligation:${obligationId}:${rungDays}`;
 }

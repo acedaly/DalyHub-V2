@@ -19,7 +19,7 @@ function input(overrides: Partial<AttentionInput> = {}): AttentionInput {
   return {
     inboxCount: 0,
     waiting: { count: 0, oldestDays: null, followUpDue: 0 },
-    assets: { visibleCount: 0, trackedAsTasksCount: 0, first: null },
+    obligations: { visibleCount: 0, trackedAsTasksCount: 0, first: null },
     projects: [],
     goals: [],
     ...overrides,
@@ -141,33 +141,86 @@ describe("inclusion — an item type appears only when its condition holds", () 
     }
   });
 
-  it("includes asset obligations only when one is not already represented by an open task", () => {
+  it("includes obligations only when one is not already represented by an open task", () => {
     expect(
       buildAttention(
         input({
-          assets: { visibleCount: 0, trackedAsTasksCount: 2, first: null },
+          obligations: { visibleCount: 0, trackedAsTasksCount: 2, first: null },
         }),
       ),
     ).toEqual([]);
 
     const rail = buildAttention(
       input({
-        assets: {
+        obligations: {
           visibleCount: 1,
           trackedAsTasksCount: 1,
           first: {
-            assetTitle: "Hilux",
-            text: "Registration expires tomorrow",
-            href: "/asset/a1?tab=obligations",
+            title: "Registration renewal",
+            subjectTitle: "Hilux",
+            text: "Due in 1 day",
+            href: "/obligations/ob1",
           },
         },
       }),
     );
     expect(rail[0]).toMatchObject({
-      kind: "asset",
+      kind: "obligation",
       label: "Hilux",
-      detail: "Registration expires tomorrow · 1 tracked as a task",
-      href: "/asset/a1?tab=obligations",
+      // V2.10 LIFE-03 — the row finally says WHAT is due. The Asset-shaped row
+      // printed "Hilux · Due in 1 day" and never named the obligation.
+      detail: "Registration renewal · Due in 1 day · 1 tracked as a task",
+      href: "/obligations/ob1",
+    });
+  });
+
+  /*
+   * The row the whole programme exists for: a tax return has no asset to be
+   * announced under, so it announces itself.
+   */
+  it("names an obligation about nothing after ITSELF", () => {
+    const rail = buildAttention(
+      input({
+        obligations: {
+          visibleCount: 1,
+          trackedAsTasksCount: 0,
+          first: {
+            title: "Lodge the tax return",
+            subjectTitle: null,
+            text: "Due in 9 days",
+            href: "/obligations/ob-tax",
+          },
+        },
+      }),
+    );
+    expect(rail[0]).toMatchObject({
+      kind: "obligation",
+      label: "Lodge the tax return",
+      detail: "Due in 9 days",
+      href: "/obligations/ob-tax",
+    });
+  });
+
+  it("sends the aggregate row to Life Admin, not to Assets", () => {
+    const rail = buildAttention(
+      input({
+        obligations: {
+          visibleCount: 4,
+          trackedAsTasksCount: 0,
+          first: {
+            title: "Registration renewal",
+            subjectTitle: "Hilux",
+            text: "Due in 1 day",
+            href: "/obligations/ob1",
+          },
+        },
+      }),
+    );
+    expect(rail[0]).toMatchObject({
+      kind: "obligation",
+      label: "Life admin",
+      detail: "4 obligations need attention",
+      href: "/obligations",
     });
   });
 
@@ -191,13 +244,14 @@ describe("caps and priority", () => {
   const crowded = input({
     inboxCount: 2,
     waiting: { count: 3, oldestDays: 4, followUpDue: 0 },
-    assets: {
+    obligations: {
       visibleCount: 2,
       trackedAsTasksCount: 0,
       first: {
-        assetTitle: "Hilux",
-        text: "Registration expires tomorrow",
-        href: "/asset/a1?tab=obligations",
+        title: "Registration renewal",
+        subjectTitle: "Hilux",
+        text: "Due in 1 day",
+        href: "/obligations/ob1",
       },
     },
     projects: [
@@ -211,11 +265,11 @@ describe("caps and priority", () => {
     ],
   });
 
-  it("orders inbox, waiting, assets, projects, goals", () => {
+  it("orders inbox, waiting, obligations, projects, goals", () => {
     expect(buildAttention(crowded).map((item) => item.kind)).toEqual([
       "inbox",
       "waiting",
-      "asset",
+      "obligation",
       "project",
       "project",
     ]);

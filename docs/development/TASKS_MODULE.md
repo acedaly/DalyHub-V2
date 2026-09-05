@@ -1058,7 +1058,7 @@ What this means for anyone working on Tasks:
   reconciliation, so the owner can create a fresh one.
 - **Today shows it once.** An obligation with an open linked Task is represented by
   its Task in My day and suppressed from the Assets section — see
-  [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md#assets-on-today-asset-02).
+  [`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md#obligations-on-today-asset-02-widened-by-v210-life-03).
 
 
 ---

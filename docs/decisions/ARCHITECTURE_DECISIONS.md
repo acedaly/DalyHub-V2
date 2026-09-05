@@ -6273,6 +6273,29 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      a reminder engine ([ADR-114](#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)) —
      is unchanged.
 
+     **As built (V2.10 LIFE-03, `migrations/0051_obligation_notifications.sql`).**
+     The settings column is renamed with `ALTER TABLE … RENAME COLUMN`, which
+     carries its own CHECK with it, and the owner's stored value with it. The
+     `notifications` rebuild rewrites `kind` and `dedupe_key` in one
+     `INSERT … SELECT`, scoped to the rows that actually carry the old prefix so
+     a digest key and a hand-written one are left alone. Two things the
+     definition did not anticipate:
+
+     - `notification_deliveries` has a foreign key into `notifications` with ON
+       DELETE CASCADE, and dropping the parent FIRES that cascade. The delivery
+       records are stashed and restored around the rebuild rather than quietly
+       taken with it.
+     - The `href` of a historical row is NOT rewritten. A notification says what
+       was true when it fired, and the Asset tab an old notice pointed at still
+       exists and still shows the obligation. Rewriting history to match today's
+       routes is the silent rewrite the state/event distinction exists to
+       prevent.
+
+     `test/kernel/migration-0051.test.ts` applies `0001…0050`, writes
+     owner-shaped notices, delivery records and settings into the OLD schema,
+     and only then applies `0051` — the ADR-112 decision 8 rule, so a test that
+     seeded the new vocabulary cannot pass with the data-carrying half deleted.
+
 - **Consequences.** *Easy:* a tax return, a school fee and a rego renewal are
   one kind of record with one due fact, one urgency evaluator, one completion
   rule and one Today row, so the owner learns "deal with it" once and V2.12's

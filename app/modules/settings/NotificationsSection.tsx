@@ -98,10 +98,10 @@ export function NotificationsSection({
           disabled={!settings.enabled}
         />
         <ToggleRow
-          field="assetObligationsEnabled"
-          label="Asset obligations"
-          description="A heads-up 30 days, 7 days and 1 day before an obligation falls due — a registration renewal, a service, a warranty. Each one is sent once, ever."
-          checked={settings.assetObligationsEnabled}
+          field="obligationsEnabled"
+          label="Obligations falling due"
+          description="A heads-up 30 days, 7 days and 1 day before an obligation falls due — a registration renewal, a tax return, a service, a subscription. Each one is sent once, ever."
+          checked={settings.obligationsEnabled}
           disabled={!settings.enabled}
         />
         <SettingsRow
