@@ -232,6 +232,12 @@ export interface ReviewInsightRepository {
    *   - **the same-type rule holds**: a weekly Review's series contains only
    *     weekly Reviews, so a monthly Review never dilutes a weekly trend with a
    *     period four times its length;
+   *   - **an OVERLAPPING Review is not "before" this one**: everything but the
+   *     anchor must end strictly before the anchor's period START, which is the
+   *     same rule the comparison series applies. Overlapping periods are
+   *     permitted by the product, so comparing against the anchor's END would
+   *     admit a Review covering some of the same days and report two
+   *     overlapping Reviews as consecutive history;
    *   - a missing snapshot SHORTENS the series rather than leaving a hole. A
    *     Review whose snapshot was never captured is simply absent, and the
    *     surface says "over the last N Reviews" with the N it actually has

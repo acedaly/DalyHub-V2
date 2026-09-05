@@ -109,6 +109,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       window: windowId,
       grain,
       grains: allowedGrains(windowId, todayIso),
+      todayIso,
       rangeLabel: "",
       bucketLabels: [],
       bucketShortLabels: [],

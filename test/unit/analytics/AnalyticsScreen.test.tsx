@@ -83,6 +83,7 @@ function pageData(
     window: facts.window,
     grain: facts.grain,
     grains: ["day"],
+    todayIso: TODAY,
     rangeLabel: "4 August 2026 – 10 August 2026",
     bucketLabels: BUCKETS.map((bucket) => bucket.endIso),
     bucketShortLabels: BUCKETS.map((bucket) => bucket.endIso.slice(5)),
@@ -328,6 +329,39 @@ describe("Analytics screen (UIX-05)", () => {
   });
 
   /*
+   * V2.9 INS-04 — "nothing completed" is not "nothing happened".
+   *
+   * A period can hold records created, notes written and a Meeting held while
+   * completing nothing at all. The empty state's claim is about COMPLETIONS and
+   * stays true; hiding the one panel that shows what actually happened, on the
+   * surface whose job is to show it, would not.
+   */
+  it("keeps What changed beneath the empty state", () => {
+    renderScreen(
+      pageData({
+        current: { tasksCompleted: 0, projectsCompleted: 0, goalsCompleted: 0 },
+        previous: {
+          tasksCompleted: 0,
+          projectsCompleted: 0,
+          goalsCompleted: 0,
+        },
+        areas: [],
+        overdueSeries: BUCKETS.map((bucket) => ({
+          key: bucket.key,
+          overdue: 0,
+        })),
+        overduePrevious: 0,
+      }),
+    );
+    expect(
+      screen.getByText("Nothing completed in this period"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "What changed" }),
+    ).toBeInTheDocument();
+  });
+
+  /*
    * CONVERGE-01 §8 — the empty state replaces the WHOLE surface, so a period
    * with no completions and an overdue backlog must not reach it: "nothing
    * completed" would be true and would hide the one thing the owner most needs
@@ -348,6 +382,41 @@ describe("Analytics screen (UIX-05)", () => {
     );
     expect(screen.queryByText("Nothing completed in this period")).toBeNull();
     expect(screen.getByTestId("analytics-metric-overdue")).toBeInTheDocument();
+  });
+
+  /*
+   * V2.9 INS-03 — a BOUNDED overdue series names its own buckets, not the
+   * window's first ones.
+   *
+   * `overdueSeries` is not always parallel to `buckets`: the level read has its
+   * own bound, so on a long window it carries the most RECENT moments while the
+   * label arrays still hold every bucket. Resolving a label by position then
+   * plots the newest readings against the oldest dates and announces them that
+   * way — a chart that is wrong rather than one that is bounded.
+   */
+  it("labels a bounded overdue series by its own buckets, not by position", () => {
+    // Four buckets in the window; the read reached only the last two.
+    renderScreen(
+      pageData({
+        overdueSeries: [
+          { key: BUCKETS[5]!.key, overdue: 40 },
+          { key: BUCKETS[6]!.key, overdue: 41 },
+        ],
+        overdueMoments: 2,
+      }),
+    );
+    const chart = screen.getByTestId("analytics-overdue-trend");
+    const caption = chart.querySelector("figcaption");
+    const enumeration =
+      caption?.querySelector(".dh-visually-hidden")?.textContent ?? "";
+    // The two readings are announced against the SIXTH and SEVENTH bucket's
+    // labels — the ones they were read at — never the first and second.
+    expect(enumeration).toContain(`${BUCKETS[5]!.endIso}: 40`);
+    expect(enumeration).toContain(`${BUCKETS[6]!.endIso}: 41`);
+    expect(enumeration).not.toContain(`${BUCKETS[0]!.endIso}: 40`);
+    // …and the axis names the ends of what is DRAWN, not of the window.
+    expect(chart.textContent).toContain(BUCKETS[5]!.endIso.slice(5));
+    expect(chart.textContent).not.toContain(BUCKETS[0]!.endIso.slice(5));
   });
 
   /*
@@ -437,6 +506,15 @@ describe("the What changed panel", () => {
       // address bar uses.
       expect(requested[0]).toContain("/analytics/activity?window=12-weeks");
       expect(requested[0]).not.toContain("cursor");
+      /*
+       * V2.9 INS-04 — and the ANCHOR DAY the figures were measured back from.
+       *
+       * Without it, a page left open across the owner's midnight would page a
+       * feed for a window one day off the figures above it — and the kernel
+       * binds a cursor to its window, so "Load more" would then be rejected
+       * outright. The route bounds the value to today or yesterday.
+       */
+      expect(requested[0]).toContain(`today=${TODAY}`);
     }
   });
 });

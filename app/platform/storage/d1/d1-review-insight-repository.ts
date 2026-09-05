@@ -524,8 +524,20 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
    *
    * ── Ordering and inclusion ────────────────────────────────────────────────
    * The anchor's own snapshot is included when it has one; everything else must
-   * END strictly before the anchor's period, so a Review is never compared with
-   * one covering the same days. Ties break on `(period_end, captured_at,
+   * end strictly before the anchor's period **START**, so a Review is never
+   * compared with one covering the same days.
+   *
+   * That comparison is against the start rather than the end deliberately, and
+   * it is the SAME rule the comparison series already applies in JavaScript
+   * (`readPriorReviews`: `candidate.periodEnd < input.review.periodStart`).
+   * Overlapping periods are permitted — `validateReviewPeriod` and the create
+   * form both allow them — so comparing against the anchor's END would admit a
+   * Review that ends a day earlier but starts inside the anchor's own period,
+   * and the panel would report two overlapping Reviews as consecutive history
+   * while the trend beside it disagreed. Two reads answering "which Reviews came
+   * before this one" must answer it identically.
+   *
+   * Ties break on `(period_end, captured_at,
    * review_id)` exactly as `listSnapshotsBefore` breaks them — one ordering
    * rule, two reads. The database returns newest first (that is the order the
    * `LIMIT` must apply in, since a series is the most RECENT n) and the result
@@ -545,7 +557,7 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
     const result = await this.#db
       .prepare(
         `WITH anchor AS (
-           SELECT review_type, period_end
+           SELECT review_type, period_start
            FROM review_details
            WHERE workspace_id = ? AND entity_id = ?
          )
@@ -555,7 +567,7 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
            ON rd.workspace_id = s.workspace_id AND rd.entity_id = s.review_id
          JOIN anchor a ON rd.review_type = a.review_type
          WHERE s.workspace_id = ?
-           AND (s.period_end < a.period_end OR s.review_id = ?)
+           AND (s.period_end < a.period_start OR s.review_id = ?)
          ORDER BY s.period_end DESC, s.captured_at DESC, s.review_id DESC
          LIMIT ?`,
       )

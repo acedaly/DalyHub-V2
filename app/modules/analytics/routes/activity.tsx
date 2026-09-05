@@ -35,6 +35,7 @@ import {
   type ActivityPage,
 } from "~/kernel/activity";
 import { insightWindowDays, parseInsightWindow } from "~/kernel/analytics";
+import { addCalendarDays } from "~/kernel/datetime";
 import { buildActivityWindow } from "~/kernel/history";
 import { createActivityActorResolver } from "~/platform/activity";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -62,6 +63,40 @@ function json(data: unknown, status = 200): Response {
       "cache-control": "no-store",
     },
   });
+}
+
+/**
+ * The ANCHOR day a window is measured back from.
+ *
+ * Every Insight window ends on the owner's today, so the window's instants
+ * depend on which day that is — and a page left open across the owner's
+ * midnight would otherwise ask for one period while showing another. Worse, the
+ * kernel binds a cursor to its window, so "Load more" after midnight is
+ * REJECTED: the page reaches a dead end that retrying cannot clear, on a panel
+ * whose whole job is to keep paging.
+ *
+ * So the page sends the day it was rendered for, and the route accepts it — but
+ * only when it is the server's own today or the day before. That is the entire
+ * set of values a real page-open-across-midnight produces, and bounding it is
+ * what keeps the guard this route was written with: a client cannot name an
+ * arbitrary anchor and read a 12-week window from 1994, which is a span the
+ * surface does not offer.
+ *
+ * Anything else — absent, malformed, or further away than yesterday — falls
+ * back to the server's today rather than erroring. A stale tab should show the
+ * current period, not a 400.
+ */
+export function anchorDayFor(
+  requested: string | null,
+  serverTodayIso: string,
+): string {
+  if (requested === null || !/^\d{4}-\d{2}-\d{2}$/.test(requested)) {
+    return serverTodayIso;
+  }
+  if (requested === serverTodayIso) return requested;
+  return requested === addCalendarDays(serverTodayIso, -1)
+    ? requested
+    : serverTodayIso;
 }
 
 /**
@@ -97,7 +132,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
   const preferences = await scope.appPreferences.get(session.user.subject);
-  const todayIso = ownerCalendarIso(new Date(), preferences.timezone);
+  const todayIso = anchorDayFor(
+    params.get("today"),
+    ownerCalendarIso(new Date(), preferences.timezone),
+  );
   const window = activityWindowFor(
     params.get("window"),
     todayIso,

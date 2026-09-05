@@ -133,6 +133,16 @@ export interface AnalyticsPageData {
   readonly grain: Grain;
   /** Which grains this window can be read at, so the control offers only those. */
   readonly grains: readonly Grain[];
+  /**
+   * V2.9 INS-04 — the owner-calendar day this page's figures were measured back
+   * from, carried so the "What changed" panel asks for the SAME period.
+   *
+   * Every window ends on the owner's today, so a page left open across their
+   * midnight would otherwise page a feed for a window one day off the figures
+   * above it — and the kernel binds a cursor to its window, so "Load more"
+   * after midnight would be rejected outright.
+   */
+  readonly todayIso: string;
   /** The span, as the owner reads it — "5 August – 11 August 2026". */
   readonly rangeLabel: string;
   /** One label per bucket, in the same order as `model.buckets`. */
@@ -472,6 +482,7 @@ export async function loadAnalytics(
     window: input.window,
     grain: input.grain,
     grains: allowedGrains(input.window, input.todayIso),
+    todayIso: input.todayIso,
     rangeLabel: spanLabel(span, input.dateFormat),
     bucketLabels: buckets.map((bucket) => spanLabel(bucket, input.dateFormat)),
     bucketShortLabels: buckets.map((bucket) => axisLabel(bucket.endIso)),

@@ -892,6 +892,59 @@ describe("ReviewInsightRepository.listSnapshotSeries", () => {
     expect(series.at(-1)!.reviewId).toBe(weekly[5]);
   });
 
+  /*
+   * A Review that OVERLAPS the anchor is not "before" it.
+   *
+   * The product permits overlapping periods (`validateReviewPeriod` and the
+   * create form both allow them), so "everything before the anchor" has to mean
+   * "everything that ended before the anchor STARTED". Comparing against the
+   * anchor's END instead admits a Review covering some of the same days, and
+   * the panel then reports two overlapping Reviews as consecutive history while
+   * the comparison series beside it — which has always used the start — leaves
+   * that Review out. Two reads of "which Reviews came before this one" that
+   * disagree is the defect; this is the assertion that keeps them together.
+   */
+  it("leaves out a Review whose period OVERLAPS the anchor's", async () => {
+    const { weekly, insights } = await seedReviews();
+    const reviews = createReviewRepository(env.DB, makeContext(WS), {
+      clock: new FakeClock("2026-08-03T09:00:00.000Z").now,
+      idGenerator: sequentialIds("ins01overlap"),
+      activityIdGenerator: nextActivityId,
+    });
+    /*
+     * The anchor `weekly[5]` covers 24–30 August. This one covers 26–29 August:
+     * it ends BEFORE the anchor ends, so an end-to-end comparison admits it,
+     * and it starts INSIDE the anchor's period, so it is not history.
+     */
+    const { review: overlapping } = await reviews.create({
+      type: "weekly",
+      periodStart: "2026-08-26",
+      periodEnd: "2026-08-29",
+    });
+    await insights.saveSnapshot(
+      overlapping.id,
+      snapshotFor("2026-08-26", "2026-08-29", 42),
+    );
+
+    const series = await insights.listSnapshotSeries(weekly[5], 8);
+    expect(series.map((stored) => stored.reviewId)).not.toContain(
+      overlapping.id,
+    );
+    // The falsification, stated: the overlapping Review DOES end before the
+    // anchor ends, so a predicate written against the anchor's end would have
+    // included it and this assertion would fail.
+    expect("2026-08-29" < "2026-08-30").toBe(true);
+    // …and every Review the series DID keep genuinely ended before the anchor
+    // began, which is the rule rather than an example of it.
+    const anchor = series.at(-1)!;
+    expect(anchor.reviewId).toBe(weekly[5]);
+    for (const stored of series.slice(0, -1)) {
+      expect(stored.snapshot.periodEnd < anchor.snapshot.periodStart).toBe(
+        true,
+      );
+    }
+  });
+
   it("holds the same-type rule: a weekly series never contains a monthly Review", async () => {
     const { weekly, monthly, insights } = await seedReviews();
     const series = await insights.listSnapshotSeries(weekly[5], 8);

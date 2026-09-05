@@ -193,17 +193,41 @@ export function AnalyticsScreen({
       isLoading={isReloading}
       loadingSlot={<AnalyticsSkeleton />}
       isEmpty={model.isEmpty}
+      /*
+       * V2.9 INS-04 — the empty state keeps "What changed" beneath it.
+       *
+       * `isEmpty` is a claim about COMPLETIONS — nothing finished, nothing
+       * attributed, no backlog, no measured Goal — and the sentence says so.
+       * It is not a claim that nothing happened: a period can hold records
+       * created, notes written, Projects renamed and a Meeting held while
+       * completing nothing at all. The layout replaces every child with this
+       * slot, so a panel that lives among the children is unmounted and never
+       * fetched — and the one panel that could have shown what DID happen would
+       * be the one hidden, on exactly the surface whose job is to show it.
+       *
+       * So the slot carries the panel too. The claim above it stays true and
+       * narrow, and the evidence under it stays reachable.
+       */
       emptySlot={
-        <EmptyState
-          icon={<EntityIcon type="task" />}
-          title="Nothing completed in this period"
-          description="Analytics reads what you have actually finished. Complete a Task, or widen the range, and the shape of your effort appears here."
-          primaryAction={
-            <Link className="dh-btn dh-btn--primary" to="/tasks">
-              Open Tasks
-            </Link>
-          }
-        />
+        <div className="dh-analytics__body">
+          <EmptyState
+            icon={<EntityIcon type="task" />}
+            title="Nothing completed in this period"
+            description="Analytics reads what you have actually finished. Complete a Task, or widen the range, and the shape of your effort appears here."
+            primaryAction={
+              <Link className="dh-btn dh-btn--primary" to="/tasks">
+                Open Tasks
+              </Link>
+            }
+          />
+          <div className="dh-analytics__panels">
+            <WhatChangedPanel
+              window={data.window}
+              rangeLabel={data.rangeLabel}
+              todayIso={data.todayIso}
+            />
+          </div>
+        </div>
       }
     >
       <div className="dh-analytics__body">
@@ -220,7 +244,11 @@ export function AnalyticsScreen({
            * is the conclusion drawn under them rather than the lead. DOM
            * order, so the reading order and the tab order agree with it.
            */}
-          <WhatChangedPanel window={data.window} rangeLabel={data.rangeLabel} />
+          <WhatChangedPanel
+            window={data.window}
+            rangeLabel={data.rangeLabel}
+            todayIso={data.todayIso}
+          />
         </div>
         {model.notes.length > 0 ? (
           <aside
@@ -237,6 +265,36 @@ export function AnalyticsScreen({
       </div>
     </CollectionLayout>
   );
+}
+
+/**
+ * Every bucket's three labels, by KEY.
+ *
+ * `bucketLabels`, `bucketShortLabels` and `bucketDates` are parallel to
+ * `model.buckets` — the whole window — but a SERIES need not be. The overdue
+ * level read has its own bound, so its points can be the newest 39 of 84
+ * buckets, and any future read with its own bound will be the same shape.
+ * Looking a label up by the point's own key is correct in both cases; indexing
+ * by position is correct only in one, and silently wrong in the other.
+ */
+function bucketLabelsByKey(
+  data: AnalyticsPageData,
+): ReadonlyMap<
+  string,
+  { readonly label: string; readonly short: string; readonly date: string }
+> {
+  const byKey = new Map<
+    string,
+    { label: string; short: string; date: string }
+  >();
+  data.model.buckets.forEach((bucket, index) => {
+    byKey.set(bucket.key, {
+      label: data.bucketLabels[index] ?? "",
+      short: data.bucketShortLabels[index] ?? "",
+      date: data.bucketDates[index] ?? "",
+    });
+  });
+  return byKey;
 }
 
 /**
@@ -299,9 +357,12 @@ function TrendPanel({
   readonly grainControl: ReactNode;
 }) {
   const { model } = data;
-  const points: TrendLinePoint[] = model.series.map((point, index) => ({
+  // By key, not by position — the same rule the overdue panel needs and this
+  // one would need the moment the completion series ever grew a bound.
+  const labels = bucketLabelsByKey(data);
+  const points: TrendLinePoint[] = model.series.map((point) => ({
     key: point.key,
-    date: data.bucketDates[index] ?? data.bucketDates[0] ?? "",
+    date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
     value: point.tasksCompleted,
   }));
   const values = points.map((point) => point.value);
@@ -361,9 +422,9 @@ function TrendPanel({
       {
         label,
         total,
-        points: model.series.map((point, index) => ({
+        points: model.series.map((point) => ({
           key: point.key,
-          date: data.bucketDates[index] ?? data.bucketDates[0] ?? "",
+          date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
           value: point[key],
         })),
       },
@@ -374,8 +435,8 @@ function TrendPanel({
       ? headline
       : `${headline} ${model.series
           .map(
-            (point, index) =>
-              `${data.bucketLabels[index]}: ${point.tasksCompleted}`,
+            (point) =>
+              `${labels.get(point.key)?.label ?? ""}: ${point.tasksCompleted}`,
           )
           .join("; ")}.`;
 
@@ -399,13 +460,9 @@ function TrendPanel({
           }
           lowLabel={`${low} Tasks`}
           highLabel={`${high} Tasks`}
-          describePoint={(point) => {
-            const index = model.series.findIndex(
-              (entry) => entry.key === point.key,
-            );
-            const label = index >= 0 ? data.bucketLabels[index] : "";
-            return `${point.value} completed — ${label}`;
-          }}
+          describePoint={(point) =>
+            `${point.value} completed — ${labels.get(point.key)?.label ?? ""}`
+          }
           data-testid="analytics-trend"
         />
       )}
@@ -480,9 +537,20 @@ function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
     );
   }
 
-  const points: TrendLinePoint[] = model.overdueSeries.map((point, index) => ({
+  /*
+   * Labels are resolved by BUCKET KEY, never by position.
+   *
+   * `overdueSeries` is not always parallel to `model.buckets`: the overdue read
+   * has its own bound (`MAX_OVERDUE_MOMENTS`), so on a window with more buckets
+   * than that — 12 weeks at daily grain, say — it carries the newest 39 while
+   * `bucketDates` still holds all 84. Indexing from zero then plots the most
+   * recent readings against the OLDEST dates in the window and announces them
+   * that way, which is a chart that is wrong rather than bounded.
+   */
+  const labels = bucketLabelsByKey(data);
+  const points: TrendLinePoint[] = model.overdueSeries.map((point) => ({
     key: point.key,
-    date: data.bucketDates[index] ?? data.bucketDates[0] ?? "",
+    date: labels.get(point.key)?.date ?? data.bucketDates[0] ?? "",
     value: point.overdue,
   }));
   const values = points.map((point) => point.value);
@@ -505,7 +573,8 @@ function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
       ? headline
       : `${headline} ${model.overdueSeries
           .map(
-            (point, index) => `${data.bucketLabels[index]}: ${point.overdue}`,
+            (point) =>
+              `${labels.get(point.key)?.label ?? ""}: ${point.overdue}`,
           )
           .join("; ")}.`;
 
@@ -524,19 +593,21 @@ function OverduePanel({ data }: { readonly data: AnalyticsPageData }) {
           caption={headline}
           scaleToTarget={false}
           status="warning"
-          startLabel={data.bucketShortLabels[0] ?? ""}
-          endLabel={
-            data.bucketShortLabels[data.bucketShortLabels.length - 1] ?? ""
-          }
+          /*
+           * The axis ends name the FIRST and LAST reading drawn, which on a
+           * bounded series is not the first and last bucket of the window. The
+           * `overdueMoments` note says how many readings there are; the axis
+           * must not then claim they span a period they do not cover.
+           */
+          startLabel={labels.get(points[0]!.key)?.short ?? ""}
+          endLabel={labels.get(points[points.length - 1]!.key)?.short ?? ""}
           lowLabel={`${low} overdue`}
           highLabel={`${high} overdue`}
-          describePoint={(point) => {
-            const index = model.overdueSeries.findIndex(
-              (entry) => entry.key === point.key,
-            );
-            const label = index >= 0 ? data.bucketLabels[index] : "";
-            return `${point.value} overdue at the close of ${label}`;
-          }}
+          describePoint={(point) =>
+            `${point.value} overdue at the close of ${
+              labels.get(point.key)?.label ?? ""
+            }`
+          }
           data-testid="analytics-overdue-trend"
         />
       )}

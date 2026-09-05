@@ -578,6 +578,20 @@ at, and `/today/activity` finally has a consumer — or goes.**
 - **Bounded, with a cursor rather than a total.** 30 events a page, `hasMore`
   and `nextCursor`, and no count anywhere in the payload — a bounded list
   stating a total would claim a completeness it does not have (ADR-079 d11).
+- **The window carries its ANCHOR DAY, bounded to today or yesterday.** Every
+  Insight window ends on the owner's today, so a page left open across their
+  midnight would page a feed one day off the figures above it — and because a
+  cursor is bound to its window, "Load more" would then be rejected outright: a
+  dead end retrying cannot clear. The page sends the day it was rendered for,
+  and the route accepts it only for today or the day before, which is the whole
+  set a real rollover produces. Anything else falls back to the server's today,
+  so a caller still cannot name an arbitrary anchor and read a 12-week window
+  from 1994.
+- **The empty state keeps the panel beneath it.** `isEmpty` is a claim about
+  COMPLETIONS, and a period can hold records created, notes written and a
+  Meeting held while completing nothing at all. The layout replaces every child
+  with the empty slot, so the one panel that could show what DID happen would
+  otherwise be the one hidden, on the surface whose job is to show it.
 - **Falsified and hostile-tested** in
   [`test/kernel/ins-04-what-changed.test.ts`](../../test/kernel/ins-04-what-changed.test.ts):
   an event outside the window is absent and stays absent at the widest window;

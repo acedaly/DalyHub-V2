@@ -207,6 +207,13 @@ and two bound parameters per column against D1's ceiling of 100 caps it at
 `MAX_OVERDUE_MOMENTS = 40`. A long window reads the most recent 40 closes and
 the page **says so** — a stated bound rather than an invisible one.
 
+A bounded series is not parallel to the window's buckets, which is a trap worth
+knowing before adding a panel here: the overdue points can be the newest 39 of
+84, so every label, axis end and date is resolved **by the point's bucket key**,
+never by its position in the label arrays. Indexing from zero plots the most
+recent readings against the oldest dates and announces them that way — a chart
+that is wrong rather than one that is bounded.
+
 ### Module registry: self-registering module capabilities
 
 Modules self-register their capabilities through the **Module Registry** ([FND-06](../roadmap/ROADMAP_V2.md#-fnd-06--module-registry) / [ADR-013](../decisions/ARCHITECTURE_DECISIONS.md#adr-013-module-registry-contract-and-discovery), implementing [ADR-007](../decisions/ARCHITECTURE_DECISIONS.md#adr-007-module-registry)). Adding a module means adding a directory and a manifest — never editing a central switch statement. FND-06 builds the registry and its discovery mechanism only; the shell that consumes them is [FND-09](../roadmap/ROADMAP_V2.md#-fnd-09--app-shell-routing--auth).

@@ -30,10 +30,20 @@ import type { InsightActivityPage } from "./activity-feed";
 export function WhatChangedPanel({
   window: windowId,
   rangeLabel,
+  todayIso,
 }: {
   readonly window: InsightWindowId;
   /** The span in the owner's own words, so the panel names its period. */
   readonly rangeLabel: string;
+  /**
+   * The day the page's figures were measured back from.
+   *
+   * Sent with every request, so a page left open across the owner's midnight
+   * keeps asking for the period it is showing rather than silently sliding a
+   * day — and so a "Load more" whose cursor is bound to that window is still
+   * answerable. The route accepts it only for today or yesterday.
+   */
+  readonly todayIso: string;
 }) {
   /*
    * The loader identity depends on the WINDOW, so choosing a different one
@@ -43,7 +53,10 @@ export function WhatChangedPanel({
    */
   const loadPage = useCallback(
     async (cursor: string | null): Promise<ActivityStreamPage> => {
-      const params = new URLSearchParams({ window: windowId });
+      const params = new URLSearchParams({
+        window: windowId,
+        today: todayIso,
+      });
       if (cursor !== null) params.set("cursor", cursor);
       const response = await fetch(`/analytics/activity?${params.toString()}`, {
         headers: { accept: "application/json" },
@@ -64,7 +77,7 @@ export function WhatChangedPanel({
         hasMore: page.hasMore,
       };
     },
-    [windowId],
+    [windowId, todayIso],
   );
 
   return (
