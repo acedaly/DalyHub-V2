@@ -6177,3 +6177,172 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      (`listMeasurementSeries` gained an optional owner-day window), the figures
      beside a series are the window's own totals rather than the series' sum,
      and the address bar redirects to the window and grain the page draws.
+
+---
+
+## ADR-118: LIFE ADMIN — an Obligation is an entity with one subject in two representations, an expected amount that is not a payment, and an old table that is retired rather than left behind
+
+- **Status:** Accepted (2026-09-05, defining
+  [V2.10 LIFE ADMIN](../roadmap/ROADMAP_V2_10.md) against `main` at `57c4b19`).
+  [ADR-116](#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+  decision 1 already decided that there is **one** Obligation model for
+  everything due and recurring, with an optional subject, an optional expected
+  amount, a closed category set, one evaluator, one completion transaction and
+  no fourth recurrence engine. **This ADR does not restate any of that.** It
+  records only the four questions that decision leaves open and that the
+  implementation cannot answer twice.
+
+- **Context.** Re-measured on `57c4b19`. The obligation arithmetic in
+  `app/kernel/assets/asset-obligation.ts` is already general — pure,
+  calendar-only, and touching an Asset through exactly two named bridges. What
+  is Asset-shaped is the *storage* (`asset_id NOT NULL` behind a composite
+  foreign key pinned to `type = 'asset'`,
+  `migrations/0025_asset_history_and_obligations.sql:97-187`), the *identity*
+  (there is no `entities` row, so an obligation has no link, no Activity
+  subject of its own, no record route, no search exposure), the *wording* (the
+  notification title interpolates the Asset's title, the href is
+  `/asset/<id>?tab=obligations`, the notification `kind` is `asset_obligation`
+  behind a database CHECK, and the dedupe key is prefixed `asset:`), and the
+  *money*, which does not exist at all.
+
+  Four boundary questions had to be answered before any of it could move, and
+  none of them is answered by ADR-116.
+
+- **Decision.**
+
+  1. **The subject is stored twice, the foreign key is authoritative, and the
+     EntityLink is a projection with no second writer.**
+     `obligation_details.subject_entity_id` + `subject_entity_type` is a
+     nullable pair carrying a composite foreign key into
+     `entities (workspace_id, id, type)` — the generalisation of the pair
+     `asset_obligations` already has, and the same database-level guarantee
+     against a cross-workspace endpoint that `entity_links` relies on
+     (`migrations/0003_create_entity_links.sql:53-64`). Beside it, one typed
+     `obligation.subject` EntityLink from the obligation to its subject.
+
+     Structural reads use the foreign key, because only the foreign key can sit
+     inside an index with `status` and `due_date`, and because the completion
+     batch needs the subject inline. Generic reads — the subject record's
+     linked items, the relationship timeline, the picker — use the link,
+     because that is the kernel primitive and a bespoke reverse reader is the
+     second relationship system
+     [ADR-002](#adr-002-entitylinks) exists to prevent.
+
+     Two representations of one relationship is a defect unless one of them is
+     derived and cannot be written independently, so: both are written, changed
+     and cleared in **one** `D1Database.batch()` on the
+     [ADR-083](#adr-083-a-compound-domain-mutation-is-one-storage-transaction-composed-from-the-owning-repositories-statements)
+     statement-seam pattern; `obligation.subject` is a **reserved** link type
+     that the generic create and unlink paths refuse; and a kernel invariant
+     test over real D1 asserts the two agree in both directions, falsified by
+     removing the link statement from the batch. Entity type is immutable after
+     creation, so the denormalised `subject_entity_type` cannot drift.
+
+  2. **An expected amount is never a payment, and the actual amount is a
+     column because Activity may not carry money.** Three fields under
+     [ADR-049](#adr-049-first-class-assets--the-asset_details-slice-integer-minor-unit-money-and-the-real-world-status-vs-record-archive-split):
+     `expected_amount_minor` (what it is expected to cost),
+     `completed_amount_minor` (what it actually cost, written at completion),
+     and **one** `currency_code` covering both — an actual amount in a
+     different currency is refused with a named validation error, never
+     converted.
+
+     The actual amount could not live in the completion Activity event, because
+     ADR-049 decision 5 forbids a price in an Activity payload and the product
+     honours that today. Where the subject is an Asset, completion continues to
+     write the `asset_events` logbook row with its own `cost_minor`, unchanged:
+     that is not a second authority but a different question — "what has this
+     Asset cost me" rather than "what did this obligation cost" — written from
+     one input in one transaction, and neither is ever read back as the other.
+
+     Amounts are sensitive by the same rule Asset prices already are: never
+     matched or excerpted in Search, never in an Activity descriptor or
+     payload, never in a notification or digest, never on Today, never in a log
+     or a diagnostic. **An expected amount existing does not mean a transaction
+     exists**; settlement is V2.12's link and is not modelled here.
+
+  3. **The migration keeps every id and retires the old table in the same
+     change.** Each obligation becomes an `entities` row **whose id is the
+     obligation's own id**, plus an `obligation_details` row. That single
+     choice preserves `series_id`, `sequence`, `next_obligation_id`,
+     `completed_event_id`, `task_id` and `asset_events.obligation_id` by
+     construction — none of which has a database foreign key, and all of which
+     are policed only by `restore-safety.ts` — so there is nothing to remap and
+     nothing to get wrong.
+
+     `asset_obligations` is then **dropped**, not left unused and not kept
+     behind a compatibility window.
+     [ADR-082 decision 4](#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)
+     kept `task_saved_views` under its historical name because a rename would
+     have made a Worker rollback fatal *for no gain* — the rows did not move.
+     Here the rows genuinely move, so the previous Worker is broken by the data
+     whether or not the table survives; a retained copy would be a second set of
+     every obligation that no code writes, that export must either keep
+     emitting or silently drop. What replaces the rollback is stated rather
+     than assumed: the standing pre-migration production export, the verified
+     nightly R2 tier, and a rehearsal of the migration end to end before merge.
+
+     The compatibility protocol is not weakened by the drop. The snapshot gains
+     an `obligations` collection under the ordinary write-always /
+     tolerate-absence-on-read rule, and **`assetObligations` stays readable
+     forever**, translated on restore by the same rule the migration uses — so
+     an archive taken the day before still restores the day after.
+
+  4. **A notification kind that has stopped being true is renamed with its
+     data, not with its label.** After the migration, `asset_obligation` names
+     a class that includes obligations with no Asset. The `kind` is a
+     CHECK-constrained value in a STRICT table, so the rename is a real table
+     rebuild — and the rebuild **rewrites the existing `dedupe_key` values in
+     the same statement**. The dedupe key's shape is a storage contract
+     (`app/kernel/notifications/notification.ts:167-178`): changing the prefix
+     without carrying the rows across would re-fire every historical rung at
+     the owner, which is the failure a rename is supposed to avoid. The
+     settings column is renamed in place and its label stops saying "Asset".
+     Everything else about the path — the rungs `[30, 7, 1]`, one channel, the
+     insert-before-send discipline, the owner-day semantics, and the refusal of
+     a reminder engine ([ADR-114](#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)) —
+     is unchanged.
+
+- **Consequences.** *Easy:* a tax return, a school fee and a rego renewal are
+  one kind of record with one due fact, one urgency evaluator, one completion
+  rule and one Today row, so the owner learns "deal with it" once and V2.12's
+  recurring commitments have a model to reuse rather than to reinvent; every
+  obligation gains links, Activity, Search, a record and an export for free
+  because it is an ordinary entity; the migration is inspectable, because every
+  id is the one it already was. *Hard:* the subject's two representations must
+  be written together forever, which is a real invariant with a real test
+  rather than a convention; dropping the old table means the migration must be
+  right the first time, which is why its rehearsal is defined before it is
+  written; the notification rebuild touches a table with a foreign key pointed
+  at it. *Accepted:* the rehearsal against a *restored production artefact* —
+  the V2.6 convention — cannot be run in this repository, because
+  `production-backup.mjs rehearse` is deliberately credential-free and no
+  artefact exists here; it is recorded as an owner-held precondition of
+  applying the migration to production rather than pretended to be a merge
+  gate, because a gate no contributor can run is a gate that gets skipped.
+
+- **Alternatives considered.** *A nullable `asset_id` on the existing table*
+  (rejected: it leaves the record without identity, links, Search or export,
+  and ADR-116 decision 4 would still demand a bespoke export shape). *A second
+  table for non-Asset obligations* (rejected: the two-model outcome ADR-116
+  decision 1 exists to prevent). *The foreign key alone* (rejected: decision 1
+  — Person, Project and Area records already render linked items generically,
+  and a reverse reader per subject type is the ecosystem the kernel replaced).
+  *The EntityLink alone* (rejected: decision 1 — the lens read
+  `WHERE subject_entity_id = ? AND status = 'open' ORDER BY due_date` cannot be
+  served from `entity_links` without a join per read, and the completion batch
+  needs the subject inline). *Recording the actual amount in the completion
+  Activity payload* (rejected: decision 2 — ADR-049 decision 5). *A shared
+  `amount_minor` doing duty for both expected and actual* (rejected: decision 2
+  — the one defect this domain must not have is an expectation read as a
+  payment, and two names cost nothing). *Keeping `asset_obligations` for one
+  release* (rejected: decision 3). *Renaming the notification kind without
+  touching the dedupe keys* (rejected: decision 4 — a silent re-fire of every
+  historical rung). *Leaving the kind as `asset_obligation` and calling the name
+  historical* (rejected: the ADR-082 d4 argument is about an identifier no data
+  contradicts; here the value would be false about the rows it labels). *A new
+  ADR restating ADR-116's Obligation decision* (rejected: a second statement of
+  an existing rule is a second authority; this ADR adds only the four
+  boundaries above). *An `appointment` category* (rejected in the roadmap, and
+  recorded here because it is a domain boundary: a booked appointment is a
+  Meeting or a calendar event, and an unbooked one is already expressible).
