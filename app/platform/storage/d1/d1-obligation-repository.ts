@@ -70,6 +70,7 @@ import {
   type ListObligationsInput,
   type LinkObligationTaskResult,
   type Obligation,
+  type ObligationMeterEvaluation,
   type ObligationAttentionInput,
   type ObligationAttentionItem,
   type ObligationCategory,
@@ -177,6 +178,17 @@ export interface ObligationProofGateway {
   } | null>;
 }
 
+/**
+ * The meter seam: an obligation's threshold and a subject's current reading in,
+ * the ONE shared evaluator's meter side out. The reading's unit is unnarrowed
+ * here on purpose — this store does not know what a kilometre is, and the
+ * domain that does decides whether the pair can be compared at all.
+ */
+export type ObligationMeterEvaluator = (
+  obligation: Pick<Obligation, "meterThreshold" | "meterUnit">,
+  reading: { readonly value: number | null; readonly unit: string | null },
+) => ObligationMeterEvaluation | null;
+
 export interface D1ObligationRepositoryOptions {
   readonly clock?: Clock;
   readonly idGenerator?: IdGenerator;
@@ -187,6 +199,17 @@ export interface D1ObligationRepositoryOptions {
   readonly proofGateway?: ObligationProofGateway;
   /** The meter units this workspace's subjects accept. */
   readonly meterUnits?: readonly string[];
+  /**
+   * Evaluate a meter commitment against a subject's current reading.
+   *
+   * Injected, like `proofGateway`, because a meter belongs to the domain that
+   * owns its units: this store knows a threshold and an unnarrowed unit string,
+   * and the Assets kernel knows what 60,000 km MEANS against an odometer,
+   * including how close counts as approaching. Absent — a workspace with no
+   * metered subjects, or a test that supplies none — every meter side is
+   * `null`, which is the same answer as "no reading".
+   */
+  readonly meterEvaluator?: ObligationMeterEvaluator;
   /** TEST-ONLY deterministic batch fault, proving whole-transaction rollback. */
   readonly mutationFault?: AtomicMutationFault;
   /** TEST-ONLY: fail the completion batch AFTER the linked Task's statements. */
@@ -300,6 +323,7 @@ export class D1ObligationRepository implements ObligationRepository {
   readonly #taskCompletionPlanner?: ObligationTaskCompletionPlanner;
   readonly #proofGateway?: ObligationProofGateway;
   readonly #meterUnits: readonly string[];
+  readonly #meterEvaluator?: ObligationMeterEvaluator;
   readonly #mutationFault?: AtomicMutationFault;
   readonly #obligationTaskFault?: boolean;
   readonly #ownerTimeZone: () => Promise<string>;
@@ -322,6 +346,7 @@ export class D1ObligationRepository implements ObligationRepository {
     this.#taskCompletionPlanner = options.taskCompletionPlanner;
     this.#proofGateway = options.proofGateway;
     this.#meterUnits = options.meterUnits ?? [];
+    this.#meterEvaluator = options.meterEvaluator;
     this.#mutationFault = options.mutationFault;
     this.#obligationTaskFault = options.obligationTaskFault;
     this.#ownerTimeZone =
@@ -802,6 +827,8 @@ export class D1ObligationRepository implements ObligationRepository {
         meterInterval: current.meterInterval,
         recurrenceKind: current.recurrenceKind,
         currencyCode: current.currencyCode,
+        expectedAmountMinor: current.expectedAmountMinor,
+        completedAmountMinor: current.completedAmountMinor,
       },
       this.#meterUnits,
     );
@@ -1086,21 +1113,36 @@ export class D1ObligationRepository implements ObligationRepository {
      * a second attempt to duplicate. `coalesce` because a null never equals a
      * null in SQL, so a plain comparison would silently match nothing.
      */
-    const proofId = this.#proofGateway ? this.#newId() : null;
-    const completionGuard = `EXISTS (
+    const guardFor = (proof: string | null) =>
+      ({
+        sql: `EXISTS (
       SELECT 1 FROM obligation_details
       WHERE workspace_id = ? AND entity_id = ? AND status = 'completed'
         AND completed_at = ?
         AND coalesce(next_obligation_id, '-') = ?
         AND coalesce(completed_event_id, '-') = ?
-    )`;
-    const completionGuardParams = [
-      this.#workspaceId,
-      id,
-      nowTs,
-      successorId ?? "-",
-      proofId ?? "-",
-    ] as const;
+    )`,
+        params: [
+          this.#workspaceId,
+          id,
+          nowTs,
+          successorId ?? "-",
+          proof ?? "-",
+        ] as const,
+      }) as const;
+
+    /*
+     * The proof id is a CANDIDATE until a proof is actually planned.
+     *
+     * `completed_event_id` is a pointer into `asset_events`, and that chain has
+     * no foreign key — `app/kernel/restore/restore-safety.ts` is its only
+     * integrity authority. An obligation about nothing, about a Person, or
+     * about an Asset the gateway can no longer read writes NO proof row, so
+     * storing an id for one would leave a dangling reference that fails an
+     * archive on the way back in. It is settled below, once the plan is known.
+     */
+    const candidateProofId = this.#proofGateway ? this.#newId() : null;
+    const provisionalGuard = guardFor(candidateProofId);
 
     const plannedProof =
       current.subjectEntityId &&
@@ -1117,15 +1159,29 @@ export class D1ObligationRepository implements ObligationRepository {
             nextDueDate: nextDue,
             taskId: current.taskId,
             now,
-            proofId: proofId as string,
+            proofId: candidateProofId as string,
             raw: input,
             meterRecurrence: current.recurrenceKind === "meter",
             meterThreshold: current.meterThreshold,
             meterInterval: current.meterInterval,
             meterUnit: current.meterUnit,
-            guard: { sql: completionGuard, params: [...completionGuardParams] },
+            guard: {
+              sql: provisionalGuard.sql,
+              params: [...provisionalGuard.params],
+            },
           })
         : null;
+
+    /*
+     * Settled. A proof id is stored only where a proof row is genuinely in this
+     * batch, and the guard names the same value — the two must agree, because
+     * the guard re-reads the row this UPDATE writes and every statement gated
+     * on it (the proof's own, the successor's, the linked Task's) fires only
+     * when they match.
+     */
+    const proofId = plannedProof ? candidateProofId : null;
+    const { sql: completionGuard, params: completionGuardParams } =
+      guardFor(proofId);
 
     const closeObligation = this.#db
       .prepare(
@@ -1691,7 +1747,21 @@ export class D1ObligationRepository implements ObligationRepository {
       const obligation = this.#rowToObligation(row);
       const subjectId = row.subject_entity_id;
       if (!subjectId) continue;
-      const evaluation = evaluateObligation(obligation, today, null);
+      /*
+       * The meter side, from the domain that owns the units. The row already
+       * carries the subject's reading, so this costs no second statement — and
+       * without it a service whose odometer is past its threshold counts as
+       * neither overdue nor due soon, while the record it links to says
+       * "Overdue by 500 km".
+       */
+      const evaluation = evaluateObligation(
+        obligation,
+        today,
+        this.#meterEvaluator?.(obligation, {
+          value: row.current_meter_value,
+          unit: row.current_meter_unit,
+        }) ?? null,
+      );
       const existing = out.get(subjectId) ?? {
         openCount: 0,
         overdueCount: 0,

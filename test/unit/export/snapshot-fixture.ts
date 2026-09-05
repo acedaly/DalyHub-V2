@@ -65,6 +65,12 @@ export const IDS = {
   // V2.10 LIFE-01 — an obligation is an ordinary entity now, so the fixture
   // that proves export and restore carries one.
   obligation: "e-26-obligation",
+  /*
+   * V2.10 LIFE-01 — a COMPLETED obligation, about nothing at all. It is here
+   * because an obligation is neither a Review nor a spine record, which is
+   * exactly the shape a lifecycle derivation forgets.
+   */
+  obligationDone: "e-27-obligation-done",
 } as const;
 
 /** A record id that is NOT in the snapshot, for the broken-link case. */
@@ -111,6 +117,7 @@ const ENTITIES: readonly Entity[] = [
   { id: IDS.person, type: "person", title: "Jamie Rivers" },
   { id: IDS.asset, type: "asset", title: "Road bike" },
   { id: IDS.obligation, type: "obligation", title: "Next service" },
+  { id: IDS.obligationDone, type: "obligation", title: "Passport renewal" },
   { id: IDS.review, type: "review", title: "Week 27 review" },
   { id: IDS.habit, type: "habit", title: "Strength training" },
   { id: IDS.habitArchived, type: "habit", title: "Cold shower" },
@@ -731,6 +738,35 @@ export function makeSnapshot(
         sequence: 1,
         createdAt: T(13),
         updatedAt: T(13),
+        archivedAt: null,
+        deletedAt: null,
+      },
+      {
+        entityId: IDS.obligationDone,
+        subjectEntityId: null,
+        subjectEntityType: null,
+        category: "licence",
+        description: null,
+        dueDate: "2026-06-01",
+        leadDays: 30,
+        recurrenceKind: "none",
+        recurrenceInterval: null,
+        meterThreshold: null,
+        meterInterval: null,
+        meterUnit: null,
+        expectedAmountMinor: null,
+        completedAmountMinor: null,
+        currencyCode: null,
+        status: "completed",
+        taskId: null,
+        completedEventId: null,
+        completedAt: T(14),
+        completedOn: "2026-05-30",
+        nextObligationId: null,
+        seriesId: "series-passport",
+        sequence: 0,
+        createdAt: T(13),
+        updatedAt: T(14),
         archivedAt: null,
         deletedAt: null,
       },

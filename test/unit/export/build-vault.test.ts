@@ -255,6 +255,18 @@ describe("lifecycle honesty", () => {
       "Completed in DalyHub",
     );
   });
+
+  /*
+   * V2.10 LIFE-01 — an obligation is neither a Review nor a spine record, so a
+   * lifecycle derivation that reads only those two calls a completed one
+   * ACTIVE — on a page whose own frontmatter says `status: completed` two lines
+   * further down.
+   */
+  it("marks a completed obligation, whose completion lives in its own slice", () => {
+    const done = file("Life Admin/Passport renewal.md").contents;
+    expect(done).toContain('lifecycle: "completed"');
+    expect(done).toContain("Completed in DalyHub");
+  });
 });
 
 describe("Markdown preservation", () => {

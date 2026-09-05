@@ -25,7 +25,9 @@ import {
   AssetNotFoundError,
   AssetValidationError,
 } from "~/kernel/assets";
+import { ObligationValidationError } from "~/kernel/obligations";
 import { requireAuthenticatedSession } from "~/platform/request";
+import { ObligationNotFoundError } from "~/platform/storage/d1";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
 import {
@@ -375,7 +377,20 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     if (cause instanceof AssetValidationError) {
       return failure(cause.message, { [cause.field]: cause.message });
     }
+    /*
+     * V2.10 LIFE-01 — the obligation cases below now go through the shared
+     * store, which speaks its own validation error. Without this the owner's
+     * missing due date or half-entered meter pair reaches them as the generic
+     * "couldn't be saved", with no field named — the one thing a form error is
+     * for.
+     */
+    if (cause instanceof ObligationValidationError) {
+      return failure(cause.message, { [cause.field]: cause.message });
+    }
     if (cause instanceof AssetNotFoundError) {
+      throw new Response("Not Found", { status: 404 });
+    }
+    if (cause instanceof ObligationNotFoundError) {
       throw new Response("Not Found", { status: 404 });
     }
     if (cause instanceof Response) throw cause;

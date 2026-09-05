@@ -330,6 +330,15 @@ function completedAtOf(
   if (entity.type === "review") {
     return index.reviewDetail.get(entity.id)?.completedAt ?? null;
   }
+  /*
+   * V2.10 LIFE-01 — an obligation is neither a Review nor a spine record, so
+   * without this a completed one exported as `lifecycle: active` with no
+   * completion banner, while its own page said `status: completed` two lines
+   * further down. The detail slice is where its completion instant lives.
+   */
+  if (entity.type === "obligation") {
+    return index.obligation.get(entity.id)?.completedAt ?? null;
+  }
   return index.spine.get(entity.id)?.completedAt ?? null;
 }
 
