@@ -844,6 +844,13 @@ record's Obligations tab draws them. The module is documented in
     and a constant; `pnpm build` refuses it, and rightly — it would drag the
     composition boundary and D1 into the client bundle. The client-safe half is
     its own file, and the band grouping (pure) moved to the view model.
+- **The completion sheet offers the amount on EVERY obligation**, not only
+  where an expected one was recorded. The item's own wording said "only when the
+  obligation is money-bearing", and that reads tidy and loses a fact: completion
+  is the moment the real figure is known, an owner who did not guess in advance
+  is the ordinary case, and on an Asset the same field is what carries the cost
+  onto the Asset's own history. D4 always permitted `completed_amount_minor`
+  independently; this is the surface catching up with it.
 - **A shared money field, and one fewer thing to get right separately.** Four
   hand-rolled amount-plus-code pairs existed across three Asset forms — not the
   three the definition counted. Two put the code behind a "More details"
