@@ -255,6 +255,10 @@
   --md-sys-color-on-entity-asset: #ffffff;
   --md-sys-color-entity-asset-container: #e0e2e9;
   --md-sys-color-on-entity-asset-container: #181c21;
+  --md-sys-color-entity-obligation: #7a5551;
+  --md-sys-color-on-entity-obligation: #ffffff;
+  --md-sys-color-entity-obligation-container: #ffdad6;
+  --md-sys-color-on-entity-obligation-container: #2e1411;
   --md-sys-color-entity-diary: #6551a4;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e8deff;
@@ -634,6 +638,10 @@
   --md-sys-color-on-entity-asset: #ffffff;
   --md-sys-color-entity-asset-container: #e0e2e9;
   --md-sys-color-on-entity-asset-container: #181c21;
+  --md-sys-color-entity-obligation: #7a5551;
+  --md-sys-color-on-entity-obligation: #ffffff;
+  --md-sys-color-entity-obligation-container: #ffdad6;
+  --md-sys-color-on-entity-obligation-container: #2e1411;
   --md-sys-color-entity-diary: #5655a8;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e2dfff;
@@ -1013,6 +1021,10 @@
   --md-sys-color-on-entity-asset: #ffffff;
   --md-sys-color-entity-asset-container: #e0e2e9;
   --md-sys-color-on-entity-asset-container: #181c21;
+  --md-sys-color-entity-obligation: #7a5551;
+  --md-sys-color-on-entity-obligation: #ffffff;
+  --md-sys-color-entity-obligation-container: #ffdad6;
+  --md-sys-color-on-entity-obligation-container: #2e1411;
   --md-sys-color-entity-diary: #784a9a;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #f3daff;
@@ -1392,6 +1404,10 @@
   --md-sys-color-on-entity-asset: #ffffff;
   --md-sys-color-entity-asset-container: #dfe3e8;
   --md-sys-color-on-entity-asset-container: #181c20;
+  --md-sys-color-entity-obligation: #7a5551;
+  --md-sys-color-on-entity-obligation: #ffffff;
+  --md-sys-color-entity-obligation-container: #ffdad6;
+  --md-sys-color-on-entity-obligation-container: #2e1411;
   --md-sys-color-entity-diary: #5256a9;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e1e0ff;
@@ -1771,6 +1787,10 @@
   --md-sys-color-on-entity-asset: #ffffff;
   --md-sys-color-entity-asset-container: #dfe3e8;
   --md-sys-color-on-entity-asset-container: #181c20;
+  --md-sys-color-entity-obligation: #7a5551;
+  --md-sys-color-on-entity-obligation: #ffffff;
+  --md-sys-color-entity-obligation-container: #ffdad6;
+  --md-sys-color-on-entity-obligation-container: #2e1411;
   --md-sys-color-entity-diary: #5256a9;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e1e0ff;
@@ -2152,6 +2172,10 @@
     --md-sys-color-on-entity-asset: #2d3136;
     --md-sys-color-entity-asset-container: #44474d;
     --md-sys-color-on-entity-asset-container: #e0e2e9;
+    --md-sys-color-entity-obligation: #ebbbb6;
+    --md-sys-color-on-entity-obligation: #472825;
+    --md-sys-color-entity-obligation-container: #603e3a;
+    --md-sys-color-on-entity-obligation-container: #ffdad6;
     --md-sys-color-entity-diary: #cdbdff;
     --md-sys-color-on-entity-diary: #351f73;
     --md-sys-color-entity-diary-container: #4c388b;
@@ -2531,6 +2555,10 @@
     --md-sys-color-on-entity-asset: #2d3136;
     --md-sys-color-entity-asset-container: #44474d;
     --md-sys-color-on-entity-asset-container: #e0e2e9;
+    --md-sys-color-entity-obligation: #ebbbb6;
+    --md-sys-color-on-entity-obligation: #472825;
+    --md-sys-color-entity-obligation-container: #603e3a;
+    --md-sys-color-on-entity-obligation-container: #ffdad6;
     --md-sys-color-entity-diary: #c2c1ff;
     --md-sys-color-on-entity-diary: #272477;
     --md-sys-color-entity-diary-container: #3e3c8e;
@@ -2910,6 +2938,10 @@
     --md-sys-color-on-entity-asset: #2d3136;
     --md-sys-color-entity-asset-container: #44474d;
     --md-sys-color-on-entity-asset-container: #e0e2e9;
+    --md-sys-color-entity-obligation: #ebbbb6;
+    --md-sys-color-on-entity-obligation: #472825;
+    --md-sys-color-entity-obligation-container: #603e3a;
+    --md-sys-color-on-entity-obligation-container: #ffdad6;
     --md-sys-color-entity-diary: #e2b6ff;
     --md-sys-color-on-entity-diary: #471868;
     --md-sys-color-entity-diary-container: #5f3280;
@@ -3289,6 +3321,10 @@
     --md-sys-color-on-entity-asset: #2d3135;
     --md-sys-color-entity-asset-container: #43474c;
     --md-sys-color-on-entity-asset-container: #dfe3e8;
+    --md-sys-color-entity-obligation: #ebbbb6;
+    --md-sys-color-on-entity-obligation: #472825;
+    --md-sys-color-entity-obligation-container: #603e3a;
+    --md-sys-color-on-entity-obligation-container: #ffdad6;
     --md-sys-color-entity-diary: #c0c1ff;
     --md-sys-color-on-entity-diary: #222578;
     --md-sys-color-entity-diary-container: #3a3d8f;
@@ -3668,6 +3704,10 @@
     --md-sys-color-on-entity-asset: #2d3135;
     --md-sys-color-entity-asset-container: #43474c;
     --md-sys-color-on-entity-asset-container: #dfe3e8;
+    --md-sys-color-entity-obligation: #ebbbb6;
+    --md-sys-color-on-entity-obligation: #472825;
+    --md-sys-color-entity-obligation-container: #603e3a;
+    --md-sys-color-on-entity-obligation-container: #ffdad6;
     --md-sys-color-entity-diary: #c0c1ff;
     --md-sys-color-on-entity-diary: #222578;
     --md-sys-color-entity-diary-container: #3a3d8f;
@@ -4056,6 +4096,10 @@
   --md-sys-color-on-entity-asset: #2d3136;
   --md-sys-color-entity-asset-container: #44474d;
   --md-sys-color-on-entity-asset-container: #e0e2e9;
+  --md-sys-color-entity-obligation: #ebbbb6;
+  --md-sys-color-on-entity-obligation: #472825;
+  --md-sys-color-entity-obligation-container: #603e3a;
+  --md-sys-color-on-entity-obligation-container: #ffdad6;
   --md-sys-color-entity-diary: #cdbdff;
   --md-sys-color-on-entity-diary: #351f73;
   --md-sys-color-entity-diary-container: #4c388b;
@@ -4437,6 +4481,10 @@
   --md-sys-color-on-entity-asset: #2d3136;
   --md-sys-color-entity-asset-container: #44474d;
   --md-sys-color-on-entity-asset-container: #e0e2e9;
+  --md-sys-color-entity-obligation: #ebbbb6;
+  --md-sys-color-on-entity-obligation: #472825;
+  --md-sys-color-entity-obligation-container: #603e3a;
+  --md-sys-color-on-entity-obligation-container: #ffdad6;
   --md-sys-color-entity-diary: #c2c1ff;
   --md-sys-color-on-entity-diary: #272477;
   --md-sys-color-entity-diary-container: #3e3c8e;
@@ -4818,6 +4866,10 @@
   --md-sys-color-on-entity-asset: #2d3136;
   --md-sys-color-entity-asset-container: #44474d;
   --md-sys-color-on-entity-asset-container: #e0e2e9;
+  --md-sys-color-entity-obligation: #ebbbb6;
+  --md-sys-color-on-entity-obligation: #472825;
+  --md-sys-color-entity-obligation-container: #603e3a;
+  --md-sys-color-on-entity-obligation-container: #ffdad6;
   --md-sys-color-entity-diary: #e2b6ff;
   --md-sys-color-on-entity-diary: #471868;
   --md-sys-color-entity-diary-container: #5f3280;
@@ -5199,6 +5251,10 @@
   --md-sys-color-on-entity-asset: #2d3135;
   --md-sys-color-entity-asset-container: #43474c;
   --md-sys-color-on-entity-asset-container: #dfe3e8;
+  --md-sys-color-entity-obligation: #ebbbb6;
+  --md-sys-color-on-entity-obligation: #472825;
+  --md-sys-color-entity-obligation-container: #603e3a;
+  --md-sys-color-on-entity-obligation-container: #ffdad6;
   --md-sys-color-entity-diary: #c0c1ff;
   --md-sys-color-on-entity-diary: #222578;
   --md-sys-color-entity-diary-container: #3a3d8f;
@@ -5580,6 +5636,10 @@
   --md-sys-color-on-entity-asset: #2d3135;
   --md-sys-color-entity-asset-container: #43474c;
   --md-sys-color-on-entity-asset-container: #dfe3e8;
+  --md-sys-color-entity-obligation: #ebbbb6;
+  --md-sys-color-on-entity-obligation: #472825;
+  --md-sys-color-entity-obligation-container: #603e3a;
+  --md-sys-color-on-entity-obligation-container: #ffdad6;
   --md-sys-color-entity-diary: #c0c1ff;
   --md-sys-color-on-entity-diary: #222578;
   --md-sys-color-entity-diary-container: #3a3d8f;
@@ -7170,6 +7230,7 @@
   --dh-color-entity-task: var(--md-sys-color-entity-task);
   --dh-color-entity-note: var(--md-sys-color-entity-note);
   --dh-color-entity-asset: var(--md-sys-color-entity-asset);
+  --dh-color-entity-obligation: var(--md-sys-color-entity-obligation);
   --dh-color-entity-review: var(--md-sys-color-entity-review);
 
   /*

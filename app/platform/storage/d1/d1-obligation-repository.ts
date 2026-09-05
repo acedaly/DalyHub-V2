@@ -55,7 +55,9 @@ import {
   decodeObligationCursorForScope,
   encodeObligationCursor,
   evaluateObligation,
+  isIsoDate,
   nextObligationDate,
+  obligationBandBoundaries,
   obligationFilterKey,
   obligationSubjectLinkId,
   validateObligation,
@@ -72,6 +74,9 @@ import {
   type Obligation,
   type ObligationAttentionInput,
   type ObligationAttentionItem,
+  type ObligationBand,
+  type ObligationBandCountInput,
+  type ObligationBandCounts,
   type ObligationCategory,
   type ObligationChangeResult,
   type ObligationCursorScope,
@@ -1718,6 +1723,112 @@ export class D1ObligationRepository implements ObligationRepository {
       });
     }
     return out;
+  }
+
+  /**
+   * D10 — how many obligations fall in each band, over the WHOLE collection.
+   *
+   * ONE grouped statement, whatever the workspace holds. The alternative — band
+   * the loaded page — produces headings that count the page rather than the
+   * set, so "Overdue 25" would mean "at least 25, possibly two hundred", which
+   * is the kind of number that is worse than no number.
+   *
+   * The band CASE below is the SQL half of `obligationBand`, and the two are
+   * kept honest two ways: the boundaries are BOUND from
+   * `obligationBandBoundaries` rather than computed here in SQL date
+   * arithmetic, and `test/kernel/obligations.test.ts` asserts these counts
+   * equal the kernel function's over the same rows, for every band.
+   */
+  async countByBand(
+    input: ObligationBandCountInput,
+  ): Promise<ObligationBandCounts> {
+    if (!isIsoDate(input.today)) {
+      throw new ObligationValidationError("today", "must be a calendar date");
+    }
+    const today = input.today;
+    const filters = validateObligationFilters(input.filters);
+    const subjectEntityId =
+      input.subjectEntityId === undefined
+        ? undefined
+        : input.subjectEntityId === null
+          ? null
+          : validateObligationId(input.subjectEntityId);
+    const { weekEnd, monthEnd } = obligationBandBoundaries(today);
+
+    const conditions = ["o.workspace_id = ?", "o.deleted_at IS NULL"];
+    const params: unknown[] = [today, weekEnd, monthEnd, this.#workspaceId];
+
+    if (subjectEntityId === null) {
+      conditions.push("o.subject_entity_id IS NULL");
+    } else if (subjectEntityId !== undefined) {
+      conditions.push("o.subject_entity_id = ?");
+      params.push(subjectEntityId);
+    }
+    if (filters.categories.length > 0) {
+      conditions.push(
+        `o.category IN (${filters.categories.map(() => "?").join(", ")})`,
+      );
+      params.push(...filters.categories);
+    }
+    if (filters.statuses.length > 0) {
+      conditions.push(
+        `o.status IN (${filters.statuses.map(() => "?").join(", ")})`,
+      );
+      params.push(...filters.statuses);
+    }
+
+    /*
+     * The order of the WHENs is the rule's order, and it is load-bearing: a
+     * past date has to be tested BEFORE the two windows, because a past date is
+     * trivially "before the end of this week" and a held obligation months late
+     * would otherwise be counted under This week.
+     */
+    const band = `CASE
+        WHEN o.status = 'completed' THEN 'done'
+        WHEN o.due_date IS NOT NULL AND o.due_date < ? THEN 'overdue'
+        WHEN o.status = 'open' AND o.meter_threshold IS NOT NULL
+             AND (ad.current_meter_value IS NULL
+                  OR ad.current_meter_value >= o.meter_threshold) THEN 'overdue'
+        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_week'
+        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_month'
+        ELSE 'later'
+      END`;
+
+    let rows: { band: string; n: number }[];
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT ${band} AS band, COUNT(*) AS n
+             FROM obligation_details o
+             JOIN entities e
+               ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
+              AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
+             LEFT JOIN asset_details ad
+               ON ad.workspace_id = o.workspace_id
+              AND ad.entity_id = o.subject_entity_id
+            WHERE ${conditions.join(" AND ")}
+            GROUP BY band`,
+        )
+        .bind(...params)
+        .all<{ band: string; n: number }>();
+      rows = result.results;
+    } catch (cause) {
+      this.#fail(cause);
+    }
+
+    // Every band is present, zeroes included: an absent key would make a
+    // heading render as "undefined" rather than as the honest nothing it is.
+    const counts: Record<ObligationBand, number> = {
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    };
+    for (const row of rows) {
+      if (row.band in counts) counts[row.band as ObligationBand] = row.n;
+    }
+    return counts;
   }
 }
 

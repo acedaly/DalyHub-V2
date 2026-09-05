@@ -363,6 +363,13 @@ function customColorGroups(scheme) {
         ["entity-meeting", "#C2185B"], // magenta
         ["entity-person", "#00ACC1"], // cyan
         ["entity-asset", NEUTRAL_HEX], // grey
+        // V2.10 LIFE-02 - Life Admin is the product's paperwork, and bronze is
+        // the one family no other entity holds: not the Asset's neutral grey it
+        // sits beside in the rail, not the Note amber it would otherwise read
+        // as, and nowhere near the warm reds `state-overdue` owns - an identity
+        // that could be mistaken for "this is late" is exactly the collision
+        // DESIGN_SYSTEM.md's "identity is not status" rule forbids.
+        ["entity-obligation", "#795548"], // bronze
         ["entity-diary", "#6750A4"], // violet
         ["entity-review", "#827717"], // olive
       ],

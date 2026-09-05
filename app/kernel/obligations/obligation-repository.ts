@@ -27,11 +27,13 @@
 
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
+import type { ObligationBand } from "./obligation-band";
 import type {
   CompleteObligationInput,
   CreateObligationInput,
   ListObligationsInput,
   Obligation,
+  ObligationFilters,
   ObligationAttentionInput,
   ObligationChangeResult,
   ObligationPage,
@@ -72,6 +74,21 @@ export type ObligationWithSubjectPage = ObligationPage<Obligation> & {
   /** Obligation ids whose linked Task exists and is still open. */
   readonly openTaskIds: ReadonlySet<string>;
 };
+
+/** Which obligations to count, band by band. */
+export type ObligationBandCountInput = {
+  readonly filters?: ObligationFilters;
+  /**
+   * The same three-way scope `list` takes: `undefined` counts the whole
+   * workspace, a string one subject's, `null` only the ones about nothing.
+   */
+  readonly subjectEntityId?: string | null;
+  /** Owner-calendar day, so the bands resolve in the owner's timezone. */
+  readonly today: string;
+};
+
+/** How many obligations sit in each band. Every band is present, zeroes included. */
+export type ObligationBandCounts = Readonly<Record<ObligationBand, number>>;
 
 /** What a subject's obligations add up to, for a collection row. */
 export type ObligationSummary = {
@@ -230,4 +247,16 @@ export interface ObligationRepository {
     subjectIds: readonly string[],
     today: string,
   ): Promise<ReadonlyMap<string, ObligationSummary>>;
+
+  /**
+   * How many obligations fall in each band, over the WHOLE collection (D10).
+   *
+   * The Life Admin headings print a count, and a count taken over the loaded
+   * page is a lie about the set — "Overdue 25" under a page of 25 that happens
+   * to hold every overdue row is indistinguishable from "Overdue 200" when it
+   * does not. So this is one grouped statement across everything the current
+   * filter selects, before any pagination, and it stays one statement whether
+   * the workspace holds one obligation or ten thousand.
+   */
+  countByBand(input: ObligationBandCountInput): Promise<ObligationBandCounts>;
 }

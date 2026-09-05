@@ -22,6 +22,7 @@ import {
   OBLIGATION_COMPLETED,
   OBLIGATION_CREATED,
   ObligationValidationError,
+  obligationBand,
 } from "~/kernel/obligations";
 import { ReservedEntityTypeError } from "~/kernel/entities";
 import { ObligationNotFoundError } from "~/platform/storage/d1";
@@ -839,3 +840,181 @@ describe("summariseObligations (the collection signal)", () => {
 /* -------------------------------------------------------------------------- */
 /* Asset lifecycle                                                            */
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* countByBand (the collection headings)                                      */
+/* -------------------------------------------------------------------------- */
+
+describe("countByBand (D10 — the collection's headings)", () => {
+  const TODAY = "2026-09-05";
+
+  /**
+   * Seed one obligation for every band, plus the cases that decide a band by
+   * something other than a plain future date.
+   */
+  async function seedEveryBand() {
+    const asset = await ute();
+    const repo = obligations();
+    const seeded = [
+      { title: "Rego (long overdue)", dueDate: "2026-03-01" },
+      { title: "Insurance (yesterday)", dueDate: "2026-09-04" },
+      { title: "Inspection (today)", dueDate: "2026-09-05" },
+      { title: "Licence (day seven)", dueDate: "2026-09-11" },
+      { title: "Warranty (day eight)", dueDate: "2026-09-12" },
+      { title: "Tax (day thirty-one)", dueDate: "2026-10-05" },
+      { title: "Subscription (beyond)", dueDate: "2026-10-06" },
+      { title: "Fee (next year)", dueDate: "2027-06-01" },
+    ];
+    for (const row of seeded) {
+      await repo.create({
+        subjectEntityId: asset.id,
+        category: "registration",
+        title: row.title,
+        dueDate: row.dueDate,
+      });
+    }
+    // A meter commitment with no reading: it cannot be placed on a calendar.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 km",
+      meterThreshold: 60_000,
+      meterUnit: "km",
+    });
+    /*
+     * A HELD obligation months past its date. This is the row that catches a
+     * band rule which tests the windows before the past: a past date is
+     * trivially "before the end of this week", so a rule in the wrong order
+     * files this under This week — the calmest way to lose the latest row.
+     */
+    const held = await repo.create({
+      subjectEntityId: asset.id,
+      category: "insurance",
+      title: "Paused claim",
+      dueDate: "2026-05-01",
+    });
+    await repo.setStatus(held.id, "on_hold");
+    // A completed one, whose date would otherwise put it in Overdue.
+    const done = await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Last service",
+      dueDate: "2026-04-01",
+    });
+    await repo.complete(done.id, { completedOn: "2026-04-01" });
+    return { asset, repo };
+  }
+
+  it("counts every band over the WHOLE collection, not the loaded page", async () => {
+    const { repo } = await seedEveryBand();
+
+    const counts = await repo.countByBand({ today: TODAY });
+
+    expect(counts).toEqual({
+      overdue: 4, // two past dates, the held one, the meter awaiting a reading
+      this_week: 2, // today, and the seventh day
+      this_month: 2, // the eighth day, and the thirty-first
+      later: 2,
+      done: 1,
+    });
+
+    /*
+     * The point of the read: a page of five is nowhere near the eleven rows,
+     * and the headings still tell the truth about the set.
+     */
+    const page = await repo.list({ limit: 5, today: TODAY });
+    expect(page.items).toHaveLength(5);
+    expect(page.hasMore).toBe(true);
+    const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+    expect(total).toBe(11);
+  });
+
+  /*
+   * Two implementations of one rule is how they come to disagree, so the SQL is
+   * asserted against the kernel function row by row rather than against a
+   * hand-written expectation that could drift with it.
+   */
+  it("agrees with the kernel band rule, row by row", async () => {
+    const { repo } = await seedEveryBand();
+
+    const counts = await repo.countByBand({ today: TODAY });
+
+    const derived: Record<string, number> = {
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    };
+    let cursor: string | undefined;
+    do {
+      const page = await repo.list({ limit: 5, cursor, today: TODAY });
+      for (const item of page.items) {
+        derived[obligationBand(item, TODAY, null)] += 1;
+      }
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor !== undefined);
+
+    expect(counts).toEqual(derived);
+  });
+
+  it("counts only the current filter, and only this workspace", async () => {
+    const { asset, repo } = await seedEveryBand();
+    // A second workspace's obligation must be invisible to this count.
+    const strangerAsset = await ute(OTHER, "z");
+    await obligations(OTHER, "zz").create({
+      subjectEntityId: strangerAsset.id,
+      category: "registration",
+      title: "Someone else's rego",
+      dueDate: "2026-03-01",
+    });
+    // And an obligation about nothing, which the subject scope must exclude.
+    await repo.create({
+      category: "tax",
+      title: "Tax return",
+      dueDate: "2026-09-06",
+    });
+
+    expect((await repo.countByBand({ today: TODAY })).overdue).toBe(4);
+    expect(
+      await repo.countByBand({ today: TODAY, subjectEntityId: asset.id }),
+    ).toEqual({
+      overdue: 4,
+      this_week: 2,
+      this_month: 2,
+      later: 2,
+      done: 1,
+    });
+    expect(
+      await repo.countByBand({ today: TODAY, subjectEntityId: null }),
+    ).toEqual({
+      overdue: 0,
+      this_week: 1,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    });
+    expect(
+      await repo.countByBand({
+        today: TODAY,
+        filters: { categories: ["service"] },
+      }),
+    ).toEqual({
+      overdue: 1,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 1,
+    });
+  });
+
+  it("returns every band as a zero rather than an absent key", async () => {
+    expect(await obligations().countByBand({ today: TODAY })).toEqual({
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    });
+  });
+});

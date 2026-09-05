@@ -1042,6 +1042,23 @@ export const GlyphHabitDefault = createStrokeIcon(
 );
 
 /**
+ * Obligation — a clipboard with a clock face: a commitment with a time on it.
+ *
+ * The stroke-set sibling of `ObligationIcon`, drawn in this vocabulary rather
+ * than copied from it, and deliberately not the Task tick or the Review
+ * calendar — an obligation is neither.
+ */
+export const GlyphObligationDefault = createStrokeIcon(
+  "GlyphObligationDefault",
+  <>
+    <path d="M14.5 20.4H6.2a1.6 1.6 0 0 1-1.6-1.6V5.6A1.6 1.6 0 0 1 6.2 4h11.6a1.6 1.6 0 0 1 1.6 1.6v5.2" />
+    <path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4Z" />
+    <circle cx="17.4" cy="16.6" r="4.4" />
+    <path d="M17.4 14.4v2.4l1.6 1.2" />
+  </>,
+);
+
+/**
  * The default glyph for each entity type, in the identity vocabulary.
  *
  * Keyed by the kernel's `entities.type` slug, exactly as `ENTITY_IDENTITY` is,
@@ -1057,6 +1074,7 @@ export const ENTITY_DEFAULT_GLYPHS = {
   meeting: GlyphMeetingDefault,
   person: GlyphPersonDefault,
   asset: GlyphAssetDefault,
+  obligation: GlyphObligationDefault,
   diary: GlyphDiaryDefault,
   review: GlyphReviewDefault,
 } as const;
