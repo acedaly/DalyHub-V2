@@ -934,6 +934,9 @@ describe("ReviewInsightRepository.listSnapshotSeries", () => {
         periodStart: start,
         periodEnd: end,
       });
+      // Completed, as every snapshotted Review is in production: the snapshot
+      // is captured on completion, and the series reads completed Reviews.
+      await reviews.complete(review.id);
       await insights.saveSnapshot(
         review.id,
         snapshotFor(start, end, index + 1),
@@ -945,12 +948,37 @@ describe("ReviewInsightRepository.listSnapshotSeries", () => {
       periodStart: "2026-08-01",
       periodEnd: "2026-08-31",
     });
+    await reviews.complete(monthly.id);
     await insights.saveSnapshot(
       monthly.id,
       snapshotFor("2026-08-01", "2026-08-31", 99),
     );
-    return { weekly, monthly: monthly.id, insights };
+    return { weekly, monthly: monthly.id, insights, reviews };
   }
+
+  it("leaves out a Review that was archived or reopened after its snapshot was taken", async () => {
+    // Found by review: the read joined `review_details` for the type only, so
+    // an archived Review's stale snapshot — and a reopened one's, whose facts
+    // are being revised — counted as consecutive history while the comparison
+    // series beside it (`readPriorReviews`) left both out. Two reads of
+    // "which Reviews came before this one" must agree.
+    const { weekly, insights, reviews } = await seedReviews();
+    await reviews.archive(weekly[2]);
+    await reviews.reopen(weekly[4]);
+    const series = await insights.listSnapshotSeries(weekly[5], 6);
+    expect(series.map((stored) => stored.reviewId)).toEqual([
+      weekly[0],
+      weekly[1],
+      weekly[3],
+      weekly[5],
+    ]);
+    // The anchor itself is read whatever its state — a reopened Review's
+    // panel still describes its own period.
+    await reviews.reopen(weekly[5]);
+    expect(
+      (await insights.listSnapshotSeries(weekly[5], 6)).at(-1)?.reviewId,
+    ).toBe(weekly[5]);
+  });
 
   it("returns the anchor and the Reviews before it, oldest first", async () => {
     const { weekly, insights } = await seedReviews();
@@ -1076,6 +1104,7 @@ describe("ReviewInsightRepository.listSnapshotSeries", () => {
         periodStart,
         periodEnd,
       });
+      await reviews.complete(review.id);
       await insights.saveSnapshot(
         review.id,
         snapshotFor(periodStart, periodEnd, index + 1),

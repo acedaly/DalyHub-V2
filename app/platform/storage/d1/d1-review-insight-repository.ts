@@ -572,9 +572,19 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
          FROM review_insight_snapshots s
          JOIN review_details rd
            ON rd.workspace_id = s.workspace_id AND rd.entity_id = s.review_id
+         JOIN entities e
+           ON e.workspace_id = s.workspace_id AND e.id = s.review_id
+          AND e.deleted_at IS NULL
          JOIN anchor a ON rd.review_type = a.review_type
          WHERE s.workspace_id = ?
-           AND (s.period_end < a.period_start OR s.review_id = ?)
+           AND (
+             s.review_id = ?
+             OR (
+               s.period_end < a.period_start
+               AND rd.status = 'completed'
+               AND rd.archived_at IS NULL
+             )
+           )
          ORDER BY s.period_end DESC, s.captured_at DESC, s.review_id DESC
          LIMIT ?`,
       )

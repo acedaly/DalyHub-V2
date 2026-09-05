@@ -61,8 +61,8 @@ import {
   type Grain,
 } from "~/kernel/history";
 import {
+  ACROSS_REVIEWS_SERIES_LENGTH,
   MAX_OVERDUE_MOMENTS,
-  MAX_TREND_PERIODS,
   readAcrossReviews,
 } from "~/kernel/review-insights";
 import { GOAL_COMPLETED, PROJECT_COMPLETED } from "~/kernel/spine";
@@ -760,8 +760,13 @@ async function readGoalContributions(
 ): Promise<readonly GoalContributionAcrossReviews[]> {
   if (subjects.length === 0) return [];
   try {
+    // The most recent completed WEEKLY Review, so the series is the one the
+    // guided weekly Review's own Goals step reads — same type, same length —
+    // and a Goal cannot be "moving at 5 of your last 8" here and "4 of the
+    // last 6" there (found by review: the anchor was any type, and n was 8).
     const anchors = await input.scope.reviews.list({
       view: "completed",
+      type: "weekly",
       sort: "period",
       limit: 1,
     });
@@ -769,7 +774,7 @@ async function readGoalContributions(
     if (anchor === undefined) return [];
     const series = await input.scope.reviewInsights.listSnapshotSeries(
       anchor.id,
-      MAX_TREND_PERIODS,
+      ACROSS_REVIEWS_SERIES_LENGTH,
     );
     return readAcrossReviews({
       series,

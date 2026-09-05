@@ -117,6 +117,7 @@ export const GOAL_STORY_FACT_KEYS = [
   "targetDate",
   "contributionAcrossReviews",
   "contributionAcrossReviewsOf",
+  "contributionAcrossReviewsWindow",
 ] as const;
 
 export type GoalStoryFactKey = (typeof GOAL_STORY_FACT_KEYS)[number];
@@ -156,6 +157,10 @@ export function goalStoryFacts(story: GoalStory): GoalStoryFacts {
     // the window that produced it (ADR-079 decision 6).
     contributionAcrossReviews: story.contributionAcrossReviews?.state ?? null,
     contributionAcrossReviewsOf: story.contributionAcrossReviews?.of ?? null,
+    // The series length as well as the Reviews that recorded it, so two
+    // surfaces reading different series lengths can never compare equal.
+    contributionAcrossReviewsWindow:
+      story.contributionAcrossReviews?.reviews ?? null,
   };
 }
 
