@@ -463,6 +463,40 @@ describe("obligation lifecycle", () => {
     ).rejects.toBeInstanceOf(ObligationNotFoundError);
   });
 
+  /*
+   * `completed_event_id` points at the PROOF row the completion wrote. An
+   * obligation about nothing has no logbook to write one into, so there is
+   * nothing for it to point at — and a fabricated id is worse than a null: the
+   * chain has no foreign key, `restore-safety.ts` is its only integrity
+   * authority, and a dangling reference fails an archive on the way back in.
+   */
+  it("stores no proof reference when no proof was written", async () => {
+    const repo = obligations();
+    const alone = await repo.create({
+      category: "tax",
+      title: "Lodge the tax return",
+      dueDate: "2026-08-01",
+    });
+    const done = await repo.complete(alone.id, { completedOn: "2026-08-01" });
+    expect(done.obligation.status).toBe("completed");
+    expect(done.obligation.completedEventId).toBeNull();
+    expect((await repo.get(alone.id))?.completedEventId).toBeNull();
+
+    // An obligation ABOUT an Asset still records the proof it really wrote.
+    const asset = await ute();
+    const about = await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service",
+      dueDate: "2026-08-01",
+    });
+    const proved = await repo.complete(about.id, {
+      completedOn: "2026-08-01",
+    });
+    expect(proved.obligation.completedEventId).not.toBeNull();
+    expect(await countAssetEventRows()).toBeGreaterThan(0);
+  });
+
   it("dismisses, holds and reopens; refuses to reopen a completed occurrence", async () => {
     const asset = await ute();
     const repo = obligations();
@@ -781,6 +815,38 @@ describe("listAttention (the Today read seam)", () => {
 });
 
 describe("summariseObligations (the collection signal)", () => {
+  /*
+   * A meter obligation past its threshold is OVERDUE, and the collection card
+   * has to say so. The summary read already fetches the subject's reading; if
+   * it hands the evaluator a null meter, the card stays neutral while the
+   * record it links to says "Overdue by 500 km" — two answers to one question.
+   */
+  it("counts a meter obligation past its threshold as overdue", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    await history().recordMeterReading({
+      assetId: asset.id,
+      value: 70_500,
+      unit: "km",
+      readingDate: "2026-06-01",
+    });
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service every 10,000 km",
+      meterThreshold: 70_000,
+      meterUnit: "km",
+    });
+
+    const summary = await repo.summariseBySubject([asset.id], "2026-07-01");
+    expect(summary.get(asset.id)).toMatchObject({
+      openCount: 1,
+      overdueCount: 1,
+      // The reading exists, so nothing is being asked for.
+      needsMeterReading: false,
+    });
+  });
+
   it("counts overdue and due-soon per asset in ONE query", async () => {
     const repo = obligations();
     const a = await ute(WS, "a");

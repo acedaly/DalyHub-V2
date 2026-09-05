@@ -1108,12 +1108,25 @@ export class D1AssetRepository implements AssetRepository {
            AND ${emptyGuard}`,
       )
       .bind(this.#workspaceId, obligationIdsJson, ...g);
+    /*
+     * By the SAME id list as the entity delete below, not by subject.
+     *
+     * The ids were read a moment ago, outside this batch. Deleting the detail
+     * rows by subject would take an obligation created in that gap while the
+     * entity delete, working from the stale list, left its `entities` row and
+     * its Activity subjects behind — a purge that reported success over an
+     * orphan. Bound to one list, a late arrival keeps BOTH its rows, its
+     * subject foreign key still points at the Asset, and the Asset's own delete
+     * fails the constraint: the whole batch rolls back and the purge reports
+     * failure. Nothing is corrupted, and the owner can try again.
+     */
     const deleteObligationDetails = this.#db
       .prepare(
         `DELETE FROM obligation_details
-         WHERE workspace_id = ? AND subject_entity_id = ? AND ${emptyGuard}`,
+         WHERE workspace_id = ? AND entity_id IN (${obligationIds})
+           AND ${emptyGuard}`,
       )
-      .bind(this.#workspaceId, assetId, ...g);
+      .bind(this.#workspaceId, obligationIdsJson, ...g);
     const deleteObligationEntities = this.#db
       .prepare(
         `DELETE FROM entities

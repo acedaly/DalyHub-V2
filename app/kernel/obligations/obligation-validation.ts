@@ -374,6 +374,9 @@ export function validateObligation(
     readonly meterInterval: number | null;
     readonly recurrenceKind: ObligationRecurrenceKind;
     readonly currencyCode?: string | null;
+    /** The stored amounts, so a currency change cannot silently relabel them. */
+    readonly expectedAmountMinor?: number | null;
+    readonly completedAmountMinor?: number | null;
   },
   /** The meter units this caller accepts. Empty means "no meter here". */
   meterUnits: MeterUnitVocabulary = [],
@@ -555,6 +558,47 @@ export function validateObligation(
       : undefined;
   let expectedAmountMinor: number | null | undefined =
     mode === "create" ? null : undefined;
+
+  /*
+   * A CURRENCY IS A LABEL ON A NUMBER, and this product never converts
+   * (ADR-049). So a currency change on an obligation that already holds an
+   * amount is refused rather than applied: relabelling 1000 minor units from
+   * AUD to USD leaves the figure wrong rather than missing, which is worse, and
+   * it does it silently. Clearing the currency out from under a stored amount
+   * is the same refusal from the other side — it reaches the database CHECK
+   * otherwise, and surfaces as a storage error rather than as the field it is
+   * about.
+   *
+   * `validateObligationCompletion` already refuses the same thing in the same
+   * words. This is the update path catching up with it.
+   */
+  if (mode === "update" && currencyProvided) {
+    const storedAmount =
+      existing?.expectedAmountMinor ?? existing?.completedAmountMinor ?? null;
+    const restated =
+      amountProvided &&
+      !(
+        input.expectedAmount === null ||
+        (typeof input.expectedAmount === "string" &&
+          input.expectedAmount.trim() === "")
+      );
+    const clearingAmount = amountProvided && !restated;
+    const changing =
+      (currencyCode ?? null) !== (existing?.currencyCode ?? null);
+    if (
+      storedAmount !== null &&
+      changing &&
+      !restated &&
+      !(clearingAmount && existing?.completedAmountMinor == null)
+    ) {
+      throw new ObligationValidationError(
+        "currencyCode",
+        existing?.currencyCode
+          ? `is already ${existing.currencyCode} on this obligation, and amounts are never converted`
+          : "cannot be changed while an amount is recorded",
+      );
+    }
+  }
 
   if (amountProvided) {
     const raw = input.expectedAmount;
