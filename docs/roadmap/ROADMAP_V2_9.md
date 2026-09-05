@@ -39,7 +39,11 @@ DEBT-212 and DEBT-103**. The implementation decisions are recorded in
 what each item actually delivered is under its own heading below, including
 where the measurement that defined it turned out to be wrong.
 
-**Successor: V2.10 LIFE ADMIN, PLANNED** — see [the sequence](#the-remaining-v2-sequence).
+**Successor: V2.10 LIFE ADMIN — DEFINED 2026-09-05, and new work goes there.**
+Its own pass re-measured `main` at `57c4b19` rather than inheriting
+[the sketch below](#v210--life-admin-planned), and where the two disagree
+[`ROADMAP_V2_10.md`](ROADMAP_V2_10.md) wins. The sequence from V2.11 on stays
+here — see [the remaining sequence](#the-remaining-v2-sequence).
 
 ---
 
@@ -730,6 +734,15 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 
 ### V2.10 — LIFE ADMIN (PLANNED)
 
+> **Superseded as roadmap truth on 2026-09-05 by
+> [`ROADMAP_V2_10.md`](ROADMAP_V2_10.md), which defined this release against
+> `main` at `57c4b19`.** What follows is the PLANNED sketch as written on
+> 2026-09-04 and is kept unedited as the record of what was predicted. The
+> defining pass changed it in three measured places: export and restore move
+> into the item that creates the table (ADR-116 decision 4), the collection
+> groups gain **Overdue** as a band of its own, and the category set is
+> thirteen keys rather than an open list of life shapes.
+
 - **Theme.** *What do I need to deal with?* — one Obligation model for
   everything due and recurring, whether or not it is about an Asset, with one
   home.
@@ -1055,9 +1068,11 @@ hold. Not a number reached; a boundary crossed.
 
 ## Succession logic
 
-V2.10 LIFE ADMIN is defined by its own decision pass against a
-re-measurement of `main` after V2.9 completes, exactly as V2.9 was defined
-against `6b4d4a8` rather than inherited from V2.8's LATER table. It may keep,
+V2.10 LIFE ADMIN **was** defined by its own decision pass, on 2026-09-05,
+against a re-measurement of `main` at `57c4b19` — exactly as V2.9 was defined
+against `6b4d4a8` rather than inherited from V2.8's LATER table.
+[`ROADMAP_V2_10.md`](ROADMAP_V2_10.md) is that definition and is where new work
+goes. It may keep,
 reorder or refuse anything in the sequence above, and it says why. What it
 may not do is add a second due-and-recurring model, a second aggregation
 layer, a second file primitive or an AI feature that computes a fact
