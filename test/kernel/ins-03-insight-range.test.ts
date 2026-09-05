@@ -147,7 +147,7 @@ function load(
     grain,
     todayIso: TODAY,
     timezone: TIMEZONE,
-    dateFormat: "dmy",
+    dateFormat: "dmy_slash",
     now: NOW,
   });
 }
@@ -390,7 +390,6 @@ describe("the page's cost is stated, and does not grow with the window", () => {
     const measurements = makeGoalMeasurementRepository(makeContext(WS), {
       clock: new FakeClock("2026-09-01T00:00:00.000Z").now,
       idGenerator: nextEntityId,
-      activityIdGenerator: nextActivityId,
     });
     for (const title of ["Reach 70 kg", "Read 24 books"]) {
       const goal = await spine.createGoal({ title, areaId: area.id });
@@ -465,7 +464,6 @@ describe("the measured-Goal series (DEBT-212's caller)", () => {
     const measurements = makeGoalMeasurementRepository(makeContext(WS), {
       clock: new FakeClock("2026-09-01T00:00:00.000Z").now,
       idGenerator: nextEntityId,
-      activityIdGenerator: nextActivityId,
     });
     await measurements.createMeasurement(measured.id, {
       value: 85,
@@ -504,7 +502,6 @@ describe("the measured-Goal series (DEBT-212's caller)", () => {
       {
         clock: new FakeClock("2026-09-01T00:00:00.000Z").now,
         idGenerator: nextEntityId,
-        activityIdGenerator: nextActivityId,
       },
     );
     await hostileMeasurements.createMeasurement(hostileGoal.id, {

@@ -531,9 +531,9 @@ describe("the Goals panel", () => {
     unit: "kg",
     bounded: false,
     points: [
-      { key: "2026-06-01", value: 85 },
-      { key: "2026-07-01", value: 82 },
-      { key: "2026-08-01", value: 79 },
+      { key: "2026-06-01", date: "2026-06-01", value: 85 },
+      { key: "2026-07-01", date: "2026-07-01", value: 82 },
+      { key: "2026-08-01", date: "2026-08-01", value: 79 },
     ],
   };
 

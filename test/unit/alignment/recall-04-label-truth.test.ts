@@ -64,7 +64,7 @@ function analyticsFacts(goals: {
     window: "this-week" as const,
     grain: "day" as const,
     span,
-    buckets: [{ key: "current", ...span }],
+    buckets: [span],
     current: { tasksCompleted: 4, projectsCompleted: 1, goalsCompleted: 0 },
     previous: { tasksCompleted: 2, projectsCompleted: 0, goalsCompleted: 0 },
     series: [

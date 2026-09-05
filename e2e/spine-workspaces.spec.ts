@@ -281,8 +281,15 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     await page.goBack();
     // Back lands on the SAME Goal, not on the workspace's default selection.
     await expect(page).toHaveURL(goalUrl);
+    // Ask for the CHIP by name, not for the name anywhere in the pane: since
+    // STEER-04 the pane also states the Goal's next step, whose parent Project
+    // is very often the same Project the chip names, and a bare text locator
+    // then resolves to both and fails strict mode.
     await expect(
-      page.getByTestId("goal-workspace-pane").getByText(chipName),
+      page
+        .getByTestId("goal-workspace-pane")
+        .getByTestId("goal-project-chip")
+        .filter({ hasText: chipName }),
     ).toBeVisible();
   });
 
