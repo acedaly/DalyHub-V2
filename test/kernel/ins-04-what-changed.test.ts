@@ -30,7 +30,10 @@ import {
   loader as activityLoader,
 } from "~/modules/analytics/routes/activity";
 import { INSIGHT_ACTIVITY_PAGE_SIZE } from "~/modules/analytics/activity-feed";
+import { addCalendarDays } from "~/kernel/datetime";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { setAuthenticatedSession } from "~/platform/request";
+import { ownerCalendarIso } from "~/shared/datetime";
 import type { AuthenticatedSession } from "~/kernel/auth";
 
 import {
@@ -229,9 +232,22 @@ describe("the anchor day the window is measured back from", () => {
       parent: { kind: "area", id: area.id },
     });
 
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10);
+    /*
+     * The anchor is a day in the OWNER'S calendar, because that is the only
+     * kind of day `anchorDayFor` accepts: it takes the server's own today or
+     * the day before it, and falls back to today for anything further away.
+     *
+     * Computing it from UTC made this assertion depend on the hour of the run.
+     * The default owner zone is Australia/Sydney (+10), so from 14:00 UTC the
+     * owner's day has already rolled over and "UTC yesterday" is TWO days
+     * behind the owner's today — out of range, silently ignored, and the window
+     * then ends on today and holds the event this test asserts is absent.
+     * Measured failing on `main` at 57c4b19 at 14:18 UTC and passing at 12:46.
+     */
+    const yesterday = addCalendarDays(
+      ownerCalendarIso(now, DEFAULT_OWNER_TIME_ZONE),
+      -1,
+    );
     const anchored = await readFeed(
       `https://app.test/analytics/activity?window=12-weeks&today=${yesterday}`,
     );
