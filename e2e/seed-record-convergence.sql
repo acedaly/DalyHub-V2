@@ -57,9 +57,17 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'g-rc-move';
 -- Projects. `pr-rc-kitchen` is the REFERENCE record (20+ tasks, mixed states);
 -- `pr-rc-long` exists purely to hold a 60+ character title.
 -- ---------------------------------------------------------------------------
+--
+-- `pr-rc-kitchen` is stamped as updated RECENTLY, not on a fixed date. The
+-- cross-module view `?updated=last_30_days` is a ROLLING window in the owner's
+-- calendar, so a literal timestamp is inside it on the day it is written and
+-- outside it a month later — at which point the view returns nothing, falls
+-- back to its default, and a journey asserting "a project row opens a project"
+-- clicks a Task instead. That is a fixture rotting, not a product change, and
+-- it fails on every branch at once.
 INSERT OR IGNORE INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
 VALUES
-  ('pr-rc-kitchen', 'local-dev-workspace', 'project', 'Kitchen fit-out', '2026-03-02T00:00:00.000Z', '2026-08-06T22:15:00.000Z', NULL),
+  ('pr-rc-kitchen', 'local-dev-workspace', 'project', 'Kitchen fit-out', '2026-03-02T00:00:00.000Z', strftime('%Y-%m-%dT%H:%M:%f000Z', 'now', '-2 days'), NULL),
   ('pr-rc-long', 'local-dev-workspace', 'project', 'Consolidate every household insurance, utility and subscription renewal into one annual review cycle', '2026-03-02T00:00:01.000Z', '2026-07-28T11:00:00.000Z', NULL);
 INSERT OR IGNORE INTO spine_records (workspace_id, entity_id, kind, completed_at)
 VALUES
@@ -67,11 +75,16 @@ VALUES
   ('local-dev-workspace', 'pr-rc-long', 'project', NULL);
 UPDATE spine_records SET completed_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id IN ('pr-rc-kitchen', 'pr-rc-long');
+-- Re-stamped on every seed, because `INSERT OR IGNORE` leaves an existing row
+-- exactly as it was and this timestamp has to stay inside the rolling window.
+UPDATE entities SET updated_at = strftime('%Y-%m-%dT%H:%M:%f000Z', 'now', '-2 days')
+WHERE workspace_id = 'local-dev-workspace' AND id = 'pr-rc-kitchen';
 INSERT OR IGNORE INTO project_details (workspace_id, entity_id, entity_type, status, archived_at, updated_at, icon_key)
 VALUES
-  ('local-dev-workspace', 'pr-rc-kitchen', 'project', 'active', NULL, '2026-08-06T22:15:00.000Z', 'hammer'),
+  ('local-dev-workspace', 'pr-rc-kitchen', 'project', 'active', NULL, strftime('%Y-%m-%dT%H:%M:%f000Z', 'now', '-2 days'), 'hammer'),
   ('local-dev-workspace', 'pr-rc-long', 'project', 'planned', NULL, '2026-07-28T11:00:00.000Z', NULL);
-UPDATE project_details SET status = 'active', archived_at = NULL, icon_key = 'hammer'
+UPDATE project_details SET status = 'active', archived_at = NULL, icon_key = 'hammer',
+    updated_at = strftime('%Y-%m-%dT%H:%M:%f000Z', 'now', '-2 days')
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-rc-kitchen';
 UPDATE project_details SET status = 'planned', archived_at = NULL
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'pr-rc-long';
