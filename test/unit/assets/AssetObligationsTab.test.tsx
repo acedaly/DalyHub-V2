@@ -1,11 +1,17 @@
 /**
- * ASSET-02 — the Obligations tab as BEHAVIOUR.
+ * ASSET-02 / V2.10 LIFE-02 — the Obligations tab as BEHAVIOUR.
  *
  * What an owner must be able to do and see: overdue work first, every state
  * carried by a WORD as well as a tone, only the actions that make sense for a
- * given state, a filter that answers a real question, a first-run empty state that
- * teaches the next action, and — the load-bearing one — the honest sentence that
- * appears when a linked Task is done but the work has not been recorded.
+ * given state, a filter that answers a real question, a first-run empty state
+ * that teaches the next action, and — the load-bearing one — the honest sentence
+ * that appears when a linked Task is done but the work has not been recorded.
+ *
+ * LIFE-02 changed two things underneath and neither may change what an owner
+ * sees: the rows are now the SHARED obligation row, and the one-press actions
+ * post to the obligation's own endpoint rather than to the Asset's history
+ * route. The band headings replaced "Due soon" with the calendar bands Life
+ * Admin prints, so the two surfaces group one record the same way.
  */
 
 import {
@@ -17,19 +23,28 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MemoryRouter } from "react-router";
+
 import { FeedbackProvider } from "~/shared/feedback";
 
 import { AssetObligationsTab } from "~/modules/assets/AssetObligationsTab";
-import type { SerializedAssetObligation } from "~/modules/assets/asset-history-view";
+import type { ObligationBandCounts } from "~/kernel/obligations";
+import type { SerializedObligation } from "~/shared/obligations";
 
 const ASSET_ID = "asset-1";
 
 function obligation(
-  overrides: Partial<SerializedAssetObligation> = {},
-): SerializedAssetObligation {
+  overrides: Partial<SerializedObligation> = {},
+): SerializedObligation {
   return {
     id: "o-1",
-    assetId: ASSET_ID,
+    subject: {
+      id: ASSET_ID,
+      type: "asset",
+      subtype: "vehicle",
+      title: "The ute",
+      href: `/asset/${ASSET_ID}`,
+    },
     category: "registration",
     categoryLabel: "Registration renewal",
     title: "Renew registration",
@@ -49,19 +64,44 @@ function obligation(
     stateLabel: "Due soon",
     stateText: "Due in 9 days",
     needsAttention: true,
+    band: "this_week",
     taskId: null,
     taskTitle: null,
     taskOpen: false,
+    expectedAmountDisplay: null,
+    completedAmountDisplay: null,
+    currencyCode: null,
+    expectedAmountInput: "",
     completedEventId: null,
     completedDate: null,
+    completedDateLabel: null,
     seriesId: "s-1",
     sequence: 0,
+    href: "/obligations/o-1",
     ...overrides,
   };
 }
 
+/** Counts derived from the rows, which is what the loader supplies in practice. */
+function countsFor(
+  obligations: readonly SerializedObligation[],
+): ObligationBandCounts {
+  const counts: ObligationBandCounts = {
+    overdue: 0,
+    this_week: 0,
+    this_month: 0,
+    later: 0,
+    done: 0,
+  };
+  const mutable = counts as unknown as Record<string, number>;
+  for (const item of obligations) {
+    if (item.status === "open") mutable[item.band] += 1;
+  }
+  return counts;
+}
+
 function renderTab(
-  obligations: readonly SerializedAssetObligation[],
+  obligations: readonly SerializedObligation[],
   overrides: Partial<Parameters<typeof AssetObligationsTab>[0]> = {},
 ) {
   const handlers = {
@@ -71,15 +111,18 @@ function renderTab(
     onChanged: vi.fn(),
   };
   render(
-    <FeedbackProvider>
-      <AssetObligationsTab
-        assetId={ASSET_ID}
-        obligations={obligations}
-        readOnly={false}
-        {...handlers}
-        {...overrides}
-      />
-    </FeedbackProvider>,
+    // The shared row links to the obligation's own record, so it needs a router.
+    <MemoryRouter>
+      <FeedbackProvider>
+        <AssetObligationsTab
+          obligations={obligations}
+          counts={countsFor(obligations)}
+          readOnly={false}
+          {...handlers}
+          {...overrides}
+        />
+      </FeedbackProvider>
+    </MemoryRouter>,
   );
   return handlers;
 }
@@ -109,17 +152,32 @@ describe("empty state", () => {
 });
 
 describe("grouping and state", () => {
-  it("groups overdue, due soon and later, most urgent first", () => {
+  it("groups by band, most urgent first", () => {
     renderTab([
-      obligation({ id: "o-later", state: "upcoming", title: "Later thing" }),
-      obligation({ id: "o-overdue", state: "overdue", title: "Overdue thing" }),
-      obligation({ id: "o-due", state: "due", title: "Due thing" }),
+      obligation({
+        id: "o-later",
+        band: "later",
+        state: "upcoming",
+        title: "Later thing",
+      }),
+      obligation({
+        id: "o-overdue",
+        band: "overdue",
+        state: "overdue",
+        title: "Overdue thing",
+      }),
+      obligation({
+        id: "o-week",
+        band: "this_week",
+        state: "due",
+        title: "Due thing",
+      }),
     ]);
     const headings = screen
       .getAllByRole("heading", { level: 3 })
       .map((h) => h.textContent);
     expect(headings[0]).toContain("Overdue");
-    expect(headings[1]).toContain("Due soon");
+    expect(headings[1]).toContain("This week");
     expect(headings[2]).toContain("Later");
   });
 
@@ -141,9 +199,16 @@ describe("grouping and state", () => {
     expect(screen.getByText(/Every year/)).toBeInTheDocument();
   });
 
-  it("groups a meter obligation with no reading under Due soon, not Overdue", () => {
+  /*
+   * The band rule puts a meter obligation awaiting a reading with OVERDUE, and
+   * that is deliberate (D10): it cannot be placed on a calendar at all, and
+   * burying it further down would hide the one row that needs the owner to go
+   * and read a number. The tab renders whichever band the shared rule assigned.
+   */
+  it("keeps a meter obligation with no reading at the top, in words", () => {
     renderTab([
       obligation({
+        band: "overdue",
         state: "unknown",
         stateLabel: "Reading needed",
         stateText: "Current meter reading needed",
@@ -152,8 +217,8 @@ describe("grouping and state", () => {
     const headings = screen
       .getAllByRole("heading", { level: 3 })
       .map((h) => h.textContent);
-    expect(headings.some((h) => h?.includes("Overdue"))).toBe(false);
-    expect(headings[0]).toContain("Due soon");
+    expect(headings[0]).toContain("Overdue");
+    expect(screen.getByText("Reading needed")).toBeInTheDocument();
   });
 });
 
@@ -217,7 +282,7 @@ describe("actions", () => {
   it("posts Hold to the canonical endpoint and revalidates on success", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ kind: "ok", ok: true }),
+      json: async () => ({ ok: true }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -227,11 +292,14 @@ describe("actions", () => {
     );
 
     await waitFor(() => expect(handlers.onChanged).toHaveBeenCalled());
+    /*
+     * The obligation's OWN endpoint, not the Asset's history route. That is the
+     * convergence: this tab and Life Admin hold an obligation through one door.
+     */
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe(`/asset/${ASSET_ID}/history`);
+    expect(url).toBe("/obligations/o-1/mutate");
     const body = init.body as FormData;
-    expect(body.get("intent")).toBe("hold-obligation");
-    expect(body.get("obligationId")).toBe("o-1");
+    expect(body.get("intent")).toBe("hold");
   });
 
   it("recovers from a server refusal without losing the list", async () => {
@@ -240,7 +308,6 @@ describe("actions", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          kind: "ok",
           ok: false,
           formError: "That couldn’t be saved.",
         }),
@@ -260,7 +327,7 @@ describe("actions", () => {
     expect(handlers.onChanged).not.toHaveBeenCalled();
     // The row survived the failure — an error never empties the list. Scoped to
     // the obligations list, since the feedback toast is a list of its own.
-    const list = screen.getByRole("list", { name: "Due soon obligations" });
+    const list = screen.getByRole("list", { name: "This week obligations" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
     expect(list).toHaveTextContent("Renew registration");
   });
@@ -337,7 +404,7 @@ describe("read-only (archived asset)", () => {
   it("still shows the obligations, but offers no way to change them", () => {
     renderTab([obligation()], { readOnly: true });
     expect(screen.getByText("Renew registration")).toBeInTheDocument();
-    const list = screen.getByRole("list", { name: "Due soon obligations" });
+    const list = screen.getByRole("list", { name: "This week obligations" });
     expect(
       within(list).queryByRole("button", { name: /Complete/ }),
     ).not.toBeInTheDocument();

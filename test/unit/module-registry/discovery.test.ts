@@ -104,6 +104,7 @@ describe("module discovery", () => {
         "help",
         "meetings",
         "notes",
+        "obligations",
         "people",
         "plan",
         "projects",
@@ -135,6 +136,7 @@ describe("module discovery", () => {
         "meetings",
         "people",
         "assets",
+        "obligations",
         "analytics",
         "reviews",
         "ai",
@@ -602,6 +604,45 @@ describe("module discovery", () => {
           moduleId: "assets",
           file: "routes/history.tsx",
         },
+        // V2.10 LIFE-02 adds Life Admin: the `obligation` entity type, its
+        // collection, its record, the create page and its separate create
+        // ENDPOINT, the candidate-subject search, the mutation endpoint and the
+        // record's Activity page.
+        {
+          id: "obligations.index",
+          moduleId: "obligations",
+          file: "routes/index.tsx",
+        },
+        {
+          id: "obligations.new",
+          moduleId: "obligations",
+          file: "routes/new.tsx",
+        },
+        {
+          id: "obligations.create",
+          moduleId: "obligations",
+          file: "routes/create.tsx",
+        },
+        {
+          id: "obligations.subjects",
+          moduleId: "obligations",
+          file: "routes/subjects.tsx",
+        },
+        {
+          id: "obligations.detail",
+          moduleId: "obligations",
+          file: "routes/detail.tsx",
+        },
+        {
+          id: "obligations.mutate",
+          moduleId: "obligations",
+          file: "routes/mutate.tsx",
+        },
+        {
+          id: "obligations.activity",
+          moduleId: "obligations",
+          file: "routes/activity.tsx",
+        },
         // UIX-05 adds Analytics: no entity type and no writes. V2.9 INS-04 adds
         // the second route — the workspace-wide "What changed" feed endpoint,
         // moved here from Today (no nav entry).
@@ -795,6 +836,11 @@ describe("module discovery", () => {
         "assets.expiring",
         "assets.service_due",
         "assets.archived",
+        // V2.10 LIFE-02 — Life Admin's two: open the surface, and start one.
+        // Neither pre-selects a subject; an obligation about nothing is the
+        // ordinary case.
+        "obligations.open",
+        "obligations.new",
         // UIX-05 — Analytics: navigation only, one per range.
         "analytics.open",
         // V2.9 INS-03 — one command per Insight window, derived from
@@ -833,6 +879,9 @@ describe("module discovery", () => {
         "meetings.search",
         "people.search",
         "assets.search",
+        // V2.10 LIFE-02 — obligations by title, category label and subject
+        // title. Never by an amount (D11).
+        "obligations.search",
         "reviews.search",
       ]);
       expect(

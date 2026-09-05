@@ -171,6 +171,10 @@
 @import "./styles/references.css";
 @import "./styles/meetings.css";
 @import "./styles/assets.css";
+/* V2.10 LIFE-02 — Life Admin. Directly after assets.css because the obligation
+   row it defines replaces the one that lived there, and the Asset record's
+   Obligations tab now draws it. */
+@import "./styles/obligations.css";
 @import "./styles/reviews.css";
 /* REVIEW-02/REVIEW-04 — the guided weekly Review and its phone stepper. After
  * reviews.css because it is the newer, narrower Review surface. */

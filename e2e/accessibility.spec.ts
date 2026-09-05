@@ -99,6 +99,13 @@ const PRODUCT_ROUTES = [
   "/assets/service-due",
   "/assets/archived",
   "/new/asset",
+  // V2.10 LIFE-02 — Life Admin: the banded collection, an obligation record
+  // (including the completion form open, which is the one thing an owner comes
+  // to the record to do) and the creation form.
+  "/obligations",
+  "/obligations/ob-rc-tax",
+  "/obligations/ob-rc-tax?complete=1",
+  "/obligations/new",
   // HABITS-01 — the Habits collection, its Archived view and the creation form
   // (whose weekday toggle group is a new shared control, so it earns its own
   // place in the sweep rather than only in the module's own axe pass).

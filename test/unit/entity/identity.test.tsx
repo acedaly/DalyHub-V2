@@ -34,6 +34,7 @@ describe("PX-02 entity identity map", () => {
       "meeting",
       "person",
       "asset",
+      "obligation",
       "diary",
       "review",
     ]);

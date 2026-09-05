@@ -195,6 +195,7 @@ export {
   MAX_OBLIGATIONS_PAGE_SIZE,
   DEFAULT_ATTENTION_HORIZON_DAYS,
   MAX_ATTENTION_ITEMS,
+  OBLIGATION_STATE_LABELS,
   obligationCategoryLabel,
   isObligationCategory,
   isObligationStatus,
@@ -265,7 +266,6 @@ export {
 } from "./asset-history-cursor";
 
 export {
-  OBLIGATION_STATE_LABELS,
   TODAY_ASSET_ROWS,
   dedupeAttention,
   type SerializedAttentionItem,

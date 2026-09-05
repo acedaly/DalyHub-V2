@@ -13,10 +13,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AssetOverview } from "~/modules/assets/AssetOverview";
 import type { AssetOverviewData } from "~/modules/assets/AssetOverview";
-import type {
-  SerializedAssetEvent,
-  SerializedAssetObligation,
-} from "~/modules/assets/asset-history-view";
+import type { SerializedAssetEvent } from "~/modules/assets/asset-history-view";
+import type { SerializedObligation } from "~/shared/obligations";
 import type { SerializedAsset } from "~/modules/assets/asset-view";
 
 const TODAY = "2026-07-01";
@@ -73,11 +71,17 @@ function asset(overrides: Partial<SerializedAsset> = {}): SerializedAsset {
 }
 
 function obligation(
-  overrides: Partial<SerializedAssetObligation> = {},
-): SerializedAssetObligation {
+  overrides: Partial<SerializedObligation> = {},
+): SerializedObligation {
   return {
     id: "o-1",
-    assetId: "asset-1",
+    subject: {
+      id: "asset-1",
+      type: "asset",
+      subtype: "vehicle",
+      title: "Ute",
+      href: "/asset/asset-1",
+    },
     category: "registration",
     categoryLabel: "Registration renewal",
     title: "Renew registration",
@@ -97,13 +101,20 @@ function obligation(
     stateLabel: "Due soon",
     stateText: "Due in 9 days",
     needsAttention: true,
+    band: "this_week",
     taskId: null,
     taskTitle: null,
     taskOpen: false,
+    expectedAmountDisplay: null,
+    completedAmountDisplay: null,
+    currencyCode: null,
+    expectedAmountInput: "",
     completedEventId: null,
     completedDate: null,
+    completedDateLabel: null,
     seriesId: "s-1",
     sequence: 0,
+    href: "/obligations/o-1",
     ...overrides,
   };
 }

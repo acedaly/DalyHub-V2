@@ -67,6 +67,11 @@ const CANONICAL_ROUTE: Partial<Record<string, (id: string) => string>> = {
   // was invisible until something consulted THIS map for a Habit and got
   // `null`. Search's recency list was that something.
   habit: (id) => `/habits/${encodeURIComponent(id)}`,
+  // V2.10 LIFE-02 — added in the SAME change as the identity entry, which is
+  // the whole lesson of the `habit` note above: a record page with no entry
+  // here is a record the recency list, Linked Items and every search result
+  // silently refuse to open.
+  obligation: (id) => `/obligations/${encodeURIComponent(id)}`,
 };
 
 /**

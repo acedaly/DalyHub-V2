@@ -63,6 +63,18 @@ export const OBLIGATION_ACTIVITY_TYPES: readonly string[] = [
  * writer is exactly how two representations of one relationship come to
  * disagree.
  */
+/**
+ * The obligation ↔ Task relationship, as the kernel's own link primitive.
+ *
+ * The AUTHORITY for "which Task carries this obligation" is
+ * `obligation_details.task_id` — a pointer, never ownership. This link exists
+ * so the Task's own Linked items show the relationship the way every other
+ * module's does (ADR-002); it is written beside the pointer and is convenience,
+ * not truth. It is NOT `obligation.subject`: a Task an obligation is tracked by
+ * is not the thing the obligation is about.
+ */
+export const OBLIGATION_LINKED_TASK = "obligation.linked_task";
+
 export const OBLIGATION_SUBJECT_LINK = "obligation.subject";
 
 /**

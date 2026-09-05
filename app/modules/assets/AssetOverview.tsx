@@ -24,15 +24,17 @@ import {
   InlineTextField,
   type InlineSaveOutcome,
 } from "~/shared/inline-edit";
+import {
+  obligationStateTone,
+  type SerializedObligation,
+} from "~/shared/obligations";
 import { TagChipList } from "~/shared/ui";
 
 import { AssetDatesTab } from "./AssetDatesTab";
 import { AssetValueHistory } from "./AssetValueHistory";
 import { nextMeaningfulDate } from "./asset-dates";
 import {
-  obligationStateTone,
   type SerializedAssetEvent,
-  type SerializedAssetObligation,
   type SerializedCostSummary,
   type SerializedValueHistory,
 } from "./asset-history-view";
@@ -47,7 +49,7 @@ export interface AssetSummaryContext {
 
 /** Everything the overview renders, all derived server-side. */
 export interface AssetOverviewData {
-  readonly obligations: readonly SerializedAssetObligation[];
+  readonly obligations: readonly SerializedObligation[];
   readonly recentEvents: readonly SerializedAssetEvent[];
   readonly costs: SerializedCostSummary;
   readonly values: SerializedValueHistory;
@@ -253,7 +255,7 @@ export function AssetOverview({
             className={`dh-asset-next__line dh-asset-next__line--${next.state}`}
           >
             <span
-              className={`dh-asset-badge dh-asset-badge--${obligationStateTone(next.state)}`}
+              className={`dh-obligation-badge dh-obligation-badge--${obligationStateTone(next.state)}`}
             >
               {next.stateLabel}
             </span>{" "}

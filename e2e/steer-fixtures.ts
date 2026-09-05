@@ -117,6 +117,23 @@ export function steerFixture(): SteerFixture {
 
 export function seedSteerFixture(fixture: SteerFixture): void {
   const stamp = "2026-07-19T02:00:00.000Z";
+  /*
+   * The fixture's PROJECTS are stamped as recently updated, not as seven weeks
+   * old like everything else it writes.
+   *
+   * Today's "Continue working" does not rank every project: it reads the twelve
+   * most recently UPDATED active ones (`PROJECTS_LIMIT`) and re-ranks that page
+   * by real activity. A fixture that seeds recent Activity but leaves
+   * `updated_at` in July never enters the page, so it can never be ranked — and
+   * whether it makes the twelve becomes a property of how many active projects
+   * the partition's OTHER specs happen to have touched first. That is DEBT-173's
+   * shape exactly, and it is how this journey came to pass in one partition and
+   * fail in another with no product change between them.
+   *
+   * The relative ORDER is still the Activity offsets below; this only buys the
+   * fixture's projects a place in the page those offsets are applied to.
+   */
+  const recentStamp = new Date(Date.now() - 60_000).toISOString();
   const sql: string[] = [];
 
   const entity = (id: string, type: string, title: string, created = stamp) => {
@@ -271,9 +288,14 @@ export function seedSteerFixture(fixture: SteerFixture): void {
     link(id, goalId, "project.advances_goal");
     sql.push(
       `INSERT OR IGNORE INTO project_details (workspace_id, entity_id, entity_type, status, updated_at)
-       VALUES (${sqlLiteral(WORKSPACE)}, ${sqlLiteral(id)}, 'project', ${sqlLiteral(status)}, ${sqlLiteral(stamp)});`,
-      `UPDATE project_details SET status = ${sqlLiteral(status)}, archived_at = NULL
+       VALUES (${sqlLiteral(WORKSPACE)}, ${sqlLiteral(id)}, 'project', ${sqlLiteral(status)}, ${sqlLiteral(recentStamp)});`,
+      `UPDATE project_details SET status = ${sqlLiteral(status)}, archived_at = NULL,
+          updated_at = ${sqlLiteral(recentStamp)}
         WHERE workspace_id = ${sqlLiteral(WORKSPACE)} AND entity_id = ${sqlLiteral(id)};`,
+      // The read orders by the LATER of the two stamps, so the entity's own
+      // must move with the detail row's.
+      `UPDATE entities SET updated_at = ${sqlLiteral(recentStamp)}
+        WHERE workspace_id = ${sqlLiteral(WORKSPACE)} AND id = ${sqlLiteral(id)};`,
     );
   };
 
@@ -309,12 +331,22 @@ export function seedSteerFixture(fixture: SteerFixture): void {
    * That list is capped at three and ranked by the REAL last activity
    * (`ProjectHealthSummary.lastActivityIso`), not by `updated_at` — so a fixture
    * with no Activity at all sorts LAST and never reaches the surface the journey
-   * is about. The offsets below are minutes apart, which makes the top three
-   * deterministic: the Project whose only open Task is WAITING is deliberately
-   * among them, so the "names nothing" branch is exercised rather than assumed.
+   * is about.
+   *
+   * The offsets are SECONDS, not minutes, and that is the point: the workspace
+   * this runs against also holds seeded projects and whatever the partition's
+   * other specs have just worked on, several of which carry Activity from the
+   * last few minutes. Minute-apart offsets made the fixture's own order
+   * internally deterministic and its place in the top three a property of the
+   * neighbours — the same partition-order dependence DEBT-173 records. Seconds
+   * put all four of the fixture's projects ahead of anything that happened
+   * before the seed, so the top three are the three this journey names: the
+   * Project holding the Goal's next step, the Project holding the lower-ranked
+   * candidate, and the Project whose only open Task is WAITING, which exercises
+   * the "names nothing" branch rather than assuming it.
    */
-  const activity = (id: string, subjectId: string, minutesAgo: number) => {
-    const occurredAt = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+  const activity = (id: string, subjectId: string, secondsAgo: number) => {
+    const occurredAt = new Date(Date.now() - secondsAgo * 1_000).toISOString();
     sql.push(
       `INSERT OR IGNORE INTO activities (id, workspace_id, type, actor_type, actor_id, occurred_at, payload_json)
        VALUES (${sqlLiteral(id)}, ${sqlLiteral(WORKSPACE)}, 'entity.created', 'user', 'owner-subject', ${sqlLiteral(occurredAt)}, '{}');`,

@@ -35,7 +35,7 @@ Every control accepts the same anatomy + binding props, so it is usable standalo
 
 `Field` builds the accessible layout: a visible label, an explicit required/optional cue (words, not colour), optional help, the current validation message, and correct `aria-describedby`/`aria-invalid`/`aria-errormessage`. Disabled and read-only are distinct. Input is never trimmed/mutated unless the field contract asks for it.
 
-**Controls:** `TextField` (single/multi-line, length, autocomplete), `DateField` (`kind="date" | "datetime"`), `SelectField` (single or `multiple`, `onSearch`/`loading` for async), `TagsField` (constraints; a `Picker` adapter over the workspace tag vocabulary since V2.6 FIND-02), `BooleanField` (`variant="checkbox" | "switch"`), `EntityLinkPicker`. **Long-form Markdown is not here** — see below.
+**Controls:** `TextField` (single/multi-line, length, autocomplete), `DateField` (`kind="date" | "datetime"`), `SelectField` (single or `multiple`, `onSearch`/`loading` for async), `MoneyField` (an amount and the currency it is in, as ONE field — V2.10 LIFE-02), `TagsField` (constraints; a `Picker` adapter over the workspace tag vocabulary since V2.6 FIND-02), `BooleanField` (`variant="checkbox" | "switch"`), `EntityLinkPicker`. **Long-form Markdown is not here** — see below.
 
 ## Explicit-save forms
 

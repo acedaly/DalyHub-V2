@@ -527,28 +527,33 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
    * before the migration still carries the old type string and still has to
    * render. Renaming them in place would have been a rewrite of history.
    *
-   * No `entityType` here on purpose: the identity glyph and accent for an
-   * obligation arrive with the Life Admin surface in LIFE-02, and until they
-   * do, an event inherits the glyph of the record it names — which for the
-   * obligations an owner has today is the Asset. A wrong glyph asserted here
-   * would be harder to see and harder to remove than none.
+   * The glyph is the obligation's own, which arrived with the Life Admin
+   * surface (LIFE-02). Before it existed these lines carried no `entityType`
+   * and inherited the glyph of whatever record they named — the Asset, for the
+   * obligations an owner had then — which was the honest placeholder and is no
+   * longer needed.
    */
-  [OBLIGATION_CREATED]: {
-    label: "Added obligation",
-    tone: "success",
-  },
-  [OBLIGATION_RESCHEDULED]: { label: "Rescheduled obligation" },
-  [OBLIGATION_COMPLETED]: { label: "Completed obligation", tone: "success" },
-  [OBLIGATION_DISMISSED]: { label: "Dismissed obligation", tone: "warning" },
-  [OBLIGATION_REOPENED]: { label: "Reopened obligation" },
-  [OBLIGATION_DELETED]: { label: "Deleted obligation", tone: "danger" },
+  [OBLIGATION_CREATED]: event("Added obligation", "obligation", "success"),
+  [OBLIGATION_RESCHEDULED]: event("Rescheduled obligation", "obligation"),
+  [OBLIGATION_COMPLETED]: event(
+    "Completed obligation",
+    "obligation",
+    "success",
+  ),
+  [OBLIGATION_DISMISSED]: event(
+    "Dismissed obligation",
+    "obligation",
+    "warning",
+  ),
+  [OBLIGATION_REOPENED]: event("Reopened obligation", "obligation"),
+  [OBLIGATION_DELETED]: event("Deleted obligation", "obligation", "danger"),
   [OBLIGATION_TASK_LINKED]: joins(
     "Linked obligation to task",
     "linked",
     "to",
     "subject",
     "target",
-    "task",
+    "obligation",
   ),
 
   /* Reviews ---------------------------------------------------------------- */

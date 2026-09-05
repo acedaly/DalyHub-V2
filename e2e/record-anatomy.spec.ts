@@ -49,6 +49,11 @@ const FOLD_RECORDS = [
   { name: "Person", path: "/person/p-rc-dan" },
   { name: "Asset", path: "/asset/as-rc-ute" },
   { name: "Review", path: "/reviews/rv-rc-week" },
+  // V2.10 LIFE-02 — an obligation about an Asset, and one about NOTHING. The
+  // second is the case the whole programme exists for, and its record must hold
+  // the same fold and the same contained surfaces as every other.
+  { name: "Obligation", path: "/obligations/ob-rc-rego" },
+  { name: "Obligation (no subject)", path: "/obligations/ob-rc-tax" },
 ] as const;
 
 /**

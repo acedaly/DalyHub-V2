@@ -43,12 +43,12 @@ import {
   type AssetOverviewData,
   type AssetSummaryContext,
 } from "./AssetOverview";
+import type { ObligationBandCounts } from "~/kernel/obligations";
+import type { SerializedObligation } from "~/shared/obligations";
+
 import { AssetSettingsTab } from "./AssetSettingsTab";
 import { AssetTimelineTab } from "./AssetTimelineTab";
-import type {
-  SerializedAssetEvent,
-  SerializedAssetObligation,
-} from "./asset-history-view";
+import type { SerializedAssetEvent } from "./asset-history-view";
 import { assetStatusTone, type SerializedAsset } from "./asset-view";
 import type { AssetMutationResult } from "./routes/mutate";
 
@@ -61,7 +61,9 @@ interface AssetRecordProps {
   readonly activeTabId: string;
   /** ASSET-02 — the history + obligations payload the loader derived. */
   readonly overview: AssetOverviewData;
-  readonly obligations: readonly SerializedAssetObligation[];
+  readonly obligations: readonly SerializedObligation[];
+  /** The band counts for this Asset's obligations across the whole set (D10). */
+  readonly obligationCounts: ObligationBandCounts;
   readonly events: readonly SerializedAssetEvent[];
   readonly eventsCursor: string | null;
   readonly eventsHasMore: boolean;
@@ -83,10 +85,8 @@ interface AssetRecordProps {
   readonly onQuickEvent: (action: QuickEventAction) => void;
   readonly onEditEvent: (event: SerializedAssetEvent) => void;
   readonly onAddObligation: () => void;
-  readonly onEditObligation: (obligation: SerializedAssetObligation) => void;
-  readonly onCompleteObligation: (
-    obligation: SerializedAssetObligation,
-  ) => void;
+  readonly onEditObligation: (obligation: SerializedObligation) => void;
+  readonly onCompleteObligation: (obligation: SerializedObligation) => void;
 }
 
 /**
@@ -122,6 +122,7 @@ export function AssetRecord({
   activeTabId,
   overview,
   obligations,
+  obligationCounts,
   events,
   eventsCursor,
   eventsHasMore,
@@ -343,8 +344,8 @@ export function AssetRecord({
             label: obligationTabLabel(obligations),
             content: (
               <AssetObligationsTab
-                assetId={asset.id}
                 obligations={obligations}
+                counts={obligationCounts}
                 readOnly={asset.archived}
                 onAdd={onAddObligation}
                 onEdit={onEditObligation}
@@ -434,7 +435,7 @@ export function AssetRecord({
  * in text, never a coloured dot (§24).
  */
 function obligationTabLabel(
-  obligations: readonly SerializedAssetObligation[],
+  obligations: readonly SerializedObligation[],
 ): string {
   const overdue = obligations.filter(
     (o) => o.status === "open" && o.state === "overdue",

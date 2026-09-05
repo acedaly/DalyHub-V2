@@ -21,6 +21,7 @@ import {
   FormButton,
   FormErrorSummary,
   FormSection,
+  MoneyField,
   SelectField,
   TagsField,
   TextField,
@@ -306,28 +307,33 @@ export function AssetDetailsForm({
           label="Acquisition date"
           {...form.field("acquisitionDate")}
         />
-        <TextField
+        {/*
+          V2.10 LIFE-02 — the shared money control. These were two amount fields
+          with ONE currency field between them, one of them separated from its
+          code by an unrelated Supplier input, and both typed `inputMode="text"`
+          — the alphabetic keyboard for a number. Each amount now carries the
+          code it is in, because ADR-049 stores them together and converts
+          nothing: an amount without its code is not a smaller fact, it is a
+          wrong one.
+        */}
+        <MoneyField
           label="Purchase price"
-          inputMode="text"
-          maxLength={24}
-          {...form.field("purchasePrice")}
           help="Kept private — never shown on cards. Amounts only, no symbol."
-        />
-        <TextField
-          label="Currency"
-          maxLength={3}
-          {...form.field("currencyCode")}
-          help="A 3-letter code, e.g. AUD."
+          currencyCode={form.values.currencyCode}
+          onCurrencyChange={(next) => form.setValue("currencyCode", next)}
+          currencyError={form.fieldErrors.currencyCode ?? null}
+          {...form.field("purchasePrice")}
         />
         <TextField
           label="Supplier"
           maxLength={200}
           {...form.field("supplier")}
         />
-        <TextField
+        <MoneyField
           label="Replacement value"
-          inputMode="text"
-          maxLength={24}
+          currencyCode={form.values.currencyCode}
+          onCurrencyChange={(next) => form.setValue("currencyCode", next)}
+          currencyError={form.fieldErrors.currencyCode ?? null}
           {...form.field("replacementValue")}
         />
         <DateField label="Disposal date" {...form.field("disposalDate")} />

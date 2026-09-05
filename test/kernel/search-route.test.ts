@@ -192,6 +192,7 @@ describe("GET /search route loader", () => {
       "meetings.search",
       "people.search",
       "assets.search",
+      "obligations.search",
       "reviews.search",
     ]);
 
