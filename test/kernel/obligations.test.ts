@@ -23,6 +23,7 @@ import {
   OBLIGATION_CREATED,
   ObligationValidationError,
 } from "~/kernel/obligations";
+import { ReservedEntityTypeError } from "~/kernel/entities";
 import { ObligationNotFoundError } from "~/platform/storage/d1";
 
 import {
@@ -34,6 +35,7 @@ import {
   makeAssetRepository,
   makeContext,
   makeObligationRepository,
+  makeRepository,
   makeSpineRepository,
   makeTaskRepository,
   resetTables,
@@ -113,6 +115,24 @@ beforeEach(async () => {
 });
 
 describe("createObligation", () => {
+  /*
+   * The reservation, which is not a formality: every obligation read joins
+   * `obligation_details`, so a bare `entities` row of type `obligation` would
+   * be a commitment to nothing — invisible to Life Admin, invisible to Today,
+   * invisible to the Asset it claimed to be about, and still occupying an id.
+   * The ObligationRepository writes both rows in one batch; nothing else may
+   * write either.
+   */
+  it("the generic entity repository refuses to create an obligation", async () => {
+    await expect(
+      makeRepository(makeContext(WS)).create({
+        type: "obligation",
+        title: "Sneaked in",
+      }),
+    ).rejects.toBeInstanceOf(ReservedEntityTypeError);
+    expect(await countObligationRows()).toBe(0);
+  });
+
   it("creates a date obligation with one asset.obligation_created", async () => {
     const asset = await ute();
     const obligation = await obligations().create({

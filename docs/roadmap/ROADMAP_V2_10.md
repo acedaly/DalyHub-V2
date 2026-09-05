@@ -691,7 +691,7 @@ implements it; the Assets module reads it as a lens.
   foreign key still resolve, and runs `PRAGMA foreign_key_check` clean. A test
   that seeded the new shape would pass with the whole data-carrying half
   deleted, which is the failure V2.6 FIND-02 recorded.
-- **Seven corrections the definition did not anticipate**, each recorded here
+- **Eight corrections the definition did not anticipate**, each recorded here
   because each is a decision:
   - **The Activity vocabulary had to generalise HERE, not in LIFE-03.** The
     repository that writes the events is this item's, and `asset.obligation_*`
@@ -736,6 +736,13 @@ implements it; the Assets module reads it as a lens.
     ([`legacy-obligations.ts`](../../app/kernel/restore/legacy-obligations.ts)).
     A change of store that invalidated the backups taken before it would make
     "export always possible" a promise with an expiry date.
+  - **The `obligation` entity type is RESERVED, and the guard is wired, not
+    only declared.** Every obligation read joins `obligation_details`, so a
+    bare `entities` row of that type is a commitment to nothing: invisible to
+    Life Admin, to Today and to the Asset it claimed to be about, while still
+    holding an id. The predicate existed and the generic entity repository's
+    reservation chain did not name it — a declaration nobody checked. It is
+    checked now, and asserted.
   - **Purging an Asset takes its obligations with it, and its own link never
     blocks that.** An obligation whose subject was purged is a commitment about
     nothing, and leaving it would move it silently to Life Admin's "no subject"

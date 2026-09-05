@@ -27,9 +27,14 @@ export const OBLIGATION_ENTITY_TYPE = "obligation";
  * as `asset` is: an obligation can never exist without its detail row, so only
  * the authoritative repository may create one.
  */
-export const RESERVED_OBLIGATION_ENTITY_TYPES: readonly string[] = [
+export const RESERVED_OBLIGATION_ENTITY_TYPES: ReadonlySet<string> = new Set([
   OBLIGATION_ENTITY_TYPE,
-];
+]);
+
+/** True when `type` is the reserved `obligation` entity type. */
+export function isReservedObligationEntityType(type: string): boolean {
+  return RESERVED_OBLIGATION_ENTITY_TYPES.has(type);
+}
 
 export const OBLIGATION_CREATED = "obligation.created";
 export const OBLIGATION_RESCHEDULED = "obligation.rescheduled";
