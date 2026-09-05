@@ -453,6 +453,7 @@ function TrendPanel({
 
   return (
     <DashboardCard
+      className="dh-analytics__trend"
       title="Completion trend"
       density="standard"
       headerAction={grainControl}

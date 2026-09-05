@@ -510,3 +510,19 @@
     grid-column: 1 / -1;
   }
 }
+
+/*
+ * V2.9 INS-03, narrow widths — the grain control sits beside the trend card's
+ * title, and at 320px the two could not share the line: the title broke one
+ * syllable per row ("Com / pleti / on / tren / d", found by the visual review).
+ * Below 30rem the header wraps and the control takes the row beneath the title.
+ */
+@media (max-width: 30rem) {
+  .dh-analytics__trend .dh-dcard__header {
+    flex-wrap: wrap;
+  }
+
+  .dh-analytics__trend .dh-dcard__header-action {
+    flex-basis: 100%;
+  }
+}
