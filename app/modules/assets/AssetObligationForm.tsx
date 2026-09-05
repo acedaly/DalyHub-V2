@@ -17,8 +17,8 @@
 
 import {
   ASSET_METER_UNIT_OPTIONS,
-  ASSET_OBLIGATION_CATEGORY_OPTIONS,
-  ASSET_RECURRENCE_OPTIONS,
+  OBLIGATION_CATEGORY_OPTIONS,
+  OBLIGATION_RECURRENCE_OPTIONS,
 } from "~/kernel/assets";
 import {
   DateField,
@@ -36,11 +36,11 @@ import {
 import type { SerializedAssetObligation } from "./asset-history-view";
 import type { AssetHistoryResult } from "./routes/history";
 
-const CATEGORY_OPTIONS = ASSET_OBLIGATION_CATEGORY_OPTIONS.map((c) => ({
+const CATEGORY_OPTIONS = OBLIGATION_CATEGORY_OPTIONS.map((c) => ({
   value: c.value,
   label: c.label,
 }));
-const RECURRENCE_OPTIONS = ASSET_RECURRENCE_OPTIONS.map((r) => ({
+const RECURRENCE_OPTIONS = OBLIGATION_RECURRENCE_OPTIONS.map((r) => ({
   value: r.value,
   label: r.label,
 }));
