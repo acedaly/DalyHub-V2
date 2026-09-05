@@ -202,10 +202,27 @@ stored:
 
 A stored "overdue" flag is wrong the moment the clock ticks past it, and keeping it
 true would need a background scheduler DalyHub deliberately does not have. One
-evaluator — `evaluateObligation` in `app/kernel/assets/asset-obligation.ts` —
-resolves the derived state from the due date, the lead time, the meter and the
-owner-calendar day. The record, the collection card and Today all call it, so they
-can never disagree.
+evaluator resolves the derived state from the due date, the lead time, the meter
+and the owner-calendar day. The record, the collection card and Today all call it,
+so they can never disagree.
+
+**Since V2.10 LIFE-00 that evaluator is not Assets'.** `evaluateObligation` lives
+in [`app/kernel/obligations`](../../app/kernel/obligations/index.ts) with the
+category vocabulary, the statuses, the recurrence kinds and the calendar
+arithmetic, because a tax return is due and recurs exactly as a registration
+renewal does ([ADR-116](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+decision 1). That domain imports nothing from Assets and knows nothing about
+meters.
+
+What stayed in [`asset-obligation.ts`](../../app/kernel/assets/asset-obligation.ts)
+is what genuinely is about an Asset: the **meter**, because an odometer is a
+property of a vehicle; the **canonical-fact bridge**
+(`canonicalFactForCategory`); the **proof-event bridge**
+(`completionEventCategory`); and the Asset-shaped extensions of the shared record
+and inputs. `evaluateAssetObligation` composes the two — it evaluates the meter
+side and hands it to the one shared evaluator. It is not a second evaluator, and
+[`test/unit/architecture/one-obligation-domain.test.ts`](../../test/unit/architecture/one-obligation-domain.test.ts)
+fails if it ever becomes one.
 
 **Task status values are not reused.** A Task is done or not; an obligation can be
 on hold, dismissed as no longer relevant, or waiting on a reading nobody has taken.

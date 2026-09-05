@@ -21,9 +21,9 @@ import {
   ASSET_COST_GROUP_LABELS,
   DEFAULT_CURRENCY,
   assetEventCategoryLabel,
-  assetObligationCategoryLabel,
-  describeRecurrence,
-  evaluateObligation,
+  obligationCategoryLabel,
+  describeAssetObligationRecurrence,
+  evaluateAssetObligation,
   formatMeterReading,
   type AssetCostGroup,
   type AssetCostSummary,
@@ -31,8 +31,8 @@ import {
   type AssetEventCategory,
   type AssetMeterUnit,
   type AssetObligation,
-  type AssetObligationCategory,
-  type AssetObligationState,
+  type ObligationCategory,
+  type ObligationState,
   type AssetValuationPoint,
   type MeterReading,
   OBLIGATION_STATE_LABELS,
@@ -73,7 +73,7 @@ export type SerializedAssetEvent = {
 export type SerializedAssetObligation = {
   readonly id: string;
   readonly assetId: string;
-  readonly category: AssetObligationCategory;
+  readonly category: ObligationCategory;
   readonly categoryLabel: string;
   readonly title: string;
   readonly description: string | null;
@@ -88,7 +88,7 @@ export type SerializedAssetObligation = {
   readonly meterUnit: AssetMeterUnit | null;
   readonly meterDisplay: string | null;
   readonly status: string;
-  readonly state: AssetObligationState;
+  readonly state: ObligationState;
   readonly stateLabel: string;
   /** The calm owner-facing sentence ("Registration expires in 14 days"). */
   readonly stateText: string;
@@ -111,7 +111,7 @@ export type SerializedAssetObligation = {
  * themes resolve them consistently; the label above always accompanies them.
  */
 export function obligationStateTone(
-  state: AssetObligationState,
+  state: ObligationState,
 ): "danger" | "warning" | "info" | "neutral" | "success" {
   switch (state) {
     case "overdue":
@@ -200,19 +200,18 @@ export function serializeAssetObligation(
     readonly taskOpen?: boolean;
   } = {},
 ): SerializedAssetObligation {
-  const evaluation = evaluateObligation(obligation, today, reading);
+  const evaluation = evaluateAssetObligation(obligation, today, reading);
   return {
     id: obligation.id,
     assetId: obligation.assetId,
     category: obligation.category,
-    categoryLabel:
-      assetObligationCategoryLabel(obligation.category) ?? "Reminder",
+    categoryLabel: obligationCategoryLabel(obligation.category) ?? "Reminder",
     title: obligation.title,
     description: obligation.description,
     dueDate: obligation.dueDate,
     dueDateLabel: formatHistoryDate(obligation.dueDate),
     leadDays: obligation.leadDays,
-    recurrenceLabel: describeRecurrence(
+    recurrenceLabel: describeAssetObligationRecurrence(
       obligation.recurrenceKind,
       obligation.recurrenceInterval,
       obligation.meterInterval,

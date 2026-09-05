@@ -1,33 +1,30 @@
 /**
- * ASSET-02 — the pure obligation, meter and recurrence domain rules.
+ * ASSET-02 — what is Asset-SPECIFIC about an obligation.
  *
- * These cover the decisions the whole feature rests on, in isolation from storage
- * and React: what "overdue" means, why a meter obligation with no reading is
- * never called overdue, that two units are never silently converted, how a
- * recurrence advances from the day the work was ACTUALLY done, and how a
- * date-and-meter obligation resolves "whichever comes first".
+ * V2.10 LIFE-00 moved the general domain to `~/kernel/obligations`, and its
+ * tests moved with it (`test/unit/obligations/obligation.test.ts`). What is
+ * proven here is the part that genuinely is about an Asset: the meter — why a
+ * meter obligation with no reading is never called overdue, and that two units
+ * are never silently converted — how the meter side and the date side resolve
+ * "whichever comes first" through the ONE shared evaluator, and the two bridges
+ * that map a category to the Asset fact it advances and the history entry it
+ * files under.
  */
 
 import { describe, expect, it } from "vitest";
 
 import {
-  addDays,
-  addMonths,
-  daysBetween,
-  describeRecurrence,
-  evaluateMeterThreshold,
-  evaluateObligation,
-  formatMeterReading,
-  isAssetMeterUnit,
-  isIsoDate,
-  nextMeterThreshold,
-  nextObligationDate,
-  validateMeterUnit,
-  validateMeterValue,
   AssetValidationError,
+  costGroupForCategory,
   canonicalFactForCategory,
   completionEventCategory,
-  costGroupForCategory,
+  evaluateAssetObligation as evaluateObligation,
+  evaluateMeterThreshold,
+  formatMeterReading,
+  isAssetMeterUnit,
+  nextMeterThreshold,
+  validateMeterUnit,
+  validateMeterValue,
   type AssetObligation,
 } from "~/kernel/assets";
 
@@ -54,82 +51,6 @@ function obligation(
 
 /* -------------------------------------------------------------------------- */
 /* Calendar arithmetic                                                        */
-/* -------------------------------------------------------------------------- */
-
-describe("calendar arithmetic", () => {
-  it("validates real calendar dates and rejects impossible ones", () => {
-    expect(isIsoDate("2026-02-28")).toBe(true);
-    expect(isIsoDate("2026-02-30")).toBe(false);
-    expect(isIsoDate("2024-02-29")).toBe(true);
-    expect(isIsoDate("2026-13-01")).toBe(false);
-    expect(isIsoDate("not-a-date")).toBe(false);
-  });
-
-  it("adds days and months, clamping into short months", () => {
-    expect(addDays("2026-07-01", 30)).toBe("2026-07-31");
-    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
-    // 31 January + 1 month is 28 February, not 3 March.
-    expect(addMonths("2026-01-31", 1)).toBe("2026-02-28");
-    expect(addMonths("2026-07-15", 6)).toBe("2027-01-15");
-    expect(addMonths("2026-07-15", 12)).toBe("2027-07-15");
-  });
-
-  it("counts whole days between calendar dates, signed", () => {
-    expect(daysBetween("2026-07-01", "2026-07-15")).toBe(14);
-    expect(daysBetween("2026-07-15", "2026-07-01")).toBe(-14);
-    expect(daysBetween("2026-07-01", "2026-07-01")).toBe(0);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Recurrence                                                                 */
-/* -------------------------------------------------------------------------- */
-
-describe("nextObligationDate", () => {
-  it("advances by days, weeks, months and years", () => {
-    expect(nextObligationDate("2026-07-01", "days", 10)).toBe("2026-07-11");
-    expect(nextObligationDate("2026-07-01", "weeks", 2)).toBe("2026-07-15");
-    expect(nextObligationDate("2026-07-01", "months", 6)).toBe("2027-01-01");
-    expect(nextObligationDate("2026-07-01", "years", 1)).toBe("2027-07-01");
-  });
-
-  it("returns null for a one-off or a meter-only rule", () => {
-    expect(nextObligationDate("2026-07-01", "none", null)).toBeNull();
-    expect(nextObligationDate("2026-07-01", "meter", null)).toBeNull();
-  });
-
-  it("rejects an interval that could never advance, or is absurd", () => {
-    expect(() => nextObligationDate("2026-07-01", "months", 0)).toThrow(
-      AssetValidationError,
-    );
-    expect(() => nextObligationDate("2026-07-01", "months", 1000)).toThrow(
-      AssetValidationError,
-    );
-    expect(() => nextObligationDate("2026-07-01", "days", -1)).toThrow(
-      AssetValidationError,
-    );
-  });
-
-  it("rejects an anchor that is not a real date", () => {
-    expect(() => nextObligationDate("2026-02-30", "months", 1)).toThrow(
-      AssetValidationError,
-    );
-  });
-
-  it("describes a rule in plain words", () => {
-    expect(describeRecurrence("none", null, null, null)).toBe(
-      "Does not repeat",
-    );
-    expect(describeRecurrence("months", 6, null, null)).toBe("Every 6 months");
-    expect(describeRecurrence("years", 1, null, null)).toBe("Every year");
-    expect(describeRecurrence("meter", null, 10_000, "km")).toBe(
-      "Every 10,000 km",
-    );
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Meters                                                                     */
 /* -------------------------------------------------------------------------- */
 
 describe("meter validation", () => {
@@ -230,72 +151,6 @@ describe("evaluateMeterThreshold", () => {
 /* Obligation state                                                           */
 /* -------------------------------------------------------------------------- */
 
-describe("evaluateObligation — date-based", () => {
-  it("is upcoming outside the lead window", () => {
-    const result = evaluateObligation(
-      obligation({ dueDate: "2026-09-30", leadDays: 14 }),
-      TODAY,
-      null,
-    );
-    expect(result.state).toBe("upcoming");
-    expect(result.needsAttention).toBe(false);
-    expect(result.text).toBe("Due 30 September");
-  });
-
-  it("becomes due inside the lead window", () => {
-    const result = evaluateObligation(
-      obligation({ dueDate: "2026-07-10", leadDays: 14 }),
-      TODAY,
-      null,
-    );
-    expect(result.state).toBe("due");
-    expect(result.needsAttention).toBe(true);
-    expect(result.text).toBe("Due in 9 days");
-  });
-
-  it("honours a custom lead time in both directions", () => {
-    const short = evaluateObligation(
-      obligation({ dueDate: "2026-07-20", leadDays: 3 }),
-      TODAY,
-      null,
-    );
-    expect(short.state).toBe("upcoming");
-    const long = evaluateObligation(
-      obligation({ dueDate: "2026-07-20", leadDays: 60 }),
-      TODAY,
-      null,
-    );
-    expect(long.state).toBe("due");
-  });
-
-  it("reads today and tomorrow in words, not as day counts", () => {
-    expect(
-      evaluateObligation(obligation({ dueDate: TODAY }), TODAY, null).text,
-    ).toBe("Due today");
-    expect(
-      evaluateObligation(obligation({ dueDate: "2026-07-02" }), TODAY, null)
-        .text,
-    ).toBe("Due tomorrow");
-  });
-
-  it("is overdue in the past, and says by how much", () => {
-    const oneDay = evaluateObligation(
-      obligation({ dueDate: "2026-06-30" }),
-      TODAY,
-      null,
-    );
-    expect(oneDay.state).toBe("overdue");
-    expect(oneDay.text).toBe("Overdue by 1 day");
-
-    const longer = evaluateObligation(
-      obligation({ dueDate: "2026-06-01" }),
-      TODAY,
-      null,
-    );
-    expect(longer.text).toBe("Overdue by 30 days");
-  });
-});
-
 describe("evaluateObligation — meter-based", () => {
   it("is unknown, and needs attention, with no reading", () => {
     const result = evaluateObligation(
@@ -364,37 +219,6 @@ describe("evaluateObligation — both date and meter ('whichever comes first')",
     expect(result.text).toContain("Current meter reading needed");
   });
 });
-
-describe("evaluateObligation — the stored lifecycle showing through", () => {
-  it("reports completed, dismissed and on hold, and never needs attention", () => {
-    for (const [status, label] of [
-      ["completed", "Completed"],
-      ["dismissed", "Dismissed"],
-      ["on_hold", "On hold"],
-    ] as const) {
-      const result = evaluateObligation(
-        obligation({ status, dueDate: "2026-01-01" }),
-        TODAY,
-        null,
-      );
-      expect(result.text).toBe(label);
-      expect(result.needsAttention).toBe(false);
-    }
-  });
-
-  it("never reports a completed obligation as overdue, however old", () => {
-    const result = evaluateObligation(
-      obligation({ status: "completed", dueDate: "2020-01-01" }),
-      TODAY,
-      null,
-    );
-    expect(result.state).toBe("completed");
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Category mappings                                                          */
-/* -------------------------------------------------------------------------- */
 
 describe("category mappings", () => {
   it("maps each obligation category to the canonical fact it advances", () => {
