@@ -47,7 +47,9 @@ degraded Analytics page's own model) and two E2E journeys that were also red
 on `main` before any V2.9 code existed (a search race and a strict-mode
 locator). A whole-programme review then found twenty real defects behind the
 green tests, each fixed with the test that would have caught it and recorded
-under its item below: month buckets that were calendar months only when the
+under its item below. The first commit (the gate repair) merged as PR #255,
+and `main`'s run on it, #848, is fully green — the trunk's first green run
+since the programme was defined. The findings follow in their own PR: month buckets that were calendar months only when the
 window ended on a 31st; two D1 reads that sliced past their bound and a series
 read clamped at eight while the kernel said twelve; three surfaces reading
 three different across-Reviews series for one Goal; a sentence that called
