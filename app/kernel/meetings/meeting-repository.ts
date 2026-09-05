@@ -204,7 +204,24 @@ export interface MeetingRepository {
   update(
     id: string,
     input: UpdateMeetingInput,
-  ): Promise<{ meeting: Meeting; changed: boolean }>;
+  ): Promise<{
+    meeting: Meeting;
+    changed: boolean;
+    /**
+     * HARDEN-06B (F-01) — the version THIS CALL wrote, captured from the write
+     * itself, or `null` when this call wrote nothing.
+     *
+     * Deliberately not read from `meeting`. `meeting` is a read-back, and a
+     * read-back can return a LATER writer's record: handing that version to an
+     * editor would let it quote a version it never produced, and a local edit
+     * coalesced behind the in-flight save would then overwrite that writer's
+     * document silently instead of being refused. `null` on every path that
+     * did not write is the same statement — there is no version to hand out,
+     * so the caller keeps the base it has and learns the truth the ordinary
+     * way, through a revalidation or a refusal.
+     */
+    writtenVersion: string | null;
+  }>;
   /**
    * Append one structured item of `kind` to this meeting, and its `meeting.updated`
    * Activity, in ONE atomic batch.

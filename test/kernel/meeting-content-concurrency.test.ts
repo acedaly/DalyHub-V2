@@ -297,6 +297,34 @@ describe("POST /meeting/:meetingId/mutate — the accepted save's version", () =
     });
     expect(refused.status).toBe(409);
   });
+
+  it("hands out NO version when the submission wrote nothing", async () => {
+    /*
+     * The version is the one this request STORED, never the one on a record
+     * read back afterwards — a read-back can return a later writer's row, and
+     * an editor that adopted that token could quote a version it never
+     * produced, overwriting that writer's document instead of being refused.
+     *
+     * A save that asks for exactly the stored state writes nothing, so there is
+     * no version it produced, so it offers none. The editor keeps the base it
+     * has and learns the truth the ordinary way.
+     */
+    const meeting = await newMeeting();
+    const first = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved.",
+      expectedUpdatedAt: meeting.version,
+    });
+    expect(first.status).toBe(200);
+
+    const agreeing = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved.",
+      expectedUpdatedAt: first.body.detailsUpdatedAt as string,
+    });
+    expect(agreeing.status).toBe(200);
+    expect(agreeing.body).toEqual({ ok: true });
+  });
 });
 
 describe("POST /meeting/:meetingId/mutate — the refused save's 409", () => {
