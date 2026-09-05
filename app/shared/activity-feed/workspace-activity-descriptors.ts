@@ -75,6 +75,15 @@ import {
   ASSET_UPDATED,
 } from "~/kernel/assets";
 import {
+  OBLIGATION_COMPLETED,
+  OBLIGATION_CREATED,
+  OBLIGATION_DELETED,
+  OBLIGATION_DISMISSED,
+  OBLIGATION_REOPENED,
+  OBLIGATION_RESCHEDULED,
+  OBLIGATION_TASK_LINKED,
+} from "~/kernel/obligations";
+import {
   SECURITY_LOCAL_DATA_CLEARED,
   SECURITY_SIGNED_OUT,
 } from "~/kernel/account-security";
@@ -508,6 +517,39 @@ export const WORKSPACE_ACTIVITY_DESCRIPTORS: Record<
     "asset",
   ),
   [ASSET_METER_UPDATED]: event("Updated asset meter reading", "asset"),
+
+  /* Life Admin — obligations (V2.10 LIFE-01) --------------------------------- */
+  /*
+   * An obligation is its own record now, whatever it is about, so its events
+   * are named for the commitment rather than for the Asset that happens to be
+   * its subject. The `asset.obligation_*` entries above are KEPT and not
+   * re-pointed: `activities` is append-only (ADR-012), so every event written
+   * before the migration still carries the old type string and still has to
+   * render. Renaming them in place would have been a rewrite of history.
+   *
+   * No `entityType` here on purpose: the identity glyph and accent for an
+   * obligation arrive with the Life Admin surface in LIFE-02, and until they
+   * do, an event inherits the glyph of the record it names — which for the
+   * obligations an owner has today is the Asset. A wrong glyph asserted here
+   * would be harder to see and harder to remove than none.
+   */
+  [OBLIGATION_CREATED]: {
+    label: "Added obligation",
+    tone: "success",
+  },
+  [OBLIGATION_RESCHEDULED]: { label: "Rescheduled obligation" },
+  [OBLIGATION_COMPLETED]: { label: "Completed obligation", tone: "success" },
+  [OBLIGATION_DISMISSED]: { label: "Dismissed obligation", tone: "warning" },
+  [OBLIGATION_REOPENED]: { label: "Reopened obligation" },
+  [OBLIGATION_DELETED]: { label: "Deleted obligation", tone: "danger" },
+  [OBLIGATION_TASK_LINKED]: joins(
+    "Linked obligation to task",
+    "linked",
+    "to",
+    "subject",
+    "target",
+    "task",
+  ),
 
   /* Reviews ---------------------------------------------------------------- */
   [REVIEW_CREATED]: event("Started review", "review", "success"),

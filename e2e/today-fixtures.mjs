@@ -136,7 +136,9 @@ function clearFixtures() {
   // owning record rather than by `entity_id`, so neither is caught by the loop
   // below and both must go before the entities they hang from.
   push(
-    `DELETE FROM asset_obligations WHERE workspace_id = ${ws} AND asset_id IN (${sel});`,
+    `DELETE FROM entity_links WHERE workspace_id = ${ws} AND type = 'obligation.subject' AND target_entity_id IN (${sel});`,
+    `DELETE FROM obligation_details WHERE workspace_id = ${ws} AND subject_entity_id IN (${sel});`,
+    `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'obligation' AND id LIKE 'tf-%';`,
   );
   push(
     `DELETE FROM review_sections WHERE workspace_id = ${ws} AND review_id IN (${sel});`,
@@ -531,7 +533,11 @@ function asset(
 function obligation(id, assetId, title, { category = "service", dueOffset }) {
   const at = stamp();
   push(
-    `INSERT INTO asset_obligations (id, workspace_id, asset_id, asset_entity_type, category, title, description, due_date, lead_days, recurrence_kind, recurrence_interval, meter_threshold, meter_interval, meter_unit, status, task_id, completed_event_id, completed_at, next_obligation_id, series_id, sequence, created_at, updated_at, archived_at, deleted_at) VALUES (${q(id)}, ${ws}, ${q(assetId)}, 'asset', ${q(category)}, ${q(title)}, NULL, ${q(addDays(TODAY, dueOffset))}, 14, 'none', NULL, NULL, NULL, NULL, 'open', NULL, NULL, NULL, NULL, ${q(`${id}-series`)}, 0, ${q(at)}, ${q(at)}, NULL, NULL);`,
+    // V2.10 LIFE-01 — an obligation is an entity, a detail slice and a subject
+    // link. Three writes, exactly as the product makes them.
+    `INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at) VALUES (${q(id)}, ${ws}, 'obligation', ${q(title)}, ${q(at)}, ${q(at)}, NULL);`,
+    `INSERT INTO obligation_details (workspace_id, entity_id, entity_type, subject_entity_id, subject_entity_type, category, description, due_date, lead_days, recurrence_kind, recurrence_interval, meter_threshold, meter_interval, meter_unit, expected_amount_minor, completed_amount_minor, currency_code, status, task_id, completed_event_id, completed_at, completed_on, next_obligation_id, series_id, sequence, created_at, updated_at, archived_at, deleted_at) VALUES (${ws}, ${q(id)}, 'obligation', ${q(assetId)}, 'asset', ${q(category)}, NULL, ${q(addDays(TODAY, dueOffset))}, 14, 'none', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'open', NULL, NULL, NULL, NULL, NULL, ${q(`${id}-series`)}, 0, ${q(at)}, ${q(at)}, NULL, NULL);`,
+    `INSERT INTO entity_links (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at) VALUES (${q(`obl-subject-${id}`)}, ${ws}, ${q(id)}, ${q(assetId)}, 'obligation.subject', ${q(at)}, ${q(at)}, NULL);`,
   );
 }
 

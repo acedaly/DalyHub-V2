@@ -33,30 +33,11 @@ import {
 import { AssetValidationError } from "./asset-errors";
 import type { AssetHistoryValidationField } from "./asset-errors";
 import {
-  MAX_METER_VALUE,
   validateMeterUnit,
   validateMeterValue,
   type AssetMeterUnit,
 } from "./asset-meter";
-import {
-  OBLIGATION_CATEGORIES,
-  OBLIGATION_STATUSES,
-  OBLIGATION_RECURRENCE_KINDS,
-  DEFAULT_OBLIGATIONS_PAGE_SIZE,
-  MAX_OBLIGATIONS_PAGE_SIZE,
-  MAX_RECURRENCE_INTERVAL,
-  isIsoDate,
-  type ObligationCategory,
-  type ObligationFilters,
-  type ObligationStatus,
-  type ObligationRecurrenceKind,
-} from "~/kernel/obligations";
-
-import type {
-  CompleteAssetObligationInput,
-  CreateAssetObligationInput,
-  UpdateAssetObligationInput,
-} from "./asset-obligation";
+import { isIsoDate } from "~/kernel/obligations";
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                     */
@@ -65,23 +46,10 @@ import type {
 export const EVENT_TITLE_MAX_LENGTH = 200;
 export const EVENT_DESCRIPTION_MAX_LENGTH = 20_000;
 export const PROVIDER_MAX_LENGTH = 200;
-export const OBLIGATION_TITLE_MAX_LENGTH = 200;
-export const OBLIGATION_DESCRIPTION_MAX_LENGTH = 4_000;
-export const MAX_LEAD_DAYS = 365;
-export const DEFAULT_LEAD_DAYS = 14;
 const ID_MAX_LENGTH = 128;
 
 const EVENT_CATEGORY_VALUES: ReadonlySet<string> = new Set(
   ASSET_EVENT_CATEGORIES,
-);
-const OBLIGATION_CATEGORY_VALUES: ReadonlySet<string> = new Set(
-  OBLIGATION_CATEGORIES,
-);
-const OBLIGATION_STATUS_VALUES: ReadonlySet<string> = new Set(
-  OBLIGATION_STATUSES,
-);
-const RECURRENCE_KIND_VALUES: ReadonlySet<string> = new Set(
-  OBLIGATION_RECURRENCE_KINDS,
 );
 
 function codePointLength(value: string): number {
@@ -253,67 +221,6 @@ export function validateEventCategory(value: unknown): AssetEventCategory {
     );
   }
   return value as AssetEventCategory;
-}
-
-/** Validate an Obligation category against the closed vocabulary. */
-export function validateObligationCategory(value: unknown): ObligationCategory {
-  if (typeof value !== "string" || !OBLIGATION_CATEGORY_VALUES.has(value)) {
-    throw new AssetValidationError(
-      "category",
-      "must be a supported obligation category",
-    );
-  }
-  return value as ObligationCategory;
-}
-
-/** Validate a stored obligation status. */
-export function validateObligationStatus(value: unknown): ObligationStatus {
-  if (typeof value !== "string" || !OBLIGATION_STATUS_VALUES.has(value)) {
-    throw new AssetValidationError("status", "must be a supported status");
-  }
-  return value as ObligationStatus;
-}
-
-/** Validate a recurrence kind. */
-export function validateRecurrenceKind(
-  value: unknown,
-): ObligationRecurrenceKind {
-  if (typeof value !== "string" || !RECURRENCE_KIND_VALUES.has(value)) {
-    throw new AssetValidationError(
-      "recurrenceKind",
-      "must be a supported recurrence",
-    );
-  }
-  return value as ObligationRecurrenceKind;
-}
-
-function optionalInteger(
-  value: unknown,
-  field: AssetHistoryValidationField,
-  min: number,
-  max: number,
-): number | null {
-  if (value === undefined || value === null) return null;
-  let numeric: number;
-  if (typeof value === "number") {
-    numeric = value;
-  } else if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return null;
-    if (!/^\d+$/.test(trimmed)) {
-      throw new AssetValidationError(field, "must be a whole number");
-    }
-    numeric = Number.parseInt(trimmed, 10);
-  } else {
-    throw new AssetValidationError(field, "must be a whole number");
-  }
-  if (!Number.isInteger(numeric)) {
-    throw new AssetValidationError(field, "must be a whole number");
-  }
-  if (numeric < min || numeric > max) {
-    throw new AssetValidationError(field, `must be between ${min} and ${max}`);
-  }
-  return numeric;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -526,251 +433,47 @@ export function validateAssetEvent(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Asset Obligation                                                           */
+/* An obligation completion's ASSET-SPECIFIC extras                           */
 /* -------------------------------------------------------------------------- */
 
-/** A fully validated obligation, ready for the storage adapter to bind. */
-export type ValidatedAssetObligation = {
-  readonly category: ObligationCategory | undefined;
-  readonly title: string | undefined;
-  readonly description: string | null | undefined;
-  readonly dueDate: string | null | undefined;
-  readonly leadDays: number | undefined;
-  readonly recurrenceKind: ObligationRecurrenceKind | undefined;
-  readonly recurrenceInterval: number | null | undefined;
-  readonly meterThreshold: number | null | undefined;
-  readonly meterInterval: number | null | undefined;
-  readonly meterUnit: AssetMeterUnit | null | undefined;
-};
-
 /**
- * Validate an Asset Obligation.
+ * What completing an obligation records against an ASSET, beyond what every
+ * obligation records.
  *
- * The cross-field rules that matter:
- *   - Every obligation must commit to SOMETHING — a due date, a meter threshold,
- *     or both. An obligation with neither could never become due.
- *   - A meter threshold and its unit travel together, and a meter recurrence needs
- *     an interval to advance by.
- *   - A date recurrence needs an interval and a due date to advance FROM.
- *   - Intervals are bounded integers. "Every 0 months" would never advance;
- *     "every 100000 years" is a typo, not a plan.
+ * The general half — the completion date, the actual amount, the next due date,
+ * whether to create a successor — moved to `~/kernel/obligations` in V2.10
+ * LIFE-01 along with the domain it belongs to. What stayed is what only an
+ * Asset's logbook has: who did the work, which Person, the meter reading at the
+ * time, and the Note that documents it.
  */
-export function validateAssetObligation(
-  input: CreateAssetObligationInput | UpdateAssetObligationInput,
-  mode: ValidationMode,
-  /** The stored values, so an update's cross-field rules see the merged record. */
-  existing?: {
-    readonly dueDate: string | null;
-    readonly meterThreshold: number | null;
-    readonly meterUnit: AssetMeterUnit | null;
-    readonly meterInterval: number | null;
-    readonly recurrenceKind: ObligationRecurrenceKind;
-  },
-): ValidatedAssetObligation {
-  const has = (key: string): boolean =>
-    Object.prototype.hasOwnProperty.call(input, key) &&
-    (input as Record<string, unknown>)[key] !== undefined;
-
-  const category =
-    mode === "create" || has("category")
-      ? validateObligationCategory(
-          (input as CreateAssetObligationInput).category,
-        )
-      : undefined;
-
-  const title =
-    mode === "create" || has("title")
-      ? requiredText(input.title, "title", OBLIGATION_TITLE_MAX_LENGTH)
-      : undefined;
-
-  const description = has("description")
-    ? optionalText(
-        input.description,
-        "description",
-        OBLIGATION_DESCRIPTION_MAX_LENGTH,
-      )
-    : mode === "create"
-      ? null
-      : undefined;
-
-  const dueDate = has("dueDate")
-    ? validateOptionalHistoryDate(input.dueDate, "dueDate")
-    : mode === "create"
-      ? null
-      : undefined;
-
-  const leadDaysRaw = has("leadDays")
-    ? optionalInteger(input.leadDays, "leadDays", 0, MAX_LEAD_DAYS)
-    : undefined;
-  const leadDays =
-    leadDaysRaw !== undefined && leadDaysRaw !== null
-      ? leadDaysRaw
-      : mode === "create"
-        ? DEFAULT_LEAD_DAYS
-        : undefined;
-
-  const recurrenceKind = has("recurrenceKind")
-    ? validateRecurrenceKind(input.recurrenceKind)
-    : mode === "create"
-      ? ("none" as ObligationRecurrenceKind)
-      : undefined;
-
-  const recurrenceIntervalRaw = has("recurrenceInterval")
-    ? optionalInteger(
-        input.recurrenceInterval,
-        "recurrenceInterval",
-        1,
-        MAX_RECURRENCE_INTERVAL,
-      )
-    : undefined;
-
-  const meterUnitProvided = has("meterUnit");
-  const meterThresholdProvided = has("meterThreshold");
-  let meterThreshold: number | null | undefined =
-    mode === "create" ? null : undefined;
-  let meterUnit: AssetMeterUnit | null | undefined =
-    mode === "create" ? null : undefined;
-
-  if (meterThresholdProvided || meterUnitProvided) {
-    const rawThreshold = input.meterThreshold;
-    const rawUnit = input.meterUnit;
-    const clearingThreshold =
-      rawThreshold === null ||
-      (typeof rawThreshold === "string" && rawThreshold.trim() === "");
-    const clearingUnit =
-      rawUnit === null ||
-      (typeof rawUnit === "string" && rawUnit.trim() === "");
-    if (clearingThreshold && clearingUnit) {
-      meterThreshold = null;
-      meterUnit = null;
-    } else if (clearingThreshold || clearingUnit) {
-      throw new AssetValidationError(
-        clearingUnit ? "meterUnit" : "meterThreshold",
-        "is required when setting a meter target",
-      );
-    } else {
-      meterThreshold = validateMeterValue(rawThreshold, "meterThreshold");
-      meterUnit = validateMeterUnit(rawUnit);
-    }
-  }
-
-  const meterInterval = has("meterInterval")
-    ? optionalInteger(input.meterInterval, "meterInterval", 1, MAX_METER_VALUE)
-    : mode === "create"
-      ? null
-      : undefined;
-
-  /* -- Cross-field rules over the MERGED record ---------------------------- */
-
-  const mergedDue =
-    dueDate !== undefined ? dueDate : (existing?.dueDate ?? null);
-  const mergedThreshold =
-    meterThreshold !== undefined
-      ? meterThreshold
-      : (existing?.meterThreshold ?? null);
-  const mergedUnit =
-    meterUnit !== undefined ? meterUnit : (existing?.meterUnit ?? null);
-  const mergedKind =
-    recurrenceKind !== undefined
-      ? recurrenceKind
-      : (existing?.recurrenceKind ?? "none");
-  const mergedMeterInterval =
-    meterInterval !== undefined
-      ? meterInterval
-      : (existing?.meterInterval ?? null);
-
-  if (mergedDue === null && mergedThreshold === null) {
-    throw new AssetValidationError(
-      "dueDate",
-      "is required unless a meter target is set",
-    );
-  }
-
-  // A meter threshold needs a unit even when they arrived in separate patches.
-  if ((mergedThreshold === null) !== (mergedUnit === null)) {
-    throw new AssetValidationError(
-      mergedUnit === null ? "meterUnit" : "meterThreshold",
-      "is required when setting a meter target",
-    );
-  }
-
-  let recurrenceInterval: number | null | undefined = recurrenceIntervalRaw;
-  if (mergedKind === "none" || mergedKind === "meter") {
-    // A date interval is meaningless for these kinds: clear it rather than
-    // storing a value the schema forbids.
-    if (recurrenceKind !== undefined || recurrenceIntervalRaw !== undefined) {
-      recurrenceInterval = null;
-    }
-    if (mergedKind === "meter") {
-      if (mergedThreshold === null || mergedUnit === null) {
-        throw new AssetValidationError(
-          "meterThreshold",
-          "is required for a meter-based repeat",
-        );
-      }
-      if (mergedMeterInterval === null) {
-        throw new AssetValidationError(
-          "meterInterval",
-          "is required for a meter-based repeat",
-        );
-      }
-    }
-  } else {
-    if (recurrenceInterval === undefined || recurrenceInterval === null) {
-      // Default a repeating rule to "every 1", which is what the words say.
-      recurrenceInterval = 1;
-    }
-    if (mergedDue === null) {
-      throw new AssetValidationError(
-        "dueDate",
-        "is required for a date-based repeat",
-      );
-    }
-  }
-
-  return {
-    category,
-    title,
-    description,
-    dueDate,
-    leadDays,
-    recurrenceKind,
-    recurrenceInterval,
-    meterThreshold,
-    meterInterval,
-    meterUnit,
-  };
-}
-
-/** A validated obligation-completion request. */
-export type ValidatedObligationCompletion = {
-  readonly completedOn: string | null;
-  readonly title: string | null;
-  readonly costMinor: number | null;
-  readonly currencyCode: string | null;
+export type ValidatedAssetCompletionExtras = {
+  readonly description: string | null;
   readonly provider: string | null;
   readonly personId: string | null;
   readonly meterValue: number | null;
   readonly meterUnit: AssetMeterUnit | null;
-  readonly description: string | null;
   readonly noteId: string | null;
-  readonly nextDueDate: string | null;
-  readonly createSuccessor: boolean;
+  /**
+   * A cost supplied on the Asset side. The obligation's own recorded amount
+   * wins where there is one; this is the path an Asset event takes when the
+   * caller is recording a cost without an obligation amount.
+   */
+  readonly costMinor: number | null;
 };
 
-/** Validate an obligation-completion request. */
-export function validateObligationCompletion(
-  input: CompleteAssetObligationInput,
-): ValidatedObligationCompletion {
-  const completedOn =
-    input.completedOn === undefined
-      ? null
-      : validateEventDate(input.completedOn, "completedOn");
-
-  const explicitCurrency = optionalCurrency(input.currencyCode);
-  const parseCurrency = explicitCurrency ?? DEFAULT_CURRENCY;
-  const costMinor = optionalMoney(input.cost, "cost", parseCurrency);
-
+/** Validate the Asset-specific half of an obligation completion. */
+export function validateAssetCompletionExtras(
+  input: {
+    readonly description?: string | null;
+    readonly provider?: string | null;
+    readonly personId?: string | null;
+    readonly meterValue?: string | number | null;
+    readonly meterUnit?: string | null;
+    readonly noteId?: string | null;
+    readonly cost?: string | null;
+  },
+  currencyCode: string,
+): ValidatedAssetCompletionExtras {
   let meterValue: number | null = null;
   let meterUnit: AssetMeterUnit | null = null;
   const hasValue =
@@ -793,22 +496,17 @@ export function validateObligationCompletion(
   }
 
   return {
-    completedOn,
-    title: optionalText(input.title, "title", EVENT_TITLE_MAX_LENGTH),
-    costMinor,
-    currencyCode: costMinor === null ? explicitCurrency : parseCurrency,
-    provider: optionalText(input.provider, "provider", PROVIDER_MAX_LENGTH),
-    personId: optionalId(input.personId, "personId"),
-    meterValue,
-    meterUnit,
     description: optionalText(
       input.description,
       "description",
       EVENT_DESCRIPTION_MAX_LENGTH,
     ),
+    provider: optionalText(input.provider, "provider", PROVIDER_MAX_LENGTH),
+    personId: optionalId(input.personId, "personId"),
+    meterValue,
+    meterUnit,
     noteId: optionalId(input.noteId, "noteId"),
-    nextDueDate: validateOptionalHistoryDate(input.nextDueDate, "nextDueDate"),
-    createSuccessor: input.createSuccessor !== false,
+    costMinor: optionalMoney(input.cost, "cost", currencyCode),
   };
 }
 
@@ -836,15 +534,6 @@ export function validateEventsLimit(value: unknown): number {
   );
 }
 
-/** Clamp an obligation page size into `[1, MAX_OBLIGATIONS_PAGE_SIZE]`. */
-export function validateObligationsLimit(value: unknown): number {
-  return clampLimit(
-    value,
-    DEFAULT_OBLIGATIONS_PAGE_SIZE,
-    MAX_OBLIGATIONS_PAGE_SIZE,
-  );
-}
-
 /** Validate the event-timeline filters, dropping unknown categories. */
 export function validateEventFilters(value: AssetEventFilters | undefined): {
   readonly categories: readonly AssetEventCategory[];
@@ -861,17 +550,4 @@ export function validateEventFilters(value: AssetEventFilters | undefined): {
     categories,
     includeArchived: value.includeArchived === true,
   };
-}
-
-/** Validate the obligation filters. */
-export function validateObligationFilters(
-  value: ObligationFilters | undefined,
-): {
-  readonly categories: readonly ObligationCategory[];
-  readonly statuses: readonly ObligationStatus[];
-} {
-  if (!value) return { categories: [], statuses: [] };
-  const categories = (value.categories ?? []).map(validateObligationCategory);
-  const statuses = (value.statuses ?? []).map(validateObligationStatus);
-  return { categories, statuses };
 }

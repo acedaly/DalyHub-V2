@@ -168,6 +168,7 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   assetDetails: (row: { entityId: string }) => row.entityId,
   assetEvents: (row: { id: string }) => row.id,
   assetObligations: (row: { id: string }) => row.id,
+  obligations: (row: { entityId: string }) => row.entityId,
   reviewDetails: (row: { entityId: string }) => row.entityId,
   reviewSections: (row: { reviewId: string; sectionId: string }) =>
     `${row.reviewId}\u0000${row.sectionId}`,
@@ -207,6 +208,9 @@ const ENTITY_SCOPED_COLLECTIONS: readonly SnapshotCollection[] = [
   "personDetails",
   "meetingDetails",
   "assetDetails",
+  // V2.10 LIFE-01 — an obligation is an ordinary entity, so its detail slice
+  // names one exactly as every other slice does.
+  "obligations",
   "reviewDetails",
 ];
 
@@ -604,6 +608,24 @@ export function validateWorkspaceSnapshot(
       );
     }
   });
+  /*
+   * V2.10 LIFE-01 — an obligation's SUBJECT, its linked Task and its chain
+   * pointers have no database foreign key, so this validator is their only
+   * integrity authority (the same reason the `assetObligations` block below
+   * exists). A subject naming an entity the archive does not contain would
+   * restore as a dangling pointer that the composite foreign key then refuses
+   * at insert time, which is a failure halfway through a restore rather than a
+   * refusal before one.
+   */
+  records.obligations.forEach((row, index) => {
+    if (row.subjectEntityId !== null && !entityIds.has(row.subjectEntityId)) {
+      c.add(
+        `records.obligations[${index}].subjectEntityId`,
+        "references a record not in this snapshot",
+      );
+    }
+  });
+
   records.assetObligations.forEach((row, index) => {
     if (!entityIds.has(row.assetId)) {
       c.add(

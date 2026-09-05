@@ -17,6 +17,7 @@ import {
   FakeClock,
   countingDb,
   makeAssetHistoryRepository,
+  makeObligationRepository,
   makeAssetRepository,
   makeContext,
   makePersonRepository,
@@ -25,7 +26,10 @@ import {
   resetTables,
 } from "./support";
 import { env } from "cloudflare:test";
-import { createAssetHistoryRepository } from "~/platform/storage/d1";
+import {
+  createAssetHistoryRepository,
+  createObligationRepository,
+} from "~/platform/storage/d1";
 
 const WS = "test-default-workspace";
 const TODAY = "2026-07-01";
@@ -43,6 +47,9 @@ beforeAll(async () => {
   const clock = new FakeClock().now;
   const assets = makeAssetRepository(context, { clock });
   const history = makeAssetHistoryRepository(context, { clock });
+  // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+  // with the Assets adapter as its proof gateway exactly as the product is.
+  const obligations = makeObligationRepository(context, { clock });
   const people = makePersonRepository(context, { clock });
   const tasks = makeTaskRepository(context, { clock });
   const entities = makeRepository(context, { clock });
@@ -85,7 +92,8 @@ beforeAll(async () => {
           : o === 1
             ? "2026-07-05"
             : `2027-0${(o % 9) + 1}-01`;
-      const obligation = await history.createObligation(asset.id, {
+      const obligation = await obligations.create({
+        subjectEntityId: asset.id,
         category: o % 2 === 0 ? "service" : "registration",
         title: `Obligation ${o} on asset ${a}`,
         dueDate,
@@ -95,7 +103,7 @@ beforeAll(async () => {
       // A fraction carry a real linked Task, as they would in practice.
       if (o === 1 && a % 5 === 0) {
         const task = await tasks.createTask({ title: `Task for ${a}` });
-        await history.linkObligationTask(obligation.id, task.id);
+        await obligations.linkTask(obligation.id, task.id);
       }
     }
   }
@@ -107,7 +115,7 @@ describe("the dataset is genuinely representative", () => {
       "SELECT COUNT(*) AS n FROM asset_events",
     ).first<{ n: number }>();
     const obligations = await env.DB.prepare(
-      "SELECT COUNT(*) AS n FROM asset_obligations",
+      "SELECT COUNT(*) AS n FROM obligation_details",
     ).first<{ n: number }>();
     expect(assetIds).toHaveLength(ASSET_COUNT);
     expect(events?.n).toBe(ASSET_COUNT * EVENTS_PER_ASSET);
@@ -123,13 +131,18 @@ describe("bounded reads", () => {
       repo: createAssetHistoryRepository(counting.db, makeContext(WS), {
         clock: new FakeClock().now,
       }),
+      // V2.10 LIFE-01 — the obligation reads are the shared store's, and their
+      // statement counts are what this file exists to pin.
+      obligations: createObligationRepository(counting.db, makeContext(WS), {
+        clock: new FakeClock().now,
+      }),
     };
   }
 
   it("summarises a WHOLE collection page's obligations in ONE query", async () => {
-    const { repo, prepareCount, reset } = counted();
+    const { obligations: obligationRepo, prepareCount, reset } = counted();
     reset();
-    const summary = await repo.summariseObligations(assetIds, TODAY);
+    const summary = await obligationRepo.summariseBySubject(assetIds, TODAY);
     // One query for thirty assets — never one per card (§27).
     expect(prepareCount()).toBe(1);
     expect(summary.size).toBe(ASSET_COUNT);
@@ -138,9 +151,9 @@ describe("bounded reads", () => {
   });
 
   it("serves the whole Today attention read in ONE query", async () => {
-    const { repo, prepareCount, reset } = counted();
+    const { obligations: obligationRepo, prepareCount, reset } = counted();
     reset();
-    const items = await repo.listAttention({ today: TODAY });
+    const items = await obligationRepo.listAttention({ today: TODAY });
     expect(prepareCount()).toBe(1);
     // Bounded regardless of how much is genuinely due across the workspace.
     expect(items.length).toBeGreaterThan(0);
@@ -148,10 +161,13 @@ describe("bounded reads", () => {
   });
 
   it("caps the Today read even when far more is overdue than fits", async () => {
-    const { repo } = counted();
+    const { obligations: obligationRepo } = counted();
     // Every asset has an overdue obligation, so the horizon alone would return
     // dozens; the cap is what keeps Today a preview.
-    const items = await repo.listAttention({ today: TODAY, limit: 5 });
+    const items = await obligationRepo.listAttention({
+      today: TODAY,
+      limit: 5,
+    });
     expect(items.length).toBeLessThanOrEqual(5);
   });
 
@@ -207,18 +223,18 @@ describe("bounded reads", () => {
   });
 
   it("pages the obligations list", async () => {
-    const { repo, prepareCount, reset } = counted();
+    const { obligations: obligationRepo, prepareCount, reset } = counted();
     reset();
-    const page = await repo.listObligations({
-      assetId: assetIds[0],
+    const page = await obligationRepo.list({
+      subjectEntityId: assetIds[0],
       limit: 5,
     });
     expect(prepareCount()).toBe(1);
     expect(page.items).toHaveLength(5);
     expect(page.hasMore).toBe(true);
 
-    const next = await repo.listObligations({
-      assetId: assetIds[0],
+    const next = await obligationRepo.list({
+      subjectEntityId: assetIds[0],
       limit: 5,
       cursor: page.nextCursor!,
     });

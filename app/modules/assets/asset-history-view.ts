@@ -2,7 +2,7 @@
  * ASSET-02 — the Asset history & obligations view-model (pure, React-free,
  * server-safe).
  *
- * Turns kernel `AssetEvent`s and `AssetObligation`s into JSON-safe display shapes
+ * Turns kernel `AssetEvent`s and `Obligation`s into JSON-safe display shapes
  * for the loader → component boundary, and owns the small pure derivations the UI
  * needs: category labels, calm state phrasings, cost formatting, the timeline
  * ordering and the Today deduplication rule.
@@ -25,18 +25,19 @@ import {
   describeAssetObligationRecurrence,
   evaluateAssetObligation,
   formatMeterReading,
+  isAssetMeterUnit,
   type AssetCostGroup,
   type AssetCostSummary,
   type AssetEvent,
   type AssetEventCategory,
   type AssetMeterUnit,
-  type AssetObligation,
   type ObligationCategory,
   type ObligationState,
   type AssetValuationPoint,
   type MeterReading,
   OBLIGATION_STATE_LABELS,
 } from "~/kernel/assets";
+import type { Obligation } from "~/kernel/obligations";
 import { formatMinorUnits } from "~/kernel/money";
 
 /* -------------------------------------------------------------------------- */
@@ -192,7 +193,7 @@ export function serializeAssetEvent(
  * only attaches labels.
  */
 export function serializeAssetObligation(
-  obligation: AssetObligation,
+  obligation: Obligation,
   today: string,
   reading: MeterReading | null,
   options: {
@@ -203,7 +204,7 @@ export function serializeAssetObligation(
   const evaluation = evaluateAssetObligation(obligation, today, reading);
   return {
     id: obligation.id,
-    assetId: obligation.assetId,
+    assetId: obligation.subjectEntityId ?? "",
     category: obligation.category,
     categoryLabel: obligationCategoryLabel(obligation.category) ?? "Reminder",
     title: obligation.title,
@@ -215,17 +216,18 @@ export function serializeAssetObligation(
       obligation.recurrenceKind,
       obligation.recurrenceInterval,
       obligation.meterInterval,
-      obligation.meterUnit,
+      isAssetMeterUnit(obligation.meterUnit) ? obligation.meterUnit : null,
     ),
     recurrenceKind: obligation.recurrenceKind,
     recurrenceInterval: obligation.recurrenceInterval,
     meterThreshold: obligation.meterThreshold,
     meterInterval: obligation.meterInterval,
-    meterUnit: obligation.meterUnit,
-    meterDisplay: formatMeterReading(
-      obligation.meterThreshold,
-      obligation.meterUnit,
-    ),
+    meterUnit: isAssetMeterUnit(obligation.meterUnit)
+      ? obligation.meterUnit
+      : null,
+    meterDisplay: isAssetMeterUnit(obligation.meterUnit)
+      ? formatMeterReading(obligation.meterThreshold, obligation.meterUnit)
+      : null,
     status: obligation.status,
     state: evaluation.state,
     stateLabel: OBLIGATION_STATE_LABELS[evaluation.state],

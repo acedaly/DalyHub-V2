@@ -14,8 +14,25 @@
  */
 
 export {
+  OBLIGATION_ENTITY_TYPE,
+  RESERVED_OBLIGATION_ENTITY_TYPES,
+  isReservedObligationEntityType,
+  OBLIGATION_CREATED,
+  OBLIGATION_RESCHEDULED,
+  OBLIGATION_COMPLETED,
+  OBLIGATION_DISMISSED,
+  OBLIGATION_REOPENED,
+  OBLIGATION_TASK_LINKED,
+  OBLIGATION_DELETED,
+  OBLIGATION_ACTIVITY_TYPES,
+  OBLIGATION_SUBJECT_LINK,
+  obligationSubjectLinkId,
+} from "./obligation-identifiers";
+
+export {
   OBLIGATION_CATEGORIES,
   OBLIGATION_CATEGORY_OPTIONS,
+  MONEY_BEARING_CATEGORIES,
   obligationCategoryLabel,
   isObligationCategory,
   type ObligationCategory,
@@ -67,4 +84,60 @@ export {
   type ListObligationsInput,
   type ObligationPage,
   type ObligationAttentionInput,
+  type ObligationSubject,
 } from "./obligation";
+
+export {
+  validateObligationAmount,
+  reconcileObligationCurrency,
+  type ObligationAmount,
+} from "./obligation-money";
+
+export {
+  OBLIGATION_CURSOR_VERSION,
+  InvalidObligationCursorError,
+  obligationFilterKey,
+  encodeObligationCursor,
+  decodeObligationCursor,
+  decodeObligationCursorForScope,
+  type ObligationCursorPosition,
+  type ObligationCursorScope,
+  type DecodedObligationCursor,
+} from "./obligation-cursor";
+
+export {
+  OBLIGATION_TITLE_MAX_LENGTH,
+  OBLIGATION_DESCRIPTION_MAX_LENGTH,
+  MAX_LEAD_DAYS,
+  DEFAULT_LEAD_DAYS,
+  MAX_METER_VALUE,
+  validateObligation,
+  validateObligationCompletion,
+  validateObligationCategory,
+  validateObligationStatus,
+  validateRecurrenceKind,
+  validateObligationsLimit,
+  validateObligationFilters,
+  validateObligationId,
+  validateOptionalObligationId,
+  validateObligationDate,
+  validateOptionalObligationDate,
+  validateObligationMeterValue,
+  validateObligationMeterUnit,
+  type ValidatedObligation,
+  type ValidatedObligationCompletion,
+  type ValidationMode,
+  type MeterUnitVocabulary,
+} from "./obligation-validation";
+
+export type {
+  ObligationRepository,
+  ObligationWithSubject,
+  ObligationWithSubjectPage,
+  ObligationAttentionItem,
+  ObligationSummary,
+  CompleteObligationResult,
+  ObligationProofRef,
+  LinkObligationTaskResult,
+  ObligationTaskReconciliation,
+} from "./obligation-repository";

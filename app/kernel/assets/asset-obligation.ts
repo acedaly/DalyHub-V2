@@ -34,19 +34,16 @@
 import {
   describeObligationRecurrence,
   evaluateObligation,
-  type CompleteObligationInput,
-  type ListObligationsInput,
   type Obligation,
   type ObligationCategory,
   type ObligationEvaluation,
-  type ObligationInput,
   type ObligationRecurrenceKind,
-  type ObligationTaskOutcome,
 } from "~/kernel/obligations";
 
 import {
   evaluateMeterThreshold,
   formatMeterReading,
+  isAssetMeterUnit,
   nextMeterThreshold,
   type AssetMeterUnit,
   type MeterReading,
@@ -112,23 +109,6 @@ export function completionEventCategory(category: ObligationCategory): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/* The Asset-shaped record                                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * One commitment against an Asset: the shared `Obligation` plus the Asset it is
- * about, the meter it may be measured in, and the history entry that proved it
- * done.
- */
-export type AssetObligation = Obligation & {
-  readonly assetId: string;
-  readonly meterThreshold: number | null;
-  readonly meterInterval: number | null;
-  readonly meterUnit: AssetMeterUnit | null;
-  readonly completedEventId: string | null;
-};
-
-/* -------------------------------------------------------------------------- */
 /* The meter side of an evaluation                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -138,12 +118,13 @@ export type AssetObligation = Obligation & {
  * know that meters, units or Assets exist.
  */
 export function assetObligationMeter(
-  obligation: Pick<AssetObligation, "meterThreshold" | "meterUnit">,
+  obligation: Pick<Obligation, "meterThreshold" | "meterUnit">,
   reading: MeterReading | null,
 ): MeterThresholdEvaluation | null {
   if (obligation.meterThreshold === null || obligation.meterUnit === null) {
     return null;
   }
+  if (!isAssetMeterUnit(obligation.meterUnit)) return null;
   return evaluateMeterThreshold(
     { threshold: obligation.meterThreshold, unit: obligation.meterUnit },
     reading,
@@ -157,7 +138,7 @@ export function assetObligationMeter(
  */
 export function evaluateAssetObligation(
   obligation: Pick<
-    AssetObligation,
+    Obligation,
     "status" | "dueDate" | "leadDays" | "meterThreshold" | "meterUnit"
   >,
   today: string,
@@ -189,74 +170,3 @@ export function describeAssetObligationRecurrence(
 }
 
 export { nextMeterThreshold };
-
-/* -------------------------------------------------------------------------- */
-/* Asset-shaped inputs                                                        */
-/* -------------------------------------------------------------------------- */
-
-/** The editable fields of an Asset obligation, meter included. */
-export type AssetObligationInput = ObligationInput & {
-  readonly meterThreshold?: number | string | null;
-  readonly meterInterval?: number | string | null;
-  readonly meterUnit?: string | null;
-};
-
-/** Input to create an obligation against an Asset. */
-export type CreateAssetObligationInput = AssetObligationInput & {
-  readonly category: string;
-  readonly title: string;
-};
-
-/** Input to edit an Asset obligation. Completion goes through `complete`. */
-export type UpdateAssetObligationInput = AssetObligationInput;
-
-/**
- * Input to complete an Asset obligation — the moment history and obligations
- * meet. Completing records WHAT ACTUALLY HAPPENED as an Asset Event, closes
- * this occurrence, advances the Asset's canonical fact, creates at most ONE
- * successor, and reconciles the linked Task — all atomically (ADR-083).
- */
-export type CompleteAssetObligationInput = CompleteObligationInput & {
-  readonly cost?: string | null;
-  readonly currencyCode?: string | null;
-  readonly provider?: string | null;
-  readonly personId?: string | null;
-  readonly meterValue?: string | number | null;
-  readonly meterUnit?: string | null;
-  readonly noteId?: string | null;
-};
-
-/** A light reference to the event a completion created. */
-export type AssetEventRef = {
-  readonly id: string;
-  readonly title: string;
-  readonly eventDate: string;
-};
-
-/** What completing an Asset obligation actually produced. */
-export type CompleteAssetObligationResult = {
-  readonly obligation: AssetObligation;
-  /** The history entry proving the work happened. */
-  readonly event: AssetEventRef;
-  /** The single next occurrence, when the obligation recurs. */
-  readonly successor: AssetObligation | null;
-  /** How the linked Task was reconciled. */
-  readonly taskOutcome: ObligationTaskOutcome;
-};
-
-/** A bounded obligations read for one Asset. */
-export type ListAssetObligationsInput = ListObligationsInput & {
-  readonly assetId: string;
-};
-
-/** One obligation that needs attention, with the Asset context Today needs. */
-export type AssetAttentionItem = {
-  readonly obligation: AssetObligation;
-  readonly assetId: string;
-  readonly assetTitle: string;
-  readonly assetType: string;
-  /** The Asset's current reading, so meter state resolves without a second read. */
-  readonly reading: MeterReading | null;
-  /** True when the linked Task exists and is still open. */
-  readonly hasOpenTask: boolean;
-};

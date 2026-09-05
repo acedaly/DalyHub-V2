@@ -118,6 +118,33 @@ async function openCompletedGroup(page: Page, title: string): Promise<Locator> {
   return group.locator(".dh-taskrow", { hasText: title }).first();
 }
 
+/**
+ * The completion write itself, not the row that predicts it.
+ *
+ * Today re-buckets the day against an OPTIMISTIC patch — `TodayScreen.tsx` says
+ * so, and it is the right behaviour: the tick lands under the finger and the
+ * revalidation confirms it. It also means the completed disclosure shows a
+ * ticked row BEFORE the server has been told anything, so a journey that reads
+ * the tick and then loads `/tasks` is racing its own write.
+ *
+ * MEASURED as `:194` failing on CI run 33980952506 (p01, 19.0 min against a
+ * 15.7 min budget) with `element(s) not found` for the `Reopen` checkbox in
+ * `completed=only` — the collection was asked for finished work before the work
+ * was finished. Waiting on the response the product actually publishes is the
+ * shape DEBT-203 asks for and `meetings-concurrency.spec.ts` already uses.
+ *
+ * Register BEFORE the click that causes it.
+ */
+function taskWriteLanded(page: Page): Promise<unknown> {
+  return page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /^\/tasks\/(bulk|[^/]+)(?:\.data)?$/.test(
+        new URL(response.url()).pathname,
+      ),
+  );
+}
+
 /** Open an inline cell's editor. A pointer device reveals it on hover. */
 async function openCell(row: Locator, testId: string): Promise<void> {
   await row.scrollIntoViewIfNeeded();
@@ -205,6 +232,7 @@ test.describe("TODAY-TASK-01 — a task is fully actionable from Today", () => {
      * `openCompletedGroup`). The state is still asserted — one line below, on
      * the row where Today actually files it.
      */
+    const completionWritten = taskWriteLanded(page);
     await row.getByRole("checkbox", { name: `Complete ${task.title}` }).click();
     // Optimistic in place, then reconciled by the loader revalidation.
     await expect(
@@ -212,6 +240,9 @@ test.describe("TODAY-TASK-01 — a task is fully actionable from Today", () => {
         name: `Reopen ${task.title}`,
       }),
     ).toBeChecked();
+    // …and the optimistic row is not the claim. The next assertion is about the
+    // SERVER, so the write it reads must have happened.
+    await completionWritten;
 
     // The SERVER has it: the canonical collection reads it as complete.
     /*
@@ -232,6 +263,7 @@ test.describe("TODAY-TASK-01 — a task is fully actionable from Today", () => {
     // trip rather than just the tick.
     await page.goto("/today");
     const completed = await openCompletedGroup(page, task.title);
+    const reopenWritten = taskWriteLanded(page);
     await completed
       .getByRole("checkbox", { name: `Reopen ${task.title}` })
       .click();
@@ -240,6 +272,7 @@ test.describe("TODAY-TASK-01 — a task is fully actionable from Today", () => {
         name: `Complete ${task.title}`,
       }),
     ).not.toBeChecked();
+    await reopenWritten;
 
     await page.goto("/tasks");
     await expect(

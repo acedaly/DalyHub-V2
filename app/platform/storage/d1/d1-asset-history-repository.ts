@@ -1,34 +1,28 @@
 /**
  * ASSET-02 Assets — D1 implementation of the authoritative `AssetHistoryRepository`.
  *
- * Implements the Asset history + obligations contract over Cloudflare D1 using
- * prepared, parameterised statements only. Constructed with one `WorkspaceContext`;
- * every statement constrains `workspace_id = ?` and no method accepts a
- * `workspaceId` (ADR-010). No caller value is ever interpolated into SQL — the only
- * inlined literals are trusted kernel constants and trusted column names used to
- * build partial-update statements (§17).
+ * Implements the Asset LOGBOOK contract over Cloudflare D1 using prepared,
+ * parameterised statements only. Constructed with one `WorkspaceContext`; every
+ * statement constrains `workspace_id = ?` and no method accepts a `workspaceId`
+ * (ADR-010). No caller value is ever interpolated into SQL — the only inlined
+ * literals are trusted kernel constants and trusted column names used to build
+ * partial-update statements (§17).
  *
- * ATOMICITY (ADR-012). The interesting operations span more than one table, and
- * each runs as ONE `D1Database.batch()`:
+ * V2.10 LIFE-01 — obligations left this file. They are one workspace-wide
+ * domain now, owned by `D1ObligationRepository`, whether or not their subject
+ * is an Asset (ADR-116 decision 1). What stays here is the Asset's own logbook
+ * and the two canonical facts an event asserts.
  *
- *   - `recordEvent` writes the event, its Activity, and any canonical Asset fact
- *     the event asserts.
- *   - `completeObligation` closes the occurrence, writes the event that PROVES the
- *     work happened, advances the Asset's canonical fact and meter, and creates AT
- *     MOST ONE successor — every later statement guarded on the first having
- *     actually changed a row, so a retry or a concurrent completion produces no
- *     second event and no second successor.
+ * What remains of the seam is `planProof` (ADR-083 decision 2): when an
+ * obligation ABOUT an Asset is completed, this repository — the authority on
+ * `asset_events` and on the Asset's canonical facts — hands the obligation's
+ * batch the statements that record the work, advance the canonical date and
+ * move the meter. It returns prepared statements and writes nothing itself, so
+ * the whole completion is still exactly ONE `D1Database.batch()` and an Asset's
+ * record behaves precisely as it did before the obligation store existed.
  *
- * AUDIT-13 — the linked Task is no longer an exception. Completing a Task also
- * drives Task recurrence, project rollup and the Task's own Activity, all of which
- * the `TaskRepository` owns; reimplementing that in SQL here would be exactly the
- * duplicated authority §22 forbids. So the Task's completion is PLANNED by the
- * Task repository (`ObligationTaskCompletionPlanner`, which returns statements and
- * writes nothing) and appended to the obligation's own batch, gated on the
- * obligation having actually closed in that same transaction. The Task authority
- * is unchanged; only where its statements RUN moved. Previously the Task was
- * completed first in a transaction of its own, and a failure in the obligation
- * transaction left a Task ticked off against an obligation that was still open.
+ * ATOMICITY (ADR-012). `recordEvent` writes the event, its Activity and any
+ * canonical Asset fact the event asserts as ONE batch.
  *
  * ACTIVITY PRIVACY (§17). Payloads carry only structural terms — the category
  * token, the derived state, whether a successor was created. Never a cost, a
@@ -52,39 +46,24 @@ import {
   ASSET_EVENT_RESTORED,
   ASSET_EVENT_UPDATED,
   ASSET_METER_UPDATED,
-  ASSET_OBLIGATION_COMPLETED,
-  ASSET_OBLIGATION_CREATED,
-  ASSET_OBLIGATION_DISMISSED,
-  ASSET_OBLIGATION_REOPENED,
-  ASSET_OBLIGATION_RESCHEDULED,
-  ASSET_TASK_LINKED,
   AssetConflictError,
   AssetError,
   AssetNotFoundError,
   AssetStorageError,
   AssetValidationError,
-  DEFAULT_ATTENTION_HORIZON_DAYS,
-  MAX_ATTENTION_ITEMS,
   SERVICE_EVENT_CATEGORIES,
   canonicalFactForCategory,
+  validateAssetCompletionExtras,
+  DEFAULT_CURRENCY,
   canonicalFactForEventCategory,
   completionEventCategory,
   decodeAssetHistoryCursorForScope,
   encodeAssetHistoryCursor,
-  evaluateAssetObligation,
   historyFilterKey,
-  nextMeterThreshold,
-  nextObligationDate,
   validateAssetEvent,
   validateAssetId,
-  validateAssetObligation,
   validateEventFilters,
   validateEventsLimit,
-  validateObligationCompletion,
-  validateObligationFilters,
-  validateObligationsLimit,
-  type ObligationAttentionInput,
-  type AssetAttentionItem,
   type AssetCostGroup,
   type AssetCostSummary,
   type AssetEvent,
@@ -94,28 +73,13 @@ import {
   type AssetHistoryCursorScope,
   type AssetHistoryRepository,
   type AssetMeterUnit,
-  type AssetObligation,
   type ObligationCategory,
-  type ObligationChangeResult,
-  type ObligationPage,
-  type ObligationStatus,
-  type ObligationTaskOutcome,
-  type AssetObligationSummary,
-  type ObligationRecurrenceKind,
   type AssetValuationPoint,
-  type CompleteAssetObligationInput,
-  type CompleteAssetObligationResult,
   type CreateAssetEventInput,
-  type CreateAssetObligationInput,
   type ListAssetEventsInput,
-  type ListAssetObligationsInput,
-  type LinkObligationTaskResult,
-  type ObligationTaskGateway,
-  type ObligationTaskReconciliation,
   type RecordMeterReadingInput,
   type RecordMeterReadingResult,
   type UpdateAssetEventInput,
-  type UpdateAssetObligationInput,
 } from "~/kernel/assets";
 import {
   systemClock,
@@ -123,66 +87,23 @@ import {
   type Clock,
   type IdGenerator,
 } from "~/kernel/entities";
+import type { CompleteObligationInput } from "~/kernel/obligations";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import { ownerCalendarIso } from "~/shared/datetime";
 
+import { nextMeterThreshold as nextMeterThreshold_ } from "~/kernel/assets";
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import type { AtomicMutationFault } from "./d1-atomic-mutation";
-
-/**
- * AUDIT-13 — the storage-level seam through which a linked Task's completion joins
- * the OBLIGATION's batch instead of preceding it in a transaction of its own.
- *
- * It hands back prepared statements; it never writes. `guard` is a SQL predicate
- * the planner AND-s into the Task's completion gate, so the Task closes only if the
- * obligation actually closed earlier in the same transaction — and if any later
- * statement fails, D1 rolls the Task's completion back with everything else.
- *
- * It is declared here rather than in `~/kernel/assets` on purpose: `D1PreparedStatement`
- * is a storage type, and the kernel stays storage-independent (ADR-010).
- */
-export interface ObligationTaskCompletionPlanner {
-  planCompletion(
-    taskId: string,
-    options: {
-      readonly ownerTodayIso: string;
-      readonly guard?: {
-        readonly sql: string;
-        readonly params: readonly unknown[];
-      };
-      readonly now?: Date;
-    },
-  ): Promise<{
-    readonly outcome: "completed" | "already_closed" | "missing";
-    readonly statements: readonly D1PreparedStatement[];
-  }>;
-}
 
 export interface D1AssetHistoryRepositoryOptions {
   readonly clock?: Clock;
   readonly idGenerator?: IdGenerator;
   readonly actorContext?: ActivityActorContext;
   readonly activityIdGenerator?: IdGenerator;
-  /** The canonical Task RESCHEDULE port. Omitted in tests that link no Tasks. */
-  readonly taskGateway?: ObligationTaskGateway;
-  /**
-   * AUDIT-13 — the Task-completion statement planner. Omitted in tests that link
-   * no Tasks; then a linked Task is reported as `already_closed`, exactly as it
-   * was when no gateway was supplied.
-   */
-  readonly taskCompletionPlanner?: ObligationTaskCompletionPlanner;
   /** TEST-ONLY deterministic batch fault, proving whole-transaction rollback. */
   readonly mutationFault?: AtomicMutationFault;
-  /**
-   * AUDIT-13 TEST-ONLY: force `completeObligation`'s batch to fail AFTER the linked
-   * Task's completion statements — the far side of the transaction from
-   * `mutationFault`, which fails immediately after the obligation's own write.
-   * Together they prove that a failure on EITHER side of the fused operation
-   * leaves both the obligation open and the Task open. Never set in production.
-   */
-  readonly obligationTaskFault?: boolean;
   /**
    * AUDIT-14 — resolve the OWNER's timezone, so this repository's idea of
    * "today" is the same one every other module uses. It used to be a hard-coded
@@ -194,8 +115,6 @@ export interface D1AssetHistoryRepositoryOptions {
 }
 
 const SUBJECT_ROLE = "subject";
-/** A far-future sentinel so NULL due dates sort LAST under ascending order. */
-const DATE_SENTINEL = "9999-12-31";
 
 /* -------------------------------------------------------------------------- */
 /* Row shapes                                                                 */
@@ -228,61 +147,10 @@ interface EventRow {
   readonly deleted_at: string | null;
 }
 
-interface ObligationRow {
-  readonly id: string;
-  readonly workspace_id: string;
-  readonly asset_id: string;
-  readonly category: string;
-  readonly title: string;
-  readonly description: string | null;
-  readonly due_date: string | null;
-  readonly lead_days: number;
-  readonly recurrence_kind: string;
-  readonly recurrence_interval: number | null;
-  readonly meter_threshold: number | null;
-  readonly meter_interval: number | null;
-  readonly meter_unit: string | null;
-  readonly status: string;
-  readonly task_id: string | null;
-  readonly completed_event_id: string | null;
-  readonly completed_at: string | null;
-  readonly next_obligation_id: string | null;
-  readonly series_id: string;
-  readonly sequence: number;
-  readonly created_at: string;
-  readonly updated_at: string;
-  readonly archived_at: string | null;
-  readonly deleted_at: string | null;
-}
-
 const EVENT_COLUMNS = `id, workspace_id, asset_id, category, title, event_date,
   completed_at, description, provider, person_id, cost_minor, value_minor,
   currency_code, meter_value, meter_unit, warranty_expiry, next_due_date,
   task_id, note_id, obligation_id, created_at, updated_at, archived_at, deleted_at`;
-
-const OBLIGATION_COLUMNS = `id, workspace_id, asset_id, category, title, description,
-  due_date, lead_days, recurrence_kind, recurrence_interval, meter_threshold,
-  meter_interval, meter_unit, status, task_id, completed_event_id, completed_at,
-  next_obligation_id, series_id, sequence, created_at, updated_at, archived_at,
-  deleted_at`;
-
-/**
- * A Task counts as OPEN when it exists, is not soft-deleted, has not been
- * completed on the spine, and was not cancelled. Cancellation is a deliberate
- * decision not to proceed (ADR-043 §5), so a cancelled Task is no longer the
- * obligation's actionable commitment and the owner may create a fresh one (§7).
- */
-const OPEN_TASK_EXISTS = `EXISTS (
-  SELECT 1 FROM entities te
-  JOIN spine_records sr
-    ON sr.workspace_id = te.workspace_id AND sr.entity_id = te.id
-  LEFT JOIN task_details td
-    ON td.workspace_id = te.workspace_id AND td.entity_id = te.id
-  WHERE te.workspace_id = o.workspace_id AND te.id = o.task_id
-    AND te.type = 'task' AND te.deleted_at IS NULL
-    AND sr.completed_at IS NULL
-    AND coalesce(td.status, 'todo') <> 'cancelled'
-)`;
 
 /* -------------------------------------------------------------------------- */
 /* Repository                                                                 */
@@ -296,10 +164,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
   readonly #actor: ActivityActorContext;
   readonly #newActivityId: IdGenerator;
   readonly #recorder: D1ActivityRecorder;
-  readonly #taskGateway?: ObligationTaskGateway;
-  readonly #taskCompletionPlanner?: ObligationTaskCompletionPlanner;
   readonly #mutationFault?: AtomicMutationFault;
-  readonly #obligationTaskFault?: boolean;
   readonly #ownerTimeZone: () => Promise<string>;
 
   constructor(
@@ -315,10 +180,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
     this.#newActivityId =
       options.activityIdGenerator ?? activitySecureIdGenerator;
     this.#recorder = new D1ActivityRecorder(db);
-    this.#taskGateway = options.taskGateway;
-    this.#taskCompletionPlanner = options.taskCompletionPlanner;
     this.#mutationFault = options.mutationFault;
-    this.#obligationTaskFault = options.obligationTaskFault;
     this.#ownerTimeZone =
       options.ownerTimeZone ?? (() => Promise.resolve(DEFAULT_OWNER_TIME_ZONE));
   }
@@ -487,40 +349,6 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       taskId: row.task_id,
       noteId: row.note_id,
       obligationId: row.obligation_id,
-      createdAt: fromStorageTimestamp(row.created_at),
-      updatedAt: fromStorageTimestamp(row.updated_at),
-      archivedAt:
-        row.archived_at === null ? null : fromStorageTimestamp(row.archived_at),
-      deletedAt:
-        row.deleted_at === null ? null : fromStorageTimestamp(row.deleted_at),
-    };
-  }
-
-  #rowToObligation(row: ObligationRow): AssetObligation {
-    return {
-      id: row.id,
-      workspaceId: parseWorkspaceId(row.workspace_id),
-      assetId: row.asset_id,
-      category: row.category as ObligationCategory,
-      title: row.title,
-      description: row.description,
-      dueDate: row.due_date,
-      leadDays: row.lead_days,
-      recurrenceKind: row.recurrence_kind as ObligationRecurrenceKind,
-      recurrenceInterval: row.recurrence_interval,
-      meterThreshold: row.meter_threshold,
-      meterInterval: row.meter_interval,
-      meterUnit: (row.meter_unit as AssetMeterUnit | null) ?? null,
-      status: row.status as ObligationStatus,
-      taskId: row.task_id,
-      completedEventId: row.completed_event_id,
-      completedAt:
-        row.completed_at === null
-          ? null
-          : fromStorageTimestamp(row.completed_at),
-      nextObligationId: row.next_obligation_id,
-      seriesId: row.series_id,
-      sequence: row.sequence,
       createdAt: fromStorageTimestamp(row.created_at),
       updatedAt: fromStorageTimestamp(row.updated_at),
       archivedAt:
@@ -948,7 +776,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
     // (§18). Only the now-dangling pointer is cleared.
     const clearPointer = this.#db
       .prepare(
-        `UPDATE asset_obligations
+        `UPDATE obligation_details
             SET completed_event_id = NULL, updated_at = ?
           WHERE workspace_id = ? AND completed_event_id = ?`,
       )
@@ -1219,493 +1047,122 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Obligations                                                            */
+  /* ADR-083 — the obligation completion's PROOF, as statements              */
   /* ---------------------------------------------------------------------- */
 
-  async createObligation(
-    assetId: string,
-    input: CreateAssetObligationInput,
-  ): Promise<AssetObligation> {
-    const id = validateAssetId(assetId);
-    const v = validateAssetObligation(input, "create");
-    const facts = await this.#assetFacts(id);
-    if (!facts) throw new AssetNotFoundError();
-
-    const obligationId = this.#newId();
-    // A fresh series starts at sequence 0. Every successor shares this id, which
-    // is what makes a recurrence walkable and its successors unique.
-    const seriesId = obligationId;
-    const now = this.#clock();
-    const nowTs = toStorageTimestamp(now);
-
-    const insert = this.#db
-      .prepare(
-        `INSERT INTO asset_obligations
-           (id, workspace_id, asset_id, category, title, description, due_date,
-            lead_days, recurrence_kind, recurrence_interval, meter_threshold,
-            meter_interval, meter_unit, status, task_id, completed_event_id,
-            completed_at, next_obligation_id, series_id, sequence, created_at,
-            updated_at, archived_at, deleted_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NULL, NULL, NULL,
-                NULL, ?, 0, ?, ?, NULL, NULL
-          WHERE EXISTS (
-                  SELECT 1 FROM entities
-                  WHERE workspace_id = ? AND id = ?
-                    AND type = '${ASSET_ENTITY_TYPE}' AND deleted_at IS NULL
-                )
-         RETURNING id`,
-      )
-      .bind(
-        obligationId,
-        this.#workspaceId,
-        id,
-        v.category ?? "reminder",
-        v.title ?? "",
-        v.description ?? null,
-        v.dueDate ?? null,
-        v.leadDays ?? 14,
-        v.recurrenceKind ?? "none",
-        v.recurrenceInterval ?? null,
-        v.meterThreshold ?? null,
-        v.meterInterval ?? null,
-        v.meterUnit ?? null,
-        seriesId,
-        nowTs,
-        nowTs,
-        this.#workspaceId,
-        id,
-      );
-
-    const append = this.#appendStatements(
-      ASSET_OBLIGATION_CREATED,
-      [id],
-      {
-        category: v.category ?? "reminder",
-        recurrence: v.recurrenceKind ?? "none",
-        meterBased: v.meterThreshold !== null && v.meterThreshold !== undefined,
-      },
-      now,
-    );
-
-    try {
-      const results = await this.#db.batch(
-        this.#withFault([insert, ...append]),
-      );
-      if ((results[0]?.meta?.changes ?? 0) === 0)
-        throw new AssetNotFoundError();
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    const created = await this.getObligation(obligationId);
-    if (!created) throw new AssetStorageError();
-    return created;
+  /**
+   * The subject-side half of an obligation completion, for a subject that is an
+   * Asset: the `asset_events` logbook row that proves the work happened, and
+   * the forward-only advance of the Asset's canonical date for that category.
+   *
+   * It is here, and not in the obligation repository, because these are Assets'
+   * tables and ADR-083 decision 2 is explicit: a composing operation assembles
+   * the OWNING repository's own statements and never re-authors its SQL. It
+   * returns statements and performs no write; the obligation's batch is the
+   * only transaction, and every statement carries the obligation's own
+   * completion guard so nothing lands if the obligation did not close.
+   */
+  supports(subjectEntityType: string): boolean {
+    return subjectEntityType === ASSET_ENTITY_TYPE;
   }
 
-  async getObligation(obligationId: string): Promise<AssetObligation | null> {
-    const id = validateAssetId(obligationId);
-    try {
-      const row = await this.#db
-        .prepare(
-          `SELECT ${OBLIGATION_COLUMNS} FROM asset_obligations
-            WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-            LIMIT 1`,
-        )
-        .bind(this.#workspaceId, id)
-        .first<ObligationRow>();
-      return row ? this.#rowToObligation(row) : null;
-    } catch (cause) {
-      this.#fail(cause);
-    }
-  }
-
-  async updateObligation(
-    obligationId: string,
-    changes: UpdateAssetObligationInput,
-  ): Promise<ObligationChangeResult<AssetObligation>> {
-    const id = validateAssetId(obligationId);
-    const current = await this.getObligation(id);
-    if (!current) throw new AssetNotFoundError();
-    const v = validateAssetObligation(changes, "update", {
-      dueDate: current.dueDate,
-      meterThreshold: current.meterThreshold,
-      meterUnit: current.meterUnit,
-      meterInterval: current.meterInterval,
-      recurrenceKind: current.recurrenceKind,
-    });
-
-    const COLUMN: Record<string, string> = {
-      category: "category",
-      title: "title",
-      description: "description",
-      dueDate: "due_date",
-      leadDays: "lead_days",
-      recurrenceKind: "recurrence_kind",
-      recurrenceInterval: "recurrence_interval",
-      meterThreshold: "meter_threshold",
-      meterInterval: "meter_interval",
-      meterUnit: "meter_unit",
+  async planProof(input: {
+    readonly obligationId: string;
+    readonly proofId: string;
+    readonly subjectEntityId: string;
+    readonly category: ObligationCategory;
+    readonly title: string;
+    readonly completedOn: string;
+    readonly amountMinor: number | null;
+    readonly currencyCode: string | null;
+    readonly nextDueDate: string | null;
+    readonly taskId: string | null;
+    readonly now: Date;
+    readonly raw: CompleteObligationInput;
+    /** The obligation's meter commitment, for the successor's threshold. */
+    readonly meterRecurrence: boolean;
+    readonly meterThreshold: number | null;
+    readonly meterInterval: number | null;
+    readonly meterUnit: string | null;
+    readonly guard: {
+      readonly sql: string;
+      readonly params: readonly unknown[];
     };
-    const CURRENT: Record<string, string | number | null> = {
-      category: current.category,
-      title: current.title,
-      description: current.description,
-      dueDate: current.dueDate,
-      leadDays: current.leadDays,
-      recurrenceKind: current.recurrenceKind,
-      recurrenceInterval: current.recurrenceInterval,
-      meterThreshold: current.meterThreshold,
-      meterInterval: current.meterInterval,
-      meterUnit: current.meterUnit,
+  }): Promise<{
+    readonly statements: readonly D1PreparedStatement[];
+    readonly proof: {
+      readonly id: string;
+      readonly title: string;
+      readonly date: string;
     };
+    readonly proofId: string;
+    readonly nextMeterThreshold: number | null;
+  } | null> {
+    const facts = await this.#assetFacts(input.subjectEntityId);
+    if (!facts) return null;
 
-    const setColumns: string[] = [];
-    const setValues: (string | number | null)[] = [];
-    const changedFields: string[] = [];
-    for (const [field, column] of Object.entries(COLUMN)) {
-      const next = (v as unknown as Record<string, unknown>)[field];
-      if (next === undefined) continue;
-      const value = next as string | number | null;
-      if (value === CURRENT[field]) continue;
-      setColumns.push(column);
-      setValues.push(value);
-      changedFields.push(field);
-    }
-
-    if (setColumns.length === 0) {
-      return { obligation: current, changed: false };
-    }
-
-    const now = this.#clock();
-    const nowTs = toStorageTimestamp(now);
-    const update = this.#db
-      .prepare(
-        `UPDATE asset_obligations
-            SET ${setColumns.map((c) => `${c} = ?`).join(", ")}, updated_at = ?
-          WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-         RETURNING id`,
-      )
-      .bind(...setValues, nowTs, this.#workspaceId, id);
-
-    const append = this.#appendStatements(
-      ASSET_OBLIGATION_RESCHEDULED,
-      [current.assetId],
-      { category: current.category, fields: changedFields },
-      now,
+    // The Asset-specific completion extras — a provider, a person, a meter
+    // reading, a note — are validated by the domain that understands them.
+    const extras = validateAssetCompletionExtras(
+      (input.raw.subject ?? {}) as Parameters<
+        typeof validateAssetCompletionExtras
+      >[0],
+      input.currencyCode ?? facts.currencyCode ?? DEFAULT_CURRENCY,
     );
-
-    try {
-      const results = await this.#db.batch(
-        this.#withFault([update, ...append]),
-      );
-      if ((results[0]?.meta?.changes ?? 0) === 0)
-        throw new AssetConflictError();
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    const refreshed = await this.getObligation(id);
-    if (!refreshed) throw new AssetStorageError();
-
-    // The obligation is authoritative for the due date, so an open linked Task
-    // follows it. This is what stops the two permanently diverging (§7).
-    if (
-      changedFields.includes("dueDate") &&
-      refreshed.taskId &&
-      refreshed.status === "open" &&
-      this.#taskGateway
-    ) {
-      try {
-        await this.#taskGateway.rescheduleTask(
-          refreshed.taskId,
-          refreshed.dueDate,
-        );
-      } catch {
-        // A Task that cannot be moved is surfaced by reconciliation, never a 500.
-      }
-    }
-
-    return { obligation: refreshed, changed: true };
-  }
-
-  async setObligationStatus(
-    obligationId: string,
-    status: Exclude<ObligationStatus, "completed">,
-  ): Promise<ObligationChangeResult<AssetObligation>> {
-    const id = validateAssetId(obligationId);
-    const current = await this.getObligation(id);
-    if (!current) throw new AssetNotFoundError();
-    if (current.status === status) {
-      return { obligation: current, changed: false };
-    }
-    if (current.status === "completed") {
-      // Reopening a completed occurrence would orphan its successor and its proof.
-      throw new AssetValidationError(
-        "status",
-        "cannot be changed once the obligation is completed",
-      );
-    }
-
-    const now = this.#clock();
-    const nowTs = toStorageTimestamp(now);
-    const update = this.#db
-      .prepare(
-        `UPDATE asset_obligations
-            SET status = ?, updated_at = ?
-          WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-            AND status = ?
-         RETURNING id`,
-      )
-      .bind(status, nowTs, this.#workspaceId, id, current.status);
-
-    const append = this.#appendStatements(
-      status === "open"
-        ? ASSET_OBLIGATION_REOPENED
-        : ASSET_OBLIGATION_DISMISSED,
-      [current.assetId],
-      { category: current.category, status },
-      now,
-    );
-
-    try {
-      const results = await this.#db.batch(
-        this.#withFault([update, ...append]),
-      );
-      if ((results[0]?.meta?.changes ?? 0) === 0)
-        throw new AssetConflictError();
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    const refreshed = await this.getObligation(id);
-    if (!refreshed) throw new AssetStorageError();
-    return { obligation: refreshed, changed: true };
-  }
-
-  async completeObligation(
-    obligationId: string,
-    input: CompleteAssetObligationInput = {},
-  ): Promise<CompleteAssetObligationResult> {
-    const id = validateAssetId(obligationId);
-    const current = await this.getObligation(id);
-    if (!current) throw new AssetNotFoundError();
-    const c = validateObligationCompletion(input);
-    const facts = await this.#assetFacts(current.assetId);
-    if (!facts) throw new AssetNotFoundError();
     await this.#assertRelations({
-      personId: c.personId,
-      noteId: c.noteId,
+      personId: extras.personId,
+      noteId: extras.noteId,
     });
 
-    // Idempotent: an already-completed occurrence returns its existing completion
-    // rather than writing a second event or a second successor.
-    if (current.status === "completed") {
-      return this.#existingCompletion(current);
-    }
+    // The obligation reserved this id before the batch was assembled: it is
+    // what its completion guard names, so the two cannot disagree.
+    const eventId = input.proofId;
+    const nowTs = toStorageTimestamp(input.now);
+    const eventCategory = completionEventCategory(input.category);
+    const statements: D1PreparedStatement[] = [];
 
-    const completedOn = c.completedOn ?? (await this.#today());
-    const eventCategory = completionEventCategory(current.category);
-    const eventId = this.#newId();
-    const now = this.#clock();
-    const nowTs = toStorageTimestamp(now);
-
-    // Work out the successor BEFORE writing anything, so the whole transaction is
-    // decided up front and the batch is a pure write.
-    const recurs = current.recurrenceKind !== "none";
-    const successorId = recurs && c.createSuccessor ? this.#newId() : null;
-    const nextDue =
-      c.nextDueDate ??
-      (current.recurrenceKind === "meter"
-        ? current.dueDate
-        : nextObligationDate(
-            completedOn,
-            current.recurrenceKind,
-            current.recurrenceInterval,
-          ));
-    const nextThreshold =
-      current.recurrenceKind === "meter" &&
-      current.meterInterval !== null &&
-      current.meterUnit !== null
-        ? nextMeterThreshold(
-            // Anchor on the reading the work was actually done at when we have
-            // one, else on the threshold that was met.
-            c.meterUnit === current.meterUnit && c.meterValue !== null
-              ? c.meterValue
-              : (current.meterThreshold ?? 0),
-            current.meterInterval,
-          )
-        : null;
-
-    /* -- One transaction, obligation and linked Task together (AUDIT-13) --- */
-
-    const closeObligation = this.#db
-      .prepare(
-        `UPDATE asset_obligations
-            SET status = 'completed', completed_at = ?, completed_event_id = ?,
-                next_obligation_id = ?, updated_at = ?
-          WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-            AND status = 'open'
-         RETURNING id`,
-      )
-      .bind(nowTs, eventId, successorId, nowTs, this.#workspaceId, id);
-
-    // The event only lands if the obligation actually closed and now points at
-    // exactly this event id — so a losing concurrent completion writes nothing.
-    const completionGuard = `EXISTS (
-      SELECT 1 FROM asset_obligations
-      WHERE workspace_id = ? AND id = ? AND status = 'completed'
-        AND completed_event_id = ?
-    )`;
-    const completionGuardParams = [this.#workspaceId, id, eventId] as const;
-
-    /* -- The linked Task joins THIS batch (AUDIT-13) -----------------------
-     * It used to be completed first, in a transaction of its own, so a failure
-     * in the obligation's transaction left a Task ticked off against an
-     * obligation that was still open. Now its statements are planned (never
-     * executed) here and appended below, gated on `completionGuard` — the
-     * obligation having actually closed in this very transaction. Either both
-     * commit or neither does.
-     */
-    const taskPlan =
-      current.taskId && this.#taskCompletionPlanner
-        ? await this.#taskCompletionPlanner.planCompletion(current.taskId, {
-            // The OWNER's today, not the (possibly back-dated) completion date:
-            // this anchors the Task's own recurrence exactly as the Task module
-            // does, which is the AUDIT-14 contract this must not quietly change.
-            ownerTodayIso: await this.#today(),
-            guard: {
-              sql: completionGuard,
-              params: [...completionGuardParams],
-            },
-            now,
-          })
-        : null;
-    const plannedOutcome: CompleteAssetObligationResult["taskOutcome"] =
-      current.taskId === null
-        ? "none"
-        : // No planner wired (a test that links no Tasks) keeps the previous
-          // reading: there is nothing this repository can close.
-          (taskPlan?.outcome ?? "already_closed");
-
-    /*
-     * The Task's outcome is deliberately NOT in this payload.
-     *
-     * It used to be, and it could not be made truthful there: the payload is
-     * serialised before the batch runs, so a Task completed or DELETED by another
-     * request in the gap left a permanent event asserting that this operation
-     * closed it. Writing an intent into an audit record as though it were an
-     * outcome is the same defect as the `catch` that wrote `already_closed` for
-     * every failure, arriving from the other direction.
-     *
-     * There is already exactly one authority for "was the linked Task completed":
-     * the Task's OWN `task.completed` event, appended by the Task's own statements
-     * in THIS batch. Restating it here would be a second copy of one fact, which
-     * is how two events come to disagree. The caller still learns the outcome —
-     * from the RESULT below, derived from what the batch actually did.
-     */
-    const append = this.#appendStatements(
-      ASSET_OBLIGATION_COMPLETED,
-      [current.assetId],
-      {
-        category: current.category,
-        recurrence: current.recurrenceKind,
-        createdSuccessor: successorId !== null,
-      },
-      now,
+    statements.push(
+      this.#db
+        .prepare(
+          `INSERT INTO asset_events
+             (${EVENT_COLUMNS.replace(/\s+/g, " ")})
+           SELECT ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, NULL
+            WHERE ${input.guard.sql}`,
+        )
+        .bind(
+          eventId,
+          this.#workspaceId,
+          input.subjectEntityId,
+          eventCategory,
+          input.title,
+          input.completedOn,
+          extras.description,
+          extras.provider,
+          extras.personId,
+          // The obligation's own recorded amount is the Asset logbook's cost.
+          // One input, two facts: "what did this obligation cost" and "what has
+          // this Asset cost me" (ADR-118 decision 2).
+          input.amountMinor ?? extras.costMinor,
+          input.amountMinor !== null || extras.costMinor !== null
+            ? (input.currencyCode ?? facts.currencyCode ?? DEFAULT_CURRENCY)
+            : null,
+          extras.meterValue,
+          extras.meterUnit,
+          input.nextDueDate,
+          input.taskId,
+          extras.noteId,
+          input.obligationId,
+          nowTs,
+          nowTs,
+          ...input.guard.params,
+        ),
     );
-
-    const insertEvent = this.#db
-      .prepare(
-        `INSERT INTO asset_events
-           (${EVENT_COLUMNS.replace(/\s+/g, " ")})
-         SELECT ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, NULL
-          WHERE ${completionGuard}`,
-      )
-      .bind(
-        eventId,
-        this.#workspaceId,
-        current.assetId,
-        eventCategory,
-        c.title ?? current.title,
-        completedOn,
-        c.description,
-        c.provider,
-        c.personId,
-        c.costMinor,
-        c.currencyCode,
-        c.meterValue,
-        c.meterUnit,
-        nextDue,
-        current.taskId,
-        c.noteId,
-        id,
-        nowTs,
-        nowTs,
-        this.#workspaceId,
-        id,
-        eventId,
-      );
-
-    const batch: D1PreparedStatement[] = [
-      closeObligation,
-      ...append,
-      insertEvent,
-    ];
-
-    // AT MOST ONE successor. Both the NOT EXISTS guard and the
-    // (workspace_id, series_id, sequence) UNIQUE constraint have to be satisfied,
-    // so neither a retry nor a concurrent completion can produce a second one.
-    if (successorId !== null) {
-      batch.push(
-        this.#db
-          .prepare(
-            `INSERT INTO asset_obligations
-               (id, workspace_id, asset_id, category, title, description, due_date,
-                lead_days, recurrence_kind, recurrence_interval, meter_threshold,
-                meter_interval, meter_unit, status, task_id, completed_event_id,
-                completed_at, next_obligation_id, series_id, sequence, created_at,
-                updated_at, archived_at, deleted_at)
-             SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NULL, NULL,
-                    NULL, NULL, ?, ?, ?, ?, NULL, NULL
-              WHERE ${completionGuard}
-                AND NOT EXISTS (
-                      SELECT 1 FROM asset_obligations
-                      WHERE workspace_id = ? AND series_id = ? AND sequence = ?
-                    )`,
-          )
-          .bind(
-            successorId,
-            this.#workspaceId,
-            current.assetId,
-            current.category,
-            current.title,
-            current.description,
-            nextDue,
-            current.leadDays,
-            current.recurrenceKind,
-            current.recurrenceInterval,
-            nextThreshold ?? current.meterThreshold,
-            current.meterInterval,
-            current.meterUnit,
-            current.seriesId,
-            current.sequence + 1,
-            nowTs,
-            nowTs,
-            this.#workspaceId,
-            id,
-            eventId,
-            this.#workspaceId,
-            current.seriesId,
-            current.sequence + 1,
-          ),
-      );
-    }
 
     // Advance the Asset's canonical fact for this category, forward-only.
-    const factField = canonicalFactForCategory(current.category);
+    const factField = canonicalFactForCategory(input.category);
     const canonicalSets: string[] = [];
     const canonicalParams: (string | number | null)[] = [];
-    if (factField !== null && nextDue !== null) {
+    if (factField !== null && input.nextDueDate !== null) {
       const column =
         factField === "renewalDate"
           ? "renewal_date"
@@ -1715,15 +1172,15 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       canonicalSets.push(
         `${column} = CASE WHEN ${column} IS NULL OR ? > ${column} THEN ? ELSE ${column} END`,
       );
-      canonicalParams.push(nextDue, nextDue);
+      canonicalParams.push(input.nextDueDate, input.nextDueDate);
     }
     if (factField === "nextServiceDate") {
       canonicalSets.push(
         "last_service_date = CASE WHEN last_service_date IS NULL OR ? > last_service_date THEN ? ELSE last_service_date END",
       );
-      canonicalParams.push(completedOn, completedOn);
+      canonicalParams.push(input.completedOn, input.completedOn);
     }
-    if (c.meterValue !== null && c.meterUnit !== null) {
+    if (extras.meterValue !== null && extras.meterUnit !== null) {
       const guard = `(current_meter_date IS NULL
           OR (? >= current_meter_date
               AND (current_meter_unit IS NOT ? OR ? >= current_meter_value)))`;
@@ -1733,585 +1190,62 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
         `current_meter_date = CASE WHEN ${guard} THEN ? ELSE current_meter_date END`,
       );
       canonicalParams.push(
-        completedOn,
-        c.meterUnit,
-        c.meterValue,
-        c.meterValue,
-        completedOn,
-        c.meterUnit,
-        c.meterValue,
-        c.meterUnit,
-        completedOn,
-        c.meterUnit,
-        c.meterValue,
-        completedOn,
+        input.completedOn,
+        extras.meterUnit,
+        extras.meterValue,
+        extras.meterValue,
+        input.completedOn,
+        extras.meterUnit,
+        extras.meterValue,
+        extras.meterUnit,
+        input.completedOn,
+        extras.meterUnit,
+        extras.meterValue,
+        input.completedOn,
       );
     }
     if (canonicalSets.length > 0) {
-      batch.push(
+      statements.push(
         this.#db
           .prepare(
             `UPDATE asset_details
                 SET ${canonicalSets.join(", ")}, updated_at = ?
               WHERE workspace_id = ? AND entity_id = ?
-                AND ${completionGuard}`,
+                AND ${input.guard.sql}`,
           )
           .bind(
             ...canonicalParams,
             nowTs,
             this.#workspaceId,
-            current.assetId,
-            this.#workspaceId,
-            id,
-            eventId,
+            input.subjectEntityId,
+            ...input.guard.params,
           ),
       );
     }
 
-    // LAST, so the obligation's own guarded statements keep the `changes()` chain
-    // they were written against, and the Task group's first statement (its
-    // completion gate, carrying `completionGuard`) starts a fresh one. Its index
-    // is remembered so the outcome can be read off what the batch DID, rather
-    // than off what was planned before it ran.
-    const taskGateIndex = taskPlan ? batch.length : -1;
-    if (taskPlan) batch.push(...taskPlan.statements);
-    if (this.#obligationTaskFault) batch.push(this.#forcedFailure());
-
-    let taskClosedHere = false;
-    try {
-      const results = await this.#db.batch(this.#withFault(batch));
-      if ((results[0]?.meta?.changes ?? 0) === 0) {
-        // A concurrent completion won. Report ITS result — never a second one.
-        const reread = await this.getObligation(id);
-        if (reread && reread.status === "completed") {
-          return this.#existingCompletion(reread);
-        }
-        throw new AssetConflictError();
-      }
-      // `#withFault` splices at index 1, so a faulted batch throws before this.
-      taskClosedHere =
-        taskGateIndex >= 0 && (results[taskGateIndex]?.meta?.changes ?? 0) > 0;
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
     /*
-     * What the batch actually did to the Task. `plannedOutcome` was read before
-     * the batch; the Task's completion gate also requires `completed_at IS NULL`,
-     * so a Task closed or deleted by another request in the gap changes no row
-     * here. Reporting the plan in that case would tell the owner this operation
-     * closed a Task it did not touch.
+     * Anchored on the reading the work was actually done at when there is one,
+     * else on the threshold that was met — so being 400 km late does not
+     * permanently shift the whole schedule 400 km early. The same rule the date
+     * recurrence uses, in the dimension the Asset owns.
      */
-    let taskOutcome = plannedOutcome;
-    if (plannedOutcome === "completed" && !taskClosedHere) {
-      taskOutcome = current.taskId
-        ? await this.#racedTaskOutcome(current.taskId)
-        : "none";
-    }
-
-    const [obligation, event, successor] = await Promise.all([
-      this.getObligation(id),
-      this.getEvent(eventId),
-      successorId ? this.getObligation(successorId) : Promise.resolve(null),
-    ]);
-    if (!obligation || !event) throw new AssetStorageError();
+    const nextMeterThreshold =
+      input.meterRecurrence && input.meterInterval !== null
+        ? nextMeterThreshold_(
+            extras.meterUnit === input.meterUnit && extras.meterValue !== null
+              ? extras.meterValue
+              : (input.meterThreshold ?? 0),
+            input.meterInterval,
+          )
+        : null;
 
     return {
-      obligation,
-      event: {
-        id: event.id,
-        title: event.title,
-        eventDate: event.eventDate,
-      },
-      successor,
-      taskOutcome,
+      statements,
+      proof: { id: eventId, title: input.title, date: input.completedOn },
+      proofId: eventId,
+      nextMeterThreshold,
     };
   }
-
-  /**
-   * Why a planned Task completion changed no row.
-   *
-   * The obligation demonstrably closed (its own statement changed a row), so the
-   * Task's `completionGuard` was satisfied and the only remaining condition its
-   * gate carries is `completed_at IS NULL`. Two things can therefore have happened
-   * in the gap: another request COMPLETED the Task, or it was deleted. Read after
-   * the batch, so the answer is the state the owner will actually see.
-   */
-  async #racedTaskOutcome(taskId: string): Promise<ObligationTaskOutcome> {
-    const row = await this.#db
-      .prepare(
-        `SELECT 1 AS present
-           FROM spine_records sr
-           JOIN entities e
-             ON e.workspace_id = sr.workspace_id AND e.id = sr.entity_id
-          WHERE sr.workspace_id = ? AND sr.entity_id = ? AND e.deleted_at IS NULL`,
-      )
-      .bind(this.#workspaceId, taskId)
-      .first<{ present: number }>();
-    // Still there ⇒ somebody else closed it; gone ⇒ nothing left to reconcile.
-    return row ? "already_closed" : "missing";
-  }
-
-  /** Rebuild the result of a completion that already happened (idempotency). */
-  async #existingCompletion(
-    obligation: AssetObligation,
-  ): Promise<CompleteAssetObligationResult> {
-    const [event, successor] = await Promise.all([
-      obligation.completedEventId
-        ? this.getEvent(obligation.completedEventId)
-        : Promise.resolve(null),
-      obligation.nextObligationId
-        ? this.getObligation(obligation.nextObligationId)
-        : Promise.resolve(null),
-    ]);
-    return {
-      obligation,
-      event: event
-        ? { id: event.id, title: event.title, eventDate: event.eventDate }
-        : {
-            id: "",
-            title: obligation.title,
-            eventDate: obligation.dueDate ?? "",
-          },
-      successor,
-      taskOutcome: obligation.taskId ? "already_closed" : "none",
-    };
-  }
-
-  async deleteObligation(obligationId: string): Promise<boolean> {
-    const id = validateAssetId(obligationId);
-    const current = await this.getObligation(id);
-    if (!current) return false;
-
-    const now = this.#clock();
-    const nowTs = toStorageTimestamp(now);
-    const update = this.#db
-      .prepare(
-        `UPDATE asset_obligations
-            SET deleted_at = ?, updated_at = ?
-          WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-         RETURNING id`,
-      )
-      .bind(nowTs, nowTs, this.#workspaceId, id);
-
-    const append = this.#appendStatements(
-      ASSET_OBLIGATION_DISMISSED,
-      [current.assetId],
-      { category: current.category, status: "deleted" },
-      now,
-    );
-
-    try {
-      const results = await this.#db.batch(
-        this.#withFault([update, ...append]),
-      );
-      return (results[0]?.meta?.changes ?? 0) > 0;
-    } catch (cause) {
-      this.#fail(cause);
-    }
-  }
-
-  async listObligations(
-    input: ListAssetObligationsInput,
-  ): Promise<ObligationPage<AssetObligation>> {
-    const assetId = validateAssetId(input.assetId);
-    const limit = validateObligationsLimit(input.limit);
-    const filters = validateObligationFilters(input.filters);
-
-    const scope: AssetHistoryCursorScope = {
-      workspaceId: this.#workspaceId,
-      assetId,
-      kind: "obligations",
-      filterKey: historyFilterKey(filters.categories, filters.statuses),
-    };
-
-    const conditions = [
-      "workspace_id = ?",
-      "asset_id = ?",
-      "deleted_at IS NULL",
-    ];
-    const params: unknown[] = [this.#workspaceId, assetId];
-    if (filters.categories.length > 0) {
-      conditions.push(
-        `category IN (${filters.categories.map(() => "?").join(", ")})`,
-      );
-      params.push(...filters.categories);
-    }
-    if (filters.statuses.length > 0) {
-      conditions.push(
-        `status IN (${filters.statuses.map(() => "?").join(", ")})`,
-      );
-      params.push(...filters.statuses);
-    }
-
-    // Open work first, then soonest due — the order the owner reads.
-    const primary = `(CASE status WHEN 'open' THEN '0' WHEN 'on_hold' THEN '1' WHEN 'dismissed' THEN '2' ELSE '3' END
-      || coalesce(due_date, '${DATE_SENTINEL}'))`;
-
-    if (input.cursor !== undefined) {
-      const position = decodeAssetHistoryCursorForScope(input.cursor, scope);
-      conditions.push(`(${primary} > ? OR (${primary} = ? AND id > ?))`);
-      params.push(position.primary, position.primary, position.id);
-    }
-    params.push(limit + 1);
-
-    let rows: (ObligationRow & { sort_primary: string })[];
-    try {
-      const result = await this.#db
-        .prepare(
-          `SELECT ${OBLIGATION_COLUMNS}, ${primary} AS sort_primary
-             FROM asset_obligations
-            WHERE ${conditions.join(" AND ")}
-            ORDER BY ${primary} ASC, id ASC
-            LIMIT ?`,
-        )
-        .bind(...params)
-        .all<ObligationRow & { sort_primary: string }>();
-      rows = result.results;
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    const hasMore = rows.length > limit;
-    const pageRows = hasMore ? rows.slice(0, limit) : rows;
-    const last = pageRows.at(-1);
-    return {
-      items: pageRows.map((row) => this.#rowToObligation(row)),
-      nextCursor:
-        hasMore && last
-          ? encodeAssetHistoryCursor(scope, {
-              primary: last.sort_primary,
-              id: last.id,
-            })
-          : null,
-      hasMore,
-    };
-  }
-
-  /* ---------------------------------------------------------------------- */
-  /* Task integration                                                       */
-  /* ---------------------------------------------------------------------- */
-
-  async linkObligationTask(
-    obligationId: string,
-    taskId: string,
-  ): Promise<LinkObligationTaskResult> {
-    const id = validateAssetId(obligationId);
-    const task = validateAssetId(taskId);
-    const current = await this.getObligation(id);
-    if (!current) throw new AssetNotFoundError();
-    await this.#assertRelations({ taskId: task });
-
-    if (current.taskId === task) {
-      return { obligation: current, taskId: task, created: false };
-    }
-
-    const now = this.#clock();
-    const nowTs = toStorageTimestamp(now);
-    const update = this.#db
-      .prepare(
-        `UPDATE asset_obligations
-            SET task_id = ?, updated_at = ?
-          WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL
-            AND task_id IS NOT ?
-         RETURNING id`,
-      )
-      .bind(task, nowTs, this.#workspaceId, id, task);
-
-    const append = this.#appendStatements(
-      ASSET_TASK_LINKED,
-      [current.assetId, task],
-      { category: current.category },
-      now,
-    );
-
-    try {
-      const results = await this.#db.batch(
-        this.#withFault([update, ...append]),
-      );
-      if ((results[0]?.meta?.changes ?? 0) === 0)
-        throw new AssetConflictError();
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    const refreshed = await this.getObligation(id);
-    if (!refreshed) throw new AssetStorageError();
-    return { obligation: refreshed, taskId: task, created: true };
-  }
-
-  async unlinkObligationTask(
-    obligationId: string,
-  ): Promise<ObligationChangeResult<AssetObligation>> {
-    const id = validateAssetId(obligationId);
-    const current = await this.getObligation(id);
-    if (!current) throw new AssetNotFoundError();
-    if (current.taskId === null) {
-      return { obligation: current, changed: false };
-    }
-    const nowTs = toStorageTimestamp(this.#clock());
-    try {
-      await this.#db
-        .prepare(
-          `UPDATE asset_obligations
-              SET task_id = NULL, updated_at = ?
-            WHERE workspace_id = ? AND id = ? AND deleted_at IS NULL`,
-        )
-        .bind(nowTs, this.#workspaceId, id)
-        .run();
-    } catch (cause) {
-      this.#fail(cause);
-    }
-    const refreshed = await this.getObligation(id);
-    if (!refreshed) throw new AssetStorageError();
-    return { obligation: refreshed, changed: true };
-  }
-
-  async reconcileObligationTask(
-    obligationId: string,
-  ): Promise<ObligationTaskReconciliation> {
-    const id = validateAssetId(obligationId);
-    const current = await this.getObligation(id);
-    if (!current) throw new AssetNotFoundError();
-    if (current.taskId === null) {
-      return { obligation: current, taskState: "none", changed: false };
-    }
-
-    let row: { open: number; exists: number } | null;
-    try {
-      row = await this.#db
-        .prepare(
-          `SELECT
-             (SELECT count(*) FROM entities
-               WHERE workspace_id = ? AND id = ? AND type = 'task'
-                 AND deleted_at IS NULL) AS exists_count,
-             (SELECT count(*) FROM entities te
-                JOIN spine_records sr
-                  ON sr.workspace_id = te.workspace_id AND sr.entity_id = te.id
-                LEFT JOIN task_details td
-                  ON td.workspace_id = te.workspace_id AND td.entity_id = te.id
-               WHERE te.workspace_id = ? AND te.id = ? AND te.type = 'task'
-                 AND te.deleted_at IS NULL AND sr.completed_at IS NULL
-                 AND coalesce(td.status, 'todo') <> 'cancelled') AS open_count`,
-        )
-        .bind(
-          this.#workspaceId,
-          current.taskId,
-          this.#workspaceId,
-          current.taskId,
-        )
-        .first<{ exists_count: number; open_count: number }>()
-        .then((r) =>
-          r ? { open: r.open_count, exists: r.exists_count } : null,
-        );
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    const exists = (row?.exists ?? 0) > 0;
-    const open = (row?.open ?? 0) > 0;
-
-    if (!exists) {
-      // Heal the dangling pointer so the owner can create a fresh Task (§7).
-      const cleared = await this.unlinkObligationTask(id);
-      return {
-        obligation: cleared.obligation,
-        taskState: "missing",
-        changed: cleared.changed,
-      };
-    }
-
-    // A completed Task NEVER completes the obligation: ticking off "book the
-    // service" is not proof the car was serviced (§7). The record surfaces
-    // "record what happened" instead.
-    return {
-      obligation: current,
-      taskState: open ? "open" : "completed",
-      changed: false,
-    };
-  }
-
-  /* ---------------------------------------------------------------------- */
-  /* Cross-asset reads                                                      */
-  /* ---------------------------------------------------------------------- */
-
-  async listAttention(
-    input: ObligationAttentionInput,
-  ): Promise<readonly AssetAttentionItem[]> {
-    const today = input.today;
-    const horizon = Math.max(
-      0,
-      Math.min(input.horizonDays ?? DEFAULT_ATTENTION_HORIZON_DAYS, 365),
-    );
-    const limit = Math.max(
-      1,
-      Math.min(input.limit ?? MAX_ATTENTION_ITEMS, MAX_ATTENTION_ITEMS),
-    );
-    const horizonDate = addCalendarDays(today, horizon);
-
-    let rows: (ObligationRow & {
-      asset_title: string;
-      asset_type: string;
-      current_meter_value: number | null;
-      current_meter_unit: string | null;
-      has_open_task: number;
-    })[];
-    try {
-      const result = await this.#db
-        .prepare(
-          `SELECT ${OBLIGATION_COLUMNS.split(",")
-            .map((c) => `o.${c.trim()}`)
-            .join(", ")},
-                  e.title AS asset_title,
-                  d.asset_type AS asset_type,
-                  d.current_meter_value AS current_meter_value,
-                  d.current_meter_unit AS current_meter_unit,
-                  CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
-                       THEN 1 ELSE 0 END AS has_open_task
-             FROM asset_obligations o
-             JOIN entities e
-               ON e.workspace_id = o.workspace_id AND e.id = o.asset_id
-              AND e.type = '${ASSET_ENTITY_TYPE}' AND e.deleted_at IS NULL
-             JOIN asset_details d
-               ON d.workspace_id = o.workspace_id AND d.entity_id = o.asset_id
-            WHERE o.workspace_id = ? AND o.status = 'open' AND o.deleted_at IS NULL
-              -- An ARCHIVED asset stops asking for things (§18).
-              AND d.archived_at IS NULL
-              AND (
-                    (o.due_date IS NOT NULL AND o.due_date <= ?)
-                    OR o.meter_threshold IS NOT NULL
-                  )
-            ORDER BY coalesce(o.due_date, '${DATE_SENTINEL}') ASC, o.id ASC
-            LIMIT ?`,
-        )
-        .bind(this.#workspaceId, horizonDate, limit)
-        .all<
-          ObligationRow & {
-            asset_title: string;
-            asset_type: string;
-            current_meter_value: number | null;
-            current_meter_unit: string | null;
-            has_open_task: number;
-          }
-        >();
-      rows = result.results;
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    return (
-      rows
-        .map((row) => {
-          const obligation = this.#rowToObligation(row);
-          const reading =
-            row.current_meter_value !== null && row.current_meter_unit !== null
-              ? {
-                  value: row.current_meter_value,
-                  unit: row.current_meter_unit as AssetMeterUnit,
-                }
-              : null;
-          return {
-            obligation,
-            assetId: row.asset_id,
-            assetTitle: row.asset_title,
-            assetType: row.asset_type,
-            reading,
-            hasOpenTask: row.has_open_task === 1,
-          };
-        })
-        // The SQL horizon is a coarse pre-filter; the ONE canonical evaluator has
-        // the final say, so Today and the record can never disagree about whether
-        // something needs attention.
-        .filter(
-          (item) =>
-            evaluateAssetObligation(item.obligation, today, item.reading)
-              .needsAttention,
-        )
-    );
-  }
-
-  async summariseObligations(
-    assetIds: readonly string[],
-    today: string,
-  ): Promise<ReadonlyMap<string, AssetObligationSummary>> {
-    const ids = [...new Set(assetIds)].filter((id) => id.length > 0);
-    const out = new Map<string, AssetObligationSummary>();
-    if (ids.length === 0) return out;
-    // A collection page is already bounded; refuse to fan out beyond it.
-    const bounded = ids.slice(0, 100);
-
-    let rows: (ObligationRow & {
-      current_meter_value: number | null;
-      current_meter_unit: string | null;
-    })[];
-    try {
-      const result = await this.#db
-        .prepare(
-          `SELECT ${OBLIGATION_COLUMNS.split(",")
-            .map((c) => `o.${c.trim()}`)
-            .join(", ")},
-                  d.current_meter_value AS current_meter_value,
-                  d.current_meter_unit AS current_meter_unit
-             FROM asset_obligations o
-             JOIN asset_details d
-               ON d.workspace_id = o.workspace_id AND d.entity_id = o.asset_id
-            WHERE o.workspace_id = ? AND o.status = 'open' AND o.deleted_at IS NULL
-              AND o.asset_id IN (${bounded.map(() => "?").join(", ")})
-            ORDER BY coalesce(o.due_date, '${DATE_SENTINEL}') ASC, o.id ASC`,
-        )
-        .bind(this.#workspaceId, ...bounded)
-        .all<
-          ObligationRow & {
-            current_meter_value: number | null;
-            current_meter_unit: string | null;
-          }
-        >();
-      rows = result.results;
-    } catch (cause) {
-      this.#fail(cause);
-    }
-
-    for (const row of rows) {
-      const obligation = this.#rowToObligation(row);
-      const reading =
-        row.current_meter_value !== null && row.current_meter_unit !== null
-          ? {
-              value: row.current_meter_value,
-              unit: row.current_meter_unit as AssetMeterUnit,
-            }
-          : null;
-      const evaluation = evaluateAssetObligation(obligation, today, reading);
-      const existing = out.get(row.asset_id) ?? {
-        openCount: 0,
-        overdueCount: 0,
-        dueSoonCount: 0,
-        nextDueDate: null,
-        nextTitle: null,
-        nextCategory: null,
-        needsMeterReading: false,
-      };
-      out.set(row.asset_id, {
-        openCount: existing.openCount + 1,
-        overdueCount:
-          existing.overdueCount + (evaluation.state === "overdue" ? 1 : 0),
-        dueSoonCount:
-          existing.dueSoonCount + (evaluation.state === "due" ? 1 : 0),
-        // Rows arrive due-date ascending, so the first one wins.
-        nextDueDate: existing.nextDueDate ?? obligation.dueDate,
-        nextTitle: existing.nextTitle ?? obligation.title,
-        nextCategory: existing.nextCategory ?? obligation.category,
-        needsMeterReading:
-          existing.needsMeterReading || evaluation.state === "unknown",
-      });
-    }
-    return out;
-  }
-}
-
-/** Add whole days to a calendar date (UTC math, zone-free). */
-function addCalendarDays(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map((p) => Number.parseInt(p, 10));
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
 /** Local mirror of the kernel's cost grouping, to keep the aggregate loop tight. */

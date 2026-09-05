@@ -165,7 +165,7 @@ export async function loadAssetsCollection(
     // ONE bounded query for the whole page's obligation counts — never one per card.
     let obligationSignals: Record<string, SerializedObligationSignal> = {};
     try {
-      const summaries = await scope.assetHistory.summariseObligations(
+      const summaries = await scope.obligations.summariseBySubject(
         page.items.map((asset) => asset.id),
         today,
       );

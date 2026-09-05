@@ -30,6 +30,7 @@
  */
 
 import { HABIT_LINK_TYPES } from "~/kernel/habits";
+import { OBLIGATION_SUBJECT_LINK } from "~/kernel/obligations";
 import { isReservedSpineLinkType } from "~/kernel/spine";
 import type {
   LinkedItem,
@@ -134,11 +135,21 @@ const MAX_SCAN_PAGES_PER_CALL = 20;
  * be a second, non-removable copy of a relationship the reader can already see.
  * Neither is a rule about what may be LINKED; both are about what this one
  * surface would otherwise duplicate.
+ *
+ * V2.10 LIFE-01 adds `obligation.subject` for exactly the third time, and the
+ * reason is the same: the link is a PROJECTION of the obligation's
+ * `subject_entity_id` foreign key (ADR-118 decision 1), written so a subject's
+ * record and timeline can show its obligations generically — and the Asset
+ * record already renders them in an Obligations tab. Listing them here too
+ * would be a second copy of a relationship the reader can already see, and
+ * `removable` would be false on every one of them anyway, because the foreign
+ * key is the authority and this surface must never become its second writer.
  */
 function isStructuralLinkType(type: string): boolean {
   return (
     isReservedSpineLinkType(type) ||
-    (HABIT_LINK_TYPES as readonly string[]).includes(type)
+    (HABIT_LINK_TYPES as readonly string[]).includes(type) ||
+    type === OBLIGATION_SUBJECT_LINK
   );
 }
 

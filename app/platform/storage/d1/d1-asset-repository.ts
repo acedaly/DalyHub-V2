@@ -79,6 +79,10 @@ import {
   type Clock,
   type IdGenerator,
 } from "~/kernel/entities";
+import {
+  OBLIGATION_ENTITY_TYPE,
+  OBLIGATION_SUBJECT_LINK,
+} from "~/kernel/obligations";
 import { canonicalTagKey, type WorkspaceTag } from "~/kernel/tags";
 import { parseWorkspaceId, type WorkspaceContext } from "~/kernel/workspaces";
 import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
@@ -935,17 +939,28 @@ export class D1AssetRepository implements AssetRepository {
     // record of which Asset was destroyed is the tombstone payload built here.
     const title = existing.title;
 
-    // Guard: refuse while any ACTIVE relationship references the Asset, so linked
-    // Notes/Tasks/People are never silently orphaned (the caller unlinks first).
+    /*
+     * Guard: refuse while any ACTIVE relationship references the Asset, so linked
+     * Notes/Tasks/People are never silently orphaned (the caller unlinks first).
+     *
+     * `obligation.subject` is excluded here for the same reason it is excluded
+     * from the batch guard below (ADR-118 decision 1): it is not a relationship
+     * the owner made, it is the projection of an obligation's own
+     * `subject_entity_id`, and this purge removes it. Counted, it would report
+     * every Asset that has ever carried an obligation as `has_links` — a block
+     * with no way out, because the link is not offered by the picker and not
+     * removable from Linked Items.
+     */
     let linkCount: number;
     try {
       const row = await this.#db
         .prepare(
           `SELECT COUNT(*) AS n FROM entity_links
            WHERE workspace_id = ? AND deleted_at IS NULL
+             AND type <> ?
              AND (source_entity_id = ? OR target_entity_id = ?)`,
         )
-        .bind(this.#workspaceId, assetId, assetId)
+        .bind(this.#workspaceId, OBLIGATION_SUBJECT_LINK, assetId, assetId)
         .first<{ n: number }>();
       linkCount = row?.n ?? 0;
     } catch (cause) {
@@ -953,6 +968,36 @@ export class D1AssetRepository implements AssetRepository {
     }
     if (linkCount > 0) {
       return { deleted: false, blockedReason: "has_links", linkCount };
+    }
+
+    /*
+     * The obligations ABOUT this Asset, resolved BEFORE the batch (V2.10
+     * LIFE-01). They cannot be found from inside it: `obligation_details` is
+     * the only table that knows which obligations belong to this Asset, and it
+     * has to be removed BEFORE the obligations' own `entities` rows (its
+     * `entity_id` foreign key is `ON DELETE RESTRICT`) — so a subquery against
+     * it would already be reading an emptied table by the time the entity
+     * DELETE ran. Soft-deleted rows are included: a soft delete is a query-time
+     * state, and the row still holds the foreign key.
+     *
+     * The ids travel as ONE bound JSON parameter expanded by `json_each`
+     * (ADR-117), so the statement's shape does not depend on how many
+     * obligations an Asset has and D1's 100-parameter ceiling is never in play.
+     */
+    let obligationIdsJson: string;
+    try {
+      const rows = await this.#db
+        .prepare(
+          `SELECT entity_id FROM obligation_details
+           WHERE workspace_id = ? AND subject_entity_id = ?`,
+        )
+        .bind(this.#workspaceId, assetId)
+        .all<{ entity_id: string }>();
+      obligationIdsJson = JSON.stringify(
+        (rows.results ?? []).map((row) => row.entity_id),
+      );
+    } catch (cause) {
+      throw new AssetStorageError({ cause });
     }
 
     // Purge the Asset's footprint child-first in ONE atomic, FK-safe batch, each
@@ -970,7 +1015,8 @@ export class D1AssetRepository implements AssetRepository {
     //      rows themselves are RETAINED (append-only, ADR-012); removing a
     //      pointer never removes the event it points at.
     //   3. `asset_events`      — ASSET-02 history (RESTRICT FK to `entities`).
-    //   4. `asset_obligations` — ASSET-02 obligations (RESTRICT FK to `entities`).
+    //   4. the obligations ABOUT this Asset — their subject links, their detail
+    //      rows and their entity rows, child-first (V2.10 LIFE-01).
     //   5. `asset_details`     — the module-owned detail row.
     //   6. `entities`          — the entity row itself, with `RETURNING`; this is
     //      the AUTHORITATIVE statement whose `changes()` drives the tombstone.
@@ -980,9 +1026,23 @@ export class D1AssetRepository implements AssetRepository {
     // event insert reads the `changes()` of the statement directly before it. A
     // guard on any earlier child DELETE would be a lie — those match zero rows for
     // an Asset with no history, yet the Asset itself was still destroyed.
+    /*
+     * "No ACTIVE relationship references this Asset" — the guard that stops a
+     * purge silently orphaning a linked Note, Task or Person.
+     *
+     * `obligation.subject` is excluded, and it must be: it is not a
+     * relationship the owner created, it is the PROJECTION of an obligation's
+     * own `subject_entity_id` foreign key (ADR-118 decision 1), written by the
+     * obligation and removed by this very batch three statements below. Left in
+     * the guard it would make every Asset that has ever had an obligation
+     * permanently un-purgeable, and the owner would have no way to clear it —
+     * the link is not offered by the picker and not removable from Linked Items,
+     * because the foreign key is the authority.
+     */
     const emptyGuard = `NOT EXISTS (
         SELECT 1 FROM entity_links gl
         WHERE gl.workspace_id = ? AND gl.deleted_at IS NULL
+          AND gl.type <> '${OBLIGATION_SUBJECT_LINK}'
           AND (gl.source_entity_id = ? OR gl.target_entity_id = ?)
       )`;
     const g = [this.#workspaceId, assetId, assetId];
@@ -994,23 +1054,86 @@ export class D1AssetRepository implements AssetRepository {
            AND ${emptyGuard}`,
       )
       .bind(this.#workspaceId, assetId, assetId, ...g);
-    // ASSET-02's history and obligations reference the Asset's entity row with
-    // ON DELETE RESTRICT (migration 0025) — they are the Asset's OWN dependent
-    // records, so an authorised purge removes them (including soft-deleted rows,
-    // which still hold the FK) in the same batch. Without these two statements
-    // the entity DELETE below violates the constraint and the whole purge fails.
+    // ASSET-02's history and V2.10's obligations reference the Asset's entity
+    // row with ON DELETE RESTRICT — they are the Asset's OWN dependent records,
+    // so an authorised purge removes them (including soft-deleted rows, which
+    // still hold the FK) in the same batch. Without these statements the entity
+    // DELETE below violates the constraint and the whole purge fails.
     const deleteEvents = this.#db
       .prepare(
         `DELETE FROM asset_events
          WHERE workspace_id = ? AND asset_id = ? AND ${emptyGuard}`,
       )
       .bind(this.#workspaceId, assetId, ...g);
-    const deleteObligations = this.#db
+    /*
+     * V2.10 LIFE-01 — an obligation is an ENTITY now, so purging the Asset it
+     * is about takes four statements rather than one, child-first: the
+     * `obligation.subject` link, the obligation's Activity subject pointers,
+     * its detail row, then its own `entities` row. Every one of the first three
+     * holds an `ON DELETE RESTRICT` foreign key on that entity row, so the
+     * order is the constraint's, not a preference. Its tag attachments need no
+     * statement — `entity_tags` chose `ON DELETE CASCADE` precisely so no purge
+     * path has to learn about tags (migration 0049).
+     *
+     * The obligations go rather than being orphaned: an obligation whose
+     * subject was purged is a commitment about nothing, and leaving it would
+     * quietly move it to Life Admin's "no subject" band — a real, legitimate
+     * state that this owner did not ask for.
+     */
+    const obligationIds = `SELECT entry.value FROM json_each(?) AS entry`;
+    const deleteObligationLinks = this.#db
       .prepare(
-        `DELETE FROM asset_obligations
-         WHERE workspace_id = ? AND asset_id = ? AND ${emptyGuard}`,
+        `DELETE FROM entity_links
+         WHERE workspace_id = ? AND type = ?
+           AND source_entity_id IN (${obligationIds}) AND ${emptyGuard}`,
       )
-      .bind(this.#workspaceId, assetId, ...g);
+      .bind(
+        this.#workspaceId,
+        OBLIGATION_SUBJECT_LINK,
+        obligationIdsJson,
+        ...g,
+      );
+    /*
+     * The obligations' OWN Activity subject pointers. `deleteSubjects` above
+     * clears the Asset's, and an obligation event names both — so without this
+     * statement the obligation's rows survive and `activity_subjects`'
+     * `ON DELETE RESTRICT` foreign key blocks the entity DELETE below, which
+     * failed the whole purge rather than only the obligation part of it. The
+     * `activities` rows themselves are RETAINED (append-only, ADR-012).
+     */
+    const deleteObligationSubjects = this.#db
+      .prepare(
+        `DELETE FROM activity_subjects
+         WHERE workspace_id = ? AND entity_id IN (${obligationIds})
+           AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, obligationIdsJson, ...g);
+    /*
+     * By the SAME id list as the entity delete below, not by subject.
+     *
+     * The ids were read a moment ago, outside this batch. Deleting the detail
+     * rows by subject would take an obligation created in that gap while the
+     * entity delete, working from the stale list, left its `entities` row and
+     * its Activity subjects behind — a purge that reported success over an
+     * orphan. Bound to one list, a late arrival keeps BOTH its rows, its
+     * subject foreign key still points at the Asset, and the Asset's own delete
+     * fails the constraint: the whole batch rolls back and the purge reports
+     * failure. Nothing is corrupted, and the owner can try again.
+     */
+    const deleteObligationDetails = this.#db
+      .prepare(
+        `DELETE FROM obligation_details
+         WHERE workspace_id = ? AND entity_id IN (${obligationIds})
+           AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, obligationIdsJson, ...g);
+    const deleteObligationEntities = this.#db
+      .prepare(
+        `DELETE FROM entities
+         WHERE workspace_id = ? AND type = ?
+           AND id IN (${obligationIds}) AND ${emptyGuard}`,
+      )
+      .bind(this.#workspaceId, OBLIGATION_ENTITY_TYPE, obligationIdsJson, ...g);
     const deleteSubjects = this.#db
       .prepare(
         `DELETE FROM activity_subjects
@@ -1067,10 +1190,25 @@ export class D1AssetRepository implements AssetRepository {
       deleteLinks,
       deleteSubjects,
       deleteEvents,
-      deleteObligations,
+      // The obligations ABOUT this Asset, child-first (V2.10 LIFE-01). Their
+      // `entities` rows go LAST of the four: the link, the Activity subject
+      // pointers and the detail row each hold an `ON DELETE RESTRICT` foreign
+      // key on them.
+      deleteObligationLinks,
+      deleteObligationSubjects,
+      deleteObligationDetails,
+      deleteObligationEntities,
       deleteDetails,
       deleteEntity,
     ];
+    /*
+     * The `entities` DELETE's position, DERIVED rather than counted. It used to
+     * be the literal 5, and adding three statements above it silently made
+     * every successful purge report itself as blocked — a defect no assertion
+     * about the batch's contents would have caught, because the batch was
+     * right and only the index into its results was wrong.
+     */
+    const entityStatementIndex = batch.length - 1;
     if (this.#deleteFault === "after-entity") batch.push(this.#forcedFailure());
     batch.push(tombstone);
     if (this.#deleteFault === "after-tombstone")
@@ -1078,8 +1216,7 @@ export class D1AssetRepository implements AssetRepository {
 
     try {
       const results = await this.#db.batch(batch);
-      // The `entities` DELETE is index 5 (the sixth statement).
-      const entityResult = results[5];
+      const entityResult = results[entityStatementIndex];
       const removed = (entityResult?.meta?.changes ?? 0) > 0;
       if (removed) return { deleted: true };
       // The guard blocked at commit (a concurrent link appeared): report it.

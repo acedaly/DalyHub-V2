@@ -105,7 +105,7 @@ async function loseRecords(workspaceId: string): Promise<void> {
     "activity_subjects",
     "activities",
     "entity_links",
-    "asset_obligations",
+    "obligation_details",
     "asset_events",
     "asset_details",
     "person_details",

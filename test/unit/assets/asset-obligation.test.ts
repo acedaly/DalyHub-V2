@@ -25,8 +25,8 @@ import {
   nextMeterThreshold,
   validateMeterUnit,
   validateMeterValue,
-  type AssetObligation,
 } from "~/kernel/assets";
+import type { Obligation } from "~/kernel/obligations";
 
 const TODAY = "2026-07-01";
 
@@ -34,7 +34,7 @@ const TODAY = "2026-07-01";
 function obligation(
   overrides: Partial<
     Pick<
-      AssetObligation,
+      Obligation,
       "status" | "dueDate" | "leadDays" | "meterThreshold" | "meterUnit"
     >
   > = {},

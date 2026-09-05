@@ -259,6 +259,46 @@ describe("HARDEN-06B — clearing an authored document to empty", () => {
   });
 });
 
+describe("POST /meeting/:meetingId/mutate — the accepted save's version", () => {
+  it("answers with the version the write produced, and accepts a save quoting it", async () => {
+    /*
+     * The other half of F-01's precondition. Quoting a version is only workable
+     * if the writer can learn the version its own write produced; until this
+     * was returned, the only source was a loader revalidation, and a second
+     * save started before that landed quoted a version its own predecessor had
+     * already superseded — refused as a conflict with itself.
+     */
+    const meeting = await newMeeting();
+    const first = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved.",
+      expectedUpdatedAt: meeting.version,
+    });
+    expect(first.status).toBe(200);
+    const produced = first.body.detailsUpdatedAt;
+    expect(typeof produced).toBe("string");
+    // It is the version the write PRODUCED, not the one it was written against.
+    expect(produced).not.toBe(meeting.version);
+
+    const second = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved, and dated.",
+      expectedUpdatedAt: produced as string,
+    });
+    expect(second.status).toBe(200);
+    expect(second.body.detailsUpdatedAt).not.toBe(produced);
+
+    // Nothing was weakened: the version the SECOND save superseded is still
+    // refused, so the precondition is a precondition.
+    const refused = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Grace: we ship on Friday.",
+      expectedUpdatedAt: produced as string,
+    });
+    expect(refused.status).toBe(409);
+  });
+});
+
 describe("POST /meeting/:meetingId/mutate — the refused save's 409", () => {
   it("answers 409 with the newer stored text, and never a 500", async () => {
     const meeting = await newMeeting();

@@ -37,6 +37,7 @@
  */
 
 import {
+  RETIRED_SNAPSHOT_COLLECTIONS,
   SNAPSHOT_COLLECTION_ORDER,
   type SnapshotCollection,
   type SnapshotCollectionRowMap,
@@ -97,8 +98,17 @@ const OWNER_PREFERENCES = "ownerPreferences";
 const TASK_SAVED_VIEWS = "taskSavedViews";
 
 /** Every staged collection, in INSERT order (parents before children). */
+/*
+ * Every collection that has a destination table, in insert order — which is
+ * `SNAPSHOT_COLLECTION_ORDER` minus the RETIRED ones, whose stores no longer
+ * exist. A retired collection is still part of an archive's SHAPE, and an
+ * archive carrying one has already been upgraded into its replacement before
+ * anything is staged (V2.10 LIFE-01).
+ */
 const STAGED_COLLECTIONS: readonly string[] = [
-  ...SNAPSHOT_COLLECTION_ORDER,
+  ...SNAPSHOT_COLLECTION_ORDER.filter(
+    (collection) => !RETIRED_SNAPSHOT_COLLECTIONS.includes(collection),
+  ),
   OWNER_PREFERENCES,
   TASK_SAVED_VIEWS,
 ];
@@ -465,13 +475,19 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "deleted_at",
     ],
   },
-  assetObligations: {
-    table: "asset_obligations",
+  /*
+   * V2.10 LIFE-01 — `asset_obligations` has no entry at all, because it is a
+   * RETIRED collection: it is filtered out of `STAGED_COLLECTIONS` below, and
+   * an archive that carries it has already been upgraded into `obligations` by
+   * `upgradeLegacyObligations` before anything reaches here.
+   */
+  obligations: {
+    table: "obligation_details",
     columns: [
-      "id",
-      "asset_id",
+      "entity_id",
+      "subject_entity_id",
+      "subject_entity_type",
       "category",
-      "title",
       "description",
       "due_date",
       "lead_days",
@@ -480,10 +496,14 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "meter_threshold",
       "meter_interval",
       "meter_unit",
+      "expected_amount_minor",
+      "completed_amount_minor",
+      "currency_code",
       "status",
       "task_id",
       "completed_event_id",
       "completed_at",
+      "completed_on",
       "next_obligation_id",
       "series_id",
       "sequence",
@@ -1224,34 +1244,38 @@ function stageRows(
           deleted_at: row.deletedAt,
         }),
       );
-    case "assetObligations":
-      return (
-        rows as readonly SnapshotCollectionRowMap["assetObligations"][]
-      ).map((row) => ({
-        id: row.id,
-        asset_id: row.assetId,
-        category: row.category,
-        title: row.title,
-        description: row.description,
-        due_date: row.dueDate,
-        lead_days: row.leadDays,
-        recurrence_kind: row.recurrenceKind,
-        recurrence_interval: row.recurrenceInterval,
-        meter_threshold: row.meterThreshold,
-        meter_interval: row.meterInterval,
-        meter_unit: row.meterUnit,
-        status: row.status,
-        task_id: row.taskId,
-        completed_event_id: row.completedEventId,
-        completed_at: row.completedAt,
-        next_obligation_id: row.nextObligationId,
-        series_id: row.seriesId,
-        sequence: row.sequence,
-        created_at: row.createdAt,
-        updated_at: row.updatedAt,
-        archived_at: row.archivedAt,
-        deleted_at: row.deletedAt,
-      }));
+    case "obligations":
+      return (rows as readonly SnapshotCollectionRowMap["obligations"][]).map(
+        (row) => ({
+          entity_id: row.entityId,
+          subject_entity_id: row.subjectEntityId,
+          subject_entity_type: row.subjectEntityType,
+          category: row.category,
+          description: row.description,
+          due_date: row.dueDate,
+          lead_days: row.leadDays,
+          recurrence_kind: row.recurrenceKind,
+          recurrence_interval: row.recurrenceInterval,
+          meter_threshold: row.meterThreshold,
+          meter_interval: row.meterInterval,
+          meter_unit: row.meterUnit,
+          expected_amount_minor: row.expectedAmountMinor,
+          completed_amount_minor: row.completedAmountMinor,
+          currency_code: row.currencyCode,
+          status: row.status,
+          task_id: row.taskId,
+          completed_event_id: row.completedEventId,
+          completed_at: row.completedAt,
+          completed_on: row.completedOn,
+          next_obligation_id: row.nextObligationId,
+          series_id: row.seriesId,
+          sequence: row.sequence,
+          created_at: row.createdAt,
+          updated_at: row.updatedAt,
+          archived_at: row.archivedAt,
+          deleted_at: row.deletedAt,
+        }),
+      );
     case "reviewDetails":
       return (rows as readonly SnapshotCollectionRowMap["reviewDetails"][]).map(
         (row) => ({
@@ -1834,7 +1858,11 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
     const expectedByCollection = new Map<string, number>(
       (staged.results ?? []).map((row) => [row.collection, row.n]),
     );
-    for (const collection of SNAPSHOT_COLLECTION_ORDER) {
+    // A RETIRED collection has no table to count, and nothing is ever staged
+    // into one — an archive carrying it was upgraded before staging began.
+    for (const collection of SNAPSHOT_COLLECTION_ORDER.filter(
+      (name) => !RETIRED_SNAPSHOT_COLLECTIONS.includes(name),
+    )) {
       const descriptor = TABLES[collection]!;
       const expected = expectedByCollection.get(collection) ?? 0;
       const row = await this.#db

@@ -64,25 +64,38 @@ exported.
   meta:        { schema, schemaVersion, application, exportedAt, consistency },
   workspace:   { id, createdAt, updatedAt },
   owner:       { preferences, taskSavedViews },
-  records:     { …36 collections, in a fixed order… },
+  records:     { …37 collections, in a fixed order… },
   limitations: [ { code, subject, detail } ]
 }
 ```
 
-The 36 collections, in serialisation order, are: `entities`, `workspaceTags`,
+The 37 collections, in serialisation order, are: `entities`, `workspaceTags`,
 `entityTags`, `spineRecords`, `areaDetails`, `goalDetails`,
 `goalMeasurements`, `goalMilestones`, `habitDetails`, `habitSchedules`,
 `habitCompletions`, `projectDetails`, `taskDetails`, `taskRecurrenceRules`,
 `taskChecklistItems`, `projectTemplateDetails`, `projectTemplateTasks`,
 `projectTemplateChecklistItems`, `noteDetails`, `diaryEntryDetails`,
 `personDetails`, `meetingDetails`, `meetingItems`, `meetingItemTasks`,
-`assetDetails`, `assetEvents`, `assetObligations`, `reviewDetails`,
+`assetDetails`, `assetEvents`, `assetObligations`, `obligations`, `reviewDetails`,
 `reviewSections`, `reviewWorkflowState`, `reviewStepAcknowledgements`,
 `reviewInsightSnapshots`, `entityLinks`, `activities`, `activitySubjects`,
 `workspaceMembers`.
 
 This list is generated from `SNAPSHOT_COLLECTION_ORDER` and was last reconciled
-against it on 2026-08-29 (V2.6 FIND-02).
+against it on 2026-09-05 (V2.10 LIFE-01).
+
+**`assetObligations` is RETIRED and still readable.** V2.10 migrated
+`asset_obligations` into `obligation_details` and dropped it, so an export
+written from now on carries an `obligations` collection and an EMPTY
+`assetObligations` one. The key stays in the shape, and the collection stays
+optional-on-read, because every archive an owner already has carries obligations
+under the old name — and a change of store that silently invalidated the backups
+taken before it would make "export always possible" (AGENTS.md §7) a promise
+with an expiry date. A legacy archive is upgraded as it is read, by exactly the
+rule migration 0050 used: the ids are kept, the Asset becomes the subject, the
+`obligation.subject` link is derived from the obligation's own id, and a blank
+title becomes the same stated placeholder
+([`app/kernel/restore/legacy-obligations.ts`](../../app/kernel/restore/legacy-obligations.ts)).
 
 The order is meaningful: entities first, then spine membership, then per-module
 detail rows, then module child records, then relationships, then history — so a

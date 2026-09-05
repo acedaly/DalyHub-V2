@@ -248,8 +248,12 @@ describe("workspace export (D1)", () => {
       seeded.assetEventId,
     );
     expect(
-      snapshot.records.assetObligations.map((obligation) => obligation.id),
+      snapshot.records.obligations.map((obligation) => obligation.entityId),
     ).toContain(seeded.obligationId);
+    // V2.10 LIFE-01 — `assetObligations` is retired: an export written now
+    // carries none, and the collection stays in the shape so archives that
+    // carry one still validate and still restore.
+    expect(snapshot.records.assetObligations).toEqual([]);
     expect(
       snapshot.records.reviewSections.some(
         (section) =>

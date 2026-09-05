@@ -210,10 +210,28 @@ describe("readability", () => {
     expect(task.contents).toContain("parent_area: null");
   });
 
-  it("reads an obligation's recurrence as English", () => {
-    expect(file("Assets/Road bike.md").contents).toContain(
-      "repeats every 6 months",
+  /*
+   * V2.10 LIFE-01 — an obligation is a record of its own, so its recurrence is
+   * read on its own page and the Asset links to it. Two renderings of one thing
+   * is how a vault comes to disagree with the workspace it came from.
+   */
+  it("reads an obligation's recurrence as English, on its own page", () => {
+    expect(file("Life Admin/Next service.md").contents).toContain(
+      "every 6 months",
     );
+  });
+
+  it("links an Asset to its obligations rather than restating them", () => {
+    const asset = file("Assets/Road bike.md").contents;
+    expect(asset).toContain("## Obligations");
+    expect(asset).toContain("Next service");
+    expect(asset).toContain("due 2026-08-01");
+  });
+
+  it("writes the expected amount on the obligation, and nowhere else", () => {
+    const obligation = file("Life Admin/Next service.md").contents;
+    expect(obligation).toContain("Expected");
+    expect(file("Assets/Road bike.md").contents).not.toContain("240.00");
   });
 });
 
@@ -236,6 +254,18 @@ describe("lifecycle honesty", () => {
     expect(file("Tasks/Monday- 5km easy run.md").contents).toContain(
       "Completed in DalyHub",
     );
+  });
+
+  /*
+   * V2.10 LIFE-01 — an obligation is neither a Review nor a spine record, so a
+   * lifecycle derivation that reads only those two calls a completed one
+   * ACTIVE — on a page whose own frontmatter says `status: completed` two lines
+   * further down.
+   */
+  it("marks a completed obligation, whose completion lives in its own slice", () => {
+    const done = file("Life Admin/Passport renewal.md").contents;
+    expect(done).toContain('lifecycle: "completed"');
+    expect(done).toContain("Completed in DalyHub");
   });
 });
 

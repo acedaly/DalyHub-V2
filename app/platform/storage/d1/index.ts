@@ -41,6 +41,8 @@ import {
   type CrossViewQueryRepository,
   type SavedViewRepository,
 } from "~/kernel/views";
+import type { ObligationRepository } from "~/kernel/obligations";
+
 import type { AssetHistoryRepository, AssetRepository } from "~/kernel/assets";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
@@ -120,6 +122,11 @@ import {
   D1AssetHistoryRepository,
   type D1AssetHistoryRepositoryOptions,
 } from "./d1-asset-history-repository";
+import {
+  D1ObligationRepository,
+  type D1ObligationRepositoryOptions,
+  type ObligationProofGateway,
+} from "./d1-obligation-repository";
 import {
   D1AssetRepository,
   type D1AssetRepositoryOptions,
@@ -241,6 +248,16 @@ export {
   D1AssetHistoryRepository,
   type D1AssetHistoryRepositoryOptions,
 } from "./d1-asset-history-repository";
+export {
+  D1ObligationRepository,
+  ObligationStorageError,
+  ObligationNotFoundError,
+  ObligationConflictError,
+  type D1ObligationRepositoryOptions,
+  type ObligationProofGateway,
+  type ObligationTaskCompletionPlanner,
+  type ObligationTaskGateway,
+} from "./d1-obligation-repository";
 export { D1GoalRepository };
 export {
   D1GoalDetailsRepository,
@@ -591,12 +608,41 @@ export function createAssetRepository(
  * Task completion authority stays with the TaskRepository. Bound to a
  * `WorkspaceContext`; there is no unscoped construction path.
  */
+/**
+ * The Assets history repository as the composition root sees it: its kernel
+ * contract PLUS the ADR-083 statement seam an obligation completion composes
+ * with. The seam is a storage concern and stays inside this package (ADR-083
+ * decision 2), so it is named here rather than on the kernel port — exactly as
+ * `D1TaskAdapter` names the Task completion planner.
+ */
+export type AssetHistoryAdapter = AssetHistoryRepository &
+  ObligationProofGateway;
+
 export function createAssetHistoryRepository(
   db: D1Database,
   context: WorkspaceContext,
   options?: D1AssetHistoryRepositoryOptions,
-): AssetHistoryRepository {
+): AssetHistoryAdapter {
   return new D1AssetHistoryRepository(db, context, options);
+}
+
+/**
+ * Factory for the workspace-scoped D1-backed ObligationRepository — V2.10
+ * LIFE-01's ONE store for everything due and recurring, with or without a
+ * subject (ADR-116 decision 1).
+ *
+ * The `proofGateway` is how an Asset-subject completion still writes its
+ * logbook row and advances the Asset's canonical dates: the Assets adapter
+ * authors those statements and the obligation's own batch runs them (ADR-083).
+ * Omitted, a completion simply records no subject-side proof — which is exactly
+ * right for an obligation about nothing.
+ */
+export function createObligationRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1ObligationRepositoryOptions,
+): ObligationRepository {
+  return new D1ObligationRepository(db, context, options);
 }
 
 /**

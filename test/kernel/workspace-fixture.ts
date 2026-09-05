@@ -22,6 +22,7 @@ import {
   ensureWorkspace,
   makeAppPreferencesRepository,
   makeAssetHistoryRepository,
+  makeObligationRepository,
   makeAssetRepository,
   makeContext,
   makeCrossViewRepository,
@@ -110,6 +111,9 @@ export async function seedWorkspace(): Promise<Seeded> {
   const meetings = makeMeetingRepository(context);
   const assets = makeAssetRepository(context);
   const assetHistory = makeAssetHistoryRepository(context);
+  // V2.10 LIFE-01 — obligations are the shared store's, so the fixture that
+  // proves export and restore seeds one there rather than under Assets.
+  const obligations = makeObligationRepository(context);
   const reviews = makeReviewRepository(context);
   const preferences = makeAppPreferencesRepository(context);
   const projectTemplates = makeProjectTemplateRepository(context);
@@ -342,7 +346,8 @@ export async function seedWorkspace(): Promise<Seeded> {
     meterValue: 3800,
     meterUnit: "km",
   });
-  const obligation = await assetHistory.createObligation(asset.id, {
+  const obligation = await obligations.create({
+    subjectEntityId: asset.id,
     category: "service",
     title: "Next service",
     dueDate: "2026-09-01",
