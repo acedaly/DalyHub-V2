@@ -82,9 +82,17 @@ function cleanupSql(title: string): string {
   // until every Task-side delete has run, so it is removed last of the ASSET-02
   // tables rather than first.
   const taskSel = `SELECT task_id FROM obligation_details WHERE workspace_id = ${ws} AND task_id IS NOT NULL AND subject_entity_id IN (${assetSel})`;
+  // V2.10 LIFE-01 — an obligation is an ENTITY now, so it has an Activity
+  // subject pointer and links of its own, and `obligation_details.entity_id` is
+  // an ON DELETE RESTRICT foreign key into `entities`. Its id is only reachable
+  // THROUGH the detail row, which gives the same ordering constraint the linked
+  // Task has: everything keyed by an obligation id must go while
+  // `obligation_details` is still there, the detail rows go next, and the
+  // now-orphaned obligation entities go last.
+  const obligationSel = `SELECT entity_id FROM obligation_details WHERE workspace_id = ${ws} AND subject_entity_id IN (${assetSel})`;
   return [
-    `DELETE FROM entity_links WHERE workspace_id = ${ws} AND (source_entity_id IN (${assetSel}) OR target_entity_id IN (${assetSel}) OR source_entity_id IN (${noteSel}) OR target_entity_id IN (${noteSel}) OR source_entity_id IN (${taskSel}) OR target_entity_id IN (${taskSel}));`,
-    `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND (entity_id IN (${assetSel}) OR entity_id IN (${noteSel}) OR entity_id IN (${taskSel}));`,
+    `DELETE FROM entity_links WHERE workspace_id = ${ws} AND (source_entity_id IN (${assetSel}) OR target_entity_id IN (${assetSel}) OR source_entity_id IN (${noteSel}) OR target_entity_id IN (${noteSel}) OR source_entity_id IN (${taskSel}) OR target_entity_id IN (${taskSel}) OR source_entity_id IN (${obligationSel}) OR target_entity_id IN (${obligationSel}));`,
+    `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND (entity_id IN (${assetSel}) OR entity_id IN (${noteSel}) OR entity_id IN (${taskSel}) OR entity_id IN (${obligationSel}));`,
     `DELETE FROM activities WHERE workspace_id = ${ws} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
     // Task children, then the Task rows — all still resolvable through the
     // obligation pointer, which is why `obligation_details` has not gone yet.
@@ -94,9 +102,13 @@ function cleanupSql(title: string): string {
     `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'task' AND id IN (${taskSel});`,
     // Now the ASSET-02 tables themselves (both FK to entities ON DELETE RESTRICT).
     `DELETE FROM asset_events WHERE workspace_id = ${ws} AND asset_id IN (${assetSel});`,
-    `DELETE FROM entity_links WHERE workspace_id = ${ws} AND type = 'obligation.subject' AND target_entity_id IN (${assetSel});`,
-    `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'obligation' AND id IN (SELECT entity_id FROM obligation_details WHERE workspace_id = ${ws} AND subject_entity_id IN (${assetSel}));`,
     `DELETE FROM obligation_details WHERE workspace_id = ${ws} AND subject_entity_id IN (${assetSel});`,
+    // The obligation entities, now that nothing points at them. They are matched
+    // as ORPHANS rather than by id because the only index from an Asset to its
+    // obligations was the detail row deleted on the line above — and an
+    // obligation entity with no detail slice is broken by construction, which is
+    // the same reasoning as the orphaned-activities sweep further up.
+    `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'obligation' AND NOT EXISTS (SELECT 1 FROM obligation_details d WHERE d.workspace_id = entities.workspace_id AND d.entity_id = entities.id);`,
     `DELETE FROM asset_details WHERE workspace_id = ${ws} AND entity_id IN (${assetSel});`,
     `DELETE FROM note_details WHERE workspace_id = ${ws} AND entity_id IN (${noteSel});`,
     `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'asset' AND ${match};`,

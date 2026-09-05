@@ -384,8 +384,14 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'as-rc-ute';
 -- V2.10 LIFE-01 — an obligation is an ordinary entity with a detail slice and
 -- a subject link, so the fixture seeds all three exactly as the product writes
 -- them. The ids are unchanged, so every reference to them still resolves.
-DELETE FROM entity_links WHERE workspace_id = 'local-dev-workspace' AND type = 'obligation.subject' AND target_entity_id = 'as-rc-ute';
-DELETE FROM obligation_details WHERE workspace_id = 'local-dev-workspace' AND subject_entity_id = 'as-rc-ute';
+-- Every fixture obligation is removed by ITS OWN id prefix, dependents first.
+-- An obligation is an entity now, so a journey that completes or dismisses one
+-- leaves an `activity_subjects` row pointing at it, and every foreign key on the
+-- way in is ON DELETE RESTRICT: without the sweep below, the entity delete fails
+-- on the second run of this seed against a database a journey has touched.
+DELETE FROM entity_links WHERE workspace_id = 'local-dev-workspace' AND source_entity_id LIKE 'ob-rc-%';
+DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
+DELETE FROM obligation_details WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
 DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND type = 'obligation' AND id LIKE 'ob-rc-%';
 
 INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
