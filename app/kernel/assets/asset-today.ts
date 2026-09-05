@@ -13,13 +13,13 @@
  */
 
 import {
-  assetObligationCategoryLabel,
-  type AssetObligationCategory,
-  type AssetObligationState,
-} from "./asset-obligation";
+  obligationCategoryLabel,
+  type ObligationCategory,
+  type ObligationState,
+} from "~/kernel/obligations";
 
 /** The owner-facing word for each derived state. Always rendered AS TEXT (§24). */
-export const OBLIGATION_STATE_LABELS: Record<AssetObligationState, string> = {
+export const OBLIGATION_STATE_LABELS: Record<ObligationState, string> = {
   overdue: "Overdue",
   due: "Due soon",
   upcoming: "Upcoming",
@@ -37,7 +37,7 @@ export type SerializedAttentionItem = {
   readonly assetType: string;
   readonly title: string;
   readonly categoryLabel: string;
-  readonly state: AssetObligationState;
+  readonly state: ObligationState;
   readonly stateLabel: string;
   /** The whole owner-facing line ("Registration expires in 14 days"). */
   readonly text: string;
@@ -62,8 +62,8 @@ export type AttentionInput = {
   readonly assetTitle: string;
   readonly assetType: string;
   readonly title: string;
-  readonly category: AssetObligationCategory;
-  readonly state: AssetObligationState;
+  readonly category: ObligationCategory;
+  readonly state: ObligationState;
   readonly text: string;
   readonly hasOpenTask: boolean;
 };
@@ -93,7 +93,7 @@ export function dedupeAttention(
   const visible = items.filter((item) => !item.hasOpenTask);
   const suppressed = items.length - visible.length;
   // Overdue first, then due, then everything else — most urgent at the top.
-  const RANK: Partial<Record<AssetObligationState, number>> = {
+  const RANK: Partial<Record<ObligationState, number>> = {
     overdue: 0,
     due: 1,
     unknown: 2,
@@ -108,7 +108,7 @@ export function dedupeAttention(
       assetTitle: item.assetTitle,
       assetType: item.assetType,
       title: item.title,
-      categoryLabel: assetObligationCategoryLabel(item.category) ?? "Reminder",
+      categoryLabel: obligationCategoryLabel(item.category) ?? "Reminder",
       state: item.state,
       stateLabel: OBLIGATION_STATE_LABELS[item.state],
       text: item.text,

@@ -39,20 +39,23 @@ import {
   type AssetMeterUnit,
 } from "./asset-meter";
 import {
-  ASSET_OBLIGATION_CATEGORIES,
-  ASSET_OBLIGATION_STATUSES,
-  ASSET_RECURRENCE_KINDS,
-  DEFAULT_ASSET_OBLIGATIONS_PAGE_SIZE,
-  MAX_ASSET_OBLIGATIONS_PAGE_SIZE,
+  OBLIGATION_CATEGORIES,
+  OBLIGATION_STATUSES,
+  OBLIGATION_RECURRENCE_KINDS,
+  DEFAULT_OBLIGATIONS_PAGE_SIZE,
+  MAX_OBLIGATIONS_PAGE_SIZE,
   MAX_RECURRENCE_INTERVAL,
   isIsoDate,
-  type AssetObligationCategory,
-  type AssetObligationFilters,
-  type AssetObligationStatus,
-  type AssetRecurrenceKind,
-  type CompleteAssetObligationInput,
-  type CreateAssetObligationInput,
-  type UpdateAssetObligationInput,
+  type ObligationCategory,
+  type ObligationFilters,
+  type ObligationStatus,
+  type ObligationRecurrenceKind,
+} from "~/kernel/obligations";
+
+import type {
+  CompleteAssetObligationInput,
+  CreateAssetObligationInput,
+  UpdateAssetObligationInput,
 } from "./asset-obligation";
 
 /* -------------------------------------------------------------------------- */
@@ -72,13 +75,13 @@ const EVENT_CATEGORY_VALUES: ReadonlySet<string> = new Set(
   ASSET_EVENT_CATEGORIES,
 );
 const OBLIGATION_CATEGORY_VALUES: ReadonlySet<string> = new Set(
-  ASSET_OBLIGATION_CATEGORIES,
+  OBLIGATION_CATEGORIES,
 );
 const OBLIGATION_STATUS_VALUES: ReadonlySet<string> = new Set(
-  ASSET_OBLIGATION_STATUSES,
+  OBLIGATION_STATUSES,
 );
 const RECURRENCE_KIND_VALUES: ReadonlySet<string> = new Set(
-  ASSET_RECURRENCE_KINDS,
+  OBLIGATION_RECURRENCE_KINDS,
 );
 
 function codePointLength(value: string): number {
@@ -253,37 +256,35 @@ export function validateEventCategory(value: unknown): AssetEventCategory {
 }
 
 /** Validate an Obligation category against the closed vocabulary. */
-export function validateObligationCategory(
-  value: unknown,
-): AssetObligationCategory {
+export function validateObligationCategory(value: unknown): ObligationCategory {
   if (typeof value !== "string" || !OBLIGATION_CATEGORY_VALUES.has(value)) {
     throw new AssetValidationError(
       "category",
       "must be a supported obligation category",
     );
   }
-  return value as AssetObligationCategory;
+  return value as ObligationCategory;
 }
 
 /** Validate a stored obligation status. */
-export function validateObligationStatus(
-  value: unknown,
-): AssetObligationStatus {
+export function validateObligationStatus(value: unknown): ObligationStatus {
   if (typeof value !== "string" || !OBLIGATION_STATUS_VALUES.has(value)) {
     throw new AssetValidationError("status", "must be a supported status");
   }
-  return value as AssetObligationStatus;
+  return value as ObligationStatus;
 }
 
 /** Validate a recurrence kind. */
-export function validateRecurrenceKind(value: unknown): AssetRecurrenceKind {
+export function validateRecurrenceKind(
+  value: unknown,
+): ObligationRecurrenceKind {
   if (typeof value !== "string" || !RECURRENCE_KIND_VALUES.has(value)) {
     throw new AssetValidationError(
       "recurrenceKind",
       "must be a supported recurrence",
     );
   }
-  return value as AssetRecurrenceKind;
+  return value as ObligationRecurrenceKind;
 }
 
 function optionalInteger(
@@ -530,12 +531,12 @@ export function validateAssetEvent(
 
 /** A fully validated obligation, ready for the storage adapter to bind. */
 export type ValidatedAssetObligation = {
-  readonly category: AssetObligationCategory | undefined;
+  readonly category: ObligationCategory | undefined;
   readonly title: string | undefined;
   readonly description: string | null | undefined;
   readonly dueDate: string | null | undefined;
   readonly leadDays: number | undefined;
-  readonly recurrenceKind: AssetRecurrenceKind | undefined;
+  readonly recurrenceKind: ObligationRecurrenceKind | undefined;
   readonly recurrenceInterval: number | null | undefined;
   readonly meterThreshold: number | null | undefined;
   readonly meterInterval: number | null | undefined;
@@ -563,7 +564,7 @@ export function validateAssetObligation(
     readonly meterThreshold: number | null;
     readonly meterUnit: AssetMeterUnit | null;
     readonly meterInterval: number | null;
-    readonly recurrenceKind: AssetRecurrenceKind;
+    readonly recurrenceKind: ObligationRecurrenceKind;
   },
 ): ValidatedAssetObligation {
   const has = (key: string): boolean =>
@@ -611,7 +612,7 @@ export function validateAssetObligation(
   const recurrenceKind = has("recurrenceKind")
     ? validateRecurrenceKind(input.recurrenceKind)
     : mode === "create"
-      ? ("none" as AssetRecurrenceKind)
+      ? ("none" as ObligationRecurrenceKind)
       : undefined;
 
   const recurrenceIntervalRaw = has("recurrenceInterval")
@@ -835,12 +836,12 @@ export function validateEventsLimit(value: unknown): number {
   );
 }
 
-/** Clamp an obligation page size into `[1, MAX_ASSET_OBLIGATIONS_PAGE_SIZE]`. */
+/** Clamp an obligation page size into `[1, MAX_OBLIGATIONS_PAGE_SIZE]`. */
 export function validateObligationsLimit(value: unknown): number {
   return clampLimit(
     value,
-    DEFAULT_ASSET_OBLIGATIONS_PAGE_SIZE,
-    MAX_ASSET_OBLIGATIONS_PAGE_SIZE,
+    DEFAULT_OBLIGATIONS_PAGE_SIZE,
+    MAX_OBLIGATIONS_PAGE_SIZE,
   );
 }
 
@@ -864,10 +865,10 @@ export function validateEventFilters(value: AssetEventFilters | undefined): {
 
 /** Validate the obligation filters. */
 export function validateObligationFilters(
-  value: AssetObligationFilters | undefined,
+  value: ObligationFilters | undefined,
 ): {
-  readonly categories: readonly AssetObligationCategory[];
-  readonly statuses: readonly AssetObligationStatus[];
+  readonly categories: readonly ObligationCategory[];
+  readonly statuses: readonly ObligationStatus[];
 } {
   if (!value) return { categories: [], statuses: [] };
   const categories = (value.categories ?? []).map(validateObligationCategory);
