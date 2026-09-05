@@ -223,6 +223,15 @@ export async function loader({ params, context }: Route.LoaderArgs) {
      */
     try {
       obligationCounts = await scope.obligations.countByBand({
+        /*
+         * OPEN only, because open is what the bands hold. This tab keeps
+         * settled work behind its own disclosure rather than banding it, so an
+         * unfiltered count would put a dismissed rego from March into the
+         * "Overdue" heading above rows that do not include it — a heading
+         * counting a different list from the one underneath it, which is the
+         * one defect D10's whole-collection counts exist to avoid.
+         */
+        filters: { statuses: ["open"] },
         subjectEntityId: assetId,
         today,
       });
@@ -648,6 +657,7 @@ function renderAssetDrawer({
               value: unit.value,
               label: unit.label,
             }))}
+            defaultMeterUnit={defaultMeterUnit}
             fixedSubject={{
               id: asset.id,
               type: "asset",

@@ -136,12 +136,15 @@ export function CompleteObligationForm({
   const repeats = obligation.recurrenceKind !== "none";
   const meterBased = obligation.meterThreshold !== null;
   /*
-   * "Money-bearing" is a property of THIS obligation, not of its category: an
-   * owner who put a figure on a service is telling us this one costs money, and
-   * one who did not is telling us they would rather not record it. Asking every
-   * completion for an amount would make the field noise on most of them.
+   * The amount is offered on EVERY completion, and required on none.
+   *
+   * Gating it on whether an expected amount was set reads well and is wrong:
+   * completion is the one moment the real figure is known, and an owner who did
+   * not guess in advance is the ordinary case, not a signal that this one is
+   * free. It also feeds the subject's proof row — an Asset service completed
+   * without it loses its cost from the Asset's own history, which is behaviour
+   * the Assets form had before this became the one completion path.
    */
-  const bearsMoney = obligation.expectedAmountDisplay !== null;
 
   const form = useForm<Values>({
     initialValues: {
@@ -166,10 +169,8 @@ export function CompleteObligationForm({
       body.set("title", values.title);
       body.set("nextDueDate", values.nextDueDate);
       body.set("description", values.description);
-      if (bearsMoney) {
-        body.set("completedAmount", values.completedAmount);
-        body.set("currencyCode", values.currencyCode);
-      }
+      body.set("completedAmount", values.completedAmount);
+      body.set("currencyCode", values.currencyCode);
       /*
        * The subject's own facts, namespaced. The obligation kernel never reads
        * them; the domain that owns the subject's history validates them in its
@@ -250,16 +251,14 @@ export function CompleteObligationForm({
           maxLength={200}
           {...form.field("title")}
         />
-        {bearsMoney ? (
-          <MoneyField
-            label="Amount paid"
-            help="What it actually cost. Leave blank if you would rather not record it."
-            currencyCode={form.values.currencyCode}
-            onCurrencyChange={(next) => form.setValue("currencyCode", next)}
-            currencyError={form.fieldErrors.currencyCode ?? null}
-            {...form.field("completedAmount")}
-          />
-        ) : null}
+        <MoneyField
+          label="Amount paid"
+          help="What it actually cost. Leave blank if you would rather not record it."
+          currencyCode={form.values.currencyCode}
+          onCurrencyChange={(next) => form.setValue("currencyCode", next)}
+          currencyError={form.fieldErrors.currencyCode ?? null}
+          {...form.field("completedAmount")}
+        />
         {subjectKeepsHistory ? (
           <TextField
             label="Provider"

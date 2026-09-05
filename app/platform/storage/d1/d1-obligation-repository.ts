@@ -319,6 +319,63 @@ const SUBJECT_JOINS = `LEFT JOIN entities s
        ON ad.workspace_id = o.workspace_id
       AND ad.entity_id = o.subject_entity_id`;
 
+/**
+ * D10 — the band, in SQL, as ONE expression used by every read that needs it.
+ *
+ * The rule itself is `obligationBand` in the kernel. This is its second
+ * implementation, which is exactly how two implementations of one rule come to
+ * disagree, so there is only one copy of it here and the boundaries are BOUND
+ * from `obligationBandBoundaries` rather than computed in SQL date arithmetic.
+ * `test/kernel/obligations.test.ts` asserts the two agree row for row.
+ *
+ * Three parameters, in this order: today, the last day of "this week", the last
+ * day of "this month".
+ *
+ * ── The order of the WHENs is the rule's order, and it is load-bearing ──────
+ * A past date is tested BEFORE the two windows, because a past date is
+ * trivially "before the end of this week" and a held obligation months late
+ * would otherwise be counted under This week.
+ *
+ * ── The meter side mirrors the evaluator, mismatched units included ─────────
+ * `evaluateMeterThreshold` has THREE answers that are not a number: no reading,
+ * a reading in a different unit (`incompatible` — this product never converts),
+ * and a reading past the threshold. The first two are `unknown` to the shared
+ * evaluator, and `unknown` only reaches the band when there is no date to rank
+ * against: a dated obligation whose meter cannot be read is banded by its date,
+ * because the date is a fact and the meter is a question. A reading that is
+ * genuinely past its threshold, in the SAME unit, outranks any future date.
+ */
+const OBLIGATION_BAND_CASE = `CASE
+        WHEN o.status = 'completed' THEN 'done'
+        WHEN o.due_date IS NOT NULL AND o.due_date < ? THEN 'overdue'
+        WHEN o.status = 'open' AND o.meter_threshold IS NOT NULL
+             AND ad.current_meter_value IS NOT NULL
+             AND ad.current_meter_unit = o.meter_unit
+             AND ad.current_meter_value >= o.meter_threshold THEN 'overdue'
+        WHEN o.status = 'open' AND o.meter_threshold IS NOT NULL
+             AND o.due_date IS NULL
+             AND (ad.current_meter_value IS NULL
+                  OR ad.current_meter_unit IS NULL
+                  OR ad.current_meter_unit <> o.meter_unit) THEN 'overdue'
+        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_week'
+        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_month'
+        ELSE 'later'
+      END`;
+
+/**
+ * The band as a single sortable digit, in the order the collection prints it.
+ *
+ * Reads the band the expression above already produced, so there is still one
+ * rule: a second CASE over the same columns would be a third implementation.
+ */
+const OBLIGATION_BAND_RANK = `CASE band
+        WHEN 'overdue' THEN '0'
+        WHEN 'this_week' THEN '1'
+        WHEN 'this_month' THEN '2'
+        WHEN 'later' THEN '3'
+        ELSE '4'
+      END`;
+
 export class D1ObligationRepository implements ObligationRepository {
   readonly #db: D1Database;
   readonly #workspaceId: string;
@@ -711,6 +768,17 @@ export class D1ObligationRepository implements ObligationRepository {
     input: ListObligationsInput = {},
   ): Promise<ObligationWithSubjectPage> {
     const limit = validateObligationsLimit(input.limit);
+    /*
+     * The owner's day, because the ORDER depends on the band and the band
+     * depends on the day. Every caller passes one; the fallback is the same
+     * owner-calendar authority they got theirs from, so a missing argument
+     * cannot silently produce a different ordering from a present one.
+     */
+    const today =
+      input.today !== undefined && isIsoDate(input.today)
+        ? input.today
+        : await this.#today();
+    const { weekEnd, monthEnd } = obligationBandBoundaries(today);
     const filters = validateObligationFilters(input.filters);
     const subjectEntityId =
       input.subjectEntityId === undefined
@@ -731,7 +799,9 @@ export class D1ObligationRepository implements ObligationRepository {
     };
 
     const conditions = ["o.workspace_id = ?", "o.deleted_at IS NULL"];
-    const params: unknown[] = [this.#workspaceId];
+    // The band's three boundaries are bound FIRST because the expression that
+    // uses them is in the inner SELECT list, ahead of every filter.
+    const params: unknown[] = [today, weekEnd, monthEnd, this.#workspaceId];
 
     if (subjectEntityId === null) {
       conditions.push("o.subject_entity_id IS NULL");
@@ -753,15 +823,32 @@ export class D1ObligationRepository implements ObligationRepository {
     }
     appendQueryPredicate(query, conditions, params);
 
-    // Open work first, then soonest due — the order the owner reads. Ordering
-    // happens in SQL over the WHOLE collection, never over the loaded page.
-    const primary = `(CASE o.status WHEN 'open' THEN '0' WHEN 'on_hold' THEN '1' WHEN 'dismissed' THEN '2' ELSE '3' END
-      || coalesce(o.due_date, '${DATE_SENTINEL}'))`;
+    /*
+     * Open work first, then BY BAND, then soonest due — the order the owner
+     * reads, and the order the collection prints.
+     *
+     * The band belongs in the sort key, not only in the grouping: it is the
+     * whole-collection COUNT above each heading, and a row the band counts but
+     * the page does not contain is a heading describing a different list from
+     * the one underneath it (D10). Sorting on the date alone put every
+     * dateless row — a meter obligation whose reading is missing, which the
+     * band calls overdue — behind the sentinel at the very end, so a workspace
+     * with more than a page of dated work could advertise "Overdue (1)" and
+     * show none of it until the last page.
+     *
+     * Status stays the FIRST key. The band answers when; the status is the
+     * separate lens the owner turned on, and settled work does not belong above
+     * live work because its date happens to be nearer.
+     */
+    const sortPrimary = `(CASE status WHEN 'open' THEN '0' WHEN 'on_hold' THEN '1' WHEN 'dismissed' THEN '2' ELSE '3' END
+      || ${OBLIGATION_BAND_RANK}
+      || coalesce(due_date, '${DATE_SENTINEL}'))`;
 
+    const cursorConditions: string[] = [];
     if (input.cursor !== undefined) {
       const position = decodeObligationCursorForScope(input.cursor, scope);
-      conditions.push(
-        `(${primary} > ? OR (${primary} = ? AND o.entity_id > ?))`,
+      cursorConditions.push(
+        "(sort_primary > ? OR (sort_primary = ? AND entity_id > ?))",
       );
       params.push(position.primary, position.primary, position.id);
     }
@@ -769,19 +856,30 @@ export class D1ObligationRepository implements ObligationRepository {
 
     let rows: (ObligationRow & SubjectColumns & { sort_primary: string })[];
     try {
+      /*
+       * Nested so the band is computed ONCE. It carries three bound parameters,
+       * and SQLite binds by position, so repeating the expression in the SELECT
+       * list, the keyset predicate and the ORDER BY would mean four copies of
+       * one rule and twelve parameters to keep in step.
+       */
       const result = await this.#db
         .prepare(
-          `SELECT ${OBLIGATION_COLUMNS}, ${primary} AS sort_primary,
-                  ${SUBJECT_COLUMNS},
-                  CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
-                       THEN 1 ELSE 0 END AS has_open_task
-             FROM obligation_details o
-             JOIN entities e
-               ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
-              AND e.type = '${OBLIGATION_ENTITY_TYPE}'
-             ${SUBJECT_JOINS}
-            WHERE ${conditions.join(" AND ")}
-            ORDER BY ${primary} ASC, o.entity_id ASC
+          `SELECT * FROM (
+             SELECT *, ${sortPrimary} AS sort_primary FROM (
+               SELECT ${OBLIGATION_COLUMNS}, ${OBLIGATION_BAND_CASE} AS band,
+                      ${SUBJECT_COLUMNS},
+                      CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
+                           THEN 1 ELSE 0 END AS has_open_task
+                 FROM obligation_details o
+                 JOIN entities e
+                   ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
+                  AND e.type = '${OBLIGATION_ENTITY_TYPE}'
+                 ${SUBJECT_JOINS}
+                WHERE ${conditions.join(" AND ")}
+             )
+           )
+           ${cursorConditions.length > 0 ? `WHERE ${cursorConditions.join(" AND ")}` : ""}
+            ORDER BY sort_primary ASC, entity_id ASC
             LIMIT ?`,
         )
         .bind(...params)
@@ -1800,28 +1898,11 @@ export class D1ObligationRepository implements ObligationRepository {
     }
     appendQueryPredicate((input.query ?? "").trim(), conditions, params);
 
-    /*
-     * The order of the WHENs is the rule's order, and it is load-bearing: a
-     * past date has to be tested BEFORE the two windows, because a past date is
-     * trivially "before the end of this week" and a held obligation months late
-     * would otherwise be counted under This week.
-     */
-    const band = `CASE
-        WHEN o.status = 'completed' THEN 'done'
-        WHEN o.due_date IS NOT NULL AND o.due_date < ? THEN 'overdue'
-        WHEN o.status = 'open' AND o.meter_threshold IS NOT NULL
-             AND (ad.current_meter_value IS NULL
-                  OR ad.current_meter_value >= o.meter_threshold) THEN 'overdue'
-        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_week'
-        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_month'
-        ELSE 'later'
-      END`;
-
     let rows: { band: string; n: number }[];
     try {
       const result = await this.#db
         .prepare(
-          `SELECT ${band} AS band, COUNT(*) AS n
+          `SELECT ${OBLIGATION_BAND_CASE} AS band, COUNT(*) AS n
              FROM obligation_details o
              JOIN entities e
                ON e.workspace_id = o.workspace_id AND e.id = o.entity_id

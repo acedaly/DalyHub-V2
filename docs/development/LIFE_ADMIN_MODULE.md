@@ -94,7 +94,9 @@ the fork [ADR-115](../decisions/ARCHITECTURE_DECISIONS.md) exists to prevent.
 The Asset tab keeps ONE difference, deliberately: settled work stays behind its
 disclosure rather than banding, because that tab shows everything about one
 Asset at once and a dismissed rego from March under "Overdue" would put settled
-work at the top of the section that exists for live work.
+work at the top of the section that exists for live work. Its band counts are
+therefore taken over OPEN obligations only — the bands hold open work, and a
+heading has to count the list underneath it.
 
 ## Money
 
@@ -105,6 +107,12 @@ is ever converted ([ADR-049](../decisions/ARCHITECTURE_DECISIONS.md)).
 An amount is **not** a payment. V2.10 has no settlement, no balance and no
 transaction; recording what something cost is a fact about what happened, never
 a claim that anything was reconciled.
+
+The completion form offers the actual amount on **every** obligation and
+requires it on none. Offering it only where an expectation was already recorded
+reads tidy and loses a fact: completion is the moment the real figure is known,
+and on an Asset the same field is what carries the cost onto the Asset's own
+history.
 
 Where an amount may appear, and where it may never:
 

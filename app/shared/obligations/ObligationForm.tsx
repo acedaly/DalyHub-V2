@@ -116,6 +116,17 @@ export interface ObligationFormProps {
    */
   readonly meterUnits?: readonly { value: string; label: string }[];
   /**
+   * The unit a NEW commitment starts in, supplied by the surface that knows
+   * what the subject's meter actually measures — an Asset's own recorded unit,
+   * or the sensible default for its kind.
+   *
+   * Absent, the field starts UNSET rather than borrowing the first option. The
+   * option order is a vocabulary, not a guess: defaulting to it would store a
+   * threshold in kilometres for an asset whose meter counts hours, silently and
+   * with nothing on screen to correct.
+   */
+  readonly defaultMeterUnit?: string;
+  /**
    * A subject fixed by the surface (a record's own tab). When set, the picker
    * is not shown: the answer to "what is this about?" is already known and
    * offering to change it here would be a second authority for it.
@@ -135,6 +146,7 @@ export function ObligationForm({
   action,
   defaultCurrency,
   meterUnits,
+  defaultMeterUnit = "",
   fixedSubject = null,
   searchSubjects,
   onSaved,
@@ -166,7 +178,7 @@ export function ObligationForm({
       meterThreshold: obligation?.meterThreshold
         ? String(obligation.meterThreshold)
         : "",
-      meterUnit: obligation?.meterUnit ?? meterUnits?.[0]?.value ?? "",
+      meterUnit: obligation?.meterUnit ?? defaultMeterUnit,
       meterInterval: obligation?.meterInterval
         ? String(obligation.meterInterval)
         : "",

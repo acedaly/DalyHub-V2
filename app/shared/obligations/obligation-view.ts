@@ -26,7 +26,7 @@
  * its own projection for exactly that reason and never consults this one.
  */
 
-import { formatMinorUnits } from "~/kernel/money";
+import { formatMinorUnits, minorUnitsToDecimalString } from "~/kernel/money";
 import {
   OBLIGATION_BANDS,
   OBLIGATION_STATE_LABELS,
@@ -147,15 +147,22 @@ export function formatObligationDate(iso: string | null): string | null {
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
-/** An amount as plain digits and a point, for an editable field. */
+/**
+ * An amount as plain digits and a point, for an editable field.
+ *
+ * Through the kernel's exact minor-unit helper, NOT by stripping characters out
+ * of a formatted display string. The two agree on today's inputs, but the
+ * display string is a presentation artefact — a symbol, a grouping separator, a
+ * sign, a locale's decimal comma — and a filter that keeps only digits and a
+ * point silently changes the VALUE the edit form then posts back. The currency
+ * decides its own decimal places either way; two is not universal.
+ */
 function amountInput(
   minor: number | null,
   currencyCode: string | null,
 ): string {
   if (minor === null || currencyCode === null) return "";
-  // Two decimal places is not universal, so the currency decides its own.
-  const formatted = formatMinorUnits(minor, currencyCode, "en-AU");
-  return formatted.replace(/[^\d.]/g, "");
+  return minorUnitsToDecimalString(minor, currencyCode);
 }
 
 /* -------------------------------------------------------------------------- */

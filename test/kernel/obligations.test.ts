@@ -16,7 +16,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { evaluateAssetObligation } from "~/kernel/assets";
+import { assetObligationMeter, evaluateAssetObligation } from "~/kernel/assets";
 import type { ObligationTaskGateway } from "~/kernel/assets";
 import {
   OBLIGATION_COMPLETED,
@@ -1006,6 +1006,117 @@ describe("countByBand (D10 — the collection's headings)", () => {
       later: 0,
       done: 1,
     });
+  });
+
+  /*
+   * The meter side, which is where the SQL and the evaluator are most easily
+   * two different rules. `evaluateMeterThreshold` has three answers that are
+   * not a number — no reading, a reading in ANOTHER unit (this product never
+   * converts), and a reading past the threshold — and the count read has to
+   * treat all three the way the row does.
+   */
+  it("bands a meter obligation the way the evaluator does, mismatched units and all", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    await history().recordMeterReading({
+      assetId: asset.id,
+      value: 50_000,
+      unit: "km",
+      readingDate: "2026-09-01",
+    });
+
+    // A reading exists, but in the WRONG unit and numerically under the
+    // threshold. Counting the number alone files this as calm; the evaluator
+    // says it cannot be read at all, and with no date to fall back on that is
+    // the whole answer.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 miles",
+      meterThreshold: 60_000,
+      meterUnit: "mi",
+    });
+    // A DATED meter obligation on an asset with no compatible reading. The date
+    // is a fact and the meter is a question, so the date bands it.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 hours, due Friday",
+      meterThreshold: 60_000,
+      meterUnit: "hours",
+      dueDate: "2026-09-08",
+    });
+    // Past its threshold in the SAME unit, with a date a long way off: the
+    // meter outranks the calendar.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 40,000 km",
+      meterThreshold: 40_000,
+      meterUnit: "km",
+      dueDate: "2027-06-01",
+    });
+
+    expect(await repo.countByBand({ today: TODAY })).toEqual({
+      overdue: 2,
+      this_week: 1,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    });
+
+    // And row by row against the kernel, with the REAL meter evaluation rather
+    // than a null one — a null meter is the case that agrees by accident.
+    const page = await repo.list({ limit: 25, today: TODAY });
+    const reading = { value: 50_000, unit: "km" } as const;
+    const derived: Record<string, number> = {
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    };
+    for (const item of page.items) {
+      derived[
+        obligationBand(item, TODAY, assetObligationMeter(item, reading))
+      ] += 1;
+    }
+    expect(derived).toEqual(await repo.countByBand({ today: TODAY }));
+  });
+
+  /*
+   * The heading counts the whole collection; the page has to CONTAIN what the
+   * heading counts. A meter obligation awaiting a reading has no date at all,
+   * so ordering by date alone puts it behind every dated row — and a workspace
+   * with more than a page of dated work would print "Overdue (1)" above a page
+   * with no overdue row in it.
+   */
+  it("puts the overdue band on the FIRST page, dateless rows included", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    for (let index = 0; index < 30; index += 1) {
+      await repo.create({
+        subjectEntityId: asset.id,
+        category: "registration",
+        title: `Dated obligation ${index}`,
+        dueDate: "2026-09-20",
+      });
+    }
+    const dateless = await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 km",
+      meterThreshold: 60_000,
+      meterUnit: "km",
+    });
+
+    const counts = await repo.countByBand({ today: TODAY });
+    expect(counts.overdue).toBe(1);
+
+    const page = await repo.list({ limit: 25, today: TODAY });
+    expect(page.items.map((item) => item.id)).toContain(dateless.id);
+    // First, in fact: it is the most urgent row in the collection.
+    expect(page.items[0]?.id).toBe(dateless.id);
   });
 
   it("returns every band as a zero rather than an absent key", async () => {
