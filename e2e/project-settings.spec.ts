@@ -289,8 +289,35 @@ test.describe("PROJ-05 Slice 4 — Today integration", () => {
     if (await taskRow.getByRole("checkbox").isChecked()) {
       await reopenTaskRow(taskRow, "Today rail open task");
     }
+    /*
+     * Wait for the two writes, not for the two ticks.
+     *
+     * `completeTaskRow`/`reopenTaskRow` drive the row's own checkbox, which is
+     * OPTIMISTIC: it reads its new state before the server has been told
+     * anything. The rail this journey then asserts on ranks projects by
+     * `lastMeaningfulActivityAt` over the shared Activity stream, so the two
+     * events these acts append ARE the precondition for the project appearing
+     * at all — and reading the tick is not the same as knowing they landed.
+     *
+     * MEASURED as `:235` failing on CI run 33980942519 (p03, 16.6 min against a
+     * 15.7 min budget) with the rail's project link simply not there. Not
+     * reproduced locally, where every write lands long before the navigation;
+     * what is certain is that the journey depended on two writes it never
+     * waited for, which is the same unguarded dependency
+     * `today-task-convergence.spec.ts` carried on the same run.
+     */
+    const taskWritten = () =>
+      page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          /^\/tasks\/[^/]+(?:\.data)?$/.test(new URL(response.url()).pathname),
+      );
+    const completed = taskWritten();
     await completeTaskRow(taskRow, "Today rail open task");
+    await completed;
+    const reopened = taskWritten();
     await reopenTaskRow(taskRow, "Today rail open task");
+    await reopened;
     await expect(
       taskRow.getByRole("checkbox", { name: "Complete Today rail open task" }),
     ).toBeVisible();
