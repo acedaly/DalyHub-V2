@@ -265,13 +265,34 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     await expect(page.getByTestId("goals-list")).toBeVisible();
   });
 
+  /*
+   * V2.8 CONV-03 — this journey names the Goal it is about (DEBT-173), and it
+   * can no longer decline to run (the DEBT-200 class).
+   *
+   * It used to open a bare `/goals`, take whatever Goal the workspace selected
+   * by default and whatever chip that Goal happened to carry, and `test.skip()`
+   * if there was none. Both halves are properties of the ACCUMULATED workspace
+   * rather than of the product: which Goal sorts first, and whether it has a
+   * linked Project, are decided by everything every earlier spec created. It
+   * duly went red on `main` #840's p13 — a partition that was green on the same
+   * tree in this item's own local whole-gate run an hour earlier — and a skip
+   * branch means the alternative to going red is going green without running.
+   *
+   * `g-launch` is a seeded Goal and `pr-launch` a seeded Project linked to it by
+   * `project.advances_goal` (`seed-tasks.sql`); the one reset in that file that
+   * soft-deletes such a link is scoped to `pr-settings` and does not touch this
+   * pair. So the precondition is a fact about the seed, and the assertions below
+   * say so rather than guarding against its absence.
+   */
   test("opens a linked project and returns to the SAME goal", async ({
     page,
   }) => {
-    await gotoFixture(page, "/goals");
+    await gotoFixture(page, "/goals?goal=g-launch");
     const pane = page.getByTestId("goal-workspace-pane");
     const chip = pane.getByTestId("goal-project-chip").first();
-    if ((await chip.count()) === 0) test.skip();
+    // The seed guarantees it. If it ever stops being true, this fails HERE and
+    // names the fixture, rather than skipping and reporting green.
+    await expect(chip).toBeVisible();
     const goalUrl = page.url();
 
     const chipName = (await chip.textContent())?.trim() ?? "";
@@ -279,12 +300,14 @@ test.describe("REDESIGN-04 — the Goals workspace", () => {
     await expect(page).toHaveURL(/\/projects\//);
 
     await page.goBack();
-    // Back lands on the SAME Goal, not on the workspace's default selection.
+    // Back lands on the SAME Goal, not on the workspace's default selection —
+    // asserted on the CHIP that was clicked rather than on the pane containing
+    // its text anywhere. A Goal whose next action belongs to the same Project
+    // renders that Project's name twice (the chip, and the next-action line's
+    // parent label), so the loose query is a strict-mode violation on exactly
+    // the Goals this journey is most about. It survived only while the journey
+    // took whichever Goal the accumulated workspace put first.
     await expect(page).toHaveURL(goalUrl);
-    // Ask for the CHIP by name, not for the name anywhere in the pane: since
-    // STEER-04 the pane also states the Goal's next step, whose parent Project
-    // is very often the same Project the chip names, and a bare text locator
-    // then resolves to both and fails strict mode.
     await expect(
       page
         .getByTestId("goal-workspace-pane")

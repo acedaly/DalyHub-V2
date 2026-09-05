@@ -169,3 +169,43 @@ export function d1Query<T = Record<string, unknown>>(
     return (parsed[0]?.results ?? []) as readonly T[];
   });
 }
+
+/**
+ * Remove every Task whose title matches a prefix, dependents-first (DEBT-173).
+ *
+ * A journey that creates a real Task through the product and walks away leaves
+ * it in the shared workspace for good, and the workspace is not a bag: Today's
+ * plan is bounded at EIGHT rows ordered priority-first, `/tasks` pages at fifty,
+ * and a grouped band shows what fits. So a leaked Task is not inert — it is a
+ * seat in a bounded surface that the next journey asserting on that surface has
+ * to win. V2.4-GATE-02 measured 217 records left behind by one complete run; the
+ * two this helper was written for are a Task dated TODAY, which is the most
+ * contested band in the product.
+ *
+ * The order is forced by the schema, where every foreign key is ON DELETE
+ * RESTRICT: activity subjects, then any activity left with no subject at all,
+ * then links, then the detail and spine rows, then the entity. It is the same
+ * sequence `pwa-offline.spec.ts` and `meetings-fixtures.ts` each wrote out by
+ * hand; this is that sequence, once, so the next spec that needs it does not
+ * write a fourth copy and get the order subtly wrong.
+ *
+ * `prefix` is a SQL `LIKE` pattern and must be specific enough to be this
+ * spec's own — it is escaped, but a pattern like `%` would sweep the seed.
+ */
+export function sweepTasksByTitle(prefix: string): void {
+  const ws = sqlLiteral("local-dev-workspace");
+  const selection = `
+    SELECT id FROM entities
+    WHERE workspace_id = ${ws} AND type = 'task' AND title LIKE ${sqlLiteral(prefix)}
+  `;
+  d1Execute([
+    `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND entity_id IN (${selection});`,
+    `DELETE FROM activities WHERE workspace_id = ${ws} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
+    `DELETE FROM entity_links WHERE workspace_id = ${ws} AND (source_entity_id IN (${selection}) OR target_entity_id IN (${selection}));`,
+    `DELETE FROM task_checklist_items WHERE workspace_id = ${ws} AND task_id IN (${selection});`,
+    `DELETE FROM task_details WHERE workspace_id = ${ws} AND entity_id IN (${selection});`,
+    // Before the entity: `spine_records_entity_fk` is ON DELETE RESTRICT.
+    `DELETE FROM spine_records WHERE workspace_id = ${ws} AND entity_id IN (${selection});`,
+    `DELETE FROM entities WHERE workspace_id = ${ws} AND id IN (${selection});`,
+  ]);
+}

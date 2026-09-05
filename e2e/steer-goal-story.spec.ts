@@ -36,6 +36,7 @@ import {
   STEER_TASKS,
   cleanupSteerFixture,
   seedSteerFixture,
+  touchSteerContinueBand,
   steerFixture,
 } from "./steer-fixtures";
 import {
@@ -198,6 +199,18 @@ test.describe("STEER-03 — one Goal, one story", () => {
 });
 
 test.describe("STEER-04 — from signal to step", () => {
+  /*
+   * DEBT-173 — "Continue working" is bounded twice: the twelve most recently
+   * UPDATED active Projects are the candidates, and the top THREE of those by
+   * last Activity are the cards. This journey asserts that two of this fixture's
+   * Projects are in the band, and the `beforeAll` established that minutes
+   * earlier against the seed alone. Anything a neighbouring spec touched since
+   * has a better claim on both bounds, which is how the two-arrangement proof
+   * caught this one. Establishing it here makes the precondition true at the
+   * moment it is asserted — see `touchSteerContinueBand`.
+   */
+  test.beforeEach(() => touchSteerContinueBand());
+
   test("names the next action on a Goal, opens the canonical Task, and creates the missing Project", async ({
     page,
   }) => {

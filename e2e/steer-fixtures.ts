@@ -383,6 +383,78 @@ export function seedSteerFixture(fixture: SteerFixture): void {
   d1Execute(sql);
 }
 
+/**
+ * Establish this fixture's claim on Today's "Continue working" band, at the
+ * moment the journey asserts it (V2.8 CONV-03, DEBT-173).
+ *
+ * The band is bounded TWICE, and both bounds are contested by the whole
+ * workspace — which is why re-stamping only one of them did not repair it:
+ *
+ *   1. **The CANDIDATE set.** `readActiveProjects` reads the twelve
+ *      (`PROJECTS_LIMIT`) most recently UPDATED active Projects, ordered by the
+ *      effective timestamp `MAX(entities.updated_at, project_details.updated_at)`.
+ *      A Project the run has not touched lately is not a candidate at all,
+ *      whatever its Activity says.
+ *   2. **The BAND.** `rankContinueProjects` then sorts those candidates by their
+ *      real last Activity and keeps the top **three** (`CONTINUE_MAX`).
+ *
+ * `seedSteerFixture` stamps the Activity one to four MINUTES ago in a
+ * `beforeAll`, which puts this fixture ahead of the committed seed and says
+ * nothing about what runs between that hook and the assertion. The
+ * two-arrangement proof found exactly that: `steer-goal-story.spec.ts:201`
+ * passed under the committed thirteen-partition split and failed under a derived
+ * fourteen-partition one, on the same tree and the same seed, because the file
+ * had different neighbours — one of 2,025 tests disagreeing.
+ *
+ * The first repair re-stamped the Activity alone and was MEASURED still red
+ * under the real fourteen-partition arrangement: the ranking was never the
+ * binding constraint there, the twelve-Project candidate page was. This bumps
+ * both, in the order the reads consume them, immediately before the journey
+ * looks. `workers: 1` means nothing else in the partition runs in between, so it
+ * is deterministic rather than merely likelier — the same "a precondition a spec
+ * depends on is a precondition that spec sets" refinement `identity.spec.ts:268`
+ * and `entity-icons.spec.ts` adopted.
+ *
+ * The Activity offsets keep their ORDER and their spacing in SECONDS rather than
+ * minutes, so the top three are still the three this fixture means them to be —
+ * including the Project whose only open Task is WAITING, which is in the band
+ * deliberately so the "names nothing" branch is exercised rather than assumed.
+ * Minutes would lose to any Project a neighbour touched at "now"; that too was
+ * measured rather than reasoned about.
+ */
+export function touchSteerContinueBand(): void {
+  const ws = sqlLiteral(WORKSPACE);
+  const nowIso = new Date().toISOString();
+  const seconds = (secondsAgo: number) =>
+    sqlLiteral(new Date(Date.now() - secondsAgo * 1000).toISOString());
+
+  const sql: string[] = [];
+
+  // (1) Inside the candidate page: the effective updated_at is the LATER of the
+  // spine's and the detail row's, so both are set.
+  for (const project of Object.values(STEER_PROJECTS)) {
+    sql.push(
+      `UPDATE entities SET updated_at = ${sqlLiteral(nowIso)}
+        WHERE workspace_id = ${ws} AND id = ${sqlLiteral(project.id)};`,
+      `UPDATE project_details SET updated_at = ${sqlLiteral(nowIso)}
+        WHERE workspace_id = ${ws} AND entity_id = ${sqlLiteral(project.id)};`,
+    );
+  }
+
+  // (2) And the order within it, newest first.
+  const stamp = (id: string, secondsAgo: number) =>
+    `UPDATE activities SET occurred_at = ${seconds(secondsAgo)}
+      WHERE workspace_id = ${ws} AND id = ${sqlLiteral(id)};`;
+  sql.push(
+    stamp("st-act-proofread", 1),
+    stamp("st-act-outline", 2),
+    stamp("st-act-waiting", 3),
+    stamp("st-act-piano", 4),
+  );
+
+  d1Execute(sql);
+}
+
 export function cleanupSteerFixture(): void {
   const ws = sqlLiteral(WORKSPACE);
   /*

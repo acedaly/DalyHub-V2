@@ -7,6 +7,7 @@ import {
   openTodayWeeklySummary,
   pickCalendarDate,
 } from "./helpers";
+import { sweepTasksByTitle } from "./d1";
 
 /**
  * The Today screen, driven end to end against the development-auth server.
@@ -38,6 +39,16 @@ function greeting(page: Page) {
 }
 
 test.describe("Today — the day surface", () => {
+  /*
+   * DEBT-173 — the completion round trip creates a real P1 Task DUE TODAY and
+   * used to leave it behind. P1 and dated today is the strongest possible claim
+   * on Today's eight-row, priority-ordered plan, so each run took one of those
+   * eight seats from every later journey that looks its own row up there.
+   * Sweeping at both ends also repairs whatever an interrupted run left.
+   */
+  test.beforeAll(() => sweepTasksByTitle("Today completion round trip %"));
+  test.afterAll(() => sweepTasksByTitle("Today completion round trip %"));
+
   test("is reachable from the sidebar and leads with the greeting", async ({
     page,
   }) => {

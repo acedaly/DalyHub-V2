@@ -208,7 +208,23 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A BACKSTOP, sized against measurement — V2.8 CONV-03.
+    #
+    # It was 15, and the job it bounds ran 10.2 min on run #837 (toolchain 0.3,
+    # 6929 unit tests 3.5, 3200 kernel tests in the Workers runtime 6.4) — 68% of
+    # the budget on a good runner and nothing left for a slow one. It duly ran
+    # out on `main` #833 and again on `main` #840, both times mid-kernel-suite,
+    # and a CANCELLED job is worse than a failed one: it publishes no result, so
+    # the gate cannot say what the suite did. Two of the three `main` runs since
+    # CONV-00 were lost to this and neither was a test failure. V2.9 has since
+    # added its own kernel and unit suites on top of that measurement.
+    #
+    # 25 is the same shape the E2E jobs already use — a backstop at roughly
+    # 2.5× the measured cost, well clear of ordinary runner variance while still
+    # bounding a genuine hang. The suite was not made to fit the budget and the
+    # budget was not fitted to one afternoon's suite: both numbers are written
+    # down here so the next person can see which moved and why.
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4

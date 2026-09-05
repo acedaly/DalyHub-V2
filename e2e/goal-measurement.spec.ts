@@ -13,6 +13,7 @@ import {
   postSameOrigin,
   waitForInteractive,
 } from "./helpers";
+import { sweepTasksByTitle } from "./d1";
 
 /**
  * GOAL-02 — the measurable-Goal journey, end to end through the real UI.
@@ -307,6 +308,17 @@ test.describe("GOAL-02 — measurable Goals", () => {
 });
 
 test.describe("GOAL-02 — Today", () => {
+  /*
+   * DEBT-173 — the trend journey creates a real Task DUE TODAY through the
+   * product and used to walk away from it. Today's plan is bounded at eight rows
+   * ordered priority-first, so a leaked task dated today is a seat in the most
+   * contested band in the product: `today-task-convergence.spec.ts` is in this
+   * same partition, runs after this file, and looks its own rows up in that
+   * plan. Sweeping at both ends also repairs whatever an interrupted run left.
+   */
+  test.beforeAll(() => sweepTasksByTitle("GOAL02 trend %"));
+  test.afterAll(() => sweepTasksByTitle("GOAL02 trend %"));
+
   test("shows measurable Goal progress and the 7-day workload trend", async ({
     page,
   }) => {

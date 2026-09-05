@@ -44,8 +44,30 @@ async function createTask(
   fields: Record<string, string> = {},
 ): Promise<{ readonly id: string; readonly title: string }> {
   const title = `${STAMP} ${name}`;
+  /*
+   * P1 — the documented way to be certain the row is DRAWN (DEBT-173).
+   *
+   * Today's plan is bounded at eight rows and the bound is ordered
+   * PRIORITY-FIRST (TODAY-10). Every journey in this file then looks its own
+   * task up in that plan, and an unprioritised task's place in the eight is
+   * decided by however many higher-priority tasks the shared workspace has
+   * dated today by the time it runs — the seed alone leaves **54** active tasks
+   * eligible for the day, and every run adds more. So the row was drawn most of
+   * the time and not always: MEASURED as a 30 s timeout inside
+   * `scrollIntoViewIfNeeded` on p03 of this item's own whole-gate run, on a
+   * journey that costs 8.6 s in isolation and had passed on the same tree an
+   * hour before.
+   *
+   * `today.spec.ts` had already found this and written the rule down in as many
+   * words — *"P1, so the row is inside Focus's eight-row display bound however
+   * many other Tasks the shared workspace has dated today … the documented way
+   * to be certain the row is drawn, not a workaround for it"*. This file is the
+   * other consumer of the same bound and did not carry it. Nothing about what
+   * these journeys assert changes: none of them is about a priority, and the one
+   * that CHANGES a priority sets its own explicitly through `fields`.
+   */
   const response = await postSameOrigin(request, "/tasks/new", {
-    form: { title, dueDate: TODAY, ...fields },
+    form: { title, dueDate: TODAY, priority: "p1", ...fields },
   });
   const body = (await response.json()) as {
     ok: boolean;
@@ -373,16 +395,29 @@ test.describe("TODAY-TASK-01 — a task is fully actionable from Today", () => {
         body: JSON.stringify({ ok: false, formError: "Refused by the test." }),
       }),
     );
+    /*
+     * Choose a priority the task does NOT already have.
+     *
+     * Every task this file creates is P1 so its row is inside Today's
+     * eight-row, priority-ordered plan (see `createTask`), and choosing the
+     * priority a task already has is a no-op: no write is made, so there is
+     * nothing for the route above to refuse and no alert to read. Measured —
+     * this journey went red on exactly that the moment the P1 default landed,
+     * which is the right way round for a test to notice.
+     *
+     * WHICH priority is incidental to the claim. What is being proved is that a
+     * refused write is STATED and does not leave the refused value on the row.
+     */
     await openCell(row, "task-row-priority");
     await page
-      .getByRole("menuitemradio", { name: "Priority 1" })
-      .or(page.getByRole("button", { name: "Priority 1" }))
+      .getByRole("menuitemradio", { name: "Priority 3" })
+      .or(page.getByRole("button", { name: "Priority 3" }))
       .last()
       .click();
 
-    // The refusal is stated, and the row does NOT show P1.
+    // The refusal is stated, and the row does NOT show the refused P3.
     await expect(page.getByRole("alert")).toContainText("Refused by the test.");
-    await expect(row.getByTestId("task-row-priority")).not.toContainText("P1");
+    await expect(row.getByTestId("task-row-priority")).not.toContainText("P3");
   });
 });
 
