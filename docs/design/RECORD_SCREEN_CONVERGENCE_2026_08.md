@@ -148,27 +148,33 @@ skipped under that rule.
 Before/after pairs are captured by
 [`e2e/record-convergence-screenshots.spec.ts`](../../e2e/record-convergence-screenshots.spec.ts)
 (opt-in: `CAPTURE_SCREENSHOTS=1 SHOT_STAGE=before|after`) into
-[`assets/record-2026-08/`](assets/record-2026-08/), against the fixtures seeded
+`assets/record-2026-08/` (the folder was not committed; the measurements above
+and the table below record what each pair showed), against the fixtures seeded
 by [`e2e/seed-record-convergence.sql`](../../e2e/seed-record-convergence.sql).
+
+The pairs were captured during the pass and are not in the repository. Each
+`before` showed the surface as measured in "What was actually wrong"; each
+`after` showed it under the contract — one identity row, the context line, the
+summary band and the fold anchor in place.
 
 | Surface | Before | After |
 | --- | --- | --- |
-| Project, 1280 | [before](assets/record-2026-08/record-before-project-1280.png) | [after](assets/record-2026-08/record-after-project-1280.png) |
-| Project, 1440 | [before](assets/record-2026-08/record-before-project-1440.png) | [after](assets/record-2026-08/record-after-project-1440.png) |
-| Project, dark | [before](assets/record-2026-08/record-before-project-dark-1280.png) | [after](assets/record-2026-08/record-after-project-dark-1280.png) |
-| Project, phone | [before](assets/record-2026-08/record-before-project-390.png) | [after](assets/record-2026-08/record-after-project-390.png) |
-| Area (active) | [before](assets/record-2026-08/record-before-area-active-1280.png) | [after](assets/record-2026-08/record-after-area-active-1280.png) |
-| Area (no active work) | [before](assets/record-2026-08/record-before-area-quiet-1280.png) | [after](assets/record-2026-08/record-after-area-quiet-1280.png) |
-| Goal | [before](assets/record-2026-08/record-before-goal-1280.png) | [after](assets/record-2026-08/record-after-goal-1280.png) |
-| Note | [before](assets/record-2026-08/record-before-note-1280.png) | [after](assets/record-2026-08/record-after-note-1280.png) |
-| Meeting | [before](assets/record-2026-08/record-before-meeting-1280.png) | [after](assets/record-2026-08/record-after-meeting-1280.png) |
-| Meeting sticky capture | [before](assets/record-2026-08/record-before-meeting-capture-1280.png) | [after](assets/record-2026-08/record-after-meeting-capture-1280.png) |
-| Person (full contact data) | [before](assets/record-2026-08/record-before-person-full-1280.png) | [after](assets/record-2026-08/record-after-person-full-1280.png) |
-| Person (partial contact data) | [before](assets/record-2026-08/record-before-person-partial-1280.png) | [after](assets/record-2026-08/record-after-person-partial-1280.png) |
-| Asset | [before](assets/record-2026-08/record-before-asset-1280.png) | [after](assets/record-2026-08/record-after-asset-1280.png) |
-| Asset history actions | [before](assets/record-2026-08/record-before-asset-history-1280.png) | [after](assets/record-2026-08/record-after-asset-history-1280.png) |
-| Review | [before](assets/record-2026-08/record-before-review-1280.png) | [after](assets/record-2026-08/record-after-review-1280.png) |
-| Long title | [before](assets/record-2026-08/record-before-long-title-1280.png) | [after](assets/record-2026-08/record-after-long-title-1280.png) |
+| Project, 1280 | `record-before-project-1280.png` | `record-after-project-1280.png` |
+| Project, 1440 | `record-before-project-1440.png` | `record-after-project-1440.png` |
+| Project, dark | `record-before-project-dark-1280.png` | `record-after-project-dark-1280.png` |
+| Project, phone | `record-before-project-390.png` | `record-after-project-390.png` |
+| Area (active) | `record-before-area-active-1280.png` | `record-after-area-active-1280.png` |
+| Area (no active work) | `record-before-area-quiet-1280.png` | `record-after-area-quiet-1280.png` |
+| Goal | `record-before-goal-1280.png` | `record-after-goal-1280.png` |
+| Note | `record-before-note-1280.png` | `record-after-note-1280.png` |
+| Meeting | `record-before-meeting-1280.png` | `record-after-meeting-1280.png` |
+| Meeting sticky capture | `record-before-meeting-capture-1280.png` | `record-after-meeting-capture-1280.png` |
+| Person (full contact data) | `record-before-person-full-1280.png` | `record-after-person-full-1280.png` |
+| Person (partial contact data) | `record-before-person-partial-1280.png` | `record-after-person-partial-1280.png` |
+| Asset | `record-before-asset-1280.png` | `record-after-asset-1280.png` |
+| Asset history actions | `record-before-asset-history-1280.png` | `record-after-asset-history-1280.png` |
+| Review | `record-before-review-1280.png` | `record-after-review-1280.png` |
+| Long title | `record-before-long-title-1280.png` | `record-after-long-title-1280.png` |
 
 ## Tests
 

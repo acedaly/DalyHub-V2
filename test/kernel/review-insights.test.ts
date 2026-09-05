@@ -892,6 +892,40 @@ describe("the evidence projection", () => {
     expect(insights.trends.length).toBeGreaterThan(0);
   });
 
+  /*
+   * V2.9 INS-02 — the across-Reviews section, end to end against real D1: two
+   * completed Reviews, each with a captured snapshot, read back as a SERIES.
+   */
+  it("reads more than one snapshot back, and says what the series holds", async () => {
+    await seedCompletedWork(WS, { inPeriod: 3 });
+    const scope = scopeFor();
+
+    // Two earlier Reviews, each completed and snapshotted.
+    const oldest = await weeklyReview(WS, "2026-07-13", "2026-07-19");
+    await reviewsRepo().complete(oldest.id);
+    await captureReviewInsightSnapshot(scope, insightInput(oldest));
+    const previous = await weeklyReview(WS, PREVIOUS_START, PREVIOUS_END);
+    await reviewsRepo().complete(previous.id);
+    await captureReviewInsightSnapshot(scope, insightInput(previous));
+
+    const current = await weeklyReview(WS, PERIOD_START, PERIOD_END);
+    const { insights } = await loadReviewInsights(scope, insightInput(current));
+
+    // The panel reached further back than `priorReviews[0]`, which is the whole
+    // point of INS-02: both snapshots are in the series, so the comparison and
+    // the across-Reviews facts come from one read.
+    expect(insights.comparison).toMatchObject({
+      kind: "snapshot",
+      previousReviewId: previous.id,
+    });
+    // Whatever the series says, it says it about the Reviews it actually
+    // holds — never a count it did not read.
+    for (const insight of insights.acrossReviews) {
+      expect(insight.reason).toMatch(/over your last \d+ Reviews?/);
+      expect(insight.links.length).toBeGreaterThan(0);
+    }
+  });
+
   it("never compares against another workspace's Reviews", async () => {
     const otherPrevious = await weeklyReview(
       OTHER,

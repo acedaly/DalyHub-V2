@@ -348,7 +348,7 @@ landed on `main` first — kept `088`.)
 
 ## ADR-019: Shared Card Identity & Reorder, and the Filter Expression & URL Contract
 - **Status:** Accepted. Delivers [DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards) and [DS-07](../roadmap/ROADMAP_V2.md#-ds-07--shared-filters) together as an owner-approved, dependency-aligned exception to one-item-per-PR (DS-07 depends on DS-04 for a real shared collection to filter, and both are prerequisites of TODAY-01). Builds on [ADR-017](#adr-017-design-tokens-and-the-shared-record-layout) (DS-01 tokens; the container-adaptive DS-02 Record Layout) and [ADR-018](#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated) (the DS-03 Drawer and its repeated-`drawer`-parameter URL contract, which the filter URL contract must compose with).
-- **Context.** Every future collection surface (Today, Projects, Goals, Areas, Search) renders entities as cards and narrows them with filters. [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke) and [DESIGN_SYSTEM.md → Cards/Filters](../design/DESIGN_SYSTEM.md#cards) mandate **one** shared Card and **one** shared Filter system — a bespoke per-module card or filter bar is Product Debt on merge. Two durable contracts had to be settled now, before any module depends on them: (a) how a Card is identified and reordered accessibly without owning Drawer/business state, and (b) how a filter expression is modelled and encoded in the URL safely and forward-compatibly. Nothing prior specified either.
+- **Context.** Every future collection surface (Today, Projects, Goals, Areas, Search) renders entities as cards and narrows them with filters. [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer) and [DESIGN_SYSTEM.md → Cards/Filters](../design/DESIGN_SYSTEM.md#cards) mandate **one** shared Card and **one** shared Filter system — a bespoke per-module card or filter bar is Product Debt on merge. Two durable contracts had to be settled now, before any module depends on them: (a) how a Card is identified and reordered accessibly without owning Drawer/business state, and (b) how a filter expression is modelled and encoded in the URL safely and forward-compatibly. Nothing prior specified either.
 - **Decision.**
   - **§19.1 One entity-agnostic Card, configured by data.** [`app/shared/card`](../../app/shared/card) exposes a single `Card` (plus `CardCollection`/`ReorderableCardCollection`) driven by a small typed `CardProps`. There is no `TaskCard`/`ProjectCard`/…; entity identity is just a `typeLabel`/`icon`/`accent`/`tone` a consumer passes. The Card imports no D1, repositories, workspaces, hierarchy rules, routes or bindings.
   - **§19.2 Card identity & the primary open action.** A card carries a **stable `id`** (used for selection state, reorder keying and collection membership). The **title** is the sole primary open target — a real link (`href`) and/or button (`onOpen`); with both, an unmodified click opens via `onOpen` while a modified/middle click follows the link. The card root is a non-interactive `article`, so there is no `div onClick` and no nested-interactive violation. The Card opens the [DS-03 Drawer](#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated) but **does not own Drawer state or parse drawer keys** — it emits an href/callback and the consumer maps it to a drawer key. Because filter state and drawer state occupy **disjoint** URL parameters (`f`/`fmode`/`fv` vs `drawer`), opening a card from a filtered collection preserves the filters for free.
@@ -359,7 +359,7 @@ landed on `main` first — kept `088`.)
   - **§19.7 Development fixture only.** One dev-only route (`/design/cards-filters`, excluded from production by the same `NODE_ENV` guard in `app/routes.ts` as the DS-02/DS-03 fixtures) proves both systems end to end with in-memory fixture records of several entity types. It is not a module, establishes no product route or business rule, and ships no domain functionality; the shared Card/Filter **infrastructure** ships in the production bundle as reusable code, but the fixture route, data and styles do not.
 - **Consequences.** *Easy:* any future module renders entities by configuring one Card and narrows them by registering typed fields — deep links, Back/Forward, refresh and Drawer-open-over-filters all work for free, and a card reorder or filter translates to that module's own persistence/query layer without importing React. *Hard:* the Card's "both href and onOpen" open semantics and the reorder's intent-only contract push persistence to consumers (correct, but they must wire it); the filter URL is bounded, so pathological inputs are truncated rather than honoured. *Accepted:* DS-04 and DS-07 shipped in one PR (owner-approved); saved views and reorder persistence are deferred to the modules/items that need them. **No new dependency.**
 - **Alternatives considered.**
-  - *Per-entity cards / per-module filter bars.* Rejected: the explicit anti-goal ([AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke)); one configured component keeps the product coherent and is a top [PRODUCT_DEBT](../product/PRODUCT_DEBT.md) target.
+  - *Per-entity cards / per-module filter bars.* Rejected: the explicit anti-goal ([AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)); one configured component keeps the product coherent and is a top [PRODUCT_DEBT](../product/PRODUCT_DEBT.md) target.
   - *A drag-and-drop library (dnd-kit, react-beautiful-dnd, SortableJS).* Rejected: a small Pointer-Events + keyboard implementation meets the accessibility contract (keyboard equivalent, live-region announcements, pinned items, permutation guarantee) at **zero** dependency/licence/bundle/Workers-compat cost.
   - *One opaque JSON blob in a single query parameter.* Rejected: not diff-able, not forward-compatible, harder to bound/sanitise, and worse for deterministic equality; a repeated, versioned per-clause encoding is preferable (and is what the [DS-03 drawer contract](#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated) established as the house style).
   - *Filter state in React/component or ephemeral location state.* Rejected: it would not survive refresh or a copied link and would break Back/Forward — the same reasoning as ADR-018 §18.1.
@@ -1052,7 +1052,7 @@ landed on `main` first — kept `088`.)
 ## ADR-047: The Universal Relationship System — one shared Linked Items surface, a generic /links endpoint, wiki links and linked-boosting
 
 - **Status:** Accepted.
-- **Context.** Relationships are a kernel primitive since FND-04 ([ADR-002](#adr-002-entitylinks)/[ADR-011](#adr-011-entitylink-persistence-and-lifecycle)), and DS-06 ([ADR-022](#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker)) already shipped the entity-agnostic `EntityLinkPicker` and the trusted policy service (`createLinkWithPolicy`/`unlinkWithPolicy`/`searchLinkTargets`). But *using* relationships had drifted into bespoke, per-module surfaces — People and Meetings rendered a **read-only** linked list, Projects and Tasks each wired their own picker plus link-search/link-mutate routes — the exact shared-over-bespoke debt [`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke) forbids. The goal: every record's detail page gets ONE reusable **Linked Items** section (add existing, remove, search-as-you-type, navigate, hover-card summaries), links can be created from the Command Palette, Notes support inline `[[Wiki Links]]`, Search boosts a record's directly-linked entities, and Activity records relationship changes — all on the accepted primitives, with no second relationship model, table, or per-module link route. Forces: (1) the shared UI layer must not import the platform layer, but both must share the wire types; (2) the FND-08 Markdown pipeline is deliberately deterministic and stateless (no DB), so wiki-link *resolution* cannot happen in the renderer; (3) structural spine links (`*.belongs_to_*`) are reserved and already shown by the hierarchy, so a generic "everything linked" view must not duplicate or expose a back door around them; (4) global Search results carry provider-local item ids, not resolvable entity ids in general, so "boost linked entities" must be a safe, bounded lift rather than a cross-tier reordering; (5) the anchor entity id is client-supplied and therefore untrusted.
+- **Context.** Relationships are a kernel primitive since FND-04 ([ADR-002](#adr-002-entitylinks)/[ADR-011](#adr-011-entitylink-persistence-and-lifecycle)), and DS-06 ([ADR-022](#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker)) already shipped the entity-agnostic `EntityLinkPicker` and the trusted policy service (`createLinkWithPolicy`/`unlinkWithPolicy`/`searchLinkTargets`). But *using* relationships had drifted into bespoke, per-module surfaces — People and Meetings rendered a **read-only** linked list, Projects and Tasks each wired their own picker plus link-search/link-mutate routes — the exact shared-over-bespoke debt [`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer) forbids. The goal: every record's detail page gets ONE reusable **Linked Items** section (add existing, remove, search-as-you-type, navigate, hover-card summaries), links can be created from the Command Palette, Notes support inline `[[Wiki Links]]`, Search boosts a record's directly-linked entities, and Activity records relationship changes — all on the accepted primitives, with no second relationship model, table, or per-module link route. Forces: (1) the shared UI layer must not import the platform layer, but both must share the wire types; (2) the FND-08 Markdown pipeline is deliberately deterministic and stateless (no DB), so wiki-link *resolution* cannot happen in the renderer; (3) structural spine links (`*.belongs_to_*`) are reserved and already shown by the hierarchy, so a generic "everything linked" view must not duplicate or expose a back door around them; (4) global Search results carry provider-local item ids, not resolvable entity ids in general, so "boost linked entities" must be a safe, bounded lift rather than a cross-tier reordering; (5) the anchor entity id is client-supplied and therefore untrusted.
 - **Decision.**
   1. **One module-agnostic relationship type, `link.related`, and a trusted universal policy.** `app/platform/entity-links/universal-links.ts` defines `link.related` (a validated FND-04 slug, not a reserved spine type), `buildUniversalLinkPolicy(anchorId)` (both directions, `link.related` only, many), `loadLinkedItems` (every active link at either end EXCLUDING the five reserved structural spine types, each flagged `removable` iff `link.related`) and `loadLinkSummary` (safe structural metadata only). Module-owned links (e.g. `meeting.attendee`) still appear in the view but read-only — only `link.related` is removable there.
   2. **One shared `/links` endpoint** (`app/routes/links.ts`), composed exactly like `/search` and `/commands` (renders no shell; `resolveAuthenticatedWorkspaceScope`; the client names only an anchor **entity** id). GET does list/search/summary; POST does policy-enforced link/unlink. It fails closed: a missing anchor → 404, a missing/invalid workspace → a calm unavailable, a crafted link id for a type/anchor the policy never offered → refused. No module needs its own link routes anymore.
@@ -1668,7 +1668,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
   4. **Idempotency is a database guarantee, not a client convention.** `offline_capture_receipts (workspace_id, idempotency_key)` is claimed with an `INSERT … ON CONFLICT DO NOTHING RETURNING` *before* anything is created, so two concurrent retries cannot both win and a loser reads back the already-created id. The alternative — create first, record second — can duplicate, which is the exact failure this exists to prevent. A failed creation releases its claim. A claim whose request never came back is genuinely undecidable — D1 has no interactive transaction that can span the module's own creation code, so the create may have committed just before the process died or never run at all — and it is therefore **retired**, not taken over: every later replay of that key gets the same answer asking the owner to check, rather than a silent second task. A rare visible question beats a rare invisible duplicate. Making this decidable requires the create itself to be idempotent (a record whose primary key derives from the idempotency key) and is deferred, not hidden.
 
-  5. **Replay goes through the modules' OWN create routes.** `POST /tasks/new`, `/notes/new`, `/diary/new` — same validation, same Activity, same workspace scoping. A dedicated `/offline/sync` endpoint would have been a second creation authority in direct breach of [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke); each route instead wraps its existing handler in a five-line replay guard, and how a record is created is unchanged.
+  5. **Replay goes through the modules' OWN create routes.** `POST /tasks/new`, `/notes/new`, `/diary/new` — same validation, same Activity, same workspace scoping. A dedicated `/offline/sync` endpoint would have been a second creation authority in direct breach of [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer); each route instead wraps its existing handler in a five-line replay guard, and how a record is created is unchanged.
 
   6. **`navigator.onLine` is a hint; a real request outcome is the answer.** It reports `true` on a captive portal and `false` on some perfectly-online setups. `/offline/ping` — the cheapest authenticated response DalyHub produces — answers with a marker header only DalyHub's Worker sets, and a 200 **without** it is classified `authRequired`. This is what tells "you are offline" apart from "your Access session expired", which present identically to `fetch` because Access answers an expired session with a cross-origin redirect. Showing the wrong one sends the owner to fix the wrong problem, so `authRequired` is a first-class state, and it **pauses** sync rather than retrying — every retry there is another identity-provider redirect.
 
@@ -1740,7 +1740,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
   `surface-card` and `surface-raised` are **byte-identical in all five light themes**, and in three of them that value is `#ffffff` — there is nothing above white. The two dark themes already pass both clauses. So the brief's "a theme that cannot reach ΔL\* ≥ 3 needs its neutral ramp adjusted" is not a contingency: it is certain, it applies to five themes, and it moves the most visible surface in the product.
 
-  **Finding 2 — the brief's "two font weights only, 400 and 500" contradicts 126 call sites and one passing assertion.** `--dh-font-weight-semibold` (600) is the most-used weight in the codebase (115 `var()` references), `bold` (700) has 11, and [`e2e/themes.spec.ts:669`](../../e2e/themes.spec.ts) asserts the selected navigation row's *computed* weight is ≥ 600 — an assertion that exists because THEME-02 found a real contrast defect in that exact treatment.
+  **Finding 2 — the brief's "two font weights only, 400 and 500" contradicts 126 call sites and one passing assertion.** `--dh-font-weight-semibold` (600) is the most-used weight in the codebase (115 `var()` references), `bold` (700) has 11, and `e2e/themes.spec.ts:669` (since replaced by `e2e/appearance.spec.ts`) asserts the selected navigation row's *computed* weight is ≥ 600 — an assertion that exists because THEME-02 found a real contrast defect in that exact treatment.
 
   **Finding 3 — a self-hosted font would be precached silently and measured by nothing.** `selectPrecacheFileNames` ([`vite-plugins/service-worker.ts`](../../vite-plugins/service-worker.ts)) walks chunks and their `viteMetadata.importedCss` only. A font emitted as a Rollup *asset* from a CSS `url()` is neither a chunk nor imported CSS, so it would **not** be precached — and brief §5's "no font request may be made while offline" would fail on the first offline launch. Separately, [`e2e/pwa-budget.spec.ts`](../../e2e/pwa-budget.spec.ts) extracts precache URLs with `/"(\/[^"]+\.(?:js|css|png|svg|ico|webmanifest))"/g`. `woff2` is not in that alternation, so a precached font is invisible to the ratchet that is supposed to be enforcing the budget it is being measured against.
 
@@ -1750,15 +1750,15 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 - **Decision.**
 
-  1. **Adopt the direction in §1 whole, all eight constraints, unmodified.** They are checkable in a diff, which is the property that makes a visual change reviewable at all, and each earns its place against an existing rule: the tinted canvas plus raised cards is the [Record Layout](../design/DESIGN_SYSTEM.md#surface--boundaries)'s "one contained workspace, clearly bounded from the application canvas" stated as a value rather than a border; area identity as a dot rather than a filled card obeys [AGENTS.md §15](../../AGENTS.md#15-accessibility-requirements)'s "don't rely on colour alone"; one progress component and one pill vocabulary are [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke) applied to the two affordances [DEBT-01](../product/PRODUCT_DEBT.md) shows fragment first.
+  1. **Adopt the direction in §1 whole, all eight constraints, unmodified.** They are checkable in a diff, which is the property that makes a visual change reviewable at all, and each earns its place against an existing rule: the tinted canvas plus raised cards is the [Record Layout](../design/DESIGN_SYSTEM.md#surface--boundaries)'s "one contained workspace, clearly bounded from the application canvas" stated as a value rather than a border; area identity as a dot rather than a filled card obeys [AGENTS.md §15](../../AGENTS.md#15-accessibility-requirements)'s "don't rely on colour alone"; one progress component and one pill vocabulary are [AGENTS.md §9.8](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer) applied to the two affordances [DEBT-01](../product/PRODUCT_DEBT.md) shows fragment first.
 
-     Two consequences of constraint 8 (separation by surface value and a hairline, not by shadow) are accepted explicitly rather than discovered later. It **changes Modern Light's documented character** — [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md#the-modern-pair-theme-02) currently states its design intent as "a card is separated by its surface and a soft shadow rather than a hard outline" — so the foundation PR updates that paragraph in-band ([AGENTS.md §12](../../AGENTS.md#12-development-workflow)). And "at most two floating elevations at once" is a real constraint on the [Drawer](../design/DESIGN_SYSTEM.md#drawer) stack, which is deliberately *stackable*: it means depth 3+ stops adding shadow, not that the stack is capped.
+     Two consequences of constraint 8 (separation by surface value and a hairline, not by shadow) are accepted explicitly rather than discovered later. It **changes Modern Light's documented character** — [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md#appearance-colour-scheme-design-system) currently states its design intent as "a card is separated by its surface and a soft shadow rather than a hard outline" — so the foundation PR updates that paragraph in-band ([AGENTS.md §12](../../AGENTS.md#12-development-workflow)). And "at most two floating elevations at once" is a real constraint on the [Drawer](../design/DESIGN_SYSTEM.md#drawer) stack, which is deliberately *stackable*: it means depth 3+ stops adding shadow, not that the stack is capped.
 
   2. **Adopt the elevation contract in §3 at ΔL\* ≥ 3, with no theme exempted and no escape hatch — and accept that this recomposes the light neutral ramp in five themes.** The number is adopted as written: ΔL\* 3 is at the low end of a reliably perceptible step for large flat areas, which is the right place to set a floor that every theme must clear rather than a target.
 
      What adopting it costs, stated as arithmetic rather than as intent: with `surface-raised` pinned at `#ffffff`, the contract forces `surface-card` to **L\* ≤ 97** (≈ `#f6f6f6` at neutral) and `surface-page` to **L\* ≤ 94** (≈ `#eeeeee` at neutral). Daly Light's page is at 97.95 today, so it drops at least four L\* points and its card leaves pure white. So do Coastal's and Modern Light's. That is the visible core of DS-14 in the light themes and it is not negotiable downward, because a contract with a per-theme exemption is not a contract — it is a review checklist with extra steps, and [DEBT-67](../product/PRODUCT_DEBT.md#-debt-67--seven-curated-themes-is-more-choice-than-one-owner-needs--p3--resolved-register-stale-2026-08-25) already records that seven themes is more surface than judgement can police by hand.
 
-     **`surface-page` is a new token and `bg` is retired into it, not kept beside it.** §2 lists `surface-page` as new *and* keeps `bg` among the "reused unchanged" ordinals. Two tokens for the page canvas is a drift generator: the next person has to know which of two names the page is, and a theme can satisfy the contract on one while painting the other. The foundation PR introduces `surface-page`, repoints every `--dh-color-bg` consumer, and removes `bg` — one page token, and the [undefined-token test](../design/DESIGN_SYSTEM.md#consumption--extension-rules) catches any consumer missed.
+     **`surface-page` is a new token and `bg` is retired into it, not kept beside it.** §2 lists `surface-page` as new *and* keeps `bg` among the "reused unchanged" ordinals. Two tokens for the page canvas is a drift generator: the next person has to know which of two names the page is, and a theme can satisfy the contract on one while painting the other. The foundation PR introduces `surface-page`, repoints every `--dh-color-bg` consumer, and removes `bg` — one page token, and the [undefined-token test](../design/DESIGN_SYSTEM.md#foundations--the-dalyhub-design-system-over-material-3-machinery) catches any consumer missed.
 
   3. **Adopt both density presets and every value in §4 as written.** They reconcile with the existing scales more cleanly than they first appear, and the reconciliation is recorded so the foundation PR does not have to re-derive it:
      - **16px** is exactly `--dh-font-size-md` (`1rem`). No new token.
@@ -1802,9 +1802,9 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
   6. **The §6 invariants are enforced by an automated test that enumerates the registry, and by nothing else.** Not a review checklist, not a matrix row, not a designer's eye.
 
-     The reason is on the record in this repository. THEME-02's selected-navigation indicator bar was reviewed, shipped, and measured **2.96:1 in Daly Dark and 2.73:1 in Modern Dark** — under the 3:1 a non-text cue carrying state owes — because it was painted with `accent`, a token whose contrast is guaranteed against the *page* surfaces and not against `nav-selected-surface` ([`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/THEME_ACCEPTANCE_MATRIX.md#82-what-is-specific-to-the-pair-automated)). Review did not catch it; measurement did. DS-14 multiplies exactly that class of pairing — six area accents, a neutral pill, every role pill, a progress fill on a progress track on a card, a focus ring on two different canvases — across seven themes. That is 8 assertion families × 7 themes, and it is not a thing human attention should be spent on.
+     The reason is on the record in this repository. THEME-02's selected-navigation indicator bar was reviewed, shipped, and measured **2.96:1 in Daly Dark and 2.73:1 in Modern Dark** — under the 3:1 a non-text cue carrying state owes — because it was painted with `accent`, a token whose contrast is guaranteed against the *page* surfaces and not against `nav-selected-surface` ([`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/THEME_ACCEPTANCE_MATRIX.md#what-replaced-this-document)). Review did not catch it; measurement did. DS-14 multiplies exactly that class of pairing — six area accents, a neutral pill, every role pill, a progress fill on a progress track on a card, a focus ring on two different canvases — across seven themes. That is 8 assertion families × 7 themes, and it is not a thing human attention should be spent on.
 
-     The test **enumerates `THEME_IDS`** from [`theme-preference.ts`](../../app/kernel/preferences/theme-preference.ts), as the existing `test/unit/tokens` suites already do, so an eighth theme is covered the moment it is registered and cannot be registered while failing. Failure messages name the theme id, the token pair and the measured value.
+     The test **enumerates `THEME_IDS`** from `theme-preference.ts` (retired by THEME-01; `app/kernel/preferences/appearance.ts` and `color-scheme.ts` now hold the registry), as the existing `test/unit/tokens` suites already do, so an eighth theme is covered the moment it is registered and cannot be registered while failing. Failure messages name the theme id, the token pair and the measured value.
 
      Two corrections to §6's wording, so the test can be written from a specification that matches the registry (Finding 5, and the registry's own shape):
      - The token names are `--dh-color-text`, `-text-secondary`, `-text-muted` and `--dh-color-surface-raised`. There is no `text-primary`.
@@ -1820,7 +1820,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
      code-only rollback to the previous visual state. There is no intermediate
      "foundation removed, module work kept" state to preserve.
 
-  8. **The one value in the brief this ADR does NOT adopt: §2's "two font weights only, 400 and 500".** DalyHub uses `--dh-font-weight-semibold` (600) at **115 call sites** — more than any other weight — and `bold` (700) at 11. More decisively, [`e2e/themes.spec.ts:669`](../../e2e/themes.spec.ts) asserts the selected navigation row's *computed* weight is **≥ 600**, and [`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/THEME_ACCEPTANCE_MATRIX.md#82-what-is-specific-to-the-pair-automated) records that row as passing. Adopting 400/500 means deleting 126 call sites and failing a green assertion that exists because a real defect was found in that exact treatment — a restyle is not entitled to weaken a state cue that is holding a WCAG floor.
+  8. **The one value in the brief this ADR does NOT adopt: §2's "two font weights only, 400 and 500".** DalyHub uses `--dh-font-weight-semibold` (600) at **115 call sites** — more than any other weight — and `bold` (700) at 11. More decisively, `e2e/themes.spec.ts:669` (since replaced by `e2e/appearance.spec.ts`) asserts the selected navigation row's *computed* weight is **≥ 600**, and [`THEME_ACCEPTANCE_MATRIX.md §8.2`](../design/THEME_ACCEPTANCE_MATRIX.md#what-replaced-this-document) records that row as passing. Adopting 400/500 means deleting 126 call sites and failing a green assertion that exists because a real defect was found in that exact treatment — a restyle is not entitled to weaken a state cue that is holding a WCAG floor.
 
      **Decided instead: three weights — 400, 500 and 600 — and `bold` (700) is removed.** This keeps the restraint the rule is reaching for (one weight fewer than today, and the widest gap in the ramp closed), keeps `semibold` available where state is carried by weight, and lets the preloaded variable range stay narrow enough to matter for decision 4's ceiling. The 11 `bold` call sites move to `semibold` in the foundation PR. This is a substitution, so it is stated as one rather than shipped quietly.
 
@@ -1862,7 +1862,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
   2. **A density region is declared by the SHARED BOUNDARY, never by the module.** `CollectionLayout` is the Collection region; `RecordLayout` is a Collection region; `MarkdownContent` is the Reading region.
 
-     The third is the load-bearing one. `MarkdownContent` is the ONE sanctioned place rendered Markdown reaches the DOM ([ADR-015](#adr-015-the-markdown-pipeline) §4.5) — a constraint that already exists for a security reason. Hanging the Reading preset on it means a note body, a diary entry, a meeting summary, an area vision, a project description, a review response and a task description all get the reading column, and a module that adds a prose surface in future gets it by rendering through the boundary it is already required to use. The alternative — each module wrapping its own prose in a `<Region density="reading">` — is a rule someone has to remember, once per surface, forever, and brief §4's "not props independently passed through every component" is precisely the failure mode.
+     The third is the load-bearing one. `MarkdownContent` is the ONE sanctioned place rendered Markdown reaches the DOM ([ADR-015](#adr-015-markdown-source-and-safe-rendering-pipeline) §4.5) — a constraint that already exists for a security reason. Hanging the Reading preset on it means a note body, a diary entry, a meeting summary, an area vision, a project description, a review response and a task description all get the reading column, and a module that adds a prose surface in future gets it by rendering through the boundary it is already required to use. The alternative — each module wrapping its own prose in a `<Region density="reading">` — is a rule someone has to remember, once per surface, forever, and brief §4's "not props independently passed through every component" is precisely the failure mode.
 
      **Inside the column, only the BODY is serif.** Headings, code and tables stay sans because they are chrome. A table is scanned rather than read, so it takes the collection's hairlines and tabular figures and scrolls inside its own box rather than widening the page — one route, both presets, decided by what the element IS.
 
@@ -1981,7 +1981,7 @@ A Codex review of the initial slice raised four P2 correctness gaps; all are fix
 
 ## ADR-071: Actor identity — workspace membership, read-time name resolution, and one canonical rule
 
-- **Status:** Accepted. Implemented by IDENT-01. Extends [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (Activity persistence) and [ADR-016](#adr-016-authentication-at-the-request-boundary) (authentication) without changing either contract.
+- **Status:** Accepted. Implemented by IDENT-01. Extends [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (Activity persistence) and [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) (authentication) without changing either contract.
 
 - **Context.** FND-09 already recorded a trusted actor on every Activity event: `actor_type = 'user'` with `actor_id` set to the stable Cloudflare Access `sub`. That was deliberate — a subject is stable, an email is not. What the system never had was anything that turned that subject into a **name**. There was no users table, no membership record and no link to the owner's own Person record, so every read surface had nothing to resolve and rendered a hard-coded anonymous placeholder ("Someone") for the owner's own work, in the workspace feed, every record Timeline, Diary, People and mobile alike. The same gap made the workspace feed misreport well-understood events as unrecognised, because each surface carried its own partial descriptor list rather than reading the module registry.
 
@@ -2517,7 +2517,7 @@ that existed for exactly this purpose was incremented and never compared.
 > on 2026-09-02 by the V2.8 roadmap decision, which took ADR-115 the same way.
 > Do the same, and re-check on rebase.)*
 
-**Status.** Accepted (SET-03 / AUDIT-10). Builds on [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) (Cloudflare Access is the identity provider and DalyHub holds no session of its own), [ADR-015](#adr-015-markdown-rendering-and-sanitisation) (the sanitisation pipeline this policy sits behind), [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (one append-only Activity stream) and the AUDIT-FIX-04 mutation boundary. Findings: [AUDIT-10](../product/END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08) and the offline-data-after-logout finding ([DEBT-68](../product/PRODUCT_DEBT.md)).
+**Status.** Accepted (SET-03 / AUDIT-10). Builds on [ADR-016](#adr-016-cloudflare-access-identity-app-shell-and-registry-driven-routing) (Cloudflare Access is the identity provider and DalyHub holds no session of its own), [ADR-015](#adr-015-markdown-source-and-safe-rendering-pipeline) (the sanitisation pipeline this policy sits behind), [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (one append-only Activity stream) and the AUDIT-FIX-04 mutation boundary. Findings: [AUDIT-10](../product/END_TO_END_AUDIT_2026_08_05.md#audit-10--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08) and the offline-data-after-logout finding ([DEBT-68](../product/PRODUCT_DEBT.md)).
 
 **Context.** Two gaps, in the same area, that were cheaper to close together than apart.
 
@@ -2810,7 +2810,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 ## ADR-087: Inline editors float in a shared overlay layer, and become sheets on a phone
 
-- **Status.** Accepted (2026-08-09, V2.2 / EDIT-03). Supersedes [ADR-078](#adr-078-inline-editing-adopted-across-every-canonical-record-and-the-four-additions-that-required) decision 7 (anchored surfaces flip by re-anchoring in place). Does not touch [ADR-076](#adr-076-inline-editing-is-a-shared-state-machine-not-a-per-module-widget)'s state machine, [ADR-086](#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement)'s optimistic list, or any route, intent or storage rule. No write moved.
+- **Status.** Accepted (2026-08-09, V2.2 / EDIT-03). Supersedes [ADR-078](#adr-078-editing-consistency--adoption-over-invention-one-focused-intent-per-inline-field-and-the-forms-that-deliberately-stayed-forms) decision 7 (anchored surfaces flip by re-anchoring in place). Does not touch [ADR-076](#adr-076-the-shared-writing-surface-refined-in-place-and-inline-editing-as-one-state-machine-over-focused-server-intents)'s state machine, [ADR-086](#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement)'s optimistic list, or any route, intent or storage rule. No write moved.
 
 - **Context.** An owner reported that on the redesigned Tasks list the inline editors were unusable: opening **Priority**, **Project** or **Due date** showed the value already stored and none of the alternatives.
 
@@ -2842,7 +2842,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
   7. **`Sheet` renders into `<body>` too, and for a strictly harder reason.** `position: fixed` is not absolute the way it reads: an ancestor with a `transform` becomes the containing block for its fixed descendants. `.dh-card-swipe > .dh-card` is translated by the swipe hook, so a sheet opened from a task row was laid out inside a 45px row and clipped to it — a bottom sheet with no scrim, no panel, and three buttons floating over the list. The DS-03 Drawer's decision *not* to portal is unchanged and is not the same decision: a drawer is server-rendered so a deep link works without JavaScript, while a sheet only ever mounts after a gesture.
 
-  8. **A date editor offers the product's one-press dates, and never invents them.** The Task record's planning section has always drawn Today / Tomorrow / Next week; the same three now appear inside every Task date editor, derived by one shared `taskDateShortcuts(todayIso)`. They are passed IN rather than computed by the primitive, so `~/shared/inline-edit` gains no product vocabulary and no dependency on the Tasks module. A caller with no server-resolved owner day ([ADR-022](#adr-022-the-owners-calendar-day-is-a-server-fact)) passes none: a wrong "Today" on a date field is worse than no Today.
+  8. **A date editor offers the product's one-press dates, and never invents them.** The Task record's planning section has always drawn Today / Tomorrow / Next week; the same three now appear inside every Task date editor, derived by one shared `taskDateShortcuts(todayIso)`. They are passed IN rather than computed by the primitive, so `~/shared/inline-edit` gains no product vocabulary and no dependency on the Tasks module. A caller with no server-resolved owner day ([ADR-022](#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker)) passes none: a wrong "Today" on a date field is worse than no Today.
 
   9. **A long list is answered by scrolling and TYPEAHEAD, not by a filter box.** The Project chooser is handed up to fifty bounded candidates. A text field inside a `role="menu"` is not a menu any more — it is a combobox, a different pattern with different semantics, and the product already has one for the unbounded case (the row's "Move to Project or Area…"). Printable-character typeahead is what the WAI-ARIA menu pattern already specifies, costs no visible chrome, and helps the keyboard user who needs it most.
 
@@ -3149,7 +3149,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 **Status:** Accepted · 2026-08 (DS-04)
 
-**Builds on** [ADR-092](#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery), [ADR-093](#adr-093-the-dalyhub-generic-primitive-layer--a-real-button-a-compact-application-and-three-migration-bridges) and [ADR-094](#adr-094-the-dark-navigation-rail--a-region-that-does-not-follow-the-appearance-a-responsive-tablet-collapse-and-one-origin-for-the-frame). It does not disturb [ADR-043](#adr-043-the-first-class-tasks-module-the-four-question-planning-model-time-sectors-somedaymaybe-and-derived-display-state) — the planning model, the four questions, the display-state precedence and the single query path are untouched — nor [ADR-086](#adr-086) (the optimistic list) or [ADR-019](#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract) (the generic Card, which keeps every other consumer).
+**Builds on** [ADR-092](#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery), [ADR-093](#adr-093-the-dalyhub-generic-primitive-layer--a-real-button-a-compact-application-and-three-migration-bridges) and [ADR-094](#adr-094-the-dark-navigation-rail--a-region-that-does-not-follow-the-appearance-a-responsive-tablet-collapse-and-one-origin-for-the-frame). It does not disturb [ADR-043](#adr-043--the-first-class-tasks-module-the-four-question-planning-model-time-sectors-somedaymaybe-and-derived-display-state) — the planning model, the four questions, the display-state precedence and the single query path are untouched — nor [ADR-086](#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) (the optimistic list) or [ADR-019](#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract) (the generic Card, which keeps every other consumer).
 
 - **Context.** DS-01 to DS-03 rebuilt the tokens, the primitives and the frame. Tasks was the first module asked to prove the system could deliver the concept, and it could not get there by configuration. A task on `/tasks` was the generic `Card` in list presentation under roughly seven hundred lines of `.dh-collection--tasks .dh-card__*` overrides, and the gap that mattered was structural rather than stylistic: the concept's Tasks screen is a **column grid** — `Task · Project · Due · Priority · Status`, with a header — and the generic Card lays its metadata out as a wrapping flex RUN. A date column only reads as a column because every date in it starts at the same x, and a run of flex items cannot do that however it is styled.
 
@@ -3271,7 +3271,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 **Status:** Accepted · **Date:** 2026-08-16 · **Item:** IDENTITY-01 (The DalyHub Identity System)
 
-**Extends** [ADR-068 decision 5](#adr-068) (colour rank as a stable derivation) by putting a CHOICE above it rather than replacing it. **Follows the precedent of** migration 0032 / the `icon_key` vocabulary for everything about how the choice is stored and validated. **Supersedes on identity surfaces only** the use of [ADR-074](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)'s custom-colour `container` / `on-container` quartet. **Preserves** [ADR-092](#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery) rule 1 and [ADR-097](#adr-097-the-dalyhub-colour-primitives-are-generated-not-authored--the-appearance-pair-the-redesign-foundation-never-shipped)'s mechanism exactly: the ramp is generated, so dark is derived and `scheme:check` stays authoritative.
+**Extends** [ADR-068 decision 5](#adr-068-ds-14--the-card-on-tint-direction-its-elevation-contract-two-density-presets-derived-area-colour-and-a-single-commit-rollback) (colour rank as a stable derivation) by putting a CHOICE above it rather than replacing it. **Follows the precedent of** migration 0032 / the `icon_key` vocabulary for everything about how the choice is stored and validated. **Supersedes on identity surfaces only** the use of [ADR-074](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)'s custom-colour `container` / `on-container` quartet. **Preserves** [ADR-092](#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery) rule 1 and [ADR-097](#adr-097-the-dalyhub-colour-primitives-are-generated-not-authored--the-appearance-pair-the-redesign-foundation-never-shipped)'s mechanism exactly: the ramp is generated, so dark is derived and `scheme:check` stays authoritative.
 
 - **Context.** A record's colour was DERIVED and could not be chosen. `colourRank` — the entity's stable position in its workspace — folded onto six accents, and that was the whole system. Derivation is the right default and remains it, but it is not a choice: the owner could not say "the Health Area is the green one", and six colours is not enough vocabulary for a workspace that models a life.
 
@@ -3313,7 +3313,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 **Status:** Accepted · **Date:** 2026-08-16 · **Item:** NOTIFY-01 (Notifications: an event ledger, an in-app inbox, and Pushover)
 
-**Follows the precedent of** [ADR-073](#adr-073) / the AI usage ledger for operational metadata that records no Activity, and of [ADR-091](#adr-091-external-calendars-as-a-read-only-projection--a-sealed-secret-kernel-primitive-an-rfc-5545-parser-at-the-edge-and-an-explicit-link-to-the-meeting-authority) / CAL-01 for a cron-driven background job on the existing Worker. **Departs from** CAL-01 on ONE point — where a third-party credential is stored — and says so plainly in decision 6. **Preserves** [ADR-010](#adr-010) (the composition boundary owns the workspace) and [ADR-012](#adr-012) (Activity is appended only as the atomic side effect of a mutation) unchanged.
+**Follows the precedent of** [ADR-073](#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract) / the AI usage ledger for operational metadata that records no Activity, and of [ADR-091](#adr-091-external-calendars-as-a-read-only-projection--a-sealed-secret-kernel-primitive-an-rfc-5545-parser-at-the-edge-and-an-explicit-link-to-the-meeting-authority) / CAL-01 for a cron-driven background job on the existing Worker. **Departs from** CAL-01 on ONE point — where a third-party credential is stored — and says so plainly in decision 6. **Preserves** [ADR-010](#adr-010-server-side-workspace-context) (the composition boundary owns the workspace) and [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (Activity is appended only as the atomic side effect of a mutation) unchanged.
 
 - **Context.** DalyHub knew things the owner did not. An asset registration expiring next week, a waiting item ageing past a fortnight, a day's work already assembled — all of it correct, all of it derived, and none of it reaching anyone who had not opened the application. [DEBT-57](../product/PRODUCT_DEBT.md) recorded the consequence honestly when ASSET-02 shipped: "a rego that expires while the owner is on holiday expires silently", and the fix was deliberately deferred because a reminder that leaves the app is a NOTIFICATIONS capability rather than an Assets one. The V2.2 roadmap deferred it a second time, with a condition attached: *push reminders before the in-app attention model is correct* was on the NOT-PLANNED list. TODAY-09, TODAY-10 and DS-06 made the rail correct, which is what unlocked this item rather than any change of mind about notifications.
 
@@ -3362,7 +3362,7 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 ## ADR-100: A collection's DEFAULT presentation follows its size — the table at forty Projects, and an explicit choice that is never overridden
 
-**Status.** Accepted (FINISH-01 / CONVERGE-01 §4). Builds on [ADR-096](#adr-096-the-spine-collections-become-workspaces--a-selected-record-beside-the-gallery-a-table-presentation-and-the-goal-rail-reused) (`?present=` as URL state, and the table itself) and on the presentation vocabulary in [`app/shared/collection-layout/presentation.ts`](../../app/shared/collection-layout/presentation.ts).
+**Status.** Accepted (FINISH-01 / CONVERGE-01 §4). Builds on [ADR-096](#adr-096-the-approved-product-concepts-become-the-visual-authority--a-light-navigation-rail-a-36px-task-row-and-one-scope-filter-without-a-tray) (`?present=` as URL state, and the table itself) and on the presentation vocabulary in [`app/shared/collection-layout/presentation.ts`](../../app/shared/collection-layout/presentation.ts).
 
 **Context.** REDESIGN-04 shipped the Projects table and left one question open, in those words: *does the table become the default at ~40+ projects?* The [16 August 2026 UX/UI audit](../product/UX_UI_AUDIT_COMPLETION_2026_08_16.md) recorded it as still unanswered against `cd385cfd`, which is where an unanswered question belongs — but it had been unanswered for three passes, and an open question in a register is a decision nobody is making.
 
@@ -3391,8 +3391,8 @@ The question is real. The gallery is the right first impression of a workspace w
 ## ADR-101: Weekly Planning is a PROJECTION, not a record — the owner's calendar week, a named-band queue, and one declarative filter vocabulary with two consumers
 
 **Status.** Accepted (V2.3 PLAN-01 + SMART-01, 17 August 2026). Builds on
-[ADR-030](#adr-030-task-planning--the-scheduled-date-is-the-commitment) (the scheduled date IS the commitment),
-[ADR-043](#adr-043-the-tasks-collection) §3 (planned and due are different fields with different meanings),
+[ADR-030](#adr-030-task-planning--the-scheduled-date-as-commitment-atomic-single--bulk-mutations-and-planning-activity) (the scheduled date IS the commitment),
+[ADR-043](#adr-043--the-first-class-tasks-module-the-four-question-planning-model-time-sectors-somedaymaybe-and-derived-display-state) §3 (planned and due are different fields with different meanings),
 [ADR-059](#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration) (the declarative view configuration),
 [ADR-082](#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract) (one saved-view system, keyed by kind) and
 [ADR-086](#adr-086-optimistic-presentation-on-task-lists-with-server-authoritative-reconciliation-and-announcement) (presentation may lead the server; claims of success may not).
@@ -3645,8 +3645,8 @@ nothing, because notification sends belong to the NOTIFY ledger architecture.
 **Status.** Accepted (V2.3 TASKS-13, 18 August 2026). Adjacent to
 [ADR-001](#adr-001-area-hierarchy) (the Area → Goal → Project → Task spine, which this deliberately does not extend),
 [ADR-012](#adr-012-activity-persistence-and-atomic-mutation-recording) (Activity is appended atomically, and not everything is an Activity event),
-[ADR-028](#adr-028-task-details-as-an-additive-slice) (the additive `task_details` slice this sits beside),
-[ADR-029](#adr-029-completion-and-waiting-are-one-atomic-domain-operation) (completion as one atomic domain operation),
+[ADR-028](#adr-028-task-drawer-persistence-and-composition--the-additive-task-detail-slice) (the additive `task_details` slice this sits beside),
+[ADR-029](#adr-029-task-waiting--additive-state-a-reserved-entitylink-and-a-derived-first-class-display-state) (completion as one atomic domain operation),
 [ADR-062](#adr-062-intentional-unassigned-tasks-inbox-semantics-and-calendar-recurrence) and [ADR-085](#adr-085-the-tasks-daily-driver--the-matrix-removed-editing-moved-onto-the-row-bulk-made-structural-and-recurrence-given-a-second-scheduling-mode) (structured Task recurrence and its successor), and
 [ADR-102](#adr-102-a-habit-is-a-behaviour-not-a-recurring-task--a-distinct-domain-with-effective-dated-schedules-owner-local-check-ins-and-no-manufactured-streaks) (the previous item, which kept its domain boundary the same way).
 Full record: [`TASKS_13_CHECKLISTS_2026_08.md`](../design/TASKS_13_CHECKLISTS_2026_08.md).
@@ -4750,7 +4750,7 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
   collapses stored judgement and derived fact into one voice, which is how a
   product starts lying politely. Adding a next action invites each surface to
   invent its own "next", which is how Today and `/tasks` come to disagree —
-  [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3)
+  [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3--resolved-2026-08-28-v25-steer-04)
   wrote the warning in 2026. Re-ordering a collection invites a cached rank
   column or a client-side sort over a keyset page — both already refused once
   (DEBT-23, ADR-040). And four per-Goal answers invite a fifth: the composite
@@ -4880,7 +4880,7 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
     precise and mean nothing, and every one of its inputs would stop being
     checkable the day it ships.
 
-- **Second implementation, 2026-08-28 — [STEER-03 + STEER-04](../roadmap/ROADMAP_V2_5.md#-steer-03--one-goal-one-story).**
+- **Second implementation, 2026-08-28 — [STEER-03 + STEER-04](../roadmap/ROADMAP_V2_5.md#-steer-03--one-goal-one-story--delivered-2026-08-28).**
   The two decisions the first pass left are now built, and **all seven are
   implemented**.
 
@@ -4945,7 +4945,7 @@ The programme this decision defines is [`ROADMAP_V2_4.md`](../roadmap/ROADMAP_V2
     the rule to `app/shared`, never copy it — the `NewGoalForm` precedent,
     applied twice more.
 
-- **First implementation, 2026-08-28 — [STEER-01 + STEER-02](../roadmap/ROADMAP_V2_5.md#-steer-01--what-goals-answers).**
+- **First implementation, 2026-08-28 — [STEER-01 + STEER-02](../roadmap/ROADMAP_V2_5.md#-steer-01--what-goals-answers--delivered-2026-08-28).**
   Five of the seven decisions are now built. Decision 4 (the one next-action
   rule) and the DEBT-206 half of decision 6 belong to STEER-03/04 and are
   untouched — no partial "next" was invented to fill the gap.
@@ -6016,3 +6016,134 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   AI, Attachments and Finance rules that already exist as ADRs 073, 079, 110,
   111, 112 and 114* (rejected: a second statement of an existing rule is a
   second authority; this ADR adds only the four boundaries above).
+
+---
+
+## ADR-117: INSIGHT — one history vocabulary over stores already written, a bound that is stated rather than applied, and a link check that makes the map a gate
+
+- **Status:** Accepted (2026-09-04, implementing
+  [V2.9 INSIGHT](../roadmap/ROADMAP_V2_9.md) —
+  [ADR-116](#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+  decision 2 chose it; this records what implementing it decided).
+
+- **Context.** DalyHub had written history for a year and read almost none of it
+  back. One `review_insight_snapshots` row per completed Review — roughly fifty a
+  year, each holding up to 40 Project states, 25 Goal contribution
+  classifications, 20 Area counts and 50 carry-over ids — and only
+  `priorReviews[0]` was ever read. `listSnapshotsBefore` and
+  `listMeasurementSeries` had zero production callers. Analytics offered three
+  fixed presets bucketed to fit `MAX_TREND_PERIODS = 8`, so "completions per week
+  for twelve weeks" was not askable. The kernel `ActivityRepository` had no
+  time-window read at all. `/today/activity` rendered nothing. And 422 of the
+  repository's own 6,737 local documentation links did not resolve, with no check
+  that would have caught one.
+
+  Four boundary questions had to be answered to give any of it back, and none of
+  them is obvious from the roadmap item that raised it.
+
+- **Decision.**
+
+  1. **One history vocabulary, in the kernel, over stores the product already
+     writes — and nothing new is stored.** `app/kernel/history` holds `Window`
+     (the existing `ActivityWindow`, re-exported and not duplicated), `Grain`
+     (`day | week | month | review_period`), `bucketWindow` and `Series<Point>`.
+     It is pure: no D1, no JSX, no clock, no timezone database — owner-day
+     resolution arrives as an argument. Every figure any surface derives from it
+     is exactly reconstructible from `spine_records`, `activities`,
+     `goal_measurements` and `review_insight_snapshots`, so
+     [ADR-110](#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal)
+     decisions 3 and 7 hold unchanged: the Review's versioned snapshot remains
+     the one stored period artefact.
+
+     **There is deliberately no `weekStart` parameter.** Buckets are cut
+     *backward from the window's end* so the most recent bucket is always whole;
+     aligning to the owner's Monday is exactly what would make it partial, and a
+     partial recent bucket draws the current period as a dip every time the page
+     is opened mid-week. A caller wanting calendar weeks ends its window on the
+     owner's week end and gets them exactly. `planningWeekStart` remains the
+     product's one week-start authority.
+
+  2. **A window wider than its grain's maximum comes back bounded, with the
+     bound and the count that was asked for — never silently shortened.**
+     `GRAIN_MAXIMUMS` states 366 days, 52 weeks, 24 months and 12 Review
+     periods, replacing an eight the Analytics bucketer had inherited from the
+     Review's display cap. Where a surface offers a control, the control is
+     *computed from those maximums* rather than listed, so the offer and the
+     series' bound cannot drift apart, and a grain that would need bounding is
+     never offered at all.
+
+     Where a bound could not be lifted it is **stated on the surface**. The
+     overdue level read is the one that could not: its moments do not partition
+     anything, so each needs its own `SUM(CASE …)` column, and two bound
+     parameters per column against D1's ceiling of 100 caps it at 40. A long
+     window reads the most recent 40 closes and the page says so. This is
+     [ADR-079](#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)
+     decision 11 applied to a second surface: a capped population presented as a
+     complete one is the failure, not the cap.
+
+  3. **The bound-parameter ceiling is an architectural constraint on this
+     product's history reads, and the answer is one bound JSON parameter.**
+     Both shapes the codebase already had — a `SUM(CASE …)` column per window
+     and a `CASE WHEN … THEN index` arm per period — bind two parameters per
+     bucket, so both stop at roughly 48 buckets and neither can express a
+     52-week or 366-day series at all. Bucket boundaries now travel as a single
+     bound JSON parameter expanded by `json_each`, which makes a statement's
+     shape independent of its window: measured at one statement for 365 daily
+     buckets and for 52 weekly ones. A history read whose statement count grows
+     with the window is a defect, and the budgets that pin this
+     (`ANALYTICS_QUERY_BUDGET = 12`, `REVIEW_INSIGHTS_QUERY_BUDGET = 17`) are
+     asserted against real D1 at every window a surface offers.
+
+  4. **Reuse is justified by the QUESTION being identical, never by the SQL
+     looking alike — and where reads did not converge, a registry says so.**
+     `countPeriodCompletions` and `countByTypeInBuckets` were asking exactly the
+     same question and now share one predicate.
+     `d1-activity-window-repository.ts` keeps its own twelve bounds because
+     FOLLOW-01's plan history is genuinely different: a three-arm UNION that
+     extracts each event's plan-before and plan-after from `payload_json`, plus
+     an open-ended arm that looks *after* the window for the event that moved a
+     plan out of it. Forcing it through a shared read would be reuse for its own
+     sake. What replaces the grep DEBT-238 proposed is
+     `test/unit/architecture/history-window-reads.test.ts`: every remaining
+     windowed bound, per file, with the reason it did not converge, failing when
+     any count moves in either direction.
+
+  5. **A PR that changes a heading repairs the links to it, and Static proves
+     it.** `pnpm run docs:links:check` resolves every local Markdown link and
+     anchor across `docs/**`, `AGENTS.md` and the root `README.md`, implementing
+     GitHub's own slug rule, and fails with file, line and target. **No
+     allowlist and no annotation escape**: a check with an exemption mechanism
+     becomes a list of exemptions. Where evidence a link pointed at no longer
+     exists, the repair is prose stating what it showed — never a fabricated
+     screenshot, and never a heading renamed to match a stale link.
+
+- **Consequences.** "Completions per week over twelve weeks", "months over two
+  years" and "at risk at 3 of the last 4 Reviews" are askable, and the next
+  domain that needs a series — Reports, Finance, grounded AI — consumes the same
+  four ideas rather than growing a fifth bucketer. Nothing was migrated and
+  nothing new is stored, so a workspace's history reads identically before and
+  after. The cost is accepted in two places: a surface must now carry a bound
+  through to its wording rather than trimming quietly, and a windowed SQL read
+  must either converge or be entered in the registry with its reason. The docs
+  check is a real gate on a real repository, so a heading rename is now work
+  rather than a rename.
+
+- **Alternatives considered.** *A stored aggregates table* (rejected: ADR-110
+  d3/d7 — every figure here is exactly reconstructible, and a cache is a second
+  authority that can disagree with the stream). *A free date-range picker*
+  (rejected: a control that must refuse most of what it offers; named windows
+  whose grains are computed from the maximums cannot offer a series they cannot
+  hold). *A `weekStart` parameter on the bucketer* (rejected: decision 1 — it
+  would make the most recent bucket partial, which is the one thing the
+  backward rule exists to prevent). *Keeping `rangeBuckets` as a thin alias*
+  (rejected: an alias keeps a second range vocabulary alive behind a re-export;
+  `analytics-range.ts` is deleted). *Slicing the overdue series at its cap
+  silently, as before* (rejected: decision 2). *Routing every `occurred_at`
+  window predicate through one shared read* (rejected: decision 4 — reuse for
+  its own sake, which the roadmap item itself refuses). *An allowlist for the
+  documentation link check* (rejected: decision 5). *Regenerating missing
+  screenshots* (rejected: decision 5 — inventing evidence to satisfy a check
+  about evidence). *A "Recent activity" widget back on Today* (rejected: the
+  Today redesign removed it because the layout contract is the day and the
+  attention rail; `/analytics/activity` belongs to the module whose question is
+  "what happened over this period?").

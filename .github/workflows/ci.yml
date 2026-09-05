@@ -184,6 +184,18 @@ jobs:
         # the source.
         run: pnpm run e2e:fixture-dates:check
 
+      - name: Local documentation links and anchors resolve
+        # V2.9 INS-00 / DEBT-241. The repository is the product's memory
+        # (`AGENTS.md` §0) and its documents are held together by anchors into
+        # files thousands of lines long — so a heading that changes silently
+        # breaks every link naming it, and the reader lands on the top of a
+        # 4,900-line register instead of the entry. Measured before this check
+        # existed: 447 of 6,601 local links broken, and nothing to catch the
+        # next one. Same tier and same reason as the two checks above: a
+        # document is source, and this is a rule about the source. No
+        # allowlist — a PR that changes a heading repairs the links to it.
+        run: pnpm run docs:links:check
+
       - name: Icon assets match the canonical geometry
         # The rasteriser and encoders are deterministic, so this regenerates in
         # memory and compares bytes: a hand-edited PNG, or a geometry change

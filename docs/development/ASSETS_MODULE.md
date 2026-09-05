@@ -661,7 +661,7 @@ derived state is computed at read time rather than stored.
 
 **Current status.** [ASSET-01](../roadmap/ROADMAP_V2.md#-asset-01--asset-record--done) ☑ ·
 [ASSET-02](../roadmap/ROADMAP_V2.md#-asset-02--history--renewals--done) ☑ ·
-[ASSET-03](../roadmap/ROADMAP_V2_1.md#-asset-03--mobile-assets) ☑ (2026-08-08).
+[ASSET-03](../roadmap/ROADMAP_V2_1.md#-asset-03--mobile-assets--delivered-2026-08-08) ☑ (2026-08-08).
 
 **Delivered by ASSET-01.** Assets as first-class entities with a STRICT
 `asset_details` slice (migration `0016`); an authoritative workspace-bound
@@ -706,7 +706,7 @@ fast-capture actions, and a bounded obligation signal on every collection card.
   now does.
 - ~~Mobile completion — phone-first capture of a NEW asset and the type/subtype
   picker at narrow widths.~~ **Delivered 2026-08-08** by
-  [ASSET-03](../roadmap/ROADMAP_V2_1.md#-asset-03--mobile-assets); see
+  [ASSET-03](../roadmap/ROADMAP_V2_1.md#-asset-03--mobile-assets--delivered-2026-08-08); see
   [ASSET-03 — phone-first capture](#asset-03--phone-first-capture-2026-08-08)
   below, including why "subtype" was stale wording rather than a missing column.
 
@@ -896,6 +896,6 @@ grouping, wording and touch targets; axe in light and dark; 320/375/390/430px; a
 real Workers/D1 in `test/kernel/asset-create-route.test.ts`. Nine screenshots —
 the chooser, the form before and after a type is chosen for two very different
 types, the picker in light and dark, validation, the created record and the
-desktop page — are in
-[`docs/product/assets/asset-03-2026-08/`](../product/assets/asset-03-2026-08/),
-captured by the opt-in `e2e/assets-mobile-capture-screenshots.spec.ts`.
+desktop page — were captured to `docs/product/assets/asset-03-2026-08/` by the
+opt-in `e2e/assets-mobile-capture-screenshots.spec.ts` (the folder was not committed;
+the spec regenerates the set, and the sentence above records what it showed).

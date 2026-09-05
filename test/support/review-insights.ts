@@ -23,6 +23,7 @@ import {
   type ReviewInsightSnapshot,
   type ReviewPeriodWindow,
   type ReviewProjectStateFact,
+  type StoredReviewInsightSnapshot,
 } from "~/kernel/review-insights";
 
 export const INSIGHT_PERIOD: ReviewPeriodWindow = {
@@ -182,6 +183,12 @@ export interface InsightsOptions extends InsightFactsOverrides {
   /** Omit to make this the first Review of its type. */
   readonly previousReviewId?: string;
   readonly series?: readonly PeriodCompletionPoint[];
+  /**
+   * V2.9 INS-02 — the stored snapshots of this Review and the ones before it,
+   * oldest first, as `listSnapshotSeries` returns them. Omit for a Review with
+   * no series, which produces no across-Reviews section at all.
+   */
+  readonly snapshotSeries?: readonly StoredReviewInsightSnapshot[];
 }
 
 /** Build a real `ReviewInsights` by running the real rules over built facts. */
@@ -218,7 +225,28 @@ export function buildInsights(options: InsightsOptions = {}): ReviewInsights {
     seriesLabels: labels,
     seriesShortLabels: labels,
     currentSeriesKey: "current",
+    snapshotSeries: options.snapshotSeries,
+    // The evaluator formats no date itself; the across-Reviews window's words
+    // arrive the same way every other label does.
+    formatDay: (iso) => iso,
   });
+}
+
+/**
+ * A stored snapshot at a named Review, for building a SERIES (V2.9 INS-02).
+ *
+ * Oldest first is the caller's job, exactly as `listSnapshotSeries` guarantees
+ * it — so a test that builds them out of order is testing its own mistake.
+ */
+export function storedSnapshot(
+  reviewId: string,
+  overrides: Partial<ReviewInsightSnapshot> = {},
+): StoredReviewInsightSnapshot {
+  return {
+    reviewId,
+    capturedAt: new Date("2026-08-02T09:00:00.000Z"),
+    snapshot: previousSnapshot(overrides),
+  };
 }
 
 /** A minimal previous snapshot, so a test can name only what it cares about. */

@@ -281,6 +281,8 @@ export function goalListStory(goal: {
       completed: goal.contribution.completed,
       active: goal.contribution.active,
     },
+    // `/goals` reads no Review snapshots — see `GoalStory` (V2.9 INS-02).
+    contributionAcrossReviews: null,
   };
 }
 

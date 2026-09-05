@@ -17,7 +17,8 @@ places where the *rules* are right and the *reach* is partial.
 **Method.** Static evidence from the codebase (counts are `grep` over `app/`, and
 reproducible), plus screenshots captured at M3's own window-size classes by
 [`e2e/m3-audit-screenshots.spec.ts`](../../e2e/m3-audit-screenshots.spec.ts) into
-[`assets/m3-audit-2026-08/`](assets/m3-audit-2026-08). M3's classes are used
+`assets/m3-audit-2026-08/` (the folder was not committed; each finding below
+records what its capture showed). M3's classes are used
 rather than DalyHub's breakpoints on purpose: checking whether the product
 answers the class correctly, using the product's own bands, would be circular.
 
@@ -69,11 +70,10 @@ with the current figure stated beside it.
 
 ## 1 — The FAB covers content and form controls · **defect, high**
 
-**Evidence.** [`surface-settings.png`](assets/m3-audit-2026-08/surface-settings.png):
-the capture FAB sits directly on top of the **Default task destination**
-combobox, covering roughly a third of the input. The same frame at
-[`nav-today-medium-700.png`](assets/m3-audit-2026-08/nav-today-medium-700.png)
-shows it overlapping the "My day" card.
+**Evidence.** The Settings capture (`surface-settings`, not committed) showed
+the capture FAB sitting directly on top of the **Default task destination**
+combobox, covering roughly a third of the input. The Today capture at 700px
+(`nav-today-medium-700`) showed it overlapping the "My day" card.
 
 **Why it happens.** The FAB is `position: fixed` bottom-right and clears the
 *navigation bar* and the home indicator — which is the phone case, and is
@@ -285,9 +285,9 @@ an interactive role.
 
 ## 4 — No navigation rail: the medium window class gets the phone layout · **gap, medium**
 
-**Evidence.** [`nav-today-medium-700.png`](assets/m3-audit-2026-08/nav-today-medium-700.png)
-at 700px — M3's **medium** class (600–839dp) — shows the bottom navigation bar
-and no persistent navigation. `grep` finds no navigation rail in the product
+**Evidence.** The Today capture at 700px (`nav-today-medium-700`, not
+committed) — M3's **medium** class (600–839dp) — showed the bottom navigation
+bar and no persistent navigation. `grep` finds no navigation rail in the product
 (`dh-rail`/`nav-rail`: 0 files); the shell has two states, drawer and bottom bar,
 switching at 48rem.
 
@@ -308,9 +308,9 @@ the decision may legitimately be "no rail, and here is why".
 
 ## 5 — A 240px permanent drawer starves the expanded window class · **divergence, medium**
 
-**Evidence.** [`nav-today-expanded-900.png`](assets/m3-audit-2026-08/nav-today-expanded-900.png):
-at 900px the drawer takes 240px — **27% of the window** — and the dashboard
-renders as one narrow column in the 660px that remains.
+**Evidence.** The Today capture at 900px (`nav-today-expanded-900`, not
+committed) showed the drawer taking 240px — **27% of the window** — and the
+dashboard rendering as one narrow column in the 660px that remains.
 
 **Why it matters.** The navigation is not doing 27% of the work on that screen.
 M3's answer for the expanded class is a rail (compact, icon + label, ~80px) with
@@ -328,8 +328,8 @@ would start where it earns its width.
 
 ## 6 — Settings mixes native `<select>` with the shared combobox · **divergence, medium**
 
-**Evidence.** [`surface-settings.png`](assets/m3-audit-2026-08/surface-settings.png):
-**Default landing page** and **Default Tasks view** are native `<select>`
+**Evidence.** The Settings capture (`surface-settings`, not committed) showed
+**Default landing page** and **Default Tasks view** as native `<select>`
 elements with browser chrome, while **Default task destination** immediately
 below is the shared `SelectField` combobox with M3 outlined-field styling. Two
 select presentations, adjacent, in one panel.
@@ -373,8 +373,8 @@ undocumented select surface is how that happens.
 
 ## 7 — A settings row labels its own field twice · **defect, low**
 
-**Evidence.** [`surface-settings.png`](assets/m3-audit-2026-08/surface-settings.png):
-"Default task destination" appears as the row's label on the left **and** again
+**Evidence.** The same Settings capture (`surface-settings`, not committed)
+showed "Default task destination" as the row's label on the left **and** again
 as the field label above the input on the right.
 
 **Why it matters.** Small, but it is a duplicated accessible name in a settings

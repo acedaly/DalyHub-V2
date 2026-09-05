@@ -22,6 +22,7 @@ import {
   goalFact,
   previousSnapshot,
   projectFact,
+  storedSnapshot,
 } from "../../support/review-insights";
 
 function renderPanel(insights: ReviewInsights, title?: string) {
@@ -202,5 +203,63 @@ describe("the Review evidence surface", () => {
         /attributed to the Goal and Area its Project belongs to today/,
       ),
     ).toBeTruthy();
+  });
+});
+
+describe("the across-Reviews section (V2.9 INS-02)", () => {
+  it("renders each claim with its reason, under its own heading", () => {
+    renderPanel(
+      buildInsights({
+        snapshotSeries: [
+          storedSnapshot("review-1", {
+            periodStart: "2026-08-03",
+            periodEnd: "2026-08-09",
+            projects: [
+              {
+                id: "project-1",
+                health: "on_track",
+                openTasks: 3,
+                overdueTasks: 0,
+              },
+            ],
+          }),
+          storedSnapshot("review-2", {
+            periodStart: "2026-08-10",
+            periodEnd: "2026-08-16",
+            projects: [
+              {
+                id: "project-1",
+                health: "at_risk",
+                openTasks: 4,
+                overdueTasks: 2,
+              },
+            ],
+          }),
+        ],
+        projects: [projectFact({ healthState: "at_risk", overdueTasks: 2 })],
+      }),
+    );
+    const heading = screen.getByRole("heading", {
+      level: 3,
+      name: "Across recent Reviews",
+    });
+    const section = heading.closest("section");
+    expect(section).not.toBeNull();
+    expect(
+      within(section!).getByText(
+        "Kitchen renovation: At risk at 1 of the last 2 Reviews",
+      ),
+    ).toBeInTheDocument();
+    // The claim never appears without the reason that produced it.
+    expect(
+      within(section!).getByText(/over your last 2 Reviews/),
+    ).toBeInTheDocument();
+  });
+
+  it("renders no section at all when there is no series — absence renders less", () => {
+    renderPanel(buildInsights({ tasksCompleted: 3 }));
+    expect(
+      screen.queryByRole("heading", { name: "Across recent Reviews" }),
+    ).toBeNull();
   });
 });

@@ -127,7 +127,7 @@ the *new* facts:
   boundary, and a residual risk rather than an emergency.
 
 **The E2E gate on `main` is red, for five recorded pre-existing causes** —
-[DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2),
+[DEBT-215](../product/PRODUCT_DEBT.md#-debt-215--three-e2e-assertions-still-address-the-area-records-goals-tab-as-a-card--p2--resolved-2026-09-02),
 DEBT-216, DEBT-219, DEBT-220 and DEBT-221 — none of them this programme's
 surfaces (see [Dependencies](#dependencies)). Static, build and unit/kernel are
 green on `main`'s head after #240 repaired the one Unit red #239 introduced.
@@ -272,7 +272,7 @@ truth-restoration rider below.
 This item's full implementation brief follows, at the depth a fresh session
 needs to implement without re-auditing.
 
-#### A. A Diary link opens the Diary, not JSON — closes [DEBT-222](../product/PRODUCT_DEBT.md#-debt-222--a-linked-diary-entry-opens-raw-json-because-the-shared-destination-maps-diary-to-a-ui-less-resource-route--p2)
+#### A. A Diary link opens the Diary, not JSON — closes [DEBT-222](../product/PRODUCT_DEBT.md#-debt-222--a-linked-diary-entry-opens-raw-json-because-the-shared-destination-maps-diary-to-a-ui-less-resource-route--p2--resolved-2026-08-30)
 
 - **Reproduced behaviour.** `entityDestination("diary", id)` returns
   `{ kind: "route", to: "/diary/<id>" }` (`app/shared/entity/destination.ts:54`);
@@ -301,7 +301,7 @@ needs to implement without re-auditing.
 - **Note.** The encoded id lands in a query parameter; keep
   `encodeURIComponent` (already required for `?` / `&` safety).
 
-#### B. `/views` is bind-safe and honest about its bound — closes [DEBT-223](../product/PRODUCT_DEBT.md#-debt-223--the-cross-view-repository-binds-unchunked-in-lists-that-can-exceed-d1s-parameter-cap-and-result-61-is-unreachable--p2)
+#### B. `/views` is bind-safe and honest about its bound — closes [DEBT-223](../product/PRODUCT_DEBT.md#-debt-223--the-cross-view-repository-binds-unchunked-in-lists-that-can-exceed-d1s-parameter-cap-and-result-61-is-unreachable--p2--resolved-2026-08-30)
 
 - **Reproduced behaviour.** Three helpers in
   `app/platform/storage/d1/d1-cross-view-query-repository.ts` build unchunked
@@ -346,7 +346,7 @@ needs to implement without re-auditing.
   Falsification: un-chunk one helper and watch the 60-row fixture fail;
   remove a workspace predicate and watch the isolation assertion fail.
 
-#### C. Meeting detail reads follow-ups as one bounded batch — closes [DEBT-224](../product/PRODUCT_DEBT.md#-debt-224--meeting-detail-resolves-follow-ups-one-gettask-at-a-time-and-the-task-timeline-loops-getbyid-under-a-comment-claiming-one-batch--p2)
+#### C. Meeting detail reads follow-ups as one bounded batch — closes [DEBT-224](../product/PRODUCT_DEBT.md#-debt-224--meeting-detail-resolves-follow-ups-one-gettask-at-a-time-and-the-task-timeline-loops-getbyid-under-a-comment-claiming-one-batch--p2--resolved-2026-08-30)
 
 - **Reproduced behaviour.** `app/modules/meetings/routes/detail.tsx:116-125`:
   `listFollowUps` (cap 100) then `for … await scope.tasks.getTask(link.taskId)`
@@ -374,7 +374,7 @@ needs to implement without re-auditing.
   (hostile-row isolation). Falsification: reintroduce the loop and watch the
   statement-count assertion fail.
 
-#### D. The search control keeps its name at every width — closes [DEBT-225](../product/PRODUCT_DEBT.md#-debt-225--the-desktop-top-bars-search-button-has-no-accessible-name-between-768-and-1024px--p2)
+#### D. The search control keeps its name at every width — closes [DEBT-225](../product/PRODUCT_DEBT.md#-debt-225--the-desktop-top-bars-search-button-has-no-accessible-name-between-768-and-1024px--p2--resolved-2026-08-30)
 
 - **Reproduced behaviour.** `DesktopTopBar.tsx:172-193` — the button's only
   name source is the visible label span; `shell.css:1194-1197` hides it with
@@ -403,7 +403,7 @@ needs to implement without re-auditing.
   are corrected to the composed truth (`Today · Tasks · Add · Projects · More`,
   asserted by `e2e/mobile-shell.spec.ts:45`).
 
-#### E. One recorded active-navigation rule — closes [DEBT-226](../product/PRODUCT_DEBT.md#-debt-226--active-navigation-understands-only-path-nesting-so-singular-record-routes-leave-no-current-item--p2)
+#### E. One recorded active-navigation rule — closes [DEBT-226](../product/PRODUCT_DEBT.md#-debt-226--active-navigation-understands-only-path-nesting-so-singular-record-routes-leave-no-current-item--p2--resolved-2026-08-30)
 
 - **Reproduced behaviour.** `app/shared/shell/navigation-active.ts:26-35`
   matches a destination by `pathname === href || pathname.startsWith(href + "/")`.
@@ -435,7 +435,7 @@ needs to implement without re-auditing.
   More-sheet path. Falsification: revert the authority and watch the new unit
   fixtures fail.
 
-#### F. The deterministic Ask answers are reachable — closes [DEBT-227](../product/PRODUCT_DEBT.md#-debt-227--the-five-deterministic-ask-dalyhub-answers-are-hidden-behind-the-provider-gate-they-do-not-need--p3)
+#### F. The deterministic Ask answers are reachable — closes [DEBT-227](../product/PRODUCT_DEBT.md#-debt-227--the-five-deterministic-ask-dalyhub-answers-are-hidden-behind-the-provider-gate-they-do-not-need--p3--resolved-2026-08-30)
 
 - **Reproduced behaviour.** The five deterministic intents
   (overdue/open/inbox counts, latest/upcoming meeting —
@@ -462,7 +462,7 @@ needs to implement without re-auditing.
   question and assert the calm refusal. Falsification: restore the gate and
   watch the first journey fail.
 
-#### G. A Review's Start button goes where it says — closes [DEBT-228](../product/PRODUCT_DEBT.md#-debt-228--the-reviews-collection-offers-startcontinue-guide-buttons-for-review-types-the-guide-redirects-away--p3)
+#### G. A Review's Start button goes where it says — closes [DEBT-228](../product/PRODUCT_DEBT.md#-debt-228--the-reviews-collection-offers-startcontinue-guide-buttons-for-review-types-the-guide-redirects-away--p3--resolved-2026-08-30)
 
 - **Reproduced behaviour.** `ReviewsCollection.tsx:403-417` renders
   **Start / Continue** → `/reviews/:id/guide` for every unfinished, unarchived
@@ -1211,9 +1211,9 @@ needs to implement without re-auditing.
 answers.**
 
 - **User problem.**
-  [DEBT-233](../product/PRODUCT_DEBT.md#-debt-233--today-never-states-the-meetings-today-fact-daychips-computes-it-with-no-consumer--p3),
-  [DEBT-234](../product/PRODUCT_DEBT.md#-debt-234--on-track-and-moving-carry-four-different-predicates-across-surfaces-and-a-project-with-no-health-facts-defaults-to-on-track-inside-snapshots--p2),
-  [DEBT-235](../product/PRODUCT_DEBT.md#-debt-235--the-review-records-period-context-is-today-anchored-and-bounded-before-its-filter--p2):
+  [DEBT-233](../product/PRODUCT_DEBT.md#-debt-233--today-never-states-the-meetings-today-fact-daychips-computes-it-with-no-consumer--p3--resolved-2026-09-01),
+  [DEBT-234](../product/PRODUCT_DEBT.md#-debt-234--on-track-and-moving-carry-four-different-predicates-across-surfaces-and-a-project-with-no-health-facts-defaults-to-on-track-inside-snapshots--p2--resolved-2026-09-01),
+  [DEBT-235](../product/PRODUCT_DEBT.md#-debt-235--the-review-records-period-context-is-today-anchored-and-bounded-before-its-filter--p2--resolved-2026-09-01):
   Today cannot state that the owner had meetings today once the last one
   starts; "On track" means four different machine predicates under one or two
   words; and a Review's period tabs render today's workspace state and

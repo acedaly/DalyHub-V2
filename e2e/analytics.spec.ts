@@ -6,9 +6,12 @@
  * What there IS to prove is the set of promises the surface makes, none of which
  * a unit test can check against real data:
  *
- *   - it renders from real reads, at every range, without a 500 and without a
- *     figure the product cannot produce;
- *   - the range is a real URL, so it is shareable and Back/Forward-correct;
+ *   - it renders from real reads, at every WINDOW and grain, without a 500 and
+ *     without a figure the product cannot produce;
+ *   - the window and the grain are real URLs, so a view is shareable and
+ *     Back/Forward-correct (V2.9 INS-03);
+ *   - the event list beneath the figures is the same window as the figures
+ *     (V2.9 INS-04);
  *   - every figure is a link to the records behind it (§ "a number the owner
  *     cannot check is a number they have to trust");
  *   - it is reachable from the shell's own navigation, because it is registry-
@@ -25,10 +28,18 @@ import {
   gotoFixture,
 } from "./helpers";
 
-const RANGES = [
-  { label: "7 days", path: "/analytics" },
-  { label: "4 weeks", path: "/analytics?range=month" },
-  { label: "12 weeks", path: "/analytics?range=quarter" },
+/*
+ * V2.9 INS-03 — the six named windows, in the `?window=` vocabulary that
+ * replaced `?range=`. The DEFAULT window carries no parameter at all, which is
+ * the rail's own rule: two equivalent states always produce the same link.
+ */
+const WINDOWS = [
+  { label: "7 days", path: "/analytics?window=this-week" },
+  { label: "4 weeks", path: "/analytics?window=4-weeks" },
+  { label: "12 weeks", path: "/analytics" },
+  { label: "6 months", path: "/analytics?window=6-months" },
+  { label: "12 months", path: "/analytics?window=12-months" },
+  { label: "24 months", path: "/analytics?window=24-months" },
 ] as const;
 
 test.describe("UIX-05 — Analytics", () => {
@@ -48,25 +59,64 @@ test.describe("UIX-05 — Analytics", () => {
     await expect(metrics.or(empty).first()).toBeVisible();
   });
 
-  test("every range is a real, shareable URL", async ({ page }) => {
-    for (const range of RANGES) {
-      await gotoFixture(page, range.path);
-      const rail = page.getByRole("group", { name: "Analytics range" });
+  test("every window is a real, shareable URL", async ({ page }) => {
+    for (const window of WINDOWS) {
+      await gotoFixture(page, window.path);
+      const rail = page.getByRole("group", { name: "Insight window" });
       await expect(
-        rail.getByRole("link", { name: new RegExp(range.label) }),
+        rail.getByRole("link", { name: new RegExp(window.label) }),
       ).toHaveAttribute("aria-current", "true");
     }
   });
 
-  test("moving between ranges is ordinary navigation, and Back works", async ({
+  /*
+   * V2.9 INS-03 — the grain is offered only where the window can hold more than
+   * one, and it is an ordinary link too. Two years is months-only, so its
+   * control is absent entirely rather than present with one option.
+   */
+  test("the grain is a link where there is a choice, and absent where there is not", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/analytics?window=12-weeks");
+    const grain = page.getByRole("group", { name: "Insight grain" });
+    await expect(grain).toBeVisible();
+    await grain.getByRole("link", { name: "Daily" }).click();
+    await expect(page).toHaveURL(/grain=day/);
+    await expect(
+      page.getByRole("group", { name: "Insight grain" }).getByRole("link", {
+        name: "Daily",
+      }),
+    ).toHaveAttribute("aria-current", "true");
+
+    await gotoFixture(page, "/analytics?window=24-months");
+    await expect(
+      page.getByRole("group", { name: "Insight grain" }),
+    ).toHaveCount(0);
+  });
+
+  /*
+   * V2.9 INS-04 — the events themselves, in the same window as the figures.
+   */
+  test("lists what changed in the window, or says there is nothing", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/analytics");
+    await expect(
+      page.getByRole("heading", { name: "What changed" }),
+    ).toBeVisible();
+    const feed = page.getByRole("feed").or(page.getByRole("list"));
+    await expect(feed.first()).toBeVisible();
+  });
+
+  test("moving between windows is ordinary navigation, and Back works", async ({
     page,
   }) => {
     await gotoFixture(page, "/analytics");
     await page
-      .getByRole("group", { name: "Analytics range" })
-      .getByRole("link", { name: /12 weeks/ })
+      .getByRole("group", { name: "Insight window" })
+      .getByRole("link", { name: /7 days/ })
       .click();
-    await expect(page).toHaveURL(/range=quarter/);
+    await expect(page).toHaveURL(/window=this-week/);
     await page.goBack();
     await expect(page).toHaveURL(/\/analytics$/);
   });
@@ -75,7 +125,7 @@ test.describe("UIX-05 — Analytics", () => {
     await gotoFixture(page, "/analytics");
     const metrics = page.getByRole("list", { name: "This period" });
     if ((await metrics.count()) === 0) {
-      test.skip(true, "The seeded workspace completed nothing in this range.");
+      test.skip(true, "The seeded workspace completed nothing in this window.");
     }
     // At least the Tasks figure always resolves to a link when the read
     // succeeded; a figure whose read failed renders "Not available" instead,
@@ -133,7 +183,7 @@ test.describe("UIX-05 — Analytics", () => {
   test("the overdue readout follows the keyboard through the series", async ({
     page,
   }) => {
-    await gotoFixture(page, "/analytics?range=quarter");
+    await gotoFixture(page, "/analytics?window=12-weeks");
     const chart = page.getByTestId("analytics-overdue-trend");
     test.skip(
       (await chart.count()) === 0,

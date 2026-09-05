@@ -9,8 +9,9 @@
 > `ChatGPT Image Aug 14, 2026 at 03_11_25 PM.png` — the whole product, incl. mobile
 > `ChatGPT Image Aug 14, 2026 at 03_13_16 PM.png` — Today, Projects, Tasks, mobile
 
-Screenshots: [`assets/ds-final/`](assets/ds-final/) — `baseline/`, `projects-areas-goals/`,
-`today/`, `remaining-modules/`, `mobile/`, `convergence/`, `final/`.
+Screenshots: `assets/ds-final/` — `baseline/`, `projects-areas-goals/`,
+`today/`, `remaining-modules/`, `mobile/`, `convergence/`, `final/` (the folder
+was not committed; the sections below record what each set showed).
 
 Three tools make the pass reproducible, and none is part of the gate:
 

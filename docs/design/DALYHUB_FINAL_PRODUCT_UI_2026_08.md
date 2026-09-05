@@ -22,7 +22,9 @@
 > [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) (the mechanics); it records what the
 > concepts changed and what was deliberately not changed.
 
-**Screenshots:** [`assets/final-product-ui/`](assets/final-product-ui/)
+**Screenshots:** `assets/final-product-ui/` (the folder was not committed; the
+table below records what each set held, and the sections that follow record
+what the captures showed)
 
 | Folder | What it holds |
 |---|---|

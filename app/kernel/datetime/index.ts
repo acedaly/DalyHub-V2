@@ -8,6 +8,7 @@
 
 export {
   addCalendarDays,
+  addCalendarMonths,
   calendarDateFromEpochDay,
   calendarDateFromParts,
   calendarDaysBetween,

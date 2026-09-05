@@ -203,6 +203,8 @@ function areaGoalStory(goal: SerializedAreaGoalItem): GoalStory {
       condition: null,
       targetDate: goal.targetDate,
       contribution: null,
+      // This surface does not read the snapshot series — see `GoalStory`.
+      contributionAcrossReviews: null,
     }
   );
 }

@@ -139,3 +139,38 @@ export function calendarDateFromParts(
 ): string {
   return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
 }
+
+/**
+ * `YYYY-MM-DD` shifted by whole calendar MONTHS, clamping the day to the target
+ * month's length: 31 January minus one month is 28 February (29 in a leap
+ * year), never 3 March.
+ *
+ * Clamping rather than overflowing is what makes a sequence of month boundaries
+ * computed from ONE anchor strictly monotonic — `addCalendarMonths(end, -1)`,
+ * `-2`, `-3` … always step back exactly one month each, whatever the anchor's
+ * day of month. V2.9's month buckets (`~/kernel/history`) rely on that: the
+ * boundaries have to tile a window with no gap and no overlap, and an
+ * overflowing 31 March − 1 month = 3 March would put two boundaries in the same
+ * month and produce a bucket with negative length.
+ *
+ * Added by V2.9 INS-01 rather than re-derived at the call site, for DEBT-52's
+ * reason: calendar arithmetic has one home.
+ */
+export function addCalendarMonths(iso: string, months: number): string {
+  const epoch = calendarEpochDay(iso);
+  const anchor = new Date(epoch * MS_PER_DAY);
+  const year = anchor.getUTCFullYear();
+  const month = anchor.getUTCMonth() + 1 + months;
+  const day = anchor.getUTCDate();
+  // Normalise the (possibly out-of-range) month into a year/month pair before
+  // clamping, so `-14` months is a year and two months back rather than a
+  // month index nothing can bound the day against.
+  const targetYear = year + Math.floor((month - 1) / 12);
+  const targetMonth = ((((month - 1) % 12) + 12) % 12) + 1;
+  const last = daysInCalendarMonth(targetYear, targetMonth);
+  return calendarDateFromParts(
+    targetYear,
+    targetMonth,
+    day < last ? day : last,
+  );
+}

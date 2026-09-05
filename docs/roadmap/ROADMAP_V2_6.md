@@ -114,7 +114,7 @@ Four of five items delivered (2026-08-28):
 **STEER-05 — the week's door — was not delivered when this programme was
 defined.** It was V2.5's last item and it stayed there. **It has since landed
 (2026-08-28):** Today offers the current period's Review, and
-[DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2)
+[DEBT-34](../product/PRODUCT_DEBT.md#-debt-34--reviews-period-context-and-today-integration-are-bounded-first-cuts--p2--resolved-2026-08-28-v25-steer-05)
 is closed. The precondition this programme set itself — **STEER-05 is completed
 before FIND-01 starts** (see [Dependencies](#dependencies)) — is satisfied, and
 V2.5's five-item sequence is complete.
@@ -320,8 +320,8 @@ Weighed against the evidence, and rejected as the *theme*:
   Deferred **whole**, for a stated reason, with the sequence it will take when
   the blocker clears written down in advance so that programme does not have to
   re-decide it.
-- **One Task anatomy** — [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2)
-  + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2)
+- **One Task anatomy** — [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2--resolved-2026-09-03-v28-conv-02)
+  + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2--resolved-2026-09-03-v28-conv-01)
   (both P2), whose own instruction is to close **together** as one bounded
   convergence pass. V2.5 named them *"the strongest non-theme candidate to ride
   beside V2.6"*, and that judgement is re-taken and **held**: FIND-01 renders
@@ -985,7 +985,7 @@ and this repository's whole method is that there is one.
 | Deferred | Evidence | Why not now |
 |---|---|---|
 | **AI over the follow-through and Goal data** | AI-03 ◐, [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3), DEBT-92, [DEBT-93](../product/PRODUCT_DEBT.md#-debt-93--ai-evidence-retrieval-is-keyword-and-relationship-only--p3), [DEBT-213](../product/PRODUCT_DEBT.md) | **The platform is built; it has never made a request.** Blocker, gate and sequence all named above rather than left as "later". V2.6 makes it *cheaper*: a tag vocabulary and a recency source are retrieval inputs, which is DEBT-93's own subject. |
-| **One Task anatomy** | [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2) + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2) (both P2) | Their own instruction is to close **together**, as one bounded pass. Still the strongest non-theme candidate to ride beside this programme. FIND-01 renders the existing search row unchanged and is explicitly forbidden from widening the fork. |
+| **One Task anatomy** | [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2--resolved-2026-09-03-v28-conv-02) + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2--resolved-2026-09-03-v28-conv-01) (both P2) | Their own instruction is to close **together**, as one bounded pass. Still the strongest non-theme candidate to ride beside this programme. FIND-01 renders the existing search row unchanged and is explicitly forbidden from widening the fork. |
 | **A first-run / sparse-workspace experience** | DHDS-13 §13 (*"Below"*) | Unchanged from V2.4 and V2.5: a programme of its own; this product is one owner's populated daily driver. |
 | **The offline slice** | DEBT-155, 160, 161, 167, 170, 190 | One decision about what the offline contract covers. FIND-02 and FIND-04 each owe the existing contract an answer; neither reopens it. |
 | **Semantic / embedding retrieval** | [DEBT-93](../product/PRODUCT_DEBT.md#-debt-93--ai-evidence-retrieval-is-keyword-and-relationship-only--p3) | Explicitly **not** taken by FIND-01. ADR-073 decision 20 refused embeddings as a separate decision with its own cost, storage and staleness questions; that stands, and a recency source is not a step toward it. |

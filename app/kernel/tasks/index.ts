@@ -101,6 +101,7 @@ export {
   type CompleteTaskResult,
   type ListTaskActivityInput,
   type CompletedTaskWindow,
+  type CountCompletedInBucketsInput,
   type CompletedTaskWindowCount,
   type TaskActivityDayCount,
   type TaskActivityDayWindow,

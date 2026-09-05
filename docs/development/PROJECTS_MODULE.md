@@ -572,7 +572,7 @@ copy, which was accurate only while the section was `state: "open"`-only.
   mid-journey; a SEPARATE test proves a restored Planned project stays absent
   from Continue working. **Accessibility/responsive closure**
   ([`e2e/accessibility.spec.ts`](../../e2e/accessibility.spec.ts),
-  [`e2e/responsive.spec.ts`](../../e2e/responsive.spec.ts)): the Settings tab
+  [`e2e/responsive-desktop.spec.ts`](../../e2e/responsive-desktop.spec.ts) and [`e2e/responsive-phone.spec.ts`](../../e2e/responsive-phone.spec.ts) (one `responsive.spec.ts` until V2.8 CONV-03 split it)): the Settings tab
   (light/dark, 320–2560px), the Archived collection (with a real permanently-archived
   seeded card), a bare archived record, the archive confirmation dialog, the restore
   confirmation dialog, and a blocked archive's inline alert are all axe-clean and
@@ -938,7 +938,7 @@ bound, the Review says **"No next action visible here"** and links to the Projec
 list. It never claims a Project has no next action.
 
 **STEER-04 (2026-08-28) built the exhaustive ranked statement, and left this scan
-exactly as it is.** [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3)
+exactly as it is.** [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3--resolved-2026-08-28-v25-steer-04)
 is closed: `TaskRepository.listProjectNextActions` answers the SAME question with
 a bounded `ROW_NUMBER() OVER (PARTITION BY project …)` over the canonical smart
 ordering, and Today's project cards, a Goal's record and the `/goals` pane all

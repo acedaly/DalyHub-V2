@@ -9,6 +9,20 @@
  */
 
 export {
+  MAX_ACROSS_REVIEWS_GOALS,
+  MAX_ACROSS_REVIEWS_PROJECTS,
+  MAX_REPEATED_CARRY_OVER,
+  MIN_ACROSS_REVIEWS,
+  goalContributionAcrossReviewsLine,
+  readAcrossReviews,
+  type AcrossReviewsFacts,
+  type AcrossReviewsSubject,
+  type GoalContributionAcrossReviews,
+  type ProjectHealthAcrossReviews,
+  type RepeatedCarryOver,
+} from "./across-reviews";
+
+export {
   INSIGHT_EXACTNESS,
   exactMeasure,
   boundedMeasure,
@@ -84,6 +98,7 @@ export type {
 } from "./review-insights";
 
 export {
+  MAX_OVERDUE_MOMENTS,
   MAX_TREND_PERIODS,
   MAX_CONTRIBUTION_ROWS,
   MAX_CARRY_OVER_TASKS,

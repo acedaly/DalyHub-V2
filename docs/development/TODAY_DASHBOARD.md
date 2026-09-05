@@ -265,9 +265,9 @@ result. Query count is unchanged from TODAY-09.
 ### Retained evidence
 
 Five captures of the PANEL (not the page), in
-[`docs/design/assets/today-10-2026-08/`](../design/assets/today-10-2026-08), over
-the `focus` fixture unless noted — deliberately bounded, per the repository's
-screenshot-cleanup rule:
+`docs/design/assets/today-10-2026-08/` (the folder was not committed; the table
+below records what each capture showed), over the `focus` fixture unless noted —
+deliberately bounded, per the repository's screenshot-cleanup rule:
 
 | File | Shows |
 |---|---|
@@ -965,7 +965,7 @@ already made. Never one per Goal.
 
 ## "Continue working" names a next action (STEER-04, 2026-08-28)
 
-[DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3),
+[DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3--resolved-2026-08-28-v25-steer-04),
 closed on its own words: *"on a surface whose whole purpose is 'what should I do
 now?', that is one click more than it should be."* Each card carried health, an
 open-task count and a progress meter, and could not say what to actually do —

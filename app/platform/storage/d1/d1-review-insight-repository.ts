@@ -37,6 +37,7 @@
 import {
   MAX_CARRY_OVER_TASKS,
   MAX_CONTRIBUTION_ROWS,
+  MAX_OVERDUE_MOMENTS,
   MAX_TREND_PERIODS,
   parseReviewInsightSnapshot,
   serializeReviewInsightSnapshot,
@@ -66,12 +67,7 @@ import {
 import type { WorkspaceContext } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
-
-interface CompletionRow {
-  readonly bucket: string;
-  readonly entity_type: string;
-  readonly n: number;
-}
+import { countPrimarySubjectsByTypeInBuckets } from "./history-window-read";
 
 interface ContributionRow {
   readonly project_id: string | null;
@@ -102,17 +98,6 @@ interface SnapshotRow {
   readonly captured_at: string;
   readonly facts_json: string;
 }
-
-/**
- * The half-open completion filter, shared by both Activity reads. Matching the
- * event type to its subject's entity type is what stops a `project.completed`
- * event that also names its Area from being counted as an Area completion.
- */
-const COMPLETION_TYPE_MATCH = `(
-  (a.type = '${TASK_COMPLETED}'    AND e.type = '${TASK}')
-  OR (a.type = '${PROJECT_COMPLETED}' AND e.type = '${PROJECT}')
-  OR (a.type = '${GOAL_COMPLETED}'    AND e.type = '${GOAL}')
-)`;
 
 /** Reject an unusable id before it reaches SQL. A Review id is an opaque
  * entity id; an empty or non-string value is a caller bug, not a lookup. */
@@ -170,81 +155,47 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
     if (wanted.length === 0) return [];
 
     /*
-     * ONE statement for every requested period. Each period contributes a
-     * `WHEN` arm that names it, so the whole series is a single grouped scan
-     * over the workspace's completion events rather than one query per bar of
-     * the trend. Instants are bound; only the arm index is generated, and it is
-     * an integer this method produced.
+     * V2.9 INS-01 — this read CONVERGED onto the ONE windowed Activity read
+     * (`history-window-read.ts`, DEBT-238). It had carried its own
+     * `occurred_at` predicate since REVIEW-03, and it was asking exactly the
+     * question the kernel's `countByTypeInBuckets` now asks: distinct
+     * primary-subject entities per (period, completion event type), with no
+     * liveness filter so a closed period's figures never move.
+     *
+     * Two things changed shape and NEITHER changed the answer, which
+     * `test/kernel/history-kernel.test.ts` asserts by running the old and new
+     * shapes over one fixture:
+     *
+     *   - the period boundaries travel as one bound JSON parameter rather than
+     *     as a `CASE WHEN` arm per period, so the statement no longer grows
+     *     with the series. `MAX_TREND_PERIODS` is now purely the Review panel's
+     *     DISPLAY bound, rather than also a limit D1's 100-bound-variable
+     *     ceiling was imposing;
+     *   - `COMPLETION_TYPE_MATCH`'s table of event-type-to-entity-type pairs is
+     *     replaced by the primary-subject role filter, which says the same
+     *     thing generically. That is why the `entities` join is gone: the event
+     *     type already names the kind, and the role already names the one
+     *     entity the event is about.
+     *
+     * Still ONE statement for the whole series, and still exact for a period
+     * that ended months ago (HARDEN-06C F-07: no liveness predicate).
      */
-    const arms = wanted
-      .map(
-        (_, index) =>
-          `WHEN a.occurred_at >= ? AND a.occurred_at < ? THEN ${index}`,
-      )
-      .join("\n            ");
-    const bounds = wanted.flatMap((request) => [
-      request.window.startInstantIso,
-      request.window.endInstantIso,
-    ]);
-    const overallStart = wanted.reduce(
-      (earliest, request) =>
-        request.window.startInstantIso < earliest
-          ? request.window.startInstantIso
-          : earliest,
-      wanted[0].window.startInstantIso,
-    );
-    const overallEnd = wanted.reduce(
-      (latest, request) =>
-        request.window.endInstantIso > latest
-          ? request.window.endInstantIso
-          : latest,
-      wanted[0].window.endInstantIso,
+    const counts = await countPrimarySubjectsByTypeInBuckets(
+      this.#db,
+      this.#workspaceId,
+      [TASK_COMPLETED, PROJECT_COMPLETED, GOAL_COMPLETED],
+      wanted.map((request) => ({
+        key: request.key,
+        startAt: request.window.startInstantIso,
+        endAt: request.window.endInstantIso,
+      })),
     );
 
-    const statement = this.#db
-      .prepare(
-        `SELECT CAST(bucket AS TEXT) AS bucket, entity_type, COUNT(*) AS n
-         FROM (
-           SELECT DISTINCT
-             CASE
-               ${arms}
-               ELSE -1
-             END AS bucket,
-             e.type AS entity_type,
-             s.entity_id AS entity_id
-           FROM activities a
-           JOIN activity_subjects s
-             ON s.workspace_id = a.workspace_id AND s.activity_id = a.id
-           JOIN entities e
-             ON e.workspace_id = s.workspace_id AND e.id = s.entity_id
-           WHERE a.workspace_id = ?
-             AND a.type IN ('${TASK_COMPLETED}', '${PROJECT_COMPLETED}', '${GOAL_COMPLETED}')
-             AND a.occurred_at >= ? AND a.occurred_at < ?
-             AND ${COMPLETION_TYPE_MATCH}
-         )
-         WHERE bucket >= 0
-         GROUP BY bucket, entity_type`,
-      )
-      .bind(...bounds, this.#workspaceId, overallStart, overallEnd);
-
-    const result = await statement.all<CompletionRow>();
-    const rows = result.results ?? [];
-    const totals = wanted.map(() => ({ tasks: 0, projects: 0, goals: 0 }));
-    for (const row of rows) {
-      const index = Number(row.bucket);
-      if (!Number.isInteger(index) || index < 0 || index >= totals.length) {
-        continue;
-      }
-      const count = Number(row.n ?? 0);
-      if (row.entity_type === TASK) totals[index].tasks += count;
-      else if (row.entity_type === PROJECT) totals[index].projects += count;
-      else if (row.entity_type === GOAL) totals[index].goals += count;
-    }
     return wanted.map((request, index) => ({
       key: request.key,
-      tasksCompleted: totals[index].tasks,
-      projectsCompleted: totals[index].projects,
-      goalsCompleted: totals[index].goals,
+      tasksCompleted: counts[index][TASK_COMPLETED] ?? 0,
+      projectsCompleted: counts[index][PROJECT_COMPLETED] ?? 0,
+      goalsCompleted: counts[index][GOAL_COMPLETED] ?? 0,
     }));
   }
 
@@ -255,7 +206,7 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
   async countOverdueAtPeriodEnd(
     requests: readonly PeriodCountRequest[],
   ): Promise<readonly PeriodOverdueResult[]> {
-    const wanted = requests.slice(0, MAX_TREND_PERIODS);
+    const wanted = requests.slice(0, MAX_OVERDUE_MOMENTS);
     if (wanted.length === 0) return [];
 
     /*
@@ -270,7 +221,9 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
      * the same single scan, rather than its own row.
      *
      * That is still one statement and one pass over the workspace's tasks; the
-     * column count is bounded by `MAX_TREND_PERIODS`. Only the column ALIAS
+     * column count is bounded by `MAX_OVERDUE_MOMENTS` — larger than the Review
+     * panel's display bound because this is a storage bound (two bound
+     * parameters per column against D1's ceiling of 100). Only the column ALIAS
      * index is generated, and it is an integer this method produced — every
      * date and instant is bound.
      */
@@ -555,6 +508,78 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
       if (parsed !== null) stored.push(parsed);
     }
     return stored;
+  }
+
+  /**
+   * V2.9 INS-01 — the anchor Review's snapshot and the ones before it, oldest
+   * first, in ONE statement (INS-02's source).
+   *
+   * ── The same-type rule is enforced in SQL, not remembered by a caller ─────
+   * The series joins each snapshot back to its `review_details` row and keeps
+   * only those whose `review_type` matches the anchor's. A monthly Review
+   * therefore never appears in a weekly Review's trend — a period four times
+   * the length would make "at risk in 3 of the last 4" a comparison of unlike
+   * things while looking exactly like a comparison of like ones. Putting the
+   * rule here means a future caller cannot forget it.
+   *
+   * ── Ordering and inclusion ────────────────────────────────────────────────
+   * The anchor's own snapshot is included when it has one; everything else must
+   * end strictly before the anchor's period **START**, so a Review is never
+   * compared with one covering the same days.
+   *
+   * That comparison is against the start rather than the end deliberately, and
+   * it is the SAME rule the comparison series already applies in JavaScript
+   * (`readPriorReviews`: `candidate.periodEnd < input.review.periodStart`).
+   * Overlapping periods are permitted — `validateReviewPeriod` and the create
+   * form both allow them — so comparing against the anchor's END would admit a
+   * Review that ends a day earlier but starts inside the anchor's own period,
+   * and the panel would report two overlapping Reviews as consecutive history
+   * while the trend beside it disagreed. Two reads answering "which Reviews came
+   * before this one" must answer it identically.
+   *
+   * Ties break on `(period_end, captured_at,
+   * review_id)` exactly as `listSnapshotsBefore` breaks them — one ordering
+   * rule, two reads. The database returns newest first (that is the order the
+   * `LIMIT` must apply in, since a series is the most RECENT n) and the result
+   * is reversed to Review order.
+   *
+   * A snapshot whose `facts_json` this build cannot parse is SKIPPED, which
+   * shortens the series rather than leaving a hole — the same fail-soft
+   * `listSnapshotsBefore` has, and the reason the panel says "over the last N
+   * Reviews" with the N it actually holds (ADR-079 decision 5).
+   */
+  async listSnapshotSeries(
+    reviewId: string,
+    n: number,
+  ): Promise<readonly StoredReviewInsightSnapshot[]> {
+    const id = requireReviewId(reviewId);
+    const bounded = clampLimit(n, MAX_TREND_PERIODS);
+    const result = await this.#db
+      .prepare(
+        `WITH anchor AS (
+           SELECT review_type, period_start
+           FROM review_details
+           WHERE workspace_id = ? AND entity_id = ?
+         )
+         SELECT s.review_id, s.captured_at, s.facts_json
+         FROM review_insight_snapshots s
+         JOIN review_details rd
+           ON rd.workspace_id = s.workspace_id AND rd.entity_id = s.review_id
+         JOIN anchor a ON rd.review_type = a.review_type
+         WHERE s.workspace_id = ?
+           AND (s.period_end < a.period_start OR s.review_id = ?)
+         ORDER BY s.period_end DESC, s.captured_at DESC, s.review_id DESC
+         LIMIT ?`,
+      )
+      .bind(this.#workspaceId, id, this.#workspaceId, id, bounded)
+      .all<SnapshotRow>();
+    const stored: StoredReviewInsightSnapshot[] = [];
+    for (const row of result.results ?? []) {
+      const parsed = this.#toStored(row);
+      if (parsed !== null) stored.push(parsed);
+    }
+    // Review order: oldest first, the direction a series is read and drawn.
+    return stored.reverse();
   }
 
   async saveSnapshot(

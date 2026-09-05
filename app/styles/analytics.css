@@ -165,6 +165,129 @@
   }
 }
 
+/*
+ * V2.9 INS-03 — the Projects and Goals lines, under the Tasks trend.
+ *
+ * Label, shape, figure — the same three-column row the Goals panel uses, at
+ * meta weight, because these are a footnote to the trend above rather than a
+ * second chart competing with it.
+ */
+.dh-analytics__secondary {
+  list-style: none;
+  margin: var(--app-space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+.dh-analytics__secondary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem auto;
+  align-items: center;
+  gap: var(--app-space-3);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  min-inline-size: 0;
+}
+
+.dh-analytics__secondary-figure {
+  color: var(--dh-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* V2.9 INS-04 — the event list spans both tracks: it is a list of sentences. */
+.dh-analytics__changed {
+  grid-column: 1 / -1;
+}
+
+/*
+ * V2.9 INS-03 — the measured-Goal panel also spans both tracks, for the reason
+ * above rather than a different one: its rows are `name · shape · reading`, a
+ * three-column line that wants width, and it follows a panel that already spans
+ * the row, so half a track beside a hole is the only other option.
+ */
+.dh-analytics__goals-panel {
+  grid-column: 1 / -1;
+}
+
+.dh-analytics__goals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * Name, shape, reading — the sparkline in the middle at a FIXED track, because a
+ * shape that changes width between rows is a shape the eye cannot compare, and
+ * comparison is the only thing a row of sparklines is for.
+ */
+.dh-analytics__goal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem auto;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-analytics__goal-name {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The figures, which are the fact — the sparkline beside them is decoration. */
+.dh-analytics__goal-reading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--app-space-1);
+  font-size: var(--dh-text-meta-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--dh-color-text);
+}
+
+.dh-analytics__goal-window {
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * A contribution row has no sparkline, so its sentence takes the middle track
+ * as well — it is a sentence rather than a figure, and squeezing it into the
+ * figure column would wrap every one of them to three lines.
+ */
+.dh-analytics__goal-reading--wide {
+  grid-column: 2 / -1;
+  flex-direction: row;
+  justify-content: flex-end;
+  text-align: end;
+  text-wrap: pretty;
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: normal;
+}
+
+/*
+ * The loading shape, laid out as what actually arrives (see `AnalyticsSkeleton`)
+ * rather than as the shared collection's column of record cards.
+ */
+.dh-analytics__panel-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-card-padding);
+  background: var(--dh-color-surface);
+  border-radius: var(--app-shape-entity-card);
+  box-shadow: var(--app-elevation-resting);
+}
+
 /* The sentence a panel shows instead of a chart it cannot honestly draw. */
 .dh-analytics__absent {
   margin: 0;

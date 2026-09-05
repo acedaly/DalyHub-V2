@@ -57,8 +57,10 @@ import {
   type ReviewGoalStateFact,
   type ReviewInsightFacts,
   type ReviewInsights,
+  type ReviewInsightSnapshot,
   type ReviewPeriodWindow,
   type ReviewProjectStateFact,
+  type StoredReviewInsightSnapshot,
 } from "~/kernel/review-insights";
 import {
   UNAVAILABLE_HABIT_PERIOD_CONSISTENCY,
@@ -123,7 +125,7 @@ export const REVIEW_INSIGHT_LIMITS = {
  *
  * 1 prior-Review page + 1 completion series (every trend period in ONE grouped
  * statement) + 1 contribution breakdown (read once and shared by Projects,
- * Goals and Areas) + 1 previous snapshot + 2 Project pages + 3 Project health
+ * Goals and Areas) + 1 snapshot series + 2 Project pages + 3 Project health
  * facts + 1 carry-over page + 1 carry-over count + 1 Goal page + 1 Goal
  * contributions + 1 Goal alignment facts + 1 Area page = 14, plus FOLLOW-01's
  * 2 (the bounded Activity window: one statement for the period's Task set, one
@@ -131,6 +133,12 @@ export const REVIEW_INSIGHT_LIMITS = {
  *
  * Flat with respect to workspace size and to how many past Reviews exist, both
  * asserted separately.
+ *
+ * **V2.9 INS-02 left this number unchanged**, which is the point worth
+ * recording: the across-Reviews section reads a SERIES of snapshots where the
+ * panel previously read one, so a whole new class of evidence arrived for no
+ * additional statement. `listSnapshotSeries` is one grouped read whatever the
+ * series length, and it replaced `getSnapshot` rather than joining it.
  */
 export const REVIEW_INSIGHTS_QUERY_BUDGET = 17;
 
@@ -245,11 +253,11 @@ export async function loadReviewInsights(
    * need "how much completed work landed here", and asking the same grouped
    * question three times would be an N+1 in disguise.
    */
-  const [series, contributions, previousSnapshot, planAccountRead, habits] =
+  const [series, contributions, snapshots, planAccountRead, habits] =
     await Promise.all([
       readSeries(scope, input, window, priorReviews),
       readContributions(scope, window),
-      readPreviousSnapshot(scope, priorReviews),
+      readSnapshotSeries(scope, review, priorReviews),
       /*
        * FOLLOW-01 — what became of the work this period's PLAN held, from the same
        * shared bounded Activity-window authority `/plan` reads. Two statements,
@@ -324,13 +332,17 @@ export async function loadReviewInsights(
         : {
             reviewId: previous.id,
             periodLabel: seriesLabels[previous.id] ?? previous.periodEnd,
-            snapshot: previousSnapshot,
+            snapshot: snapshots.previous,
           },
     // A single point is a number, not a trend — the evaluator drops it.
     series,
     seriesLabels,
     seriesShortLabels,
     currentSeriesKey: "current",
+    // V2.9 INS-02 — the same read that supplied `previous`, given whole. The
+    // across-Reviews section is built from it, and is empty when it holds
+    // fewer than two Reviews.
+    snapshotSeries: snapshots.series,
     // FOLLOW-01 — the owner's own date format, for the plan account's per-Task
     // reasons. The evaluator formats no date itself; it is handed this the same
     // way it is handed every other label.
@@ -794,17 +806,52 @@ async function readPeriodHabits(
   }
 }
 
-async function readPreviousSnapshot(
+/**
+ * V2.9 INS-02 — the snapshots of this Review and the ones before it, oldest
+ * first.
+ *
+ * This REPLACES the single `getSnapshot(priorReviews[0].id)` read rather than
+ * joining it, so the evidence surface gained the whole across-Reviews section
+ * for **no additional statement**: one read out, one read in, and the query
+ * budget below is unchanged.
+ *
+ * The previous snapshot is then derived from the series with exactly the
+ * semantics the old read had — the snapshot of the IMMEDIATELY prior Review, or
+ * null when that Review has none. Deliberately not "the most recent Review that
+ * happens to have a snapshot": that would silently change what "since your last
+ * Review" compares against, and `InsightComparison` has a `no_snapshot` case
+ * precisely so the absence can be said.
+ */
+async function readSnapshotSeries(
   scope: WorkspaceScope,
+  review: Review,
   priorReviews: readonly PriorReview[],
-) {
-  const previous = priorReviews[0];
-  if (!previous) return null;
+): Promise<{
+  readonly series: readonly StoredReviewInsightSnapshot[];
+  readonly previous: ReviewInsightSnapshot | null;
+}> {
+  // The SAME early return `readPreviousSnapshot` had, for the same reason and
+  // with an extra one: with no prior Review there is nothing to compare
+  // against, AND a series can hold at most this Review's own snapshot — one
+  // element, which is below `MIN_ACROSS_REVIEWS` and produces no section. So
+  // the read is skipped rather than issued and discarded, and a first Review
+  // costs exactly what it used to.
+  if (priorReviews.length === 0) return { series: [], previous: null };
+
   try {
-    const stored = await scope.reviewInsights.getSnapshot(previous.id);
-    return stored?.snapshot ?? null;
+    const series = await scope.reviewInsights.listSnapshotSeries(
+      review.id,
+      REVIEW_INSIGHT_LIMITS.trendPeriods + 1,
+    );
+    const previousId = priorReviews[0]?.id;
+    const previous =
+      previousId === undefined
+        ? null
+        : (series.find((stored) => stored.reviewId === previousId)?.snapshot ??
+          null);
+    return { series, previous };
   } catch {
-    return null;
+    return { series: [], previous: null };
   }
 }
 

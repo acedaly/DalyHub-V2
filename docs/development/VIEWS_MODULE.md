@@ -1,6 +1,6 @@
 # Views — cross-module saved views (X-02)
 
-> **Roadmap:** [X-02 — Saved views & cross-module filters](../roadmap/ROADMAP_V2_1.md#-x-02--saved-views--cross-module-filters)
+> **Roadmap:** [X-02 — Saved views & cross-module filters](../roadmap/ROADMAP_V2_1.md#-x-02--saved-views--cross-module-filters--delivered-2026-08-08)
 > **Decision record:** [ADR-082](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract)
 > **Builds on:** [ADR-059](../decisions/ARCHITECTURE_DECISIONS.md#adr-059-the-tasks-collection-contract--one-declarative-view-configuration-server-side-filtering-and-grouping-and-saved-views-as-validated-configuration) (the Tasks contract this generalises) · [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score) (the Review evidence it reads)
 
@@ -256,7 +256,7 @@ leak**: the unavailable part is named, and the remaining scopes still answer.
 do not express the shared dimensions — People has no Area/Project anchor through the
 spine, Asset obligations carry their own lifecycle vocabulary that does not map onto
 open/closed, and Diary is chronological by design (DIARY-01A) with no structural
-parent until [DIARY-02](../roadmap/ROADMAP_V2_1.md#-diary-02--day-context-links)
+parent until [DIARY-02](../roadmap/ROADMAP_V2_1.md#-diary-02--day-context-links--delivered-2026-08-08)
 lands. Adding them would have meant a poor abstraction rather than universal support,
 so they are recorded here as follow-up rather than built badly.
 

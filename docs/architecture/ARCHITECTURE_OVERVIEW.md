@@ -114,8 +114,105 @@ Every meaningful entity and EntityLink mutation appends one uniform event to a s
 - **Event types & payloads.** Types are validated, branded, lowercase dotted identifiers stored verbatim (`entity.created`, `entity.updated`, `entity.deleted`, `entity.restored`, `entity_link.created`, `entity_link.unlinked`, `entity_link.restored`) — no database enum, so modules add types without a migration. Each event has a small JSON-object payload, recursively validated, bounded in nesting depth and encoded byte size, serialised once and re-validated on read.
 - **Atomic mutation & event recording.** A domain mutation and its Activity append are ONE `D1Database.batch()` (a single transaction that rolls back entirely on any failure). The domain statement is first and `RETURNING`; the event insert is guarded `WHERE changes() > 0` and each subject insert `WHERE EXISTS` the event — so the append happens **iff the domain statement actually changed a row**. Failed mutations, idempotent no-ops and losing concurrent racers append nothing; an Activity-insert failure rolls back the domain change. The `changes()`-across-a-batch and per-statement `meta.changes` behaviour is proven against real D1.
 - **Workspace & entity query scopes.** `listForWorkspace` is the whole-workspace feed; `listForEntity` is one entity's Timeline (the events it is a subject of, anchor active *or* soft-deleted). Both are workspace-isolated, newest-first by `(occurredAt, id)`, bounded and cursor-paginated with a dedicated versioned cursor bound to workspace + scope-kind + anchor + type filter, and free of N+1 subject lookups. A cross-workspace entity is indistinguishable from a nonexistent one.
+- **Time-window scopes (V2.9 INS-01).** `countByTypeInBuckets` counts distinct primary-subject entities per event type across a series of buckets, and `listInWindow` pages the events inside one half-open window — the contract's first reads with a from/to, closing [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01). The buckets are the CALLER's, cut from a window at a grain by the [history kernel](#the-history-kernel-one-vocabulary-for-over-time-v29), so no timezone rule lives in SQL (AUDIT-14). Both are one statement — the counting read's bucket boundaries travel as a single bound JSON parameter expanded by `json_each`, because a column or `CASE` arm per bucket binds two parameters each against D1's ceiling of 100 and cannot express a 52-week or 366-day series at all. A window cursor is bound to the window as well as the workspace and type filter, so a page of one fortnight cannot be continued into another.
 - **Composition boundary.** `resolveWorkspaceScope` now returns `entities`, `entityLinks` and a read-only `activity`, all bound to the same `WorkspaceContext`, and constructs one trusted actor context used by both mutation repositories.
 - **Future UI & governance.** The Timeline and Activity Feed **UI** are later Design System work; FND-05 builds the model only. Custom event types and their registration are governed by the [Module Registry](#module-registry-self-registering-module-capabilities) below — the kernel accepts them as validated identifiers, and a module now declares which custom Activity types it owns.
+
+### The history kernel: one vocabulary for "over time" (V2.9)
+
+Every surface that asks *"what happened over this period?"* asks it in the same
+terms ([INS-01](../roadmap/ROADMAP_V2_9.md#-ins-01--the-history-kernel--delivered-2026-09-04--closes-debt-238-debt-239),
+[ADR-116](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+decision 2). `app/kernel/history` holds four ideas and **nothing is stored** to
+support them: every figure is exactly reconstructible from stores the product
+already writes.
+
+- **`Window`** is the existing `ActivityWindow` (FOLLOW-01), re-exported rather
+  than duplicated: inclusive owner wall-calendar days, half-open UTC instants,
+  the owner's timezone authoritative.
+- **`Grain`** is `day | week | month | review_period`, and **`bucketWindow`**
+  cuts a window into buckets **backward from the window's end**, so the most
+  recent bucket is always whole and any remainder falls at the oldest end. A
+  partial bucket at the recent end would draw the current period as a dip every
+  time the page is opened mid-week. There is deliberately **no `weekStart`
+  parameter** — aligning to the owner's Monday is exactly what would make the
+  recent bucket partial; a caller wanting calendar weeks ends the window on the
+  owner's week end and gets them exactly, and `planningWeekStart` remains the
+  product's one week-start authority. `review_period` buckets are the periods
+  the owner's Reviews actually covered, so they are supplied by `bucketPeriods`
+  rather than derived from a calendar.
+- **`GRAIN_MAXIMUMS`** states 366 days, 52 weeks, 24 months and 12 Review
+  periods, replacing the eight the Analytics bucketer had inherited from
+  `MAX_TREND_PERIODS`. A window wider than its grain's maximum comes back with
+  `bounded`, the bound and the count that was asked for — never silently
+  shortened.
+- **`Series<Point>`** carries its points, its buckets and its bound together, so
+  a surface cannot present a capped population as a complete one
+  ([ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)
+  decision 11) without ignoring a field.
+
+The slice is **pure** — no D1, no JSX, no clock, no timezone database; owner-day
+resolution arrives as an argument. The READS live on the repositories that own
+the stores (`TaskRepository.countCompletedInBuckets` over the one
+completion-time authority `spine_records.completed_at`;
+`ActivityRepository.countByTypeInBuckets` and `listInWindow`;
+`ReviewInsightRepository.listSnapshotSeries`;
+`GoalMeasurementRepository.listMeasurementSeries`), because a history read is a
+read of a store.
+
+#### Insight, the first surface built on it (V2.9 INS-03)
+
+`/analytics` is where the vocabulary above became a control. Its own module
+kernel ([`insight-range.ts`](../../app/kernel/analytics/insight-range.ts))
+names six **windows** — 7 days, 4 weeks, 12 weeks, 6 months, 12 months, 24
+months — and both the window and the **grain** live in the URL, so a view can
+be shared and comes back identical (ADR-059). Three properties are worth
+knowing before adding to it:
+
+- **The grain control is computed, not listed.** `allowedGrains` runs
+  `requestedBucketCount` against `GRAIN_MAXIMUMS`, so the offer and the series'
+  bound cannot drift apart: 24 months is months-only, 12 months is
+  days-or-months. A grain the window cannot hold is never offered, and a URL
+  asking for one falls back to a grain that fits rather than shortening the
+  series in silence.
+- **The buckets and the range TOTAL are separate reads, deliberately.** A Task
+  can be completed, reopened and completed again, so the sum of the buckets is
+  not the total ([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
+  decision 4). Both read `spine_records.completed_at`; neither reads
+  `task.completed` Activity events.
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 12`,
+  asserted against real D1 at every window and grain the surface offers
+  ([`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)).
+  24 months at month grain costs what 7 days at day grain costs, because every
+  windowed read is one grouped statement whose shape is independent of the
+  window. A budget that grew with the window would mean a bucketed read had
+  gone back to a column per bucket. It is the FULL page: three of the reads
+  return before touching the database on a workspace with no Goals, so the
+  budget's fixture seeds Goals with readings rather than understating it.
+
+**"What changed" (V2.9 INS-04)** is the same window in events rather than
+figures. `/analytics/activity` is the ONE door onto the workspace-wide FND-05
+stream — it moved here from `/today/activity`, which had no consumer
+([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)),
+and the Today route was retired in the same change rather than left as a second
+door. It reads `listInWindow` and takes its window as the same `window=`
+parameter the page uses, resolved by the same parser, so a caller cannot ask it
+for a span the surface does not offer and the list cannot describe a different
+period from the charts. The panel is the shared DS-05 feed; the page is bounded
+at 30 events and answers with a cursor, never a total.
+
+The one bound the surface could not lift is the overdue LEVEL series: its
+moments do not partition anything, so each needs its own `SUM(CASE …)` column,
+and two bound parameters per column against D1's ceiling of 100 caps it at
+`MAX_OVERDUE_MOMENTS = 40`. A long window reads the most recent 40 closes and
+the page **says so** — a stated bound rather than an invisible one.
+
+A bounded series is not parallel to the window's buckets, which is a trap worth
+knowing before adding a panel here: the overdue points can be the newest 39 of
+84, so every label, axis end and date is resolved **by the point's bucket key**,
+never by its position in the label arrays. Indexing from zero plots the most
+recent readings against the oldest dates and announces them that way — a chart
+that is wrong rather than one that is bounded.
 
 ### Module registry: self-registering module capabilities
 
@@ -198,7 +295,7 @@ A module is a self-contained feature area (Today, Projects, Notes, …). Each on
 
 **Module rules:**
 - A module never imports another module's internals — enforced by a repository import-boundary test ([`MODULES.md`](../development/MODULES.md)). Cross-module relationships go through **EntityLinks**.
-- A module builds its UI from the **shared Design System** — no bespoke duplicates ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke)).
+- A module builds its UI from the **shared Design System** — no bespoke duplicates ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)).
 - A module is independently implementable, matching the [ROADMAP](../roadmap/ROADMAP_V2.md) structure — one item, one PR.
 
 ---

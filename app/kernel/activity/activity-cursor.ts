@@ -45,10 +45,12 @@ export const ACTIVITY_CURSOR_VERSION = 1;
 
 /**
  * Which kind of listing a cursor belongs to: the whole-workspace feed, ONE
- * entity's Timeline, or a bounded SET of anchor entities read as one stream
- * (`listForEntities`).
+ * entity's Timeline, a bounded SET of anchor entities read as one stream
+ * (`listForEntities`), or one WINDOW of the workspace feed (`listInWindow`,
+ * V2.9 INS-01).
  */
-export type ActivityCursorScopeKind = "workspace" | "entity" | "entities";
+export type ActivityCursorScopeKind =
+  "workspace" | "entity" | "entities" | "window";
 
 /** The ordering position a cursor points just after (newest-first). */
 export type ActivityCursorPosition = {
@@ -138,12 +140,22 @@ const SCOPE_KINDS: ReadonlySet<ActivityCursorScopeKind> = new Set([
   "workspace",
   "entity",
   "entities",
+  "window",
 ]);
 
-/** Scope kinds that carry a non-empty anchor key in the cursor's `entityId` slot. */
+/**
+ * Scope kinds that carry a non-empty anchor key in the cursor's `entityId` slot.
+ *
+ * `window` is one of them: its key is {@link activityWindowKey}, the window's
+ * own instants, so a cursor issued for one fortnight is rejected against
+ * another exactly as an anchor-set cursor is rejected against a different set.
+ * A window cursor replayed against a different window would silently skip or
+ * repeat events, which is the same defect the anchor key exists to prevent.
+ */
 const ANCHORED_SCOPE_KINDS: ReadonlySet<ActivityCursorScopeKind> = new Set([
   "entity",
   "entities",
+  "window",
 ]);
 
 /**
@@ -172,6 +184,24 @@ export function activityAnchorKey(entityIds: readonly string[]): string {
     hash = ((hash ^ BigInt(byte)) * 0x100000001b3n) & mask;
   }
   return `${sorted.length}:${hash.toString(16).padStart(16, "0")}`;
+}
+
+/**
+ * The anchor key of a WINDOWED listing (V2.9 INS-01): the half-open instant
+ * range itself.
+ *
+ * Verbatim rather than hashed, unlike {@link activityAnchorKey}: a window is two
+ * fixed-length timestamps, so the cursor stays small and the key stays exactly
+ * as readable as the thing it identifies. Same purpose and the same
+ * non-guarantee — it detects an accidental scope change, and is not a
+ * cryptographic commitment, because the window is supplied by the trusted
+ * server caller on every call and is never read back out of the cursor.
+ */
+export function activityWindowKey(
+  startsAtIso: string,
+  endsAtIso: string,
+): string {
+  return `${startsAtIso}..${endsAtIso}`;
 }
 
 /**

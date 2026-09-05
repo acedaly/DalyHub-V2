@@ -42,23 +42,37 @@
  */
 
 import {
+  allowedGrains,
   evaluateAnalytics,
+  insightWindowDays,
   previousSpan,
-  rangeBuckets,
-  rangeSpan,
   type AnalyticsAreaRow,
+  type AnalyticsBucket,
   type AnalyticsCompletionCounts,
+  type AnalyticsGoalSeries,
   type AnalyticsModel,
-  type AnalyticsRangeId,
   type AnalyticsSeriesPoint,
   type AnalyticsSpan,
+  type InsightWindowId,
 } from "~/kernel/analytics";
+import {
+  bucketWindow,
+  buildActivityWindow,
+  type Grain,
+} from "~/kernel/history";
+import {
+  MAX_OVERDUE_MOMENTS,
+  MAX_TREND_PERIODS,
+  readAcrossReviews,
+} from "~/kernel/review-insights";
+import { GOAL_COMPLETED, PROJECT_COMPLETED } from "~/kernel/spine";
 import {
   composeGoalAlignmentFacts,
   evaluateGoalAlignment,
 } from "~/kernel/alignment";
 import { formatPreferenceDate, type DateFormat } from "~/kernel/preferences";
 import type {
+  GoalContributionAcrossReviews,
   PeriodCountRequest,
   ReviewPeriodWindow,
 } from "~/kernel/review-insights";
@@ -79,12 +93,56 @@ export const ANALYTICS_LIMITS = {
   areas: 24,
   /** Goals examined for the on-track tally, alignment-ranked. */
   goals: 40,
+  /**
+   * V2.9 INS-03 — readings per Goal in the compact series.
+   *
+   * A display bound as much as a query bound: a card-sized sparkline resolves
+   * nothing beyond a couple of dozen points, and the bound is stated on the
+   * page rather than applied in silence.
+   */
+  goalSeriesPoints: 24,
 } as const;
+
+/**
+ * V2.9 INS-03 — what one Insight page load costs, in D1 statements.
+ *
+ * Declared here and asserted against the real database in
+ * `test/kernel/ins-03-insight-range.test.ts`, so a read added to this loader
+ * has to move a number a reviewer can see rather than arriving unnoticed. The
+ * same discipline `REVIEW_INSIGHTS_QUERY_BUDGET` keeps for the Review.
+ *
+ * The property that matters is not the number but its FLATNESS: 24 months at
+ * month grain costs exactly what 7 days at day grain costs, because every
+ * windowed read on this page is one grouped statement whose shape is
+ * independent of the window (DEBT-239). A budget that grew with the window
+ * would mean a bucketed read had gone back to a column per bucket.
+ *
+ * This is the FULL page: a workspace with Goals that carry measurements, so
+ * every conditional read fires. A workspace with no Goal at all costs less,
+ * because three of these return before touching the database rather than
+ * asking a question about an empty set — which is why the budget's fixture
+ * seeds Goals and readings, and why it would understate the page if it did not.
+ */
+export const ANALYTICS_QUERY_BUDGET = 12;
 
 /** Everything the Analytics route hands the browser. Fully JSON-safe. */
 export interface AnalyticsPageData {
   readonly model: AnalyticsModel;
-  readonly range: AnalyticsRangeId;
+  /** V2.9 INS-03 — the window and grain the page is showing, for its controls. */
+  readonly window: InsightWindowId;
+  readonly grain: Grain;
+  /** Which grains this window can be read at, so the control offers only those. */
+  readonly grains: readonly Grain[];
+  /**
+   * V2.9 INS-04 — the owner-calendar day this page's figures were measured back
+   * from, carried so the "What changed" panel asks for the SAME period.
+   *
+   * Every window ends on the owner's today, so a page left open across their
+   * midnight would otherwise page a feed for a window one day off the figures
+   * above it — and the kernel binds a cursor to its window, so "Load more"
+   * after midnight would be rejected outright.
+   */
+  readonly todayIso: string;
   /** The span, as the owner reads it — "5 August – 11 August 2026". */
   readonly rangeLabel: string;
   /** One label per bucket, in the same order as `model.buckets`. */
@@ -177,7 +235,10 @@ function axisLabel(iso: string): string {
 
 export interface AnalyticsContextInput {
   readonly scope: WorkspaceScope;
-  readonly range: AnalyticsRangeId;
+  /** V2.9 INS-03 — the named window the owner chose. */
+  readonly window: InsightWindowId;
+  /** The grain to cut it at; already narrowed to one the window can hold. */
+  readonly grain: Grain;
   readonly todayIso: string;
   readonly timezone: string;
   readonly dateFormat: DateFormat;
@@ -187,8 +248,34 @@ export interface AnalyticsContextInput {
 export async function loadAnalytics(
   input: AnalyticsContextInput,
 ): Promise<AnalyticsPageData> {
-  const span = rangeSpan(input.range, input.todayIso);
-  const buckets = rangeBuckets(input.range, span);
+  const startOfOwnerDay = (dayIso: string) =>
+    ownerLocalToUtc(`${dayIso}T00:00`, input.timezone);
+  const span = insightWindowDays(input.window, input.todayIso);
+  /*
+   * V2.9 INS-03 — the buckets come from the HISTORY KERNEL, not from a
+   * module-private bucketer. Same backward-from-the-end rule Analytics always
+   * had (the most recent bucket is whole, any remainder falls at the oldest
+   * end), now with a stated maximum per grain instead of the eight it inherited
+   * from `MAX_TREND_PERIODS`, and with the bound reported rather than applied
+   * in silence (DEBT-239).
+   */
+  const cut = bucketWindow({
+    window: buildActivityWindow({
+      periodStart: span.startIso,
+      periodEnd: span.endIso,
+      startOfOwnerDay,
+    }),
+    grain: input.grain,
+    startOfOwnerDay,
+  });
+  // The kernel's buckets, in the day-only shape the evaluator and the labels
+  // read. Their instants live on `cut.buckets` and are used directly by the
+  // reads below, so the conversion happens once rather than per consumer.
+  const buckets: readonly AnalyticsBucket[] = cut.buckets.map((bucket) => ({
+    key: bucket.key,
+    startIso: bucket.periodStart,
+    endIso: bucket.periodEnd,
+  }));
   const previous = previousSpan(span);
 
   /*
@@ -212,22 +299,35 @@ export async function loadAnalytics(
    * has a live list standing behind it as evidence. Converging the Review's own
    * period facts onto the completed window is RECALL-04's, not this item's.
    *
-   * The completion windows are asked for in ONE call — every bucket plus the two
-   * totals, at most 7 + 2 = 9 against the read's own bound — and the range total
-   * is still its OWN window rather than the sum of its buckets. With one stored
-   * `completed_at` per record the sum would now agree, but a total that is a
-   * separate question stays a separate window: it is what the owner reads, and
-   * it must not depend on how the shape happens to be cut.
+   * **V2.9 INS-03 splits what was one call into a SERIES read and a TOTALS
+   * read**, because they no longer fit one shape. The series now runs to 366
+   * buckets, which `countCompletedTasksInWindows` cannot express at all — it
+   * binds two parameters per window against D1's ceiling of 100 and is capped
+   * at fourteen. `countCompletedInBuckets` (INS-01) carries the boundaries as
+   * one JSON parameter and is one statement whatever the window; the two
+   * totals stay on the unbucketed sibling, which is the read they are the
+   * natural size for. Both hit the same authority under the same predicate,
+   * and INS-01 asserts they agree.
    *
-   * Two statements, each one index range, both flat with respect to workspace
-   * size and to the length of the range — the same budget as before.
+   * The range total is still its OWN window rather than the sum of its
+   * buckets. With one stored `completed_at` per record the sum would now
+   * agree, but a total that is a separate question stays a separate window: it
+   * is what the owner reads, and it must not depend on how the shape happens
+   * to be cut.
+   *
+   * **Projects and Goals gain a bucketed line** (the roadmap's three completion
+   * series) through `ActivityRepository.countByTypeInBuckets` — one more
+   * statement, and the same ADR-079 d2 event semantics their totals already
+   * have, so the line and the card cannot disagree.
    */
   const CURRENT_KEY = "current";
   const PREVIOUS_KEY = "previous";
-  const completedWindows: CompletedTaskWindow[] = [
-    ...buckets.map((bucket) =>
-      toCompletedWindow(bucket.key, bucket, input.timezone),
-    ),
+  const completedBuckets: CompletedTaskWindow[] = cut.buckets.map((bucket) => ({
+    key: bucket.key,
+    startsAt: new Date(bucket.startInstantIso),
+    endsAt: new Date(bucket.endInstantIso),
+  }));
+  const completedTotals: CompletedTaskWindow[] = [
     toCompletedWindow(CURRENT_KEY, span, input.timezone),
     toCompletedWindow(PREVIOUS_KEY, previous, input.timezone),
   ];
@@ -240,12 +340,17 @@ export async function loadAnalytics(
    * CONVERGE-01 §8 — the overdue series, as ONE more grouped statement.
    *
    * Every bucket's close, plus the close of the previous span, which is the
-   * moment the metric card's comparison is against. That is `buckets.length + 1`
-   * moments, and it fits inside `MAX_TREND_PERIODS` for every range in
-   * `ANALYTICS_RANGES` by construction — 7+1, 4+1 and 6+1 against a cap of 8.
-   * `test/unit/analytics/overdue-series.test.ts` asserts that rather than
-   * leaving it as a coincidence, because the read SILENTLY slices at the cap and
-   * a range added later without checking would quietly lose its oldest bucket.
+   * moment the metric card's comparison is against.
+   *
+   * **V2.9 INS-03 — this read's bound is REAL, and the page says so when it
+   * bites.** Unlike the counting reads, the overdue level could not be lifted
+   * by carrying boundaries as JSON: the moments do not partition anything, so
+   * each needs its own `SUM(CASE …)` column over one pass, and two bound
+   * parameters per column against D1's ceiling of 100 puts the limit near 48
+   * (`MAX_OVERDUE_MOMENTS = 40`). A 366-day or 52-week window therefore reads
+   * the most recent 40 moments rather than one per bucket — and `overdueMoments`
+   * carries that number to the surface, which states it. Silently slicing at
+   * the cap is exactly what this replaces.
    *
    * The previous-span close is asked for in the same call rather than as a
    * second statement, unlike the completion totals: overdue is a LEVEL read at a
@@ -253,8 +358,13 @@ export async function loadAnalytics(
    * the buckets, and no reason to spend a second scan.
    */
   const PREVIOUS_OVERDUE_KEY = "previous";
+  // Keep the MOST RECENT moments when the bound bites — a backlog's recent
+  // shape is the readable half — leaving room for the previous-span close.
+  const overdueBuckets = buckets.slice(-(MAX_OVERDUE_MOMENTS - 1));
+  const overdueMoments =
+    overdueBuckets.length < buckets.length ? overdueBuckets.length : 0;
   const overdueRequests: PeriodCountRequest[] = [
-    ...buckets.map((bucket) => ({
+    ...overdueBuckets.map((bucket) => ({
       key: bucket.key,
       window: toWindow(bucket, input.timezone),
     })),
@@ -269,22 +379,33 @@ export async function loadAnalytics(
   let previousCounts: AnalyticsCompletionCounts | null = null;
   let failed = false;
   try {
-    const [completedRows, totalRows] = await Promise.all([
-      input.scope.tasks.countCompletedTasksInWindows(completedWindows),
-      input.scope.reviewInsights.countPeriodCompletions(totalRequests),
-    ]);
-    const completedByKey = new Map(
-      completedRows.map((row) => [row.key, row.completed]),
+    const [seriesRows, totalCompletedRows, totalRows, eventRows] =
+      await Promise.all([
+        input.scope.tasks.countCompletedInBuckets({
+          buckets: completedBuckets,
+        }),
+        input.scope.tasks.countCompletedTasksInWindows(completedTotals),
+        input.scope.reviewInsights.countPeriodCompletions(totalRequests),
+        // The Projects and Goals LINE, in the same event semantics their
+        // totals use (ADR-079 d2), so the two cannot disagree.
+        input.scope.activity.countByTypeInBuckets({
+          types: [PROJECT_COMPLETED, GOAL_COMPLETED],
+          buckets: completedBuckets,
+        }),
+      ]);
+    const seriesByKey = new Map(
+      seriesRows.map((row) => [row.key, row.completed]),
     );
+    const completedByKey = new Map(
+      totalCompletedRows.map((row) => [row.key, row.completed]),
+    );
+    const eventsByKey = new Map(eventRows.map((row) => [row.key, row.counts]));
     const totalsByKey = new Map(totalRows.map((row) => [row.key, row]));
     series = buckets.map((bucket) => ({
       key: bucket.key,
-      tasksCompleted: completedByKey.get(bucket.key) ?? 0,
-      // The trend draws Tasks alone. Projects and Goals are period TOTALS on the
-      // metric row and have no bucketed line, so asking for them per bucket
-      // would be a statement spent on numbers nothing renders.
-      projectsCompleted: 0,
-      goalsCompleted: 0,
+      tasksCompleted: seriesByKey.get(bucket.key) ?? 0,
+      projectsCompleted: eventsByKey.get(bucket.key)?.[PROJECT_COMPLETED] ?? 0,
+      goalsCompleted: eventsByKey.get(bucket.key)?.[GOAL_COMPLETED] ?? 0,
     }));
     const currentRow = totalsByKey.get(CURRENT_KEY);
     const previousRow = totalsByKey.get(PREVIOUS_KEY);
@@ -312,8 +433,21 @@ export async function loadAnalytics(
     readOverdue(input, overdueRequests, PREVIOUS_OVERDUE_KEY),
   ]);
 
+  /*
+   * V2.9 INS-03 — the two Goal reads, over the Goals the tally just read.
+   *
+   * Sequenced after the tally rather than beside it because both need its ids,
+   * and asking for a second Goal page to parallelise would be a statement spent
+   * to save a round trip. Beside EACH OTHER, because they are independent.
+   */
+  const [measured, contributions] = await Promise.all([
+    readMeasuredGoals(input, goals?.subjects ?? []),
+    readGoalContributions(input, goals?.subjects ?? []),
+  ]);
+
   const model = evaluateAnalytics({
-    range: input.range,
+    window: input.window,
+    grain: input.grain,
     // V2.7 RECALL-02 — the window the range TOTAL was counted over, carried
     // through so the "Tasks completed" metric links to exactly those days.
     span,
@@ -325,17 +459,30 @@ export async function loadAnalytics(
     areasBounded: areas.bounded,
     areasAvailable: areas.available,
     goals,
-    overdueSeries: buckets.map((bucket) => ({
+    // Only the moments actually read carry a point. A bucket the overdue read
+    // could not reach is ABSENT rather than zero, because a zero here would
+    // read as "nothing was overdue then" (ADR-079 d11).
+    overdueSeries: overdueBuckets.map((bucket) => ({
       key: bucket.key,
       overdue: overdue.byKey.get(bucket.key) ?? 0,
     })),
     overduePrevious: overdue.previous,
     overdueAvailable: overdue.available,
+    measuredGoals: measured.rows,
+    measuredGoalsBounded: goals?.bounded ?? false,
+    measuredGoalsAvailable: measured.available,
+    goalContributions: contributions,
+    seriesBounded: cut.bounded,
+    seriesBound: cut.bound,
+    overdueMoments,
   });
 
   return {
     model,
-    range: input.range,
+    window: input.window,
+    grain: input.grain,
+    grains: allowedGrains(input.window, input.todayIso),
+    todayIso: input.todayIso,
     rangeLabel: spanLabel(span, input.dateFormat),
     bucketLabels: buckets.map((bucket) => spanLabel(bucket, input.dateFormat)),
     bucketShortLabels: buckets.map((bucket) => axisLabel(bucket.endIso)),
@@ -449,9 +596,16 @@ async function readDistribution(
  * "4 of 12 moving" reading as an indictment when eight of the twelve are
  * finished would be the surface lying by omission.
  */
-async function readGoalTally(
-  input: AnalyticsContextInput,
-): Promise<{ moving: number; total: number; bounded: boolean } | null> {
+async function readGoalTally(input: AnalyticsContextInput): Promise<{
+  moving: number;
+  total: number;
+  bounded: boolean;
+  /**
+   * The Goals the tally examined, so the measured-Goal series reads the same
+   * page — and carries their titles, so it needs no second read for them.
+   */
+  subjects: readonly { readonly id: string; readonly title: string }[];
+} | null> {
   try {
     const { evaluation, recentWindowStartIso, recentBoundaryStartIso } =
       createOwnerAlignmentContext(input.now, input.timezone);
@@ -492,6 +646,8 @@ async function readGoalTally(
 
     let moving = 0;
     let total = 0;
+
+    const subjects: { id: string; title: string }[] = [];
     for (const goal of goalItems) {
       const alignment = evaluateGoalAlignment(
         composeGoalAlignmentFacts({
@@ -512,10 +668,121 @@ async function readGoalTally(
       );
       if (alignment.state === "completed") continue;
       total += 1;
+      subjects.push({ id: goal.id, title: goal.title });
       if (alignment.state === "active") moving += 1;
     }
-    return { moving, total, bounded };
+    return { moving, total, bounded, subjects };
   } catch {
     return null;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Measured Goals (V2.9 INS-03)                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A compact series for every MEASURED Goal on the page — the caller DEBT-212
+ * asked for, and the reason `listMeasurementSeries` exists.
+ *
+ * ONE grouped statement for the whole page of ids, bounded per Goal inside the
+ * window function rather than in JavaScript. A Goal with fewer than two
+ * readings draws nothing, so it is dropped here rather than rendered as a flat
+ * line that would read as "no change" (the Sparkline's own rule).
+ *
+ * The points are the Goal's own readings, NOT a bucketed count: a measurement
+ * is a level the owner recorded on a day, and bucketing levels would invent
+ * readings between them. That is why this series does not run through
+ * `bucketWindow` and does not carry the page's grain.
+ */
+async function readMeasuredGoals(
+  input: AnalyticsContextInput,
+  subjects: readonly { readonly id: string; readonly title: string }[],
+): Promise<{
+  rows: readonly AnalyticsGoalSeries[];
+  available: boolean;
+}> {
+  if (subjects.length === 0) return { rows: [], available: true };
+  try {
+    const series = await input.scope.goalMeasurements.listMeasurementSeries(
+      subjects.map((subject) => subject.id),
+      { perGoalLimit: ANALYTICS_LIMITS.goalSeriesPoints },
+    );
+    const rows: AnalyticsGoalSeries[] = [];
+    for (const subject of subjects) {
+      const points = series.get(subject.id) ?? [];
+      // Fewer than two readings is not a series. The surface shows the Goal's
+      // figure on its own record instead; drawing one point as a line would be
+      // a chart asserting a shape it does not have.
+      if (points.length < 2) continue;
+      rows.push({
+        goalId: subject.id,
+        title: subject.title,
+        points: points.map((point) => ({
+          key: point.measuredOn,
+          date: point.measuredOn,
+          value: point.value,
+        })),
+        bounded: points.length >= ANALYTICS_LIMITS.goalSeriesPoints,
+        to: `/goals/${encodeURIComponent(subject.id)}`,
+      });
+    }
+    return { rows, available: true };
+  } catch {
+    return { rows: [], available: false };
+  }
+}
+
+/**
+ * V2.9 INS-03 — the across-Reviews contribution line, for a Goal with no
+ * measurement.
+ *
+ * A measured Goal has a shape to draw. An unmeasured one has none, and drawing
+ * nothing beside its name would make the panel a list of Goals half of which
+ * are blank. What it does have is the Review's own record of whether work
+ * reached it — already stored, already read back by INS-02 — so the same
+ * sentence appears here, under the same rules.
+ *
+ * TWO statements, flat: the most recent completed Review (the anchor the series
+ * is same-type-filtered against), then the series itself. The classification is
+ * computed by the SAME pure function the Review panel and the Goal story use
+ * (`readAcrossReviews`), so a Goal cannot be "moving" here and something else
+ * there.
+ *
+ * The window is REVIEWS, not the page's window, and the sentence says so —
+ * "Moving at 3 of your last 4 Reviews". A Review period is not the span the
+ * owner selected, and quietly presenting one as the other is exactly what
+ * ADR-079 d11 refuses.
+ */
+async function readGoalContributions(
+  input: AnalyticsContextInput,
+  subjects: readonly { readonly id: string; readonly title: string }[],
+): Promise<readonly GoalContributionAcrossReviews[]> {
+  if (subjects.length === 0) return [];
+  try {
+    const anchors = await input.scope.reviews.list({
+      view: "completed",
+      sort: "period",
+      limit: 1,
+    });
+    const anchor = anchors.items[0];
+    if (anchor === undefined) return [];
+    const series = await input.scope.reviewInsights.listSnapshotSeries(
+      anchor.id,
+      MAX_TREND_PERIODS,
+    );
+    return readAcrossReviews({
+      series,
+      // Only the Goal facts are wanted here: this panel is about Goals, and
+      // asking for Project or carry-over titles it does not render would be a
+      // read spent on nothing.
+      projects: [],
+      goals: subjects,
+      tasks: [],
+    }).goals;
+  } catch {
+    // A failed read renders NOTHING rather than an absence claim. The measured
+    // Goals beside it are a separate read and are unaffected.
+    return [];
   }
 }

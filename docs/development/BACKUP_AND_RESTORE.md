@@ -3,7 +3,7 @@
 > How the owner gets their data **back in**, what DalyHub backs up on their
 > behalf, and what to do on the day something is gone.
 >
-> Implements [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21)
+> Implements [SET-02](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21--delivered-2026-08-08)
 > and closes the AUDIT-11 half of
 > [DEBT-85](../product/PRODUCT_DEBT.md#-debt-85--csp-has-no-script-srcdefault-src--p3--resolved-2026-08-08).
 > Decision & rationale: [ADR-081](../decisions/ARCHITECTURE_DECISIONS.md#adr-081-restore--one-canonical-format-a-staged-atomic-cutover-and-a-verified-way-back).

@@ -10,15 +10,18 @@ after beside it.
   screen is the bottom-left panel)
 
 Every "final" shot below was captured with `node scripts/ds-04-shot.mjs`, against
-the real dev server and the real seeded workspace.
+the real dev server and the real seeded workspace. The captures (`baseline/` and
+`final/` beside this page) were not committed to the repository; each section
+names its shots in plain text and records what they showed.
 
 ---
 
 ## 1. The Tasks screen, 1440 (Concept B, bottom-left panel)
 
-| Baseline | Final |
-|---|---|
-| ![](baseline/tasks-1440-light.png) | ![](final/tasks-1440-light.png) |
+Shots: `baseline/tasks-1440-light.png` — the Tasks list at 1440, light, before
+DS-04: a bordered, rounded panel on a grey page with a right-aligned metadata
+run; `final/tasks-1440-light.png` — the same list after: hairline rows on a
+white workspace under a column header.
 
 **What changed**
 
@@ -62,9 +65,9 @@ the real dev server and the real seeded workspace.
 
 ## 2. Density at laptop widths
 
-| 1366 | 1920 |
-|---|---|
-| ![](final/tasks-1366-light.png) | ![](final/tasks-wide-light.png) |
+Shots: `final/tasks-1366-light.png` — the final list at 1366, light, the row
+pitch unchanged at 46px; `final/tasks-wide-light.png` — the final list at
+1920, light, the metadata columns fixed and the title taking the extra width.
 
 **Measured, and worth stating plainly: the row PITCH did not change.** Both the
 baseline and the final list run at 46px per row at 1440 — the row is the
@@ -84,9 +87,11 @@ metadata does not spread.
 
 ## 3. The phone (Concept A, "Tasks (Mobile)")
 
-| Baseline 390 | Final 390 | Final 320 |
-|---|---|---|
-| ![](baseline/tasks-390-light.png) | ![](final/tasks-390-light.png) | ![](final/tasks-320-light.png) |
+Shots: `baseline/tasks-390-light.png` — the phone list at 390 before: titles
+cut to fourteen characters, project and priority dropped, solid purple scope
+pills running off the edge; `final/tasks-390-light.png` — the same at 390
+after, the row on two lines with quiet text tabs; `final/tasks-320-light.png` —
+the final row holding the same composition at 320.
 
 **What changed**
 
@@ -100,9 +105,10 @@ metadata does not spread.
 
 ## 4. Dark
 
-| Baseline | Final |
-|---|---|
-| ![](baseline/tasks-1440-dark.png) | ![](final/tasks-1440-dark.png) |
+Shots: `baseline/tasks-1440-dark.png` — the list at 1440, dark, before, the
+panel sunk into the page beside the dark rail; `final/tasks-1440-dark.png` —
+the same after, the workspace on the raised surface so the rail reads as a
+frame.
 
 The workspace takes the raised surface rather than the page's sunken one, so the
 dark rail reads as a frame around a distinctly lighter working surface instead of
@@ -111,9 +117,11 @@ all re-checked in dark; the eight-pass axe sweep covers both appearances.
 
 ## 5. Row states
 
-| Normal | Hover | Long title | Overdue | Completed |
-|---|---|---|---|---|
-| ![](final/task-row-normal.png) | ![](final/task-row-hover.png) | ![](final/task-row-long-title.png) | ![](final/task-row-overdue.png) | ![](final/task-row-completed.png) |
+Shots, all final: `final/task-row-normal.png` — a row at rest;
+`final/task-row-hover.png` — the hover surface; `final/task-row-long-title.png`
+— a long title truncating in the only flexible track while the metadata columns
+hold; `final/task-row-overdue.png` — the overdue date coloured, the completion
+ring not; `final/task-row-completed.png` — the completed row muted and struck.
 
 The overdue row's **completion ring is not crimson**. The date says the task has
 slipped and the heading above says Overdue; a third, larger, colour-only
@@ -123,12 +131,13 @@ opacity — a 0.72 layer over the muted role composites below 4.5:1.
 
 ## 6. Selectors
 
-| Priority | Project | Date |
-|---|---|---|
-| ![](final/priority-selector.png) | ![](final/project-selector.png) | ![](final/date-selector.png) |
+Shots, all final: `final/priority-selector.png` — the priority menu, one line
+per option with the current value ticked; `final/project-selector.png` — the
+project menu at the menu rung, ending in the search hand-off;
+`final/date-selector.png` — the date menu.
 
-Baseline for comparison: [`baseline/project-selector.png`](baseline/project-selector.png)
-— fifty candidates at 59px each, wrapping to three lines, in a menu the width of a
+Baseline for comparison: `baseline/project-selector.png` showed the project menu
+before — fifty candidates at 59px each, wrapping to three lines, in a menu the width of a
 176px column.
 
 Now: one line per option at the menu rung, so ~14 are visible instead of ~5; the
@@ -138,15 +147,18 @@ picker over the whole workspace.
 
 ## 7. Quick capture and selection
 
-| Desktop | Mobile | Bulk selection |
-|---|---|---|
-| ![](final/quick-capture-desktop.png) | ![](final/quick-capture-mobile.png) | ![](final/bulk-selection.png) |
+Shots, all final: `final/quick-capture-desktop.png` — quick capture as the row
+above the first task at desktop width, not a filled card;
+`final/quick-capture-mobile.png` — the same on the phone;
+`final/bulk-selection.png` — rows selected in bulk with the selection state on
+the list.
 
 ## 8. The Task Drawer
 
-| Baseline | Final light | Final dark |
-|---|---|---|
-| ![](baseline/task-drawer-light.png) | ![](final/task-drawer-light.png) | ![](final/task-drawer-dark.png) |
+Shots: `baseline/task-drawer-light.png` — the drawer before: a lavender wash,
+two nested white cards, full-width outlined buttons and a 28px radius;
+`final/task-drawer-light.png` — the drawer after, light, hairline-separated
+bands and word-sized buttons; `final/task-drawer-dark.png` — the same in dark.
 
 The lavender wash is gone — product-wide, because a generated tonal step resolved
 to `#f7f1ff` under every record in the product. The two nested white cards became
@@ -155,9 +167,8 @@ of their words, and the panel's radius came down from 28px.
 
 ## 9. Cross-module regression
 
-| Today | Projects |
-|---|---|
-| ![](final/regression-today.png) | ![](final/regression-projects.png) |
+Shots, both final: `final/regression-today.png` — Today after DS-04;
+`final/regression-projects.png` — Projects after DS-04.
 
 Both still render the generic `Card` and are unchanged in structure. What changed
 for them is what changed product-wide: the drawer surface, the phone tab rail's

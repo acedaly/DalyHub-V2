@@ -45,7 +45,8 @@ The layering, top-down. A component reaches for the top layer; the rest is what 
 
 > The M3X pass (2026-08). Everything below is an extension of the Material Design 3
 > foundation above, never a second design language beside it. Before-and-after
-> evidence: [`assets/m3x-2026-08/`](assets/m3x-2026-08/); the findings it answers:
+> evidence was captured to `assets/m3x-2026-08/` (not committed; the audit records
+> what each capture showed); the findings it answers:
 > [`M3_EXPRESSIVE_AUDIT_2026_08.md`](M3_EXPRESSIVE_AUDIT_2026_08.md).
 
 ### The principle
@@ -797,8 +798,9 @@ Both routes reach the same declarations. This is deliberately stricter than it w
 ## What it looks like
 
 Screenshots of the shipped surfaces in **both appearances**, captured by
-[`e2e/m3-screenshots.spec.ts`](../../e2e/m3-screenshots.spec.ts):
-[`docs/design/assets/m3-2026-08/`](assets/m3-2026-08/).
+[`e2e/m3-screenshots.spec.ts`](../../e2e/m3-screenshots.spec.ts) into
+`docs/design/assets/m3-2026-08/`, a folder that was never committed — re-run the
+spec to regenerate them.
 
 The pass is opt-in, like every other screenshot pass, so the ordinary gate
 neither slows down nor writes into the repository:
@@ -1432,7 +1434,7 @@ A **multi-field composition** still does not belong inline. A Task's recurrence 
   ([ADR-113](../decisions/ARCHITECTURE_DECISIONS.md#adr-113-a-tag-is-a-workspace-vocabulary-with-a-folded-key-and-an-owners-spelling--one-join-table-one-normalisation-rule-one-filter-dimension-and-a-tag-that-offers-rather-than-creates)).
 - **Contextual editing uses the CANONICAL mutation**, or none at all. A capture surface's controls report a value; the host's own submit creates the record.
 **Domain adapters.** `TASK_PRIORITY_OPTIONS` (the one priority vocabulary), `DateChoice` (presets, month grid, commands), `SortMenu`, and `TaskMetaControls` (a Task's date, priority and parent over a value rather than a save).
-**Realised by** the [overflow menu](#overflow-menu), [inline editing](#inline-editing-ds-16), the [forms](#forms) select and entity-link pickers, [filters](#filters), the collection controls, the saved-view switcher, Quick Capture and the three collection sorts.
+**Realised by** the [overflow menu](#overflow-menu), [inline editing](#inline-editing-ds-16-dhds-10), the [forms](#forms) select and entity-link pickers, [filters](#filters), the collection controls, the saved-view switcher, Quick Capture and the three collection sorts.
 
 ### Record lifecycle
 **Purpose.** One vocabulary and one interaction for Archive / Restore / Delete, on every entity.
@@ -1510,7 +1512,7 @@ An ordered, resumable pass over ONE record: a canonical step registry, the step 
 
 ## Shared Record Layout (DS-02)
 
-The [Record Header](#record-header), [Summary Panel](#summary-panel) and [Tabs](#tabs) patterns above are realised by ONE reusable, entity-agnostic scaffold: the **Shared Record Layout** ([DS-02](../roadmap/ROADMAP_V2.md#-ds-02--shared-record-layout-header--summary--tabs)), in [`app/shared/record-layout`](../../app/shared/record-layout). Every record view (Area, Goal, Project, Task, Person, Note, …) composes it — there are no bespoke record scaffolds. It builds entirely on [DS-01 tokens](#design-tokens-ds-01); it owns structure and accessibility, not values.
+The [Record Header](#record-header), [Summary Panel](#summary-panel) and [Tabs](#tabs) patterns above are realised by ONE reusable, entity-agnostic scaffold: the **Shared Record Layout** ([DS-02](../roadmap/ROADMAP_V2.md#-ds-02--shared-record-layout-header--summary--tabs)), in [`app/shared/record-layout`](../../app/shared/record-layout). Every record view (Area, Goal, Project, Task, Person, Note, …) composes it — there are no bespoke record scaffolds. It builds entirely on [DS-01 tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery); it owns structure and accessibility, not values.
 
 ### Anatomy
 
@@ -1679,7 +1681,7 @@ These replaced four private copies at three different gaps (the Task Drawer's `_
 
 ## Shared Drawer (DS-03)
 
-The [Drawer](#drawer) pattern above is realised by ONE reusable, entity-agnostic overlay: the **Shared Drawer** ([DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer)), in [`app/shared/drawer`](../../app/shared/drawer). It opens any record over the current page without losing the user's place, is deep-linkable and stackable, and **hosts the [DS-02 Record Layout](#shared-record-layout-ds-02)** rather than inventing a second record presentation. It knows nothing about any entity, D1, workspaces or module routes — callers pass an opaque key and a render function. It builds entirely on [DS-01 tokens](#design-tokens-ds-01) (z-index, elevation, motion, colour, spacing) and is accepted in [ADR-018](../decisions/ARCHITECTURE_DECISIONS.md#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated).
+The [Drawer](#drawer) pattern above is realised by ONE reusable, entity-agnostic overlay: the **Shared Drawer** ([DS-03](../roadmap/ROADMAP_V2.md#-ds-03--shared-drawer)), in [`app/shared/drawer`](../../app/shared/drawer). It opens any record over the current page without losing the user's place, is deep-linkable and stackable, and **hosts the [DS-02 Record Layout](#shared-record-layout-ds-02)** rather than inventing a second record presentation. It knows nothing about any entity, D1, workspaces or module routes — callers pass an opaque key and a render function. It builds entirely on [DS-01 tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery) (z-index, elevation, motion, colour, spacing) and is accepted in [ADR-018](../decisions/ARCHITECTURE_DECISIONS.md#adr-018-the-shared-drawer--url-driven-history-stacked-focus-isolated).
 
 Its visible chrome follows the [DHDS-03 contextual panel anatomy](#contextual-panel-anatomy-dhds-03): the same heading, title/supporting-line hierarchy, close treatment, scrolling-body contract and optional pinned commitment region as Inspector and Sheet. Behaviour remains surface-specific; chrome does not.
 
@@ -1781,7 +1783,7 @@ Add a `size` variant, a stack-metadata field or a presentation option to the sha
 
 ## Shared Cards (DS-04)
 
-The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic component: the **Shared Card** ([DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards)), in [`app/shared/card`](../../app/shared/card). Every entity type — Area, Goal, Project, Task, Person, Note, … — renders through this one Card configured with data. There is **no** `TaskCard`/`ProjectCard`/`GoalCard`/`PersonCard`/`NoteCard`; a bespoke per-module card is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. **The one documented exception is the task ROW** ([below](#the-task-row-ds-04-2026-08)), which is not a card and does not try to be: it is a column grid, and the rule it establishes is that a product component is legitimate when the generic one cannot express the LAYOUT — never when it merely wants different styling. The Card builds entirely on [DS-01 tokens](#design-tokens-ds-01) (card.css) and opens records through the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
+The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic component: the **Shared Card** ([DS-04](../roadmap/ROADMAP_V2.md#-ds-04--shared-cards)), in [`app/shared/card`](../../app/shared/card). Every entity type — Area, Goal, Project, Task, Person, Note, … — renders through this one Card configured with data. There is **no** `TaskCard`/`ProjectCard`/`GoalCard`/`PersonCard`/`NoteCard`; a bespoke per-module card is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. **The one documented exception is the task ROW** ([below](#the-task-row-ds-04-2026-08)), which is not a card and does not try to be: it is a column grid, and the rule it establishes is that a product component is legitimate when the generic one cannot express the LAYOUT — never when it merely wants different styling. The Card builds entirely on [DS-01 tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery) (card.css) and opens records through the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
 
 **Purpose.** The shared unit for representing an entity in a list, board or grid, with selection, quick actions, density and an accessible primary open action — configured, never forked.
 
@@ -1805,7 +1807,7 @@ The [Cards](#cards) pattern above is realised by ONE reusable, entity-agnostic c
 
 **Typed public contract.** `CardProps` (see [`app/shared/card/types.ts`](../../app/shared/card/types.ts)): stable `id` · `title` (required) · `typeLabel`/`icon`/`accent` · `subtitle` · `status {label, tone}` · `metadata[]` · `progress {value, max?, label?}` · `context {label, href?}` · `dateLabel {label, tone?}` · `selection {selected, onSelectedChange, disabled?, label?}` · `quickActions[]` · `overflowAction` · `onLongPress` · `href` and/or `onOpen` + `openAriaLabel` · `density` · `presentation` · `rovingTabIndex` · `reorderHandle`.
 
-**Editable values in the metadata slot (TASKS-05).** A `metadata[]` entry's `value` is a `ReactNode`, so a module may put a [DS-16 inline field](#inline-editing-ds-16) there and make the value itself the control — which is how a Task row edits its priority, its two dates and its parent without opening the record. Two rules make this safe to copy: the READ state must be exactly what the row would have shown anyway (no new chrome, no pencil beside every value), and the empty state must be a short, quiet invitation that names the field ("No due date", "Unassigned") rather than a zero-height target. Do **not** put an inline field in `title` — the title is the card's primary open control, and replacing it permanently would take the record away; use `titleEditor` for a transient rename instead.
+**Editable values in the metadata slot (TASKS-05).** A `metadata[]` entry's `value` is a `ReactNode`, so a module may put a [DS-16 inline field](#inline-editing-ds-16-dhds-10) there and make the value itself the control — which is how a Task row edits its priority, its two dates and its parent without opening the record. Two rules make this safe to copy: the READ state must be exactly what the row would have shown anyway (no new chrome, no pencil beside every value), and the empty state must be a short, quiet invitation that names the field ("No due date", "Unassigned") rather than a zero-height target. Do **not** put an inline field in `title` — the title is the card's primary open control, and replacing it permanently would take the record away; use `titleEditor` for a transient rename instead.
 
 **Range selection (`onSelectedChange(selected, modifiers)`).** The Card REPORTS whether Shift was held; it never interprets it. Only the collection knows what order its rows are in, and a range is "everything between these two rows" in DISPLAY order. A consumer that ignores the second argument behaves exactly as before.
 
@@ -1932,7 +1934,7 @@ Why: the anchored panel measured **208px wide at a 390px viewport**, with three 
 
 **Viewport placement (UIQ-021).** The panel is placed WITHIN the viewport, using the same philosophy the shared [Tooltip](#tooltip-m3-tip) already uses — measure the trigger's viewport rect, flip, clamp against a small edge margin — applied to a surface that has real height. It used to be `top: 100%` and nothing else, so a long menu (a Tasks row carries about twelve items ≈ 713px) opened low on the screen simply ran off the bottom and the page had to be scrolled to reach its last item.
 
-The decision is a pure function ([`menu-placement.ts`](../../app/shared/overflow-menu/menu-placement.ts), no React, no DOM — the `swipe-model` precedent), so it is unit-testable as plain numbers:
+The decision is a pure function (`menu-placement.ts` (retired by DHDS-09, whose shared floating layer in [`app/shared/floating/`](../../app/shared/floating/) owns placement), no React, no DOM — the `swipe-model` precedent), so it is unit-testable as plain numbers:
 
 1. prefer the ordinary below-trigger placement when the whole menu fits;
 2. flip above when the whole menu fits there instead;
@@ -1993,7 +1995,7 @@ The **Record Header overflow is the primary entry point on every record**. A mod
 
 ## Shared Filters (DS-07)
 
-The [Filters](#filters) pattern above is realised by ONE reusable, entity-agnostic system: the **Shared Filters** ([DS-07](../roadmap/ROADMAP_V2.md#-ds-07--shared-filters)), in [`app/shared/filters`](../../app/shared/filters). One filter system drives **every** collection — Today, Projects, Search and all lists — never a per-module filter bar. Its **pure model** (definitions, expressions, operators, evaluator, URL codec, saved-view data, display formatting) imports no React and is re-exported from a dedicated entry [`app/shared/filters/model`](../../app/shared/filters/model.ts), so a server-backed module can translate a filter expression into its own query layer without resolving any React or UI code (an import guard test enforces this). The React UI is exported separately from `~/shared/filters`. It builds on [DS-01 tokens](#design-tokens-ds-01) and its URL contract composes cleanly with the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
+The [Filters](#filters) pattern above is realised by ONE reusable, entity-agnostic system: the **Shared Filters** ([DS-07](../roadmap/ROADMAP_V2.md#-ds-07--shared-filters)), in [`app/shared/filters`](../../app/shared/filters). One filter system drives **every** collection — Today, Projects, Search and all lists — never a per-module filter bar. Its **pure model** (definitions, expressions, operators, evaluator, URL codec, saved-view data, display formatting) imports no React and is re-exported from a dedicated entry [`app/shared/filters/model`](../../app/shared/filters/model.ts), so a server-backed module can translate a filter expression into its own query layer without resolving any React or UI code (an import guard test enforces this). The React UI is exported separately from `~/shared/filters`. It builds on [DS-01 tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery) and its URL contract composes cleanly with the [DS-03 Drawer](#shared-drawer-ds-03); it is accepted in [ADR-019](../decisions/ARCHITECTURE_DECISIONS.md#adr-019-shared-card-identity--reorder-and-the-filter-expression--url-contract).
 
 **Purpose.** Narrow any collection with a consistent, URL-backed control — the reusable "collection language" a module consumes by registering typed fields and supplying records.
 
@@ -2064,7 +2066,7 @@ Active filters survive refresh and copied links; Back/Forward restores prior sta
 
 ## Shared Timeline & Activity Feed (DS-05)
 
-The [Timeline](#timeline) and [Activity Feed](#activity-feed) patterns above are realised by ONE reusable, entity-agnostic system: the **Shared Timeline & Activity Feed** ([DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed)), in [`app/shared/activity-feed`](../../app/shared/activity-feed). A record-scoped Timeline and a workspace/scope Activity Feed are **two configurations of the same component**, never forked. It renders the [shared Activity model](../../AGENTS.md#96-shared-activity-model) (FND-05) and invents no event source. It builds on [DS-01 tokens](#design-tokens-ds-01), reuses the [DS-03 Drawer](#shared-drawer-ds-03) for opening entities, the [DS-07 Filters](#shared-filters-ds-07) for filtering, and the PX-02 [EmptyState](#empty-state-px-02)/[Skeleton](#loading-states-px-02)/[Entity Identity](#entity-identity-px-02); it is accepted in [ADR-021](../decisions/ARCHITECTURE_DECISIONS.md#adr-021-the-shared-timeline--activity-feed--one-renderer-one-presentation-view-model-in-house-virtualisation).
+The [Timeline](#timeline) and [Activity Feed](#activity-feed) patterns above are realised by ONE reusable, entity-agnostic system: the **Shared Timeline & Activity Feed** ([DS-05](../roadmap/ROADMAP_V2.md#-ds-05--shared-timeline--activity-feed)), in [`app/shared/activity-feed`](../../app/shared/activity-feed). A record-scoped Timeline and a workspace/scope Activity Feed are **two configurations of the same component**, never forked. It renders the [shared Activity model](../../AGENTS.md#96-shared-activity-model) (FND-05) and invents no event source. It builds on [DS-01 tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery), reuses the [DS-03 Drawer](#shared-drawer-ds-03) for opening entities, the [DS-07 Filters](#shared-filters-ds-07) for filtering, and the PX-02 [EmptyState](#empty-state-px-02)/[Skeleton](#loading-states-px-02)/[Entity Identity](#entity-identity-px-02); it is accepted in [ADR-021](../decisions/ARCHITECTURE_DECISIONS.md#adr-021-the-shared-timeline--activity-feed--one-renderer-one-presentation-view-model-in-house-virtualisation).
 
 **Purpose.** Show "what happened, when" — for one record (Timeline, suitable for the Activity tab of the [DS-02 Record Layout](#shared-record-layout-ds-02)) and across a workspace or scope (Activity Feed) — as calm, dense, chronological, filterable, virtualised history.
 
@@ -2132,7 +2134,7 @@ The at-a-glance aggregates a record's [Summary Panel](#summary-panel) shows are 
 
 ## Shared Forms & field controls (DS-06)
 
-The [Forms](#forms) pattern above is realised by ONE reusable, **entity-agnostic** forms system (the **Shared Forms** system, [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls), in [`app/shared/forms`](../../app/shared/forms)). There is no `TaskForm`/`ProjectForm`/`NoteForm`: consumers supply typed values, field definitions, validation and persistence callbacks and compose the shared controls, the form host and the declared save model. The shared UI knows nothing of Tasks/Projects/Goals/Areas/People/Notes, D1/SQL, workspace selection, routes, product modules or a central entity-type switch — server loaders/actions keep the trusted workspace scope and data access. It builds entirely on [DS-01 tokens](#design-tokens-ds-01), renders Markdown through the [FND-08 pipeline](../development/MARKDOWN_PIPELINE.md), creates relationships through the [FND-04 EntityLink kernel](../../AGENTS.md#95-entitylinks), and is accepted in [ADR-022](../decisions/ARCHITECTURE_DECISIONS.md#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker).
+The [Forms](#forms) pattern above is realised by ONE reusable, **entity-agnostic** forms system (the **Shared Forms** system, [DS-06](../roadmap/ROADMAP_V2.md#-ds-06--shared-forms--field-controls), in [`app/shared/forms`](../../app/shared/forms)). There is no `TaskForm`/`ProjectForm`/`NoteForm`: consumers supply typed values, field definitions, validation and persistence callbacks and compose the shared controls, the form host and the declared save model. The shared UI knows nothing of Tasks/Projects/Goals/Areas/People/Notes, D1/SQL, workspace selection, routes, product modules or a central entity-type switch — server loaders/actions keep the trusted workspace scope and data access. It builds entirely on [DS-01 tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery), renders Markdown through the [FND-08 pipeline](../development/MARKDOWN_PIPELINE.md), creates relationships through the [FND-04 EntityLink kernel](../../AGENTS.md#95-entitylinks), and is accepted in [ADR-022](../decisions/ARCHITECTURE_DECISIONS.md#adr-022-shared-forms--field-controls--declared-save-model-validation-boundary-and-the-entity-link-picker).
 
 **The control baseline (UIX-06).** Height, padding, surface, border, corner and — for a `<select>` — the disclosure chevron are stated ONCE, at the element, in [`base.css`](../../app/styles/base.css), for every native `input`/`select`/`textarea` whether or not a module reached for a shared field. The rung is `--app-control-height-lg` on `--app-shape-control`, which is the rung `.dh-btn` takes, so a field and the button beside it in a filter row are the same object. A module never restates it: three local copies existed before UIX-06 and all three had drifted.
 
@@ -2344,7 +2346,7 @@ does) in the adopting module.
 
 ## Application Frame (PX-02)
 
-The shared patterns above are composed by ONE application frame ([PX-02](../roadmap/ROADMAP_V2.md#-px-02--product-frame), [`app/shared/shell`](../../app/shared/shell)), accepted in [ADR-020](../decisions/ARCHITECTURE_DECISIONS.md#adr-020-the-application-frame--sidebar-shell-pane-collection-layout-and-entity-identity). It replaces FND-09's website-like top bar with a premium application silhouette and is the frame **every future module inherits** — it must feel like Linear/Craft/Raycast/Things, not a website. The frame implements the composition contract in [`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md) (which governs feel; this document governs each part's anatomy). It builds entirely on [DS-01 tokens](#design-tokens-ds-01), reuses DS-02…04/DS-07 unchanged, and adds **no runtime dependency**.
+The shared patterns above are composed by ONE application frame ([PX-02](../roadmap/ROADMAP_V2.md#-px-02--product-frame), [`app/shared/shell`](../../app/shared/shell)), accepted in [ADR-020](../decisions/ARCHITECTURE_DECISIONS.md#adr-020-the-application-frame--sidebar-shell-pane-collection-layout-and-entity-identity). It replaces FND-09's website-like top bar with a premium application silhouette and is the frame **every future module inherits** — it must feel like Linear/Craft/Raycast/Things, not a website. The frame implements the composition contract in [`PRODUCT_EXPERIENCE.md`](PRODUCT_EXPERIENCE.md) (which governs feel; this document governs each part's anatomy). It builds entirely on [DS-01 tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery), reuses DS-02…04/DS-07 unchanged, and adds **no runtime dependency**.
 
 ### The frame
 
@@ -3026,7 +3028,7 @@ the browser timezone.
 
 Every interactive control is keyboard-reachable with a visible focus ring — no trap, no unreachable control, no lost or hidden focus, no duplicated tab stop. Any new modal **reuses the DS-03 focus/scroll-lock/inert hooks** (never a second focus-trap).
 
-**Responsive rules.** No horizontal overflow from **320px through ultra-wide** (proven at 320/375/390/768/1024/1440/2560); breakpoints are [tokens](#design-tokens-ds-01); component-internal layout prefers **container queries** so a component is correct in a full route and a narrow Drawer/Inspector alike; touch targets meet 44px; **safe-area insets are honoured** (`viewport-fit=cover` + `env(safe-area-inset-*)`); portrait/landscape/desktop/large-monitor/Retina and touch/mouse/keyboard are all first-class.
+**Responsive rules.** No horizontal overflow from **320px through ultra-wide** (proven at 320/375/390/768/1024/1440/2560); breakpoints are [tokens](#foundations--the-dalyhub-design-system-over-material-3-machinery); component-internal layout prefers **container queries** so a component is correct in a full route and a narrow Drawer/Inspector alike; touch targets meet 44px; **safe-area insets are honoured** (`viewport-fit=cover` + `env(safe-area-inset-*)`); portrait/landscape/desktop/large-monitor/Retina and touch/mouse/keyboard are all first-class.
 
 **Accessibility standards.** Semantic landmarks (`banner`/`search`/`navigation`/`main`) with all content inside a landmark; one non-skipping heading outline (Pane Header `h1` → section `h2` → [Card](#cards) titles via `headingLevel`); accessible names and described-by; live-region announcements; a visible focus ring re-pinned to the system colour under forced-colors; state never by colour alone; reduced-motion, `prefers-color-scheme`, 200% zoom and `prefers-contrast`/forced-colors all respected; and accessible loading/empty/error/busy/disabled states.
 

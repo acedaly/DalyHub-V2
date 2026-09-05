@@ -9,10 +9,10 @@
 > — remains accurate about the *starting* point and is not restated here.
 >
 > **Evidence.** The *before* state of this pass is PR #144's *after* state,
-> which is already committed as the unprefixed set in
-> [`assets/m3x-2026-08/`](assets/m3x-2026-08/) — so it is read from there rather
-> than captured a second time. The *after* state is
-> [`assets/m3x-02-2026-08/`](assets/m3x-02-2026-08/), captured by
+> captured as the unprefixed set in `assets/m3x-2026-08/` — so it was read from
+> there rather than captured a second time. The *after* state is
+> `assets/m3x-02-2026-08/`. Neither folder was committed to the repository; the
+> findings below record what each capture showed. The after set was captured by
 > [`e2e/m3x-02-screenshots.spec.ts`](../../e2e/m3x-02-screenshots.spec.ts) at
 > 1280, 1440, 1920, 375, 390 and 430 in **both** appearances against the seeded
 > development database:

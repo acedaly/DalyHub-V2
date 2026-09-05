@@ -17,8 +17,9 @@ numbers are exact and which are bounded, and the four defects the capture pass a
 
 </details>
 
-The authoritative reference mock-up is at
-[`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`](assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png).
+The authoritative reference mock-up
+(`assets/m3-polish-2026-08/reference/dalyhub-dashboard-reference.png`) was not committed to the
+repository; `M3_POLISH_AUDIT.md` Appendix A records what it showed and every value measured from it.
 This document is the *state of the work*, not the specification.
 
 ---

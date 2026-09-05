@@ -519,7 +519,7 @@ The wording is calm and factual — "No supporting activity recorded this period
 moralises about a neglected life Area. Every Area is one link away from the Review.
 
 Richer per-period Area attention, momentum history and trend are **not** derived here: they
-remain [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment) and
+remain [REVIEW-03](../roadmap/ROADMAP_V2_1.md#-review-03--insights--alignment--delivered-2026-08-08) and
 [DEBT-24](../product/PRODUCT_DEBT.md#-debt-24--no-alignment-history--trend-is-stored--p3--resolved-2026-08-08-review-03).
 
 ## Record-screen anatomy (RECORD-01, #131)

@@ -26,18 +26,28 @@ import {
   type ActivityPage,
   type ActivityRecord,
   type ActivityRepository,
+  type ActivityTypeBucketCount,
+  type CountActivityByTypeInput,
+  type ListActivityInWindowInput,
   type ListEntitiesActivityInput,
   type ListEntityActivityInput,
   type ListWorkspaceActivityInput,
 } from "~/kernel/activity";
 import {
   activityAnchorKey,
+  activityWindowKey,
   decodeActivityCursorForScope,
   encodeActivityCursor,
   type ActivityCursorPosition,
   type ActivityCursorScope,
 } from "~/kernel/activity";
 import type { WorkspaceContext } from "~/kernel/workspaces";
+
+import { toStorageTimestamp } from "./database";
+import {
+  countPrimarySubjectsByTypeInBuckets,
+  MAX_HISTORY_BUCKETS,
+} from "./history-window-read";
 
 import {
   rowToActivity,
@@ -226,6 +236,120 @@ export class D1ActivityRepository implements ActivityRepository {
              ON a.workspace_id = s.workspace_id AND a.id = s.activity_id
            WHERE ${conditions.join(" AND ")}
            ORDER BY a.occurred_at DESC, a.id DESC
+           LIMIT ?`,
+        )
+        .bind(...params),
+    );
+
+    return this.#assemblePage(rows, limit, scope);
+  }
+
+  /**
+   * V2.9 INS-01 — count events by type across a series of buckets, in ONE
+   * grouped statement whatever the window (DEBT-238).
+   *
+   * ── Why the buckets travel as JSON rather than as bound parameters ─────────
+   * The obvious shapes both break at the window lengths V2.9 asks for. A
+   * `SUM(CASE …)` column per bucket (the RECALL-02 shape) and a `CASE WHEN …
+   * THEN index` arm per bucket (the `countPeriodCompletions` shape) each bind
+   * TWO parameters per bucket, and D1 refuses a statement with more than 100
+   * bound variables — so both stop at about 48 buckets, while a grain maximum
+   * here is 52 weeks or 366 days. Passing the boundaries as ONE JSON parameter
+   * and expanding them with `json_each` makes the statement's shape independent
+   * of the window: four bound parameters for one bucket or for 366.
+   *
+   * The scan stays one index range over `(workspace_id, type, occurred_at, id)`
+   * bounded by the outermost boundaries, so the read is flat in workspace size
+   * — the cost is the events inside the window, counted once, and nothing else.
+   *
+   * ── What is counted ───────────────────────────────────────────────────────
+   * DISTINCT subject entities per (bucket, type), which is
+   * `countPeriodCompletions`'s semantics preserved rather than a second answer
+   * to the same question: one Task completed twice inside a bucket is one
+   * completion of one Task. Like that read, and for HARDEN-06C F-07's reason,
+   * it does NOT require the entity to be live — deleting a completed Project
+   * must not silently move a closed period's figure.
+   */
+  async countByTypeInBuckets(
+    input: CountActivityByTypeInput,
+  ): Promise<readonly ActivityTypeBucketCount[]> {
+    const types = input.types.map((type) =>
+      validateOptionalActivityType(type)!,
+    );
+    const buckets = input.buckets.slice(0, MAX_HISTORY_BUCKETS);
+    if (buckets.length === 0) return [];
+
+    try {
+      const counts = await countPrimarySubjectsByTypeInBuckets(
+        this.#db,
+        this.#workspaceId,
+        types,
+        buckets.map((bucket) => ({
+          key: bucket.key,
+          startAt: toStorageTimestamp(bucket.startsAt),
+          endAt: toStorageTimestamp(bucket.endsAt),
+        })),
+      );
+      return buckets.map((bucket, index) => ({
+        key: bucket.key,
+        counts: counts[index],
+      }));
+    } catch (cause) {
+      throw new ActivityStorageError(undefined, { cause });
+    }
+  }
+
+  /**
+   * V2.9 INS-01 — one bounded page of the events inside a window, newest first.
+   *
+   * The windowed sibling of {@link listForWorkspace}: the same
+   * `ORDER BY occurred_at DESC, id DESC`, the same over-fetch-by-one to learn
+   * `hasMore`, the same single chunked subject read, and the same cursor
+   * discipline — with the cursor bound to the WINDOW as well as the workspace
+   * and the type filter, so a cursor from one fortnight is rejected against
+   * another instead of silently skipping events.
+   */
+  async listInWindow(input: ListActivityInWindowInput): Promise<ActivityPage> {
+    const limit = validateActivityLimit(input.limit);
+    const types = (input.types ?? []).map((type) =>
+      validateOptionalActivityType(type)!,
+    );
+    const startsAt = toStorageTimestamp(input.startsAt);
+    const endsAt = toStorageTimestamp(input.endsAt);
+
+    const scope: ActivityCursorScope = {
+      workspaceId: this.#workspaceId,
+      scope: "window",
+      entityId: activityWindowKey(startsAt, endsAt),
+      // The whole filter, sorted so the same set always yields the same scope,
+      // and null when unfiltered.
+      type: types.length === 0 ? null : [...types].sort().join(","),
+    };
+
+    // An empty or inverted window is empty, never an unbounded scan.
+    if (startsAt >= endsAt) {
+      return { items: [], nextCursor: null, hasMore: false };
+    }
+
+    const conditions: string[] = [
+      "workspace_id = ?",
+      "occurred_at >= ?",
+      "occurred_at < ?",
+    ];
+    const params: unknown[] = [this.#workspaceId, startsAt, endsAt];
+    if (types.length > 0) {
+      conditions.push(`type IN (${types.map(() => "?").join(", ")})`);
+      params.push(...types);
+    }
+    this.#applyKeyset(input.cursor, scope, conditions, params, "");
+    params.push(limit + 1);
+
+    const rows = await this.#allActivities(
+      this.#db
+        .prepare(
+          `SELECT ${ACTIVITY_COLUMNS} FROM activities
+           WHERE ${conditions.join(" AND ")}
+           ORDER BY occurred_at DESC, id DESC
            LIMIT ?`,
         )
         .bind(...params),

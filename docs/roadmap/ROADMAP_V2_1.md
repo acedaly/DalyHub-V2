@@ -654,10 +654,10 @@ Everything it sequenced has shipped:
 
 - the security/ops hardening — **AUDIT-10** (CSP) resolved 2026-08-08 with
   [SET-03](#-set-03--account--security--substantially-delivered-2026-08-08), and **AUDIT-11** (the plaintext backup
-  artifact) with [SET-02](#-set-02--backup--restore-v21);
+  artifact) with [SET-02](#-set-02--backup--restore-v21--delivered-2026-08-08);
 - the multi-device concurrency pair (**AUDIT-07** preferences, **AUDIT-08** note
   content) and the owner-timezone / parentless-restore cleanup (**AUDIT-14**,
-  **AUDIT-15**) by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3);
+  **AUDIT-15**) by [AUDIT-FIX-06](#-audit-fix-06--concurrency-and-one-owner-day-p3--delivered-2026-08-08);
 - the non-atomic compound mutations (**AUDIT-13**) and the dead code
   (**AUDIT-16**) by
   [AUDIT-FIX-07](#-audit-fix-07--atomic-compound-mutations-one-long-form-editor-and-the-dead-code-p3--delivered-2026-08-08).
@@ -688,7 +688,7 @@ wonder whether it quietly consumed part of V2.1.
 Two entries are worth reading *alongside* it, because V2.0.1 touched adjacent
 ground without doing their work:
 
-- **[SET-02](#-set-02--backup--restore-v21) was untouched by V2.0.1, and has since
+- **[SET-02](#-set-02--backup--restore-v21--delivered-2026-08-08) was untouched by V2.0.1, and has since
   SHIPPED (2026-08-08).** V2.0.1 added a scheduled workflow that **exported**
   production D1 to a retained artifact — the automated half of a backup and
   nothing more, with no import, no restore and no proven end-to-end restoration
@@ -701,7 +701,7 @@ ground without doing their work:
     export's read-consistency window more often than a hand-pressed export does.
     It was evaluated rather than inherited: see the SET-02 entry's
     "Read consistency" note.
-- **[DIARY-02](#-diary-02--day-context-links) was untouched by V2.0.1, and has
+- **[DIARY-02](#-diary-02--day-context-links--delivered-2026-08-08) was untouched by V2.0.1, and has
   since SHIPPED (2026-08-08).** V2.0.1 repaired a **broken link Reviews already
   emitted** to Diary, by adopting the canonical Diary deep-link URL that Search
   and Quick Capture already used. It added no linking affordance to the Diary
@@ -716,7 +716,7 @@ of exactly three reasons, and each entry says which:
 
 1. **It was never in V2's scope** (the AI phase, imports, account/security surface).
 2. **It was in V2's scope and was deferred deliberately**, with the reason
-   stated — [SET-02](#-set-02--backup--restore-v21), which has since shipped
+   stated — [SET-02](#-set-02--backup--restore-v21--delivered-2026-08-08), which has since shipped
    (2026-08-08).
 3. **Its module shipped, and a named remainder did not** — the three `◐` mobile
    items and the cross-module half of `X-02`.
@@ -764,9 +764,10 @@ the V2 record stays closed.*
   or spacing scales, or add a Today widget the product does not already have. It is a
   visual-system and theme change applied to the existing product.
 - **Evidence.**
-  [`THEME_ACCEPTANCE_MATRIX.md → section 8`](../design/THEME_ACCEPTANCE_MATRIX.md#8-theme-02--the-modern-pair)
+  [`THEME_ACCEPTANCE_MATRIX.md → section 8`](../design/THEME_ACCEPTANCE_MATRIX.md#what-replaced-this-document)
   records what was verified and how, including the screenshot pass in
-  [`docs/design/assets/theme-02-2026-08/`](../design/assets/theme-02-2026-08).
+  `docs/design/assets/theme-02-2026-08/` (the folder was not committed; the matrix
+  records what the captures showed).
 - **Recommended follow-up, not done here.** The registry is now seven themes plus
   `system`, which is more choice than one person needs. A consolidation
   recommendation is recorded as **DEBT-67** in
@@ -976,7 +977,8 @@ They are small and well-understood; none of them blocks the V2 release.*
   switching, validation that keeps the words and the surface, cancel-without-mutation
   with focus returned to the opener, keyboard-only operation, axe in light and dark,
   the 320/375/390/430px matrix, and a 1280px desktop regression. Nine screenshots
-  in [`docs/product/assets/asset-03-2026-08/`](../product/assets/asset-03-2026-08/).
+  were captured to `docs/product/assets/asset-03-2026-08/` (the folder was not
+  committed; the spec regenerates them).
   The initial client bundle is byte-for-byte unchanged (+6,022 B total, all lazy),
   and opening capture performs no new reads.
 - **Priority.** P3 — closed. See
@@ -987,7 +989,7 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Original entry.** [`ROADMAP_V2.md → REVIEW-04`](ROADMAP_V2.md#-review-04--mobile).
 - **Delivered in V2.** The writing surface, full-width choices, a real share of the
   viewport for reflection editors, and the shared phone record chrome.
-- **Delivered now, with [REVIEW-02](#-review-02--weekly-review):** the one-step- and
+- **Delivered now, with [REVIEW-02](#-review-02--weekly-review--delivered-2026-08-05):** the one-step- and
   one-prompt-at-a-time phone stepper. Below `md` the desktop rail is REMOVED rather than
   shrunk; a compact progress header and an `aria-label`led progress bar say "Step 3 of
   7"; a step sheet (the shared MOBILE-01 `Sheet`) offers direct navigation; and
@@ -1076,7 +1078,7 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Docs.** [`REVIEWS_MODULE.md → The guided weekly Review`](../development/REVIEWS_MODULE.md#the-guided-weekly-review-review-02--review-04-2026-08-05) ·
   [ADR-072](../decisions/ARCHITECTURE_DECISIONS.md#adr-072-the-guided-weekly-review--one-review-two-presentations-a-canonical-step-model-and-the-smallest-possible-persisted-workflow-state).
 - **Explicitly NOT in scope at the time:** derived insights and historical alignment
-  trend — delivered since, by [REVIEW-03](#-review-03--insights--alignment), which
+  trend — delivered since, by [REVIEW-03](#-review-03--insights--alignment--delivered-2026-08-08), which
   replaced this flow's settle-in fact grid with the Review's evidence.
 - **Priority.** P2 — closed.
 
@@ -1345,7 +1347,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   - **Layout thresholds are container queries.** A viewport breakpoint inside the
     app shell is wrong by the width of the navigation rail; the two-column split
     used to engage at 1024px and produce a ~390px primary column in which task rows
-    wrapped. See [Responsive](../design/DESIGN_SYSTEM.md#responsive).
+    wrapped. See [Responsive](../design/DESIGN_SYSTEM.md#responsive-behaviour-2).
   - **Density and consistency.** One card chrome for every widget (one header
     treatment, one radius, one inset, one hover response); one destination link per
     list widget, in its header, replacing links scattered at the foot of some
@@ -1369,7 +1371,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   in all seven themes where one shadow value cannot. The hero uses the raised step
   of that ramp and hover moves the border instead. Project **"next action"** was
   not added: it needs a per-project task query on the most-visited route in the
-  product — recorded as [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3), with
+  product — recorded as [DEBT-77](../product/PRODUCT_DEBT.md#-debt-77--a-project-card-cannot-say-what-the-next-action-is--p3--resolved-2026-08-28-v25-steer-04), with
   the query shape that would satisfy it. Goal **trend** is [DEBT-78](../product/PRODUCT_DEBT.md#-debt-78--goals-can-state-completion-but-not-trend--p3--resolved-2026-08-27-v24-follow-02):
   nothing stores a goal's completion over time, so completion and recent progress
   ship and the direction does not.
@@ -1498,7 +1500,7 @@ They are small and well-understood; none of them blocks the V2 release.*
   shared Card, and the recovery surfaces' inlined card-on-tint.
 
 - **Why it is sequenced here, and this is deliberate.** DS-14 sits **after
-  [SET-02](#-set-02--backup--restore-v21) and [REVIEW-02](#-review-02--weekly-review)**
+  [SET-02](#-set-02--backup--restore-v21--delivered-2026-08-08) and [REVIEW-02](#-review-02--weekly-review--delivered-2026-08-05)**
   in Build order on purpose, not by accident of drafting. **Recoverability and the
   weekly flow are worth more than a restyle.** SET-02 is the one gap V2 knowingly
   leaves — a bad day is still unrecoverable — and REVIEW-02 is the flagship weekly
@@ -1787,10 +1789,10 @@ because a reader would otherwise wonder whether it was forgotten:
    AUDIT-FIX-03/04/05 are the P2 permanent-delete, CSRF and
    documentation follow-ups. Restore is worth more than a restyle, but a product
    that bricks a recurring task on a checkbox toggle is worth fixing before either.
-1. ~~**[SET-02](#-set-02--backup--restore-v21)** — restore. The one gap V2
+1. ~~**[SET-02](#-set-02--backup--restore-v21--delivered-2026-08-08)** — restore. The one gap V2
    knowingly left, and the reason a bad day was unrecoverable.~~ **Delivered
    2026-08-08**, with the end-to-end restoration proof the item demanded.
-2. **[REVIEW-02](#-review-02--weekly-review)** + REVIEW-04's stepper — the flagship
+2. **[REVIEW-02](#-review-02--weekly-review--delivered-2026-08-05)** + REVIEW-04's stepper — the flagship
    weekly flow, and the mobile ergonomic that belongs with it.
 3. **[DS-14](#-ds-14--whole-application-visual-overhaul)** and
    **[DS-15](#-ds-15--today-reference-layout-and-app-wide-surface-contract-correction)** — the whole-application
@@ -1800,15 +1802,15 @@ because a reader would otherwise wonder whether it was forgotten:
    once the two items above have stopped changing them — and it is large and pleasant
    enough that putting it first would quietly cost the owner the two things they
    actually cannot do today.
-4. ~~**[ASSET-03](#-asset-03--mobile-assets)**, **[PEOPLE-04](#-people-04--mobile-people)** —
+4. ~~**[ASSET-03](#-asset-03--mobile-assets--delivered-2026-08-08)**, **[PEOPLE-04](#-people-04--mobile-people--delivered-2026-08-08)** —
    the two named mobile remainders.~~ **Both closed (2026-08-08)**: PEOPLE-04 with
    the DEBT-45 contextual-capture matrix it was held open for, and ASSET-03 with
    phone-first capture of a new Asset.
-5. **[DIARY-02](#-diary-02--day-context-links)** (**closed 2026-08-08**, alongside
+5. **[DIARY-02](#-diary-02--day-context-links--delivered-2026-08-08)** (**closed 2026-08-08**, alongside
    PEOPLE-04 — they share the one contextual-relationship contract),
-   **[SET-03](#-set-03--account--security--substantially-delivered-2026-08-08)** — module completion. **[REVIEW-03](#-review-03--insights--alignment)** was the third
+   **[SET-03](#-set-03--account--security--substantially-delivered-2026-08-08)** — module completion. **[REVIEW-03](#-review-03--insights--alignment--delivered-2026-08-08)** was the third
    member of this group and is now delivered.
-6. **[X-02](#-x-02--saved-views--cross-module-filters)** — the cross-module half.
+6. **[X-02](#-x-02--saved-views--cross-module-filters--delivered-2026-08-08)** — the cross-module half.
 7. **[X-03](#-x-03--import--sync-todoist-notion-calendar)** — imports, after restore
    exists.
 8. **[AI-01 … AI-04](#-ai-01--ai-04--the-ai-phase)** — last, by design. **AI-01,

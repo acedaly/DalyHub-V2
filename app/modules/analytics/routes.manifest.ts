@@ -26,6 +26,20 @@ const routes: readonly RouteContribution[] = [
       navIcon: "analytics",
     },
   },
+  /*
+   * V2.9 INS-04 — the workspace-wide "What changed" feed endpoint
+   * (loader-only resource route, no nav entry), moved here from
+   * `today/activity` in the change that gave it a consumer (DEBT-103). The
+   * Insight page's panel pages through it — every page, including the first,
+   * because the shared DS-05 stream loads its own first page and a
+   * server-rendered one would be replaced on mount rather than reused. One
+   * door onto the stream, one mapping.
+   */
+  {
+    id: "analytics.activity",
+    path: "analytics/activity",
+    file: "routes/activity.tsx",
+  },
 ];
 
 export default routes;

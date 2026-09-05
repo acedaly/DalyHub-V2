@@ -35,6 +35,17 @@ interface SegmentedFilterProps {
   readonly value: string;
   /** Accessible group label (e.g. "Filter tasks"). */
   readonly label: string;
+  /**
+   * Write the param for EVERY option, including the first.
+   *
+   * Pass this when the absent param does not mean the first option — the same
+   * rule `ViewSwitcher` documents. V2.9 INS-03's grain control is the case it
+   * exists for here: which grain an absent `?grain=` resolves to depends on the
+   * WINDOW (12 weeks defaults to weekly, 4 weeks to daily), so a "Daily" link
+   * that merely dropped the param would hand back whatever the window's own
+   * default happens to be — silently doing nothing on half the windows.
+   */
+  readonly alwaysWriteValue?: boolean;
 }
 
 export function SegmentedFilter({
@@ -42,6 +53,7 @@ export function SegmentedFilter({
   options,
   value,
   label,
+  alwaysWriteValue = false,
 }: SegmentedFilterProps) {
   return (
     <ViewSwitcher
@@ -49,6 +61,7 @@ export function SegmentedFilter({
       options={options}
       value={value}
       label={label}
+      alwaysWriteValue={alwaysWriteValue}
       /*
        * RECORD-01 — a filter is SUBORDINATE to the tabs above it.
        *

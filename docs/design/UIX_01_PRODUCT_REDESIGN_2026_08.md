@@ -12,12 +12,14 @@ Evidence: `docs/design/assets/uix-01-2026-08/`, captured by
 comparison (`SHOT_PREFIX=before-` and no prefix) against the same seeded day, so
 nothing between a `before-` and its pair differs except the product.
 
-The reference designs live in [`assets/references/`](assets/references/):
+The reference designs are described in [`assets/references/`](assets/references/)
+(the image files themselves were not committed; the README there records what
+each specifies):
 
 | File | What it specifies |
 | --- | --- |
-| [`assets/references/uix-01-shell-today-reference.png`](assets/references/uix-01-shell-today-reference.png) | The shell, Today (desktop, phone) and the dark appearance |
-| [`assets/references/uix-01-tasks-reference.png`](assets/references/uix-01-tasks-reference.png) | Tasks (desktop, phone), the dark appearance, and the phone new-task sheet |
+| `assets/references/uix-01-shell-today-reference.png` | The shell, Today (desktop, phone) and the dark appearance |
+| `assets/references/uix-01-tasks-reference.png` | Tasks (desktop, phone), the dark appearance, and the phone new-task sheet |
 
 Both are unchanged by this work and must stay that way — they are the
 specification, not an asset the product ships.

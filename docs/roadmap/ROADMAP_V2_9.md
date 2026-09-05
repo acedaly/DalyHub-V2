@@ -32,8 +32,12 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: V2.9 INSIGHT — DEFINED, not started.** Five items,
-INS-00 … INS-04, in order.
+**Programme status: V2.9 INSIGHT — COMPLETE, 2026-09-04.** All five items,
+INS-00 … INS-04, delivered in order, closing **DEBT-241, DEBT-238, DEBT-239,
+DEBT-212 and DEBT-103**. The implementation decisions are recorded in
+[ADR-117](../decisions/ARCHITECTURE_DECISIONS.md#adr-117-insight--one-history-vocabulary-over-stores-already-written-a-bound-that-is-stated-rather-than-applied-and-a-link-check-that-makes-the-map-a-gate);
+what each item actually delivered is under its own heading below, including
+where the measurement that defined it turned out to be wrong.
 
 **Successor: V2.10 LIFE ADMIN, PLANNED** — see [the sequence](#the-remaining-v2-sequence).
 
@@ -55,18 +59,18 @@ This is the presumptive V2.9 that V2.8 named, confirmed by re-measurement —
   (`review-insights-context.ts:801-804`). `listSnapshotsBefore`
   (`d1-review-insight-repository.ts:537-557`) has zero production callers.
 - `listMeasurementSeries` (`d1-goal-measurement-repository.ts:583`) has zero
-  production callers ([DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3)).
+  production callers ([DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--resolved-2026-09-04-v29-ins-02--ins-03)).
 - The kernel `ActivityRepository` (`app/kernel/activity/activity-repository.ts:53-113`)
   has **no time-window read** — its inputs carry `type?`, `limit?`, `cursor?`
   and no from/to — so five adapters carry their own windowed SQL
-  ([DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3)).
+  ([DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01)).
 - Analytics offers three fixed ranges (7×1 day, 4×7 days, 6×14 days) chosen
   to fit `MAX_TREND_PERIODS = 8` (`analytics-range.ts:20-27, 44-70`); its
   bucketer is module-private; "completions per week for twelve weeks" is not
   askable; Projects and Goals completed have no line
-  ([DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3)).
+  ([DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--resolved-2026-09-04-v29-ins-01--ins-03)).
 - `/today/activity` is a tested resource route with no UI
-  ([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3)).
+  ([DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)).
 
 Unanswerable today although the data exists: a Goal's contribution over the
 last six Reviews; which Projects were at risk in three consecutive Reviews;
@@ -153,9 +157,31 @@ INS-00 ──► INS-01 ──► INS-02
                   └──► INS-04 (what changed)
 ```
 
+**All five delivered 2026-09-04, in that order.** What each actually shipped is
+recorded under its own heading below, including three places where implementing
+it corrected the definition:
+
+- **INS-00's baseline was wrong, and re-measuring was part of the item.** The
+  defining pass measured 447 broken links of 6,601; a fresh measurement found
+  **422 of 6,737** (233 anchors, 39 non-image files, 150 screenshots), because
+  that pass repaired eleven of its own as it went and because the checker reads
+  reference definitions and nested image links the estimate did not.
+- **DEBT-238's "five adapters" was wrong in BOTH directions.** Three of the five
+  named carry no window predicate at all; two the entry did not name do. The
+  proposed `grep` closing condition was replaced by a registry test that
+  enumerates every remaining bound with the reason it did not converge.
+- **INS-03's statement budget was first measured on a fixture with no Goals**,
+  which understated the page by three conditional reads. The honest figure is
+  **12**, still flat at every window and grain.
+
+One item's non-goal was tested and held: **nothing was migrated and nothing new
+is stored.** Every figure V2.9 shows is derived at read time from
+`spine_records`, `activities`, `goal_measurements` and the Review snapshots the
+product was already writing.
+
 ---
 
-### ☐ INS-00 — The map tells the truth — closes [DEBT-241](../product/PRODUCT_DEBT.md#-debt-241--no-documentation-link-or-anchor-check-exists-and-447-local-links-are-broken--p2)
+### ☑ INS-00 — The map tells the truth — **delivered 2026-09-04** — closes [DEBT-241](../product/PRODUCT_DEBT.md#-debt-241--no-documentation-link-or-anchor-check-exists-and-447-local-links-are-broken--p2--resolved-2026-09-04-v29-ins-00)
 
 **Every local link and anchor in the documentation resolves, and a Static
 check keeps it that way.**
@@ -189,9 +215,39 @@ check keeps it that way.**
   (`☐ DEBT-NN — … — P2`, `ADR-NNN: …`, headings with backticks, apostrophes,
   `/`, `+`, `%`, and non-ASCII); CI's Static job runs it; `SETUP_AND_CI.md`
   documents it.
+- **Delivered 2026-09-04.** `scripts/docs-links.mjs check` (`pnpm run
+  docs:links:check`) is a `Static` step beside `e2e:fixture-dates:check`, and the
+  count is **zero**: 6,564 local links across 149 files, all resolving.
+  - **Re-measured rather than inherited.** The permanent checker's first run on
+    this branch found **422 of 6,737** broken — 233 drifted anchors, 39 missing
+    non-image files, 150 missing screenshots — against the 447 of 6,601 this file
+    recorded. The difference is the defining pass's own eleven repairs plus the
+    reference definitions and nested image-links this checker reads and the
+    temporary one did not. The three classes are the ones the item named.
+  - **Repaired at the correct end.** 213 anchors were rewritten mechanically
+    (exactly one heading in the target file extended the broken anchor, or shared
+    its `DEBT-NNN`/`ADR-NNN` identifier); 20 by hand, where a heading had been
+    rewritten or its document retired. **No heading was renamed back.** The
+    missing code files were retired or renamed rather than lost — `responsive.spec.ts`
+    (split by CONV-03) and ASSET-03's folder were re-pointed; `theme-preference.ts`,
+    `TodayDashboard.tsx`, `task-selection.ts`, `menu-placement.ts`, `CaptureFab.tsx`
+    and `today/routes/plan.tsx` were unlinked to plain code text naming the pass
+    that removed each. **No image was invented**: every missing screenshot folder
+    was checked against `git log --all` and had never been committed, so each
+    reference became prose saying what the capture showed, derived from its alt
+    text, its filename and the surrounding analysis.
+  - **Falsified, then reverted.** Breaking one anchor and one path each made
+    `Static` fail naming file, line and target. The rule caught its own first real
+    case unprompted: resolving DEBT-241's heading in this same change broke the
+    link to it from this file, and the check named it before the commit.
+  - **The rule is recorded** in [`AGENTS.md` §12](../../AGENTS.md#12-development-workflow),
+    in the register's [how to use](../product/PRODUCT_DEBT.md#how-to-use-this-register)
+    section and in [`SETUP_AND_CI.md`](../development/SETUP_AND_CI.md#documentation-links-v29-ins-00).
+    `test/unit/ci/docs-links.test.ts` pins the slug rule against this repository's
+    own heading forms and the repository's own zero-finding state.
 - **Non-goals.** External links; prose style; a docs site.
 
-### ☐ INS-01 — The history kernel — closes [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3), [DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3)
+### ☑ INS-01 — The history kernel — **delivered 2026-09-04** — closes [DEBT-238](../product/PRODUCT_DEBT.md#-debt-238--the-kernel-activity-contract-has-no-time-window-read-so-five-adapters-carry-their-own-windowed-sql--p3--resolved-2026-09-04-v29-ins-01), [DEBT-239](../product/PRODUCT_DEBT.md#-debt-239--analytics-range-vocabulary-is-three-presets-bucketed-to-fit-the-reviews-eight-period-cap-and-there-is-no-shared-window-grain-or-series-primitive--p3--resolved-2026-09-04-v29-ins-01--ins-03)
 
 **One vocabulary for "over time" — window, grain, bucket, series — and one
 kernel read for each store that has a time axis, with nothing stored.**
@@ -254,10 +310,61 @@ kernel read for each store that has a time axis, with nothing stored.**
   month-end edges in the owner's timezone; hostile second workspace on every
   read; zero behaviour change on the Review and `/plan` measured by the same
   machine values before and after (the V2.5 rule).
+- **Delivered 2026-09-04.** [`app/kernel/history`](../../app/kernel/history/index.ts)
+  holds the vocabulary; the reads live on the contracts they belong to.
+  - **The name.** `history`, as the roadmap proposed. `Window` is the existing
+    `ActivityWindow` re-exported, not duplicated — one definition, now five
+    consumers.
+  - **The bucket rule is preserved verbatim and generalised.** Backward from
+    the window's end, remainder clamped at the oldest end. **There is no
+    `weekStart` parameter, and that is a decision rather than an omission**:
+    aligning a week bucket to the owner's Monday would make the most recent
+    bucket partial whenever the window ends mid-week — the exact defect the
+    backward rule exists to prevent, and the falsification below measures it as
+    a 29% phantom dip. A caller wanting calendar weeks ends the window on the
+    owner's week end and gets them exactly; both cases are asserted.
+    `planningWeekStart` remains the product's one week-start authority.
+  - **The inherited eight is gone.** `GRAIN_MAXIMUMS` states 366 days, 52
+    weeks, 24 months and 12 Review periods, and a wider window comes back with
+    `bounded`, the bound and the count that was asked for — never silently
+    shortened (ADR-079 d11). `requestedBucketCount` exists so INS-03 can refuse
+    before building anything.
+  - **The obstacle nobody had measured, and the shape it forced.** D1 binds at
+    most 100 parameters. Both existing bucketed shapes — a `SUM(CASE …)` column
+    per window (RECALL-02) and a `CASE WHEN … THEN index` arm per period
+    (`countPeriodCompletions`) — bind two per bucket, so both stop at about 48
+    while a grain maximum here is 366. The boundaries now travel as ONE bound
+    JSON parameter expanded by `json_each`, making the statement's shape
+    independent of the window: **measured at one statement for 365 daily
+    buckets and for 52 weekly ones.**
+  - **What converged, and what did not.** `countPeriodCompletions` and
+    `ActivityRepository.countByTypeInBuckets` now share
+    [`history-window-read.ts`](../../app/platform/storage/d1/history-window-read.ts)
+    — one predicate, two callers, and `COMPLETION_TYPE_MATCH`'s event-type-to-
+    entity-type table replaced by a generic primary-subject role filter.
+    FOLLOW-01/02's plan history did NOT converge and should not: it is a
+    three-arm UNION that also extracts each event's plan-before and plan-after
+    from `payload_json` and looks *after* the window for the event that moved a
+    plan out of it. **DEBT-238's "five adapters" was wrong in both directions**
+    — three of the five carry no window predicate at all, and two it did not
+    name do — so the grep the entry proposed is replaced by a registry test
+    that enumerates every remaining bound with its reason and fails when any
+    count moves.
+  - **Falsified.** A 40-week window asserts one statement. Laying the same
+    buckets out FORWARD from the window's start drops the most recent point
+    from 7 to 5 on a flat week — the artefact the backward rule prevents,
+    measured rather than argued. A hostile second workspace's identical fixture
+    leaves every count at its known value.
+  - **Parity, not a second authority.** `countCompletedInBuckets` and
+    `countCompletedTasksInWindows` return identical results on one fixture; a
+    Task completed, reopened and completed again counts once, in its current
+    bucket; a deleted Task counts nowhere. The Review's own 47 kernel tests
+    pass unchanged through the converged read, and `MAX_TREND_PERIODS` is now
+    purely the panel's display bound rather than also a limit D1 was imposing.
 - **Non-goals.** A query language; a cache; any stored aggregate; any
   surface.
 
-### ☐ INS-02 — Across Reviews — takes the `listSnapshotsBefore` half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3)'s disposition
+### ☑ INS-02 — Across Reviews — **delivered 2026-09-04** — takes the `listSnapshotsBefore` half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--resolved-2026-09-04-v29-ins-02--ins-03)'s disposition
 
 **The Review reads more than one snapshot back, and says in words what
 changed across them.**
@@ -295,10 +402,49 @@ changed across them.**
   count is asserted and flat in Review count; the Goal story's three
   surfaces (Area record, Review Goals step, search) show the same machine
   value; light and dark; 320 → 1440 plus the 195px zoom case; `axe` clean.
+- **Delivered 2026-09-04.** The Review reads a SERIES of snapshots and says, in
+  words, what changed across them.
+  - **The three facts** are built by `app/kernel/review-insights/across-reviews.ts`
+    — pure, reading no repository and formatting no date — and rendered as an
+    "Across recent Reviews" section of the existing evidence panel, so both
+    mount points (the guided flow's evidence step and the Review record's
+    Progress tab) gained it with no change of their own.
+  - **A Project appears only when its state DIFFERS** across the series, and a
+    Review that recorded NO reading is skipped rather than counted as one — so
+    a Project with two readings across four Reviews says "2 of the 2 that
+    recorded one" instead of inventing two (RECALL-04/DEBT-234). A Project the
+    one-step health section already named is not repeated.
+  - **Every title is live, through the stored id** (ADR-079 d3): the snapshots
+    hold ids only, and a record absent from today's facts is simply not named.
+  - **It cost NO statement.** `listSnapshotSeries` REPLACED the single
+    `getSnapshot` read, and the previous snapshot is derived from the series
+    with the old semantics exactly — the immediately prior Review's, or null,
+    never "the most recent Review that happens to have one".
+    `REVIEW_INSIGHTS_QUERY_BUDGET` stays at **17**, asserted against real D1.
+    The guided flow's Goals step pays **one** more (12 → 13, declared) for the
+    same read, because the guided flow loads one step per request.
+  - **The Goal story gained the line** (ADR-111 d6):
+    `GoalStory.contributionAcrossReviews`, projected into
+    `GOAL_STORY_FACT_KEYS` as the state AND the number of Reviews it was read
+    over, so no surface can show the classification without its window. It is
+    `null` where a surface did not ask — the same meaning `alignment` and
+    `movement` already carry — and populated in the Review's Goals step, which
+    is where the series is affordable. The words come from one kernel helper,
+    so two surfaces cannot phrase the same machine value differently.
+  - **Falsified.** Four Reviews with alternating Project states assert the
+    sentence names the count; deleting two snapshots makes the sentence shrink
+    to "the last 2 Reviews" rather than invent a state — and the pair the
+    falsification keeps is the pair whose states differ, because a Project that
+    held ONE state is correctly not a finding at all.
+  - **Two precisions the disposition predicted differently**, recorded on
+    DEBT-212: the caller is `listSnapshotSeries`, so `listSnapshotsBefore`
+    is superseded and *still has no caller*; and the `/views` boundary read did
+    not converge, because routing a `LIMIT 1` read of the same table through
+    another repository's contract crosses a boundary for no measured gain.
 - **Non-goals.** A chart of health over time; any change to snapshot
   capture; monthly/quarterly *guided* Reviews (their own decision, unchanged).
 
-### ☐ INS-03 — Insight with a real range — closes the caller half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3)
+### ☑ INS-03 — Insight with a real range — **delivered 2026-09-04** — closes the caller half of [DEBT-212](../product/PRODUCT_DEBT.md#-debt-212--listmeasurementseries-has-no-caller--p3--resolved-2026-09-04-v29-ins-02--ins-03)
 
 **Analytics asks the question the owner has, over the window the owner
 chooses.**
@@ -339,7 +485,51 @@ chooses.**
 - **Non-goals.** Saved definitions (V2.13); any Finance or obligation series
   (their stores do not exist); a chart library; a dashboard; the nav label.
 
-### ☐ INS-04 — What changed — closes [DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3)
+**Delivered 2026-09-04.**
+
+- **`analytics-range.ts` is deleted, not aliased.** `ANALYTICS_RANGES`,
+  `rangeSpan`, `rangeBuckets` and `parseAnalyticsRange` are gone;
+  [`insight-range.ts`](../../app/kernel/analytics/insight-range.ts) holds the
+  six windows, the grain vocabulary and the spans, and the buckets come from
+  [the history kernel](../../app/kernel/history/index.ts). A thin alias would
+  have kept a second range vocabulary alive behind a re-export.
+- **The grain control offers only what the window can hold, computed.**
+  `allowedGrains` runs `requestedBucketCount` against `GRAIN_MAXIMUMS`, so 24
+  months is months-only and 12 months is days-or-months (53 week-buckets
+  exceeds the 52 maximum). A grain that would need bounding is never offered,
+  and `resolveInsightGrain` falls back to one the window holds rather than
+  shortening the series — the refusal the falsification asks for.
+- **Changing the window drops the grain**, so the URL can never claim a grain
+  the loader silently substituted. Both controls are ordinary links: Back
+  works, the page works with JavaScript off, and the view can be shared.
+- **Three completion series, reading the right authorities.** Tasks from
+  `countCompletedInBuckets` over `spine_records.completed_at`; Projects and
+  Goals from `countByTypeInBuckets` over the Activity stream, in the same
+  event semantics their totals use. The range TOTAL stays its own window read,
+  never the sum of the buckets — proved by a reopened-and-recompleted Task
+  counting once in both, and a deleted one leaving both.
+- **The Goals panel closes DEBT-212's caller half.** Every measured Goal gets a
+  compact `listMeasurementSeries` series with its bound stated; a Goal with one
+  reading is dropped rather than drawn as a flat line; and a Goal with no
+  measurement gets INS-02's across-Reviews sentence instead, which names its
+  own window because a Review period is not the span the owner selected.
+- **One bound survived, and the page says so.** The overdue LEVEL read could
+  not be lifted the way the counting reads were — its moments do not partition
+  anything, so each needs its own `SUM(CASE …)` column, and two bound
+  parameters per column against D1's ceiling of 100 puts the limit at
+  `MAX_OVERDUE_MOMENTS = 40`. A 366-day or 52-week window reads the most recent
+  40 closes, and `overdueMoments` carries that number into a note on the
+  surface. A stated bound replacing an invisible one is the whole of DEBT-239.
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 12`,
+  asserted in [`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)
+  against the real D1 at **every** window and grain the surface offers — 24
+  months at month grain costs exactly what 7 days at day grain costs.
+- **The page is a page.** The shared collection loading signal drives a
+  dashboard-shaped skeleton (`AnalyticsSkeleton`) rather than the shared column
+  of record cards, because a ghost that promises a list and resolves into
+  panels is worse than none.
+
+### ☑ INS-04 — What changed — **delivered 2026-09-04** — closes [DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)
 
 **The workspace's history is readable in the window the owner is looking
 at, and `/today/activity` finally has a consumer — or goes.**
@@ -363,6 +553,52 @@ at, and `/today/activity` finally has a consumer — or goes.**
   manifest comment recording the move; phone widths; `axe` clean.
 - **Non-goals.** A widget on Today (the redesign removed it for a reason
   recorded on DEBT-103); a notification; filtering by actor.
+
+**Delivered 2026-09-04.**
+
+- **One door, and the old one is gone.** The endpoint is
+  [`/analytics/activity`](../../app/modules/analytics/routes/activity.tsx) and
+  its model is [`activity-feed.ts`](../../app/modules/analytics/activity-feed.ts);
+  the Today route and its descriptor map moved with them and the Today entry
+  was retired in the same change. `grep -rn "today/activity" app/` finds two
+  comments recording the move and no route.
+- **It reads `listInWindow`.** The window travels in the query string as the
+  SAME `window=` vocabulary the page's address bar uses, resolved by the same
+  parser — so the list and the charts above it cannot be describing different
+  periods, and a caller cannot ask this route for a span the surface does not
+  offer. A stale value (`?window=quarter`, from the deleted range vocabulary)
+  falls back to the default rather than erroring.
+- **The panel is the shared DS-05 feed**
+  ([`WhatChangedPanel.tsx`](../../app/modules/analytics/WhatChangedPanel.tsx)),
+  supplying a page loader and nothing else; it names its window on the card,
+  because a list of events at the bottom of a long page needs its period
+  stated. It sits LAST: the figures answer "how much", this answers "what".
+  Every page comes from the route, the first included — the shared stream loads
+  its own first page, so a server-rendered one would be replaced on mount.
+- **Bounded, with a cursor rather than a total.** 30 events a page, `hasMore`
+  and `nextCursor`, and no count anywhere in the payload — a bounded list
+  stating a total would claim a completeness it does not have (ADR-079 d11).
+- **The window carries its ANCHOR DAY, bounded to today or yesterday.** Every
+  Insight window ends on the owner's today, so a page left open across their
+  midnight would page a feed one day off the figures above it — and because a
+  cursor is bound to its window, "Load more" would then be rejected outright: a
+  dead end retrying cannot clear. The page sends the day it was rendered for,
+  and the route accepts it only for today or the day before, which is the whole
+  set a real rollover produces. Anything else falls back to the server's today,
+  so a caller still cannot name an arbitrary anchor and read a 12-week window
+  from 1994.
+- **The empty state keeps the panel beneath it.** `isEmpty` is a claim about
+  COMPLETIONS, and a period can hold records created, notes written and a
+  Meeting held while completing nothing at all. The layout replaces every child
+  with the empty slot, so the one panel that could show what DID happen would
+  otherwise be the one hidden, on the surface whose job is to show it.
+- **Falsified and hostile-tested** in
+  [`test/kernel/ins-04-what-changed.test.ts`](../../test/kernel/ins-04-what-changed.test.ts):
+  an event outside the window is absent and stays absent at the widest window;
+  paging past the bound continues without repeating; a cursor issued for
+  another window is refused with a calm 400, as is a tampered one; another
+  workspace's events never appear, by id or by title; and the per-page
+  statement count does not move between a 3-event page and a 28-event one.
 
 ---
 
@@ -445,17 +681,26 @@ falsification named on each item.
 
 ## The debt, reconciled
 
-**This pass raised DEBT-238 … DEBT-242** (next free **DEBT-243**) and gave
-every entry it touched a dated disposition.
+**This pass raised DEBT-238 … DEBT-242** and gave every entry it touched a
+dated disposition. **Implementing it raised two more, DEBT-243 and DEBT-244**
+(next free **DEBT-245**). DEBT-243: seven surfaces link a Task with `/tasks?task=<id>`, a parameter
+the Tasks module does not read, so the link opens the collection rather than
+the record. Found while INS-02 was reading the Review's own claim links;
+recorded rather than silently becoming an eighth caller. DEBT-244 is the one
+E2E journey the programme's own full-suite run left red — bisected to `main`
+at `082f01e` in a clean worktree rather than assumed to be V2.9's, and left
+open rather than quietly re-run until green.
 
 | Entry | Severity | Disposition |
 |---|---|---|
-| **DEBT-238** — the kernel Activity contract has no window read | P3 | **Raised · taken by INS-01** |
-| **DEBT-239** — three Analytics presets, an inherited eight-bucket cap, no shared series primitive | P3 | **Raised · taken by INS-01** (the primitive) and **INS-03** (the range) |
+| **DEBT-238** — the kernel Activity contract has no window read | P3 | **Raised · CLOSED by INS-01 (2026-09-04)**, with its own measurement corrected |
+| **DEBT-239** — three Analytics presets, an inherited eight-bucket cap, no shared series primitive | P3 | **Raised · ☑ resolved by INS-01 + INS-03 (2026-09-04)** |
 | **DEBT-240** — an obligation cannot exist without an Asset and carries no amount | P3 | **Raised · owner V2.10 LIFE ADMIN** — not taken here |
-| **DEBT-241** — no docs link/anchor check; 447 broken local links | P2 | **Raised · taken by INS-00**; the eleven in `ROADMAP_V2_8.md` repaired by the defining pass |
+| **DEBT-241** — no docs link/anchor check; 447 broken local links | P2 | **Raised · CLOSED by INS-00 (2026-09-04)**; the eleven in `ROADMAP_V2_8.md` repaired by the defining pass |
 | **DEBT-242** — no workspace or account deletion path | P3 | **Raised · owner V2.16 CONSOLIDATE**; re-rated at V2.12's definition if Finance's pass finds it must precede money |
-| DEBT-212 · DEBT-103 | P3 | **Taken by INS-02/INS-03 and INS-04** |
+| DEBT-212 · DEBT-103 | P3 | Both **☑ resolved (2026-09-04)** — DEBT-212 by INS-02 + INS-03, DEBT-103 by INS-04 |
+| **DEBT-243** — seven surfaces link a Task with a parameter Tasks does not read | P3 | **Raised by INS-02 (2026-09-04)**, not taken: it is a Tasks-module link contract, not an Insight defect |
+| **DEBT-244** — one colour-scheme journey times out reading computed styles | P3 | **Raised by V2.9's own full-suite run (2026-09-04)**, not taken: reproduced on `main` at `082f01e` in a clean worktree, so it is not this programme's; it belongs with DEBT-203's stability work |
 | DEBT-35 | P3 | **Re-homed**: attachments → V2.11; renewals and reminders for non-Asset things → V2.10; the entry closes empty as it always said it would |
 | DEBT-198 | P2 | **Owner-held, unchanged, and now a hard gate for V2.12** — recorded on the entry |
 | DEBT-237 · DEBT-213 · DEBT-91 · DEBT-92 · DEBT-93 | P3 | **The V2.14 sequence**: gate, registry, fact block, then the Weekly Review assistant live; unchanged in order, re-dated |
@@ -826,6 +1071,7 @@ becoming four islands, and they outlive any one release's ordering.
 - [`DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md`](../product/DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md) — the analysis this file is the roadmap truth of
 - [`ROADMAP_V2_8.md`](ROADMAP_V2_8.md) — the predecessor programme, complete 2026-09-04
 - [ADR-116](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export) — this pass's decision record
+- [ADR-117](../decisions/ARCHITECTURE_DECISIONS.md#adr-117-insight--one-history-vocabulary-over-stores-already-written-a-bound-that-is-stated-rather-than-applied-and-a-link-check-that-makes-the-map-a-gate) — what implementing V2.9 decided
 - [ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score) · [ADR-110](../decisions/ARCHITECTURE_DECISIONS.md#adr-110-follow-through-is-derived-from-the-activity-stream-never-stored--one-period-account-no-adherence-score-and-no-snapshot-table-for-a-plan-or-a-goal) · [ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question) — the rules every INS item inherits
 - [ADR-082 (saved views)](../decisions/ARCHITECTURE_DECISIONS.md#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract) — the seam V2.13 reuses
 - [`REVIEWS_MODULE.md`](../development/REVIEWS_MODULE.md) · [`GOALS_MODULE.md`](../development/GOALS_MODULE.md) · [`ACTIVITY_TIMELINE.md`](../development/ACTIVITY_TIMELINE.md) · [`TODAY_DASHBOARD.md`](../development/TODAY_DASHBOARD.md) — the module authorities INS-02/03/04 touch

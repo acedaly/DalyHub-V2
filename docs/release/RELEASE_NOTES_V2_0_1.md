@@ -89,7 +89,7 @@
 
 - No migration. No new module, entity type or setting. No change to archive or
   soft-delete behaviour anywhere. Restore is still not implemented
-  ([SET-02, V2.1](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21)) —
+  ([SET-02, V2.1](../roadmap/ROADMAP_V2_1.md#-set-02--backup--restore-v21--delivered-2026-08-08)) —
   keep taking your own exports.
 
 ---

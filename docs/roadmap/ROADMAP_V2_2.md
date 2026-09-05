@@ -387,8 +387,8 @@ alternatives.
   DS-12 menu, changing any route/intent/storage rule, or making the task row taller.
 - Record: [ADR-087](../decisions/ARCHITECTURE_DECISIONS.md#adr-087-inline-editors-float-in-a-shared-overlay-layer-and-become-sheets-on-a-phone) ·
   [DESIGN_SYSTEM → Anchored overlay](../design/DESIGN_SYSTEM.md#anchored-overlay-edit-03) ·
-  captures in [`docs/design/assets/edit-03-2026-08/`](../design/assets/edit-03-2026-08)
-  (`e2e/inline-editor-overlay-screenshots.spec.ts`).
+  captures in `docs/design/assets/edit-03-2026-08/` (the folder was not committed;
+  `e2e/inline-editor-overlay-screenshots.spec.ts` regenerates them).
 
 ### ☑ UIX-02 - Projects & Areas product UI redesign — **DELIVERED 2026-08-10**
 

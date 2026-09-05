@@ -19,6 +19,9 @@
 import type {
   ActivityPage,
   ActivityRecord,
+  ActivityTypeBucketCount,
+  CountActivityByTypeInput,
+  ListActivityInWindowInput,
   ListEntitiesActivityInput,
   ListEntityActivityInput,
   ListWorkspaceActivityInput,
@@ -110,4 +113,54 @@ export interface ActivityRepository {
     entityIds: readonly string[],
     input?: ListEntitiesActivityInput,
   ): Promise<ActivityPage>;
+
+  /**
+   * V2.9 INS-01 — count events by type across a series of buckets, in ONE
+   * grouped statement whatever the window (DEBT-238).
+   *
+   * Until V2.9 this contract had no time-window read at all — its inputs carried
+   * `type`, `limit` and `cursor` and no from/to — so every surface that needed
+   * one wrote its own `occurred_at` predicate, and "completions per week over
+   * twelve weeks" had no source. This is that read.
+   *
+   * Guarantees, all asserted by `test/kernel/history-kernel.test.ts`:
+   *   - ONE statement, whatever the bucket count — the bucket boundaries travel
+   *     as a single bound parameter, so the statement's shape does not grow with
+   *     the window (D1 binds at most 100 parameters, which a column-per-bucket
+   *     read would exceed at 50 buckets);
+   *   - flat in workspace size: the scan is the one index range the outermost
+   *     bucket boundaries describe, over
+   *     `(workspace_id, type, occurred_at, id)`;
+   *   - every requested bucket and every requested type comes back, zero
+   *     included;
+   *   - DISTINCT SUBJECT ENTITIES per type, so a Task completed twice in one
+   *     bucket counts once — the semantics `countPeriodCompletions` already has;
+   *   - workspace-scoped: another workspace's events are not visible, and the
+   *     bucket count is unaffected by their existence.
+   *
+   * **This is not the completion authority for Tasks.** A Task series is read
+   * from `spine_records.completed_at` through
+   * `TaskRepository.countCompletedInBuckets` (RECALL-02, ADR-114 decision 4),
+   * because `task.completed` events survive a reopen and a delete. This read is
+   * for series whose truth genuinely IS the event — Projects and Goals completed
+   * keep their ADR-079 decision 2 Activity semantics — and for "what changed".
+   */
+  countByTypeInBuckets(
+    input: CountActivityByTypeInput,
+  ): Promise<readonly ActivityTypeBucketCount[]>;
+
+  /**
+   * V2.9 INS-01 — list the events inside one window, newest first, with bounded
+   * cursor pagination (DEBT-238, INS-04).
+   *
+   * The windowed sibling of {@link listForWorkspace}: same ordering, same page
+   * shape, same cursor discipline, plus a half-open `[startsAt, endsAt)` instant
+   * range and an optional set of types. One statement per page.
+   *
+   * The cursor is bound to the WINDOW and the type filter as well as the
+   * workspace, so a cursor issued for one fortnight cannot be replayed against
+   * another and silently skip events — the same rule that binds a Timeline
+   * cursor to its anchor set.
+   */
+  listInWindow(input: ListActivityInWindowInput): Promise<ActivityPage>;
 }
