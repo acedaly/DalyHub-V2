@@ -242,11 +242,11 @@ describe("POST /meeting/:meetingId/mutate — mark_held", () => {
     const { status, body } = await mutate(meeting.id, { intent: "mark_HELD" });
 
     expect(status).toBe(200);
-    // HARDEN-06B (F-01) — `detailsUpdatedAt` is the ordinary update path's own
-    // answer, so its PRESENCE is a second, independent statement that this
-    // submission took that path rather than the held one. `toEqual` still
-    // refuses any other key.
-    expect(body).toEqual({ ok: true, detailsUpdatedAt: expect.any(String) });
+    // HARDEN-06B (F-01) — still exactly `{ ok: true }`: this submission changed
+    // nothing, so there is no version it produced to hand back. A response that
+    // grew a `detailsUpdatedAt` here would be offering the caller a version
+    // some other writer wrote.
+    expect(body).toEqual({ ok: true });
     expect(await countActivitiesOfType(MEETING_HELD)).toBe(0);
     expect((await meetings.get(meeting.id))?.heldAt).toBeNull();
   });
