@@ -56,6 +56,78 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * The product's own autoscroll band and step (`DragProvider`): the pointer has
+ * to be within 48px of an edge for the container to follow it, and it then
+ * moves 12px per animation frame — one frame per `pointermove`, because the
+ * provider schedules its resolve from the move rather than from a loop.
+ */
+const AUTOSCROLL_EDGE_PX = 48;
+
+/**
+ * Hold the drag at the edge until `destination` is somewhere the pointer can
+ * actually reach, and answer where its centre then is.
+ *
+ * DEBT-173, found by the two-arrangement proof. `boundingBox()` is relative to
+ * the VIEWPORT, so on a long page a destination below the fold has a `y` past
+ * `innerHeight` — and `mouse.move` to a point outside the window hit-tests
+ * nothing, so the destination never becomes active and the drag drops on air.
+ * Whether that happens is a property of the ACCUMULATED workspace: the
+ * populated journey below opens the whole `/tasks` collection grouped by
+ * parent, so how far down the page the destination bucket sits is decided by
+ * how many Tasks and parents every earlier spec left behind. It duly passed
+ * under one derived split and failed under another on the same commit.
+ *
+ * The repair is not to shorten the page or to scroll behind the product's back.
+ * A real owner whose destination is below the fold holds the pointer at the
+ * bottom edge and lets the list come to them, and the product supports exactly
+ * that. So this drives the product's own autoscroll with real pointer moves and
+ * polls the real geometry between them — no sleep, no fixed pixel script, and
+ * the wait ends on the state it is waiting for.
+ */
+async function bringWithinReach(
+  page: Page,
+  destination: Locator,
+): Promise<{ x: number; y: number }> {
+  const viewport = page.viewportSize();
+  if (viewport === null) throw new Error("a viewport is required to drag");
+  /*
+   * 12px a frame over a page that can be a few thousand pixels long. The bound
+   * exists so a destination that never arrives fails as a test rather than as a
+   * hang, and it is generous enough that reaching it means something is wrong.
+   */
+  for (let step = 0; step < 400; step += 1) {
+    const box = await destination.boundingBox();
+    if (box === null) throw new Error("the destination left the document");
+    const x = Math.round(
+      Math.min(Math.max(box.x + box.width / 2, 1), viewport.width - 1),
+    );
+    /*
+     * Aim at the part of the destination the pointer can actually be over, not
+     * at its geometric centre — a bucket holding a dozen rows can be taller
+     * than the window, and its centre then lies off-screen while most of it is
+     * in plain sight. Everything outside the autoscroll band counts as usable,
+     * so a destination that is already visible needs no scrolling at all.
+     */
+    const top = Math.max(box.y, AUTOSCROLL_EDGE_PX + 1);
+    const bottom = Math.min(
+      box.y + box.height,
+      viewport.height - AUTOSCROLL_EDGE_PX - 1,
+    );
+    if (bottom > top) return { x, y: Math.round((top + bottom) / 2) };
+    /*
+     * Park in the band on the side the destination lies, and nudge by a pixel
+     * each time: the provider steps the scroll once per `pointermove`, so a
+     * move to the identical point still delivers an event and still steps.
+     */
+    const y = box.y < AUTOSCROLL_EDGE_PX ? 4 + (step % 2) : viewport.height - 4;
+    await page.mouse.move(x, y);
+  }
+  throw new Error(
+    "the destination never scrolled into reach of the dragging pointer",
+  );
+}
+
+/**
  * Lift `handle` and release it over `destination`.
  *
  * Real Pointer Events on the real controls: this is the product's own
@@ -63,6 +135,27 @@ import {
  * exist because a destination resolves from the pointer's position — one jump
  * would never cross the rectangles in between — and they are derived from the
  * two boxes rather than being a fixed pixel script.
+ *
+ * DEBT-173 — the aim is TAKEN AGAIN until the product says it is on target,
+ * because the page moves under the pointer between the two.
+ *
+ * Lifting a row takes it out of the flow, so every group below it rises by a
+ * row; the provider starts the session on `pointerdown` but React paints that a
+ * frame later, so a destination box read at the moment of the press describes a
+ * layout that no longer exists by the time the pointer arrives. The error is
+ * one row high — invisible on the filtered journeys, where the two buckets are
+ * adjacent and a row's slip still lands inside the destination, and fatal on
+ * the populated one, where the buckets are separated by gaps and the pointer
+ * lands in the gap. WHICH of the two happens is decided by how many rows sit
+ * between them, which is a property of the ACCUMULATED workspace: it duly
+ * passed under one derived split and failed under another on the same commit,
+ * and reproduces from a clean seed with this file run alone.
+ *
+ * So the loop asks the product where the destination is NOW, moves there, and
+ * asks the product whether that is the destination it resolved — which is what
+ * an owner does when the highlight is not where they expected. It is not a
+ * retry of the assertion: the assertion below is unchanged and unguarded, and a
+ * destination that never lights up still fails on it.
  */
 async function dragOnto(
   page: Page,
@@ -70,15 +163,20 @@ async function dragOnto(
   destination: Locator,
 ): Promise<void> {
   const from = await handle.boundingBox();
-  const to = await destination.boundingBox();
-  if (from === null || to === null) {
-    throw new Error("both the handle and the destination must be on screen");
+  if (from === null) {
+    throw new Error("the handle must be on screen");
   }
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
-    steps: 12,
-  });
+  for (let aim = 0; aim < 6; aim += 1) {
+    // The pointer is down before this: bringing the destination into reach IS
+    // part of the drag, and on a short page it costs one geometry read.
+    const to = await bringWithinReach(page, destination);
+    await page.mouse.move(to.x, to.y, { steps: aim === 0 ? 12 : 2 });
+    if ((await destination.getAttribute("data-dh-drop-active")) === "true") {
+      break;
+    }
+  }
   await expect(destination).toHaveAttribute("data-dh-drop-active", "true");
   await page.mouse.up();
 }
