@@ -463,6 +463,63 @@ describe("obligation lifecycle", () => {
     ).rejects.toBeInstanceOf(ObligationNotFoundError);
   });
 
+  /*
+   * D15 — a hostile workspace, at the store rather than at the route.
+   *
+   * The one property worth asserting is that a foreign id is INDISTINGUISHABLE
+   * from an id that names nothing: same answer, same error, and no title, no
+   * amount and no workspace id anywhere in what comes back. An error that said
+   * "that obligation belongs to another workspace" would confirm existence,
+   * which is the leak, and it would do it while refusing.
+   */
+  it("answers for another workspace's obligation exactly as it answers for none", async () => {
+    const theirAsset = await ute(OTHER, "o");
+    const theirs = await obligations(OTHER, "oh").create({
+      subjectEntityId: theirAsset.id,
+      category: "insurance",
+      title: "Zzyzx premium",
+      description: "A distinctive string nothing else in this file writes.",
+      dueDate: "2026-10-01",
+      expectedAmount: "4321.99",
+      currencyCode: "AUD",
+    });
+
+    const mine = obligations();
+    expect(await mine.get(theirs.id)).toBeNull();
+
+    const leaks = (error: unknown): string =>
+      `${(error as Error).name} ${(error as Error).message}`;
+    for (const attempt of [
+      () => mine.update(theirs.id, { title: "x" }),
+      () => mine.setStatus(theirs.id, "dismissed"),
+      () => mine.complete(theirs.id),
+      () => mine.linkTask(theirs.id, "whatever"),
+    ]) {
+      const error = await attempt().then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      expect(error).toBeInstanceOf(ObligationNotFoundError);
+      const text = leaks(error);
+      expect(text).not.toContain("Zzyzx");
+      expect(text).not.toContain("4321");
+      expect(text).not.toContain(OTHER);
+      expect(text).not.toContain("distinctive");
+    }
+
+    /*
+     * `delete` answers `false` rather than throwing, for an unknown id and for
+     * a foreign one alike — the same idempotence, and the same silence about
+     * which of the two it was.
+     */
+    expect(await mine.delete(theirs.id)).toBe(false);
+    expect(await mine.delete("no_such_obligation")).toBe(false);
+
+    // And it is still theirs, untouched, afterwards.
+    const after = await obligations(OTHER, "oh").get(theirs.id);
+    expect(after).toMatchObject({ title: "Zzyzx premium", status: "open" });
+  });
+
   it("dismisses, holds and reopens; refuses to reopen a completed occurrence", async () => {
     const asset = await ute();
     const repo = obligations();
