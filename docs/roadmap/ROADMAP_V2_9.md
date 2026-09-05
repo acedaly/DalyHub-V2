@@ -41,6 +41,27 @@ where the measurement that defined it turned out to be wrong.
 
 **Successor: V2.10 LIFE ADMIN, PLANNED** — see [the sequence](#the-remaining-v2-sequence).
 
+**The completion pass (2026-09-05).** PR #254 merged the whole programme with
+its gate red: ten TypeScript errors vitest never sees (nine in tests, one in the
+degraded Analytics page's own model) and two E2E journeys that were also red
+on `main` before any V2.9 code existed (a search race and a strict-mode
+locator). A whole-programme review then found twenty real defects behind the
+green tests, each fixed with the test that would have caught it and recorded
+under its item below. The first commit (the gate repair) merged as PR #255,
+and `main`'s run on it, #848, is fully green — the trunk's first green run
+since the programme was defined. The findings follow in their own PR: month buckets that were calendar months only when the
+window ended on a 31st; two D1 reads that sliced past their bound and a series
+read clamped at eight while the kernel said twelve; three surfaces reading
+three different across-Reviews series for one Goal; a sentence that called
+"the 3 Reviews that recorded it" "the last 3"; a series read blind to archived
+and reopened Reviews; an understated carry-over count and a door to the wrong
+Tasks view; a failed read shown as "0 Areas" and as "no Goal has two readings";
+Goal shapes drawn from readings outside the selected window; bucket sums
+printed beside the window's own totals; an address bar that could name a
+window the page was not drawing; and two query budgets measured on the path
+where their conditional reads never fire. **Nothing here changed what the
+programme delivers; it changed whether the delivery could be proved.**
+
 ---
 
 ## The theme: INSIGHT — the history the product already holds, given back
@@ -361,6 +382,20 @@ kernel read for each store that has a time axis, with nothing stored.**
     bucket; a deleted Task counts nowhere. The Review's own 47 kernel tests
     pass unchanged through the converged read, and `MAX_TREND_PERIODS` is now
     purely the panel's display bound rather than also a limit D1 was imposing.
+  - **Corrected by the completion pass (2026-09-05).** Month buckets were
+    calendar months only when the window ended on a 31st — `addCalendarMonths`
+    clamps the day, so stepping back from 30 April landed on 30 March and 31
+    March was counted in "April"; a window ending on any month end now tiles
+    into whole calendar months (asserted at 30 April, 28 February and 30 June),
+    and `requestedBucketCount` agrees with the buckets and is exact rather than
+    capped at 50 for months. An inverted window is refused. Both bucketed D1
+    reads had SLICED past 366 and returned a shorter series than asked for,
+    while their contracts said the bound was "reported"; they refuse, the
+    ceiling derives from `GRAIN_MAXIMUMS`, and an empty or oversized type list
+    is refused as the contract said. `listSnapshotSeries` was clamped to
+    `MAX_TREND_PERIODS` (8) after all, so a caller asking for twelve got eight
+    unreported — it is bounded by the kernel's twelve, proved on fourteen
+    Reviews. A DST changeover is now placed against real D1.
 - **Non-goals.** A query language; a cache; any stored aggregate; any
   surface.
 
@@ -421,6 +456,11 @@ changed across them.**
     with the old semantics exactly — the immediately prior Review's, or null,
     never "the most recent Review that happens to have one".
     `REVIEW_INSIGHTS_QUERY_BUDGET` stays at **17**, asserted against real D1.
+    **Corrected 2026-09-05 by the completion pass:** that 17 was measured on a
+    FIRST Review, where the snapshot series and the prior Review's sections are
+    never read. On the path the number describes — a Review with a completed,
+    snapshotted predecessor — it is **19** (21 with a routine), and the
+    first-Review cost is asserted separately as two fewer.
     The guided flow's Goals step pays **one** more (12 → 13, declared) for the
     same read, because the guided flow loads one step per request.
   - **The Goal story gained the line** (ADR-111 d6):
@@ -441,6 +481,21 @@ changed across them.**
     is superseded and *still has no caller*; and the `/views` boundary read did
     not converge, because routing a `LIMIT 1` read of the same table through
     another repository's contract crosses a boundary for no measured gain.
+  - **Corrected by the completion pass (2026-09-05).** The "same machine
+    value" claim was false: the evidence step read six snapshots, the guided
+    Goals step asked for a Goal page size (twelve, clamped to eight) and
+    Analytics anchored on the latest completed Review of any type with eight.
+    `ACROSS_REVIEWS_SERIES_LENGTH` is the one number all three read, Analytics
+    anchors on the latest completed weekly Review, the Goal story projects the
+    series length beside the count, and a D1 test asserts the guided step and
+    Analytics print the same words for one Goal. A subject some Reviews did not
+    record now reads "2 of the 3 Reviews that recorded it, of your last 4" and
+    is dated from the oldest Review that recorded it. The series leaves out
+    Reviews archived or reopened after their snapshot, as `readPriorReviews`
+    always did. The repeated carry-over count reads "N+" whenever more ids
+    repeated than the bounded live page could name, and its door goes to the
+    waiting view for a waiting commitment. A Goal work reached at every Review
+    is not repeated as a finding. The no-snapshot comparison rule has its test.
 - **Non-goals.** A chart of health over time; any change to snapshot
   capture; monthly/quarterly *guided* Reviews (their own decision, unchanged).
 
@@ -520,7 +575,11 @@ chooses.**
   `MAX_OVERDUE_MOMENTS = 40`. A 366-day or 52-week window reads the most recent
   40 closes, and `overdueMoments` carries that number into a note on the
   surface. A stated bound replacing an invisible one is the whole of DEBT-239.
-- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 12`,
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 12`
+  as delivered — **corrected to 14 by the completion pass (2026-09-05)**,
+  because the fixture held no completed Review and the across-Reviews read
+  (an anchor lookup and a series) never fired; 12 is now the asserted cost of
+  a workspace that has never completed a Review —
   asserted in [`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)
   against the real D1 at **every** window and grain the surface offers — 24
   months at month grain costs exactly what 7 days at day grain costs.
@@ -528,6 +587,19 @@ chooses.**
   dashboard-shaped skeleton (`AnalyticsSkeleton`) rather than the shared column
   of record cards, because a ghost that promises a list and resolves into
   panels is worse than none.
+- **Corrected by the completion pass (2026-09-05).** A failed distribution
+  read put "0" on *Areas worked in* beside a panel saying the read had failed,
+  and a failed Goal page or across-Reviews read left the Goals panel claiming
+  "no Goal has two readings yet"; both now say "Not available". The
+  measured-Goal series ignored the selected window (a 7-day view drew July's
+  weigh-ins and called them "readings in this window"); `listMeasurementSeries`
+  takes the page's window. The trend caption and the Projects/Goals rows
+  summed the series beside metric cards that read the window's own total; the
+  model carries the totals and the surface prints those. `?window=quarter` and
+  `?window=24-months&grain=day` were normalised silently, so a shared link kept
+  naming a page it did not match; the loader redirects to the address it
+  draws. A 24-month axis carries the year. At phone widths a Goal row's reading
+  takes its own line rather than crushing the name.
 
 ### ☑ INS-04 — What changed — **delivered 2026-09-04** — closes [DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)
 
@@ -598,7 +670,12 @@ at, and `/today/activity` finally has a consumer — or goes.**
   paging past the bound continues without repeating; a cursor issued for
   another window is refused with a calm 400, as is a tampered one; another
   workspace's events never appear, by id or by title; and the per-page
-  statement count does not move between a 3-event page and a 28-event one.
+  statement count does not move between a 3-event page and a 28-event one —
+  **and, since the completion pass (2026-09-05), is pinned at
+  `INSIGHT_ACTIVITY_PAGE_BUDGET = 5`**, because "equal counts" is satisfied by
+  a per-event read that fires on both pages. The panel states its bound
+  ("the most recent changes in this period, newest first, thirty at a time")
+  where the list is read.
 
 ---
 

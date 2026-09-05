@@ -26,6 +26,7 @@ import {
   type NewActivityEvent,
 } from "~/kernel/activity";
 import {
+  GoalMeasurementValidationError,
   GOAL_MEASUREMENT_CORRECTED,
   GOAL_MEASUREMENT_LOGGED,
   GOAL_MEASUREMENT_REMOVED,
@@ -595,6 +596,20 @@ export class D1GoalMeasurementRepository implements GoalMeasurementRepository {
       GOAL_MEASUREMENT_MAX_ROWS,
       Math.max(1, Math.trunc(input.perGoalLimit)),
     );
+    // The window is two owner-calendar days, compared as the same
+    // `YYYY-MM-DD` text `measured_on` stores; a malformed one is a caller bug.
+    const window = input.window;
+    if (
+      window !== undefined &&
+      (!/^\d{4}-\d{2}-\d{2}$/.test(window.fromIso) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(window.toIso) ||
+        window.fromIso > window.toIso)
+    ) {
+      throw new GoalMeasurementValidationError(
+        "measuredOn",
+        "window must be two YYYY-MM-DD days in order",
+      );
+    }
 
     try {
       const chunks = chunk(ids, SUMMARY_CHUNK_SIZE);
@@ -631,11 +646,17 @@ export class D1GoalMeasurementRepository implements GoalMeasurementRepository {
                           ON e.workspace_id = m.workspace_id AND e.id = m.entity_id
                              AND e.type = '${GOAL}' AND e.deleted_at IS NULL
                         WHERE m.workspace_id = ? AND m.entity_id IN (${marks})
+                          ${window === undefined ? "" : "AND m.measured_on >= ? AND m.measured_on <= ?"}
                       )
                  WHERE rn <= ?
                  ORDER BY entity_id ASC, measured_on ASC, created_at ASC, id ASC`,
             )
-            .bind(this.#workspaceId, ...idChunk, perGoal)
+            .bind(
+              this.#workspaceId,
+              ...idChunk,
+              ...(window === undefined ? [] : [window.fromIso, window.toIso]),
+              perGoal,
+            )
             .all<SeriesRow>();
           return result.results ?? [];
         }),

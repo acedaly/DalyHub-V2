@@ -87,6 +87,15 @@ export function WhatChangedPanel({
       supporting={rangeLabel}
       density="standard"
     >
+      {/*
+       * The list is BOUNDED and says so where it is read: thirty at a time,
+       * newest first, and "Load more" reaches further back. No total anywhere —
+       * a bounded list stating one would claim a completeness it does not have
+       * (ADR-079 d11).
+       */}
+      <p className="dh-analytics__changed-note">
+        The most recent changes in this period, newest first, thirty at a time.
+      </p>
       <ActivityFeed
         loadPage={loadPage}
         ariaLabel={`What changed, ${rangeLabel}`}

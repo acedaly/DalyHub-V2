@@ -50,6 +50,17 @@ export const MAX_REPEATED_CARRY_OVER = 5;
  */
 export const MIN_ACROSS_REVIEWS = 2;
 
+/**
+ * How many Reviews one across-Reviews series holds: the panel's five trend
+ * periods plus the anchor. ONE number, consumed by the Review's evidence step,
+ * the guided Goals step and Analytics alike. Found by review reading three
+ * different lengths — six here, a Goal PAGE size (twelve, clamped to eight)
+ * there, eight on a different anchor on Analytics — so one guided Review could
+ * say "4 of the last 6" on one step and "5 of your last 8" two clicks later
+ * for the same Goal. The same question must return the same machine value.
+ */
+export const ACROSS_REVIEWS_SERIES_LENGTH = 6;
+
 /** One record's live identity, supplied by the caller from today's facts. */
 export interface AcrossReviewsSubject {
   readonly id: string;
@@ -66,6 +77,14 @@ export interface ProjectHealthAcrossReviews {
   readonly count: number;
   /** How many Reviews in the series recorded ANY state for this Project. */
   readonly of: number;
+  /**
+   * How many Reviews the series held in all. When `of` is smaller, some
+   * Reviews recorded no reading for this Project, and the sentence says so
+   * rather than calling `of` "the last N Reviews".
+   */
+  readonly reviews: number;
+  /** The first day of the OLDEST Review that recorded a state for it. */
+  readonly sinceIso: string;
   /** Oldest first, one per Review that recorded a state. */
   readonly states: readonly ProjectHealthState[];
 }
@@ -77,7 +96,11 @@ export interface GoalContributionAcrossReviews {
   readonly state: SnapshotGoalContribution;
   readonly count: number;
   readonly of: number;
-  /** True when every Review in the series recorded the same state. */
+  /** How many Reviews the series held in all — see `ProjectHealthAcrossReviews`. */
+  readonly reviews: number;
+  /** The first day of the OLDEST Review that recorded this Goal. */
+  readonly sinceIso: string;
+  /** True when every Review that recorded this Goal recorded the same state. */
   readonly everyReview: boolean;
   readonly states: readonly SnapshotGoalContribution[];
 }
@@ -99,7 +122,12 @@ export interface AcrossReviewsFacts {
   readonly projects: readonly ProjectHealthAcrossReviews[];
   readonly goals: readonly GoalContributionAcrossReviews[];
   readonly repeatedCarryOver: readonly RepeatedCarryOver[];
-  /** True when the carry-over list was cut to its bound. */
+  /**
+   * True when the named commitments are fewer than the ids that repeated:
+   * the list was cut to its bound, OR ids repeated that the caller's bounded
+   * live Task set could not name. Either way "N" would understate, and the
+   * surface says "N+" (found by review: the second case was reported exact).
+   */
   readonly repeatedCarryOverBounded: boolean;
 }
 
@@ -110,13 +138,14 @@ export interface AcrossReviewsFacts {
  * most often" breaks a tie toward the state worth looking at rather than
  * toward whichever the array happened to hold first.
  */
-const HEALTH_CONCERN_RANK: Readonly<Record<ProjectHealthState, number>> = {
-  on_track: 0,
-  completed: 0,
-  stale: 1,
-  blocked: 2,
-  at_risk: 3,
-};
+export const HEALTH_CONCERN_RANK: Readonly<Record<ProjectHealthState, number>> =
+  {
+    on_track: 0,
+    completed: 0,
+    stale: 1,
+    blocked: 2,
+    at_risk: 3,
+  };
 
 /** Contribution states ordered by how much they warrant a look. */
 const CONTRIBUTION_CONCERN_RANK: Readonly<
@@ -196,6 +225,7 @@ export function readAcrossReviews(input: {
 
   /* -- Project health ------------------------------------------------------ */
   const healthById = new Map<string, ProjectHealthState[]>();
+  const projectSince = new Map<string, string>();
   for (const stored of series) {
     for (const project of stored.snapshot.projects) {
       // `health: null` means there was NO reading at that Review (RECALL-04 /
@@ -206,6 +236,9 @@ export function readAcrossReviews(input: {
       const states = healthById.get(project.id) ?? [];
       states.push(project.health);
       healthById.set(project.id, states);
+      if (!projectSince.has(project.id)) {
+        projectSince.set(project.id, stored.snapshot.periodStart);
+      }
     }
   }
   const projects: ProjectHealthAcrossReviews[] = [];
@@ -224,6 +257,8 @@ export function readAcrossReviews(input: {
       state: top.value,
       count: top.count,
       of: states.length,
+      reviews: series.length,
+      sinceIso: projectSince.get(projectId) ?? series[0].snapshot.periodStart,
       states,
     });
   }
@@ -236,11 +271,15 @@ export function readAcrossReviews(input: {
 
   /* -- Goal contribution --------------------------------------------------- */
   const contributionById = new Map<string, SnapshotGoalContribution[]>();
+  const goalSince = new Map<string, string>();
   for (const stored of series) {
     for (const goal of stored.snapshot.goals) {
       const states = contributionById.get(goal.id) ?? [];
       states.push(goal.contribution);
       contributionById.set(goal.id, states);
+      if (!goalSince.has(goal.id)) {
+        goalSince.set(goal.id, stored.snapshot.periodStart);
+      }
     }
   }
   const goals: GoalContributionAcrossReviews[] = [];
@@ -256,6 +295,8 @@ export function readAcrossReviews(input: {
       state: top.value,
       count: top.count,
       of: states.length,
+      reviews: series.length,
+      sinceIso: goalSince.get(goalId) ?? series[0].snapshot.periodStart,
       everyReview: top.count === states.length,
       states,
     });
@@ -295,7 +336,12 @@ export function readAcrossReviews(input: {
     projects: projects.slice(0, MAX_ACROSS_REVIEWS_PROJECTS),
     goals: goals.slice(0, MAX_ACROSS_REVIEWS_GOALS),
     repeatedCarryOver: repeatedLive.slice(0, MAX_REPEATED_CARRY_OVER),
-    repeatedCarryOverBounded: repeatedLive.length > MAX_REPEATED_CARRY_OVER,
+    // Cut to the bound, or more ids repeated than the live set could name
+    // (the caller's carry-over page is itself bounded; a Task past it, or one
+    // since deleted, still carried over at every Review). "N+" either way.
+    repeatedCarryOverBounded:
+      repeatedLive.length > MAX_REPEATED_CARRY_OVER ||
+      repeated.size > repeatedLive.length,
   };
 }
 
@@ -323,6 +369,16 @@ export function goalContributionAcrossReviewsLine(
 ): string {
   const label = CONTRIBUTION_LINE_LABELS[contribution.state];
   const reviews = contribution.of === 1 ? "Review" : "Reviews";
+  // When a Review in the series recorded nothing for this Goal (it was created
+  // mid-series, or fell past the snapshot's Goal bound), "your last N" would
+  // quietly include it. The sentence names the Reviews that recorded it AND
+  // the series they sit in, so the window is never misstated.
+  if (contribution.of < contribution.reviews) {
+    const recorded = `of the ${contribution.of} ${reviews} that recorded it, of your last ${contribution.reviews}`;
+    return contribution.everyReview
+      ? `${label} at every one ${recorded}`
+      : `${label} at ${contribution.count} ${recorded}`;
+  }
   return contribution.everyReview
     ? `${label} at every one of your last ${contribution.of} ${reviews}`
     : `${label} at ${contribution.count} of your last ${contribution.of} ${reviews}`;

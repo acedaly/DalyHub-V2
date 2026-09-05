@@ -150,11 +150,36 @@ function boundaryDays(endIso: string, grain: Grain, count: number): string[] {
   for (let index = 0; index <= count; index += 1) {
     days.push(
       grain === "month"
-        ? addCalendarMonths(endIso, -index)
+        ? monthBoundary(endIso, index)
         : addCalendarDays(endIso, -index * (grain === "week" ? 7 : 1)),
     );
   }
   return days;
+}
+
+/**
+ * The day `index` months before `endIso` on which a month bucket ends.
+ *
+ * Found by review: `addCalendarMonths` clamps the DAY, which is right when a
+ * window ends mid-month (5 September → 5 August → 5 July tiles cleanly), and
+ * wrong when it ends on a month end shorter than 31 days: stepping back from
+ * 30 April landed on 30 March, and 31 March was counted in the "April" bucket.
+ * A window that ends on ANY month end therefore tiles into whole calendar
+ * months — each boundary is the last day of its month — and a window ending
+ * mid-month keeps the day-anchored rule, which is the only one that keeps the
+ * most recent bucket whole.
+ */
+function monthBoundary(endIso: string, index: number): string {
+  if (!isMonthEnd(endIso)) return addCalendarMonths(endIso, -index);
+  // The first of the anchor month, stepped back, then the day before the
+  // following first: the last day of the target month whatever its length.
+  const firstOfMonth = `${endIso.slice(0, 8)}01`;
+  return addCalendarDays(addCalendarMonths(firstOfMonth, 1 - index), -1);
+}
+
+/** True when `iso` is the last day of its calendar month. */
+function isMonthEnd(iso: string): boolean {
+  return addCalendarDays(iso, 1).slice(0, 7) !== iso.slice(0, 7);
 }
 
 /**
@@ -175,14 +200,7 @@ export function bucketWindow(input: {
       "review_period buckets are the Reviews' own periods — use bucketPeriods()",
     );
   }
-  if (
-    !isCalendarDate(window.periodStart) ||
-    !isCalendarDate(window.periodEnd)
-  ) {
-    throw new TypeError(
-      "a history window needs two wall-calendar YYYY-MM-DD days",
-    );
-  }
+  assertCalendarWindow(window);
 
   const maximum = GRAIN_MAXIMUMS[grain];
   const requested = requestedBucketCount(window, grain);
@@ -244,21 +262,58 @@ export function requestedBucketCount(
   grain: Grain,
 ): number {
   if (grain === "review_period") return 0;
+  assertCalendarWindow(window);
   if (grain === "month") {
-    let count = 0;
-    // Step back a month at a time from the end until the boundary passes the
-    // window's start. Bounded by the loop's own ceiling so a malformed window
-    // cannot spin: no history question reaches even the maximum's double.
-    const ceiling = GRAIN_MAXIMUMS.month * 2 + 2;
-    while (count < ceiling) {
-      const boundary = addCalendarMonths(window.periodEnd, -count);
-      if (boundary < window.periodStart) break;
-      count += 1;
-    }
-    return Math.max(1, count);
+    // Whole months between the two boundaries, by arithmetic rather than by
+    // stepping: the count was found capped at 50 by a loop ceiling while days
+    // and weeks were exact, and a field documented as "unbounded" must be. The
+    // boundary rule is `monthBoundary`'s, so the count agrees with the buckets
+    // it would get: the boundary `whole` months back is the last one at or
+    // after the window's start, and the partial remainder (if any) is one more.
+    const whole = monthsBetween(window.periodEnd, window.periodStart);
+    const boundary = monthBoundary(window.periodEnd, whole);
+    return Math.max(1, boundary >= window.periodStart ? whole + 1 : whole);
   }
   const days = calendarDaysBetween(window.periodStart, window.periodEnd) + 1;
   return Math.max(1, Math.ceil(days / (grain === "week" ? 7 : 1)));
+}
+
+/**
+ * How many whole month steps back from `fromIso` stay at or after `toIso`,
+ * under the same boundary rule the buckets use. Pure arithmetic on the
+ * year/month pair, corrected by at most one step for the day.
+ */
+function monthsBetween(fromIso: string, toIso: string): number {
+  const months =
+    (Number(fromIso.slice(0, 4)) - Number(toIso.slice(0, 4))) * 12 +
+    (Number(fromIso.slice(5, 7)) - Number(toIso.slice(5, 7)));
+  let steps = Math.max(0, months);
+  // The year/month difference can overshoot by one when the day clamps past
+  // the start; step back until the boundary is inside the window.
+  while (steps > 0 && monthBoundary(fromIso, steps) < toIso) steps -= 1;
+  return steps;
+}
+
+/**
+ * A window is two wall-calendar days in order. An inverted window is refused
+ * rather than read: it was found producing one bucket with inverted instants,
+ * which every read answered with zeros — "nothing happened" where the truth
+ * was "nothing was asked".
+ */
+function assertCalendarWindow(window: ActivityWindow): void {
+  if (
+    !isCalendarDate(window.periodStart) ||
+    !isCalendarDate(window.periodEnd)
+  ) {
+    throw new TypeError(
+      "a history window needs two wall-calendar YYYY-MM-DD days",
+    );
+  }
+  if (window.periodStart > window.periodEnd) {
+    throw new TypeError(
+      `a history window's start (${window.periodStart}) must not follow its end (${window.periodEnd})`,
+    );
+  }
 }
 
 /**

@@ -23,26 +23,12 @@
  * so the module import boundary holds.
  */
 
-import { DIARY_ENTRY_CREATED } from "~/kernel/diary";
-import {
-  MEETING_HELD,
-  MEETING_ITEM_CONVERTED_TO_TASK,
-} from "~/kernel/meetings";
-import { NOTE_CONTENT_UPDATED } from "~/kernel/notes";
-import { PERSON_UPDATED } from "~/kernel/people";
-import {
-  GOAL_COMPLETED,
-  PROJECT_COMPLETED,
-  TASK_COMPLETED,
-} from "~/kernel/spine";
-import { TASK_PLANNED } from "~/kernel/tasks";
 import { discoverModuleRegistry } from "~/modules/discover-modules";
 import {
   buildWorkspaceActivityDescriptors,
   type ActivityDescriptorMap,
   type ActivityItem,
 } from "~/shared/activity-feed/model";
-import type { FilterOption } from "~/shared/filters/model";
 
 /** How many events one page of the feed loads. Bounded; the client pages. */
 export const INSIGHT_ACTIVITY_PAGE_SIZE = 30;
@@ -66,40 +52,14 @@ export function insightActivityDescriptors(): ActivityDescriptorMap {
 }
 
 /**
- * The "Referenced entity" filter options for the DS-07 FilterBar — filter the feed
- * to the records that matter (tasks, notes, diary, projects, goals, areas). Uses the
- * shared entity vocabulary, no colour-only cues.
+ * V2.9 INS-04 — the EXACT number of D1 statements one page of the feed costs,
+ * asserted against real D1 by `test/kernel/ins-04-what-changed.test.ts` at a
+ * 3-event page and a 28-event one: the owner's preferences, the windowed page
+ * read with its subject batch, the bounded entity batch and the bounded actor
+ * directory. Never one read per event. A number rather than "equal counts",
+ * so a per-event read fails the build rather than the owner's page.
  */
-export const INSIGHT_ACTIVITY_ENTITY_OPTIONS: readonly FilterOption[] = [
-  { value: "task", label: "Tasks" },
-  { value: "project", label: "Projects" },
-  { value: "goal", label: "Goals" },
-  { value: "area", label: "Areas" },
-  { value: "note", label: "Notes" },
-  { value: "diary", label: "Diary" },
-  { value: "meeting", label: "Meetings" },
-  { value: "person", label: "People" },
-  { value: "asset", label: "Assets" },
-];
-
-/**
- * A curated "Event type" filter set for the DS-07 FilterBar — the events most worth
- * filtering the feed to. Values are the SAME branded type strings the kernel emits
- * (validated), so the DS-07 enum accessor matches `ActivityItem.type` exactly.
- */
-export const INSIGHT_ACTIVITY_EVENT_OPTIONS: readonly FilterOption[] = [
-  { value: "entity.created", label: "Created" },
-  { value: "entity.updated", label: "Updated" },
-  { value: TASK_COMPLETED, label: "Task completed" },
-  { value: TASK_PLANNED, label: "Task planned" },
-  { value: PROJECT_COMPLETED, label: "Project completed" },
-  { value: GOAL_COMPLETED, label: "Goal completed" },
-  { value: NOTE_CONTENT_UPDATED, label: "Note updated" },
-  { value: DIARY_ENTRY_CREATED, label: "Diary entry" },
-  { value: MEETING_HELD, label: "Meeting held" },
-  { value: MEETING_ITEM_CONVERTED_TO_TASK, label: "Meeting item converted" },
-  { value: PERSON_UPDATED, label: "Person updated" },
-];
+export const INSIGHT_ACTIVITY_PAGE_BUDGET = 5;
 
 /** The JSON-safe shape of an `ActivityItem` (its only `Date` → ISO string). */
 export type SerializedActivityItem = Omit<ActivityItem, "occurredAt"> & {
