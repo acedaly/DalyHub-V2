@@ -1049,3 +1049,28 @@
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
 }
+
+/*
+ * DS-06 — the money control.
+ *
+ * The amount takes the room; the currency code takes exactly what three
+ * characters need. They sit on one line because they are one fact (ADR-049), and
+ * they wrap rather than shrink below a usable width on a narrow phone.
+ */
+.dh-money-field__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.dh-money-field__amount {
+  flex: 1 1 8rem;
+  min-inline-size: 0;
+}
+
+.dh-money-field__currency {
+  flex: 0 0 auto;
+  inline-size: 5.5rem;
+  text-transform: uppercase;
+}

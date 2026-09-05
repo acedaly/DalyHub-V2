@@ -26,6 +26,7 @@ export {
   OBLIGATION_DELETED,
   OBLIGATION_ACTIVITY_TYPES,
   OBLIGATION_SUBJECT_LINK,
+  OBLIGATION_LINKED_TASK,
   obligationSubjectLinkId,
 } from "./obligation-identifiers";
 
@@ -44,12 +45,14 @@ export {
   OBLIGATION_CATEGORIES,
   OBLIGATION_CATEGORY_OPTIONS,
   MONEY_BEARING_CATEGORIES,
+  obligationCategoriesMatching,
   obligationCategoryLabel,
   isObligationCategory,
   type ObligationCategory,
 } from "./obligation-category";
 
 export {
+  OBLIGATION_STATE_LABELS,
   OBLIGATION_STATUSES,
   isObligationStatus,
   type ObligationStatus,

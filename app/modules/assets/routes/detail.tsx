@@ -29,6 +29,8 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { ASSET_METER_UNIT_OPTIONS } from "~/kernel/assets";
+import type { ObligationBandCounts } from "~/kernel/obligations";
 import { requireAuthenticatedSession } from "~/platform/request";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -40,20 +42,22 @@ import {
 } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
+import { projectObligation } from "~/platform/obligations/obligation-facts.server";
+import {
+  CompleteObligationForm,
+  ObligationForm,
+  type SerializedObligation,
+} from "~/shared/obligations";
 
-import { AssetCompleteObligationForm } from "../AssetCompleteObligationForm";
 import { AssetEventForm } from "../AssetEventForm";
 import type { QuickEventAction } from "../AssetHistoryTab";
-import { AssetObligationForm } from "../AssetObligationForm";
 import { AssetRecord } from "../AssetRecord";
 import {
   formatHistoryDate,
   serializeAssetEvent,
-  serializeAssetObligation,
   serializeCostSummary,
   serializeValueHistory,
   type SerializedAssetEvent,
-  type SerializedAssetObligation,
 } from "../asset-history-view";
 import { serializeAsset, type SerializedAsset } from "../asset-view";
 import { resolveEventNames } from "./history";
@@ -125,7 +129,14 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   let events: readonly SerializedAssetEvent[] = [];
   let eventsCursor: string | null = null;
   let eventsHasMore = false;
-  let obligations: readonly SerializedAssetObligation[] = [];
+  let obligations: readonly SerializedObligation[] = [];
+  let obligationCounts: ObligationBandCounts = {
+    overdue: 0,
+    this_week: 0,
+    this_month: 0,
+    later: 0,
+    done: 0,
+  };
   let costs = serializeCostSummary({
     currencyCode: asset.currencyCode,
     byGroup: { service: 0, repair: 0, renewal: 0, upgrade: 0 },
@@ -204,8 +215,24 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       }
     }
 
+    /*
+     * V2.10 LIFE-02 — the SHARED projection, so this tab and Life Admin render
+     * the same row from the same facts. The Assets module used to serialise its
+     * own obligation shape here; two projections of one record is how two
+     * surfaces come to disagree about it (ADR-115).
+     */
+    try {
+      obligationCounts = await scope.obligations.countByBand({
+        subjectEntityId: assetId,
+        today,
+      });
+    } catch {
+      // The bands still render; only their totals fall back to the page's own.
+    }
+
     obligations = obligationPage.items.map((obligation) =>
-      serializeAssetObligation(obligation, today, reading, {
+      projectObligation(obligation, today, {
+        subject: obligationPage.subjects.get(assetId) ?? null,
         taskTitle: obligation.taskId
           ? (taskTitles.get(obligation.taskId)?.title ?? null)
           : null,
@@ -236,6 +263,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     eventsCursor,
     eventsHasMore,
     obligations,
+    obligationCounts,
     costs,
     values,
     meterDisplay:
@@ -253,11 +281,11 @@ type DrawerState =
   | { readonly kind: "edit-event"; readonly event: SerializedAssetEvent }
   | {
       readonly kind: "obligation";
-      readonly obligation: SerializedAssetObligation | null;
+      readonly obligation: SerializedObligation | null;
     }
   | {
       readonly kind: "complete";
-      readonly obligation: SerializedAssetObligation;
+      readonly obligation: SerializedObligation;
     };
 
 const TAB_IDS = [
@@ -466,6 +494,7 @@ function AssetDetail({
       today={loaderData.today}
       overview={overview}
       obligations={loaderData.obligations}
+      obligationCounts={loaderData.obligationCounts}
       events={loaderData.events}
       eventsCursor={loaderData.eventsCursor}
       eventsHasMore={loaderData.eventsHasMore}
@@ -595,16 +624,35 @@ function renderAssetDrawer({
           />
         )),
       };
+    /*
+     * V2.10 LIFE-02 — the SHARED obligation forms, posting to the obligation's
+     * own endpoint. This module had its own copies posting to
+     * `/asset/:id/history`, which meant "an amount needs a currency" was
+     * enforced in two places and could drift in one.
+     */
     case "obligation":
       return {
         title: state.obligation ? "Edit obligation" : "Add obligation",
         description:
           "When does this next need doing? A date, a meter reading, or both.",
         children: host(({ onSaved, onCancel }) => (
-          <AssetObligationForm
-            assetId={asset.id}
+          <ObligationForm
             obligation={state.obligation}
-            defaultMeterUnit={defaultMeterUnit}
+            action={
+              state.obligation
+                ? `/obligations/${encodeURIComponent(state.obligation.id)}/mutate`
+                : "/obligations/create"
+            }
+            defaultCurrency={defaultCurrency}
+            meterUnits={ASSET_METER_UNIT_OPTIONS.map((unit) => ({
+              value: unit.value,
+              label: unit.label,
+            }))}
+            fixedSubject={{
+              id: asset.id,
+              type: "asset",
+              title: asset.title,
+            }}
             onSaved={onSaved}
             onCancel={onCancel}
           />
@@ -615,14 +663,13 @@ function renderAssetDrawer({
         title: `Complete: ${state.obligation.title}`,
         description: "Record what actually happened.",
         children: host(({ onSaved, onCancel }) => (
-          <AssetCompleteObligationForm
-            assetId={asset.id}
+          <CompleteObligationForm
             obligation={state.obligation}
             today={today}
             defaultCurrency={defaultCurrency}
-            defaultMeterUnit={defaultMeterUnit}
             people={people}
             notes={notes}
+            subjectKeepsHistory
             onSaved={onSaved}
             onCancel={onCancel}
           />

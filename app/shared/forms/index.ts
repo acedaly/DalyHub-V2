@@ -58,6 +58,7 @@ export {
 } from "./RemoteChangeBanner";
 
 // Field controls.
+export { MoneyField, type MoneyFieldProps } from "./MoneyField";
 export { TextField, type TextFieldProps } from "./TextField";
 export { DateField, type DateFieldProps } from "./DateField";
 /**

@@ -14,7 +14,6 @@ import { dedupeAttention, type AttentionInput } from "~/kernel/assets";
 import {
   formatHistoryDate,
   obligationSignal,
-  obligationStateTone,
   serializeCostSummary,
   serializeValueHistory,
 } from "~/modules/assets/asset-history-view";
@@ -34,17 +33,6 @@ describe("formatHistoryDate", () => {
   it("returns null for an absent or malformed date", () => {
     expect(formatHistoryDate(null)).toBeNull();
     expect(formatHistoryDate("not-a-date")).toBeNull();
-  });
-});
-
-describe("obligationStateTone", () => {
-  it("maps each state to a semantic tone that a label always accompanies", () => {
-    expect(obligationStateTone("overdue")).toBe("danger");
-    expect(obligationStateTone("due")).toBe("warning");
-    expect(obligationStateTone("unknown")).toBe("info");
-    expect(obligationStateTone("completed")).toBe("success");
-    expect(obligationStateTone("upcoming")).toBe("neutral");
-    expect(obligationStateTone("on_hold")).toBe("neutral");
   });
 });
 

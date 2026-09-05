@@ -58,6 +58,7 @@ import {
   isIsoDate,
   nextObligationDate,
   obligationBandBoundaries,
+  obligationCategoriesMatching,
   obligationFilterKey,
   obligationSubjectLinkId,
   validateObligation,
@@ -98,6 +99,7 @@ import { ownerCalendarIso } from "~/shared/datetime";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
+import { likeContains } from "./like-pattern";
 import type { AtomicMutationFault } from "./d1-atomic-mutation";
 
 /**
@@ -290,7 +292,32 @@ type SubjectColumns = {
   readonly subject_title: string | null;
   readonly subject_type: string | null;
   readonly has_open_task: number;
+  /*
+   * The subject's Asset facts, LEFT-joined. An obligation about a Person, a
+   * Project or nothing at all simply has none of these, which is why every one
+   * is optional and why the join can never be an inner one.
+   */
+  readonly subject_subtype?: string | null;
+  readonly current_meter_value?: number | null;
+  readonly current_meter_unit?: string | null;
 };
+
+/**
+ * The subject columns every read that resolves a subject selects, so the
+ * projection is one list rather than one per statement.
+ */
+const SUBJECT_COLUMNS = `s.title AS subject_title, s.type AS subject_type,
+  ad.asset_type AS subject_subtype,
+  ad.current_meter_value AS current_meter_value,
+  ad.current_meter_unit AS current_meter_unit`;
+
+/** The LEFT joins that resolve a subject and, where it is an Asset, its meter. */
+const SUBJECT_JOINS = `LEFT JOIN entities s
+       ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
+      AND s.deleted_at IS NULL
+     LEFT JOIN asset_details ad
+       ON ad.workspace_id = o.workspace_id
+      AND ad.entity_id = o.subject_entity_id`;
 
 export class D1ObligationRepository implements ObligationRepository {
   readonly #db: D1Database;
@@ -446,6 +473,9 @@ export class D1ObligationRepository implements ObligationRepository {
       id: row.subject_entity_id,
       type: row.subject_entity_type,
       title: row.subject_title,
+      subtype: row.subject_subtype ?? null,
+      meterValue: row.current_meter_value ?? null,
+      meterUnit: row.current_meter_unit ?? null,
     };
   }
 
@@ -653,17 +683,14 @@ export class D1ObligationRepository implements ObligationRepository {
     try {
       const row = await this.#db
         .prepare(
-          `SELECT ${OBLIGATION_COLUMNS},
-                  s.title AS subject_title, s.type AS subject_type,
+          `SELECT ${OBLIGATION_COLUMNS}, ${SUBJECT_COLUMNS},
                   CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
                        THEN 1 ELSE 0 END AS has_open_task
              FROM obligation_details o
              JOIN entities e
                ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
               AND e.type = '${OBLIGATION_ENTITY_TYPE}'
-             LEFT JOIN entities s
-               ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
-              AND s.deleted_at IS NULL
+             ${SUBJECT_JOINS}
             WHERE o.workspace_id = ? AND o.entity_id = ? AND o.deleted_at IS NULL
             LIMIT 1`,
         )
@@ -692,10 +719,15 @@ export class D1ObligationRepository implements ObligationRepository {
           ? null
           : validateObligationId(input.subjectEntityId);
 
+    const query = (input.query ?? "").trim();
     const scope: ObligationCursorScope = {
       workspaceId: this.#workspaceId,
       subjectEntityId,
-      filterKey: obligationFilterKey(filters.categories, filters.statuses),
+      filterKey: obligationFilterKey(
+        filters.categories,
+        filters.statuses,
+        query,
+      ),
     };
 
     const conditions = ["o.workspace_id = ?", "o.deleted_at IS NULL"];
@@ -719,6 +751,7 @@ export class D1ObligationRepository implements ObligationRepository {
       );
       params.push(...filters.statuses);
     }
+    appendQueryPredicate(query, conditions, params);
 
     // Open work first, then soonest due — the order the owner reads. Ordering
     // happens in SQL over the WHOLE collection, never over the loaded page.
@@ -739,16 +772,14 @@ export class D1ObligationRepository implements ObligationRepository {
       const result = await this.#db
         .prepare(
           `SELECT ${OBLIGATION_COLUMNS}, ${primary} AS sort_primary,
-                  s.title AS subject_title, s.type AS subject_type,
+                  ${SUBJECT_COLUMNS},
                   CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
                        THEN 1 ELSE 0 END AS has_open_task
              FROM obligation_details o
              JOIN entities e
                ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
               AND e.type = '${OBLIGATION_ENTITY_TYPE}'
-             LEFT JOIN entities s
-               ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
-              AND s.deleted_at IS NULL
+             ${SUBJECT_JOINS}
             WHERE ${conditions.join(" AND ")}
             ORDER BY ${primary} ASC, o.entity_id ASC
             LIMIT ?`,
@@ -1578,11 +1609,7 @@ export class D1ObligationRepository implements ObligationRepository {
     try {
       const result = await this.#db
         .prepare(
-          `SELECT ${OBLIGATION_COLUMNS},
-                  s.title AS subject_title, s.type AS subject_type,
-                  ad.current_meter_value AS current_meter_value,
-                  ad.current_meter_unit AS current_meter_unit,
-                  ad.asset_type AS subject_subtype,
+          `SELECT ${OBLIGATION_COLUMNS}, ${SUBJECT_COLUMNS},
                   ad.archived_at AS subject_archived_at,
                   CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
                        THEN 1 ELSE 0 END AS has_open_task
@@ -1592,12 +1619,7 @@ export class D1ObligationRepository implements ObligationRepository {
               AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
              -- LEFT, deliberately: an obligation about nothing is the whole
              -- point of V2.10, and an inner join here would silently drop it.
-             LEFT JOIN entities s
-               ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
-              AND s.deleted_at IS NULL
-             LEFT JOIN asset_details ad
-               ON ad.workspace_id = o.workspace_id
-              AND ad.entity_id = o.subject_entity_id
+             ${SUBJECT_JOINS}
             WHERE o.workspace_id = ? AND o.status = 'open' AND o.deleted_at IS NULL
               -- An ARCHIVED subject stops asking for things. An obligation with
               -- no subject has nothing to be archived, so it is never excluded.
@@ -1776,6 +1798,7 @@ export class D1ObligationRepository implements ObligationRepository {
       );
       params.push(...filters.statuses);
     }
+    appendQueryPredicate((input.query ?? "").trim(), conditions, params);
 
     /*
      * The order of the WHENs is the rule's order, and it is load-bearing: a
@@ -1803,9 +1826,7 @@ export class D1ObligationRepository implements ObligationRepository {
              JOIN entities e
                ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
               AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
-             LEFT JOIN asset_details ad
-               ON ad.workspace_id = o.workspace_id
-              AND ad.entity_id = o.subject_entity_id
+             ${SUBJECT_JOINS}
             WHERE ${conditions.join(" AND ")}
             GROUP BY band`,
         )
@@ -1830,6 +1851,42 @@ export class D1ObligationRepository implements ObligationRepository {
     }
     return counts;
   }
+}
+
+/**
+ * D11 — the three things an owner searches an obligation BY: what they called
+ * it, what kind of thing it is, and what it is about.
+ *
+ * The DESCRIPTION is deliberately absent: it is body content, reachable only
+ * under the explicit-query boundary ADR-114 drew. No AMOUNT is matched, and
+ * none ever will be — a price is not a thing a person searches for, and a
+ * statement that could return a row BECAUSE of an amount is one refactor away
+ * from printing it.
+ *
+ * One function rather than two copies, because the ROW read and the COUNT read
+ * must select the same set: a heading counting one list above the rows of
+ * another is the specific defect D10 exists to prevent.
+ */
+function appendQueryPredicate(
+  query: string,
+  conditions: string[],
+  params: unknown[],
+): void {
+  if (query.length === 0) return;
+  const pattern = likeContains(query.toLowerCase());
+  const matched = obligationCategoriesMatching(query);
+  const clauses = [
+    // The TITLE lives on the ENTITY row, not on the detail slice: one title, one
+    // place. Both reads that use this predicate join `entities` as `e`.
+    `lower(e.title) LIKE ? ESCAPE '\\'`,
+    `lower(coalesce(s.title, '')) LIKE ? ESCAPE '\\'`,
+  ];
+  params.push(pattern, pattern);
+  if (matched.length > 0) {
+    clauses.push(`o.category IN (${matched.map(() => "?").join(", ")})`);
+    params.push(...matched);
+  }
+  conditions.push(`(${clauses.join(" OR ")})`);
 }
 
 /** Add whole days to a calendar date (UTC math, zone-free). */

@@ -1018,3 +1018,96 @@ describe("countByBand (D10 — the collection's headings)", () => {
     });
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* The text query (D11)                                                       */
+/* -------------------------------------------------------------------------- */
+
+describe("list with a query (D11 — what Search can match)", () => {
+  const TODAY = "2026-09-05";
+
+  async function seedSearchable() {
+    const asset = await ute();
+    const repo = obligations();
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "registration",
+      title: "Renew the rego",
+      description: "Reference ZQ-9981 in the drawer",
+      dueDate: "2026-09-30",
+      expectedAmount: "930.00",
+      currencyCode: "AUD",
+    });
+    await repo.create({
+      category: "tax",
+      title: "Lodge the return",
+      dueDate: "2026-10-31",
+    });
+    return { asset, repo };
+  }
+
+  it("matches the TITLE, case-insensitively and on a fragment", async () => {
+    const { repo } = await seedSearchable();
+    const page = await repo.list({ query: "REGO", today: TODAY });
+    expect(page.items.map((item) => item.title)).toEqual(["Renew the rego"]);
+  });
+
+  it("matches the CATEGORY by the words an owner reads", async () => {
+    const { repo } = await seedSearchable();
+    // "Tax or lodgement" is the label; `tax` is the stored token. An owner
+    // searching for the word they see must find the row.
+    const page = await repo.list({ query: "lodgement", today: TODAY });
+    expect(page.items.map((item) => item.title)).toEqual(["Lodge the return"]);
+  });
+
+  it("matches the SUBJECT's title, so 'ute' finds the ute's obligations", async () => {
+    const { repo } = await seedSearchable();
+    const page = await repo.list({ query: "Ute", today: TODAY });
+    expect(page.items.map((item) => item.title)).toEqual(["Renew the rego"]);
+  });
+
+  /*
+   * The falsification D11 asks for, as a test rather than as a promise.
+   *
+   * An amount is the most private fact an obligation carries and a result list
+   * is the surface most likely to be read over someone's shoulder. A statement
+   * that could return a row BECAUSE of an amount is one refactor away from
+   * printing it, so the amount is not in the predicate at all — and neither is
+   * the DESCRIPTION, which is body content the explicit-query boundary governs
+   * (ADR-114 decision 2).
+   */
+  it("never matches an amount, and never matches the description", async () => {
+    const { repo } = await seedSearchable();
+    expect((await repo.list({ query: "930", today: TODAY })).items).toEqual([]);
+    expect((await repo.list({ query: "930.00", today: TODAY })).items).toEqual(
+      [],
+    );
+    expect((await repo.list({ query: "AUD", today: TODAY })).items).toEqual([]);
+    expect((await repo.list({ query: "ZQ-9981", today: TODAY })).items).toEqual(
+      [],
+    );
+  });
+
+  it("counts the same set the rows come from", async () => {
+    const { repo } = await seedSearchable();
+    const counts = await repo.countByBand({ query: "rego", today: TODAY });
+    const page = await repo.list({ query: "rego", today: TODAY });
+    expect(Object.values(counts).reduce((sum, n) => sum + n, 0)).toBe(
+      page.items.length,
+    );
+  });
+
+  it("is scoped to this workspace, like every other read", async () => {
+    await seedSearchable();
+    const strangerAsset = await ute(OTHER, "z");
+    await obligations(OTHER, "zz").create({
+      subjectEntityId: strangerAsset.id,
+      category: "registration",
+      title: "Renew the rego",
+      dueDate: "2026-09-30",
+    });
+    expect(
+      (await obligations().list({ query: "rego", today: TODAY })).items,
+    ).toHaveLength(1);
+  });
+});

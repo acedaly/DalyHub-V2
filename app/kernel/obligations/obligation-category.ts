@@ -107,3 +107,23 @@ export function isObligationCategory(
     (OBLIGATION_CATEGORIES as readonly string[]).includes(value)
   );
 }
+
+/**
+ * The categories whose LABEL contains `text`, case-insensitively.
+ *
+ * The Search provider matches an obligation's category by the words an owner
+ * reads ("insurance", "tax"), not by the stored token — a person searching for
+ * "rego" is not searching for `registration`, but a person searching for
+ * "registration" certainly is. Resolving the tokens HERE and binding them as an
+ * `IN` list keeps the label vocabulary in one place instead of restating it in
+ * SQL, where it would drift the first time a label was reworded.
+ */
+export function obligationCategoriesMatching(
+  text: string,
+): readonly ObligationCategory[] {
+  const needle = text.trim().toLowerCase();
+  if (needle.length === 0) return [];
+  return OBLIGATION_CATEGORY_OPTIONS.filter((option) =>
+    option.label.toLowerCase().includes(needle),
+  ).map((option) => option.value);
+}

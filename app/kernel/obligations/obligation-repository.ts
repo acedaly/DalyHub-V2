@@ -79,6 +79,13 @@ export type ObligationWithSubjectPage = ObligationPage<Obligation> & {
 export type ObligationBandCountInput = {
   readonly filters?: ObligationFilters;
   /**
+   * The same free text `list` takes. It is not optional in spirit: a count that
+   * ignored the query would print "Overdue 24" above the two rows a search
+   * actually found, which is a heading that describes a different list from the
+   * one underneath it.
+   */
+  readonly query?: string;
+  /**
    * The same three-way scope `list` takes: `undefined` counts the whole
    * workspace, a string one subject's, `null` only the ones about nothing.
    */
