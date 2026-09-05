@@ -203,14 +203,66 @@ test.describe("cross-module views", () => {
     );
   });
 
+  /*
+   * DEBT-173, found by the two-arrangement proof and then reproduced from a
+   * CLEAN SEED with this file alone — which is the more damning half.
+   *
+   * It used to open `/views?show=project&updated=last_30_days` and click
+   * `.dh-views__row-link` FIRST. Two faults, either one fatal:
+   *
+   *   1. On the committed seed that view is EMPTY. `pr-launch` and its
+   *      neighbours carry `updated_at` of 2026-07-19 (`seed-tasks.sql:108`),
+   *      so "changed in the last 30 days" stopped including them on 18 August
+   *      and the page reads "0 records · Projects". The journey only ever had
+   *      rows to click because OTHER specs touch Projects — `entity-icons` and
+   *      `icon-picker-screenshots` set an icon on this very Project — which is
+   *      to say its data precondition was another spec's side effect. It is the
+   *      DEBT-219 class with the sign flipped: not a fixture date that arrives,
+   *      one that recedes, which `e2e:fixture-dates:check` cannot see because
+   *      the literal is legitimately in the past.
+   *   2. `.first()` on a class that every row of every scope shares. The
+   *      `beforeEach` leaves the browser on the DEFAULT view, which spans
+   *      modules, so the first row available to click while the scoped view is
+   *      still loading is a TASK — and clicking it opened
+   *      `/views?drawer=task:pht-overdue`, which is exactly what the failure
+   *      reported.
+   *
+   * Naming ONE seeded Project does not answer them either: the view states its
+   * own bound ("first 60 of the 82 records read", RECALL-00-B), so which
+   * Projects are on the page is a property of the workspace whatever the
+   * filter. So the journey takes whichever Project the view puts first and then
+   * asserts about THAT record — the row carries its own id in
+   * `cross-view-result-<id>`, and the destination is checked against it rather
+   * than against the shape of a URL. The scope selector is the readiness
+   * signal: the default view includes Tasks and the requested one does not, so
+   * "Tasks is no longer selected" is the product saying this view has rendered.
+   *
+   * The claim under test is unchanged: a result opens its canonical record.
+   */
   test("a result opens its canonical record destination", async ({ page }) => {
-    await gotoFixture(page, "/views?show=project&updated=last_30_days");
-    const first = page.locator(".dh-views__row-link").first();
-    await first.waitFor();
-    const title = (await first.innerText()).trim();
-    await first.click();
+    await gotoFixture(page, "/views?show=project");
+    // This view, not the multi-module default the `beforeEach` left behind.
+    await expect(page.getByTestId("cross-view-scope-project")).toHaveAttribute(
+      "data-selected",
+      "true",
+    );
+    await expect(page.getByTestId("cross-view-scope-task")).not.toHaveAttribute(
+      "data-selected",
+      "true",
+    );
+
+    const row = page.locator("[data-testid^='cross-view-result-']").first();
+    await expect(row).toBeVisible();
+    const id = (await row.getAttribute("data-testid"))?.replace(
+      "cross-view-result-",
+      "",
+    );
+    expect(id).toBeTruthy();
+    const link = row.locator(".dh-views__row-link");
+    const title = (await link.innerText()).trim();
+    await link.click();
     // A Project opens the Project record — not a saved-view-only detail surface.
-    await expect(page).toHaveURL(/\/projects\//);
+    await expect(page).toHaveURL(new RegExp(`/projects/${id}(\\?|$)`));
     await expect(page.getByRole("heading", { level: 1 })).toContainText(title);
   });
 
