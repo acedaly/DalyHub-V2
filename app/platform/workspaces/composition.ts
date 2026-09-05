@@ -45,6 +45,8 @@ import {
 } from "~/kernel/preferences";
 import {
   ASSET_METER_UNITS,
+  assetObligationMeter,
+  isAssetMeterUnit,
   type AssetHistoryRepository,
   type AssetRepository,
   type ObligationTaskGateway,
@@ -691,6 +693,20 @@ export function bindWorkspaceRepositories(
     taskCompletionPlanner: tasks,
     proofGateway: assetHistory,
     meterUnits: ASSET_METER_UNITS,
+    /*
+     * The meter side, from the domain that owns the units. The store knows a
+     * threshold and an unnarrowed unit string; the Assets kernel knows what
+     * 60,000 km means against an odometer, and what "approaching" is worth in
+     * each unit. A reading in another unit is `incompatible` rather than
+     * converted, and a subject with no reading at all evaluates to `unknown`.
+     */
+    meterEvaluator: (obligation, reading) =>
+      assetObligationMeter(
+        obligation,
+        reading.value !== null && isAssetMeterUnit(reading.unit)
+          ? { value: reading.value, unit: reading.unit }
+          : null,
+      ),
     ownerTimeZone,
   });
   const reviews = createReviewRepository(env.DB, context, { actorContext });

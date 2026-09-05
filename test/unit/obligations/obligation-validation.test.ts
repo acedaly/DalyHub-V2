@@ -313,3 +313,68 @@ describe("read inputs", () => {
     });
   });
 });
+
+describe("a currency is a label on a number", () => {
+  /*
+   * ADR-049: this product never converts. So an update that changes the code
+   * while an amount is stored has to refuse rather than relabel — a wrong
+   * figure is worse than a missing one, and a silent one is worse again.
+   */
+  const stored = {
+    dueDate: "2026-09-30",
+    meterThreshold: null,
+    meterUnit: null,
+    meterInterval: null,
+    recurrenceKind: "none" as const,
+    currencyCode: "AUD",
+    expectedAmountMinor: 100_000,
+    completedAmountMinor: null,
+  };
+
+  it("refuses a currency change over a stored amount", () => {
+    expect(() =>
+      validateObligation({ currencyCode: "USD" }, "update", stored, []),
+    ).toThrow(/never converted/);
+  });
+
+  it("refuses clearing the currency out from under a stored amount", () => {
+    /*
+     * Without this the database CHECK catches it and the owner is shown a
+     * storage error rather than the field the problem is about.
+     */
+    expect(() =>
+      validateObligation({ currencyCode: null }, "update", stored, []),
+    ).toThrow(ObligationValidationError);
+  });
+
+  it("allows the change when the amount is restated in the new currency", () => {
+    const result = validateObligation(
+      { currencyCode: "USD", expectedAmount: "640.00" },
+      "update",
+      stored,
+      [],
+    );
+    expect(result.currencyCode).toBe("USD");
+    expect(result.expectedAmountMinor).toBe(64_000);
+  });
+
+  it("allows the change when the amount is cleared in the same edit", () => {
+    const result = validateObligation(
+      { currencyCode: "USD", expectedAmount: "" },
+      "update",
+      stored,
+      [],
+    );
+    expect(result.expectedAmountMinor).toBeNull();
+  });
+
+  it("leaves an obligation with no amount free to gain a currency", () => {
+    const result = validateObligation(
+      { currencyCode: "USD" },
+      "update",
+      { ...stored, currencyCode: null, expectedAmountMinor: null },
+      [],
+    );
+    expect(result.currencyCode).toBe("USD");
+  });
+});

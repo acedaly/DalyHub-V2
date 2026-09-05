@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
 
+import { assetObligationMeter, isAssetMeterUnit } from "~/kernel/assets";
 import { canonicalTagKey, normaliseTag } from "~/kernel/tags";
 
 import {
@@ -413,6 +414,16 @@ export function makeObligationRepository(
       actorContext: options.actorContext,
     }),
     meterUnits: ["km", "mi", "hours", "cycles", "count"],
+    // Wired as the composition root wires it, for the same reason as the proof
+    // gateway above: a test that omitted it would prove a configuration
+    // nothing ships, and every meter state would silently read as unknown.
+    meterEvaluator: (obligation, reading) =>
+      assetObligationMeter(
+        obligation,
+        reading.value !== null && isAssetMeterUnit(reading.unit)
+          ? { value: reading.value, unit: reading.unit }
+          : null,
+      ),
     ...options,
   });
 }

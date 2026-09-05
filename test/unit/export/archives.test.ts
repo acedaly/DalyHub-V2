@@ -113,7 +113,9 @@ describe("buildExportManifest", () => {
     expect(manifest.recordsByCollection.activities).toBe(
       snapshot.records.activities.length,
     );
-    expect(manifest.recordsByCollection.obligations).toBe(1);
+    expect(manifest.recordsByCollection.obligations).toBe(
+      snapshot.records.obligations.length,
+    );
   });
 
   it("names the consistency guarantee rather than overclaiming", () => {
