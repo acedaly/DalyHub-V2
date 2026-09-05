@@ -119,9 +119,9 @@ import { HabitRow, useHabitCheckIn } from "~/shared/habits";
 import type { SerializedHabit } from "~/shared/habits";
 import { ProgressTrack } from "~/shared/progress";
 import {
-  AssetIcon,
   CheckCircleIcon,
   GoalIcon,
+  ObligationIcon,
   PlusIcon,
   ProjectIcon,
   ReflectionIcon,
@@ -239,8 +239,8 @@ function AttentionGlyph({ kind }: { readonly kind: AttentionKind }) {
       return <GoalIcon />;
     case "waiting":
       return <ScheduleIcon />;
-    case "asset":
-      return <AssetIcon />;
+    case "obligation":
+      return <ObligationIcon />;
     case "inbox":
       return <TaskIcon />;
   }
@@ -251,14 +251,14 @@ function AttentionGlyph({ kind }: { readonly kind: AttentionKind }) {
  *
  * A fixed map, not a hash: these five kinds are a closed set the product
  * defines, so the same kind is the same colour on every visit and on every
- * device. It is identity, never status — an amber Asset row does not mean the
- * Asset is in trouble, and the row's own words say what needs doing.
+ * device. It is identity, never status — a teal obligation row does not mean
+ * the obligation is in trouble, and the row's own words say what needs doing.
  */
 const ATTENTION_TONES: Readonly<Record<AttentionKind, ToneName>> = {
   project: "blue",
   goal: "green",
   waiting: "amber",
-  asset: "teal",
+  obligation: "teal",
   inbox: "violet",
 };
 

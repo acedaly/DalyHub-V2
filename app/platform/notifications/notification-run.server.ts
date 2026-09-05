@@ -30,7 +30,7 @@
 
 import {
   NOTIFICATION_READ_RETENTION_DAYS,
-  assetObligationDedupeKey,
+  obligationDedupeKey,
   digestDedupeKey,
   evaluateDigestDue,
   renderDigest,
@@ -224,10 +224,10 @@ export async function runNotificationsForOwner(
   }
 
   /* ---------------------------------------------------------------------- */
-  /* Asset obligations                                                      */
+  /* Obligations                                                            */
   /* ---------------------------------------------------------------------- */
 
-  if (settings.enabled && settings.assetObligationsEnabled) {
+  if (settings.enabled && settings.obligationsEnabled) {
     // The EXISTING bounded Assets seam — no Assets-side scheduling, no second
     // obligation query and no new evaluator. Its default horizon is 30 days,
     // which is exactly the widest rung, so the read and the ladder agree by
@@ -246,12 +246,9 @@ export async function runNotificationsForOwner(
      * rule is Today's, and it does not transfer.
      */
     const candidates = items.flatMap((item) => {
-      // V2.10 LIFE-01 — the same LIFE-03 seam as Today's: the notice text names
-      // an Asset, so an obligation with another subject or none is not yet a
-      // candidate. Widening the notice is LIFE-03's item, and doing it here
-      // would change what the owner receives in the change whose criterion is
-      // that they receive exactly what they received before.
-      if (item.subject?.type !== "asset") return [];
+      // V2.10 LIFE-03 — EVERY obligation with a rung, whatever it is about. The
+      // notice names its subject where it has one and itself where it does not,
+      // so a passport renewal reaches the owner exactly as a rego does.
       const subject = item.subject;
       const evaluation = evaluateAssetObligation(
         item.obligation,
@@ -268,14 +265,16 @@ export async function runNotificationsForOwner(
       if (rung === null) return [];
       return [
         {
-          key: assetObligationDedupeKey(item.obligation.id, rung),
+          key: obligationDedupeKey(item.obligation.id, rung),
           notice: {
             obligationId: item.obligation.id,
-            assetId: subject.id,
-            assetTitle: subject.title,
+            subject:
+              subject === null
+                ? null
+                : { id: subject.id, title: subject.title },
             title: item.obligation.title,
-            // The words the Asset record and Today's rail already use, from the
-            // ONE Assets evaluator. The notification never writes its own.
+            // The words the record and Today's rail already use, from the ONE
+            // shared evaluator. The notification never writes its own.
             text: evaluation.text,
             rung,
           },

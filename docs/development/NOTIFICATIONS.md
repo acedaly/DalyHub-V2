@@ -121,8 +121,8 @@ due/overdue counts and the CAL-01 schedule. It derives nothing: project health i
 `evaluateProjectHealth`, goal alignment is `evaluateGoalAlignment`, an
 obligation's state is `evaluateObligation` (the ONE shared evaluator in
 [`app/kernel/obligations`](../../app/kernel/obligations/index.ts) since V2.10
-LIFE-00, reached for an Asset obligation through `evaluateAssetObligation`, which
-supplies the meter side and decides nothing), the Inbox count is the canonical
+LIFE-00, reached through `evaluateAssetObligation`, which supplies the meter side
+where the subject has one and decides nothing), the Inbox count is the canonical
 `inbox` system view. **If the digest wants a fact the rail cannot supply, add it to
 `attention-facts.server.ts` — never compute it a second time.**
 
@@ -181,8 +181,22 @@ against this same evidence, in its own decision.
 
 ## Event sources
 
-Asset obligations only, at three fixed rungs: **30 / 7 / 1 days**, each fired once
-and deduped forever by `asset:{obligationId}:{rung}`.
+Obligations, at three fixed rungs: **30 / 7 / 1 days**, each fired once and
+deduped forever by `obligation:{obligationId}:{rung}`.
+
+Since V2.10 LIFE-03 that means EVERY obligation — a tax return, a passport
+renewal, a subscription — not only the ones about an Asset. The notice names its
+subject where it has one ("Hilux — Registration renewal") and itself where it
+does not ("Lodge the tax return"), and links to the obligation's own record
+either way. The `kind` is `obligation` and the key prefix is `obligation:`;
+migration 0051 rewrote both across every historical row, in the same statement,
+because changing the prefix without carrying the ledger across would re-announce
+every rung the owner had already been told about.
+
+**No amount ever appears in a notification** — not in the title, not in the body,
+not in the link. A lock screen is the one surface an owner cannot choose not to
+show somebody (ADR-049 decision 5), and `test/unit/notifications/digest.test.ts`
+asserts the refusal rather than trusting it.
 
 - The rung is the SMALLEST one the obligation is inside, so an obligation twelve
   days out is in the 30-day rung. Adding one three days before it is due fires the
@@ -191,10 +205,9 @@ and deduped forever by `asset:{obligationId}:{rung}`.
   exactly once.
 - A meter-only obligation has no due date, so it has no rung. It reaches the owner
   through Today and the digest's obligation line.
-- Obligations are read through Assets' EXISTING bounded `listAttention` seam,
-  whose default horizon is 30 days — the same number as the widest rung, so the
-  read and the ladder agree by construction. **No Assets-side scheduling was
-  added, and no Assets code changed.**
+- Obligations are read through the EXISTING bounded `listAttention` seam, whose
+  default horizon is 30 days — the same number as the widest rung, so the read
+  and the ladder agree by construction. **No scheduling of its own was added.**
 
 **Overdue tasks and ageing waiting items are digest-only, deliberately.** They
 change every day, so a per-event channel would deliver the same anxiety every
@@ -253,7 +266,7 @@ enforced in one place is a rule one future code path can forget:
 | Setting | Where | Default |
 |---|---|---|
 | Master enable | `Settings → Notifications` | **off** |
-| Digest, asset obligations | same | on (inert until the master is) |
+| Digest, obligations falling due | same | on (inert until the master is) |
 | Digest send time | same | `07:00` |
 | Timezone | same | follow the profile — and the EFFECTIVE zone is always displayed |
 | Pushover user key / app token | same, stored in D1 | none |

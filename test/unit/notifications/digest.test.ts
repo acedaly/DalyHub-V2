@@ -21,7 +21,7 @@ const QUIET: DigestFacts = {
   overdue: 0,
   inboxCount: 0,
   waiting: { count: 0, oldestDays: null, followUpDue: 0 },
-  assets: { visibleCount: 0, first: null },
+  obligations: { visibleCount: 0, first: null },
   projects: [],
   events: [],
 };
@@ -43,9 +43,13 @@ describe("an empty digest is not sent", () => {
       { ...QUIET, waiting: { count: 1, oldestDays: 3, followUpDue: 1 } },
       {
         ...QUIET,
-        assets: {
+        obligations: {
           visibleCount: 1,
-          first: { assetTitle: "Hilux", text: "Due in 6 days" },
+          first: {
+            title: "Registration renewal",
+            subjectTitle: "Hilux",
+            text: "Due in 6 days",
+          },
         },
       },
       { ...QUIET, projects: [{ title: "Kitchen", statusLabel: "At risk" }] },
@@ -73,7 +77,7 @@ describe("what the digest says", () => {
       overdue: 2,
       inboxCount: 4,
       waiting: { count: 2, oldestDays: 9, followUpDue: 0 },
-      assets: { visibleCount: 3, first: null },
+      obligations: { visibleCount: 3, first: null },
       projects: [
         { title: "Kitchen renovation", statusLabel: "At risk" },
         { title: "Website", statusLabel: "Stale" },
@@ -88,7 +92,7 @@ describe("what the digest says", () => {
       "2 events: 09:00 Standup · Public holiday",
       "4 unfiled tasks in your inbox",
       "2 waiting items · oldest 9 days",
-      "3 asset obligations need attention",
+      "3 obligations need attention",
       "2 projects need a look: Kitchen renovation (At risk) · Website (Stale)",
     ]);
   });
@@ -160,12 +164,44 @@ describe("what the digest says", () => {
   it("names a single obligation rather than counting it", () => {
     const digest = renderDigest({
       ...QUIET,
-      assets: {
+      obligations: {
         visibleCount: 1,
-        first: { assetTitle: "Hilux", text: "Registration expires in 6 days" },
+        first: {
+          title: "Registration renewal",
+          subjectTitle: "Hilux",
+          text: "Due in 6 days",
+        },
       },
     });
-    expect(digest?.body).toBe("Hilux: Registration expires in 6 days");
+    expect(digest?.body).toBe("Hilux — Registration renewal: Due in 6 days");
+  });
+
+  /*
+   * V2.10 LIFE-03 — the line the whole programme exists for. A tax return has
+   * no asset to be announced under, so it announces itself, and the sentence
+   * still reads as English rather than as a missing value.
+   */
+  it("names an obligation about nothing after itself", () => {
+    const digest = renderDigest({
+      ...QUIET,
+      obligations: {
+        visibleCount: 1,
+        first: {
+          title: "Lodge the tax return",
+          subjectTitle: null,
+          text: "Due in 9 days",
+        },
+      },
+    });
+    expect(digest?.body).toBe("Lodge the tax return: Due in 9 days");
+  });
+
+  it("counts what it cannot name without saying 'asset'", () => {
+    const digest = renderDigest({
+      ...QUIET,
+      obligations: { visibleCount: 3, first: null },
+    });
+    expect(digest?.body).toBe("3 obligations need attention");
   });
 
   it("counts the events it does not name", () => {
@@ -217,26 +253,57 @@ describe("what the digest says", () => {
 describe("the obligation notice", () => {
   const notice = renderObligationNotice({
     obligationId: "obl-1",
-    assetId: "asset-1",
-    assetTitle: "Hilux",
+    subject: { id: "asset-1", title: "Hilux" },
     title: "Registration renewal",
     text: "Due in 7 days",
     rung: 7,
   });
 
-  it("is keyed on the OBLIGATION and the rung, not on the asset", () => {
+  it("is keyed on the OBLIGATION and the rung, not on its subject", () => {
     // An Asset with a rego renewal and a service due in the same week must
     // produce two notices, not one.
-    expect(notice.dedupeKey).toBe("asset:obl-1:7");
+    expect(notice.dedupeKey).toBe("obligation:obl-1:7");
+    expect(notice.kind).toBe("obligation");
   });
 
-  it("points at the asset, which is what the owner opens", () => {
+  it("points at the obligation's own record, where the action is", () => {
+    expect(notice.href).toBe("/obligations/obl-1");
+    // The subject is still carried, so the inbox can say what a row concerned
+    // even after the record it was about is gone.
     expect(notice.subjectEntityId).toBe("asset-1");
-    expect(notice.href).toBe("/asset/asset-1?tab=obligations");
   });
 
-  it("reuses the Assets evaluator's own words", () => {
+  it("reuses the shared evaluator's own words", () => {
     expect(notice.title).toBe("Hilux — Registration renewal");
     expect(notice.body).toBe("Due in 7 days");
+  });
+
+  /*
+   * V2.10 LIFE-03 — a notice about nothing in particular. It names itself, it
+   * still has a record to open, and the subject falls back to the obligation
+   * rather than to an empty string the inbox would render as a gap.
+   */
+  it("announces an obligation with no subject under its own title", () => {
+    const alone = renderObligationNotice({
+      obligationId: "obl-tax",
+      subject: null,
+      title: "Lodge the tax return",
+      text: "Due in 30 days",
+      rung: 30,
+    });
+    expect(alone.title).toBe("Lodge the tax return");
+    expect(alone.href).toBe("/obligations/obl-tax");
+    expect(alone.subjectEntityId).toBe("obl-tax");
+    expect(alone.dedupeKey).toBe("obligation:obl-tax:30");
+  });
+
+  /*
+   * ADR-049 decision 5, at the one surface where it matters most: a lock screen
+   * is the single place an owner cannot choose not to show somebody.
+   */
+  it("carries no amount anywhere in it", () => {
+    const rendered = `${notice.title} ${notice.body} ${notice.href}`;
+    expect(rendered).not.toMatch(/\d+[.,]\d{2}/);
+    expect(rendered).not.toMatch(/[$£€¥]/);
   });
 });

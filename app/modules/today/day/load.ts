@@ -54,7 +54,7 @@ import {
  */
 import {
   readActiveProjects,
-  readAssetAttention,
+  readObligationAttention,
   readGoalsAtRisk,
   readInboxCount,
   readWaiting,
@@ -572,7 +572,7 @@ export async function loadTodayDay(
   const [
     tasks,
     inboxCount,
-    assetAttention,
+    obligationAttention,
     scheduleResult,
     waiting,
     projects,
@@ -592,7 +592,7 @@ export async function loadTodayDay(
       completedToday: [],
     }),
     safely(() => readInboxCount(scope, todayIso, timezone), 0),
-    safely(() => readAssetAttention(scope, todayIso), {
+    safely(() => readObligationAttention(scope, todayIso), {
       items: [],
       trackedAsTasksCount: 0,
       overdueCount: 0,
@@ -754,16 +754,18 @@ export async function loadTodayDay(
     attention: buildAttention({
       inboxCount,
       waiting,
-      assets: {
-        visibleCount: assetAttention.items.length,
-        trackedAsTasksCount: assetAttention.trackedAsTasksCount,
+      obligations: {
+        visibleCount: obligationAttention.items.length,
+        trackedAsTasksCount: obligationAttention.trackedAsTasksCount,
         first:
-          assetAttention.items[0] === undefined
+          obligationAttention.items[0] === undefined
             ? null
             : {
-                assetTitle: assetAttention.items[0].assetTitle,
-                text: assetAttention.items[0].text,
-                href: assetAttention.items[0].href,
+                title: obligationAttention.items[0].title,
+                subjectTitle:
+                  obligationAttention.items[0].subject?.title ?? null,
+                text: obligationAttention.items[0].text,
+                href: obligationAttention.items[0].href,
               },
       },
       // Overdue TASKS are deliberately absent: they are actionable rows in the

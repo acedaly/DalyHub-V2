@@ -82,14 +82,16 @@ export async function readDigestFacts(
     overdue,
     inboxCount: attention.inboxCount,
     waiting: attention.waiting,
-    assets: {
-      visibleCount: attention.assets.items.length,
+    obligations: {
+      visibleCount: attention.obligations.items.length,
       first:
-        attention.assets.items[0] === undefined
+        attention.obligations.items[0] === undefined
           ? null
           : {
-              assetTitle: attention.assets.items[0].assetTitle,
-              text: attention.assets.items[0].text,
+              title: attention.obligations.items[0].title,
+              subjectTitle:
+                attention.obligations.items[0].subject?.title ?? null,
+              text: attention.obligations.items[0].text,
             },
     },
     projects: attention.projects

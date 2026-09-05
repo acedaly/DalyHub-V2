@@ -86,7 +86,7 @@ export type NotificationActionResult =
 export type NotificationSettingsView = {
   readonly enabled: boolean;
   readonly digestEnabled: boolean;
-  readonly assetObligationsEnabled: boolean;
+  readonly obligationsEnabled: boolean;
   readonly digestSendTime: string;
   /** The owner's explicit override, or null for "follow my profile". */
   readonly timeZone: string | null;
@@ -105,7 +105,7 @@ export function toNotificationSettingsView(
   return {
     enabled: settings.enabled,
     digestEnabled: settings.digestEnabled,
-    assetObligationsEnabled: settings.assetObligationsEnabled,
+    obligationsEnabled: settings.obligationsEnabled,
     digestSendTime: settings.digestSendTime,
     timeZone: settings.timeZone,
     effectiveTimeZone: resolveNotificationTimeZone(settings, profileTimeZone),
@@ -136,7 +136,7 @@ function json(data: NotificationActionResult, status = 200): Response {
 const FIELDS = new Set([
   "enabled",
   "digestEnabled",
-  "assetObligationsEnabled",
+  "obligationsEnabled",
   "digestSendTime",
   "timeZone",
   "pushoverEnabled",

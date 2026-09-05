@@ -861,7 +861,7 @@ record's Obligations tab draws them. The module is documented in
   reaches an amount; the band ordering is a test that fails when the SQL's cases
   are reordered (verified by reordering them, and reverted).
 
-### ☐ LIFE-03 — One due signal
+### ☑ LIFE-03 — One due signal — **delivered 2026-09-05**
 
 **Today and the digest read the whole obligation set, and there is still one of
 each.**
@@ -884,6 +884,54 @@ each.**
   evaluator.
 - **Non-goals.** A reminder engine; per-obligation notification settings;
   quiet hours; a time of day; a second Today card; any money on Today.
+
+**Delivered 2026-09-05.** Today's attention rail and the daily digest read every
+obligation, whatever it is about, and there is still one row and one line.
+`app/kernel/obligations/obligation-attention.ts` owns the projection and the
+deduplication rule; `migrations/0051_obligation_notifications.sql` renames the
+notification kind with its data.
+
+- **Four corrections the definition did not anticipate**, each recorded here
+  because each is a decision:
+  - **The Today projection MOVED, it did not widen in place.**
+    `app/kernel/assets/asset-today.ts` required `assetId`, `assetTitle` and
+    `assetType`, so widening it would have meant three optional fields and every
+    reader deciding for itself what to draw when they are absent. The rule and
+    its shape live in the obligations kernel now, with the subject as one
+    nullable field, and the file that could not carry a passport renewal is
+    gone. LIFE-00 predicted this move and correctly refused to make it before
+    there was a subject-optional store to feed it.
+  - **The row's DESTINATION changed, and it had to.** It was
+    `/asset/<id>?tab=obligations` — a destination an obligation about nothing
+    cannot have. Every row now leads to `/obligations/<id>`, which is also where
+    the completion form is, so the row leads to the thing the owner must act on
+    rather than to its container.
+  - **The row finally says WHAT is due.** The Asset-shaped row printed
+    "Ute · Due in 14 days" and never named the obligation. It names the subject
+    where there is one and itself where there is not, with the obligation's own
+    title in the detail either way — which is the same rule the digest line and
+    the notification title now follow, rather than three phrasings of one fact.
+  - **The notification rebuild had a foreign key pointed at it.**
+    `notification_deliveries` cascades on its parent's delete, so dropping
+    `notifications` during the rebuild would have taken every delivery record
+    with it, silently. They are stashed and restored around the rebuild. The
+    `href` of a historical row is deliberately NOT rewritten: a notification
+    says what was true when it fired.
+- **Measured.** `test/kernel/migration-0051.test.ts` applies `0001…0050`, writes
+  read and unread notices, a digest notice, delivery records, a key that never
+  carried the old prefix, a second workspace's row and a settings row with the
+  toggle turned OFF — and only then applies `0051`. Ten assertions: every row
+  survives, only `kind` and `dedupe_key` change, the cascade still works, the
+  unique ledger still refuses a duplicate, the retired kind is refused, the
+  owner's toggle carries across, and `PRAGMA foreign_key_check` is clean.
+  `e2e/life-admin.spec.ts` runs the acceptance journey: an obligation with no
+  subject reaches Today's rail, and steps aside — saying so — once a Task
+  carries it.
+- **Falsified.** Restoring the `subject?.type === "asset"` filter in the
+  attention read makes the Today journey fail on the rail row it exists for
+  (verified, and reverted). The notification's amount refusal is a test that
+  fails when any amount or currency mark reaches the title, the body or the
+  href.
 
 ---
 

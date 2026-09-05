@@ -12,8 +12,8 @@
  * quiet line, and never that line alongside items.
  *
  * Ordering is a priority, not a ranking: the inbox first (unfiled work is the
- * cheapest thing to fix), then waiting (it ages), then asset obligations that are
- * not already represented by open Tasks, then projects, then goals. The whole rail
+ * cheapest thing to fix), then waiting (it ages), then obligations that are not
+ * already represented by open Tasks, then projects, then goals. The whole rail
  * is capped so it can never out-length the day beside it.
  */
 
@@ -39,7 +39,8 @@ export const CONTINUE_MAX = 3;
 /* -------------------------------------------------------------------------- */
 
 /** Which kind of thing a rail row is about (drives its glyph, never its text). */
-export type AttentionKind = "inbox" | "waiting" | "asset" | "project" | "goal";
+export type AttentionKind =
+  "inbox" | "waiting" | "obligation" | "project" | "goal";
 
 /** One row in "Needs attention". Every row navigates to its subject. */
 export interface AttentionItem {
@@ -93,14 +94,21 @@ export interface AttentionInput {
     readonly followUpDue: number;
   };
   /**
-   * Asset obligations that need attention and are NOT already represented by an
-   * open linked Task. The Assets kernel owns that deduplication rule.
+   * Obligations that need attention and are NOT already represented by an open
+   * linked Task. The obligations kernel owns that deduplication rule.
+   *
+   * V2.10 LIFE-03 — every obligation, not only the ones about an Asset. `first`
+   * names its subject where it has one and itself where it does not, which is
+   * the whole difference between a rego and a passport renewal on this row.
    */
-  readonly assets: {
+  readonly obligations: {
     readonly visibleCount: number;
     readonly trackedAsTasksCount: number;
     readonly first: {
-      readonly assetTitle: string;
+      /** The obligation's own title — "Renew registration". */
+      readonly title: string;
+      /** What it is about, where it is about anything. */
+      readonly subjectTitle: string | null;
       readonly text: string;
       readonly href: string;
     } | null;
@@ -185,30 +193,39 @@ export function buildAttention(
     });
   }
 
-  if (input.assets.visibleCount > 0) {
-    if (input.assets.visibleCount === 1 && input.assets.first !== null) {
-      const tracked =
-        input.assets.trackedAsTasksCount > 0
-          ? ` · ${trackedAsTasksLabel(input.assets.trackedAsTasksCount)}`
-          : "";
+  if (input.obligations.visibleCount > 0) {
+    const tracked =
+      input.obligations.trackedAsTasksCount > 0
+        ? ` · ${trackedAsTasksLabel(input.obligations.trackedAsTasksCount)}`
+        : "";
+    const first = input.obligations.first;
+    if (input.obligations.visibleCount === 1 && first !== null) {
+      /*
+       * ONE obligation, so the row can be about it by name.
+       *
+       * The label names the SUBJECT where there is one, because "Ute" is how
+       * the owner holds the thing in mind, and the obligation's own title moves
+       * into the detail beside the state — which is a fact the Asset-shaped row
+       * used to drop entirely, printing "Ute · Due in 14 days" without ever
+       * saying what was due. An obligation about nothing names itself.
+       */
       items.push({
-        id: "asset",
-        kind: "asset",
-        label: input.assets.first.assetTitle,
-        detail: `${input.assets.first.text}${tracked}`,
-        href: input.assets.first.href,
+        id: "obligation",
+        kind: "obligation",
+        label: first.subjectTitle ?? first.title,
+        detail:
+          first.subjectTitle === null
+            ? `${first.text}${tracked}`
+            : `${first.title} · ${first.text}${tracked}`,
+        href: first.href,
       });
     } else {
-      const tracked =
-        input.assets.trackedAsTasksCount > 0
-          ? ` · ${trackedAsTasksLabel(input.assets.trackedAsTasksCount)}`
-          : "";
       items.push({
-        id: "asset",
-        kind: "asset",
-        label: "Assets",
-        detail: `${input.assets.visibleCount} obligations need attention${tracked}`,
-        href: "/assets",
+        id: "obligation",
+        kind: "obligation",
+        label: "Life admin",
+        detail: `${input.obligations.visibleCount} obligations need attention${tracked}`,
+        href: "/obligations",
       });
     }
   }

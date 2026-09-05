@@ -699,7 +699,7 @@ export function makeSnapshot(
       },
     ],
     /*
-     * V2.10 LIFE-01 — `asset_obligations` is retired, so an export written now
+     * V2.10 LIFE-01 — `obligations` is retired, so an export written now
      * carries none. The collection stays in the shape so an archive that has
      * one still validates and still restores.
      */

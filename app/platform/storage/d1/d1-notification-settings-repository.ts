@@ -42,7 +42,7 @@ interface SettingsRow {
   readonly owner_id: string;
   readonly enabled: number;
   readonly digest_enabled: number;
-  readonly asset_obligations_enabled: number;
+  readonly obligations_enabled: number;
   readonly digest_send_time: string;
   readonly timezone: string | null;
   readonly pushover_enabled: number;
@@ -62,7 +62,7 @@ interface SecretRow extends SettingsRow {
  * must not require reading them.
  */
 const COLUMNS =
-  "owner_id, enabled, digest_enabled, asset_obligations_enabled, " +
+  "owner_id, enabled, digest_enabled, obligations_enabled, " +
   "digest_send_time, timezone, pushover_enabled, " +
   "(CASE WHEN pushover_user_key IS NOT NULL AND pushover_app_token IS NOT NULL " +
   "THEN 1 ELSE 0 END) AS pushover_configured, " +
@@ -75,7 +75,7 @@ function rowToSettings(row: SettingsRow): NotificationSettings {
   return {
     enabled: row.enabled === 1,
     digestEnabled: row.digest_enabled === 1,
-    assetObligationsEnabled: row.asset_obligations_enabled === 1,
+    obligationsEnabled: row.obligations_enabled === 1,
     digestSendTime: row.digest_send_time,
     timeZone: row.timezone,
     pushoverEnabled: row.pushover_enabled === 1,
@@ -223,7 +223,7 @@ export class D1NotificationSettingsRepository implements NotificationSettingsRep
         .prepare(
           `INSERT INTO notification_settings (
              workspace_id, owner_id, enabled, digest_enabled,
-             asset_obligations_enabled, digest_send_time, timezone,
+             obligations_enabled, digest_send_time, timezone,
              pushover_enabled, pushover_user_key, pushover_app_token,
              pushover_validated_at, version, created_at, updated_at
            )
@@ -231,7 +231,7 @@ export class D1NotificationSettingsRepository implements NotificationSettingsRep
            ON CONFLICT (workspace_id, owner_id) DO UPDATE SET
              enabled = excluded.enabled,
              digest_enabled = excluded.digest_enabled,
-             asset_obligations_enabled = excluded.asset_obligations_enabled,
+             obligations_enabled = excluded.obligations_enabled,
              digest_send_time = excluded.digest_send_time,
              timezone = excluded.timezone,
              pushover_enabled = excluded.pushover_enabled,
@@ -247,7 +247,7 @@ export class D1NotificationSettingsRepository implements NotificationSettingsRep
           ownerId,
           next.enabled ? 1 : 0,
           next.digestEnabled ? 1 : 0,
-          next.assetObligationsEnabled ? 1 : 0,
+          next.obligationsEnabled ? 1 : 0,
           next.digestSendTime,
           next.timeZone,
           pushoverEnabled ? 1 : 0,
