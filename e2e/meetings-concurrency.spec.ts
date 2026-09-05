@@ -279,6 +279,74 @@ test("a SECOND real tab is the other writer, and neither loses its words", async
   }
 });
 
+test("a second save made before the reload lands is not a conflict with itself", async ({
+  page,
+}) => {
+  /*
+   * The window this closes is the editor's own: every save quotes the version
+   * it was written against, and until this fix the only way to learn the
+   * version a save PRODUCED was the revalidation `onSaved()` asks for. Between
+   * the save resolving and that reload landing, the editor still held the
+   * pre-save version — so a second save started in that window quoted a
+   * superseded version and the server refused it, correctly and uselessly: the
+   * "changed elsewhere" it reported was the owner's own previous keystrokes.
+   *
+   * On CI the window opened by itself under load (`:282` timing out in
+   * `page.waitForResponse` on runs 32629099619, 32818657005 and 33980952506,
+   * all p08). Here it is opened DELIBERATELY, by holding the reload, so the
+   * test fails on the defect rather than on the runner's mood — the same shape
+   * `tasks-collection.spec.ts` uses to hold a `.data` request.
+   */
+  const title = uniqueMeetingTitle("own-version");
+  const meetingUrl = await createMeeting(page, title);
+  await openNotebook(page);
+
+  let releaseReload: (() => void) | undefined;
+  const reloadHeld = new Promise<void>((resolve) => {
+    releaseReload = resolve;
+  });
+  let holding = false;
+  await page.route(/\.data(\?|$)/, async (route) => {
+    // Only the reload that follows the FIRST save is held; everything before
+    // and after it answers normally, so nothing else in the journey is slowed.
+    if (holding) {
+      holding = false;
+      await reloadHeld;
+    }
+    await route.continue();
+  });
+
+  await clearAndType(page, "Notes", "First, written and saved.");
+  holding = true;
+  await blurEditor(page, "Notes");
+  await expect(page.getByText("Saved").first()).toBeVisible();
+
+  // The reload is still in flight, so the editor has NOT been told the version
+  // its own save produced. This is the exact window.
+  const secondSaved = page.waitForResponse(
+    (response) =>
+      response.url().includes("/mutate") &&
+      response.request().method() === "POST" &&
+      (response.request().postData() ?? "").includes("Second"),
+  );
+  await clearAndType(page, "Notes", "Second, written in the window.");
+  await blurEditor(page, "Notes");
+  // Deliberately NOT filtered on `ok()`: a refusal is the failure this test
+  // exists for, and it must be reported as a refusal rather than as a timeout.
+  expect((await secondSaved).status()).toBe(200);
+  releaseReload?.();
+
+  // No banner, because nothing changed elsewhere — one owner, one editor.
+  await expect(
+    page.getByRole("status", { name: "Changed elsewhere" }),
+  ).toBeHidden();
+
+  // And the second save is what the meeting actually says.
+  await gotoFixture(page, meetingUrl);
+  await openNotebook(page);
+  expect(await readVisible(page, "Notes")).toContain("Second, written");
+});
+
 test("clearing the notes to empty actually empties them", async ({ page }) => {
   // HARDEN-06B — the route coerced an empty submission to `null`, which the
   // repository's merge reads as "not supplied", so select-all-delete-save

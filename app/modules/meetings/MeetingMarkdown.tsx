@@ -70,7 +70,12 @@ function isNewerVersion(candidate: string | null, against: string): boolean {
   return candidate !== null && candidate > against;
 }
 
-/** The `409` body `meetings/routes/mutate.tsx` answers a refused save with. */
+/**
+ * The body `meetings/routes/mutate.tsx` answers a save with — refused (`409`)
+ * or accepted. Both carry `detailsUpdatedAt`, because both are an authority on
+ * the version this editor must quote next: on refusal it is the version that
+ * won, and on acceptance it is the version this save itself produced.
+ */
 type MeetingMutationResponse = {
   readonly ok?: boolean;
   readonly conflict?: boolean;
@@ -116,11 +121,12 @@ function MeetingMarkdownEditor({
   /*
    * The version this editor's committed text came from. A ref, not state,
    * because `onSave` must read it without being re-created mid-save. It only
-   * ever moves FORWARD, and only from an authority: a newer loader value this
-   * editor has taken on, or the version a refused save came back with — and
-   * then only once the owner has answered the banner. Advancing it on refusal
-   * alone would make the very next save succeed silently, which is the
-   * overwrite this whole mechanism exists to stop.
+   * ever moves FORWARD, and only from an authority: the version THIS EDITOR'S
+   * OWN accepted save produced, a newer loader value this editor has taken on,
+   * or the version a refused save came back with — and the last of those only
+   * once the owner has answered the banner. Advancing it on refusal alone would
+   * make the very next save succeed silently, which is the overwrite this whole
+   * mechanism exists to stop.
    */
   const baseVersion = useRef(version);
   const [refused, setRefused] = useState<{
@@ -157,6 +163,29 @@ function MeetingMarkdownEditor({
         throw new Error("save rejected");
       }
       if (r.ok && data.ok === true) {
+        /*
+         * HARDEN-06B (F-01) — take the version OUR OWN SAVE produced, before
+         * anything revalidates.
+         *
+         * `onSaved()` asks the route to reload, and until that reload landed
+         * this ref still held the version from BEFORE this save. A second save
+         * made inside that window — clear the notes, blur; type, blur, correct
+         * a word, blur — therefore quoted a version its own predecessor had
+         * already superseded, and the server refused it: a "changed elsewhere"
+         * banner naming the owner's own keystrokes, with the second edit not
+         * saved. MEASURED as `meetings-concurrency.spec.ts:282` timing out in
+         * `page.waitForResponse` on CI runs 32629099619, 32818657005 and
+         * 33980952506 (p08) — the POST it waited for was answered `409`, so an
+         * `ok()`-only predicate never saw it.
+         *
+         * The response is the most direct authority there is for this fact, and
+         * `isNewerVersion` keeps the ref's forward-only rule intact.
+         */
+        if (
+          isNewerVersion(data.detailsUpdatedAt ?? null, baseVersion.current)
+        ) {
+          baseVersion.current = data.detailsUpdatedAt!;
+        }
         onSaved();
         return;
       }
