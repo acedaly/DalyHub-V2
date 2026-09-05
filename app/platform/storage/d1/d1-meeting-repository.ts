@@ -777,7 +777,7 @@ export class D1MeetingRepository implements MeetingRepository {
     // The stored meeting already IS this meeting. Nobody's writing can be lost
     // by agreeing, so a stale base version is not a conflict here — the same
     // rule `NoteDetailsRepository.update` applies to identical content.
-    if (same) return { meeting: current, changed: false };
+    if (same) return { meeting: current, changed: false, writtenVersion: null };
     const now = this.#clock(),
       ts = toStorageTimestamp(now);
     const expected = v.expectedUpdatedAt;
@@ -857,7 +857,7 @@ export class D1MeetingRepository implements MeetingRepository {
         refreshed.mode === merged.mode &&
         refreshed.meetingUrl === merged.meetingUrl
       ) {
-        return { meeting: refreshed, changed: false };
+        return { meeting: refreshed, changed: false, writtenVersion: null };
       }
       throw new MeetingConflictError();
     }
@@ -866,7 +866,7 @@ export class D1MeetingRepository implements MeetingRepository {
     // the calm not-found already exists.
     const written = await this.get(id);
     if (!written) throw new MeetingNotFoundError();
-    return { meeting: written, changed: true };
+    return { meeting: written, changed: true, writtenVersion: ts };
   }
   /**
    * AUDIT-FIX-02 — append one structured item, allocating its ordinal in SQL.

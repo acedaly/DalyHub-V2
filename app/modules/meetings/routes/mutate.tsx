@@ -89,6 +89,12 @@ export async function action({ request, context, params }: Route.ActionArgs) {
      * PRE-SAVE version — so a second save made in that window quoted a version
      * the write had already superseded and was refused as a conflict with
      * itself. See `MeetingMarkdown.tsx` for the other half.
+     *
+     * It is `writtenVersion` — the value the write STORED — and never the
+     * version on the record read back afterwards, which may belong to a writer
+     * who committed in between. A submission that wrote nothing carries no
+     * version at all, so the caller keeps the base it has: the only version
+     * this response ever hands out is one this request produced.
      */
     let detailsUpdatedAt: string | null = null;
     if (intent === "archive") await scope.meetings.archive(id);
@@ -223,7 +229,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
           ? changes
           : { ...changes, expectedUpdatedAt },
       );
-      detailsUpdatedAt = updated.meeting.detailsUpdatedAt.toISOString();
+      detailsUpdatedAt = updated.writtenVersion;
     }
     return Response.json(
       detailsUpdatedAt === null
