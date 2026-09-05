@@ -204,6 +204,53 @@ describe("buckets are generated backward from the window's end", () => {
     ]);
   });
 
+  it("gives calendar months whenever the window ends on ANY month end, not only a 31st", () => {
+    // Found by review: `addCalendarMonths` clamps the DAY, so stepping back
+    // from 30 April landed on 30 March and 31 March fell into the "April"
+    // bucket. A window that ends on a month end must tile into whole calendar
+    // months whatever the length of the month it ends in.
+    const april = bucketWindow({
+      window: window("2026-02-01", "2026-04-30"),
+      grain: "month",
+      startOfOwnerDay: brisbane,
+    });
+    expect(days(april.buckets)).toEqual([
+      ["2026-02-01", "2026-02-28"],
+      ["2026-03-01", "2026-03-31"],
+      ["2026-04-01", "2026-04-30"],
+    ]);
+    const february = bucketWindow({
+      window: window("2025-12-01", "2026-02-28"),
+      grain: "month",
+      startOfOwnerDay: brisbane,
+    });
+    expect(days(february.buckets)).toEqual([
+      ["2025-12-01", "2025-12-31"],
+      ["2026-01-01", "2026-01-31"],
+      ["2026-02-01", "2026-02-28"],
+    ]);
+    const june = bucketWindow({
+      window: window("2026-01-01", "2026-06-30"),
+      grain: "month",
+      startOfOwnerDay: brisbane,
+    });
+    expect(days(june.buckets)).toEqual([
+      ["2026-01-01", "2026-01-31"],
+      ["2026-02-01", "2026-02-28"],
+      ["2026-03-01", "2026-03-31"],
+      ["2026-04-01", "2026-04-30"],
+      ["2026-05-01", "2026-05-31"],
+      ["2026-06-01", "2026-06-30"],
+    ]);
+    // And the count a surface refuses on agrees with the buckets it would get.
+    expect(
+      requestedBucketCount(window("2026-01-01", "2026-06-30"), "month"),
+    ).toBe(6);
+    expect(
+      requestedBucketCount(window("2026-02-01", "2026-04-30"), "month"),
+    ).toBe(3);
+  });
+
   it("gives a one-day window exactly one bucket at every calendar grain", () => {
     for (const grain of ["day", "week", "month"] as const) {
       const cut = bucketWindow({
@@ -325,6 +372,42 @@ describe("a bound is stated, never silently applied", () => {
     expect(
       requestedBucketCount(window("2024-01-01", "2026-09-04"), "week"),
     ).toBeGreaterThan(GRAIN_MAXIMUMS.week);
+  });
+
+  it("reports the requested month count exactly, however wide the window", () => {
+    // The month count was found capped at 50 by a loop ceiling while days and
+    // weeks were exact; a field documented as "unbounded" must be.
+    expect(
+      requestedBucketCount(window("2016-01-01", "2026-09-04"), "month"),
+    ).toBe(129);
+    expect(
+      requestedBucketCount(window("2016-01-01", "2026-09-04"), "day"),
+    ).toBe(3900);
+    const cut = bucketWindow({
+      window: window("2016-01-01", "2026-09-04"),
+      grain: "month",
+      startOfOwnerDay: brisbane,
+    });
+    expect(cut.bounded).toBe(true);
+    expect(cut.bound).toBe(GRAIN_MAXIMUMS.month);
+    expect(cut.requested).toBe(129);
+    expect(cut.buckets).toHaveLength(GRAIN_MAXIMUMS.month);
+  });
+
+  it("refuses an inverted window rather than reading it as a quiet one", () => {
+    // Found by review: start after end produced one bucket with inverted
+    // instants, which every read answered with zeros — "nothing happened"
+    // where the truth is "nothing was asked".
+    expect(() =>
+      bucketWindow({
+        window: window("2026-09-04", "2026-08-29"),
+        grain: "day",
+        startOfOwnerDay: brisbane,
+      }),
+    ).toThrow(TypeError);
+    expect(() =>
+      requestedBucketCount(window("2026-09-04", "2026-08-29"), "week"),
+    ).toThrow(TypeError);
   });
 
   it("refuses the review_period grain, which no calendar rule can derive", () => {

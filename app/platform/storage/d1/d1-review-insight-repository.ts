@@ -68,6 +68,7 @@ import type { WorkspaceContext } from "~/kernel/workspaces";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 import { countPrimarySubjectsByTypeInBuckets } from "./history-window-read";
+import { GRAIN_MAXIMUMS } from "~/kernel/history";
 
 interface ContributionRow {
   readonly project_id: string | null;
@@ -162,9 +163,11 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
      * primary-subject entities per (period, completion event type), with no
      * liveness filter so a closed period's figures never move.
      *
-     * Two things changed shape and NEITHER changed the answer, which
-     * `test/kernel/history-kernel.test.ts` asserts by running the old and new
-     * shapes over one fixture:
+     * Two things changed shape and NEITHER changed the answer: the Review's
+     * own kernel tests (`test/kernel/review-insights.test.ts`), written against
+     * the old shape, pass unchanged through the converged read, and
+     * `test/kernel/history-kernel.test.ts` pins the new shape's counts on a
+     * fixture whose events are known:
      *
      *   - the period boundaries travel as one bound JSON parameter rather than
      *     as a `CASE WHEN` arm per period, so the statement no longer grows
@@ -553,7 +556,11 @@ export class D1ReviewInsightRepository implements ReviewInsightRepository {
     n: number,
   ): Promise<readonly StoredReviewInsightSnapshot[]> {
     const id = requireReviewId(reviewId);
-    const bounded = clampLimit(n, MAX_TREND_PERIODS);
+    // Bounded by the kernel's own maximum for the review_period grain, NOT by
+    // the Review panel's eight: `MAX_TREND_PERIODS` is a display bound, and a
+    // read that imposed it would leave `bucketPeriods` unable to ever report a
+    // bound of its own (found by review).
+    const bounded = clampLimit(n, GRAIN_MAXIMUMS.review_period);
     const result = await this.#db
       .prepare(
         `WITH anchor AS (
