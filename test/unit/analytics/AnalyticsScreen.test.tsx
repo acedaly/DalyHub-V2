@@ -574,17 +574,80 @@ describe("the Goals panel", () => {
     renderScreen(pageData({ goalContributionsAvailable: false }));
     expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
     expect(
-      screen.getByText(/This panel could not be read just now/),
+      screen.getByText(
+        /What your Reviews recorded about your other Goals could not be read/,
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/No Goal has two readings/)).toBeNull();
+  });
+
+  // Codex review on the completion pass (P2): the two halves are independent
+  // reads, so a failed across-Reviews read must not hide measured series that
+  // read fine — and the reverse.
+  it("keeps the measured series visible when only the across-Reviews half failed", () => {
+    renderScreen(
+      pageData({ measuredGoals: [GOAL], goalContributionsAvailable: false }),
+    );
+    const list = screen.getByRole("list", { name: "Goals" });
+    expect(
+      within(list).getByRole("link", { name: "Reach 70 kg" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /What your Reviews recorded about your other Goals could not be read/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/This panel could not be read/)).toBeNull();
+  });
+
+  it("keeps the across-Reviews lines visible when only the measured half failed", () => {
+    renderScreen(
+      pageData({
+        measuredGoalsAvailable: false,
+        goalContributions: [
+          {
+            goalId: "g2",
+            title: "Run a half marathon",
+            state: "moving",
+            count: 3,
+            of: 4,
+            reviews: 4,
+            sinceIso: "2026-08-03",
+            everyReview: false,
+            states: [],
+          },
+        ],
+      }),
+    );
+    const list = screen.getByRole("list", { name: "Goals" });
+    expect(
+      within(list).getByRole("link", { name: "Run a half marathon" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your measured Goals could not be read just now/),
+    ).toBeInTheDocument();
+  });
+
+  it("says the whole panel could not be read only when BOTH halves failed", () => {
+    renderScreen(
+      pageData({
+        measuredGoalsAvailable: false,
+        goalContributionsAvailable: false,
+      }),
+    );
+    expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
+    expect(
+      screen.getByText(/This panel could not be read just now/),
+    ).toBeInTheDocument();
   });
 
   it("says a failed read rather than drawing an unmeasured workspace", () => {
     renderScreen(pageData({ measuredGoalsAvailable: false }));
     expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
     expect(
-      screen.getByText(/This panel could not be read just now/),
+      screen.getByText(/Your measured Goals could not be read just now/),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/No Goal has two readings/)).toBeNull();
   });
 
   it("distinguishes no measured Goal from a failed read", () => {

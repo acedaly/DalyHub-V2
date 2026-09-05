@@ -723,14 +723,23 @@ function DistributionPanel({ model }: { readonly model: AnalyticsModel }) {
  * because drawing one point as a line asserts a shape it does not have.
  */
 function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
-  // Either read failing makes the "nothing yet" sentence a claim the page
-  // cannot make: "no Goal has two readings" is only known when the Goal page
-  // and both Goal reads succeeded (found by review).
-  if (!model.measuredGoalsAvailable || !model.goalContributionsAvailable) {
+  /*
+   * The two halves are INDEPENDENT reads (the measurement series and the
+   * across-Reviews record), so each fails on its own: a transient Review
+   * storage failure must not hide a Goal's measurements that read fine
+   * (review finding on the completion pass). The whole panel says it could
+   * not be read only when BOTH halves failed. What no half may do is make
+   * the "nothing yet" claim while the other is unknown: "no Goal has two
+   * readings, and the Reviews have not recorded enough" is a statement about
+   * both reads, so it is made only when both succeeded and both are empty.
+   */
+  const measuredAvailable = model.measuredGoalsAvailable;
+  const contributionsAvailable = model.goalContributionsAvailable;
+  if (!measuredAvailable && !contributionsAvailable) {
     return (
       <DashboardCard
         className="dh-analytics__goals-panel"
-        title="Measured Goals"
+        title="Goals"
         density="standard"
       >
         <p className="dh-analytics__absent">
@@ -740,9 +749,13 @@ function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
       </DashboardCard>
     );
   }
+  const measured = measuredAvailable ? model.measuredGoals : [];
+  const contributions = contributionsAvailable ? model.goalContributions : [];
   if (
-    model.measuredGoals.length === 0 &&
-    model.goalContributions.length === 0
+    measuredAvailable &&
+    contributionsAvailable &&
+    measured.length === 0 &&
+    contributions.length === 0
   ) {
     return (
       <DashboardCard
@@ -764,56 +777,69 @@ function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
       className="dh-analytics__goals-panel"
       title="Goals"
       supporting={
-        model.measuredGoals.length > 0
-          ? `${model.measuredGoals.length} measured`
-          : undefined
+        measured.length > 0 ? `${measured.length} measured` : undefined
       }
       density="standard"
     >
-      <ul className="dh-analytics__goals" aria-label="Goals">
-        {model.measuredGoals.map((goal) => {
-          const first = goal.points[0];
-          const last = goal.points[goal.points.length - 1];
-          return (
+      {measured.length > 0 || contributions.length > 0 ? (
+        <ul className="dh-analytics__goals" aria-label="Goals">
+          {measured.map((goal) => {
+            const first = goal.points[0];
+            const last = goal.points[goal.points.length - 1];
+            return (
+              <li key={goal.goalId} className="dh-analytics__goal">
+                <Link className="dh-analytics__goal-name" to={goal.to}>
+                  {goal.title}
+                </Link>
+                <Sparkline points={goal.points} />
+                {/*
+                 * The reading, in words, beside the shape — so the sparkline is
+                 * decoration over a fact rather than the fact itself. The bound
+                 * is said where it applies: a compact series is a recent shape.
+                 */}
+                <span className="dh-analytics__goal-reading">
+                  {`${first.value} → ${last.value}`}
+                  <span className="dh-analytics__goal-window">
+                    {goal.bounded
+                      ? `${goal.points.length} most recent readings in this period`
+                      : `${goal.points.length} readings in this period`}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+          {/*
+           * A Goal with no measurement, after every measured one — the shapes
+           * read as a group, and a sentence between two sparklines breaks the
+           * comparison they exist for. Its reading is the Reviews' own words
+           * and names its own window, so the two kinds of row are never
+           * mistaken for each other.
+           */}
+          {contributions.map((goal) => (
             <li key={goal.goalId} className="dh-analytics__goal">
               <Link className="dh-analytics__goal-name" to={goal.to}>
                 {goal.title}
               </Link>
-              <Sparkline points={goal.points} />
-              {/*
-               * The reading, in words, beside the shape — so the sparkline is
-               * decoration over a fact rather than the fact itself. The bound
-               * is said where it applies: a compact series is a recent shape.
-               */}
-              <span className="dh-analytics__goal-reading">
-                {`${first.value} → ${last.value}`}
-                <span className="dh-analytics__goal-window">
-                  {goal.bounded
-                    ? `${goal.points.length} most recent readings in this period`
-                    : `${goal.points.length} readings in this period`}
-                </span>
+              <span className="dh-analytics__goal-reading dh-analytics__goal-reading--wide">
+                {goal.reading}
               </span>
             </li>
-          );
-        })}
-        {/*
-         * A Goal with no measurement, after every measured one — the shapes
-         * read as a group, and a sentence between two sparklines breaks the
-         * comparison they exist for. Its reading is the Reviews' own words and
-         * names its own window, so the two kinds of row are never mistaken for
-         * each other.
-         */}
-        {model.goalContributions.map((goal) => (
-          <li key={goal.goalId} className="dh-analytics__goal">
-            <Link className="dh-analytics__goal-name" to={goal.to}>
-              {goal.title}
-            </Link>
-            <span className="dh-analytics__goal-reading dh-analytics__goal-reading--wide">
-              {goal.reading}
-            </span>
-          </li>
-        ))}
-      </ul>
+          ))}
+        </ul>
+      ) : null}
+      {/* The failed half says so beneath what did read, never as a zero. */}
+      {!contributionsAvailable ? (
+        <p className="dh-analytics__absent dh-analytics__goals-note">
+          What your Reviews recorded about your other Goals could not be read
+          just now. Nothing in your workspace has changed.
+        </p>
+      ) : null}
+      {!measuredAvailable ? (
+        <p className="dh-analytics__absent dh-analytics__goals-note">
+          Your measured Goals could not be read just now. Nothing in your
+          workspace has changed.
+        </p>
+      ) : null}
     </DashboardCard>
   );
 }

@@ -526,3 +526,9 @@
     flex-basis: 100%;
   }
 }
+
+/* A half of the Goals panel that could not be read says so beneath the rest. */
+.dh-analytics__goals-note {
+  margin-block-start: var(--app-space-3);
+  font-size: var(--dh-text-meta-size);
+}
