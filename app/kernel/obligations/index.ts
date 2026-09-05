@@ -1,0 +1,70 @@
+/**
+ * V2.10 LIFE-00 Obligations kernel — public surface.
+ *
+ * The ONE obligation domain: the closed category vocabulary, the stored
+ * lifecycle, the one recurrence engine for obligations, the calendar
+ * arithmetic and the one urgency evaluator. It is pure — no D1, no JSX, no
+ * clock, no timezone database, and no import of any other product domain — so
+ * a commitment about an Asset, about a Person, or about nothing at all is
+ * evaluated by the same code (ADR-116 decision 1).
+ *
+ * The Assets kernel consumes this and adds what is genuinely Asset-specific:
+ * the meter, the canonical-fact bridge and the proof-event bridge. Nothing
+ * here knows those exist.
+ */
+
+export {
+  OBLIGATION_CATEGORIES,
+  OBLIGATION_CATEGORY_OPTIONS,
+  obligationCategoryLabel,
+  isObligationCategory,
+  type ObligationCategory,
+} from "./obligation-category";
+
+export {
+  OBLIGATION_STATUSES,
+  isObligationStatus,
+  type ObligationStatus,
+} from "./obligation-status";
+
+export {
+  OBLIGATION_RECURRENCE_KINDS,
+  OBLIGATION_RECURRENCE_OPTIONS,
+  isObligationRecurrenceKind,
+  MAX_RECURRENCE_INTERVAL,
+  describeObligationRecurrence,
+  isIsoDate,
+  addObligationDays,
+  addObligationMonths,
+  obligationDaysBetween,
+  nextObligationDate,
+  type ObligationRecurrenceKind,
+} from "./obligation-recurrence";
+
+export {
+  ObligationValidationError,
+  type ObligationValidationField,
+} from "./obligation-errors";
+
+export {
+  evaluateObligation,
+  DEFAULT_OBLIGATIONS_PAGE_SIZE,
+  MAX_OBLIGATIONS_PAGE_SIZE,
+  DEFAULT_ATTENTION_HORIZON_DAYS,
+  MAX_ATTENTION_ITEMS,
+  type Obligation,
+  type ObligationMeterState,
+  type ObligationMeterEvaluation,
+  type ObligationState,
+  type ObligationEvaluation,
+  type ObligationInput,
+  type CreateObligationInput,
+  type UpdateObligationInput,
+  type ObligationChangeResult,
+  type CompleteObligationInput,
+  type ObligationTaskOutcome,
+  type ObligationFilters,
+  type ListObligationsInput,
+  type ObligationPage,
+  type ObligationAttentionInput,
+} from "./obligation";

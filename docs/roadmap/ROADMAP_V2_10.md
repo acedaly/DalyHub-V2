@@ -546,7 +546,7 @@ LIFE-00 ──► LIFE-01 ──► LIFE-02 ──► LIFE-03
             + export)
 ```
 
-### ☐ LIFE-00 — One obligation domain
+### ☑ LIFE-00 — One obligation domain — **delivered 2026-09-05**
 
 **The obligation arithmetic lives in one place, carries no Asset assumption,
 and there is no second copy of it.**
@@ -577,6 +577,63 @@ and there is no second copy of it.**
   evaluator, the one category vocabulary and the three recurrence engines and
   fails when a count moves in either direction (the ADR-117 registry shape).
 - **Non-goals.** Any schema change; any behaviour change; any surface.
+
+**Delivered 2026-09-05.** [`app/kernel/obligations`](../../app/kernel/obligations/index.ts)
+holds the domain; the Assets kernel keeps what is genuinely about an Asset. Five
+places where implementing it corrected the definition:
+
+- **The meter forced a decision this file did not anticipate, and it is the
+  interesting one.** `evaluateObligation` cannot both be free of Assets and
+  evaluate a meter: the units, the approach windows and the current reading are
+  properties of the *thing*, and `asset_details.current_meter_*` is where the
+  reading lives. So the meter side is **injected** — the shared evaluator takes
+  an already-evaluated `ObligationMeterEvaluation | null` and ranks it against
+  the date side, and `evaluateAssetObligation` is the composition that computes
+  it. That is the same shape ADR-117 decision 1 chose for the history kernel,
+  where owner-day resolution arrives as an argument rather than as a dependency.
+  The structural test asserts the composition *delegates*: it fails if the Asset
+  side ever grows a `needsAttention` of its own.
+- **`asset-obligation.ts` keeps its path, and that is not the alias this file
+  warned about.** What was deleted is the general domain the file used to own —
+  693 of its 717 lines. What remains is the meter glue, the two bridges and the
+  Asset-shaped extensions, and the file's header says so. Keeping the path makes
+  the diff show exactly what left; a *new* filename would have hidden it. The
+  guarantee that no second copy exists is the registry test, never a filename.
+- **`asset-today.ts` did NOT move, and should not have been listed here.**
+  Measured: its `SerializedAttentionItem` and `AttentionInput` require
+  `assetId`, `assetTitle` and `assetType`, and its href is `/asset/:id?tab=obligations`.
+  Moving it means making the subject optional, and a subject-optional projection
+  with no subject-optional store to feed it is a shape nothing can produce. It
+  moves in LIFE-01, with the schema.
+- **The money validation moved to LIFE-01 for the same reason.** A pure
+  validator with no caller is exactly what DEBT-212 measured as debt; it lands
+  with the columns it validates.
+- **`describeRecurrence` is now `describeObligationRecurrence`.** Tasks already
+  has a `describeRecurrence` for its own, different engine
+  (`d1-task-repository.ts:614`), and two identically-named recurrence describers
+  in one codebase is how two engines come to be mistaken for one. The Asset
+  wrapper `describeAssetObligationRecurrence` formats the meter interval in the
+  Asset's units before delegating.
+
+**Falsified, then reverted.** Four rules, each broken on the tree and each
+failing the test that claims it: an import of `~/kernel/assets` added to the
+obligations kernel (the domain-purity test named the file and the specifier); the
+successor anchored on the due date instead of the completion day (the anchor test
+failed with 2026-07-15 against 2026-09-15); a fourth `nextOccurrenceDate` helper
+added to the kernel (the engine registry named it); and a second evaluator
+declared beside the bridge (the delegation test failed). All four reverted, and
+the suite is green on the reverted tree.
+
+**Parity, not a rewrite.** Every existing obligation, meter, Today and
+notification test passes unchanged through the moved domain — the same machine
+values before and after (the V2.5 rule). The general cases moved to
+[`test/unit/obligations/obligation.test.ts`](../../test/unit/obligations/obligation.test.ts),
+which imports `~/kernel/obligations` and nothing else from the product; the
+meter, the "whichever comes first" resolution and the two category bridges stay
+in `test/unit/assets/asset-obligation.test.ts`.
+
+**Nothing owner-facing changed**, so there is no changelog entry. That is the
+item's acceptance criterion, not an omission.
 
 ### ☐ LIFE-01 — The shared store, and the Asset record does not notice
 
