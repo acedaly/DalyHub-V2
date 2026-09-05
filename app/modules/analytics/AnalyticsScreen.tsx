@@ -368,7 +368,15 @@ function TrendPanel({
   const values = points.map((point) => point.value);
   const high = values.length > 0 ? Math.max(...values) : 0;
   const low = values.length > 0 ? Math.min(...values) : 0;
-  const total = values.reduce((sum, value) => sum + value, 0);
+  /*
+   * The figure beside a series is the WINDOW'S OWN total — its own read, never
+   * the sum of the buckets (RECALL-02's reopen rule; and a Project completed
+   * twice across two buckets is one Project). Found by review: the caption
+   * and the secondary rows summed the series, so this card and the metric
+   * card above it could disagree. Null when that read failed, and then the
+   * caption simply has no total.
+   */
+  const total = model.totals?.tasksCompleted ?? null;
 
   /*
    * The chart's own text form, and the only place the FULL bucket labels are
@@ -394,7 +402,9 @@ function TrendPanel({
   const headline =
     points.length < 2
       ? "Not enough of this period has passed to show a trend."
-      : `Tasks completed across ${points.length} ${noun}s, ${total} in total.`;
+      : total === null
+        ? `Tasks completed across ${points.length} ${noun}s.`
+        : `Tasks completed across ${points.length} ${noun}s, ${total} in the period.`;
   /*
    * V2.9 INS-03 — the Projects and Goals lines, under the Tasks trend.
    *
@@ -415,9 +425,10 @@ function TrendPanel({
       ["Goals completed", "goalsCompleted"],
     ] as const
   ).flatMap(([label, key]) => {
-    const values = model.series.map((point) => point[key]);
-    const total = values.reduce((sum, value) => sum + value, 0);
-    if (total === 0) return [];
+    // Drawn only when something happened in the window; the figure beside the
+    // shape is the window's own total, not the sum of the shape.
+    const total = model.totals?.[key] ?? null;
+    if (total === null || total === 0) return [];
     return [
       {
         label,
@@ -711,7 +722,10 @@ function DistributionPanel({ model }: { readonly model: AnalyticsModel }) {
  * because drawing one point as a line asserts a shape it does not have.
  */
 function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
-  if (!model.measuredGoalsAvailable) {
+  // Either read failing makes the "nothing yet" sentence a claim the page
+  // cannot make: "no Goal has two readings" is only known when the Goal page
+  // and both Goal reads succeeded (found by review).
+  if (!model.measuredGoalsAvailable || !model.goalContributionsAvailable) {
     return (
       <DashboardCard
         className="dh-analytics__goals-panel"
@@ -736,9 +750,9 @@ function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
         density="standard"
       >
         <p className="dh-analytics__absent">
-          No Goal has two readings yet, and your Reviews have not yet recorded
-          enough to say how work reached them. Log a measurement on a Goal, or
-          complete another Review, and its shape appears here.
+          No Goal has two readings in this period, and your Reviews have not yet
+          recorded enough to say how work reached them. Log a measurement on a
+          Goal, or complete another Review, and its shape appears here.
         </p>
       </DashboardCard>
     );
@@ -774,8 +788,8 @@ function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
                 {`${first.value} → ${last.value}`}
                 <span className="dh-analytics__goal-window">
                   {goal.bounded
-                    ? `${goal.points.length} most recent readings`
-                    : `${goal.points.length} readings`}
+                    ? `${goal.points.length} most recent readings in this period`
+                    : `${goal.points.length} readings in this period`}
                 </span>
               </span>
             </li>

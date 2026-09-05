@@ -59,6 +59,7 @@ function facts(over: Partial<AnalyticsFacts> = {}): AnalyticsFacts {
     measuredGoals: [],
     measuredGoalsBounded: false,
     measuredGoalsAvailable: true,
+    goalContributionsAvailable: true,
     goalContributions: [],
     seriesBounded: false,
     seriesBound: null,
@@ -185,6 +186,36 @@ describe("analytics evaluator", () => {
     expect(tasks?.supporting).toBe("No Tasks in the previous period");
   });
 
+  it("carries the window's own totals beside the series, never the buckets' sum", () => {
+    // RECALL-02: the series is one count per bucket and the total is its own
+    // read over the whole window. A Project completed in two buckets is two
+    // bucket counts and ONE Project; the surface prints the total.
+    const model = evaluateAnalytics(
+      facts({
+        current: {
+          tasksCompleted: 24,
+          projectsCompleted: 1,
+          goalsCompleted: 0,
+        },
+        series: WEEK_BUCKETS.map((bucket, index) => ({
+          key: bucket.key,
+          tasksCompleted: index,
+          projectsCompleted: index < 2 ? 1 : 0,
+          goalsCompleted: 0,
+        })),
+      }),
+    );
+    expect(model.totals).toEqual({
+      tasksCompleted: 24,
+      projectsCompleted: 1,
+      goalsCompleted: 0,
+    });
+    expect(
+      model.series.reduce((sum, point) => sum + point.projectsCompleted, 0),
+    ).toBe(2);
+    expect(evaluateAnalytics(facts({ current: null })).totals).toBeNull();
+  });
+
   it("says a read failed rather than reporting nought", () => {
     const model = evaluateAnalytics(
       facts({ current: null, previous: null, goals: null }),
@@ -298,6 +329,12 @@ describe("analytics evaluator", () => {
   it("distinguishes a failed distribution read from a period with no attributed work", () => {
     const failedRead = evaluateAnalytics(facts({ areasAvailable: false }));
     expect(failedRead.distributionAvailable).toBe(false);
+    // And the METRIC card agrees with the panel: "Not available", never "0
+    // Areas worked in" beside a panel that says the read failed (found by
+    // review).
+    const areas = failedRead.metrics.find((metric) => metric.id === "areas");
+    expect(areas?.value).toBeNull();
+    expect(areas?.supporting).toBe("Not available");
     expect(failedRead.degraded).toBe(true);
     // …and it must not be able to produce the empty state, which asserts a fact.
     expect(failedRead.isEmpty).toBe(false);

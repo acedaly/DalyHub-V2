@@ -214,6 +214,10 @@ export interface AnalyticsFacts {
   readonly measuredGoals: readonly AnalyticsGoalSeries[];
   /** True when the Goal page was cut to its bound before the series were read. */
   readonly measuredGoalsBounded: boolean;
+  /**
+   * False when the series could not be read — OR when the Goal page it reads
+   * over could not be, since "no Goal has two readings" is then not known.
+   */
   readonly measuredGoalsAvailable: boolean;
   /**
    * V2.9 INS-03 — the across-Reviews contribution for a Goal with no
@@ -225,6 +229,12 @@ export interface AnalyticsFacts {
    * the owner selected.
    */
   readonly goalContributions: readonly GoalContributionAcrossReviews[];
+  /**
+   * False when the across-Reviews read failed. An empty list then means "not
+   * known", not "the Reviews have recorded nothing", and the panel says so
+   * rather than making the absence claim (found by review).
+   */
+  readonly goalContributionsAvailable: boolean;
   /**
    * True when the grain's stated maximum shortened the window that was asked
    * for. The surface says so rather than presenting a shortened window as the
@@ -342,6 +352,17 @@ export interface AnalyticsModel {
    * also appears in `measuredGoals`: one Goal, one row.
    */
   readonly goalContributions: readonly AnalyticsGoalContribution[];
+  /** False when the across-Reviews read failed — the panel then says so. */
+  readonly goalContributionsAvailable: boolean;
+  /**
+   * The selected window's own totals — each its OWN read over the whole
+   * window, never the sum of the buckets (RECALL-02: a Task completed,
+   * reopened and completed again counts once here and once in its current
+   * bucket; a Project completed twice across two buckets counts once here and
+   * twice across them). Null when the completion read failed. The surface
+   * prints these beside a series, never a sum of the series (found by review).
+   */
+  readonly totals: AnalyticsCompletionCounts | null;
   /** True when the grain's maximum shortened the window that was asked for. */
   readonly seriesBounded: boolean;
   readonly seriesBound: number | null;
@@ -544,12 +565,13 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     {
       id: "areas",
       label: "Areas worked in",
-      value:
-        facts.areas.length === 0 && current === null
-          ? null
-          : facts.areas.length,
-      supporting:
-        facts.areas.length === 0
+      // A failed distribution read is "Not available", never "0 Areas": zero
+      // is a claim about the period (found by review — it read 0 beside a
+      // panel that said the read had failed).
+      value: !facts.areasAvailable ? null : facts.areas.length,
+      supporting: !facts.areasAvailable
+        ? "Not available"
+        : facts.areas.length === 0
           ? "No completed work landed in an Area"
           : `${plural(attributed, "Task", "Tasks")} attributed`,
       delta: null,
@@ -716,6 +738,8 @@ export function evaluateAnalytics(facts: AnalyticsFacts): AnalyticsModel {
     measuredGoals: facts.measuredGoals,
     measuredGoalsAvailable: facts.measuredGoalsAvailable,
     goalContributions,
+    goalContributionsAvailable: facts.goalContributionsAvailable,
+    totals: current,
     seriesBounded: facts.seriesBounded,
     seriesBound: facts.seriesBound,
     overdueMoments: facts.overdueMoments,

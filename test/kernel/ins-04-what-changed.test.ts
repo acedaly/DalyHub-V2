@@ -29,7 +29,10 @@ import {
   anchorDayFor,
   loader as activityLoader,
 } from "~/modules/analytics/routes/activity";
-import { INSIGHT_ACTIVITY_PAGE_SIZE } from "~/modules/analytics/activity-feed";
+import {
+  INSIGHT_ACTIVITY_PAGE_BUDGET,
+  INSIGHT_ACTIVITY_PAGE_SIZE,
+} from "~/modules/analytics/activity-feed";
 import { setAuthenticatedSession } from "~/platform/request";
 import type { AuthenticatedSession } from "~/kernel/auth";
 
@@ -413,8 +416,11 @@ describe("one page costs a bounded number of statements", () => {
     );
 
     // The page read, the bounded entity batch and the bounded actor lookup —
-    // never one read per event. Equal counts is the whole assertion.
+    // never one read per event. Equal counts, AND the declared number: a
+    // per-event read that happened to fire on both pages would have kept them
+    // equal (found by review).
     expect(large).toBe(small);
+    expect(small).toBe(INSIGHT_ACTIVITY_PAGE_BUDGET);
   });
 });
 

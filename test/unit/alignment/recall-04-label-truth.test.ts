@@ -85,6 +85,7 @@ function analyticsFacts(goals: {
     measuredGoals: [],
     measuredGoalsBounded: false,
     measuredGoalsAvailable: true,
+    goalContributionsAvailable: true,
     goalContributions: [],
     seriesBounded: false,
     seriesBound: null,

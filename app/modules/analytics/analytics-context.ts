@@ -30,11 +30,11 @@
  *     query.
  *
  * The query budget is therefore FLAT with respect to workspace size and does not
- * grow with the range: one completed-window read, one totals read, one overdue
- * read, one contribution read, one Area page, one Goal page, one
- * Goal-contribution read and one alignment-facts read — eight grouped
- * statements, every time. RECALL-02 changed WHICH authority the first of those
- * reads, never how many there are.
+ * grow with the range — `ANALYTICS_QUERY_BUDGET` below states the number and
+ * `test/kernel/ins-03-insight-range.test.ts` asserts it at every window and
+ * grain. RECALL-02 changed WHICH authority the completion reads use, and V2.9
+ * INS-03 added the bucketed series, the Goal series and the across-Reviews
+ * read, never a per-bucket or per-Goal statement.
  *
  * Failure is SAID, not zeroed. A read that fails leaves its half of the model
  * `null`, and the evaluator turns that into "Not available" rather than into a
@@ -117,13 +117,17 @@ export const ANALYTICS_LIMITS = {
  * independent of the window (DEBT-239). A budget that grew with the window
  * would mean a bucketed read had gone back to a column per bucket.
  *
- * This is the FULL page: a workspace with Goals that carry measurements, so
- * every conditional read fires. A workspace with no Goal at all costs less,
- * because three of these return before touching the database rather than
- * asking a question about an empty set — which is why the budget's fixture
- * seeds Goals and readings, and why it would understate the page if it did not.
+ * This is the FULL page: a workspace with Goals that carry measurements AND a
+ * completed weekly Review, so every conditional read fires — the across-
+ * Reviews read costs two (the anchor Review lookup and the snapshot series)
+ * and runs only when a completed Review exists. A workspace with no Goal at
+ * all costs less, because three of these return before touching the database
+ * rather than asking a question about an empty set, and one that has never
+ * completed a Review costs two less. The V2.9 completion pass found the budget
+ * measured on a fixture with no Review, where it read 12 and understated every
+ * workspace that Reviews; both paths are now asserted.
  */
-export const ANALYTICS_QUERY_BUDGET = 12;
+export const ANALYTICS_QUERY_BUDGET = 14;
 
 /** Everything the Analytics route hands the browser. Fully JSON-safe. */
 export interface AnalyticsPageData {
@@ -221,14 +225,16 @@ function spanLabel(span: AnalyticsSpan, dateFormat: DateFormat): string {
  *
  * Deliberately NOT the owner's date-format preference: that preference governs
  * how a DATE is written where the date is the statement, and an axis tick is a
- * position rather than a statement. Every range's ticks are within a year of
- * today, so the year is the one part that can go.
+ * position rather than a statement. The year is dropped when every tick of the
+ * range falls in one calendar year, and kept when the range spans two: a
+ * 24-month axis reading "5 Sep … 4 Sep" says nothing (found by review).
  */
-function axisLabel(iso: string): string {
+function axisLabel(iso: string, withYear: boolean): string {
   const [y, m, d] = iso.split("-").map((part) => Number.parseInt(part, 10));
   return new Intl.DateTimeFormat("en-AU", {
     day: "numeric",
     month: "short",
+    ...(withYear ? { year: "numeric" } : {}),
     timeZone: "UTC",
   }).format(new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1)));
 }
@@ -441,7 +447,7 @@ export async function loadAnalytics(
    * to save a round trip. Beside EACH OTHER, because they are independent.
    */
   const [measured, contributions] = await Promise.all([
-    readMeasuredGoals(input, goals?.subjects ?? []),
+    readMeasuredGoals(input, goals?.subjects ?? [], span),
     readGoalContributions(input, goals?.subjects ?? []),
   ]);
 
@@ -470,8 +476,13 @@ export async function loadAnalytics(
     overdueAvailable: overdue.available,
     measuredGoals: measured.rows,
     measuredGoalsBounded: goals?.bounded ?? false,
-    measuredGoalsAvailable: measured.available,
-    goalContributions: contributions,
+    // A failed Goal PAGE read leaves both Goal reads with no ids to ask about;
+    // they return "available" over an empty set, which would let the panel
+    // claim "no Goal has two readings yet" about a workspace it never read
+    // (found by review). The page's failure is theirs too.
+    measuredGoalsAvailable: goals !== null && measured.available,
+    goalContributions: contributions.rows,
+    goalContributionsAvailable: goals !== null && contributions.available,
     seriesBounded: cut.bounded,
     seriesBound: cut.bound,
     overdueMoments,
@@ -485,7 +496,12 @@ export async function loadAnalytics(
     todayIso: input.todayIso,
     rangeLabel: spanLabel(span, input.dateFormat),
     bucketLabels: buckets.map((bucket) => spanLabel(bucket, input.dateFormat)),
-    bucketShortLabels: buckets.map((bucket) => axisLabel(bucket.endIso)),
+    bucketShortLabels: buckets.map((bucket) =>
+      axisLabel(
+        bucket.endIso,
+        span.startIso.slice(0, 4) !== span.endIso.slice(0, 4),
+      ),
+    ),
     bucketDates: buckets.map((bucket) => bucket.endIso),
     failed,
   };
@@ -698,15 +714,23 @@ async function readGoalTally(input: AnalyticsContextInput): Promise<{
 async function readMeasuredGoals(
   input: AnalyticsContextInput,
   subjects: readonly { readonly id: string; readonly title: string }[],
+  span: AnalyticsSpan,
 ): Promise<{
   rows: readonly AnalyticsGoalSeries[];
   available: boolean;
 }> {
   if (subjects.length === 0) return { rows: [], available: true };
   try {
+    // Readings taken INSIDE the selected window, and only those: the page
+    // names a period, so its Goal shapes are that period's. Found by review:
+    // unwindowed, a 7-day view drew readings two years old and called them
+    // "readings in this window".
     const series = await input.scope.goalMeasurements.listMeasurementSeries(
       subjects.map((subject) => subject.id),
-      { perGoalLimit: ANALYTICS_LIMITS.goalSeriesPoints },
+      {
+        perGoalLimit: ANALYTICS_LIMITS.goalSeriesPoints,
+        window: { fromIso: span.startIso, toIso: span.endIso },
+      },
     );
     const rows: AnalyticsGoalSeries[] = [];
     for (const subject of subjects) {
@@ -757,8 +781,11 @@ async function readMeasuredGoals(
 async function readGoalContributions(
   input: AnalyticsContextInput,
   subjects: readonly { readonly id: string; readonly title: string }[],
-): Promise<readonly GoalContributionAcrossReviews[]> {
-  if (subjects.length === 0) return [];
+): Promise<{
+  rows: readonly GoalContributionAcrossReviews[];
+  available: boolean;
+}> {
+  if (subjects.length === 0) return { rows: [], available: true };
   try {
     // The most recent completed WEEKLY Review, so the series is the one the
     // guided weekly Review's own Goals step reads — same type, same length —
@@ -771,23 +798,27 @@ async function readGoalContributions(
       limit: 1,
     });
     const anchor = anchors.items[0];
-    if (anchor === undefined) return [];
+    if (anchor === undefined) return { rows: [], available: true };
     const series = await input.scope.reviewInsights.listSnapshotSeries(
       anchor.id,
       ACROSS_REVIEWS_SERIES_LENGTH,
     );
-    return readAcrossReviews({
-      series,
-      // Only the Goal facts are wanted here: this panel is about Goals, and
-      // asking for Project or carry-over titles it does not render would be a
-      // read spent on nothing.
-      projects: [],
-      goals: subjects,
-      tasks: [],
-    }).goals;
+    return {
+      rows: readAcrossReviews({
+        series,
+        // Only the Goal facts are wanted here: this panel is about Goals, and
+        // asking for Project or carry-over titles it does not render would be
+        // a read spent on nothing.
+        projects: [],
+        goals: subjects,
+        tasks: [],
+      }).goals,
+      available: true,
+    };
   } catch {
-    // A failed read renders NOTHING rather than an absence claim. The measured
-    // Goals beside it are a separate read and are unaffected.
-    return [];
+    // A failed read says so rather than rendering an absence claim: an empty
+    // list here would let the panel say the Reviews have recorded nothing.
+    // The measured Goals beside it are a separate read and are unaffected.
+    return { rows: [], available: false };
   }
 }
