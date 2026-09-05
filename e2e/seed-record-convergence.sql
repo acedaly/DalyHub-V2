@@ -388,7 +388,11 @@ WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'as-rc-ute';
 -- Scoping the detail delete to the ute's subject instead was fine while every
 -- fixture obligation was about the ute; the subject-less ones added below are
 -- the whole point of V2.10, and they left a detail row behind that made the
--- entity delete violate its foreign key on the SECOND run of this seed.
+-- entity delete violate its foreign key on the SECOND run of this seed. The
+-- `activity_subjects` sweep is the same constraint from the other side: an
+-- obligation is an entity now, so a journey that completes or dismisses one
+-- leaves a subject pointer behind, and every foreign key here is ON DELETE
+-- RESTRICT.
 DELETE FROM entity_links WHERE workspace_id = 'local-dev-workspace' AND source_entity_id LIKE 'ob-rc-%';
 DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
 DELETE FROM obligation_details WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
