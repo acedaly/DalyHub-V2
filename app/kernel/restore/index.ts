@@ -51,3 +51,9 @@ export {
   restoreModeFor,
   summariseBackup,
 } from "./restore-preview";
+
+export {
+  upgradeLegacyObligations,
+  UNTITLED_OBLIGATION,
+  type LegacyObligationUpgrade,
+} from "./legacy-obligations";

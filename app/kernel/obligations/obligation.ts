@@ -45,6 +45,17 @@ import type { ObligationStatus } from "./obligation-status";
 export type Obligation = {
   readonly id: string;
   readonly workspaceId: string;
+  /**
+   * What this obligation is ABOUT, or null. An Asset, a Person, a Project, an
+   * Area — or nothing at all, which is the whole of V2.10: a tax return needs
+   * no parent, and inventing one to hold it is what the product refused.
+   *
+   * The pair is the authority for every structural read (ADR-118 decision 1);
+   * the `obligation.subject` EntityLink beside it is a projection of this, kept
+   * in step in one transaction, for the generic reverse reads.
+   */
+  readonly subjectEntityId: string | null;
+  readonly subjectEntityType: string | null;
   readonly category: ObligationCategory;
   readonly title: string;
   readonly description: string | null;
@@ -52,9 +63,31 @@ export type Obligation = {
   readonly leadDays: number;
   readonly recurrenceKind: ObligationRecurrenceKind;
   readonly recurrenceInterval: number | null;
+  /**
+   * A meter commitment, where the subject has a meter. The unit vocabulary
+   * belongs to the domain that owns the meter, so it is an unnarrowed string
+   * here; the database refuses a meter on an obligation with no subject.
+   */
+  readonly meterThreshold: number | null;
+  readonly meterInterval: number | null;
+  readonly meterUnit: string | null;
+  /**
+   * What it is EXPECTED to cost. Never a claim that anything was paid — V2.10
+   * has no settlement, and a transaction that pays an obligation is V2.12's.
+   */
+  readonly expectedAmountMinor: number | null;
+  /** What it ACTUALLY cost, recorded at completion. */
+  readonly completedAmountMinor: number | null;
+  /** One ISO-4217 code covering both amounts. Never converted (ADR-049). */
+  readonly currencyCode: string | null;
   readonly status: ObligationStatus;
   readonly taskId: string | null;
+  /** The completion INSTANT. */
   readonly completedAt: Date | null;
+  /** The owner-calendar DAY the work was done, which is not the instant. */
+  readonly completedOn: string | null;
+  /** The proof entry in the subject's own history, where the subject keeps one. */
+  readonly completedEventId: string | null;
   readonly nextObligationId: string | null;
   readonly seriesId: string;
   readonly sequence: number;
@@ -267,12 +300,20 @@ export type ObligationInput = {
   readonly leadDays?: number | string | null;
   readonly recurrenceKind?: string | null;
   readonly recurrenceInterval?: number | string | null;
+  readonly meterThreshold?: number | string | null;
+  readonly meterInterval?: number | string | null;
+  readonly meterUnit?: string | null;
+  /** The expected cost. `null` clears it. */
+  readonly expectedAmount?: string | number | null;
+  readonly currencyCode?: string | null;
 };
 
 /** Input to create an obligation. */
 export type CreateObligationInput = ObligationInput & {
   readonly category: string;
   readonly title: string;
+  /** The entity this is about, or nothing. Nothing is a legitimate answer. */
+  readonly subjectEntityId?: string | null;
 };
 
 /** Input to edit an obligation. Completion goes through `complete`, never here. */
@@ -304,6 +345,19 @@ export type CompleteObligationInput = {
   readonly nextDueDate?: string | null;
   /** When false, no successor is created even for a recurring obligation. */
   readonly createSuccessor?: boolean;
+  /** What it ACTUALLY cost. Optional even for a money-bearing obligation. */
+  readonly completedAmount?: string | number | null;
+  readonly currencyCode?: string | null;
+  /**
+   * Fields only the SUBJECT'S OWN domain understands — an Asset's provider, the
+   * Person who did the work, the meter reading at the time, the Note that
+   * documents it. This kernel never reads them: they are handed to the domain
+   * that owns the subject's history, which validates them in its own terms
+   * (ADR-083 decision 2). An obligation about nothing carries none.
+   */
+  readonly subject?: Readonly<
+    Record<string, string | number | boolean | null | undefined>
+  >;
 };
 
 /**
@@ -326,9 +380,22 @@ export type ObligationFilters = {
   readonly statuses?: readonly string[];
 };
 
+/** The subject of an obligation, resolved for display in one read. */
+export type ObligationSubject = {
+  readonly id: string;
+  readonly type: string;
+  readonly title: string;
+};
+
 /** A bounded obligations read. */
 export type ListObligationsInput = {
   readonly filters?: ObligationFilters;
+  /**
+   * Read only the obligations about this subject — the Assets lens, and every
+   * other record's. `undefined` reads the whole workspace; `null` reads only
+   * the ones about nothing at all.
+   */
+  readonly subjectEntityId?: string | null;
   readonly limit?: number;
   readonly cursor?: string;
   /** Owner-calendar day, so derived state resolves in the owner's timezone. */

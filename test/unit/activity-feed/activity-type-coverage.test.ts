@@ -35,6 +35,7 @@ import {
   NOTE_TAGS_UPDATED,
   NOTE_UNARCHIVED,
 } from "~/kernel/notes";
+import { OBLIGATION_ACTIVITY_TYPES } from "~/kernel/obligations";
 import { PERSON_ACTIVITY_TYPES } from "~/kernel/people";
 import { APP_PREFERENCES_CHANGED } from "~/kernel/preferences";
 import {
@@ -116,6 +117,13 @@ const PERSISTED_ACTIVITY_TYPES: readonly string[] = [
   ...DIARY_ACTIVITY_TYPES,
   ...PERSON_ACTIVITY_TYPES,
   ...ASSET_ACTIVITY_TYPES,
+  /*
+   * V2.10 LIFE-01 — the obligation vocabulary, alongside the `asset.obligation_*`
+   * types inside `ASSET_ACTIVITY_TYPES` rather than instead of them. Both have to
+   * render: `activities` is append-only, so every obligation event written before
+   * the migration still carries the old type string.
+   */
+  ...OBLIGATION_ACTIVITY_TYPES,
   ...REVIEW_ACTIVITY_TYPES,
 ];
 

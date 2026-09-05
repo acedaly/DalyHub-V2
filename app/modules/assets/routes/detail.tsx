@@ -145,8 +145,10 @@ export async function loader({ params, context }: Route.LoaderArgs) {
           assetId,
           limit: OVERVIEW_EVENT_LIMIT,
         }),
-        scope.assetHistory.listObligations({
-          assetId,
+        // V2.10 LIFE-01 — a LENS over the one shared store, filtered by the
+        // subject. The Assets module has no obligation read of its own.
+        scope.obligations.list({
+          subjectEntityId: assetId,
           limit: OVERVIEW_OBLIGATION_LIMIT,
           today,
         }),
@@ -172,7 +174,14 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       ),
     ];
     let taskTitles = new Map<string, { title: string }>();
-    let openTaskIds: ReadonlySet<string> = new Set<string>();
+    // The shared obligation read already resolved open-state in its own single
+    // statement (DEBT-59's rule, now inside the store), so this is titles only.
+    const openTaskIds: ReadonlySet<string> = new Set(
+      [...obligationPage.openTaskIds].flatMap((obligationId) => {
+        const found = obligationPage.items.find((o) => o.id === obligationId);
+        return found?.taskId ? [found.taskId] : [];
+      }),
+    );
     if (taskIds.length > 0) {
       try {
         /*
@@ -187,12 +196,9 @@ export async function loader({ params, context }: Route.LoaderArgs) {
          * already expresses in SQL), asked once for the whole list, so the cap
          * is gone along with the read that needed it.
          */
-        const [titles, open] = await Promise.all([
-          scope.entities.getByIds(taskIds, { includeDeleted: true }),
-          scope.tasks.listOpenTaskIds(taskIds),
-        ]);
-        taskTitles = titles;
-        openTaskIds = open;
+        taskTitles = await scope.entities.getByIds(taskIds, {
+          includeDeleted: true,
+        });
       } catch {
         // An unresolvable Task simply reads as "not open" — never a 500.
       }

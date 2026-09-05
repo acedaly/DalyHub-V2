@@ -635,7 +635,7 @@ in `test/unit/assets/asset-obligation.test.ts`.
 **Nothing owner-facing changed**, so there is no changelog entry. That is the
 item's acceptance criterion, not an omission.
 
-### ☐ LIFE-01 — The shared store, and the Asset record does not notice
+### ☑ LIFE-01 — The shared store, and the Asset record does not notice — **delivered 2026-09-05**
 
 **Every obligation is an entity with an optional subject and an optional
 expected amount, the old table is gone, and an Asset owner experiences the
@@ -672,6 +672,96 @@ change as nothing at all.**
   foreign_key_check` clean after the migration.
 - **Non-goals.** Any Life Admin surface; any Today or notification change; any
   settlement, payment status or Finance concept.
+
+**Delivered 2026-09-05.** Migration
+[`0050_create_obligations.sql`](../../migrations/0050_create_obligations.sql)
+moved every obligation into `obligation_details` beside an ordinary `entities`
+row and an `obligation.subject` link, and dropped `asset_obligations`.
+[`app/kernel/obligations`](../../app/kernel/obligations/index.ts) owns the
+contract; [`d1-obligation-repository.ts`](../../app/platform/storage/d1/d1-obligation-repository.ts)
+implements it; the Assets module reads it as a lens.
+
+- **The migration is proven by moving data through it, not by writing the new
+  shape.** [`test/kernel/migration-0050.test.ts`](../../test/kernel/migration-0050.test.ts)
+  applies `0001…0049` — the schema production runs today, with `asset_id NOT
+  NULL` still in force — seeds obligations of every status, every recurrence
+  kind, a mid-series chain, a proof pointer, a linked Task, a soft-deleted one,
+  an archived one and a second workspace's, and only THEN applies `0050`. It
+  compares **every column, field by field**, checks the chains that have no
+  foreign key still resolve, and runs `PRAGMA foreign_key_check` clean. A test
+  that seeded the new shape would pass with the whole data-carrying half
+  deleted, which is the failure V2.6 FIND-02 recorded.
+- **Seven corrections the definition did not anticipate**, each recorded here
+  because each is a decision:
+  - **The Activity vocabulary had to generalise HERE, not in LIFE-03.** The
+    repository that writes the events is this item's, and `asset.obligation_*`
+    cannot be written about an obligation with no Asset. So `obligation.*` is
+    the vocabulary now, carrying the obligation AND its subject as subjects —
+    the multi-anchor shape `asset.task_linked` already used — so the Asset's
+    timeline keeps showing what happened to its obligations. The historical
+    `asset.obligation_*` events stay in the stream with their descriptors: an
+    append-only log is not rewritten to match a new vocabulary. Both halves are
+    asserted rather than assumed —
+    [`activity-type-coverage.test.ts`](../../test/unit/activity-feed/activity-type-coverage.test.ts)
+    now reads `OBLIGATION_ACTIVITY_TYPES` alongside `ASSET_ACTIVITY_TYPES`, so
+    an obligation event with no descriptor fails the suite instead of reaching
+    the feed as an unrecognised type. The new lines carry no identity glyph:
+    that arrives with the Life Admin surface in LIFE-02, and until it does an
+    event inherits the glyph of the record it names, which for the obligations
+    an owner has today is the Asset. A wrong glyph asserted early would be
+    harder to see and harder to remove than none.
+  - **The completion guard had to name three things.** Every dependent
+    statement fires only if THIS attempt closed the obligation, and
+    `completed_at` alone is not attempt-unique — a fake clock returns one
+    instant and two real requests inside a millisecond return one too. A retry
+    against a guard that matched the winner's row inserted a second successor
+    entity, which the concurrency test caught. The guard now also names the
+    proof id and the successor id, both generated per attempt and both exactly
+    what a second attempt could duplicate.
+  - **The subject's proof arrives through an ADR-083 seam, and so does the
+    meter's next threshold.** The `asset_events` row and the canonical-date
+    advance are Assets' SQL, so the Assets adapter authors them and the
+    obligation's batch runs them. The meter successor's threshold went the same
+    way once it was clear the obligation repository would otherwise have to own
+    arithmetic in a unit vocabulary it does not have.
+  - **`obligation.subject` is hidden from generic Linked Items**, on the
+    precedent that already hides the spine and Habit links: the Asset record
+    renders its obligations in a tab, so listing them again would be a second
+    copy of a relationship the reader can already see — and the foreign key is
+    the authority, so this surface must never become its second writer.
+  - **`assetObligations` stays in the snapshot as a RETIRED collection.** An
+    export written from now on carries `obligations` and an empty
+    `assetObligations`; an archive written before today carries the reverse and
+    is upgraded as it is read, by exactly the rule the migration used
+    ([`legacy-obligations.ts`](../../app/kernel/restore/legacy-obligations.ts)).
+    A change of store that invalidated the backups taken before it would make
+    "export always possible" a promise with an expiry date.
+  - **Purging an Asset takes its obligations with it, and its own link never
+    blocks that.** An obligation whose subject was purged is a commitment about
+    nothing, and leaving it would move it silently to Life Admin's "no subject"
+    band — a real state this owner did not ask for. So the purge batch removes
+    each obligation's projection link, its Activity subject pointers, its detail
+    row and its entity row, child-first, under the same guard every other
+    statement carries. `obligation.subject` is excluded from that guard and from
+    the link precheck: counted, it reported every Asset that had ever carried an
+    obligation as `has_links`, a block with no way out, because the link is not
+    offered by the picker and not removable from Linked Items.
+  - **The obligation vault page is a record, and the Asset links to it.** The
+    Asset's Obligations section used to restate each obligation inline; two
+    renderings of one thing is how a vault comes to disagree with the workspace
+    it came from. Money appears on the obligation's page and nowhere else.
+- **A foreign subject now refuses differently, and better.** The subject used to
+  be the obligation's mandatory parent, so a foreign one meant "no such Asset" —
+  a 404. It is an optional FIELD now, so a foreign one is a field-level refusal
+  that names the field and discloses nothing. The Assets route is unaffected: it
+  still fails closed on the Asset before any dispatch. The composite foreign key
+  refuses it again at the database, which is the boundary that actually holds.
+- **Falsified, then reverted.** A `NOT NULL` on `subject_entity_id` fails the
+  subject-less test; a category outside the closed set, a meter on a
+  subject-less obligation, an amount with no currency, a paid amount on an open
+  obligation and a second successor at one point in a series are each refused by
+  the database and asserted to be; and the concurrency test caught the guard
+  defect above before any of this was called done.
 
 ### ☐ LIFE-02 — Life Admin has a home
 

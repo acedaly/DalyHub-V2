@@ -44,10 +44,12 @@ import {
   type AppPreferencesRepository,
 } from "~/kernel/preferences";
 import {
+  ASSET_METER_UNITS,
   type AssetHistoryRepository,
   type AssetRepository,
   type ObligationTaskGateway,
 } from "~/kernel/assets";
+import type { ObligationRepository } from "~/kernel/obligations";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
 import type { DiaryRepository } from "~/kernel/diary";
@@ -110,6 +112,7 @@ import {
   createAppPreferencesRepository,
   createAreaRepository,
   createAssetHistoryRepository,
+  createObligationRepository,
   createAssetRepository,
   createAreaSettingsRepository,
   createDiaryRepository,
@@ -298,6 +301,15 @@ export interface WorkspaceScope {
    * authority is never duplicated.
    */
   readonly assetHistory: AssetHistoryRepository;
+
+  /**
+   * V2.10 LIFE-01 — the ONE store for everything due and recurring: a rego, an
+   * insurance renewal, a tax return, a gym membership, a school fee. The
+   * subject is optional, the expected amount is optional, and there is one
+   * evaluator, one completion transaction and one recurrence engine for all of
+   * them (ADR-116 decision 1).
+   */
+  readonly obligations: ObligationRepository;
   readonly reviews: ReviewRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
@@ -660,8 +672,25 @@ export function bindWorkspaceRepositories(
   };
   const assetHistory = createAssetHistoryRepository(env.DB, context, {
     actorContext,
+    ownerTimeZone,
+  });
+  /*
+   * V2.10 LIFE-01 — the ONE obligation store, for everything due and recurring
+   * whether or not it is about an Asset (ADR-116 decision 1).
+   *
+   * `proofGateway` is the Assets adapter: when the subject IS an Asset, it
+   * authors the `asset_events` logbook row and the canonical-date advance, and
+   * the obligation's own batch runs them, so the Asset record behaves exactly
+   * as it did before this store existed (ADR-083 decision 2). An obligation
+   * about a Person, a Project or nothing at all simply gets no subject-side
+   * proof, which is the truthful outcome rather than a fabricated one.
+   */
+  const obligations = createObligationRepository(env.DB, context, {
+    actorContext,
     taskGateway: obligationTasks,
     taskCompletionPlanner: tasks,
+    proofGateway: assetHistory,
+    meterUnits: ASSET_METER_UNITS,
     ownerTimeZone,
   });
   const reviews = createReviewRepository(env.DB, context, { actorContext });
@@ -760,6 +789,7 @@ export function bindWorkspaceRepositories(
     meetingTaskConversions,
     assets,
     assetHistory,
+    obligations,
     reviews,
     projectHealth,
     relationships,

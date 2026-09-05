@@ -7,7 +7,7 @@ import { loader as todayLoader } from "~/modules/today/routes/index";
 
 import {
   FakeClock,
-  makeAssetHistoryRepository,
+  makeObligationRepository,
   makeAssetRepository,
   makeContext,
   makeProjectSettingsRepository,
@@ -79,8 +79,9 @@ function assets() {
   });
 }
 
-function assetHistory() {
-  return makeAssetHistoryRepository(makeContext(WS), {
+/** V2.10 LIFE-01 — Today reads obligations through the ONE shared store. */
+function obligationStore() {
+  return makeObligationRepository(makeContext(WS), {
     clock: new FakeClock("2026-08-09T00:00:00.000Z").now,
     idGenerator: nextEntityId,
     activityIdGenerator: nextActivityId,
@@ -494,7 +495,7 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
   it("surfaces due Asset obligations only when an open linked Task is not already carrying them", async () => {
     const dueTomorrow = shiftDays(ownerToday(), 1);
     const assetRepo = assets();
-    const history = assetHistory();
+    const obligations = obligationStore();
     const ute = await assetRepo.create({
       title: "Hilux",
       assetType: "vehicle",
@@ -503,13 +504,15 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
       title: "Mower",
       assetType: "equipment",
     });
-    await history.createObligation(ute.id, {
+    await obligations.create({
+      subjectEntityId: ute.id,
       category: "registration",
       title: "Renew registration",
       dueDate: dueTomorrow,
       leadDays: 14,
     });
-    const linked = await history.createObligation(mower.id, {
+    const linked = await obligations.create({
+      subjectEntityId: mower.id,
       category: "service",
       title: "Sharpen blades",
       dueDate: dueTomorrow,
@@ -519,7 +522,7 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
       title: "Book mower service",
       dueDate: ownerToday(),
     });
-    await history.linkObligationTask(linked.id, task.id);
+    await obligations.linkTask(linked.id, task.id);
 
     const data = await runToday();
     const asset = data.day.attention.find(

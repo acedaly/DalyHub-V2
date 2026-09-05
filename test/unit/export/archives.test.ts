@@ -35,6 +35,7 @@ describe("countRecordsByModule", () => {
       "habit",
       "meeting",
       "note",
+      "obligation",
       "person",
       "project",
       "project_template",
@@ -112,7 +113,7 @@ describe("buildExportManifest", () => {
     expect(manifest.recordsByCollection.activities).toBe(
       snapshot.records.activities.length,
     );
-    expect(manifest.recordsByCollection.assetObligations).toBe(1);
+    expect(manifest.recordsByCollection.obligations).toBe(1);
   });
 
   it("names the consistency guarantee rather than overclaiming", () => {

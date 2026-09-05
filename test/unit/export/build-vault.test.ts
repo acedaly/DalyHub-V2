@@ -210,10 +210,28 @@ describe("readability", () => {
     expect(task.contents).toContain("parent_area: null");
   });
 
-  it("reads an obligation's recurrence as English", () => {
-    expect(file("Assets/Road bike.md").contents).toContain(
-      "repeats every 6 months",
+  /*
+   * V2.10 LIFE-01 — an obligation is a record of its own, so its recurrence is
+   * read on its own page and the Asset links to it. Two renderings of one thing
+   * is how a vault comes to disagree with the workspace it came from.
+   */
+  it("reads an obligation's recurrence as English, on its own page", () => {
+    expect(file("Life Admin/Next service.md").contents).toContain(
+      "every 6 months",
     );
+  });
+
+  it("links an Asset to its obligations rather than restating them", () => {
+    const asset = file("Assets/Road bike.md").contents;
+    expect(asset).toContain("## Obligations");
+    expect(asset).toContain("Next service");
+    expect(asset).toContain("due 2026-08-01");
+  });
+
+  it("writes the expected amount on the obligation, and nowhere else", () => {
+    const obligation = file("Life Admin/Next service.md").contents;
+    expect(obligation).toContain("Expected");
+    expect(file("Assets/Road bike.md").contents).not.toContain("240.00");
   });
 });
 

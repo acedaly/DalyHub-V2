@@ -42,6 +42,7 @@ import {
   latestActivityPayload,
   makeActivityRepository,
   makeAssetHistoryRepository,
+  makeObligationRepository,
   makeAssetRepository,
   makeContext,
   makeLinkRepository,
@@ -389,12 +390,17 @@ describe("permanent deletion (guarded)", () => {
   }
 
   it("permanently deletes an Asset that HAS history events and obligations (V2.0.1)", async () => {
-    // The V2.0.0 defect: `asset_events` / `asset_obligations` reference the
+    // The V2.0.0 defect: `asset_events` / `obligation_details` reference the
     // entity row with ON DELETE RESTRICT (migration 0025), and the purge batch
     // never deleted them — so any Asset with history could never be permanently
     // deleted, and the UI offered a retry that could not succeed.
     const repo = assets();
     const history = makeAssetHistoryRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
+    // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+    // with the Assets adapter as its proof gateway exactly as the product is.
+    const obligations = makeObligationRepository(makeContext(WS), {
       idGenerator: sequentialIds("h"),
     });
     const asset = await repo.create({ title: "Car", assetType: "vehicle" });
@@ -408,7 +414,8 @@ describe("permanent deletion (guarded)", () => {
       title: "Old repair",
       eventDate: "2026-06-01",
     });
-    await history.createObligation(asset.id, {
+    const obligation = await obligations.create({
+      subjectEntityId: asset.id,
       category: "registration",
       title: "Renew registration",
       dueDate: "2026-09-30",
@@ -425,7 +432,29 @@ describe("permanent deletion (guarded)", () => {
     // No rows remain for this Asset anywhere — the full six-table footprint.
     expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(0);
     expect(
-      await rowsReferencing("asset_obligations", "asset_id", asset.id),
+      await rowsReferencing(
+        "obligation_details",
+        "subject_entity_id",
+        asset.id,
+      ),
+    ).toBe(0);
+    /*
+     * V2.10 LIFE-01 — and the obligation's WHOLE footprint with it, not only
+     * its detail row. An obligation is an entity, so its `entities` row, its
+     * `obligation.subject` projection link and its own Activity subject
+     * pointers all have to go: each holds an `ON DELETE RESTRICT` foreign key,
+     * and any one left behind fails the entire purge at commit — which is how
+     * this regressed, reporting a perfectly ordinary Asset as un-purgeable.
+     */
+    expect(await rowsReferencing("entities", "id", obligation.id)).toBe(0);
+    expect(
+      await rowsReferencing("obligation_details", "entity_id", obligation.id),
+    ).toBe(0);
+    expect(
+      await rowsReferencing("entity_links", "source_entity_id", obligation.id),
+    ).toBe(0);
+    expect(
+      await rowsReferencing("activity_subjects", "entity_id", obligation.id),
     ).toBe(0);
     expect(await rowsReferencing("asset_details", "entity_id", asset.id)).toBe(
       0,
@@ -447,6 +476,11 @@ describe("permanent deletion (guarded)", () => {
     const history = makeAssetHistoryRepository(makeContext(WS), {
       idGenerator: sequentialIds("h"),
     });
+    // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+    // with the Assets adapter as its proof gateway exactly as the product is.
+    const obligations = makeObligationRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
     const links = makeLinkRepository(makeContext(WS), {
       idGenerator: sequentialIds("lnk"),
     });
@@ -456,7 +490,8 @@ describe("permanent deletion (guarded)", () => {
       title: "Antifoul",
       eventDate: "2026-05-01",
     });
-    await history.createObligation(asset.id, {
+    await obligations.create({
+      subjectEntityId: asset.id,
       category: "insurance",
       title: "Renew insurance",
       dueDate: "2026-12-01",
@@ -476,7 +511,11 @@ describe("permanent deletion (guarded)", () => {
     // All-or-nothing: the blocked purge left every row in place.
     expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(1);
     expect(
-      await rowsReferencing("asset_obligations", "asset_id", asset.id),
+      await rowsReferencing(
+        "obligation_details",
+        "subject_entity_id",
+        asset.id,
+      ),
     ).toBe(1);
     expect(await rowsReferencing("asset_details", "entity_id", asset.id)).toBe(
       1,
@@ -489,6 +528,11 @@ describe("permanent deletion (guarded)", () => {
     const history = makeAssetHistoryRepository(makeContext(WS), {
       idGenerator: sequentialIds("h"),
     });
+    // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+    // with the Assets adapter as its proof gateway exactly as the product is.
+    const obligations = makeObligationRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
     const asset = await repo.create({
       title: "Camera",
       assetType: "equipment",
@@ -498,6 +542,12 @@ describe("permanent deletion (guarded)", () => {
       title: "Bought",
       eventDate: "2026-01-15",
     });
+    await obligations.create({
+      subjectEntityId: asset.id,
+      category: "warranty",
+      title: "Warranty expires",
+      dueDate: "2027-01-15",
+    });
 
     const foreign = assets(OTHER, "f");
     // Fail-closed: the foreign workspace observes nothing to delete, and the
@@ -506,6 +556,14 @@ describe("permanent deletion (guarded)", () => {
     expect(result.deleted).toBe(false);
     expect(await rowsReferencing("entities", "id", asset.id)).toBe(1);
     expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(1);
+    // Including the obligations ABOUT it: a foreign purge reaches nothing.
+    expect(
+      await rowsReferencing(
+        "obligation_details",
+        "subject_entity_id",
+        asset.id,
+      ),
+    ).toBe(1);
     // Fail-closed means fail-SILENT: a foreign no-op must not forge a tombstone
     // claiming this workspace's Asset was destroyed.
     expect(await countActivitiesOfType(ASSET_DELETED)).toBe(0);
@@ -542,6 +600,11 @@ describe("permanent deletion (guarded)", () => {
     const history = makeAssetHistoryRepository(makeContext(WS), {
       idGenerator: sequentialIds("h"),
     });
+    // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+    // with the Assets adapter as its proof gateway exactly as the product is.
+    const obligations = makeObligationRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
     const asset = await repo.create({
       title: "Workshop compressor",
       assetType: "equipment",
@@ -551,7 +614,8 @@ describe("permanent deletion (guarded)", () => {
       title: "Annual service",
       eventDate: "2026-07-01",
     });
-    await history.createObligation(asset.id, {
+    const obligation = await obligations.create({
+      subjectEntityId: asset.id,
       category: "insurance",
       title: "Renew cover",
       dueDate: "2026-11-30",
@@ -579,7 +643,29 @@ describe("permanent deletion (guarded)", () => {
     );
     expect(await rowsReferencing("asset_events", "asset_id", asset.id)).toBe(0);
     expect(
-      await rowsReferencing("asset_obligations", "asset_id", asset.id),
+      await rowsReferencing(
+        "obligation_details",
+        "subject_entity_id",
+        asset.id,
+      ),
+    ).toBe(0);
+    /*
+     * V2.10 LIFE-01 — and the obligation's WHOLE footprint with it, not only
+     * its detail row. An obligation is an entity, so its `entities` row, its
+     * `obligation.subject` projection link and its own Activity subject
+     * pointers all have to go: each holds an `ON DELETE RESTRICT` foreign key,
+     * and any one left behind fails the entire purge at commit — which is how
+     * this regressed, reporting a perfectly ordinary Asset as un-purgeable.
+     */
+    expect(await rowsReferencing("entities", "id", obligation.id)).toBe(0);
+    expect(
+      await rowsReferencing("obligation_details", "entity_id", obligation.id),
+    ).toBe(0);
+    expect(
+      await rowsReferencing("entity_links", "source_entity_id", obligation.id),
+    ).toBe(0);
+    expect(
+      await rowsReferencing("activity_subjects", "entity_id", obligation.id),
     ).toBe(0);
 
     // The append-only Activity rows SURVIVE — removing a subject pointer must
@@ -663,6 +749,11 @@ describe("permanent deletion (guarded)", () => {
     const history = makeAssetHistoryRepository(makeContext(WS), {
       idGenerator: sequentialIds("h"),
     });
+    // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+    // with the Assets adapter as its proof gateway exactly as the product is.
+    const obligations = makeObligationRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
     const asset = await repo.create({ title: "Trailer", assetType: "vehicle" });
     await history.recordEvent(asset.id, {
       category: "service",
@@ -676,6 +767,20 @@ describe("permanent deletion (guarded)", () => {
       sourceEntityId: asset.id,
       targetEntityId: note.id,
       type: "link.related",
+    });
+    /*
+     * V2.10 LIFE-01 — an obligation about this Asset writes an
+     * `obligation.subject` link too, and that link must NOT be counted here.
+     * It is the projection of the obligation's own foreign key (ADR-118
+     * decision 1), not a relationship the owner made: counted, it would report
+     * `linkCount: 2` and leave the Asset permanently un-purgeable, because the
+     * owner has no way to remove a link the picker never offered them.
+     */
+    await obligations.create({
+      subjectEntityId: asset.id,
+      category: "registration",
+      title: "Renew registration",
+      dueDate: "2026-10-01",
     });
 
     const blocked = await repo.permanentlyDelete(asset.id);
@@ -697,10 +802,18 @@ describe("permanent deletion (guarded)", () => {
       await makeRepository(makeContext(WS)).getById(note.id),
     ).not.toBeNull();
 
-    // Soft-deleting the link releases the guard; the stale row is purged with it.
+    // Soft-deleting the link releases the guard; the stale row is purged with it —
+    // and so is the obligation, whose own link never held the guard shut.
     await links.unlink(created.link.id);
     const ok = await repo.permanentlyDelete(asset.id);
     expect(ok.deleted).toBe(true);
+    expect(
+      await rowsReferencing(
+        "obligation_details",
+        "subject_entity_id",
+        asset.id,
+      ),
+    ).toBe(0);
     expect(await countActivitiesOfType(ASSET_DELETED)).toBe(1);
     expect(
       await rowsReferencing("entity_links", "source_entity_id", asset.id),
@@ -715,6 +828,11 @@ describe("permanent deletion (guarded)", () => {
     const history = makeAssetHistoryRepository(makeContext(WS), {
       idGenerator: sequentialIds("h"),
     });
+    // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+    // with the Assets adapter as its proof gateway exactly as the product is.
+    const obligations = makeObligationRepository(makeContext(WS), {
+      idGenerator: sequentialIds("h"),
+    });
     const asset = await repo.create({ title: "Kayak", assetType: "equipment" });
     await history.recordEvent(asset.id, {
       category: "purchase",
@@ -724,6 +842,12 @@ describe("permanent deletion (guarded)", () => {
     const note = await makeRepository(makeContext(WS), {
       idGenerator: sequentialIds("note"),
     }).create({ type: "note", title: "Kayak notes" });
+    const obligation = await obligations.create({
+      subjectEntityId: asset.id,
+      category: "inspection",
+      title: "Hull check",
+      dueDate: "2026-12-01",
+    });
 
     // Simulate the racing writer: the link lands between the repository's
     // precheck and the guarded batch. Inserting it directly is exactly what a
@@ -757,6 +881,16 @@ describe("permanent deletion (guarded)", () => {
     expect(
       await rowsReferencing("entity_links", "source_entity_id", asset.id),
     ).toBe(1);
+    // The obligations about it are part of "nothing": they carry the same guard,
+    // so a blocked purge leaves the commitment standing rather than quietly
+    // destroying it while the Asset it is about survives.
+    expect(await rowsReferencing("entities", "id", obligation.id)).toBe(1);
+    expect(
+      await rowsReferencing("obligation_details", "entity_id", obligation.id),
+    ).toBe(1);
+    expect(
+      await rowsReferencing("entity_links", "source_entity_id", obligation.id),
+    ).toBe(1);
     expect(await countActivitiesOfType(ASSET_DELETED)).toBe(0);
   });
 
@@ -765,6 +899,11 @@ describe("permanent deletion (guarded)", () => {
       await resetTables([WS, OTHER]);
       const repo = assets(WS, `f_${fault}`, { deleteFault: fault });
       const history = makeAssetHistoryRepository(makeContext(WS), {
+        idGenerator: sequentialIds(`h_${fault}`),
+      });
+      // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+      // with the Assets adapter as its proof gateway exactly as the product is.
+      const obligations = makeObligationRepository(makeContext(WS), {
         idGenerator: sequentialIds(`h_${fault}`),
       });
       const asset = await repo.create({
@@ -776,7 +915,8 @@ describe("permanent deletion (guarded)", () => {
         title: "Oil change",
         eventDate: "2026-03-03",
       });
-      await history.createObligation(asset.id, {
+      await obligations.create({
+        subjectEntityId: asset.id,
         category: "registration",
         title: "Rego",
         dueDate: "2026-10-01",
@@ -796,7 +936,11 @@ describe("permanent deletion (guarded)", () => {
         1,
       );
       expect(
-        await rowsReferencing("asset_obligations", "asset_id", asset.id),
+        await rowsReferencing(
+          "obligation_details",
+          "subject_entity_id",
+          asset.id,
+        ),
       ).toBe(1);
       expect(
         await rowsReferencing("activity_subjects", "entity_id", asset.id),

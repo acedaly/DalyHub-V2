@@ -332,7 +332,9 @@ describe("production baseline (0001-0005) → V2 (committed head)", () => {
       "meeting_items",
       "asset_details",
       "asset_events",
-      "asset_obligations",
+      // V2.10 LIFE-01 — `asset_obligations` was migrated into this table and
+      // dropped by migration 0050.
+      "obligation_details",
       "review_details",
       "review_sections",
       "owner_app_preferences",

@@ -31,7 +31,6 @@
 import type {
   SnapshotActivity,
   SnapshotAssetEvent,
-  SnapshotAssetObligation,
   SnapshotEntity,
   SnapshotEntityLink,
   SnapshotHabitSchedule,
@@ -314,6 +313,8 @@ function archivedAtOf(
       return index.assetDetail.get(entity.id)?.archivedAt ?? null;
     case "habit":
       return index.habitDetail.get(entity.id)?.archivedAt ?? null;
+    case "obligation":
+      return index.obligation.get(entity.id)?.archivedAt ?? null;
     case "review":
       return index.reviewDetail.get(entity.id)?.archivedAt ?? null;
     default:
@@ -826,38 +827,92 @@ function assetEventLine(event: SnapshotAssetEvent): string {
   return `- **${event.eventDate}** ${event.title}${suffix}${description}`;
 }
 
-function assetObligationLine(obligation: SnapshotAssetObligation): string {
-  const details = [
-    humanise(obligation.category),
-    `status ${obligation.status}`,
-    obligation.dueDate ? `due ${obligation.dueDate}` : null,
-    meter(obligation.meterThreshold, obligation.meterUnit)
-      ? `at meter ${meter(obligation.meterThreshold, obligation.meterUnit)}`
-      : null,
-    // "repeats every 6 months", not "repeats months every 6".
-    obligation.recurrenceKind === "none"
-      ? null
-      : obligation.recurrenceKind === "meter"
-        ? `repeats by meter${
-            obligation.meterInterval === null
-              ? ""
-              : ` every ${obligation.meterInterval}${
-                  obligation.meterUnit === null
+/**
+ * V2.10 LIFE-01 — an Obligation is a record of its own in the vault, because it
+ * is a record of its own in the product. The Asset's Obligations section links
+ * to them rather than restating them inline: two renderings of one thing is how
+ * a vault comes to disagree with the workspace it was exported from.
+ *
+ * No amount is written here beyond the record's own facts, and nothing about
+ * money reaches an Asset's page: the obligation owns its figures.
+ */
+function writeObligation(context: WriterContext): string {
+  const { index, entity, path } = context;
+  const detail = index.obligation.get(entity.id);
+  const subjectId = detail?.subjectEntityId ?? null;
+
+  return document([
+    commonFields(context, [
+      ["category", detail?.category ?? null],
+      ["status", detail?.status ?? null],
+      ["due_date", detail?.dueDate ?? null],
+    ]),
+    `# ${entity.title}`,
+    lifecycleBanner(lifecycleOf(index, entity)),
+    section(
+      "Obligation",
+      block([
+        line("Category", detail ? humanise(detail.category) : null),
+        line("Status", detail ? humanise(detail.status) : null),
+        line("Due", detail?.dueDate ?? null),
+        line("Lead time", detail ? `${detail.leadDays} days` : null),
+        line(
+          "Repeats",
+          detail === undefined || detail.recurrenceKind === "none"
+            ? null
+            : detail.recurrenceKind === "meter"
+              ? `by meter${
+                  detail.meterInterval === null
                     ? ""
-                    : ` ${obligation.meterUnit}`
+                    : ` every ${detail.meterInterval}${
+                        detail.meterUnit === null ? "" : ` ${detail.meterUnit}`
+                      }`
                 }`
-          }`
-        : `repeats every ${
-            obligation.recurrenceInterval === null
-              ? ""
-              : `${obligation.recurrenceInterval} `
-          }${obligation.recurrenceKind}`,
-    obligation.deletedAt !== null ? "deleted" : null,
-  ].filter((part): part is string => part !== null);
-  const description = obligation.description
-    ? `\n  ${obligation.description}`
-    : "";
-  return `- **${obligation.title}** — ${details.join(", ")}${description}`;
+              : `every ${
+                  detail.recurrenceInterval === null
+                    ? ""
+                    : `${detail.recurrenceInterval} `
+                }${detail.recurrenceKind}`,
+        ),
+        line(
+          "At meter",
+          meter(detail?.meterThreshold ?? null, detail?.meterUnit ?? null),
+        ),
+        line(
+          "About",
+          subjectId === null ? null : recordLink(index, path, subjectId),
+        ),
+      ]),
+    ),
+    section("Description", detail?.description ?? null),
+    section(
+      "Money",
+      block([
+        line(
+          "Expected",
+          money(
+            detail?.expectedAmountMinor ?? null,
+            detail?.currencyCode ?? null,
+          ),
+        ),
+        line(
+          "Actual",
+          money(
+            detail?.completedAmountMinor ?? null,
+            detail?.currencyCode ?? null,
+          ),
+        ),
+      ]),
+    ),
+    section(
+      "Completion",
+      block([
+        line("Completed on", detail?.completedOn ?? null),
+        line("Occurrence", detail ? `${detail.sequence + 1}` : null),
+      ]),
+    ),
+    section("Related records", relationshipSection(index, path, entity.id)),
+  ]);
 }
 
 function writeAsset(context: WriterContext): string {
@@ -874,12 +929,18 @@ function writeAsset(context: WriterContext): string {
           ? 1
           : -1,
     );
-  const obligations = (index.assetObligations.get(entity.id) ?? [])
+  const obligations = (index.obligationsBySubject.get(entity.id) ?? [])
     .slice()
     .sort((a, b) => {
       const left = a.dueDate ?? "9999-12-31";
       const right = b.dueDate ?? "9999-12-31";
-      return left === right ? (a.id < b.id ? -1 : 1) : left < right ? -1 : 1;
+      return left === right
+        ? a.entityId < b.entityId
+          ? -1
+          : 1
+        : left < right
+          ? -1
+          : 1;
     });
   const recordedCost = events
     .filter((event) => event.deletedAt === null && event.costMinor !== null)
@@ -966,7 +1027,16 @@ function writeAsset(context: WriterContext): string {
       "Obligations",
       obligations.length === 0
         ? null
-        : obligations.map(assetObligationLine).join("\n"),
+        : obligations
+            .map(
+              (obligation) =>
+                `- ${recordLink(index, path, obligation.entityId)}${
+                  obligation.dueDate === null
+                    ? ""
+                    : ` — due ${obligation.dueDate}`
+                }`,
+            )
+            .join("\n"),
     ),
     section(
       "History",
@@ -1479,6 +1549,9 @@ export function buildObsidianVault(
         break;
       case "habit":
         contents = writeHabit(context);
+        break;
+      case "obligation":
+        contents = writeObligation(context);
         break;
       case "review":
         contents = writeReview(context);

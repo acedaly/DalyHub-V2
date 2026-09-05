@@ -141,7 +141,8 @@ async function loseWorkspaceRecords(workspaceId: string): Promise<void> {
     "review_workflow_state",
     "review_sections",
     "review_details",
-    "asset_obligations",
+    // V2.10 LIFE-01 — the obligation slice, deleted before its entities.
+    "obligation_details",
     "asset_events",
     "asset_details",
     "meeting_item_tasks",

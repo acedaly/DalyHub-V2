@@ -33,6 +33,7 @@
 import {
   dedupeAttention,
   evaluateAssetObligation,
+  isAssetMeterUnit,
   type AssetsTodayData,
 } from "~/kernel/assets";
 import { evaluateProjectHealth } from "~/kernel/project-health";
@@ -187,26 +188,43 @@ export async function readAssetAttention(
   scope: WorkspaceScope,
   todayIso: string,
 ): Promise<AssetsTodayData> {
-  const items = await scope.assetHistory.listAttention({ today: todayIso });
+  const items = await scope.obligations.listAttention({ today: todayIso });
   return dedupeAttention(
-    items.map((item) => {
-      const evaluation = evaluateAssetObligation(
-        item.obligation,
-        todayIso,
-        item.reading,
-      );
-      return {
-        obligationId: item.obligation.id,
-        assetId: item.assetId,
-        assetTitle: item.assetTitle,
-        assetType: item.assetType,
-        title: item.obligation.title,
-        category: item.obligation.category,
-        state: evaluation.state,
-        text: evaluation.text,
-        hasOpenTask: item.hasOpenTask,
-      };
-    }),
+    items
+      /*
+       * V2.10 LIFE-01 — the STORE is general; this row is not, yet. Today's
+       * Asset section still renders an Asset title and an Asset href, so an
+       * obligation with a Person subject or none at all is filtered out HERE
+       * rather than rendered with a blank where its Asset should be.
+       *
+       * LIFE-03 deletes this filter, generalises the row and widens the set it
+       * reads — which is one line here and a rewrite of the row's wording, and
+       * doing it in this item would have changed what Today shows in the change
+       * whose whole acceptance criterion is that Today shows exactly what it
+       * showed before.
+       */
+      .filter((item) => item.subject?.type === "asset")
+      .map((item) => {
+        const evaluation = evaluateAssetObligation(
+          item.obligation,
+          todayIso,
+          item.meterValue !== null && isAssetMeterUnit(item.meterUnit)
+            ? { value: item.meterValue, unit: item.meterUnit }
+            : null,
+        );
+        const subject = item.subject as { id: string; title: string };
+        return {
+          obligationId: item.obligation.id,
+          assetId: subject.id,
+          assetTitle: subject.title,
+          assetType: item.subjectSubtype ?? "other",
+          title: item.obligation.title,
+          category: item.obligation.category,
+          state: evaluation.state,
+          text: evaluation.text,
+          hasOpenTask: item.hasOpenTask,
+        };
+      }),
   );
 }
 

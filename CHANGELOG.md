@@ -1,5 +1,23 @@
 # Changelog
 
+- **Obligations became their own thing, and nothing about your Assets moved.**
+
+  A renewal, a service, an inspection or a warranty used to exist only as a row
+  hanging off an Asset, which meant a commitment that is about nothing in
+  particular — a passport, a subscription, a bill — had nowhere to live. Every
+  obligation is now a record in its own right, with an optional subject and an
+  optional expected amount (V2.10 LIFE-01). Your Assets are unchanged: the same
+  tab, the same obligations, the same due dates, the same completion, the same
+  history. Nothing was rewritten and nothing was lost — every id, series and
+  linked task came across as it was.
+
+  The only thing you will notice is in the Activity feed, where a new event now
+  reads "Completed obligation" rather than "Completed asset obligation". Events
+  recorded before today keep the words they were written with; a history that
+  edits itself to match today's vocabulary is not a history.
+
+  The place these obligations get a home of their own is next.
+
 - **Analytics asks about the period you choose, not one of three.**
 
   Analytics used to offer 7 days, 4 weeks or 12 weeks and nothing else, and it

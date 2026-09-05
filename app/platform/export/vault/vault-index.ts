@@ -25,7 +25,7 @@ import type {
   SnapshotAreaDetail,
   SnapshotAssetDetail,
   SnapshotAssetEvent,
-  SnapshotAssetObligation,
+  SnapshotObligation,
   SnapshotDiaryEntryDetail,
   SnapshotEntity,
   SnapshotEntityLink,
@@ -72,6 +72,7 @@ export const VAULT_FOLDER_BY_TYPE: Readonly<Record<string, string>> = {
   meeting: "Meetings",
   person: "People",
   asset: "Assets",
+  obligation: "Life Admin",
   review: "Reviews",
 };
 
@@ -90,6 +91,7 @@ export const VAULT_FOLDER_ORDER: readonly string[] = [
   "Meetings",
   "People",
   "Assets",
+  "Life Admin",
   "Reviews",
   VAULT_OTHER_FOLDER,
 ];
@@ -173,9 +175,12 @@ export interface VaultIndex {
     readonly SnapshotMeetingItemTask[]
   >;
   readonly assetEvents: ReadonlyMap<string, readonly SnapshotAssetEvent[]>;
-  readonly assetObligations: ReadonlyMap<
+  /** V2.10 LIFE-01 — obligations by the SUBJECT they are about. */
+  /** Every obligation by its own entity id, for its record page. */
+  readonly obligation: ReadonlyMap<string, SnapshotObligation>;
+  readonly obligationsBySubject: ReadonlyMap<
     string,
-    readonly SnapshotAssetObligation[]
+    readonly SnapshotObligation[]
   >;
   readonly reviewSections: ReadonlyMap<
     string,
@@ -466,7 +471,11 @@ export function buildVaultIndex(snapshot: WorkspaceSnapshotV1): VaultIndex {
     meetingItems: group(records.meetingItems, (row) => row.meetingId),
     meetingFollowUps: group(records.meetingItemTasks, (row) => row.meetingId),
     assetEvents: group(records.assetEvents, (row) => row.assetId),
-    assetObligations: group(records.assetObligations, (row) => row.assetId),
+    obligation: new Map(records.obligations.map((row) => [row.entityId, row])),
+    obligationsBySubject: group(
+      records.obligations.filter((row) => row.subjectEntityId !== null),
+      (row) => row.subjectEntityId as string,
+    ),
     reviewSections: group(records.reviewSections, (row) => row.reviewId),
     habitSchedules: group(records.habitSchedules, (row) => row.habitId),
     habitCompletions: group(records.habitCompletions, (row) => row.habitId),

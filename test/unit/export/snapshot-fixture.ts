@@ -62,6 +62,9 @@ export const IDS = {
   // PROJECT-02 — a Project template. An ordinary entity with NO spine record,
   // which is exactly what the export must reproduce.
   template: "e-25-project-template",
+  // V2.10 LIFE-01 — an obligation is an ordinary entity now, so the fixture
+  // that proves export and restore carries one.
+  obligation: "e-26-obligation",
 } as const;
 
 /** A record id that is NOT in the snapshot, for the broken-link case. */
@@ -107,6 +110,7 @@ const ENTITIES: readonly Entity[] = [
   { id: IDS.meeting, type: "meeting", title: "Coaching catch-up" },
   { id: IDS.person, type: "person", title: "Jamie Rivers" },
   { id: IDS.asset, type: "asset", title: "Road bike" },
+  { id: IDS.obligation, type: "obligation", title: "Next service" },
   { id: IDS.review, type: "review", title: "Week 27 review" },
   { id: IDS.habit, type: "habit", title: "Strength training" },
   { id: IDS.habitArchived, type: "habit", title: "Cold shower" },
@@ -687,19 +691,25 @@ export function makeSnapshot(
         nextDueDate: "2026-08-01",
         taskId: null,
         noteId: null,
-        obligationId: "ao-01",
+        obligationId: IDS.obligation,
         createdAt: T(13),
         updatedAt: T(13),
         archivedAt: null,
         deletedAt: null,
       },
     ],
-    assetObligations: [
+    /*
+     * V2.10 LIFE-01 — `asset_obligations` is retired, so an export written now
+     * carries none. The collection stays in the shape so an archive that has
+     * one still validates and still restores.
+     */
+    assetObligations: [],
+    obligations: [
       {
-        id: "ao-01",
-        assetId: IDS.asset,
+        entityId: IDS.obligation,
+        subjectEntityId: IDS.asset,
+        subjectEntityType: "asset",
         category: "service",
-        title: "Next service",
         description: "Six-monthly service.",
         dueDate: "2026-08-01",
         leadDays: 14,
@@ -708,10 +718,14 @@ export function makeSnapshot(
         meterThreshold: null,
         meterInterval: null,
         meterUnit: null,
+        expectedAmountMinor: 24_000,
+        completedAmountMinor: null,
+        currencyCode: "AUD",
         status: "open",
         taskId: null,
         completedEventId: null,
         completedAt: null,
+        completedOn: null,
         nextObligationId: null,
         seriesId: "series-service",
         sequence: 1,

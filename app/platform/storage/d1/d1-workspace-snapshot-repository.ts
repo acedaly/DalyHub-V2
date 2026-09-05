@@ -111,8 +111,18 @@ interface CollectionDescriptor<K extends SnapshotCollection> {
   readonly map: (row: Record<string, unknown>) => SnapshotCollectionRowMap[K];
 }
 
+/**
+ * A collection whose STORE no longer exists — the ones
+ * `RETIRED_SNAPSHOT_COLLECTIONS` names. It is never written, and its key stays
+ * in the snapshot's type and order so archives that carry it still validate and
+ * still restore. `null` rather than a missing key on purpose: the mapped type
+ * below is what makes forgetting a collection a compile error, and an exemption
+ * that removed the key would remove that guarantee too.
+ */
+const RETIRED = null;
+
 type CollectionDescriptors = {
-  readonly [K in SnapshotCollection]: CollectionDescriptor<K>;
+  readonly [K in SnapshotCollection]: CollectionDescriptor<K> | typeof RETIRED;
 };
 
 const COLLECTIONS: CollectionDescriptors = {
@@ -752,13 +762,25 @@ const COLLECTIONS: CollectionDescriptors = {
       deletedAt: text(row.deleted_at),
     }),
   },
-  assetObligations: {
-    table: "asset_obligations",
+  /*
+   * V2.10 LIFE-01 — RETIRED. `asset_obligations` was migrated into
+   * `obligation_details` and dropped by migration 0050, so an export written
+   * from now on carries no `assetObligations` collection at all.
+   *
+   * The KEY stays in the snapshot's type and in its order, and the collection
+   * stays optional-on-read, because every archive an owner already has carries
+   * one and restoring those is the difference between "export always possible"
+   * and a backup with an expiry date (AGENTS.md §7). `null` here means "never
+   * written"; the restore side still knows how to read it.
+   */
+  assetObligations: RETIRED,
+  obligations: {
+    table: "obligation_details",
     columns: [
-      "id",
-      "asset_id",
+      "entity_id",
+      "subject_entity_id",
+      "subject_entity_type",
       "category",
-      "title",
       "description",
       "due_date",
       "lead_days",
@@ -767,10 +789,14 @@ const COLLECTIONS: CollectionDescriptors = {
       "meter_threshold",
       "meter_interval",
       "meter_unit",
+      "expected_amount_minor",
+      "completed_amount_minor",
+      "currency_code",
       "status",
       "task_id",
       "completed_event_id",
       "completed_at",
+      "completed_on",
       "next_obligation_id",
       "series_id",
       "sequence",
@@ -779,12 +805,12 @@ const COLLECTIONS: CollectionDescriptors = {
       "archived_at",
       "deleted_at",
     ].join(", "),
-    order: ["id"],
+    order: ["entity_id"],
     map: (row) => ({
-      id: requiredText(row.id),
-      assetId: requiredText(row.asset_id),
+      entityId: requiredText(row.entity_id),
+      subjectEntityId: text(row.subject_entity_id),
+      subjectEntityType: text(row.subject_entity_type),
       category: requiredText(row.category),
-      title: requiredText(row.title),
       description: text(row.description),
       dueDate: text(row.due_date),
       leadDays: requiredInteger(row.lead_days, 0),
@@ -793,10 +819,14 @@ const COLLECTIONS: CollectionDescriptors = {
       meterThreshold: integer(row.meter_threshold),
       meterInterval: integer(row.meter_interval),
       meterUnit: text(row.meter_unit),
+      expectedAmountMinor: integer(row.expected_amount_minor),
+      completedAmountMinor: integer(row.completed_amount_minor),
+      currencyCode: text(row.currency_code),
       status: requiredText(row.status),
       taskId: text(row.task_id),
       completedEventId: text(row.completed_event_id),
       completedAt: text(row.completed_at),
+      completedOn: text(row.completed_on),
       nextObligationId: text(row.next_obligation_id),
       seriesId: requiredText(row.series_id),
       sequence: requiredInteger(row.sequence, 0),
@@ -1099,7 +1129,14 @@ export class D1WorkspaceSnapshotRepository implements WorkspaceSnapshotRepositor
     cursor: string | null,
     limit: number,
   ): Promise<SnapshotPage<SnapshotCollectionRowMap[K]>> {
-    const descriptor = COLLECTIONS[collection] as CollectionDescriptor<K>;
+    const descriptor = COLLECTIONS[
+      collection
+    ] as CollectionDescriptor<K> | null;
+    // A retired collection is never written: an export carries the stores the
+    // product HAS, and the archive stays readable for the ones it had.
+    if (descriptor === null) {
+      return { rows: [], nextCursor: null } as never;
+    }
     // Hard clamp: an export can ask for less than a page, never for more.
     const size = Math.max(1, Math.min(Math.trunc(limit), SNAPSHOT_PAGE_SIZE));
 

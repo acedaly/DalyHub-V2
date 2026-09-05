@@ -170,6 +170,11 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   // owner's calendar day, not the Worker's and not Sydney's.
   const today = await scope.ownerTodayIso();
   const history = scope.assetHistory;
+  // V2.10 LIFE-01 — the obligation half of this route is a LENS over the one
+  // shared store. The Assets module no longer owns an obligation model, an
+  // evaluator, a completion transaction or a recurrence; it owns the Asset and
+  // asks the obligation repository for the ones whose subject is this Asset.
+  const obligations = scope.obligations;
 
   try {
     switch (intent) {
@@ -241,7 +246,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       /* -- Obligations -------------------------------------------------- */
 
       case "create-obligation": {
-        const obligation = await history.createObligation(assetId, {
+        const obligation = await obligations.create({
+          subjectEntityId: assetId,
           category: String(form.get("category") ?? "reminder"),
           title: String(form.get("title") ?? ""),
           description: field(form, "description"),
@@ -257,7 +263,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
 
       case "update-obligation": {
-        await history.updateObligation(String(form.get("obligationId") ?? ""), {
+        await obligations.update(String(form.get("obligationId") ?? ""), {
           category: field(form, "category"),
           title: field(form, "title"),
           description: field(form, "description"),
@@ -273,56 +279,68 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
 
       case "complete-obligation": {
-        const result = await history.completeObligation(
+        const result = await obligations.complete(
           String(form.get("obligationId") ?? ""),
           {
             completedOn: field(form, "completedOn") || today,
             title: field(form, "title"),
-            cost: field(form, "cost"),
-            currencyCode: field(form, "currencyCode") ?? asset.currencyCode,
-            provider: field(form, "provider"),
-            personId: field(form, "personId"),
-            meterValue: field(form, "meterValue"),
-            meterUnit: field(form, "meterUnit"),
             description: field(form, "description"),
-            noteId: field(form, "noteId"),
+            // What the work ACTUALLY cost is the OBLIGATION's fact now. The
+            // Asset's logbook row still carries it as the Asset's own cost,
+            // written from this one input in the same transaction (ADR-118
+            // decision 2) — the form field is unchanged and so is the Asset
+            // record's cost history.
+            completedAmount: field(form, "cost"),
+            currencyCode: field(form, "currencyCode") ?? asset.currencyCode,
             nextDueDate: field(form, "nextDueDate"),
+            // What only an Asset's logbook understands.
+            subject: {
+              provider: field(form, "provider"),
+              personId: field(form, "personId"),
+              meterValue: field(form, "meterValue"),
+              meterUnit: field(form, "meterUnit"),
+              noteId: field(form, "noteId"),
+              description: field(form, "description"),
+            },
           },
         );
-        return ok(result.event.id);
+        // An Asset subject always writes its logbook row, so the proof is
+        // present here; the contract allows null because an obligation about
+        // nothing has no history to write one into.
+        return ok(result.proof?.id);
       }
 
       case "dismiss-obligation":
-        await history.setObligationStatus(
+        await obligations.setStatus(
           String(form.get("obligationId") ?? ""),
           "dismissed",
         );
         return ok();
 
       case "hold-obligation":
-        await history.setObligationStatus(
+        await obligations.setStatus(
           String(form.get("obligationId") ?? ""),
           "on_hold",
         );
         return ok();
 
       case "reopen-obligation":
-        await history.setObligationStatus(
+        await obligations.setStatus(
           String(form.get("obligationId") ?? ""),
           "open",
         );
         return ok();
 
       case "delete-obligation":
-        await history.deleteObligation(String(form.get("obligationId") ?? ""));
+        await obligations.delete(String(form.get("obligationId") ?? ""));
         return ok();
 
       /* -- Task integration --------------------------------------------- */
 
       case "create-obligation-task": {
         const obligationId = String(form.get("obligationId") ?? "");
-        const obligation = await history.getObligation(obligationId);
-        if (!obligation || obligation.assetId !== assetId) {
+        const obligation = await obligations.get(obligationId);
+        if (!obligation || obligation.subjectEntityId !== assetId) {
           throw new Response("Not Found", { status: 404 });
         }
         // The canonical Task repository creates the Task. The obligation stays
@@ -331,7 +349,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
           title: `${obligation.title} — ${asset.title}`,
           dueDate: obligation.dueDate,
         });
-        await history.linkObligationTask(obligationId, task.id);
+        await obligations.linkTask(obligationId, task.id);
         // The shared relationship, so the Asset's Linked tab and the Task both
         // show it exactly as any other module's link would (ADR-002).
         try {
@@ -347,9 +365,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
 
       case "unlink-obligation-task":
-        await history.unlinkObligationTask(
-          String(form.get("obligationId") ?? ""),
-        );
+        await obligations.unlinkTask(String(form.get("obligationId") ?? ""));
         return ok();
 
       default:

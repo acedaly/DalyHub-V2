@@ -769,6 +769,48 @@ export interface SnapshotAssetObligation {
   readonly deletedAt: IsoInstant | null;
 }
 
+/**
+ * One Obligation (V2.10 LIFE-01) — the ONE record for everything due and
+ * recurring, whether or not it is about an Asset.
+ *
+ * The TITLE is not here: an obligation is an ordinary entity, so its title is
+ * in `entities`, exactly as a Task's or an Asset's is. The SUBJECT is the pair
+ * that is authoritative for the relationship; the `obligation.subject`
+ * EntityLink that projects it travels in `entityLinks` like any other link, so
+ * a restore rebuilds both from what the archive already carries.
+ */
+export interface SnapshotObligation {
+  readonly entityId: string;
+  readonly subjectEntityId: string | null;
+  readonly subjectEntityType: string | null;
+  readonly category: string;
+  readonly description: string | null;
+  readonly dueDate: IsoDate | null;
+  readonly leadDays: number;
+  readonly recurrenceKind: string;
+  readonly recurrenceInterval: number | null;
+  readonly meterThreshold: number | null;
+  readonly meterInterval: number | null;
+  readonly meterUnit: string | null;
+  /** What it is EXPECTED to cost, in integer minor units (ADR-049). */
+  readonly expectedAmountMinor: number | null;
+  /** What it ACTUALLY cost, recorded at completion. */
+  readonly completedAmountMinor: number | null;
+  readonly currencyCode: string | null;
+  readonly status: string;
+  readonly taskId: string | null;
+  readonly completedEventId: string | null;
+  readonly completedAt: IsoInstant | null;
+  readonly completedOn: IsoDate | null;
+  readonly nextObligationId: string | null;
+  readonly seriesId: string;
+  readonly sequence: number;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+  readonly archivedAt: IsoInstant | null;
+  readonly deletedAt: IsoInstant | null;
+}
+
 /** Review-owned state (REVIEWS-01): period, template and completion. */
 export interface SnapshotReviewDetail {
   readonly entityId: string;
@@ -965,6 +1007,7 @@ export interface SnapshotCollectionRowMap {
   readonly assetDetails: SnapshotAssetDetail;
   readonly assetEvents: SnapshotAssetEvent;
   readonly assetObligations: SnapshotAssetObligation;
+  readonly obligations: SnapshotObligation;
   readonly reviewDetails: SnapshotReviewDetail;
   readonly reviewSections: SnapshotReviewSection;
   readonly reviewWorkflowState: SnapshotReviewWorkflowState;
@@ -1002,6 +1045,25 @@ export type SnapshotCollection = keyof SnapshotCollectionRowMap;
  * validation still requires every other collection, so a genuinely truncated
  * or corrupt snapshot is still caught.
  */
+/**
+ * Collections whose STORE no longer exists.
+ *
+ * A retired collection is never WRITTEN — an export carries the stores the
+ * product has — and is still READ, because every archive an owner already has
+ * carries it and a change of store must not invalidate the backups taken before
+ * it (AGENTS.md §7). Its key stays in `SnapshotCollectionRowMap` and in the
+ * order so the shape of an archive is unchanged, and the reader upgrades its
+ * rows into whatever replaced them.
+ *
+ * Add to this list in the same change that retires a store, and never remove
+ * from it.
+ */
+export const RETIRED_SNAPSHOT_COLLECTIONS: readonly SnapshotCollection[] = [
+  // V2.10 LIFE-01 — `asset_obligations` became `obligation_details`, and a
+  // legacy archive is upgraded on read by `upgradeLegacyObligations`.
+  "assetObligations",
+];
+
 export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[] =
   [
     "reviewWorkflowState",
@@ -1022,6 +1084,19 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
     "projectTemplateDetails",
     "projectTemplateTasks",
     "projectTemplateChecklistItems",
+    // V2.10 LIFE-01 — added with the shared Obligation store. Every archive
+    // written before it is still valid and still restores.
+    "obligations",
+    /*
+     * …and `assetObligations` joins this list from the OTHER direction. V2.10
+     * retired `asset_obligations`, so an export written from now on carries no
+     * such collection at all, while every archive an owner already has carries
+     * one. Restoring those is not a compatibility nicety: it is the difference
+     * between "export always possible" and "your backups expired when we
+     * changed our minds" (AGENTS.md §7). The restore reader translates them
+     * into obligations by the same rule migration 0050 uses.
+     */
+    "assetObligations",
     /*
      * TASKS-13 — added with Task checklists, and MISSED HERE at the time
      * (HARDEN-06B, F-01/F-02). Between HARDEN-01, when `schemaVersion` became 2,
@@ -1085,6 +1160,7 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "assetDetails",
   "assetEvents",
   "assetObligations",
+  "obligations",
   "reviewDetails",
   "reviewSections",
   "reviewWorkflowState",

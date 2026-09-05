@@ -78,23 +78,25 @@ function cleanupSql(title: string): string {
   // or GLOB pattern too complex"), which is the same limit the note above records
   // for assets. The pointer is also exact, where a suffix match is a guess.
   //
-  // The consequence is an ORDERING constraint: `asset_obligations` must survive
+  // The consequence is an ORDERING constraint: `obligation_details` must survive
   // until every Task-side delete has run, so it is removed last of the ASSET-02
   // tables rather than first.
-  const taskSel = `SELECT task_id FROM asset_obligations WHERE workspace_id = ${ws} AND task_id IS NOT NULL AND asset_id IN (${assetSel})`;
+  const taskSel = `SELECT task_id FROM obligation_details WHERE workspace_id = ${ws} AND task_id IS NOT NULL AND subject_entity_id IN (${assetSel})`;
   return [
     `DELETE FROM entity_links WHERE workspace_id = ${ws} AND (source_entity_id IN (${assetSel}) OR target_entity_id IN (${assetSel}) OR source_entity_id IN (${noteSel}) OR target_entity_id IN (${noteSel}) OR source_entity_id IN (${taskSel}) OR target_entity_id IN (${taskSel}));`,
     `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND (entity_id IN (${assetSel}) OR entity_id IN (${noteSel}) OR entity_id IN (${taskSel}));`,
     `DELETE FROM activities WHERE workspace_id = ${ws} AND NOT EXISTS (SELECT 1 FROM activity_subjects s WHERE s.workspace_id = activities.workspace_id AND s.activity_id = activities.id);`,
     // Task children, then the Task rows — all still resolvable through the
-    // obligation pointer, which is why `asset_obligations` has not gone yet.
+    // obligation pointer, which is why `obligation_details` has not gone yet.
     `DELETE FROM task_recurrence_rules WHERE workspace_id = ${ws} AND entity_id IN (${taskSel});`,
     `DELETE FROM task_details WHERE workspace_id = ${ws} AND entity_id IN (${taskSel});`,
     `DELETE FROM spine_records WHERE workspace_id = ${ws} AND entity_id IN (${taskSel});`,
     `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'task' AND id IN (${taskSel});`,
     // Now the ASSET-02 tables themselves (both FK to entities ON DELETE RESTRICT).
     `DELETE FROM asset_events WHERE workspace_id = ${ws} AND asset_id IN (${assetSel});`,
-    `DELETE FROM asset_obligations WHERE workspace_id = ${ws} AND asset_id IN (${assetSel});`,
+    `DELETE FROM entity_links WHERE workspace_id = ${ws} AND type = 'obligation.subject' AND target_entity_id IN (${assetSel});`,
+    `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'obligation' AND id IN (SELECT entity_id FROM obligation_details WHERE workspace_id = ${ws} AND subject_entity_id IN (${assetSel}));`,
+    `DELETE FROM obligation_details WHERE workspace_id = ${ws} AND subject_entity_id IN (${assetSel});`,
     `DELETE FROM asset_details WHERE workspace_id = ${ws} AND entity_id IN (${assetSel});`,
     `DELETE FROM note_details WHERE workspace_id = ${ws} AND entity_id IN (${noteSel});`,
     `DELETE FROM entities WHERE workspace_id = ${ws} AND type = 'asset' AND ${match};`,
