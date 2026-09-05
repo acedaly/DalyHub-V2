@@ -193,6 +193,14 @@ migration 0051 rewrote both across every historical row, in the same statement,
 because changing the prefix without carrying the ledger across would re-announce
 every rung the owner had already been told about.
 
+**No PERSON is ever named in one either.** AGENTS.md §17 keeps People and Diary
+out of external services without an explicit per-action opt-in, and enabling a
+channel once is not one. An obligation about a person announces ITSELF ("Renew
+the working-with-children check") rather than them; it still fires, still links
+to the obligation, and the subject id is still stored in-app so the inbox can
+say what a historical row concerned. Until V2.10 LIFE-03 this held by accident —
+the path read only obligations about an Asset — and it is now a rule with a test.
+
 **No amount ever appears in a notification** — not in the title, not in the body,
 not in the link. A lock screen is the one surface an owner cannot choose not to
 show somebody (ADR-049 decision 5), and `test/unit/notifications/digest.test.ts`
@@ -208,6 +216,10 @@ asserts the refusal rather than trusting it.
 - Obligations are read through the EXISTING bounded `listAttention` seam, whose
   default horizon is 30 days — the same number as the widest rung, so the read
   and the ladder agree by construction. **No scheduling of its own was added.**
+  That read is ONE page of at most `MAX_ATTENTION_ITEMS` (50), oldest-due first:
+  a workspace holding more than fifty attention-eligible obligations can starve
+  the ones behind them, which is recorded as
+  [DEBT-246](../product/PRODUCT_DEBT.md) rather than left unstated.
 
 **Overdue tasks and ageing waiting items are digest-only, deliberately.** They
 change every day, so a per-event channel would deliver the same anxiety every

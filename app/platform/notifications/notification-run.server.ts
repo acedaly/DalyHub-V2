@@ -271,7 +271,7 @@ export async function runNotificationsForOwner(
             subject:
               subject === null
                 ? null
-                : { id: subject.id, title: subject.title },
+                : { id: subject.id, type: subject.type, title: subject.title },
             title: item.obligation.title,
             // The words the record and Today's rail already use, from the ONE
             // shared evaluator. The notification never writes its own.

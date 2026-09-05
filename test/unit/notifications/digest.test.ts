@@ -47,7 +47,7 @@ describe("an empty digest is not sent", () => {
           visibleCount: 1,
           first: {
             title: "Registration renewal",
-            subjectTitle: "Hilux",
+            subject: { type: "asset", title: "Hilux" },
             text: "Due in 6 days",
           },
         },
@@ -168,7 +168,7 @@ describe("what the digest says", () => {
         visibleCount: 1,
         first: {
           title: "Registration renewal",
-          subjectTitle: "Hilux",
+          subject: { type: "asset", title: "Hilux" },
           text: "Due in 6 days",
         },
       },
@@ -188,12 +188,30 @@ describe("what the digest says", () => {
         visibleCount: 1,
         first: {
           title: "Lodge the tax return",
-          subjectTitle: null,
+          subject: null,
           text: "Due in 9 days",
         },
       },
     });
     expect(digest?.body).toBe("Lodge the tax return: Due in 9 days");
+  });
+
+  it("keeps a Person out of the digest line too", () => {
+    const digest = renderDigest({
+      ...QUIET,
+      obligations: {
+        visibleCount: 1,
+        first: {
+          title: "Renew the working-with-children check",
+          subject: { type: "person", title: "Jamie Rivers" },
+          text: "Due in 7 days",
+        },
+      },
+    });
+    expect(digest?.body).toBe(
+      "Renew the working-with-children check: Due in 7 days",
+    );
+    expect(digest?.body).not.toContain("Jamie");
   });
 
   it("counts what it cannot name without saying 'asset'", () => {
@@ -253,7 +271,7 @@ describe("what the digest says", () => {
 describe("the obligation notice", () => {
   const notice = renderObligationNotice({
     obligationId: "obl-1",
-    subject: { id: "asset-1", title: "Hilux" },
+    subject: { id: "asset-1", type: "asset", title: "Hilux" },
     title: "Registration renewal",
     text: "Due in 7 days",
     rung: 7,
@@ -295,6 +313,41 @@ describe("the obligation notice", () => {
     expect(alone.href).toBe("/obligations/obl-tax");
     expect(alone.subjectEntityId).toBe("obl-tax");
     expect(alone.dedupeKey).toBe("obligation:obl-tax:30");
+  });
+
+  /*
+   * AGENTS.md §17 — People and Diary do not leave the building without an
+   * explicit per-action opt-in, and a channel enabled once is not one. Until
+   * V2.10 LIFE-03 this held by accident: the notification path read only
+   * obligations whose subject was an Asset, so a Person's name could not reach
+   * Pushover. Widening the set made the boundary explicit, and this is it.
+   */
+  it("never names a Person, and still announces their obligation", () => {
+    const aboutSomeone = renderObligationNotice({
+      obligationId: "obl-licence",
+      subject: { id: "p-1", type: "person", title: "Jamie Rivers" },
+      title: "Renew the working-with-children check",
+      text: "Due in 7 days",
+      rung: 7,
+    });
+    expect(aboutSomeone.title).toBe("Renew the working-with-children check");
+    expect(`${aboutSomeone.title} ${aboutSomeone.body}`).not.toContain("Jamie");
+    // Silencing it would be the other kind of failure. It still fires, still
+    // links to the obligation, and the subject id is still stored IN-APP so the
+    // inbox can say what the row concerned.
+    expect(aboutSomeone.href).toBe("/obligations/obl-licence");
+    expect(aboutSomeone.subjectEntityId).toBe("p-1");
+  });
+
+  it("never names a Diary subject either", () => {
+    const notice = renderObligationNotice({
+      obligationId: "obl-d",
+      subject: { id: "d-1", type: "diary", title: "A private entry" },
+      title: "Something due",
+      text: "Due in 1 day",
+      rung: 1,
+    });
+    expect(notice.title).toBe("Something due");
   });
 
   /*

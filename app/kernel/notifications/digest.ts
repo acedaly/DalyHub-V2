@@ -27,6 +27,7 @@ import {
   NOTIFICATION_BODY_MAX,
   NOTIFICATION_TITLE_MAX,
   digestDedupeKey,
+  notificationSubjectName,
   obligationDedupeKey,
   type NewNotification,
 } from "./notification";
@@ -73,10 +74,17 @@ export interface DigestFacts {
      * V2.10 LIFE-03 — the one obligation the line names, where there is exactly
      * one. It names its SUBJECT when it has one and ITSELF when it does not; a
      * passport renewal has no asset to be announced under.
+     *
+     * The subject arrives with its TYPE, because whether it may be named at all
+     * is this module's decision: a digest is delivered externally, and People
+     * and Diary do not leave the building in one (AGENTS.md §17).
      */
     readonly first: {
       readonly title: string;
-      readonly subjectTitle: string | null;
+      readonly subject: {
+        readonly type: string;
+        readonly title: string;
+      } | null;
       readonly text: string;
     } | null;
   };
@@ -215,11 +223,13 @@ export function renderDigest(facts: DigestFacts): NewNotification | null {
        * obligation's own title is never dropped — the Asset-shaped line used to
        * name the Asset and the obligation and no state, or the Asset and the
        * state and never what was due.
+       *
+       * A subject the digest may not name reads exactly like one that does not
+       * exist, which is the point: the obligation still reaches the owner.
        */
+      const subjectName = notificationSubjectName(first.subject);
       const named =
-        first.subjectTitle === null
-          ? first.title
-          : `${first.subjectTitle} — ${first.title}`;
+        subjectName === null ? first.title : `${subjectName} — ${first.title}`;
       lines.push(`${named}: ${first.text}`);
     } else {
       lines.push(
@@ -265,6 +275,7 @@ export interface ObligationNoticeFacts {
   /** What it is about, where it is about anything. Null is the ordinary case. */
   readonly subject: {
     readonly id: string;
+    readonly type: string;
     readonly title: string;
   } | null;
   /** The obligation's own title — "Registration renewal". */
@@ -286,23 +297,30 @@ export interface ObligationNoticeFacts {
  * two notices, not one.
  *
  * V2.10 LIFE-03 — the notice is the obligation's, not its subject's. It names
- * the subject in the TITLE where there is one, links to the obligation's own
- * record either way, and carries the subject id so the inbox can still say what
- * a historical row concerned. There is no amount anywhere in it and there never
- * will be: a lock screen is the one surface an owner cannot choose not to show
- * somebody ([ADR-049](../../../docs/decisions/ARCHITECTURE_DECISIONS.md)).
+ * the subject in the TITLE where naming it is allowed, links to the obligation's
+ * own record either way, and carries the subject id so the inbox can still say
+ * what a historical row concerned.
+ *
+ * TWO things never leave the building in it. No AMOUNT, ever
+ * ([ADR-049](../../../docs/decisions/ARCHITECTURE_DECISIONS.md) decision 5). And
+ * no PERSON'S NAME: AGENTS.md §17 keeps People and Diary out of external
+ * services without a per-action opt-in, and a channel enabled once is not that.
+ * A licence renewal about a person announces itself instead — which is the fact
+ * the owner needs, and none of the one they did not agree to publish. A lock
+ * screen is the single surface an owner cannot choose who is looking at.
  */
 export function renderObligationNotice(
   facts: ObligationNoticeFacts,
 ): NewNotification {
+  const nameableSubject = notificationSubjectName(facts.subject);
   return {
     kind: "obligation",
     subjectEntityId: facts.subject?.id ?? facts.obligationId,
     dedupeKey: obligationDedupeKey(facts.obligationId, facts.rung),
     title: clamp(
-      facts.subject === null
+      nameableSubject === null
         ? facts.title
-        : `${facts.subject.title} — ${facts.title}`,
+        : `${nameableSubject} — ${facts.title}`,
       NOTIFICATION_TITLE_MAX,
     ),
     body: clamp(facts.text, NOTIFICATION_BODY_MAX),

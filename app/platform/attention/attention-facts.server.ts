@@ -410,6 +410,7 @@ export async function readAttentionFacts(
       }),
       safely(() => readObligationAttention(scope, facts.todayIso), {
         items: [],
+        visibleCount: 0,
         trackedAsTasksCount: 0,
         overdueCount: 0,
       }),

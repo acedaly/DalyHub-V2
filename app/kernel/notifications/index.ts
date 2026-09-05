@@ -21,6 +21,7 @@ export {
   DELIVERY_FAILURE_REASONS,
   DELIVERY_FAILURE_MESSAGES,
   isNotificationKind,
+  notificationSubjectName,
   obligationDedupeKey,
   digestDedupeKey,
   type DeliveryChannel,

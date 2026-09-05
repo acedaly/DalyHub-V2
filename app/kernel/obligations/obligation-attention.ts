@@ -49,7 +49,17 @@ export type SerializedAttentionItem = {
 
 /** What Today shows for obligations: the rows plus the count it deliberately hid. */
 export type ObligationAttentionData = {
+  /** The rows Today draws — capped at {@link TODAY_OBLIGATION_ROWS}. */
   readonly items: readonly SerializedAttentionItem[];
+  /**
+   * How many need attention in total, BEFORE the row cap.
+   *
+   * Today previews and says "N obligations need attention" from this; the
+   * digest states the same number. Reading `items.length` instead would report
+   * five whenever there were five or more, which is the one figure an owner
+   * acts on.
+   */
+  readonly visibleCount: number;
   /**
    * How many obligations were suppressed because their linked Task already
    * carries them into Today. See {@link dedupeAttention} for the rule.
@@ -127,6 +137,7 @@ export function dedupeAttention(
       text: item.text,
       href: obligationAttentionHref(item.obligationId),
     })),
+    visibleCount: visible.length,
     trackedAsTasksCount: suppressed,
     overdueCount: visible.filter((item) => item.state === "overdue").length,
   };

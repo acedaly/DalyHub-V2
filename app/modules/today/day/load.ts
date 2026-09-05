@@ -594,6 +594,7 @@ export async function loadTodayDay(
     safely(() => readInboxCount(scope, todayIso, timezone), 0),
     safely(() => readObligationAttention(scope, todayIso), {
       items: [],
+      visibleCount: 0,
       trackedAsTasksCount: 0,
       overdueCount: 0,
     }),
@@ -755,7 +756,7 @@ export async function loadTodayDay(
       inboxCount,
       waiting,
       obligations: {
-        visibleCount: obligationAttention.items.length,
+        visibleCount: obligationAttention.visibleCount,
         trackedAsTasksCount: obligationAttention.trackedAsTasksCount,
         first:
           obligationAttention.items[0] === undefined

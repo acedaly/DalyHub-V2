@@ -83,14 +83,20 @@ export async function readDigestFacts(
     inboxCount: attention.inboxCount,
     waiting: attention.waiting,
     obligations: {
-      visibleCount: attention.obligations.items.length,
+      /*
+       * The count BEFORE the row cap, not the number of rows Today draws.
+       * `dedupeAttention` slices to five because Today previews; a digest that
+       * read `items.length` would tell an owner with twelve obligations that
+       * five need attention, which is a smaller lie than it looks — it is the
+       * one number they act on.
+       */
+      visibleCount: attention.obligations.visibleCount,
       first:
         attention.obligations.items[0] === undefined
           ? null
           : {
               title: attention.obligations.items[0].title,
-              subjectTitle:
-                attention.obligations.items[0].subject?.title ?? null,
+              subject: attention.obligations.items[0].subject,
               text: attention.obligations.items[0].text,
             },
     },

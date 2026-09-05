@@ -4975,6 +4975,16 @@ dated disposition on its entry instead of a new number.
 - **Found by.** V2.10 LIFE-02, adding the `obligation` identity. Recorded rather than fixed because re-pointing Diary's hue changes a shipped identity across five schemes and belongs to a design pass, not to a module build.
 - **Related roadmap item.** Unscheduled. A candidate for whichever release next revisits the M3 scheme generator.
 
+### ☐ DEBT-246 — The notification run reads one bounded page, so a crowded workspace can starve later obligations — P3
+
+- **Current issue.** `runNotificationsForOwner` builds its rung candidates from a single `scope.obligations.listAttention({ today })` call. That read is capped at [`MAX_ATTENTION_ITEMS`](../../app/kernel/obligations/obligation.ts) = **50** — a hard ceiling, not a default: `Math.min(input.limit ?? 50, 50)` in [`d1-obligation-repository.ts`](../../app/platform/storage/d1/d1-obligation-repository.ts) — and it is ordered oldest-due first, with no cursor. An owner holding more than fifty attention-eligible obligations inside the 30-day horizon therefore has the fifty oldest considered and the rest ignored, every tick.
+- **Impact.** The ordering makes it a starvation rather than a delay. An overdue obligation stays inside the horizon forever, and once its 1-day rung has fired it needs nothing more — so fifty long-overdue rows the owner has already been told about can permanently occupy the read while a new obligation crossing its 30-day rung is never seen. A notification that never fires is not recoverable the way a missing Today row is: the ladder is "once, ever", and the moment passes.
+- **Why it is P3 rather than P2.** Fifty simultaneously attention-eligible obligations is a large workspace for a single-owner product, and Today, the Life Admin collection and the record all still show every one of them. The bound is also not new: it has governed the Asset-only notification path since NOTIFY-01. What V2.10 LIFE-03 changed is how reachable it is, by widening the set from "obligations about an Asset" to every obligation.
+- **Desired future state.** The notification path traverses the whole attention set through a cursor, each query bounded exactly as it is now, so the ceiling governs a page rather than the answer. Today keeps its cap, because Today previews.
+- **Closing condition.** A kernel test seeds more than `MAX_ATTENTION_ITEMS` attention-eligible obligations, with the oldest already notified at every rung, and asserts that an obligation crossing its 30-day rung behind them still records exactly one notice — failing on the current single-page read.
+- **Found by.** The automated review of V2.10 LIFE-03 ([#262](https://github.com/acedaly/DalyHub-V2/pull/262)). Recorded rather than fixed there because it needs a new bounded traversal on the repository with its own statement budget, and the bound it is about predates the item.
+- **Related roadmap item.** Unscheduled. A candidate for V2.12, which is the next release to touch recurring commitments.
+
 ## Entry template
 
 ```markdown

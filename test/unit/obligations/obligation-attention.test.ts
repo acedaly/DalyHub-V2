@@ -69,6 +69,25 @@ describe("dedupeAttention — the Today rule", () => {
     ]);
   });
 
+  /*
+   * The cap is on the ROWS, not on the count. Today says "N obligations need
+   * attention" from `visibleCount`, and the daily digest states the same
+   * number — so reading `items.length` instead would tell an owner with twelve
+   * obligations that five need attention, which is the one figure they act on.
+   */
+  it("counts every visible obligation, not the five it draws", () => {
+    const many = Array.from({ length: 12 }, (_, index) =>
+      item(`o${index}`, { state: "due" }),
+    );
+    const result = dedupeAttention([
+      ...many,
+      item("tracked", { hasOpenTask: true }),
+    ]);
+    expect(result.items).toHaveLength(5);
+    expect(result.visibleCount).toBe(12);
+    expect(result.trackedAsTasksCount).toBe(1);
+  });
+
   it("caps the rows Today shows — it previews, it never lists", () => {
     const many = Array.from({ length: 20 }, (_, index) =>
       item(`o${index}`, { state: "overdue" }),

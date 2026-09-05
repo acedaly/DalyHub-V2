@@ -51,6 +51,38 @@ export const NOTIFICATION_KINDS = ["digest", "obligation"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 /**
+ * The record types DalyHub will NOT name in anything it sends outside itself.
+ *
+ * AGENTS.md §17: People and Diary are never sent to an external service without
+ * an explicit per-action opt-in, and a notification has no such opt-in — the
+ * owner enables a channel once, and every notice after that goes to Pushover's
+ * servers and onto a lock screen.
+ *
+ * Until V2.10 LIFE-03 this was true by accident: the notification path read only
+ * obligations whose subject was an Asset, so a Person's name could not reach it.
+ * Widening the set made the boundary explicit rather than incidental.
+ */
+const UNNAMEABLE_SUBJECT_TYPES: ReadonlySet<string> = new Set([
+  "person",
+  "diary",
+]);
+
+/**
+ * The subject's name, where naming it is allowed — otherwise null.
+ *
+ * Null does not mean the obligation is silenced. It means the notice announces
+ * itself ("Renew the licence") rather than the record it is about, which is the
+ * whole fact the owner needs at a glance and none of the one they did not agree
+ * to publish.
+ */
+export function notificationSubjectName(
+  subject: { readonly type: string; readonly title: string } | null,
+): string | null {
+  if (subject === null) return null;
+  return UNNAMEABLE_SUBJECT_TYPES.has(subject.type) ? null : subject.title;
+}
+
+/**
  * Whether a stored string is a kind this application recognises.
  *
  * The storage adapter re-validates on the way OUT, so a hand-edited row — or a
