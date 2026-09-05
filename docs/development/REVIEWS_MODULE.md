@@ -852,10 +852,28 @@ Four rules it inherits, each load-bearing:
 **It cost no statement.** `listSnapshotSeries` replaced the single `getSnapshot`
 read, and the previous snapshot is derived from the series with the old
 semantics exactly — the immediately prior Review's, or null. The evidence load's
-budget stays at **17**. The guided flow's Goals step pays one more (12 → 13,
-declared) for the same read, because the guided flow loads one step per request,
-and that read is what gives every Goal in the ritual its
-`contributionAcrossReviews` line (ADR-111 d6).
+budget stays at **17** *as first measured — on a first Review; on a Review with
+a snapshotted predecessor it is 19, see the budget table below*. The guided
+flow's Goals step pays one more (12 → 13, declared) for the same read, because
+the guided flow loads one step per request, and that read is what gives every
+Goal in the ritual its `contributionAcrossReviews` line (ADR-111 d6).
+
+**Corrected by the V2.9 completion pass (2026-09-05).** Three surfaces had
+been reading three different series for one Goal — six snapshots here, a Goal
+page size (twelve, clamped to eight) on the guided Goals step, eight on any
+type's latest Review on Analytics. `ACROSS_REVIEWS_SERIES_LENGTH` (six) is now
+the one number all three read, Analytics anchors on the latest completed
+*weekly* Review, and a kernel test asserts the guided step and Analytics print
+the same words for the same Goal. The series read also leaves out Reviews that
+were archived or reopened after their snapshot was taken, as the comparison
+series beside it always did. A fact whose subject some Reviews did not record
+now says so — *"At risk at 2 of the 3 Reviews that recorded it, of your last 4"*
+— and is dated from the oldest Review that recorded it; the repeated
+carry-over count reads "N+" whenever more ids repeated than could be named
+live, and its door goes to the waiting view when the named commitment is a
+waiting Task. A Goal that work reached at every Review is no longer repeated as
+a finding (the one-step section already says it); the line still reaches the
+Goal story.
 
 Evidence set: `docs/design/assets/review-03-2026-08/` (the folder was not committed;
 the browser cases above record what the captures showed).
@@ -939,8 +957,8 @@ projection's budget does not grow by a preference lookup.
 
 | | Before | After |
 | --- | --- | --- |
-| `REVIEW_INSIGHTS_QUERY_BUDGET` | 14 | **17** (+2 window, +1 active-Habit page) |
-| `REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS` | — | **19** (+ HABITS-01's schedule and completion window reads) |
+| `REVIEW_INSIGHTS_QUERY_BUDGET` | 14 | **17** (+2 window, +1 active-Habit page) — **19 since 2026-09-05**, measured on a Review with a snapshotted predecessor (the snapshot series and the prior Review's sections, never read on a first Review, which is asserted at two fewer) |
+| `REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS` | — | **19** (+ HABITS-01's schedule and completion window reads) — **21 since 2026-09-05**, for the same reason |
 | `REVIEW_GUIDE_QUERY_BUDGET.overview` | 15 | **18** |
 
 Both figures are asserted against real D1. The pair exists because every Habit

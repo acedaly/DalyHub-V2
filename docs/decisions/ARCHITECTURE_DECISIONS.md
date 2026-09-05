@@ -6091,8 +6091,11 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
      shape independent of its window: measured at one statement for 365 daily
      buckets and for 52 weekly ones. A history read whose statement count grows
      with the window is a defect, and the budgets that pin this
-     (`ANALYTICS_QUERY_BUDGET = 12`, `REVIEW_INSIGHTS_QUERY_BUDGET = 17`) are
-     asserted against real D1 at every window a surface offers.
+     (`ANALYTICS_QUERY_BUDGET = 14`, `REVIEW_INSIGHTS_QUERY_BUDGET = 19` —
+     both first declared two lower, measured on fixtures where the
+     across-Reviews reads never fired, and corrected by the V2.9 completion
+     pass on 2026-09-05) are asserted against real D1 at every window a
+     surface offers, and on the cheaper first-Review path separately.
 
   4. **Reuse is justified by the QUESTION being identical, never by the SQL
      looking alike — and where reads did not converge, a registry says so.**
@@ -6147,3 +6150,30 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   Today redesign removed it because the layout contract is the day and the
   attention rail; `/analytics/activity` belongs to the module whose question is
   "what happened over this period?").
+
+- **Implementation notes (2026-09-05, the V2.9 completion pass).** Four
+  precisions the decisions above did not state, each found by review of the
+  merged programme and each now asserted:
+  1. *Decision 1's month grain tiles into calendar months whenever the window
+     ends on a month end*, not only on a 31st — the day-clamping rule is right
+     mid-month and wrong at a 28/29/30-day month end. An inverted window is
+     refused.
+  2. *Decision 2's bound is refused at the store, never applied there.* A
+     bucketed read handed more buckets than the largest `GRAIN_MAXIMUMS` throws
+     rather than returning a shorter series; the storage ceiling is derived from
+     the kernel's maximums; and `listSnapshotSeries` is bounded by the
+     review_period maximum (twelve), not by the panel's display eight.
+  3. *One across-Reviews series length, `ACROSS_REVIEWS_SERIES_LENGTH`*, read by
+     the Review's evidence step, the guided Goals step and Analytics alike, with
+     Analytics anchored on the latest completed WEEKLY Review; the series leaves
+     out Reviews archived or reopened after their snapshot was taken, as the
+     comparison series beside it always did; and a fact whose subject some
+     Reviews did not record says so in words rather than calling those Reviews
+     "the last N". This is ADR-111 decision 6 made checkable: the Goal story
+     projects the series length beside the count, and a D1 test compares two
+     surfaces' words for one Goal.
+  4. *A surface that names a period draws that period.* The measured-Goal
+     series on Analytics is read over the page's own window
+     (`listMeasurementSeries` gained an optional owner-day window), the figures
+     beside a series are the window's own totals rather than the series' sum,
+     and the address bar redirects to the window and grain the page draws.
