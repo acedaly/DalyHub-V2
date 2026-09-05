@@ -80,6 +80,17 @@ test.describe("DS-08 Shared Search — desktop", () => {
     await input.fill("Finish");
     const listbox = page.getByRole("listbox", { name: "Search results" });
     await expect(listbox).toBeVisible();
+    // Wait for THIS query's results, not the recency list that FIND-01 shows
+    // for the empty query. The listbox is visible and grouped while that list
+    // is still on screen, and the controller discards an arrow key that lands
+    // while the typed query is loading (results are "current" only once the
+    // displayed outcome is the query's own) — so an ArrowDown pressed against
+    // the stale list selected nothing, and the assertion below read zero. The
+    // status region says "N results." only in that ready state; the recency
+    // list is announced in different words.
+    await expect(page.getByRole("dialog").getByRole("status")).toHaveText(
+      /\d+ results\./,
+    );
     // Grouped by entity type.
     await expect(listbox.getByText("Tasks")).toBeVisible();
     const options = listbox.getByRole("option");

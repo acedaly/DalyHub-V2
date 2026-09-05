@@ -31,7 +31,6 @@ app/modules/today/
                                ONE DS-03 DrawerProvider the screen opens records in
   routes/waiting.tsx         — TODAY-03: the /today/waiting collection view
   routes/plan.tsx            — TODAY-04: the bulk planning endpoint (see DEBT-104)
-  routes/activity.tsx        — the workspace-wide Activity feed endpoint (DEBT-103)
   day/day-view.ts            — the PURE day model: what is overdue, what is on
                                today, progress, chips, the greeting, the overdue cap
   day/attention-view.ts      — the PURE rail model: inclusion rules, caps, priority,
@@ -703,7 +702,7 @@ What survives, and where it lives:
 | Task Summary donut, legend and filter pills | `/tasks` — the Tasks nav item is the route to task management. |
 | Insights + Productivity score panels | Nowhere. Both were derived from facts the day already states. |
 | Notes / Diary / Areas / Goals / Assets widgets | Their own modules, all in the sidebar. |
-| Recent activity widget | Nowhere yet — the endpoint is kept and the gap is logged as [DEBT-103](../product/PRODUCT_DEBT.md). |
+| Recent activity widget | Analytics, as the "What changed" panel over `/analytics/activity` (V2.9 INS-04, closing [DEBT-103](../product/PRODUCT_DEBT.md#-debt-103--the-workspace-wide-activity-feed-endpoint-has-no-ui-consumer--p3--resolved-2026-09-04-v29-ins-04)). The `/today/activity` endpoint that waited here without a consumer moved with it and was retired; nothing on Today reads it. |
 | Quick Capture widget + the "Focus Quick Capture" command | The global `+`. Every module still contributes its own "New …" command to the palette. |
 | Multi-select + the bulk planning bar | The Tasks module's bulk actions (`/tasks/bulk`). `/today/plan` was left without a caller and has since been deleted — [DEBT-104](../product/PRODUCT_DEBT.md), resolved 2026-08-25. |
 | The roving keyboard collection | Native tab order over plain rows. |

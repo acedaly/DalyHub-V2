@@ -102,6 +102,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         measuredGoals: [],
         measuredGoalsBounded: false,
         measuredGoalsAvailable: false,
+        goalContributions: [],
         seriesBounded: false,
         seriesBound: null,
         overdueMoments: 0,

@@ -31,7 +31,7 @@ import {
 } from "~/modules/analytics/routes/activity";
 import { INSIGHT_ACTIVITY_PAGE_SIZE } from "~/modules/analytics/activity-feed";
 import { setAuthenticatedSession } from "~/platform/request";
-import type { AuthenticatedSession } from "~/platform/request";
+import type { AuthenticatedSession } from "~/kernel/auth";
 
 import {
   FakeClock,
