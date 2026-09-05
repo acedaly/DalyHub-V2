@@ -35,6 +35,9 @@ import {
 } from "~/modules/analytics/activity-feed";
 import { setAuthenticatedSession } from "~/platform/request";
 import type { AuthenticatedSession } from "~/kernel/auth";
+import { addCalendarDays } from "~/kernel/datetime";
+import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
+import { ownerCalendarIso } from "~/shared/datetime";
 
 import {
   FakeClock,
@@ -232,9 +235,15 @@ describe("the anchor day the window is measured back from", () => {
       parent: { kind: "area", id: area.id },
     });
 
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10);
+    // "Yesterday" is the OWNER's yesterday. The route measures its today in the
+    // workspace timezone (Australia/Sydney by default), which is already the
+    // next calendar day for most of the UTC evening; a UTC-derived date is then
+    // two owner days back, refused as "any other day", and the route quietly
+    // uses its own today — so this must not depend on the hour of the run either.
+    const yesterday = addCalendarDays(
+      ownerCalendarIso(now, DEFAULT_OWNER_TIME_ZONE),
+      -1,
+    );
     const anchored = await readFeed(
       `https://app.test/analytics/activity?window=12-weeks&today=${yesterday}`,
     );
