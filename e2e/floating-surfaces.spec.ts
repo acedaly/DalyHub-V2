@@ -31,6 +31,33 @@ import {
 
 const PHONE = { width: 393, height: 852 };
 
+/**
+ * The write a row's inline editor publishes, whichever route it posts to.
+ *
+ * This spec's own header sets the rule — *"No arbitrary sleeps. Every wait is
+ * on a state the product actually reaches"* — and two of the three "changes in
+ * place, and it persists" journeys already keep it by asserting the optimistic
+ * paint before they reload. The priority journey reloaded straight after the
+ * click, so on a loaded runner the navigation could beat the POST, the server
+ * never saw the change, and the reloaded row had no Priority 1 mark:
+ * `element(s) not found`, which reads like a missing glyph rather than a lost
+ * write.
+ *
+ * Waiting on the RESPONSE rather than on the repainted row is the shape
+ * DEBT-203 asks for and the one `today-task-convergence.spec.ts` already uses —
+ * an optimistic paint is exactly the thing that cannot distinguish a landed
+ * write from one still in flight.
+ */
+function taskWriteLanded(page: Page): Promise<unknown> {
+  return page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /^\/tasks\/(bulk|[^/]+)(?:\.data)?$/.test(
+        new URL(response.url()).pathname,
+      ),
+  );
+}
+
 /** The one anchored overlay layer — every menu, popover and picker is in it. */
 function surface(page: Page): Locator {
   return page.locator(".dh-anchored");
@@ -183,7 +210,11 @@ test.describe("DHDS-09 — a Task's metadata changes in place", () => {
       menu.getByRole("menuitemradio", { name: "Priority 4" }),
     ).toHaveAttribute("aria-checked", "true");
 
+    // Registered BEFORE the click that causes it, so the wait cannot miss a
+    // write that lands fast.
+    const priorityWritten = taskWriteLanded(page);
     await menu.getByRole("menuitemradio", { name: "Priority 1" }).click();
+    await priorityWritten;
 
     await page.reload();
     await expect(
