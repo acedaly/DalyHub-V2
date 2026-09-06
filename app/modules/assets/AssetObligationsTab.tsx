@@ -20,8 +20,8 @@
 import { useCallback, useMemo, useState } from "react";
 
 import {
-  ASSET_OBLIGATION_CATEGORY_OPTIONS,
-  type AssetObligationState,
+  OBLIGATION_CATEGORY_OPTIONS,
+  type ObligationState,
 } from "~/kernel/assets";
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
@@ -48,7 +48,7 @@ interface AssetObligationsTabProps {
 const GROUPS: readonly {
   readonly id: string;
   readonly label: string;
-  readonly states: readonly AssetObligationState[];
+  readonly states: readonly ObligationState[];
 }[] = [
   { id: "overdue", label: "Overdue", states: ["overdue"] },
   { id: "due", label: "Due soon", states: ["due", "unknown"] },
@@ -57,7 +57,7 @@ const GROUPS: readonly {
 
 const CATEGORY_FILTERS = [
   { value: "", label: "All categories" },
-  ...ASSET_OBLIGATION_CATEGORY_OPTIONS.map((c) => ({
+  ...OBLIGATION_CATEGORY_OPTIONS.map((c) => ({
     value: c.value,
     label: c.label,
   })),

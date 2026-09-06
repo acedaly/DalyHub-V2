@@ -72,6 +72,7 @@ function pageData(
     measuredGoals: [],
     measuredGoalsBounded: false,
     measuredGoalsAvailable: true,
+    goalContributionsAvailable: true,
     goalContributions: [],
     seriesBounded: false,
     seriesBound: null,
@@ -274,7 +275,13 @@ describe("Analytics screen (UIX-05)", () => {
   });
 
   it("draws no secondary lines at all when neither had a completion", () => {
-    renderScreen(pageData());
+    // Judged on the WINDOW'S total, never the series' sum: the fixture's
+    // series holds no Project completion, and neither does its total here.
+    renderScreen(
+      pageData({
+        current: { tasksCompleted: 4, projectsCompleted: 0, goalsCompleted: 0 },
+      }),
+    );
     expect(screen.queryByRole("list", { name: "Also completed" })).toBeNull();
   });
 
@@ -544,7 +551,9 @@ describe("the Goals panel", () => {
       within(list).getByRole("link", { name: "Reach 70 kg" }),
     ).toHaveAttribute("href", "/goals/g1");
     expect(within(list).getByText(/85 → 79/)).toBeInTheDocument();
-    expect(within(list).getByText("3 readings")).toBeInTheDocument();
+    expect(
+      within(list).getByText("3 readings in this period"),
+    ).toBeInTheDocument();
     // The sparkline is the one chart in DalyHub that is decoration: it always
     // sits beside the same figures in text, so it is hidden from assistive tech.
     expect(list.querySelector("[aria-hidden='true']")).not.toBeNull();
@@ -553,21 +562,98 @@ describe("the Goals panel", () => {
   // ADR-079 d11 — a bounded series says so where it is drawn, never elsewhere.
   it("says a compact series is the RECENT readings, not all of them", () => {
     renderScreen(pageData({ measuredGoals: [{ ...GOAL, bounded: true }] }));
-    expect(screen.getByText("3 most recent readings")).toBeInTheDocument();
+    expect(
+      screen.getByText("3 most recent readings in this period"),
+    ).toBeInTheDocument();
   });
 
-  it("says a failed read rather than drawing an unmeasured workspace", () => {
-    renderScreen(pageData({ measuredGoalsAvailable: false }));
+  // Found by review: a failed across-Reviews read rendered as "the Reviews
+  // have not yet recorded enough" — an absence claim about a read that never
+  // answered. Either read failing is the panel's failure.
+  it("says a failed across-Reviews read rather than claiming the Reviews recorded nothing", () => {
+    renderScreen(pageData({ goalContributionsAvailable: false }));
+    expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
+    expect(
+      screen.getByText(
+        /What your Reviews recorded about your other Goals could not be read/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/No Goal has two readings/)).toBeNull();
+  });
+
+  // Codex review on the completion pass (P2): the two halves are independent
+  // reads, so a failed across-Reviews read must not hide measured series that
+  // read fine — and the reverse.
+  it("keeps the measured series visible when only the across-Reviews half failed", () => {
+    renderScreen(
+      pageData({ measuredGoals: [GOAL], goalContributionsAvailable: false }),
+    );
+    const list = screen.getByRole("list", { name: "Goals" });
+    expect(
+      within(list).getByRole("link", { name: "Reach 70 kg" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /What your Reviews recorded about your other Goals could not be read/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/This panel could not be read/)).toBeNull();
+  });
+
+  it("keeps the across-Reviews lines visible when only the measured half failed", () => {
+    renderScreen(
+      pageData({
+        measuredGoalsAvailable: false,
+        goalContributions: [
+          {
+            goalId: "g2",
+            title: "Run a half marathon",
+            state: "moving",
+            count: 3,
+            of: 4,
+            reviews: 4,
+            sinceIso: "2026-08-03",
+            everyReview: false,
+            states: [],
+          },
+        ],
+      }),
+    );
+    const list = screen.getByRole("list", { name: "Goals" });
+    expect(
+      within(list).getByRole("link", { name: "Run a half marathon" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your measured Goals could not be read just now/),
+    ).toBeInTheDocument();
+  });
+
+  it("says the whole panel could not be read only when BOTH halves failed", () => {
+    renderScreen(
+      pageData({
+        measuredGoalsAvailable: false,
+        goalContributionsAvailable: false,
+      }),
+    );
     expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
     expect(
       screen.getByText(/This panel could not be read just now/),
     ).toBeInTheDocument();
   });
 
+  it("says a failed read rather than drawing an unmeasured workspace", () => {
+    renderScreen(pageData({ measuredGoalsAvailable: false }));
+    expect(screen.queryByRole("list", { name: "Goals" })).toBeNull();
+    expect(
+      screen.getByText(/Your measured Goals could not be read just now/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/No Goal has two readings/)).toBeNull();
+  });
+
   it("distinguishes no measured Goal from a failed read", () => {
     renderScreen(pageData({ measuredGoals: [], current: null }));
     expect(
-      screen.getByText(/No Goal has two readings yet/),
+      screen.getByText(/No Goal has two readings in this period/),
     ).toBeInTheDocument();
   });
 
@@ -588,6 +674,8 @@ describe("the Goals panel", () => {
             count: 3,
             of: 4,
             everyReview: false,
+            reviews: 4,
+            sinceIso: "2026-08-03",
             states: [],
           },
         ],
@@ -615,6 +703,8 @@ describe("the Goals panel", () => {
             count: 3,
             of: 4,
             everyReview: false,
+            reviews: 4,
+            sinceIso: "2026-08-03",
             states: [],
           },
         ],

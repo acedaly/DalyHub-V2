@@ -42,7 +42,7 @@ import {
   type NotificationRecord,
   type NotificationSettingsWithSecrets,
 } from "~/kernel/notifications";
-import { evaluateObligation } from "~/kernel/assets";
+import { evaluateAssetObligation } from "~/kernel/assets";
 import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { wallClockInTimeZone } from "~/shared/datetime";
@@ -246,7 +246,7 @@ export async function runNotificationsForOwner(
      * rule is Today's, and it does not transfer.
      */
     const candidates = items.flatMap((item) => {
-      const evaluation = evaluateObligation(
+      const evaluation = evaluateAssetObligation(
         item.obligation,
         localNow.date,
         item.reading,

@@ -29,12 +29,15 @@ import {
   anchorDayFor,
   loader as activityLoader,
 } from "~/modules/analytics/routes/activity";
-import { INSIGHT_ACTIVITY_PAGE_SIZE } from "~/modules/analytics/activity-feed";
+import {
+  INSIGHT_ACTIVITY_PAGE_BUDGET,
+  INSIGHT_ACTIVITY_PAGE_SIZE,
+} from "~/modules/analytics/activity-feed";
+import { setAuthenticatedSession } from "~/platform/request";
+import type { AuthenticatedSession } from "~/kernel/auth";
 import { addCalendarDays } from "~/kernel/datetime";
 import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
-import { setAuthenticatedSession } from "~/platform/request";
 import { ownerCalendarIso } from "~/shared/datetime";
-import type { AuthenticatedSession } from "~/kernel/auth";
 
 import {
   FakeClock,
@@ -232,18 +235,11 @@ describe("the anchor day the window is measured back from", () => {
       parent: { kind: "area", id: area.id },
     });
 
-    /*
-     * The anchor is a day in the OWNER'S calendar, because that is the only
-     * kind of day `anchorDayFor` accepts: it takes the server's own today or
-     * the day before it, and falls back to today for anything further away.
-     *
-     * Computing it from UTC made this assertion depend on the hour of the run.
-     * The default owner zone is Australia/Sydney (+10), so from 14:00 UTC the
-     * owner's day has already rolled over and "UTC yesterday" is TWO days
-     * behind the owner's today — out of range, silently ignored, and the window
-     * then ends on today and holds the event this test asserts is absent.
-     * Measured failing on `main` at 57c4b19 at 14:18 UTC and passing at 12:46.
-     */
+    // "Yesterday" is the OWNER's yesterday. The route measures its today in the
+    // workspace timezone (Australia/Sydney by default), which is already the
+    // next calendar day for most of the UTC evening; a UTC-derived date is then
+    // two owner days back, refused as "any other day", and the route quietly
+    // uses its own today — so this must not depend on the hour of the run either.
     const yesterday = addCalendarDays(
       ownerCalendarIso(now, DEFAULT_OWNER_TIME_ZONE),
       -1,
@@ -429,8 +425,11 @@ describe("one page costs a bounded number of statements", () => {
     );
 
     // The page read, the bounded entity batch and the bounded actor lookup —
-    // never one read per event. Equal counts is the whole assertion.
+    // never one read per event. Equal counts, AND the declared number: a
+    // per-event read that happened to fire on both pages would have kept them
+    // equal (found by review).
     expect(large).toBe(small);
+    expect(small).toBe(INSIGHT_ACTIVITY_PAGE_BUDGET);
   });
 });
 

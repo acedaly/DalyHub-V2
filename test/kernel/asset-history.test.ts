@@ -22,7 +22,7 @@ import {
   AssetNotFoundError,
   AssetValidationError,
   InvalidAssetCursorError,
-  evaluateObligation,
+  evaluateAssetObligation,
 } from "~/kernel/assets";
 import type { ObligationTaskGateway } from "~/kernel/assets";
 
@@ -778,7 +778,7 @@ describe("meter-based recurrence", () => {
       meterThreshold: 60_000,
       meterUnit: "km",
     });
-    const evaluation = evaluateObligation(obligation, "2026-07-01", null);
+    const evaluation = evaluateAssetObligation(obligation, "2026-07-01", null);
     expect(evaluation.state).toBe("unknown");
     expect(evaluation.text).toBe("Current meter reading needed");
   });
@@ -798,7 +798,7 @@ describe("meter-based recurrence", () => {
       meterThreshold: 60_000,
       meterUnit: "km",
     });
-    const evaluation = evaluateObligation(obligation, "2026-07-01", {
+    const evaluation = evaluateAssetObligation(obligation, "2026-07-01", {
       value: 40_000,
       unit: "mi",
     });

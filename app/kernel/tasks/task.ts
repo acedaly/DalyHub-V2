@@ -1499,8 +1499,9 @@ export type CompletedTaskWindow = {
  * V2.9 INS-01 — a whole completion SERIES to count in one statement.
  *
  * The buckets are the caller's, cut from a window at a grain by
- * `~/kernel/history`, which resolved the owner-local midnights once. Bounded by
- * the repository, and the bound is reported rather than silently applied.
+ * `~/kernel/history`, which resolved the owner-local midnights once. At most
+ * the largest `GRAIN_MAXIMUMS`; a longer list is a caller bug and is REFUSED
+ * rather than silently shortened.
  */
 export type CountCompletedInBucketsInput = {
   /** Oldest first, non-overlapping. */

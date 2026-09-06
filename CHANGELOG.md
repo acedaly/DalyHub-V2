@@ -1,5 +1,24 @@
 # Changelog
 
+- **What Analytics and your Reviews say about history is now proved, not
+  just tested.**
+
+  The Insight release shipped with its checks red and, behind the green ones,
+  twenty things that would have quietly misled you. A few you might have
+  noticed: a month-by-month view that ended on 30 April put 31 March into
+  "April"; Analytics drew a Goal's shape from weigh-ins two months outside the
+  period on screen and called them "readings in this window"; the number beside
+  a trend was the sum of its bars while the card above it counted the period
+  itself, so the two could disagree; a Review could say "moving at 4 of your
+  last 6 Reviews" on one step and "5 of your last 8" on the next for the same
+  Goal; "at 2 of the last 3 Reviews" could include a Review that had recorded
+  nothing; a Review you had archived or reopened still counted as history; and
+  a failed read could show as "0 Areas" or "no Goal has two readings yet"
+  instead of saying it could not be read. Each is fixed with the test that
+  would have caught it, and the address bar now always names the window and
+  grain Analytics is actually drawing. Nothing new is stored and nothing you
+  recorded has changed.
+
 - **Analytics asks about the period you choose, not one of three.**
 
   Analytics used to offer 7 days, 4 weeks or 12 weeks and nothing else, and it

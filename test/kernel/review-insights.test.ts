@@ -30,6 +30,9 @@ import {
   loadReviewInsights,
   reviewPeriodWindow,
 } from "~/modules/reviews/insights/review-insights-context";
+import { loadReviewGuideStepData } from "~/modules/reviews/guided/review-guide-context";
+import { loadAnalytics } from "~/modules/analytics/analytics-context";
+import { goalContributionAcrossReviewsLine } from "~/kernel/review-insights";
 import { bindWorkspaceRepositories } from "~/platform/workspaces";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import type { Review } from "~/kernel/reviews";
@@ -926,6 +929,83 @@ describe("the evidence projection", () => {
     }
   });
 
+  it("says no_snapshot when the immediately prior Review has none, even if an older one does", async () => {
+    // The previous-snapshot semantics `listSnapshotSeries` replaced: the
+    // IMMEDIATELY prior Review's snapshot, or null — never "the most recent
+    // Review that happens to have one". Found by review: claimed, untested.
+    await seedCompletedWork(WS, { inPeriod: 3 });
+    const scope = scopeFor();
+    const oldest = await weeklyReview(WS, "2026-07-13", "2026-07-19");
+    await reviewsRepo().complete(oldest.id);
+    await captureReviewInsightSnapshot(scope, insightInput(oldest));
+    const previous = await weeklyReview(WS, PREVIOUS_START, PREVIOUS_END);
+    await reviewsRepo().complete(previous.id);
+    // No snapshot captured for `previous`.
+    const current = await weeklyReview(WS, PERIOD_START, PERIOD_END);
+    const { insights } = await loadReviewInsights(scope, insightInput(current));
+    expect(insights.comparison).toMatchObject({ kind: "no_snapshot" });
+  });
+
+  it("reads the SAME series on the guided Goals step and on Analytics, for the same Goal", async () => {
+    // The Goal story's across-Reviews line is one machine value with one
+    // phrasing wherever it appears. Found by review: three surfaces read
+    // three different series (6, a page size clamped to 8, and 8 on a
+    // different anchor), so one Review could say two things about one Goal.
+    const { goalId } = await seedCompletedWork(WS, { inPeriod: 3 });
+    const scope = scopeFor();
+    for (const [start, end] of [
+      ["2026-07-06", "2026-07-12"],
+      ["2026-07-13", "2026-07-19"],
+      [PREVIOUS_START, PREVIOUS_END],
+    ] as const) {
+      const review = await weeklyReview(WS, start, end);
+      await reviewsRepo().complete(review.id);
+      await captureReviewInsightSnapshot(scope, insightInput(review));
+    }
+    const current = await weeklyReview(WS, PERIOD_START, PERIOD_END);
+
+    const step = await loadReviewGuideStepData(
+      scope,
+      {
+        review: current,
+        stepId: "alignment",
+        now: NOW,
+        timezone: TZ,
+        todayIso: TODAY,
+        formatDate: (iso: string) => iso,
+      },
+      null,
+    );
+    expect(step.kind).toBe("alignment");
+    const guided =
+      step.kind === "alignment"
+        ? step.alignment.goals.find((goal) => goal.id === goalId)?.story
+            .contributionAcrossReviews
+        : undefined;
+    expect(guided).not.toBeNull();
+    expect(guided).toBeDefined();
+
+    const analytics = await loadAnalytics({
+      scope,
+      window: "12-weeks",
+      grain: "week",
+      todayIso: TODAY,
+      timezone: TZ,
+      dateFormat: "dmy_slash",
+      now: NOW,
+    });
+    const onAnalytics = analytics.model.goalContributions.find(
+      (goal) => goal.goalId === goalId,
+    );
+    // The SAME machine value — state, count, Reviews that recorded it, and the
+    // series length — and therefore the same words.
+    expect(onAnalytics).toBeDefined();
+    expect(onAnalytics?.reading).toBe(
+      goalContributionAcrossReviewsLine(guided!),
+    );
+    expect(guided).toMatchObject({ reviews: 3, of: 3 });
+  });
+
   it("never compares against another workspace's Reviews", async () => {
     const otherPrevious = await weeklyReview(
       OTHER,
@@ -1148,10 +1228,25 @@ describe("the period's plan account", () => {
 describe("query bounds", () => {
   it("stays within the declared evidence-load budget", async () => {
     await seedCompletedWork(WS, { inPeriod: 3, overdueOpen: 2 });
+    // ONE completed, snapshotted prior Review, so the snapshot-series read
+    // fires. Found by review: the budget was measured on a first Review, where
+    // that read is skipped, so the declared number understated every Review
+    // after the first — the one path the number exists to describe.
+    const previous = await weeklyReview(WS, PREVIOUS_START, PREVIOUS_END);
+    await reviewsRepo().complete(previous.id);
+    await captureReviewInsightSnapshot(scopeFor(), insightInput(previous));
     const review = await weeklyReview();
     const counter: Counter = { count: 0 };
     await loadReviewInsights(scopeFor(counter), insightInput(review));
     expect(counter.count).toBe(REVIEW_INSIGHTS_QUERY_BUDGET);
+  });
+
+  it("costs TWO statements fewer on a first Review: no series, no prior sections to read", async () => {
+    await seedCompletedWork(WS, { inPeriod: 3, overdueOpen: 2 });
+    const review = await weeklyReview();
+    const counter: Counter = { count: 0 };
+    await loadReviewInsights(scopeFor(counter), insightInput(review));
+    expect(counter.count).toBe(REVIEW_INSIGHTS_QUERY_BUDGET - 2);
   });
 
   it("costs TWO more statements in a workspace that practises a routine", async () => {
@@ -1160,6 +1255,10 @@ describe("query bounds", () => {
       clock: new FakeClock("2026-07-01T02:00:00.000Z").now,
       idGenerator: sequentialIds("hab-budget"),
     }).create({ title: "Stretch", schedule: { kind: "daily" } });
+    // On the same real path as the budget above: a snapshotted prior Review.
+    const previous = await weeklyReview(WS, PREVIOUS_START, PREVIOUS_END);
+    await reviewsRepo().complete(previous.id);
+    await captureReviewInsightSnapshot(scopeFor(), insightInput(previous));
     const review = await weeklyReview();
     const counter: Counter = { count: 0 };
     await loadReviewInsights(scopeFor(counter), insightInput(review));

@@ -119,7 +119,10 @@ so the second pass claims the same key and is refused. Both directions are in
 Built from `readDigestFacts`, which is the SHARED attention facts plus today's
 due/overdue counts and the CAL-01 schedule. It derives nothing: project health is
 `evaluateProjectHealth`, goal alignment is `evaluateGoalAlignment`, an
-obligation's state is `evaluateObligation`, the Inbox count is the canonical
+obligation's state is `evaluateObligation` (the ONE shared evaluator in
+[`app/kernel/obligations`](../../app/kernel/obligations/index.ts) since V2.10
+LIFE-00, reached for an Asset obligation through `evaluateAssetObligation`, which
+supplies the meter side and decides nothing), the Inbox count is the canonical
 `inbox` system view. **If the digest wants a fact the rail cannot supply, add it to
 `attention-facts.server.ts` — never compute it a second time.**
 
