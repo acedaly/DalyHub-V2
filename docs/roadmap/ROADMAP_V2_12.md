@@ -646,6 +646,23 @@ amounts, not a forecast. Obligations due this month with **no** recorded amount
 are listed and counted as *"3 with no amount recorded"* — never inferred, never
 estimated, never zero.
 
+**Amended during FIN-04.** The definition above described the SUM, and the first
+implementation used it for the list as well — so a commitment vanished from the
+screen the instant it was settled, on the very screen the settle action lives
+on. That reads as a failure, and it leaves the owner nowhere to check that the
+payment the settlement recorded was the right one.
+
+The list and the total are therefore two questions with two answers:
+
+- the **total** is what is still to pay — open obligations only, exactly as
+  defined above, so *"$420 expected"* does not change meaning as the month is
+  paid down;
+- the **list** shows everything that fell due, with a settled one marked *paid*
+  or *paid, matched to a transaction*.
+
+Dismissed and on-hold obligations are in neither. A kernel test asserts both
+halves on the same fixture.
+
 ### 12. Payee normalisation
 
 Deliberately conservative, and it exists for exactly two jobs: the `occ:`
@@ -771,7 +788,7 @@ ceiling, a row at the count ceiling, and invalid UTF-8.
 | Bound | Value | Why |
 |---|---|---|
 | File bytes | **2 MiB** | A twelve-month statement is ~100 KB. |
-| Rows | **2,000** | Measured against the apply path — see [Cost](#cost-statements-and-bounds). |
+| Rows | **2,000**, counting the header | The parser counts physical rows, because a parser does not know which of them a mapping will call a header, and the refusal says so. Measured against the apply path — see [Cost](#cost-statements-and-bounds). |
 | Columns | **64** | Wider than any statement; narrow enough to be a constant-time refusal. |
 | Field characters | **512** | A bank description is under 100. |
 | Total cells | **rows × columns**, checked during the scan | So a 2,000 × 64 file is refused before it is built, not after. |
@@ -1137,7 +1154,7 @@ not debt:
 | Entry | Disposition |
 |---|---|
 | [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2) | **Still open, still the hard gate, re-measured today** (run #35, `failure`, 2026-09-05). Owner-held by construction. V2.12 is implemented against synthetic data and does not claim production readiness. |
-| [DEBT-247](../product/PRODUCT_DEBT.md#-debt-247--dalyhub-can-write-an-export-archive-it-will-refuse-to-read-back--p2) | **CLOSED by FIN-00.** One constant governs both ends; the writer refuses at the reader's limit with an actionable sentence; the kernel test the entry names is written and fails against the pre-fix code. |
+| [DEBT-247](../product/PRODUCT_DEBT.md#-debt-247--dalyhub-can-write-an-export-archive-it-will-refuse-to-read-back--p2--resolved-2026-09-06-v212-finance-core) | **CLOSED by FIN-00.** One constant governs both ends; the writer refuses at the reader's limit with an actionable sentence; the kernel test the entry names is written and fails against the pre-fix code. |
 | [DEBT-242](../product/PRODUCT_DEBT.md) — no workspace or account deletion path | **Re-rated as V2.9 asked, and left at P3 on V2.16.** Finance does not make it a prerequisite: the workspace snapshot is complete, restore is destructive-with-replacement, and no Finance data is unreachable without a deletion path. It is re-rated *upward in consequence* — a workspace that cannot be deleted now holds financial history — and that sentence is added to the entry rather than the rating being moved without evidence. |
 
 **No new debt is raised by this release.** Every limitation this pass found is

@@ -132,13 +132,29 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         return ok();
 
       case "complete": {
+        /*
+         * V2.12 FIN-04 — a completion may name the TRANSACTION that settled it,
+         * and then the bank is the authority for what was paid and when.
+         *
+         * So the owner-calendar default below is applied only when nothing
+         * settled this. Defaulting `completedOn` unconditionally would send a
+         * date beside a settlement, which the kernel refuses by name ("comes
+         * from the transaction that settled this") — a refusal the owner would
+         * see for a field they never filled in.
+         */
+        const settledByTransactionId = field(form, "settledByTransactionId");
+        const settled =
+          settledByTransactionId !== undefined && settledByTransactionId !== "";
         const result = await obligations.complete(obligationId, {
-          completedOn: field(form, "completedOn") || today,
+          completedOn: settled
+            ? undefined
+            : field(form, "completedOn") || today,
           title: field(form, "title"),
           description: field(form, "description"),
-          completedAmount: field(form, "completedAmount"),
+          completedAmount: settled ? undefined : field(form, "completedAmount"),
           currencyCode: field(form, "currencyCode"),
           nextDueDate: field(form, "nextDueDate"),
+          settledByTransactionId: settled ? settledByTransactionId : undefined,
           subject: subjectExtras(form),
         });
         return ok(result.successor?.id);

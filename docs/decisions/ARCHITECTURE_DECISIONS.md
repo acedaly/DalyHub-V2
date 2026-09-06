@@ -6844,13 +6844,26 @@ An export containing only the third identical purchase offers `n=0`, which
 collides. A bank-supplied id bypasses it entirely, the preview shows the row
 rather than hiding it, and the owner can add it by hand.
 
+**The SUSPECTED-duplicate signal is a second mechanism, and it exists for the
+case the fingerprint cannot see.** A candidate is suspected when the account
+holds a live transaction with the same amount within three days, EXCEPT the one
+shape the occurrence index already resolves — the same day and the same payee.
+That exception was found by a test: matching on amount and payee alone flagged a
+third identical coffee, which the index had already identified correctly, and
+would have made a daily-coffee owner confirm a row every week. Removing it also
+widens the signal usefully: the same amount on the same day with a DIFFERENT
+payee string is exactly what happens when a bank changes a merchant's description
+between two exports, which changes the key, changes the identity, and imports the
+row again as new. A suspected row is SHOWN, skipped by default and includable
+with one control; nothing is ever silently merged or silently dropped.
+
 *Alternatives considered.* **A content hash of the whole row** (rejected: two
 legitimate identical purchases hash identically, so it collapses them — the
 defect the occurrence index exists to prevent). **A fuzzy match on date + amount
-+ merchant** (rejected: real people buy the same thing twice; this is the
-*suspected-duplicate* signal, which is shown to the owner and never applied
-silently). **Trusting the bank id alone** (rejected: many Australian bank CSV
-exports carry none).
++ merchant applied automatically** (rejected: real people buy the same thing
+twice, and this is the suspicion signal's job, shown rather than applied).
+**Trusting the bank id alone** (rejected: many Australian bank CSV exports carry
+none).
 
 ### Decision 4 — A transfer is a PAIR of transactions, and spend excludes any transaction in a pair
 
@@ -6937,6 +6950,18 @@ for any wrong completion, which is to delete the occurrence and record it again.
 What V2.12 owes that sharp edge is not a second lifecycle but a confirmation: the
 settle action states the amount and the date it is about to record, from the
 transaction, before it records them.
+
+**And the recovery has to actually work, which the first index did not allow.**
+The uniqueness predicate was `settled_by_transaction_id IS NOT NULL`, so a
+soft-deleted obligation still held its transaction: the delete-and-record-again
+recovery failed on a constraint naming a record the owner could no longer see.
+It was found by writing the test for the recovery path rather than by reading the
+schema. The predicate is now `... AND deleted_at IS NULL`, which also makes the
+index agree with `resolveSettlement` — that read already joined on
+`deleted_at IS NULL`, so the product said the transaction was free while the
+database said it was taken. The column is *not* cleared on delete: what settled a
+deleted obligation is still what happened, and provenance is not a constraint's
+business.
 
 *Alternatives considered.* **A link that does not complete** (rejected above).
 **A many-to-many settlement table for partial payments** (rejected for V2.12: it
