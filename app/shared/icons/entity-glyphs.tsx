@@ -1059,6 +1059,39 @@ export const GlyphObligationDefault = createStrokeIcon(
 );
 
 /**
+ * Finance account — a wallet: the container money sits in.
+ *
+ * The stroke-set sibling of `FinanceAccountIcon`, drawn in this vocabulary
+ * rather than copied from it. Deliberately not `GlyphSavings` (a piggy bank
+ * reads as "saving up", and five of the six account types are not savings) and
+ * not `GlyphBank` (an institution is a FIELD on an account, not its identity).
+ */
+export const GlyphFinanceAccountDefault = createStrokeIcon(
+  "GlyphFinanceAccountDefault",
+  <>
+    <path d="M4 7.6a1.6 1.6 0 0 1 1.6-1.6h12.8A1.6 1.6 0 0 1 20 7.6v9.6a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 17.2Z" />
+    <path d="M4 9.6h16" />
+    <path d="M15.2 13.6h1.6" />
+  </>,
+);
+
+/**
+ * Finance transaction — two arrows crossing: money that moved.
+ *
+ * The stroke-set sibling of `FinanceTransactionIcon`. Deliberately not
+ * `GlyphReceipt` — a receipt is EVIDENCE and V2.11 already owns that identity —
+ * and deliberately not a currency symbol, which is not universal and would tie
+ * the glyph to one of the many currencies this product stores.
+ */
+export const GlyphFinanceTransactionDefault = createStrokeIcon(
+  "GlyphFinanceTransactionDefault",
+  <>
+    <path d="M4.8 8.8h12.4l-3-3" />
+    <path d="M19.2 15.2H6.8l3 3" />
+  </>,
+);
+
+/**
  * The default glyph for each entity type, in the identity vocabulary.
  *
  * Keyed by the kernel's `entities.type` slug, exactly as `ENTITY_IDENTITY` is,
@@ -1075,6 +1108,7 @@ export const ENTITY_DEFAULT_GLYPHS = {
   person: GlyphPersonDefault,
   asset: GlyphAssetDefault,
   obligation: GlyphObligationDefault,
+  finance_account: GlyphFinanceAccountDefault,
   diary: GlyphDiaryDefault,
   review: GlyphReviewDefault,
 } as const;

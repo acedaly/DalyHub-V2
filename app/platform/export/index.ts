@@ -68,6 +68,7 @@ export {
 export { fields, frontmatter, yamlString, yamlValue } from "./vault/vault-yaml";
 
 export {
+  ZIP_MAX_ARCHIVE_BYTES,
   ZIP_MAX_TOTAL_BYTES,
   ZipPathError,
   ZipTooLargeError,

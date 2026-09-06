@@ -12,6 +12,7 @@ export {
   entityAccentVar,
   entityAccent,
   isEntityType,
+  identityTypeFor,
   getEntityIdentity,
   type EntityType,
   type EntityIdentity,

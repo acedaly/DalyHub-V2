@@ -761,6 +761,15 @@ export interface SnapshotAssetObligation {
   readonly completedEventId: string | null;
   readonly completedAt: IsoInstant | null;
   readonly nextObligationId: string | null;
+  /**
+   * V2.12 FIN-04 — the transaction that settled it, when one did.
+   *
+   * A FACT rather than a derivation, so it is carried: the settlement is the
+   * answer to "what paid this bill?", and an archive that dropped it would
+   * restore a completed obligation with an amount and no evidence of where the
+   * amount came from.
+   */
+  readonly settledByTransactionId: string | null;
   readonly seriesId: string;
   readonly sequence: number;
   readonly createdAt: IsoInstant;
@@ -803,6 +812,15 @@ export interface SnapshotObligation {
   readonly completedAt: IsoInstant | null;
   readonly completedOn: IsoDate | null;
   readonly nextObligationId: string | null;
+  /**
+   * V2.12 FIN-04 — the transaction that settled it, when one did.
+   *
+   * A FACT rather than a derivation, so it is carried: the settlement is the
+   * answer to "what paid this bill?", and an archive that dropped it would
+   * restore a completed obligation with an amount and no evidence of where the
+   * amount came from.
+   */
+  readonly settledByTransactionId: string | null;
   readonly seriesId: string;
   readonly sequence: number;
   readonly createdAt: IsoInstant;
@@ -1019,6 +1037,122 @@ export interface SnapshotEntityTag {
   readonly createdAt: IsoInstant;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Finance (V2.12 FIN-00)                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One Finance account (V2.12 FIN-00).
+ *
+ * **There is no balance here, and its absence is the point.** A balance is
+ * `openingBalanceMinor` plus the account's transactions, derived on read, so an
+ * archive carries the two INPUTS and a restore recomputes the figure rather than
+ * carrying a number that could disagree with the rows beside it (ADR-120
+ * decision 5). The restore rehearsal asserts exactly that: every balance
+ * recomputes identically after the round trip.
+ *
+ * The TITLE is on the `entities` row, not here — one title, one place.
+ */
+export interface SnapshotFinanceAccount {
+  readonly entityId: string;
+  readonly accountType: string;
+  readonly currencyCode: string;
+  /** SIGNED integer minor units (ADR-049). Negative for a card already owed on. */
+  readonly openingBalanceMinor: number;
+  readonly openingDate: IsoDate;
+  readonly institution: string | null;
+  readonly status: string;
+  /** The last CSV column mapping used for this account, as stored JSON. */
+  readonly importMappingJson: string | null;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+  readonly archivedAt: IsoInstant | null;
+  readonly deletedAt: IsoInstant | null;
+}
+
+/** One Finance category — the workspace's own vocabulary (V2.12 FIN-00). */
+export interface SnapshotFinanceCategory {
+  readonly id: string;
+  /** The owner's own spelling. */
+  readonly name: string;
+  /** The case-folded key, exported so a restore reproduces the uniqueness. */
+  readonly nameKey: string;
+  readonly kind: string;
+  readonly isBuiltin: boolean;
+  readonly sortOrder: number;
+  readonly archivedAt: IsoInstant | null;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
+/**
+ * One applied import, as the ledger recorded it (V2.12 FIN-00).
+ *
+ * The bank CSV itself is NOT here and never was: DalyHub does not retain it. The
+ * SHA-256 is, which is what makes a repeated import idempotent across a restore
+ * too — an owner who restores a workspace and re-imports last month's file still
+ * gets "0 new".
+ */
+export interface SnapshotFinanceImport {
+  readonly id: string;
+  readonly accountId: string;
+  readonly fileName: string;
+  readonly fileSha256: string;
+  readonly fileBytes: number;
+  readonly rowCount: number;
+  readonly addedCount: number;
+  readonly skippedExistingCount: number;
+  readonly suspectedCount: number;
+  readonly invalidCount: number;
+  readonly mappingJson: string;
+  readonly importedAt: IsoInstant;
+  readonly createdAt: IsoInstant;
+}
+
+/**
+ * One transaction (V2.12 FIN-00).
+ *
+ * The DISPLAY payee is the `entities` row's title and is therefore not repeated
+ * here. `fingerprint` and `transferGroupId` are exported because they are FACTS
+ * rather than derivations: the fingerprint is what makes a re-import after a
+ * restore still say "0 new", and the transfer group is what keeps a restored
+ * credit-card payment out of spending.
+ */
+export interface SnapshotFinanceTransaction {
+  readonly entityId: string;
+  readonly accountId: string;
+  readonly occurredOn: IsoDate;
+  /** SIGNED integer minor units. Positive is money in (ADR-120 decision 1). */
+  readonly amountMinor: number;
+  readonly currencyCode: string;
+  /** The bank's verbatim string, never destroyed. */
+  readonly sourceDescription: string;
+  /** The bounded normalisation used for dedup and for the suggestion. */
+  readonly payeeKey: string;
+  readonly memo: string | null;
+  readonly categoryId: string | null;
+  readonly categoryConfirmedAt: IsoInstant | null;
+  readonly importId: string | null;
+  readonly sourceTransactionId: string | null;
+  readonly fingerprint: string;
+  readonly transferGroupId: string | null;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+  readonly deletedAt: IsoInstant | null;
+}
+
+/** One monthly budget (V2.12 FIN-00). */
+export interface SnapshotFinanceBudget {
+  readonly id: string;
+  readonly categoryId: string;
+  /** `YYYY-MM`. */
+  readonly periodMonth: string;
+  readonly amountMinor: number;
+  readonly currencyCode: string;
+  readonly createdAt: IsoInstant;
+  readonly updatedAt: IsoInstant;
+}
+
 export interface SnapshotCollectionRowMap {
   readonly entities: SnapshotEntity;
   readonly workspaceTags: SnapshotWorkspaceTag;
@@ -1048,6 +1182,11 @@ export interface SnapshotCollectionRowMap {
   readonly assetEvents: SnapshotAssetEvent;
   readonly assetObligations: SnapshotAssetObligation;
   readonly obligations: SnapshotObligation;
+  readonly financeAccounts: SnapshotFinanceAccount;
+  readonly financeCategories: SnapshotFinanceCategory;
+  readonly financeImports: SnapshotFinanceImport;
+  readonly financeTransactions: SnapshotFinanceTransaction;
+  readonly financeBudgets: SnapshotFinanceBudget;
   readonly attachments: SnapshotAttachment;
   readonly reviewDetails: SnapshotReviewDetail;
   readonly reviewSections: SnapshotReviewSection;
@@ -1162,6 +1301,16 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
      * truth about those archives rather than a compatibility shim.
      */
     "attachments",
+    /*
+     * V2.12 FIN-00 — added with the Finance store. Every archive written before
+     * it is still valid and still restores, with no Finance data, which is the
+     * truth about those archives rather than a compatibility shim.
+     */
+    "financeAccounts",
+    "financeCategories",
+    "financeImports",
+    "financeTransactions",
+    "financeBudgets",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
@@ -1208,6 +1357,26 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "assetEvents",
   "assetObligations",
   "obligations",
+  /*
+   * V2.12 FIN-00 — Finance, in strict dependency order, because a restore
+   * inserts in this order and deletes in its exact reverse and every one of
+   * these keys is ON DELETE RESTRICT:
+   *
+   *   accounts     reference `entities`
+   *   categories   reference `workspaces`
+   *   imports      reference an account
+   *   transactions reference an account, a category AND an import
+   *   budgets      reference a category
+   *
+   * Transactions come after imports for that reason, and before `attachments`
+   * for the same reason `obligations` does: a receipt's owner may be a
+   * transaction.
+   */
+  "financeAccounts",
+  "financeCategories",
+  "financeImports",
+  "financeTransactions",
+  "financeBudgets",
   // V2.11 FILE-00 — after every collection that can OWN evidence, because an
   // attachment references an entity of any type and a restore inserts in this
   // order and deletes in its exact reverse. `entities` is the only table it

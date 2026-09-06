@@ -36,7 +36,11 @@
  */
 
 import { MAX_ATTACHMENTS_PER_ARCHIVE } from "~/kernel/attachments";
-import { assertSafeZipPath, crc32 } from "~/platform/export/zip";
+import {
+  assertSafeZipPath,
+  crc32,
+  ZIP_MAX_ARCHIVE_BYTES,
+} from "~/platform/export/zip";
 
 /* -------------------------------------------------------------------------- */
 /* Bounds                                                                     */
@@ -50,8 +54,16 @@ import { assertSafeZipPath, crc32 } from "~/platform/export/zip";
  * collection ceiling is far smaller than this — and low enough that reading it
  * into a Worker isolate is safe. Exceeding it is an explicit, honest refusal;
  * it is never a silent truncation.
+ *
+ * **V2.12 FIN-00 / DEBT-247 — DERIVED, not restated.** The writer now refuses at
+ * this same limit (`ZIP_MAX_ARCHIVE_BYTES`), so DalyHub can no longer produce an
+ * archive it will refuse to read. The value is imported rather than repeated
+ * because the defect was two constants that were allowed to disagree, and the
+ * fix is not a matching pair of numbers — it is ONE number with two consumers.
+ * The reader's memory budget is unchanged: this is the same 32 MiB it has always
+ * been.
  */
-export const RESTORE_MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
+export const RESTORE_MAX_ARCHIVE_BYTES = ZIP_MAX_ARCHIVE_BYTES;
 
 /**
  * The largest total decompressed content the reader will produce (64 MiB).

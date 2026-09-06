@@ -259,6 +259,10 @@
   --md-sys-color-on-entity-obligation: #ffffff;
   --md-sys-color-entity-obligation-container: #ffdad6;
   --md-sys-color-on-entity-obligation-container: #2e1411;
+  --md-sys-color-entity-finance_account: #ae3111;
+  --md-sys-color-on-entity-finance_account: #ffffff;
+  --md-sys-color-entity-finance_account-container: #ffdad2;
+  --md-sys-color-on-entity-finance_account-container: #3c0700;
   --md-sys-color-entity-diary: #6551a4;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e8deff;
@@ -642,6 +646,10 @@
   --md-sys-color-on-entity-obligation: #ffffff;
   --md-sys-color-entity-obligation-container: #ffdad6;
   --md-sys-color-on-entity-obligation-container: #2e1411;
+  --md-sys-color-entity-finance_account: #ae3111;
+  --md-sys-color-on-entity-finance_account: #ffffff;
+  --md-sys-color-entity-finance_account-container: #ffdad2;
+  --md-sys-color-on-entity-finance_account-container: #3c0700;
   --md-sys-color-entity-diary: #5655a8;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e2dfff;
@@ -1025,6 +1033,10 @@
   --md-sys-color-on-entity-obligation: #ffffff;
   --md-sys-color-entity-obligation-container: #ffdad6;
   --md-sys-color-on-entity-obligation-container: #2e1411;
+  --md-sys-color-entity-finance_account: #ae3111;
+  --md-sys-color-on-entity-finance_account: #ffffff;
+  --md-sys-color-entity-finance_account-container: #ffdad2;
+  --md-sys-color-on-entity-finance_account-container: #3c0700;
   --md-sys-color-entity-diary: #784a9a;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #f3daff;
@@ -1408,6 +1420,10 @@
   --md-sys-color-on-entity-obligation: #ffffff;
   --md-sys-color-entity-obligation-container: #ffdad6;
   --md-sys-color-on-entity-obligation-container: #2e1411;
+  --md-sys-color-entity-finance_account: #ae3111;
+  --md-sys-color-on-entity-finance_account: #ffffff;
+  --md-sys-color-entity-finance_account-container: #ffdad2;
+  --md-sys-color-on-entity-finance_account-container: #3c0700;
   --md-sys-color-entity-diary: #5256a9;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e1e0ff;
@@ -1791,6 +1807,10 @@
   --md-sys-color-on-entity-obligation: #ffffff;
   --md-sys-color-entity-obligation-container: #ffdad6;
   --md-sys-color-on-entity-obligation-container: #2e1411;
+  --md-sys-color-entity-finance_account: #ae3111;
+  --md-sys-color-on-entity-finance_account: #ffffff;
+  --md-sys-color-entity-finance_account-container: #ffdad2;
+  --md-sys-color-on-entity-finance_account-container: #3c0700;
   --md-sys-color-entity-diary: #5256a9;
   --md-sys-color-on-entity-diary: #ffffff;
   --md-sys-color-entity-diary-container: #e1e0ff;
@@ -2176,6 +2196,10 @@
     --md-sys-color-on-entity-obligation: #472825;
     --md-sys-color-entity-obligation-container: #603e3a;
     --md-sys-color-on-entity-obligation-container: #ffdad6;
+    --md-sys-color-entity-finance_account: #ffb4a2;
+    --md-sys-color-on-entity-finance_account: #621100;
+    --md-sys-color-entity-finance_account-container: #8a1c00;
+    --md-sys-color-on-entity-finance_account-container: #ffdad2;
     --md-sys-color-entity-diary: #cdbdff;
     --md-sys-color-on-entity-diary: #351f73;
     --md-sys-color-entity-diary-container: #4c388b;
@@ -2559,6 +2583,10 @@
     --md-sys-color-on-entity-obligation: #472825;
     --md-sys-color-entity-obligation-container: #603e3a;
     --md-sys-color-on-entity-obligation-container: #ffdad6;
+    --md-sys-color-entity-finance_account: #ffb4a2;
+    --md-sys-color-on-entity-finance_account: #621100;
+    --md-sys-color-entity-finance_account-container: #8a1c00;
+    --md-sys-color-on-entity-finance_account-container: #ffdad2;
     --md-sys-color-entity-diary: #c2c1ff;
     --md-sys-color-on-entity-diary: #272477;
     --md-sys-color-entity-diary-container: #3e3c8e;
@@ -2942,6 +2970,10 @@
     --md-sys-color-on-entity-obligation: #472825;
     --md-sys-color-entity-obligation-container: #603e3a;
     --md-sys-color-on-entity-obligation-container: #ffdad6;
+    --md-sys-color-entity-finance_account: #ffb4a2;
+    --md-sys-color-on-entity-finance_account: #621100;
+    --md-sys-color-entity-finance_account-container: #8a1c00;
+    --md-sys-color-on-entity-finance_account-container: #ffdad2;
     --md-sys-color-entity-diary: #e2b6ff;
     --md-sys-color-on-entity-diary: #471868;
     --md-sys-color-entity-diary-container: #5f3280;
@@ -3325,6 +3357,10 @@
     --md-sys-color-on-entity-obligation: #472825;
     --md-sys-color-entity-obligation-container: #603e3a;
     --md-sys-color-on-entity-obligation-container: #ffdad6;
+    --md-sys-color-entity-finance_account: #ffb4a2;
+    --md-sys-color-on-entity-finance_account: #621100;
+    --md-sys-color-entity-finance_account-container: #8a1c00;
+    --md-sys-color-on-entity-finance_account-container: #ffdad2;
     --md-sys-color-entity-diary: #c0c1ff;
     --md-sys-color-on-entity-diary: #222578;
     --md-sys-color-entity-diary-container: #3a3d8f;
@@ -3708,6 +3744,10 @@
     --md-sys-color-on-entity-obligation: #472825;
     --md-sys-color-entity-obligation-container: #603e3a;
     --md-sys-color-on-entity-obligation-container: #ffdad6;
+    --md-sys-color-entity-finance_account: #ffb4a2;
+    --md-sys-color-on-entity-finance_account: #621100;
+    --md-sys-color-entity-finance_account-container: #8a1c00;
+    --md-sys-color-on-entity-finance_account-container: #ffdad2;
     --md-sys-color-entity-diary: #c0c1ff;
     --md-sys-color-on-entity-diary: #222578;
     --md-sys-color-entity-diary-container: #3a3d8f;
@@ -4100,6 +4140,10 @@
   --md-sys-color-on-entity-obligation: #472825;
   --md-sys-color-entity-obligation-container: #603e3a;
   --md-sys-color-on-entity-obligation-container: #ffdad6;
+  --md-sys-color-entity-finance_account: #ffb4a2;
+  --md-sys-color-on-entity-finance_account: #621100;
+  --md-sys-color-entity-finance_account-container: #8a1c00;
+  --md-sys-color-on-entity-finance_account-container: #ffdad2;
   --md-sys-color-entity-diary: #cdbdff;
   --md-sys-color-on-entity-diary: #351f73;
   --md-sys-color-entity-diary-container: #4c388b;
@@ -4485,6 +4529,10 @@
   --md-sys-color-on-entity-obligation: #472825;
   --md-sys-color-entity-obligation-container: #603e3a;
   --md-sys-color-on-entity-obligation-container: #ffdad6;
+  --md-sys-color-entity-finance_account: #ffb4a2;
+  --md-sys-color-on-entity-finance_account: #621100;
+  --md-sys-color-entity-finance_account-container: #8a1c00;
+  --md-sys-color-on-entity-finance_account-container: #ffdad2;
   --md-sys-color-entity-diary: #c2c1ff;
   --md-sys-color-on-entity-diary: #272477;
   --md-sys-color-entity-diary-container: #3e3c8e;
@@ -4870,6 +4918,10 @@
   --md-sys-color-on-entity-obligation: #472825;
   --md-sys-color-entity-obligation-container: #603e3a;
   --md-sys-color-on-entity-obligation-container: #ffdad6;
+  --md-sys-color-entity-finance_account: #ffb4a2;
+  --md-sys-color-on-entity-finance_account: #621100;
+  --md-sys-color-entity-finance_account-container: #8a1c00;
+  --md-sys-color-on-entity-finance_account-container: #ffdad2;
   --md-sys-color-entity-diary: #e2b6ff;
   --md-sys-color-on-entity-diary: #471868;
   --md-sys-color-entity-diary-container: #5f3280;
@@ -5255,6 +5307,10 @@
   --md-sys-color-on-entity-obligation: #472825;
   --md-sys-color-entity-obligation-container: #603e3a;
   --md-sys-color-on-entity-obligation-container: #ffdad6;
+  --md-sys-color-entity-finance_account: #ffb4a2;
+  --md-sys-color-on-entity-finance_account: #621100;
+  --md-sys-color-entity-finance_account-container: #8a1c00;
+  --md-sys-color-on-entity-finance_account-container: #ffdad2;
   --md-sys-color-entity-diary: #c0c1ff;
   --md-sys-color-on-entity-diary: #222578;
   --md-sys-color-entity-diary-container: #3a3d8f;
@@ -5640,6 +5696,10 @@
   --md-sys-color-on-entity-obligation: #472825;
   --md-sys-color-entity-obligation-container: #603e3a;
   --md-sys-color-on-entity-obligation-container: #ffdad6;
+  --md-sys-color-entity-finance_account: #ffb4a2;
+  --md-sys-color-on-entity-finance_account: #621100;
+  --md-sys-color-entity-finance_account-container: #8a1c00;
+  --md-sys-color-on-entity-finance_account-container: #ffdad2;
   --md-sys-color-entity-diary: #c0c1ff;
   --md-sys-color-on-entity-diary: #222578;
   --md-sys-color-entity-diary-container: #3a3d8f;
@@ -7232,6 +7292,17 @@
   --dh-color-entity-asset: var(--md-sys-color-entity-asset);
   --dh-color-entity-obligation: var(--md-sys-color-entity-obligation);
   --dh-color-entity-review: var(--md-sys-color-entity-review);
+  /*
+   * V2.12 — ONE Finance accent, and the transaction BORROWS it.
+   *
+   * Thirteen entity types share an accent space held to a ΔE 10 perceptibility
+   * floor in both appearances, and a fourteenth hue that clears it does not
+   * exist. A transaction is the lightest entity in the product — it has no
+   * record route and opens in a drawer — so it is exactly the thing that should
+   * not spend a hue: `identityTypeFor` sends it to the account's (ADR-120
+   * decision 2).
+   */
+  --dh-color-entity-finance_account: var(--md-sys-color-entity-finance_account);
 
   /*
    * Status. Four names, and `danger` is not `overdue` — D3: a slipped Task is a

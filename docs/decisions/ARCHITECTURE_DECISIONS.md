@@ -6722,3 +6722,264 @@ which is a genuine loosening and is bounded and tested as one. *Accepted:* live
 attachment bytes and every copy of them are inside Cloudflare, so a
 provider-level loss is a correlated loss — DEBT-198 is not moved and not
 pretended to be satisfied, and the documentation says so in those words.
+
+---
+
+## ADR-120: FINANCE CORE — one signed money convention, a transaction that is a light entity, an occurrence-aware import identity, and balances that cannot be stored
+
+**Status.** Accepted, 2026-09-06 (V2.12 FINANCE CORE definition pass, against
+`main` at `bd471f1`).
+
+**Context.** DalyHub can say what the owner owns, what they have committed to and
+what falls due. It cannot say what they spent.
+[`ROADMAP_V2_9.md`](../roadmap/ROADMAP_V2_9.md#v212--finance-core-planned--gated-on-debt-198)
+and [the strategy's §4.4](../product/DALYHUB_POST_V2_8_PRODUCT_STRATEGY.md#44-finance--the-first-release-boundary)
+sketched a Finance whose boundaries were already decided; re-measuring `main`
+before implementing it — the V2.6 convention — confirmed most of the sketch and
+changed six things. This ADR records only what the roadmap could not: the durable
+decisions, and the alternatives they beat. The full definition is
+[`ROADMAP_V2_12.md`](../roadmap/ROADMAP_V2_12.md).
+
+### Decision 1 — ONE signed money convention: positive is IN, negative is OUT, everywhere
+
+`finance_transaction_details.amount_minor` is a signed integer count of minor
+units under [ADR-049](#adr-049-first-class-assets--the-asset_details-slice-integer-minor-unit-money-and-the-real-world-status-vs-record-archive-split).
+Positive means money entered the account; negative means it left. The convention
+holds in the CSV mapping's output, the balance sum, every category total, the
+budget comparison, net worth and the UI's own arithmetic, and a bank adapter's
+only job is to translate **into** it.
+
+The decision that follows from it is the one worth recording: **an account's
+balance is its opening balance plus its transactions, whatever type of account it
+is, and net worth is the sum of those balances.** A credit card you owe $1,240 on
+has a balance of `−124000`; a loan has a large negative balance; **liabilities
+subtract because their balances are negative, not because a rule flips them.**
+
+That is the whole argument. The credit-card double-counting defect — groceries
+bought on a card counted once as spending and again when the card is paid — is
+the single most likely correctness failure in a personal finance product, and it
+is defeated here by having *no per-type sign rule to get wrong* plus the transfer
+exclusion in Decision 4. A model with a `liability` flag that negates on read has
+one place to forget; this model has none.
+
+*Alternatives considered.* **Unsigned amounts plus a `direction` column**
+(rejected: two fields that can disagree, and every aggregate becomes a `CASE`
+that some query will get wrong; the sign *is* the direction, in one field the
+database can check). **Per-account-type sign semantics — a card's spending stored
+positive** (rejected: it makes the balance sum type-aware, so every consumer of a
+balance must know the type, which is exactly the coupling that produces
+double-counting). **Debit/credit columns carried through the model** (rejected:
+that is the *file's* representation, and letting it reach the store means every
+downstream reader learns two shapes; it is collapsed to one signed amount at the
+mapping boundary and nothing after it knows).
+
+### Decision 2 — A transaction is a LIGHT ENTITY: an `entities` row with no Activity, no record page and no record chrome
+
+`finance_transaction` is an ordinary `entities` row beside a
+`finance_transaction_details` slice. It is an entity **only** because three
+things need a stable entity identity and each already exists: an attachment's
+owner is an `entities` row
+([ADR-119 d1](#adr-119-evidence--an-attachment-is-a-child-record-with-one-required-owner-bytes-in-a-private-bucket-the-application-worker-owns-a-compensated-write-and-an-archive-that-carries-the-bytes)),
+an obligation's settlement projection is an EntityLink between two `entities`
+rows ([ADR-118 d1](#adr-118-life-admin--an-obligation-is-an-entity-with-one-subject-in-two-representations-an-expected-amount-that-is-not-a-payment-and-an-old-table-that-is-retired-rather-than-left-behind)),
+and a Search result needs an entity id. A plain table would need a parallel
+mechanism for each, and the first of those parallel mechanisms is the "Finance
+receipt widget" that
+`test/unit/architecture/one-attachment-surface.test.ts` was written to prevent.
+
+**"Light" is enforced, not described.** No Activity event is written for any
+transaction mutation — one applied import writes one event carrying counts. There
+is no `/finance/transactions/:id` document route; a transaction opens in the
+shared Drawer. There is no Activity tab, no Linked-items tab and no summary band
+on it.
+
+The cost is honest and was weighed: one `entities` row per transaction, so a
+workspace with 10,000 transactions carries 10,000 more entity rows. That is cheap
+in D1 and it buys three mechanisms for free. The cost that was *refused* is the
+one that scales badly: an Activity row per transaction would double the write
+volume of an import and fill the feed with a fact nobody reads.
+
+*Alternatives considered.* **A full record entity with a page and Activity**
+(rejected: the record chrome is disproportionate to a $12.50 coffee, and per-edit
+Activity is the strategy's own named objection). **A plain table with no entity
+row** (rejected: three parallel mechanisms, and a second attachment
+architecture). **An entity for some transactions — the ones carrying evidence —
+and a row for the rest** (rejected outright: two representations of one fact,
+and the product would have to decide which at write time, before the owner knows
+whether they will attach a receipt).
+
+### Decision 3 — Import identity is TWO database constraints, and the row-level one is occurrence-aware
+
+Idempotency is not one mechanism. It is two, they fail differently, and both are
+needed:
+
+- **The ledger.** `finance_imports UNIQUE (workspace_id, account_id,
+  file_sha256)`. The same bytes cannot be applied to the same account twice. This
+  is what produces "0 new transactions", *before any row is considered*, and it
+  is what makes two concurrent applies of one file correct: one INSERT wins, the
+  loser's whole batch fails atomically and is reported as already imported. There
+  is no check-then-insert anywhere in the path.
+- **The row.** `finance_transaction_details UNIQUE (workspace_id, account_id,
+  fingerprint)`. Two *different* files that overlap cannot produce the same
+  transaction twice — the weekly-export case, where every file is new bytes and
+  most rows are not.
+
+The fingerprint is `id:<sourceTransactionId>` where the bank supplies a stable
+id, and otherwise
+`occ:<occurredOn>:<amountMinor>:<payeeKey>:<n>`. **`n` is an occurrence index
+within its `(date, amount, payee)` group, and the algorithm is the decision**:
+for each group a file contributes `k` rows to, the candidates are `n = 0 … k−1`,
+each is checked against the account, a candidate that exists is skipped and one
+that does not is inserted.
+
+The obvious alternative — `n = existing count + position in file` — passes the
+first test anyone writes (two identical rows in one file both import) and fails
+the one that matters (re-importing that file produces two more). It was written
+down, worked through and rejected on paper before any code existed, and both
+cases are pinned by test.
+
+The limitation is stated rather than left to be discovered: because `n` is
+positional within its group, a file whose window *begins mid-group* under-counts.
+An export containing only the third identical purchase offers `n=0`, which
+collides. A bank-supplied id bypasses it entirely, the preview shows the row
+rather than hiding it, and the owner can add it by hand.
+
+**The SUSPECTED-duplicate signal is a second mechanism, and it exists for the
+case the fingerprint cannot see.** A candidate is suspected when the account
+holds a live transaction with the same amount within three days, EXCEPT the one
+shape the occurrence index already resolves — the same day and the same payee.
+That exception was found by a test: matching on amount and payee alone flagged a
+third identical coffee, which the index had already identified correctly, and
+would have made a daily-coffee owner confirm a row every week. Removing it also
+widens the signal usefully: the same amount on the same day with a DIFFERENT
+payee string is exactly what happens when a bank changes a merchant's description
+between two exports, which changes the key, changes the identity, and imports the
+row again as new. A suspected row is SHOWN, skipped by default and includable
+with one control; nothing is ever silently merged or silently dropped.
+
+*Alternatives considered.* **A content hash of the whole row** (rejected: two
+legitimate identical purchases hash identically, so it collapses them — the
+defect the occurrence index exists to prevent). **A fuzzy match on date + amount
++ merchant applied automatically** (rejected: real people buy the same thing
+twice, and this is the suspicion signal's job, shown rather than applied).
+**Trusting the bank id alone** (rejected: many Australian bank CSV exports carry
+none).
+
+### Decision 4 — A transfer is a PAIR of transactions, and spend excludes any transaction in a pair
+
+Two transactions in different accounts with opposite signs share a
+`transfer_group_id`. Spend and income exclude any transaction with a non-null
+one. That is one predicate, and it is what makes paying a credit card from the
+everyday account structurally unable to become a second $1,000 of spending.
+
+**A transfer is not a category**, and that is the decision. The sketch proposed a
+built-in `transfer` category; a category can be applied to one leg and not the
+other, which is precisely how spend gets inflated by exactly one leg, and nothing
+in the model would notice. A `transfer_group_id` written to both legs in one
+statement cannot be half-applied.
+
+For the same reason **`uncategorised` is `category_id IS NULL`, not a category
+row**: a row can be renamed, archived or deleted, and each of those makes "what
+is uncategorised?" a different question. `NULL` cannot be edited.
+
+Pairing is manual with deterministic suggestions (opposite amount, different
+account, same currency, ±3 days, unpaired). Nothing auto-pairs and no AI is
+involved.
+
+*Alternatives considered.* **A third transaction type** (rejected: a fourth
+engine, and the pair already expresses it). **One transaction with a `from` and a
+`to` account** (rejected: it cannot be reconciled against two statements, which
+is where transfers actually come from — two files, two rows). **Categorising both
+legs as spending and subtracting** (rejected: it is the double-count with an
+apology attached).
+
+### Decision 5 — A balance is DERIVED and there is no column to store one in
+
+`balance = opening_balance_minor + Σ amount_minor`, order-independent, exactly
+reconstructible. There is no `balance` column anywhere in the Finance schema and
+a structural test asserts there never is, so a balance **cannot** drift from
+transaction truth — not because the code is careful, but because there is nothing
+to drift from.
+
+A CSV balance column, where a mapping names one, is a **check**: the preview
+compares the statement's closing balance to the balance the rows would produce
+and states the difference in words. It never writes. An owner who needs to
+correct a balance records a transaction, which is dated, auditable and visible.
+
+Net worth follows the same rule — derived on read, per currency, never stored,
+with an Asset that has no recorded valuation excluded and counted rather than
+valued at zero.
+
+*Alternatives considered.* **A cached balance updated on write** (rejected: it is
+a second authority, and the first bug in it is silent and about money). **A
+running-balance column per transaction** (rejected: it makes insertion order
+load-bearing, so a back-dated import rewrites every later row). **Trusting the
+statement's balance** (rejected: it would make the file authoritative over the
+rows, and a missing row would be hidden rather than surfaced — the exact opposite
+of what the check is for).
+
+### Decision 6 — Finance has no recurring-commitment model, and settlement IS completion
+
+There is no `recurring_transactions` table, no `bills` table and no Finance
+notification. A money-bearing recurring commitment is an Obligation, which is
+[ADR-116 decision 1](#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+and is unchanged.
+
+The new decision is the shape of the link. `obligation_details` gains **one
+nullable column**, `settled_by_transaction_id`, with a unique index so one
+transaction settles at most one obligation, and an `obligation.settled_by`
+EntityLink projection written in the same batch — the pattern ADR-118 decision 1
+established for the subject.
+
+**Settlement is not a separate lifecycle.** `completeObligation` takes an
+optional transaction; when present the completion's actual amount and date come
+from it, and the *existing* recurrence engine creates at most one successor under
+its existing guard. There is no independent link/unlink state, because "this
+transaction paid it" and "this is complete" are the same statement, and two state
+machines for one fact is how they come to disagree.
+
+**There is therefore no unlink, and that follows from a V2.10 rule this pass
+found by measurement rather than assumed.** The definition pass had written
+"reopening clears the settlement". `setStatus` refuses it: *"cannot be changed
+once the obligation is completed"*, because reopening would orphan the
+successor and the proof. That is V2.10's decision and V2.12 does not reopen it —
+so a settlement, like every other completion in this product, is a historical
+fact rather than an editable field. The consequence is stated rather than hidden:
+an owner who settles with the WRONG transaction has the same recovery they have
+for any wrong completion, which is to delete the occurrence and record it again.
+What V2.12 owes that sharp edge is not a second lifecycle but a confirmation: the
+settle action states the amount and the date it is about to record, from the
+transaction, before it records them.
+
+**And the recovery has to actually work, which the first index did not allow.**
+The uniqueness predicate was `settled_by_transaction_id IS NOT NULL`, so a
+soft-deleted obligation still held its transaction: the delete-and-record-again
+recovery failed on a constraint naming a record the owner could no longer see.
+It was found by writing the test for the recovery path rather than by reading the
+schema. The predicate is now `... AND deleted_at IS NULL`, which also makes the
+index agree with `resolveSettlement` — that read already joined on
+`deleted_at IS NULL`, so the product said the transaction was free while the
+database said it was taken. The column is *not* cleared on delete: what settled a
+deleted obligation is still what happened, and provenance is not a constraint's
+business.
+
+*Alternatives considered.* **A link that does not complete** (rejected above).
+**A many-to-many settlement table for partial payments** (rejected for V2.12: it
+is a second total to reconcile and nothing in the product needs it yet; recorded
+as a later item, not as debt). **Finance owning the due date** (rejected: it is
+the second "due" fact ADR-116 exists to prevent).
+
+**Consequences.** *Good:* the two most likely money defects — a duplicated import
+and a double-counted credit-card payment — are prevented by database constraints
+and by the absence of a rule rather than by review; a balance cannot be wrong
+because it cannot be stored; a receipt on a transaction costs one name in an
+existing list; the month is computed through the V2.9 vocabulary so V2.13 can
+execute a Report over the same reads and V2.14 can explain figures it did not
+compute. *Hard:* one `entities` row per transaction; the occurrence index has a
+stated mid-group limitation with no clean fix short of a bank-supplied id; and
+the owner must choose a date format and a sign direction explicitly, because
+guessing either is how a year of data goes quietly wrong. *Accepted:*
+[DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2)
+is not satisfied and is not pretended to be — the implementation is complete and
+verified against synthetic data, and real financial data must not be imported
+until the off-Cloudflare copy exists and has been restored from once.

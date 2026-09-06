@@ -167,4 +167,5 @@ export type {
   ObligationProofRef,
   LinkObligationTaskResult,
   ObligationTaskReconciliation,
+  ObligationSettlementGateway,
 } from "./obligation-repository";

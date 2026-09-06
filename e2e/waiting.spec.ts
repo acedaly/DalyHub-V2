@@ -141,7 +141,19 @@ test.describe("TODAY-03 — Waiting", () => {
 
     // The populated Waiting collection: overflow-free at 320px.
     await gotoFixture(page, "/today/waiting");
-    await expect(page.getByText("finance")).toBeVisible();
+    /*
+     * Scoped to the ROW's waiting subject rather than to the whole page.
+     *
+     * An unscoped `getByText("finance")` matched anything on screen carrying
+     * that word, and V2.12 added a nav item labelled "Finance" — so the
+     * assertion started resolving to two elements and failing in strict mode.
+     * The word was never the point: the test means "the note I just wrote is on
+     * the row", so it looks at the row. Scoping it here also means the next nav
+     * label, heading or empty-state sentence cannot break it the same way.
+     */
+    await expect(
+      page.locator(".dh-taskrow__waiting-name").filter({ hasText: "finance" }),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     // A populated Waiting view is axe-clean in light and dark at desktop width (the

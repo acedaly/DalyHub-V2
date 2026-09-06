@@ -132,6 +132,11 @@ import {
   type D1AssetRepositoryOptions,
 } from "./d1-asset-repository";
 import {
+  createFinanceRepository,
+  D1FinanceRepository,
+  type D1FinanceRepositoryOptions,
+} from "./d1-finance-repository";
+import {
   D1DiaryRepository,
   type D1DiaryRepositoryOptions,
 } from "./d1-diary-repository";
@@ -264,6 +269,16 @@ export {
   type ObligationTaskCompletionPlanner,
   type ObligationTaskGateway,
 } from "./d1-obligation-repository";
+/*
+ * V2.12 FIN-00 — the Finance store. Its factory lives in its own module rather
+ * than below with the others, because the adapter constructs nothing else and a
+ * re-export keeps this file's one job (the barrel) rather than giving it two.
+ */
+export {
+  createFinanceRepository,
+  D1FinanceRepository,
+  type D1FinanceRepositoryOptions,
+};
 export { D1GoalRepository };
 export {
   D1GoalDetailsRepository,

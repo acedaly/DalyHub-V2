@@ -144,8 +144,25 @@ describe("the recency rule", () => {
     ]);
   });
 
-  it("excludes Diary and nothing else", () => {
-    expect([...RECENCY_EXCLUDED_TYPES]).toEqual(["diary"]);
+  it("excludes Diary and the Finance transaction, and nothing else", () => {
+    /*
+     * V2.12 FIN-00 added the second exclusion, and the two are excluded for the
+     * same reason: the recency list is what Search shows BEFORE anything is
+     * typed, so it is the surface most likely to be read over someone's
+     * shoulder. A diary entry's title and a transaction's payee are both
+     * statements about the owner's private life, and a list of the last eight is
+     * a statement about their week.
+     *
+     * A Finance ACCOUNT is deliberately NOT excluded, for the same reason a
+     * Person is not: a name is not a confession, and it is the Finance record an
+     * owner most wants to re-find.
+     */
+    expect([...RECENCY_EXCLUDED_TYPES].sort()).toEqual([
+      "diary",
+      "finance_transaction",
+    ]);
+    expect(isRecencyListableType("finance_transaction")).toBe(false);
+    expect(isRecencyListableType("finance_account")).toBe(true);
     expect(isRecencyListableType("diary")).toBe(false);
     for (const type of [
       "task",

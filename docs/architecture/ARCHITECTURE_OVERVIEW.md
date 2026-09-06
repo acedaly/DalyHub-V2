@@ -307,6 +307,26 @@ A module is a self-contained feature area (Today, Projects, Notes, …). Each on
 - **Search providers** — how its records appear in [global Search](../design/DESIGN_SYSTEM.md#search).
 - **Settings** — its configuration, rendered through the shared [Settings](../design/DESIGN_SYSTEM.md#settings) pattern.
 
+### One-way domain seams (V2.10, V2.12)
+
+Two products need a fact the other owns, and both are wired the same way: a
+narrow READ port declared by the consumer's kernel, implemented by the owner's
+adapter, and passed in at the composition boundary — never an import between
+modules and never a join across their tables.
+
+- `ObligationProofGateway` (V2.10, [ADR-083](../decisions/ARCHITECTURE_DECISIONS.md)) —
+  completing an Obligation about an Asset writes the Asset's logbook row and
+  advances its canonical dates, through the domain that owns that history.
+- `ObligationSettlementGateway` (V2.12, [ADR-120](../decisions/ARCHITECTURE_DECISIONS.md)) —
+  an Obligation may name the Transaction that settled it, and asks Finance what
+  that transaction says. **Finance implements the port and therefore knows about
+  Obligations; Life Admin never joins a Finance table.** The settlement column
+  and its EntityLink projection are written by the Obligation's own batch,
+  because they are the Obligation's facts.
+
+The direction is the decision. A seam that ran both ways would be two modules
+importing each other with extra steps.
+
 **Module rules:**
 - A module never imports another module's internals — enforced by a repository import-boundary test ([`MODULES.md`](../development/MODULES.md)). Cross-module relationships go through **EntityLinks**.
 - A module builds its UI from the **shared Design System** — no bespoke duplicates ([`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer)).

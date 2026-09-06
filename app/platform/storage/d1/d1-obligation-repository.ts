@@ -27,6 +27,16 @@
  */
 
 import { ASSET_ENTITY_TYPE } from "~/kernel/assets";
+/*
+ * V2.12 FIN-04 — the LINK TYPE and its deterministic id, and nothing else from
+ * the Finance kernel. Two constants and a pure function: this adapter still has
+ * no idea what a transaction is, which is the boundary
+ * `ObligationSettlementGateway` exists to keep.
+ */
+import {
+  OBLIGATION_SETTLED_BY_LINK,
+  obligationSettlementLinkId,
+} from "~/kernel/finance";
 import {
   buildActivityWriteModel,
   createSystemActorContext,
@@ -86,6 +96,7 @@ import {
   type ObligationProofRef,
   type ObligationRecurrenceKind,
   type ObligationRepository,
+  type ObligationSettlementGateway,
   type ObligationStatus,
   type ObligationSubject,
   type ObligationSummary,
@@ -205,6 +216,12 @@ export interface D1ObligationRepositoryOptions {
   readonly taskGateway?: ObligationTaskGateway;
   readonly taskCompletionPlanner?: ObligationTaskCompletionPlanner;
   readonly proofGateway?: ObligationProofGateway;
+  /**
+   * V2.12 FIN-04 — how an obligation learns about the transaction that settled
+   * it. Read-only, and supplied by the Finance repository at composition, so
+   * Life Admin never joins a Finance table (ADR-120 decision 6).
+   */
+  readonly settlementGateway?: ObligationSettlementGateway;
   /** The meter units this workspace's subjects accept. */
   readonly meterUnits?: readonly string[];
   /**
@@ -259,7 +276,8 @@ const OBLIGATION_COLUMNS = `o.entity_id, o.workspace_id, o.subject_entity_id,
   o.recurrence_kind, o.recurrence_interval, o.meter_threshold, o.meter_interval,
   o.meter_unit, o.expected_amount_minor, o.completed_amount_minor,
   o.currency_code, o.status, o.task_id, o.completed_event_id, o.completed_at,
-  o.completed_on, o.next_obligation_id, o.series_id, o.sequence, o.created_at,
+  o.completed_on, o.next_obligation_id, o.settled_by_transaction_id,
+  o.series_id, o.sequence, o.created_at,
   o.updated_at, o.archived_at, o.deleted_at, e.title AS title`;
 
 /**
@@ -326,6 +344,7 @@ interface ObligationRow {
   readonly completed_at: string | null;
   readonly completed_on: string | null;
   readonly next_obligation_id: string | null;
+  readonly settled_by_transaction_id: string | null;
   readonly series_id: string;
   readonly sequence: number;
   readonly created_at: string;
@@ -434,6 +453,7 @@ export class D1ObligationRepository implements ObligationRepository {
   readonly #taskGateway?: ObligationTaskGateway;
   readonly #taskCompletionPlanner?: ObligationTaskCompletionPlanner;
   readonly #proofGateway?: ObligationProofGateway;
+  readonly #settlementGateway?: ObligationSettlementGateway;
   readonly #meterUnits: readonly string[];
   readonly #meterEvaluator?: ObligationMeterEvaluator;
   readonly #mutationFault?: AtomicMutationFault;
@@ -457,6 +477,7 @@ export class D1ObligationRepository implements ObligationRepository {
     this.#taskGateway = options.taskGateway;
     this.#taskCompletionPlanner = options.taskCompletionPlanner;
     this.#proofGateway = options.proofGateway;
+    this.#settlementGateway = options.settlementGateway;
     this.#meterUnits = options.meterUnits ?? [];
     this.#meterEvaluator = options.meterEvaluator;
     this.#mutationFault = options.mutationFault;
@@ -553,6 +574,7 @@ export class D1ObligationRepository implements ObligationRepository {
           : fromStorageTimestamp(row.completed_at),
       completedOn: row.completed_on,
       nextObligationId: row.next_obligation_id,
+      settledByTransactionId: row.settled_by_transaction_id,
       seriesId: row.series_id,
       sequence: row.sequence,
       createdAt: fromStorageTimestamp(row.created_at),
@@ -1241,6 +1263,18 @@ export class D1ObligationRepository implements ObligationRepository {
               AND type = ? AND deleted_at IS NULL`,
         )
         .bind(nowTs, nowTs, this.#workspaceId, id, OBLIGATION_SUBJECT_LINK),
+      /*
+       * V2.12 FIN-04 — the settlement projection goes with the record too. A
+       * link left behind would make a deleted obligation still show on the
+       * transaction that paid it.
+       */
+      this.#db
+        .prepare(
+          `UPDATE entity_links SET deleted_at = ?, updated_at = ?
+            WHERE workspace_id = ? AND source_entity_id = ?
+              AND type = ? AND deleted_at IS NULL`,
+        )
+        .bind(nowTs, nowTs, this.#workspaceId, id, OBLIGATION_SETTLED_BY_LINK),
       ...this.#appendStatements(
         OBLIGATION_DELETED,
         [id, current.subjectEntityId],
@@ -1276,7 +1310,80 @@ export class D1ObligationRepository implements ObligationRepository {
       return this.#existingCompletion(current);
     }
 
-    const completedOn = c.completedOn ?? (await this.#today());
+    /* -- V2.12 FIN-04: the transaction that PAID it -------------------------
+     *
+     * When the owner names one, the bank is the authority for what was actually
+     * paid and when, so BOTH the completed amount and the completed day come
+     * from it. The validator already refused a typed amount or day beside it,
+     * so there is exactly one source for each figure.
+     *
+     * Five refusals, each named rather than left to a constraint violation. The
+     * unique index on `(workspace_id, settled_by_transaction_id)` is still the
+     * authority for the last of them — this is the readable message, not the
+     * guarantee.
+     */
+    let settlement: {
+      readonly transactionId: string;
+      readonly amountMinor: number;
+      readonly currencyCode: string;
+      readonly occurredOn: string;
+    } | null = null;
+    if (c.settledByTransactionId !== null) {
+      if (!this.#settlementGateway) {
+        throw new ObligationValidationError(
+          "settledByTransactionId",
+          "cannot be resolved in this deployment",
+        );
+      }
+      const resolved = await this.#settlementGateway.resolveSettlement(
+        c.settledByTransactionId,
+      );
+      // Not found, never "forbidden": a workspace must not learn that a
+      // transaction exists somewhere else from the shape of a refusal.
+      if (resolved === null) {
+        throw new ObligationValidationError(
+          "settledByTransactionId",
+          "is not a transaction in this workspace",
+        );
+      }
+      if (resolved.inflow) {
+        throw new ObligationValidationError(
+          "settledByTransactionId",
+          "is money coming in, and a refund cannot pay a bill",
+        );
+      }
+      if (
+        resolved.settlesObligationId !== null &&
+        resolved.settlesObligationId !== id
+      ) {
+        throw new ObligationValidationError(
+          "settledByTransactionId",
+          "already settles another obligation",
+        );
+      }
+      if (
+        current.currencyCode !== null &&
+        current.currencyCode !== resolved.currencyCode
+      ) {
+        throw new ObligationValidationError(
+          "settledByTransactionId",
+          `is in ${resolved.currencyCode} and this obligation is in ${current.currencyCode}, and amounts are never converted`,
+        );
+      }
+      settlement = {
+        transactionId: c.settledByTransactionId,
+        amountMinor: resolved.amountMinor,
+        currencyCode: resolved.currencyCode,
+        occurredOn: resolved.occurredOn,
+      };
+    }
+
+    const completedAmountMinor =
+      settlement?.amountMinor ?? c.completedAmountMinor;
+    const completedCurrency = settlement?.currencyCode ?? c.currencyCode;
+
+    const completedOn =
+      settlement?.occurredOn ?? c.completedOn ?? (await this.#today());
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
 
@@ -1358,8 +1465,8 @@ export class D1ObligationRepository implements ObligationRepository {
             category: current.category,
             title: c.title ?? current.title,
             completedOn,
-            amountMinor: c.completedAmountMinor,
-            currencyCode: c.currencyCode,
+            amountMinor: completedAmountMinor,
+            currencyCode: completedCurrency,
             nextDueDate: nextDue,
             taskId: current.taskId,
             now,
@@ -1392,7 +1499,8 @@ export class D1ObligationRepository implements ObligationRepository {
         `UPDATE obligation_details
             SET status = 'completed', completed_at = ?, completed_on = ?,
                 completed_amount_minor = ?, currency_code = coalesce(?, currency_code),
-                completed_event_id = ?, next_obligation_id = ?, updated_at = ?
+                completed_event_id = ?, next_obligation_id = ?,
+                settled_by_transaction_id = ?, updated_at = ?
           WHERE workspace_id = ? AND entity_id = ? AND deleted_at IS NULL
             AND status = 'open'
          RETURNING entity_id`,
@@ -1400,10 +1508,11 @@ export class D1ObligationRepository implements ObligationRepository {
       .bind(
         nowTs,
         completedOn,
-        c.completedAmountMinor,
-        c.currencyCode,
+        completedAmountMinor,
+        completedCurrency,
         proofId,
         successorId,
+        settlement?.transactionId ?? null,
         nowTs,
         this.#workspaceId,
         id,
@@ -1451,13 +1560,45 @@ export class D1ObligationRepository implements ObligationRepository {
           category: current.category,
           recurrence: current.recurrenceKind,
           createdSuccessor: successorId !== null,
-          recordedAmount: c.completedAmountMinor !== null,
+          // Structure, never a value: WHETHER money was recorded and whether a
+          // transaction settled it, never how much (ADR-049 decision 5).
+          recordedAmount: completedAmountMinor !== null,
+          settledByTransaction: settlement !== null,
         },
         now,
       ),
     ];
 
     if (plannedProof) batch.push(...plannedProof.statements);
+
+    /*
+     * V2.12 FIN-04 — the settlement's PROJECTION, in the same batch as its
+     * authority, exactly as the subject's is (ADR-118 decision 1). It is what
+     * makes the transaction's drawer show the obligation it paid without a
+     * bespoke reverse reader, and it is reserved so nothing else writes it.
+     */
+    if (settlement !== null) {
+      batch.push(
+        this.#db
+          .prepare(
+            `INSERT INTO entity_links
+               (id, workspace_id, source_entity_id, target_entity_id, type,
+                created_at, updated_at, deleted_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+             ON CONFLICT (id) DO UPDATE
+               SET deleted_at = NULL, updated_at = excluded.updated_at`,
+          )
+          .bind(
+            obligationSettlementLinkId(id, settlement.transactionId),
+            this.#workspaceId,
+            id,
+            settlement.transactionId,
+            OBLIGATION_SETTLED_BY_LINK,
+            nowTs,
+            nowTs,
+          ),
+      );
+    }
 
     // AT MOST ONE successor. Both the NOT EXISTS guard and the
     // (workspace_id, series_id, sequence) UNIQUE constraint have to be

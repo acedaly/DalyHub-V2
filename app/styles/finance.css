@@ -1,0 +1,641 @@
+/**
+ * V2.12 — Finance: the money row, the month, the budget line, the import table.
+ *
+ * Every value is a DHDS token. This file names meanings, never machinery.
+ *
+ * ── A figure is never told by colour alone ──────────────────────────────────
+ * Money out, money over budget and a suspected duplicate all carry a WORD in
+ * the markup ("owing", "$75 over", "already there"). The rules below add weight
+ * and alignment; they never make a colour the only carrier of a fact, because
+ * an owner who cannot see the difference between two reds would otherwise be
+ * reading a different statement from everyone else.
+ *
+ * ── Figures are tabular, and right-aligned in a column of figures ───────────
+ * `font-variant-numeric: tabular-nums` is what lets a column of amounts be
+ * scanned for a wrong digit. It is the one piece of typographic machinery this
+ * file insists on, and it belongs to money specifically.
+ *
+ * ── The phone gets the categorisation surface at full size ──────────────────
+ * The transaction row stacks below the shared narrow breakpoint and the picker
+ * fills the width, because clearing the uncategorised queue is the daily-driver
+ * phone job. The IMPORT table does not pretend: it scrolls inside its own
+ * container rather than reflowing a bank's columns into a phone.
+ */
+
+/* -- The Finance home ----------------------------------------------------- */
+
+.dh-finance-home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+}
+
+.dh-finance-home__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+}
+
+.dh-finance-home__month {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-finance-home__totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--app-space-3);
+}
+
+.dh-finance-home__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.dh-finance-home__uncategorised,
+.dh-finance-home__transfers,
+.dh-finance-home__closed {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  margin: 0;
+}
+
+/* -- One total ------------------------------------------------------------ */
+
+.dh-finance-total {
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.dh-finance-total__label {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * The metric role: a figure meant to be READ AS A FIGURE, paired with the
+ * tabular numeric token so a total does not shift its own width as it changes.
+ */
+.dh-finance-total__figure,
+.dh-finance-networth__figure {
+  font-size: var(--dh-text-metric-size);
+  line-height: var(--dh-text-metric-line-height);
+  font-weight: var(--dh-text-metric-weight);
+  font-variant-numeric: var(--dh-font-numeric);
+  color: var(--dh-color-text);
+}
+
+.dh-finance-networth__note {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  margin: 0;
+}
+
+/* -- The month's category lines ------------------------------------------- */
+
+.dh-finance-category-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  padding-block: var(--app-space-2);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-divider);
+}
+
+.dh-finance-category-line__name {
+  color: var(--dh-color-text);
+}
+
+.dh-finance-category-line__figure {
+  font-variant-numeric: var(--dh-font-numeric);
+  text-align: end;
+}
+
+.dh-finance-category-line__budget {
+  grid-column: 1 / -1;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- Accounts ------------------------------------------------------------- */
+
+.dh-finance-account-list,
+.dh-finance-commitment-list,
+.dh-finance-import-list,
+.dh-finance-category-list,
+.dh-finance-budget-list,
+.dh-transaction-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-finance-account-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+}
+
+.dh-finance-account-row__balance {
+  font-variant-numeric: var(--dh-font-numeric);
+  text-align: end;
+}
+
+/*
+ * "owing", "in credit", "overdrawn" — the WORD that carries a liability's sign.
+ * Muted, because it qualifies the figure rather than competing with it, and
+ * present in the markup so the fact survives a monochrome screen.
+ */
+.dh-finance-account-row__qualifier {
+  display: block;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: normal;
+}
+
+.dh-finance-account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  margin-block: var(--app-space-3);
+}
+
+.dh-finance-account__closed-note,
+.dh-finance-budgets__note {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-finance-account__error,
+.dh-finance-budgets__error,
+.dh-finance-categories__error,
+.dh-finance-transactions__error,
+.dh-finance-import__error {
+  padding: var(--app-space-3);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
+}
+
+/* -- The transaction row -------------------------------------------------- */
+
+.dh-transaction-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+}
+
+.dh-transaction-row__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.dh-transaction-row__payee {
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-transaction-row__meta {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.dh-transaction-row__amount {
+  text-align: end;
+  font-variant-numeric: var(--dh-font-numeric);
+  white-space: nowrap;
+}
+
+/*
+ * The DIRECTION word, beside the figure rather than instead of a sign. Money in
+ * and money out are told apart by the word and by the sign in the figure; the
+ * weight below is emphasis, never the only difference.
+ */
+.dh-transaction-row__direction,
+.dh-transaction-drawer__direction {
+  display: block;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: normal;
+}
+
+.dh-transaction-row__figure[data-direction="in"] {
+  font-weight: 600;
+}
+
+.dh-transaction-row__uncategorised,
+.dh-transaction-row__transfer {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-transaction-row__category {
+  grid-column: 1 / -1;
+}
+
+/* -- The category picker -------------------------------------------------- */
+
+.dh-category-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-category-picker__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.dh-category-picker__group-heading {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  margin: 0;
+}
+
+/*
+ * The suggestion. It is the most recent category the OWNER confirmed for this
+ * payee, and the note beside it says so ("last time, 3 Sep") — a deterministic
+ * read presented as an offer, never a prediction and never applied for them.
+ */
+.dh-category-picker__suggestion-note,
+.dh-category-picker__empty {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- The drawer ----------------------------------------------------------- */
+
+.dh-transaction-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.dh-transaction-drawer__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-transaction-drawer__heading {
+  font-size: var(--dh-text-meta-size);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--dh-color-text-muted);
+  margin: 0;
+}
+
+.dh-transaction-drawer__figure {
+  font-size: var(--dh-text-record-title-size);
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+/*
+ * The bank's own words, kept verbatim and never overwritten. Set apart so it
+ * reads as a quotation of the statement rather than as something DalyHub says.
+ */
+.dh-transaction-drawer__source {
+  font-family: var(--dh-font-family-mono);
+  font-size: var(--dh-text-meta-size);
+  padding: var(--app-space-2);
+  border-radius: var(--dh-radius-sm);
+  background: var(--dh-color-surface-subtle);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-transaction-drawer__source-label,
+.dh-transaction-drawer__note,
+.dh-transaction-drawer__where {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-transaction-drawer__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.dh-transaction-drawer__candidates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+/* -- The transactions surface --------------------------------------------- */
+
+.dh-finance-transactions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.dh-finance-transactions__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+}
+
+.dh-finance-transactions__lens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.dh-finance-transactions__count,
+.dh-finance-transactions__more {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- The month control ---------------------------------------------------- */
+
+.dh-finance-month-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.dh-finance-month-nav__label {
+  font-variant-numeric: var(--dh-font-numeric);
+  white-space: nowrap;
+}
+
+/* -- Budgets -------------------------------------------------------------- */
+
+.dh-finance-budgets,
+.dh-finance-categories,
+.dh-finance-import,
+.dh-finance-new-account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.dh-finance-budgets__header,
+.dh-finance-new-account__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+}
+
+.dh-finance-budget-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(6rem, 8rem) auto;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+}
+
+.dh-finance-budget-row__variance,
+.dh-finance-budget-row__excluded {
+  grid-column: 1 / -1;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+/*
+ * `over` is emphasised, and `exactly` is its own state rather than a rounding
+ * of it. The SENTENCE carries the fact ("$75 over"); this only makes it easier
+ * to find down a column of twelve. There is no bar that turns red, no
+ * percentage, no score and no financial-health grade.
+ */
+.dh-finance-budget-row__variance[data-budget-state="over"] {
+  color: var(--dh-color-warning);
+  font-weight: 500;
+}
+
+/* -- Categories ----------------------------------------------------------- */
+
+.dh-finance-category-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+}
+
+.dh-finance-category-row__kind,
+.dh-finance-category-row__count {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  white-space: nowrap;
+}
+
+/* -- Import --------------------------------------------------------------- */
+
+.dh-finance-import__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-3);
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+.dh-finance-import__preview,
+.dh-finance-import__result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+}
+
+/*
+ * A bank's columns do not reflow into a phone, and pretending they do makes the
+ * table worse on both. It SCROLLS inside its own container instead, so the page
+ * body never scrolls sideways.
+ */
+.dh-finance-import__table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: var(--dh-font-numeric);
+}
+
+.dh-finance-import__table th,
+.dh-finance-import__table td {
+  padding: var(--app-space-2);
+  border-block-end: var(--app-border-width-thin) solid var(--dh-color-divider);
+  text-align: start;
+  white-space: nowrap;
+}
+
+/*
+ * A row's OUTCOME is a word in the cell ("new", "already there", "unreadable").
+ * These only quiet the rows that will not be written, so the ones that will are
+ * what the eye lands on.
+ */
+.dh-finance-import__table tr[data-outcome="existing"],
+.dh-finance-import__table tr[data-outcome="invalid"] {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-finance-import__table tr[data-suspected="true"] {
+  background: var(--dh-color-warning-subtle);
+  color: var(--dh-color-text-on-warning-subtle);
+}
+
+/* -- Forms ---------------------------------------------------------------- */
+
+.dh-finance-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.dh-finance-form__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-3);
+}
+
+.dh-finance-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-width: 0;
+}
+
+.dh-finance-form__label {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-finance-form__hint {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  margin: 0;
+}
+
+/* -- Narrow ---------------------------------------------------------------- */
+
+@media (max-width: 39.99rem) {
+  /*
+   * Every control a Finance ROW offers meets the touch target on a phone.
+   *
+   * The row's actions are `size="sm"`, which is 32px — right for a laptop, and
+   * eleven pixels short of the minimum on the one screen where clearing the
+   * uncategorised queue is the daily-driver job. Found by the E2E suite
+   * measuring the control rather than by looking at it.
+   *
+   * The size is raised HERE rather than by changing the shared button, because
+   * `sm` is correct at the widths it was chosen for; what is narrow is this
+   * viewport, not that control.
+   */
+  .dh-transaction-row button,
+  .dh-transaction-row a,
+  .dh-finance-category-row button,
+  .dh-finance-budget-row button,
+  .dh-finance-settle button {
+    min-block-size: var(--app-touch-target-min);
+    min-inline-size: var(--app-touch-target-min);
+  }
+
+  /*
+   * The phone's Finance job is CATEGORISING, so the row gives the picker the
+   * full width and stops competing with it for a two-column grid.
+   */
+  .dh-transaction-row,
+  .dh-finance-account-row,
+  .dh-finance-budget-row,
+  .dh-finance-category-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dh-transaction-row__amount,
+  .dh-finance-account-row__balance,
+  .dh-finance-category-line__figure {
+    text-align: start;
+  }
+}
+
+/* -- Settling a commitment ------------------------------------------------ */
+
+.dh-finance-settle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  margin-block-start: var(--app-space-2);
+}
+
+.dh-finance-settle__candidates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+/*
+ * The confirmation. Set apart because what follows it cannot be undone: V2.10
+ * refuses to reopen a completed obligation, so the recovery from settling the
+ * wrong transaction is deleting the obligation and making it again.
+ */
+.dh-finance-settle__confirm {
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border-strong);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.dh-finance-settle__note {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  margin: 0;
+}
+
+.dh-finance-settle__error {
+  padding: var(--app-space-2);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
+}

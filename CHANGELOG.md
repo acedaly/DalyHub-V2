@@ -1,5 +1,69 @@
 # Changelog
 
+- **Where is my money going?**
+
+  DalyHub can answer that now. Add an account — everyday, savings, a credit
+  card, a loan, cash — then export a CSV from your bank and bring it in. You
+  tell DalyHub which column is the date, which is the description and which is
+  the amount, once; it remembers for next time.
+
+  **Importing the same file twice adds nothing.** Not "usually nothing" — the
+  database itself refuses it. Download next month's statement with the same four
+  weeks at the top of it and only the new rows arrive. If something looks like a
+  transaction you already have — the same amount within a few days, arriving by a
+  different route — DalyHub shows it, leaves it out, and lets you add it back one
+  row at a time. It never guesses on your behalf.
+
+  You see exactly what will happen before anything is written. Every row, what
+  DalyHub made of it, which ones are new, which are already there, and which it
+  could not read.
+
+  Then the month. What went out, what came in, and where it went — your
+  categories, largest first. Twelve to start with; rename them, add your own,
+  archive the ones you stop using. Archiving keeps every transaction that carries
+  them, and a category you are actually using cannot be deleted by accident: it
+  tells you how many transactions use it instead.
+
+  Categorising is a two-tap job on a phone, and DalyHub helps by remembering:
+  the next time NORTHWIND GROCERS turns up it offers the category you chose last
+  time. It offers. It never applies it for you, and it never guesses at one it
+  has not seen you choose.
+
+  **Moving money between your own accounts is not spending.** Pay off the credit
+  card and DalyHub links the two sides as one transfer and takes both out of the
+  month, so you do not see a thousand dollars of spending that never happened.
+
+  Set a budget for a category and the month tells you plainly: _$420 of $600 ·
+  $180 remaining*. *$675 of $600 · $75 over_. _$600 of $600 · exactly on
+  budget_ — because $600 of $600 is not over. No percentage, no bar that turns
+  red, no score, and nothing that grades you.
+
+  Every balance is worked out from your transactions and shown with the
+  arithmetic beside it — _$3,920.90 = $1,000.00 opening + 4 transactions_ — so
+  you can check it rather than take DalyHub's word for it. Nothing is stored that
+  could quietly drift out of step with the rows you can see.
+
+  Bills you already track in Life Admin show up under **Due this month**, and you
+  can mark one paid by pointing at the payment that paid it. DalyHub takes the
+  amount and the date from the bank, not from you, and tells you which figures it
+  is about to record before it records them.
+
+  **What DalyHub does not do, on purpose.** It never asks for a bank login, a
+  password, a card number or an account number, and there is nowhere in it to
+  keep one. There are no bank connections. There is no AI in Finance at all — no
+  AI categorising, no AI advice, no AI summaries of your spending, no AI reading
+  your receipts. Amounts never appear in search results, never in a web address
+  and never in the activity feed. And DalyHub never converts between currencies:
+  if you have accounts in two, it shows you two totals and says which figure it
+  left out of a comparison.
+
+  It is not an accounting system, and it is not trying to become one.
+
+  **One thing to know before you put a real statement in it.** DalyHub's
+  automatic backups still all live inside the same cloud account. Until there is
+  a copy somewhere else, keep Finance to test data and take a full export from
+  Settings yourself.
+
 - **The paper lives with the thing.**
 
   Your records can hold files now. Open the rego renewal and attach the actual

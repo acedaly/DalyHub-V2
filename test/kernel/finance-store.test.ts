@@ -1,0 +1,1088 @@
+/**
+ * V2.12 FIN-00 — the Finance store, against real D1.
+ *
+ * Real Workers runtime, real isolated D1, the real committed migrations. This
+ * file proves the properties the release rests on, and every one of them is a
+ * property a reviewer should be able to check by reading the assertion:
+ *
+ *   - a balance is DERIVED, and nothing anywhere stores one;
+ *   - liabilities subtract because their balances are negative, with no
+ *     per-type rule;
+ *   - a transfer is excluded from spend by construction, so a credit-card
+ *     payment is never a second thousand dollars of spending;
+ *   - the entity types are RESERVED, so a bare `create` cannot make an account
+ *     with no currency;
+ *   - a category in use cannot be deleted, and nothing is orphaned in either
+ *     branch;
+ *   - unlike currencies are never summed.
+ *
+ * **Every fixture here is synthetic.** `Bank of Synthetica`, `NORTHWIND
+ * GROCERS`, `SYNTH CAFE 001`. No real owner financial data exists in this
+ * repository, and DEBT-198 is why.
+ */
+
+import { env } from "cloudflare:test";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import { ReservedEntityTypeError } from "~/kernel/entities";
+import {
+  FINANCE_STARTER_CATEGORIES,
+  FinanceRefusedError,
+  FinanceValidationError,
+  monthDirectionTotals,
+  serialiseCsvMapping,
+  validateCsvMapping,
+  totalMoney,
+} from "~/kernel/finance";
+
+import {
+  FakeClock,
+  countFinanceTransactionRows,
+  deriveAccountBalance,
+  makeContext,
+  makeFinanceRepository,
+  makeRepository,
+  resetTables,
+  sequentialIds,
+} from "./support";
+
+const WS = "test-default-workspace";
+const OTHER = "ws_finance_other";
+
+function finance(ws = WS, prefix = "f") {
+  return makeFinanceRepository(makeContext(ws), {
+    clock: new FakeClock().now,
+    idGenerator: sequentialIds(prefix),
+  });
+}
+
+/** An everyday account in AUD, opened at zero. */
+async function everydayAccount(repo = finance()) {
+  return repo.createAccount({
+    title: "Everyday",
+    accountType: "transaction",
+    currencyCode: "AUD",
+    openingDate: "2026-09-01",
+    institution: "Bank of Synthetica",
+  });
+}
+
+describe("the account", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("stores the account's identity, and refuses a credential-shaped field by not having one", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+
+    expect(account.title).toBe("Everyday");
+    expect(account.accountType).toBe("transaction");
+    expect(account.currencyCode).toBe("AUD");
+    expect(account.openingBalanceMinor).toBe(0);
+    expect(account.institution).toBe("Bank of Synthetica");
+    expect(account.status).toBe("open");
+
+    // The account model has no field a bank credential could live in. This is
+    // the type asserting it, and `finance-boundaries.test.ts` asserts the same
+    // thing over the schema.
+    expect(Object.keys(account).sort()).toEqual([
+      "accountType",
+      "archivedAt",
+      "createdAt",
+      "currencyCode",
+      "deletedAt",
+      "id",
+      "importMappingJson",
+      "institution",
+      "openingBalanceMinor",
+      "openingDate",
+      "status",
+      "title",
+      "updatedAt",
+      "workspaceId",
+    ]);
+  });
+
+  it("seeds the twelve starter categories with the FIRST account, and never again", async () => {
+    const repo = finance();
+    await everydayAccount(repo);
+
+    const first = await repo.listCategories();
+    expect(first).toHaveLength(FINANCE_STARTER_CATEGORIES.length);
+    expect(first.map((category) => category.name)).toContain("Groceries");
+    expect(first.every((category) => category.isBuiltin)).toBe(true);
+
+    await repo.createAccount({
+      title: "Savings",
+      accountType: "savings",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    const second = await repo.listCategories();
+    expect(second).toHaveLength(FINANCE_STARTER_CATEGORIES.length);
+  });
+
+  it("does not re-seed when the only account is deleted and another is made", async () => {
+    /*
+     * Deleting an account is ALLOWED while it holds no transactions, so a
+     * workspace can legitimately return to zero accounts — and it must not be
+     * given a second set of starter categories when the next one is created.
+     */
+    const repo = finance();
+    const first = await everydayAccount(repo);
+    await repo.deleteAccount(first.id);
+
+    const again = await repo.createAccount({
+      title: "Everyday again",
+      accountType: "transaction",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    expect(again.title).toBe("Everyday again");
+
+    // Still twelve, not twenty-four, and not zero.
+    const categories = await repo.listCategories();
+    expect(categories).toHaveLength(FINANCE_STARTER_CATEGORIES.length);
+  });
+
+  it("does not re-seed when the account ROWS are gone but the categories remain", async () => {
+    /*
+     * The state the seeding condition is actually written against, produced
+     * directly because no product action produces it: `deleteAccount` is a SOFT
+     * delete, so the detail row survives and the old condition — "does this
+     * workspace have any row in `finance_account_details`?" — still held.
+     *
+     * What DOES produce it is a sweep that removes account rows physically
+     * while leaving the workspace's category vocabulary behind, which is what
+     * the E2E fixture does between specs and what any out-of-band cleanup would
+     * do. Under the old condition the next `createAccount` seeded the twelve a
+     * second time, every one collided with itself on
+     * `finance_categories (workspace_id, name_key)`, the whole batch rolled
+     * back, and NO ACCOUNT WAS CREATED — reported as "that could not be saved
+     * just now", because a unique-constraint failure is not a named domain
+     * refusal.
+     *
+     * Asking about CATEGORIES instead is not merely a fix for that state: it is
+     * the invariant stated directly. "Has this workspace been given a
+     * vocabulary?" is the question; "does it have an account?" was a proxy for
+     * it.
+     */
+    const repo = finance();
+    const first = await everydayAccount(repo);
+    expect(await repo.listCategories()).toHaveLength(
+      FINANCE_STARTER_CATEGORIES.length,
+    );
+
+    /*
+     * The DETAIL rows only. The `entities` rows stay, because Activity subjects
+     * reference them with ON DELETE RESTRICT and a sweep that removes them would
+     * be testing that constraint rather than this condition — and because the
+     * seeding condition reads `finance_account_details`, which is enough.
+     */
+    await env.DB.prepare(
+      "DELETE FROM finance_account_details WHERE workspace_id = ?",
+    )
+      .bind(WS)
+      .run();
+    expect(first.id).toBeDefined();
+
+    const again = await repo.createAccount({
+      title: "Everyday again",
+      accountType: "transaction",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    expect(again.title).toBe("Everyday again");
+    expect(await repo.listCategories()).toHaveLength(
+      FINANCE_STARTER_CATEGORIES.length,
+    );
+  });
+
+  it("does not restore starter categories the owner deleted", async () => {
+    /*
+     * The other half of asking the right question. A workspace that HAS a
+     * vocabulary is never re-seeded, whatever that vocabulary is — so an owner
+     * who threw away eleven of the twelve does not find them back the next time
+     * they add an account.
+     */
+    const repo = finance();
+    const first = await everydayAccount(repo);
+    const categories = await repo.listCategories();
+    for (const category of categories.slice(1)) {
+      await repo.deleteCategory(category.id);
+    }
+    expect(await repo.listCategories()).toHaveLength(1);
+
+    await repo.deleteAccount(first.id);
+    await repo.createAccount({
+      title: "Second",
+      accountType: "savings",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    expect(await repo.listCategories()).toHaveLength(1);
+  });
+
+  it("never nets money OUT against money IN in the uncategorised bucket", async () => {
+    /*
+     * The regression, found by the E2E suite reading the Finance home.
+     *
+     * Netting inside a CATEGORY is the refund model and is meaningful: a refund
+     * in Groceries makes the month's Groceries smaller, because those rows are
+     * about the same thing. Netting across the UNCATEGORISED bucket is not,
+     * because those rows have nothing in common but the absence of a category —
+     * and it produced a sentence that lied: a $3,200.00 salary and $279.10 of
+     * purchases, none categorised, reported as "$2,920.90 with no category",
+     * which reads as unexplained SPENDING of $2,920.90.
+     */
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    for (const [amount, payee] of [
+      ["-84.20", "NORTHWIND GROCERS"],
+      ["-12.50", "SYNTH CAFE 001"],
+      ["-182.40", "SYNTHETIC ENERGY CO"],
+      ["3200.00", "SALARY SYNTHETIC HOLDINGS"],
+    ] as const) {
+      await repo.createTransaction({
+        accountId: account.id,
+        occurredOn: "2026-09-04",
+        amount,
+        payeeDisplay: payee,
+      });
+    }
+
+    const totals = monthDirectionTotals(await repo.monthSummary("2026-09"));
+
+    // Nothing is categorised, so both CATEGORY totals are empty …
+    expect(totals.out).toEqual([]);
+    expect(totals.in).toEqual([]);
+
+    // … and the unattributed money is reported in BOTH directions, separately.
+    expect(totals.uncategorisedOut).toEqual([
+      { currencyCode: "AUD", minorUnits: 27_910, count: 3 },
+    ]);
+    expect(totals.uncategorisedIn).toEqual([
+      { currencyCode: "AUD", minorUnits: 320_000, count: 1 },
+    ]);
+
+    // The count is still the whole bucket, not one of its halves.
+    expect((await repo.monthSummary("2026-09")).uncategorisedCount).toBe(4);
+  });
+
+  it("refuses a bare entity create for a Finance type", async () => {
+    const entities = makeRepository(makeContext(WS));
+    await expect(
+      entities.create({ type: "finance_account", title: "Sneaky" }),
+    ).rejects.toBeInstanceOf(ReservedEntityTypeError);
+    await expect(
+      entities.create({ type: "finance_transaction", title: "Sneaky" }),
+    ).rejects.toBeInstanceOf(ReservedEntityTypeError);
+  });
+
+  it("refuses an account with no currency, and one with an impossible date", async () => {
+    const repo = finance();
+    await expect(
+      repo.createAccount({
+        title: "No currency",
+        accountType: "cash",
+        currencyCode: "",
+        openingDate: "2026-09-01",
+      }),
+    ).rejects.toBeInstanceOf(FinanceValidationError);
+    await expect(
+      repo.createAccount({
+        title: "Impossible",
+        accountType: "cash",
+        currencyCode: "AUD",
+        openingDate: "2026-02-30",
+      }),
+    ).rejects.toBeInstanceOf(FinanceValidationError);
+  });
+});
+
+describe("the balance is derived, and there is nothing to store", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("is the opening balance plus the transactions, and matches an independent re-derivation", async () => {
+    const repo = finance();
+    const account = await repo.createAccount({
+      title: "Everyday",
+      accountType: "transaction",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+      openingBalance: "1000.00",
+    });
+
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-120.50",
+      payeeDisplay: "NORTHWIND GROCERS",
+    });
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-04",
+      amount: "2500.00",
+      payeeDisplay: "SYNTHETIC PAYROLL",
+    });
+
+    const [withBalance] = await repo.listAccountsWithBalances();
+    expect(withBalance!.balanceMinor).toBe(100_000 - 12_050 + 250_000);
+    expect(withBalance!.transactionCount).toBe(2);
+
+    // Two independent computations of one definition.
+    expect(await deriveAccountBalance(WS, account.id)).toBe(
+      withBalance!.balanceMinor,
+    );
+  });
+
+  it("moves when a transaction is deleted, and moves back when it is restored", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const spent = await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-40.00",
+      payeeDisplay: "SYNTH CAFE 001",
+    });
+
+    const before = (await repo.listAccountsWithBalances())[0]!.balanceMinor;
+    expect(before).toBe(-4000);
+
+    await repo.deleteTransaction(spent.id);
+    expect((await repo.listAccountsWithBalances())[0]!.balanceMinor).toBe(0);
+
+    await repo.restoreTransaction(spent.id);
+    expect((await repo.listAccountsWithBalances())[0]!.balanceMinor).toBe(
+      -4000,
+    );
+  });
+
+  it("gives a credit card a NEGATIVE balance, with no per-type rule anywhere", async () => {
+    const repo = finance();
+    const card = await repo.createAccount({
+      title: "Synthetica Rewards Card",
+      accountType: "credit_card",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    await repo.createTransaction({
+      accountId: card.id,
+      occurredOn: "2026-09-05",
+      amount: "-1000.00",
+      payeeDisplay: "NORTHWIND GROCERS",
+    });
+
+    const [withBalance] = await repo.listAccountsWithBalances();
+    expect(withBalance!.balanceMinor).toBe(-100_000);
+  });
+});
+
+describe("categories cannot orphan a transaction", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("refuses to delete a category in use, and names the count", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const groceries = (await repo.listCategories()).find(
+      (category) => category.name === "Groceries",
+    )!;
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-50.00",
+      payeeDisplay: "NORTHWIND GROCERS",
+      categoryId: groceries.id,
+    });
+
+    await expect(repo.deleteCategory(groceries.id)).rejects.toThrow(
+      /1 transaction uses that category/,
+    );
+    await expect(repo.deleteCategory(groceries.id)).rejects.toBeInstanceOf(
+      FinanceRefusedError,
+    );
+    // Nothing was orphaned by the refusal.
+    expect(await countFinanceTransactionRows()).toBe(1);
+  });
+
+  it("archives a category in use, keeping every transaction that carries it", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const dining = (await repo.listCategories()).find(
+      (category) => category.name === "Dining",
+    )!;
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-22.00",
+      payeeDisplay: "SYNTH CAFE 001",
+      categoryId: dining.id,
+    });
+
+    const archived = await repo.setCategoryArchived(dining.id, true);
+    expect(archived.archivedAt).not.toBeNull();
+    expect((await repo.listCategories()).map((c) => c.id)).not.toContain(
+      dining.id,
+    );
+
+    const page = await repo.listTransactions();
+    expect(page.items[0]!.transaction.categoryId).toBe(dining.id);
+    expect(page.items[0]!.categoryArchived).toBe(true);
+  });
+
+  it("renames a category without rewriting one transaction", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const dining = (await repo.listCategories()).find(
+      (category) => category.name === "Dining",
+    )!;
+    const transaction = await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-22.00",
+      payeeDisplay: "SYNTH CAFE 001",
+      categoryId: dining.id,
+    });
+
+    await repo.updateCategory(dining.id, { name: "Eating out" });
+    const after = await repo.getTransaction(transaction.id);
+    // The IDENTITY is unchanged; only the display text moved.
+    expect(after!.transaction.categoryId).toBe(dining.id);
+    expect(after!.categoryName).toBe("Eating out");
+  });
+
+  it("deletes an unused category", async () => {
+    const repo = finance();
+    await everydayAccount(repo);
+    const created = await repo.createCategory({
+      name: "Boat maintenance",
+      kind: "spending",
+    });
+    await repo.deleteCategory(created.id);
+    expect(
+      (await repo.listCategories({ includeArchived: true })).map((c) => c.id),
+    ).not.toContain(created.id);
+  });
+
+  it("refuses a second category with the same folded name", async () => {
+    const repo = finance();
+    await everydayAccount(repo);
+    await expect(
+      repo.createCategory({ name: "  groceries ", kind: "spending" }),
+    ).rejects.toBeInstanceOf(FinanceValidationError);
+  });
+});
+
+describe("an account with history is closed, never deleted", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("refuses to delete an account that holds a transaction", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-10.00",
+      payeeDisplay: "SYNTH CAFE 001",
+    });
+    await expect(repo.deleteAccount(account.id)).rejects.toBeInstanceOf(
+      FinanceRefusedError,
+    );
+  });
+
+  it("refuses to delete one whose only transaction is DELETED, because the row still names it", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const transaction = await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-10.00",
+      payeeDisplay: "SYNTH CAFE 001",
+    });
+    await repo.deleteTransaction(transaction.id);
+    await expect(repo.deleteAccount(account.id)).rejects.toBeInstanceOf(
+      FinanceRefusedError,
+    );
+  });
+
+  it("deletes an account with no history at all", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    await repo.deleteAccount(account.id);
+    expect(await repo.getAccount(account.id)).toBeNull();
+  });
+
+  it("keeps a CLOSED account's balance in the arithmetic", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-15.00",
+      payeeDisplay: "SYNTH CAFE 001",
+    });
+    await repo.updateAccount(account.id, { status: "closed" });
+
+    const all = await repo.listAccountsWithBalances({ includeClosed: true });
+    expect(all).toHaveLength(1);
+    expect(all[0]!.balanceMinor).toBe(-1500);
+
+    const openOnly = await repo.listAccountsWithBalances({
+      includeClosed: false,
+    });
+    expect(openOnly).toHaveLength(0);
+  });
+});
+
+describe("transfers cannot inflate spending", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("excludes both legs from the month, so paying a card is not a second thousand dollars", async () => {
+    const repo = finance();
+    const everyday = await everydayAccount(repo);
+    const card = await repo.createAccount({
+      title: "Synthetica Rewards Card",
+      accountType: "credit_card",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    const groceries = (await repo.listCategories()).find(
+      (category) => category.name === "Groceries",
+    )!;
+
+    // The groceries are bought ON THE CARD. That is the spending.
+    await repo.createTransaction({
+      accountId: card.id,
+      occurredOn: "2026-09-05",
+      amount: "-1000.00",
+      payeeDisplay: "NORTHWIND GROCERS",
+      categoryId: groceries.id,
+    });
+    // The card is then paid FROM the everyday account. That is not spending.
+    const out = await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-20",
+      amount: "-1000.00",
+      payeeDisplay: "CARD PAYMENT",
+    });
+    const back = await repo.createTransaction({
+      accountId: card.id,
+      occurredOn: "2026-09-20",
+      amount: "1000.00",
+      payeeDisplay: "PAYMENT RECEIVED",
+    });
+    await repo.linkTransfer(out.id, back.id);
+
+    const summary = await repo.monthSummary("2026-09");
+    const totals = monthDirectionTotals(summary);
+    expect(totals.out).toEqual([
+      { currencyCode: "AUD", minorUnits: 100_000, count: 1 },
+    ]);
+    expect(totals.in).toEqual([]);
+    expect(summary.transferCount).toBe(2);
+
+    /*
+     * And the legs are out of the month ENTIRELY, not merely out of the
+     * categorised totals.
+     *
+     * This half was added after a falsification: removing
+     * `transfer_group_id IS NULL` from the grouped statement left every
+     * assertion above green, because the legs are UNCATEGORISED and therefore
+     * landed in the uncategorised bucket rather than in `out`/`in`. The month
+     * would have read "2 transactions have no category yet — $1,000.00 out and
+     * $1,000.00 in", which is the double count this whole design exists to
+     * prevent, wearing a different label.
+     */
+    expect(totals.uncategorisedOut).toEqual([]);
+    expect(totals.uncategorisedIn).toEqual([]);
+    expect(summary.uncategorisedCount).toBe(0);
+    expect(
+      summary.categories.every((entry) => entry.transactionCount === 1),
+    ).toBe(true);
+    // And the balances are still coherent: the card is back to zero and the
+    // everyday account is a thousand dollars down.
+    const balances = await repo.listAccountsWithBalances();
+    const byId = new Map(balances.map((b) => [b.account.id, b.balanceMinor]));
+    expect(byId.get(card.id)).toBe(0);
+    expect(byId.get(everyday.id)).toBe(-100_000);
+  });
+
+  it("refuses a pair in one account, a pair with the same sign, and a leg already paired", async () => {
+    const repo = finance();
+    const everyday = await everydayAccount(repo);
+    const savings = await repo.createAccount({
+      title: "Savings",
+      accountType: "savings",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+
+    const outA = await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-10",
+      amount: "-200.00",
+      payeeDisplay: "TO SAVINGS",
+    });
+    const outB = await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-10",
+      amount: "-200.00",
+      payeeDisplay: "ALSO OUT",
+    });
+    const inA = await repo.createTransaction({
+      accountId: savings.id,
+      occurredOn: "2026-09-10",
+      amount: "200.00",
+      payeeDisplay: "FROM EVERYDAY",
+    });
+
+    await expect(repo.linkTransfer(outA.id, outA.id)).rejects.toBeInstanceOf(
+      FinanceRefusedError,
+    );
+    await expect(repo.linkTransfer(outA.id, outB.id)).rejects.toBeInstanceOf(
+      FinanceRefusedError,
+    );
+
+    await repo.linkTransfer(outA.id, inA.id);
+    await expect(repo.linkTransfer(outA.id, inA.id)).rejects.toBeInstanceOf(
+      FinanceRefusedError,
+    );
+  });
+
+  it("suggests the exactly-opposite unpaired leg in another account, and nothing else", async () => {
+    const repo = finance();
+    const everyday = await everydayAccount(repo);
+    const savings = await repo.createAccount({
+      title: "Savings",
+      accountType: "savings",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+
+    const out = await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-10",
+      amount: "-200.00",
+      payeeDisplay: "TO SAVINGS",
+    });
+    const exact = await repo.createTransaction({
+      accountId: savings.id,
+      occurredOn: "2026-09-11",
+      amount: "200.00",
+      payeeDisplay: "FROM EVERYDAY",
+    });
+    // Same amount, but far outside the window.
+    await repo.createTransaction({
+      accountId: savings.id,
+      occurredOn: "2026-09-25",
+      amount: "200.00",
+      payeeDisplay: "SOMETHING ELSE",
+    });
+    // The right shape, but in the SAME account.
+    await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-10",
+      amount: "200.00",
+      payeeDisplay: "A REFUND",
+    });
+
+    const candidates = await repo.suggestTransferPartners(out.id);
+    expect(candidates.map((candidate) => candidate.transactionId)).toEqual([
+      exact.id,
+    ]);
+  });
+
+  it("unlinks both legs at once", async () => {
+    const repo = finance();
+    const everyday = await everydayAccount(repo);
+    const savings = await repo.createAccount({
+      title: "Savings",
+      accountType: "savings",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    const out = await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-10",
+      amount: "-200.00",
+      payeeDisplay: "TO SAVINGS",
+    });
+    const back = await repo.createTransaction({
+      accountId: savings.id,
+      occurredOn: "2026-09-10",
+      amount: "200.00",
+      payeeDisplay: "FROM EVERYDAY",
+    });
+    await repo.linkTransfer(out.id, back.id);
+    await repo.unlinkTransfer(out.id);
+
+    expect(
+      (await repo.getTransaction(out.id))!.transaction.transferGroupId,
+    ).toBeNull();
+    expect(
+      (await repo.getTransaction(back.id))!.transaction.transferGroupId,
+    ).toBeNull();
+  });
+});
+
+describe("the month, and refunds", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("counts a refund in a spending category as LESS spend, never as income", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const groceries = (await repo.listCategories()).find(
+      (category) => category.name === "Groceries",
+    )!;
+
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-200.00",
+      payeeDisplay: "NORTHWIND GROCERS",
+      categoryId: groceries.id,
+    });
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-06",
+      amount: "50.00",
+      payeeDisplay: "NORTHWIND GROCERS REFUND",
+      categoryId: groceries.id,
+    });
+
+    const totals = monthDirectionTotals(await repo.monthSummary("2026-09"));
+    expect(totals.out).toEqual([
+      { currencyCode: "AUD", minorUnits: 15_000, count: 2 },
+    ]);
+    expect(totals.in).toEqual([]);
+  });
+
+  it("reports uncategorised separately, folding it into NEITHER total", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    await repo.createTransaction({
+      accountId: account.id,
+      occurredOn: "2026-09-03",
+      amount: "-80.00",
+      payeeDisplay: "SOMETHING UNKNOWN",
+    });
+
+    const summary = await repo.monthSummary("2026-09");
+    const totals = monthDirectionTotals(summary);
+    expect(totals.out).toEqual([]);
+    expect(totals.in).toEqual([]);
+    expect(totals.uncategorisedOut).toEqual([
+      { currencyCode: "AUD", minorUnits: 8000, count: 1 },
+    ]);
+    expect(summary.uncategorisedCount).toBe(1);
+    expect(await repo.countUncategorised()).toBe(1);
+  });
+
+  it("keeps unlike currencies apart rather than adding them", async () => {
+    const repo = finance();
+    const aud = await everydayAccount(repo);
+    const nzd = await repo.createAccount({
+      title: "Synthetica NZ",
+      accountType: "transaction",
+      currencyCode: "NZD",
+      openingDate: "2026-09-01",
+    });
+    const groceries = (await repo.listCategories()).find(
+      (category) => category.name === "Groceries",
+    )!;
+
+    await repo.createTransaction({
+      accountId: aud.id,
+      occurredOn: "2026-09-03",
+      amount: "-100.00",
+      payeeDisplay: "NORTHWIND GROCERS",
+      categoryId: groceries.id,
+    });
+    await repo.createTransaction({
+      accountId: nzd.id,
+      occurredOn: "2026-09-04",
+      amount: "-180.00",
+      payeeDisplay: "NORTHWIND GROCERS NZ",
+      categoryId: groceries.id,
+    });
+
+    const totals = monthDirectionTotals(await repo.monthSummary("2026-09"));
+    expect(totals.out).toEqual([
+      { currencyCode: "AUD", minorUnits: 10_000, count: 1 },
+      { currencyCode: "NZD", minorUnits: 18_000, count: 1 },
+    ]);
+    // And nothing anywhere produces one number across the two.
+    const combined = totalMoney(
+      totals.out.map((entry) => ({
+        minorUnits: entry.minorUnits,
+        currencyCode: entry.currencyCode,
+      })),
+    );
+    expect(combined.mixed).toBe(true);
+    expect(combined.totals).toHaveLength(2);
+  });
+
+  it("cuts the month by the transaction date, at both boundaries", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const groceries = (await repo.listCategories()).find(
+      (category) => category.name === "Groceries",
+    )!;
+    for (const date of [
+      "2026-08-31",
+      "2026-09-01",
+      "2026-09-30",
+      "2026-10-01",
+    ]) {
+      await repo.createTransaction({
+        accountId: account.id,
+        occurredOn: date,
+        amount: "-10.00",
+        payeeDisplay: "NORTHWIND GROCERS",
+        categoryId: groceries.id,
+      });
+    }
+    const totals = monthDirectionTotals(await repo.monthSummary("2026-09"));
+    expect(totals.out).toEqual([
+      { currencyCode: "AUD", minorUnits: 2000, count: 2 },
+    ]);
+  });
+});
+
+describe("a transaction's currency follows its account", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("stores the account's currency, so an aggregate reads one table", async () => {
+    const repo = finance();
+    const nzd = await repo.createAccount({
+      title: "Synthetica NZ",
+      accountType: "transaction",
+      currencyCode: "NZD",
+      openingDate: "2026-09-01",
+    });
+    const transaction = await repo.createTransaction({
+      accountId: nzd.id,
+      occurredOn: "2026-09-03",
+      amount: "-12.34",
+      payeeDisplay: "SYNTH CAFE 001",
+    });
+    expect(transaction.currencyCode).toBe("NZD");
+  });
+});
+
+describe("V2.12 — the review findings, each pinned by a test", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("ends the transfer when one leg is deleted, so the survivor re-enters the month", async () => {
+    /*
+     * A transfer is a PAIR. Deleting one leg used to mark only that row and
+     * leave the survivor's `transfer_group_id` intact — and `monthSummary`
+     * excludes any row that has one, so the remaining cash flow stayed out of
+     * the month permanently, paired with a row the owner could no longer see.
+     * Money silently missing from the answer to "where is my money going?".
+     */
+    const repo = finance();
+    const everyday = await everydayAccount(repo);
+    const card = await repo.createAccount({
+      title: "Synthetica Rewards Card",
+      accountType: "credit_card",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    const out = await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-20",
+      amount: "-1000.00",
+      payeeDisplay: "CARD PAYMENT",
+    });
+    const back = await repo.createTransaction({
+      accountId: card.id,
+      occurredOn: "2026-09-20",
+      amount: "1000.00",
+      payeeDisplay: "PAYMENT RECEIVED",
+    });
+    await repo.linkTransfer(out.id, back.id);
+    expect(
+      monthDirectionTotals(await repo.monthSummary("2026-09")).uncategorisedOut,
+    ).toEqual([]);
+
+    await repo.deleteTransaction(out.id);
+
+    // The survivor is no longer half of anything …
+    const survivor = await repo.getTransaction(back.id);
+    expect(survivor?.transaction.transferGroupId).toBeNull();
+    expect(survivor?.transferPartnerId).toBeNull();
+
+    // … and its money is back in the month, where it belongs.
+    const totals = monthDirectionTotals(await repo.monthSummary("2026-09"));
+    expect(totals.uncategorisedIn).toEqual([
+      { currencyCode: "AUD", minorUnits: 100_000, count: 1 },
+    ]);
+    // The survivor is NOT deleted with its partner: the owner deleted one row.
+    expect(survivor?.transaction.deletedAt).toBeNull();
+  });
+
+  it("refuses a new transaction and an import on a CLOSED account", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    await repo.updateAccount(account.id, { status: "closed" });
+
+    await expect(
+      repo.createTransaction({
+        accountId: account.id,
+        occurredOn: "2026-09-04",
+        amount: "-10.00",
+        payeeDisplay: "SYNTH CAFE 001",
+      }),
+    ).rejects.toThrow(/closed/i);
+
+    await expect(
+      repo.previewImport({
+        accountId: account.id,
+        fileName: "september.csv",
+        bytes: new TextEncoder().encode(
+          "Date,Description,Amount\n04/09/2026,SYNTH CAFE 001,-10.00",
+        ),
+        mapping: validateCsvMapping({
+          v: 1,
+          headerRows: 1,
+          date: 0,
+          dateFormat: "dmy",
+          description: 1,
+          amount: { kind: "single", column: 2, invert: false },
+          sourceId: null,
+          balance: null,
+        }),
+      }),
+    ).rejects.toThrow(/closed/i);
+
+    // Reopening is one control away, so the refusal is actionable.
+    await repo.updateAccount(account.id, { status: "open" });
+    await expect(
+      repo.createTransaction({
+        accountId: account.id,
+        occurredOn: "2026-09-04",
+        amount: "-10.00",
+        payeeDisplay: "SYNTH CAFE 001",
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("reports the SAME total on every page, not the page's own length", async () => {
+    /*
+     * DEBT-232's defect, reintroduced on cursor pages only: `total` fell back
+     * to `items.length` whenever a cursor was present, so a 120-row result
+     * reported 50 on page two and 20 on the last.
+     */
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    for (let index = 0; index < 12; index += 1) {
+      await repo.createTransaction({
+        accountId: account.id,
+        occurredOn: `2026-09-${String((index % 28) + 1).padStart(2, "0")}`,
+        amount: "-10.00",
+        payeeDisplay: `NORTHWIND GROCERS ${index}`,
+      });
+    }
+
+    const first = await repo.listTransactions({ limit: 5 });
+    expect(first.items).toHaveLength(5);
+    expect(first.total).toBe(12);
+
+    const second = await repo.listTransactions({
+      limit: 5,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items).toHaveLength(5);
+    expect(second.total).toBe(12);
+
+    const last = await repo.listTransactions({
+      limit: 5,
+      cursor: second.nextCursor!,
+    });
+    expect(last.items).toHaveLength(2);
+    expect(last.total).toBe(12);
+  });
+
+  it("binds an apply to the mapping the PREVIEW used, not to the current form", async () => {
+    /*
+     * `expectedSha256` authenticates the file and nothing else, so an owner
+     * could preview a statement, change which column is the date or flip the
+     * sign, and apply — and the server would reparse the same bytes under a
+     * mapping nobody had seen, changing every imported date or amount.
+     */
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const bytes = new TextEncoder().encode(
+      [
+        "Date,Description,Amount",
+        "04/09/2026,NORTHWIND GROCERS,-84.20",
+        "05/09/2026,SYNTH CAFE 001,-12.50",
+      ].join("\n"),
+    );
+    const previewed = validateCsvMapping({
+      v: 1,
+      headerRows: 1,
+      date: 0,
+      dateFormat: "dmy",
+      description: 1,
+      amount: { kind: "single", column: 2, invert: false },
+      sourceId: null,
+      balance: null,
+    });
+    const preview = await repo.previewImport({
+      accountId: account.id,
+      fileName: "september.csv",
+      bytes,
+      mapping: previewed,
+    });
+    expect(preview.mappingKey).toBe(serialiseCsvMapping(previewed));
+
+    // The SAME bytes, a DIFFERENT mapping — every amount would be inverted.
+    const changed = validateCsvMapping({
+      ...previewed,
+      amount: { kind: "single", column: 2, invert: true },
+    });
+    await expect(
+      repo.applyImport({
+        accountId: account.id,
+        fileName: "september.csv",
+        bytes,
+        mapping: changed,
+        expectedSha256: preview.fileSha256,
+        expectedMappingKey: preview.mappingKey,
+      }),
+    ).rejects.toThrow(/preview/i);
+
+    // Nothing was written by the refused apply.
+    expect((await repo.listTransactions()).total).toBe(0);
+
+    // The previewed mapping applies.
+    const applied = await repo.applyImport({
+      accountId: account.id,
+      fileName: "september.csv",
+      bytes,
+      mapping: previewed,
+      expectedSha256: preview.fileSha256,
+      expectedMappingKey: preview.mappingKey,
+    });
+    expect(applied.addedCount).toBe(2);
+    // Money OUT, as previewed — not inverted.
+    expect(await deriveAccountBalance(WS, account.id)).toBe(-9670);
+  });
+});

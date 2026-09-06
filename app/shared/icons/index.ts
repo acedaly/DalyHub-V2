@@ -25,6 +25,8 @@ export {
   MeetingIcon,
   PersonIcon,
   AssetIcon,
+  FinanceAccountIcon,
+  FinanceTransactionIcon,
   DiaryIcon,
   ReviewIcon,
   // UI icons

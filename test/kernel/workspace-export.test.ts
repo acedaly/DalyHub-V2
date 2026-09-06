@@ -378,9 +378,17 @@ describe("workspace export (D1)", () => {
     // metadata is not downloading objects, and this number is where that stays
     // true.
     //
+    // V2.12 FIN-00 adds FIVE — accounts, categories, imports, transactions and
+    // budgets — for 45. It is the largest single increase any release has made
+    // here, and it is stated rather than absorbed because the number is the
+    // whole point: five statements whether the workspace holds ten transactions
+    // or ten thousand. A Finance export that grew with the ledger would be the
+    // one collection an owner could not back up, which is the opposite of what
+    // this release is gated on.
+    //
     // The second half of this test is what actually holds the bound, by proving
     // that twenty more records add none at all.
-    expect(statements).toBeLessThanOrEqual(40);
+    expect(statements).toBeLessThanOrEqual(45);
     expect(statements).toBeGreaterThan(20);
 
     // Growing the workspace must not grow the statement count while the data
