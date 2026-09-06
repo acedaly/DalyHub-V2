@@ -29,6 +29,7 @@ import {
   attachmentView,
   attachmentWorkspacePrefix,
   contentDispositionHeader,
+  createInMemoryObjectStore,
   filenameExtension,
   formatAttachmentSize,
   keyBelongsToWorkspace,
@@ -39,6 +40,7 @@ import {
   validateUploadOperationId,
   type AttachmentRecord,
 } from "~/kernel/attachments";
+import { objectStoreContract } from "../../support/object-store-contract";
 
 const PDF_BYTES = new Uint8Array([
   0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34,
@@ -454,3 +456,15 @@ describe("what a surface receives", () => {
     expect(view.kindLabel).toBe("PDF");
   });
 });
+
+/*
+ * The port contract, against the FAKE. The same block runs against the real
+ * bucket in `test/kernel/attachments.test.ts`, which is the only thing that
+ * makes `createInMemoryObjectStore` safe to reason with: a fake nothing checks
+ * is a fake that drifts.
+ */
+objectStoreContract(
+  "in-memory fake",
+  () => createInMemoryObjectStore(),
+  "workspaces/ws_contract/attachments/",
+);

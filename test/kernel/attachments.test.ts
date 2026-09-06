@@ -63,6 +63,10 @@ import {
   resetTables,
   sequentialIds,
 } from "./support";
+import {
+  collectStream,
+  objectStoreContract,
+} from "../support/object-store-contract";
 import { createAttachmentRepository } from "~/platform/storage/d1";
 import { createActivityActorContext } from "~/kernel/activity";
 
@@ -304,6 +308,75 @@ describe("a file goes in and comes back byte for byte", () => {
     await expect(
       readAttachmentBytes(dependencies, attachment),
     ).rejects.toMatchObject({ reason: "checksum_mismatch" });
+  });
+
+  it("streams the same bytes on the download path", async () => {
+    const owner = await seedOwner(WS);
+    const dependencies = deps(WS);
+    const { attachment } = await uploadAttachment(dependencies, {
+      ownerEntityId: owner.id,
+      filename: "policy.pdf",
+      declaredMediaType: "application/pdf",
+      bytes: PDF,
+      uploadOperationId: "op-stream-0001",
+    });
+
+    /*
+     * The download path does not buffer, so this is what proves it still hands
+     * over the right bytes: the stream is drained the way the platform drains
+     * it when the `Response` is sent, and compared with what went in.
+     */
+    const { openAttachmentStream } = await import("~/platform/attachments");
+    const body = await openAttachmentStream(dependencies, attachment);
+    expect([...(await collectStream(body))]).toEqual([...PDF]);
+  });
+
+  it("refuses to stream an object that disagrees with its row", async () => {
+    const owner = await seedOwner(WS);
+    const dependencies = deps(WS);
+    const { attachment } = await uploadAttachment(dependencies, {
+      ownerEntityId: owner.id,
+      filename: "receipt.png",
+      declaredMediaType: "image/png",
+      bytes: PNG,
+      uploadOperationId: "op-stream-0002",
+    });
+
+    /*
+     * Replaced behind DalyHub's back — the case the O(1) check has to catch, and
+     * the one a naive "stream whatever is under the key" would serve happily.
+     * A write made outside this service carries a different digest or none, and
+     * either is a refusal: the owner is told the file does not match what was
+     * recorded rather than being handed someone else's document under their own
+     * filename.
+     */
+    await env.ATTACHMENTS.put(
+      attachment.storageKey,
+      PDF as unknown as ArrayBuffer,
+    );
+
+    const { openAttachmentStream } = await import("~/platform/attachments");
+    await expect(
+      openAttachmentStream(dependencies, attachment),
+    ).rejects.toMatchObject({ reason: "checksum_mismatch" });
+  });
+
+  it("refuses to stream an object that is not there", async () => {
+    const owner = await seedOwner(WS);
+    const dependencies = deps(WS);
+    const { attachment } = await uploadAttachment(dependencies, {
+      ownerEntityId: owner.id,
+      filename: "policy.pdf",
+      declaredMediaType: "application/pdf",
+      bytes: PDF,
+      uploadOperationId: "op-stream-0003",
+    });
+    await env.ATTACHMENTS.delete(attachment.storageKey);
+
+    const { openAttachmentStream } = await import("~/platform/attachments");
+    await expect(
+      openAttachmentStream(dependencies, attachment),
+    ).rejects.toMatchObject({ reason: "object_missing" });
   });
 
   it("reports a missing object rather than serving nothing", async () => {
@@ -667,3 +740,17 @@ describe("reading evidence is bounded", () => {
     expect(reads).toBe(0);
   });
 });
+
+/*
+ * The port contract, against the REAL local R2 bucket — the same block the unit
+ * suite runs against `createInMemoryObjectStore`. This is what makes the fake
+ * trustworthy: every property the application leans on is asserted of BOTH, so a
+ * fake that started agreeing with code the bucket would refuse is caught here.
+ *
+ * Its own key prefix, so it cannot collide with the fixtures above.
+ */
+objectStoreContract(
+  "real R2 bucket",
+  () => createR2ObjectStore(env.ATTACHMENTS),
+  "workspaces/ws_contract/attachments/",
+);

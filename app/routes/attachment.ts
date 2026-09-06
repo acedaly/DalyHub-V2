@@ -15,8 +15,13 @@
  *      existed;
  *   4. derives the object key from THAT ROW, never from anything the client
  *      sent;
- *   5. verifies the bytes against the checksum recorded with the metadata before
- *      handing them over.
+ *   5. verifies the object against the checksum and the size recorded with the
+ *      metadata before a byte leaves.
+ *
+ * Step 5 costs nothing per megabyte. R2 returns the digest DalyHub gave it on
+ * the write, so the check is a string comparison against the row and the body is
+ * then STREAMED — a 10 MiB download allocates no more in the isolate than a
+ * 10 KiB one (ADR-119 decision 11).
  *
  * Guessing `/attachments/<uuid>` therefore reaches nothing: the id has to exist
  * AND belong to the workspace the server resolved for this session.
@@ -47,7 +52,7 @@ import {
 } from "~/kernel/attachments";
 import {
   deleteAttachment,
-  readAttachmentBytes,
+  openAttachmentStream,
   resolveAttachmentObjectStore,
 } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -90,9 +95,9 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     );
   }
 
-  let bytes: Uint8Array;
+  let body: ReadableStream<Uint8Array>;
   try {
-    bytes = await readAttachmentBytes(
+    body = await openAttachmentStream(
       {
         attachments: scope.attachments,
         objects,
@@ -127,7 +132,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw cause;
   }
 
-  return new Response(bytes as unknown as BodyInit, {
+  return new Response(body as unknown as BodyInit, {
     headers: {
       // From the ROW, which went through the allow-list. Never from the object.
       "content-type": attachment.mediaType,

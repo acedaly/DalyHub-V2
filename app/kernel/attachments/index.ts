@@ -76,6 +76,7 @@ export {
   type PutObjectOptions,
   type StoredObject,
   type StoredObjectInfo,
+  type StoredObjectStream,
 } from "./attachment-object-store";
 
 export {

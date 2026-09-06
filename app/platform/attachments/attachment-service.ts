@@ -221,7 +221,62 @@ export async function sweepAttachmentPurges(
   return { attempted: queued.length, cleared };
 }
 
-/** Read an attachment's bytes, verifying them against the metadata's digest. */
+/**
+ * Open an attachment's bytes as a STREAM, verified against the metadata.
+ *
+ * The download and preview path. What makes it correct without a re-read is
+ * that R2 hands back the digest DalyHub gave it on the write, so the check is
+ * a 64-character string comparison against the D1 row rather than a SHA-256
+ * over the whole file — and it catches the same disagreements:
+ *
+ *   - the object is gone while the row remains → `object_missing`;
+ *   - the object under this key is not the one the row describes, because
+ *     something replaced it outside DalyHub → `checksum_mismatch`, since a
+ *     write not made through this service either carries a different digest or
+ *     carries none at all;
+ *   - the size disagrees → `checksum_mismatch` as well, which is what makes a
+ *     truncated object refuse rather than serve a short document.
+ *
+ * A store that recorded NO digest is refused rather than trusted. Every write
+ * through this service supplies one; an object without one did not come from
+ * here, and serving it as the owner's document on the strength of its key alone
+ * is the assumption this whole layer exists to avoid.
+ *
+ * The caller hands `body` straight to a `Response`, so a 10 MiB download costs
+ * the isolate the same memory as a 10 KiB one.
+ */
+export async function openAttachmentStream(
+  deps: AttachmentServiceDependencies,
+  attachment: AttachmentRecord,
+): Promise<ReadableStream<Uint8Array>> {
+  const object = await deps.objects.open(attachment.storageKey);
+  if (object === null) {
+    throw new AttachmentStorageError("object_missing", attachment.storageKey);
+  }
+  if (
+    object.checksumSha256 !== attachment.checksumSha256 ||
+    object.size !== attachment.byteSize
+  ) {
+    /*
+     * Cancel rather than abandon: an unread R2 body holds a connection, and the
+     * failure path is exactly where one would be leaked.
+     */
+    await object.body.cancel().catch(() => {});
+    throw new AttachmentStorageError(
+      "checksum_mismatch",
+      attachment.storageKey,
+    );
+  }
+  return object.body;
+}
+
+/**
+ * Read an attachment's bytes, verifying them against the metadata's digest.
+ *
+ * The BUFFERED read, for the two callers that genuinely need the whole file in
+ * hand: the export, which hashes what it is about to put into an archive, and
+ * the integrity audit. A DOWNLOAD does not — see {@link openAttachmentStream}.
+ */
 export async function readAttachmentBytes(
   deps: AttachmentServiceDependencies,
   attachment: AttachmentRecord,

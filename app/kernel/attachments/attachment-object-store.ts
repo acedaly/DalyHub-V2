@@ -1,7 +1,7 @@
 /**
  * V2.11 FILE-00 — the object-store PORT.
  *
- * Four operations, no vendor. Nothing in this file imports R2, Cloudflare or any
+ * Five operations, no vendor. Nothing in this file imports R2, Cloudflare or any
  * runtime type, so the domain can be reasoned about, faked and tested without a
  * bucket — and the Cloudflare adapter (`app/platform/attachments/r2-object-store.ts`)
  * is the only place `R2Bucket` exists.
@@ -44,6 +44,18 @@ export interface StoredObject extends StoredObjectInfo {
   readonly bytes: Uint8Array;
 }
 
+/**
+ * An object's bytes as a STREAM, plus what is known about them.
+ *
+ * The shape the download path uses. `checksumSha256` is what the STORE recorded
+ * at write time — R2 keeps the digest DalyHub gave it — so the row and the
+ * object can be compared for **O(1)** without reading a byte, and the body can
+ * then be handed straight to the platform. See {@link AttachmentObjectStore.open}.
+ */
+export interface StoredObjectStream extends StoredObjectInfo {
+  readonly body: ReadableStream<Uint8Array>;
+}
+
 /** Everything a write may declare. */
 export interface PutObjectOptions {
   /**
@@ -79,8 +91,29 @@ export interface AttachmentObjectStore {
     options: PutObjectOptions,
   ): Promise<StoredObjectInfo>;
 
-  /** Read an object's bytes. `null` when there is no object under `key`. */
+  /**
+   * Read an object's bytes into memory. `null` when there is no object.
+   *
+   * The BUFFERED read, and the callers that need it genuinely do: an export
+   * hashes what it is about to put in an archive, and a restore hashes what it
+   * has just taken out of one. Both must hold the whole file to answer the
+   * question they exist to answer, and both are bounded by the per-file limit.
+   */
   get(key: string): Promise<StoredObject | null>;
+
+  /**
+   * Open an object's bytes as a stream, WITHOUT reading them. `null` when there
+   * is no object under `key`.
+   *
+   * The download path. `get` would buffer the whole file into the isolate only
+   * to hand it to a `Response` that streams it out again; `open` hands the
+   * platform the body and lets it do the copying, so a download costs the same
+   * memory at 10 MiB as at 10 KiB. Verification does not suffer for it — the
+   * digest R2 recorded on the write is returned here, and comparing it with the
+   * row catches exactly the disagreements a re-hash would (see
+   * `openAttachmentStream`).
+   */
+  open(key: string): Promise<StoredObjectStream | null>;
 
   /**
    * Delete an object. Deleting a key that is not there SUCCEEDS.
@@ -139,6 +172,22 @@ export function createInMemoryObjectStore(options?: {
       const stored = objects.get(key);
       if (!stored) return null;
       return { ...stored, bytes: stored.bytes.slice() };
+    },
+    async open(key) {
+      const stored = objects.get(key);
+      if (!stored) return null;
+      const bytes = stored.bytes.slice();
+      return {
+        key: stored.key,
+        size: stored.size,
+        checksumSha256: stored.checksumSha256,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(bytes);
+            controller.close();
+          },
+        }),
+      };
     },
     async delete(key) {
       if (options?.failDelete?.(key)) {

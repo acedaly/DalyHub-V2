@@ -17,6 +17,7 @@ export {
   isAttachmentValidationError,
   listMissingObjects,
   listOrphanedObjects,
+  openAttachmentStream,
   readAttachmentBytes,
   sweepAttachmentPurges,
   uploadAttachment,

@@ -6,14 +6,20 @@
  * `AttachmentObjectStore` and could be driven against a bucket, a fake or a
  * future provider without noticing.
  *
- * ## Two guarantees this adapter buys from R2, and both are used
+ * ## Three guarantees this adapter buys from R2, and all three are used
  *
  * 1. **R2 verifies the digest.** `put(key, bytes, { sha256 })` fails the write if
  *    the bytes do not hash to the value given. DalyHub computes that digest from
  *    the same buffer it stores, so a corruption between the isolate and the
  *    bucket is caught by the bucket rather than discovered by a restore months
  *    later. It is not merely metadata: it is a write-time check.
- * 2. **`delete` is idempotent.** Deleting a key that is not there succeeds, which
+ * 2. **R2 gives the digest back, and the body as a stream.** `checksums.sha256`
+ *    on a read is the value from that write, and `body` is a `ReadableStream`.
+ *    So the download path verifies in **O(1)** against the D1 row and never
+ *    holds the file: the comparison is 64 characters, and the bytes go bucket →
+ *    socket. Both are runtime facts checked against the pinned types
+ *    (`worker-configuration.d.ts`, workerd@1.20260714.1), not assumptions.
+ * 3. **`delete` is idempotent.** Deleting a key that is not there succeeds, which
  *    is what makes the purge sweep safe to run twice and safe to interrupt.
  *
  * ## What is deliberately NOT here
@@ -37,6 +43,7 @@ import {
   type PutObjectOptions,
   type StoredObject,
   type StoredObjectInfo,
+  type StoredObjectStream,
 } from "~/kernel/attachments";
 
 /** Lowercase hex from an `ArrayBuffer` of digest bytes. */
@@ -121,6 +128,29 @@ export function createR2ObjectStore(bucket: R2Bucket): AttachmentObjectStore {
       } catch {
         throw new AttachmentStorageError("object_missing", key);
       }
+    },
+
+    async open(key: string): Promise<StoredObjectStream | null> {
+      /*
+       * The download path, and the reason it is not `get`.
+       *
+       * `R2ObjectBody.body` is a `ReadableStream` in the pinned runtime
+       * (`worker-configuration.d.ts`, generated from workerd@1.20260714.1), and
+       * `R2Object.checksums.sha256` carries back the digest DalyHub supplied on
+       * the write. Together they mean a download never has to hold the file:
+       * the integrity comparison is a 64-character string against the D1 row,
+       * and the bytes go from the bucket to the socket without the isolate
+       * touching them. `get` would allocate the whole object only to hand it to
+       * a `Response` that copies it out again.
+       */
+      let object: R2ObjectBody | null;
+      try {
+        object = await bucket.get(key);
+      } catch {
+        throw new AttachmentStorageError("object_missing", key);
+      }
+      if (object === null) return null;
+      return { ...describe(object), body: object.body };
     },
 
     async delete(key: string): Promise<void> {

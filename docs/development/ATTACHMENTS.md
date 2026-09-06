@@ -99,6 +99,25 @@ Every one of them: requires a verified session, resolves the workspace from
 under a workspace predicate so a foreign id is a **404**, and derives the object
 key from that row rather than from anything the client sent.
 
+### Downloads stream; nothing else has to
+
+`GET /attachments/:id` and the preview route never hold the file. R2 returns the
+digest DalyHub gave it on the write and the body as a `ReadableStream`, so the
+integrity check is a 64-character comparison against the D1 row and the bytes go
+from the bucket to the socket without passing through the isolate. A 10 MiB
+download costs what a 10 KiB one costs.
+
+Verification is not the price of that. An object whose recorded digest or size
+disagrees with its row is refused — 502 with a sentence that says to restore from
+a backup — and an object the store recorded **no** digest for is refused too,
+because a write that did not come through this service is exactly what the check
+exists to catch.
+
+Upload, export and restore buffer, and each has to: the first must know the
+SHA-256 before it writes, and the other two must hash what they are putting into
+or taking out of an archive. Each is bounded — 10 MiB per file, 64 MiB writing an
+archive, 32 MiB reading one — and the bound is the control.
+
 ### Why download is always `attachment`
 
 DalyHub's own Content-Security-Policy sets `object-src 'none'`, `frame-src

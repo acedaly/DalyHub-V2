@@ -25,7 +25,7 @@
  *
  * Everything else is the download route's: the same session requirement, the
  * same workspace predicate, the same 404 for a foreign id, the same
- * checksum-verified read, the same media type taken from the row rather than
+ * checksum-verified STREAM, the same media type taken from the row rather than
  * from the object.
  */
 
@@ -36,7 +36,7 @@ import {
   contentDispositionHeader,
 } from "~/kernel/attachments";
 import {
-  readAttachmentBytes,
+  openAttachmentStream,
   resolveAttachmentObjectStore,
 } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -65,9 +65,9 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   const objects = resolveAttachmentObjectStore(env);
   if (objects === null) throw new Response("Not Found", { status: 404 });
 
-  let bytes: Uint8Array;
+  let body: ReadableStream<Uint8Array>;
   try {
-    bytes = await readAttachmentBytes(
+    body = await openAttachmentStream(
       {
         attachments: scope.attachments,
         objects,
@@ -91,7 +91,7 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     throw cause;
   }
 
-  return new Response(bytes as unknown as BodyInit, {
+  return new Response(body as unknown as BodyInit, {
     headers: {
       "content-type": attachment.mediaType,
       // `inline`, and still carrying the real filename — so a "save image as"

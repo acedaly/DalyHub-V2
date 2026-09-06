@@ -267,6 +267,49 @@ executing one. **Store and download is not parse and render.**
 
 ---
 
+## Cost: statements, memory, and where the bytes flow
+
+Measured rather than estimated. Each figure below is asserted by a test over
+real D1 and a real R2 bucket, so a change that made one of them worse would be
+a red run rather than a discovery in production.
+
+### Statements
+
+| Read | Statements | Flat with respect to |
+| --- | --- | --- |
+| One record's evidence | **1** | how many files the record holds |
+| N records' evidence | **1** | how many records, and how many files each holds |
+| A record page loader | **+1** against V2.10 | — |
+| The workspace snapshot | **40**, up from 39 | how many files exist, and how large they are |
+
+The snapshot number is worth stating precisely: it grows by one because there is
+one more collection to read, and by nothing at all per file, because the snapshot
+reads METADATA. The bytes are fetched by the archive builder afterwards, one
+object at a time, and never enter a query plan.
+
+### Memory, and why two paths differ
+
+DalyHub does not invent streaming infrastructure. It uses the platform's stream
+where the platform's stream answers the question being asked, and buffers where
+it does not — with a stated bound in every case.
+
+| Path | Holds | Bound | Why |
+| --- | --- | --- | --- |
+| **Download / preview** | nothing | — | `R2ObjectBody.body` is a `ReadableStream` and R2 returns the digest it was given on the write, so the check is 64 characters against the row and the bytes go bucket → socket. A 10 MiB download allocates what a 10 KiB one does. |
+| **Upload** | one file | 10 MiB | The SHA-256 must be known before the `put`, because R2 verifying it is what makes the write trustworthy. Computing it requires the bytes. The limit is checked twice before they are read — against `Content-Length`, then against the parsed `File.size`. |
+| **Export** | the archive | 64 MiB (`ZIP_MAX_TOTAL_BYTES`) | An archive that carries a file must hash it for `CHECKSUMS.txt`. Over the bound the export FAILS with the sentence the route already carries; it never truncates. |
+| **Restore** | the archive | 32 MiB (`RESTORE_MAX_ARCHIVE_BYTES`) | An archive being read must hash what came out to prove it survived the trip. |
+
+Both runtime facts the download path depends on — the stream and the returned
+digest — were checked against the pinned types (`worker-configuration.d.ts`,
+generated from workerd@1.20260714.1) rather than assumed from documentation.
+
+The archive ceilings did **not** move for V2.11. Files make them reachable for
+the first time, which is a truth improvement: an export that would not fit now
+says so instead of quietly being small.
+
+---
+
 ## Security
 
 Every attachment operation authorises through DalyHub, server-side, on every

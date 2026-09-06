@@ -6618,10 +6618,56 @@ account, R2 has no wall to hit by surprise, and a limit nobody can reach is a
 settings page pretending to be a control. That is a deferral with a reason, and
 it is recorded as debt rather than left as an omission.
 
+### Decision 11 — A DOWNLOAD streams and verifies in O(1); an EXPORT buffers because it has to. The line between them is drawn by what each one must answer, not by preference
+
+Both paths could have been written the same way, and writing them the same way
+would have been wrong in one direction or the other.
+
+The **download** never holds the file. `R2ObjectBody.body` is a `ReadableStream`
+and `R2Object.checksums.sha256` returns the digest DalyHub supplied on the write
+— both verified against the pinned runtime types generated from
+workerd@1.20260714.1, not assumed from documentation. So the route compares 64
+characters against the D1 row, hands the body to the `Response`, and lets the
+platform copy bucket → socket. A 10 MiB download costs the isolate what a 10 KiB
+one costs. Verification is not traded away for it: an object whose recorded
+digest or size disagrees with its row is refused with `checksum_mismatch`, and a
+store that recorded no digest at all is refused rather than trusted, because an
+object written outside this service is exactly the thing the check exists to
+catch. The unread body is `cancel()`ed on that path rather than dropped — an
+abandoned R2 body is a held connection.
+
+The **upload** buffers, and cannot do otherwise. The SHA-256 must be known
+before the `put`, because R2 verifying the digest is the guarantee the whole
+integrity story rests on; computing it requires reading the file, so the file is
+in memory either way. Streaming to R2 without a digest and reading back what R2
+computed would trade a write-time check for a read-time hope. It is bounded by
+the 10 MiB per-file limit, which is checked **twice** before a byte is read:
+against the declared `Content-Length`, and against the parsed `File.size`.
+
+The **export** and the **restore** buffer for the same kind of reason: an
+archive that carries a file must hash it to write `CHECKSUMS.txt`, and an
+archive being read must hash what came out to prove it survived. Neither
+question can be answered without the bytes. Both are bounded by the archive
+ceilings that already existed (64 MiB writing, 32 MiB reading), which is why
+those numbers did not move.
+
+No custom streaming infrastructure was invented anywhere. The one place the
+platform offers a stream that answers the question being asked, it is used; the
+places it does not, buffering is the honest implementation and the bound is the
+control.
+
+**Measured.** One record's evidence is **1 prepared statement** however many
+files it holds; N records' evidence is **1** statement however many records; a
+record page loader gains exactly that one statement. The workspace snapshot
+moves from **39 to 40** statements — one more collection — and is flat with
+respect to how many files exist, because the snapshot reads metadata and never a
+byte. All three are asserted over real D1, not estimated.
+
 **Consequences.** *Good:* one primitive every domain reuses, with the required
 owner enforced by the database rather than by review; no orphan object that the
 system cannot name; a restore that moves real bytes and proves it; Finance
-inherits a receipt mechanism it does not have to design. *Hard:* two physical
+inherits a receipt mechanism it does not have to design; the read path that runs
+most often is the one that allocates least. *Hard:* two physical
 stores now have to agree, which is a class of bug D1 alone did not have, and
 every failure path between them had to be named rather than assumed; the
 restore reader's entry allow-list becomes a prefix rule rather than an exact set,
