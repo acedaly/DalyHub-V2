@@ -542,6 +542,25 @@ describe("transfers cannot inflate spending", () => {
     ]);
     expect(totals.in).toEqual([]);
     expect(summary.transferCount).toBe(2);
+
+    /*
+     * And the legs are out of the month ENTIRELY, not merely out of the
+     * categorised totals.
+     *
+     * This half was added after a falsification: removing
+     * `transfer_group_id IS NULL` from the grouped statement left every
+     * assertion above green, because the legs are UNCATEGORISED and therefore
+     * landed in the uncategorised bucket rather than in `out`/`in`. The month
+     * would have read "2 transactions have no category yet — $1,000.00 out and
+     * $1,000.00 in", which is the double count this whole design exists to
+     * prevent, wearing a different label.
+     */
+    expect(totals.uncategorisedOut).toEqual([]);
+    expect(totals.uncategorisedIn).toEqual([]);
+    expect(summary.uncategorisedCount).toBe(0);
+    expect(
+      summary.categories.every((entry) => entry.transactionCount === 1),
+    ).toBe(true);
     // And the balances are still coherent: the card is back to zero and the
     // everyday account is a thousand dollars down.
     const balances = await repo.listAccountsWithBalances();
