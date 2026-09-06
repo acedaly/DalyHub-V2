@@ -44,11 +44,27 @@
  * the one place that says so.
  */
 
+import { GRAIN_MAXIMUMS } from "~/kernel/history";
+
 /** The role a mutation writes its own entity under — "what this event is about". */
 export const PRIMARY_SUBJECT_ROLE = "subject";
 
-/** The most buckets one windowed read will count over — the largest `GRAIN_MAXIMUMS`. */
-export const MAX_HISTORY_BUCKETS = 366;
+/**
+ * The most buckets one windowed read will count over — the largest of the
+ * kernel's `GRAIN_MAXIMUMS`, derived rather than restated so the storage
+ * ceiling and the vocabulary's cannot drift apart. A caller handing more is a
+ * caller bug and is REFUSED by the adapters, never silently shortened: a series
+ * cut here would come back shorter than the buckets it was asked for, and the
+ * surface would draw the cut as the whole (ADR-079 d11).
+ */
+export const MAX_HISTORY_BUCKETS = Math.max(...Object.values(GRAIN_MAXIMUMS));
+
+/**
+ * The most event types one grouped read binds. Each type is one bound
+ * parameter beside the three the shape always costs, so this keeps the
+ * statement far inside D1's ceiling of 100 whatever a caller asks.
+ */
+export const MAX_HISTORY_TYPES = 16;
 
 /** One bucket to count inside: the caller's key and a half-open instant range. */
 export interface HistoryWindowBucket {

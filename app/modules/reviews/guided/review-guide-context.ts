@@ -46,6 +46,7 @@ import {
 /** The product default, used only when a caller did not resolve the owner's. */
 const DEFAULT_FIRST_DAY_OF_WEEK = DEFAULT_APP_PREFERENCES.firstDayOfWeek;
 import {
+  ACROSS_REVIEWS_SERIES_LENGTH,
   readAcrossReviews,
   type ReviewInsights,
 } from "~/kernel/review-insights";
@@ -713,7 +714,7 @@ async function readAlignment(
          * an unreadable series leaves the line absent, never wrong.
          */
         scope.reviewInsights
-          .listSnapshotSeries(input.review.id, REVIEW_GUIDE_LIMITS.goals)
+          .listSnapshotSeries(input.review.id, ACROSS_REVIEWS_SERIES_LENGTH)
           .catch(() => []),
       ]);
 

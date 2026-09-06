@@ -376,6 +376,53 @@ describe("the batched summary read", () => {
     expect(series.get(b.id)).toEqual([{ value: 5, measuredOn: "2026-08-01" }]);
   });
 
+  it("reads only the readings inside a window when one is given (V2.9 INS-03)", async () => {
+    const s = spine();
+    const area = await s.createArea({ title: "Health" });
+    const goal = await s.createGoal({ title: "Reach 70 kg", areaId: area.id });
+    const repo = measurements();
+    for (const [value, measuredOn] of [
+      [85.0, "2026-06-10"],
+      [83.4, "2026-06-24"],
+      [81.2, "2026-07-08"],
+      [80.1, "2026-07-22"],
+      [79.3, "2026-08-08"],
+    ] as const) {
+      await repo.createMeasurement(goal.id, { value, measuredOn });
+    }
+    // Inclusive on both days, and the per-Goal cap still keeps the NEWEST
+    // readings inside the window.
+    const july = await repo.listMeasurementSeries([goal.id], {
+      perGoalLimit: 10,
+      window: { fromIso: "2026-06-24", toIso: "2026-07-22" },
+    });
+    expect(july.get(goal.id)).toEqual([
+      { value: 83.4, measuredOn: "2026-06-24" },
+      { value: 81.2, measuredOn: "2026-07-08" },
+      { value: 80.1, measuredOn: "2026-07-22" },
+    ]);
+    const capped = await repo.listMeasurementSeries([goal.id], {
+      perGoalLimit: 2,
+      window: { fromIso: "2026-06-24", toIso: "2026-07-22" },
+    });
+    expect(capped.get(goal.id)?.map((point) => point.measuredOn)).toEqual([
+      "2026-07-08",
+      "2026-07-22",
+    ]);
+    // A window with nothing in it is an EMPTY series, not the nearest readings.
+    const empty = await repo.listMeasurementSeries([goal.id], {
+      perGoalLimit: 10,
+      window: { fromIso: "2026-09-01", toIso: "2026-09-07" },
+    });
+    expect(empty.get(goal.id)).toBeUndefined();
+    await expect(
+      repo.listMeasurementSeries([goal.id], {
+        perGoalLimit: 10,
+        window: { fromIso: "2026-09-07", toIso: "2026-09-01" },
+      }),
+    ).rejects.toThrow(/window/);
+  });
+
   it("keeps same-day readings in creation order, so the endpoint is the newest", async () => {
     /*
      * `measured_on` is a DATE, and the repository permits two readings on one.

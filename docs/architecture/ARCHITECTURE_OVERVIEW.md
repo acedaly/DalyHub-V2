@@ -138,14 +138,21 @@ already writes.
   parameter** — aligning to the owner's Monday is exactly what would make the
   recent bucket partial; a caller wanting calendar weeks ends the window on the
   owner's week end and gets them exactly, and `planningWeekStart` remains the
-  product's one week-start authority. `review_period` buckets are the periods
-  the owner's Reviews actually covered, so they are supplied by `bucketPeriods`
-  rather than derived from a calendar.
+  product's one week-start authority. A window that ends on **any** month end
+  tiles into whole calendar months (the completion pass found the day-clamping
+  rule putting 31 March into an "April" bucket when the window ended on 30
+  April); a window ending mid-month keeps the day-anchored rule. An inverted
+  window is refused rather than read as a quiet one. `review_period` buckets
+  are the periods the owner's Reviews actually covered, so they are supplied by
+  `bucketPeriods` rather than derived from a calendar.
 - **`GRAIN_MAXIMUMS`** states 366 days, 52 weeks, 24 months and 12 Review
   periods, replacing the eight the Analytics bucketer had inherited from
   `MAX_TREND_PERIODS`. A window wider than its grain's maximum comes back with
   `bounded`, the bound and the count that was asked for — never silently
-  shortened.
+  shortened. The storage ceiling on a bucketed read is *derived* from these
+  maximums, and a caller handing more buckets than that is refused rather than
+  quietly served a shorter series; `listSnapshotSeries` is bounded by the
+  review_period maximum, not by the panel's eight.
 - **`Series<Point>`** carries its points, its buckets and its bound together, so
   a surface cannot present a capped population as a complete one
   ([ADR-079](../decisions/ARCHITECTURE_DECISIONS.md#adr-079-review-insights--three-kinds-of-truth-one-persisted-snapshot-and-no-score)
@@ -180,15 +187,22 @@ knowing before adding to it:
   not the total ([ADR-114](../decisions/ARCHITECTURE_DECISIONS.md#adr-114-recall--retrieval-reaches-content-under-an-explicit-query-boundary-one-excerpt-contract-one-completion-time-authority-and-commitments-that-return-without-a-reminder-engine)
   decision 4). Both read `spine_records.completed_at`; neither reads
   `task.completed` Activity events.
-- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 12`,
+- **The page's cost is declared and flat.** `ANALYTICS_QUERY_BUDGET = 14`,
   asserted against real D1 at every window and grain the surface offers
   ([`test/kernel/ins-03-insight-range.test.ts`](../../test/kernel/ins-03-insight-range.test.ts)).
   24 months at month grain costs what 7 days at day grain costs, because every
   windowed read is one grouped statement whose shape is independent of the
   window. A budget that grew with the window would mean a bucketed read had
   gone back to a column per bucket. It is the FULL page: three of the reads
-  return before touching the database on a workspace with no Goals, so the
-  budget's fixture seeds Goals with readings rather than understating it.
+  return before touching the database on a workspace with no Goals, and two
+  (the across-Reviews anchor and series) only fire once a Review has been
+  completed, so the budget's fixture seeds Goals with readings AND a completed
+  Review rather than understating it — the number was first declared as 12 on
+  a fixture with no Review, and corrected by the completion pass. The
+  measured-Goal series is read over the page's own window, so a 7-day view
+  never draws readings from two months earlier; the address bar redirects to
+  the window and grain the page actually draws; and every figure beside a
+  series is the window's own total rather than the series' sum.
 
 **"What changed" (V2.9 INS-04)** is the same window in events rather than
 figures. `/analytics/activity` is the ONE door onto the workspace-wide FND-05

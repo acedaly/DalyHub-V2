@@ -33,6 +33,7 @@ import {
   type ListEntityActivityInput,
   type ListWorkspaceActivityInput,
 } from "~/kernel/activity";
+import { ActivityValidationError } from "~/kernel/activity";
 import {
   activityAnchorKey,
   activityWindowKey,
@@ -47,6 +48,7 @@ import { toStorageTimestamp } from "./database";
 import {
   countPrimarySubjectsByTypeInBuckets,
   MAX_HISTORY_BUCKETS,
+  MAX_HISTORY_TYPES,
 } from "./history-window-read";
 
 import {
@@ -276,7 +278,26 @@ export class D1ActivityRepository implements ActivityRepository {
     const types = input.types.map((type) =>
       validateOptionalActivityType(type)!,
     );
-    const buckets = input.buckets.slice(0, MAX_HISTORY_BUCKETS);
+    // The contract's "caller bug" cases are refused here rather than tolerated:
+    // an empty type list would count everything, and a bucket list past the
+    // kernel's maximum would come back shorter than it was asked for — which a
+    // surface would then draw as the whole series.
+    if (types.length === 0) {
+      throw new ActivityValidationError("types", "must name at least one type");
+    }
+    if (types.length > MAX_HISTORY_TYPES) {
+      throw new ActivityValidationError(
+        "types",
+        `must name at most ${MAX_HISTORY_TYPES} types`,
+      );
+    }
+    if (input.buckets.length > MAX_HISTORY_BUCKETS) {
+      throw new ActivityValidationError(
+        "buckets",
+        `must hold at most ${MAX_HISTORY_BUCKETS} buckets`,
+      );
+    }
+    const buckets = input.buckets;
     if (buckets.length === 0) return [];
 
     try {

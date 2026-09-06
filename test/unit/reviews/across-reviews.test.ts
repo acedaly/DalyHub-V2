@@ -147,7 +147,66 @@ describe("reading a series of snapshots", () => {
       goals: GOALS,
       tasks: TASKS,
     });
-    expect(facts.projects[0]).toMatchObject({ count: 2, of: 3 });
+    expect(facts.projects[0]).toMatchObject({
+      count: 2,
+      of: 3,
+      reviews: 4,
+      // Since the oldest Review that RECORDED it — the first — not the window.
+      sinceIso: "2026-08-03",
+    });
+
+    // And the evidence sentence says which is which. Found by review: it read
+    // "at 2 of the last 3 Reviews" over a series of four, so "the last 3"
+    // quietly included the Review that had recorded nothing.
+    const insights = buildInsights({
+      snapshotSeries: series,
+      projects: [projectFact({ healthState: "at_risk", overdueTasks: 3 })],
+    });
+    const project = insights.acrossReviews.find((insight) =>
+      insight.id.startsWith("across.project."),
+    );
+    expect(project?.label).toBe(
+      "Kitchen renovation: At risk at 2 of the 3 Reviews that recorded it, of your last 4",
+    );
+    expect(project?.reason).toContain("over the 3 Reviews that recorded it");
+    expect(project?.reason).toContain(
+      "1 Review in the series recorded no reading for it",
+    );
+    expect(project?.reason).not.toContain("over your last 3 Reviews");
+  });
+
+  it("dates a subject from the oldest Review that recorded it, not from the window", () => {
+    // project-2 first appears at the third Review.
+    const series = alternatingSeries().map((stored, index) =>
+      index >= 2
+        ? {
+            ...stored,
+            snapshot: {
+              ...stored.snapshot,
+              projects: [
+                ...stored.snapshot.projects,
+                {
+                  id: "project-2" as const,
+                  health:
+                    index === 2 ? ("stale" as const) : ("on_track" as const),
+                  openTasks: 1,
+                  overdueTasks: 0,
+                },
+              ],
+            },
+          }
+        : stored,
+    );
+    const facts = readAcrossReviews({
+      series,
+      projects: PROJECTS,
+      goals: GOALS,
+      tasks: TASKS,
+    });
+    const tax = facts.projects.find(
+      (project) => project.projectId === "project-2",
+    );
+    expect(tax).toMatchObject({ of: 2, reviews: 4, sinceIso: "2026-08-17" });
   });
 
   it("names a Goal's contribution across the series, and marks the every-Review case", () => {
@@ -195,6 +254,31 @@ describe("reading a series of snapshots", () => {
       title: "Call the plumber",
       reviews: 4,
     });
+    expect(facts.repeatedCarryOverBounded).toBe(false);
+  });
+
+  it("says the count is a floor when a repeated id could not be named live", () => {
+    // task-1 repeats at every Review but is absent from the caller's (bounded)
+    // live carry-over set: past its page, or since deleted. Found by review:
+    // the measure was reported EXACT over the named subset, so "1 commitment"
+    // could stand where two had repeated.
+    const series = alternatingSeries().map((stored) => ({
+      ...stored,
+      snapshot: {
+        ...stored.snapshot,
+        carryOverTaskIds: ["task-1", "task-2"],
+      },
+    }));
+    const facts = readAcrossReviews({
+      series,
+      projects: PROJECTS,
+      goals: GOALS,
+      tasks: [{ id: "task-2", title: "Chase the invoice" }],
+    });
+    expect(facts.repeatedCarryOver.map((task) => task.taskId)).toEqual([
+      "task-2",
+    ]);
+    expect(facts.repeatedCarryOverBounded).toBe(true);
   });
 
   it("reads every title live through the id, so a deleted record drops out", () => {
@@ -287,6 +371,89 @@ describe("the across-Reviews section of the evidence model", () => {
     expect(carryOver?.links).toEqual([
       { label: "Open overdue Tasks", to: "/tasks?system=overdue" },
     ]);
+  });
+
+  it("opens the waiting view when a repeated commitment is a waiting Task", () => {
+    // The door goes where the named Task IS. A Task that has been waiting on
+    // someone since before every Review in the series is not in the overdue
+    // view, so a door there was a dead end (found by review).
+    const insights = insightsWithSeries(alternatingSeries(), {
+      carryOver: [
+        carryOverFact({
+          id: "task-1",
+          title: "Call the plumber",
+          kind: "waiting",
+        }),
+        carryOverFact({ id: "task-2", title: "Chase the invoice" }),
+      ],
+    });
+    const carryOver = insights.acrossReviews.find(
+      (insight) => insight.id === "across.carry_over",
+    );
+    expect(carryOver?.links).toEqual([
+      { label: "Open waiting Tasks", to: "/tasks?system=waiting" },
+    ]);
+  });
+
+  it("says N+ and names the floor when more repeated than could be named", () => {
+    const insights = insightsWithSeries(alternatingSeries(), {
+      carryOver: [carryOverFact({ id: "task-2", title: "Chase the invoice" })],
+      snapshotSeries: alternatingSeries().map((stored) => ({
+        ...stored,
+        snapshot: {
+          ...stored.snapshot,
+          carryOverTaskIds: ["task-1", "task-2"],
+        },
+      })),
+    });
+    const carryOver = insights.acrossReviews.find(
+      (insight) => insight.id === "across.carry_over",
+    );
+    expect(carryOver?.label).toBe(
+      "1+ commitments carried over at every one of your last 4 Reviews",
+    );
+    expect(carryOver?.measure).toEqual({ value: 1, exactness: "bounded" });
+    expect(carryOver?.reason).toContain("More repeated than are named here.");
+  });
+
+  it("does not repeat a Goal that work reached at every Review — absence renders less", () => {
+    // The one-step Goals section already says "moving"; saying it N more times
+    // is not a finding. A Goal NOTHING reached at every Review is, and stays.
+    const steady = alternatingSeries().map((stored) => ({
+      ...stored,
+      snapshot: {
+        ...stored.snapshot,
+        goals: [
+          {
+            id: "goal-1" as const,
+            alignment: "active" as const,
+            contributingProjects: 1,
+            contribution: "moving" as const,
+          },
+        ],
+      },
+    }));
+    expect(
+      insightsWithSeries(steady).acrossReviews.some((insight) =>
+        insight.id.startsWith("across.goal."),
+      ),
+    ).toBe(false);
+    const stuck = steady.map((stored) => ({
+      ...stored,
+      snapshot: {
+        ...stored.snapshot,
+        goals: stored.snapshot.goals.map((goal) => ({
+          ...goal,
+          contribution: "no_structure" as const,
+        })),
+      },
+    }));
+    const goal = insightsWithSeries(stuck).acrossReviews.find((insight) =>
+      insight.id.startsWith("across.goal."),
+    );
+    expect(goal?.label).toBe(
+      "Run a half marathon: No contribution path at every one of your last 4 Reviews",
+    );
   });
 
   it("gives every across-Reviews claim a reason and somewhere to go", () => {
