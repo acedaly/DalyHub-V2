@@ -308,6 +308,35 @@ describe("PERF-01 — every hot statement reaches its tables by index", () => {
    * those lines are everywhere and no index can address them. The scanned name
    * is checked against the schema's actual table names — see `planFindings`.
    */
+  it("can SEE a base-table scan, so a clean result means something", async () => {
+    /*
+     * The instrument's own proof, kept because the first attempt to falsify this
+     * check discovered it was blind.
+     *
+     * `EXPLAIN QUERY PLAN` names the ALIAS, not the table — a scan of
+     * `FROM entities e` prints as `SCAN e` — so the original check, which matched
+     * plan names against the schema's table names, looked straight past every
+     * scan the product could possibly have. It reported a clean result for a
+     * database with every index on `entities` dropped.
+     *
+     * So the check now resolves aliases, and this test is the standing evidence
+     * that it does. `entities.title` carries no index, and the workspace
+     * predicate is deliberately absent so no index leads with it: SQLite has
+     * nothing to reach for.
+     */
+    await resetTables([WS]);
+    await seedNavigationWorkspace(WS, SMALL);
+    const tables = await schemaTableNames(env.DB);
+    const plan = await explainQueryPlan(
+      env.DB,
+      "SELECT e.id FROM entities e WHERE e.title = ?",
+      ["nothing in particular"],
+    );
+    const found = planFindings(plan, tables);
+    expect(found.scansTable).toBe(true);
+    expect(found.scannedTables).toContain("e");
+  }, 600_000);
+
   it("issues no statement that scans a base table", async () => {
     await resetTables([WS]);
     await seedNavigationWorkspace(WS, LARGE);

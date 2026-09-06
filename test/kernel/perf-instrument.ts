@@ -244,6 +244,65 @@ const TEMP_BTREE = /USE TEMP B-TREE/;
 const INDEX = /USING (?:COVERING )?INDEX ([A-Za-z0-9_]+)/;
 
 /**
+ * Every `FROM x y` / `JOIN x AS y` pair in a statement.
+ *
+ * This exists because `EXPLAIN QUERY PLAN` names the ALIAS, not the table: a
+ * scan of `FROM entities e` prints as `SCAN e`, and a check that matched only
+ * schema table names looks straight past it. That is not hypothetical — it is
+ * exactly what the first falsification of this check found. Dropping every index
+ * on `entities` and re-running produced a plan full of `SCAN e` lines, and the
+ * check reported nothing.
+ *
+ * The regex is deliberately loose about what an alias looks like and strict
+ * about what cannot be one: a following SQL keyword means the table was not
+ * aliased. It is a test-only heuristic over SQL this repository wrote, not a SQL
+ * parser.
+ */
+const FROM_OR_JOIN =
+  /\b(?:FROM|JOIN)\s+([A-Za-z0-9_]+)(?:\s+(?:AS\s+)?([A-Za-z0-9_]+))?/gi;
+const NOT_AN_ALIAS = new Set([
+  "on",
+  "where",
+  "group",
+  "order",
+  "limit",
+  "left",
+  "inner",
+  "outer",
+  "cross",
+  "join",
+  "using",
+  "having",
+  "window",
+  "union",
+  "and",
+  "or",
+  "as",
+  "select",
+]);
+
+/**
+ * The names in this statement's plan that would mean a BASE TABLE — the schema
+ * tables it names, plus the aliases it binds them to.
+ */
+function baseTableNames(
+  sql: string,
+  tables: ReadonlySet<string>,
+): ReadonlySet<string> {
+  const names = new Set<string>();
+  for (const match of sql.matchAll(FROM_OR_JOIN)) {
+    const table = match[1];
+    if (table === undefined || !tables.has(table)) continue;
+    names.add(table);
+    const alias = match[2];
+    if (alias !== undefined && !NOT_AN_ALIAS.has(alias.toLowerCase())) {
+      names.add(alias);
+    }
+  }
+  return names;
+}
+
+/**
  * Read the schema's table names, so a plan step can be classified.
  * Memoised per database: the schema does not change inside a test file.
  */
@@ -272,13 +331,16 @@ export function planFindings(
   const indexes: string[] = [];
   const scannedTables: string[] = [];
   let tempBTree = false;
+  // The names that would mean a base table in THIS statement's plan — the tables
+  // it names and the aliases it binds them to. See `baseTableNames`.
+  const scannable = baseTableNames(plan.sql, tables);
   for (const line of plan.lines) {
     const trimmed = line.trim();
     const scan = SCAN.exec(trimmed);
     if (
       scan?.[1] !== undefined &&
       !INDEX.test(trimmed) &&
-      tables.has(scan[1])
+      scannable.has(scan[1])
     ) {
       scannedTables.push(scan[1]);
     }

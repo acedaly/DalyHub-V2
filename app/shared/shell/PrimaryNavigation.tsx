@@ -102,7 +102,8 @@ export function PrimaryNavigation({
    * selected row's own indicator shape while its loaders run, so a navigation
    * says something the moment it starts rather than only when it finishes.
    */
-  const pendingHref = pendingNavigationHref(items, useNavigation(), pathname);
+  const routerNavigation = useNavigation();
+  const pendingHref = pendingNavigationHref(items, routerNavigation, pathname);
 
   /*
    * DS-03 — the collapsed rail's rows are glyph-only, so each one needs its

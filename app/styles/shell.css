@@ -629,19 +629,6 @@
   background: var(--dh-color-rail-selected);
 }
 
-@media (forced-colors: active) {
-  /*
-   * The tint is dropped by the OS palette, so the pending row is restated with
-   * the system's own selection colours — as a BORDER rather than a fill, so it
-   * stays distinguishable from the current row, which takes the fill.
-   */
-  .dh-nav__link[data-pending="true"],
-  .dh-sidebar--rail .dh-nav__link[data-pending="true"] {
-    outline: 1px solid Highlight;
-    outline-offset: -1px;
-  }
-}
-
 /*
  * The rail draws the SAME selected row as the sheet.
  *
@@ -698,6 +685,22 @@
 
   .dh-sidebar--rail .dh-nav__link {
     color: CanvasText;
+  }
+
+  /*
+   * PERF-01 — the PENDING row, in the same block and for the same reason the
+   * rail selectors are named here: a two-class selector outranks a one-class
+   * one, so a forced-colours rule that named only the short form would be
+   * silently overridden.
+   *
+   * The tint is dropped by the OS palette, so the pending row is restated as an
+   * OUTLINE rather than a fill — which also keeps it distinguishable from the
+   * current row, which takes the fill above.
+   */
+  .dh-nav__link[data-pending="true"],
+  .dh-sidebar--rail .dh-nav__link[data-pending="true"] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
   }
 }
 

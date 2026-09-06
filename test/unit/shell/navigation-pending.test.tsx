@@ -13,7 +13,7 @@
  */
 
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, type Navigation } from "react-router";
+import { createRoutesStub, type Navigation } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
@@ -103,11 +103,13 @@ describe("PERF-01 the rail marks the destination", () => {
     });
     const { PrimaryNavigation } =
       await import("~/shared/shell/PrimaryNavigation");
-    render(
-      <MemoryRouter initialEntries={["/today"]}>
-        <PrimaryNavigation id="nav" items={ITEMS} />
-      </MemoryRouter>,
-    );
+    const Stub = createRoutesStub([
+      {
+        path: "*",
+        Component: () => <PrimaryNavigation id="nav" items={ITEMS} />,
+      },
+    ]);
+    render(<Stub initialEntries={["/today"]} />);
     const destination = screen.getByRole("link", { name: "Tasks" });
     const departure = screen.getByRole("link", { name: "Today" });
     expect(destination.getAttribute("aria-busy")).toBe("true");

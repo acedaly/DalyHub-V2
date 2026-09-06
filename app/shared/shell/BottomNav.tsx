@@ -82,7 +82,13 @@ export function BottomNav({
   moreOpen,
 }: BottomNavProps) {
   const location = useLocation();
-  const navigation = useNavigation();
+  /*
+   * Named for what it is, because this component's PROP is also called
+   * `navigation` — that one is the registry-driven destination model, this one
+   * is the router's in-flight state. Two different things, and the bar reads
+   * both.
+   */
+  const routerNavigation = useNavigation();
   const captureRef = useRef<HTMLButtonElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
 
@@ -92,7 +98,7 @@ export function BottomNav({
   // PERF-01 — the same acknowledgement the rail gives, from the same rule.
   const pendingHref = pendingNavigationHref(
     destinations,
-    navigation,
+    routerNavigation,
     location.pathname,
   );
 

@@ -22,7 +22,7 @@
 
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
@@ -98,11 +98,17 @@ describe("PERF-01 navigation prefetch", () => {
   });
 
   it("gives EVERY rail destination the policy", () => {
-    render(
-      <MemoryRouter initialEntries={["/today"]}>
-        <PrimaryNavigation id="nav" items={DESTINATIONS} />
-      </MemoryRouter>,
-    );
+    /*
+     * A DATA router, because the navigation reads `useNavigation()` for the
+     * pending destination and that hook has no meaning outside one.
+     */
+    const Stub = createRoutesStub([
+      {
+        path: "*",
+        Component: () => <PrimaryNavigation id="nav" items={DESTINATIONS} />,
+      },
+    ]);
+    render(<Stub initialEntries={["/today"]} />);
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(DESTINATIONS.length);
     for (const link of links) {
@@ -111,16 +117,20 @@ describe("PERF-01 navigation prefetch", () => {
   });
 
   it("gives EVERY phone bar destination the policy", () => {
-    render(
-      <MemoryRouter initialEntries={["/today"]}>
-        <BottomNav
-          navigation={DESTINATIONS}
-          onOpenCapture={() => {}}
-          onOpenMore={() => {}}
-          moreOpen={false}
-        />
-      </MemoryRouter>,
-    );
+    const Stub = createRoutesStub([
+      {
+        path: "*",
+        Component: () => (
+          <BottomNav
+            navigation={DESTINATIONS}
+            onOpenCapture={() => {}}
+            onOpenMore={() => {}}
+            moreOpen={false}
+          />
+        ),
+      },
+    ]);
+    render(<Stub initialEntries={["/today"]} />);
     const links = screen.getAllByRole("link");
     // The bar carries the destinations that declare a mobile order; Add and More
     // are buttons, not links, and are deliberately not counted here.
