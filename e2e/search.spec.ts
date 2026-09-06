@@ -173,6 +173,9 @@ test.describe("DS-08 Shared Search — desktop", () => {
       "meetings.search",
       "people.search",
       "assets.search",
+      // V2.12 — accounts by name, transactions by the DISPLAY payee only. Never
+      // an amount, never a balance, and nothing at all for an empty query.
+      "finance.search",
       // V2.10 LIFE-02 — Life Admin is a searchable domain of its own.
       "obligations.search",
       "reviews.search",
