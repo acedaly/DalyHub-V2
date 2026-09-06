@@ -7292,6 +7292,17 @@
   --dh-color-entity-asset: var(--md-sys-color-entity-asset);
   --dh-color-entity-obligation: var(--md-sys-color-entity-obligation);
   --dh-color-entity-review: var(--md-sys-color-entity-review);
+  /*
+   * V2.12 — ONE Finance accent, and the transaction BORROWS it.
+   *
+   * Thirteen entity types share an accent space held to a ΔE 10 perceptibility
+   * floor in both appearances, and a fourteenth hue that clears it does not
+   * exist. A transaction is the lightest entity in the product — it has no
+   * record route and opens in a drawer — so it is exactly the thing that should
+   * not spend a hue: `identityTypeFor` sends it to the account's (ADR-120
+   * decision 2).
+   */
+  --dh-color-entity-finance_account: var(--md-sys-color-entity-finance_account);
 
   /*
    * Status. Four names, and `danger` is not `overdue` — D3: a slipped Task is a
