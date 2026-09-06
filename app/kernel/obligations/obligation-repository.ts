@@ -43,6 +43,39 @@ import type {
 } from "./obligation";
 import type { ObligationStatus } from "./obligation-status";
 
+/**
+ * V2.12 FIN-04 — the narrow port through which an obligation learns about the
+ * transaction that settled it.
+ *
+ * Life Admin does not know what a Finance transaction is, and must not: the
+ * dependency runs the other way, and a `finance_transaction_details` join
+ * authored in the obligation adapter would make the older domain depend on the
+ * newer one. So the FINANCE repository implements this and the composition root
+ * hands it over — the same seam `ObligationProofGateway` uses for an Asset's
+ * logbook (ADR-083 decision 2).
+ *
+ * It READS only. The settlement column and its EntityLink projection are
+ * written by the obligation's own batch, because they are the obligation's
+ * facts.
+ */
+export interface ObligationSettlementGateway {
+  /**
+   * Resolve a settling transaction in THIS workspace, or `null` when there is
+   * no such transaction here — which is also the answer for one belonging to
+   * another workspace, so existence does not leak.
+   */
+  resolveSettlement(transactionId: string): Promise<{
+    /** The POSITIVE magnitude of the money that moved. */
+    readonly amountMinor: number;
+    readonly currencyCode: string;
+    readonly occurredOn: string;
+    /** True when this is money IN, which cannot settle a bill. */
+    readonly inflow: boolean;
+    /** The obligation this transaction already settles, if any. */
+    readonly settlesObligationId: string | null;
+  } | null>;
+}
+
 /** An obligation with its subject resolved, as a list or a record renders it. */
 export type ObligationWithSubject = {
   readonly obligation: Obligation;

@@ -99,6 +99,7 @@ describe("module discovery", () => {
         "areas",
         "assets",
         "diary",
+        "finance",
         "goals",
         "habits",
         "help",
@@ -136,6 +137,9 @@ describe("module discovery", () => {
         "meetings",
         "people",
         "assets",
+        // V2.12 — Finance at order 140, between Assets and Life Admin: things,
+        // then money, then paperwork.
+        "finance",
         "obligations",
         "analytics",
         "reviews",
@@ -604,6 +608,78 @@ describe("module discovery", () => {
           moduleId: "assets",
           file: "routes/history.tsx",
         },
+        /*
+         * V2.12 adds Finance: ONE nav item (`finance.index`, MORE group, order
+         * 210) and twelve routes behind it. Accounts, Transactions, Budgets and
+         * Imports are deliberately NOT nav entries — they are questions Finance
+         * answers, not places to go, and four rail rows for one domain is how a
+         * sidebar becomes a filing cabinet.
+         */
+        {
+          id: "finance.index",
+          moduleId: "finance",
+          file: "routes/index.tsx",
+        },
+        {
+          id: "finance.transactions",
+          moduleId: "finance",
+          file: "routes/transactions.tsx",
+        },
+        {
+          id: "finance.transactions.mutate",
+          moduleId: "finance",
+          file: "routes/transactions.mutate.tsx",
+        },
+        {
+          id: "finance.budgets",
+          moduleId: "finance",
+          file: "routes/budgets.tsx",
+        },
+        {
+          id: "finance.budgets.mutate",
+          moduleId: "finance",
+          file: "routes/budgets.mutate.tsx",
+        },
+        {
+          id: "finance.categories",
+          moduleId: "finance",
+          file: "routes/categories.tsx",
+        },
+        {
+          id: "finance.categories.mutate",
+          moduleId: "finance",
+          file: "routes/categories.mutate.tsx",
+        },
+        {
+          id: "finance.import",
+          moduleId: "finance",
+          file: "routes/import.tsx",
+        },
+        {
+          id: "finance.import.run",
+          moduleId: "finance",
+          file: "routes/import.run.tsx",
+        },
+        {
+          id: "finance.accounts.new",
+          moduleId: "finance",
+          file: "routes/accounts.new.tsx",
+        },
+        {
+          id: "finance.accounts.create",
+          moduleId: "finance",
+          file: "routes/accounts.create.tsx",
+        },
+        {
+          id: "finance.accounts.detail",
+          moduleId: "finance",
+          file: "routes/accounts.detail.tsx",
+        },
+        {
+          id: "finance.accounts.mutate",
+          moduleId: "finance",
+          file: "routes/accounts.mutate.tsx",
+        },
         // V2.10 LIFE-02 adds Life Admin: the `obligation` entity type, its
         // collection, its record, the create page and its separate create
         // ENDPOINT, the candidate-subject search, the mutation endpoint and the
@@ -836,6 +912,15 @@ describe("module discovery", () => {
         "assets.expiring",
         "assets.service_due",
         "assets.archived",
+        /*
+         * V2.12 — four Finance commands, and all four NAVIGATE. None of them
+         * writes: a palette entry that moves money is one keystroke away from
+         * an amount the owner did not mean.
+         */
+        "finance.open",
+        "finance.uncategorised",
+        "finance.import",
+        "finance.budgets",
         // V2.10 LIFE-02 — Life Admin's two: open the surface, and start one.
         // Neither pre-selects a subject; an obligation about nothing is the
         // ordinary case.
@@ -879,6 +964,12 @@ describe("module discovery", () => {
         "meetings.search",
         "people.search",
         "assets.search",
+        /*
+         * V2.12 — Finance searches ACCOUNTS by name and transactions by the
+         * DISPLAY payee only. Never the bank's raw description, never a memo,
+         * never an amount, and nothing at all for an empty query.
+         */
+        "finance.search",
         // V2.10 LIFE-02 — obligations by title, category label and subject
         // title. Never by an amount (D11).
         "obligations.search",

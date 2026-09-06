@@ -130,6 +130,32 @@ export const ObligationIcon = createIcon(
   <path d="M557.5-135.5Q502-191 502-269t55.5-133.5Q613-458 691-458t133.5 55.5Q880-347 880-269t-55.5 133.5Q769-80 691-80t-133.5-55.5ZM749.24-168 777-196l-75-75v-112h-39v126l86.24 89ZM180-120q-24.75 0-42.37-17.63Q120-155.25 120-180v-600q0-26 17-43t43-17h202q7-35 34.5-57.5T480-920q36 0 63.5 22.5T578-840h202q26 0 43 17t17 43v308q-15-9-29.52-15.48Q795.97-493.96 780-499v-281h-60v90H240v-90h-60v600h280q5 15 12 29.5t17 30.5H180Zm328.5-671.5Q520-803 520-820t-11.5-28.5Q497-860 480-860t-28.5 11.5Q440-837 440-820t11.5 28.5Q463-780 480-780t28.5-11.5Z" />,
 );
 
+/**
+ * Finance account — an account book. Material Symbols `account_balance_wallet`.
+ *
+ * Deliberately NOT `savings` (a piggy bank reads as "saving up", and most
+ * accounts are not savings), not `credit_card` (which would tie the identity to
+ * one of six account types), and not `payments` — an account is the CONTAINER,
+ * and the money moving through it is the transaction's identity below.
+ */
+export const FinanceAccountIcon = createIcon(
+  "FinanceAccountIcon",
+  <path d="M240-160q-33 0-56.5-23.5T160-240v-480q0-33 23.5-56.5T240-800h480q33 0 56.5 23.5T800-720v100h-60v-100H240v480h500v-100h60v100q0 33-23.5 56.5T720-160H240Zm320-160q-33 0-56.5-23.5T480-400v-160q0-33 23.5-56.5T560-640h240q33 0 56.5 23.5T880-560v160q0 33-23.5 56.5T800-320H560Zm240-60v-160H560v160h240Zm-140-40q25 0 42.5-17.5T720-520q0-25-17.5-42.5T660-580q-25 0-42.5 17.5T600-520q0 25 17.5 42.5T660-460Z" />,
+);
+
+/**
+ * Finance transaction — a line of movement with an arrow: money that went
+ * somewhere. Material Symbols `swap_horiz`, drawn over a receipt line.
+ *
+ * Deliberately NOT a dollar sign (a currency symbol is not universal, and this
+ * product stores many), and not `receipt` — a receipt is EVIDENCE, and V2.11
+ * already owns that identity. A transaction is a movement.
+ */
+export const FinanceTransactionIcon = createIcon(
+  "FinanceTransactionIcon",
+  <path d="M280-160 80-360l200-200 56 57-103 103h287v80H233l103 103-56 57Zm400-240-56-57 103-103H440v-80h287L624-743l56-57 200 200-200 200Z" />,
+);
+
 /** Review — a recurring date (a weekly ritual). Material Symbols `event_repeat`. */
 export const ReviewIcon = createIcon(
   "ReviewIcon",

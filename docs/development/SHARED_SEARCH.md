@@ -152,6 +152,41 @@ HTML.
 
 ---
 
+## What a provider may never put in a result
+
+A result list is the surface most likely to be read over someone's shoulder, so
+three providers hold an explicit line on what they match and what they show, and
+each holds it in a test rather than in a comment.
+
+| Provider | Matches | Never matches, and never shows |
+| --- | --- | --- |
+| **Assets** (ASSET-03) | title, type, tags | serial number, reference/policy number |
+| **Obligations** (V2.10) | title, category label, subject title | any amount |
+| **Finance** (V2.12) | account name; transaction **display payee** | any amount, any balance, the bank's raw `source_description`, any memo |
+
+Finance is the strictest of the three, and it is worth saying why each omission
+is there rather than only that it is:
+
+- an **amount** is the most private fact a transaction carries, and a **balance**
+  is the whole of an account;
+- `source_description` is raw bank text the owner never chose — terminal ids,
+  card fragments, suburb codes — so matching it would put `EFTPOS 4821` in front
+  of a query for `4821`;
+- a **memo** is body content, and reaching body content is governed by the
+  explicit-query boundary;
+- an **empty query returns nothing at all** from Finance, and
+  `finance_transaction` is in `RECENCY_EXCLUDED_TYPES` besides, so a transaction
+  is never volunteered before the owner has typed something. An *account* is
+  listable there, for the same reason a Person is: a name is not a confession.
+
+`test/unit/finance/search-privacy.test.ts` asserts this against the provider's
+own source with comments stripped, so a rule written in a comment cannot pass for
+a rule enforced in code — and `test/kernel/search-route.test.ts` seeds a real
+account with a real opening balance and asserts the figure does not appear in the
+response payload in any shape.
+
+---
+
 ## Bounds (performance and safety)
 
 Every edge is bounded ([`limits.ts`](../../app/shared/search/limits.ts)): query

@@ -93,9 +93,27 @@ export const RECENT_ACTIVITY_SCAN_LIMIT = 600;
  * among the most valuable records to re-find, and the stronger protection is
  * structural: a recent row carries a title and nothing else (see
  * `RecentRecord`), so no record's body, note or detail can reach this list
- * regardless of type.
+ * regardless of type. The same argument admits a Finance ACCOUNT and excludes a
+ * Finance TRANSACTION — see the set itself.
  */
-export const RECENCY_EXCLUDED_TYPES: ReadonlySet<string> = new Set(["diary"]);
+export const RECENCY_EXCLUDED_TYPES: ReadonlySet<string> = new Set([
+  "diary",
+  /*
+   * V2.12 FIN-00 — a TRANSACTION is never volunteered.
+   *
+   * The recency list is what Search shows before anything is typed, which makes
+   * it the surface most likely to be read over someone's shoulder. A payee is a
+   * statement about where the owner was and what they bought, and a list of the
+   * last eight is a statement about their week. Finance ACCOUNTS are deliberately
+   * NOT excluded, for the same reason People are not: an account name is not a
+   * confession, and it is the Finance record an owner most wants to re-find.
+   *
+   * This is the structural half of the explicit-query boundary. The other half
+   * is the search provider, which returns nothing for an empty query and never
+   * puts an amount in a result. `finance-search-privacy.test.ts` asserts both.
+   */
+  "finance_transaction",
+]);
 
 /**
  * The record types the recency read may return: every type with a real

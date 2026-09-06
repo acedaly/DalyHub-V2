@@ -72,8 +72,13 @@ export type Obligation = {
   readonly meterInterval: number | null;
   readonly meterUnit: string | null;
   /**
-   * What it is EXPECTED to cost. Never a claim that anything was paid — V2.10
-   * has no settlement, and a transaction that pays an obligation is V2.12's.
+   * What it is EXPECTED to cost. Never a claim that anything was paid.
+   *
+   * V2.12 FIN-04 added settlement, and it did NOT change this field's meaning:
+   * expected is still what the owner expects, and what was actually paid is
+   * `completedAmountMinor`, recorded at completion from the transaction that
+   * settled it. The two are kept separate on purpose — a completion records
+   * actual truth rather than overwriting expected history.
    */
   readonly expectedAmountMinor: number | null;
   /** What it ACTUALLY cost, recorded at completion. */
@@ -89,6 +94,19 @@ export type Obligation = {
   /** The proof entry in the subject's own history, where the subject keeps one. */
   readonly completedEventId: string | null;
   readonly nextObligationId: string | null;
+  /**
+   * V2.12 FIN-04 — the TRANSACTION that paid it, when one did.
+   *
+   * The authority for the settlement; the `obligation.settled_by` EntityLink
+   * beside it is its projection, written and cleared in the same batch, exactly
+   * as the subject's two representations are (ADR-118 decision 1).
+   *
+   * Settlement IS completion: it is set by `complete` and cleared by `reopen`.
+   * There is no independent link/unlink lifecycle, because "this transaction
+   * paid it" and "this is complete" are the same statement, and two state
+   * machines for one fact is how they come to disagree (ADR-120 decision 6).
+   */
+  readonly settledByTransactionId: string | null;
   readonly seriesId: string;
   readonly sequence: number;
   readonly createdAt: Date;
@@ -348,6 +366,17 @@ export type CompleteObligationInput = {
   /** What it ACTUALLY cost. Optional even for a money-bearing obligation. */
   readonly completedAmount?: string | number | null;
   readonly currencyCode?: string | null;
+  /**
+   * V2.12 FIN-04 — the transaction that PAID it.
+   *
+   * When present, the completed amount and the completed day come FROM the
+   * transaction rather than from the caller: the bank is the authority for what
+   * was actually paid and when, and asking the owner to retype it is how the two
+   * come to disagree. An explicit `completedAmount` alongside it is refused.
+   *
+   * Only an OUTFLOW may settle. A refund cannot pay a bill.
+   */
+  readonly settledByTransactionId?: string | null;
   /**
    * Fields only the SUBJECT'S OWN domain understands — an Asset's provider, the
    * Person who did the work, the meter reading at the time, the Note that

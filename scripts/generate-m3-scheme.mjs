@@ -370,6 +370,31 @@ function customColorGroups(scheme) {
         // that could be mistaken for "this is late" is exactly the collision
         // DESIGN_SYSTEM.md's "identity is not status" rule forbids.
         ["entity-obligation", "#795548"], // bronze
+        // V2.12 FIN-00 - ONE Finance accent, for the ACCOUNT. A transaction
+        // borrows it (`identityTypeFor`), because a light entity does not get
+        // an identity of its own and because the accent space is full: probed
+        // empirically, every second Finance hue tried landed inside the ΔE 10
+        // floor of an existing accent in the dark scheme - indigo against the
+        // Project blue and the Diary violet, teal against the Area, blue-grey
+        // against the Asset, orange against the Note. The pair that DID pass put
+        // a third purple beside the Goal and the Diary, which is a collision
+        // waiting for the next scheme rather than an identity.
+        //
+        // The corner of the space that is actually free, MEASURED rather than
+        // chosen: of sixteen candidate hues probed against every existing accent
+        // in both appearances at the ΔE 10 floor, exactly three passed - this
+        // orange, a dark green (#33691E) and a rust (#D84315). Deep ocean blue
+        // came within 5.4 of the Project blue in dark; indigo within 5.4 of the
+        // Diary; teal within 1.2 of the Area; blue-grey within 4.5 of the Asset;
+        // deep purple within 0.9 of the Diary.
+        //
+        // Orange over the other two on the ONE rule a money surface cannot
+        // break: a green identity beside a balance reads as "you are fine" and a
+        // rust one reads as "you are not", and identity is never status
+        // (DESIGN_SYSTEM.md). Orange means nothing in this scheme - `warning` is
+        // the Note amber, `state-overdue` is red, `success` is green - and it is
+        // more than ΔE 10 from all three.
+        ["entity-finance_account", "#EF6C00"], // orange
         ["entity-diary", "#6750A4"], // violet
         ["entity-review", "#827717"], // olive
       ],

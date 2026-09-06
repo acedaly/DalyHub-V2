@@ -17,6 +17,7 @@ import {
   makePersonRepository,
   makeProjectTemplateRepository,
   makeRepository,
+  makeFinanceRepository,
   makeReviewRepository,
   makeSpineRepository,
   makeTaskRepository,
@@ -147,6 +148,19 @@ async function seedEverySearchableRecord(): Promise<void> {
     periodEnd: "2026-07-31",
     title: "GlobalSearch Review",
   });
+  /*
+   * V2.12 — a Finance ACCOUNT, with an opening balance and an institution, so
+   * the assertions below prove two things at once: the provider is really
+   * repository-backed, and the balance it holds does not reach the payload.
+   */
+  await makeFinanceRepository(context).createAccount({
+    title: "GlobalSearch Everyday",
+    accountType: "transaction",
+    currencyCode: "AUD",
+    openingDate: "2026-07-01",
+    openingBalance: "-4242.42",
+    institution: "Bank of Synthetica",
+  });
 }
 
 describe("GET /search route loader", () => {
@@ -192,6 +206,7 @@ describe("GET /search route loader", () => {
       "meetings.search",
       "people.search",
       "assets.search",
+      "finance.search",
       "obligations.search",
       "reviews.search",
     ]);
@@ -209,6 +224,9 @@ describe("GET /search route loader", () => {
         "meeting",
         "person",
         "asset",
+        // V2.12 — the ACCOUNT is findable. A transaction is too, but only by
+        // its display payee, and none was seeded here.
+        "finance_account",
         "review",
       ]),
     );
@@ -228,6 +246,14 @@ describe("GET /search route loader", () => {
     expect(payload).not.toContain("+61 400 000 000");
     expect(payload).not.toContain("SECRET-SERIAL-123");
     expect(payload).not.toContain("SECRET-POLICY-456");
+    /*
+     * V2.12 — the account's BALANCE, in every shape a serialiser could produce
+     * it. A result list is the surface most likely to be read over someone's
+     * shoulder, and a balance is the whole of an account.
+     */
+    expect(payload).not.toContain("4242.42");
+    expect(payload).not.toContain("424242");
+    expect(payload).not.toContain("-424242");
     expect(payload).not.toContain("today.search");
   });
 

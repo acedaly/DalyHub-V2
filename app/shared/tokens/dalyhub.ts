@@ -101,6 +101,13 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-entity-review",
   "dh-color-entity-person",
   "dh-color-entity-diary",
+  /*
+   * V2.12 — ONE Finance accent. `finance_transaction` has no token of its own
+   * and borrows this one (ADR-120 decision 2): the accent space is held to a
+   * ΔE 10 perceptibility floor in both appearances, and the lightest entity in
+   * the product is the last thing that should spend a hue.
+   */
+  "dh-color-entity-finance_account",
   "dh-color-accent-violet",
   "dh-color-accent-blue",
   "dh-color-accent-green",
