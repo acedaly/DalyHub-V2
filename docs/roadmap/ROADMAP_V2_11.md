@@ -9,7 +9,8 @@
 > restate and does not replace; [`ROADMAP_V2_10.md`](ROADMAP_V2_10.md) holds
 > V2.10 LIFE ADMIN (**complete 2026-09-05**).
 >
-> **This file is V2.11, and it is where new work goes.** It was defined on
+> **This file is V2.11. It is CLOSED — new work goes in
+> [`ROADMAP_V2_12.md`](ROADMAP_V2_12.md).** It was defined on
 > 2026-09-06 against `main` at `80003cc` (V2.10 LIFE-03, PR #264) by a pass that
 > re-measured the storage, export, restore, backup and security code rather than
 > inheriting the PLANNED sketch in
@@ -28,12 +29,14 @@
 FILE-00 … FILE-03, delivered in one branch and one pull request, as the owner
 asked. Defined 2026-09-06 with four items, FILE-00 … FILE-03.
 
-**Successor: V2.12 FINANCE CORE — PLANNED, definition pass next** — see
-[`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v212--finance-core-planned--gated-on-debt-198).
-It is still gated on [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2),
-which V2.11 did not move. A Finance transaction attaches a receipt by inserting
-one `attachments` row whose `owner_entity_id` is the transaction — no new file
-mechanism, no second architecture, and no change to this release's table.
+**Successor: V2.12 FINANCE CORE — DEFINED 2026-09-06, and new work goes
+there** — see [`ROADMAP_V2_12.md`](ROADMAP_V2_12.md). It is still gated on
+[DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2),
+which V2.11 did not move and V2.12 did not satisfy. A Finance transaction
+attaches a receipt by inserting one `attachments` row whose `owner_entity_id` is
+the transaction — no new file mechanism, no second architecture, and no change to
+this release's table. That is what happened: V2.12 added `finance` to this
+release's enumerated consumer list and wrote no attachment code of its own.
 
 ---
 
