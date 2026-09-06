@@ -99,10 +99,19 @@ function failureMessage(error: unknown): { status: number; message: string } {
     };
   }
   if (error instanceof ZipTooLargeError) {
+    /*
+     * V2.12 FIN-00 / DEBT-247 — the writer now refuses at the RESTORE reader's
+     * own limit, so this sentence is reachable at the point where the owner can
+     * still act, rather than being discovered during a recovery. The two
+     * reasons are fixed differently and so are said differently: too much
+     * content, versus too much INCOMPRESSIBLE content (files).
+     */
     return {
       status: 507,
       message:
-        "This workspace is too large to export in a single archive. Please report this — the export needs to be split.",
+        error.reason === "archive"
+          ? "This workspace produces an archive larger than DalyHub can restore, so no file was written. It is almost always the attached files: remove or shrink the largest ones and export again. Nothing has been lost — a backup that cannot be restored is what this refusal exists to prevent."
+          : "This workspace is too large to export in a single archive. Please report this — the export needs to be split.",
     };
   }
   return {

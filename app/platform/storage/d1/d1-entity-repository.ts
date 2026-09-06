@@ -31,6 +31,7 @@ import {
 } from "~/kernel/activity";
 import { isReservedAssetEntityType } from "~/kernel/assets";
 import { isReservedDiaryEntityType } from "~/kernel/diary";
+import { isReservedFinanceEntityType } from "~/kernel/finance";
 import { MEETING_ENTITY_TYPE } from "~/kernel/meetings";
 import { isReservedObligationEntityType } from "~/kernel/obligations";
 import { isReservedPersonEntityType } from "~/kernel/people";
@@ -192,6 +193,17 @@ export class D1EntityRepository implements EntityRepository {
       // `obligation_details`) and unreachable from Life Admin, while still
       // occupying an `entities` row (V2.10 LIFE-01).
       isReservedObligationEntityType(type) ||
+      /*
+       * The `finance_account` and `finance_transaction` types are reserved for
+       * the FinanceRepository, which writes the detail slice atomically with the
+       * row. A bare `create` would produce an account with no currency and no
+       * opening balance — invisible to every Finance read, all of which join the
+       * slice, and unable to hold a transaction — or a transaction with no
+       * amount, no account and no fingerprint, which is not a transaction at all
+       * and which would sit outside the uniqueness constraint that makes an
+       * import idempotent (V2.12 FIN-00).
+       */
+      isReservedFinanceEntityType(type) ||
       isReservedReviewEntityType(type) ||
       type === MEETING_ENTITY_TYPE
     ) {

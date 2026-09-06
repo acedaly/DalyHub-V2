@@ -71,6 +71,18 @@ export const IDS = {
    * exactly the shape a lifecycle derivation forgets.
    */
   obligationDone: "e-27-obligation-done",
+  /*
+   * V2.12 FIN-00 — Finance. TWO accounts in DIFFERENT currencies, so the round
+   * trip proves that unlike money survives without being summed; a CREDIT CARD,
+   * so a liability's negative balance survives; and a TRANSFER PAIR, so the fact
+   * that keeps a card payment out of spending is carried rather than derived.
+   */
+  financeAccount: "e-28-finance-account",
+  financeCard: "e-29-finance-card",
+  financeAccountNz: "e-30-finance-account-nz",
+  financeTransaction: "e-31-finance-transaction",
+  financeTransferOut: "e-32-finance-transfer-out",
+  financeTransferIn: "e-33-finance-transfer-in",
 } as const;
 
 /** A record id that is NOT in the snapshot, for the broken-link case. */
@@ -118,6 +130,41 @@ const ENTITIES: readonly Entity[] = [
   { id: IDS.asset, type: "asset", title: "Road bike" },
   { id: IDS.obligation, type: "obligation", title: "Next service" },
   { id: IDS.obligationDone, type: "obligation", title: "Passport renewal" },
+  {
+    id: IDS.financeAccount,
+    type: "finance_account",
+    title: "Everyday",
+  },
+  {
+    id: IDS.financeCard,
+    type: "finance_account",
+    title: "Synthetica Rewards Card",
+  },
+  {
+    id: IDS.financeAccountNz,
+    type: "finance_account",
+    title: "Synthetica NZ",
+  },
+  /*
+   * A transaction's DISPLAY payee is its entity TITLE — one title, one place —
+   * so these three carry the payee an owner reads, and the detail rows below
+   * carry the bank's verbatim string and the normalised key beside it.
+   */
+  {
+    id: IDS.financeTransaction,
+    type: "finance_transaction",
+    title: "NORTHWIND GROCERS",
+  },
+  {
+    id: IDS.financeTransferOut,
+    type: "finance_transaction",
+    title: "CARD PAYMENT",
+  },
+  {
+    id: IDS.financeTransferIn,
+    type: "finance_transaction",
+    title: "PAYMENT RECEIVED",
+  },
   { id: IDS.review, type: "review", title: "Week 27 review" },
   { id: IDS.habit, type: "habit", title: "Strength training" },
   { id: IDS.habitArchived, type: "habit", title: "Cold shower" },
@@ -734,6 +781,7 @@ export function makeSnapshot(
         completedAt: null,
         completedOn: null,
         nextObligationId: null,
+        settledByTransactionId: null,
         seriesId: "series-service",
         sequence: 1,
         createdAt: T(13),
@@ -763,6 +811,7 @@ export function makeSnapshot(
         completedAt: T(14),
         completedOn: "2026-05-30",
         nextObligationId: null,
+        settledByTransactionId: null,
         seriesId: "series-passport",
         sequence: 0,
         createdAt: T(13),
@@ -778,6 +827,179 @@ export function makeSnapshot(
      * and non-ASCII, which is what the vault's filename rules and the
      * `Content-Disposition` fold both have to survive.
      */
+    financeAccounts: [
+      {
+        entityId: IDS.financeAccount,
+        accountType: "transaction",
+        currencyCode: "AUD",
+        // A NON-ZERO opening balance, so the restore rehearsal's re-derivation
+        // has both inputs to get wrong.
+        openingBalanceMinor: 125_000,
+        openingDate: "2026-07-01",
+        institution: "Bank of Synthetica",
+        status: "open",
+        importMappingJson: null,
+        createdAt: T(16),
+        updatedAt: T(16),
+        archivedAt: null,
+        deletedAt: null,
+      },
+      {
+        entityId: IDS.financeCard,
+        accountType: "credit_card",
+        currencyCode: "AUD",
+        // A liability that already owes money at the opening date. Its balance
+        // is negative, and nothing in the arithmetic flips a sign to make it so.
+        openingBalanceMinor: -40_000,
+        openingDate: "2026-07-01",
+        institution: "Bank of Synthetica",
+        status: "open",
+        importMappingJson: null,
+        createdAt: T(16),
+        updatedAt: T(16),
+        archivedAt: null,
+        deletedAt: null,
+      },
+      {
+        entityId: IDS.financeAccountNz,
+        accountType: "savings",
+        currencyCode: "NZD",
+        openingBalanceMinor: 50_000,
+        openingDate: "2026-07-01",
+        institution: null,
+        status: "closed",
+        importMappingJson: null,
+        createdAt: T(16),
+        updatedAt: T(16),
+        archivedAt: null,
+        deletedAt: null,
+      },
+    ],
+    financeCategories: [
+      {
+        id: "fc-01-groceries",
+        name: "Groceries",
+        nameKey: "groceries",
+        kind: "spending",
+        isBuiltin: true,
+        sortOrder: 0,
+        archivedAt: null,
+        createdAt: T(16),
+        updatedAt: T(16),
+      },
+      {
+        id: "fc-02-income",
+        name: "Income",
+        nameKey: "income",
+        kind: "income",
+        isBuiltin: true,
+        sortOrder: 1,
+        archivedAt: null,
+        createdAt: T(16),
+        updatedAt: T(16),
+      },
+      {
+        // An ARCHIVED category. Its history survives, and it is not offered.
+        id: "fc-03-retired",
+        name: "Video shop",
+        nameKey: "video shop",
+        kind: "spending",
+        isBuiltin: false,
+        sortOrder: 2,
+        archivedAt: T(17),
+        createdAt: T(16),
+        updatedAt: T(17),
+      },
+    ],
+    financeImports: [
+      {
+        id: "fi-01-statement",
+        accountId: IDS.financeAccount,
+        fileName: "synthetica-2026-07.csv",
+        fileSha256: "c".repeat(64),
+        fileBytes: 2048,
+        rowCount: 12,
+        addedCount: 11,
+        skippedExistingCount: 1,
+        suspectedCount: 0,
+        invalidCount: 0,
+        mappingJson:
+          '{"v":1,"headerRows":1,"date":0,"dateFormat":"dmy","description":1,"amount":{"kind":"single","column":2,"invert":false},"sourceId":null,"balance":null}',
+        importedAt: T(17),
+        createdAt: T(17),
+      },
+    ],
+    financeTransactions: [
+      {
+        entityId: IDS.financeTransaction,
+        accountId: IDS.financeCard,
+        occurredOn: "2026-07-05",
+        // Money OUT, so the sign convention itself is on the round trip.
+        amountMinor: -25_050,
+        currencyCode: "AUD",
+        sourceDescription: "EFTPOS NORTHWIND GROCERS 4821 DUBBO",
+        payeeKey: "NORTHWIND GROCERS DUBBO",
+        memo: "Weekly shop",
+        categoryId: "fc-01-groceries",
+        categoryConfirmedAt: T(17),
+        importId: "fi-01-statement",
+        sourceTransactionId: "SYN-0001",
+        fingerprint: "id:SYN-0001",
+        transferGroupId: null,
+        createdAt: T(17),
+        updatedAt: T(17),
+        deletedAt: null,
+      },
+      {
+        entityId: IDS.financeTransferOut,
+        accountId: IDS.financeAccount,
+        occurredOn: "2026-07-20",
+        amountMinor: -25_050,
+        currencyCode: "AUD",
+        sourceDescription: "CARD PAYMENT",
+        payeeKey: "CARD",
+        memo: null,
+        categoryId: null,
+        categoryConfirmedAt: null,
+        importId: null,
+        sourceTransactionId: null,
+        fingerprint: "man:e-32-finance-transfer-out",
+        transferGroupId: "ftg-01",
+        createdAt: T(17),
+        updatedAt: T(17),
+        deletedAt: null,
+      },
+      {
+        entityId: IDS.financeTransferIn,
+        accountId: IDS.financeCard,
+        occurredOn: "2026-07-20",
+        amountMinor: 25_050,
+        currencyCode: "AUD",
+        sourceDescription: "PAYMENT RECEIVED",
+        payeeKey: "RECEIVED",
+        memo: null,
+        categoryId: null,
+        categoryConfirmedAt: null,
+        importId: null,
+        sourceTransactionId: null,
+        fingerprint: "man:e-33-finance-transfer-in",
+        transferGroupId: "ftg-01",
+        createdAt: T(17),
+        updatedAt: T(17),
+        deletedAt: null,
+      },
+    ],
+    financeBudgets: [
+      {
+        id: "fb-01-groceries-july",
+        categoryId: "fc-01-groceries",
+        periodMonth: "2026-07",
+        amountMinor: 60_000,
+        currencyCode: "AUD",
+        createdAt: T(17),
+        updatedAt: T(17),
+      },
+    ],
     attachments: [
       {
         id: "att-01-policy",

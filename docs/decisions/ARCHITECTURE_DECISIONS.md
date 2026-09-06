@@ -6921,10 +6921,22 @@ established for the subject.
 **Settlement is not a separate lifecycle.** `completeObligation` takes an
 optional transaction; when present the completion's actual amount and date come
 from it, and the *existing* recurrence engine creates at most one successor under
-its existing guard. Reopening clears the link. There is no independent
-link/unlink state, because "this transaction paid it" and "this is complete" are
-the same statement, and two state machines for one fact is how they come to
-disagree.
+its existing guard. There is no independent link/unlink state, because "this
+transaction paid it" and "this is complete" are the same statement, and two state
+machines for one fact is how they come to disagree.
+
+**There is therefore no unlink, and that follows from a V2.10 rule this pass
+found by measurement rather than assumed.** The definition pass had written
+"reopening clears the settlement". `setStatus` refuses it: *"cannot be changed
+once the obligation is completed"*, because reopening would orphan the
+successor and the proof. That is V2.10's decision and V2.12 does not reopen it —
+so a settlement, like every other completion in this product, is a historical
+fact rather than an editable field. The consequence is stated rather than hidden:
+an owner who settles with the WRONG transaction has the same recovery they have
+for any wrong completion, which is to delete the occurrence and record it again.
+What V2.12 owes that sharp edge is not a second lifecycle but a confirmation: the
+settle action states the amount and the date it is about to record, from the
+transaction, before it records them.
 
 *Alternatives considered.* **A link that does not complete** (rejected above).
 **A many-to-many settlement table for partial payments** (rejected for V2.12: it

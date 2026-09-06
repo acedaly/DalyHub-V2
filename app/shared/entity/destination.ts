@@ -19,6 +19,9 @@
  *   - Task → the shared Task Drawer (a `task:<id>` drawer key, opened over the
  *     current record context — never a standalone page, matching the app-wide
  *     convention).
+ *   - Finance transaction → the shared Transaction Drawer
+ *     (`transaction:<id>`), for the same reason: a transaction is a LIGHT
+ *     entity and deliberately has no record page (V2.12, ADR-120 decision 2).
  *   - Any entity type with no implemented record route → `null`, so the caller
  *     renders plain text. We never link to a "Coming Soon" placeholder merely
  *     because a type is registered.
@@ -72,6 +75,13 @@ const CANONICAL_ROUTE: Partial<Record<string, (id: string) => string>> = {
   // here is a record the recency list, Linked Items and every search result
   // silently refuse to open.
   obligation: (id) => `/obligations/${encodeURIComponent(id)}`,
+  /*
+   * V2.12 FIN-00 — the account has a record page. The TRANSACTION does not, and
+   * its absence from this map is the decision, not an oversight: a transaction
+   * is a LIGHT entity that opens in the shared Drawer, and it is handled as
+   * `task` is, below.
+   */
+  finance_account: (id) => `/finance/accounts/${encodeURIComponent(id)}`,
 };
 
 /**
@@ -86,11 +96,20 @@ const CANONICAL_ROUTE: Partial<Record<string, (id: string) => string>> = {
  * working on.
  *
  * `task` is included and is not in the route map: it opens in the shared Drawer
- * rather than on a page of its own, which `entityDestination` handles as its
- * one special case.
+ * rather than on a page of its own, which `entityDestination` handles as a
+ * special case. **V2.12 FIN-00 adds the second**, `finance_transaction`, for
+ * exactly the same reason — a transaction is a light entity with a drawer and no
+ * record page (ADR-120 decision 2) — and it is listed here so a settled
+ * obligation's Linked items can OPEN the transaction that paid it rather than
+ * rendering its payee as dead text.
+ *
+ * Being here is not the same as being volunteered: `RECENCY_EXCLUDED_TYPES`
+ * keeps `finance_transaction` out of the empty-query recency list, so the
+ * product can open one on request and never offer one unbidden.
  */
 export const DESTINATION_ENTITY_TYPES: readonly string[] = [
   "task",
+  "finance_transaction",
   ...Object.keys(CANONICAL_ROUTE),
 ];
 
@@ -108,6 +127,10 @@ export function entityDestination(
   }
   if (type === "task") {
     return { kind: "drawer", drawerKey: `task:${id}` };
+  }
+  // V2.12 FIN-00 — the second drawer type. A transaction has no record page.
+  if (type === "finance_transaction") {
+    return { kind: "drawer", drawerKey: `transaction:${id}` };
   }
   const route = isEntityType(type) ? CANONICAL_ROUTE[type] : undefined;
   return route ? { kind: "route", to: route(id) } : null;

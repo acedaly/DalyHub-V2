@@ -16,6 +16,7 @@ import {
   createAreaSettingsRepository,
   createAssetHistoryRepository,
   createObligationRepository,
+  createFinanceRepository,
   createAssetRepository,
   createDiaryRepository,
   createEntityLinkRepository,
@@ -46,6 +47,7 @@ import {
   type D1AreaSettingsRepositoryOptions,
   type D1AssetHistoryRepositoryOptions,
   type D1AttachmentRepositoryOptions,
+  type D1FinanceRepositoryOptions,
   type D1ObligationRepositoryOptions,
   type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
@@ -432,6 +434,17 @@ export function makeObligationRepository(
       idGenerator: options.idGenerator,
       actorContext: options.actorContext,
     }),
+    /*
+     * V2.12 FIN-04 — the settlement gateway, wired as the composition root
+     * wires it, for the same reason as the proof gateway above: a test that
+     * omitted it would prove a configuration nothing ships, and every
+     * settlement would refuse with "cannot be resolved in this deployment".
+     */
+    settlementGateway: createFinanceRepository(env.DB, context, {
+      clock: options.clock,
+      idGenerator: options.idGenerator,
+      actorContext: options.actorContext,
+    }),
     meterUnits: ["km", "mi", "hours", "cycles", "count"],
     // Wired as the composition root wires it, for the same reason as the proof
     // gateway above: a test that omitted it would prove a configuration
@@ -445,6 +458,49 @@ export function makeObligationRepository(
       ),
     ...options,
   });
+}
+
+/**
+ * V2.12 FIN-00 — the workspace-bound Finance repository, the store for accounts,
+ * transactions, categories, budgets and imports.
+ */
+export function makeFinanceRepository(
+  context: WorkspaceContext,
+  options: D1FinanceRepositoryOptions = {},
+) {
+  return createFinanceRepository(env.DB, context, options);
+}
+
+/** Count all live rows in `finance_transaction_details` directly. */
+export async function countFinanceTransactionRows(): Promise<number> {
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM finance_transaction_details WHERE deleted_at IS NULL",
+  ).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * The one place a test may read a balance from the database directly.
+ *
+ * It re-derives the figure with the SAME rule the adapter's SQL uses, so a
+ * parity assertion compares two independent computations of one definition
+ * rather than a value against itself. There is no stored balance to read.
+ */
+export async function deriveAccountBalance(
+  workspaceId: string,
+  accountId: string,
+): Promise<number> {
+  const opening = await env.DB.prepare(
+    "SELECT opening_balance_minor FROM finance_account_details WHERE workspace_id = ? AND entity_id = ?",
+  )
+    .bind(workspaceId, accountId)
+    .first<{ opening_balance_minor: number }>();
+  const sum = await env.DB.prepare(
+    "SELECT COALESCE(SUM(amount_minor), 0) AS s FROM finance_transaction_details WHERE workspace_id = ? AND account_id = ? AND deleted_at IS NULL",
+  )
+    .bind(workspaceId, accountId)
+    .first<{ s: number }>();
+  return Number(opening?.opening_balance_minor ?? 0) + Number(sum?.s ?? 0);
 }
 
 /** Count all live rows in `obligation_details` directly. */
@@ -834,9 +890,19 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM meeting_item_tasks").run();
   await env.DB.prepare("DELETE FROM meeting_items").run();
   await env.DB.prepare("DELETE FROM meeting_details").run();
+  // V2.12 FIN-00 Finance, strictly innermost first: a transaction references its
+  // account, its category and its import, all ON DELETE RESTRICT; a budget
+  // references a category; an import references an account; and both the account
+  // and the transaction reference `entities` the same way. `obligation_details`
+  // clears BEFORE the transactions, because a settled obligation points at one.
+  await env.DB.prepare("DELETE FROM obligation_details").run();
+  await env.DB.prepare("DELETE FROM finance_transaction_details").run();
+  await env.DB.prepare("DELETE FROM finance_budgets").run();
+  await env.DB.prepare("DELETE FROM finance_imports").run();
+  await env.DB.prepare("DELETE FROM finance_categories").run();
+  await env.DB.prepare("DELETE FROM finance_account_details").run();
   // ASSET-02 children first: both reference entities ON DELETE RESTRICT.
   await env.DB.prepare("DELETE FROM asset_events").run();
-  await env.DB.prepare("DELETE FROM obligation_details").run();
   await env.DB.prepare("DELETE FROM asset_details").run();
   // REVIEW-02/REVIEW-03 Review children cascade from review_details; clear them
   // explicitly so a reset never leaves an orphan behind a partial delete.

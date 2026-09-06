@@ -24,6 +24,7 @@ import {
   AreaIcon,
   AssetIcon,
   DiaryIcon,
+  FinanceAccountIcon,
   GoalIcon,
   HabitIcon,
   MeetingIcon,
@@ -47,6 +48,7 @@ export const ENTITY_TYPES = [
   "person",
   "asset",
   "obligation",
+  "finance_account",
   "diary",
   "review",
 ] as const;
@@ -125,9 +127,67 @@ export const ENTITY_IDENTITY: Readonly<Record<EntityType, EntityIdentity>> =
       "Obligations",
       ObligationIcon,
     ),
+    /*
+     * V2.12 FIN-00 — Finance's ONE identity, for the account.
+     *
+     * Orange, and the colour was MEASURED rather than chosen: of sixteen hues
+     * probed against every existing accent in both appearances at the design
+     * system's ΔE 10 floor, three passed — this orange, a dark green and a rust
+     * — and orange is the only one of the three a money surface may use, because
+     * a green identity beside a balance reads as "you are fine" and a rust one
+     * reads as "you are not". Identity is never status (DESIGN_SYSTEM.md), and
+     * orange means nothing in this scheme.
+     *
+     * A TRANSACTION has none of its own, and that is a decision rather than an
+     * omission — see `identityTypeFor` below.
+     */
+    finance_account: identity(
+      "finance_account",
+      "Account",
+      "Accounts",
+      FinanceAccountIcon,
+    ),
     diary: identity("diary", "Diary", "Diary", DiaryIcon),
     review: identity("review", "Review", "Reviews", ReviewIcon),
   });
+
+/**
+ * Types that BORROW another type's visual identity, having none of their own.
+ *
+ * ## Why this exists, and why it is one entry rather than a policy
+ *
+ * `finance_transaction` is a LIGHT entity (ADR-120 decision 2): no record page,
+ * no Activity, no record chrome. Giving it an accent would be the fourteenth in
+ * a set the design system's own floor says is full — probed empirically while
+ * adding it, every second Finance hue tried landed inside ΔE 10 of an existing
+ * accent in the dark scheme, and the one pair that passed put a third purple
+ * beside the Goal and the Diary.
+ *
+ * So rather than force a hue nobody can tell from another, a transaction wears
+ * the identity of the thing it is always read inside: its ACCOUNT. That is
+ * truthful — a transaction with no account is not a thing the model has — and it
+ * is what "light" already meant.
+ *
+ * Adding an entry here is a real decision and should be rare. It is not a
+ * fallback for a type somebody forgot to give an identity: an unknown type still
+ * resolves to `null`, and a surface still degrades to plain text.
+ */
+const BORROWED_IDENTITY: Readonly<Record<string, EntityType>> = {
+  finance_transaction: "finance_account",
+};
+
+/**
+ * The identity a type should be DRAWN with — its own, or the one it borrows.
+ *
+ * Every surface that shows an entity glyph asks this rather than
+ * `isEntityType`, so a light entity is drawn rather than silently skipped.
+ * Returns `null` for a type with no identity and nothing to borrow, which is
+ * still the honest answer.
+ */
+export function identityTypeFor(type: string): EntityType | null {
+  if (isEntityType(type)) return type;
+  return BORROWED_IDENTITY[type] ?? null;
+}
 
 /** True when `value` is a known, visually-identified entity type. */
 export function isEntityType(value: unknown): value is EntityType {
@@ -137,7 +197,14 @@ export function isEntityType(value: unknown): value is EntityType {
   );
 }
 
-/** Look up an entity type's identity, or `null` for an unknown type. */
+/**
+ * Look up an entity type's identity, following a BORROW where there is one, or
+ * `null` for a type with no identity and nothing to borrow.
+ *
+ * The borrow is followed here rather than at each call site so a surface cannot
+ * accidentally get one answer for the glyph and another for the label.
+ */
 export function getEntityIdentity(type: string): EntityIdentity | null {
-  return isEntityType(type) ? ENTITY_IDENTITY[type] : null;
+  const resolved = identityTypeFor(type);
+  return resolved === null ? null : ENTITY_IDENTITY[resolved];
 }

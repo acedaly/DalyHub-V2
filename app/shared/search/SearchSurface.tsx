@@ -18,7 +18,7 @@ import type { KeyboardEvent, MouseEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { EmptyState } from "~/shared/empty-state";
-import { EntityIcon, getEntityIdentity, isEntityType } from "~/shared/entity";
+import { EntityIcon, getEntityIdentity } from "~/shared/entity";
 import { HistoryIcon, InboxIcon, SearchIcon } from "~/shared/icons";
 import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
@@ -514,9 +514,9 @@ function SearchOption({
     buildResultDestination(result.target, currentLocation),
   );
   const identity =
-    result.entityType !== undefined && isEntityType(result.entityType)
-      ? getEntityIdentity(result.entityType)
-      : null;
+    result.entityType === undefined
+      ? null
+      : getEntityIdentity(result.entityType);
   /*
    * The trailing chip names the record's TYPE in the identity vocabulary. A type
    * with no visual identity of its own (PROJECT-02: a Project template wears the

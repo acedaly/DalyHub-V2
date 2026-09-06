@@ -169,6 +169,12 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   assetEvents: (row: { id: string }) => row.id,
   assetObligations: (row: { id: string }) => row.id,
   obligations: (row: { entityId: string }) => row.entityId,
+  // V2.12 FIN-00 — each by the primary key its table actually carries.
+  financeAccounts: (row: { entityId: string }) => row.entityId,
+  financeCategories: (row: { id: string }) => row.id,
+  financeImports: (row: { id: string }) => row.id,
+  financeTransactions: (row: { entityId: string }) => row.entityId,
+  financeBudgets: (row: { id: string }) => row.id,
   attachments: (row: { id: string }) => row.id,
   reviewDetails: (row: { entityId: string }) => row.entityId,
   reviewSections: (row: { reviewId: string; sectionId: string }) =>
@@ -212,6 +218,14 @@ const ENTITY_SCOPED_COLLECTIONS: readonly SnapshotCollection[] = [
   // V2.10 LIFE-01 — an obligation is an ordinary entity, so its detail slice
   // names one exactly as every other slice does.
   "obligations",
+  /*
+   * V2.12 FIN-00 — a Finance account and a Finance transaction are ordinary
+   * entities, so their detail slices name one exactly as every other slice does.
+   * A transaction's DISPLAY payee is that entity's title, so a transaction whose
+   * entity is missing is not merely dangling — it has no payee at all.
+   */
+  "financeAccounts",
+  "financeTransactions",
   "reviewDetails",
 ];
 
@@ -624,6 +638,89 @@ export function validateWorkspaceSnapshot(
         `records.obligations[${index}].subjectEntityId`,
         "references a record not in this snapshot",
       );
+    }
+    /*
+     * V2.12 FIN-04 — the settlement. It IS a real foreign key in the schema, so
+     * a row naming a transaction the archive does not contain would fail at
+     * insert time, halfway through a restore rather than before one.
+     */
+    if (
+      row.settledByTransactionId !== null &&
+      !entityIds.has(row.settledByTransactionId)
+    ) {
+      c.add(
+        `records.obligations[${index}].settledByTransactionId`,
+        "references a transaction not in this snapshot",
+      );
+    }
+  });
+
+  /*
+   * V2.12 FIN-00 — the Finance graph. Every one of these IS a real foreign key
+   * in the schema, so a row naming something the archive does not contain would
+   * fail at INSERT time — halfway through a restore rather than before one. That
+   * is the whole reason this block exists: `restore-safety.ts` can only refuse
+   * an archive it has been told is inconsistent.
+   *
+   * The amounts are checked as integers because a float that reached here would
+   * be a money value that is quietly wrong, which is the one class of error
+   * ADR-049 exists to make impossible.
+   */
+  const financeAccountIds = new Set(
+    records.financeAccounts.map((row) => row.entityId),
+  );
+  const financeCategoryIds = new Set(
+    records.financeCategories.map((row) => row.id),
+  );
+  const financeImportIds = new Set(records.financeImports.map((row) => row.id));
+
+  records.financeAccounts.forEach((row, index) => {
+    const path = `records.financeAccounts[${index}]`;
+    if (!Number.isInteger(row.openingBalanceMinor)) {
+      c.add(
+        `${path}.openingBalanceMinor`,
+        "must be an integer minor-unit amount",
+      );
+    }
+    if (String(row.currencyCode).length !== 3) {
+      c.add(`${path}.currencyCode`, "must be a 3-letter ISO-4217 code");
+    }
+  });
+
+  records.financeImports.forEach((row, index) => {
+    const path = `records.financeImports[${index}]`;
+    if (!financeAccountIds.has(row.accountId)) {
+      c.add(`${path}.accountId`, "references an account not in this snapshot");
+    }
+    if (!/^[0-9a-f]{64}$/.test(String(row.fileSha256))) {
+      c.add(`${path}.fileSha256`, "must be a lowercase hex SHA-256 digest");
+    }
+  });
+
+  records.financeTransactions.forEach((row, index) => {
+    const path = `records.financeTransactions[${index}]`;
+    if (!financeAccountIds.has(row.accountId)) {
+      c.add(`${path}.accountId`, "references an account not in this snapshot");
+    }
+    if (row.categoryId !== null && !financeCategoryIds.has(row.categoryId)) {
+      c.add(`${path}.categoryId`, "references a category not in this snapshot");
+    }
+    if (row.importId !== null && !financeImportIds.has(row.importId)) {
+      c.add(`${path}.importId`, "references an import not in this snapshot");
+    }
+    if (!Number.isInteger(row.amountMinor)) {
+      c.add(`${path}.amountMinor`, "must be an integer minor-unit amount");
+    }
+    requireNonEmptyString(c, `${path}.fingerprint`, row.fingerprint);
+  });
+
+  records.financeBudgets.forEach((row, index) => {
+    const path = `records.financeBudgets[${index}]`;
+    if (!financeCategoryIds.has(row.categoryId)) {
+      c.add(`${path}.categoryId`, "references a category not in this snapshot");
+    }
+    if (!Number.isInteger(row.amountMinor) || row.amountMinor < 0) {
+      c.add(`${path}.amountMinor`, "must be a non-negative integer amount");
     }
   });
 

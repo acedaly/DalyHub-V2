@@ -650,6 +650,12 @@ export type ValidatedObligationCompletion = {
   readonly currencyCode: string | null;
   readonly nextDueDate: string | null;
   readonly createSuccessor: boolean;
+  /**
+   * V2.12 FIN-04 — the transaction that PAID it, when the owner named one. The
+   * repository resolves it through `ObligationSettlementGateway` and takes the
+   * actual amount and day from it.
+   */
+  readonly settledByTransactionId: string | null;
 };
 
 /**
@@ -681,12 +687,36 @@ export function validateObligationCompletion(
     );
   }
 
+  const settledByTransactionId = validateOptionalObligationId(
+    input.settledByTransactionId,
+    "settledByTransactionId",
+  );
+
   const effectiveCurrency = explicitCurrency ?? existingCurrency;
   const rawAmount = input.completedAmount;
   const hasAmount =
     rawAmount !== undefined &&
     rawAmount !== null &&
     String(rawAmount).trim() !== "";
+
+  /*
+   * V2.12 FIN-04 — when a transaction settles the obligation, the bank is the
+   * authority for what was actually paid and when. Accepting a typed amount
+   * beside it would give the completion two sources for one figure and no rule
+   * for which wins, so the second is refused rather than silently ignored.
+   */
+  if (settledByTransactionId !== null && hasAmount) {
+    throw new ObligationValidationError(
+      "completedAmount",
+      "comes from the transaction that settled this, so it cannot also be typed in",
+    );
+  }
+  if (settledByTransactionId !== null && completedOn !== null) {
+    throw new ObligationValidationError(
+      "completedOn",
+      "comes from the transaction that settled this, so it cannot also be chosen",
+    );
+  }
   if (hasAmount && effectiveCurrency === null) {
     throw new ObligationValidationError(
       "currencyCode",
@@ -713,6 +743,7 @@ export function validateObligationCompletion(
       "nextDueDate",
     ),
     createSuccessor: input.createSuccessor !== false,
+    settledByTransactionId,
   };
 }
 

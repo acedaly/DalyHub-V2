@@ -506,12 +506,105 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "completed_at",
       "completed_on",
       "next_obligation_id",
+      "settled_by_transaction_id",
       "series_id",
       "sequence",
       "created_at",
       "updated_at",
       "archived_at",
       "deleted_at",
+    ],
+  },
+  /*
+   * V2.12 FIN-00 — the Finance collections, in the same dependency order the
+   * snapshot writes them: accounts, then categories, then imports, then
+   * transactions (which reference all three), then budgets. A restore inserts in
+   * that order and deletes in its exact reverse, which is what satisfies the ON
+   * DELETE RESTRICT keys without deferring constraint checks.
+   *
+   * No balance column appears in any of them, because there is none to restore.
+   */
+  financeAccounts: {
+    table: "finance_account_details",
+    columns: [
+      "entity_id",
+      "account_type",
+      "currency_code",
+      "opening_balance_minor",
+      "opening_date",
+      "institution",
+      "status",
+      "import_mapping_json",
+      "created_at",
+      "updated_at",
+      "archived_at",
+      "deleted_at",
+    ],
+  },
+  financeCategories: {
+    table: "finance_categories",
+    columns: [
+      "id",
+      "name",
+      "name_key",
+      "kind",
+      "is_builtin",
+      "sort_order",
+      "archived_at",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  financeImports: {
+    table: "finance_imports",
+    columns: [
+      "id",
+      "account_id",
+      "file_name",
+      "file_sha256",
+      "file_bytes",
+      "row_count",
+      "added_count",
+      "skipped_existing_count",
+      "suspected_count",
+      "invalid_count",
+      "mapping_json",
+      "imported_at",
+      "created_at",
+    ],
+  },
+  financeTransactions: {
+    table: "finance_transaction_details",
+    columns: [
+      "entity_id",
+      "account_id",
+      "occurred_on",
+      "amount_minor",
+      "currency_code",
+      "source_description",
+      "payee_key",
+      "memo",
+      "category_id",
+      "category_confirmed_at",
+      "import_id",
+      "source_transaction_id",
+      "fingerprint",
+      "transfer_group_id",
+      "created_at",
+      "updated_at",
+      "deleted_at",
+    ],
+  },
+  financeBudgets: {
+    table: "finance_budgets",
+    columns: [
+      "id",
+      "category_id",
+      "period_month",
+      "amount_minor",
+      "currency_code",
+      "created_at",
+      "updated_at",
     ],
   },
   /*
@@ -1276,6 +1369,89 @@ function stageRows(
           deleted_at: row.deletedAt,
         }),
       );
+    case "financeAccounts":
+      return (
+        rows as readonly SnapshotCollectionRowMap["financeAccounts"][]
+      ).map((row) => ({
+        entity_id: row.entityId,
+        account_type: row.accountType,
+        currency_code: row.currencyCode,
+        opening_balance_minor: row.openingBalanceMinor,
+        opening_date: row.openingDate,
+        institution: row.institution,
+        status: row.status,
+        import_mapping_json: row.importMappingJson,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+        archived_at: row.archivedAt,
+        deleted_at: row.deletedAt,
+      }));
+    case "financeCategories":
+      return (
+        rows as readonly SnapshotCollectionRowMap["financeCategories"][]
+      ).map((row) => ({
+        id: row.id,
+        name: row.name,
+        name_key: row.nameKey,
+        kind: row.kind,
+        is_builtin: row.isBuiltin ? 1 : 0,
+        sort_order: row.sortOrder,
+        archived_at: row.archivedAt,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
+    case "financeImports":
+      return (
+        rows as readonly SnapshotCollectionRowMap["financeImports"][]
+      ).map((row) => ({
+        id: row.id,
+        account_id: row.accountId,
+        file_name: row.fileName,
+        file_sha256: row.fileSha256,
+        file_bytes: row.fileBytes,
+        row_count: row.rowCount,
+        added_count: row.addedCount,
+        skipped_existing_count: row.skippedExistingCount,
+        suspected_count: row.suspectedCount,
+        invalid_count: row.invalidCount,
+        mapping_json: row.mappingJson,
+        imported_at: row.importedAt,
+        created_at: row.createdAt,
+      }));
+    case "financeTransactions":
+      return (
+        rows as readonly SnapshotCollectionRowMap["financeTransactions"][]
+      ).map((row) => ({
+        entity_id: row.entityId,
+        account_id: row.accountId,
+        occurred_on: row.occurredOn,
+        amount_minor: row.amountMinor,
+        currency_code: row.currencyCode,
+        source_description: row.sourceDescription,
+        payee_key: row.payeeKey,
+        memo: row.memo,
+        category_id: row.categoryId,
+        category_confirmed_at: row.categoryConfirmedAt,
+        import_id: row.importId,
+        source_transaction_id: row.sourceTransactionId,
+        fingerprint: row.fingerprint,
+        transfer_group_id: row.transferGroupId,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+        deleted_at: row.deletedAt,
+      }));
+    case "financeBudgets":
+      return (
+        rows as readonly SnapshotCollectionRowMap["financeBudgets"][]
+      ).map((row) => ({
+        id: row.id,
+        category_id: row.categoryId,
+        period_month: row.periodMonth,
+        amount_minor: row.amountMinor,
+        currency_code: row.currencyCode,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      }));
     case "obligations":
       return (rows as readonly SnapshotCollectionRowMap["obligations"][]).map(
         (row) => ({
@@ -1300,6 +1476,7 @@ function stageRows(
           completed_at: row.completedAt,
           completed_on: row.completedOn,
           next_obligation_id: row.nextObligationId,
+          settled_by_transaction_id: row.settledByTransactionId,
           series_id: row.seriesId,
           sequence: row.sequence,
           created_at: row.createdAt,

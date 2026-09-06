@@ -612,11 +612,20 @@ transaction already settling another obligation; an obligation that is not open;
 a transaction in another workspace; a currency that differs from the
 obligation's (never converted); a deleted transaction.
 
-**Reopening an obligation clears the settlement**, its completed amount and its
-link, and frees the transaction to settle something else. There is no separate
-link/unlink lifecycle, because "this transaction paid it" and "this is complete"
-are the same statement and two state machines for one fact is how they come to
-disagree.
+**There is no unlink, and this pass changed its own mind by measuring.** The
+definition above originally said "reopening an obligation clears the
+settlement". It cannot: `ObligationRepository.setStatus` refuses to reopen a
+completed occurrence — *"cannot be changed once the obligation is completed"* —
+because reopening would orphan its successor and its proof. That is V2.10's
+decision, it is right, and V2.12 does not reopen it.
+
+So a settlement is a historical fact, like every other completion in this
+product. The sharp edge is stated rather than hidden: an owner who settles with
+the wrong transaction has the recovery they have for any wrong completion, which
+is to delete the occurrence and record it again. What V2.12 owes that is a
+CONFIRMATION rather than a second lifecycle — the settle action states the amount
+and the date it is about to record, taken from the transaction, before it records
+them.
 
 **Recurrence stays in Obligations. Due dates stay in Obligations.** Finance
 reads them. There is no `recurring_transactions` table, no `bills` table, and no
