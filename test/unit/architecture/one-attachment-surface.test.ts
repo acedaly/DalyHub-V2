@@ -74,6 +74,46 @@ describe("no module builds an attachment component of its own", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("declares no PLURAL evidence surface either", () => {
+    /*
+     * The suffix rule above catches `AssetAttachmentList`. It does not catch
+     * `AssetDocuments`, `MeetingFiles` or `ObligationPaperwork` — and a
+     * falsification proved it: a per-domain component under that shape passed
+     * the registry unchallenged, which is exactly the drift the registry exists
+     * to prevent. Someone reaching for their own surface is at least as likely
+     * to name it for the noun as for the widget.
+     */
+    const declaration =
+      /(?:function|const|class)\s+\w*(?:Attachments|Files|Documents|Evidence|Paperwork|Receipts|Uploads|Scans)\b/;
+    const offenders = MODULE_FILES.filter((file) =>
+      declaration.test(code(readFileSync(file, "utf8"))),
+    ).map(relative);
+    expect(offenders).toEqual([]);
+  });
+
+  it("puts a file input in exactly one place", () => {
+    /*
+     * The sharpest form of the rule, because it does not depend on what anyone
+     * names anything: a control that opens the OS picker either IS the shared
+     * picker or is a second one.
+     *
+     * `RestoreFromBackup.tsx` is the single stated exception and is not an
+     * attachment surface at all — it takes a backup ARCHIVE, which is read once
+     * by the restore pipeline and never stored as a file. It is named here so
+     * that adding a second exception is a deliberate edit to this list.
+     */
+    const allowed = new Set([
+      path.join("app", "shared", "attachments", "AttachmentPicker.tsx"),
+      path.join("app", "modules", "settings", "RestoreFromBackup.tsx"),
+    ]);
+    const offenders = APP_FILES.filter(
+      (file) =>
+        !allowed.has(relative(file)) &&
+        /type=["']file["']/.test(code(readFileSync(file, "utf8"))),
+    ).map(relative);
+    expect(offenders).toEqual([]);
+  });
+
   it("declares no attachment stylesheet block", () => {
     const offenders = filesUnder(path.join(ROOT, "app", "styles"), [".css"])
       .filter((file) => path.basename(file) !== "attachments.css")

@@ -36,6 +36,8 @@ import {
   hexDigest,
 } from "~/kernel/attachments";
 import { buildWorkspaceSnapshot } from "~/platform/export";
+import { createZipArchive } from "~/platform/export";
+import { readZipArchive } from "~/platform/restore";
 import {
   buildStructuredExportArchive,
   readAttachmentBytesForArchive,
@@ -390,6 +392,49 @@ describe("the D1 + R2 restore rehearsal", () => {
 
     await expect(readBackupArchive(damaged.bytes)).rejects.toThrow(
       /do not match what DalyHub recorded/,
+    );
+  });
+
+  it("rejects an archive whose own CHECKSUMS.txt no longer matches it", async () => {
+    await seedWorkspace();
+    const built = await exportArchive();
+
+    /*
+     * The TRANSPORT corruption, and the layer that catches it is not the
+     * attachment digest — it is the archive's own `CHECKSUMS.txt`.
+     *
+     * The other damage cases in this file rebuild the archive around the
+     * damaged file, so the ZIP is internally consistent and only the digest
+     * DalyHub recorded at upload can catch them. This one is the opposite: the
+     * archive left DalyHub correct and a byte changed on the way back, so
+     * `CHECKSUMS.txt` still carries the ORIGINAL hash and is the thing that
+     * disagrees. Both layers matter, and until this case existed only one of
+     * them was ever exercised — which meant the checksum file could have
+     * stopped being enforced without a single test noticing.
+     *
+     * Rebuilt entry by entry with the original checksum file carried over
+     * verbatim, because patching bytes inside a ZIP would trip the entry CRC
+     * first and prove something else.
+     */
+    const entries = await readZipArchive(built);
+    const target = entries.find((entry) =>
+      entry.path.startsWith("attachments/"),
+    );
+    expect(target).toBeDefined();
+    const damaged = new Uint8Array(target!.data);
+    damaged[0] = (damaged[0]! + 1) & 0xff;
+
+    const rebuilt = await createZipArchive(
+      entries.map((entry) =>
+        entry.path === target!.path
+          ? { path: entry.path, data: damaged }
+          : { path: entry.path, data: entry.data },
+      ),
+      new Date("2026-09-06T00:00:00.000Z"),
+    );
+
+    await expect(readBackupArchive(rebuilt)).rejects.toThrow(
+      /failed its own integrity check/,
     );
   });
 

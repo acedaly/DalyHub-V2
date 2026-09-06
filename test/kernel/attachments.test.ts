@@ -201,20 +201,55 @@ describe("an attachment requires an owner, and the database says so", () => {
 
   it("refuses to permanently delete an owner that still holds evidence", async () => {
     const owner = await seedOwner(WS);
-    await uploadAttachment(deps(WS), {
+    const { attachment } = await uploadAttachment(deps(WS), {
       ownerEntityId: owner.id,
       filename: "policy.pdf",
       declaredMediaType: "application/pdf",
       bytes: PDF,
       uploadOperationId: "op-restrict-0001",
     });
-    // The ON DELETE RESTRICT key. A purge path that forgets the evidence fails
-    // at the database rather than silently orphaning a byte.
+
+    /*
+     * Every OTHER dependent is cleared first, and that clearing is the test.
+     *
+     * An entity carries several ON DELETE RESTRICT keys — its activity subjects
+     * among them — so "the DELETE threw" proves nothing on its own: it would
+     * throw with the attachments key set to CASCADE, for a reason that has
+     * nothing to do with evidence. A falsification proved exactly that. With
+     * the subjects gone, the ONLY thing left holding this entity is its file.
+     */
+    await env.DB.prepare(
+      "DELETE FROM activity_subjects WHERE workspace_id = ? AND entity_id = ?",
+    )
+      .bind(WS, owner.id)
+      .run();
+
+    // The ON DELETE RESTRICT key, isolated. A purge path that forgets the
+    // evidence fails at the database rather than silently orphaning a byte.
     await expect(
       env.DB.prepare("DELETE FROM entities WHERE workspace_id = ? AND id = ?")
         .bind(WS, owner.id)
         .run(),
     ).rejects.toThrow();
+
+    /*
+     * And once the evidence is gone, the same delete succeeds — which is what
+     * makes the refusal above attributable to the attachment and nothing else.
+     * Removed with SQL rather than through `deleteAttachment`, because the
+     * service appends an Activity and this test has just torn the subject rows
+     * out from under it; the point here is the KEY, not the delete path, which
+     * has its own tests.
+     */
+    await env.DB.prepare(
+      "DELETE FROM attachments WHERE workspace_id = ? AND id = ?",
+    )
+      .bind(WS, attachment.id)
+      .run();
+    await env.DB.prepare(
+      "DELETE FROM entities WHERE workspace_id = ? AND id = ?",
+    )
+      .bind(WS, owner.id)
+      .run();
   });
 });
 
@@ -308,6 +343,50 @@ describe("a file goes in and comes back byte for byte", () => {
     await expect(
       readAttachmentBytes(dependencies, attachment),
     ).rejects.toMatchObject({ reason: "checksum_mismatch" });
+  });
+
+  it("keeps two files of the SAME NAME on one record apart", async () => {
+    const owner = await seedOwner(WS);
+    const dependencies = deps(WS);
+
+    /*
+     * The collision the key design exists to make impossible, and the one a
+     * filename-derived key would produce silently: two `receipt.pdf` on one
+     * record, the second overwriting the first, the owner none the wiser until
+     * they opened the wrong one. Same name, DIFFERENT bytes, so an overwrite
+     * cannot hide behind identical content.
+     */
+    const first = await uploadAttachment(dependencies, {
+      ownerEntityId: owner.id,
+      filename: "receipt.pdf",
+      declaredMediaType: "application/pdf",
+      bytes: PDF,
+      uploadOperationId: "op-collide-0001",
+    });
+    const second = await uploadAttachment(dependencies, {
+      ownerEntityId: owner.id,
+      filename: "receipt.pdf",
+      declaredMediaType: "application/pdf",
+      bytes: new Uint8Array([...PDF, 0x0a]),
+      uploadOperationId: "op-collide-0002",
+    });
+
+    expect(second.attachment.storageKey).not.toBe(first.attachment.storageKey);
+    // Neither key contains the name, which is WHY they differ.
+    expect(first.attachment.storageKey).not.toContain("receipt");
+    expect(second.attachment.storageKey).not.toContain("receipt");
+
+    // Two rows, two objects, and both sets of bytes still readable.
+    expect(await dependencies.attachments.listForOwner(owner.id)).toHaveLength(
+      2,
+    );
+    const { readAttachmentBytes } = await import("~/platform/attachments");
+    expect([
+      ...(await readAttachmentBytes(dependencies, first.attachment)),
+    ]).toEqual([...PDF]);
+    expect([
+      ...(await readAttachmentBytes(dependencies, second.attachment)),
+    ]).toEqual([...PDF, 0x0a]);
   });
 
   it("streams the same bytes on the download path", async () => {
