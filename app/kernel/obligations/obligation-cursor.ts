@@ -94,8 +94,19 @@ function fromBase64Url(value: string): Uint8Array {
 export function obligationFilterKey(
   categories: readonly string[],
   statuses: readonly string[] = [],
+  query = "",
 ): string {
-  return JSON.stringify([[...categories].sort(), [...statuses].sort()]);
+  /*
+   * The text query is part of the SCOPE, not of the position. A cursor taken
+   * under one query and replayed under another would page through a set the
+   * caller never saw the first page of — which is why every filter that changes
+   * WHICH rows are in the list belongs in this key.
+   */
+  return JSON.stringify([
+    [...categories].sort(),
+    [...statuses].sort(),
+    query.trim().toLowerCase(),
+  ]);
 }
 
 /** Encode a cursor for a page position within a scope. */

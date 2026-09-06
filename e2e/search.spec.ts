@@ -173,6 +173,8 @@ test.describe("DS-08 Shared Search — desktop", () => {
       "meetings.search",
       "people.search",
       "assets.search",
+      // V2.10 LIFE-02 — Life Admin is a searchable domain of its own.
+      "obligations.search",
       "reviews.search",
     ]);
     expect(providerIds).not.toContain("today.search");

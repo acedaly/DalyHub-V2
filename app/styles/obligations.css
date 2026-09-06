@@ -1,0 +1,293 @@
+/**
+ * V2.10 LIFE-02 — Life Admin: the shared obligation row, its bands, and the
+ * collection around them.
+ *
+ * The row anatomy moved here from `assets.css`, where it was
+ * `.dh-asset-obligation` and belonged to one surface. It is now drawn by the
+ * Life Admin collection, by the Obligation record and by the Asset record's
+ * Obligations tab, so it lives beside the component that owns it rather than
+ * inside the stylesheet of the first module that happened to need it.
+ *
+ * Every value is a DHDS token: this file names meanings, never machinery.
+ */
+
+/* -- The band ------------------------------------------------------------- */
+
+.dh-obligation-band {
+  margin-block-end: var(--app-space-5);
+}
+
+.dh-obligation-band__heading {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--dh-text-meta-size);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-obligation-band__count {
+  font-weight: 400;
+}
+
+/* -- The list ------------------------------------------------------------- */
+
+.dh-obligation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+/* -- The row -------------------------------------------------------------- */
+
+.dh-obligation-row {
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+  /* Stacks on a phone; the mark, the body and the actions sit side by side
+     once there is room for all three. */
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--app-space-3);
+}
+
+.dh-obligation-row__lead {
+  display: inline-flex;
+  align-items: center;
+  grid-row: 1;
+}
+
+.dh-obligation-row__main {
+  min-width: 0;
+  grid-row: 1;
+}
+
+.dh-obligation-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+  /* On a phone the actions take the full width under the body, so each stays a
+     thumb-sized target rather than being squeezed beside the text. */
+  grid-column: 1 / -1;
+}
+
+/* Empty of buttons — a read-only row — takes no space and draws no gap. */
+.dh-obligation-row__actions:empty {
+  display: none;
+}
+
+@media (min-width: 45rem) {
+  .dh-obligation-row {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .dh-obligation-row__actions {
+    grid-column: 3;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+}
+
+.dh-obligation-row__title {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.dh-obligation-row__name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.dh-obligation-row__meta,
+.dh-obligation-row__description,
+.dh-obligation-row__amount,
+.dh-obligation-row__task {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* -- The state badge ------------------------------------------------------ */
+
+/*
+ * The word carries the state; the tone only tints the word. Never a bare dot,
+ * never colour alone (§24).
+ */
+.dh-obligation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  padding: var(--app-space-1) var(--app-space-2);
+  border-radius: var(--dh-radius-pill);
+  font-size: var(--dh-text-meta-size);
+  font-weight: 500;
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-obligation-badge--info {
+  background: var(--dh-color-accent-subtle);
+  color: var(--dh-color-accent);
+}
+
+.dh-obligation-badge--success {
+  background: var(--dh-color-success-subtle);
+  color: var(--dh-color-text-on-success-subtle);
+}
+
+.dh-obligation-badge--warning {
+  background: var(--dh-color-warning-subtle);
+  color: var(--dh-color-text-on-warning-subtle);
+}
+
+.dh-obligation-badge--danger {
+  background: var(--dh-color-danger-subtle);
+  color: var(--dh-color-text-on-danger-subtle);
+}
+
+/* -- The collection ------------------------------------------------------- */
+
+.dh-obligations__clear {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-obligations__settled {
+  margin-block-start: var(--app-space-5);
+}
+
+/* -- The subject picker ---------------------------------------------------- */
+
+.dh-subject-picker__chosen {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: 0;
+}
+
+.dh-subject-picker__title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.dh-subject-picker__none {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- Forms ----------------------------------------------------------------- */
+
+.dh-obligation-disclosure {
+  margin-block-start: var(--app-space-4);
+}
+
+.dh-obligation-disclosure__body {
+  padding-block-start: var(--app-space-3);
+}
+
+.dh-obligation-complete__intro {
+  margin: 0 0 var(--app-space-4);
+  color: var(--dh-color-text-muted);
+}
+
+/* -- The collection's filter bar ------------------------------------------- */
+
+.dh-obligations-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-3);
+}
+
+.dh-obligations-filters__search {
+  flex: 1 1 17rem;
+  min-inline-size: 0;
+}
+
+.dh-obligations-filters__search .dh-input {
+  inline-size: 100%;
+}
+
+/* -- The record ------------------------------------------------------------ */
+
+/*
+ * The fold: the one thing the owner came to do, above everything else. The
+ * completion form opens HERE rather than in a dialog over the record — a modal
+ * over a page the owner is already looking at is a second layer for no reason,
+ * and on a phone it is a sheet over a sheet.
+ */
+.dh-obligation-feature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  align-items: flex-start;
+}
+
+.dh-obligation-feature__state {
+  margin: 0;
+  font-size: var(--dh-text-lead-size);
+}
+
+.dh-obligation-feature__amount,
+.dh-obligation-feature__done {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-obligation-feature__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin-block-start: var(--app-space-2);
+}
+
+.dh-obligation-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+}
+
+.dh-obligation-summary__heading {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--dh-text-meta-size);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-obligation-summary__quiet {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+}
+
+/* -- The create page ------------------------------------------------------- */
+
+.dh-obligation-new {
+  max-inline-size: 46rem;
+}
+
+.dh-obligation-new__head {
+  margin-block-end: var(--app-space-5);
+}
+
+.dh-obligation-new__title {
+  margin: 0 0 var(--app-space-2);
+}
+
+.dh-obligation-new__lead {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+}
+
+.dh-obligation-not-found {
+  padding-block: var(--app-space-6);
+}

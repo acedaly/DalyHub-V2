@@ -4965,6 +4965,18 @@ dated disposition on its entry instead of a new number.
 - **Found by.** V2.9's own full-suite run (2026-09-04), then bisected to `main` rather than left as "probably ours".
 - **Related roadmap item.** Unscheduled. Belongs with [DEBT-203](#-debt-203--the-e2e-suite-carries-latent-timing-races-at-roughly-one-per-two-runs-so-green-is-probabilistic--p2)'s stability work rather than with a feature release.
 
+## Debt raised by V2.10 LIFE-02 (2026-09-05)
+
+### ☐ DEBT-245 — Three entity accents are indistinguishable from one another in the dark schemes — P3
+
+- **Current issue.** The entity-identity accents are asserted to be *unequal*, never to be *distinguishable*. Measured in CIE76 across all five schemes in both appearances, three pairs sit below the threshold at which a person can separate two colours: `entity-project` and `entity-diary` at **ΔE 5.4** in ELECTRIC dark and **6.3** in VIOLET dark (the default), and `entity-goal` and `entity-diary` at **7.3** in VIOLET dark. For scale, the next-tightest pair in the set is 10.3 and the median is above 25. Diary's violet source hue (`#6750A4`) harmonises toward the Project blue and the Goal purple, and the dark scheme's tonal step compresses what is left.
+- **Impact.** Identity is the mechanism that lets an owner tell two kinds of record apart at a glance — in the Activity feed, in Linked items, in search results, in the rail. Three of the eleven accents do not do that job in dark mode. Nothing is *wrong* on screen: the glyph and the label still separate them, which is why this is P3 and not P2. But the accent is carrying no information for those pairs, and the tests said it was fine.
+- **Measured, not assumed.** Found while choosing an accent for the new `obligation` type: of ten candidate source hues, three came back within ΔE 1.3 of an existing accent in at least one scheme — visually identical, and passing every assertion in [`entity-accents.test.ts`](../../test/unit/tokens/entity-accents.test.ts) as it then stood. That test now asserts a ΔE floor of 10, with these two default-scheme pairs named in `KNOWN_TIGHT_PAIRS` so the exception is visible rather than absorbed into a lowered bar. `#795548` was chosen for `obligation` because it holds ΔE 19.1 against its nearest neighbour in the worst scheme.
+- **Desired future state.** Diary's source hue moves far enough from the Project blue and the Goal purple to clear the floor in every scheme, `KNOWN_TIGHT_PAIRS` is emptied, and the floor applies to all five schemes rather than to the default pair alone.
+- **Closing condition.** `KNOWN_TIGHT_PAIRS` is empty, and the ΔE assertion runs over every scheme in `scheme.ts` with no exceptions.
+- **Found by.** V2.10 LIFE-02, adding the `obligation` identity. Recorded rather than fixed because re-pointing Diary's hue changes a shipped identity across five schemes and belongs to a design pass, not to a module build.
+- **Related roadmap item.** Unscheduled. A candidate for whichever release next revisits the M3 scheme generator.
+
 ## Entry template
 
 ```markdown

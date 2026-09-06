@@ -28,6 +28,7 @@ import {
   HabitIcon,
   MeetingIcon,
   NoteIcon,
+  ObligationIcon,
   PersonIcon,
   ProjectIcon,
   ReviewIcon,
@@ -45,6 +46,7 @@ export const ENTITY_TYPES = [
   "meeting",
   "person",
   "asset",
+  "obligation",
   "diary",
   "review",
 ] as const;
@@ -108,6 +110,21 @@ export const ENTITY_IDENTITY: Readonly<Record<EntityType, EntityIdentity>> =
     meeting: identity("meeting", "Meeting", "Meetings", MeetingIcon),
     person: identity("person", "Person", "People", PersonIcon),
     asset: identity("asset", "Asset", "Assets", AssetIcon),
+    /*
+     * V2.10 LIFE-02 — an obligation is a record in its own right, so it needs an
+     * identity of its own. It sits beside the Asset in the rail and must not be
+     * mistaken for one: the Asset is a THING you own, an obligation is
+     * something you have COMMITTED to, and most obligations are about no asset
+     * at all. Bronze, because it is the one accent family nothing else holds —
+     * and pointedly not a warm red, which would read as "this is late" and
+     * break the rule that identity is never status.
+     */
+    obligation: identity(
+      "obligation",
+      "Obligation",
+      "Obligations",
+      ObligationIcon,
+    ),
     diary: identity("diary", "Diary", "Diary", DiaryIcon),
     review: identity("review", "Review", "Reviews", ReviewIcon),
   });

@@ -2,15 +2,15 @@
  * ASSET-02 — the Asset history & obligations view-model (pure, React-free,
  * server-safe).
  *
- * Turns kernel `AssetEvent`s and `Obligation`s into JSON-safe display shapes
- * for the loader → component boundary, and owns the small pure derivations the UI
- * needs: category labels, calm state phrasings, cost formatting, the timeline
- * ordering and the Today deduplication rule.
+ * Turns kernel `AssetEvent`s into JSON-safe display shapes for the loader →
+ * component boundary, and owns the small pure derivations the UI needs: category
+ * labels, cost formatting, the timeline ordering and the Today deduplication
+ * rule.
  *
- * Every derived state comes from the ONE canonical kernel evaluator
- * (`evaluateObligation` / `evaluateMeterThreshold`) — this module formats, it never
- * re-decides. That is what stops Today, the collection card and the record ever
- * disagreeing about whether the rego is overdue.
+ * V2.10 LIFE-02 — the OBLIGATION projection left this file. An obligation is a
+ * record in its own right now, rendered identically by Life Admin and by this
+ * module's own tab, so it is projected once in `~/shared/obligations` rather
+ * than twice.
  *
  * PRIVACY. An event's description is Markdown the owner wrote and may be private:
  * it reaches the record, never a collection card, a Today row or a search snippet
@@ -21,23 +21,13 @@ import {
   ASSET_COST_GROUP_LABELS,
   DEFAULT_CURRENCY,
   assetEventCategoryLabel,
-  obligationCategoryLabel,
-  describeAssetObligationRecurrence,
-  evaluateAssetObligation,
   formatMeterReading,
-  isAssetMeterUnit,
   type AssetCostGroup,
   type AssetCostSummary,
   type AssetEvent,
   type AssetEventCategory,
-  type AssetMeterUnit,
-  type ObligationCategory,
-  type ObligationState,
   type AssetValuationPoint,
-  type MeterReading,
-  OBLIGATION_STATE_LABELS,
 } from "~/kernel/assets";
-import type { Obligation } from "~/kernel/obligations";
 import { formatMinorUnits } from "~/kernel/money";
 
 /* -------------------------------------------------------------------------- */
@@ -70,63 +60,9 @@ export type SerializedAssetEvent = {
   readonly archived: boolean;
 };
 
-/** One obligation, projected with its DERIVED state already resolved. */
-export type SerializedAssetObligation = {
-  readonly id: string;
-  readonly assetId: string;
-  readonly category: ObligationCategory;
-  readonly categoryLabel: string;
-  readonly title: string;
-  readonly description: string | null;
-  readonly dueDate: string | null;
-  readonly dueDateLabel: string | null;
-  readonly leadDays: number;
-  readonly recurrenceLabel: string;
-  readonly recurrenceKind: string;
-  readonly recurrenceInterval: number | null;
-  readonly meterThreshold: number | null;
-  readonly meterInterval: number | null;
-  readonly meterUnit: AssetMeterUnit | null;
-  readonly meterDisplay: string | null;
-  readonly status: string;
-  readonly state: ObligationState;
-  readonly stateLabel: string;
-  /** The calm owner-facing sentence ("Registration expires in 14 days"). */
-  readonly stateText: string;
-  readonly needsAttention: boolean;
-  readonly taskId: string | null;
-  readonly taskTitle: string | null;
-  readonly taskOpen: boolean;
-  readonly completedEventId: string | null;
-  readonly completedDate: string | null;
-  readonly seriesId: string;
-  readonly sequence: number;
-};
-
 /* -------------------------------------------------------------------------- */
 /* Labels                                                                     */
 /* -------------------------------------------------------------------------- */
-
-/**
- * The semantic tone for each state. Tones map to shared theme tokens, so all five
- * themes resolve them consistently; the label above always accompanies them.
- */
-export function obligationStateTone(
-  state: ObligationState,
-): "danger" | "warning" | "info" | "neutral" | "success" {
-  switch (state) {
-    case "overdue":
-      return "danger";
-    case "due":
-      return "warning";
-    case "unknown":
-      return "info";
-    case "completed":
-      return "success";
-    default:
-      return "neutral";
-  }
-}
 
 /** Format a `YYYY-MM-DD` for display ("30 September 2026"), or null. */
 export function formatHistoryDate(iso: string | null): string | null {
@@ -184,64 +120,6 @@ export function serializeAssetEvent(
     noteTitle: event.noteId ? (names.get(event.noteId) ?? null) : null,
     obligationId: event.obligationId,
     archived: event.archivedAt !== null,
-  };
-}
-
-/**
- * Project one obligation with its DERIVED state resolved against the owner-calendar
- * day and the Asset's current meter reading. The evaluation is the kernel's; this
- * only attaches labels.
- */
-export function serializeAssetObligation(
-  obligation: Obligation,
-  today: string,
-  reading: MeterReading | null,
-  options: {
-    readonly taskTitle?: string | null;
-    readonly taskOpen?: boolean;
-  } = {},
-): SerializedAssetObligation {
-  const evaluation = evaluateAssetObligation(obligation, today, reading);
-  return {
-    id: obligation.id,
-    assetId: obligation.subjectEntityId ?? "",
-    category: obligation.category,
-    categoryLabel: obligationCategoryLabel(obligation.category) ?? "Reminder",
-    title: obligation.title,
-    description: obligation.description,
-    dueDate: obligation.dueDate,
-    dueDateLabel: formatHistoryDate(obligation.dueDate),
-    leadDays: obligation.leadDays,
-    recurrenceLabel: describeAssetObligationRecurrence(
-      obligation.recurrenceKind,
-      obligation.recurrenceInterval,
-      obligation.meterInterval,
-      isAssetMeterUnit(obligation.meterUnit) ? obligation.meterUnit : null,
-    ),
-    recurrenceKind: obligation.recurrenceKind,
-    recurrenceInterval: obligation.recurrenceInterval,
-    meterThreshold: obligation.meterThreshold,
-    meterInterval: obligation.meterInterval,
-    meterUnit: isAssetMeterUnit(obligation.meterUnit)
-      ? obligation.meterUnit
-      : null,
-    meterDisplay: isAssetMeterUnit(obligation.meterUnit)
-      ? formatMeterReading(obligation.meterThreshold, obligation.meterUnit)
-      : null,
-    status: obligation.status,
-    state: evaluation.state,
-    stateLabel: OBLIGATION_STATE_LABELS[evaluation.state],
-    stateText: evaluation.text,
-    needsAttention: evaluation.needsAttention,
-    taskId: obligation.taskId,
-    taskTitle: options.taskTitle ?? null,
-    taskOpen: options.taskOpen ?? false,
-    completedEventId: obligation.completedEventId,
-    completedDate: obligation.completedAt
-      ? obligation.completedAt.toISOString().slice(0, 10)
-      : null,
-    seriesId: obligation.seriesId,
-    sequence: obligation.sequence,
   };
 }
 

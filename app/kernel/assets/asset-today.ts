@@ -13,21 +13,11 @@
  */
 
 import {
+  OBLIGATION_STATE_LABELS,
   obligationCategoryLabel,
   type ObligationCategory,
   type ObligationState,
 } from "~/kernel/obligations";
-
-/** The owner-facing word for each derived state. Always rendered AS TEXT (§24). */
-export const OBLIGATION_STATE_LABELS: Record<ObligationState, string> = {
-  overdue: "Overdue",
-  due: "Due soon",
-  upcoming: "Upcoming",
-  unknown: "Reading needed",
-  completed: "Completed",
-  dismissed: "Dismissed",
-  on_hold: "On hold",
-};
 
 /** One Asset obligation as Today renders it. */
 export type SerializedAttentionItem = {

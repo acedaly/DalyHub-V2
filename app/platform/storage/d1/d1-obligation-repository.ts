@@ -55,7 +55,10 @@ import {
   decodeObligationCursorForScope,
   encodeObligationCursor,
   evaluateObligation,
+  isIsoDate,
   nextObligationDate,
+  obligationBandBoundaries,
+  obligationCategoriesMatching,
   obligationFilterKey,
   obligationSubjectLinkId,
   validateObligation,
@@ -73,6 +76,9 @@ import {
   type ObligationMeterEvaluation,
   type ObligationAttentionInput,
   type ObligationAttentionItem,
+  type ObligationBand,
+  type ObligationBandCountInput,
+  type ObligationBandCounts,
   type ObligationCategory,
   type ObligationChangeResult,
   type ObligationCursorScope,
@@ -94,6 +100,7 @@ import { ownerCalendarIso } from "~/shared/datetime";
 
 import { fromStorageTimestamp, toStorageTimestamp } from "./database";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
+import { likeContains } from "./like-pattern";
 import type { AtomicMutationFault } from "./d1-atomic-mutation";
 
 /**
@@ -308,7 +315,89 @@ type SubjectColumns = {
   readonly subject_title: string | null;
   readonly subject_type: string | null;
   readonly has_open_task: number;
+  /*
+   * The subject's Asset facts, LEFT-joined. An obligation about a Person, a
+   * Project or nothing at all simply has none of these, which is why every one
+   * is optional and why the join can never be an inner one.
+   */
+  readonly subject_subtype?: string | null;
+  readonly current_meter_value?: number | null;
+  readonly current_meter_unit?: string | null;
 };
+
+/**
+ * The subject columns every read that resolves a subject selects, so the
+ * projection is one list rather than one per statement.
+ */
+const SUBJECT_COLUMNS = `s.title AS subject_title, s.type AS subject_type,
+  ad.asset_type AS subject_subtype,
+  ad.current_meter_value AS current_meter_value,
+  ad.current_meter_unit AS current_meter_unit`;
+
+/** The LEFT joins that resolve a subject and, where it is an Asset, its meter. */
+const SUBJECT_JOINS = `LEFT JOIN entities s
+       ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
+      AND s.deleted_at IS NULL
+     LEFT JOIN asset_details ad
+       ON ad.workspace_id = o.workspace_id
+      AND ad.entity_id = o.subject_entity_id`;
+
+/**
+ * D10 — the band, in SQL, as ONE expression used by every read that needs it.
+ *
+ * The rule itself is `obligationBand` in the kernel. This is its second
+ * implementation, which is exactly how two implementations of one rule come to
+ * disagree, so there is only one copy of it here and the boundaries are BOUND
+ * from `obligationBandBoundaries` rather than computed in SQL date arithmetic.
+ * `test/kernel/obligations.test.ts` asserts the two agree row for row.
+ *
+ * Three parameters, in this order: today, the last day of "this week", the last
+ * day of "this month".
+ *
+ * ── The order of the WHENs is the rule's order, and it is load-bearing ──────
+ * A past date is tested BEFORE the two windows, because a past date is
+ * trivially "before the end of this week" and a held obligation months late
+ * would otherwise be counted under This week.
+ *
+ * ── The meter side mirrors the evaluator, mismatched units included ─────────
+ * `evaluateMeterThreshold` has THREE answers that are not a number: no reading,
+ * a reading in a different unit (`incompatible` — this product never converts),
+ * and a reading past the threshold. The first two are `unknown` to the shared
+ * evaluator, and `unknown` only reaches the band when there is no date to rank
+ * against: a dated obligation whose meter cannot be read is banded by its date,
+ * because the date is a fact and the meter is a question. A reading that is
+ * genuinely past its threshold, in the SAME unit, outranks any future date.
+ */
+const OBLIGATION_BAND_CASE = `CASE
+        WHEN o.status = 'completed' THEN 'done'
+        WHEN o.due_date IS NOT NULL AND o.due_date < ? THEN 'overdue'
+        WHEN o.status = 'open' AND o.meter_threshold IS NOT NULL
+             AND ad.current_meter_value IS NOT NULL
+             AND ad.current_meter_unit = o.meter_unit
+             AND ad.current_meter_value >= o.meter_threshold THEN 'overdue'
+        WHEN o.status = 'open' AND o.meter_threshold IS NOT NULL
+             AND o.due_date IS NULL
+             AND (ad.current_meter_value IS NULL
+                  OR ad.current_meter_unit IS NULL
+                  OR ad.current_meter_unit <> o.meter_unit) THEN 'overdue'
+        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_week'
+        WHEN o.due_date IS NOT NULL AND o.due_date <= ? THEN 'this_month'
+        ELSE 'later'
+      END`;
+
+/**
+ * The band as a single sortable digit, in the order the collection prints it.
+ *
+ * Reads the band the expression above already produced, so there is still one
+ * rule: a second CASE over the same columns would be a third implementation.
+ */
+const OBLIGATION_BAND_RANK = `CASE band
+        WHEN 'overdue' THEN '0'
+        WHEN 'this_week' THEN '1'
+        WHEN 'this_month' THEN '2'
+        WHEN 'later' THEN '3'
+        ELSE '4'
+      END`;
 
 export class D1ObligationRepository implements ObligationRepository {
   readonly #db: D1Database;
@@ -466,6 +555,9 @@ export class D1ObligationRepository implements ObligationRepository {
       id: row.subject_entity_id,
       type: row.subject_entity_type,
       title: row.subject_title,
+      subtype: row.subject_subtype ?? null,
+      meterValue: row.current_meter_value ?? null,
+      meterUnit: row.current_meter_unit ?? null,
     };
   }
 
@@ -673,17 +765,14 @@ export class D1ObligationRepository implements ObligationRepository {
     try {
       const row = await this.#db
         .prepare(
-          `SELECT ${OBLIGATION_COLUMNS},
-                  s.title AS subject_title, s.type AS subject_type,
+          `SELECT ${OBLIGATION_COLUMNS}, ${SUBJECT_COLUMNS},
                   CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
                        THEN 1 ELSE 0 END AS has_open_task
              FROM obligation_details o
              JOIN entities e
                ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
               AND e.type = '${OBLIGATION_ENTITY_TYPE}'
-             LEFT JOIN entities s
-               ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
-              AND s.deleted_at IS NULL
+             ${SUBJECT_JOINS}
             WHERE o.workspace_id = ? AND o.entity_id = ? AND o.deleted_at IS NULL
             LIMIT 1`,
         )
@@ -704,6 +793,17 @@ export class D1ObligationRepository implements ObligationRepository {
     input: ListObligationsInput = {},
   ): Promise<ObligationWithSubjectPage> {
     const limit = validateObligationsLimit(input.limit);
+    /*
+     * The owner's day, because the ORDER depends on the band and the band
+     * depends on the day. Every caller passes one; the fallback is the same
+     * owner-calendar authority they got theirs from, so a missing argument
+     * cannot silently produce a different ordering from a present one.
+     */
+    const today =
+      input.today !== undefined && isIsoDate(input.today)
+        ? input.today
+        : await this.#today();
+    const { weekEnd, monthEnd } = obligationBandBoundaries(today);
     const filters = validateObligationFilters(input.filters);
     const subjectEntityId =
       input.subjectEntityId === undefined
@@ -712,14 +812,21 @@ export class D1ObligationRepository implements ObligationRepository {
           ? null
           : validateObligationId(input.subjectEntityId);
 
+    const query = (input.query ?? "").trim();
     const scope: ObligationCursorScope = {
       workspaceId: this.#workspaceId,
       subjectEntityId,
-      filterKey: obligationFilterKey(filters.categories, filters.statuses),
+      filterKey: obligationFilterKey(
+        filters.categories,
+        filters.statuses,
+        query,
+      ),
     };
 
     const conditions = ["o.workspace_id = ?", "o.deleted_at IS NULL"];
-    const params: unknown[] = [this.#workspaceId];
+    // The band's three boundaries are bound FIRST because the expression that
+    // uses them is in the inner SELECT list, ahead of every filter.
+    const params: unknown[] = [today, weekEnd, monthEnd, this.#workspaceId];
 
     if (subjectEntityId === null) {
       conditions.push("o.subject_entity_id IS NULL");
@@ -739,16 +846,34 @@ export class D1ObligationRepository implements ObligationRepository {
       );
       params.push(...filters.statuses);
     }
+    appendQueryPredicate(query, conditions, params);
 
-    // Open work first, then soonest due — the order the owner reads. Ordering
-    // happens in SQL over the WHOLE collection, never over the loaded page.
-    const primary = `(CASE o.status WHEN 'open' THEN '0' WHEN 'on_hold' THEN '1' WHEN 'dismissed' THEN '2' ELSE '3' END
-      || coalesce(o.due_date, '${DATE_SENTINEL}'))`;
+    /*
+     * Open work first, then BY BAND, then soonest due — the order the owner
+     * reads, and the order the collection prints.
+     *
+     * The band belongs in the sort key, not only in the grouping: it is the
+     * whole-collection COUNT above each heading, and a row the band counts but
+     * the page does not contain is a heading describing a different list from
+     * the one underneath it (D10). Sorting on the date alone put every
+     * dateless row — a meter obligation whose reading is missing, which the
+     * band calls overdue — behind the sentinel at the very end, so a workspace
+     * with more than a page of dated work could advertise "Overdue (1)" and
+     * show none of it until the last page.
+     *
+     * Status stays the FIRST key. The band answers when; the status is the
+     * separate lens the owner turned on, and settled work does not belong above
+     * live work because its date happens to be nearer.
+     */
+    const sortPrimary = `(CASE status WHEN 'open' THEN '0' WHEN 'on_hold' THEN '1' WHEN 'dismissed' THEN '2' ELSE '3' END
+      || ${OBLIGATION_BAND_RANK}
+      || coalesce(due_date, '${DATE_SENTINEL}'))`;
 
+    const cursorConditions: string[] = [];
     if (input.cursor !== undefined) {
       const position = decodeObligationCursorForScope(input.cursor, scope);
-      conditions.push(
-        `(${primary} > ? OR (${primary} = ? AND o.entity_id > ?))`,
+      cursorConditions.push(
+        "(sort_primary > ? OR (sort_primary = ? AND entity_id > ?))",
       );
       params.push(position.primary, position.primary, position.id);
     }
@@ -756,21 +881,30 @@ export class D1ObligationRepository implements ObligationRepository {
 
     let rows: (ObligationRow & SubjectColumns & { sort_primary: string })[];
     try {
+      /*
+       * Nested so the band is computed ONCE. It carries three bound parameters,
+       * and SQLite binds by position, so repeating the expression in the SELECT
+       * list, the keyset predicate and the ORDER BY would mean four copies of
+       * one rule and twelve parameters to keep in step.
+       */
       const result = await this.#db
         .prepare(
-          `SELECT ${OBLIGATION_COLUMNS}, ${primary} AS sort_primary,
-                  s.title AS subject_title, s.type AS subject_type,
-                  CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
-                       THEN 1 ELSE 0 END AS has_open_task
-             FROM obligation_details o
-             JOIN entities e
-               ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
-              AND e.type = '${OBLIGATION_ENTITY_TYPE}'
-             LEFT JOIN entities s
-               ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
-              AND s.deleted_at IS NULL
-            WHERE ${conditions.join(" AND ")}
-            ORDER BY ${primary} ASC, o.entity_id ASC
+          `SELECT * FROM (
+             SELECT *, ${sortPrimary} AS sort_primary FROM (
+               SELECT ${OBLIGATION_COLUMNS}, ${OBLIGATION_BAND_CASE} AS band,
+                      ${SUBJECT_COLUMNS},
+                      CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
+                           THEN 1 ELSE 0 END AS has_open_task
+                 FROM obligation_details o
+                 JOIN entities e
+                   ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
+                  AND e.type = '${OBLIGATION_ENTITY_TYPE}'
+                 ${SUBJECT_JOINS}
+                WHERE ${conditions.join(" AND ")}
+             )
+           )
+           ${cursorConditions.length > 0 ? `WHERE ${cursorConditions.join(" AND ")}` : ""}
+            ORDER BY sort_primary ASC, entity_id ASC
             LIMIT ?`,
         )
         .bind(...params)
@@ -1629,11 +1763,7 @@ export class D1ObligationRepository implements ObligationRepository {
     try {
       const result = await this.#db
         .prepare(
-          `SELECT ${OBLIGATION_COLUMNS},
-                  s.title AS subject_title, s.type AS subject_type,
-                  ad.current_meter_value AS current_meter_value,
-                  ad.current_meter_unit AS current_meter_unit,
-                  ad.asset_type AS subject_subtype,
+          `SELECT ${OBLIGATION_COLUMNS}, ${SUBJECT_COLUMNS},
                   ad.archived_at AS subject_archived_at,
                   CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
                        THEN 1 ELSE 0 END AS has_open_task
@@ -1643,12 +1773,7 @@ export class D1ObligationRepository implements ObligationRepository {
               AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
              -- LEFT, deliberately: an obligation about nothing is the whole
              -- point of V2.10, and an inner join here would silently drop it.
-             LEFT JOIN entities s
-               ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
-              AND s.deleted_at IS NULL
-             LEFT JOIN asset_details ad
-               ON ad.workspace_id = o.workspace_id
-              AND ad.entity_id = o.subject_entity_id
+             ${SUBJECT_JOINS}
             WHERE o.workspace_id = ? AND o.status = 'open' AND o.deleted_at IS NULL
               -- An ARCHIVED subject stops asking for things. An obligation with
               -- no subject has nothing to be archived, so it is never excluded.
@@ -1789,6 +1914,130 @@ export class D1ObligationRepository implements ObligationRepository {
     }
     return out;
   }
+
+  /**
+   * D10 — how many obligations fall in each band, over the WHOLE collection.
+   *
+   * ONE grouped statement, whatever the workspace holds. The alternative — band
+   * the loaded page — produces headings that count the page rather than the
+   * set, so "Overdue 25" would mean "at least 25, possibly two hundred", which
+   * is the kind of number that is worse than no number.
+   *
+   * The band CASE below is the SQL half of `obligationBand`, and the two are
+   * kept honest two ways: the boundaries are BOUND from
+   * `obligationBandBoundaries` rather than computed here in SQL date
+   * arithmetic, and `test/kernel/obligations.test.ts` asserts these counts
+   * equal the kernel function's over the same rows, for every band.
+   */
+  async countByBand(
+    input: ObligationBandCountInput,
+  ): Promise<ObligationBandCounts> {
+    if (!isIsoDate(input.today)) {
+      throw new ObligationValidationError("today", "must be a calendar date");
+    }
+    const today = input.today;
+    const filters = validateObligationFilters(input.filters);
+    const subjectEntityId =
+      input.subjectEntityId === undefined
+        ? undefined
+        : input.subjectEntityId === null
+          ? null
+          : validateObligationId(input.subjectEntityId);
+    const { weekEnd, monthEnd } = obligationBandBoundaries(today);
+
+    const conditions = ["o.workspace_id = ?", "o.deleted_at IS NULL"];
+    const params: unknown[] = [today, weekEnd, monthEnd, this.#workspaceId];
+
+    if (subjectEntityId === null) {
+      conditions.push("o.subject_entity_id IS NULL");
+    } else if (subjectEntityId !== undefined) {
+      conditions.push("o.subject_entity_id = ?");
+      params.push(subjectEntityId);
+    }
+    if (filters.categories.length > 0) {
+      conditions.push(
+        `o.category IN (${filters.categories.map(() => "?").join(", ")})`,
+      );
+      params.push(...filters.categories);
+    }
+    if (filters.statuses.length > 0) {
+      conditions.push(
+        `o.status IN (${filters.statuses.map(() => "?").join(", ")})`,
+      );
+      params.push(...filters.statuses);
+    }
+    appendQueryPredicate((input.query ?? "").trim(), conditions, params);
+
+    let rows: { band: string; n: number }[];
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT ${OBLIGATION_BAND_CASE} AS band, COUNT(*) AS n
+             FROM obligation_details o
+             JOIN entities e
+               ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
+              AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
+             ${SUBJECT_JOINS}
+            WHERE ${conditions.join(" AND ")}
+            GROUP BY band`,
+        )
+        .bind(...params)
+        .all<{ band: string; n: number }>();
+      rows = result.results;
+    } catch (cause) {
+      this.#fail(cause);
+    }
+
+    // Every band is present, zeroes included: an absent key would make a
+    // heading render as "undefined" rather than as the honest nothing it is.
+    const counts: Record<ObligationBand, number> = {
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    };
+    for (const row of rows) {
+      if (row.band in counts) counts[row.band as ObligationBand] = row.n;
+    }
+    return counts;
+  }
+}
+
+/**
+ * D11 — the three things an owner searches an obligation BY: what they called
+ * it, what kind of thing it is, and what it is about.
+ *
+ * The DESCRIPTION is deliberately absent: it is body content, reachable only
+ * under the explicit-query boundary ADR-114 drew. No AMOUNT is matched, and
+ * none ever will be — a price is not a thing a person searches for, and a
+ * statement that could return a row BECAUSE of an amount is one refactor away
+ * from printing it.
+ *
+ * One function rather than two copies, because the ROW read and the COUNT read
+ * must select the same set: a heading counting one list above the rows of
+ * another is the specific defect D10 exists to prevent.
+ */
+function appendQueryPredicate(
+  query: string,
+  conditions: string[],
+  params: unknown[],
+): void {
+  if (query.length === 0) return;
+  const pattern = likeContains(query.toLowerCase());
+  const matched = obligationCategoriesMatching(query);
+  const clauses = [
+    // The TITLE lives on the ENTITY row, not on the detail slice: one title, one
+    // place. Both reads that use this predicate join `entities` as `e`.
+    `lower(e.title) LIKE ? ESCAPE '\\'`,
+    `lower(coalesce(s.title, '')) LIKE ? ESCAPE '\\'`,
+  ];
+  params.push(pattern, pattern);
+  if (matched.length > 0) {
+    clauses.push(`o.category IN (${matched.map(() => "?").join(", ")})`);
+    params.push(...matched);
+  }
+  conditions.push(`(${clauses.join(" OR ")})`);
 }
 
 /** Add whole days to a calendar date (UTC math, zone-free). */

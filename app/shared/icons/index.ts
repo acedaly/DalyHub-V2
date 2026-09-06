@@ -21,6 +21,7 @@ export {
   ProjectIcon,
   TaskIcon,
   NoteIcon,
+  ObligationIcon,
   MeetingIcon,
   PersonIcon,
   AssetIcon,

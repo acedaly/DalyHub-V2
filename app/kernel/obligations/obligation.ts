@@ -385,6 +385,23 @@ export type ObligationSubject = {
   readonly id: string;
   readonly type: string;
   readonly title: string;
+  /**
+   * The subject's own SUBTYPE where it has one — an Asset's `vehicle` or
+   * `appliance`, which is what a surface draws its glyph from. It is not the
+   * entity type: `type` is `asset`, this is what KIND of asset.
+   */
+  readonly subtype: string | null;
+  /**
+   * The subject's current meter reading, where the subject keeps one.
+   *
+   * It rides on the subject rather than being fetched per row, because it is
+   * needed exactly where the subject is and a second read per obligation is the
+   * N+1 every collection in this product is written to avoid. The unit is an
+   * unnarrowed string here: the vocabulary belongs to the domain that owns the
+   * meter, and this kernel does not know what a kilometre is.
+   */
+  readonly meterValue: number | null;
+  readonly meterUnit: string | null;
 };
 
 /** A bounded obligations read. */
@@ -396,6 +413,14 @@ export type ListObligationsInput = {
    * the ones about nothing at all.
    */
   readonly subjectEntityId?: string | null;
+  /**
+   * Free text the owner typed. Matches the TITLE, the category's own label and
+   * the SUBJECT's title — and nothing else (D11). Never the description, which
+   * is body content the explicit-query boundary governs (ADR-114), and never an
+   * amount, which is not a thing anybody searches for and is not a thing this
+   * product will put in a result list.
+   */
+  readonly query?: string;
   readonly limit?: number;
   readonly cursor?: string;
   /** Owner-calendar day, so derived state resolves in the owner's timezone. */

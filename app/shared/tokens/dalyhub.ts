@@ -97,6 +97,7 @@ export const DALYHUB_COLOR_TOKEN_NAMES = [
   "dh-color-entity-task",
   "dh-color-entity-note",
   "dh-color-entity-asset",
+  "dh-color-entity-obligation",
   "dh-color-entity-review",
   "dh-color-entity-person",
   "dh-color-entity-diary",

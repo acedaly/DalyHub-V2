@@ -287,12 +287,19 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
     .fill("Renew registration");
   await drawer(page)
     .getByRole("textbox", { name: /^Due date/ })
-    .fill(isoInDays(7));
+    .fill(isoInDays(5));
   await chooseOption(page, /^Repeats/, "Every N years");
   await drawer(page).getByRole("button", { name: "Add obligation" }).click();
 
-  // 2. It reads as due soon, in WORDS, under a Due soon heading.
-  const dueList = page.getByRole("list", { name: "Due soon obligations" });
+  /*
+   * 2. It reads as due soon, in WORDS, inside the band its DATE puts it in.
+   *
+   *    V2.10 LIFE-02 bands this tab the way Life Admin bands its collection —
+   *    Overdue, This week, This month, Later — so the heading answers WHEN and
+   *    the badge on the row answers HOW URGENT. They are different questions,
+   *    and the row still has to say "Due soon" in words.
+   */
+  const dueList = page.getByRole("list", { name: "This week obligations" });
   await expect(dueList.getByText("Renew registration").first()).toBeVisible();
   await expect(dueList.getByText("Due soon")).toBeVisible();
   await expect(dueList.getByText(/Due in \d+ days/)).toBeVisible();
@@ -316,7 +323,9 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
   await expect(
     drawer(page).getByText(/records what actually happened/),
   ).toBeVisible();
-  await drawer(page).getByRole("textbox", { name: /^Cost/ }).fill("870");
+  await drawer(page)
+    .getByRole("textbox", { name: /^Amount paid/ })
+    .fill("870");
   await drawer(page)
     .getByRole("button", { name: "Record and complete" })
     .click();
@@ -324,7 +333,7 @@ test("a date obligation reaches Today, and completing it schedules exactly one s
   // 6. EXACTLY ONE successor, a year on, and exactly one completed occurrence.
   const laterList = page.getByRole("list", { name: "Later obligations" });
   await expect(
-    laterList.locator(".dh-asset-obligation__name", {
+    laterList.locator(".dh-obligation-row__name", {
       hasText: "Renew registration",
     }),
   ).toHaveCount(1);
@@ -364,8 +373,15 @@ test("a meter obligation asks for a reading rather than accusing you of being la
     .fill("10000");
   await drawer(page).getByRole("button", { name: "Add obligation" }).click();
 
-  // 1. With no reading at all, it says so — it does NOT say overdue.
-  const dueList = page.getByRole("list", { name: "Due soon obligations" });
+  /*
+   * 1. With no reading at all, it says so — it does NOT say overdue.
+   *
+   *    It BANDS with overdue, because a commitment that cannot be placed on a
+   *    calendar at all is not something to bury under "Later" (D10). The band is
+   *    where it sits; the badge is what it says, and what it says is that
+   *    somebody needs to go and read a number.
+   */
+  const dueList = page.getByRole("list", { name: "Overdue obligations" });
   await expect(
     dueList.getByText("Reading needed", { exact: true }),
   ).toBeVisible();
@@ -438,7 +454,7 @@ test("completing the linked Task does not assert the work happened", async ({
   await page
     .getByRole("button", { name: /^Create task for Book the annual service/ })
     .click();
-  const dueList = page.getByRole("list", { name: "Due soon obligations" });
+  const dueList = page.getByRole("list", { name: "This week obligations" });
   await expect(dueList.getByText(/Tracked as a task/)).toBeVisible();
   const taskLink = dueList.getByRole("link", { name: "Open task" });
   await expect(taskLink).toBeVisible();
@@ -541,7 +557,7 @@ test("archiving keeps the history and stops the reminders; restoring brings both
     .fill(isoInDays(3));
   await drawer(page).getByRole("button", { name: "Add obligation" }).click();
   await expect(
-    page.getByRole("list", { name: "Due soon obligations" }),
+    page.getByRole("list", { name: "This week obligations" }),
   ).toBeVisible();
 
   // Archive from the shared Settings tab.
@@ -656,8 +672,8 @@ test("the whole workflow is keyboard-operable with visible focus", async ({
 
   await expect(
     page
-      .getByRole("list", { name: "Due soon obligations" })
-      .locator(".dh-asset-obligation__name", {
+      .getByRole("list", { name: "This week obligations" })
+      .locator(".dh-obligation-row__name", {
         hasText: "Keyboard obligation",
       }),
   ).toHaveCount(1);
@@ -853,17 +869,21 @@ test("the obligation and history states read correctly in both appearances", asy
 
       // Every state is carried by a WORD, in both appearances — the assertion that
       // proves nothing here depends on colour alone.
+      const overdueList = page.getByRole("list", {
+        name: "Overdue obligations",
+      });
+      await expect(
+        overdueList.getByText("Overdue", { exact: true }),
+      ).toBeVisible();
+      // The meter obligation with no reading bands here too, and says its own
+      // word rather than borrowing the band's.
+      await expect(
+        overdueList.getByText("Reading needed", { exact: true }),
+      ).toBeVisible();
       await expect(
         page
-          .getByRole("list", { name: "Overdue obligations" })
-          .getByText("Overdue", { exact: true }),
-      ).toBeVisible();
-      const dueList = page.getByRole("list", { name: "Due soon obligations" });
-      await expect(
-        dueList.getByText("Due soon", { exact: true }),
-      ).toBeVisible();
-      await expect(
-        dueList.getByText("Reading needed", { exact: true }),
+          .getByRole("list", { name: "This week obligations" })
+          .getByText("Due soon", { exact: true }),
       ).toBeVisible();
 
       await expectNoHorizontalOverflow(page);

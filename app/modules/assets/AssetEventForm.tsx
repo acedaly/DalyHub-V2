@@ -26,6 +26,7 @@ import {
   FormButton,
   FormErrorSummary,
   FormSection,
+  MoneyField,
   SelectField,
   TextField,
   useForm,
@@ -321,20 +322,29 @@ export function AssetEventForm({
           </>
         ) : null}
 
+        {/*
+          V2.10 LIFE-02 — the shared money control. The amount and the code it is
+          in travel together now; the code used to live behind the "More
+          details" disclosure below, two sections from the field it labelled.
+        */}
         {preset.showCost ? (
-          <TextField
+          <MoneyField
             label="Cost"
-            inputMode="decimal"
             help="What it cost. Leave blank if you would rather not record it."
+            currencyCode={form.values.currencyCode}
+            onCurrencyChange={(next) => form.setValue("currencyCode", next)}
+            currencyError={form.fieldErrors.currencyCode ?? null}
             {...form.field("cost")}
           />
         ) : null}
 
         {preset.showValue ? (
-          <TextField
+          <MoneyField
             label="Value"
-            inputMode="decimal"
             help="What this valuation says the asset is worth."
+            currencyCode={form.values.currencyCode}
+            onCurrencyChange={(next) => form.setValue("currencyCode", next)}
+            currencyError={form.fieldErrors.currencyCode ?? null}
             {...form.field("value")}
           />
         ) : null}
@@ -369,19 +379,22 @@ export function AssetEventForm({
                 {...form.field("category")}
               />
             ) : null}
+            {/*
+              The disclosure carries the amount only when the preset did not put
+              it up front. There is no separate Currency field any more: an
+              amount that could be filled in without its code is the shape
+              ADR-049 forbids.
+            */}
             {!preset.showCost ? (
-              <TextField
+              <MoneyField
                 label="Cost"
-                inputMode="decimal"
+                help="Amounts are always stored with an explicit currency; nothing is converted."
+                currencyCode={form.values.currencyCode}
+                onCurrencyChange={(next) => form.setValue("currencyCode", next)}
+                currencyError={form.fieldErrors.currencyCode ?? null}
                 {...form.field("cost")}
               />
             ) : null}
-            <TextField
-              label="Currency"
-              maxLength={3}
-              help="Amounts are always stored with an explicit currency; nothing is converted."
-              {...form.field("currencyCode")}
-            />
             {!preset.showProvider ? (
               <TextField
                 label="Provider"

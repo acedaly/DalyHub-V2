@@ -194,6 +194,7 @@ describe("registry-driven provider discovery", () => {
       "meetings.search",
       "people.search",
       "assets.search",
+      "obligations.search",
       "reviews.search",
     ]);
     expect(providers.some((provider) => provider.moduleId === "today")).toBe(

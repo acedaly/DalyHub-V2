@@ -12,6 +12,8 @@
  * nobody has taken. One vocabulary forced onto the other loses meaning.
  */
 
+import type { ObligationState } from "./obligation";
+
 /** The owner-controlled lifecycle. */
 export const OBLIGATION_STATUSES = [
   "open",
@@ -29,3 +31,21 @@ export function isObligationStatus(value: unknown): value is ObligationStatus {
     (OBLIGATION_STATUSES as readonly string[]).includes(value)
   );
 }
+
+/**
+ * The owner-facing word for each derived state. Always rendered AS TEXT beside
+ * any tone, never colour alone (§24).
+ *
+ * It lived in the Assets kernel until V2.10 LIFE-02, which is where the state
+ * itself used to live. It describes an obligation, not an Asset, and a
+ * subject-less obligation needs the same words.
+ */
+export const OBLIGATION_STATE_LABELS: Record<ObligationState, string> = {
+  overdue: "Overdue",
+  due: "Due soon",
+  upcoming: "Upcoming",
+  unknown: "Reading needed",
+  completed: "Completed",
+  dismissed: "Dismissed",
+  on_hold: "On hold",
+};

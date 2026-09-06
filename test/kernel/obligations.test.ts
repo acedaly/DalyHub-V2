@@ -16,12 +16,13 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { evaluateAssetObligation } from "~/kernel/assets";
+import { assetObligationMeter, evaluateAssetObligation } from "~/kernel/assets";
 import type { ObligationTaskGateway } from "~/kernel/assets";
 import {
   OBLIGATION_COMPLETED,
   OBLIGATION_CREATED,
   ObligationValidationError,
+  obligationBand,
 } from "~/kernel/obligations";
 import { ReservedEntityTypeError } from "~/kernel/entities";
 import { ObligationNotFoundError } from "~/platform/storage/d1";
@@ -905,3 +906,385 @@ describe("summariseObligations (the collection signal)", () => {
 /* -------------------------------------------------------------------------- */
 /* Asset lifecycle                                                            */
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* countByBand (the collection headings)                                      */
+/* -------------------------------------------------------------------------- */
+
+describe("countByBand (D10 — the collection's headings)", () => {
+  const TODAY = "2026-09-05";
+
+  /**
+   * Seed one obligation for every band, plus the cases that decide a band by
+   * something other than a plain future date.
+   */
+  async function seedEveryBand() {
+    const asset = await ute();
+    const repo = obligations();
+    const seeded = [
+      { title: "Rego (long overdue)", dueDate: "2026-03-01" },
+      { title: "Insurance (yesterday)", dueDate: "2026-09-04" },
+      { title: "Inspection (today)", dueDate: "2026-09-05" },
+      { title: "Licence (day seven)", dueDate: "2026-09-11" },
+      { title: "Warranty (day eight)", dueDate: "2026-09-12" },
+      { title: "Tax (day thirty-one)", dueDate: "2026-10-05" },
+      { title: "Subscription (beyond)", dueDate: "2026-10-06" },
+      { title: "Fee (next year)", dueDate: "2027-06-01" },
+    ];
+    for (const row of seeded) {
+      await repo.create({
+        subjectEntityId: asset.id,
+        category: "registration",
+        title: row.title,
+        dueDate: row.dueDate,
+      });
+    }
+    // A meter commitment with no reading: it cannot be placed on a calendar.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 km",
+      meterThreshold: 60_000,
+      meterUnit: "km",
+    });
+    /*
+     * A HELD obligation months past its date. This is the row that catches a
+     * band rule which tests the windows before the past: a past date is
+     * trivially "before the end of this week", so a rule in the wrong order
+     * files this under This week — the calmest way to lose the latest row.
+     */
+    const held = await repo.create({
+      subjectEntityId: asset.id,
+      category: "insurance",
+      title: "Paused claim",
+      dueDate: "2026-05-01",
+    });
+    await repo.setStatus(held.id, "on_hold");
+    // A completed one, whose date would otherwise put it in Overdue.
+    const done = await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Last service",
+      dueDate: "2026-04-01",
+    });
+    await repo.complete(done.id, { completedOn: "2026-04-01" });
+    return { asset, repo };
+  }
+
+  it("counts every band over the WHOLE collection, not the loaded page", async () => {
+    const { repo } = await seedEveryBand();
+
+    const counts = await repo.countByBand({ today: TODAY });
+
+    expect(counts).toEqual({
+      overdue: 4, // two past dates, the held one, the meter awaiting a reading
+      this_week: 2, // today, and the seventh day
+      this_month: 2, // the eighth day, and the thirty-first
+      later: 2,
+      done: 1,
+    });
+
+    /*
+     * The point of the read: a page of five is nowhere near the eleven rows,
+     * and the headings still tell the truth about the set.
+     */
+    const page = await repo.list({ limit: 5, today: TODAY });
+    expect(page.items).toHaveLength(5);
+    expect(page.hasMore).toBe(true);
+    const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+    expect(total).toBe(11);
+  });
+
+  /*
+   * Two implementations of one rule is how they come to disagree, so the SQL is
+   * asserted against the kernel function row by row rather than against a
+   * hand-written expectation that could drift with it.
+   */
+  it("agrees with the kernel band rule, row by row", async () => {
+    const { repo } = await seedEveryBand();
+
+    const counts = await repo.countByBand({ today: TODAY });
+
+    const derived: Record<string, number> = {
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    };
+    let cursor: string | undefined;
+    do {
+      const page = await repo.list({ limit: 5, cursor, today: TODAY });
+      for (const item of page.items) {
+        derived[obligationBand(item, TODAY, null)] += 1;
+      }
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor !== undefined);
+
+    expect(counts).toEqual(derived);
+  });
+
+  it("counts only the current filter, and only this workspace", async () => {
+    const { asset, repo } = await seedEveryBand();
+    // A second workspace's obligation must be invisible to this count.
+    const strangerAsset = await ute(OTHER, "z");
+    await obligations(OTHER, "zz").create({
+      subjectEntityId: strangerAsset.id,
+      category: "registration",
+      title: "Someone else's rego",
+      dueDate: "2026-03-01",
+    });
+    // And an obligation about nothing, which the subject scope must exclude.
+    await repo.create({
+      category: "tax",
+      title: "Tax return",
+      dueDate: "2026-09-06",
+    });
+
+    expect((await repo.countByBand({ today: TODAY })).overdue).toBe(4);
+    expect(
+      await repo.countByBand({ today: TODAY, subjectEntityId: asset.id }),
+    ).toEqual({
+      overdue: 4,
+      this_week: 2,
+      this_month: 2,
+      later: 2,
+      done: 1,
+    });
+    expect(
+      await repo.countByBand({ today: TODAY, subjectEntityId: null }),
+    ).toEqual({
+      overdue: 0,
+      this_week: 1,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    });
+    expect(
+      await repo.countByBand({
+        today: TODAY,
+        filters: { categories: ["service"] },
+      }),
+    ).toEqual({
+      overdue: 1,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 1,
+    });
+  });
+
+  /*
+   * The meter side, which is where the SQL and the evaluator are most easily
+   * two different rules. `evaluateMeterThreshold` has three answers that are
+   * not a number — no reading, a reading in ANOTHER unit (this product never
+   * converts), and a reading past the threshold — and the count read has to
+   * treat all three the way the row does.
+   */
+  it("bands a meter obligation the way the evaluator does, mismatched units and all", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    await history().recordMeterReading({
+      assetId: asset.id,
+      value: 50_000,
+      unit: "km",
+      readingDate: "2026-09-01",
+    });
+
+    // A reading exists, but in the WRONG unit and numerically under the
+    // threshold. Counting the number alone files this as calm; the evaluator
+    // says it cannot be read at all, and with no date to fall back on that is
+    // the whole answer.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 miles",
+      meterThreshold: 60_000,
+      meterUnit: "mi",
+    });
+    // A DATED meter obligation on an asset with no compatible reading. The date
+    // is a fact and the meter is a question, so the date bands it.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 hours, due Friday",
+      meterThreshold: 60_000,
+      meterUnit: "hours",
+      dueDate: "2026-09-08",
+    });
+    // Past its threshold in the SAME unit, with a date a long way off: the
+    // meter outranks the calendar.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 40,000 km",
+      meterThreshold: 40_000,
+      meterUnit: "km",
+      dueDate: "2027-06-01",
+    });
+
+    expect(await repo.countByBand({ today: TODAY })).toEqual({
+      overdue: 2,
+      this_week: 1,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    });
+
+    // And row by row against the kernel, with the REAL meter evaluation rather
+    // than a null one — a null meter is the case that agrees by accident.
+    const page = await repo.list({ limit: 25, today: TODAY });
+    const reading = { value: 50_000, unit: "km" } as const;
+    const derived: Record<string, number> = {
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    };
+    for (const item of page.items) {
+      derived[
+        obligationBand(item, TODAY, assetObligationMeter(item, reading))
+      ] += 1;
+    }
+    expect(derived).toEqual(await repo.countByBand({ today: TODAY }));
+  });
+
+  /*
+   * The heading counts the whole collection; the page has to CONTAIN what the
+   * heading counts. A meter obligation awaiting a reading has no date at all,
+   * so ordering by date alone puts it behind every dated row — and a workspace
+   * with more than a page of dated work would print "Overdue (1)" above a page
+   * with no overdue row in it.
+   */
+  it("puts the overdue band on the FIRST page, dateless rows included", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    for (let index = 0; index < 30; index += 1) {
+      await repo.create({
+        subjectEntityId: asset.id,
+        category: "registration",
+        title: `Dated obligation ${index}`,
+        dueDate: "2026-09-20",
+      });
+    }
+    const dateless = await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service at 60,000 km",
+      meterThreshold: 60_000,
+      meterUnit: "km",
+    });
+
+    const counts = await repo.countByBand({ today: TODAY });
+    expect(counts.overdue).toBe(1);
+
+    const page = await repo.list({ limit: 25, today: TODAY });
+    expect(page.items.map((item) => item.id)).toContain(dateless.id);
+    // First, in fact: it is the most urgent row in the collection.
+    expect(page.items[0]?.id).toBe(dateless.id);
+  });
+
+  it("returns every band as a zero rather than an absent key", async () => {
+    expect(await obligations().countByBand({ today: TODAY })).toEqual({
+      overdue: 0,
+      this_week: 0,
+      this_month: 0,
+      later: 0,
+      done: 0,
+    });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The text query (D11)                                                       */
+/* -------------------------------------------------------------------------- */
+
+describe("list with a query (D11 — what Search can match)", () => {
+  const TODAY = "2026-09-05";
+
+  async function seedSearchable() {
+    const asset = await ute();
+    const repo = obligations();
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "registration",
+      title: "Renew the rego",
+      description: "Reference ZQ-9981 in the drawer",
+      dueDate: "2026-09-30",
+      expectedAmount: "930.00",
+      currencyCode: "AUD",
+    });
+    await repo.create({
+      category: "tax",
+      title: "Lodge the return",
+      dueDate: "2026-10-31",
+    });
+    return { asset, repo };
+  }
+
+  it("matches the TITLE, case-insensitively and on a fragment", async () => {
+    const { repo } = await seedSearchable();
+    const page = await repo.list({ query: "REGO", today: TODAY });
+    expect(page.items.map((item) => item.title)).toEqual(["Renew the rego"]);
+  });
+
+  it("matches the CATEGORY by the words an owner reads", async () => {
+    const { repo } = await seedSearchable();
+    // "Tax or lodgement" is the label; `tax` is the stored token. An owner
+    // searching for the word they see must find the row.
+    const page = await repo.list({ query: "lodgement", today: TODAY });
+    expect(page.items.map((item) => item.title)).toEqual(["Lodge the return"]);
+  });
+
+  it("matches the SUBJECT's title, so 'ute' finds the ute's obligations", async () => {
+    const { repo } = await seedSearchable();
+    const page = await repo.list({ query: "Ute", today: TODAY });
+    expect(page.items.map((item) => item.title)).toEqual(["Renew the rego"]);
+  });
+
+  /*
+   * The falsification D11 asks for, as a test rather than as a promise.
+   *
+   * An amount is the most private fact an obligation carries and a result list
+   * is the surface most likely to be read over someone's shoulder. A statement
+   * that could return a row BECAUSE of an amount is one refactor away from
+   * printing it, so the amount is not in the predicate at all — and neither is
+   * the DESCRIPTION, which is body content the explicit-query boundary governs
+   * (ADR-114 decision 2).
+   */
+  it("never matches an amount, and never matches the description", async () => {
+    const { repo } = await seedSearchable();
+    expect((await repo.list({ query: "930", today: TODAY })).items).toEqual([]);
+    expect((await repo.list({ query: "930.00", today: TODAY })).items).toEqual(
+      [],
+    );
+    expect((await repo.list({ query: "AUD", today: TODAY })).items).toEqual([]);
+    expect((await repo.list({ query: "ZQ-9981", today: TODAY })).items).toEqual(
+      [],
+    );
+  });
+
+  it("counts the same set the rows come from", async () => {
+    const { repo } = await seedSearchable();
+    const counts = await repo.countByBand({ query: "rego", today: TODAY });
+    const page = await repo.list({ query: "rego", today: TODAY });
+    expect(Object.values(counts).reduce((sum, n) => sum + n, 0)).toBe(
+      page.items.length,
+    );
+  });
+
+  it("is scoped to this workspace, like every other read", async () => {
+    await seedSearchable();
+    const strangerAsset = await ute(OTHER, "z");
+    await obligations(OTHER, "zz").create({
+      subjectEntityId: strangerAsset.id,
+      category: "registration",
+      title: "Renew the rego",
+      dueDate: "2026-09-30",
+    });
+    expect(
+      (await obligations().list({ query: "rego", today: TODAY })).items,
+    ).toHaveLength(1);
+  });
+});
