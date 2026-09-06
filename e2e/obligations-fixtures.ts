@@ -55,6 +55,23 @@ function cleanupSql(title: string): string {
    */
   const taskSel = `SELECT task_id FROM obligation_details WHERE workspace_id = ${ws} AND task_id IS NOT NULL AND entity_id IN (${sel})`;
   return [
+    /*
+     * V2.11 FILE-01 — the EVIDENCE first, and it has to be first for a reason
+     * the schema enforces rather than a preference: `attachments` carries a
+     * composite foreign key into `entities` with ON DELETE RESTRICT, so an
+     * obligation that still holds a file cannot be deleted at all. A journey
+     * that attaches something and then fails before removing it would otherwise
+     * wedge every subsequent cleanup in the suite.
+     *
+     * The OBJECT bytes are not swept here, and cannot be: the local bucket is
+     * Miniflare storage inside the dev server's process, not a table. They are
+     * a few kilobytes in a throwaway local store that `wrangler dev` recreates,
+     * which is the right trade — the alternative is an E2E fixture holding an R2
+     * binding, and a test fixture that can delete objects is a test fixture that
+     * can delete the wrong ones.
+     */
+    `DELETE FROM attachment_object_purges WHERE workspace_id = ${ws};`,
+    `DELETE FROM attachments WHERE workspace_id = ${ws} AND owner_entity_id IN (${sel});`,
     `DELETE FROM entity_links WHERE workspace_id = ${ws} AND (source_entity_id IN (${sel}) OR target_entity_id IN (${sel}) OR source_entity_id IN (${taskSel}) OR target_entity_id IN (${taskSel}));`,
     `DELETE FROM activity_subjects WHERE workspace_id = ${ws} AND (entity_id IN (${sel}) OR entity_id IN (${taskSel}));`,
     `DELETE FROM activities WHERE workspace_id = ${ws} AND id NOT IN (SELECT activity_id FROM activity_subjects WHERE workspace_id = ${ws});`,
