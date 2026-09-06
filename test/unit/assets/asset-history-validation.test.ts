@@ -1,5 +1,5 @@
 /**
- * ASSET-02 — canonical event and obligation validation.
+ * ASSET-02 — canonical Asset EVENT validation.
  *
  * The boundary is the check; HTML input attributes are only a convenience. These
  * assert that a hand-crafted POST is rejected exactly as a bad form is, that a
@@ -13,12 +13,8 @@ import { describe, expect, it } from "vitest";
 import {
   AssetValidationError,
   validateAssetEvent,
-  validateAssetObligation,
   validateEventFilters,
   validateEventsLimit,
-  validateObligationCompletion,
-  validateObligationFilters,
-  validateObligationsLimit,
 } from "~/kernel/assets";
 
 /* -------------------------------------------------------------------------- */
@@ -148,224 +144,25 @@ describe("validateAssetEvent — update (a partial patch)", () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Obligations                                                                */
-/* -------------------------------------------------------------------------- */
-
-describe("validateAssetObligation — create", () => {
-  const base = { category: "service", title: "Service" };
-
-  it("requires a commitment — a date, a meter target, or both", () => {
-    expect(() => validateAssetObligation(base, "create")).toThrow(
-      AssetValidationError,
-    );
-    expect(
-      validateAssetObligation({ ...base, dueDate: "2027-01-01" }, "create")
-        .dueDate,
-    ).toBe("2027-01-01");
-    expect(
-      validateAssetObligation(
-        { ...base, meterThreshold: 60_000, meterUnit: "km" },
-        "create",
-      ).meterThreshold,
-    ).toBe(60_000);
-  });
-
-  it("defaults the lead time and the recurrence to the calm option", () => {
-    const result = validateAssetObligation(
-      { ...base, dueDate: "2027-01-01" },
-      "create",
-    );
-    expect(result.leadDays).toBe(14);
-    expect(result.recurrenceKind).toBe("none");
-    expect(result.recurrenceInterval).toBeNull();
-  });
-
-  it("bounds the lead time so it cannot swallow the calendar", () => {
-    expect(() =>
-      validateAssetObligation(
-        { ...base, dueDate: "2027-01-01", leadDays: 400 },
-        "create",
-      ),
-    ).toThrow(AssetValidationError);
-  });
-
-  it("refuses a meter target with no unit", () => {
-    expect(() =>
-      validateAssetObligation({ ...base, meterThreshold: 60_000 }, "create"),
-    ).toThrow(AssetValidationError);
-  });
-
-  it("refuses a meter repeat with no threshold or no interval", () => {
-    expect(() =>
-      validateAssetObligation(
-        { ...base, dueDate: "2027-01-01", recurrenceKind: "meter" },
-        "create",
-      ),
-    ).toThrow(AssetValidationError);
-    expect(() =>
-      validateAssetObligation(
-        {
-          ...base,
-          meterThreshold: 60_000,
-          meterUnit: "km",
-          recurrenceKind: "meter",
-        },
-        "create",
-      ),
-    ).toThrow(AssetValidationError);
-  });
-
-  it("refuses a date repeat with no date to advance from", () => {
-    expect(() =>
-      validateAssetObligation(
-        {
-          ...base,
-          meterThreshold: 60_000,
-          meterUnit: "km",
-          recurrenceKind: "months",
-          recurrenceInterval: 6,
-        },
-        "create",
-      ),
-    ).toThrow(AssetValidationError);
-  });
-
-  it("defaults a repeat interval to 1, which is what the words say", () => {
-    const result = validateAssetObligation(
-      { ...base, dueDate: "2027-01-01", recurrenceKind: "years" },
-      "create",
-    );
-    expect(result.recurrenceInterval).toBe(1);
-  });
-
-  it("rejects an interval that could never advance, and an absurd one", () => {
-    for (const interval of [0, 1000]) {
-      expect(() =>
-        validateAssetObligation(
-          {
-            ...base,
-            dueDate: "2027-01-01",
-            recurrenceKind: "months",
-            recurrenceInterval: interval,
-          },
-          "create",
-        ),
-      ).toThrow(AssetValidationError);
-    }
-  });
-
-  it("accepts a valid meter repeat end to end", () => {
-    const result = validateAssetObligation(
-      {
-        ...base,
-        meterThreshold: 60_000,
-        meterUnit: "km",
-        meterInterval: 10_000,
-        recurrenceKind: "meter",
-      },
-      "create",
-    );
-    expect(result.recurrenceKind).toBe("meter");
-    expect(result.meterInterval).toBe(10_000);
-    // A date interval is meaningless here and is not stored.
-    expect(result.recurrenceInterval).toBeNull();
-  });
-});
-
-describe("validateAssetObligation — update sees the MERGED record", () => {
-  const existing = {
-    dueDate: "2027-01-01" as string | null,
-    meterThreshold: null,
-    meterUnit: null,
-    meterInterval: null,
-    recurrenceKind: "none" as const,
-  };
-
-  it("allows clearing the date when a meter target is being added", () => {
-    const result = validateAssetObligation(
-      { dueDate: null, meterThreshold: 60_000, meterUnit: "km" },
-      "update",
-      existing,
-    );
-    expect(result.dueDate).toBeNull();
-    expect(result.meterThreshold).toBe(60_000);
-  });
-
-  it("refuses to clear the date when it would leave no commitment at all", () => {
-    expect(() =>
-      validateAssetObligation({ dueDate: null }, "update", existing),
-    ).toThrow(AssetValidationError);
-  });
-
-  it("refuses a unit change that would orphan the stored threshold", () => {
-    expect(() =>
-      validateAssetObligation({ meterUnit: null }, "update", {
-        ...existing,
-        meterThreshold: 60_000,
-        meterUnit: "km",
-      }),
-    ).toThrow(AssetValidationError);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Completion                                                                 */
-/* -------------------------------------------------------------------------- */
-
-describe("validateObligationCompletion", () => {
-  it("accepts an empty completion — the defaults are all resolvable", () => {
-    const result = validateObligationCompletion({});
-    expect(result.completedOn).toBeNull();
-    expect(result.costMinor).toBeNull();
-    expect(result.createSuccessor).toBe(true);
-  });
-
-  it("parses a cost and a meter reading", () => {
-    const result = validateObligationCompletion({
-      completedOn: "2026-07-05",
-      cost: "489.50",
-      currencyCode: "AUD",
-      meterValue: "61200",
-      meterUnit: "km",
-    });
-    expect(result.completedOn).toBe("2026-07-05");
-    expect(result.costMinor).toBe(48_950);
-    expect(result.meterValue).toBe(61_200);
-  });
-
-  it("refuses half a meter reading", () => {
-    expect(() => validateObligationCompletion({ meterValue: "61200" })).toThrow(
-      AssetValidationError,
-    );
-  });
-
-  it("honours an explicit opt-out of the successor", () => {
-    expect(
-      validateObligationCompletion({ createSuccessor: false }).createSuccessor,
-    ).toBe(false);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
 /* Read inputs                                                                */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * The obligation half of this file moved to
+ * `test/unit/obligations/obligation-validation.test.ts` with the validators it
+ * covers (V2.10 LIFE-01).
+ */
 describe("read inputs", () => {
   it("clamps page sizes to the documented maximum", () => {
     expect(validateEventsLimit(undefined)).toBe(20);
     expect(validateEventsLimit(5)).toBe(5);
     expect(validateEventsLimit(10_000)).toBe(100);
     expect(() => validateEventsLimit(0)).toThrow(AssetValidationError);
-    expect(validateObligationsLimit(undefined)).toBe(25);
-    expect(validateObligationsLimit(10_000)).toBe(100);
   });
 
   it("rejects an unknown filter rather than silently matching everything", () => {
     expect(() =>
       validateEventFilters({ categories: ["not_a_category"] }),
-    ).toThrow(AssetValidationError);
-    expect(() =>
-      validateObligationFilters({ statuses: ["not_a_status"] }),
     ).toThrow(AssetValidationError);
   });
 
@@ -373,11 +170,5 @@ describe("read inputs", () => {
     const events = validateEventFilters({ categories: ["service", "repair"] });
     expect(events.categories).toEqual(["service", "repair"]);
     expect(events.includeArchived).toBe(false);
-    const obligations = validateObligationFilters({
-      categories: ["registration"],
-      statuses: ["open"],
-    });
-    expect(obligations.categories).toEqual(["registration"]);
-    expect(obligations.statuses).toEqual(["open"]);
   });
 });

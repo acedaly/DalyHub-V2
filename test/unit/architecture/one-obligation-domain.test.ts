@@ -61,13 +61,24 @@ function filesUnder(dir: string): string[] {
 describe("the obligation domain is one domain", () => {
   it("imports no other product domain — only the calendar-day primitive", () => {
     /*
-     * `~/kernel/datetime` is the product's ONE calendar-day implementation
-     * (DEBT-52). Depending on it is not a domain dependency: it is the same
-     * choice `app/kernel/history` made for owner-day resolution (ADR-117 d1).
-     * Anything else — and `~/kernel/assets` above all — puts the Asset
-     * assumption straight back into the arithmetic this item removed.
+     * Three kernel PRIMITIVES are allowed, and nothing else. Each is a
+     * single-authority module the whole product shares — the calendar day, the
+     * money representation, the workspace scope — so depending on one is what
+     * stops a second implementation appearing rather than a domain dependency.
+     * It is the same choice `app/kernel/history` made for owner-day resolution
+     * (ADR-117 d1). Anything else — and `~/kernel/assets` above all — puts the
+     * Asset assumption straight back into the arithmetic this item removed.
      */
-    const ALLOWED = new Set(["~/kernel/datetime"]);
+    const ALLOWED = new Set([
+      // The product's ONE calendar-day implementation (DEBT-52).
+      "~/kernel/datetime",
+      // The product's ONE money representation (ADR-049). Depending on it is
+      // what STOPS a second money model appearing, which is the opposite of a
+      // domain dependency.
+      "~/kernel/money",
+      // The workspace scope every repository contract is bound to (ADR-010).
+      "~/kernel/workspaces",
+    ]);
     const offenders: string[] = [];
 
     for (const file of filesUnder(OBLIGATIONS_DIR)) {

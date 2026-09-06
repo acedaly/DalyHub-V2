@@ -277,7 +277,9 @@ describe("the vocabularies are closed", () => {
       expect(isObligationRecurrenceKind(kind)).toBe(true);
     }
 
-    expect(isObligationCategory("bill")).toBe(false);
+    // `bill`, `subscription`, `fee` and `tax` are IN the vocabulary as of
+    // V2.10 LIFE-01; `appointment` is the one deliberately refused.
+    expect(isObligationCategory("appointment")).toBe(false);
     expect(isObligationCategory("")).toBe(false);
     expect(isObligationStatus("done")).toBe(false);
     expect(isObligationRecurrenceKind("cron")).toBe(false);

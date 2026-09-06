@@ -398,27 +398,51 @@ SET asset_type = 'vehicle', status = 'active',
     current_meter_value = 74210, current_meter_unit = 'km', current_meter_date = '2026-08-01'
 WHERE workspace_id = 'local-dev-workspace' AND entity_id = 'as-rc-ute';
 
-DELETE FROM asset_obligations WHERE workspace_id = 'local-dev-workspace' AND asset_id = 'as-rc-ute';
-INSERT INTO asset_obligations
-  (id, workspace_id, asset_id, asset_entity_type, category, title, description, due_date, lead_days,
-   recurrence_kind, recurrence_interval, meter_threshold, meter_interval, meter_unit, status,
-   completed_at, completed_event_id, series_id, sequence, created_at, updated_at)
+-- V2.10 LIFE-01 — an obligation is an ordinary entity with a detail slice and
+-- a subject link, so the fixture seeds all three exactly as the product writes
+-- them. The ids are unchanged, so every reference to them still resolves.
+-- Every fixture obligation is removed by ITS OWN id prefix, dependents first.
+-- An obligation is an entity now, so a journey that completes or dismisses one
+-- leaves an `activity_subjects` row pointing at it, and every foreign key on the
+-- way in is ON DELETE RESTRICT: without the sweep below, the entity delete fails
+-- on the second run of this seed against a database a journey has touched.
+DELETE FROM entity_links WHERE workspace_id = 'local-dev-workspace' AND source_entity_id LIKE 'ob-rc-%';
+DELETE FROM activity_subjects WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
+DELETE FROM obligation_details WHERE workspace_id = 'local-dev-workspace' AND entity_id LIKE 'ob-rc-%';
+DELETE FROM entities WHERE workspace_id = 'local-dev-workspace' AND type = 'obligation' AND id LIKE 'ob-rc-%';
+
+INSERT INTO entities (id, workspace_id, type, title, created_at, updated_at, deleted_at)
 VALUES
-  ('ob-rc-rego', 'local-dev-workspace', 'as-rc-ute', 'asset', 'registration', 'Registration renewal',
-   'Renew with Transport for NSW; needs the pink slip first.', date('now', '+44 days'), 30, 'years', 1, NULL, NULL, NULL, 'open',
-   NULL, NULL, 'srs-rc-rego', 0, '2024-05-11T00:00:00.000Z', '2026-08-01T02:00:00.000Z'),
-  ('ob-rc-inspect', 'local-dev-workspace', 'as-rc-ute', 'asset', 'inspection', 'Safety inspection (pink slip)',
-   NULL, date('now', '+27 days'), 14, 'years', 1, NULL, NULL, NULL, 'open',
-   NULL, NULL, 'srs-rc-inspect', 0, '2024-05-11T00:00:01.000Z', '2026-08-01T02:00:00.000Z'),
-  ('ob-rc-service', 'local-dev-workspace', 'as-rc-ute', 'asset', 'service', 'Scheduled service',
-   'Whichever comes first: 6 months or 10,000 km.', date('now', '+93 days'), 21, 'meter', NULL, 80000, 10000, 'km', 'open',
-   NULL, NULL, 'srs-rc-service', 1, '2024-05-11T00:00:02.000Z', '2026-08-01T02:00:00.000Z'),
-  ('ob-rc-insurance', 'local-dev-workspace', 'as-rc-ute', 'asset', 'insurance', 'Comprehensive insurance renewal',
-   NULL, date('now', '+184 days'), 30, 'years', 1, NULL, NULL, NULL, 'open',
-   NULL, NULL, 'srs-rc-insurance', 0, '2024-05-11T00:00:03.000Z', '2026-08-01T02:00:00.000Z'),
-  ('ob-rc-service-past', 'local-dev-workspace', 'as-rc-ute', 'asset', 'service', 'Scheduled service',
-   NULL, '2026-05-02', 21, 'meter', NULL, 70000, 10000, 'km', 'completed',
-   '2026-05-02T05:00:00.000Z', 'ev-rc-service-2', 'srs-rc-service', 0, '2024-05-11T00:00:04.000Z', '2026-05-02T05:00:00.000Z');
+  ('ob-rc-rego', 'local-dev-workspace', 'obligation', 'Registration renewal', '2024-05-11T00:00:00.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('ob-rc-inspect', 'local-dev-workspace', 'obligation', 'Safety inspection (pink slip)', '2024-05-11T00:00:01.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('ob-rc-service', 'local-dev-workspace', 'obligation', 'Scheduled service', '2024-05-11T00:00:02.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('ob-rc-insurance', 'local-dev-workspace', 'obligation', 'Comprehensive insurance renewal', '2024-05-11T00:00:03.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('ob-rc-service-past', 'local-dev-workspace', 'obligation', 'Scheduled service', '2024-05-11T00:00:04.000Z', '2026-05-02T05:00:00.000Z', NULL);
+
+INSERT INTO obligation_details
+  (workspace_id, entity_id, entity_type, subject_entity_id, subject_entity_type, category, description,
+   due_date, lead_days, recurrence_kind, recurrence_interval, meter_threshold, meter_interval, meter_unit,
+   status, completed_at, completed_event_id, series_id, sequence, created_at, updated_at)
+VALUES
+  ('local-dev-workspace', 'ob-rc-rego', 'obligation', 'as-rc-ute', 'asset', 'registration', 'Renew with Transport for NSW, and it needs the pink slip first.', date('now', '+44 days'), 30,
+   'years', 1, NULL, NULL, NULL, 'open', NULL, NULL, 'srs-rc-rego', 0, '2024-05-11T00:00:00.000Z', '2026-08-01T02:00:00.000Z'),
+  ('local-dev-workspace', 'ob-rc-inspect', 'obligation', 'as-rc-ute', 'asset', 'inspection', NULL, date('now', '+27 days'), 14,
+   'years', 1, NULL, NULL, NULL, 'open', NULL, NULL, 'srs-rc-inspect', 0, '2024-05-11T00:00:01.000Z', '2026-08-01T02:00:00.000Z'),
+  ('local-dev-workspace', 'ob-rc-service', 'obligation', 'as-rc-ute', 'asset', 'service', 'Whichever comes first: 6 months or 10,000 km.', date('now', '+93 days'), 21,
+   'meter', NULL, 80000, 10000, 'km', 'open', NULL, NULL, 'srs-rc-service', 1, '2024-05-11T00:00:02.000Z', '2026-08-01T02:00:00.000Z'),
+  ('local-dev-workspace', 'ob-rc-insurance', 'obligation', 'as-rc-ute', 'asset', 'insurance', NULL, date('now', '+184 days'), 30,
+   'years', 1, NULL, NULL, NULL, 'open', NULL, NULL, 'srs-rc-insurance', 0, '2024-05-11T00:00:03.000Z', '2026-08-01T02:00:00.000Z'),
+  ('local-dev-workspace', 'ob-rc-service-past', 'obligation', 'as-rc-ute', 'asset', 'service', NULL, '2026-05-02', 21,
+   'meter', NULL, 70000, 10000, 'km', 'completed', '2026-05-02T05:00:00.000Z', 'ev-rc-service-2', 'srs-rc-service', 0, '2024-05-11T00:00:04.000Z', '2026-05-02T05:00:00.000Z');
+
+INSERT INTO entity_links
+  (id, workspace_id, source_entity_id, target_entity_id, type, created_at, updated_at, deleted_at)
+VALUES
+  ('obl-subject-ob-rc-rego', 'local-dev-workspace', 'ob-rc-rego', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:00.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('obl-subject-ob-rc-inspect', 'local-dev-workspace', 'ob-rc-inspect', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:01.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('obl-subject-ob-rc-service', 'local-dev-workspace', 'ob-rc-service', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:02.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('obl-subject-ob-rc-insurance', 'local-dev-workspace', 'ob-rc-insurance', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:03.000Z', '2026-08-01T02:00:00.000Z', NULL),
+  ('obl-subject-ob-rc-service-past', 'local-dev-workspace', 'ob-rc-service-past', 'as-rc-ute', 'obligation.subject', '2024-05-11T00:00:04.000Z', '2026-05-02T05:00:00.000Z', NULL);
 
 DELETE FROM asset_events WHERE workspace_id = 'local-dev-workspace' AND asset_id = 'as-rc-ute';
 INSERT INTO asset_events

@@ -23,16 +23,14 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import {
-  ASSET_OBLIGATION_COMPLETED,
-  AssetNotFoundError,
-} from "~/kernel/assets";
+import { OBLIGATION_COMPLETED } from "~/kernel/obligations";
 import {
   MeetingArchivedError,
   MeetingItemNotFoundError,
   MeetingNotFoundError,
 } from "~/kernel/meetings";
 import { SpineParentUnavailableError } from "~/kernel/spine";
+import { ObligationNotFoundError } from "~/platform/storage/d1";
 import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
 
 import {
@@ -41,6 +39,7 @@ import {
   countMeetingItemTaskRows,
   latestActivityPayload,
   makeAssetHistoryRepository,
+  makeObligationRepository,
   makeAssetRepository,
   makeContext,
   makeLinkRepository,
@@ -410,23 +409,35 @@ describe("AUDIT-13 — meeting item → Task is one transaction", () => {
 /* 2. Asset obligation → linked Task completion                                */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * V2.10 LIFE-01 — the OBLIGATION repository is the one that fuses a linked
+ * Task's completion into its batch now, so the overrides belong to it. The
+ * Assets adapter is still constructed here, but only as the proof gateway: it
+ * authors the `asset_events` row and the canonical-date advance, and knows
+ * nothing about Tasks.
+ */
 function assetHarness(
   ws: string,
-  options: Parameters<typeof makeAssetHistoryRepository>[1] = {},
+  options: Parameters<typeof makeObligationRepository>[1] = {},
 ) {
   const context = makeContext(ws);
   const tasks = makeTaskRepository(context);
   const history = makeAssetHistoryRepository(context, {
     clock: new FakeClock().now,
     idGenerator: sequentialIds(`${ws}-h`),
+  });
+  const obligations = makeObligationRepository(context, {
+    clock: new FakeClock().now,
+    idGenerator: sequentialIds(`${ws}-o`),
     taskCompletionPlanner: tasks,
+    proofGateway: history,
     ...options,
   });
   const assets = makeAssetRepository(context, {
     clock: new FakeClock().now,
     idGenerator: sequentialIds(`${ws}-a`),
   });
-  return { context, tasks, history, assets };
+  return { context, tasks, history, obligations, assets };
 }
 
 async function seedObligationWithTask(
@@ -434,7 +445,8 @@ async function seedObligationWithTask(
   overrides: { readonly recurrence?: boolean } = {},
 ) {
   const asset = await h.assets.create({ title: "Ute", assetType: "vehicle" });
-  const obligation = await h.history.createObligation(asset.id, {
+  const obligation = await h.obligations.create({
+    subjectEntityId: asset.id,
     category: "service",
     title: "Service",
     dueDate: "2026-07-01",
@@ -443,7 +455,7 @@ async function seedObligationWithTask(
       : {}),
   });
   const task = await h.tasks.createTask({ title: "Book the service" });
-  await h.history.linkObligationTask(obligation.id, task.id);
+  await h.obligations.linkTask(obligation.id, task.id);
   return { asset, obligation, taskId: task.id };
 }
 
@@ -452,12 +464,12 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     const h = assetHarness(WS);
     const { obligation, taskId } = await seedObligationWithTask(h);
 
-    const result = await h.history.completeObligation(obligation.id);
+    const result = await h.obligations.complete(obligation.id);
 
     expect(result.obligation.status).toBe("completed");
     expect(result.taskOutcome).toBe("completed");
     expect((await h.tasks.getTask(taskId))?.completedAt).not.toBeNull();
-    expect(await countActivitiesOfType(ASSET_OBLIGATION_COMPLETED)).toBe(1);
+    expect(await countActivitiesOfType(OBLIGATION_COMPLETED)).toBe(1);
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
   });
 
@@ -467,16 +479,14 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
 
     const faulty = assetHarness(WS, { mutationFault: "after-domain" });
     await expect(
-      faulty.history.completeObligation(obligation.id),
+      faulty.obligations.complete(obligation.id),
     ).rejects.toBeTruthy();
 
-    expect((await seed.history.getObligation(obligation.id))?.status).toBe(
-      "open",
-    );
+    expect((await seed.obligations.get(obligation.id))?.status).toBe("open");
     // The defect this replaces: the Task was completed in its own transaction
     // FIRST, so it stayed completed against a still-open obligation.
     expect((await seed.tasks.getTask(taskId))?.completedAt).toBeNull();
-    expect(await countActivitiesOfType(ASSET_OBLIGATION_COMPLETED)).toBe(0);
+    expect(await countActivitiesOfType(OBLIGATION_COMPLETED)).toBe(0);
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
   });
 
@@ -488,17 +498,17 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
 
     const faulty = assetHarness(WS, { obligationTaskFault: true });
     await expect(
-      faulty.history.completeObligation(obligation.id),
+      faulty.obligations.complete(obligation.id),
     ).rejects.toBeTruthy();
 
-    expect((await seed.history.getObligation(obligation.id))?.status).toBe(
-      "open",
-    );
+    expect((await seed.obligations.get(obligation.id))?.status).toBe("open");
     expect((await seed.tasks.getTask(taskId))?.completedAt).toBeNull();
-    expect(await countActivitiesOfType(ASSET_OBLIGATION_COMPLETED)).toBe(0);
+    expect(await countActivitiesOfType(OBLIGATION_COMPLETED)).toBe(0);
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
     // No successor occurrence was left behind either.
-    const page = await seed.history.listObligations({ assetId: asset.id });
+    const page = await seed.obligations.list({
+      subjectEntityId: asset.id,
+    });
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.status).toBe("open");
   });
@@ -510,15 +520,15 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     await expect(
       assetHarness(WS, {
         obligationTaskFault: true,
-      }).history.completeObligation(obligation.id),
+      }).obligations.complete(obligation.id),
     ).rejects.toBeTruthy();
 
-    const first = await seed.history.completeObligation(obligation.id);
-    const second = await seed.history.completeObligation(obligation.id);
+    const first = await seed.obligations.complete(obligation.id);
+    const second = await seed.obligations.complete(obligation.id);
 
     expect(first.obligation.status).toBe("completed");
-    expect(second.event.id).toBe(first.event.id);
-    expect(await countActivitiesOfType(ASSET_OBLIGATION_COMPLETED)).toBe(1);
+    expect(second.proof!.id).toBe(first.proof!.id);
+    expect(await countActivitiesOfType(OBLIGATION_COMPLETED)).toBe(1);
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
     expect((await seed.tasks.getTask(taskId))?.completedAt).not.toBeNull();
   });
@@ -528,13 +538,13 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     const { obligation, taskId } = await seedObligationWithTask(h);
 
     const [a, b] = await Promise.all([
-      h.history.completeObligation(obligation.id),
-      h.history.completeObligation(obligation.id),
+      h.obligations.complete(obligation.id),
+      h.obligations.complete(obligation.id),
     ]);
 
     expect(a.obligation.status).toBe("completed");
     expect(b.obligation.status).toBe("completed");
-    expect(await countActivitiesOfType(ASSET_OBLIGATION_COMPLETED)).toBe(1);
+    expect(await countActivitiesOfType(OBLIGATION_COMPLETED)).toBe(1);
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(1);
     expect((await h.tasks.getTask(taskId))?.completedAt).not.toBeNull();
   });
@@ -543,7 +553,7 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     const h = assetHarness(WS);
     const linked = await seedObligationWithTask(h);
 
-    const result = await h.history.completeObligation(linked.obligation.id);
+    const result = await h.obligations.complete(linked.obligation.id);
 
     expect(result.taskOutcome).toBe("completed");
     // And the Task's own event — the authority — was appended by the same batch.
@@ -557,7 +567,7 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     await h.tasks.completeTask(closed.taskId);
     const before = await countActivitiesOfType(TASK_COMPLETED);
 
-    const result = await h.history.completeObligation(closed.obligation.id);
+    const result = await h.obligations.complete(closed.obligation.id);
 
     expect(result.taskOutcome).toBe("already_closed");
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(before);
@@ -569,13 +579,14 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
       title: "Mower",
       assetType: "equipment",
     });
-    const bare = await h.history.createObligation(asset.id, {
+    const bare = await h.obligations.create({
+      subjectEntityId: asset.id,
       category: "service",
       title: "Blade sharpen",
       dueDate: "2026-07-01",
     });
 
-    const result = await h.history.completeObligation(bare.id);
+    const result = await h.obligations.complete(bare.id);
 
     expect(result.taskOutcome).toBe("none");
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
@@ -599,7 +610,7 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
       },
     });
 
-    const result = await racing.history.completeObligation(obligation.id);
+    const result = await racing.obligations.complete(obligation.id);
 
     expect(result.obligation.status).toBe("completed");
     expect(result.taskOutcome).toBe("already_closed");
@@ -624,7 +635,7 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
       },
     });
 
-    const result = await racing.history.completeObligation(obligation.id);
+    const result = await racing.obligations.complete(obligation.id);
 
     expect(result.obligation.status).toBe("completed");
     // This is the case the pre-batch value got outright wrong: it claimed the
@@ -638,10 +649,10 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     const h = assetHarness(WS);
     const { obligation } = await seedObligationWithTask(h);
 
-    await h.history.completeObligation(obligation.id);
+    await h.obligations.complete(obligation.id);
 
     const payload: unknown = JSON.parse(
-      (await latestActivityPayload(ASSET_OBLIGATION_COMPLETED)) ?? "{}",
+      (await latestActivityPayload(OBLIGATION_COMPLETED)) ?? "{}",
     );
     // Structural facts only, and NOT a second copy of "was the Task completed" —
     // a payload serialised before the batch cannot know, and two events asserting
@@ -658,12 +669,10 @@ describe("AUDIT-13 — obligation completion and its linked Task are one transac
     const stranger = assetHarness(OTHER);
 
     await expect(
-      stranger.history.completeObligation(obligation.id),
-    ).rejects.toBeInstanceOf(AssetNotFoundError);
+      stranger.obligations.complete(obligation.id),
+    ).rejects.toBeInstanceOf(ObligationNotFoundError);
 
-    expect((await mine.history.getObligation(obligation.id))?.status).toBe(
-      "open",
-    );
+    expect((await mine.obligations.get(obligation.id))?.status).toBe("open");
     expect((await mine.tasks.getTask(taskId))?.completedAt).toBeNull();
     expect(await countActivitiesOfType(TASK_COMPLETED)).toBe(0);
   });

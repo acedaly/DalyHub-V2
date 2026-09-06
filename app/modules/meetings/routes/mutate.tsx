@@ -52,6 +52,20 @@ export interface MeetingConflictResponse {
   readonly detailsUpdatedAt: string | null;
 }
 
+/**
+ * HARDEN-06B (F-01) — the body an ACCEPTED whole-document save answers with.
+ *
+ * `detailsUpdatedAt` is the version the write produced: the value the next save
+ * from this editor must quote. It is the same fact the `409` body carries for a
+ * refused save, told on the accepted path — an editor that has just written the
+ * meeting knows the resulting version from its own response, rather than from
+ * whichever revalidation happens to land first.
+ */
+export interface MeetingUpdateResponse {
+  readonly ok: true;
+  readonly detailsUpdatedAt: string;
+}
+
 export async function action({ request, context, params }: Route.ActionArgs) {
   if (request.method !== "POST")
     throw new Response("Method Not Allowed", { status: 405 });
@@ -64,6 +78,25 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     throw new Response("Not Found", { status: 404 });
   try {
     const intent = String(f.get("intent"));
+    /*
+     * HARDEN-06B (F-01) — the version this request PRODUCED, when it produced
+     * one, so the caller does not have to wait for a loader to learn it.
+     *
+     * The precondition below is quoted from `detailsUpdatedAt`, and until this
+     * was returned the only way for an editor to learn the value its own save
+     * had just written was a revalidation round trip. Between the save
+     * resolving and that round trip landing, the editor still held the
+     * PRE-SAVE version — so a second save made in that window quoted a version
+     * the write had already superseded and was refused as a conflict with
+     * itself. See `MeetingMarkdown.tsx` for the other half.
+     *
+     * It is `writtenVersion` — the value the write STORED — and never the
+     * version on the record read back afterwards, which may belong to a writer
+     * who committed in between. A submission that wrote nothing carries no
+     * version at all, so the caller keeps the base it has: the only version
+     * this response ever hands out is one this request produced.
+     */
+    let detailsUpdatedAt: string | null = null;
     if (intent === "archive") await scope.meetings.archive(id);
     else if (intent === "restore") await scope.meetings.restore(id);
     else if (intent === "mark_held") {
@@ -190,14 +223,19 @@ export async function action({ request, context, params }: Route.ActionArgs) {
         }
         changes.endsAt = endsAt ? endsAt.toISOString() : null;
       }
-      await scope.meetings.update(
+      const updated = await scope.meetings.update(
         id,
         expectedUpdatedAt === undefined
           ? changes
           : { ...changes, expectedUpdatedAt },
       );
+      detailsUpdatedAt = updated.writtenVersion;
     }
-    return Response.json({ ok: true });
+    return Response.json(
+      detailsUpdatedAt === null
+        ? { ok: true }
+        : ({ ok: true, detailsUpdatedAt } satisfies MeetingUpdateResponse),
+    );
   } catch (cause) {
     // Calm, non-disclosing errors: the archived case is the one a user can act on,
     // so it is named. Everything else stays generic — no storage detail, no ids,

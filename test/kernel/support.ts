@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
 
+import { assetObligationMeter, isAssetMeterUnit } from "~/kernel/assets";
 import { canonicalTagKey, normaliseTag } from "~/kernel/tags";
 
 import {
@@ -14,6 +15,7 @@ import {
   createAreaRepository,
   createAreaSettingsRepository,
   createAssetHistoryRepository,
+  createObligationRepository,
   createAssetRepository,
   createDiaryRepository,
   createEntityLinkRepository,
@@ -42,6 +44,7 @@ import {
   type D1SavedViewRepositoryOptions,
   type D1AreaSettingsRepositoryOptions,
   type D1AssetHistoryRepositoryOptions,
+  type D1ObligationRepositoryOptions,
   type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
   type D1GoalDetailsRepositoryOptions,
@@ -390,10 +393,45 @@ export async function countAssetEventRows(): Promise<number> {
   return row?.n ?? 0;
 }
 
-/** Count all live rows in `asset_obligations` directly. */
-export async function countAssetObligationRows(): Promise<number> {
+/**
+ * V2.10 LIFE-01 — the workspace-bound Obligation repository, the ONE store for
+ * everything due and recurring.
+ */
+export function makeObligationRepository(
+  context: WorkspaceContext,
+  options: D1ObligationRepositoryOptions = {},
+) {
+  return createObligationRepository(env.DB, context, {
+    /*
+     * Wired the way the composition root wires it, so a test proves what the
+     * product does: an Asset-subject completion still writes its logbook row
+     * and advances the Asset's canonical dates through the ADR-083 seam. A test
+     * that omitted the gateway would prove a configuration nothing ships.
+     */
+    proofGateway: createAssetHistoryRepository(env.DB, context, {
+      clock: options.clock,
+      idGenerator: options.idGenerator,
+      actorContext: options.actorContext,
+    }),
+    meterUnits: ["km", "mi", "hours", "cycles", "count"],
+    // Wired as the composition root wires it, for the same reason as the proof
+    // gateway above: a test that omitted it would prove a configuration
+    // nothing ships, and every meter state would silently read as unknown.
+    meterEvaluator: (obligation, reading) =>
+      assetObligationMeter(
+        obligation,
+        reading.value !== null && isAssetMeterUnit(reading.unit)
+          ? { value: reading.value, unit: reading.unit }
+          : null,
+      ),
+    ...options,
+  });
+}
+
+/** Count all live rows in `obligation_details` directly. */
+export async function countObligationRows(): Promise<number> {
   const row = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM asset_obligations WHERE deleted_at IS NULL",
+    "SELECT COUNT(*) AS n FROM obligation_details WHERE deleted_at IS NULL",
   ).first<{ n: number }>();
   return row?.n ?? 0;
 }
@@ -779,7 +817,7 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   await env.DB.prepare("DELETE FROM meeting_details").run();
   // ASSET-02 children first: both reference entities ON DELETE RESTRICT.
   await env.DB.prepare("DELETE FROM asset_events").run();
-  await env.DB.prepare("DELETE FROM asset_obligations").run();
+  await env.DB.prepare("DELETE FROM obligation_details").run();
   await env.DB.prepare("DELETE FROM asset_details").run();
   // REVIEW-02/REVIEW-03 Review children cascade from review_details; clear them
   // explicitly so a reset never leaves an orphan behind a partial delete.

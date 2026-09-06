@@ -32,6 +32,7 @@ import {
 import { isReservedAssetEntityType } from "~/kernel/assets";
 import { isReservedDiaryEntityType } from "~/kernel/diary";
 import { MEETING_ENTITY_TYPE } from "~/kernel/meetings";
+import { isReservedObligationEntityType } from "~/kernel/obligations";
 import { isReservedPersonEntityType } from "~/kernel/people";
 import { isReservedReviewEntityType } from "~/kernel/reviews";
 import { isReservedHabitEntityType } from "~/kernel/habits";
@@ -183,6 +184,14 @@ export class D1EntityRepository implements EntityRepository {
       // (HABITS-01).
       isReservedHabitEntityType(type) ||
       isReservedAssetEntityType(type) ||
+      // The `obligation` type is reserved for the ObligationRepository, which
+      // writes the commitment's detail slice — its category, its due date or
+      // meter target, its recurrence and its series position — atomically with
+      // the row. A bare `create` would produce an obligation that commits to
+      // nothing, invisible to every obligation read (all of which join
+      // `obligation_details`) and unreachable from Life Admin, while still
+      // occupying an `entities` row (V2.10 LIFE-01).
+      isReservedObligationEntityType(type) ||
       isReservedReviewEntityType(type) ||
       type === MEETING_ENTITY_TYPE
     ) {

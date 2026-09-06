@@ -1266,15 +1266,12 @@ describe("query bounds", () => {
   });
 
   /*
-   * Time-boxed for the same reason `recall-03-commitments-due.test.ts` boxes
-   * its paging suite: this one test seeds a second, LARGER workspace — eight
-   * goals, eight projects and twenty-four completed tasks, every one a real D1
-   * write — where its neighbours in this block seed nothing. MEASURED locally
-   * at 829 ms against a 5 s default; on CI, where the kernel suite runs about
-   * three times slower, that margin is what ran out on run 33986004347.
-   *
-   * The claim is a QUERY-COUNT budget, identical in both workspaces. It does
-   * not involve time, so a ceiling that fits the seed weakens nothing.
+   * This one seeds a SECOND, larger workspace — eight goals, eight projects and
+   * twenty-four completed tasks, every one a real D1 write — where its
+   * neighbours in this block seed nothing, so it is the slowest here at 829 ms
+   * locally. The ceiling it needs lives in `vitest.workers.config.ts`; the
+   * claim it makes is a query-count budget, identical in a small workspace and
+   * a large one, and that has never involved time.
    */
   it("costs the same whether the workspace is small or large", async () => {
     await seedCompletedWork(WS, { inPeriod: 3 });
@@ -1311,7 +1308,7 @@ describe("query bounds", () => {
     await loadReviewInsights(scopeFor(largeCounter), insightInput(large));
 
     expect(largeCounter.count).toBe(smallCounter.count);
-  }, 30_000);
+  });
 
   it("does not grow with the number of past Reviews it can trend over", async () => {
     await seedCompletedWork(WS, { inPeriod: 2 });

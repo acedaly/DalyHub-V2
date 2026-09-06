@@ -36,6 +36,7 @@ import { createOwnerHealthContext } from "~/shared/project-health";
 import {
   FakeClock,
   makeAssetHistoryRepository,
+  makeObligationRepository,
   makeAssetRepository,
   makeContext,
   resetTables,
@@ -182,6 +183,20 @@ describe("AUDIT-14 — Asset dates follow the owner, not Sydney", () => {
         activityIdGenerator: sequentialIds(`${prefix}act`),
         ownerTimeZone,
       }),
+      // V2.10 LIFE-01 — the owner-day rules an obligation carries are the
+      // shared store's now, and this file is where they are proven.
+      obligations: makeObligationRepository(context, {
+        clock: new FakeClock(nowIso).now,
+        idGenerator: sequentialIds(`${prefix}obl`),
+        activityIdGenerator: sequentialIds(`${prefix}oact`),
+        proofGateway: makeAssetHistoryRepository(context, {
+          clock: new FakeClock(nowIso).now,
+          idGenerator: sequentialIds(`${prefix}hist`),
+          activityIdGenerator: sequentialIds(`${prefix}act`),
+          ownerTimeZone,
+        }),
+        ownerTimeZone,
+      }),
     };
   }
 
@@ -198,26 +213,27 @@ describe("AUDIT-14 — Asset dates follow the owner, not Sydney", () => {
       assetType: "vehicle",
     });
 
-    const sydneyObligation = await sydney.history.createObligation(
-      sydneyAsset.id,
-      { category: "service", title: "Service", dueDate: "2026-08-10" },
-    );
-    const laObligation = await la.history.createObligation(laAsset.id, {
+    const sydneyObligation = await sydney.obligations.create({
+      subjectEntityId: sydneyAsset.id,
+      category: "service",
+      title: "Service",
+      dueDate: "2026-08-10",
+    });
+    const laObligation = await la.obligations.create({
+      subjectEntityId: laAsset.id,
       category: "service",
       title: "Service",
       dueDate: "2026-08-10",
     });
 
     // Neither caller supplies `completedOn`, so each falls back to "today".
-    const sydneyDone = await sydney.history.completeObligation(
-      sydneyObligation.id,
-    );
-    const laDone = await la.history.completeObligation(laObligation.id);
+    const sydneyDone = await sydney.obligations.complete(sydneyObligation.id);
+    const laDone = await la.obligations.complete(laObligation.id);
 
     // ONE instant, two owners, two honest answers — and the Los Angeles owner is
     // no longer told their work happened on Sydney's day.
-    expect(sydneyDone.event.eventDate).toBe("2026-08-08");
-    expect(laDone.event.eventDate).toBe("2026-08-07");
+    expect(sydneyDone.proof?.date).toBe("2026-08-08");
+    expect(laDone.proof?.date).toBe("2026-08-07");
   });
 
   it("defaults a meter reading's date to the OWNER's day", async () => {
@@ -264,14 +280,15 @@ describe("AUDIT-14 — the obligation→task gateway uses the owner's day", () =
       title: "Truck",
       assetType: "vehicle",
     });
-    const obligation = await scope.assetHistory.createObligation(asset.id, {
+    const obligation = await scope.obligations.create({
+      subjectEntityId: asset.id,
       category: "service",
       title: "Oil check",
       dueDate: "2026-01-01",
     });
     // The repository never creates Tasks (§22); the route composes the two, so
     // this test does the same and then links the Task it made.
-    await scope.assetHistory.linkObligationTask(obligation.id, task.id);
+    await scope.obligations.linkTask(obligation.id, task.id);
 
     // Sample the owner's day either side of the call: the wall clock is real
     // here (this is the composition wiring, not a fixture), so the only
@@ -280,7 +297,7 @@ describe("AUDIT-14 — the obligation→task gateway uses the owner's day", () =
     // rather than a constant; the deterministic proof that the answer differs
     // by zone is the fixed-clock repository test above.
     const before = ownerCalendarIso(new Date(), LOS_ANGELES);
-    await scope.assetHistory.completeObligation(obligation.id);
+    await scope.obligations.complete(obligation.id);
     const after = ownerCalendarIso(new Date(), LOS_ANGELES);
 
     const successors = await scope.tasks.listTasks({ limit: 50 });
@@ -347,7 +364,9 @@ describe("AUDIT-14 — DST does not corrupt calendar-date behaviour", () => {
       idGenerator: sequentialIds("dstasset"),
       ownerTimeZone,
     });
-    const history = makeAssetHistoryRepository(context, {
+    // V2.10 LIFE-01 — obligations live in the ONE shared store now, wired
+    // with the Assets adapter as its proof gateway exactly as the product is.
+    const obligations = makeObligationRepository(context, {
       clock: new FakeClock("2026-03-07T20:00:00.000Z").now,
       idGenerator: sequentialIds("dsthist"),
       activityIdGenerator: sequentialIds("dstact"),
@@ -358,7 +377,8 @@ describe("AUDIT-14 — DST does not corrupt calendar-date behaviour", () => {
       title: "Generator",
       assetType: "equipment",
     });
-    const obligation = await history.createObligation(asset.id, {
+    const obligation = await obligations.create({
+      subjectEntityId: asset.id,
       category: "service",
       title: "Daily check",
       dueDate: "2026-03-07",
@@ -367,8 +387,8 @@ describe("AUDIT-14 — DST does not corrupt calendar-date behaviour", () => {
     });
 
     // 20:00Z on the 7th is 12:00 local on the 7th — the day before the shift.
-    const done = await history.completeObligation(obligation.id);
-    expect(done.event.eventDate).toBe("2026-03-07");
+    const done = await obligations.complete(obligation.id);
+    expect(done.proof?.date).toBe("2026-03-07");
     expect(done.successor?.dueDate).toBe("2026-03-08");
   });
 });

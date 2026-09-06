@@ -41,6 +41,7 @@ import {
 import {
   RestoreRejectedError,
   readBackupCompatibility,
+  upgradeLegacyObligations,
   validateRestoreSafety,
   type BackupCompatibility,
   type RestoreSafetyIssue,
@@ -254,6 +255,19 @@ export async function readBackupArchive(
             ? "This backup's snapshot version is malformed, so it will not be restored."
             : "That file is not a DalyHub workspace snapshot.";
     reject("unsupported_version", message, [], compatibility);
+  }
+
+  /* 4b. Upgrade a pre-V2.10 archive ----------------------------------------
+   * An archive written before obligations became entities carries
+   * `assetObligations` and no `obligations`. It is upgraded here, by exactly
+   * the rule migration 0050 used, BEFORE anything validates or stages — so
+   * every check below sees one shape and one only (V2.10 LIFE-01).
+   */
+  if (parsed && typeof parsed === "object" && "records" in parsed) {
+    upgradeLegacyObligations(
+      (parsed as { records: Parameters<typeof upgradeLegacyObligations>[0] })
+        .records,
+    );
   }
 
   /* 5. Shape and referential integrity -------------------------------------- */

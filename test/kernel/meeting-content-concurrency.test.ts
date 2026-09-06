@@ -259,6 +259,74 @@ describe("HARDEN-06B — clearing an authored document to empty", () => {
   });
 });
 
+describe("POST /meeting/:meetingId/mutate — the accepted save's version", () => {
+  it("answers with the version the write produced, and accepts a save quoting it", async () => {
+    /*
+     * The other half of F-01's precondition. Quoting a version is only workable
+     * if the writer can learn the version its own write produced; until this
+     * was returned, the only source was a loader revalidation, and a second
+     * save started before that landed quoted a version its own predecessor had
+     * already superseded — refused as a conflict with itself.
+     */
+    const meeting = await newMeeting();
+    const first = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved.",
+      expectedUpdatedAt: meeting.version,
+    });
+    expect(first.status).toBe(200);
+    const produced = first.body.detailsUpdatedAt;
+    expect(typeof produced).toBe("string");
+    // It is the version the write PRODUCED, not the one it was written against.
+    expect(produced).not.toBe(meeting.version);
+
+    const second = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved, and dated.",
+      expectedUpdatedAt: produced as string,
+    });
+    expect(second.status).toBe(200);
+    expect(second.body.detailsUpdatedAt).not.toBe(produced);
+
+    // Nothing was weakened: the version the SECOND save superseded is still
+    // refused, so the precondition is a precondition.
+    const refused = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Grace: we ship on Friday.",
+      expectedUpdatedAt: produced as string,
+    });
+    expect(refused.status).toBe(409);
+  });
+
+  it("hands out NO version when the submission wrote nothing", async () => {
+    /*
+     * The version is the one this request STORED, never the one on a record
+     * read back afterwards — a read-back can return a later writer's row, and
+     * an editor that adopted that token could quote a version it never
+     * produced, overwriting that writer's document instead of being refused.
+     *
+     * A save that asks for exactly the stored state writes nothing, so there is
+     * no version it produced, so it offers none. The editor keeps the base it
+     * has and learns the truth the ordinary way.
+     */
+    const meeting = await newMeeting();
+    const first = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved.",
+      expectedUpdatedAt: meeting.version,
+    });
+    expect(first.status).toBe(200);
+
+    const agreeing = await mutate(meeting.id, {
+      intent: "update",
+      notesMarkdown: "Ada: the budget is approved.",
+      expectedUpdatedAt: first.body.detailsUpdatedAt as string,
+    });
+    expect(agreeing.status).toBe(200);
+    expect(agreeing.body).toEqual({ ok: true });
+  });
+});
+
 describe("POST /meeting/:meetingId/mutate — the refused save's 409", () => {
   it("answers 409 with the newer stored text, and never a 500", async () => {
     const meeting = await newMeeting();
