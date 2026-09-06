@@ -51,7 +51,10 @@ import { loader as obligationsLoader } from "~/modules/obligations/routes/index"
 import { loader as financeLoader } from "~/modules/finance/routes/index";
 import { loader as analyticsLoader } from "~/modules/analytics/routes/index";
 import { createActivityActorContext } from "~/kernel/activity";
-import { bindWorkspaceRepositories } from "~/platform/workspaces";
+import {
+  bindWorkspaceRepositories,
+  resolveAuthenticatedWorkspaceScope,
+} from "~/platform/workspaces";
 
 import { makeContext, resetTables } from "./support";
 import {
@@ -287,6 +290,58 @@ describe("PERF-01 — the page aggregates read their chunks together", () => {
     await scopeOver(profile.db).tasks.listOpenTaskIds(ids);
     expect(profile.executions()).toBeGreaterThan(1);
     expect(profile.depth()).toBe(1);
+  });
+});
+
+describe("PERF-01 — the preference warm-up is opt-in", () => {
+  /*
+   * The finding the automated review of this change raised, pinned.
+   *
+   * Starting the owner's preference read before the workspace-existence check
+   * collapses two round trips into one, and it is worth that on the seven
+   * loaders that read preferences immediately. It is worth NOTHING to the ~300
+   * other callers of `resolveAuthenticatedWorkspaceScope` — `/search`,
+   * `/links`, `/commands`, every mutation action — which never read
+   * preferences at all, and for whom an unconditional warm-up is a
+   * `owner_app_preferences` statement per request answering a question nobody
+   * asked.
+   *
+   * So it is the CALLER's decision, and this asserts both halves of it: a
+   * caller that does not ask pays exactly what it paid before, and one that
+   * asks pays for the read it was going to make anyway.
+   */
+  const session = {
+    user: {
+      subject: PERF_OWNER,
+      email: "owner@example.test",
+      displayName: null,
+    },
+    issuedAt: new Date(0),
+    expiresAt: new Date(Date.parse("2999-01-01")),
+  };
+
+  async function statementsToResolve(warm: boolean): Promise<number> {
+    const profile = profileDb(env.DB);
+    await resolveAuthenticatedWorkspaceScope(
+      { DB: profile.db, DEFAULT_WORKSPACE_ID: WS } as never,
+      session as never,
+      warm ? { warmOwnerPreferences: true } : {},
+    );
+    return profile.executions();
+  }
+
+  beforeAll(async () => {
+    await resetTables([WS]);
+    await seedNavigationWorkspace(WS, SMALL);
+  }, 600_000);
+
+  it("costs one statement for a caller that does not ask", async () => {
+    // The workspace-existence check, and nothing else.
+    expect(await statementsToResolve(false)).toBe(1);
+  });
+
+  it("costs one more for a caller that does", async () => {
+    expect(await statementsToResolve(true)).toBe(2);
   });
 });
 

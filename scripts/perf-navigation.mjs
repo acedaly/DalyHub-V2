@@ -189,8 +189,27 @@ async function main() {
       samples.push(await sample(url, { cookie, timeout: options.timeout }));
     }
     const [cold, ...warm] = samples;
-    const warmTotals = warm.filter((one) => one.ok).map((one) => one.totalMs);
-    const warmTtfbs = warm.filter((one) => one.ok).map((one) => one.ttfbMs);
+    /*
+     * Only an APPLICATION response contributes to the percentiles.
+     *
+     * `sample()` reports `ok` for anything that came back over HTTP, which
+     * includes a 302 from Cloudflare Access, a 401 from an expired session and
+     * a 500 from a server having a bad minute — and every one of those is
+     * FASTER than the measurement being taken, because the application never
+     * ran. Averaging them in makes the reported latency look better exactly when
+     * something has gone wrong, and the route's `outcome` would not say so
+     * because it is read from the cold sample alone.
+     *
+     * So the filter is the same test `outcome` applies, and the count of what it
+     * threw away is reported rather than swallowed. Found by the automated
+     * review of this change.
+     */
+    const usable = warm.filter(
+      (one) => one.ok && !one.redirected && one.status === 200,
+    );
+    const discarded = warm.length - usable.length;
+    const warmTotals = usable.map((one) => one.totalMs);
+    const warmTtfbs = usable.map((one) => one.ttfbMs);
     results.push({
       route,
       status: cold.status,
@@ -217,6 +236,8 @@ async function main() {
       warmTotalP50Ms: round(percentile(warmTotals, 50)),
       warmTotalP95Ms: round(percentile(warmTotals, 95)),
       samples: samples.length,
+      /** Warm samples excluded from the percentiles because they were not 200s. */
+      discarded,
       error: cold.ok ? undefined : cold.error,
     });
   }
@@ -262,9 +283,26 @@ async function main() {
         `${row.warmTtfbP50Ms ?? "-"}`.padStart(10),
         `${row.warmTotalP50Ms ?? "-"}`.padStart(9),
         `${row.warmTotalP95Ms ?? "-"}`.padStart(9),
+        row.discarded > 0 ? `  (${row.discarded} discarded)` : "",
       ].join(" "),
     );
   }
+  const anyDiscarded = results.filter((one) => one.discarded > 0);
+  if (anyDiscarded.length > 0) {
+    console.log(
+      [
+        "",
+        "Some warm samples were NOT application responses and are excluded from",
+        "the percentiles above — a redirect, a 401 or a server error is faster",
+        "than the thing being measured, so counting it would flatter the result:",
+        ...anyDiscarded.map(
+          (one) =>
+            `  ${one.route}: ${one.discarded} of ${one.samples - 1} discarded.`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   if (unmeasured.length > 0) {
     const lines = ["", "Not every route produced an application measurement:"];
     for (const row of unmeasured) {

@@ -162,6 +162,21 @@ exists, its result is used only after `resolve()` returns a context whose id and
 owner it matches, and a workspace that does not resolve still fails closed with
 the warm read discarded unused. Nothing request-supplied reaches it.
 
+**It is opt-in, and it has to be.** `resolveAuthenticatedWorkspaceScope` has
+around three hundred callers, and almost none of them read preferences at all —
+`/search`, `/links`, `/commands`, every mutation action, most resource routes.
+For those, warming the read unconditionally spends an `owner_app_preferences`
+statement per request to answer a question nobody asks: it would trade one round
+trip on seven routes for one statement on all of them. So the caller passes
+`{ warmOwnerPreferences: true }`, and a caller that does not keeps exactly the
+behaviour it had — the read stays lazy, and `ownerTimeZone()` still memoises it
+on first use. Both halves are asserted in
+`navigation-statement-budget.test.ts`: one statement to resolve a scope without
+the flag, two with it.
+
+*Found by the automated review of PERF-01, which was right: the first version
+warmed unconditionally.*
+
 ### 4.3 One preference row, read twice
 
 `/goals` asked `scope.ownerTimeZone()` for the owner's day and

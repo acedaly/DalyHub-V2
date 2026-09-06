@@ -109,6 +109,11 @@ export async function loadFinanceHome(
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     /*
      * PERF-01 — the accounts read is STARTED before the owner's day is known.
@@ -178,6 +183,11 @@ export async function loadFinanceTransactions(
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     todayIso = await scope.ownerTodayIso();
     month = resolveMonth(url.searchParams.get("month"), todayIso);
@@ -267,6 +277,11 @@ export async function loadFinanceBudgets(
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     todayIso = await scope.ownerTodayIso();
     month = resolveMonth(url.searchParams.get("month"), todayIso);
@@ -315,6 +330,11 @@ export async function loadFinanceCategories(
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     return {
       categories: await readCategories(scope.finance, {
@@ -338,6 +358,11 @@ export async function loadFinanceImport(
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     const accounts = await readAccounts(scope.finance, {
       includeClosed: false,
@@ -380,6 +405,11 @@ export async function loadFinanceAccount(
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     const accounts = await readAccounts(scope.finance);
     const account = accounts.find((entry) => entry.id === input.accountId);
@@ -427,6 +457,11 @@ export async function loadNewFinanceAccount(
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     return { todayIso: await scope.ownerTodayIso() };
   } catch {

@@ -305,7 +305,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   let scope: WorkspaceScope | null = null;
 
   try {
-    scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    scope = await resolveAuthenticatedWorkspaceScope(env, session, {
+      // PERF-01 — this loader reads the owner's preferences immediately, so the
+      // read is started before the workspace check rather than after it.
+      warmOwnerPreferences: true,
+    });
     const preferences = await scope.appPreferences.get(session.user.subject);
     timezone = preferences.timezone;
     defaultViewId = preferences.defaultTaskViewId;

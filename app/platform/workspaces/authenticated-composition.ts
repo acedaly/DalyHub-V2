@@ -39,23 +39,53 @@ import {
  * workspace cannot be resolved — authentication succeeding never fabricates or
  * broadens a scope.
  */
+export interface AuthenticatedScopeOptions {
+  /**
+   * PERF-01 — start the owner's preference read BEFORE the workspace existence
+   * check is awaited, instead of lazily on first use.
+   *
+   * **Opt-in, and it has to be.** Every authenticated loader begins with the
+   * same two round trips in sequence — confirm the configured workspace exists,
+   * then read the owner's preference row — and the second never depended on the
+   * first: the row is addressed by the configured workspace id and the trusted
+   * actor, both known before the check is issued. Starting it first collapses
+   * two waves into one, which is worth a round trip on `/today`, `/tasks`,
+   * `/projects`, `/goals`, `/obligations`, `/finance` and `/analytics`.
+   *
+   * It is worth NOTHING to the ~300 other callers of this function. `/search`,
+   * `/links`, `/commands`, every mutation action and most resource routes never
+   * read `appPreferences`, `ownerTimeZone` or `ownerTodayIso` at all, so an
+   * unconditional warm-up would spend a `owner_app_preferences` statement per
+   * request to answer a question nobody asks — trading one round trip on seven
+   * routes for one statement on all of them. Found by the automated review of
+   * this change, and it was right.
+   *
+   * So the caller says. A caller that omits this keeps exactly the behaviour it
+   * had: the read stays lazy, and `ownerTimeZone()` still memoises it on first
+   * use for anyone who asks later.
+   */
+  readonly warmOwnerPreferences?: boolean;
+}
+
 export async function resolveAuthenticatedWorkspaceScope(
   env: WorkspaceScopeEnv,
   session: AuthenticatedSession,
+  options: AuthenticatedScopeOptions = {},
 ): Promise<WorkspaceScope> {
   const actorContext = createActivityActorContext({
     type: "user",
     id: session.user.subject,
   });
   /*
-   * PERF-01 — the owner's preferences read is STARTED before the workspace
-   * existence check is awaited, because it never depended on the answer. See
-   * `startOwnerPreferencesRead`: it is best-effort and it is not an authority.
-   * The existence check below is unchanged and still decides everything — a
-   * workspace that does not resolve still fails closed, with the warm read
-   * discarded unused.
+   * See `startOwnerPreferencesRead`: it is best-effort and it is not an
+   * authority. The existence check below is unchanged and still decides
+   * everything — a workspace that does not resolve still fails closed, with the
+   * warm read discarded unused.
    */
-  const warm = startOwnerPreferencesRead(env, actorContext);
+  const warm =
+    options.warmOwnerPreferences === true
+      ? startOwnerPreferencesRead(env, actorContext)
+      : undefined;
   const context = await createWorkspaceContextResolver(env).resolve();
   return bindWorkspaceRepositories(env, context, actorContext, warm);
 }

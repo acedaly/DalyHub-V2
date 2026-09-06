@@ -104,7 +104,11 @@ export async function loader({ context }: Route.LoaderArgs) {
   let timezone = DEFAULT_APP_PREFERENCES.timezone;
   let day: TodayDayData;
   try {
-    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session, {
+      // PERF-01 — this loader reads the owner's preferences immediately, so the
+      // read is started before the workspace check rather than after it.
+      warmOwnerPreferences: true,
+    });
     const preferences = await scope.appPreferences.get(session.user.subject);
     timezone = preferences.timezone;
     day = await loadTodayDay(scope, {

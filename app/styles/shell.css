@@ -2357,6 +2357,22 @@
     color: HighlightText;
     forced-color-adjust: none;
   }
+
+  /*
+   * PERF-01 — the PENDING destination, on the phone, restated here for exactly
+   * the reason the current one is: the tint above it is dropped by the OS
+   * palette, and a pending state left with no forced-colours treatment is a
+   * pending state a sighted forced-colours user does not get at all — leaving
+   * `aria-busy` carrying it alone.
+   *
+   * An OUTLINE rather than a fill, matching the rail's treatment and keeping it
+   * distinguishable from the current destination, which takes the fill.
+   */
+  .dh-bottomnav__control[data-pending="true"] .dh-bottomnav__indicator {
+    outline: var(--dh-border-width) solid Highlight;
+    outline-offset: calc(-1 * var(--dh-border-width));
+    forced-color-adjust: none;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
