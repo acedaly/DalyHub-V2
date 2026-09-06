@@ -1163,6 +1163,66 @@ to point at.
 
 ---
 
+## The hostile audit
+
+Asked of the finished programme, and answered by MEASURING rather than by
+recalling what was intended. Every answer below was checked against the code at
+the time of writing.
+
+**Does any AI touch Finance?** No. Three matches for "AI" across the whole
+domain, all of them comments saying there is none. There is no model, no score,
+no confidence field, no rules engine and no summarisation. The suggestion is a
+`SELECT` for the most recent category the owner confirmed for a payee key.
+
+**Is there a credential column anywhere?** No. The only matches in the migration
+are the comment saying there is none.
+`test/unit/architecture/finance-boundaries.test.ts` asserts it over the schema.
+
+**Can an amount reach a broad log?** No `console.*` call exists anywhere in the
+Finance kernel, module, shared UI, facts layer or D1 adapter. The single match is
+a comment explaining why.
+
+**Can an amount reach a URL?** No Finance URL is built with an amount, a payee or
+a query of one: the search parameters are `month`, `account`, `category`,
+`uncategorised`, `cursor`, `q` and `open`. A transaction is addressed by id.
+
+**Can an amount reach Activity?** The one Finance event with a payload carries
+`rowCount`, `addedCount`, `skippedExistingCount`, `suspectedCount` and
+`invalidCount` — five integers, no filename, no payee, no amount. There is no
+per-transaction event at all.
+
+**Can an amount reach Search?** No. The provider never reads a balance or an
+amount field, and `search-privacy.test.ts` asserts that against its source with
+comments stripped, while `search-route.test.ts` seeds a real account with a real
+opening balance and asserts the figure is absent from the response payload.
+
+**Does Life Admin join a Finance table?** No — zero matches for `finance_` in the
+obligation repository or the Life Admin module. The dependency runs one way,
+through `ObligationSettlementGateway`.
+
+**Does Finance write to `obligation_details`?** No. Three matches for
+`settled_by_transaction_id` in the Finance adapter, all `SELECT`. The column and
+its EntityLink projection are written by the obligation's own batch.
+
+**Is there more than one writer for any Finance table?** No. One file contains
+every `INSERT INTO finance_*` and `UPDATE finance_*` in the repository.
+
+**Does anything Finance appear on Today?** No — zero matches for `finance` under
+`app/modules/today`.
+
+**Is a balance stored anywhere?** No column, no setter, no parameter. And since
+the falsification pass, the adapter *calls* the kernel rule rather than restating
+it, so there is genuinely one implementation rather than a comment claiming one.
+
+**What is NOT true, and is said so plainly:** V2.12 is complete in
+implementation and NOT complete in acceptance. Criterion 26 —
+[DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2)
+— is unmet, re-measured on 2026-09-06 as 35 runs and 0 successes. Finance has
+been verified against synthetic data only, and real financial data must not be
+imported until an off-Cloudflare backup exists and has been restored from once.
+
+---
+
 ## Falsification: sixteen deliberate breakages, every one reverted
 
 A test that cannot fail is not evidence. So each load-bearing claim was broken
