@@ -46,7 +46,10 @@ export type ActivityValidationField =
   | "payload"
   | "limit"
   | "cursor"
-  | "anchors";
+  | "anchors"
+  /** V2.9 INS-01 — the grouped history reads' own inputs. */
+  | "types"
+  | "buckets";
 
 /** A value that failed kernel-boundary validation. */
 export class ActivityValidationError extends ActivityError {
