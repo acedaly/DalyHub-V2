@@ -43,6 +43,7 @@ import {
 } from "~/kernel/project-health";
 import type { Review } from "~/kernel/reviews";
 import {
+  ACROSS_REVIEWS_SERIES_LENGTH,
   MAX_TREND_PERIODS,
   buildReviewInsightSnapshot,
   classifyGoalContribution,
@@ -129,7 +130,15 @@ export const REVIEW_INSIGHT_LIMITS = {
  * facts + 1 carry-over page + 1 carry-over count + 1 Goal page + 1 Goal
  * contributions + 1 Goal alignment facts + 1 Area page = 14, plus FOLLOW-01's
  * 2 (the bounded Activity window: one statement for the period's Task set, one
- * for its plan history) and DEBT-156's 1 (the active-Habit page) = **17**.
+ * for its plan history) and DEBT-156's 1 (the active-Habit page) = **17** on a FIRST Review.
+ *
+ * **Measured on the path the number exists to describe — a Review with a
+ * completed, snapshotted prior Review — it is 19.** Two reads are skipped on a
+ * first Review and fire on every Review after it: the snapshot series (INS-02)
+ * and the prior Review's sections (the previous period's focus). The V2.9
+ * completion pass found the budget measured on the first-Review path, where
+ * it read 17 and understated every real Review by two; the first-Review cost
+ * is asserted separately as this number less two.
  *
  * Flat with respect to workspace size and to how many past Reviews exist, both
  * asserted separately.
@@ -140,7 +149,7 @@ export const REVIEW_INSIGHT_LIMITS = {
  * additional statement. `listSnapshotSeries` is one grouped read whatever the
  * series length, and it replaced `getSnapshot` rather than joining it.
  */
-export const REVIEW_INSIGHTS_QUERY_BUDGET = 17;
+export const REVIEW_INSIGHTS_QUERY_BUDGET = 19;
 
 /**
  * The same load in a workspace that actually practises a routine: TWO more
@@ -154,7 +163,7 @@ export const REVIEW_INSIGHTS_QUERY_BUDGET = 17;
  * binding a version or completion window to no ids is a query that cannot return
  * anything. The budget reports that rather than hiding it.
  */
-export const REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS = 19;
+export const REVIEW_INSIGHTS_QUERY_BUDGET_WITH_HABITS = 21;
 
 /* -------------------------------------------------------------------------- */
 /* Input                                                                       */
@@ -841,7 +850,7 @@ async function readSnapshotSeries(
   try {
     const series = await scope.reviewInsights.listSnapshotSeries(
       review.id,
-      REVIEW_INSIGHT_LIMITS.trendPeriods + 1,
+      ACROSS_REVIEWS_SERIES_LENGTH,
     );
     const previousId = priorReviews[0]?.id;
     const previous =

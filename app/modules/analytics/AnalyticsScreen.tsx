@@ -368,7 +368,15 @@ function TrendPanel({
   const values = points.map((point) => point.value);
   const high = values.length > 0 ? Math.max(...values) : 0;
   const low = values.length > 0 ? Math.min(...values) : 0;
-  const total = values.reduce((sum, value) => sum + value, 0);
+  /*
+   * The figure beside a series is the WINDOW'S OWN total — its own read, never
+   * the sum of the buckets (RECALL-02's reopen rule; and a Project completed
+   * twice across two buckets is one Project). Found by review: the caption
+   * and the secondary rows summed the series, so this card and the metric
+   * card above it could disagree. Null when that read failed, and then the
+   * caption simply has no total.
+   */
+  const total = model.totals?.tasksCompleted ?? null;
 
   /*
    * The chart's own text form, and the only place the FULL bucket labels are
@@ -394,7 +402,9 @@ function TrendPanel({
   const headline =
     points.length < 2
       ? "Not enough of this period has passed to show a trend."
-      : `Tasks completed across ${points.length} ${noun}s, ${total} in total.`;
+      : total === null
+        ? `Tasks completed across ${points.length} ${noun}s.`
+        : `Tasks completed across ${points.length} ${noun}s, ${total} in the period.`;
   /*
    * V2.9 INS-03 — the Projects and Goals lines, under the Tasks trend.
    *
@@ -415,9 +425,10 @@ function TrendPanel({
       ["Goals completed", "goalsCompleted"],
     ] as const
   ).flatMap(([label, key]) => {
-    const values = model.series.map((point) => point[key]);
-    const total = values.reduce((sum, value) => sum + value, 0);
-    if (total === 0) return [];
+    // Drawn only when something happened in the window; the figure beside the
+    // shape is the window's own total, not the sum of the shape.
+    const total = model.totals?.[key] ?? null;
+    if (total === null || total === 0) return [];
     return [
       {
         label,
@@ -442,6 +453,7 @@ function TrendPanel({
 
   return (
     <DashboardCard
+      className="dh-analytics__trend"
       title="Completion trend"
       density="standard"
       headerAction={grainControl}
@@ -711,11 +723,23 @@ function DistributionPanel({ model }: { readonly model: AnalyticsModel }) {
  * because drawing one point as a line asserts a shape it does not have.
  */
 function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
-  if (!model.measuredGoalsAvailable) {
+  /*
+   * The two halves are INDEPENDENT reads (the measurement series and the
+   * across-Reviews record), so each fails on its own: a transient Review
+   * storage failure must not hide a Goal's measurements that read fine
+   * (review finding on the completion pass). The whole panel says it could
+   * not be read only when BOTH halves failed. What no half may do is make
+   * the "nothing yet" claim while the other is unknown: "no Goal has two
+   * readings, and the Reviews have not recorded enough" is a statement about
+   * both reads, so it is made only when both succeeded and both are empty.
+   */
+  const measuredAvailable = model.measuredGoalsAvailable;
+  const contributionsAvailable = model.goalContributionsAvailable;
+  if (!measuredAvailable && !contributionsAvailable) {
     return (
       <DashboardCard
         className="dh-analytics__goals-panel"
-        title="Measured Goals"
+        title="Goals"
         density="standard"
       >
         <p className="dh-analytics__absent">
@@ -725,9 +749,13 @@ function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
       </DashboardCard>
     );
   }
+  const measured = measuredAvailable ? model.measuredGoals : [];
+  const contributions = contributionsAvailable ? model.goalContributions : [];
   if (
-    model.measuredGoals.length === 0 &&
-    model.goalContributions.length === 0
+    measuredAvailable &&
+    contributionsAvailable &&
+    measured.length === 0 &&
+    contributions.length === 0
   ) {
     return (
       <DashboardCard
@@ -736,9 +764,9 @@ function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
         density="standard"
       >
         <p className="dh-analytics__absent">
-          No Goal has two readings yet, and your Reviews have not yet recorded
-          enough to say how work reached them. Log a measurement on a Goal, or
-          complete another Review, and its shape appears here.
+          No Goal has two readings in this period, and your Reviews have not yet
+          recorded enough to say how work reached them. Log a measurement on a
+          Goal, or complete another Review, and its shape appears here.
         </p>
       </DashboardCard>
     );
@@ -749,56 +777,69 @@ function GoalSeriesPanel({ model }: { readonly model: AnalyticsModel }) {
       className="dh-analytics__goals-panel"
       title="Goals"
       supporting={
-        model.measuredGoals.length > 0
-          ? `${model.measuredGoals.length} measured`
-          : undefined
+        measured.length > 0 ? `${measured.length} measured` : undefined
       }
       density="standard"
     >
-      <ul className="dh-analytics__goals" aria-label="Goals">
-        {model.measuredGoals.map((goal) => {
-          const first = goal.points[0];
-          const last = goal.points[goal.points.length - 1];
-          return (
+      {measured.length > 0 || contributions.length > 0 ? (
+        <ul className="dh-analytics__goals" aria-label="Goals">
+          {measured.map((goal) => {
+            const first = goal.points[0];
+            const last = goal.points[goal.points.length - 1];
+            return (
+              <li key={goal.goalId} className="dh-analytics__goal">
+                <Link className="dh-analytics__goal-name" to={goal.to}>
+                  {goal.title}
+                </Link>
+                <Sparkline points={goal.points} />
+                {/*
+                 * The reading, in words, beside the shape — so the sparkline is
+                 * decoration over a fact rather than the fact itself. The bound
+                 * is said where it applies: a compact series is a recent shape.
+                 */}
+                <span className="dh-analytics__goal-reading">
+                  {`${first.value} → ${last.value}`}
+                  <span className="dh-analytics__goal-window">
+                    {goal.bounded
+                      ? `${goal.points.length} most recent readings in this period`
+                      : `${goal.points.length} readings in this period`}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+          {/*
+           * A Goal with no measurement, after every measured one — the shapes
+           * read as a group, and a sentence between two sparklines breaks the
+           * comparison they exist for. Its reading is the Reviews' own words
+           * and names its own window, so the two kinds of row are never
+           * mistaken for each other.
+           */}
+          {contributions.map((goal) => (
             <li key={goal.goalId} className="dh-analytics__goal">
               <Link className="dh-analytics__goal-name" to={goal.to}>
                 {goal.title}
               </Link>
-              <Sparkline points={goal.points} />
-              {/*
-               * The reading, in words, beside the shape — so the sparkline is
-               * decoration over a fact rather than the fact itself. The bound
-               * is said where it applies: a compact series is a recent shape.
-               */}
-              <span className="dh-analytics__goal-reading">
-                {`${first.value} → ${last.value}`}
-                <span className="dh-analytics__goal-window">
-                  {goal.bounded
-                    ? `${goal.points.length} most recent readings`
-                    : `${goal.points.length} readings`}
-                </span>
+              <span className="dh-analytics__goal-reading dh-analytics__goal-reading--wide">
+                {goal.reading}
               </span>
             </li>
-          );
-        })}
-        {/*
-         * A Goal with no measurement, after every measured one — the shapes
-         * read as a group, and a sentence between two sparklines breaks the
-         * comparison they exist for. Its reading is the Reviews' own words and
-         * names its own window, so the two kinds of row are never mistaken for
-         * each other.
-         */}
-        {model.goalContributions.map((goal) => (
-          <li key={goal.goalId} className="dh-analytics__goal">
-            <Link className="dh-analytics__goal-name" to={goal.to}>
-              {goal.title}
-            </Link>
-            <span className="dh-analytics__goal-reading dh-analytics__goal-reading--wide">
-              {goal.reading}
-            </span>
-          </li>
-        ))}
-      </ul>
+          ))}
+        </ul>
+      ) : null}
+      {/* The failed half says so beneath what did read, never as a zero. */}
+      {!contributionsAvailable ? (
+        <p className="dh-analytics__absent dh-analytics__goals-note">
+          What your Reviews recorded about your other Goals could not be read
+          just now. Nothing in your workspace has changed.
+        </p>
+      ) : null}
+      {!measuredAvailable ? (
+        <p className="dh-analytics__absent dh-analytics__goals-note">
+          Your measured Goals could not be read just now. Nothing in your
+          workspace has changed.
+        </p>
+      ) : null}
     </DashboardCard>
   );
 }
