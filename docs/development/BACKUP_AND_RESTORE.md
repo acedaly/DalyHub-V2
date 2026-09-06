@@ -996,6 +996,28 @@ Proven end to end by `test/kernel/attachment-restore-rehearsal.test.ts`, which
 uploads real files, exports, destroys every row and every object, restores, and
 compares the recovered bytes with the originals.
 
+### 8d. Finance data (V2.12)
+
+Every Finance table is ordinary D1, so **both automated dumps carry all of it** —
+accounts, transactions, categories, budgets and the import ledger. There is no
+Finance equivalent of §8c's gap, because Finance stores no bytes: a bank CSV is
+parsed, hashed and discarded inside the request that reads it, and a statement
+the owner chose to KEEP is an attachment, which is §8c's problem and not a new
+one.
+
+**But the concentration changes what a loss means.** A bank statement is the
+densest personal record in the product, and every automated copy of it is inside
+one Cloudflare account. That is the whole of
+[DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2)
+and it is why V2.12 ships **implemented and not accepted**: the GitHub half of
+§8b has never produced an artefact (re-measured 2026-09-06: 35 runs, 0
+successes), so there is no copy outside the provider to restore from.
+
+**Until that closes, Finance should be exercised with synthetic data only.** The
+product works; the recovery story does not yet. The remaining action is four
+secrets on the GitHub `production` environment, one green AUDIT-11 run, and one
+restore *from that artefact*.
+
 ## 9. Production restore safety
 
 **CI never performs a destructive production restore.** The automated proof runs

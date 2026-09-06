@@ -110,6 +110,25 @@ missing from the vault while the structured snapshot could restore them
 perfectly; caught in review on PR #238 and closed, because a readable copy that
 is poorer than the machine copy is the one asymmetry this format cannot carry.
 
+**The five Finance collections (V2.12)** — `financeAccounts`, `financeCategories`,
+`financeImports`, `financeTransactions` and `financeBudgets` — are ordered by
+their own foreign keys: a budget references a category, an import references an
+account, and a transaction references its account, its category and its import,
+so accounts and categories precede imports, which precede transactions, which
+precede budgets. **`meta.schemaVersion` did NOT move for them either**, for the
+reason it did not move for tags: adding collections is backwards compatible, and
+an archive written before the Finance migration must stay restorable.
+
+The **import ledger** is in the snapshot deliberately. It is the row that carries
+each applied file's SHA-256, so restoring it is what makes a re-import after a
+restore still report *0 new* — without it a restored workspace would happily
+import every statement a second time. `finance-archive-rehearsal.test.ts` proves
+that end to end by destroying a workspace and rebuilding it.
+
+**No balance is exported, because none is stored.** Every account's figure is
+recomputed from the restored opening balance and transactions on the way out,
+which is also how the rehearsal compares the two sides.
+
 **The two tag collections (V2.6 FIND-02)** sit immediately after `entities` for
 that same reason: `entityTags` references both an entity and a `workspaceTags`
 row, so both parents must already exist. `workspaceTags` carries the vocabulary
