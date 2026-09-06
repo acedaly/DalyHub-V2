@@ -56,6 +56,7 @@ import {
   FINANCE_ACCOUNT_UPDATED,
   FINANCE_IMPORT_APPLIED,
   FINANCE_STARTER_CATEGORIES,
+  deriveBalanceMinor,
   FINANCE_TRANSACTION_ENTITY_TYPE,
   FinanceNotFoundError,
   FinanceRefusedError,
@@ -640,10 +641,23 @@ export class D1FinanceRepository implements FinanceRepository {
 
     return result.results.map((row) => ({
       account: this.#toAccount(row),
-      // The one derivation, in the one place. `deriveBalanceMinor` states the
-      // same rule for the restore rehearsal and for every parity test, so there
-      // is no chance of two answers.
-      balanceMinor: row.opening_balance_minor + Number(row.sum_minor),
+      /*
+       * The one derivation, in the one place — and it CALLS the kernel rule
+       * rather than restating it.
+       *
+       * It used to restate it: `row.opening_balance_minor + Number(...)`, with
+       * a comment claiming `deriveBalanceMinor` was the single definition. A
+       * falsification proved the comment wrong — gutting the kernel function to
+       * ignore the opening balance broke no test, because the adapter had its
+       * own copy of the arithmetic and the kernel one was reached only by the
+       * restore rehearsal. Two implementations of one definition is exactly
+       * what ADR-120 decision 5 refuses for balances, and a comment asserting
+       * otherwise is worse than no comment.
+       */
+      balanceMinor: deriveBalanceMinor(
+        row.opening_balance_minor,
+        Number(row.sum_minor),
+      ),
       transactionCount: Number(row.n),
     }));
   }
