@@ -70,6 +70,15 @@ interface NoteOverviewProps {
   readonly activityTab: ReactNode;
   /** AI-01 — the "Extract actions and decisions" surface for this Note. */
   readonly aiTab: ReactNode;
+  /**
+   * V2.11 FILE-01 — the shared Evidence tab.
+   *
+   * A Note may CARRY a file. It does not become one: nothing parses an
+   * attachment into the note's text, the writing surface is unchanged, and
+   * DalyHub is not becoming a rich document editor because a PDF can now sit
+   * beside a note about it.
+   */
+  readonly evidenceTab: ReactNode;
   readonly activeTabId?: string;
   readonly onTabChange?: (tabId: string) => void;
   /**
@@ -97,6 +106,7 @@ export function NoteOverview({
   linksTab,
   activityTab,
   aiTab,
+  evidenceTab,
   activeTabId,
   onTabChange,
   printHtml = null,
@@ -340,6 +350,11 @@ export function NoteOverview({
               id: "ai",
               label: "AI",
               content: aiTab,
+            },
+            {
+              id: "evidence",
+              label: "Evidence",
+              content: evidenceTab,
             },
             {
               id: "activity",

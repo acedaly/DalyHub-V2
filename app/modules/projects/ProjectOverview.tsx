@@ -90,6 +90,11 @@ interface ProjectOverviewProps {
   readonly tasksTab: ReactNode;
   readonly linksTab: ReactNode;
   readonly knowledgeTab: ReactNode;
+  /**
+   * V2.11 FILE-01 — the shared Evidence tab: a brief, a quote, a signed
+   * contract, a photo of the finished thing.
+   */
+  readonly evidenceTab: ReactNode;
   /** The PROJ-04 Activity tab — the shared DS-05 Timeline. */
   readonly activityTab: ReactNode;
   /** The PROJ-05 Settings tab (DS-10b) — always the FINAL tab. */
@@ -123,6 +128,7 @@ export function ProjectOverview({
   tasksTab,
   linksTab,
   knowledgeTab,
+  evidenceTab,
   activityTab,
   settingsTab,
   onArchive,
@@ -433,6 +439,7 @@ export function ProjectOverview({
           { id: "tasks", label: "Tasks", content: tasksTab },
           { id: "knowledge", label: "Knowledge", content: knowledgeTab },
           { id: "linked", label: "Linked", content: linksTab },
+          { id: "evidence", label: "Evidence", content: evidenceTab },
           { id: "activity", label: "Activity", content: activityTab },
           // Settings is the FINAL tab, per the shared tab vocabulary
           // (DESIGN_SYSTEM.md → Tabs: Activity and Settings always sit last, in

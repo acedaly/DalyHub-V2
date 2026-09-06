@@ -100,6 +100,7 @@ describe("NoteOverview", () => {
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
         aiTab={<div>AI content</div>}
+        evidenceTab={<div>Evidence content</div>}
       />,
     );
 
@@ -152,6 +153,7 @@ describe("NoteOverview", () => {
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
         aiTab={<div>AI content</div>}
+        evidenceTab={<div>Evidence content</div>}
       />,
     );
 
@@ -165,6 +167,9 @@ describe("NoteOverview", () => {
       // AI-01 — the extraction surface, between the relationship tabs and the
       // record's own history. The writing surface stays first and default.
       "AI",
+      // V2.11 FILE-01 — the shared Evidence tab. A Note may CARRY a file; it
+      // does not become one, and nothing parses an attachment into the text.
+      "Evidence",
       "Activity",
     ]);
   });
@@ -181,6 +186,7 @@ describe("NoteOverview", () => {
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
         aiTab={<div>AI content</div>}
+        evidenceTab={<div>Evidence content</div>}
       />,
     );
     expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
@@ -203,6 +209,7 @@ describe("NoteOverview", () => {
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
         aiTab={<div>AI content</div>}
+        evidenceTab={<div>Evidence content</div>}
       />,
     );
 
@@ -222,6 +229,7 @@ describe("NoteOverview", () => {
         linksTab={<div>Linked content</div>}
         activityTab={<div>Activity content</div>}
         aiTab={<div>AI content</div>}
+        evidenceTab={<div>Evidence content</div>}
       />,
     );
 
@@ -252,6 +260,7 @@ describe("NoteOverview", () => {
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
           aiTab={<div>AI content</div>}
+          evidenceTab={<div>Evidence content</div>}
         />,
       );
 
@@ -322,6 +331,7 @@ describe("NoteOverview", () => {
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
           aiTab={<div>AI content</div>}
+          evidenceTab={<div>Evidence content</div>}
         />,
       );
 
@@ -373,6 +383,7 @@ describe("NoteOverview", () => {
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
           aiTab={<div>AI content</div>}
+          evidenceTab={<div>Evidence content</div>}
         />,
       );
 
@@ -426,6 +437,7 @@ describe("NoteOverview", () => {
           linksTab={<div>Linked content</div>}
           activityTab={<div>Activity content</div>}
           aiTab={<div>AI content</div>}
+          evidenceTab={<div>Evidence content</div>}
         />,
       );
 

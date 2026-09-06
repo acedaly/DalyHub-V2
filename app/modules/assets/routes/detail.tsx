@@ -31,6 +31,7 @@ import {
 
 import { ASSET_METER_UNIT_OPTIONS } from "~/kernel/assets";
 import type { ObligationBandCounts } from "~/kernel/obligations";
+import { loadRecordAttachments } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
 import type { InlineSaveOutcome } from "~/shared/inline-edit";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -281,6 +282,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
         : `${new Intl.NumberFormat("en-AU").format(reading.value)} ${reading.unit}`,
     meterDateLabel: formatHistoryDate(asset.currentMeterDate),
     openTaskCount: obligations.filter((o) => o.taskOpen).length,
+    // V2.11 FILE-01 — the receipt, the warranty, the service invoice, the photo.
+    attachments: await loadRecordAttachments(scope, asset.id),
   };
 }
 
@@ -301,6 +304,7 @@ const TAB_IDS = [
   "summary",
   "obligations",
   "history",
+  "evidence",
   "details",
   "linked",
   "activity",
@@ -507,6 +511,7 @@ function AssetDetail({
       events={loaderData.events}
       eventsCursor={loaderData.eventsCursor}
       eventsHasMore={loaderData.eventsHasMore}
+      attachments={loaderData.attachments}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       onRename={onRename}

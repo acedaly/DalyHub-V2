@@ -30,3 +30,9 @@ export {
   type AttachmentPurgeSweepSummary,
   type ScheduledAttachmentPurgeEnv,
 } from "./scheduled-purge.server";
+
+export {
+  loadRecordAttachments,
+  loadRecordAttachmentsFor,
+  type RecordAttachmentScope,
+} from "./record-attachments.server";

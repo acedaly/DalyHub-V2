@@ -19,6 +19,7 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { loadRecordAttachments } from "~/platform/attachments";
 import { projectObligation } from "~/platform/obligations/obligation-facts.server";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -48,10 +49,12 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       taskOpen: found.hasOpenTask,
     }),
     todayIso,
+    // V2.11 FILE-01 — the record's own evidence, in one bounded statement.
+    attachments: await loadRecordAttachments(scope, found.obligation.id),
   };
 }
 
-const TAB_IDS = ["summary", "linked", "activity"] as const;
+const TAB_IDS = ["summary", "evidence", "linked", "activity"] as const;
 type TabId = (typeof TAB_IDS)[number];
 
 function parseTab(value: string | null): TabId {
@@ -75,6 +78,7 @@ export default function ObligationDetailRoute({
 function ObligationDetail({
   obligation,
   todayIso,
+  attachments,
 }: Awaited<ReturnType<typeof loader>>) {
   const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -105,6 +109,7 @@ function ObligationDetail({
     <ObligationRecord
       obligation={obligation}
       todayIso={todayIso}
+      attachments={attachments}
       startCompleting={startCompleting}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
