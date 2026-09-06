@@ -3530,3 +3530,110 @@ move is its overflow command. Effective manipulation, not identical gestures.
 - a move changes one field, revalidates only the dimensions the current
   configuration is sensitive to, and leaves the URL, the filters, the sort, the
   scroll and every untouched bucket exactly as they were.
+
+---
+
+## Evidence on a record (V2.11 FILE-01, 2026-09-06)
+
+The shared attachment surface. **One implementation** — `app/shared/attachments`
+— drawn identically by Obligations, Assets, Meetings, Notes, Projects and People,
+and by whatever carries evidence next. A consumer writes one line:
+
+```tsx
+tabs={[ …, attachmentsTab({ ownerEntityId: asset.id, attachments, onChanged }) ]}
+```
+
+`test/unit/architecture/one-attachment-surface.test.ts` fails if a module
+declares an attachment row, list, picker or section of its own, fetches an
+attachment endpoint directly, or renders the shared section without appearing in
+the consumer registry — so a seventh consumer is a decision rather than a
+discovery.
+
+### It is a TAB, not a section under the overview
+
+Evidence is reference material you consult once you are already looking at the
+record. Putting it in the Overview would push a record's actual content down by a
+picker and a hint on every page, including the overwhelming majority of records
+that will never carry a file. The tab costs one word in the strip until it is
+used, and it sits beside **Linked** — the other relationship-shaped thing a
+record has. The count is a **badge**, not part of the label, because a label that
+changes from "Evidence" to "Evidence (3)" changes a control's accessible name
+every time a file is added.
+
+Tab order: after Linked, before Activity and Settings, which always sit last in
+that order.
+
+### The picker is two native inputs, and a label is the control
+
+**Add file** is `<input type="file" multiple accept={…}>`; **Take a photo** is a
+second input with `capture="environment"`, hidden above the 45rem breakpoint
+because `capture` on a desktop browser just reopens the ordinary picker.
+
+The visible control is a `<label>` bound to a **visually-hidden but focusable**
+input — not `display: none`, which would take it out of the tab order and leave a
+control only a mouse can reach, and not a `<button>` that calls `.click()`, which
+produces a control screen readers announce as a button that does something
+unpredictable. The native input keeps its role, its keyboard behaviour and its
+announcement; the label draws the focus ring through `:focus-within`.
+
+`accept` is a convenience that filters the OS picker. It is never the rule — the
+server's allow-list is.
+
+### Four honest states, and "uploaded" is said once
+
+`selected → uploading → uploaded`, or `failed`. A file is **uploading** until the
+server has stored both the object and the row; the client never shows it
+optimistically. That is a deliberate departure from the product's
+optimistic-and-reversible default: everything else is undoable, and a document
+the owner believes is safe and is not, is not.
+
+A failure shows the **server's own sentence** — "that file is larger than
+10.0 MB", "SVG files aren't accepted because an SVG can run code" — because those
+say what to do about it. **Try again** reuses the same operation id, so retrying
+cannot produce a second attachment however many times it is pressed.
+
+### The row
+
+Filename (a link to the authenticated download), then class, size and date. A
+raster image gets a thumbnail; nothing else does, because the CSP means nothing
+else can be displayed in a DalyHub page. Every action carries the filename in its
+accessible name — `Download <filename>`, `Remove… <filename>` — since a list of
+ten files whose buttons all announce as "Download" is a list a screen-reader user
+cannot act on.
+
+### Removal is confirmed, and it is the one place undo loses
+
+The product's rule is *prefer undo over confirmation dialogs*. Here there is no
+undo to prefer. Removing a file hard-deletes the row and owes the bytes to the
+purge sweep, deliberately: a soft-deleted attachment whose bytes are still in the
+bucket tells the owner their document is gone when it is not.
+
+A client-held undo window was the other candidate and is worse for the same
+reason — close the tab inside the window and the file the owner watched
+disappear is still there. So **Remove…** carries the ellipsis that means a
+question follows, and the shared confirmation dialog names the file and says
+plainly that it cannot be undone and will not be in any later backup. Nothing
+leaves the browser until it is confirmed, which is asserted rather than assumed.
+
+The same shape, for the same reason, as discarding an offline capture.
+
+**Long filenames wrap; they never truncate.** The extension is the part that says
+what the file is, and an ellipsis eats it. The row is a two-column grid that
+becomes three at 45rem, so on a phone the actions take the full width beneath the
+name and each stays a thumb-sized target.
+
+### One polite live region
+
+`role="status" aria-live="polite"`, holding **one sentence at a time** —
+"Uploading receipt.pdf", "receipt.pdf attached", "receipt.pdf could not be
+removed". Rendered unconditionally so it exists before it has anything to say: a
+live region created at the moment of its first message is one assistive
+technology has not been watching. Polite rather than assertive, because an upload
+is not an interruption.
+
+### What the surface never does
+
+No drag-and-drop dropzone (there is no keyboard equivalent to a drop, and
+DHDS-11's gate refuses a gesture without one). No rename, no reorder, no folders,
+no versions, no gallery. No file on a collection row and nothing on Today —
+evidence belongs on the record.

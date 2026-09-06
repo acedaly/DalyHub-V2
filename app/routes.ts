@@ -104,6 +104,22 @@ export default [
   // (list/search/summary via GET, link/unlink via POST) every record's Linked
   // Items section uses, so no module needs bespoke link routes. Renders no shell.
   route("links", "routes/links.ts"),
+  // V2.11 FILE-00 — the ONE attachment surface. `POST /attachments` uploads and
+  // `GET /attachments?owner=…` lists; `/attachments/:attachmentId` downloads
+  // (GET) and deletes (POST); `/attachments/:attachmentId/preview` is the only
+  // route in DalyHub that serves an uploaded byte inline, and it does so for
+  // raster images only. Resource routes like `/links` above: every record type
+  // that carries evidence posts here, so there is no per-module upload path and
+  // no second place the size bound, the type allow-list, the workspace predicate
+  // or the compensation ordering could drift. They render no shell, so they stay
+  // OUTSIDE the app-shell layout and behind the Worker's auth boundary.
+  //
+  // `/attachments/:attachmentId` and `/attachments/:attachmentId/preview` differ
+  // in segment count, so neither can shadow the other and declaration order is
+  // not load-bearing here.
+  route("attachments", "routes/attachments.ts"),
+  route("attachments/:attachmentId", "routes/attachment.ts"),
+  route("attachments/:attachmentId/preview", "routes/attachment-preview.ts"),
   // CAPTURE-01 — the ONE external capture endpoint. A POST-only JSON resource
   // route authenticated by a scoped capture token rather than by Cloudflare
   // Access, so an Apple Shortcut, Siri or the Share Sheet can reach it from a

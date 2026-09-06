@@ -51,6 +51,7 @@ import {
   type AssetRepository,
   type ObligationTaskGateway,
 } from "~/kernel/assets";
+import type { AttachmentRepository } from "~/kernel/attachments";
 import type { ObligationRepository } from "~/kernel/obligations";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
@@ -114,6 +115,7 @@ import {
   createAppPreferencesRepository,
   createAreaRepository,
   createAssetHistoryRepository,
+  createAttachmentRepository,
   createObligationRepository,
   createAssetRepository,
   createAreaSettingsRepository,
@@ -157,6 +159,21 @@ import { createConfiguredWorkspaceContextResolver } from "./configured-context-r
 export interface WorkspaceScopeEnv {
   readonly DB: D1Database;
   readonly DEFAULT_WORKSPACE_ID?: string;
+  /**
+   * V2.11 FILE-00 — the private attachment bucket.
+   *
+   * OPTIONAL on purpose, and it is not the same kind of optionality as
+   * `DEFAULT_WORKSPACE_ID`. The binding is declared in the local wrangler config
+   * and in the named production environment, but a deployment built from an
+   * older config, or a test harness that has not declared it, legitimately has
+   * none — so the attachment routes answer an honest 503 ("file storage isn't
+   * configured for this deployment") and every other route is unaffected. This
+   * is the shape the optional `BACKUP_SERVICE` binding already uses.
+   *
+   * It is read HERE and nowhere else: no module, route or repository resolves a
+   * binding of its own (ADR-010).
+   */
+  readonly ATTACHMENTS?: R2Bucket;
 }
 
 /**
@@ -312,6 +329,17 @@ export interface WorkspaceScope {
    * them (ADR-116 decision 1).
    */
   readonly obligations: ObligationRepository;
+  /**
+   * V2.11 FILE-00 — the ONE attachment metadata store, for every record type
+   * that carries evidence.
+   *
+   * Metadata only. The BYTES live in the private R2 bucket behind
+   * `AttachmentObjectStore`, resolved separately (`app/platform/attachments`),
+   * because one of the two stores can be absent while the other is not — and
+   * pretending otherwise would make an unconfigured deployment a crash instead
+   * of a message.
+   */
+  readonly attachments: AttachmentRepository;
   readonly reviews: ReviewRepository;
   readonly projectSettings: ProjectSettingsRepository;
   /**
@@ -709,6 +737,16 @@ export function bindWorkspaceRepositories(
       ),
     ownerTimeZone,
   });
+  /*
+   * V2.11 FILE-00 — the attachment metadata store. It carries the same trusted
+   * actor every mutation repository does, because it appends its own Activity
+   * (`attachment.added` / `attachment.removed`) atomically with the row, and
+   * because the uploader recorded on a row is that actor's subject rather than
+   * anything a caller passed.
+   */
+  const attachments = createAttachmentRepository(env.DB, context, {
+    actorContext,
+  });
   const reviews = createReviewRepository(env.DB, context, { actorContext });
   const projectHealth = createProjectHealthRepository(env.DB, context);
   const relationships = createRelationshipRepository(env.DB, context);
@@ -806,6 +844,7 @@ export function bindWorkspaceRepositories(
     assets,
     assetHistory,
     obligations,
+    attachments,
     reviews,
     projectHealth,
     relationships,

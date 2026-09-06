@@ -64,6 +64,7 @@ describe("ProjectOverview", () => {
         onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
+        evidenceTab={<div>Evidence content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -110,6 +111,7 @@ describe("ProjectOverview", () => {
         onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
+        evidenceTab={<div>Evidence content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -137,6 +139,7 @@ describe("ProjectOverview", () => {
         onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
+        evidenceTab={<div>Evidence content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -162,6 +165,7 @@ describe("ProjectOverview", () => {
         onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
+        evidenceTab={<div>Evidence content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -185,6 +189,7 @@ describe("ProjectOverview", () => {
         onRename={async () => ({ ok: true }) as const}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
+        evidenceTab={<div>Evidence content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -207,6 +212,7 @@ describe("ProjectOverview", () => {
         onRename={onRename}
         tasksTab={<div>tasks-content</div>}
         knowledgeTab={<div>Knowledge content</div>}
+        evidenceTab={<div>Evidence content</div>}
         linksTab={<div>links-content</div>}
         activityTab={<div>activity-content</div>}
         settingsTab={<div>settings-content</div>}
@@ -222,6 +228,9 @@ describe("ProjectOverview", () => {
       "Tasks",
       "Knowledge",
       "Linked",
+      // V2.11 FILE-01 — the shared Evidence tab, before Activity and Settings
+      // (DESIGN_SYSTEM.md -> Tabs: those two always sit last, in that order).
+      "Evidence",
       "Activity",
       "Settings",
     ]);
@@ -267,6 +276,7 @@ describe("ProjectOverview", () => {
           onRename={async () => ({ ok: true }) as const}
           tasksTab={<div>tasks-content</div>}
           knowledgeTab={<div>Knowledge content</div>}
+          evidenceTab={<div>Evidence content</div>}
           linksTab={<div>links-content</div>}
           activityTab={<div>activity-content</div>}
           settingsTab={<div>settings-content</div>}
@@ -325,6 +335,7 @@ describe("ProjectOverview", () => {
             onRename={async () => ({ ok: true }) as const}
             tasksTab={<div>tasks-content</div>}
             knowledgeTab={<div>Knowledge content</div>}
+            evidenceTab={<div>Evidence content</div>}
             linksTab={<div>links-content</div>}
             activityTab={<div>activity-content</div>}
             settingsTab={<div>settings-content</div>}
@@ -355,6 +366,7 @@ describe("ProjectOverview", () => {
           onRename={async () => ({ ok: true }) as const}
           tasksTab={<div>tasks-content</div>}
           knowledgeTab={<div>Knowledge content</div>}
+          evidenceTab={<div>Evidence content</div>}
           linksTab={<div>links-content</div>}
           activityTab={<div>activity-content</div>}
           settingsTab={<div>settings-content</div>}
@@ -382,6 +394,7 @@ describe("ProjectOverview", () => {
         "Tasks",
         "Knowledge",
         "Linked",
+        "Evidence",
         "Activity",
         "Settings",
       ]);
@@ -406,6 +419,7 @@ describe("ProjectOverview", () => {
           onRename={async () => ({ ok: true }) as const}
           tasksTab={<div>tasks-content</div>}
           knowledgeTab={<div>Knowledge content</div>}
+          evidenceTab={<div>Evidence content</div>}
           linksTab={<div>links-content</div>}
           activityTab={<div>activity-content</div>}
           settingsTab={<div>settings-content</div>}

@@ -811,6 +811,46 @@ export interface SnapshotObligation {
   readonly deletedAt: IsoInstant | null;
 }
 
+/**
+ * One attachment's METADATA (V2.11 FILE-00).
+ *
+ * The bytes are NOT here. They travel as their own archive entries under
+ * `attachments/<id>`, and this row is what makes each of them identifiable,
+ * verifiable and re-attachable — see `EXPORT_AND_PORTABILITY.md`.
+ *
+ * ## What is deliberately absent, and why it matters more here than elsewhere
+ *
+ * There is no `storageKey`. An archive must be restorable into a DIFFERENT
+ * environment, and an object key is the exporting deployment's own storage
+ * layout: carrying it would either be ignored (noise) or honoured (a restore
+ * that depends on the shape of the bucket it came from). The key is DERIVED on
+ * restore, from the workspace being restored into and the attachment's own id —
+ * which is exactly why the id travels and the key does not.
+ *
+ * `checksumSha256` DOES travel, and it is the load-bearing field: it is checked
+ * against the archived bytes before they are written and handed to the object
+ * store so the store checks them again. A restore that could not tell a
+ * corrupted file from a good one would be a restore that quietly returns
+ * damaged evidence.
+ *
+ * `uploadOperationId` travels because it is a UNIQUE column: omitting it would
+ * make a restore invent one, and two restores of the same archive would then
+ * produce rows that are not the same rows.
+ */
+export interface SnapshotAttachment {
+  readonly id: string;
+  /** The record this evidence belongs to. Never null — an attachment has an owner. */
+  readonly ownerEntityId: string;
+  readonly filename: string;
+  readonly mediaType: string;
+  readonly byteSize: number;
+  /** Lowercase hex SHA-256 of the archived bytes. Verified on restore. */
+  readonly checksumSha256: string;
+  readonly uploadOperationId: string;
+  readonly uploadedBy: string | null;
+  readonly createdAt: IsoInstant;
+}
+
 /** Review-owned state (REVIEWS-01): period, template and completion. */
 export interface SnapshotReviewDetail {
   readonly entityId: string;
@@ -1008,6 +1048,7 @@ export interface SnapshotCollectionRowMap {
   readonly assetEvents: SnapshotAssetEvent;
   readonly assetObligations: SnapshotAssetObligation;
   readonly obligations: SnapshotObligation;
+  readonly attachments: SnapshotAttachment;
   readonly reviewDetails: SnapshotReviewDetail;
   readonly reviewSections: SnapshotReviewSection;
   readonly reviewWorkflowState: SnapshotReviewWorkflowState;
@@ -1115,6 +1156,12 @@ export const SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS: readonly SnapshotCollection[
      */
     "workspaceTags",
     "entityTags",
+    /*
+     * V2.11 FILE-00 — added with the attachment store. Every archive written
+     * before it is still valid and still restores, with no files, which is the
+     * truth about those archives rather than a compatibility shim.
+     */
+    "attachments",
   ];
 
 export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
@@ -1161,6 +1208,12 @@ export const SNAPSHOT_COLLECTION_ORDER: readonly SnapshotCollection[] = [
   "assetEvents",
   "assetObligations",
   "obligations",
+  // V2.11 FILE-00 — after every collection that can OWN evidence, because an
+  // attachment references an entity of any type and a restore inserts in this
+  // order and deletes in its exact reverse. `entities` is the only table it
+  // actually points at, so this position is conservative rather than required —
+  // and conservative is the right kind of wrong for an ON DELETE RESTRICT key.
+  "attachments",
   "reviewDetails",
   "reviewSections",
   "reviewWorkflowState",

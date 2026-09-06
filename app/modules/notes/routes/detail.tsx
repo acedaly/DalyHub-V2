@@ -30,6 +30,7 @@ import {
 } from "~/platform/entity-links/note-references";
 import { renderMarkdownSource } from "~/platform/markdown";
 import { readAiAvailability } from "~/platform/ai";
+import { loadRecordAttachments } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -41,6 +42,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { AiExtractionSurface } from "~/shared/ai";
+import { AttachmentsSection } from "~/shared/attachments";
 import { LinkedItemsTab } from "~/shared/linked-items";
 import type { ReferencePage } from "~/shared/references";
 
@@ -144,6 +146,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     printHtml,
     rail: rail ? rail.items.map(serializeNoteListItem) : [],
     railHasMore: rail?.hasMore ?? false,
+    // V2.11 FILE-01 — a file a Note carries. Never parsed into the Note.
+    attachments: await loadRecordAttachments(scope, entity.id),
   };
 }
 
@@ -204,11 +208,12 @@ function TagsDrawerHost({
  */
 function parseTab(
   value: string | null,
-): "note" | "backlinks" | "linked" | "ai" | "activity" {
+): "note" | "backlinks" | "linked" | "ai" | "evidence" | "activity" {
   return value === "activity" ||
     value === "linked" ||
     value === "backlinks" ||
-    value === "ai"
+    value === "ai" ||
+    value === "evidence"
     ? value
     : "note";
 }
@@ -312,6 +317,16 @@ function NoteDetail(props: Awaited<ReturnType<typeof loader>>) {
               }}
             />
           }
+        />
+      }
+      evidenceTab={
+        <AttachmentsSection
+          ownerEntityId={props.overview.id}
+          attachments={props.attachments}
+          readOnly={props.details.archivedAt !== null}
+          heading="Files"
+          description="A scan, a photo or a document this note is about."
+          onChanged={() => revalidator.revalidate()}
         />
       }
       aiTab={

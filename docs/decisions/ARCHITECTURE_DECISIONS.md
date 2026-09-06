@@ -6369,3 +6369,356 @@ The programme this decision defines is [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2
   boundaries above). *An `appointment` category* (rejected in the roadmap, and
   recorded here because it is a domain boundary: a booked appointment is a
   Meeting or a calendar event, and an unbooked one is already expressible).
+
+---
+
+## ADR-119: EVIDENCE — an attachment is a CHILD RECORD with one required owner, bytes in a private bucket the application Worker owns, a compensated write, and an archive that carries the bytes
+
+**Status.** Accepted, 2026-09-06 (V2.11 EVIDENCE definition pass, against `main`
+at `80003cc`).
+
+**Context.** V2.10 gave every recurring obligation a record, and the record still
+has nowhere to hold the PDF that proves it. The same is true of an Asset's
+receipt, a Meeting's agenda and a Note's scan.
+[`ROADMAP_V2_9.md`](../roadmap/ROADMAP_V2_9.md#v211--evidence-planned) predicted
+an `attachment` entity linked by EntityLink. Re-measuring `main` before
+implementing it — the V2.6 convention — changed the model and three of the four
+bounds. This ADR records only what the roadmap could not: the durable decisions,
+and the alternatives they beat.
+
+### Decision 1 — An attachment is a child record with ONE REQUIRED owner, not an entity and not an EntityLink
+
+`attachments` is a table keyed by `(workspace_id, id)` carrying a `NOT NULL`
+`owner_entity_id` behind a composite foreign key into
+`entities (workspace_id, id)` with `ON DELETE RESTRICT`. It is not a row in
+`entities`, it has no title of its own, no record route, no identity colour, no
+Search exposure and no Activity subjecthood.
+
+The sketch's own acceptance criterion is the argument against the sketch's model:
+*an attachment must require an owner, and DalyHub is not building an orphan file
+library.* **An EntityLink cannot express a requirement.** Links are created,
+unlinked and restored freely by design (`entity-link.ts`), nothing anywhere
+demands that one exist, and a soft-deleted link leaves an attachment whose bytes
+are reachable and whose owner is not. A `NOT NULL` composite key can express it,
+the database enforces it on every write, and the `RESTRICT` gives the second
+property for free: any permanent purge of a record is *forced* to clear its
+evidence first, rather than being allowed to leave bytes behind. That is
+`task_checklist_items`' own stated reason
+([`0045`](../../migrations/0045_create_task_checklist_items.sql)), and it applies
+here with more force, because a checklist orphan costs a row and an attachment
+orphan costs a byte nobody can find.
+
+`entities` already carries `UNIQUE (workspace_id, id)`
+([`0003`](../../migrations/0003_create_entity_links.sql)), so an owner of **any**
+type is one composite key rather than one key per type. Finance's transaction is
+already specified as a light entity so it can carry a receipt; it is exactly what
+this key references, and V2.12 invents nothing.
+
+*Alternatives considered.* **The sketch's `attachment` entity + EntityLink**
+(rejected above: no required owner, and five kernel properties an attachment must
+not have). **An entity plus a NOT NULL owner column** (rejected: the entity row
+then exists only to be excluded from Search, from the record router, from the
+identity palette and from the Activity subject vocabulary — four exclusions to
+buy nothing, and every one of them is a place a later change forgets). **A
+per-domain foreign key — `obligation_id`, `asset_id`, `meeting_id`** (rejected:
+this is the second-architecture failure the release exists to prevent, and it
+makes every new consumer a migration). **A many-to-many link table** (rejected in
+decision 2).
+
+### Decision 2 — Exactly one owner. Multi-linking and deduplication are both refused, on purpose
+
+An attachment belongs to one record. The same file on two records is two
+attachments, two objects, two rows and two checksums.
+
+Multi-owner is what makes deletion undecidable: "delete this file" becomes "delete
+this reference, and the file if it was the last one", which needs a reference
+count, a sweep for attachments whose last owner went away, and a rule for what a
+workspace purge does with a half-referenced object. That is a second lifecycle
+system, and it is bought for a case no one has asked for. The simplest model that
+covers the legitimate use wins, and the legitimate use is *the paper lives with
+the thing*.
+
+Deduplication by content hash is refused for the same reason, one step further
+on: it would make one owner's delete silently a no-op for another owner's file.
+**The checksum is evidence, not identity** — it exists so a restore can prove the
+bytes came back, and so corruption is detected. It is deliberately not a key.
+
+### Decision 3 — Bytes live in a private bucket the APPLICATION Worker owns, and the backup bucket stays separate
+
+`wrangler.jsonc` says the application Worker "deliberately has NO R2 binding and
+NO D1-export token". That statement is about the **backups** bucket, and the
+reason it gives — a Worker that serves the owner's requests must not hold the
+credential that protects the backups — is unaffected by this decision. V2.11
+binds a **different** bucket, `ATTACHMENTS`, holding the owner's live evidence
+rather than the recovery copies of it, and the comment is amended to say which
+bucket the prohibition is about rather than being contradicted.
+
+The two stay separate. A single bucket would put the live data and its backups in
+one blast radius, which is the whole argument BACKUP-01 made for a separate
+Worker, applied to storage.
+
+There is no public bucket, no public object URL, no signed URL, and no
+unauthenticated path. Every byte leaves through an authenticated DalyHub route
+that re-derives the object key from a row it just read under a workspace
+predicate.
+
+*Alternatives considered.* **Reusing `dalyhub-v2-backups`** (rejected above).
+**Presigned URLs to let the browser upload directly** (rejected: it moves the
+size, type and ownership checks to a place DalyHub does not control, and it
+creates a URL that is valid without a session — the one thing this release
+promises does not exist). **Storing bytes in D1** (rejected: D1 is not an object
+store, a 10 MiB blob in a row poisons every query plan that touches the table,
+and the export/restore path would still need to move it).
+
+### Decision 4 — The object key is derived from two application identifiers and nothing else
+
+```
+workspaces/<workspace-id>/attachments/<attachment-id>
+```
+
+No filename, no title, no owner-supplied string of any kind. Path traversal is
+therefore impossible **by construction** rather than by escaping: there is nothing
+in the key that a person can influence. It also means the key leaks nothing — an
+object listing discloses which workspace and how many, never what.
+
+The workspace prefix is load-bearing rather than decorative: it makes a
+workspace-scoped purge and a workspace-scoped audit one `list({ prefix })` call.
+The key is stored on the row as well as derivable from it, so a future change to
+the derivation rule cannot strand the objects written under the old one.
+
+*Alternatives considered.* **The filename as the key** (rejected: collisions,
+traversal, and a key that discloses the document's subject). **A content-hash key**
+(rejected: it is deduplication by another name — decision 2). **A flat
+`attachments/<id>`** (rejected: a workspace purge becomes a full scan and a join).
+
+### Decision 5 — Download is `attachment` by default; inline is a narrow, raster-image-only exception the CSP already forced
+
+DalyHub's own Content-Security-Policy sets `object-src 'none'`, `frame-src
+'none'` and `media-src 'none'`, so a PDF **cannot** be embedded in a DalyHub page
+at any price; `img-src 'self'` means a same-origin raster image can. The security
+question therefore has an answer before it is asked, and the product follows it
+rather than fighting it:
+
+- the download route always sends `Content-Disposition: attachment`;
+- a separate preview route sends `inline` **only** for `image/png`,
+  `image/jpeg`, `image/webp` and `image/gif`, and for nothing else, ever;
+- `text/html` and `image/svg+xml` are refused at upload, not merely forced to
+  download — both are active content on DalyHub's own origin and neither has a
+  legitimate use as evidence.
+
+Filenames reach the header through RFC 6266's two-part form: an ASCII-folded
+`filename="…"` with every quote, backslash and control character removed, plus
+`filename*=UTF-8''<percent-encoded>` for the real name. Header injection is
+impossible because a `\r` or `\n` never survives the fold, and the fold is a pure
+function with its own test rather than a regex at the call site.
+
+Every response inherits `X-Content-Type-Options: nosniff` and `Cache-Control:
+private, no-store` from the request boundary, which already forces both on every
+authenticated response.
+
+### Decision 6 — The write is COMPENSATED, not transactional, and the compensation is a ledger rather than a hope
+
+D1 and R2 share no transaction. The order is decided and the failure of each step
+is named:
+
+1. the request is bounded by `Content-Length` and by `File.size` **before** the
+   body is read into the isolate;
+2. the bytes are digested (SHA-256) and validated — size, declared type,
+   extension, leading signature;
+3. `R2.put(key, bytes, { sha256 })` — R2 verifies the digest server-side and
+   fails the write if the bytes do not match it;
+4. the D1 insert and its Activity event run in one `batch()`.
+
+If (4) fails, (3) is compensated immediately by `R2.delete(key)`. If **that**
+fails, the key is written to `attachment_object_purges` and swept. The ledger is
+the difference between "we tried to clean up" and "the system knows there is a
+byte to clean up": an orphan object is never invisible.
+
+Deletion runs the mirror image, and in this order for a reason: **the D1 row and
+its purge-ledger row are removed and inserted in one batch, and only then is the
+object deleted.** The failure this ordering prevents is the one that matters — an
+owner told a file is gone while its bytes remain — because after step one the
+bytes are unreachable through any DalyHub path and are already recorded as owed
+to the sweep. The opposite order would risk metadata pointing at bytes that are
+gone, which reads to the owner as a broken record rather than as a completed
+delete.
+
+**Idempotency is a database constraint, not a convention.** The client sends an
+`operationId` with an upload; `attachments` carries `UNIQUE (workspace_id,
+upload_operation_id)`. A retry loses the insert, the loser deletes its own
+freshly-written object, and the caller receives the attachment that already
+exists. A retry can therefore never produce two attachments, and the guarantee
+does not depend on the client behaving.
+
+### Decision 7 — Deletion of a record deletes its evidence; ARCHIVING does not
+
+Soft delete and archive are reversible states in DalyHub, and reversible states
+must not destroy bytes: a restored Asset with no receipts is a data loss dressed
+up as a lifecycle. Only a **permanent** delete removes attachments, and the
+`ON DELETE RESTRICT` key makes that structural — a purge path that forgets the
+evidence fails at the database rather than silently orphaning it.
+
+Restore's destructive cutover is the one place a whole workspace's objects become
+unreachable at once. Those keys are enqueued in the purge ledger inside the same
+transaction as the cutover, so a replaced workspace's bytes are owed to the sweep
+before the new rows are visible.
+
+### Decision 8 — The archive carries the BYTES, and an export that cannot read one FAILS
+
+The structured export gains one `attachments/<attachment-id>` entry per file and
+a manifest section giving each one's id, filename, media type, byte count,
+SHA-256 and archive path. **No R2 key appears in an archive**: a restore into a
+different environment must not depend on the exporter's storage layout.
+
+An export that cannot read an object does not omit the file and does not report
+success. This is the export contract's existing rule — "an omission is reported
+in `limitations` and in the manifest, never silently" — applied to the case where
+silence would be most expensive, and made stronger, because a backup missing a
+byte is not a backup. The standing exclusion `"File attachments: DalyHub stores
+none."` is retired in the same change, replaced by a positive claim
+(`contents.includesAttachmentFiles`) that an archive either makes or does not.
+
+Restore writes verified objects **before** the D1 cutover: a row that claims a
+file must never become visible before the file exists. Every byte is checked
+against the manifest digest before it is written and the same digest is handed to
+R2, so it is verified twice by two mechanisms. A mismatch rejects the restore
+whole, before anything is written.
+
+*Alternatives considered.* **A separate attachments archive** (rejected: two
+files to keep together is one file to lose, and the manifest would have to
+describe an archive it does not contain). **Metadata-only export with a note**
+(rejected: it is the "looks like a complete backup" failure the roadmap names).
+**Restoring rows first and objects after** (rejected above: broken evidence is
+visible immediately and the failure is silent).
+
+### Decision 9 — Attachments are outside AI, outside Search and outside Activity payloads, and each is asserted rather than described
+
+- **AI.** `EVIDENCE_KINDS` is a closed vocabulary and attachments are not in it.
+  Keeping bytes away from a model is therefore *not adding a kind*, and a test
+  asserts both halves — that the vocabulary names none, and that no AI retrieval
+  path reads the attachments table or the bucket. V3 may add a sanitising
+  extractor; V2.11 sends nothing.
+- **Search.** No attachment provider. Search's explicit-query boundary and its
+  unbidden-palette path share one provider set, so a filename indexed for the
+  first would appear in the second — and a filename is exactly the string
+  (`MRI results.pdf`) that must never surface in an empty-query recency list. The
+  record remains the search destination.
+- **Activity.** `attachment.added` / `attachment.removed` carry no filename, no
+  key, no checksum and no byte. The feed says "Added a file". This is the rule
+  Assets and Obligations already hold for amounts, applied to a string that is at
+  least as sensitive.
+
+### Decision 10 — The bounds are stated, and the ones NOT built are stated too
+
+10 MiB per file, 200 characters per filename, 50 attachments per record, 500
+attachments per archive; the existing 64 MiB write / 32 MiB read archive ceilings
+unchanged, so an oversized export reaches the honest 507 the route already
+carries. **No workspace storage quota is built**: DalyHub is one owner on one
+account, R2 has no wall to hit by surprise, and a limit nobody can reach is a
+settings page pretending to be a control. That is a deferral with a reason, and
+it is recorded as debt rather than left as an omission.
+
+### Decision 11 — A DOWNLOAD streams and verifies in O(1); an EXPORT buffers because it has to. The line between them is drawn by what each one must answer, not by preference
+
+Both paths could have been written the same way, and writing them the same way
+would have been wrong in one direction or the other.
+
+The **download** never holds the file. `R2ObjectBody.body` is a `ReadableStream`
+and `R2Object.checksums.sha256` returns the digest DalyHub supplied on the write
+— both verified against the pinned runtime types generated from
+workerd@1.20260714.1, not assumed from documentation. So the route compares 64
+characters against the D1 row, hands the body to the `Response`, and lets the
+platform copy bucket → socket. A 10 MiB download costs the isolate what a 10 KiB
+one costs. Verification is not traded away for it: an object whose recorded
+digest or size disagrees with its row is refused with `checksum_mismatch`, and a
+store that recorded no digest at all is refused rather than trusted, because an
+object written outside this service is exactly the thing the check exists to
+catch. The unread body is `cancel()`ed on that path rather than dropped — an
+abandoned R2 body is a held connection.
+
+The **upload** buffers, and cannot do otherwise. The SHA-256 must be known
+before the `put`, because R2 verifying the digest is the guarantee the whole
+integrity story rests on; computing it requires reading the file, so the file is
+in memory either way. Streaming to R2 without a digest and reading back what R2
+computed would trade a write-time check for a read-time hope. It is bounded by
+the 10 MiB per-file limit, which is checked **twice** before a byte is read:
+against the declared `Content-Length`, and against the parsed `File.size`.
+
+The **export** and the **restore** buffer for the same kind of reason: an
+archive that carries a file must hash it to write `CHECKSUMS.txt`, and an
+archive being read must hash what came out to prove it survived. Neither
+question can be answered without the bytes. Both are bounded by the archive
+ceilings that already existed (64 MiB writing, 32 MiB reading), which is why
+those numbers did not move.
+
+No custom streaming infrastructure was invented anywhere. The one place the
+platform offers a stream that answers the question being asked, it is used; the
+places it does not, buffering is the honest implementation and the bound is the
+control.
+
+**Measured.** One record's evidence is **1 prepared statement** however many
+files it holds; N records' evidence is **1** statement however many records; a
+record page loader gains exactly that one statement. The workspace snapshot
+moves from **39 to 40** statements — one more collection — and is flat with
+respect to how many files exist, because the snapshot reads metadata and never a
+byte. All three are asserted over real D1, not estimated.
+
+### Decision 12 — The bounds are enforced where a RACE cannot step around them, and the one unrecoverable action is confirmed
+
+Three findings from the first review of this release, and each is the same
+mistake in a different place: a rule stated in the layer that is easiest to walk
+past.
+
+**The per-record bound was a count-then-write.** Two uploads from two tabs
+against a record holding 49 files could both read 49, both pass the service
+check, and both commit. Fifty-one rows, on a record whose read is capped at
+fifty, so the overflow file was invisible in the interface while its object sat
+in the bucket for ever. The bound now lives in the INSERT — `SELECT … WHERE
+(SELECT COUNT(*) …) < 50` — so the count and the write are one act and the second
+writer loses. The service check stays because it runs before a byte is read and
+it is what produces the sentence naming the limit; the database is what makes
+that sentence true.
+
+**`Content-Length` was compared with the FILE bound.** It is not the file's size;
+it is the whole multipart body. A file at exactly the advertised maximum was
+therefore refused, with a sentence saying it was too large — a limit the product
+does not have, stated as one it does, and nothing the owner could act on. The
+header check now bounds the ENVELOPE (the file bound plus 16 KiB) and the exact
+limit is applied to `File.size`, which is the only value that is actually the
+file.
+
+**A staged restore could purge LIVE objects.** Keys are derived and final, so
+restoring an archive back into the workspace it came from stages bytes under the
+keys of attachments that are still live. The write is harmless — same id, same
+immutable file, digest-verified — but queueing every staged key on an
+abandonment path meant that previewing yesterday's export and then CANCELLING
+queued the live objects those ids name, and the sweep deleted the owner's real
+evidence. Each key is now checked against the live table before it is queued.
+Checked one at a time rather than against a bulk listing, because `listAll` is
+capped at the per-archive limit and a workspace above that cap would have live
+rows missing from the set — the same deletion by a different route.
+
+**And removal is confirmed.** `AGENTS.md` prefers undo over confirmation
+dialogs, and here there is no undo to prefer: the row is hard-deleted and the
+bytes are purged, deliberately (decision 7). A client-held undo window was the
+alternative and is worse for the same reason — close the tab inside the window
+and the file the owner watched disappear is still there. So the fallback the rule
+leaves open applies: the shared confirmation dialog, naming the file, saying it
+cannot be undone, with nothing leaving the browser until it is confirmed.
+
+What these have in common is worth stating, because it is the reviewable
+generalisation: **a bound belongs in the layer that cannot be raced, and a
+sentence about a limit must describe the limit that actually exists.**
+
+**Consequences.** *Good:* one primitive every domain reuses, with the required
+owner enforced by the database rather than by review; no orphan object that the
+system cannot name; a restore that moves real bytes and proves it; Finance
+inherits a receipt mechanism it does not have to design; the read path that runs
+most often is the one that allocates least. *Hard:* two physical
+stores now have to agree, which is a class of bug D1 alone did not have, and
+every failure path between them had to be named rather than assumed; the
+restore reader's entry allow-list becomes a prefix rule rather than an exact set,
+which is a genuine loosening and is bounded and tested as one. *Accepted:* live
+attachment bytes and every copy of them are inside Cloudflare, so a
+provider-level loss is a correlated loss — DEBT-198 is not moved and not
+pretended to be satisfied, and the documentation says so in those words.

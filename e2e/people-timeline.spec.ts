@@ -185,10 +185,12 @@ test.describe("PEOPLE-02 — the unified relationship timeline", () => {
     await createPerson(page, name);
 
     // The record tabs are reachable and operable from the keyboard alone.
-    // Summary → Contact → Linked → Notes → Activity (PX-06 tab vocabulary:
-    // Activity and Settings sit last, in that order, on every record).
+    // Summary → Contact → Linked → Notes → Evidence → Activity (PX-06 tab
+    // vocabulary: Activity and Settings sit last, in that order, on every
+    // record; V2.11 EVIDENCE puts the shared attachment surface immediately
+    // before them, so the walk is FIVE presses rather than four).
     await page.getByRole("tab", { name: "Summary" }).focus();
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       await page.keyboard.press("ArrowRight");
     }
     await expect(page.getByRole("tab", { name: "Activity" })).toBeFocused();

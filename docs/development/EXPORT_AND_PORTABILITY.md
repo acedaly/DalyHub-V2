@@ -513,7 +513,35 @@ These are real and recorded rather than hidden.
   recoverable in a minute; one that silently restores a consent is not. Re-set
   them from Settings after a restore. Every other `owner` field — the app
   preferences and the saved Tasks views — is carried.
-- **No attachments.** DalyHub stores none yet.
+- **Attachments ARE exported, bytes and all, from V2.11 (FILE-02).** This bullet
+  said "No attachments. DalyHub stores none yet." until the release that made it
+  false. The structured archive carries one `attachments/<attachment-id>` entry
+  per file plus an `attachments` section in `manifest.json` naming each one's
+  id, filename, media type, byte count, SHA-256 and archive path; the snapshot
+  carries the metadata in `records.attachments`. The Obsidian vault carries the
+  same files under `Files/<folder>/<record>/<the owner's own filename>`, linked
+  from each record's Markdown by a relative path.
+
+  Three properties are worth stating because they are what make the archive
+  portable and trustworthy:
+
+  1. **No R2 key appears in an archive** — not in a path, not in the manifest,
+     not in the snapshot. A key is the exporting deployment's own bucket layout,
+     and an archive must restore into an environment whose layout is nothing
+     like it. The key is DERIVED on the way back in, from the workspace being
+     restored into and the attachment's own id.
+  2. **An export that cannot read a byte FAILS.** It does not omit the file and
+     report it in `limitations`, which is what the export contract does for
+     everything else: a missing record is a gap in an export, and a missing file
+     is a backup that will not restore. The archive is never produced.
+  3. **A restore verifies every file twice** — against the digest the snapshot
+     row carries, before anything is written, and again by the object store on
+     arrival. A mismatch, a wrong byte count, a file the snapshot does not list
+     or a listed file the archive does not carry each reject the whole restore.
+
+  An archive written BEFORE V2.11 carries no `attachments` collection and no
+  files, restores exactly as it always did, and still says in its own manifest
+  that DalyHub stores none — which was true when it was written.
 - **Task checklist items were exported and NOT restored, until 2026-08-19.**
   `task_checklist_items` had a snapshot collection and a restore destination but
   no `stageRows` branch, so every checklist item in an archive was written

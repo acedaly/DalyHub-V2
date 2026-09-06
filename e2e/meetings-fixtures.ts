@@ -42,6 +42,19 @@ function cleanupSql(titleLike: string): string {
   const taskSel = `SELECT id FROM entities WHERE workspace_id = ${ws} AND type = 'task' AND title LIKE ${like}`;
   const meetingSel = `SELECT id FROM entities WHERE workspace_id = ${ws} AND type = 'meeting' AND title LIKE ${like}`;
   return [
+    /*
+     * V2.11 FILE-01 — evidence first, and first for a reason the schema
+     * enforces: `attachments` holds a composite foreign key into `entities`
+     * with ON DELETE RESTRICT, so a Meeting or a follow-up Task still holding a
+     * file cannot be deleted at all. A journey that attaches something and
+     * fails before removing it would otherwise wedge every later sweep.
+     *
+     * The object bytes are not swept, and cannot be: the local bucket is
+     * Miniflare storage inside the dev server's process rather than a table.
+     * They are kilobytes in a throwaway store `wrangler dev` recreates, which
+     * beats handing an E2E fixture an R2 binding it could point anywhere.
+     */
+    `DELETE FROM attachments WHERE workspace_id = ${ws} AND (owner_entity_id IN (${meetingSel}) OR owner_entity_id IN (${taskSel}));`,
     // Follow-up mappings for these meetings (also cascades with meeting_details,
     // removed explicitly so a task-only match is still swept).
     `DELETE FROM meeting_item_tasks WHERE workspace_id = ${ws} AND (meeting_id IN (${meetingSel}) OR task_id IN (${taskSel}));`,

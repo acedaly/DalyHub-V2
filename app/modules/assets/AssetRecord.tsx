@@ -18,7 +18,9 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 
+import type { SerializedAttachment } from "~/kernel/attachments";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
+import { attachmentsTab } from "~/shared/attachments";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import {
@@ -67,6 +69,15 @@ interface AssetRecordProps {
   readonly events: readonly SerializedAssetEvent[];
   readonly eventsCursor: string | null;
   readonly eventsHasMore: boolean;
+  /**
+   * V2.11 FILE-01 — the receipt, the warranty, the service invoice, the photo.
+   *
+   * The shared Evidence tab, NOT a resurrected Asset-specific attachment
+   * concept: DEBT-35 has recorded "a later attachments story adds real object
+   * storage" since ASSET-01, and this is that story arriving as one primitive
+   * every record shares rather than as an Assets feature.
+   */
+  readonly attachments: readonly SerializedAttachment[];
   readonly onTabChange: (tabId: string) => void;
   /**
    * DS-16 — rename from the record heading (EDIT-02). Returns an outcome rather
@@ -116,6 +127,7 @@ const TONE_TO_RECORD: Record<
 export function AssetRecord({
   asset,
   names,
+  attachments,
   people,
   areas,
   today,
@@ -372,6 +384,17 @@ export function AssetRecord({
               />
             ),
           },
+          attachmentsTab({
+            ownerEntityId: asset.id,
+            attachments,
+            // An archived Asset is read-only everywhere else on this record, and
+            // its evidence is no different: still readable, still downloadable,
+            // no longer added to.
+            readOnly: asset.archived,
+            description:
+              "The receipt, the warranty, the service invoice or a photo of this one.",
+            onChanged: onSaved,
+          }),
           {
             id: "details",
             label: "Details",

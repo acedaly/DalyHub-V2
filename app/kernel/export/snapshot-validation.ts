@@ -169,6 +169,7 @@ export const SNAPSHOT_ORDER_KEYS: Readonly<
   assetEvents: (row: { id: string }) => row.id,
   assetObligations: (row: { id: string }) => row.id,
   obligations: (row: { entityId: string }) => row.entityId,
+  attachments: (row: { id: string }) => row.id,
   reviewDetails: (row: { entityId: string }) => row.entityId,
   reviewSections: (row: { reviewId: string; sectionId: string }) =>
     `${row.reviewId}\u0000${row.sectionId}`,
@@ -621,6 +622,40 @@ export function validateWorkspaceSnapshot(
     if (row.subjectEntityId !== null && !entityIds.has(row.subjectEntityId)) {
       c.add(
         `records.obligations[${index}].subjectEntityId`,
+        "references a record not in this snapshot",
+      );
+    }
+  });
+
+  /*
+   * V2.11 FILE-00 — an attachment's OWNER is a real composite foreign key, so a
+   * row naming an entity the archive does not contain would fail at insert
+   * time: halfway through a restore rather than before one. The other fields
+   * are checked here because they are what makes the archived BYTES usable —
+   * a malformed digest cannot verify a file, and a byte count that does not
+   * match is the difference between "restored" and "restored something".
+   */
+  records.attachments.forEach((row, index) => {
+    const path = `records.attachments[${index}]`;
+    requireNoUndefined(c, path, row as unknown as Record<string, unknown>);
+    requireNonEmptyString(c, `${path}.id`, row.id);
+    requireNonEmptyString(c, `${path}.filename`, row.filename);
+    requireNonEmptyString(c, `${path}.mediaType`, row.mediaType);
+    requireNonEmptyString(
+      c,
+      `${path}.uploadOperationId`,
+      row.uploadOperationId,
+    );
+    requireInstant(c, `${path}.createdAt`, row.createdAt);
+    if (!Number.isInteger(row.byteSize) || row.byteSize <= 0) {
+      c.add(`${path}.byteSize`, "must be a positive integer");
+    }
+    if (!/^[0-9a-f]{64}$/.test(String(row.checksumSha256))) {
+      c.add(`${path}.checksumSha256`, "must be a lowercase hex SHA-256 digest");
+    }
+    if (!entityIds.has(row.ownerEntityId)) {
+      c.add(
+        `${path}.ownerEntityId`,
         "references a record not in this snapshot",
       );
     }

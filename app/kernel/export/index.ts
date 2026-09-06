@@ -27,6 +27,7 @@ export {
   type SnapshotAssetDetail,
   type SnapshotAssetEvent,
   type SnapshotAssetObligation,
+  type SnapshotAttachment,
   type SnapshotObligation,
   type SnapshotCollection,
   type SnapshotCollectionRowMap,

@@ -40,7 +40,15 @@ export default defineConfig({
           // verifying the SHA-256 it is given and on `head()` returning the
           // custom metadata that was written, and a stub would happily agree
           // with whatever the code did. Never a remote bucket.
-          r2Buckets: ["BACKUPS"],
+          //
+          // V2.11 FILE-00 adds `ATTACHMENTS` for exactly the same reason. The
+          // attachment write path relies on R2 VERIFYING the SHA-256 it is
+          // given, on `delete` being idempotent, and on bytes coming back in
+          // the order they went in — three properties a hand-written stub would
+          // agree with whatever the code did. The pure logic has its own
+          // deterministic fake (`createInMemoryObjectStore`) and the same
+          // contract test runs against both, so they cannot drift.
+          r2Buckets: ["BACKUPS", "ATTACHMENTS"],
           durableObjects: {
             BACKUP_ADMISSION: "BackupAdmissionGate",
           },

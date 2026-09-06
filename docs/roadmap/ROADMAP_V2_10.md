@@ -24,9 +24,10 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: V2.10 LIFE ADMIN — COMPLETE, 2026-09-06.** All four items,
-LIFE-00 … LIFE-03, delivered in order (PRs #257, #259, #260, #264). The
-architecture was already decided by
+**Programme status: V2.10 LIFE ADMIN — COMPLETE 2026-09-05.** All four items,
+LIFE-00 … LIFE-03, are delivered (PR #257, #259, #260, #264); new work goes in
+[`ROADMAP_V2_11.md`](ROADMAP_V2_11.md). Defined 2026-09-05 with four items,
+LIFE-00 … LIFE-03. The architecture was already decided by
 [ADR-116 decision 1](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
 and this pass confirmed it against the code rather than restating it; the
 decisions it left open are
@@ -34,10 +35,10 @@ decisions it left open are
 What each item actually delivered is under its own heading below, including
 where the measurement that defined it turned out to be wrong.
 
-**Successor: V2.11 EVIDENCE, PLANNED** — see
-[`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v211--evidence-planned). Its own pass
-re-measures `main` at V2.10's merged tree, exactly as this file was defined
-against `57c4b19` rather than inherited.
+**Successor: V2.11 EVIDENCE, DEFINED 2026-09-06** — see
+[`ROADMAP_V2_11.md`](ROADMAP_V2_11.md), which is where new work goes. The
+PLANNED sketch it re-measured is in
+[`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v211--evidence-planned).
 
 **The completion pass (2026-09-06).** Four things worth carrying forward, none
 of which the definition anticipated.

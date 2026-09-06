@@ -38,12 +38,15 @@ import { SnapshotValidationError } from "~/kernel/export";
 import { actorKey, resolveActorIdentity } from "~/kernel/identity";
 import { buildInfo } from "~/lib/version";
 import {
+  AttachmentExportError,
   WorkspaceSnapshotUnavailableError,
   buildObsidianVaultArchive,
   buildStructuredExportArchive,
   buildWorkspaceSnapshot,
+  readAttachmentBytesForArchive,
   type ExportArchive,
 } from "~/platform/export";
+import { resolveAttachmentObjectStore } from "~/platform/attachments";
 import { ZipTooLargeError } from "~/platform/export";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -82,6 +85,17 @@ function failureMessage(error: unknown): { status: number; message: string } {
       status: 500,
       message:
         "The export was stopped because the snapshot failed its own integrity check. No file was produced — a partial export would be worse than none.",
+    };
+  }
+  if (error instanceof AttachmentExportError) {
+    return {
+      status: 500,
+      message:
+        error.reason === "too_many"
+          ? "This workspace has more attached files than a single archive can carry. Please report this — the export needs to be split."
+          : error.reason === "unavailable"
+            ? "This workspace has attached files and file storage isn’t configured for this deployment, so a complete export cannot be produced."
+            : "The export was stopped because one of your attached files could not be read, or did not match what DalyHub recorded for it. No file was produced — an export missing a file is not a backup.",
     };
   }
   if (error instanceof ZipTooLargeError) {
@@ -124,7 +138,25 @@ export async function loader({ params, context }: Route.LoaderArgs) {
       },
     });
     if (format === "full") {
-      archive = await buildStructuredExportArchive(snapshot);
+      /*
+       * V2.11 FILE-02 — the BYTES, read and verified before the archive is
+       * assembled.
+       *
+       * If any of them cannot be read, or does not match the digest recorded
+       * when it was uploaded, this THROWS and no archive is produced. That is
+       * the release's rule and it is deliberately harsher than the rest of the
+       * export contract, which reports what it could not do in `limitations`:
+       * a missing record is a gap in an export, and a missing file is a backup
+       * that will not restore.
+       */
+      archive = await buildStructuredExportArchive(
+        snapshot,
+        await readAttachmentBytesForArchive({
+          workspaceId: scope.context.workspaceId,
+          attachments: snapshot.records.attachments,
+          store: resolveAttachmentObjectStore(env),
+        }),
+      );
     } else {
       // IDENT-01: the vault is prose the owner reads in Obsidian, so its activity
       // lines carry the actor's NAME. Resolve every distinct actor in ONE bounded
@@ -136,15 +168,29 @@ export async function loader({ params, context }: Route.LoaderArgs) {
           id: activity.actorId,
         })),
       );
-      archive = await buildObsidianVaultArchive(snapshot, {
-        resolveActorName: (actorType, actorId) => {
-          const actor = { type: actorType, id: actorId };
-          return (
-            identities.get(actorKey(actor))?.displayName ??
-            resolveActorIdentity(actor, null).displayName
-          );
+      archive = await buildObsidianVaultArchive(
+        snapshot,
+        {
+          resolveActorName: (actorType, actorId) => {
+            const actor = { type: actorType, id: actorId };
+            return (
+              identities.get(actorKey(actor))?.displayName ??
+              resolveActorIdentity(actor, null).displayName
+            );
+          },
         },
-      });
+        /*
+         * V2.11 FILE-03 — the vault carries the files too, under the owner's
+         * own names. Read and verified by the SAME function the structured
+         * archive uses, so the two downloads can never disagree about which
+         * bytes a record's evidence is.
+         */
+        await readAttachmentBytesForArchive({
+          workspaceId: scope.context.workspaceId,
+          attachments: snapshot.records.attachments,
+          store: resolveAttachmentObjectStore(env),
+        }),
+      );
     }
   } catch (error) {
     // Keep a server-side trace: swallowing this entirely would leave a failed

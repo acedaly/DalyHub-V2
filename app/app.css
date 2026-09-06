@@ -175,6 +175,10 @@
    row it defines replaces the one that lived there, and the Asset record's
    Obligations tab now draws it. */
 @import "./styles/obligations.css";
+/* V2.11 FILE-01 — the shared Evidence surface. After the record-bearing module
+   stylesheets because every one of them renders it, and it belongs to the shared
+   component rather than to the first module that needed a file. */
+@import "./styles/attachments.css";
 @import "./styles/reviews.css";
 /* REVIEW-02/REVIEW-04 — the guided weekly Review and its phone stepper. After
  * reviews.css because it is the newer, narrower Review surface. */

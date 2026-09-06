@@ -36,6 +36,7 @@
  * foreign key in the schema without deferring constraint checks.
  */
 
+import { attachmentStorageKey } from "~/kernel/attachments";
 import {
   RETIRED_SNAPSHOT_COLLECTIONS,
   SNAPSHOT_COLLECTION_ORDER,
@@ -513,6 +514,27 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
       "deleted_at",
     ],
   },
+  /*
+   * V2.11 FILE-00 — the attachment metadata. `storage_key` is in the DESTINATION
+   * columns and not in the archive: it is derived in `stageRows` from the
+   * workspace being restored into. The BYTES are restored separately, to their
+   * final keys, BEFORE the cutover — see `restore-workspace.ts`.
+   */
+  attachments: {
+    table: "attachments",
+    columns: [
+      "id",
+      "owner_entity_id",
+      "filename",
+      "media_type",
+      "byte_size",
+      "checksum_sha256",
+      "storage_key",
+      "upload_operation_id",
+      "uploaded_by",
+      "created_at",
+    ],
+  },
   reviewDetails: {
     table: "review_details",
     columns: [
@@ -777,6 +799,16 @@ function stageRows(
   collection: string,
   snapshot: WorkspaceSnapshotV1,
   ownerId: string,
+  /*
+   * V2.11 FILE-00 — the workspace being restored INTO.
+   *
+   * One collection needs it: `attachments` carries no `storageKey` in an
+   * archive (it is the exporting deployment's own bucket layout), so the key is
+   * DERIVED here from this workspace and the attachment's own id. That is what
+   * makes an archive restorable into a different environment, and it is why the
+   * derivation is deterministic in the first place.
+   */
+  workspaceId: string,
 ): readonly Record<string, StagedValue>[] {
   switch (collection) {
     case OWNER_PREFERENCES: {
@@ -1276,6 +1308,25 @@ function stageRows(
           deleted_at: row.deletedAt,
         }),
       );
+    case "attachments":
+      return (rows as readonly SnapshotCollectionRowMap["attachments"][]).map(
+        (row) => ({
+          id: row.id,
+          owner_entity_id: row.ownerEntityId,
+          filename: row.filename,
+          media_type: row.mediaType,
+          byte_size: row.byteSize,
+          checksum_sha256: row.checksumSha256,
+          // Derived, never carried. See the descriptor above.
+          storage_key: attachmentStorageKey({
+            workspaceId,
+            attachmentId: row.id,
+          }),
+          upload_operation_id: row.uploadOperationId,
+          uploaded_by: row.uploadedBy,
+          created_at: row.createdAt,
+        }),
+      );
     case "reviewDetails":
       return (rows as readonly SnapshotCollectionRowMap["reviewDetails"][]).map(
         (row) => ({
@@ -1508,6 +1559,52 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
    * database forever. The workspace is already restored in that case — this only
    * reclaims the scratch space.
    */
+  /**
+   * V2.11 FILE-02 — the attachment ids one operation staged, or the ids every
+   * EXPIRED operation staged.
+   *
+   * Read out of the staged rows themselves rather than tracked separately: the
+   * staged row IS the record of what a restore intends to write, so there is
+   * nothing to keep in step. `json_extract` reads the `id` from the staged JSON
+   * payload, which is the same value the archive path and the object key are
+   * both derived from.
+   *
+   * The no-argument form deliberately matches the SAME predicate
+   * `purgeStaleOperations` uses to delete, so a caller asking this immediately
+   * before that call sees exactly what is about to be discarded.
+   */
+  async listStagedAttachmentIds(
+    operationId?: string,
+  ): Promise<readonly string[]> {
+    const statement =
+      operationId === undefined
+        ? this.#db
+            .prepare(
+              `SELECT json_extract(row_json, '$.id') AS id
+                 FROM workspace_restore_staged_rows
+                WHERE workspace_id = ?1
+                  AND collection = 'attachments'
+                  AND operation_id NOT IN (
+                        SELECT id FROM workspace_restore_operations
+                         WHERE workspace_id = ?1
+                           AND status IN ('staged', 'safety_backup_ready', 'safety_backed_up', 'applied')
+                      )`,
+            )
+            .bind(this.#workspaceId)
+        : this.#db
+            .prepare(
+              `SELECT json_extract(row_json, '$.id') AS id
+                 FROM workspace_restore_staged_rows
+                WHERE workspace_id = ? AND operation_id = ?
+                  AND collection = 'attachments'`,
+            )
+            .bind(this.#workspaceId, operationId);
+    const result = await statement.all<{ readonly id: string | null }>();
+    return (result.results ?? [])
+      .map((row) => row.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  }
+
   async purgeStaleOperations(): Promise<void> {
     const cutoff = new Date(
       this.#now().getTime() - RESTORE_OPERATION_TTL_MS,
@@ -1553,7 +1650,7 @@ export class D1WorkspaceRestoreRepository implements WorkspaceRestoreRepository 
     };
 
     for (const collection of STAGED_COLLECTIONS) {
-      const rows = stageRows(collection, snapshot, ownerId);
+      const rows = stageRows(collection, snapshot, ownerId, this.#workspaceId);
       for (
         let index = 0;
         index < rows.length;

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
-import { gotoFixture } from "./helpers";
+import { gotoFixture, openRecordTab } from "./helpers";
 
 /**
  * IDENT-01 — authenticated activity names the real user, end to end.
@@ -28,7 +28,9 @@ const ACTOR = "Local Developer";
  */
 async function openRecordActivity(page: Page, record: string) {
   await page.goto(record);
-  await page.getByRole("tab", { name: "Activity" }).click();
+  // Through the shared opener: at 320 px a six-tab record has Activity
+  // off-screen inside the scrolling strip, and a bare click is dropped.
+  await openRecordTab(page, "Activity");
   const feed = page.getByRole("feed").first();
   await expect(feed).toBeVisible();
   await expect(feed.getByRole("article").first()).toBeVisible({

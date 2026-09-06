@@ -371,9 +371,16 @@ describe("workspace export (D1)", () => {
     // the alternative (folding tags into each detail collection) would have cost
     // nothing here only by losing a vocabulary entry no record carries.
     //
+    // V2.11 FILE-00 adds ONE — the attachment metadata — for 40. It is one
+    // statement whether the workspace holds no files or five hundred, and it
+    // reads no BYTES at all: the archive assembler reads those from the object
+    // store, which is a different store with a different bound. Listing
+    // metadata is not downloading objects, and this number is where that stays
+    // true.
+    //
     // The second half of this test is what actually holds the bound, by proving
     // that twenty more records add none at all.
-    expect(statements).toBeLessThanOrEqual(39);
+    expect(statements).toBeLessThanOrEqual(40);
     expect(statements).toBeGreaterThan(20);
 
     // Growing the workspace must not grow the statement count while the data

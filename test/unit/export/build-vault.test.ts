@@ -364,7 +364,17 @@ describe("filename collisions", () => {
 
 describe("link integrity", () => {
   it("every internal link resolves to a file in the vault", () => {
-    const known = new Set(vault.files.map((entry) => entry.path));
+    /*
+     * V2.11 FILE-03 — the known set is the Markdown files PLUS the attachment
+     * placements. The builder is pure and holds no bytes, so it decides where
+     * each file goes and the archive assembler puts it there; `vault.attachments`
+     * is that decision, and a record's Evidence link points at one of them.
+     * Leaving them out would make this test assert that a working link is broken.
+     */
+    const known = new Set([
+      ...vault.files.map((entry) => entry.path),
+      ...vault.attachments.map((entry) => entry.path),
+    ]);
     const broken: string[] = [];
     for (const entry of vault.files) {
       for (const destination of linkDestinations(entry.contents)) {
