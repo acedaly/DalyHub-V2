@@ -711,14 +711,28 @@ export class D1FinanceRepository implements FinanceRepository {
   ): Promise<void> {
     const id = validateFinanceId(accountId, "accountId");
     const now = toStorageTimestamp(this.#clock());
-    await this.#db
+    const result = await this.#db
       .prepare(
         `UPDATE finance_account_details
             SET import_mapping_json = ?, updated_at = ?
-          WHERE workspace_id = ? AND entity_id = ? AND deleted_at IS NULL`,
+          WHERE workspace_id = ? AND entity_id = ? AND deleted_at IS NULL
+        RETURNING entity_id`,
       )
       .bind(serialiseCsvMapping(mapping), now, this.#workspaceId, id)
-      .run();
+      .first<{ entity_id: string }>();
+    /*
+     * An account this workspace cannot see is NOT FOUND, like every other method
+     * on this contract.
+     *
+     * It used to be a silent no-op: the `WHERE` is workspace-bound, so nothing
+     * was ever written to another workspace's row — but the caller was told the
+     * save had succeeded. Nothing leaked and nothing was corrupted, and it was
+     * still wrong: an owner whose mapping was quietly not saved would find out
+     * next month, when the import screen offered them the defaults again and
+     * they had no way to tell whether they had ever pressed the box. Found by
+     * `finance-isolation.test.ts` asking every action the same question.
+     */
+    if (result === null) throw new FinanceNotFoundError("account");
   }
 
   /* ----------------------------------------------------------- categories */
@@ -906,6 +920,27 @@ export class D1FinanceRepository implements FinanceRepository {
 
   async deleteCategory(categoryId: string): Promise<void> {
     const id = validateFinanceId(categoryId, "categoryId");
+    /*
+     * The category has to EXIST in this workspace before any of the rules below
+     * are considered.
+     *
+     * Without this, deleting a category that is not this workspace's — or one
+     * that never existed — reported success: the counts came back zero, the
+     * `DELETE` matched nothing, and the batch completed. Nothing leaked and
+     * nothing was corrupted, but a caller was told a delete had happened when
+     * it had not, which is the same class of defect `saveAccountMapping` had.
+     * Found by `finance-isolation.test.ts` asking every action the same
+     * question.
+     */
+    const existing = await this.#db
+      .prepare(
+        `SELECT 1 AS present FROM finance_categories
+          WHERE workspace_id = ? AND id = ?`,
+      )
+      .bind(this.#workspaceId, id)
+      .first<{ present: number }>();
+    if (existing === null) throw new FinanceNotFoundError("category");
+
     const used = await this.#db
       .prepare(
         `SELECT COUNT(*) AS n FROM finance_transaction_details
@@ -930,7 +965,6 @@ export class D1FinanceRepository implements FinanceRepository {
       )
       .bind(this.#workspaceId, id)
       .first<{ n: number }>();
-    const nowTs = toStorageTimestamp(this.#clock());
     const batch: D1PreparedStatement[] = [];
     if (Number(budgets?.n ?? 0) > 0) {
       // A budget for a category with no transactions is configuration, not
@@ -950,7 +984,6 @@ export class D1FinanceRepository implements FinanceRepository {
         )
         .bind(this.#workspaceId, id),
     );
-    void nowTs;
     try {
       await this.#db.batch(this.#withFault(batch));
     } catch (cause) {
