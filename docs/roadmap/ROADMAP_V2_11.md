@@ -225,13 +225,15 @@ that is possible, and tested.
 | Maximum filename length | **200 characters** | Long enough for any real document name; short enough that the vault's own `MAX_STEM_BYTES = 160` truncation is the only place a name is shortened. |
 | Attachments per record | **50** | A bound, not a budget. It exists so one record cannot turn its own loader into an unbounded read, and it is checked on write with the honest message. |
 | Archive attachment count | **500 per export** | The restore reader's entry cap moves from 32 to this plus the five document files. Above it the export **fails and says so**; it does not silently truncate. |
-| Total archive bytes | unchanged: `ZIP_MAX_TOTAL_BYTES = 64 MiB` writing, `RESTORE_MAX_ARCHIVE_BYTES = 32 MiB` reading | Unchanged deliberately. An export that exceeds it already raises `ZipTooLargeError` and the route already answers 507 with "this workspace is too large to export in a single archive. Please report this — the export needs to be split." That sentence becomes reachable for the first time, which is a truth improvement, not a regression. Splitting the archive is out of scope and recorded as debt if it is ever hit. |
+| Total archive bytes | unchanged: `ZIP_MAX_TOTAL_BYTES = 64 MiB` writing, `RESTORE_MAX_ARCHIVE_BYTES = 32 MiB` reading | Unchanged deliberately. An export that exceeds it already raises `ZipTooLargeError` and the route already answers 507 with "this workspace is too large to export in a single archive. Please report this — the export needs to be split." That sentence becomes reachable for the first time, which is a truth improvement, not a regression. Splitting the archive is out of scope. The two ceilings also DISAGREE — the writer's 64 MiB is twice the reader's 32 MiB — so DalyHub can produce an archive it will refuse to read, which four 10 MiB files reach. That was unreachable while an archive held only text; files make it reachable, so it is raised as [DEBT-247](../product/PRODUCT_DEBT.md#-debt-247--dalyhub-can-write-an-export-archive-it-will-refuse-to-read-back--p2) rather than left implied. |
 
 **No workspace storage quota is built.** DalyHub is one owner on one Cloudflare
 account, R2 bills per byte with no hard wall to be surprised by, and a quota
 surface that no one can exceed is a settings page pretending to be a control.
 The per-file bound and the per-record bound are the two that prevent an accident.
-This is a stated deferral, recorded as debt rather than as an omission.
+This is a stated deferral, recorded HERE rather than as a numbered debt entry —
+debt is raised from measured deficiencies, and "a control nobody can reach" is a
+decision, not a defect.
 
 ### Accepted media classes
 
@@ -527,7 +529,8 @@ reconciliation are both about work that has already happened.
 | [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) — Assets: deferred capabilities | **The attachments half is TAKEN by V2.11.** Real object storage, the record surface, export, backup and restore, and the phone picker and camera. OCR, barcode scanning, receipt/email ingestion, depreciation and subscription sync stay in the entry and stay refused for V2. The entry still closes empty. |
 | [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2) — no off-Cloudflare copy | **Not a V2.11 gate, and not moved.** It is V2.12 Finance's hard gate and it stays there. What V2.11 owes it is the truth: live attachment bytes and every copy of them are inside Cloudflare, so a provider-level loss is a correlated loss, and no document in this repository may claim otherwise. FILE-03 writes that sentence into the backup documentation. |
 | [DEBT-246](../product/PRODUCT_DEBT.md#-debt-246--the-notification-run-reads-one-bounded-page-so-a-crowded-workspace-can-starve-later-obligations--p3) — bounded attention read | **Not taken.** V2.11 does not touch the notification query path, and absorbing an unrelated defect because the PR is large is how a large PR becomes an unreviewable one. |
-| DEBT raised by this release | Only from measured deficiencies found during the work, recorded in FILE-03 with the measurement. No wishlist. |
+| [DEBT-247](../product/PRODUCT_DEBT.md#-debt-247--dalyhub-can-write-an-export-archive-it-will-refuse-to-read-back--p2) — an archive DalyHub writes and refuses to read | **RAISED by this release, and not fixed here.** The writer's ceiling is 64 MiB and the reader's is 32 MiB; that asymmetry predates V2.11 and was unreachable while an archive held only text. Four 9 MiB files reach it. Closing it is a change to the restore reader's memory budget with its own measurement, and absorbing it because this release made it visible is how a large PR becomes an unreviewable one. |
+| Other DEBT raised by this release | **None.** The falsification pass found four measured deficiencies — no same-name collision test, `CHECKSUMS.txt` enforced by nothing, a registry a plural noun walked past, and an `ON DELETE RESTRICT` assertion passing for the wrong reason — and all four were fixed in the release rather than recorded. No wishlist. |
 
 ---
 
