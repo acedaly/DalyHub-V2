@@ -129,6 +129,29 @@ The `MoneyField` ([`~/shared/forms`](../../app/shared/forms/index.ts)) is the on
 control for an amount: one label, one help line, one error slot, and the
 currency beside the amount rather than two sections away.
 
+## Today, and the digest
+
+One obligation needs the owner today whether it is about an Asset, a Person, or
+nothing at all — so Today's **Needs attention** rail carries the whole set, and
+the daily digest states the same fact in the same words.
+
+- **One row, not a second card.** Several obligations collapse into one *Life
+  admin* row pointing here; exactly one names itself and leads to its own
+  record.
+- **The subject leads where there is one.** "Ute — Renew registration: due in 14
+  days"; "Lodge the tax return: due in 9 days" where there is not.
+- **An open linked Task wins.** The obligation steps aside and the row SAYS so
+  ("1 tracked as a task") rather than dropping it. The moment the Task is
+  completed, cancelled or deleted, the obligation is back — which is exactly the
+  "you ticked the task, now record what actually happened" moment.
+- **Notifications** fire at three fixed rungs, 30 / 7 / 1 days, once each and
+  deduped forever by `obligation:<id>:<rung>`. No amount reaches any of them.
+
+None of this is a reminder engine, a second Today card, per-obligation
+notification settings, quiet hours or a time of day. See
+[`TODAY_DASHBOARD.md`](TODAY_DASHBOARD.md#obligations-on-today-asset-02-widened-by-v210-life-03)
+and [`NOTIFICATIONS.md`](NOTIFICATIONS.md).
+
 ## Search
 
 One provider, matching **title, category label and subject title** — nothing

@@ -82,14 +82,22 @@ export async function readDigestFacts(
     overdue,
     inboxCount: attention.inboxCount,
     waiting: attention.waiting,
-    assets: {
-      visibleCount: attention.assets.items.length,
+    obligations: {
+      /*
+       * The count BEFORE the row cap, not the number of rows Today draws.
+       * `dedupeAttention` slices to five because Today previews; a digest that
+       * read `items.length` would tell an owner with twelve obligations that
+       * five need attention, which is a smaller lie than it looks — it is the
+       * one number they act on.
+       */
+      visibleCount: attention.obligations.visibleCount,
       first:
-        attention.assets.items[0] === undefined
+        attention.obligations.items[0] === undefined
           ? null
           : {
-              assetTitle: attention.assets.items[0].assetTitle,
-              text: attention.assets.items[0].text,
+              title: attention.obligations.items[0].title,
+              subject: attention.obligations.items[0].subject,
+              text: attention.obligations.items[0].text,
             },
     },
     projects: attention.projects

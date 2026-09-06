@@ -347,7 +347,7 @@ describe("one seeded commitment reaches the filter, Today and the digest", () =>
     const rail = buildAttention({
       inboxCount: 0,
       waiting,
-      assets: { visibleCount: 0, trackedAsTasksCount: 0, first: null },
+      obligations: { visibleCount: 0, trackedAsTasksCount: 0, first: null },
       projects: [],
       goals: [],
     });

@@ -1058,16 +1058,16 @@ describe("the support rank", () => {
     ).toHaveAttribute("href", "/tasks?system=inbox");
   });
 
-  it("renders Asset obligations as ordinary attention rows", () => {
+  it("renders obligations as ordinary attention rows", () => {
     renderScreen(
       day({
         attention: [
           {
-            id: "asset",
-            kind: "asset",
+            id: "obligation",
+            kind: "obligation",
             label: "Hilux",
-            detail: "Registration expires tomorrow",
-            href: "/asset/a1?tab=obligations",
+            detail: "Registration renewal · Due in 1 day",
+            href: "/obligations/ob1",
           },
         ],
       }),
@@ -1075,10 +1075,10 @@ describe("the support rank", () => {
     const panel = attentionSection();
     expect(within(panel).getByRole("link", { name: "Hilux" })).toHaveAttribute(
       "href",
-      "/asset/a1?tab=obligations",
+      "/obligations/ob1",
     );
     expect(
-      within(panel).getByText("Registration expires tomorrow"),
+      within(panel).getByText("Registration renewal · Due in 1 day"),
     ).toBeInTheDocument();
   });
 

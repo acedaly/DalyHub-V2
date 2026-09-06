@@ -1,16 +1,15 @@
 /**
  * ASSET-02 — the presentation derivations: timeline projection, cost and value
- * formatting, the collection card signal, and the Today deduplication rule.
+ * formatting, and the collection card signal.
  *
- * The deduplication rule gets the most attention here, because it is the one that
- * decides whether Today states the same job twice. The rule is: an OPEN linked
- * Task wins, the obligation is suppressed, and the suppressed count is reported
- * so nothing vanishes silently.
+ * The Today deduplication rule left with the domain it belongs to in V2.10
+ * LIFE-03: an obligation's subject may be an Asset, a Person or nothing at all,
+ * so the rule is asserted in `test/unit/obligations/obligation-attention.test.ts`
+ * against the kernel that now owns it.
  */
 
 import { describe, expect, it } from "vitest";
 
-import { dedupeAttention, type AttentionInput } from "~/kernel/assets";
 import {
   formatHistoryDate,
   obligationSignal,
@@ -204,92 +203,5 @@ describe("obligationSignal", () => {
     expect(
       obligationSignal({ ...base, openCount: 1, overdueCount: 1 })?.text,
     ).toBe("1 obligation overdue");
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Today deduplication                                                        */
-/* -------------------------------------------------------------------------- */
-
-describe("dedupeAttention — the Today rule", () => {
-  const item = (
-    id: string,
-    overrides: Partial<AttentionInput> = {},
-  ): AttentionInput => ({
-    obligationId: id,
-    assetId: `asset-${id}`,
-    assetTitle: `Asset ${id}`,
-    assetType: "vehicle",
-    title: `Obligation ${id}`,
-    category: "registration",
-    state: "due",
-    text: "Due in 9 days",
-    hasOpenTask: false,
-    ...overrides,
-  });
-
-  it("shows obligations with no linked Task", () => {
-    const result = dedupeAttention([item("a"), item("b")]);
-    expect(result.items).toHaveLength(2);
-    expect(result.trackedAsTasksCount).toBe(0);
-  });
-
-  it("suppresses an obligation whose OPEN linked Task already carries it", () => {
-    const result = dedupeAttention([
-      item("a"),
-      item("b", { hasOpenTask: true }),
-    ]);
-    expect(result.items.map((i) => i.obligationId)).toEqual(["a"]);
-    // Suppressed, but STATED — nothing vanishes silently.
-    expect(result.trackedAsTasksCount).toBe(1);
-  });
-
-  it("brings the obligation back the moment its Task is closed", () => {
-    const withOpenTask = dedupeAttention([item("a", { hasOpenTask: true })]);
-    expect(withOpenTask.items).toHaveLength(0);
-    // Exactly the "you ticked the task, now record what happened" moment (§7).
-    const afterTaskDone = dedupeAttention([item("a", { hasOpenTask: false })]);
-    expect(afterTaskDone.items).toHaveLength(1);
-  });
-
-  it("orders overdue first, then due, then everything else", () => {
-    const result = dedupeAttention([
-      item("upcoming", { state: "upcoming" }),
-      item("due", { state: "due" }),
-      item("unknown", { state: "unknown" }),
-      item("overdue", { state: "overdue" }),
-    ]);
-    expect(result.items.map((i) => i.obligationId)).toEqual([
-      "overdue",
-      "due",
-      "unknown",
-      "upcoming",
-    ]);
-  });
-
-  it("caps the rows Today shows — it previews, it never lists", () => {
-    const many = Array.from({ length: 20 }, (_, index) =>
-      item(`o${index}`, { state: "overdue" }),
-    );
-    const result = dedupeAttention(many);
-    expect(result.items).toHaveLength(5);
-    // The overdue COUNT still reflects everything, not just what is shown.
-    expect(result.overdueCount).toBe(20);
-  });
-
-  it("labels each row with its state word and links to the obligation", () => {
-    const result = dedupeAttention([item("a", { state: "overdue" })]);
-    expect(result.items[0].stateLabel).toBe("Overdue");
-    expect(result.items[0].categoryLabel).toBe("Registration renewal");
-    expect(result.items[0].href).toBe("/asset/asset-a?tab=obligations");
-  });
-
-  it("counts overdue over VISIBLE items only, so a tracked one is not double-counted", () => {
-    const result = dedupeAttention([
-      item("a", { state: "overdue" }),
-      item("b", { state: "overdue", hasOpenTask: true }),
-    ]);
-    expect(result.overdueCount).toBe(1);
-    expect(result.trackedAsTasksCount).toBe(1);
   });
 });

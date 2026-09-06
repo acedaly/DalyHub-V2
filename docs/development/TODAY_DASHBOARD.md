@@ -202,8 +202,7 @@ preview rule's "today's tasks are never truncated" clause; see
 
 Focus holds **Tasks**: the work deliberately relevant today, and what has slipped.
 Needs attention holds **everything else that is exceptional** — the Inbox count,
-the Waiting count and age, Asset obligations not already represented by an open
-Task, Projects the shared health evaluator flags, Goals the shared alignment
+the Waiting count and age, obligations not already represented by an open Task, Projects the shared health evaluator flags, Goals the shared alignment
 evaluator flags. Overdue Tasks are BANNED from the rail (`attention-view.ts`), so
 no Task is ever a row in both places.
 
@@ -289,25 +288,34 @@ uses the canonical Tasks `inbox` system view grouped by parent, so Today,
 structural parent. A large Inbox may be visually bounded elsewhere, but Today's
 count is not.
 
-### Assets on Today (ASSET-02)
+### Obligations on Today (ASSET-02, widened by V2.10 LIFE-03)
 
-Restored by TODAY-09 (2026-08-09).
+Restored by TODAY-09 (2026-08-09); widened to every obligation on 2026-09-05.
 
-Today carries Asset obligations as a single **Needs attention** rail row, not as a
-dashboard widget. The row appears only when `AssetHistoryRepository.listAttention`
-finds obligations within the Assets attention horizon and the kernel
-`dedupeAttention` rule says at least one is **not** already represented by an open
-linked Task.
+Today carries obligations as a single **Needs attention** rail row, not as a
+dashboard widget. The row appears only when the obligation repository's bounded
+`listAttention` finds obligations inside the attention horizon and the kernel
+`dedupeAttention` rule says at least one is **not** already represented by an
+open linked Task.
+
+**Every obligation, whatever it is about.** Until V2.10 LIFE-03 the read filtered
+this set down to the ones with an Asset subject, because the row required an
+Asset title and an Asset href — so a tax return, which is the ordinary case the
+programme exists for, could not appear on the one surface an owner reads each
+morning. The row is the obligation's own now: it names its SUBJECT where there is
+one and ITSELF where there is not, and it leads to
+`/obligations/:id`, where the completion form is. Several at once collapse into
+one **Life admin** row pointing at `/obligations`.
 
 An open linked Task wins. If "Book mower service" is open and linked to the mower
-service obligation, the Task is the thing the owner acts on; Today does not show a
-second obligation row for the same job. If another obligation remains visible, the
-row states the suppressed count in words, such as "1 tracked as a task". If every
-due Asset obligation is already represented by an open Task, Assets does not add a
-rail row.
+service obligation, the Task is the thing the owner acts on; Today does not show
+a second obligation row for the same job. If another obligation remains visible,
+the row states the suppressed count in words, such as "1 tracked as a task". If
+every due obligation is already represented by an open Task, no rail row is
+added.
 
-The Assets repository owns the bounded read and the obligation evaluator owns the
-state text. Today only decides how to fit the already-deduplicated result into the
+The repository owns the bounded read and the obligation evaluator owns the state
+text. Today only decides how to fit the already-deduplicated result into the
 rail's five-row cap.
 
 ### "Continue working" is Active-only (PROJ-05 Slice 4, ADR-037 §37.7)

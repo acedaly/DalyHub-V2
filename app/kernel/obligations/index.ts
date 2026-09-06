@@ -52,6 +52,16 @@ export {
 } from "./obligation-category";
 
 export {
+  TODAY_OBLIGATION_ROWS,
+  dedupeAttention,
+  obligationAttentionHref,
+  type AttentionInput,
+  type AttentionSubject,
+  type ObligationAttentionData,
+  type SerializedAttentionItem,
+} from "./obligation-attention";
+
+export {
   OBLIGATION_STATE_LABELS,
   OBLIGATION_STATUSES,
   isObligationStatus,

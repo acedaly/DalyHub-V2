@@ -1,5 +1,25 @@
 # Changelog
 
+- **Today tells you about a tax return, not only about the ute.**
+
+  Today's "Needs attention" list carried obligations already, but only the ones
+  about an Asset — so the passport renewal and the tax return, the two things
+  the whole of Life Admin exists for, were invisible on the surface you actually
+  read each morning. Every obligation reaches it now (V2.10 LIFE-03).
+
+  The row names what it is about where there is something, and names itself
+  where there is not, and it finally says WHAT is due rather than only how long
+  you have. It takes you to the obligation, which is where the button that
+  records it as done lives. Several at once collapse into one Life admin row.
+
+  The daily digest and the heads-up before something falls due follow the same
+  rule and the same words. If you have already made a task for it, the
+  obligation steps aside and says so rather than showing you the same job twice.
+  No amount appears in a notification, ever — a lock screen is the one place you
+  cannot choose who is looking.
+
+  Notifications you have already had stay had. Nothing re-fires.
+
 - **Life Admin: everything with a date on it that is not a task.**
 
   A new place in the sidebar, under More. It lists your renewals, registrations,
