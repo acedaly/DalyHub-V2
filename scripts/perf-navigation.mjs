@@ -30,12 +30,13 @@
  * that is already signed in.
  *
  * ── Usage ─────────────────────────────────────────────────────────────────────
- *   pnpm run perf:navigation                       # localhost:5173, defaults
+ *   pnpm run perf:navigation                       # localhost:4173, defaults
  *   pnpm run perf:navigation -- --base=https://hub.daly.id.au --samples=10
  *   pnpm run perf:navigation -- --routes=/today,/tasks --json
  *
  * Options:
- *   --base=<url>       Origin to measure. Default http://localhost:5173.
+ *   --base=<url>       Origin to measure. Default http://localhost:4173 (the
+ *                      port `e2e/dev-server.ts` runs the development server on).
  *   --routes=a,b,c     Routes to measure. Default: the seven hot destinations.
  *   --samples=<n>      Samples per route (default 5). The first is reported
  *                      separately as the COLD sample and excluded from p50/p95.
@@ -60,7 +61,7 @@ const DEFAULT_ROUTES = [
 
 function parseArgs(argv) {
   const options = {
-    base: "http://localhost:5173",
+    base: "http://localhost:4173",
     routes: DEFAULT_ROUTES,
     samples: 5,
     json: false,
@@ -195,7 +196,20 @@ async function main() {
       status: cold.status,
       // Named honestly: a 3xx is Cloudflare Access answering, and the number is
       // then the network floor rather than an application measurement.
-      authenticated: cold.ok && !cold.redirected && cold.status === 200,
+      /*
+       * Three outcomes, kept apart on purpose. A run that could not CONNECT is
+       * not the same as one Cloudflare Access answered, and neither is the same
+       * as an application measurement — reporting all three as "not
+       * authenticated" is how an operator spends an afternoon looking for an
+       * auth problem that is a wrong port.
+       */
+      outcome: !cold.ok
+        ? "unreachable"
+        : cold.redirected
+          ? "redirected"
+          : cold.status === 200
+            ? "measured"
+            : "refused",
       bytes: cold.bytes,
       coldTtfbMs: round(cold.ttfbMs),
       coldTotalMs: round(cold.totalMs),
@@ -218,13 +232,14 @@ async function main() {
     return;
   }
 
-  const anyUnauthenticated = results.some((one) => !one.authenticated);
+  const unmeasured = results.filter((one) => one.outcome !== "measured");
   console.log(`\nDalyHub navigation benchmark — ${options.base}`);
   console.log(
     `${options.samples} samples per route; the first is the cold one.\n`,
   );
   const header = [
     "route".padEnd(16),
+    "outcome".padStart(11),
     "status".padStart(7),
     "bytes".padStart(9),
     "cold TTFB".padStart(11),
@@ -239,6 +254,7 @@ async function main() {
     console.log(
       [
         row.route.padEnd(16),
+        row.outcome.padStart(11),
         String(row.status).padStart(7),
         String(row.bytes).padStart(9),
         `${row.coldTtfbMs ?? "-"}`.padStart(11),
@@ -249,17 +265,29 @@ async function main() {
       ].join(" "),
     );
   }
-  if (anyUnauthenticated) {
-    console.log(
-      [
-        "",
-        "At least one route did not return an authenticated 200.",
-        "Against production that means Cloudflare Access answered, and these",
-        "numbers are the network floor rather than an application measurement.",
-        "Export DALYHUB_PERF_COOKIE for the run, or use the DevTools workflow in",
-        "docs/development/PERFORMANCE.md §5.",
-      ].join("\n"),
+  if (unmeasured.length > 0) {
+    const lines = ["", "Not every route produced an application measurement:"];
+    for (const row of unmeasured) {
+      if (row.outcome === "unreachable") {
+        lines.push(
+          `  ${row.route}: could not connect — ${row.error ?? "no response"}.`,
+        );
+      } else if (row.outcome === "redirected") {
+        lines.push(
+          `  ${row.route}: answered by Cloudflare Access (${row.status}). That figure is the NETWORK FLOOR, not the application.`,
+        );
+      } else {
+        lines.push(`  ${row.route}: answered ${row.status}.`);
+      }
+    }
+    lines.push(
+      "",
+      "Is the server running, and is --base pointing at it? For an",
+      "authenticated production measurement, export DALYHUB_PERF_COOKIE for the",
+      "run, or use the DevTools workflow in",
+      "docs/development/PERFORMANCE.md §11.2.",
     );
+    console.log(lines.join("\n"));
   }
   console.log("");
 }

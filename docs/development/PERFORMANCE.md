@@ -382,6 +382,47 @@ Cloudflare Access has already authenticated:
 
 Record the median, not the best sample.
 
+### 11.3 What the LOCAL wall clock could and could not show
+
+Both sides were measured with the command above, on the same machine, against
+the same committed E2E seed, eight samples per route: `main` at `61a39c6`
+versus this branch.
+
+| Route | p50 total, `main` | p50 total, after | `.data` bytes |
+|---|---|---|---|
+| `/today` | 116.8 ms | **106.2 ms** | 28,745 both |
+| `/tasks` | 37.5 ms | 37.8 ms | 35,123 both |
+| `/projects` | 45.6 ms | 44.2 ms | 35,074 both |
+| `/goals` | 51.4 ms | 49.3 ms | 12,264 both |
+| `/obligations` | 25.4 ms | 22.9 ms | 7,911 both |
+| `/finance` | 28.9 ms | 27.1 ms | 4,672 both |
+| `/analytics` | 57.6 ms | 47.6 ms | 8,204 both |
+
+**Read this as a null result, and an expected one.** The byte counts being
+identical is the useful half: it is direct evidence that none of these loaders
+returns different data than it did, which is what a performance change must be
+able to show. The timings are not evidence of the improvement, and this file
+will not present them as if they were.
+
+The reason is the whole thesis of §2.2. What PERF-01 removed is **serial D1
+round trips**, and against a local Miniflare SQLite a round trip costs
+essentially nothing — the queries are the same queries, and issuing them in one
+wave rather than five saves five times almost zero. A local benchmark is
+therefore structurally incapable of demonstrating this change, however many
+samples it takes.
+
+Production is where the term is real, and the owner's own capture is the
+evidence that it is: 850 ms for `/today` and 450 ms for `/tasks` against a
+115 ms Access redirect, on eleven and eight round trips respectively. The
+prediction this work makes is that the same routes, on the same connection, now
+cost five and four — and it is a **prediction**, testable with the command in
+§11.1 or the DevTools workflow in §11.2, not a result this repository can
+assert from a CI runner.
+
+That asymmetry is exactly why the budgets in §10 are structural. A wall-clock
+assertion here would have passed identically before and after the change that
+matters.
+
 ---
 
 ## 12. Measured residual bottlenecks
