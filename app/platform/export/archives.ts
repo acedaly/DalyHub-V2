@@ -24,6 +24,10 @@ import {
 } from "~/kernel/export";
 
 import {
+  describeArchivedAttachments,
+  type ArchivedAttachment,
+} from "./attachment-archive";
+import {
   buildExportManifest,
   EXPORT_EXCLUSIONS,
   type ManifestFile,
@@ -126,6 +130,7 @@ so the owner of that workspace is never locked into DalyHub.
 | \`SCHEMA.md\` | The snapshot's structure, field by field, and the compatibility policy. |
 | \`README.md\` | This file. |
 | \`CHECKSUMS.txt\` | SHA-256 of every other file, in \`sha256sum\` format. |
+| \`attachments/\` | The files attached to your records, one per attachment, named by its DalyHub id. The name you gave each file, and the record it belongs to, are in the snapshot and in the manifest. |
 
 Verify the archive after extracting it:
 
@@ -268,14 +273,29 @@ exported as plain text.
 /* Structured archive                                                         */
 /* -------------------------------------------------------------------------- */
 
-/** Build the structured, restore-oriented export archive. */
+/**
+ * Build the structured, restore-oriented export archive.
+ *
+ * `attachments` is the BYTES, already read and verified against their own
+ * metadata by `readAttachmentBytesForArchive`. They are passed in rather than
+ * read here for the reason this module's header gives: nothing in it touches a
+ * store, so the structured archive and the vault can never describe different
+ * data. An export that could not read a byte never reaches this function.
+ */
 export async function buildStructuredExportArchive(
   snapshot: WorkspaceSnapshotV1,
+  attachments: readonly ArchivedAttachment[] = [],
 ): Promise<ExportArchive> {
   const content: ZipEntry[] = [
     textEntry("dalyhub-snapshot.json", json(snapshot)),
     textEntry("README.md", structuredReadme(snapshot)),
     textEntry("SCHEMA.md", schemaDocument(snapshot)),
+    // The owner's evidence, named by attachment id. See `attachment-archive.ts`
+    // for why the id and not the filename.
+    ...attachments.map<ZipEntry>((entry) => ({
+      path: entry.path,
+      data: entry.bytes,
+    })),
   ];
 
   // The manifest describes the content files; CHECKSUMS then covers the manifest
@@ -284,7 +304,13 @@ export async function buildStructuredExportArchive(
   const described = await describe(content);
   const manifestEntry = textEntry(
     "manifest.json",
-    json(buildExportManifest(snapshot, described)),
+    json(
+      buildExportManifest(
+        snapshot,
+        described,
+        describeArchivedAttachments(attachments),
+      ),
+    ),
   );
   const withManifest = [...content, manifestEntry];
   const allDescribed = await describe(withManifest);

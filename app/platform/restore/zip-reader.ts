@@ -35,6 +35,7 @@
  * `Uint8Array`s; deciding what they mean is the archive reader's job.
  */
 
+import { MAX_ATTACHMENTS_PER_ARCHIVE } from "~/kernel/attachments";
 import { assertSafeZipPath, crc32 } from "~/platform/export/zip";
 
 /* -------------------------------------------------------------------------- */
@@ -61,8 +62,23 @@ export const RESTORE_MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
  */
 export const RESTORE_MAX_CONTENT_BYTES = 64 * 1024 * 1024;
 
-/** The most entries a DalyHub backup archive can legitimately contain. */
-export const MAX_ENTRIES = 32;
+/**
+ * The most entries a DalyHub backup archive can legitimately contain.
+ *
+ * Five documents (`manifest.json`, `dalyhub-snapshot.json`, `CHECKSUMS.txt`,
+ * `README.md`, `SCHEMA.md`) plus one entry per attachment, bounded by the
+ * export's own {@link MAX_ATTACHMENTS_PER_ARCHIVE}. V2.11 raised this from 32,
+ * which was "the file set a text-only backup contains" and is no longer what a
+ * backup contains.
+ *
+ * It is still a HARD bound applied to the DECLARED entry count before any work
+ * happens, so a directory claiming millions of entries still costs one
+ * comparison. What changed is the number, not the defence — and the number is
+ * derived from the writer's own ceiling rather than chosen, so the two ends of
+ * the contract cannot drift: any archive DalyHub was able to WRITE is
+ * admissible to read.
+ */
+export const MAX_ENTRIES = MAX_ATTACHMENTS_PER_ARCHIVE + 5;
 
 /**
  * The largest declared expansion factor an entry may claim.
