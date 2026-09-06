@@ -191,6 +191,55 @@ test.describe("Life Admin, with no Asset anywhere in it", () => {
   });
 });
 
+test.describe("Today, for an obligation about nothing", () => {
+  /*
+   * V2.10 LIFE-03's acceptance, as a journey. Before this item Today's read
+   * filtered every obligation without an Asset subject out before it could
+   * reach the rail, so the tax return the whole programme exists for was
+   * invisible on the one surface an owner actually looks at each morning.
+   */
+  test("reaches the rail, and steps aside once a Task carries it", async ({
+    page,
+  }) => {
+    const title = await createObligation(page, {
+      label: "today",
+      dueInDays: 3,
+    });
+
+    await gotoFixture(page, "/today");
+    await waitForInteractive(page);
+    const rail = page
+      .getByRole("heading", { level: 2, name: "Needs attention" })
+      .locator("xpath=ancestor::section[1]");
+    // The row leads to Life Admin (or to one obligation's own record) — never
+    // to an Asset, which a subject-less obligation does not have.
+    const railRow = rail
+      .getByRole("link", { name: /Life admin|Life Admin/ })
+      .first();
+    await expect(railRow).toBeVisible();
+    await expect(railRow).toHaveAttribute("href", /^\/obligations/);
+
+    /*
+     * THE DEDUPLICATION RULE: an open linked Task is already the owner's
+     * commitment and already a row in the timeline beside the rail. The
+     * obligation steps aside and the rail SAYS so rather than dropping it.
+     */
+    await gotoFixture(page, "/obligations");
+    await waitForInteractive(page);
+    await page
+      .getByRole("button", { name: `Create task for ${title}` })
+      .click();
+    const row = page
+      .locator('[data-testid="obligation-row"]')
+      .filter({ hasText: title });
+    await expect(row.getByRole("link", { name: "Open task" })).toBeVisible();
+
+    await gotoFixture(page, "/today");
+    await waitForInteractive(page);
+    await expect(rail.getByText(/tracked as a task/)).toBeVisible();
+  });
+});
+
 test.describe("what an amount never reaches", () => {
   /*
    * The falsification D11 asks for, as a journey. A price is the most private

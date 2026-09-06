@@ -331,22 +331,3 @@ function counts(summary: {
     dueLabel: formatHistoryDate(summary.nextDueDate),
   };
 }
-
-/* -------------------------------------------------------------------------- */
-/* Today                                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The Today deduplication rule lives in the KERNEL, not here — Today must never
- * import a module's internals (the module import boundary), and "an open linked
- * Task wins" is a domain rule both surfaces have to agree on. Re-exported so the
- * Assets module's own components keep a single import.
- */
-export {
-  dedupeAttention,
-  OBLIGATION_STATE_LABELS,
-  TODAY_ASSET_ROWS,
-  type AssetsTodayData,
-  type AttentionInput,
-  type SerializedAttentionItem,
-} from "~/kernel/assets";

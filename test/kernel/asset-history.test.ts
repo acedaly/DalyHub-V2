@@ -555,14 +555,14 @@ describe("asset lifecycle", () => {
     );
     // Archiving stops it ASKING for things, without reopening or losing anything.
     expect(
-      await obligationRepo.listAttention({ today: "2026-12-28" }),
+      (await obligationRepo.listAttention({ today: "2026-12-28" })).items,
     ).toHaveLength(0);
 
     await assets().restore(asset.id);
     const reread = await obligationRepo.get(obligation.id);
     expect(reread?.status).toBe("open");
     expect(
-      await obligationRepo.listAttention({ today: "2026-12-28" }),
+      (await obligationRepo.listAttention({ today: "2026-12-28" })).items,
     ).toHaveLength(1);
   });
 
@@ -589,7 +589,7 @@ describe("asset lifecycle", () => {
     });
     await makeRepository(makeContext(WS)).softDelete(asset.id);
     expect(
-      await obligationRepo.listAttention({ today: "2026-07-01" }),
+      (await obligationRepo.listAttention({ today: "2026-07-01" })).items,
     ).toHaveLength(0);
   });
 });

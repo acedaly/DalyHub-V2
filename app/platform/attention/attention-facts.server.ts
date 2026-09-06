@@ -30,12 +30,11 @@
  * missing its project line is worth sending; a tick that throws is not.
  */
 
+import { evaluateAssetObligation, isAssetMeterUnit } from "~/kernel/assets";
 import {
   dedupeAttention,
-  evaluateAssetObligation,
-  isAssetMeterUnit,
-  type AssetsTodayData,
-} from "~/kernel/assets";
+  type ObligationAttentionData,
+} from "~/kernel/obligations";
 import { evaluateProjectHealth } from "~/kernel/project-health";
 import { projectWorkflowStatusLabel } from "~/kernel/project-settings";
 import {
@@ -133,7 +132,7 @@ export interface AttentionGoalFacts {
 export interface AttentionFacts {
   readonly inboxCount: number;
   readonly waiting: WaitingFacts;
-  readonly assets: AssetsTodayData;
+  readonly obligations: ObligationAttentionData;
   readonly projects: readonly AttentionProjectFacts[];
   readonly goals: readonly AttentionGoalFacts[];
 }
@@ -183,48 +182,55 @@ export async function countSystemView(
   return grouped.groups.reduce((total, group) => total + group.count, 0);
 }
 
-/** Asset obligations that need attention and are not already represented by Tasks. */
-export async function readAssetAttention(
+/**
+ * Obligations that need attention and are not already represented by Tasks.
+ *
+ * V2.10 LIFE-03 — EVERY obligation, whatever it is about. LIFE-01 filtered this
+ * set down to the ones with an Asset subject, because the row it fed required
+ * an Asset title and an Asset href; the row is the obligation's own now, so the
+ * filter is gone and a passport renewal reaches Today exactly as a rego does.
+ *
+ * The meter still arrives through the Assets composition, because a meter
+ * belongs to the domain that owns its units. An obligation about a Person or
+ * about nothing has no reading to pass, which is the truthful answer rather
+ * than a fabricated one.
+ */
+export async function readObligationAttention(
   scope: WorkspaceScope,
   todayIso: string,
-): Promise<AssetsTodayData> {
-  const items = await scope.obligations.listAttention({ today: todayIso });
+): Promise<ObligationAttentionData> {
+  const attention = await scope.obligations.listAttention({ today: todayIso });
   return dedupeAttention(
-    items
-      /*
-       * V2.10 LIFE-01 — the STORE is general; this row is not, yet. Today's
-       * Asset section still renders an Asset title and an Asset href, so an
-       * obligation with a Person subject or none at all is filtered out HERE
-       * rather than rendered with a blank where its Asset should be.
-       *
-       * LIFE-03 deletes this filter, generalises the row and widens the set it
-       * reads — which is one line here and a rewrite of the row's wording, and
-       * doing it in this item would have changed what Today shows in the change
-       * whose whole acceptance criterion is that Today shows exactly what it
-       * showed before.
-       */
-      .filter((item) => item.subject?.type === "asset")
-      .map((item) => {
-        const evaluation = evaluateAssetObligation(
-          item.obligation,
-          todayIso,
-          item.meterValue !== null && isAssetMeterUnit(item.meterUnit)
-            ? { value: item.meterValue, unit: item.meterUnit }
-            : null,
-        );
-        const subject = item.subject as { id: string; title: string };
-        return {
-          obligationId: item.obligation.id,
-          assetId: subject.id,
-          assetTitle: subject.title,
-          assetType: item.subjectSubtype ?? "other",
-          title: item.obligation.title,
-          category: item.obligation.category,
-          state: evaluation.state,
-          text: evaluation.text,
-          hasOpenTask: item.hasOpenTask,
-        };
-      }),
+    attention.items.map((item) => {
+      const evaluation = evaluateAssetObligation(
+        item.obligation,
+        todayIso,
+        item.meterValue !== null && isAssetMeterUnit(item.meterUnit)
+          ? { value: item.meterValue, unit: item.meterUnit }
+          : null,
+      );
+      return {
+        obligationId: item.obligation.id,
+        title: item.obligation.title,
+        subject:
+          item.subject === null
+            ? null
+            : {
+                id: item.subject.id,
+                type: item.subject.type,
+                title: item.subject.title,
+              },
+        category: item.obligation.category,
+        state: evaluation.state,
+        text: evaluation.text,
+        hasOpenTask: item.hasOpenTask,
+      };
+    }),
+    // The counts come from the statement, not from the page it capped.
+    {
+      attentionTotal: attention.attentionTotal,
+      trackedAsTasksTotal: attention.trackedAsTasksTotal,
+    },
   );
 }
 
@@ -399,27 +405,30 @@ export async function readAttentionFacts(
     readonly todayIso: string;
   },
 ): Promise<AttentionFacts> {
-  const [inboxCount, waiting, assets, projects, goals] = await Promise.all([
-    safely(() => readInboxCount(scope, facts.todayIso, facts.timezone), 0),
-    safely(() => readWaiting(scope, facts.todayIso, facts.timezone), {
-      count: 0,
-      oldestDays: null,
-      followUpDue: 0,
-    }),
-    safely(() => readAssetAttention(scope, facts.todayIso), {
-      items: [],
-      trackedAsTasksCount: 0,
-      overdueCount: 0,
-    }),
-    safely(
-      () =>
-        readActiveProjects(scope, facts.now, facts.todayIso, facts.timezone),
-      [] as readonly AttentionProjectFacts[],
-    ),
-    safely(
-      () => readGoalsAtRisk(scope, facts.now, facts.timezone),
-      [] as readonly AttentionGoalFacts[],
-    ),
-  ]);
-  return { inboxCount, waiting, assets, projects, goals };
+  const [inboxCount, waiting, obligations, projects, goals] = await Promise.all(
+    [
+      safely(() => readInboxCount(scope, facts.todayIso, facts.timezone), 0),
+      safely(() => readWaiting(scope, facts.todayIso, facts.timezone), {
+        count: 0,
+        oldestDays: null,
+        followUpDue: 0,
+      }),
+      safely(() => readObligationAttention(scope, facts.todayIso), {
+        items: [],
+        visibleCount: 0,
+        trackedAsTasksCount: 0,
+        overdueCount: 0,
+      }),
+      safely(
+        () =>
+          readActiveProjects(scope, facts.now, facts.todayIso, facts.timezone),
+        [] as readonly AttentionProjectFacts[],
+      ),
+      safely(
+        () => readGoalsAtRisk(scope, facts.now, facts.timezone),
+        [] as readonly AttentionGoalFacts[],
+      ),
+    ],
+  );
+  return { inboxCount, waiting, obligations, projects, goals };
 }

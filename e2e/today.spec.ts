@@ -409,16 +409,15 @@ test.describe("Today — the day surface", () => {
     for (let index = 0; index < count; index += 1) {
       const href = await links.nth(index).getAttribute("href");
       /*
-       * `/assets` (plural) is the AGGREGATE row's destination and belongs in
-       * this set: `buildAttention` names a single obligation's own Asset when
-       * there is exactly one, and falls back to "N obligations need attention"
-       * pointing at the collection when there are several. The pattern only
-       * carried the singular `/asset/:id` form, so the assertion passed on a
-       * workspace with one obligation and failed on any workspace with two —
-       * measured failing at `acc5f32`, the commit before this pass.
+       * V2.10 LIFE-03 — the obligation row leads to the OBLIGATION now, whatever
+       * it is about, and `/obligations` (plural) is the aggregate row's
+       * destination: `buildAttention` names a single obligation when there is
+       * exactly one and falls back to "N obligations need attention" pointing at
+       * Life Admin when there are several. Both forms belong in this set; the
+       * Asset forms are kept because the rail's other rows still use them.
        */
       expect(href).toMatch(
-        /^\/(tasks\?system=inbox|today\/waiting|assets|asset\/|projects\/|goals\/)/,
+        /^\/(tasks\?system=inbox|today\/waiting|obligations|assets|asset\/|projects\/|goals\/)/,
       );
     }
   });

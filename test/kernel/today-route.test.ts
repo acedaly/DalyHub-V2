@@ -492,7 +492,7 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
     expect(inbox?.detail).toBe("105 unfiled tasks");
   });
 
-  it("surfaces due Asset obligations only when an open linked Task is not already carrying them", async () => {
+  it("surfaces due obligations only when an open linked Task is not already carrying them", async () => {
     const dueTomorrow = shiftDays(ownerToday(), 1);
     const assetRepo = assets();
     const obligations = obligationStore();
@@ -504,7 +504,7 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
       title: "Mower",
       assetType: "equipment",
     });
-    await obligations.create({
+    const rego = await obligations.create({
       subjectEntityId: ute.id,
       category: "registration",
       title: "Renew registration",
@@ -525,14 +525,40 @@ describe("GET /today — the day is read from DUE dates, not plans alone", () =>
     await obligations.linkTask(linked.id, task.id);
 
     const data = await runToday();
-    const asset = data.day.attention.find(
-      (item: { kind: string }) => item.kind === "asset",
+    const row = data.day.attention.find(
+      (item: { kind: string }) => item.kind === "obligation",
     );
-    expect(asset).toMatchObject({
-      label: "Hilux",
-      href: `/asset/${ute.id}?tab=obligations`,
+    /*
+     * V2.10 LIFE-03 — the row is the OBLIGATION's. It names the subject where
+     * there is one, says what is due beside the state, and leads to the record
+     * carrying the button that records it as done.
+     */
+    expect(row).toMatchObject({ label: "Hilux" });
+    expect(row?.href).toBe(`/obligations/${rego.id}`);
+    expect(row?.detail).toContain("Renew registration");
+    expect(row?.detail).toContain("1 tracked as a task");
+  });
+
+  /*
+   * The row V2.10 exists for, on the surface an owner reads every morning.
+   * Before LIFE-03 the attention read filtered every subject-less obligation
+   * out, so this row could not appear at all.
+   */
+  it("surfaces an obligation about nothing, under its own name", async () => {
+    const dueTomorrow = shiftDays(ownerToday(), 1);
+    const tax = await obligationStore().create({
+      category: "tax",
+      title: "Lodge the tax return",
+      dueDate: dueTomorrow,
+      leadDays: 14,
     });
-    expect(asset?.detail).toContain("1 tracked as a task");
+
+    const data = await runToday();
+    const row = data.day.attention.find(
+      (item: { kind: string }) => item.kind === "obligation",
+    );
+    expect(row).toMatchObject({ label: "Lodge the tax return" });
+    expect(row?.href).toBe(`/obligations/${tax.id}`);
   });
 
   it("returns a quiet, correct day when the workspace holds nothing", async () => {

@@ -68,6 +68,44 @@ export type ObligationAttentionItem = ObligationWithSubject & {
   readonly subjectSubtype: string | null;
 };
 
+/**
+ * The attention read: a BOUNDED page of rows, and counts that are NOT bounded
+ * by it.
+ *
+ * The two are separated because they answer different questions. `items` is
+ * what Today draws, and it is capped because a rail previews. The totals are
+ * what Today and the digest STATE in words — "12 obligations need attention" —
+ * and a total derived from a capped array is the defect `readWaiting` records
+ * in `attention-facts.server.ts`, in almost these words: *"the count used to be
+ * `page.items.length` — bounded by `WAITING_LIMIT`, so a workspace with 200
+ * waiting Tasks was told it had 50."*
+ *
+ * Both totals are counted over every row inside the horizon, before the row
+ * cap, in the SAME statement as the page — so the subset relationship is a
+ * property of the SQL rather than a convention two reads have to remember.
+ *
+ * The horizon itself still bounds them, and that is not a rounding error being
+ * hidden: an obligation whose lead days reach further than the horizon is
+ * outside this read entirely, page and counts alike, exactly as it was before
+ * these totals existed.
+ */
+export type ObligationAttentionResult = {
+  /** The bounded page, capped by `limit`. */
+  readonly items: readonly ObligationAttentionItem[];
+  /**
+   * How many rows inside the horizon need attention on the DATE side — the
+   * canonical rule, with each obligation's own lead days, counted over every
+   * row rather than over `items`. A meter obligation is included, because the
+   * read keeps it for the caller that owns its units to rank.
+   */
+  readonly attentionTotal: number;
+  /**
+   * How many of those are already represented by an OPEN linked Task, and are
+   * therefore suppressed from the rail and stated as "N are tracked as tasks".
+   */
+  readonly trackedAsTasksTotal: number;
+};
+
 /** A bounded page of obligations with their subjects. */
 export type ObligationWithSubjectPage = ObligationPage<Obligation> & {
   readonly subjects: ReadonlyMap<string, ObligationSubject>;
@@ -241,10 +279,13 @@ export interface ObligationRepository {
    * statement: the subject's title and the linked Task's open state arrive with
    * the row, so there is no per-obligation subject query and no per-obligation
    * Task query at any width.
+   *
+   * The counts beside the page are deliberately NOT bounded by the item cap —
+   * see {@link ObligationAttentionResult}.
    */
   listAttention(
     input: ObligationAttentionInput,
-  ): Promise<readonly ObligationAttentionItem[]>;
+  ): Promise<ObligationAttentionResult>;
 
   /**
    * What each subject's obligations add up to, for a collection row. One

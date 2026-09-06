@@ -135,17 +135,20 @@ describe("the ledger insert is the concurrency guard", () => {
     await ledger().record(digest("2026-08-17"));
     await ledger().record({
       ...digest(),
-      kind: "asset_obligation",
-      dedupeKey: "asset:obl-1:7",
+      kind: "obligation",
+      dedupeKey: "obligation:obl-1:7",
       subjectEntityId: "asset-1",
     });
     const seen = await ledger().existingDedupeKeys([
       "digest:2026-08-17",
-      "asset:obl-1:7",
-      "asset:obl-1:1",
+      "obligation:obl-1:7",
+      "obligation:obl-1:1",
       "digest:2026-08-18",
     ]);
-    expect([...seen].sort()).toEqual(["asset:obl-1:7", "digest:2026-08-17"]);
+    expect([...seen].sort()).toEqual([
+      "digest:2026-08-17",
+      "obligation:obl-1:7",
+    ]);
     // An empty ask costs no statement at all.
     expect((await ledger().existingDedupeKeys([])).size).toBe(0);
   });

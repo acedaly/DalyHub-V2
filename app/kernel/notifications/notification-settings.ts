@@ -27,7 +27,7 @@ export class NotificationSettingsValidationError extends Error {
       | "ownerId"
       | "enabled"
       | "digestEnabled"
-      | "assetObligationsEnabled"
+      | "obligationsEnabled"
       | "digestSendTime"
       | "timeZone"
       | "pushoverEnabled"
@@ -57,7 +57,7 @@ export interface NotificationSettings {
   /** The master switch. Everything below is inert while this is false. */
   readonly enabled: boolean;
   readonly digestEnabled: boolean;
-  readonly assetObligationsEnabled: boolean;
+  readonly obligationsEnabled: boolean;
   /** `HH:MM`, read in {@link NotificationSettings.timeZone}. */
   readonly digestSendTime: string;
   /**
@@ -84,7 +84,7 @@ export interface NotificationSettingsWithSecrets extends NotificationSettings {
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   enabled: false,
   digestEnabled: true,
-  assetObligationsEnabled: true,
+  obligationsEnabled: true,
   digestSendTime: "07:00",
   timeZone: null,
   pushoverEnabled: false,
@@ -97,7 +97,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 export interface NotificationSettingsPatch {
   readonly enabled?: boolean;
   readonly digestEnabled?: boolean;
-  readonly assetObligationsEnabled?: boolean;
+  readonly obligationsEnabled?: boolean;
   readonly digestSendTime?: string;
   /** `null` clears the override and returns to the profile timezone. */
   readonly timeZone?: string | null;
@@ -263,10 +263,10 @@ export function parseNotificationSettingsPatch(
       patch.digestEnabled,
     );
   }
-  if (patch.assetObligationsEnabled !== undefined) {
-    out.assetObligationsEnabled = parseNotificationBoolean(
-      "assetObligationsEnabled",
-      patch.assetObligationsEnabled,
+  if (patch.obligationsEnabled !== undefined) {
+    out.obligationsEnabled = parseNotificationBoolean(
+      "obligationsEnabled",
+      patch.obligationsEnabled,
     );
   }
   if (patch.digestSendTime !== undefined) {

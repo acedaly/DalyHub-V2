@@ -24,7 +24,7 @@ describe("the defaults", () => {
 
   it("have both sources ready for the moment it is turned on", () => {
     expect(DEFAULT_NOTIFICATION_SETTINGS.digestEnabled).toBe(true);
-    expect(DEFAULT_NOTIFICATION_SETTINGS.assetObligationsEnabled).toBe(true);
+    expect(DEFAULT_NOTIFICATION_SETTINGS.obligationsEnabled).toBe(true);
     expect(DEFAULT_NOTIFICATION_SETTINGS.digestSendTime).toBe("07:00");
   });
 
@@ -133,9 +133,9 @@ describe("a whole patch", () => {
     expect(
       parseNotificationSettingsPatch({
         digestEnabled: "false",
-        assetObligationsEnabled: "true",
+        obligationsEnabled: "true",
       }),
-    ).toEqual({ digestEnabled: false, assetObligationsEnabled: true });
+    ).toEqual({ digestEnabled: false, obligationsEnabled: true });
   });
 
   it("refuses the whole patch when one field is bad", () => {

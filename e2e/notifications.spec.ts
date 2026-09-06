@@ -61,7 +61,7 @@ function seedNotifications(): void {
     `INSERT INTO notifications
        (id, workspace_id, kind, subject_entity_id, dedupe_key, title, body, href, created_at, read_at)
      VALUES
-       ('e2e-notify-asset', ${sqlLiteral(WORKSPACE_ID)}, 'asset_obligation', NULL,
+       ('e2e-notify-asset', ${sqlLiteral(WORKSPACE_ID)}, 'obligation', NULL,
         'e2e:asset:7', ${sqlLiteral(OBLIGATION_TITLE)}, 'Due in 7 days', '/assets',
         ${sqlLiteral(earlier)}, NULL);`,
     // A recorded FAILURE, so the row's badge can be asserted. The notification
