@@ -26,6 +26,7 @@ export {
   financeDate,
   money,
   type SerializedCategoryMonthLine,
+  type SerializedMonthBudget,
   type SerializedCommitment,
   type SerializedCurrencyTotal,
   type SerializedFinanceAccount,

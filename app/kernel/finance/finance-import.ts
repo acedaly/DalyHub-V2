@@ -119,6 +119,15 @@ export interface ImportPreview {
   readonly accountId: string;
   readonly fileName: string;
   readonly fileSha256: string;
+  /**
+   * The serialised mapping this preview used.
+   *
+   * The apply sends it back and is refused when it differs, so "the preview
+   * says exactly what will happen" holds for the MAPPING as well as for the
+   * bytes — an owner cannot preview under one set of columns and import under
+   * another.
+   */
+  readonly mappingKey: string;
   readonly fileBytes: number;
   readonly mapping: CsvMapping;
   readonly rows: readonly ImportPreviewRow[];

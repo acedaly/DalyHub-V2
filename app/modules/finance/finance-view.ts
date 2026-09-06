@@ -16,6 +16,7 @@ import type {
   SerializedFinanceCategory,
   SerializedFinanceImport,
   SerializedFinanceTransaction,
+  SerializedMonthBudget,
 } from "~/shared/finance";
 
 /** The month vocabulary every Finance surface shares. */
@@ -69,6 +70,16 @@ export interface FinanceTransactionsData extends FinanceMonthContext {
   readonly accounts: readonly SerializedFinanceAccount[];
   readonly categories: readonly SerializedFinanceCategory[];
   readonly transactions: readonly SerializedFinanceTransaction[];
+  /**
+   * The receipts on this page's transactions, keyed by transaction id.
+   *
+   * Read in bulk with the page rather than per drawer-open, so evidence is
+   * present the moment a drawer opens and survives a reload — an uploaded
+   * receipt that appears only in local state reads as lost.
+   */
+  readonly attachments: Readonly<
+    Record<string, readonly SerializedAttachment[]>
+  >;
   readonly nextCursor: string | null;
   readonly total: number;
   readonly failed: boolean;
@@ -79,6 +90,14 @@ export interface FinanceBudgetsData extends FinanceMonthContext {
   /** Only money-OUT categories: a budget on income is a Goal, not a budget. */
   readonly categories: readonly SerializedFinanceCategory[];
   readonly lines: readonly SerializedCategoryMonthLine[];
+  /**
+   * The saved budgets for the month, independent of spend.
+   *
+   * A budget on a category with no transactions yet produces no `lines` entry,
+   * so the screen must read its amount from here or it will draw an empty field
+   * over a real budget — and saving that apparent value would clear it.
+   */
+  readonly budgets: readonly SerializedMonthBudget[];
   readonly defaultCurrency: string;
   readonly failed: boolean;
 }

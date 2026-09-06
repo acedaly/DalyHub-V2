@@ -1117,24 +1117,30 @@ export class D1FinanceRepository implements FinanceRepository {
       this.#toTransactionView(row),
     );
 
-    // The total is counted over the WHOLE filtered set in its own statement,
-    // never derived from `items.length` — the defect DEBT-232 records, where a
-    // bounded page was counted and printed as the total. It is read only on the
-    // first page, because a total does not change as the owner pages.
-    let total = items.length;
-    if (cursor === null) {
-      const counted = await this.#db
-        .prepare(
-          `SELECT COUNT(*) AS n
+    /*
+     * The total is counted over the WHOLE filtered set in its own statement,
+     * never derived from `items.length` — the defect DEBT-232 records, where a
+     * bounded page was counted and printed as the total.
+     *
+     * It used to be counted only on the FIRST page, on the reasoning that a
+     * total does not change as the owner pages. The reasoning is sound and the
+     * code did not follow it: on a cursor page `total` fell back to
+     * `items.length`, so a 120-row result reported 50 on page two and 20 on the
+     * last — reintroducing exactly the defect the comment above cites. The
+     * count runs on every page, which costs one bounded statement and cannot be
+     * wrong.
+     */
+    const counted = await this.#db
+      .prepare(
+        `SELECT COUNT(*) AS n
              FROM finance_transaction_details t
              JOIN entities e
                ON e.workspace_id = t.workspace_id AND e.id = t.entity_id
             WHERE ${sql}`,
-        )
-        .bind(...binds)
-        .first<{ n: number }>();
-      total = Number(counted?.n ?? items.length);
-    }
+      )
+      .bind(...binds)
+      .first<{ n: number }>();
+    const total = Number(counted?.n ?? items.length);
 
     const tail = items[items.length - 1];
     return {
@@ -1177,6 +1183,24 @@ export class D1FinanceRepository implements FinanceRepository {
       validateFinanceId(input.accountId, "accountId"),
     );
     if (account === null) throw new FinanceNotFoundError("account");
+    /*
+     * A CLOSED account takes no new transactions, which is what closing means.
+     *
+     * The account record says so ("Close this account" / "stopped taking new
+     * transactions") and the docs said so, and nothing enforced it: the
+     * repository accepted the write and the new-transaction form offered closed
+     * accounts to pick from. An IMPORT is refused for the same reason and by the
+     * same rule — a statement belongs to an account that is still running.
+     *
+     * Reopening is one control away, so this is a refusal the owner can act on
+     * rather than a dead end.
+     */
+    if (account.status === "closed") {
+      throw new FinanceRefusedError(
+        "account_closed",
+        `${account.title} is closed, so it takes no new transactions. Reopen it first if this belongs there.`,
+      );
+    }
     const occurredOn = validateIsoDate(input.occurredOn, "occurredOn");
     const amountMinor = validateSignedAmount(
       input.amount,
@@ -1373,9 +1397,37 @@ export class D1FinanceRepository implements FinanceRepository {
     const view = await this.getTransaction(transactionId);
     if (view === null) throw new FinanceNotFoundError("transaction");
     const nowTs = toStorageTimestamp(this.#clock());
+    const transferGroupId = view.transaction.transferGroupId;
     try {
       await this.#db.batch(
         this.#withFault([
+          /*
+           * A TRANSFER IS A PAIR, so deleting one leg ends the transfer.
+           *
+           * This clears `transfer_group_id` on both legs — the deleted row and
+           * its survivor — in the same batch as the delete. Without it the
+           * survivor kept the group id, and `monthSummary` excludes any row
+           * that has one: the remaining cash flow stayed out of the month
+           * permanently, paired with a row the owner could no longer see. That
+           * is money silently missing from the answer to "where is my money
+           * going?", which is the one thing this product exists to get right.
+           *
+           * The survivor becomes an ordinary transaction again and re-enters
+           * the month, which is what it now is. It is NOT deleted with its
+           * partner: the owner deleted one row, and deleting a second on their
+           * behalf would be a change they did not ask for and could not see.
+           */
+          ...(transferGroupId === null
+            ? []
+            : [
+                this.#db
+                  .prepare(
+                    `UPDATE finance_transaction_details
+                        SET transfer_group_id = NULL, updated_at = ?
+                      WHERE workspace_id = ? AND transfer_group_id = ?`,
+                  )
+                  .bind(nowTs, this.#workspaceId, transferGroupId),
+              ]),
           // The fingerprint and every scrap of provenance STAY on the deleted
           // row, so a later overlapping import reports it as already imported
           // rather than resurrecting it. Deleting was a decision.
@@ -2107,6 +2159,17 @@ export class D1FinanceRepository implements FinanceRepository {
   }> {
     const account = await this.getAccount(accountId);
     if (account === null) throw new FinanceNotFoundError("account");
+    /*
+     * A statement belongs to an account that is still running. Refused on the
+     * shared derivation so PREVIEW and APPLY answer the same way — a preview
+     * that succeeded and an apply that then refused would be the worst of both.
+     */
+    if (account.status === "closed") {
+      throw new FinanceRefusedError(
+        "account_closed",
+        `${account.title} is closed, so nothing can be imported into it. Reopen it first if this statement belongs there.`,
+      );
+    }
 
     const sha256 = await sha256Hex(bytes);
     const table = readCsv(bytes);
@@ -2305,6 +2368,9 @@ export class D1FinanceRepository implements FinanceRepository {
       accountId: derived.account.id,
       fileName: validateText(input.fileName, "fileName", 200),
       fileSha256: derived.sha256,
+      // What the apply must send back, so it cannot import under a mapping the
+      // owner never previewed.
+      mappingKey: serialiseCsvMapping(input.mapping),
       fileBytes: input.bytes.length,
       mapping: input.mapping,
       rows,
@@ -2348,6 +2414,29 @@ export class D1FinanceRepository implements FinanceRepository {
       throw new FinanceValidationError(
         "file",
         "is not the file you previewed. Preview it again before importing.",
+      );
+    }
+    /*
+     * The MAPPING is part of what was previewed, not just the bytes.
+     *
+     * `expectedSha256` authenticates the file and nothing else, so an owner
+     * could preview a statement, change which column is the date or flip the
+     * sign, and apply — and the server would reparse and write the same bytes
+     * under a mapping nobody had seen, changing every imported date or amount.
+     * The preview says exactly what will happen; this makes that promise hold
+     * for the mapping as well as the file.
+     *
+     * Checked on the server rather than only in the client, because a guarantee
+     * that lives in a component is a guarantee one stale render can lose.
+     */
+    const mappingKey = serialiseCsvMapping(input.mapping);
+    if (
+      input.expectedMappingKey !== undefined &&
+      input.expectedMappingKey !== mappingKey
+    ) {
+      throw new FinanceValidationError(
+        "mapping",
+        "has changed since you previewed this file. Preview it again so you can see what will happen.",
       );
     }
     const fileName = validateText(input.fileName, "fileName", 200);

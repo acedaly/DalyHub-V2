@@ -118,6 +118,14 @@ export interface ApplyImportInput {
    */
   readonly expectedSha256: string;
   /**
+   * The mapping the preview actually used, serialised.
+   *
+   * `expectedSha256` authenticates the FILE; this authenticates what the owner
+   * was shown would be done with it. Optional so a caller that has no preview
+   * to bind to is unaffected; the import route always sends it.
+   */
+  readonly expectedMappingKey?: string;
+  /**
    * Row indexes (as the preview numbered them) whose SUSPECTED-duplicate flag
    * the owner has overridden. Empty by default: nothing suspected is imported
    * unless it is asked for by name.

@@ -170,6 +170,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       return financeOk({
         preview: {
           fileSha256: preview.fileSha256,
+          mappingKey: preview.mappingKey,
           rows: serialiseRows([...preview.rows]),
           newCount: preview.newCount,
           existingCount: preview.existingCount,
@@ -195,6 +196,11 @@ export async function action({ request, context }: Route.ActionArgs) {
         bytes,
         mapping,
         expectedSha256: String(form.get("expectedSha256") ?? ""),
+        // The mapping the preview used. Refused when it differs, so an apply
+        // cannot write under columns the owner never saw.
+        expectedMappingKey: form.has("expectedMappingKey")
+          ? String(form.get("expectedMappingKey") ?? "")
+          : undefined,
         includeSuspected: includeSuspected(form.get("includeSuspected")),
         saveMapping: String(form.get("saveMapping") ?? "") === "1",
       });

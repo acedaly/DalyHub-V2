@@ -91,6 +91,19 @@ export interface SerializedCurrencyTotal {
 }
 
 /** One category's line in the month. */
+/**
+ * One saved budget for a month, independent of whether anything was spent.
+ *
+ * A budget exists whether or not the owner has spent against it, so it can
+ * never be read off a spend line — see `readMonthLines` for the defect that
+ * came of trying.
+ */
+export interface SerializedMonthBudget {
+  readonly categoryId: string;
+  readonly amountMinor: number;
+  readonly currencyCode: string;
+}
+
 export interface SerializedCategoryMonthLine {
   readonly categoryId: string | null;
   readonly categoryName: string | null;

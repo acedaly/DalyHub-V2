@@ -30,6 +30,7 @@
 import { useId, useState } from "react";
 import { useRevalidator } from "react-router";
 
+import { budgetSentence, budgetState } from "~/kernel/finance";
 import { money } from "~/shared/finance";
 import { Button, Input } from "~/shared/ui";
 
@@ -37,7 +38,7 @@ import type { FinanceBudgetsData } from "./finance-view";
 import { MonthNav } from "./MonthNav";
 
 export function FinanceBudgets(props: FinanceBudgetsData) {
-  const { categories, lines, month, defaultCurrency, failed } = props;
+  const { categories, lines, budgets, month, defaultCurrency, failed } = props;
   const revalidator = useRevalidator();
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +86,16 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
       (line) => line.categoryId === categoryId && line.kind === "spending",
     );
 
+  /**
+   * The SAVED budget for a category, read from the budgets themselves.
+   *
+   * A budget exists whether or not anything has been spent against it, so it
+   * can never be read off a spend line — `lines` holds only categories with
+   * transactions in the month.
+   */
+  const budgetFor = (categoryId: string) =>
+    budgets.find((budget) => budget.categoryId === categoryId) ?? null;
+
   return (
     <div className="dh-finance-budgets" data-testid="finance-budgets">
       <header className="dh-finance-budgets__header">
@@ -108,12 +119,17 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
           {categories.map((category) => {
             const spend = spendFor(category.id);
             const line = spend.find((entry) => entry.budgetedMinor !== null);
+            const saved = budgetFor(category.id);
             const inputId = `${fieldPrefix}-${category.id}`;
+            /*
+             * The field reads the SAVED budget, never the spend line. A budget
+             * on a category with nothing spent against it produces no line, so
+             * reading the line drew an empty field over a real budget — and
+             * pressing Save with that apparent value cleared it.
+             */
             const value =
               draft[category.id] ??
-              (line?.budgetedMinor === undefined || line.budgetedMinor === null
-                ? ""
-                : (line.budgetedMinor / 100).toFixed(2));
+              (saved === null ? "" : (saved.amountMinor / 100).toFixed(2));
 
             return (
               <li key={category.id} className="dh-finance-budget-row">
@@ -168,7 +184,25 @@ export function FinanceBudgets(props: FinanceBudgetsData) {
                 >
                   {line?.budgetSentence ??
                     (spend.length === 0
-                      ? "Nothing spent this month"
+                      ? saved === null
+                        ? "Nothing spent this month"
+                        : /*
+                           * A saved budget with NOTHING spent against it yet
+                           * still states itself, through the same kernel
+                           * sentence every other row uses — so "$0.00 of
+                           * $600.00 · $600.00 remaining" is one wording rather
+                           * than a second one invented here.
+                           */
+                          budgetSentence({
+                            categoryId: category.id,
+                            categoryName: category.name,
+                            currencyCode: saved.currencyCode,
+                            budgetedMinor: saved.amountMinor,
+                            spentMinor: 0,
+                            remainingMinor: saved.amountMinor,
+                            state: budgetState(saved.amountMinor, 0),
+                            excluded: [],
+                          })
                       : spend
                           .map((entry) =>
                             money(entry.magnitudeMinor, entry.currencyCode),

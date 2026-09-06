@@ -42,6 +42,7 @@ import type {
   SerializedFinanceCategory,
   SerializedFinanceImport,
   SerializedFinanceTransaction,
+  SerializedMonthBudget,
 } from "~/shared/finance";
 
 /** Flatten a currency-grouped total into the shape a surface renders. */
@@ -205,6 +206,7 @@ export async function readMonthLines(
   readonly uncategorisedIn: readonly SerializedCurrencyTotal[];
   readonly uncategorisedCount: number;
   readonly transferCount: number;
+  readonly budgets: readonly SerializedMonthBudget[];
 }> {
   const [summary, budgets] = await Promise.all([
     finance.monthSummary(month),
@@ -272,6 +274,21 @@ export async function readMonthLines(
     uncategorisedIn: totals.uncategorisedIn,
     uncategorisedCount: summary.uncategorisedCount,
     transferCount: summary.transferCount,
+    /*
+     * The budgets THEMSELVES, not only the ones a spend line happened to carry.
+     *
+     * `lines` comes from `summary.categories`, which holds only categories with
+     * transactions in the month — so a budget on a category the owner has not
+     * spent against yet produced no line at all. The budgets screen read its
+     * amount from the line, found none, drew an empty field, and SAVING THAT
+     * APPARENT VALUE CLEARED THE REAL BUDGET. A budget exists whether or not
+     * anything has been spent against it, and that is what this list says.
+     */
+    budgets: budgets.map((budget) => ({
+      categoryId: budget.categoryId,
+      amountMinor: budget.amountMinor,
+      currencyCode: budget.currencyCode,
+    })),
   };
 }
 

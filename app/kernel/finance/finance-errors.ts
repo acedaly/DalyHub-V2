@@ -47,6 +47,8 @@ export type FinanceRefusalReason =
   | "import_already_applied"
   /** The account still holds transactions, so it can be closed but not deleted. */
   | "account_in_use"
+  /** The account is closed, so it takes no new transactions and no import. */
+  | "account_closed"
   /** The category still has transactions, so it can be archived but not deleted. */
   | "category_in_use"
   /** A transfer leg is already paired, or the two legs are not a valid pair. */

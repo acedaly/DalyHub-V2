@@ -50,8 +50,15 @@ import { NewTransactionForm } from "./NewTransactionForm";
 import { useFinanceActions } from "./use-finance-actions";
 
 export function FinanceTransactions(props: FinanceTransactionsData) {
-  const { accounts, categories, transactions, uncategorised, total, failed } =
-    props;
+  const {
+    accounts,
+    categories,
+    transactions,
+    attachments,
+    uncategorised,
+    total,
+    failed,
+  } = props;
   const [searchParams, setSearchParams] = useSearchParams();
   const revalidator = useRevalidator();
   const actions = useFinanceActions(() => revalidator.revalidate());
@@ -272,7 +279,14 @@ export function FinanceTransactions(props: FinanceTransactionsData) {
           <TransactionDrawer
             transaction={openedTransaction}
             categories={categories}
-            attachments={[]}
+            attachments={attachments[openedTransaction.id] ?? []}
+            /*
+             * Receipts come from the LOADER now, so adding or removing one has
+             * to revalidate — otherwise the drawer would keep showing the list
+             * as it was when the page loaded, which is the same "evidence looks
+             * lost" failure in a different place.
+             */
+            onAttachmentsChanged={() => revalidator.revalidate()}
             transferCandidates={actions.transferCandidates}
             busy={actions.pendingId === openedTransaction.id}
             onSetCategory={(categoryId) =>

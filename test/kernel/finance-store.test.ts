@@ -30,6 +30,8 @@ import {
   FinanceRefusedError,
   FinanceValidationError,
   monthDirectionTotals,
+  serialiseCsvMapping,
+  validateCsvMapping,
   totalMoney,
 } from "~/kernel/finance";
 
@@ -878,5 +880,209 @@ describe("a transaction's currency follows its account", () => {
       payeeDisplay: "SYNTH CAFE 001",
     });
     expect(transaction.currencyCode).toBe("NZD");
+  });
+});
+
+describe("V2.12 — the review findings, each pinned by a test", () => {
+  beforeEach(async () => {
+    await resetTables([WS, OTHER]);
+  });
+
+  it("ends the transfer when one leg is deleted, so the survivor re-enters the month", async () => {
+    /*
+     * A transfer is a PAIR. Deleting one leg used to mark only that row and
+     * leave the survivor's `transfer_group_id` intact — and `monthSummary`
+     * excludes any row that has one, so the remaining cash flow stayed out of
+     * the month permanently, paired with a row the owner could no longer see.
+     * Money silently missing from the answer to "where is my money going?".
+     */
+    const repo = finance();
+    const everyday = await everydayAccount(repo);
+    const card = await repo.createAccount({
+      title: "Synthetica Rewards Card",
+      accountType: "credit_card",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    const out = await repo.createTransaction({
+      accountId: everyday.id,
+      occurredOn: "2026-09-20",
+      amount: "-1000.00",
+      payeeDisplay: "CARD PAYMENT",
+    });
+    const back = await repo.createTransaction({
+      accountId: card.id,
+      occurredOn: "2026-09-20",
+      amount: "1000.00",
+      payeeDisplay: "PAYMENT RECEIVED",
+    });
+    await repo.linkTransfer(out.id, back.id);
+    expect(
+      monthDirectionTotals(await repo.monthSummary("2026-09")).uncategorisedOut,
+    ).toEqual([]);
+
+    await repo.deleteTransaction(out.id);
+
+    // The survivor is no longer half of anything …
+    const survivor = await repo.getTransaction(back.id);
+    expect(survivor?.transaction.transferGroupId).toBeNull();
+    expect(survivor?.transferPartnerId).toBeNull();
+
+    // … and its money is back in the month, where it belongs.
+    const totals = monthDirectionTotals(await repo.monthSummary("2026-09"));
+    expect(totals.uncategorisedIn).toEqual([
+      { currencyCode: "AUD", minorUnits: 100_000, count: 1 },
+    ]);
+    // The survivor is NOT deleted with its partner: the owner deleted one row.
+    expect(survivor?.transaction.deletedAt).toBeNull();
+  });
+
+  it("refuses a new transaction and an import on a CLOSED account", async () => {
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    await repo.updateAccount(account.id, { status: "closed" });
+
+    await expect(
+      repo.createTransaction({
+        accountId: account.id,
+        occurredOn: "2026-09-04",
+        amount: "-10.00",
+        payeeDisplay: "SYNTH CAFE 001",
+      }),
+    ).rejects.toThrow(/closed/i);
+
+    await expect(
+      repo.previewImport({
+        accountId: account.id,
+        fileName: "september.csv",
+        bytes: new TextEncoder().encode(
+          "Date,Description,Amount\n04/09/2026,SYNTH CAFE 001,-10.00",
+        ),
+        mapping: validateCsvMapping({
+          v: 1,
+          headerRows: 1,
+          date: 0,
+          dateFormat: "dmy",
+          description: 1,
+          amount: { kind: "single", column: 2, invert: false },
+          sourceId: null,
+          balance: null,
+        }),
+      }),
+    ).rejects.toThrow(/closed/i);
+
+    // Reopening is one control away, so the refusal is actionable.
+    await repo.updateAccount(account.id, { status: "open" });
+    await expect(
+      repo.createTransaction({
+        accountId: account.id,
+        occurredOn: "2026-09-04",
+        amount: "-10.00",
+        payeeDisplay: "SYNTH CAFE 001",
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("reports the SAME total on every page, not the page's own length", async () => {
+    /*
+     * DEBT-232's defect, reintroduced on cursor pages only: `total` fell back
+     * to `items.length` whenever a cursor was present, so a 120-row result
+     * reported 50 on page two and 20 on the last.
+     */
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    for (let index = 0; index < 12; index += 1) {
+      await repo.createTransaction({
+        accountId: account.id,
+        occurredOn: `2026-09-${String((index % 28) + 1).padStart(2, "0")}`,
+        amount: "-10.00",
+        payeeDisplay: `NORTHWIND GROCERS ${index}`,
+      });
+    }
+
+    const first = await repo.listTransactions({ limit: 5 });
+    expect(first.items).toHaveLength(5);
+    expect(first.total).toBe(12);
+
+    const second = await repo.listTransactions({
+      limit: 5,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items).toHaveLength(5);
+    expect(second.total).toBe(12);
+
+    const last = await repo.listTransactions({
+      limit: 5,
+      cursor: second.nextCursor!,
+    });
+    expect(last.items).toHaveLength(2);
+    expect(last.total).toBe(12);
+  });
+
+  it("binds an apply to the mapping the PREVIEW used, not to the current form", async () => {
+    /*
+     * `expectedSha256` authenticates the file and nothing else, so an owner
+     * could preview a statement, change which column is the date or flip the
+     * sign, and apply — and the server would reparse the same bytes under a
+     * mapping nobody had seen, changing every imported date or amount.
+     */
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    const bytes = new TextEncoder().encode(
+      [
+        "Date,Description,Amount",
+        "04/09/2026,NORTHWIND GROCERS,-84.20",
+        "05/09/2026,SYNTH CAFE 001,-12.50",
+      ].join("\n"),
+    );
+    const previewed = validateCsvMapping({
+      v: 1,
+      headerRows: 1,
+      date: 0,
+      dateFormat: "dmy",
+      description: 1,
+      amount: { kind: "single", column: 2, invert: false },
+      sourceId: null,
+      balance: null,
+    });
+    const preview = await repo.previewImport({
+      accountId: account.id,
+      fileName: "september.csv",
+      bytes,
+      mapping: previewed,
+    });
+    expect(preview.mappingKey).toBe(serialiseCsvMapping(previewed));
+
+    // The SAME bytes, a DIFFERENT mapping — every amount would be inverted.
+    const changed = validateCsvMapping({
+      ...previewed,
+      amount: { kind: "single", column: 2, invert: true },
+    });
+    await expect(
+      repo.applyImport({
+        accountId: account.id,
+        fileName: "september.csv",
+        bytes,
+        mapping: changed,
+        expectedSha256: preview.fileSha256,
+        expectedMappingKey: preview.mappingKey,
+      }),
+    ).rejects.toThrow(/preview/i);
+
+    // Nothing was written by the refused apply.
+    expect((await repo.listTransactions()).total).toBe(0);
+
+    // The previewed mapping applies.
+    const applied = await repo.applyImport({
+      accountId: account.id,
+      fileName: "september.csv",
+      bytes,
+      mapping: previewed,
+      expectedSha256: preview.fileSha256,
+      expectedMappingKey: preview.mappingKey,
+    });
+    expect(applied.addedCount).toBe(2);
+    // Money OUT, as previewed — not inverted.
+    expect(await deriveAccountBalance(WS, account.id)).toBe(-9670);
   });
 });

@@ -27,12 +27,14 @@
  * owner cannot preview one file and apply another.
  */
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   CSV_DATE_FORMAT_LABELS,
   CSV_DATE_FORMATS,
   CSV_MAX_BYTES,
+  readStoredCsvMapping,
   IMPORT_ROW_PROBLEM_MESSAGES,
   type CsvDateFormat,
 } from "~/kernel/finance";
@@ -51,6 +53,7 @@ interface PreviewResponse {
   readonly message?: string;
   readonly preview?: {
     readonly fileSha256: string;
+    readonly mappingKey: string;
     readonly rows: readonly SerializedImportRow[];
     readonly newCount: number;
     readonly existingCount: number;
@@ -81,22 +84,56 @@ interface PreviewResponse {
 const PREVIEW_ROW_LIMIT = 60;
 
 export function FinanceImport(props: FinanceImportData) {
+  const navigate = useNavigate();
   const { accounts, imports, failed } = props;
+
+  /*
+   * The account's SAVED mapping, or the defaults.
+   *
+   * "Remember this layout for this account" persisted a mapping the screen then
+   * never read: the loader returned it, every field initialised to a hard-coded
+   * default, and the owner remapped the same statement layout every month. The
+   * saved mapping is the whole point of the checkbox.
+   */
+  const saved = readStoredCsvMapping(props.savedMappingJson);
+  const savedAmount = saved?.amount;
   const [accountId, setAccountId] = useState(props.selectedAccountId ?? "");
-  const [headerRows, setHeaderRows] = useState("1");
-  const [dateColumn, setDateColumn] = useState("0");
-  const [dateFormat, setDateFormat] = useState<CsvDateFormat>("dmy");
-  const [descriptionColumn, setDescriptionColumn] = useState("1");
-  const [amountKind, setAmountKind] = useState<"single" | "debit_credit">(
-    "single",
+  const [headerRows, setHeaderRows] = useState(String(saved?.headerRows ?? 1));
+  const [dateColumn, setDateColumn] = useState(String(saved?.date ?? 0));
+  const [dateFormat, setDateFormat] = useState<CsvDateFormat>(
+    saved?.dateFormat ?? "dmy",
   );
-  const [amountColumn, setAmountColumn] = useState("2");
-  const [invert, setInvert] = useState(false);
-  const [debitColumn, setDebitColumn] = useState("2");
-  const [creditColumn, setCreditColumn] = useState("3");
-  const [debitPositive, setDebitPositive] = useState(true);
-  const [sourceIdColumn, setSourceIdColumn] = useState("");
-  const [balanceColumn, setBalanceColumn] = useState("");
+  const [descriptionColumn, setDescriptionColumn] = useState(
+    String(saved?.description ?? 1),
+  );
+  const [amountKind, setAmountKind] = useState<"single" | "debit_credit">(
+    savedAmount?.kind ?? "single",
+  );
+  const [amountColumn, setAmountColumn] = useState(
+    String(savedAmount?.kind === "single" ? savedAmount.column : 2),
+  );
+  const [invert, setInvert] = useState(
+    savedAmount?.kind === "single" ? savedAmount.invert : false,
+  );
+  const [debitColumn, setDebitColumn] = useState(
+    String(savedAmount?.kind === "debit_credit" ? savedAmount.debitColumn : 2),
+  );
+  const [creditColumn, setCreditColumn] = useState(
+    String(savedAmount?.kind === "debit_credit" ? savedAmount.creditColumn : 3),
+  );
+  const [debitPositive, setDebitPositive] = useState(
+    savedAmount?.kind === "debit_credit" ? savedAmount.debitPositive : true,
+  );
+  const [sourceIdColumn, setSourceIdColumn] = useState(
+    saved?.sourceId === null || saved?.sourceId === undefined
+      ? ""
+      : String(saved.sourceId),
+  );
+  const [balanceColumn, setBalanceColumn] = useState(
+    saved?.balance === null || saved?.balance === undefined
+      ? ""
+      : String(saved.balance),
+  );
   const [saveMapping, setSaveMapping] = useState(true);
   const [includeSuspected, setIncludeSuspected] = useState<ReadonlySet<number>>(
     new Set(),
@@ -111,7 +148,45 @@ export function FinanceImport(props: FinanceImportData) {
     PreviewResponse["result"]
   > | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  /** The chosen file's name, so a file change is visible to the effect above. */
+  const [fileName, setFileName] = useState("");
   const ids = useId();
+
+  /*
+   * Any change to the FILE, the ACCOUNT or the MAPPING invalidates the preview
+   * and the per-row duplicate overrides.
+   *
+   * Two defects lived here. A preview stayed on screen after a mapping change,
+   * so "this is what will happen" described columns that were no longer
+   * selected. And `includeSuspected` holds row INDEXES: after ticking "import
+   * it anyway" on row 7 and then choosing a different file, row 7 of the new
+   * file arrived pre-approved — a suspected duplicate imported without anyone
+   * agreeing to it, which is the one thing this control exists to prevent.
+   *
+   * Keyed on a signature of every input rather than wired into a dozen change
+   * handlers, so a mapping field added later cannot forget to do it.
+   */
+  const inputSignature = JSON.stringify([
+    accountId,
+    fileName,
+    headerRows,
+    dateColumn,
+    dateFormat,
+    descriptionColumn,
+    amountKind,
+    amountColumn,
+    invert,
+    debitColumn,
+    creditColumn,
+    debitPositive,
+    sourceIdColumn,
+    balanceColumn,
+  ]);
+  useEffect(() => {
+    setPreview(null);
+    setApplied(null);
+    setIncludeSuspected(new Set());
+  }, [inputSignature]);
 
   const mapping = () => ({
     v: 1 as const,
@@ -150,6 +225,9 @@ export function FinanceImport(props: FinanceImportData) {
       body.set("mapping", JSON.stringify(mapping()));
       if (intent === "apply") {
         body.set("expectedSha256", preview?.fileSha256 ?? "");
+        // Bound to the mapping the PREVIEW used, not to whatever the form says
+        // now — the server refuses the apply if they differ.
+        body.set("expectedMappingKey", preview?.mappingKey ?? "");
         body.set("saveMapping", saveMapping ? "1" : "");
         body.set("includeSuspected", JSON.stringify([...includeSuspected]));
       }
@@ -230,8 +308,20 @@ export function FinanceImport(props: FinanceImportData) {
             value={accountId}
             disabled={busy}
             onChange={(event) => {
-              setAccountId(event.target.value);
+              /*
+               * Navigating rather than only setting state, so the LOADER re-runs
+               * and returns the chosen account's own saved mapping. A mapping is
+               * per account — one bank's export is not another's — so keeping
+               * the previous account's columns selected would be worse than
+               * offering the defaults.
+               */
+              const next = event.target.value;
+              setAccountId(next);
               setPreview(null);
+              void navigate(
+                `/finance/import?account=${encodeURIComponent(next)}`,
+                { replace: true },
+              );
             }}
             data-testid="import-account"
           >
@@ -265,9 +355,15 @@ export function FinanceImport(props: FinanceImportData) {
             type="file"
             accept=".csv,text/csv"
             disabled={busy}
-            onChange={() => {
+            onChange={(event) => {
+              // The effect keyed on `inputSignature` clears the preview and the
+              // overrides; this only records WHICH file, so it can see the
+              // change. A same-named file re-picked still clears, because the
+              // effect also runs when the preview it would invalidate is gone.
+              setFileName(event.target.files?.[0]?.name ?? "");
               setPreview(null);
               setApplied(null);
+              setIncludeSuspected(new Set());
             }}
             data-testid="import-file"
           />

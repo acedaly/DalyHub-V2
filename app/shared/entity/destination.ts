@@ -128,9 +128,25 @@ export function entityDestination(
   if (type === "task") {
     return { kind: "drawer", drawerKey: `task:${id}` };
   }
-  // V2.12 FIN-00 — the second drawer type. A transaction has no record page.
+  /*
+   * V2.12 — a transaction has no record page, and it is reached by ROUTE.
+   *
+   * It briefly returned a `transaction:<id>` DRAWER key, on the reasoning that
+   * the transactions surface opens one. But a drawer key is interpreted by the
+   * CURRENT route's `DrawerProvider`, and every other route that renders an
+   * `EntityLink` has no transaction renderer — the Obligation record, which is
+   * exactly where the settlement link appears, passes `renderDrawer={() => null}`.
+   * Clicking "paid" there opened the "record isn't available" fallback.
+   *
+   * `/finance/transactions?open=<id>` works from anywhere and lands on the one
+   * surface where a transaction can be acted on, which is what the Search
+   * provider already does with it. The id is opaque: no payee, no amount.
+   */
   if (type === "finance_transaction") {
-    return { kind: "drawer", drawerKey: `transaction:${id}` };
+    return {
+      kind: "route",
+      to: `/finance/transactions?open=${encodeURIComponent(id)}`,
+    };
   }
   const route = isEntityType(type) ? CANONICAL_ROUTE[type] : undefined;
   return route ? { kind: "route", to: route(id) } : null;

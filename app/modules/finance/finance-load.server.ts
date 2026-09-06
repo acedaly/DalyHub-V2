@@ -184,6 +184,19 @@ export async function loadFinanceTransactions(
       cursor,
     });
 
+    /*
+     * The page's RECEIPTS, in one bulk read.
+     *
+     * The drawer used to be handed an empty list, so an uploaded receipt lived
+     * only in the hook's local state: close the drawer or reload and the
+     * evidence read as absent, with no way to open or remove it. `listForOwners`
+     * is one statement for the whole page, so this costs a round trip rather
+     * than one per row — and the drawer can be opened without a navigation.
+     */
+    const attachmentsByTransaction = await scope.attachments.listForOwners(
+      page.items.map((item) => item.id),
+    );
+
     return {
       ...monthContext(month),
       todayIso,
@@ -195,6 +208,12 @@ export async function loadFinanceTransactions(
       accounts,
       categories,
       transactions: page.items,
+      attachments: Object.fromEntries(
+        [...attachmentsByTransaction].map(([id, records]) => [
+          id,
+          attachmentViews(records),
+        ]),
+      ),
       nextCursor: page.nextCursor,
       total: page.total,
       failed: false,
@@ -211,6 +230,7 @@ export async function loadFinanceTransactions(
       accounts: [],
       categories: [],
       transactions: [],
+      attachments: {},
       nextCursor: null,
       total: 0,
       failed: true,
@@ -251,6 +271,7 @@ export async function loadFinanceBudgets(
       todayIso,
       categories: categories.filter((category) => category.kind === "spending"),
       lines: monthLines.lines,
+      budgets: monthLines.budgets,
       // The currency to offer first: the one most of the owner's accounts are
       // in. Deterministic, and never a guess about what they meant.
       defaultCurrency: accounts[0]?.currencyCode ?? "AUD",
@@ -262,6 +283,7 @@ export async function loadFinanceBudgets(
       todayIso,
       categories: [],
       lines: [],
+      budgets: [],
       defaultCurrency: "AUD",
       failed: true,
     };
