@@ -63,5 +63,33 @@ export default defineConfig({
   test: {
     include: ["test/kernel/**/*.test.ts"],
     setupFiles: ["./test/kernel/apply-migrations.ts"],
+    /*
+     * Vitest's default is 5 s, and for THIS suite that number was never sized
+     * for the work. Every test here does real D1 through the Workers pool, and
+     * several deliberately seed a hundred-odd rows to assert a statement-count
+     * budget over a page that is genuinely large.
+     *
+     * MEASURED. Locally the whole suite spends ~265 s in test bodies and its
+     * slowest test takes 1 289 ms. The same suite on CI spends 997 s — about
+     * 3.8x — which puts that slowest test at ~4.9 s, ON the default, before any
+     * contention. Five tests have duly timed out at 5 000 ms on CI across three
+     * files while passing locally every time: `recall-03-commitments-due`
+     * (four, seeding 150 Tasks), `review-insights` (a second, larger
+     * workspace), and `task-checklist` at 783 ms locally.
+     *
+     * Ceilinging them one at a time was treating the symptom: the band at risk
+     * is everything above ~1.3 s locally, and it grows as the suite does. The
+     * house pattern already grants 30 s, 90 s and 600 s to individual seeded
+     * suites (`recall-03`, `areas-route`, `asset-history-scale`), which is the
+     * same admission made three times over.
+     *
+     * NOTHING is weakened. A ceiling is not a budget — a passing test never
+     * spends it — and no assertion in this suite is about elapsed time. The
+     * performance claims here are STATEMENT COUNTS (`counter.statements()`,
+     * `INSIGHT_ACTIVITY_PAGE_BUDGET`, `REVIEW_INSIGHTS_QUERY_BUDGET`), so an
+     * accidental N+1 still fails on the assertion that names it rather than on
+     * the clock. A genuine hang still fails, 25 s later.
+     */
+    testTimeout: 30_000,
   },
 });
