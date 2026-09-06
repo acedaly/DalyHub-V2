@@ -169,7 +169,9 @@ describe("V2.12 — a hostile workspace sees and changes nothing", () => {
     // A second workspace has its OWN vocabulary, and has not been given one:
     // categories are seeded with a workspace's first account, not globally.
     expect(await theirs.listCategories({ includeArchived: true })).toEqual([]);
-    expect([...(await theirs.countTransactionsByCategory()).keys()]).toEqual([]);
+    expect([...(await theirs.countTransactionsByCategory()).keys()]).toEqual(
+      [],
+    );
   });
 
   it("cannot fetch one record by id, and the miss is a MISS", async () => {
@@ -206,9 +208,9 @@ describe("V2.12 — a hostile workspace sees and changes nothing", () => {
     await expect(
       theirs.updateAccount(seeded.accountId, { title: "Taken" }),
     ).rejects.toBeInstanceOf(FinanceNotFoundError);
-    await expect(
-      theirs.deleteAccount(seeded.accountId),
-    ).rejects.toBeInstanceOf(FinanceNotFoundError);
+    await expect(theirs.deleteAccount(seeded.accountId)).rejects.toBeInstanceOf(
+      FinanceNotFoundError,
+    );
     await expect(
       theirs.saveAccountMapping(seeded.accountId, MAPPING),
     ).rejects.toBeInstanceOf(FinanceNotFoundError);
@@ -238,9 +240,9 @@ describe("V2.12 — a hostile workspace sees and changes nothing", () => {
       theirs.unlinkTransfer(seeded.transactionId),
     ).rejects.toBeInstanceOf(FinanceNotFoundError);
 
-    await expect(
-      theirs.deleteBudget(seeded.budgetId),
-    ).rejects.toBeInstanceOf(FinanceNotFoundError);
+    await expect(theirs.deleteBudget(seeded.budgetId)).rejects.toBeInstanceOf(
+      FinanceNotFoundError,
+    );
   });
 
   it("cannot write INTO another workspace's account, by any route", async () => {

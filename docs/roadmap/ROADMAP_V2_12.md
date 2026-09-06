@@ -1163,6 +1163,72 @@ to point at.
 
 ---
 
+## Falsification: sixteen deliberate breakages, every one reverted
+
+A test that cannot fail is not evidence. So each load-bearing claim was broken
+on purpose, the targeted suite run, and the breakage reverted — and the result
+recorded whether or not it was flattering.
+
+**Twelve broke exactly what they should have.** Four did not, and each of those
+four was a real gap:
+
+| # | Broken | Result |
+| --- | --- | --- |
+| 1 | occurrence index made constant | 5 failed ✓ |
+| 2 | suspicion rule loses its same-day exemption | 2 failed ✓ |
+| 3 | `deriveBalanceMinor` ignores the opening balance | **nothing failed — GAP** |
+| 4 | transfer legs counted in the month | **nothing failed — GAP** |
+| 5 | a category in use may be deleted | 1 failed ✓ |
+| 6 | a typed amount accepted beside a settlement | 1 failed ✓ |
+| 7 | suspected duplicates imported by default | 2 failed ✓ |
+| 8 | the account balance put in a Search subtitle | 1 failed ✓ |
+| 9 | Finance entity types unreserved | 1 failed ✓ |
+| 10 | category suggestion made one read per row | 1 failed ✓ |
+| 11 | workspace bound removed from the month read | **nothing failed — GAP** |
+| 12 | the export writer stops measuring its archive | 1 failed ✓ |
+| 13 | `deleted_at` dropped from the settlement index | 1 failed ✓ |
+| 14 | starter categories seeded per account again | **nothing failed — GAP** |
+| 15 | the uncategorised bucket netted again | 1 failed ✓ |
+| 16 | a disposed Asset counted towards net worth | 1 failed ✓ |
+
+### The four gaps, and what closed each
+
+**3 — the balance had two implementations.** The adapter restated
+`opening + sum` in TypeScript beside a comment claiming `deriveBalanceMinor` was
+the single definition; the kernel function was reached only by the restore
+rehearsal. Two implementations of one definition is what
+[ADR-120](../decisions/ARCHITECTURE_DECISIONS.md) decision 5 refuses for
+balances, and a comment asserting otherwise is worse than none. The adapter now
+calls it.
+
+**4 — the transfer test checked only half the month.** Removing
+`transfer_group_id IS NULL` from the grouped statement left every assertion
+green, because the two legs are *uncategorised* and therefore landed in the
+uncategorised bucket rather than in the categorised totals the test read. The
+month would have said "2 transactions have no category yet — $1,000.00 out and
+$1,000.00 in": the double count this design exists to prevent, wearing a
+different label. The test now asserts the whole month.
+
+**11 — nothing was watching workspace isolation.** The read behind the entire
+Finance home could be un-scoped with the suite still green;
+`finance-store.test.ts` had an `OTHER` workspace constant and used it only to
+keep the row alive across resets. `finance-isolation.test.ts` now asks every
+read and every action from the other side — and found two silent no-ops on the
+way (`saveAccountMapping` and `deleteCategory` reporting success for records
+they had not touched).
+
+**14 — the test passed under both conditions, which also corrected a claim.**
+This one is worth stating plainly because it caught an overstatement of ours:
+the commit that changed the starter-category seeding said an owner who deleted
+their only account and created another would hit a hard failure. They would not
+— `deleteAccount` is a *soft* delete, so the old condition still held. What
+produced the failure was the E2E fixture removing account rows physically
+between specs. The change stands on its own merits (asking whether a workspace
+has a *vocabulary* is the invariant; asking whether it has an *account* was a
+proxy), and there is now a test that fails without it.
+
+---
+
 ## Completion criteria
 
 V2.12 FINANCE CORE is complete when every one of these is true. Each is asserted
