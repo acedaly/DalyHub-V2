@@ -47,12 +47,15 @@ import {
   createR2ObjectStore,
   listMissingObjects,
   listOrphanedObjects,
+  readAttachmentBytes,
+  sweepAttachmentPurges,
   uploadAttachment,
 } from "~/platform/attachments";
 import {
   applyRestore,
   createSafetyBackup,
   acknowledgeSafetyBackup,
+  discardRestore,
   prepareRestore,
   readBackupArchive,
   type RestoreDependencies,
@@ -393,6 +396,51 @@ describe("the D1 + R2 restore rehearsal", () => {
     await expect(readBackupArchive(damaged.bytes)).rejects.toThrow(
       /do not match what DalyHub recorded/,
     );
+  });
+
+  it("does NOT purge a LIVE object when a preview is cancelled", async () => {
+    /*
+     * The accident this must never allow, found by review on the first CI run.
+     *
+     * Restore keys are derived and final, so restoring an archive back into the
+     * workspace it came from stages bytes under the keys of attachments that
+     * are still live — the same ids, so the same keys. That write is harmless:
+     * an attachment is immutable and its id is never reused, so the bytes are
+     * identical and R2 verifies them against the digest the snapshot carries.
+     *
+     * Queueing every staged key on cancel was NOT harmless. Previewing
+     * yesterday's export and then changing your mind queued the live objects
+     * those ids name, and the sweep deleted the owner's real evidence — live
+     * metadata pointing at nothing, downloads answering 502, from an action
+     * whose entire promise is that it changed nothing.
+     */
+    const seeded = await seedWorkspace();
+    const archive = await exportArchive();
+
+    const deps = restoreDeps();
+    const preview = await prepareRestore(deps, archive);
+    await discardRestore(deps, preview.operationId);
+
+    // Nothing the live workspace owns may be owed a delete.
+    const attachments = attachmentRepo();
+    const liveKeys = new Set(
+      (await attachments.listAll()).map((row) => row.storageKey),
+    );
+    expect(liveKeys.size).toBe(FIXTURES.length);
+    const queued = await attachments.listPurges();
+    expect(queued.filter((row) => liveKeys.has(row.storageKey))).toEqual([]);
+
+    // And the strongest form of the same claim: run the sweep, then read every
+    // file back. A ledger assertion alone would pass if the sweep found the
+    // keys another way.
+    await sweepAttachmentPurges(attachmentDeps(), { limit: 100 });
+    for (const { id, fixture } of seeded.uploaded) {
+      const row = await attachments.get(id);
+      expect(row).not.toBeNull();
+      expect([...(await readAttachmentBytes(attachmentDeps(), row!))]).toEqual([
+        ...fixture.bytes,
+      ]);
+    }
   });
 
   it("rejects an archive whose own CHECKSUMS.txt no longer matches it", async () => {

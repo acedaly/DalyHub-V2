@@ -23,7 +23,15 @@ import type { PendingUpload } from "./use-attachments";
 export interface AttachmentListProps {
   readonly attachments: readonly SerializedAttachment[];
   readonly pending?: readonly PendingUpload[];
-  readonly onRemove?: (attachment: SerializedAttachment) => void;
+  /**
+   * Ask to remove this file. Receives the trigger element so the confirmation
+   * that follows can return focus to it — removal is UNRECOVERABLE, so it is
+   * confirmed rather than done on the click (see `AttachmentsSection`).
+   */
+  readonly onRemove?: (
+    attachment: SerializedAttachment,
+    opener: HTMLElement | null,
+  ) => void;
   readonly onRetry?: (operationId: string) => void;
   readonly onDismiss?: (operationId: string) => void;
   /** Which stored attachment is being removed. */

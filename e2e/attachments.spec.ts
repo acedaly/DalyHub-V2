@@ -202,7 +202,7 @@ test.describe("evidence on a record", () => {
     await expect(row).toContainText("Rego renewal.pdf");
     await expect(row).toContainText("PDF");
     await expect(
-      page.getByRole("button", { name: "Remove Rego renewal.pdf" }),
+      page.getByRole("button", { name: "Remove… Rego renewal.pdf" }),
     ).toBeVisible();
 
     /*
@@ -235,8 +235,17 @@ test.describe("evidence on a record", () => {
     expect(downloaded.sniff).toBe("nosniff");
     expect(downloaded.bytes).toEqual([...PDF]);
 
-    // Remove it. The row goes, and the record says so.
-    await page.getByRole("button", { name: "Remove Rego renewal.pdf" }).click();
+    /*
+     * Remove it — through the confirmation, because removal is unrecoverable
+     * and the click alone must send nothing. The dialog names the file and says
+     * so; `AttachmentsSection.test.tsx` asserts that no request leaves until it
+     * is confirmed.
+     */
+    await page
+      .getByRole("button", { name: "Remove… Rego renewal.pdf" })
+      .click();
+    await expect(page.getByRole("dialog")).toContainText("cannot be undone");
+    await page.getByRole("button", { name: "Remove file" }).click();
     await expect(page.getByTestId("attachment-row")).toHaveCount(0);
     await expect(page.getByTestId("attachments-section-empty")).toBeVisible();
 

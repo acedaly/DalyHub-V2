@@ -3597,9 +3597,25 @@ cannot produce a second attachment however many times it is pressed.
 Filename (a link to the authenticated download), then class, size and date. A
 raster image gets a thumbnail; nothing else does, because the CSP means nothing
 else can be displayed in a DalyHub page. Every action carries the filename in its
-accessible name — `Download <filename>`, `Remove <filename>` — since a list of
+accessible name — `Download <filename>`, `Remove… <filename>` — since a list of
 ten files whose buttons all announce as "Download" is a list a screen-reader user
 cannot act on.
+
+### Removal is confirmed, and it is the one place undo loses
+
+The product's rule is *prefer undo over confirmation dialogs*. Here there is no
+undo to prefer. Removing a file hard-deletes the row and owes the bytes to the
+purge sweep, deliberately: a soft-deleted attachment whose bytes are still in the
+bucket tells the owner their document is gone when it is not.
+
+A client-held undo window was the other candidate and is worse for the same
+reason — close the tab inside the window and the file the owner watched
+disappear is still there. So **Remove…** carries the ellipsis that means a
+question follows, and the shared confirmation dialog names the file and says
+plainly that it cannot be undone and will not be in any later backup. Nothing
+leaves the browser until it is confirmed, which is asserted rather than assumed.
+
+The same shape, for the same reason, as discarding an offline capture.
 
 **Long filenames wrap; they never truncate.** The extension is the part that says
 what the file is, and an ellipsis eats it. The row is a two-column grid that

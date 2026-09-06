@@ -35,7 +35,15 @@ import type { SerializedAttachment } from "~/kernel/attachments";
 export interface AttachmentRowProps {
   readonly attachment: SerializedAttachment;
   /** Omit to render the row read-only (an archived record, a print view). */
-  readonly onRemove?: (attachment: SerializedAttachment) => void;
+  /**
+   * Ask to remove this file. Receives the trigger element so the confirmation
+   * that follows can return focus to it — removal is UNRECOVERABLE, so it is
+   * confirmed rather than done on the click (see `AttachmentsSection`).
+   */
+  readonly onRemove?: (
+    attachment: SerializedAttachment,
+    opener: HTMLElement | null,
+  ) => void;
   /** True while THIS attachment is being removed. */
   readonly busy?: boolean;
   readonly "data-testid"?: string;
@@ -97,10 +105,10 @@ export function AttachmentRow({
             type="button"
             className="dh-btn dh-btn--ghost dh-btn--sm"
             disabled={busy}
-            onClick={() => onRemove(attachment)}
+            onClick={(event) => onRemove(attachment, event.currentTarget)}
             data-testid={`${testId}-remove`}
           >
-            Remove
+            Remove…
             <span className="dh-visually-hidden"> {attachment.filename}</span>
           </button>
         ) : null}

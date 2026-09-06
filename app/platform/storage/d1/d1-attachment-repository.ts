@@ -175,11 +175,30 @@ export class D1AttachmentRepository implements AttachmentRepository {
      * row, so `changes()` stays 0, so no Activity event is appended, and the
      * read below returns the attachment that already exists.
      */
+    /*
+     * The per-record bound is enforced HERE, in the same statement as the
+     * insert, rather than only by the service's count-then-write.
+     *
+     * Two uploads from two tabs against a record holding 49 files could both
+     * read 49, both pass the service check, and both commit — 51 rows, on a
+     * record whose read is capped at 50, so the overflow file was invisible in
+     * the UI while its object sat in the bucket for ever. `SELECT ... WHERE
+     * (SELECT COUNT(*) ...) <` makes the count and the insert one atomic act,
+     * so the second writer loses.
+     *
+     * The service's check stays, and is not redundant: it runs BEFORE the file
+     * is read or stored, and it is what produces the sentence naming the limit.
+     * This is the backstop that makes it true under concurrency.
+     */
     const insert = this.#db
       .prepare(
         `INSERT INTO attachments
            (${COLUMNS})
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          WHERE (
+            SELECT COUNT(*) FROM attachments
+             WHERE workspace_id = ? AND owner_entity_id = ?
+          ) < ?
          ON CONFLICT (workspace_id, upload_operation_id) DO NOTHING`,
       )
       .bind(
@@ -194,6 +213,9 @@ export class D1AttachmentRepository implements AttachmentRepository {
         input.uploadOperationId,
         uploadedBy,
         toStorageTimestamp(now),
+        this.#workspaceId,
+        input.ownerEntityId,
+        MAX_ATTACHMENTS_PER_RECORD,
       );
 
     try {
@@ -217,8 +239,24 @@ export class D1AttachmentRepository implements AttachmentRepository {
      */
     const stored = await this.#byOperationId(input.uploadOperationId);
     if (stored === null) {
-      // The insert reported no error and the row is not there. Nothing sensible
-      // can be said about that except that the write did not happen.
+      /*
+       * The insert reported no error and the row is not there, which now has
+       * one known cause: the per-record guard above refused it because another
+       * writer took the last slot between the service's count and this commit.
+       * Say THAT, with the sentence the owner would have got had the race gone
+       * the other way, rather than a generic write failure they cannot act on.
+       */
+      if (
+        (await this.countForOwner(input.ownerEntityId)) >=
+        MAX_ATTACHMENTS_PER_RECORD
+      ) {
+        throw new AttachmentValidationError(
+          "owner",
+          `This record already has ${MAX_ATTACHMENTS_PER_RECORD} files, which is the most one record holds. Remove one before adding another.`,
+        );
+      }
+      // Anything else: nothing sensible can be said except that it did not
+      // happen.
       throw new AttachmentStorageWriteError();
     }
     const created = stored.id === id;

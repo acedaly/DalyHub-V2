@@ -6663,6 +6663,53 @@ moves from **39 to 40** statements — one more collection — and is flat with
 respect to how many files exist, because the snapshot reads metadata and never a
 byte. All three are asserted over real D1, not estimated.
 
+### Decision 12 — The bounds are enforced where a RACE cannot step around them, and the one unrecoverable action is confirmed
+
+Three findings from the first review of this release, and each is the same
+mistake in a different place: a rule stated in the layer that is easiest to walk
+past.
+
+**The per-record bound was a count-then-write.** Two uploads from two tabs
+against a record holding 49 files could both read 49, both pass the service
+check, and both commit. Fifty-one rows, on a record whose read is capped at
+fifty, so the overflow file was invisible in the interface while its object sat
+in the bucket for ever. The bound now lives in the INSERT — `SELECT … WHERE
+(SELECT COUNT(*) …) < 50` — so the count and the write are one act and the second
+writer loses. The service check stays because it runs before a byte is read and
+it is what produces the sentence naming the limit; the database is what makes
+that sentence true.
+
+**`Content-Length` was compared with the FILE bound.** It is not the file's size;
+it is the whole multipart body. A file at exactly the advertised maximum was
+therefore refused, with a sentence saying it was too large — a limit the product
+does not have, stated as one it does, and nothing the owner could act on. The
+header check now bounds the ENVELOPE (the file bound plus 16 KiB) and the exact
+limit is applied to `File.size`, which is the only value that is actually the
+file.
+
+**A staged restore could purge LIVE objects.** Keys are derived and final, so
+restoring an archive back into the workspace it came from stages bytes under the
+keys of attachments that are still live. The write is harmless — same id, same
+immutable file, digest-verified — but queueing every staged key on an
+abandonment path meant that previewing yesterday's export and then CANCELLING
+queued the live objects those ids name, and the sweep deleted the owner's real
+evidence. Each key is now checked against the live table before it is queued.
+Checked one at a time rather than against a bulk listing, because `listAll` is
+capped at the per-archive limit and a workspace above that cap would have live
+rows missing from the set — the same deletion by a different route.
+
+**And removal is confirmed.** `AGENTS.md` prefers undo over confirmation
+dialogs, and here there is no undo to prefer: the row is hard-deleted and the
+bytes are purged, deliberately (decision 7). A client-held undo window was the
+alternative and is worse for the same reason — close the tab inside the window
+and the file the owner watched disappear is still there. So the fallback the rule
+leaves open applies: the shared confirmation dialog, naming the file, saying it
+cannot be undone, with nothing leaving the browser until it is confirmed.
+
+What these have in common is worth stating, because it is the reviewable
+generalisation: **a bound belongs in the layer that cannot be raced, and a
+sentence about a limit must describe the limit that actually exists.**
+
 **Consequences.** *Good:* one primitive every domain reuses, with the required
 owner enforced by the database rather than by review; no orphan object that the
 system cannot name; a restore that moves real bytes and proves it; Finance

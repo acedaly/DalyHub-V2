@@ -122,14 +122,62 @@ describe("the empty state teaches the next action", () => {
   });
 });
 
+/**
+ * Ask to remove the seeded PDF and go through with it.
+ *
+ * Removal is confirmed rather than immediate, because it is unrecoverable — the
+ * row is hard-deleted and the bytes are purged. `AttachmentsSection` documents
+ * why undo, the rule's usual preference, is not available to prefer here.
+ */
+async function removeThroughConfirmation(): Promise<void> {
+  fireEvent.click(
+    screen.getByRole("button", { name: "Remove… Rego renewal.pdf" }),
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "Remove file" }));
+}
+
+describe("removing is confirmed, because it cannot be undone", () => {
+  it("asks first, names the file, and posts nothing until it is confirmed", async () => {
+    renderSection({ attachments: [PDF] });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove… Rego renewal.pdf" }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Rego renewal.pdf");
+    expect(dialog).toHaveTextContent("cannot be undone");
+    // THE assertion: a click on Remove has sent nothing. The permanent delete
+    // used to leave on this click, so a stray one destroyed the evidence.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the file when the confirmation is cancelled", async () => {
+    renderSection({ attachments: [PDF] });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove… Rego renewal.pdf" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Keep it" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("link", { name: "Download Rego renewal.pdf" }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("a row carries its filename into every accessible name", () => {
   it("names the file on Download and on Remove", () => {
     renderSection({ attachments: [PDF] });
     expect(
       screen.getByRole("link", { name: "Download Rego renewal.pdf" }),
     ).toBeInTheDocument();
+    // The ellipsis is the house signal that a confirmation follows, and the
+    // filename is still in the name — which is what makes a list of ten usable.
     expect(
-      screen.getByRole("button", { name: "Remove Rego renewal.pdf" }),
+      screen.getByRole("button", { name: "Remove… Rego renewal.pdf" }),
     ).toBeInTheDocument();
     // The name itself is a link to the same authenticated route.
     expect(
@@ -324,9 +372,7 @@ describe("removing", () => {
     } as unknown as Response);
 
     renderSection({ attachments: [PDF] });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Remove Rego renewal.pdf" }),
-    );
+    await removeThroughConfirmation();
 
     await waitFor(() =>
       expect(
@@ -349,9 +395,7 @@ describe("removing", () => {
     } as unknown as Response);
 
     renderSection({ attachments: [PDF] });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Remove Rego renewal.pdf" }),
-    );
+    await removeThroughConfirmation();
 
     await waitFor(() =>
       expect(

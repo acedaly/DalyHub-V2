@@ -17,10 +17,36 @@
  * isolate is never the thing that fails — the refusal is DalyHub's sentence,
  * not a truncated connection.
  *
- * Enforced against `Content-Length` and against `File.size` BEFORE
- * `arrayBuffer()` is called, so an oversized upload never allocates.
+ * Enforced against `File.size` BEFORE `arrayBuffer()` is called, so an
+ * oversized upload never allocates — and, loosely, against `Content-Length`
+ * through {@link MAX_ATTACHMENT_REQUEST_BYTES}, which is this bound plus the
+ * multipart envelope rather than this bound alone.
  */
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+/**
+ * The multipart overhead an upload REQUEST is allowed on top of the file:
+ * **16 KiB**.
+ *
+ * `Content-Length` is not the file's size. It is the size of the whole
+ * multipart body — boundaries, the per-part `Content-Disposition` headers, the
+ * owner id and the operation id — so comparing it directly with
+ * {@link MAX_ATTACHMENT_BYTES} refuses a file AT the advertised maximum, and one
+ * a few hundred bytes under it, with a sentence claiming it is too large. That
+ * is a limit the product does not have, stated as one it does.
+ *
+ * So the header check bounds the ENVELOPE and the exact limit is applied to
+ * `File.size`, which is the only value that is actually the file. 16 KiB is far
+ * more than the three small parts need — a 200-character filename, a UUID and a
+ * 128-character operation id, with their headers, is under 1 KiB — and small
+ * enough that the header check still does its real job: refusing an obviously
+ * oversized body before the isolate allocates for it.
+ */
+export const MAX_ATTACHMENT_REQUEST_OVERHEAD_BYTES = 16 * 1024;
+
+/** The largest upload REQUEST body: the file bound plus its envelope. */
+export const MAX_ATTACHMENT_REQUEST_BYTES =
+  MAX_ATTACHMENT_BYTES + MAX_ATTACHMENT_REQUEST_OVERHEAD_BYTES;
 
 /**
  * The smallest file DalyHub accepts: one byte.

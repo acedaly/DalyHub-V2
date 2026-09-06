@@ -204,16 +204,10 @@ function hasAttachmentStores(
 async function queueAbandonedObjects(deps: RestoreDependencies): Promise<void> {
   if (!hasAttachmentStores(deps)) return;
   try {
-    const abandoned = await deps.restore.listStagedAttachmentIds();
-    for (const attachmentId of abandoned) {
-      await deps.attachments.queuePurge(
-        attachmentStorageKey({
-          workspaceId: deps.workspaceId,
-          attachmentId,
-        }),
-        "restore_rolled_back",
-      );
-    }
+    await queueStagedObjects(
+      deps,
+      await deps.restore.listStagedAttachmentIds(),
+    );
   } catch {
     /* Housekeeping. The orphan audit still names anything missed. */
   }
@@ -226,18 +220,60 @@ async function queueOperationObjects(
 ): Promise<void> {
   if (!hasAttachmentStores(deps)) return;
   try {
-    const staged = await deps.restore.listStagedAttachmentIds(operationId);
-    for (const attachmentId of staged) {
-      await deps.attachments.queuePurge(
-        attachmentStorageKey({
-          workspaceId: deps.workspaceId,
-          attachmentId,
-        }),
-        "restore_rolled_back",
-      );
-    }
+    await queueStagedObjects(
+      deps,
+      await deps.restore.listStagedAttachmentIds(operationId),
+    );
   } catch {
     /* Best effort, on a path that is already reporting a failure. */
+  }
+}
+
+/**
+ * Queue staged attachment objects for the sweep — EXCEPT any a LIVE attachment
+ * still owns.
+ *
+ * ## The bug this exists to not have
+ *
+ * Restore keys are DERIVED and FINAL: `workspaces/<ws>/attachments/<id>`. That
+ * determinism is what lets a restore put bytes in place before the metadata
+ * naming them becomes visible, and it is deliberate. It also means restoring an
+ * archive back into the workspace it came from writes to the keys of
+ * attachments that are still live — the same ids, so the same keys.
+ *
+ * Byte-identically, which is why the WRITE is harmless: an attachment is
+ * immutable and its id is never reused, so `a1` in the archive is `a1` in the
+ * bucket, and R2 verifies that against the digest the snapshot carries before
+ * accepting it.
+ *
+ * The PURGE is not harmless. Queueing every staged key on an abandonment path
+ * meant previewing yesterday's export and then CANCELLING queued the live
+ * objects those ids name, and the scheduled sweep then deleted the owner's real
+ * evidence — live metadata pointing at nothing, downloads answering 502 — from
+ * an action whose whole promise is that it changed nothing. That is the exact
+ * class of unrecoverable accident this release exists to make impossible.
+ *
+ * So each key is checked against the live table before it is queued. One read
+ * per staged id, on a cold path that runs at most once per restore and is
+ * bounded by the archive's own attachment limit — chosen over a single bulk
+ * listing because `listAll` is capped at the per-archive limit, and a workspace
+ * above that cap would have live rows missing from the set, which is the same
+ * deletion by a different route.
+ */
+async function queueStagedObjects(
+  deps: RestoreDependencies & { readonly attachments: AttachmentRepository },
+  attachmentIds: readonly string[],
+): Promise<void> {
+  for (const attachmentId of attachmentIds) {
+    const live = await deps.attachments.get(attachmentId);
+    if (live !== null) continue;
+    await deps.attachments.queuePurge(
+      attachmentStorageKey({
+        workspaceId: deps.workspaceId,
+        attachmentId,
+      }),
+      "restore_rolled_back",
+    );
   }
 }
 

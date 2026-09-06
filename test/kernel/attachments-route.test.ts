@@ -28,6 +28,7 @@ import { env } from "cloudflare:test";
 import type { AuthenticatedSession } from "~/kernel/auth";
 import {
   MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENT_REQUEST_BYTES,
   attachmentWorkspacePrefix,
 } from "~/kernel/attachments";
 import { setAuthenticatedSession } from "~/platform/request";
@@ -349,13 +350,39 @@ describe("bounds and retries", () => {
       filename: "policy.pdf",
       mediaType: "application/pdf",
       bytes: PDF,
-      declaredLength: MAX_ATTACHMENT_BYTES + 1,
+      declaredLength: MAX_ATTACHMENT_REQUEST_BYTES + 1,
     });
     expect(refused.status).toBe(413);
     expect(
       (await env.ATTACHMENTS.list({ prefix: attachmentWorkspacePrefix(WS) }))
         .objects,
     ).toEqual([]);
+  });
+
+  it("accepts a file AT the limit, whose request is necessarily larger", async () => {
+    /*
+     * `Content-Length` is the whole multipart body — boundaries, the per-part
+     * headers, the owner id and the operation id — so a file at exactly the
+     * advertised maximum arrives with a declared length ABOVE the file bound.
+     * Comparing the header with `MAX_ATTACHMENT_BYTES` refused it, and refused
+     * it with a sentence saying the file was too large: a limit the product
+     * does not have, stated as one it does, with nothing the owner could act on.
+     *
+     * Declared rather than actually sent, deliberately. What is being asserted
+     * is the HEADER check, and allocating 10 MiB in a test to reach it would
+     * prove the same thing more slowly. The exact bound still applies to
+     * `File.size`, which the next case covers.
+     */
+    const owner = await seedOwner();
+    const accepted = await upload({
+      owner,
+      filename: "policy.pdf",
+      mediaType: "application/pdf",
+      bytes: PDF,
+      declaredLength: MAX_ATTACHMENT_BYTES + 512,
+    });
+    expect(accepted.status).toBe(200);
+    expect(accepted.body.ok).toBe(true);
   });
 
   it("produces one attachment for a repeated operation id", async () => {

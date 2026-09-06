@@ -30,7 +30,10 @@
  * five files announces five transitions rather than a growing paragraph.
  */
 
+import { useState } from "react";
+
 import { useFeedback } from "~/shared/feedback";
+import { ConfirmationDialog } from "~/shared/settings";
 import type { SerializedAttachment } from "~/kernel/attachments";
 
 import { AttachmentList } from "./AttachmentList";
@@ -77,6 +80,25 @@ export function AttachmentsSection({
     onChanged,
   });
 
+  /*
+   * Removal is CONFIRMED, and it is the one place this surface departs from
+   * `AGENTS.md §2`'s "prefer undo over confirmation dialogs".
+   *
+   * Undo is not available to prefer. Removing a file hard-deletes the row and
+   * owes the bytes to the purge sweep, deliberately: a soft-deleted attachment
+   * whose bytes are still in the bucket tells the owner their document is gone
+   * when it is not (ADR-119 decision 7). A client-held undo window was the other
+   * candidate and is worse for exactly the same reason — close the tab inside
+   * the window and the file the owner watched disappear is still there.
+   *
+   * So the fallback the rule leaves open applies: a deliberate confirmation, in
+   * the shared dialog, saying plainly that this cannot be undone. The same
+   * shape, for the same reason, as discarding an offline capture.
+   */
+  const [pendingRemoval, setPendingRemoval] =
+    useState<SerializedAttachment | null>(null);
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+
   const empty =
     controller.attachments.length === 0 && controller.pending.length === 0;
 
@@ -99,7 +121,14 @@ export function AttachmentsSection({
         <AttachmentList
           attachments={controller.attachments}
           pending={controller.pending}
-          onRemove={readOnly ? undefined : controller.remove}
+          onRemove={
+            readOnly
+              ? undefined
+              : (attachment, trigger) => {
+                  setOpener(trigger);
+                  setPendingRemoval(attachment);
+                }
+          }
           onRetry={readOnly ? undefined : controller.retry}
           onDismiss={readOnly ? undefined : controller.dismiss}
           removingId={controller.removingId}
@@ -127,6 +156,26 @@ export function AttachmentsSection({
       >
         {controller.status}
       </p>
+
+      <ConfirmationDialog
+        open={pendingRemoval !== null}
+        title="Remove this file?"
+        confirmLabel="Remove file"
+        cancelLabel="Keep it"
+        busyLabel="Removing…"
+        tone="danger"
+        opener={opener}
+        onClose={() => setPendingRemoval(null)}
+        onConfirm={async () => {
+          if (pendingRemoval) await controller.remove(pendingRemoval);
+        }}
+      >
+        <p>
+          “{pendingRemoval?.filename}” will be deleted from DalyHub permanently.
+          It cannot be undone, and it will not be in any backup taken after
+          this.
+        </p>
+      </ConfirmationDialog>
     </section>
   );
 }

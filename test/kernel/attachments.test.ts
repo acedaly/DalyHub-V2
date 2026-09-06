@@ -691,6 +691,56 @@ describe("a retry cannot duplicate, and a failure cannot orphan silently", () =>
     expect(await env.ATTACHMENTS.get(attachment.storageKey)).toBeNull();
   });
 
+  it("refuses the 51st row at the DATABASE, not only at the service check", async () => {
+    /*
+     * The race the service's count-then-write cannot close, found by review.
+     *
+     * Two uploads from two tabs against a record holding 49 files can both read
+     * 49, both pass `assertRecordHasRoom`, and both commit — 51 rows on a record
+     * whose read is capped at 50, so the overflow file is invisible in the UI
+     * while its object sits in the bucket for ever, billed and unreachable.
+     *
+     * Driven through the REPOSITORY rather than the service, because the
+     * service check is exactly what a real race steps around: the point is that
+     * the insert itself refuses. What the second writer gets is the sentence
+     * naming the limit — the same one they would have got had the race gone the
+     * other way — rather than an opaque write failure.
+     */
+    const owner = await seedOwner(WS);
+    const dependencies = deps(WS);
+    const checksum = await hexDigest(PDF);
+    const row = (index: number) => ({
+      id: `race-${index}`,
+      ownerEntityId: owner.id,
+      filename: `f${index}.pdf`,
+      mediaType: "application/pdf",
+      byteSize: PDF.length,
+      checksumSha256: checksum,
+      storageKey: attachmentStorageKey({
+        workspaceId: WS,
+        attachmentId: `race-${index}`,
+      }),
+      uploadOperationId: `op-race-${String(index).padStart(4, "0")}`,
+    });
+
+    for (let index = 0; index < 50; index += 1) {
+      await dependencies.attachments.create(row(index));
+    }
+    await expect(dependencies.attachments.create(row(50))).rejects.toThrow(
+      AttachmentValidationError,
+    );
+    expect(await dependencies.attachments.countForOwner(owner.id)).toBe(50);
+
+    // A DIFFERENT owner is unaffected — the guard counts one record's files,
+    // not the workspace's.
+    const other = await seedOwner(WS, "Another record");
+    await dependencies.attachments.create({
+      ...row(51),
+      ownerEntityId: other.id,
+    });
+    expect(await dependencies.attachments.countForOwner(other.id)).toBe(1);
+  });
+
   it("refuses a second upload beyond the per-record bound", async () => {
     const owner = await seedOwner(WS);
     const dependencies = deps(WS);

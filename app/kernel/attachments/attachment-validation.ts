@@ -25,6 +25,7 @@ import { AttachmentValidationError } from "./attachment-errors";
 import { validateAttachmentFilename } from "./attachment-filename";
 import {
   MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENT_REQUEST_BYTES,
   MAX_ATTACHMENTS_PER_RECORD,
   MIN_ATTACHMENT_BYTES,
   formatAttachmentSize,
@@ -66,7 +67,19 @@ export interface ValidatedAttachmentUpload {
  */
 export function assertDeclaredSizeWithinBound(declaredBytes: number): void {
   if (!Number.isFinite(declaredBytes) || declaredBytes < 0) return;
-  if (declaredBytes > MAX_ATTACHMENT_BYTES) {
+  /*
+   * The ENVELOPE bound, not the file bound. `Content-Length` measures the whole
+   * multipart body — boundaries, part headers, the owner id and the operation
+   * id — so a file at exactly the advertised maximum arrives with a declared
+   * length ABOVE it. Comparing against `MAX_ATTACHMENT_BYTES` here refused that
+   * upload with a sentence saying the file was too large, which was not true and
+   * left the owner nothing to act on.
+   *
+   * The exact limit belongs on `File.size`, and is applied there. This check
+   * exists only to refuse an obviously oversized body before the isolate
+   * allocates for it, and it still does.
+   */
+  if (declaredBytes > MAX_ATTACHMENT_REQUEST_BYTES) {
     throw new AttachmentValidationError("file", tooLargeMessage());
   }
 }

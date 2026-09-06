@@ -19,6 +19,7 @@ import {
   ATTACHMENT_REFUSED_MEDIA_TYPES,
   AttachmentValidationError,
   MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENT_REQUEST_BYTES,
   MAX_ATTACHMENTS_PER_RECORD,
   MAX_ATTACHMENT_FILENAME_LENGTH,
   asciiFilenameFallback,
@@ -358,13 +359,28 @@ describe("the media-type allow-list is an allow-list", () => {
 });
 
 describe("bounds", () => {
-  it("refuses a declared length over the ceiling before any body is read", () => {
+  it("bounds the declared REQUEST length, not the file length", () => {
+    /*
+     * `Content-Length` measures the whole multipart body — boundaries, part
+     * headers, the owner id and the operation id — so a file at exactly the
+     * advertised maximum declares MORE than the file bound. Checking the header
+     * against `MAX_ATTACHMENT_BYTES` refused that upload, and refused it with a
+     * sentence saying the file was too large: a limit the product does not
+     * have, stated as one it does.
+     */
     expect(() =>
-      assertDeclaredSizeWithinBound(MAX_ATTACHMENT_BYTES + 1),
-    ).toThrow(AttachmentValidationError);
-    expect(() =>
-      assertDeclaredSizeWithinBound(MAX_ATTACHMENT_BYTES),
+      assertDeclaredSizeWithinBound(MAX_ATTACHMENT_BYTES + 512),
     ).not.toThrow();
+    expect(() =>
+      assertDeclaredSizeWithinBound(MAX_ATTACHMENT_REQUEST_BYTES),
+    ).not.toThrow();
+    // The envelope is still bounded: an obviously oversized body is refused
+    // before the isolate allocates for it.
+    expect(() =>
+      assertDeclaredSizeWithinBound(MAX_ATTACHMENT_REQUEST_BYTES + 1),
+    ).toThrow(AttachmentValidationError);
+    // And the exact bound is the FILE's, applied to real bytes.
+    expect(MAX_ATTACHMENT_REQUEST_BYTES).toBeGreaterThan(MAX_ATTACHMENT_BYTES);
     // An absent or nonsensical header is not a refusal; the real byte length is.
     expect(() => assertDeclaredSizeWithinBound(Number.NaN)).not.toThrow();
   });
