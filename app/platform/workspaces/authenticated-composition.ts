@@ -21,6 +21,7 @@ import type { AuthenticatedSession } from "~/kernel/auth";
 import {
   bindWorkspaceRepositories,
   createWorkspaceContextResolver,
+  startOwnerPreferencesRead,
   type WorkspaceScope,
   type WorkspaceScopeEnv,
 } from "./composition";
@@ -42,10 +43,19 @@ export async function resolveAuthenticatedWorkspaceScope(
   env: WorkspaceScopeEnv,
   session: AuthenticatedSession,
 ): Promise<WorkspaceScope> {
-  const context = await createWorkspaceContextResolver(env).resolve();
   const actorContext = createActivityActorContext({
     type: "user",
     id: session.user.subject,
   });
-  return bindWorkspaceRepositories(env, context, actorContext);
+  /*
+   * PERF-01 — the owner's preferences read is STARTED before the workspace
+   * existence check is awaited, because it never depended on the answer. See
+   * `startOwnerPreferencesRead`: it is best-effort and it is not an authority.
+   * The existence check below is unchanged and still decides everything — a
+   * workspace that does not resolve still fails closed, with the warm read
+   * discarded unused.
+   */
+  const warm = startOwnerPreferencesRead(env, actorContext);
+  const context = await createWorkspaceContextResolver(env).resolve();
+  return bindWorkspaceRepositories(env, context, actorContext, warm);
 }

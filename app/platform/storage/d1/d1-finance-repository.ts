@@ -1809,28 +1809,36 @@ export class D1FinanceRepository implements FinanceRepository {
     const from = monthStart(period);
     const to = monthEnd(period);
 
-    const grouped = await this.#db
-      .prepare(
-        /*
-         * Grouped by category and currency — and, for the UNCATEGORISED bucket
-         * only, by DIRECTION as well.
-         *
-         * Netting inside a category is meaningful and is the whole refund
-         * model: a refund in Groceries makes the month's Groceries smaller,
-         * because those rows are about the same thing. Netting across the
-         * uncategorised bucket is not meaningful, because those rows have
-         * nothing in common but the absence of a category — and it lies.
-         *
-         * A month with a $3,200.00 salary and $279.10 of purchases, none of
-         * them categorised yet, reported as ONE net "$2,920.90 with no
-         * category", which reads as unexplained SPENDING of $2,920.90. The out
-         * and the in are now separate rows, so the surface says "$279.10 out
-         * and $3,200.00 in have no category yet" — which is what happened.
-         *
-         * The grouping key is only ever `'net'` for a categorised row, so this
-         * changes nothing for one.
-         */
-        `SELECT t.category_id, c.name AS category_name, c.kind AS category_kind,
+    /*
+     * PERF-01 — the two reads are issued TOGETHER.
+     *
+     * The transfer count is a different question about the same month, and it
+     * never depended on the grouping. Awaiting the grouped read first made
+     * `/finance` pay two D1 round trips for one month's summary.
+     */
+    const [grouped, transfers] = await Promise.all([
+      this.#db
+        .prepare(
+          /*
+           * Grouped by category and currency — and, for the UNCATEGORISED bucket
+           * only, by DIRECTION as well.
+           *
+           * Netting inside a category is meaningful and is the whole refund
+           * model: a refund in Groceries makes the month's Groceries smaller,
+           * because those rows are about the same thing. Netting across the
+           * uncategorised bucket is not meaningful, because those rows have
+           * nothing in common but the absence of a category — and it lies.
+           *
+           * A month with a $3,200.00 salary and $279.10 of purchases, none of
+           * them categorised yet, reported as ONE net "$2,920.90 with no
+           * category", which reads as unexplained SPENDING of $2,920.90. The out
+           * and the in are now separate rows, so the surface says "$279.10 out
+           * and $3,200.00 in have no category yet" — which is what happened.
+           *
+           * The grouping key is only ever `'net'` for a categorised row, so this
+           * changes nothing for one.
+           */
+          `SELECT t.category_id, c.name AS category_name, c.kind AS category_kind,
                 t.currency_code, SUM(t.amount_minor) AS net_minor,
                 COUNT(*) AS n
            FROM finance_transaction_details t
@@ -1847,26 +1855,26 @@ export class D1FinanceRepository implements FinanceRepository {
                    END
           ORDER BY c.sort_order, c.name, t.category_id, t.currency_code,
                    SUM(t.amount_minor)`,
-      )
-      .bind(this.#workspaceId, from, to)
-      .all<{
-        category_id: string | null;
-        category_name: string | null;
-        category_kind: string | null;
-        currency_code: string;
-        net_minor: number;
-        n: number;
-      }>();
-
-    const transfers = await this.#db
-      .prepare(
-        `SELECT COUNT(*) AS n FROM finance_transaction_details
+        )
+        .bind(this.#workspaceId, from, to)
+        .all<{
+          category_id: string | null;
+          category_name: string | null;
+          category_kind: string | null;
+          currency_code: string;
+          net_minor: number;
+          n: number;
+        }>(),
+      this.#db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM finance_transaction_details
           WHERE workspace_id = ? AND deleted_at IS NULL
             AND transfer_group_id IS NOT NULL
             AND occurred_on >= ? AND occurred_on <= ?`,
-      )
-      .bind(this.#workspaceId, from, to)
-      .first<{ n: number }>();
+        )
+        .bind(this.#workspaceId, from, to)
+        .first<{ n: number }>(),
+    ]);
 
     const categories = grouped.results.map((row) => ({
       categoryId: text(row.category_id),

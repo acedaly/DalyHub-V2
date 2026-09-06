@@ -384,59 +384,83 @@ export async function loadAnalytics(
   let current: AnalyticsCompletionCounts | null = null;
   let previousCounts: AnalyticsCompletionCounts | null = null;
   let failed = false;
-  try {
-    const [seriesRows, totalCompletedRows, totalRows, eventRows] =
-      await Promise.all([
-        input.scope.tasks.countCompletedInBuckets({
-          buckets: completedBuckets,
-        }),
-        input.scope.tasks.countCompletedTasksInWindows(completedTotals),
-        input.scope.reviewInsights.countPeriodCompletions(totalRequests),
-        // The Projects and Goals LINE, in the same event semantics their
-        // totals use (ADR-079 d2), so the two cannot disagree.
-        input.scope.activity.countByTypeInBuckets({
-          types: [PROJECT_COMPLETED, GOAL_COMPLETED],
-          buckets: completedBuckets,
-        }),
-      ]);
-    const seriesByKey = new Map(
-      seriesRows.map((row) => [row.key, row.completed]),
-    );
-    const completedByKey = new Map(
-      totalCompletedRows.map((row) => [row.key, row.completed]),
-    );
-    const eventsByKey = new Map(eventRows.map((row) => [row.key, row.counts]));
-    const totalsByKey = new Map(totalRows.map((row) => [row.key, row]));
-    series = buckets.map((bucket) => ({
-      key: bucket.key,
-      tasksCompleted: seriesByKey.get(bucket.key) ?? 0,
-      projectsCompleted: eventsByKey.get(bucket.key)?.[PROJECT_COMPLETED] ?? 0,
-      goalsCompleted: eventsByKey.get(bucket.key)?.[GOAL_COMPLETED] ?? 0,
-    }));
-    const currentRow = totalsByKey.get(CURRENT_KEY);
-    const previousRow = totalsByKey.get(PREVIOUS_KEY);
-    current = currentRow
-      ? {
-          tasksCompleted: completedByKey.get(CURRENT_KEY) ?? 0,
-          projectsCompleted: currentRow.projectsCompleted,
-          goalsCompleted: currentRow.goalsCompleted,
-        }
-      : null;
-    previousCounts = previousRow
-      ? {
-          tasksCompleted: completedByKey.get(PREVIOUS_KEY) ?? 0,
-          projectsCompleted: previousRow.projectsCompleted,
-          goalsCompleted: previousRow.goalsCompleted,
-        }
-      : null;
-  } catch {
-    failed = true;
-  }
 
-  const [areas, goals, overdue] = await Promise.all([
+  /*
+   * PERF-01 — the completion series and the three distribution reads below run
+   * CONCURRENTLY.
+   *
+   * They were two sequential blocks, and the second never depended on the first:
+   * the Area distribution, the Goal tally and the overdue moments are answers to
+   * different questions from the completion series. Only the Goal reads at the
+   * end genuinely depend on anything above them — they need the tally's ids —
+   * and that dependency is preserved exactly as it was.
+   *
+   * The completion block keeps its own `try`, so a series read that fails still
+   * degrades only the series (`failed`) rather than the whole page.
+   */
+  const distributionRead = Promise.all([
     readDistribution(input, span),
     readGoalTally(input),
     readOverdue(input, overdueRequests, PREVIOUS_OVERDUE_KEY),
+  ]);
+
+  const completionRead = (async () => {
+    try {
+      const [seriesRows, totalCompletedRows, totalRows, eventRows] =
+        await Promise.all([
+          input.scope.tasks.countCompletedInBuckets({
+            buckets: completedBuckets,
+          }),
+          input.scope.tasks.countCompletedTasksInWindows(completedTotals),
+          input.scope.reviewInsights.countPeriodCompletions(totalRequests),
+          // The Projects and Goals LINE, in the same event semantics their
+          // totals use (ADR-079 d2), so the two cannot disagree.
+          input.scope.activity.countByTypeInBuckets({
+            types: [PROJECT_COMPLETED, GOAL_COMPLETED],
+            buckets: completedBuckets,
+          }),
+        ]);
+      const seriesByKey = new Map(
+        seriesRows.map((row) => [row.key, row.completed]),
+      );
+      const completedByKey = new Map(
+        totalCompletedRows.map((row) => [row.key, row.completed]),
+      );
+      const eventsByKey = new Map(
+        eventRows.map((row) => [row.key, row.counts]),
+      );
+      const totalsByKey = new Map(totalRows.map((row) => [row.key, row]));
+      series = buckets.map((bucket) => ({
+        key: bucket.key,
+        tasksCompleted: seriesByKey.get(bucket.key) ?? 0,
+        projectsCompleted:
+          eventsByKey.get(bucket.key)?.[PROJECT_COMPLETED] ?? 0,
+        goalsCompleted: eventsByKey.get(bucket.key)?.[GOAL_COMPLETED] ?? 0,
+      }));
+      const currentRow = totalsByKey.get(CURRENT_KEY);
+      const previousRow = totalsByKey.get(PREVIOUS_KEY);
+      current = currentRow
+        ? {
+            tasksCompleted: completedByKey.get(CURRENT_KEY) ?? 0,
+            projectsCompleted: currentRow.projectsCompleted,
+            goalsCompleted: currentRow.goalsCompleted,
+          }
+        : null;
+      previousCounts = previousRow
+        ? {
+            tasksCompleted: completedByKey.get(PREVIOUS_KEY) ?? 0,
+            projectsCompleted: previousRow.projectsCompleted,
+            goalsCompleted: previousRow.goalsCompleted,
+          }
+        : null;
+    } catch {
+      failed = true;
+    }
+  })();
+
+  const [, [areas, goals, overdue]] = await Promise.all([
+    completionRead,
+    distributionRead,
   ]);
 
   /*

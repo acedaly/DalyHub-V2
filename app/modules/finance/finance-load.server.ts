@@ -110,16 +110,33 @@ export async function loadFinanceHome(
       input.env,
       input.session,
     );
+    /*
+     * PERF-01 — the accounts read is STARTED before the owner's day is known.
+     *
+     * The month depends on the owner's calendar date, and net worth and the
+     * import history depend on the accounts — but the ACCOUNTS depend on
+     * neither. Awaiting the day, then the accounts, then everything else made
+     * the Finance home three serial D1 round trips deep for two round trips of
+     * real dependency.
+     *
+     * The dependencies that are real are still respected exactly: net worth and
+     * the import list are composed onto the accounts promise rather than
+     * computed from a value nobody waited for.
+     */
+    const accountsRead = readAccounts(scope.finance);
     todayIso = await scope.ownerTodayIso();
     month = resolveMonth(url.searchParams.get("month"), todayIso);
 
-    const accounts = await readAccounts(scope.finance);
-    const [monthLines, netWorth, commitments, imports] = await Promise.all([
-      readMonthLines(scope.finance, month),
-      readNetWorth(scope.finance, accounts),
-      readCommitments(scope.finance, month),
-      readImports(scope.finance, accounts, { limit: 4 }),
-    ]);
+    const [accounts, monthLines, netWorth, commitments, imports] =
+      await Promise.all([
+        accountsRead,
+        readMonthLines(scope.finance, month),
+        accountsRead.then((rows) => readNetWorth(scope.finance, rows)),
+        readCommitments(scope.finance, month),
+        accountsRead.then((rows) =>
+          readImports(scope.finance, rows, { limit: 4 }),
+        ),
+      ]);
 
     return {
       ...monthContext(month),

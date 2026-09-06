@@ -482,8 +482,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
        */
       const groupedIds = () =>
         grouping.groups.flatMap((group) => group.items.map((item) => item.id));
-      const groupedProgress = await checklistProgressOrNone(scope, groupedIds);
-      const groupedBlocked = await blockedSummariesOrNone(scope, groupedIds);
+      // PERF-01 — read together. Neither aggregate reads what the other writes,
+      // and each keeps its own guard, so this is one round trip instead of two
+      // without merging two failure domains into one.
+      const [groupedProgress, groupedBlocked] = await Promise.all([
+        checklistProgressOrNone(scope, groupedIds),
+        blockedSummariesOrNone(scope, groupedIds),
+      ]);
       return {
         ...base,
         items: [],
@@ -515,10 +520,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       cursor: cursor ?? undefined,
     });
     // TASKS-13 — ONE bounded aggregate for the page, whatever the page holds.
-    const pageIds = () => page.items.map((item) => item.id);
-    const progress = await checklistProgressOrNone(scope, pageIds);
     // TASKS-12 — and ONE for the page's blocked state, on the same terms.
-    const blocked = await blockedSummariesOrNone(scope, pageIds);
+    // PERF-01 — both at once, for the reason the grouped path above records.
+    const pageIds = () => page.items.map((item) => item.id);
+    const [progress, blocked] = await Promise.all([
+      checklistProgressOrNone(scope, pageIds),
+      blockedSummariesOrNone(scope, pageIds),
+    ]);
     return {
       ...base,
       items: serializeTaskListPage(page.items, progress, blocked),
