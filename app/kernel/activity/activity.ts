@@ -215,9 +215,10 @@ export type CountActivityByTypeInput = {
    */
   readonly types: readonly string[];
   /**
-   * Oldest first, non-overlapping, each with its half-open instant range.
-   * Bounded by the repository; the bucket count is stated back on the result so
-   * a truncated series can never be presented as a complete one.
+   * Oldest first, non-overlapping, each with its half-open instant range. At
+   * most the largest `GRAIN_MAXIMUMS` (the kernel's bucketer never produces
+   * more); a longer list is a caller bug and is REFUSED, never silently
+   * shortened, so a truncated series can never be presented as a complete one.
    */
   readonly buckets: readonly ActivityBucketWindow[];
 };

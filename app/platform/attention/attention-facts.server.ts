@@ -20,7 +20,7 @@
  * ── What it deliberately does not do ────────────────────────────────────────
  * It derives nothing of its own. Project health is `evaluateProjectHealth`, goal
  * alignment is `evaluateGoalAlignment`, an obligation's state is
- * `evaluateObligation` and the Inbox count is the canonical `inbox` system view
+ * `evaluateAssetObligation` and the Inbox count is the canonical `inbox` system view
  * — every one of them the existing single authority for that judgement. This
  * module reads and shapes; it never decides.
  *
@@ -32,7 +32,7 @@
 
 import {
   dedupeAttention,
-  evaluateObligation,
+  evaluateAssetObligation,
   type AssetsTodayData,
 } from "~/kernel/assets";
 import { evaluateProjectHealth } from "~/kernel/project-health";
@@ -190,7 +190,7 @@ export async function readAssetAttention(
   const items = await scope.assetHistory.listAttention({ today: todayIso });
   return dedupeAttention(
     items.map((item) => {
-      const evaluation = evaluateObligation(
+      const evaluation = evaluateAssetObligation(
         item.obligation,
         todayIso,
         item.reading,

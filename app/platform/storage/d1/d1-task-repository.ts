@@ -213,6 +213,7 @@ import {
   toStorageTimestamp,
   type EntityRow,
 } from "./database";
+import { MAX_HISTORY_BUCKETS } from "./history-window-read";
 import { D1ActivityRecorder } from "./d1-activity-recorder";
 import { likeContains, likeContainsNeedle, likePrefix } from "./like-pattern";
 import {
@@ -927,7 +928,7 @@ const TASK_ACTIVITY_MAX_DAYS = 14;
  * bucket count, and this simply keeps the storage layer's own ceiling rather
  * than trusting a caller's.
  */
-const MAX_COMPLETION_BUCKETS = 366;
+const MAX_COMPLETION_BUCKETS = MAX_HISTORY_BUCKETS;
 
 export class D1TaskRepository implements TaskRepository {
   readonly #db: D1Database;
@@ -4238,7 +4239,16 @@ export class D1TaskRepository implements TaskRepository {
   async countCompletedInBuckets(
     input: CountCompletedInBucketsInput,
   ): Promise<readonly CompletedTaskWindowCount[]> {
-    const buckets = input.buckets.slice(0, MAX_COMPLETION_BUCKETS);
+    // Refused rather than sliced: a series cut here would come back shorter
+    // than the buckets it was asked for, and the surface would draw the cut as
+    // the whole. The kernel's own bucketer never produces more than this.
+    if (input.buckets.length > MAX_COMPLETION_BUCKETS) {
+      throw new TaskValidationError(
+        "buckets",
+        `must hold at most ${MAX_COMPLETION_BUCKETS} buckets`,
+      );
+    }
+    const buckets = input.buckets;
     if (buckets.length === 0) return [];
 
     // Only the bucket INDEX is generated into the JSON, and it is an integer

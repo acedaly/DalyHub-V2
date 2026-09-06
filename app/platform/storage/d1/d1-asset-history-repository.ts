@@ -71,7 +71,7 @@ import {
   completionEventCategory,
   decodeAssetHistoryCursorForScope,
   encodeAssetHistoryCursor,
-  evaluateObligation,
+  evaluateAssetObligation,
   historyFilterKey,
   nextMeterThreshold,
   nextObligationDate,
@@ -83,7 +83,7 @@ import {
   validateObligationCompletion,
   validateObligationFilters,
   validateObligationsLimit,
-  type AssetAttentionInput,
+  type ObligationAttentionInput,
   type AssetAttentionItem,
   type AssetCostGroup,
   type AssetCostSummary,
@@ -95,13 +95,13 @@ import {
   type AssetHistoryRepository,
   type AssetMeterUnit,
   type AssetObligation,
-  type AssetObligationCategory,
-  type AssetObligationChangeResult,
-  type AssetObligationPage,
-  type AssetObligationStatus,
-  type AssetTaskOutcome,
+  type ObligationCategory,
+  type ObligationChangeResult,
+  type ObligationPage,
+  type ObligationStatus,
+  type ObligationTaskOutcome,
   type AssetObligationSummary,
-  type AssetRecurrenceKind,
+  type ObligationRecurrenceKind,
   type AssetValuationPoint,
   type CompleteAssetObligationInput,
   type CompleteAssetObligationResult,
@@ -501,17 +501,17 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
       id: row.id,
       workspaceId: parseWorkspaceId(row.workspace_id),
       assetId: row.asset_id,
-      category: row.category as AssetObligationCategory,
+      category: row.category as ObligationCategory,
       title: row.title,
       description: row.description,
       dueDate: row.due_date,
       leadDays: row.lead_days,
-      recurrenceKind: row.recurrence_kind as AssetRecurrenceKind,
+      recurrenceKind: row.recurrence_kind as ObligationRecurrenceKind,
       recurrenceInterval: row.recurrence_interval,
       meterThreshold: row.meter_threshold,
       meterInterval: row.meter_interval,
       meterUnit: (row.meter_unit as AssetMeterUnit | null) ?? null,
-      status: row.status as AssetObligationStatus,
+      status: row.status as ObligationStatus,
       taskId: row.task_id,
       completedEventId: row.completed_event_id,
       completedAt:
@@ -1322,7 +1322,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
   async updateObligation(
     obligationId: string,
     changes: UpdateAssetObligationInput,
-  ): Promise<AssetObligationChangeResult> {
+  ): Promise<ObligationChangeResult<AssetObligation>> {
     const id = validateAssetId(obligationId);
     const current = await this.getObligation(id);
     if (!current) throw new AssetNotFoundError();
@@ -1430,8 +1430,8 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
 
   async setObligationStatus(
     obligationId: string,
-    status: Exclude<AssetObligationStatus, "completed">,
-  ): Promise<AssetObligationChangeResult> {
+    status: Exclude<ObligationStatus, "completed">,
+  ): Promise<ObligationChangeResult<AssetObligation>> {
     const id = validateAssetId(obligationId);
     const current = await this.getObligation(id);
     if (!current) throw new AssetNotFoundError();
@@ -1837,7 +1837,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
    * in the gap: another request COMPLETED the Task, or it was deleted. Read after
    * the batch, so the answer is the state the owner will actually see.
    */
-  async #racedTaskOutcome(taskId: string): Promise<AssetTaskOutcome> {
+  async #racedTaskOutcome(taskId: string): Promise<ObligationTaskOutcome> {
     const row = await this.#db
       .prepare(
         `SELECT 1 AS present
@@ -1913,7 +1913,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
 
   async listObligations(
     input: ListAssetObligationsInput,
-  ): Promise<AssetObligationPage> {
+  ): Promise<ObligationPage<AssetObligation>> {
     const assetId = validateAssetId(input.assetId);
     const limit = validateObligationsLimit(input.limit);
     const filters = validateObligationFilters(input.filters);
@@ -2042,7 +2042,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
 
   async unlinkObligationTask(
     obligationId: string,
-  ): Promise<AssetObligationChangeResult> {
+  ): Promise<ObligationChangeResult<AssetObligation>> {
     const id = validateAssetId(obligationId);
     const current = await this.getObligation(id);
     if (!current) throw new AssetNotFoundError();
@@ -2136,7 +2136,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
   /* ---------------------------------------------------------------------- */
 
   async listAttention(
-    input: AssetAttentionInput,
+    input: ObligationAttentionInput,
   ): Promise<readonly AssetAttentionItem[]> {
     const today = input.today;
     const horizon = Math.max(
@@ -2224,7 +2224,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
         // something needs attention.
         .filter(
           (item) =>
-            evaluateObligation(item.obligation, today, item.reading)
+            evaluateAssetObligation(item.obligation, today, item.reading)
               .needsAttention,
         )
     );
@@ -2280,7 +2280,7 @@ export class D1AssetHistoryRepository implements AssetHistoryRepository {
               unit: row.current_meter_unit as AssetMeterUnit,
             }
           : null;
-      const evaluation = evaluateObligation(obligation, today, reading);
+      const evaluation = evaluateAssetObligation(obligation, today, reading);
       const existing = out.get(row.asset_id) ?? {
         openCount: 0,
         overdueCount: 0,

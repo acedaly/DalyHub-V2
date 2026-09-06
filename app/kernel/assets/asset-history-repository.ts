@@ -36,12 +36,15 @@ import type {
   UpdateAssetEventInput,
 } from "./asset-event";
 import type {
-  AssetAttentionInput,
+  ObligationAttentionInput,
+  ObligationChangeResult,
+  ObligationPage,
+  ObligationStatus,
+} from "~/kernel/obligations";
+
+import type {
   AssetAttentionItem,
   AssetObligation,
-  AssetObligationChangeResult,
-  AssetObligationPage,
-  AssetObligationStatus,
   CompleteAssetObligationInput,
   CompleteAssetObligationResult,
   CreateAssetObligationInput,
@@ -215,7 +218,7 @@ export interface AssetHistoryRepository {
   updateObligation(
     obligationId: string,
     changes: UpdateAssetObligationInput,
-  ): Promise<AssetObligationChangeResult>;
+  ): Promise<ObligationChangeResult<AssetObligation>>;
 
   /**
    * Set an obligation's lifecycle status directly — dismiss it, put it on hold, or
@@ -225,8 +228,8 @@ export interface AssetHistoryRepository {
    */
   setObligationStatus(
     obligationId: string,
-    status: Exclude<AssetObligationStatus, "completed">,
-  ): Promise<AssetObligationChangeResult>;
+    status: Exclude<ObligationStatus, "completed">,
+  ): Promise<ObligationChangeResult<AssetObligation>>;
 
   /**
    * Complete an obligation — one atomic transaction that:
@@ -253,7 +256,7 @@ export interface AssetHistoryRepository {
   /** A bounded page of one Asset's obligations. */
   listObligations(
     input: ListAssetObligationsInput,
-  ): Promise<AssetObligationPage>;
+  ): Promise<ObligationPage<AssetObligation>>;
 
   /* ---------------------------------------------------------------------- */
   /* Task integration                                                       */
@@ -276,7 +279,7 @@ export interface AssetHistoryRepository {
   /** Clear an obligation's Task pointer without touching the Task itself. */
   unlinkObligationTask(
     obligationId: string,
-  ): Promise<AssetObligationChangeResult>;
+  ): Promise<ObligationChangeResult<AssetObligation>>;
 
   /**
    * Reconcile one obligation against its linked Task's REAL current state, healing
@@ -301,7 +304,7 @@ export interface AssetHistoryRepository {
    * things (§18). Soft-deleted Assets are excluded everywhere.
    */
   listAttention(
-    input: AssetAttentionInput,
+    input: ObligationAttentionInput,
   ): Promise<readonly AssetAttentionItem[]>;
 
   /**

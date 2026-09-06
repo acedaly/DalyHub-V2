@@ -28,7 +28,12 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { bucketWindow, buildActivityWindow } from "~/kernel/history";
+import {
+  bucketWindow,
+  buildActivityWindow,
+  GRAIN_MAXIMUMS,
+} from "~/kernel/history";
+import { MAX_TREND_PERIODS } from "~/kernel/review-insights";
 import type { ActivityBucketWindow } from "~/kernel/activity";
 import type { CompletedTaskWindow } from "~/kernel/tasks";
 import { ownerDayStartInstant } from "~/shared/datetime";
@@ -289,6 +294,46 @@ describe("TaskRepository.countCompletedInBuckets", () => {
       "b5",
       "b6",
     ]);
+  });
+
+  it("follows the owner's DST changeover, which a UTC day would misplace", async () => {
+    // Sydney's clocks go forward at 2am on 4 October 2026, so the owner's 4th
+    // starts at +10:00 (2026-10-03T14:00Z) and the owner's 5th at +11:00
+    // (2026-10-04T13:00Z). Three completions either side of the changeover,
+    // each placed where a UTC comparison would put it on the wrong day.
+    const area = await spineRepo(WS, "2026-09-01T00:00:00.000Z").createArea({
+      title: "Ops",
+    });
+    // 3 Oct, 23:30 local (+10): UTC calls it the 3rd too, but only by chance.
+    await completeAt(
+      WS,
+      area.id,
+      "before",
+      "2026-09-01T00:00:00.000Z",
+      "2026-10-03T13:30:00.000Z",
+    );
+    // 4 Oct, 23:30 local (+11 by then): UTC calls it the 4th at 12:30.
+    await completeAt(
+      WS,
+      area.id,
+      "during",
+      "2026-09-01T00:00:00.000Z",
+      "2026-10-04T12:30:00.000Z",
+    );
+    // 5 Oct, 00:30 local (+11): UTC calls it the 4th.
+    await completeAt(
+      WS,
+      area.id,
+      "after",
+      "2026-09-01T00:00:00.000Z",
+      "2026-10-04T13:30:00.000Z",
+    );
+    const cut = bucketsOf("2026-10-01", "2026-10-07", "day");
+    const rows = await taskRepo(
+      WS,
+      "2026-10-10T00:00:00.000Z",
+    ).countCompletedInBuckets({ buckets: asWindows(cut.buckets) });
+    expect(rows.map((row) => row.completed)).toEqual([0, 0, 1, 1, 1, 0, 0]);
   });
 
   it("counts a twelve-week series in ONE statement", async () => {
@@ -592,15 +637,46 @@ describe("ActivityRepository.countByTypeInBuckets", () => {
     ).toBe(0);
   });
 
-  it("returns zeroed buckets rather than nothing when no type is asked for", async () => {
+  it("refuses an empty type list rather than counting everything", async () => {
+    // The contract calls an empty list a caller bug (an unfiltered count over
+    // the whole stream is a different, unbounded question); the adapter used
+    // to answer it with zeroed buckets, which reads as "nothing happened".
     await seedProjectsAndGoals();
     const cut = bucketsOf("2026-08-18", "2026-08-20", "day");
-    const rows = await activityRepo(WS).countByTypeInBuckets({
-      types: [],
+    await expect(
+      activityRepo(WS).countByTypeInBuckets({
+        types: [],
+        buckets: asWindows(cut.buckets),
+      }),
+    ).rejects.toThrow(/types/);
+  });
+
+  it("refuses more buckets than the grain maximum rather than counting a shorter series", async () => {
+    // Found by review: both bucketed reads used to `slice` to 366 and return
+    // the shorter list, so a surface would have drawn the cut as the whole.
+    const cut = bucketsOf("2025-09-03", "2026-09-04", "day");
+    expect(cut.bounded).toBe(true);
+    const day = cut.buckets[0];
+    const extra = asWindows([...cut.buckets, { ...day, key: "b366" }]);
+    expect(extra).toHaveLength(367);
+    await expect(
+      activityRepo(WS).countByTypeInBuckets({
+        types: ["project.completed"],
+        buckets: extra,
+      }),
+    ).rejects.toThrow(/buckets/);
+    await expect(
+      taskRepo(WS, "2026-09-05T00:00:00.000Z").countCompletedInBuckets({
+        buckets: extra,
+      }),
+    ).rejects.toThrow(/buckets/);
+    // Exactly the maximum is still one statement, as before.
+    const counter: Counter = { count: 0 };
+    const rows = await countingTaskRepo(WS, counter).countCompletedInBuckets({
       buckets: asWindows(cut.buckets),
     });
-    expect(rows).toHaveLength(3);
-    expect(rows[0].counts).toEqual({});
+    expect(rows).toHaveLength(366);
+    expect(counter.count).toBe(1);
   });
 });
 
@@ -858,6 +934,9 @@ describe("ReviewInsightRepository.listSnapshotSeries", () => {
         periodStart: start,
         periodEnd: end,
       });
+      // Completed, as every snapshotted Review is in production: the snapshot
+      // is captured on completion, and the series reads completed Reviews.
+      await reviews.complete(review.id);
       await insights.saveSnapshot(
         review.id,
         snapshotFor(start, end, index + 1),
@@ -869,12 +948,37 @@ describe("ReviewInsightRepository.listSnapshotSeries", () => {
       periodStart: "2026-08-01",
       periodEnd: "2026-08-31",
     });
+    await reviews.complete(monthly.id);
     await insights.saveSnapshot(
       monthly.id,
       snapshotFor("2026-08-01", "2026-08-31", 99),
     );
-    return { weekly, monthly: monthly.id, insights };
+    return { weekly, monthly: monthly.id, insights, reviews };
   }
+
+  it("leaves out a Review that was archived or reopened after its snapshot was taken", async () => {
+    // Found by review: the read joined `review_details` for the type only, so
+    // an archived Review's stale snapshot — and a reopened one's, whose facts
+    // are being revised — counted as consecutive history while the comparison
+    // series beside it (`readPriorReviews`) left both out. Two reads of
+    // "which Reviews came before this one" must agree.
+    const { weekly, insights, reviews } = await seedReviews();
+    await reviews.archive(weekly[2]);
+    await reviews.reopen(weekly[4]);
+    const series = await insights.listSnapshotSeries(weekly[5], 6);
+    expect(series.map((stored) => stored.reviewId)).toEqual([
+      weekly[0],
+      weekly[1],
+      weekly[3],
+      weekly[5],
+    ]);
+    // The anchor itself is read whatever its state — a reopened Review's
+    // panel still describes its own period.
+    await reviews.reopen(weekly[5]);
+    expect(
+      (await insights.listSnapshotSeries(weekly[5], 6)).at(-1)?.reviewId,
+    ).toBe(weekly[5]);
+  });
 
   it("returns the anchor and the Reviews before it, oldest first", async () => {
     const { weekly, insights } = await seedReviews();
@@ -979,10 +1083,39 @@ describe("ReviewInsightRepository.listSnapshotSeries", () => {
     expect(series).toHaveLength(6);
   });
 
-  it("is bounded by MAX_TREND_PERIODS however large n is", async () => {
-    const { weekly, insights } = await seedReviews();
-    const series = await insights.listSnapshotSeries(weekly[5], 500);
-    expect(series.length).toBeLessThanOrEqual(8);
+  it("is bounded by the kernel's review_period maximum, not by the panel's eight", async () => {
+    // Found by review: the read clamped to `MAX_TREND_PERIODS` (8) while the
+    // kernel states twelve, so a caller asking for twelve got eight with no
+    // bound reported. Fourteen weekly Reviews, each with a snapshot.
+    const reviews = createReviewRepository(env.DB, makeContext(WS), {
+      clock: new FakeClock("2026-08-03T09:00:00.000Z").now,
+      idGenerator: sequentialIds("ins01cap"),
+      activityIdGenerator: nextActivityId,
+    });
+    const insights = makeReviewInsightRepository(makeContext(WS));
+    let last = "";
+    for (let index = 0; index < 14; index += 1) {
+      const start = new Date(Date.UTC(2026, 4, 4 + index * 7));
+      const end = new Date(Date.UTC(2026, 4, 10 + index * 7));
+      const periodStart = start.toISOString().slice(0, 10);
+      const periodEnd = end.toISOString().slice(0, 10);
+      const { review } = await reviews.create({
+        type: "weekly",
+        periodStart,
+        periodEnd,
+      });
+      await reviews.complete(review.id);
+      await insights.saveSnapshot(
+        review.id,
+        snapshotFor(periodStart, periodEnd, index + 1),
+      );
+      last = review.id;
+    }
+    expect(await insights.listSnapshotSeries(last, 500)).toHaveLength(
+      GRAIN_MAXIMUMS.review_period,
+    );
+    expect(await insights.listSnapshotSeries(last, 9)).toHaveLength(9);
+    expect(GRAIN_MAXIMUMS.review_period).toBeGreaterThan(MAX_TREND_PERIODS);
   });
 
   it("never reads another workspace's snapshots", async () => {

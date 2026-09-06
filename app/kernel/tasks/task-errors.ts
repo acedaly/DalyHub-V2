@@ -50,6 +50,8 @@ export type TaskValidationField =
   // re-typed into this family so a caller catching a Task error still does.
   | "tags"
   | "limit"
+  /** V2.9 INS-01 — the bucketed completion read's own input. */
+  | "buckets"
   | "waitingTarget"
   | "waitingTargetId"
   | "waitingNote"

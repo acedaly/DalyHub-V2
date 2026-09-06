@@ -932,6 +932,7 @@ describe("Analytics' completed figure and the list its link opens agree", () => 
       measuredGoals: [],
       measuredGoalsBounded: false,
       measuredGoalsAvailable: true,
+      goalContributionsAvailable: true,
       goalContributions: [],
       seriesBounded: false,
       seriesBound: null,
