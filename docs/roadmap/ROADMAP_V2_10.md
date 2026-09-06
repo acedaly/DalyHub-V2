@@ -29,12 +29,58 @@ LIFE-00 … LIFE-03, are delivered (PR #257, #259, #260, #264); new work goes in
 [`ROADMAP_V2_11.md`](ROADMAP_V2_11.md). Defined 2026-09-05 with four items,
 LIFE-00 … LIFE-03. The architecture was already decided by
 [ADR-116 decision 1](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
-and this pass confirmed it against the code rather than restating it.
+and this pass confirmed it against the code rather than restating it; the
+decisions it left open are
+[ADR-118](../decisions/ARCHITECTURE_DECISIONS.md#adr-118-life-admin--an-obligation-is-an-entity-with-one-subject-in-two-representations-an-expected-amount-that-is-not-a-payment-and-an-old-table-that-is-retired-rather-than-left-behind).
+What each item actually delivered is under its own heading below, including
+where the measurement that defined it turned out to be wrong.
 
 **Successor: V2.11 EVIDENCE, DEFINED 2026-09-06** — see
 [`ROADMAP_V2_11.md`](ROADMAP_V2_11.md), which is where new work goes. The
 PLANNED sketch it re-measured is in
 [`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v211--evidence-planned).
+
+**The completion pass (2026-09-06).** Four things worth carrying forward, none
+of which the definition anticipated.
+
+- **The stack landed out of order, and one item landed on the wrong branch.**
+  #262 (LIFE-03) was merged a minute after #260 while its base still named
+  `claude/v2-10-life-02`, a branch nobody had deleted — so GitHub had nothing to
+  re-target it to and the squash landed on that branch instead of `main`. It was
+  re-presented against `main` as #264, byte-identically, and the mis-target was
+  found by comparing trees rather than by anything failing. Every squash in this
+  programme also broke ancestry for the branch above it, so four merge-conflict
+  cascades were resolved by proving `main`'s tree byte-identical to an ancestor
+  of the branch and taking "ours" — a proof, not a preference.
+
+- **Five review findings on LIFE-03, four of them a default left in place.**
+  The attention count was derived from a page the repository caps at fifty, so
+  Today and the digest told an owner with eighty obligations that fifty needed
+  attention — the defect `readWaiting` had already paid for on the waiting count,
+  repeated on a read written after it. A meter target could be set on a record
+  that keeps no meter, because the injected unit vocabulary answers "is `km` a
+  real unit?" and not "does this record keep a reading" — one question until
+  LIFE-01 made the subject optional, two afterwards. The collection left
+  `useKeysetPagination` at `reset` while mutating, which the hook's own comment
+  predicts for "a second actionable collection". The record read
+  `actions.pendingId` and never used it. And meter editing was gated on the
+  stored unit rather than the subject, so one record offered different edits
+  through its two doors. Each is fixed with the test that would have caught it.
+
+- **A count in SQL beside a page in SQL.** Both attention totals are window
+  functions in the page's own statement, evaluated before its `LIMIT`, so the
+  subset relationship is a property of the query rather than a convention two
+  reads have to remember — and the `CASE` that produces them is asserted equal
+  to the TypeScript filter over the same rows, the discipline `countByBand`
+  already kept.
+
+- **One E2E journey was asserting its own race.** `floating-surfaces.spec.ts`
+  changed a priority and reloaded immediately, so the navigation could beat the
+  write and the reloaded row was correct in showing no priority. Its two sibling
+  journeys in the same file already waited. Reproduced deterministically by
+  holding the write for three seconds, fixed by waiting on the response
+  registered before the click, and the probe reverted — the same repair
+  `today-task-convergence.spec.ts` took earlier in the programme.
 
 ---
 
