@@ -888,6 +888,19 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 
 ### V2.11 — EVIDENCE (PLANNED)
 
+> **Superseded as roadmap truth on 2026-09-06 by
+> [`ROADMAP_V2_11.md`](ROADMAP_V2_11.md), which defined this release against
+> `main` at `80003cc`.** What follows is the PLANNED sketch as written on
+> 2026-09-04 and is kept unedited as the record of what was predicted. The
+> defining pass changed it in five measured places: an attachment is a CHILD
+> RECORD with one required owner rather than an `attachment` entity linked by
+> EntityLink (an EntityLink cannot express a requirement), deletion is hard
+> rather than soft with a purge ledger for the bytes, the recovery gate is kept
+> by the single-PR shape rather than by putting the rehearsal before the upload
+> route, the per-workspace budget is deferred with a reason instead of built,
+> and `share_target` is refused outright rather than left conditional on a
+> measurement nobody can take.
+
 - **Theme.** *The paper lives with the thing* — one `attachment` entity on one
   private bucket, backed up and restorable before the first owner file is
   accepted.
