@@ -1,5 +1,41 @@
 # Changelog
 
+- **The paper lives with the thing.**
+
+  Your records can hold files now. Open the rego renewal and attach the actual
+  PDF; open the Cub camper and add a photo of the receipt; put the agenda on the
+  meeting, the scan on the note, the signed contract on the project. Obligations,
+  Assets, Meetings, Notes, Projects and People all have an **Evidence** tab, and
+  it is the same tab on every one of them (V2.11).
+
+  From a phone it is two taps: **Add file** opens the picker, **Take a photo**
+  opens the camera. Long filenames wrap instead of hiding their own extension,
+  and ten files on a small screen still give you buttons you can hit.
+
+  It says what is actually happening. A file is "uploading" until DalyHub has
+  really stored it — never before — and if it fails you are told why in words you
+  can act on ("that file is larger than 10.0 MB", "SVG files aren't accepted
+  because an SVG can run code"). **Try again** is safe: it cannot leave you with
+  the same file attached twice, no matter how many times you press it.
+
+  Your files are private. There is no public link and no shareable URL — every
+  byte goes through DalyHub, signed in, in your own workspace. Nothing DalyHub
+  stores is ever run as a web page, HTML and SVG are turned away at the door, and
+  the AI cannot read a single one of your documents. Filenames stay off the
+  activity feed and out of search, because a filename can say more than you meant
+  to say.
+
+  And they come back. A full export now carries the files themselves, each one
+  checked against a fingerprint taken the day you uploaded it, and restoring puts
+  them back exactly as they were. If a single byte of a single file is wrong, the
+  restore refuses rather than handing you a damaged document and calling it
+  recovered. The Obsidian vault carries them too, under their real names, beside
+  the record they belong to.
+
+  One thing worth knowing: the nightly automatic backup covers the database, not
+  the files. Take a full export from Settings after you have added something
+  important, and keep it somewhere you control.
+
 - **Today tells you about a tax return, not only about the ute.**
 
   Today's "Needs attention" list carried obligations already, but only the ones

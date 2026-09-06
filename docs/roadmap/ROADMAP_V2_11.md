@@ -24,11 +24,16 @@
 
 **Status key.** ☐ not started · ◐ partly delivered · ☑ delivered
 
-**Programme status: V2.11 EVIDENCE — DEFINED 2026-09-06.** Four items,
-FILE-00 … FILE-03.
+**Programme status: V2.11 EVIDENCE — COMPLETE 2026-09-06.** All four items,
+FILE-00 … FILE-03, delivered in one branch and one pull request, as the owner
+asked. Defined 2026-09-06 with four items, FILE-00 … FILE-03.
 
-**Successor: V2.12 FINANCE CORE, PLANNED** — see
+**Successor: V2.12 FINANCE CORE — PLANNED, definition pass next** — see
 [`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v212--finance-core-planned--gated-on-debt-198).
+It is still gated on [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2),
+which V2.11 did not move. A Finance transaction attaches a receipt by inserting
+one `attachments` row whose `owner_entity_id` is the transaction — no new file
+mechanism, no second architecture, and no change to this release's table.
 
 ---
 
@@ -298,7 +303,7 @@ system can recover it* — is preserved by that shape: nothing in this programme
 reaches an owner's workspace until the whole of it, including the rehearsal, has
 merged.
 
-### ☐ FILE-00 — The attachment authority
+### ☑ FILE-00 — The attachment authority — **delivered 2026-09-06**
 
 One store, one contract, one set of routes.
 
@@ -330,7 +335,7 @@ operation id yields one attachment, not two. A refused type is refused. An
 `image/svg+xml` and a `text/html` are refused. Every response carries
 `nosniff` and the private cache policy.
 
-### ☐ FILE-01 — Evidence on records
+### ☑ FILE-01 — Evidence on records — **delivered 2026-09-06**
 
 One shared surface, consumed by records; no module builds its own.
 
@@ -359,7 +364,7 @@ surface holds at 320, 375/393 and 768 with a 90-character filename and ten
 attachments, in both appearances, with no horizontal overflow. axe is clean.
 No second attachment component exists anywhere in `app/modules`.
 
-### ☐ FILE-02 — Attachment recovery is real
+### ☑ FILE-02 — Attachment recovery is real — **delivered 2026-09-06**
 
 The release's gate, and the reason it is an item rather than a paragraph.
 
@@ -392,7 +397,7 @@ the restore. An archive written before V2.11 still restores. An archive whose
 metadata names a file the archive does not carry is refused, and so is the
 reverse.
 
-### ☐ FILE-03 — Export the evidence
+### ☑ FILE-03 — Export the evidence — **delivered 2026-09-06**
 
 - The Obsidian vault writes each attachment beside its record, under the vault's
   own collision-safe filename rules, linked from the record's Markdown by a

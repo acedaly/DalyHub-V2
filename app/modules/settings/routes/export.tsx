@@ -168,15 +168,29 @@ export async function loader({ params, context }: Route.LoaderArgs) {
           id: activity.actorId,
         })),
       );
-      archive = await buildObsidianVaultArchive(snapshot, {
-        resolveActorName: (actorType, actorId) => {
-          const actor = { type: actorType, id: actorId };
-          return (
-            identities.get(actorKey(actor))?.displayName ??
-            resolveActorIdentity(actor, null).displayName
-          );
+      archive = await buildObsidianVaultArchive(
+        snapshot,
+        {
+          resolveActorName: (actorType, actorId) => {
+            const actor = { type: actorType, id: actorId };
+            return (
+              identities.get(actorKey(actor))?.displayName ??
+              resolveActorIdentity(actor, null).displayName
+            );
+          },
         },
-      });
+        /*
+         * V2.11 FILE-03 — the vault carries the files too, under the owner's
+         * own names. Read and verified by the SAME function the structured
+         * archive uses, so the two downloads can never disagree about which
+         * bytes a record's evidence is.
+         */
+        await readAttachmentBytesForArchive({
+          workspaceId: scope.context.workspaceId,
+          attachments: snapshot.records.attachments,
+          store: resolveAttachmentObjectStore(env),
+        }),
+      );
     }
   } catch (error) {
     // Keep a server-side trace: swallowing this entirely would leave a failed

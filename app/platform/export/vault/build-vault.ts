@@ -50,6 +50,10 @@ import {
   relativeVaultPath,
   VAULT_META_FOLDER,
 } from "./vault-filenames";
+import {
+  buildVaultAttachmentIndex,
+  type VaultAttachmentLocation,
+} from "./vault-attachments";
 import { rewriteBodyForVault, type UnresolvedLink } from "./vault-links";
 import { fields, frontmatter, type YamlValue } from "./vault-yaml";
 
@@ -63,6 +67,16 @@ export interface VaultFile {
 export interface VaultBuildResult {
   readonly files: readonly VaultFile[];
   readonly unresolved: readonly UnresolvedLink[];
+  /**
+   * V2.11 FILE-03 — where each attachment's BYTES go in the vault.
+   *
+   * The builder is pure and has no object store, so it decides the LAYOUT and
+   * the archive assembler places the bytes. That split is the same one the
+   * structured archive already has, and it is what keeps this module free of
+   * anything that could make the vault and the structured export describe
+   * different data.
+   */
+  readonly attachments: readonly VaultAttachmentLocation[];
 }
 
 /**
@@ -1495,7 +1509,13 @@ function writeExportInformation(
           "- Credentials, tokens, cookies and session data — never exported.",
           "- Cloudflare bindings, secrets and deployment configuration.",
           "- The authenticated owner's subject identifier.",
-          "- File attachments: DalyHub does not store any yet.",
+          /*
+           * V2.11 FILE-03 retired "- File attachments: DalyHub does not store
+           * any yet." A vault now carries the owner's files under `Files/`,
+           * beside the records they belong to, so the sentence became false and
+           * is replaced rather than reworded.
+           */
+          "- Files attached to your records ARE included, under `Files/`, under the name you gave each one. Each record's Markdown links to its own.",
           "- Rendered HTML. Markdown is exported as the source you wrote.",
         ].join("\n"),
       ),
@@ -1516,6 +1536,23 @@ export function buildObsidianVault(
   const index = buildVaultIndex(snapshot);
   const unresolved: UnresolvedLink[] = [];
   const files: VaultFile[] = [];
+
+  /*
+   * V2.11 FILE-03 — where every attachment goes, decided once, before any file
+   * is written. It has to be first: a record's Markdown links to its evidence by
+   * RELATIVE PATH, so the writer below cannot produce that link until the layout
+   * is known.
+   */
+  const attachmentLocations = buildVaultAttachmentIndex(
+    snapshot.records.attachments,
+    index.location,
+  );
+  const attachmentsByOwner = new Map<string, VaultAttachmentLocation[]>();
+  for (const location of attachmentLocations.values()) {
+    const bucket = attachmentsByOwner.get(location.ownerEntityId);
+    if (bucket) bucket.push(location);
+    else attachmentsByOwner.set(location.ownerEntityId, [location]);
+  }
 
   for (const entity of index.entities) {
     const location = index.location.get(entity.id);
@@ -1569,6 +1606,39 @@ export function buildObsidianVault(
         contents = writeGeneric(context);
         break;
     }
+    /*
+     * The Evidence section, appended by the BUILDER rather than by each writer.
+     *
+     * Twelve record writers would otherwise each grow the same block, and the
+     * twelve copies would drift — which is the whole failure the shared
+     * attachment surface exists to prevent, arriving in the export instead of in
+     * the UI. Appending here means every record type that can own a file gets
+     * the identical section, including the generic writer for a type this build
+     * has never heard of.
+     */
+    const evidence = attachmentsByOwner.get(entity.id);
+    contents =
+      evidence === undefined
+        ? contents
+        : `${contents}\n${section(
+            "Files",
+            evidence
+              .slice()
+              .sort((a, b) =>
+                a.filename < b.filename ? -1 : a.filename > b.filename ? 1 : 0,
+              )
+              .map(
+                (attachment) =>
+                  // A RELATIVE link, like every other link this vault writes, so
+                  // the vault survives being moved, renamed or synced.
+                  `- ${markdownLink(
+                    attachment.filename,
+                    relativeVaultPath(location.path, attachment.path),
+                  )}`,
+              )
+              .join("\n"),
+          )}\n`;
+
     files.push({ path: location.path, contents });
   }
 
@@ -1580,5 +1650,11 @@ export function buildObsidianVault(
 
   // One stable order for the archive, independent of the order writers ran in.
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  return { files, unresolved };
+  return {
+    files,
+    unresolved,
+    attachments: [...attachmentLocations.values()].sort((a, b) =>
+      a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+    ),
+  };
 }

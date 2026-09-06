@@ -334,15 +334,42 @@ export async function buildStructuredExportArchive(
 /* Vault archive                                                              */
 /* -------------------------------------------------------------------------- */
 
-/** Build the ready-to-open Obsidian vault archive. */
+/**
+ * Build the ready-to-open Obsidian vault archive.
+ *
+ * `attachments` is the same verified byte set the structured archive is given.
+ * The vault decides WHERE each file goes — under `Files/`, beside its record,
+ * under the owner's own filename — and this places the bytes there. A vault
+ * built without them is a vault of Markdown, exactly as it was before V2.11,
+ * which is what a deployment with no object store produces.
+ */
 export async function buildObsidianVaultArchive(
   snapshot: WorkspaceSnapshotV1,
   options: VaultBuildOptions = {},
+  attachments: readonly ArchivedAttachment[] = [],
 ): Promise<ExportArchive> {
   const vault = buildObsidianVault(snapshot, options);
-  const files: ZipEntry[] = vault.files.map((file) =>
-    textEntry(`${VAULT_ROOT}/${file.path}`, file.contents),
+  const bytesById = new Map(
+    attachments.map((entry) => [entry.row.id, entry.bytes]),
   );
+  const files: ZipEntry[] = [
+    ...vault.files.map((file) =>
+      textEntry(`${VAULT_ROOT}/${file.path}`, file.contents),
+    ),
+    /*
+     * The owner's evidence, under the name they gave it. An attachment the
+     * caller did not supply bytes for is omitted rather than written empty: the
+     * vault is a convenience copy, and a zero-byte file pretending to be a
+     * receipt would be worse than an absent one. The STRUCTURED archive is the
+     * one that refuses to be incomplete.
+     */
+    ...vault.attachments
+      .filter((location) => bytesById.has(location.id))
+      .map<ZipEntry>((location) => ({
+        path: `${VAULT_ROOT}/${location.path}`,
+        data: bytesById.get(location.id)!,
+      })),
+  ];
 
   const described = await describe(files);
   const entries = [
