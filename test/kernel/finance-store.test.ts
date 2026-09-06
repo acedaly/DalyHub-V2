@@ -21,6 +21,7 @@
  * repository, and DEBT-198 is why.
  */
 
+import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { ReservedEntityTypeError } from "~/kernel/entities";
@@ -122,18 +123,9 @@ describe("the account", () => {
 
   it("does not re-seed when the only account is deleted and another is made", async () => {
     /*
-     * The regression. Deleting an account is ALLOWED while it holds no
-     * transactions, so a workspace can legitimately return to zero accounts —
-     * and it used to become "the first account" again, which re-ran the seed and
-     * collided every one of the twelve with itself on
-     * `finance_categories (workspace_id, name_key)`. The batch rolled back, so
-     * the SECOND ACCOUNT COULD NOT BE CREATED AT ALL, and the owner was told
-     * only "that could not be saved just now" — because a unique-constraint
-     * failure is not a named domain refusal.
-     *
-     * Found by the E2E suite, which creates and sweeps accounts across specs.
-     * The condition now asks about categories, which is what the invariant is
-     * actually about.
+     * Deleting an account is ALLOWED while it holds no transactions, so a
+     * workspace can legitimately return to zero accounts — and it must not be
+     * given a second set of starter categories when the next one is created.
      */
     const repo = finance();
     const first = await everydayAccount(repo);
@@ -150,6 +142,59 @@ describe("the account", () => {
     // Still twelve, not twenty-four, and not zero.
     const categories = await repo.listCategories();
     expect(categories).toHaveLength(FINANCE_STARTER_CATEGORIES.length);
+  });
+
+  it("does not re-seed when the account ROWS are gone but the categories remain", async () => {
+    /*
+     * The state the seeding condition is actually written against, produced
+     * directly because no product action produces it: `deleteAccount` is a SOFT
+     * delete, so the detail row survives and the old condition — "does this
+     * workspace have any row in `finance_account_details`?" — still held.
+     *
+     * What DOES produce it is a sweep that removes account rows physically
+     * while leaving the workspace's category vocabulary behind, which is what
+     * the E2E fixture does between specs and what any out-of-band cleanup would
+     * do. Under the old condition the next `createAccount` seeded the twelve a
+     * second time, every one collided with itself on
+     * `finance_categories (workspace_id, name_key)`, the whole batch rolled
+     * back, and NO ACCOUNT WAS CREATED — reported as "that could not be saved
+     * just now", because a unique-constraint failure is not a named domain
+     * refusal.
+     *
+     * Asking about CATEGORIES instead is not merely a fix for that state: it is
+     * the invariant stated directly. "Has this workspace been given a
+     * vocabulary?" is the question; "does it have an account?" was a proxy for
+     * it.
+     */
+    const repo = finance();
+    const first = await everydayAccount(repo);
+    expect(await repo.listCategories()).toHaveLength(
+      FINANCE_STARTER_CATEGORIES.length,
+    );
+
+    /*
+     * The DETAIL rows only. The `entities` rows stay, because Activity subjects
+     * reference them with ON DELETE RESTRICT and a sweep that removes them would
+     * be testing that constraint rather than this condition — and because the
+     * seeding condition reads `finance_account_details`, which is enough.
+     */
+    await env.DB.prepare(
+      "DELETE FROM finance_account_details WHERE workspace_id = ?",
+    )
+      .bind(WS)
+      .run();
+    expect(first.id).toBeDefined();
+
+    const again = await repo.createAccount({
+      title: "Everyday again",
+      accountType: "transaction",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    expect(again.title).toBe("Everyday again");
+    expect(await repo.listCategories()).toHaveLength(
+      FINANCE_STARTER_CATEGORIES.length,
+    );
   });
 
   it("does not restore starter categories the owner deleted", async () => {
