@@ -27,6 +27,7 @@ import {
   createMeetingRepository,
   createMeetingTaskConversionRepository,
   createNoteDetailsRepository,
+  createAttachmentRepository,
   createNoteRepository,
   createPersonRepository,
   createProjectHealthRepository,
@@ -44,6 +45,7 @@ import {
   type D1SavedViewRepositoryOptions,
   type D1AreaSettingsRepositoryOptions,
   type D1AssetHistoryRepositoryOptions,
+  type D1AttachmentRepositoryOptions,
   type D1ObligationRepositoryOptions,
   type D1AssetRepositoryOptions,
   type D1DiaryRepositoryOptions,
@@ -383,6 +385,23 @@ export function makeAssetHistoryRepository(
   options?: D1AssetHistoryRepositoryOptions,
 ) {
   return createAssetHistoryRepository(env.DB, context, options);
+}
+
+/**
+ * V2.11 FILE-00 — a workspace-scoped attachment metadata repository over the
+ * isolated test database.
+ *
+ * The BYTES are a separate concern: use `env.ATTACHMENTS` (the pool's real local
+ * R2 bucket) with `createR2ObjectStore`, or `createInMemoryObjectStore` for a
+ * test about pure ordering. Keeping the two apart in the helper is the same
+ * split the product has, and it is what lets a test drive one store's failure
+ * without faking the other.
+ */
+export function makeAttachmentRepository(
+  context: WorkspaceContext,
+  options: D1AttachmentRepositoryOptions,
+) {
+  return createAttachmentRepository(env.DB, context, options);
 }
 
 /** Count all rows in `asset_events` directly. */
@@ -852,6 +871,11 @@ export async function resetTables(workspaceIds: string[] = []): Promise<void> {
   // tables must clear before workspaces (neither references entities).
   await env.DB.prepare("DELETE FROM workspace_restore_staged_rows").run();
   await env.DB.prepare("DELETE FROM workspace_restore_operations").run();
+  // V2.11 FILE-00 attachments: the metadata references entities ON DELETE
+  // RESTRICT and the purge ledger references workspaces the same way, so both
+  // must clear before entities and before workspaces respectively.
+  await env.DB.prepare("DELETE FROM attachments").run();
+  await env.DB.prepare("DELETE FROM attachment_object_purges").run();
   // V2.6 FIND-02 tags: the attachments cascade from entities, but clear them
   // explicitly so the order is stated rather than relied on, and the vocabulary
   // references workspaces ON DELETE RESTRICT so it must clear before them.
