@@ -120,6 +120,109 @@ describe("the account", () => {
     expect(second).toHaveLength(FINANCE_STARTER_CATEGORIES.length);
   });
 
+  it("does not re-seed when the only account is deleted and another is made", async () => {
+    /*
+     * The regression. Deleting an account is ALLOWED while it holds no
+     * transactions, so a workspace can legitimately return to zero accounts —
+     * and it used to become "the first account" again, which re-ran the seed and
+     * collided every one of the twelve with itself on
+     * `finance_categories (workspace_id, name_key)`. The batch rolled back, so
+     * the SECOND ACCOUNT COULD NOT BE CREATED AT ALL, and the owner was told
+     * only "that could not be saved just now" — because a unique-constraint
+     * failure is not a named domain refusal.
+     *
+     * Found by the E2E suite, which creates and sweeps accounts across specs.
+     * The condition now asks about categories, which is what the invariant is
+     * actually about.
+     */
+    const repo = finance();
+    const first = await everydayAccount(repo);
+    await repo.deleteAccount(first.id);
+
+    const again = await repo.createAccount({
+      title: "Everyday again",
+      accountType: "transaction",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    expect(again.title).toBe("Everyday again");
+
+    // Still twelve, not twenty-four, and not zero.
+    const categories = await repo.listCategories();
+    expect(categories).toHaveLength(FINANCE_STARTER_CATEGORIES.length);
+  });
+
+  it("does not restore starter categories the owner deleted", async () => {
+    /*
+     * The other half of asking the right question. A workspace that HAS a
+     * vocabulary is never re-seeded, whatever that vocabulary is — so an owner
+     * who threw away eleven of the twelve does not find them back the next time
+     * they add an account.
+     */
+    const repo = finance();
+    const first = await everydayAccount(repo);
+    const categories = await repo.listCategories();
+    for (const category of categories.slice(1)) {
+      await repo.deleteCategory(category.id);
+    }
+    expect(await repo.listCategories()).toHaveLength(1);
+
+    await repo.deleteAccount(first.id);
+    await repo.createAccount({
+      title: "Second",
+      accountType: "savings",
+      currencyCode: "AUD",
+      openingDate: "2026-09-01",
+    });
+    expect(await repo.listCategories()).toHaveLength(1);
+  });
+
+  it("never nets money OUT against money IN in the uncategorised bucket", async () => {
+    /*
+     * The regression, found by the E2E suite reading the Finance home.
+     *
+     * Netting inside a CATEGORY is the refund model and is meaningful: a refund
+     * in Groceries makes the month's Groceries smaller, because those rows are
+     * about the same thing. Netting across the UNCATEGORISED bucket is not,
+     * because those rows have nothing in common but the absence of a category —
+     * and it produced a sentence that lied: a $3,200.00 salary and $279.10 of
+     * purchases, none categorised, reported as "$2,920.90 with no category",
+     * which reads as unexplained SPENDING of $2,920.90.
+     */
+    const repo = finance();
+    const account = await everydayAccount(repo);
+    for (const [amount, payee] of [
+      ["-84.20", "NORTHWIND GROCERS"],
+      ["-12.50", "SYNTH CAFE 001"],
+      ["-182.40", "SYNTHETIC ENERGY CO"],
+      ["3200.00", "SALARY SYNTHETIC HOLDINGS"],
+    ] as const) {
+      await repo.createTransaction({
+        accountId: account.id,
+        occurredOn: "2026-09-04",
+        amount,
+        payeeDisplay: payee,
+      });
+    }
+
+    const totals = monthDirectionTotals(await repo.monthSummary("2026-09"));
+
+    // Nothing is categorised, so both CATEGORY totals are empty …
+    expect(totals.out).toEqual([]);
+    expect(totals.in).toEqual([]);
+
+    // … and the unattributed money is reported in BOTH directions, separately.
+    expect(totals.uncategorisedOut).toEqual([
+      { currencyCode: "AUD", minorUnits: 27_910, count: 3 },
+    ]);
+    expect(totals.uncategorisedIn).toEqual([
+      { currencyCode: "AUD", minorUnits: 320_000, count: 1 },
+    ]);
+
+    // The count is still the whole bucket, not one of its halves.
+    expect((await repo.monthSummary("2026-09")).uncategorisedCount).toBe(4);
+  });
+
   it("refuses a bare entity create for a Finance type", async () => {
     const entities = makeRepository(makeContext(WS));
     await expect(

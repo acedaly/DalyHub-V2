@@ -162,12 +162,34 @@ export function FinanceHome(props: FinanceHomeData) {
                 : "transactions have"}{" "}
               no category yet
             </Link>
+            {/*
+             * OUT and IN, named, never one netted figure. Four uncategorised
+             * rows made of a $3,200.00 salary and $279.10 of purchases summed
+             * to "$2,920.90 with no category", which reads as unexplained
+             * SPENDING of $2,920.90. The two directions have nothing in common
+             * but the absence of a category, so they are not added together.
+             */}
             {uncategorisedOut.length > 0 || uncategorisedIn.length > 0 ? (
               <span>
                 {" — "}
-                {[...uncategorisedOut, ...uncategorisedIn]
-                  .map((total) => money(total.minorUnits, total.currencyCode))
-                  .join(", ")}
+                {[
+                  uncategorisedOut.length === 0
+                    ? null
+                    : `${uncategorisedOut
+                        .map((total) =>
+                          money(total.minorUnits, total.currencyCode),
+                        )
+                        .join(", ")} out`,
+                  uncategorisedIn.length === 0
+                    ? null
+                    : `${uncategorisedIn
+                        .map((total) =>
+                          money(total.minorUnits, total.currencyCode),
+                        )
+                        .join(", ")} in`,
+                ]
+                  .filter((part) => part !== null)
+                  .join(" and ")}
                 . Not counted above.
               </span>
             ) : null}

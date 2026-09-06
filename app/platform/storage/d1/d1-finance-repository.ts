@@ -362,11 +362,32 @@ export class D1FinanceRepository implements FinanceRepository {
     const now = this.#clock();
     const nowTs = toStorageTimestamp(now);
 
-    // Is this the workspace's FIRST account? The starter categories are seeded
-    // in the SAME batch as it, once, and never again.
+    /*
+     * Does this workspace have a category vocabulary yet? If not, the twelve
+     * starter categories are seeded in the SAME batch as this account — once,
+     * and never again.
+     *
+     * The condition asks about CATEGORIES rather than about accounts, and the
+     * difference is a real defect rather than a nicety. It used to ask "is this
+     * the first account?", which is only a proxy for the invariant: an owner who
+     * created an account, deleted it (which is allowed while it holds no
+     * transactions) and created another was "first" a second time, so the seed
+     * ran again and every one of the twelve collided with itself on
+     * `finance_categories (workspace_id, name_key)`. The whole batch rolled
+     * back, so the second account could not be created at all — and the message
+     * was the generic storage one, because a unique-constraint failure is not a
+     * named domain refusal. Found by the E2E suite creating and sweeping
+     * accounts across specs; `finance-store.test.ts` asserts the sequence now.
+     *
+     * Asking the question the invariant actually asks also makes the seed do the
+     * right thing for a workspace whose starter categories were all deleted:
+     * nothing is restored behind the owner's back, because a workspace that has
+     * ANY category has a vocabulary, and choosing to have none of the twelve is
+     * a choice.
+     */
     const existing = await this.#db
       .prepare(
-        `SELECT 1 AS present FROM finance_account_details
+        `SELECT 1 AS present FROM finance_categories
           WHERE workspace_id = ? LIMIT 1`,
       )
       .bind(this.#workspaceId)
@@ -1691,6 +1712,25 @@ export class D1FinanceRepository implements FinanceRepository {
 
     const grouped = await this.#db
       .prepare(
+        /*
+         * Grouped by category and currency — and, for the UNCATEGORISED bucket
+         * only, by DIRECTION as well.
+         *
+         * Netting inside a category is meaningful and is the whole refund
+         * model: a refund in Groceries makes the month's Groceries smaller,
+         * because those rows are about the same thing. Netting across the
+         * uncategorised bucket is not meaningful, because those rows have
+         * nothing in common but the absence of a category — and it lies.
+         *
+         * A month with a $3,200.00 salary and $279.10 of purchases, none of
+         * them categorised yet, reported as ONE net "$2,920.90 with no
+         * category", which reads as unexplained SPENDING of $2,920.90. The out
+         * and the in are now separate rows, so the surface says "$279.10 out
+         * and $3,200.00 in have no category yet" — which is what happened.
+         *
+         * The grouping key is only ever `'net'` for a categorised row, so this
+         * changes nothing for one.
+         */
         `SELECT t.category_id, c.name AS category_name, c.kind AS category_kind,
                 t.currency_code, SUM(t.amount_minor) AS net_minor,
                 COUNT(*) AS n
@@ -1700,8 +1740,14 @@ export class D1FinanceRepository implements FinanceRepository {
           WHERE t.workspace_id = ? AND t.deleted_at IS NULL
             AND t.transfer_group_id IS NULL
             AND t.occurred_on >= ? AND t.occurred_on <= ?
-          GROUP BY t.category_id, t.currency_code
-          ORDER BY c.sort_order, c.name, t.category_id, t.currency_code`,
+          GROUP BY t.category_id, t.currency_code,
+                   CASE
+                     WHEN t.category_id IS NOT NULL THEN 'net'
+                     WHEN t.amount_minor < 0 THEN 'out'
+                     ELSE 'in'
+                   END
+          ORDER BY c.sort_order, c.name, t.category_id, t.currency_code,
+                   SUM(t.amount_minor)`,
       )
       .bind(this.#workspaceId, from, to)
       .all<{
@@ -1762,6 +1808,23 @@ export class D1FinanceRepository implements FinanceRepository {
    * An Asset with no valuation comes back with `valueMinor: null` — excluded and
    * COUNTED by the net-worth arithmetic, never valued at zero. A house DalyHub
    * has never been told the value of is not worth nothing.
+   *
+   * ## Which Assets count, and why the first version got it wrong
+   *
+   * The liveness test is the ENTITY's `deleted_at` plus the Asset's own
+   * `status`. It used to also test `asset_details.deleted_at`, **a column that
+   * table does not have** — so every call threw `no such column`, the Finance
+   * home caught it and rendered its calm error state, and net worth was silently
+   * absent from the product. It was invisible to the kernel suite because no
+   * test called this method; the E2E suite found it on the first real page load.
+   *
+   * `status <> 'disposed'` is the right test in its place: a disposed Asset is
+   * one the owner no longer has, so counting its last valuation towards their
+   * net worth would be a claim about money that is not theirs. `archived_at` is
+   * deliberately NOT tested — archiving is about the RECORD and status is about
+   * the THING (ASSET-02's split), so archiving a stored trailer changes what
+   * the Assets collection offers and never what the arithmetic says. That is
+   * exactly the rule Finance already applies to a closed account.
    */
   async listLatestAssetValuations(): Promise<readonly NetWorthAsset[]> {
     const result = await this.#db
@@ -1785,7 +1848,7 @@ export class D1FinanceRepository implements FinanceRepository {
                 AND ev.deleted_at IS NULL AND ev.archived_at IS NULL
            ) v ON v.asset_id = e.id AND v.rank_in_asset = 1
           WHERE e.workspace_id = ? AND e.type = 'asset' AND e.deleted_at IS NULL
-            AND d.deleted_at IS NULL
+            AND d.status <> 'disposed'
           ORDER BY e.title, e.id`,
       )
       .bind(this.#workspaceId, this.#workspaceId)

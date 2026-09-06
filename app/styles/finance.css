@@ -556,6 +556,27 @@
 
 @media (max-width: 39.99rem) {
   /*
+   * Every control a Finance ROW offers meets the touch target on a phone.
+   *
+   * The row's actions are `size="sm"`, which is 32px — right for a laptop, and
+   * eleven pixels short of the minimum on the one screen where clearing the
+   * uncategorised queue is the daily-driver job. Found by the E2E suite
+   * measuring the control rather than by looking at it.
+   *
+   * The size is raised HERE rather than by changing the shared button, because
+   * `sm` is correct at the widths it was chosen for; what is narrow is this
+   * viewport, not that control.
+   */
+  .dh-transaction-row button,
+  .dh-transaction-row a,
+  .dh-finance-category-row button,
+  .dh-finance-budget-row button,
+  .dh-finance-settle button {
+    min-block-size: var(--app-touch-target-min);
+    min-inline-size: var(--app-touch-target-min);
+  }
+
+  /*
    * The phone's Finance job is CATEGORISING, so the row gives the picker the
    * full width and stops competing with it for a two-column grid.
    */
