@@ -118,10 +118,20 @@ export function normalisePayee(sourceDescription: string): string {
 
   let body = upper;
   for (const prefix of METHOD_PREFIXES) {
-    if (body.startsWith(prefix)) {
-      body = body.slice(prefix.length);
-      break;
-    }
+    if (!body.startsWith(prefix)) continue;
+    /*
+     * A WORD boundary, not a substring. `PAYMENT` must not eat the front of
+     * `PAYMENTS PLUS PTY LTD` and leave `S PLUS PTY LTD` — which is exactly what
+     * a bare `startsWith` did, and what a test caught before this code ran once.
+     * A prefix counts only when what follows it is a separator or the end of the
+     * string; the two prefixes that END in a separator (`SP `, `PAYPAL *`,
+     * `SQ *`) already carry their own.
+     */
+    const next = body.charAt(prefix.length);
+    const boundedPrefix = /[^A-Z0-9]$/.test(prefix);
+    if (!boundedPrefix && next !== "" && /[A-Z0-9]/.test(next)) continue;
+    body = body.slice(prefix.length);
+    break;
   }
 
   const tokens = body

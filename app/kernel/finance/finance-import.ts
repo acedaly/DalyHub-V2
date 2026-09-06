@@ -31,6 +31,8 @@
  * Pure: no storage, no clock, no JSX.
  */
 
+import { calendarDaysBetween } from "~/kernel/datetime";
+
 import type { CsvMapping } from "./finance-csv-mapping";
 
 /** One import, as the ledger records it. */
@@ -150,3 +152,74 @@ export interface ImportResult {
 
 /** How far apart two transactions may be and still look like one duplicate. */
 export const SUSPECTED_DUPLICATE_WINDOW_DAYS = 3;
+
+/**
+ * Whether a candidate row LOOKS like a transaction the account already holds.
+ *
+ * ## The rule, and the two shapes it has to tell apart
+ *
+ * Suspicion exists for the case where ONE real transaction arrives twice by
+ * different routes — the owner typed the cash withdrawal on Thursday and the
+ * bank exported it on Saturday, or the bank changed a merchant's description
+ * text between two exports so the fingerprint no longer matches. It does NOT
+ * exist to catch a genuinely repeated purchase, which the occurrence index
+ * already resolves exactly.
+ *
+ * So the rule is: the same amount, within the window, EXCEPT the one shape the
+ * occurrence index owns — the same day AND the same payee.
+ *
+ *   - manual 3 Sep $40 CASH vs imported 5 Sep $40 CASH → suspected. One
+ *     withdrawal, two routes.
+ *   - a THIRD $12.50 coffee on the same day at the same café → not suspected.
+ *     The occurrence index gave it `n = 2`, which is correct and certain.
+ *   - the same day, the same amount, a DIFFERENT payee string → suspected.
+ *     This is the "the bank changed the description" case, and it is the one
+ *     the fingerprint cannot see.
+ *
+ * **It errs toward SHOWING.** Two genuinely different $12.50 purchases on one
+ * day are flagged, and the owner unticks nothing because a suspected row is
+ * skipped by default and includable with one control — while the alternative,
+ * a silent duplicate of a real transaction, is money that was never spent
+ * appearing in a ledger. The preview shows the payee beside each, so the two
+ * are distinguishable at a glance.
+ *
+ * A bank-supplied transaction id makes identity CERTAIN, so the caller
+ * suppresses suspicion entirely for a row that has one.
+ */
+export function looksLikeDuplicate(
+  candidate: {
+    readonly occurredOn: string;
+    readonly amountMinor: number;
+    readonly payeeKey: string;
+  },
+  existing: {
+    readonly occurredOn: string;
+    readonly amountMinor: number;
+    readonly payeeKey: string;
+  },
+): boolean {
+  if (candidate.amountMinor !== existing.amountMinor) return false;
+  /*
+   * The kernel's day arithmetic, not a second copy of it (DEBT-52). Dividing a
+   * millisecond difference by 86_400_000 is the eighth version of a calculation
+   * this repository already has exactly one home for, and it is the version
+   * that quietly returns a fraction when either date is malformed.
+   */
+  let days: number;
+  try {
+    days = Math.abs(
+      calendarDaysBetween(candidate.occurredOn, existing.occurredOn),
+    );
+  } catch {
+    // A date this function cannot read is not evidence of a duplicate. Fail
+    // toward importing the row, which the owner can delete, rather than toward
+    // silently withholding it.
+    return false;
+  }
+  if (days > SUSPECTED_DUPLICATE_WINDOW_DAYS) return false;
+  // The shape the occurrence index already resolves exactly.
+  const sameDayAndPayee =
+    candidate.occurredOn === existing.occurredOn &&
+    candidate.payeeKey === existing.payeeKey;
+  return !sameDayAndPayee;
+}

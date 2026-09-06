@@ -467,10 +467,16 @@ CREATE INDEX finance_budgets_by_month
 --
 -- Settlement IS completion. `completeObligation` takes an optional transaction,
 -- the completed amount and date come from it, and the EXISTING recurrence engine
--- creates at most one successor under its existing guard. Reopening clears it.
+-- creates at most one successor under its existing guard.
 -- There is no independent link/unlink lifecycle, because "this transaction paid
 -- it" and "this is complete" are the same statement, and two state machines for
 -- one fact is how they come to disagree.
+--
+-- There is no unsettle, and that follows from V2.10 rather than from a choice
+-- made here: `setStatus` refuses to reopen a completed obligation, so a
+-- settlement cannot be cleared by reopening one. The recovery from settling the
+-- wrong transaction is to delete the obligation and make it again, which the
+-- index below is written to allow.
 
 -- `ALTER TABLE ADD COLUMN` accepts only a SINGLE-column REFERENCES clause, so
 -- this names `entities (id)` -- the table's primary key -- rather than the
@@ -481,12 +487,31 @@ CREATE INDEX finance_budgets_by_month
 ALTER TABLE obligation_details
   ADD COLUMN settled_by_transaction_id TEXT REFERENCES entities (id);
 
--- ONE transaction settles AT MOST ONE obligation. A partial index, so the many
--- obligations with no settlement do not collide with each other on NULL.
+-- ONE LIVE transaction settles AT MOST ONE LIVE obligation. A partial index, so
+-- the many obligations with no settlement do not collide with each other on
+-- NULL.
+--
+-- ## Why `deleted_at IS NULL` is part of the predicate
+--
+-- Completing an obligation cannot be undone -- V2.10 refuses to reopen a
+-- completed one by name -- so an owner who settles the WRONG transaction
+-- recovers by deleting the obligation and making it again. Without this half of
+-- the predicate that recovery is impossible: the soft-deleted row would still
+-- hold the transaction, and the second attempt would fail on a constraint
+-- naming a record the owner can no longer see.
+--
+-- It also makes the index agree with the read. `resolveSettlement` joins
+-- `obligation_details` with `ob.deleted_at IS NULL`, so it already reports a
+-- transaction under a deleted obligation as free. An index that disagreed would
+-- mean the product says "yes" and the database says "no" for the same question,
+-- which is the worst of the three possible answers.
+--
+-- The column is NOT cleared on delete: what settled a deleted obligation is
+-- still what happened, and provenance is not the constraint's business.
 --
 -- It is ALSO the access path for "does this transaction settle anything?", which
 -- the transaction drawer and every transaction page ask once. There is no second
 -- index for the same lookup.
 CREATE UNIQUE INDEX obligation_details_settlement_key
   ON obligation_details (workspace_id, settled_by_transaction_id)
-  WHERE settled_by_transaction_id IS NOT NULL;
+  WHERE settled_by_transaction_id IS NOT NULL AND deleted_at IS NULL;

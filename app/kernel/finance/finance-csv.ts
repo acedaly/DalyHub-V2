@@ -43,7 +43,13 @@
 /** The largest CSV DalyHub will read. A twelve-month statement is ~100 KB. */
 export const CSV_MAX_BYTES = 2 * 1024 * 1024;
 
-/** The most data rows one file may contribute. */
+/**
+ * The most rows one file may hold, INCLUDING its header rows.
+ *
+ * The parser counts physical rows, because a parser does not know which of them
+ * a mapping will call a header. The refusal says so, so an owner whose 2,000-row
+ * statement is refused by one line knows exactly why rather than counting.
+ */
 export const CSV_MAX_ROWS = 2000;
 
 /** The most columns one row may hold. Wider than any statement. */
@@ -86,7 +92,7 @@ export const CSV_REFUSAL_MESSAGES: Readonly<Record<CsvRefusalReason, string>> =
     too_many_bytes: `That file is larger than ${CSV_MAX_BYTES / (1024 * 1024)} MB. Export a shorter date range from your bank.`,
     not_utf8:
       "DalyHub could not read that file’s characters. Re-export it from your bank as UTF-8 CSV.",
-    too_many_rows: `That file has more than ${CSV_MAX_ROWS} rows. Export a shorter date range and import it in parts.`,
+    too_many_rows: `That file has more than ${CSV_MAX_ROWS} rows, counting its header. Export a shorter date range and import it in parts.`,
     too_many_columns: `That file has more than ${CSV_MAX_COLUMNS} columns, which is more than a bank statement has.`,
     field_too_long: `One of the values in that file is longer than ${CSV_MAX_FIELD_LENGTH} characters, which is more than a bank description holds.`,
     too_many_cells:

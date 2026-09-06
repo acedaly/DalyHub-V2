@@ -93,6 +93,16 @@ export interface ExpectedCommitment {
   readonly expectedAmountMinor: number | null;
   readonly currencyCode: string | null;
   readonly settledByTransactionId: string | null;
+  /**
+   * True when the obligation is COMPLETE.
+   *
+   * Separate from `settledByTransactionId`, because they answer different
+   * questions: an obligation can be completed without naming a transaction (the
+   * owner recorded it on its own record), and the month wants to say "paid" for
+   * the first and "paid by this" for the second. It is what keeps a settled
+   * commitment on the screen instead of vanishing the instant it is paid.
+   */
+  readonly completed: boolean;
 }
 
 /** What an import apply was asked to do. */
@@ -188,6 +198,16 @@ export interface FinanceRepository extends ObligationSettlementGateway {
     categoryId: string,
     archived: boolean,
   ): Promise<FinanceCategory>;
+
+  /**
+   * How many LIVE transactions carry each category, in ONE grouped statement.
+   *
+   * It is what a delete refusal names ("432 transactions use Dining"), and what
+   * the categories screen shows beside each row so an owner can see which of
+   * their vocabulary is actually earning its place. One statement for the whole
+   * vocabulary, never one per category.
+   */
+  countTransactionsByCategory(): Promise<ReadonlyMap<string, number>>;
 
   /**
    * Delete a category.

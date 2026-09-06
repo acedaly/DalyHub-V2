@@ -63,6 +63,7 @@ import {
   FinanceValidationError,
   SUSPECTED_DUPLICATE_WINDOW_DAYS,
   assignFingerprints,
+  looksLikeDuplicate,
   decodeFinanceCursorForScope,
   encodeFinanceCursor,
   financeCategoryKey,
@@ -864,6 +865,22 @@ export class D1FinanceRepository implements FinanceRepository {
     );
     if (after === undefined) throw new FinanceNotFoundError("category");
     return after;
+  }
+
+  async countTransactionsByCategory(): Promise<ReadonlyMap<string, number>> {
+    const result = await this.#db
+      .prepare(
+        `SELECT category_id, COUNT(*) AS n
+           FROM finance_transaction_details
+          WHERE workspace_id = ? AND deleted_at IS NULL
+            AND category_id IS NOT NULL
+          GROUP BY category_id`,
+      )
+      .bind(this.#workspaceId)
+      .all<{ category_id: string; n: number }>();
+    return new Map(
+      result.results.map((row) => [row.category_id, Number(row.n)]),
+    );
   }
 
   async deleteCategory(categoryId: string): Promise<void> {
@@ -1802,13 +1819,25 @@ export class D1FinanceRepository implements FinanceRepository {
     const period = validateFinanceMonth(month);
     const result = await this.#db
       .prepare(
+        /*
+         * OPEN and COMPLETED, and the caller decides what each is for.
+         *
+         * `open` is what "due this month" sums — the roadmap's definition, a
+         * deterministic total of recorded amounts still to pay. `completed` is
+         * carried so the month can SHOW what was settled: a commitment that
+         * vanished the instant it was paid would make the settle action look
+         * like it had failed, and would give the owner nowhere to check that
+         * the payment it recorded was the right one.
+         *
+         * Dismissed and on-hold obligations are neither, and are absent.
+         */
         `SELECT o.entity_id, e.title, o.due_date, o.expected_amount_minor,
-                o.currency_code, o.settled_by_transaction_id
+                o.currency_code, o.settled_by_transaction_id, o.status
            FROM obligation_details o
            JOIN entities e
              ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
           WHERE o.workspace_id = ? AND o.deleted_at IS NULL
-            AND o.status = 'open'
+            AND o.status IN ('open', 'completed')
             AND o.due_date >= ? AND o.due_date <= ?
           ORDER BY o.due_date, o.entity_id`,
       )
@@ -1820,6 +1849,7 @@ export class D1FinanceRepository implements FinanceRepository {
         expected_amount_minor: number | null;
         currency_code: string | null;
         settled_by_transaction_id: string | null;
+        status: string;
       }>();
     return result.results.map((row) => ({
       obligationId: row.entity_id,
@@ -1831,6 +1861,7 @@ export class D1FinanceRepository implements FinanceRepository {
           : Number(row.expected_amount_minor),
       currencyCode: text(row.currency_code),
       settledByTransactionId: text(row.settled_by_transaction_id),
+      completed: row.status === "completed",
     }));
   }
 
@@ -2047,15 +2078,19 @@ export class D1FinanceRepository implements FinanceRepository {
       for (const row of newRows) {
         // A bank-supplied id makes identity CERTAIN, so it suppresses suspicion.
         if (row.sourceTransactionId !== null) continue;
-        const hit = nearby.results.some(
-          (near) =>
-            Number(near.amount_minor) === row.amountMinor &&
-            near.payee_key === row.payeeKey &&
-            Math.abs(
-              (Date.parse(`${near.occurred_on}T00:00:00Z`) -
-                Date.parse(`${row.occurredOn as string}T00:00:00Z`)) /
-                86_400_000,
-            ) <= SUSPECTED_DUPLICATE_WINDOW_DAYS,
+        const candidate = {
+          occurredOn: row.occurredOn as string,
+          amountMinor: row.amountMinor as number,
+          payeeKey: row.payeeKey as string,
+        };
+        // The rule itself lives in the kernel, where it is stated and tested;
+        // this loop only supplies the rows.
+        const hit = nearby.results.some((near) =>
+          looksLikeDuplicate(candidate, {
+            occurredOn: near.occurred_on,
+            amountMinor: Number(near.amount_minor),
+            payeeKey: near.payee_key,
+          }),
         );
         if (hit) suspected.add(row.index);
       }

@@ -157,6 +157,7 @@ export {
 export {
   IMPORT_ROW_PROBLEM_MESSAGES,
   SUSPECTED_DUPLICATE_WINDOW_DAYS,
+  looksLikeDuplicate,
   type FinanceImport,
   type ImportBalanceCheck,
   type ImportPreview,
