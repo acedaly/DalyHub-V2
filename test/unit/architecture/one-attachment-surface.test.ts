@@ -97,14 +97,24 @@ describe("no module builds an attachment component of its own", () => {
      * names anything: a control that opens the OS picker either IS the shared
      * picker or is a second one.
      *
-     * `RestoreFromBackup.tsx` is the single stated exception and is not an
-     * attachment surface at all — it takes a backup ARCHIVE, which is read once
-     * by the restore pipeline and never stored as a file. It is named here so
-     * that adding a second exception is a deliberate edit to this list.
+     * Two stated exceptions, and NEITHER is an attachment surface:
+     *
+     *   - `RestoreFromBackup.tsx` takes a backup ARCHIVE, read once by the
+     *     restore pipeline and never stored as a file.
+     *   - `FinanceImport.tsx` (V2.12) takes a bank CSV, which is parsed, hashed
+     *     and discarded inside the request. Nothing reaches R2 and nothing but
+     *     the ledger row — file name, byte count, SHA-256, counts — reaches D1.
+     *     A statement the owner wants to KEEP is an attachment on the account,
+     *     through the shared picker, which is a different control on the same
+     *     screen.
+     *
+     * Both are named here so that adding a third is a deliberate edit to this
+     * list rather than a file input nobody noticed.
      */
     const allowed = new Set([
       path.join("app", "shared", "attachments", "AttachmentPicker.tsx"),
       path.join("app", "modules", "settings", "RestoreFromBackup.tsx"),
+      path.join("app", "modules", "finance", "FinanceImport.tsx"),
     ]);
     const offenders = APP_FILES.filter(
       (file) =>
@@ -235,7 +245,19 @@ describe("every consumer uses the shared surface", () => {
       .sort();
 
     expect(consumers).toEqual([
+      /*
+       * V2.12 added Finance. An account carries a statement PDF or a letter from
+       * the bank; a transaction carries a receipt. Both go through the shared
+       * section, which is what ADR-119 said adding a consumer should cost — one
+       * line each, and this entry.
+       *
+       * The CSV an import reads is NOT evidence and does not appear here: it is
+       * parsed, hashed and discarded inside the request, and a statement the
+       * owner wants to KEEP is an attachment on the account through this
+       * surface, which is a different control on the same screen.
+       */
       "assets",
+      "finance",
       "meetings",
       "notes",
       "obligations",

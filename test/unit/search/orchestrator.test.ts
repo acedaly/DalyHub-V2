@@ -194,6 +194,7 @@ describe("registry-driven provider discovery", () => {
       "meetings.search",
       "people.search",
       "assets.search",
+      "finance.search",
       "obligations.search",
       "reviews.search",
     ]);

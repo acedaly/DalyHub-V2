@@ -31,6 +31,10 @@ describe("countRecordsByModule", () => {
       "area",
       "asset",
       "diary",
+      // V2.12 FIN-00 — a Finance account and a Finance transaction are both
+      // ordinary entities, so they count here like every other record type.
+      "finance_account",
+      "finance_transaction",
       "goal",
       "habit",
       "meeting",

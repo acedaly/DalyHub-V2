@@ -35,6 +35,11 @@ describe("PX-02 entity identity map", () => {
       "person",
       "asset",
       "obligation",
+      // V2.12 FIN-00 — Finance's ONE identity. A transaction has none of its
+      // own and BORROWS this one (`identityTypeFor`), because it is a light
+      // entity and because the accent space is full at the design system's own
+      // ΔE floor.
+      "finance_account",
       "diary",
       "review",
     ]);

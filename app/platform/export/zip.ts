@@ -61,12 +61,56 @@ export interface ZipEntry {
  */
 export const ZIP_MAX_TOTAL_BYTES = 64 * 1024 * 1024;
 
-/** Thrown when the archive would exceed {@link ZIP_MAX_TOTAL_BYTES}. */
+/**
+ * The largest ARCHIVE this writer will produce (32 MiB of finished bytes).
+ *
+ * ## Why this exists, and why it is a different number from the one above
+ *
+ * [DEBT-247](../../../docs/product/PRODUCT_DEBT.md): DalyHub could write an
+ * export archive it would then refuse to read back. The mechanism is not the
+ * one the title suggests. `ZIP_MAX_TOTAL_BYTES` bounds the writer's
+ * **uncompressed content**, and the restore reader's `RESTORE_MAX_CONTENT_BYTES`
+ * bounds its own at the same 64 MiB deliberately — so those two agreed all
+ * along. What had no counterpart on the writer at all was
+ * `RESTORE_MAX_ARCHIVE_BYTES`, which bounds the **compressed archive file**.
+ * The writer never measured the artefact it produced.
+ *
+ * Text compresses; PDFs and photographs do not. Four 9 MiB files are 36 MiB of
+ * content — comfortably inside the ceiling above — and compress to about 36 MiB
+ * of archive, which the reader refuses. The owner would find out at the moment
+ * they most needed the file to work.
+ *
+ * So the writer now refuses at the reader's own limit, and this constant is the
+ * ONE authority: `RESTORE_MAX_ARCHIVE_BYTES` is derived from it rather than
+ * restated, so the two ends cannot drift apart again. **No memory budget
+ * changed** — the reader's ceiling was not raised and the content ceiling was
+ * not lowered. The writer already holds the finished archive in memory, so
+ * measuring its length costs nothing, and a refusal at export time is a problem
+ * the owner can still act on.
+ */
+export const ZIP_MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
+
+/**
+ * Thrown when an archive would exceed {@link ZIP_MAX_TOTAL_BYTES} of content, or
+ * when the ASSEMBLED archive exceeds {@link ZIP_MAX_ARCHIVE_BYTES}.
+ *
+ * Both are the same failure to an owner — "this workspace is too large to export
+ * in one archive" — and both are honest refusals rather than a truncated file.
+ * `reason` distinguishes them for the operator, because they are fixed
+ * differently: the first needs less content, the second needs less
+ * INCOMPRESSIBLE content.
+ */
 export class ZipTooLargeError extends Error {
-  constructor(bytes: number) {
+  constructor(
+    bytes: number,
+    readonly reason: "content" | "archive" = "content",
+  ) {
     super(
-      `The export is too large to assemble in one archive ` +
-        `(${bytes} bytes of content, limit ${ZIP_MAX_TOTAL_BYTES}).`,
+      reason === "content"
+        ? `The export is too large to assemble in one archive ` +
+            `(${bytes} bytes of content, limit ${ZIP_MAX_TOTAL_BYTES}).`
+        : `The assembled export is larger than DalyHub can read back ` +
+            `(${bytes} bytes of archive, limit ${ZIP_MAX_ARCHIVE_BYTES}).`,
     );
     this.name = "ZipTooLargeError";
   }
@@ -295,7 +339,7 @@ export async function createZipArchive(
     seen.add(key);
     total += entry.data.length;
   }
-  if (total > ZIP_MAX_TOTAL_BYTES) throw new ZipTooLargeError(total);
+  if (total > ZIP_MAX_TOTAL_BYTES) throw new ZipTooLargeError(total, "content");
 
   const { date, time } = dosDateTime(modifiedAt);
   const body = new ByteWriter();
@@ -372,7 +416,18 @@ export async function createZipArchive(
   archive.push(body.toUint8Array());
   archive.push(centralBytes);
   archive.push(end);
-  return archive.toUint8Array();
+  const bytes = archive.toUint8Array();
+  /*
+   * DEBT-247's fix, and the whole of it: the writer measures the ARTEFACT IT
+   * PRODUCED against the reader's own ceiling, so DalyHub can never write an
+   * archive it will refuse to read. The bytes are already in memory, so this
+   * costs a comparison; the alternative is an owner discovering the asymmetry
+   * during a recovery.
+   */
+  if (bytes.length > ZIP_MAX_ARCHIVE_BYTES) {
+    throw new ZipTooLargeError(bytes.length, "archive");
+  }
+  return bytes;
 }
 
 /** Encode a text file entry as UTF-8 bytes. */

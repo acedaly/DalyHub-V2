@@ -38,6 +38,30 @@ describe("entityDestination", () => {
     });
   });
 
+  it("maps a Transaction to a ROUTE, because a drawer key would be a dead end", () => {
+    /*
+     * V2.12. It first returned `{ kind: "drawer", drawerKey: "transaction:<id>" }`
+     * on the reasoning that the transactions surface opens one — but a drawer
+     * key is interpreted by the CURRENT route's `DrawerProvider`, and the
+     * Obligation record, which is exactly where the settlement link appears,
+     * passes `renderDrawer={() => null}`. Clicking "paid" there opened the
+     * "record isn't available" fallback instead of the transaction that paid it.
+     *
+     * A route works from anywhere, and the id is opaque — no payee, no amount.
+     */
+    expect(entityDestination("finance_transaction", "ft1")).toEqual({
+      kind: "route",
+      to: "/finance/transactions?open=ft1",
+    });
+  });
+
+  it("maps a Finance account to its canonical record route", () => {
+    expect(entityDestination("finance_account", "fa1")).toEqual({
+      kind: "route",
+      to: "/finance/accounts/fa1",
+    });
+  });
+
   it("maps a Person to their canonical record route (PEOPLE-01)", () => {
     expect(entityDestination("person", "pe1")).toEqual({
       kind: "route",

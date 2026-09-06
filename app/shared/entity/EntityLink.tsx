@@ -28,7 +28,7 @@ import { DrawerTrigger } from "~/shared/drawer";
 
 import { EntityIcon } from "./EntityIcon";
 import { entityDestination } from "./destination";
-import { getEntityIdentity, isEntityType } from "./identity";
+import { getEntityIdentity, identityTypeFor } from "./identity";
 
 export interface EntityLinkProps {
   /** The related record's entity type slug (e.g. "goal", "task"). */
@@ -64,9 +64,10 @@ export function EntityLink({
   const identity = getEntityIdentity(type);
   const accessibleName = identity ? `${identity.label}: ${title}` : title;
   // The glyph is decorative: the accessible name above already says the type.
+  const iconType = identityTypeFor(type);
   const icon =
-    showIcon && isEntityType(type) ? (
-      <EntityIcon type={type} className="dh-entity-link__icon" />
+    showIcon && iconType !== null ? (
+      <EntityIcon type={iconType} className="dh-entity-link__icon" />
     ) : null;
   const content = (
     <>

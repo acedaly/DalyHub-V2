@@ -52,6 +52,7 @@ import {
   type ObligationTaskGateway,
 } from "~/kernel/assets";
 import type { AttachmentRepository } from "~/kernel/attachments";
+import type { FinanceRepository } from "~/kernel/finance";
 import type { ObligationRepository } from "~/kernel/obligations";
 import type { AreaRepository } from "~/kernel/areas";
 import type { AreaSettingsRepository } from "~/kernel/area-settings";
@@ -116,6 +117,7 @@ import {
   createAreaRepository,
   createAssetHistoryRepository,
   createAttachmentRepository,
+  createFinanceRepository,
   createObligationRepository,
   createAssetRepository,
   createAreaSettingsRepository,
@@ -329,6 +331,17 @@ export interface WorkspaceScope {
    * them (ADR-116 decision 1).
    */
   readonly obligations: ObligationRepository;
+  /**
+   * V2.12 FIN-00 — the Finance store: accounts, transactions, categories,
+   * budgets and imports.
+   *
+   * It has no `setBalance` and no balance parameter, because a balance is
+   * DERIVED and there is nowhere to store one (ADR-120 decision 5). It has no
+   * recurring-commitment surface either: a money-bearing recurring commitment is
+   * an Obligation, and Finance links to the transaction that settled one rather
+   * than owning a schedule of its own (ADR-116 decision 1).
+   */
+  readonly finance: FinanceRepository;
   /**
    * V2.11 FILE-00 — the ONE attachment metadata store, for every record type
    * that carries evidence.
@@ -705,6 +718,17 @@ export function bindWorkspaceRepositories(
     ownerTimeZone,
   });
   /*
+   * V2.12 FIN-00 — the Finance store. It carries the trusted actor because it
+   * appends its own Activity (an account's lifecycle, and ONE event per applied
+   * import) atomically with the rows those events describe.
+   *
+   * It is constructed BEFORE `obligations` because it is that repository's
+   * settlement gateway: an obligation learns what a transaction says through
+   * this narrow read port, so Life Admin never joins a Finance table and the
+   * dependency runs one way (ADR-120 decision 6).
+   */
+  const finance = createFinanceRepository(env.DB, context, { actorContext });
+  /*
    * V2.10 LIFE-01 — the ONE obligation store, for everything due and recurring
    * whether or not it is about an Asset (ADR-116 decision 1).
    *
@@ -720,6 +744,12 @@ export function bindWorkspaceRepositories(
     taskGateway: obligationTasks,
     taskCompletionPlanner: tasks,
     proofGateway: assetHistory,
+    /*
+     * V2.12 FIN-04 — the settlement seam. Wired here rather than reached for,
+     * so an obligation completed with a transaction takes its actual amount and
+     * day from the bank rather than from anything a caller typed.
+     */
+    settlementGateway: finance,
     meterUnits: ASSET_METER_UNITS,
     /*
      * The meter side, from the domain that owns the units. The store knows a
@@ -844,6 +874,7 @@ export function bindWorkspaceRepositories(
     assets,
     assetHistory,
     obligations,
+    finance,
     attachments,
     reviews,
     projectHealth,

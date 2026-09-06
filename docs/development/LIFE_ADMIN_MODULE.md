@@ -204,3 +204,31 @@ store is a later programme's.
 - [`NOTIFICATIONS.md`](NOTIFICATIONS.md) — the due-date digest.
 - [`EXPORT_AND_PORTABILITY.md`](EXPORT_AND_PORTABILITY.md) — the `obligations`
   snapshot collection and the retired `assetObligations` one.
+
+## Settling with a Transaction (V2.12)
+
+An Obligation can name **the transaction that paid it**. The authority is
+`obligation_details.settled_by_transaction_id`, one nullable column with a
+partial unique index, and beside it the repository writes an
+`obligation.settled_by` EntityLink as a projection in the same batch — the same
+shape the subject uses ([ADR-118](../decisions/ARCHITECTURE_DECISIONS.md)
+decision 1, applied a second time).
+
+**Settlement IS completion.** There is no separate link/unlink lifecycle:
+`complete` takes an optional transaction, and when one is given the completed
+amount and date come from the bank. The kernel *refuses* a typed amount or date
+beside a settlement — two sources for one figure and no rule for which wins is
+how a ledger starts disagreeing with itself.
+
+**There is no unsettle**, and that follows from V2.10's own rule rather than
+from a new one: `setStatus` refuses to reopen a completed obligation, so a
+settlement is a historical fact like every other completion. The recovery from
+settling the wrong transaction is to delete the occurrence and record it again,
+which the settlement index is written to allow.
+
+**Life Admin knows nothing about Finance.** The read runs the other way, through
+`ObligationSettlementGateway` — a narrow port declared by this kernel,
+implemented by Finance and wired at the composition boundary, exactly as
+`ObligationProofGateway` is for Asset history. Life Admin never joins a Finance
+table, and the settle CONTROL lives on the Finance home for that reason. See
+[`FINANCE_MODULE.md`](./FINANCE_MODULE.md).

@@ -24,6 +24,8 @@ import { env } from "cloudflare:test";
 import { RouterContextProvider } from "react-router";
 
 import { createActivityActorContext } from "~/kernel/activity";
+import { addCalendarDays } from "~/kernel/datetime";
+import { ownerCalendarIso } from "~/shared/datetime";
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { setAuthenticatedSession } from "~/platform/request";
 import { bindWorkspaceRepositories } from "~/platform/workspaces";
@@ -112,8 +114,28 @@ function scopeFor(db: D1Database = env.DB, ws = WS) {
   );
 }
 
+/** The one timezone this file's owner lives in. Stated once. */
+const STORY_TIMEZONE = "Australia/Brisbane";
+
+/**
+ * A day relative to the OWNER's calendar day, in the timezone this file
+ * declares — not the UTC day.
+ *
+ * It used to be `new Date(...).toISOString().slice(0, 10)`, which is the UTC
+ * day, while every surface under test resolves the owner's day through the
+ * product from `Australia/Brisbane`. From 14:00 UTC those are different dates,
+ * and when that difference crosses a week boundary — Sunday afternoon UTC, with
+ * a Monday week start — the Review was handed one week and the Goals collection
+ * computed another, so "every surface tells the same Goal story" failed on the
+ * one thing all three surfaces agreed about.
+ *
+ * Pre-existing: reproduced at `bd471f1` with identical figures
+ * (`2026-09-07…13` against `2026-08-31…09-06`). It is a defect in the TEST, not
+ * in the product: `goalMovementWindow` is one function and all three surfaces
+ * call it — they simply were not given the same day.
+ */
 function isoDaysFromToday(days: number): string {
-  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+  return addCalendarDays(ownerCalendarIso(new Date(), STORY_TIMEZONE), days);
 }
 
 function runGoals(url = "https://app.test/goals") {
@@ -241,7 +263,7 @@ describe("every surface tells the same Goal story", () => {
         review,
         stepId: "alignment",
         now: new Date(),
-        timezone: "Australia/Brisbane",
+        timezone: STORY_TIMEZONE,
         todayIso: isoDaysFromToday(0),
         formatDate: (iso: string) => iso,
       },
@@ -375,11 +397,11 @@ describe("the shared story read is bounded", () => {
     const now = new Date();
     const { evaluation, recentWindowStartIso } = createOwnerAlignmentContext(
       now,
-      "Australia/Brisbane",
+      STORY_TIMEZONE,
     );
     const factsInput = {
       now,
-      timezone: "Australia/Brisbane",
+      timezone: STORY_TIMEZONE,
       todayIso: evaluation.todayIso,
       firstDayOfWeek: "monday" as const,
       evaluation,
@@ -444,7 +466,7 @@ describe("the shared story read is bounded", () => {
         review,
         stepId: "alignment",
         now: new Date(),
-        timezone: "Australia/Brisbane",
+        timezone: STORY_TIMEZONE,
         todayIso: isoDaysFromToday(0),
         formatDate: (iso: string) => iso,
       },
