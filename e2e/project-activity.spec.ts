@@ -42,6 +42,9 @@ test.describe("PROJ-04 project Activity tab", () => {
       "Tasks",
       "Knowledge",
       "Linked",
+      // V2.11 EVIDENCE — the shared attachment surface, between the record's own
+      // tabs and the platform's Activity/Settings pair.
+      "Evidence",
       "Activity",
       "Settings",
     ]);
