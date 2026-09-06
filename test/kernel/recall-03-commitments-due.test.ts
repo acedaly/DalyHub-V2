@@ -854,22 +854,12 @@ describe("hostile follow-ups in another workspace reach nothing", () => {
 /* -------------------------------------------------------------------------- */
 
 /*
- * Time-boxed at the SUITE, the way `asset-history-scale.test.ts` and
- * `areas-route.test.ts` already time-box their seeded suites — because every
- * test in here runs `seed150()`, which is 150 Tasks created and then set to
- * waiting, one real D1 write at a time.
- *
- * Vitest's default is 5 s, and MEASURED locally these four take 1.50–1.63 s:
- * a margin of 3.1x. The kernel suite on CI runs about three times slower in
- * aggregate test time than it does here (996 s of test time against 323 s for
- * the same 3 251 tests), which puts them ON the 5 s line — and duly timed them
- * out on runs 33986004347 and, for the same reason, earlier. They are the four
- * slowest tests in this file, and they are the four that fail.
- *
- * Nothing here is weakened, because the 5 s was never part of the claim: every
- * assertion below is about which rows come back, in what order, and in how many
- * statements. A ceiling is not a budget — a passing test never spends it — and
- * a genuine hang still fails, 25 s later.
+ * Every test in here runs `seed150()` — 150 Tasks created and then set to
+ * waiting, one real D1 write at a time — which is why they are the slowest in
+ * the suite at 1.21–1.29 s locally. The ceiling they need now lives in
+ * `vitest.workers.config.ts` as this suite's `testTimeout`, sized to the ~3.8x
+ * CI runs slower than a laptop; it was here as a per-suite exception first, and
+ * the third file to hit the same wall made it the default instead.
  */
 describe("the Waiting collection pages past its old cap", () => {
   const SEEDED = 150;
@@ -1005,7 +995,7 @@ describe("the Waiting collection pages past its old cap", () => {
       }),
     ).rejects.toBeTruthy();
   });
-}, 30_000);
+});
 
 /* -------------------------------------------------------------------------- */
 /* F. Export → restore, and the restored commitment is LIVE                    */
