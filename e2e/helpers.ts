@@ -955,15 +955,18 @@ export async function revealRowActions(row: Locator): Promise<void> {
 export async function openTodayWeeklySummary(page: Page): Promise<Locator> {
   /*
    * Settle FIRST, through the shared gate. `/today` is one of the two routes
-   * that publishes `[data-hydrated]` precisely because its server-rendered
+   * that publishes `[data-hydrated]`, precisely because its server-rendered
    * markup is interactive-looking well before React attaches, and every caller
    * of this helper arrives with a bare `page.goto("/today")`.
    *
-   * Without it the summary is simply not there yet on a loaded machine, and the
-   * assertion below spends its five seconds waiting for an element the document
-   * has not rendered — which is how "every summary figure states a real count"
-   * failed in a CI partition running 4 % over its budget while passing every
-   * time it was run on its own.
+   * This is hygiene, not a fix for anything. It was added believing it
+   * explained a CI failure of "every summary figure states a real count"; it
+   * did not, and the failure survived it. The real cause was that the weekly
+   * rank RENDERS NOTHING when the week is empty, and the caller was relying on
+   * another spec in its partition to have created a task — see the comment in
+   * `today.spec.ts`. Kept because settling before touching a hydrating route is
+   * right on its own terms, and recorded honestly so the next reader does not
+   * mistake it for the answer.
    */
   await waitForInteractive(page);
   const summary = page.getByTestId("today-summary");

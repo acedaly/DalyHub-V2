@@ -37,6 +37,31 @@ function greeting(page: Page) {
   });
 }
 
+/**
+ * Create one task, so the week has something in it.
+ *
+ * Deliberately minimal — no priority, no due date. The trend counts a task's
+ * CREATION, and `created_at` is now, so the plainest possible create is the
+ * whole requirement. It is named like the file's other dedicated fixtures so a
+ * reader of the shared workspace can see where it came from.
+ */
+async function createTaskForTrend(page: Page): Promise<void> {
+  const title = `Today weekly measure ${Date.now()}`;
+  await page.goto("/tasks?drawer=new-task");
+  const dialog = page.getByRole("dialog", { name: "New task" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Title").fill(title);
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname === "/tasks/new" &&
+        r.request().method() === "POST",
+    ),
+    dialog.getByRole("button", { name: "Create task" }).click(),
+  ]);
+  expect((await response.json()).ok).toBe(true);
+}
+
 test.describe("Today — the day surface", () => {
   test("is reachable from the sidebar and leads with the greeting", async ({
     page,
@@ -127,6 +152,31 @@ test.describe("Today — the day surface", () => {
   test("every summary figure states a real count and links to the view holding it", async ({
     page,
   }) => {
+    /*
+     * MAKE the state this asserts on, rather than borrowing it.
+     *
+     * The weekly rank is DERIVED: `loadActivityTrend` counts tasks CREATED or
+     * COMPLETED in the last seven owner-days, and `TodayStatRank` renders
+     * nothing at all when there is no measure to put in it. So the summary
+     * exists only if something in this workspace happened this week.
+     *
+     * Nothing seeded qualifies. `seed-tasks.sql` dates every task
+     * `2026-07-19`, which was inside the window when it was written and is 49
+     * days outside it now — legitimately, since the fixture-date guard exists
+     * to stop FUTURE literals and a past seed is exactly what it permits.
+     *
+     * What had been keeping this green was the partition it ran in:
+     * `creation-controls.spec.ts` and `tasks-optimistic.spec.ts` both create
+     * tasks and both used to run before it. V2.11 re-derived the partition
+     * manifest, they moved elsewhere, and the accident went with them — which
+     * is the useful kind of failure, because the dependency was always there.
+     *
+     * One task, created through the product, puts a real figure in the rank.
+     * The spec's own rule still holds: it asserts the RULES every figure obeys,
+     * never a particular row or count.
+     */
+    await createTaskForTrend(page);
+
     await page.goto("/today");
 
     /*
