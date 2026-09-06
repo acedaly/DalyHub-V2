@@ -47,6 +47,7 @@ import { Tooltip } from "~/shared/tooltip";
 import { NavIcon } from "./NavIcon";
 import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
+import { PRIMARY_NAV_PREFETCH } from "./navigation-prefetch";
 
 /**
  * The display name for a navigation group, when it has one.
@@ -153,6 +154,12 @@ export function PrimaryNavigation({
                   {(tip) => (
                     <Link
                       to={item.href}
+                      /*
+                       * PERF-01 — the destination is warmed on INTENT, not on
+                       * click. `navigation-prefetch.ts` holds the policy and the
+                       * reasoning; this is the rail applying it.
+                       */
+                      prefetch={PRIMARY_NAV_PREFETCH}
                       ref={tip.ref}
                       className={
                         current

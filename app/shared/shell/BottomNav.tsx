@@ -45,6 +45,7 @@ import { Link, useLocation } from "react-router";
 import { MoreIcon, PlusIcon } from "~/shared/icons";
 
 import { NavIcon } from "./NavIcon";
+import { PRIMARY_NAV_PREFETCH } from "./navigation-prefetch";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
@@ -156,6 +157,15 @@ export function BottomNav({
             <li key={item.id} className="dh-bottomnav__item">
               <Link
                 to={item.href}
+                /*
+                 * PERF-01 — the same intent policy the rail uses, and safe here
+                 * for the reason `navigation-prefetch.ts` records: the intent
+                 * trigger on touch is `touchstart`, which fires for the ONE
+                 * destination the finger has landed on. A tap warms that route
+                 * and no other; the bar never downloads five destinations
+                 * because it painted.
+                 */
+                prefetch={PRIMARY_NAV_PREFETCH}
                 className="dh-bottomnav__control"
                 aria-current={active ? "page" : undefined}
                 data-active={active ? "true" : "false"}
