@@ -151,6 +151,23 @@ checked, exactly like the generated colour scheme and the icon assets:
 | `pnpm run e2e:partitions` | prints the split with its estimates |
 | `pnpm run e2e:partitions:check` | fails if the manifest is not what the committed durations derive, if any spec file on disk belongs to no partition, if any spec file on disk has **no measured duration or test count**, or if any partition is budgeted past the ceiling (run by **Static**) |
 | `pnpm run e2e:partitions:generate` | re-derives it; `--from playwright-report/results.json` refreshes the durations from a finished run first |
+
+The committed manifest's durations all come from **one green `main` run** —
+[#848](https://github.com/acedaly/DalyHub-V2/actions/runs/33948878726) at
+`57c4b19`, whose thirteen partitions each published an `e2e-results-pNN`. Feed
+`generate` the whole set at once and label it with the run:
+
+```bash
+pnpm run e2e:partitions:generate \
+  --from p01/results.json --as ci:33948878726 \
+  --from p02/results.json --as ci:33948878726 \
+  …                                            # all thirteen
+```
+
+`check` requires every spec file to carry a duration, a test count and a
+provenance, so a file added without a measurement fails Static rather than
+quietly taking `DEFAULT_SPEC_SECONDS`. Refresh from a COMPLETE set: a partial
+refresh mixes runs, and the `source` map is only evidence while it names one.
 | `pnpm run e2e:gate` | **the whole local gate** — wipes and reseeds the local D1, then runs every partition in sequence, exactly as CI runs them |
 | `pnpm run e2e:order-proof <dir-a> <dir-b>` | compares two gate runs test by test — DEBT-173's proof that a re-derived split changes no result |
 | `pnpm run e2e:fixture-dates:check` | fails if any `e2e/**` seed, spec, fixture or helper carries an **unannotated future date literal** in any supported form, or an **unannotated long-form picker label** of any date (run by **Static**; see "Fixture dates" below) |
@@ -465,6 +482,30 @@ partition that ran it, and reports tests present on one side only (a coverage
 change) and tests whose outcome differs. It **fails if nothing was reshuffled**,
 so a comparison of two identical splits cannot pass vacuously. That is
 DEBT-173's closing condition, performed rather than argued about.
+
+**It has been performed, and it found things.** Taken on commit `1b8faef` with
+a clean tree (both runs record the same tree identity, and the proof refuses
+evidence that does not): arrangement A 13/13 green in 219.4 min, arrangement B
+(`--partitions=14`) 14/14 green in 226.8 min, both from the same seeded database
+of 325 live entities.
+
+```
+tests compared        2027 / 2027
+spec files reshuffled 134 of 134 got a different neighbour set
+outcomes that differ  0
+```
+
+On the tree BEFORE that, the same command reported `outcomes that differ 1` —
+twice, naming a different test each round, and both were real order-dependent
+defects rather than noise. Expect it to find something the first time you run it
+against a suite that has never been asked.
+
+**Two consecutive invocations, no manual wipe.** The B run above started from
+exactly the same 325 entities as the A run that had just left 399 behind — which
+is the clean-start invariant, demonstrated rather than asserted. `--no-reset`
+turns it off for exactly one purpose: showing that it matters. A summary written
+under it records `cleanStart: false`, and `e2e:order-proof` refuses such
+evidence rather than comparing it.
 
 ### Green is measured, never retried
 

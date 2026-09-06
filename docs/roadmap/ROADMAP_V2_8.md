@@ -1382,12 +1382,88 @@ usable.**
 >   #833, cancelled, so the count is **zero**. None of the three had its
 >   condition weakened.
 
+> **FOLLOW-UP, 2026-09-06 — the machinery this item built was RUN, and it found
+> more.** Branch `claude/v2-8-conv-03-green-6xunq4`, restarted from `main` at
+> `57c4b19` (V2.9 INS-00 … INS-04 and its gate repair had merged in between).
+> This adds evidence to CONV-03; it does not re-scope V2.8, which is complete
+> and whose successor is [`ROADMAP_V2_9.md`](ROADMAP_V2_9.md).
+>
+> - **DEBT-173 is CLOSED, on its own condition, and the proof is a command.**
+>   On commit `1b8faef` with a clean tree: arrangement A (the committed 13
+>   partitions) 13/13 green, 219.4 min, worst 19.0; arrangement B
+>   (`--partitions=14`, derived by the same packer) 14/14 green, 226.8 min,
+>   worst 20.0. Both began from the same seed — **325 live entities** — and
+>   `pnpm run e2e:order-proof` reports **2,027 tests compared, 134 of 134 spec
+>   files reshuffled, 0 outcomes differing**.
+>
+> - **It was not green first time, and that is what the proof is FOR.** Run on
+>   the tree before these repairs it reported `outcomes that differ 1`, twice,
+>   naming a different test each round. Both were real, both were repaired at
+>   their mechanism, and both were falsified from a clean seed with the file
+>   run alone:
+>   - `dhds-11-drag-reorder` — the drag helper aimed at a bounding box read
+>     before the row was lifted, and lifting a row reflows every group below it
+>     by one row. Harmless where the buckets are adjacent, fatal on the
+>     populated page where they are separated by gaps. The aim is now retaken
+>     until the product reports the destination as active, and the helper drives
+>     the product's own autoscroll instead of assuming the page is short.
+>     **`1 failed, 15 passed` → `16 passed`.**
+>   - `cross-module-views` — a view that is EMPTY on the committed seed (its
+>     `updated=last_30_days` filter stopped matching fixtures dated 2026-07-19
+>     on 18 August; it only ever had rows because other specs touch Projects),
+>     read through `.first()` on a class every scope shares, so it clicked a
+>     Task. It now asserts about the record it clicked, by the id the row
+>     carries, after the scope selector says this view has rendered.
+>     **`1 failed, 8 passed` → `9 passed`.**
+>   - Plus the five earlier ones: Today's eight-row priority-first band shared
+>     by three journeys, the doubly-bounded Continue band, and a journey that
+>     could `test.skip()` its way to green.
+>
+> - **DEBT-157 is ADVANCED, and the thing it is NAMED for finally happened.**
+>   `main` run [#848](https://github.com/acedaly/DalyHub-V2/actions/runs/33948878726)
+>   at `57c4b19` is green in all thirteen partitions and all thirteen published
+>   their `e2e-results-pNN`, so the whole manifest was regenerated through
+>   `e2e:partitions:generate --from` over the complete set, `--as
+>   ci:33948878726`. All 134 spec files now carry one provenance from one green
+>   trunk run, where before it was 115 from a 2026-08-24 run, 17 from nine local
+>   sessions, one labelled `results` and two scaled by ×1.381. 193.1 min of
+>   measured test time; thirteen partitions, none sliced; heaviest **14.9 min**
+>   against the untouched 16.73 ceiling, lightest 14.8, `worst/mean` **1.01**;
+>   **129 of 134 files land in a different partition**. `PARTITION_COUNT`,
+>   `MAX_PARTITION_SECONDS` and `derivePartitions` were not touched. It stays ◐
+>   because its restated condition asks for a green `main` run on THIS manifest,
+>   and not on a single sample.
+>
+> - **DEBT-125's count is ONE, for the first time.** #848 is green read from the
+>   artefacts — 2,026 expected, 0 unexpected, 0 flaky, `retries: 0`. The two runs
+>   before it were red. One is not two, so it stays ◐.
+>
+> - **DEBT-203's count is still ZERO and still owner-held.** Five more instances
+>   repaired at their own mechanism, no timeout raised in this pass, no retry, no
+>   skip. Ten dispatched runs still need an `actions: write` credential the
+>   automation does not hold.
+>
+> - **Two new findings, raised rather than folded in.**
+>   [DEBT-245](../product/PRODUCT_DEBT.md#-debt-245--a-conditional-skip-fires-on-a-green-main-run-so-green-still-does-not-mean-every-test-ran--p2)
+>   — #848's p10 reports `skipped 1`, a conditional guard on Today's empty prose,
+>   which is the fourth of the class DEBT-200 pre-committed to treat as a new
+>   finding. And
+>   [DEBT-246](../product/PRODUCT_DEBT.md#-debt-246--a-fixture-date-that-recedes-out-of-a-rolling-window-is-invisible-to-e2efixture-dateschecks-guard--p2)
+>   — `e2e:fixture-dates:check` guards against a fixture date that ARRIVES and
+>   has nothing to say about one that RECEDES out of a rolling window, which is
+>   what emptied the view above while the check stayed green.
+>
+> - **Also verified on this tree.** format:check, lint, typecheck, dhds:check,
+>   scheme:check, icons:check, e2e:fixture-dates:check, e2e:partitions:check,
+>   docs:links:check, 7,023 unit and 3,250 kernel tests, and the production
+>   build.
+
 - **User problem.** Three P2 machinery entries that every programme has
   worked inside and none has owned:
   [DEBT-203](../product/PRODUCT_DEBT.md#-debt-203--the-e2e-suite-carries-latent-timing-races-at-roughly-one-per-two-runs-so-green-is-probabilistic--p2)
   (≈1 latent race per 2 runs; closing condition "ten consecutive green runs on
   one unchanged tree", 2 achieved);
-  [DEBT-173](../product/PRODUCT_DEBT.md#-debt-173--e2e-specs-assert-against-the-shared-workspaces-accumulated-state-so-re-ordering-the-suite-changes-what-they-see--p2)
+  [DEBT-173](../product/PRODUCT_DEBT.md#-debt-173--e2e-specs-assert-against-the-shared-workspaces-accumulated-state-so-re-ordering-the-suite-changes-what-they-see--p2--resolved-2026-09-06-v28-conv-03-follow-up)
   (specs assert against accumulated state; one full run leaks ~217 records;
   named leakers include `ai-assistance.spec.ts`'s "Book the venue" Task);
   [DEBT-205](../product/PRODUCT_DEBT.md#-debt-205--536-seconds-of-e2e-gate-capacity-is-stranded-because-a-sliced-spec-file-takes-its-partitions-exclusively--p2--resolved-2026-09-04-v28-conv-03)

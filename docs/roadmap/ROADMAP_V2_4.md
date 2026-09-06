@@ -215,7 +215,7 @@ adds anything to it.**
     — whose dominant signature DHDS-13 **root-caused** (a completed row is filed
     into a closed `<details>`, so the re-assertion resolves to nothing), fixing
     three of nineteen and leaving sixteen unchecked against that mechanism —
-    together with [DEBT-173](../product/PRODUCT_DEBT.md#-debt-173--e2e-specs-assert-against-the-shared-workspaces-accumulated-state-so-re-ordering-the-suite-changes-what-they-see--p2)
+    together with [DEBT-173](../product/PRODUCT_DEBT.md#-debt-173--e2e-specs-assert-against-the-shared-workspaces-accumulated-state-so-re-ordering-the-suite-changes-what-they-see--p2--resolved-2026-09-06-v28-conv-03-follow-up)
     (accumulated fixture state) and [DEBT-180](../product/PRODUCT_DEBT.md#-debt-180--the-row-reveal-contract-is-unclickable-by-automation-the-hidden-triggers-own-wrapper-wins-the-hit-test--p3--resolved-2026-08-23-v24-gate-01).
     [DEBT-158](../product/PRODUCT_DEBT.md#-debt-158--a-goal-measurement-journey-has-never-once-run-because-nothing-in-the-seed-is-measurable--p2--resolved-2026-08-23-v24-gate-01)
     is the same problem inverted: a journey that reports green by never executing.
