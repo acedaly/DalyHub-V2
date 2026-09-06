@@ -162,18 +162,22 @@ describe("the shared Goal-story row", () => {
         count: 5,
         of: 6,
         everyReview: false,
+        reviews: 6,
+        sinceIso: "2026-08-03",
         states: ["moving", "moving", "limited", "moving", "moving", "moving"],
       },
     });
     const facts = goalStoryFacts(withSeries);
     expect(facts.contributionAcrossReviews).toBe("moving");
     expect(facts.contributionAcrossReviewsOf).toBe(6);
+    expect(facts.contributionAcrossReviewsWindow).toBe(6);
 
     // A surface that did not ask projects null for both — the same meaning
     // `alignment` and `movement` already carry, never "there is none".
     const notAsked = goalStoryFacts(story());
     expect(notAsked.contributionAcrossReviews).toBeNull();
     expect(notAsked.contributionAcrossReviewsOf).toBeNull();
+    expect(notAsked.contributionAcrossReviewsWindow).toBeNull();
   });
 
   it("says the classification and the window in ONE set of words, from the kernel", () => {
@@ -185,9 +189,29 @@ describe("the shared Goal-story row", () => {
         count: 5,
         of: 6,
         everyReview: false,
+        reviews: 6,
+        sinceIso: "2026-08-03",
         states: [],
       }),
     ).toBe("Moving at 5 of your last 6 Reviews");
+    // A Goal some Reviews in the series did not record (created mid-series,
+    // or past the snapshot's Goal bound) names the Reviews that recorded it
+    // AND the series they sit in — never "your last 3" for a series of 6.
+    expect(
+      goalContributionAcrossReviewsLine({
+        goalId: "g1",
+        title: "Reach 70 kg",
+        state: "limited",
+        count: 2,
+        of: 3,
+        reviews: 6,
+        sinceIso: "2026-08-24",
+        everyReview: false,
+        states: [],
+      }),
+    ).toBe(
+      "Limited movement at 2 of the 3 Reviews that recorded it, of your last 6",
+    );
     expect(
       goalContributionAcrossReviewsLine({
         goalId: "g1",
@@ -196,6 +220,8 @@ describe("the shared Goal-story row", () => {
         count: 4,
         of: 4,
         everyReview: true,
+        reviews: 4,
+        sinceIso: "2026-08-03",
         states: [],
       }),
     ).toBe("No contribution path at every one of your last 4 Reviews");

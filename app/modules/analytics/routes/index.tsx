@@ -1,3 +1,4 @@
+import { redirect } from "react-router";
 /**
  * UIX-05 — the Analytics route (`/analytics`).
  *
@@ -58,6 +59,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
      * a silent substitution would make it describe a series it is not drawing.
      */
     const grain = resolveInsightGrain(windowId, params.get("grain"), todayIso);
+    /*
+     * The address bar is the AUTHORITY for window and grain, so it must never
+     * name one the page is not drawing. An unrecognised value, or a grain the
+     * window cannot hold, is normalised above; redirecting to the normalised
+     * address is what stops a shared `?window=quarter&grain=day` link from
+     * describing a page it does not match — and from being copied forward by
+     * every grain link on it (found by review).
+     */
+    const requestedWindow = params.get("window");
+    const requestedGrain = params.get("grain");
+    if (
+      (requestedWindow !== null && requestedWindow !== windowId) ||
+      (requestedGrain !== null && requestedGrain !== grain)
+    ) {
+      const canonical = new URL(request.url);
+      canonical.searchParams.set("window", windowId);
+      if (requestedGrain !== null) canonical.searchParams.set("grain", grain);
+      return redirect(`${canonical.pathname}${canonical.search}`);
+    }
     return await loadAnalytics({
       scope,
       window: windowId,
@@ -103,6 +123,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         measuredGoalsBounded: false,
         measuredGoalsAvailable: false,
         goalContributions: [],
+        goalContributionsAvailable: false,
         seriesBounded: false,
         seriesBound: null,
         overdueMoments: 0,

@@ -476,3 +476,59 @@
     background: CanvasText;
   }
 }
+
+/*
+ * V2.9 INS-04 — the bound, stated where the list is read.
+ */
+.dh-analytics__changed-note {
+  margin: 0 0 var(--app-space-3);
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+/*
+ * V2.9 INS-03, narrow widths — a Goal row is name · shape · reading, and at a
+ * phone's card width the fixed 6rem shape plus the reading crushed the name to
+ * an ellipsis (found by review). Below 30rem the reading takes its own line
+ * under the name and the shape keeps its fixed track beside the name, so
+ * nothing is hidden and nothing is unreadable.
+ */
+@media (max-width: 30rem) {
+  .dh-analytics__goal {
+    grid-template-columns: minmax(0, 1fr) 6rem;
+  }
+
+  .dh-analytics__goal-reading {
+    grid-column: 1 / -1;
+  }
+
+  .dh-analytics__secondary-row {
+    grid-template-columns: minmax(0, 1fr) 6rem;
+  }
+
+  .dh-analytics__secondary-figure {
+    grid-column: 1 / -1;
+  }
+}
+
+/*
+ * V2.9 INS-03, narrow widths — the grain control sits beside the trend card's
+ * title, and at 320px the two could not share the line: the title broke one
+ * syllable per row ("Com / pleti / on / tren / d", found by the visual review).
+ * Below 30rem the header wraps and the control takes the row beneath the title.
+ */
+@media (max-width: 30rem) {
+  .dh-analytics__trend .dh-dcard__header {
+    flex-wrap: wrap;
+  }
+
+  .dh-analytics__trend .dh-dcard__header-action {
+    flex-basis: 100%;
+  }
+}
+
+/* A half of the Goals panel that could not be read says so beneath the rest. */
+.dh-analytics__goals-note {
+  margin-block-start: var(--app-space-3);
+  font-size: var(--dh-text-meta-size);
+}

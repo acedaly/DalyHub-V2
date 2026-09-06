@@ -40,12 +40,11 @@ import {
 } from "~/kernel/project-health";
 
 import {
-  MAX_REPEATED_CARRY_OVER,
   MIN_ACROSS_REVIEWS,
   readAcrossReviews,
+  HEALTH_CONCERN_RANK,
 } from "./across-reviews";
 import {
-  boundedMeasure,
   exactMeasure,
   measureLabel,
   type InsightMeasure,
@@ -219,13 +218,9 @@ function goalContributionReason(
  * date attached, and `completed` is excluded entirely — a finished Project is
  * movement, reported under what changed, not a health improvement.
  */
-const HEALTH_CONCERN_RANK: Readonly<Record<ProjectHealthState, number>> = {
-  on_track: 0,
-  stale: 1,
-  blocked: 2,
-  at_risk: 3,
-  completed: 0,
-};
+// ONE ranking, stated in `across-reviews.ts` and consumed here: the series
+// evaluator's "the state it held most often" breaks ties exactly as a
+// transition is judged, or the two would name different states.
 
 export type ProjectHealthChangeKind =
   | "improved"
@@ -1280,15 +1275,34 @@ function buildAcrossReviews(
     })),
   });
 
-  const since =
-    facts.sinceIso === null
-      ? null
-      : (input.formatDay?.(facts.sinceIso) ?? facts.sinceIso);
-  /** The window, in words: "over your last 4 Reviews, since 9 August". */
-  const over = (of: number) =>
-    since === null
-      ? `over your last ${plural(of, "Review", "Reviews")}`
-      : `over your last ${plural(of, "Review", "Reviews")}, since ${since}`;
+  const formatDay = (iso: string) => input.formatDay?.(iso) ?? iso;
+  /**
+   * The window, in words. "over your last 4 Reviews, since 9 August" when every
+   * Review in the series recorded the subject; "over the 3 Reviews that
+   * recorded it, since 16 August" when one did not. Found by review: the first
+   * form was used for both, so "the last 3 Reviews" quietly included a Review
+   * that had recorded nothing, and "since" named the start of a window of four.
+   */
+  const over = (of: number, reviews: number, sinceIso: string | null) => {
+    const span =
+      of === reviews
+        ? `over your last ${plural(of, "Review", "Reviews")}`
+        : `over the ${plural(of, "Review", "Reviews")} that recorded it`;
+    return sinceIso === null ? span : `${span}, since ${formatDay(sinceIso)}`;
+  };
+  /** "3 of the last 4 Reviews" / "2 of the 3 Reviews that recorded it, of your last 4". */
+  const ofReviews = (count: number, of: number, reviews: number) =>
+    of === reviews
+      ? `${count} of the last ${plural(of, "Review", "Reviews")}`
+      : `${count} of the ${plural(of, "Review", "Reviews")} that recorded it, of your last ${reviews}`;
+  const everyReview = (of: number, reviews: number) =>
+    of === reviews
+      ? `every one of your last ${plural(of, "Review", "Reviews")}`
+      : `every one of the ${plural(of, "Review", "Reviews")} that recorded it, of your last ${reviews}`;
+  const unrecorded = (of: number, reviews: number) =>
+    of === reviews
+      ? ""
+      : ` ${plural(reviews - of, "Review", "Reviews")} in the series recorded no reading for it.`;
 
   const insights: Insight[] = [];
 
@@ -1297,10 +1311,10 @@ function buildAcrossReviews(
     insights.push({
       id: `across.project.${project.projectId}`,
       tone: HEALTH_TONES[project.state],
-      label: `${project.title}: ${HEALTH_LABELS[project.state]} at ${project.count} of the last ${plural(project.of, "Review", "Reviews")}`,
-      reason: `Its health has not held one state ${over(project.of)} — ${project.states
+      label: `${project.title}: ${HEALTH_LABELS[project.state]} at ${ofReviews(project.count, project.of, project.reviews)}`,
+      reason: `Its health has not held one state ${over(project.of, project.reviews, project.sinceIso)} — ${project.states
         .map((state) => HEALTH_LABELS[state].toLocaleLowerCase())
-        .join(", ")}.`,
+        .join(", ")}.${unrecorded(project.of, project.reviews)}`,
       measure: exactMeasure(project.count),
       links: [projectLink(project.projectId, project.title)],
       entityIds: [project.projectId],
@@ -1308,14 +1322,25 @@ function buildAcrossReviews(
   }
 
   for (const goal of facts.goals) {
+    // Absence renders less (ADR-079 d8/d9): a Goal that work reached at EVERY
+    // Review is the one-step section's own reading repeated N times, and a
+    // finished Goal is movement, reported under what changed. Neither is a
+    // finding here. The line still reaches the Goal story on the guided Goals
+    // step, where it is the Goal's own history rather than a finding.
+    if (
+      goal.everyReview &&
+      (goal.state === "moving" || goal.state === "completed")
+    ) {
+      continue;
+    }
     const label = GOAL_CONTRIBUTION_LABELS[goal.state];
     insights.push({
       id: `across.goal.${goal.goalId}`,
       tone: GOAL_CONTRIBUTION_TONES[goal.state],
       label: goal.everyReview
-        ? `${goal.title}: ${label} at every one of your last ${plural(goal.of, "Review", "Reviews")}`
-        : `${goal.title}: ${label} at ${goal.count} of the last ${plural(goal.of, "Review", "Reviews")}`,
-      reason: `Read from the contribution recorded at each Review ${over(goal.of)}.`,
+        ? `${goal.title}: ${label} at ${everyReview(goal.of, goal.reviews)}`
+        : `${goal.title}: ${label} at ${ofReviews(goal.count, goal.of, goal.reviews)}`,
+      reason: `Read from the contribution recorded at each Review ${over(goal.of, goal.reviews, goal.sinceIso)}.${unrecorded(goal.of, goal.reviews)}`,
       measure: exactMeasure(goal.count),
       links: [goalLink(goal.goalId, goal.title)],
       entityIds: [goal.goalId],
@@ -1324,16 +1349,33 @@ function buildAcrossReviews(
 
   if (facts.repeatedCarryOver.length > 0) {
     const count = facts.repeatedCarryOver.length;
-    const measure = facts.repeatedCarryOverBounded
-      ? boundedMeasure(count, MAX_REPEATED_CARRY_OVER)
+    // "N+" whenever the names shown are fewer than the ids that repeated —
+    // the list was cut to its bound, or the bounded live carry-over page could
+    // not name every one. Never an exact count the series does not support.
+    const measure: InsightMeasure = facts.repeatedCarryOverBounded
+      ? { value: count, exactness: "bounded" }
       : exactMeasure(count);
+    // The door goes to the view that LISTS the named Tasks: a commitment that
+    // has been waiting since before every Review in the series is a waiting
+    // Task, and the overdue view does not hold it (found by review).
+    const kinds = new Map(
+      input.facts.state.carryOver.map((task) => [task.id, task.kind]),
+    );
+    const named = facts.repeatedCarryOver.map((task) => kinds.get(task.taskId));
+    const links: InsightLink[] = [];
+    if (named.some((kind) => kind !== "waiting")) {
+      links.push(taskLink("overdue", "Open overdue Tasks"));
+    }
+    if (named.some((kind) => kind === "waiting")) {
+      links.push(taskLink("waiting", "Open waiting Tasks"));
+    }
     insights.push({
       id: "across.carry_over",
       tone: "warning",
-      label: `${measureLabel(measure)} ${count === 1 ? "commitment" : "commitments"} carried over at every one of your last ${plural(facts.reviews, "Review", "Reviews")}`,
-      reason: `${nameList(facts.repeatedCarryOver.map((task) => task.title))} ${count === 1 ? "was" : "were"} already carrying over at each Review ${over(facts.reviews)}.`,
+      label: `${measureLabel(measure)} ${count === 1 && !facts.repeatedCarryOverBounded ? "commitment" : "commitments"} carried over at every one of your last ${plural(facts.reviews, "Review", "Reviews")}`,
+      reason: `${nameList(facts.repeatedCarryOver.map((task) => task.title))} ${count === 1 ? "was" : "were"} already carrying over at each Review ${over(facts.reviews, facts.reviews, facts.sinceIso)}.${facts.repeatedCarryOverBounded ? " More repeated than are named here." : ""}`,
       measure,
-      links: [taskLink("overdue", "Open overdue Tasks")],
+      links,
       entityIds: facts.repeatedCarryOver.map((task) => task.taskId),
     });
   }

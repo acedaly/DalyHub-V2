@@ -56,6 +56,17 @@ export type GoalMeasurementSeriesInput = {
    * so this is a display bound as much as a query bound.
    */
   readonly perGoalLimit: number;
+  /**
+   * V2.9 INS-03 — only readings taken on owner-calendar days inside this
+   * inclusive window. A surface that names a period must draw that period:
+   * without it, a 7-day view was non-empty because of readings two years old
+   * and said "readings in this window" about them (found by review). Absent
+   * means every reading, which is what a Goal's own record wants.
+   */
+  readonly window?: {
+    readonly fromIso: string;
+    readonly toIso: string;
+  };
 };
 
 export interface GoalMeasurementRepository {

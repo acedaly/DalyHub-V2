@@ -175,10 +175,29 @@ describe("the windowed Activity read is one read, and every exception is named",
   });
 
   it("keeps the history kernel free of storage and JSX", () => {
+    // Judged on what the kernel IMPORTS, not on words in its source: a module
+    // reaching into the platform or a route would carry a specifier here long
+    // before it carried the string "SELECT ".
     const dir = path.join(ROOT, "app", "kernel", "history");
     for (const name of readdirSync(dir)) {
-      const source = readFileSync(path.join(dir, name), "utf8");
+      const source = code(readFileSync(path.join(dir, name), "utf8"));
+      const specifiers = [...source.matchAll(/from\s+"([^"]+)"/g)].map(
+        (match) => match[1],
+      );
+      expect(specifiers.length).toBeGreaterThan(0);
+      for (const specifier of specifiers) {
+        expect(specifier).toMatch(/^(~\/kernel\/|\.\/)/);
+      }
       expect(source).not.toMatch(/D1Database|prepare\(|SELECT |from "react/);
     }
+  });
+
+  it("derives the storage bucket ceiling from the kernel's grain maximums", async () => {
+    const { MAX_HISTORY_BUCKETS } =
+      await import("~/platform/storage/d1/history-window-read");
+    const { GRAIN_MAXIMUMS } = await import("~/kernel/history");
+    expect(MAX_HISTORY_BUCKETS).toBe(
+      Math.max(...Object.values(GRAIN_MAXIMUMS)),
+    );
   });
 });

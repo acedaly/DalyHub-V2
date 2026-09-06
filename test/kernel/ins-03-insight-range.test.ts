@@ -25,6 +25,11 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { env } from "cloudflare:test";
+import { RouterContextProvider } from "react-router";
+
+import type { AuthenticatedSession } from "~/kernel/auth";
+import { loader as analyticsLoader } from "~/modules/analytics/routes/index";
+import { setAuthenticatedSession } from "~/platform/request";
 
 import { createActivityActorContext } from "~/kernel/activity";
 import {
@@ -43,6 +48,8 @@ import {
   FakeClock,
   makeContext,
   makeGoalMeasurementRepository,
+  makeReviewInsightRepository,
+  makeReviewRepository,
   makeSpineRepository,
   makeTaskRepository,
   resetTables,
@@ -405,8 +412,55 @@ describe("the page's cost is stated, and does not grow with the window", () => {
     return area;
   }
 
+  /**
+   * ONE completed weekly Review with a snapshot, so the across-Reviews read —
+   * which runs only when a completed Review exists — is on the path measured.
+   * Found by review: the budget was measured on a fixture with no Review, and
+   * understated a real workspace by the series statement.
+   */
+  async function seedCompletedReview() {
+    const reviews = makeReviewRepository(makeContext(WS), {
+      clock: new FakeClock("2026-08-31T09:00:00.000Z").now,
+      idGenerator: sequentialIds("i03rev"),
+    });
+    const { review } = await reviews.create({
+      type: "weekly",
+      periodStart: "2026-08-24",
+      periodEnd: "2026-08-30",
+    });
+    await reviews.complete(review.id);
+    await makeReviewInsightRepository(makeContext(WS)).saveSnapshot(review.id, {
+      version: 1,
+      periodStart: "2026-08-24",
+      periodEnd: "2026-08-30",
+      tasksCompleted: 1,
+      projectsCompleted: 0,
+      goalsCompleted: 0,
+      overdueCarryOver: 0,
+      waitingCarryOver: 0,
+      projects: [],
+      projectsBounded: false,
+      goals: [],
+      goalsBounded: false,
+      areas: [],
+      areasBounded: false,
+      carryOverTaskIds: [],
+      carryOverTaskIdsBounded: false,
+    });
+  }
+
+  it("costs TWO statements fewer in a workspace that has never completed a Review", async () => {
+    // The anchor Review lookup answers empty, and the snapshot series that
+    // would follow it is never asked for.
+    await seedYear();
+    const counter: Counter = { count: 0 };
+    await load(scopeFor(counter), "12-weeks", "week");
+    expect(counter.count).toBe(ANALYTICS_QUERY_BUDGET - 2);
+  });
+
   it("costs the SAME number of statements for 7 days and for 24 months", async () => {
     await seedYear();
+    await seedCompletedReview();
 
     const week: Counter = { count: 0 };
     await load(scopeFor(week), "this-week", "day");
@@ -427,6 +481,7 @@ describe("the page's cost is stated, and does not grow with the window", () => {
 
   it("costs the same number of statements at every window and grain", async () => {
     await seedYear();
+    await seedCompletedReview();
 
     const counts = new Map<string, number>();
     for (const window of INSIGHT_WINDOWS) {
@@ -488,6 +543,16 @@ describe("the measured-Goal series (DEBT-212's caller)", () => {
     // One reading is not a series: a single point drawn as a line would assert
     // a shape it does not have.
     expect(rows.some((entry) => entry.goalId === single.id)).toBe(false);
+
+    // The page names a period, so its Goal shapes are that period's: the same
+    // Goal has NO series on a window that holds none of its readings, rather
+    // than the readings it took two months earlier (found by review — an
+    // unwindowed read called July's weigh-ins "readings in this window" on a
+    // 7-day view). The window's empty state is then the honest one.
+    const week = await load(scopeFor(), "this-week", "day");
+    expect(
+      week.model.measuredGoals.some((entry) => entry.goalId === measured.id),
+    ).toBe(false);
   });
 
   it("never returns another workspace's readings", async () => {
@@ -516,5 +581,61 @@ describe("the measured-Goal series (DEBT-212's caller)", () => {
     const data = await load(scopeFor(), "12-weeks", "week");
     expect(data.model.measuredGoals).toHaveLength(0);
     expect(data.model.goalContributions).toHaveLength(0);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The address bar is the authority                                            */
+/* -------------------------------------------------------------------------- */
+
+describe("the address bar never names a window or grain the page is not drawing", () => {
+  function session(): AuthenticatedSession {
+    return {
+      user: {
+        subject: "owner-ins-03",
+        email: "owner@example.test",
+        name: "Owner",
+      },
+      workspaceId: WS,
+    } as unknown as AuthenticatedSession;
+  }
+  async function loadPage(url: string) {
+    const context = new RouterContextProvider();
+    setAuthenticatedSession(context, session());
+    return (await analyticsLoader({
+      request: new Request(url),
+      context,
+      params: {},
+    } as unknown as Parameters<typeof analyticsLoader>[0])) as
+      Response | { window: string; grain: string };
+  }
+
+  it("redirects a stale or impossible request to the address it actually draws", async () => {
+    // Found by review: `?window=quarter` (the deleted vocabulary) and
+    // `?window=24-months&grain=day` were normalised silently, so the shared
+    // link kept naming a page it did not match — and every grain link on the
+    // page copied the stale value forward.
+    const stale = await loadPage("https://app.test/analytics?window=quarter");
+    expect(stale).toBeInstanceOf(Response);
+    expect((stale as Response).status).toBe(302);
+    expect((stale as Response).headers.get("location")).toBe(
+      "/analytics?window=12-weeks",
+    );
+    const impossible = await loadPage(
+      "https://app.test/analytics?window=24-months&grain=day",
+    );
+    expect((impossible as Response).headers.get("location")).toBe(
+      "/analytics?window=24-months&grain=month",
+    );
+  });
+
+  it("serves a canonical address as it is, with no redirect", async () => {
+    const page = await loadPage(
+      "https://app.test/analytics?window=12-weeks&grain=day",
+    );
+    expect(page).not.toBeInstanceOf(Response);
+    expect(page).toMatchObject({ window: "12-weeks", grain: "day" });
+    const bare = await loadPage("https://app.test/analytics");
+    expect(bare).not.toBeInstanceOf(Response);
   });
 });
