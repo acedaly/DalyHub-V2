@@ -40,7 +40,7 @@
  */
 
 import { useRef } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigation } from "react-router";
 
 import { MoreIcon, PlusIcon } from "~/shared/icons";
 
@@ -54,6 +54,7 @@ import {
   buildBottomNavigation,
   resolveMobilePrimaryDestinations,
 } from "./mobile-navigation";
+import { pendingNavigationHref } from "./navigation-pending";
 
 export type BottomNavProps = {
   /** The registry-driven navigation model, already filtered by SET-01 preferences. */
@@ -81,12 +82,19 @@ export function BottomNav({
   moreOpen,
 }: BottomNavProps) {
   const location = useLocation();
+  const navigation = useNavigation();
   const captureRef = useRef<HTMLButtonElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
 
   const destinations = resolveMobilePrimaryDestinations(navigation);
   const slots = buildBottomNavigation(navigation);
   const activeHref = activeDestinationHref(destinations, location.pathname);
+  // PERF-01 — the same acknowledgement the rail gives, from the same rule.
+  const pendingHref = pendingNavigationHref(
+    destinations,
+    navigation,
+    location.pathname,
+  );
 
   return (
     // Named DISTINCTLY from the sidebar's "Primary" navigation landmark: both are
@@ -168,7 +176,9 @@ export function BottomNav({
                 prefetch={PRIMARY_NAV_PREFETCH}
                 className="dh-bottomnav__control"
                 aria-current={active ? "page" : undefined}
+                aria-busy={item.href === pendingHref ? true : undefined}
                 data-active={active ? "true" : "false"}
+                data-pending={item.href === pendingHref ? "true" : undefined}
               >
                 {/* M3's active-indicator PILL sits behind the glyph rather than
                     as a rule above it. It is a shape as well as a tint, so the

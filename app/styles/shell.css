@@ -602,6 +602,47 @@
 }
 
 /*
+ * PERF-01 — the destination a click is ON ITS WAY TO.
+ *
+ * A move between modules used to produce nothing on screen until its loaders
+ * resolved. React Router keeps the old route visible in the meantime, which is
+ * the right behaviour — nothing blanks, nothing flashes — and it also means a
+ * click that will take 200 ms reads as a click that did not land.
+ *
+ * The acknowledgement is the SAME indicator the selected row wears, at the tint
+ * only: a shape rather than a colour, arriving instantly on the row the owner
+ * pointed at. The label deliberately does NOT step up a weight and the row does
+ * NOT take the selected foreground, because it is not selected yet — two rows
+ * that look identically current would say less than one. `aria-busy` on the link
+ * carries the same fact to assistive technology.
+ *
+ * It is not an animation. Nothing here spins, pulses or slides, because motion
+ * whose only job is to occupy the wait is the "animation that merely hides
+ * latency" this work is told not to add. When the route is ready the row simply
+ * becomes the current one.
+ */
+.dh-nav__link[data-pending="true"] {
+  background: var(--dh-color-rail-selected);
+}
+
+.dh-bottomnav__control[data-pending="true"] .dh-bottomnav__indicator {
+  background: var(--dh-color-rail-selected);
+}
+
+@media (forced-colors: active) {
+  /*
+   * The tint is dropped by the OS palette, so the pending row is restated with
+   * the system's own selection colours — as a BORDER rather than a fill, so it
+   * stays distinguishable from the current row, which takes the fill.
+   */
+  .dh-nav__link[data-pending="true"],
+  .dh-sidebar--rail .dh-nav__link[data-pending="true"] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+}
+
+/*
  * The rail draws the SAME selected row as the sheet.
  *
  * There used to be a rail-specific override here repainting the row near-black.
