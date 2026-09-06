@@ -98,6 +98,37 @@ describe("dedupeAttention — the Today rule", () => {
     expect(result.overdueCount).toBe(20);
   });
 
+  /*
+   * THE COUNT IS NOT A PROPERTY OF THE PAGE.
+   *
+   * The repository caps its read at fifty rows, so an owner with eighty
+   * obligations was told fifty needed attention — in a sentence, on Today and
+   * in the morning digest. `readWaiting` records the identical defect on the
+   * waiting count and its fix: ask the database, do not measure the array.
+   */
+  it("states the totals it is GIVEN, over the whole set, not the page", () => {
+    const loaded = Array.from({ length: 50 }, (_, index) =>
+      item(`o${index}`, { state: "due" }),
+    );
+    const result = dedupeAttention(loaded, {
+      attentionTotal: 83,
+      trackedAsTasksTotal: 11,
+    });
+    expect(result.items).toHaveLength(5);
+    // 83 need attention, 11 of them are already Tasks, so 72 are on the rail.
+    expect(result.visibleCount).toBe(72);
+    expect(result.trackedAsTasksCount).toBe(11);
+  });
+
+  it("falls back to the loaded rows when no totals are supplied", () => {
+    const result = dedupeAttention([
+      item("a", { state: "due" }),
+      item("b", { state: "due", hasOpenTask: true }),
+    ]);
+    expect(result.visibleCount).toBe(1);
+    expect(result.trackedAsTasksCount).toBe(1);
+  });
+
   it("labels each row with its state word and links to the OBLIGATION", () => {
     const result = dedupeAttention([item("a", { state: "overdue" })]);
     expect(result.items[0].stateLabel).toBe("Overdue");

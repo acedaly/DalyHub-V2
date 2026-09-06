@@ -26,6 +26,7 @@
  * subject query and no per-obligation Task query at any list width.
  */
 
+import { ASSET_ENTITY_TYPE } from "~/kernel/assets";
 import {
   buildActivityWriteModel,
   createSystemActorContext,
@@ -75,7 +76,7 @@ import {
   type Obligation,
   type ObligationMeterEvaluation,
   type ObligationAttentionInput,
-  type ObligationAttentionItem,
+  type ObligationAttentionResult,
   type ObligationBand,
   type ObligationBandCountInput,
   type ObligationBandCounts,
@@ -277,6 +278,28 @@ const OPEN_TASK_EXISTS = `EXISTS (
     AND te.type = 'task' AND te.deleted_at IS NULL
     AND sr.completed_at IS NULL
     AND coalesce(td.status, 'todo') <> 'cancelled'
+)`;
+
+/**
+ * The SQL half of the attention filter that runs in TypeScript beneath
+ * `listAttention` — kept here so the uncapped totals and the page can never
+ * describe different sets.
+ *
+ * With no meter reading supplied, `evaluateObligation` reduces to its date
+ * side: a row needs attention when it is overdue (`days < 0`) or inside its own
+ * lead days (`days <= leadDays`), and the first is subsumed by the second
+ * because lead days cannot be negative. A meter obligation is kept whatever its
+ * date says, exactly as the TypeScript filter keeps it, because the domain that
+ * owns the units has the final say on its state.
+ *
+ * Binds ONE parameter: the owner's today.
+ */
+const ATTENTION_CASE = `(
+  o.meter_threshold IS NOT NULL
+  OR (
+       o.due_date IS NOT NULL
+       AND o.due_date <= date(?, '+' || coalesce(o.lead_days, 0) || ' days')
+     )
 )`;
 
 interface ObligationRow {
@@ -587,6 +610,28 @@ export class D1ObligationRepository implements ObligationRepository {
     return row.type;
   }
 
+  /**
+   * A meter target needs a subject that HAS a meter.
+   *
+   * The unit vocabulary this repository validates against is injected by the
+   * domain that owns the meter, so it answers "is `km` a real unit?" and not
+   * "does THIS record have a reading?". Those come apart the moment an
+   * obligation may be about anything: a kilometre threshold on a Person passes
+   * the vocabulary, is accepted, and then sits in "Reading needed" forever,
+   * because there is no meter anywhere that could ever satisfy it.
+   *
+   * Assets are the only records that carry one — `SUBJECT_JOINS` reads the
+   * reading from `asset_details` and from nowhere else, so this is the same
+   * fact stated at the write boundary rather than a second rule.
+   */
+  #assertMeterSubject(subjectType: string | null): void {
+    if (subjectType === ASSET_ENTITY_TYPE) return;
+    throw new ObligationValidationError(
+      "meterThreshold",
+      "needs something with a meter on it — only an asset keeps a reading",
+    );
+  }
+
   /* ---------------------------------------------------------------------- */
   /* Create                                                                 */
   /* ---------------------------------------------------------------------- */
@@ -614,6 +659,9 @@ export class D1ObligationRepository implements ObligationRepository {
     let subjectType: string | null = null;
     if (subjectId) {
       subjectType = await this.#assertExists(subjectId, "*", "subjectEntityId");
+    }
+    if (v.meterThreshold !== null && v.meterThreshold !== undefined) {
+      this.#assertMeterSubject(subjectType);
     }
 
     const obligationId = this.#newId();
@@ -966,6 +1014,28 @@ export class D1ObligationRepository implements ObligationRepository {
       },
       this.#meterUnits,
     );
+
+    /*
+     * The same rule as create's, and it has to be here too: the subject cannot
+     * change through this method, but the meter CAN — so a date-only obligation
+     * about a Person is one edit away from the state create refuses. Checked
+     * only when this edit actually sets a target, so the ordinary path costs
+     * nothing.
+     */
+    if (
+      v.meterThreshold !== null &&
+      v.meterThreshold !== undefined &&
+      v.meterThreshold !== current.meterThreshold
+    ) {
+      const subjectType = current.subjectEntityId
+        ? await this.#assertExists(
+            current.subjectEntityId,
+            "*",
+            "subjectEntityId",
+          )
+        : null;
+      this.#assertMeterSubject(subjectType);
+    }
 
     const COLUMN: Record<string, string> = {
       category: "category",
@@ -1747,7 +1817,7 @@ export class D1ObligationRepository implements ObligationRepository {
 
   async listAttention(
     input: ObligationAttentionInput,
-  ): Promise<readonly ObligationAttentionItem[]> {
+  ): Promise<ObligationAttentionResult> {
     const today = input.today;
     const horizon = Math.max(0, Math.min(input.horizonDays ?? 30, 365));
     const limit = Math.max(1, Math.min(input.limit ?? 50, 50));
@@ -1759,6 +1829,8 @@ export class D1ObligationRepository implements ObligationRepository {
         readonly current_meter_unit: string | null;
         readonly subject_subtype: string | null;
         readonly subject_archived_at: string | null;
+        readonly attention_total: number;
+        readonly tracked_total: number;
       })[];
     try {
       const result = await this.#db
@@ -1766,7 +1838,20 @@ export class D1ObligationRepository implements ObligationRepository {
           `SELECT ${OBLIGATION_COLUMNS}, ${SUBJECT_COLUMNS},
                   ad.archived_at AS subject_archived_at,
                   CASE WHEN o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
-                       THEN 1 ELSE 0 END AS has_open_task
+                       THEN 1 ELSE 0 END AS has_open_task,
+                  -- The two totals, counted over EVERY row the horizon selects
+                  -- and therefore NOT bounded by the LIMIT below: a window
+                  -- function is evaluated before the cap is applied, so this
+                  -- costs no second statement and cannot drift from the page.
+                  -- The CASE is the SQL half of the TypeScript filter beneath
+                  -- this query, and obligations.test.ts asserts the two agree
+                  -- over the same rows — the discipline countByBand already
+                  -- keeps for the band CASE.
+                  SUM(CASE WHEN ${ATTENTION_CASE} THEN 1 ELSE 0 END)
+                      OVER () AS attention_total,
+                  SUM(CASE WHEN ${ATTENTION_CASE}
+                            AND o.task_id IS NOT NULL AND ${OPEN_TASK_EXISTS}
+                           THEN 1 ELSE 0 END) OVER () AS tracked_total
              FROM obligation_details o
              JOIN entities e
                ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
@@ -1787,7 +1872,9 @@ export class D1ObligationRepository implements ObligationRepository {
             ORDER BY coalesce(o.due_date, '${DATE_SENTINEL}') ASC, o.entity_id ASC
             LIMIT ?`,
         )
-        .bind(this.#workspaceId, horizonDate, limit)
+        // Two `today` binds, one for each ATTENTION_CASE above, then the
+        // query's own three. Positional, so the order is the SQL's order.
+        .bind(today, today, this.#workspaceId, horizonDate, limit)
         .all<
           ObligationRow &
             SubjectColumns & {
@@ -1795,6 +1882,8 @@ export class D1ObligationRepository implements ObligationRepository {
               current_meter_unit: string | null;
               subject_subtype: string | null;
               subject_archived_at: string | null;
+              attention_total: number;
+              tracked_total: number;
             }
         >();
       rows = result.results;
@@ -1802,27 +1891,32 @@ export class D1ObligationRepository implements ObligationRepository {
       this.#fail(cause);
     }
 
-    return (
-      rows
-        .map((row) => ({
-          obligation: this.#rowToObligation(row),
-          subject: this.#subjectOf(row),
-          hasOpenTask: row.has_open_task === 1,
-          meterValue: row.current_meter_value,
-          meterUnit: row.current_meter_unit,
-          subjectSubtype: row.subject_subtype,
-        }))
-        // The SQL horizon is a coarse pre-filter; the ONE canonical evaluator has
-        // the final say, so Today and the record can never disagree about whether
-        // something needs attention. A meter obligation's meter side is supplied
-        // by the caller that owns the units; here the date side decides, and an
-        // un-evaluable meter obligation is kept for the caller to rank.
-        .filter(
-          (item) =>
-            item.obligation.meterThreshold !== null ||
-            evaluateObligation(item.obligation, today, null).needsAttention,
-        )
-    );
+    // No rows means no window to read the totals from, and zero is the truthful
+    // answer rather than an absent one a caller would have to interpret.
+    const attentionTotal = rows[0]?.attention_total ?? 0;
+    const trackedAsTasksTotal = rows[0]?.tracked_total ?? 0;
+
+    const items = rows
+      .map((row) => ({
+        obligation: this.#rowToObligation(row),
+        subject: this.#subjectOf(row),
+        hasOpenTask: row.has_open_task === 1,
+        meterValue: row.current_meter_value,
+        meterUnit: row.current_meter_unit,
+        subjectSubtype: row.subject_subtype,
+      }))
+      // The SQL horizon is a coarse pre-filter; the ONE canonical evaluator has
+      // the final say, so Today and the record can never disagree about whether
+      // something needs attention. A meter obligation's meter side is supplied
+      // by the caller that owns the units; here the date side decides, and an
+      // un-evaluable meter obligation is kept for the caller to rank.
+      .filter(
+        (item) =>
+          item.obligation.meterThreshold !== null ||
+          evaluateObligation(item.obligation, today, null).needsAttention,
+      );
+
+    return { items, attentionTotal, trackedAsTasksTotal };
   }
 
   async summariseBySubject(

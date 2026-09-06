@@ -97,6 +97,19 @@ export function ObligationsCollection(props: ObligationsCollectionProps) {
     path: baseWithQuery,
     select: selectObligationsPage,
     getId: obligationId,
+    /*
+     * ACTIONABLE, so `merge` — the rule TASKS-09 measured and CONV-02 stated
+     * once on the hook itself: *"a keyset cursor is derived from page one's
+     * tail and moves whenever a row leaves page one, so keying the reset on it
+     * would collapse the owner's loaded pages after every completion."*
+     *
+     * This collection holds, dismisses, reopens and completes, and every one of
+     * those revalidates. Left at the default `reset`, an owner three pages into
+     * their overdue band who held one row was sent back to page one — the exact
+     * defect the hook's own comment predicts for "a second actionable
+     * collection".
+     */
+    refresh: "merge",
   });
 
   const setParam = useCallback(

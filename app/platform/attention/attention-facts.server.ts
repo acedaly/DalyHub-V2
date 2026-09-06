@@ -199,9 +199,9 @@ export async function readObligationAttention(
   scope: WorkspaceScope,
   todayIso: string,
 ): Promise<ObligationAttentionData> {
-  const items = await scope.obligations.listAttention({ today: todayIso });
+  const attention = await scope.obligations.listAttention({ today: todayIso });
   return dedupeAttention(
-    items.map((item) => {
+    attention.items.map((item) => {
       const evaluation = evaluateAssetObligation(
         item.obligation,
         todayIso,
@@ -226,6 +226,11 @@ export async function readObligationAttention(
         hasOpenTask: item.hasOpenTask,
       };
     }),
+    // The counts come from the statement, not from the page it capped.
+    {
+      attentionTotal: attention.attentionTotal,
+      trackedAsTasksTotal: attention.trackedAsTasksTotal,
+    },
   );
 }
 

@@ -114,6 +114,25 @@ export function obligationAttentionHref(obligationId: string): string {
  */
 export function dedupeAttention(
   items: readonly AttentionInput[],
+  /**
+   * The counts taken over the WHOLE attention set rather than over `items`.
+   *
+   * `items` is a bounded page — the repository caps it at fifty — so counting
+   * it produces the shape `readWaiting` records as a defect it already paid
+   * for: *"a workspace with 200 waiting Tasks was told it had 50."* Today and
+   * the digest both STATE this number in a sentence, so an owner with eighty
+   * obligations was told sixty of them did not exist, and if the capped page
+   * happened to hold task-tracked rows an untracked obligation beyond the cap
+   * could vanish from both the row and its count.
+   *
+   * Optional, and derived from `items` when absent, so a caller that genuinely
+   * holds the whole set — every test that builds one by hand — is not made to
+   * restate its own length.
+   */
+  totals?: {
+    readonly attentionTotal: number;
+    readonly trackedAsTasksTotal: number;
+  },
 ): ObligationAttentionData {
   const visible = items.filter((item) => !item.hasOpenTask);
   const suppressed = items.length - visible.length;
@@ -137,8 +156,20 @@ export function dedupeAttention(
       text: item.text,
       href: obligationAttentionHref(item.obligationId),
     })),
-    visibleCount: visible.length,
-    trackedAsTasksCount: suppressed,
+    visibleCount:
+      totals === undefined
+        ? visible.length
+        : totals.attentionTotal - totals.trackedAsTasksTotal,
+    trackedAsTasksCount:
+      totals === undefined ? suppressed : totals.trackedAsTasksTotal,
+    /*
+     * Still derived from the loaded rows, and deliberately: nothing reads it,
+     * and the meter side of the evaluator — which is what can move a row into
+     * `overdue` — is supplied by the caller that owns the units and is not in
+     * the statement the totals come from. A count that claimed to be over the
+     * whole set while missing that side would be worse than one that says which
+     * rows it counted.
+     */
     overdueCount: visible.filter((item) => item.state === "overdue").length,
   };
 }

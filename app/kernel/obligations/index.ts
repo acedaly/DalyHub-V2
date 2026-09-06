@@ -161,6 +161,7 @@ export type {
   ObligationBandCounts,
   ObligationWithSubjectPage,
   ObligationAttentionItem,
+  ObligationAttentionResult,
   ObligationSummary,
   CompleteObligationResult,
   ObligationProofRef,

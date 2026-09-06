@@ -767,6 +767,63 @@ describe("linked Task authority", () => {
 /* Today attention query and collection summaries                             */
 /* -------------------------------------------------------------------------- */
 
+describe("a meter target needs something with a meter", () => {
+  /*
+   * The injected unit vocabulary answers "is `km` a real unit?" — not "does
+   * THIS record keep a reading". Before LIFE-01 those were the same question,
+   * because every obligation was about an Asset. They came apart the moment an
+   * obligation could be about anything, and the gap is reachable from the
+   * general create endpoint, which forwards the subject and the meter fields
+   * independently.
+   */
+  it("refuses a meter target on a subject that keeps no reading", async () => {
+    const area = await makeSpineRepository(makeContext(WS), {
+      clock: new FakeClock().now,
+      idGenerator: sequentialIds("p"),
+      activityIdGenerator: sequentialIds("pact"),
+    }).createArea({ title: "The house" });
+    await expect(
+      obligations().create({
+        subjectEntityId: area.id,
+        category: "service",
+        title: "Service the area",
+        meterThreshold: 100000,
+        meterUnit: "km",
+      }),
+    ).rejects.toThrow(/meter/i);
+  });
+
+  it("accepts the same target on an asset", async () => {
+    const asset = await ute();
+    const created = await obligations().create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Service the ute",
+      meterThreshold: 100000,
+      meterUnit: "km",
+    });
+    expect(created.meterThreshold).toBe(100000);
+  });
+
+  it("refuses one added by a later EDIT, not only at create", async () => {
+    const area = await makeSpineRepository(makeContext(WS), {
+      clock: new FakeClock().now,
+      idGenerator: sequentialIds("p"),
+      activityIdGenerator: sequentialIds("pact"),
+    }).createArea({ title: "The house" });
+    const repo = obligations();
+    const created = await repo.create({
+      subjectEntityId: area.id,
+      category: "reminder",
+      title: "Renew the passport",
+      dueDate: "2026-07-02",
+    });
+    await expect(
+      repo.update(created.id, { meterThreshold: 100000, meterUnit: "km" }),
+    ).rejects.toThrow(/meter/i);
+  });
+});
+
 describe("listAttention (the Today read seam)", () => {
   it("returns overdue and due-soon obligations with the asset context", async () => {
     const asset = await ute();
@@ -785,7 +842,7 @@ describe("listAttention (the Today read seam)", () => {
       dueDate: "2028-01-01",
     });
 
-    const items = await repo.listAttention({ today: "2026-07-01" });
+    const { items } = await repo.listAttention({ today: "2026-07-01" });
     expect(items).toHaveLength(1);
     expect(items[0].subject?.title).toBe("Ute");
     expect(items[0].subject?.type).toBe("asset");
@@ -803,10 +860,14 @@ describe("listAttention (the Today read seam)", () => {
       title: "Renew registration",
       dueDate: "2026-07-02",
     });
-    expect(await repo.listAttention({ today: "2026-07-01" })).toHaveLength(1);
+    expect(
+      (await repo.listAttention({ today: "2026-07-01" })).items,
+    ).toHaveLength(1);
 
     await assets().archive(asset.id);
-    expect(await repo.listAttention({ today: "2026-07-01" })).toHaveLength(0);
+    expect(
+      (await repo.listAttention({ today: "2026-07-01" })).items,
+    ).toHaveLength(0);
   });
 
   it("excludes completed, dismissed and on-hold obligations", async () => {
@@ -826,7 +887,9 @@ describe("listAttention (the Today read seam)", () => {
     });
     await repo.complete(a.id);
     await repo.setStatus(b.id, "on_hold");
-    expect(await repo.listAttention({ today: "2026-07-01" })).toHaveLength(0);
+    expect(
+      (await repo.listAttention({ today: "2026-07-01" })).items,
+    ).toHaveLength(0);
   });
 
   it("reports whether a linked Task is still open, for deduplication", async () => {
@@ -843,12 +906,132 @@ describe("listAttention (the Today read seam)", () => {
     });
     await repo.linkTask(obligation.id, task.id);
 
-    let items = await repo.listAttention({ today: "2026-07-01" });
-    expect(items[0].hasOpenTask).toBe(true);
+    const linked = await repo.listAttention({ today: "2026-07-01" });
+    expect(linked.items[0].hasOpenTask).toBe(true);
+    // The suppressed row is still COUNTED, and stated as tracked.
+    expect(linked.attentionTotal).toBe(1);
+    expect(linked.trackedAsTasksTotal).toBe(1);
 
     await makeTaskRepository(makeContext(WS)).completeTask(task.id);
-    items = await repo.listAttention({ today: "2026-07-01" });
-    expect(items[0].hasOpenTask).toBe(false);
+    const unlinked = await repo.listAttention({ today: "2026-07-01" });
+    expect(unlinked.items[0].hasOpenTask).toBe(false);
+    expect(unlinked.trackedAsTasksTotal).toBe(0);
+  });
+
+  /*
+   * THE ROW CAP AND THE COUNT ARE DIFFERENT QUESTIONS.
+   *
+   * `items` is capped at fifty because Today previews. The counts beside it are
+   * what Today and the digest STATE in a sentence, so counting the capped array
+   * tells an owner with eighty obligations that fifty need attention — the
+   * defect `readWaiting` already paid for on the waiting count.
+   */
+  it("counts the whole attention set, not the page it capped", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    // Sixty inside the horizon, so the fifty-row cap bites.
+    for (let i = 0; i < 60; i += 1) {
+      await repo.create({
+        subjectEntityId: asset.id,
+        category: "reminder",
+        title: `Due ${i}`,
+        dueDate: "2026-07-02",
+      });
+    }
+    // …and one well outside it, which must be in NEITHER the page nor the count.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "reminder",
+      title: "Years away",
+      dueDate: "2029-01-01",
+    });
+
+    const attention = await repo.listAttention({ today: "2026-07-01" });
+    expect(attention.items).toHaveLength(50);
+    expect(attention.attentionTotal).toBe(60);
+    expect(attention.trackedAsTasksTotal).toBe(0);
+  });
+
+  it("counts a task-tracked obligation that the page cap never reached", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    const created: string[] = [];
+    for (let i = 0; i < 55; i += 1) {
+      const o = await repo.create({
+        subjectEntityId: asset.id,
+        category: "reminder",
+        title: `Due ${i}`,
+        // Same date for all, so the tie-break is the entity id and the row
+        // linked below is genuinely beyond the cap for at least some of them.
+        dueDate: "2026-07-02",
+      });
+      created.push(o.id);
+    }
+    const tasks = makeTaskRepository(makeContext(WS));
+    // Link the LAST five, whichever side of the cap they land on.
+    for (const id of created.slice(-5)) {
+      const task = await tasks.createTask({ title: `Do ${id}` });
+      await repo.linkTask(id, task.id);
+    }
+
+    const attention = await repo.listAttention({ today: "2026-07-01" });
+    expect(attention.items).toHaveLength(50);
+    expect(attention.attentionTotal).toBe(55);
+    // The five are counted whether or not the capped page happened to include
+    // them — which is the whole point: "5 are tracked as tasks" must not depend
+    // on where the cap fell.
+    expect(attention.trackedAsTasksTotal).toBe(5);
+  });
+
+  /*
+   * The SQL CASE that produces the totals is a second expression of the
+   * TypeScript filter beneath the query, so the two are asserted to agree over
+   * the same rows — the discipline `countByBand` already keeps for its band
+   * CASE, and the only thing that keeps a duplicated rule honest.
+   */
+  it("counts exactly the rows the canonical filter keeps", async () => {
+    const asset = await ute();
+    const repo = obligations();
+    // Inside its own lead days: attention.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "registration",
+      title: "Inside lead",
+      dueDate: "2026-07-20",
+      leadDays: 30,
+    });
+    // Inside the 30-day horizon but OUTSIDE its lead days: not attention, and
+    // the coarse WHERE still selects it — which is exactly the row a count
+    // taken from the WHERE alone would get wrong.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "registration",
+      title: "Outside lead",
+      dueDate: "2026-07-20",
+      leadDays: 3,
+    });
+    // Overdue: attention, and not double-counted by the two clauses.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "reminder",
+      title: "Overdue",
+      dueDate: "2026-06-01",
+    });
+    // A meter obligation with no date at all: kept, because the domain that
+    // owns the units ranks it.
+    await repo.create({
+      subjectEntityId: asset.id,
+      category: "service",
+      title: "Meter only",
+      meterThreshold: 100000,
+      meterUnit: "km",
+    });
+
+    const attention = await repo.listAttention({ today: "2026-07-01" });
+    const titles = attention.items.map((i) => i.obligation.title).sort();
+    expect(titles).toEqual(["Inside lead", "Meter only", "Overdue"]);
+    // The count is the filter's own answer, arrived at independently in SQL.
+    expect(attention.attentionTotal).toBe(titles.length);
   });
 
   it("never reaches across workspaces", async () => {
@@ -866,7 +1049,9 @@ describe("listAttention (the Today read seam)", () => {
       title: "Theirs",
       dueDate: "2026-07-02",
     });
-    const items = await obligations().listAttention({ today: "2026-07-01" });
+    const { items } = await obligations().listAttention({
+      today: "2026-07-01",
+    });
     expect(items.map((i) => i.obligation.title)).toEqual(["Mine"]);
   });
 });

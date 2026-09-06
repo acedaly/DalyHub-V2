@@ -73,6 +73,22 @@ export function ObligationRecord({
 
   const actions = useObligationActions({ onChanged: onSaved, feedback });
 
+  /*
+   * Every action here posts and then revalidates, so the button that started it
+   * stays on screen, enabled, for as long as the round trip takes. The shared
+   * row has passed `busy` to its controls since LIFE-02 (`ObligationsCollection`
+   * and `AssetObligationsTab` both do); the record was the one surface that read
+   * `actions.pendingId` and never used it.
+   *
+   * "Create task" is the one where that costs something real rather than a
+   * duplicate no-op: two clicks send two requests that both read an obligation
+   * with no `task_id`, both create a Task, and then race to claim the pointer —
+   * leaving the loser's Task alive in the task list, linked to nothing, which no
+   * later action here can reach. The rest are guarded with it because a pending
+   * mutation is a pending mutation, not because each has its own story.
+   */
+  const busy = actions.pendingId === obligation.id;
+
   const post = useCallback(
     async (intent: string): Promise<boolean> => {
       const body = new FormData();
@@ -150,12 +166,30 @@ export function ObligationRecord({
     });
   }
 
-  const meterUnits = obligation.meterUnit
-    ? ASSET_METER_UNIT_OPTIONS.map((unit) => ({
-        value: unit.value,
-        label: unit.label,
-      }))
-    : undefined;
+  /*
+   * Meter editing is offered on the SUBJECT'S capability, not on whether a
+   * meter target happens to be set already.
+   *
+   * Gating it on `obligation.meterUnit` made this record disagree with the
+   * Asset tab, which passes the vocabulary unconditionally because everything
+   * it draws is about an Asset: a date-only rego could be given a kilometre
+   * threshold from the ute's page and not from its own. "One record with one
+   * page" has to mean the same edits either way.
+   *
+   * A meter belongs to the domain that owns its units (ADR-049's rule, applied
+   * to meters), so the capability is the Assets one and nothing else claims it.
+   * An existing target is honoured whatever the subject is, so data written
+   * before this rule — or by a client that ignored it — stays editable rather
+   * than becoming a value the owner can see and not clear.
+   */
+  const subjectKeepsMeter = obligation.subject?.type === "asset";
+  const meterUnits =
+    subjectKeepsMeter || obligation.meterUnit
+      ? ASSET_METER_UNIT_OPTIONS.map((unit) => ({
+          value: unit.value,
+          label: unit.label,
+        }))
+      : undefined;
 
   const feature =
     mode === "completing" ? (
@@ -221,6 +255,7 @@ export function ObligationRecord({
                 <button
                   type="button"
                   className="dh-btn dh-btn--ghost"
+                  disabled={busy}
                   onClick={() => actions.createTask(obligation)}
                 >
                   Create task
@@ -229,6 +264,7 @@ export function ObligationRecord({
               <button
                 type="button"
                 className="dh-btn dh-btn--ghost"
+                disabled={busy}
                 onClick={() => actions.hold(obligation)}
               >
                 Hold
@@ -236,6 +272,7 @@ export function ObligationRecord({
               <button
                 type="button"
                 className="dh-btn dh-btn--ghost"
+                disabled={busy}
                 onClick={() => actions.dismiss(obligation)}
               >
                 Dismiss
@@ -253,6 +290,7 @@ export function ObligationRecord({
             <button
               type="button"
               className="dh-btn dh-btn--primary"
+              disabled={busy}
               onClick={() => actions.reopen(obligation)}
             >
               Make it live again

@@ -153,7 +153,7 @@ describe("bounded reads", () => {
   it("serves the whole Today attention read in ONE query", async () => {
     const { obligations: obligationRepo, prepareCount, reset } = counted();
     reset();
-    const items = await obligationRepo.listAttention({ today: TODAY });
+    const { items } = await obligationRepo.listAttention({ today: TODAY });
     expect(prepareCount()).toBe(1);
     // Bounded regardless of how much is genuinely due across the workspace.
     expect(items.length).toBeGreaterThan(0);
@@ -164,7 +164,7 @@ describe("bounded reads", () => {
     const { obligations: obligationRepo } = counted();
     // Every asset has an overdue obligation, so the horizon alone would return
     // dozens; the cap is what keeps Today a preview.
-    const items = await obligationRepo.listAttention({
+    const { items } = await obligationRepo.listAttention({
       today: TODAY,
       limit: 5,
     });

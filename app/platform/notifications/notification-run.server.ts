@@ -234,6 +234,7 @@ export async function runNotificationsForOwner(
     // construction.
     const items = await scope.obligations
       .listAttention({ today: localNow.date })
+      .then((attention) => attention.items)
       .catch(() => []);
 
     /*
