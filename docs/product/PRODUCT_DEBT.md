@@ -5005,6 +5005,27 @@ dated disposition on its entry instead of a new number.
 - **Evidence.** `test/kernel/archive-write-read-parity.test.ts` builds an archive above the reader's limit through the real export path and asserts the write is refused with the actionable sentence, and that an archive at the limit still reads back. Falsified by removing the write-time check and observing exactly that test fail, then reverted.
 - **Related roadmap item.** [V2.12 FINANCE CORE](../roadmap/ROADMAP_V2_12.md). V2.12 is the first release to add archived records in volume, which is why it closed this rather than inheriting it; it remains gated on [DEBT-198](#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2), which is a different problem — a backup that exists nowhere but Cloudflare — and is not closed by this.
 
+## Debt raised by PERF-01 (2026-09-06)
+
+### ☐ DEBT-248 — Today ships up to 200 overdue rows to draw three — P2
+
+- **Current issue.** `/today`'s payload is **88 kB** on a four-year-old workspace, and **78 kB of it is `day.overdue`** — 168 serialized Tasks, measured by [`navigation-statement-budget.test.ts`](../../test/kernel/navigation-statement-budget.test.ts)'s payload instrument. The timeline draws [`OVERDUE_SHOWN`](../../app/modules/today/day/day-view.ts) = **3** of them, plus any completed today, and links to `/tasks?system=overdue` for the rest. The bound is [`PLANNING_SCHEDULED_LIMIT`](../../app/modules/today/day/load.ts) = 200, so this is the shape at scale rather than a fixture artefact.
+- **Why it is sent.** `TodayScreen` re-buckets `[...data.overdue, ...data.today]` on every render so an optimistic edit re-files a row immediately — re-project a Task to tomorrow and it leaves "Due today" without waiting for the round trip. Several figures are then derived from the full buckets: the canonical `todayCount`, `openTodayCount`, the `+n more overdue` remainder and the completed run. So the rows are not dead weight in the client's own terms; they are a whole collection standing in for four counts.
+- **Impact.** 78 kB serialized on the server, transferred, and parsed on the client, on the route the owner opens every morning and the one they reported as slowest. It is the largest single item left in Today's cost after PERF-01 removed six of its eleven round trips.
+- **Desired future state.** The loader sends the rows the surface can draw — the bounded slice plus the day's completions — and the counts the surface derives, as counts. The subset relationship becomes a property of the read rather than of a client-side `slice`, which is the pattern V2.10 already adopted for the obligation page ("a count in SQL beside a page in SQL").
+- **Closing condition.** `/today`'s measured payload on the `LARGE` fixture is under 20 kB, `navigation-statement-budget.test.ts`'s ceiling is lowered to match, and the Today journeys still assert the same `+n more overdue` figure and the same "View all N tasks for today" number on a workspace with more than three overdue Tasks.
+- **Found by.** PERF-01, measuring `.data` payload composition per route ([`PERFORMANCE.md` §12](../development/PERFORMANCE.md)). Recorded rather than fixed there because it changes Today's data contract across `day-view.ts`, the 96 kB `TodayScreen.tsx` and their tests, inside a release that already touches five loaders — and a mistake in that surgery makes Today *wrong*, which is worse than making it 88 kB.
+- **Related roadmap item.** Unscheduled. A candidate for whichever release next revisits the Today payload.
+
+### ☐ DEBT-249 — One 93 kB stylesheet is render-blocking on every first paint — P3
+
+- **Current issue.** `pnpm run build` emits a single `root-*.css` of **805 kB raw / 93 kB gzipped**. It is the largest client asset DalyHub ships — larger than `entry.client` (58 kB gzipped) — and it is render-blocking on the first paint of every session.
+- **Impact.** First paint only. It is hashed and cached, so it is paid once per deployment rather than once per navigation, and PERF-01 measured navigation rather than first paint — which is why this is P3. But it is the one asset on the critical path of a cold start that nothing in this programme addressed.
+- **Desired future state.** The measurement that would justify a change: how much of that sheet is used by the first painted route, established from coverage rather than from reading the file. If the answer is "most of it", the correct outcome is to record that and close this; if it is "a quarter", a critical/deferred split is a design-system decision with its own verification.
+- **Closing condition.** Either a recorded coverage measurement showing the sheet is substantially used on first paint, or a split whose critical part is measurably smaller with no flash of unstyled content in either appearance.
+- **Found by.** PERF-01, measuring the production build's chunk inventory ([`PERFORMANCE.md` §7](../development/PERFORMANCE.md)). Recorded rather than fixed because it is a stylesheet architecture decision, not a navigation one, and this was a navigation release.
+- **Related roadmap item.** Unscheduled. A candidate for whichever release next revisits the design system's build output.
+
 ## Entry template
 
 ```markdown
