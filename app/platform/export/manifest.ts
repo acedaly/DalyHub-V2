@@ -11,6 +11,7 @@
  * does not hold.
  */
 
+import type { ManifestAttachment } from "./attachment-archive";
 import {
   EXPORT_FORMAT_NAME,
   EXPORT_FORMAT_VERSION,
@@ -55,6 +56,19 @@ export interface ExportManifest {
     readonly includesArchivedRecords: boolean;
     /** Whether owner preferences are part of this archive. */
     readonly includesOwnerPreferences: boolean;
+    /**
+     * V2.11 FILE-02 — whether the attachment BYTES are in this archive.
+     *
+     * A positive claim, replacing the standing exclusion that used to say
+     * DalyHub stored no files at all. `true` with a zero count means "included,
+     * and there were none", which is a different statement from "excluded" —
+     * the same distinction the three claims above already make.
+     *
+     * An export that could not read a byte does not set this to `false`. It
+     * FAILS, and produces no archive: a backup missing a file is not a backup
+     * (ADR-119 decision 8).
+     */
+    readonly includesAttachmentFiles: boolean;
   };
   /** Counts per entity type (`area`, `note`, …), split by lifecycle state. */
   readonly recordsByModule: Readonly<Record<string, ManifestModuleCounts>>;
@@ -70,6 +84,19 @@ export interface ExportManifest {
   /** Categories deliberately absent, so their absence is not read as a bug. */
   readonly excluded: readonly string[];
   readonly files: readonly ManifestFile[];
+  /**
+   * V2.11 FILE-02 — every attachment this archive carries, with the digest a
+   * restore verifies its bytes against.
+   *
+   * Separate from `files` on purpose. `files` describes the archive's own
+   * DOCUMENTS — the snapshot, the readme, the schema — and every one of them is
+   * DalyHub's own generated text. This describes the owner's evidence, and it
+   * carries the fields a restore needs to match an entry to a row (`id`), to
+   * check it (`sha256`, `byteSize`) and to find it (`path`). Both are covered by
+   * `CHECKSUMS.txt`, so `sha256sum -c` still verifies the whole archive with no
+   * DalyHub involved.
+   */
+  readonly attachments: readonly ManifestAttachment[];
 }
 
 /**
@@ -106,6 +133,21 @@ export interface ExportManifest {
  * round-trip assertion, `expect(source.limitations).toEqual([])`, is exactly
  * that claim, and it caught the mistake.
  */
+/**
+ * V2.11 FILE-02 retired one entry from the list below.
+ *
+ * `"File attachments: DalyHub stores none."` was true until this release and is
+ * now false, so it is REMOVED rather than reworded: an exclusion list is a list
+ * of things that are not here, and a file that is here does not belong on it.
+ * What replaces it is a positive claim — `contents.includesAttachmentFiles`,
+ * plus the `attachments` section naming every file with its digest — because
+ * "included, and there were none" and "excluded" are different statements and
+ * an archive should be able to make the first one.
+ *
+ * Archives written BEFORE this release still carry the old sentence in their own
+ * manifests. Nothing reads it, so nothing breaks: the restore path matches
+ * archive entries to snapshot rows, and an archive with neither has no files.
+ */
 export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Authentication artefacts: Cloudflare Access JWTs, cookies and session state.",
   "Credentials of any kind: no password, token, API key or provider secret.",
@@ -115,7 +157,6 @@ export const EXPORT_EXCLUSIONS: readonly string[] = [
   "Raw SQL, migration files and database internals.",
   "Application logs and test fixtures.",
   "Rendered HTML: Markdown is exported as its canonical source.",
-  "File attachments: DalyHub stores none.",
   "Notification settings: the delivery channel, the digest time and its zone, and the per-source toggles. The row holds Pushover credentials, so it is omitted whole; a restored workspace starts with notifications off and the defaults.",
   "The notification ledger: what was sent and delivered. It is a record of how the system was operated, not anything the owner authored — the same rule the AI usage ledger follows.",
   "Calendar sources and the events read from them: a subscribed feed's sealed URL is a credential, and the events themselves belong to the calendar that publishes them. A restored workspace subscribes to nothing until the owner adds the feeds again.",
@@ -193,6 +234,7 @@ export function countRecordsByModule(
 export function buildExportManifest(
   snapshot: WorkspaceSnapshotV1,
   files: readonly ManifestFile[],
+  attachments: readonly ManifestAttachment[] = [],
 ): ExportManifest {
   const byModule = countRecordsByModule(snapshot);
   const byCollection = Object.fromEntries(
@@ -227,6 +269,12 @@ export function buildExportManifest(
       includesDeletedRecords: true,
       includesArchivedRecords: true,
       includesOwnerPreferences: true,
+      /*
+       * Derived from the archive, like the three above. It is `true` whenever
+       * this build reached the point of writing a manifest, because an export
+       * that could not read every byte threw before it got here.
+       */
+      includesAttachmentFiles: true,
     },
     recordsByModule: byModule,
     recordsByCollection: byCollection,
@@ -263,5 +311,6 @@ export function buildExportManifest(
     ],
     excluded: EXPORT_EXCLUSIONS,
     files,
+    attachments,
   };
 }

@@ -48,6 +48,11 @@ import {
 } from "~/kernel/restore";
 import { sha256Hex } from "~/platform/export";
 
+import {
+  attachmentIdFromArchivePath,
+  isArchiveAttachmentPath,
+} from "~/platform/export/attachment-archive";
+
 import { ZipReadError, readZipArchive, type ReadZipEntry } from "./zip-reader";
 
 /** The snapshot file every DalyHub backup archive carries. */
@@ -86,6 +91,17 @@ export interface ReadBackupArchive {
   readonly compatibility: BackupCompatibility;
   /** The archive's own file list, for the diagnostic log. */
   readonly files: readonly string[];
+  /**
+   * V2.11 FILE-02 — the attachment BYTES, keyed by attachment id.
+   *
+   * Every entry here has already had its SHA-256 verified against the snapshot
+   * row that names it, and every row in `snapshot.records.attachments` has an
+   * entry: a row with no bytes and bytes with no row are both refusals, not
+   * tolerated states. So a caller holding this map holds a complete, checked set
+   * — which is what lets the restore write objects BEFORE the cutover with no
+   * further validation of its own.
+   */
+  readonly attachmentBytes: ReadonlyMap<string, Uint8Array>;
 }
 
 function reject(
@@ -175,8 +191,20 @@ export async function readBackupArchive(
       );
     }
   }
+  /*
+   * V2.11 FILE-02 — the allow-list became "these five documents, plus the
+   * attachment folder". That is a genuine loosening of an exact set into a
+   * prefix rule, and it is bounded on both sides rather than trusted:
+   * `isArchiveAttachmentPath` accepts `attachments/<id>` and NOTHING with a
+   * further slash, `assertSafeZipPath` has already refused traversal, control
+   * characters and drive letters, `MAX_ENTRIES` bounds the count, and step 5
+   * below refuses any attachment entry the snapshot does not name. An archive
+   * still cannot be used as a delivery vehicle for files DalyHub never asked
+   * for — it can only carry the ones its own snapshot declares.
+   */
   const unexpected = files.filter(
-    (path) => !ALLOWED_BACKUP_FILES.includes(path),
+    (path) =>
+      !ALLOWED_BACKUP_FILES.includes(path) && !isArchiveAttachmentPath(path),
   );
   if (unexpected.length > 0) {
     reject(
@@ -305,5 +333,82 @@ export async function readBackupArchive(
     );
   }
 
-  return { snapshot, compatibility, files };
+  /* 7. Attachment parity, and the bytes themselves ---------------------------
+   *
+   * The archive's own `CHECKSUMS.txt` (step 3) already proved every entry
+   * survived transport unchanged. This is a DIFFERENT claim and it is the one
+   * the release rests on: that every attachment row has bytes, that every set
+   * of bytes has a row, and that the bytes hash to what the ROW says they
+   * should — the digest computed when the file was first uploaded, months or
+   * years ago, and carried through every export since.
+   *
+   * A mismatch here is refused whole. There is no partial restore of evidence:
+   * an owner recovering from a failure must not be handed a workspace where
+   * some files are theirs and some are something else.
+   */
+  const archivedAttachments = new Map<string, Uint8Array>();
+  const attachmentIssues: RestoreSafetyIssue[] = [];
+  for (const entry of entries) {
+    const id = attachmentIdFromArchivePath(entry.path);
+    if (id !== null) archivedAttachments.set(id, entry.data);
+  }
+
+  const declaredAttachments = snapshot.records.attachments;
+  const declaredIds = new Set(declaredAttachments.map((row) => row.id));
+  for (const id of archivedAttachments.keys()) {
+    if (!declaredIds.has(id)) {
+      attachmentIssues.push({
+        code: "attachment_orphan_file",
+        path: `attachments/${id}`,
+        message:
+          "is in the archive but is not one of the attachments the snapshot lists",
+      });
+    }
+  }
+  for (const row of declaredAttachments) {
+    const bytes = archivedAttachments.get(row.id);
+    if (bytes === undefined) {
+      attachmentIssues.push({
+        code: "attachment_file_missing",
+        path: `records.attachments[${row.id}]`,
+        message: "is listed in the snapshot but its file is not in the archive",
+      });
+      continue;
+    }
+    if (bytes.length !== row.byteSize) {
+      attachmentIssues.push({
+        code: "attachment_size_mismatch",
+        path: `attachments/${row.id}`,
+        message: `is ${bytes.length} bytes where the snapshot says ${row.byteSize}`,
+      });
+      continue;
+    }
+    if ((await sha256Hex(bytes)) !== row.checksumSha256) {
+      attachmentIssues.push({
+        code: "attachment_checksum_mismatch",
+        path: `attachments/${row.id}`,
+        message:
+          "does not match the SHA-256 DalyHub recorded when the file was uploaded",
+      });
+    }
+  }
+  if (attachmentIssues.length > 0) {
+    const missing = attachmentIssues.some(
+      (issue) => issue.code === "attachment_file_missing",
+    );
+    reject(
+      "corrupt",
+      missing
+        ? "This backup lists files it does not contain, so restoring it would leave records pointing at evidence that is not there. It will not be restored."
+        : "One or more of this backup's files do not match what DalyHub recorded for them, so it will not be restored.",
+      attachmentIssues,
+    );
+  }
+
+  return {
+    snapshot,
+    compatibility,
+    files,
+    attachmentBytes: archivedAttachments,
+  };
 }

@@ -16,6 +16,10 @@
 // tick, on the SAME fifteen-minute trigger. No second cron, no second Worker: a
 // notification needs a frequent tick rather than an encoded send time, and the
 // one that already exists is frequent enough.
+// Changes (V2.11 FILE-00): and the attachment purge sweep, on the same trigger
+// again. It is a safety net for a delete whose object removal already failed
+// once, so it is inert in the ordinary case (one bounded read finds an empty
+// ledger and stops) and it never needs a cron of its own.
 import { createRequestHandler } from "react-router";
 
 import {
@@ -26,6 +30,10 @@ import {
   runScheduledNotifications,
   type ScheduledNotificationEnv,
 } from "~/platform/notifications/scheduled-notifications.server";
+import {
+  runScheduledAttachmentPurge,
+  type ScheduledAttachmentPurgeEnv,
+} from "~/platform/attachments/scheduled-purge.server";
 import {
   handleCaptureEmail,
   type EmailCaptureEnv,
@@ -64,6 +72,15 @@ export default {
         );
         await runScheduledNotifications(
           env as unknown as ScheduledNotificationEnv,
+        );
+        /*
+         * LAST, and deliberately so. The other two are what the owner sees; this
+         * one finishes a delete they were already told had happened. If the tick
+         * is cut short, the bytes stay owed and the next tick picks them up —
+         * whereas a digest that did not go out is a digest that never goes out.
+         */
+        await runScheduledAttachmentPurge(
+          env as unknown as ScheduledAttachmentPurgeEnv,
         );
       })(),
     );

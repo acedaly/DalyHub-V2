@@ -249,6 +249,12 @@ export {
   type D1AssetHistoryRepositoryOptions,
 } from "./d1-asset-history-repository";
 export {
+  D1AttachmentRepository,
+  AttachmentStorageWriteError,
+  createAttachmentRepository,
+  type D1AttachmentRepositoryOptions,
+} from "./d1-attachment-repository";
+export {
   D1ObligationRepository,
   ObligationStorageError,
   ObligationNotFoundError,

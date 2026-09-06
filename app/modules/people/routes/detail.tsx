@@ -29,6 +29,7 @@ import {
   evaluatePersonRelationship,
   type PersonRelationship,
 } from "~/kernel/relationships";
+import { loadRecordAttachments } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { createOwnerRelationshipContext } from "~/shared/relationships";
@@ -87,6 +88,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   return {
     person: serializePerson(person),
     relationship,
+    // V2.11 FILE-01 — a document about this person, kept privately.
+    attachments: await loadRecordAttachments(scope, person.id),
   };
 }
 
@@ -108,6 +111,7 @@ const TAB_IDS = [
   "summary",
   "contact",
   "linked",
+  "evidence",
   "notes",
   "activity",
   "settings",
@@ -123,6 +127,7 @@ function parseTab(value: string | null): TabId {
 function PersonDetail({
   person,
   relationship,
+  attachments,
 }: Awaited<ReturnType<typeof loader>>) {
   const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -192,6 +197,7 @@ function PersonDetail({
     <PersonRecord
       person={person}
       relationship={relationship}
+      attachments={attachments}
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       onRename={onRename}

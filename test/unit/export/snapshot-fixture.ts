@@ -771,6 +771,37 @@ export function makeSnapshot(
         deletedAt: null,
       },
     ],
+    /*
+     * V2.11 FILE-00 — two attachments, on two different KINDS of record, so the
+     * fixture proves the owner key is polymorphic rather than Asset-shaped.
+     * The filenames are deliberately awkward: one carries a space, an em dash
+     * and non-ASCII, which is what the vault's filename rules and the
+     * `Content-Disposition` fold both have to survive.
+     */
+    attachments: [
+      {
+        id: "att-01-policy",
+        ownerEntityId: IDS.obligation,
+        filename: "Rego renewal — Hilux.pdf",
+        mediaType: "application/pdf",
+        byteSize: 15,
+        checksumSha256: "a".repeat(64),
+        uploadOperationId: "op-fixture-policy-0001",
+        uploadedBy: "owner-subject",
+        createdAt: T(15),
+      },
+      {
+        id: "att-02-receipt",
+        ownerEntityId: IDS.asset,
+        filename: "receipt.png",
+        mediaType: "image/png",
+        byteSize: 20,
+        checksumSha256: "b".repeat(64),
+        uploadOperationId: "op-fixture-receipt-0001",
+        uploadedBy: null,
+        createdAt: T(15),
+      },
+    ],
     reviewDetails: [
       {
         entityId: IDS.review,

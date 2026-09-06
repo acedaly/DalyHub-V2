@@ -135,6 +135,8 @@ async function loseWorkspaceRecords(workspaceId: string): Promise<void> {
     "activity_subjects",
     "activities",
     "entity_links",
+    // V2.11 FILE-00 — the attachment metadata, deleted before its owners.
+    "attachments",
     "workspace_members",
     "review_insight_snapshots",
     "review_step_acknowledgements",
@@ -1019,6 +1021,7 @@ describe("workspace backup and restore (D1)", () => {
     const wrapped: WorkspaceRestoreRepository = {
       countTargetRecords: () => base.restore.countTargetRecords(),
       purgeStaleOperations: () => base.restore.purgeStaleOperations(),
+      listStagedAttachmentIds: (id) => base.restore.listStagedAttachmentIds(id),
       stageSnapshot: (id, snapshot, ownerId) =>
         base.restore.stageSnapshot(id, snapshot, ownerId),
       createOperation: (input) => base.restore.createOperation(input),

@@ -28,6 +28,7 @@ import {
   loadProjectKnowledge,
 } from "~/platform/entity-links/project-knowledge";
 import type { EntityIconKey } from "~/kernel/entities/entity-icon-keys";
+import { loadRecordAttachments } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { evaluateProjectHealth } from "~/kernel/project-health";
@@ -65,6 +66,9 @@ import {
   type SerializedKnowledgePage,
 } from "../ProjectKnowledgeTab";
 import { ProjectLinksTab } from "../ProjectLinksTab";
+import type { SerializedAttachment } from "~/kernel/attachments";
+import { AttachmentsSection } from "~/shared/attachments";
+
 import { ProjectOverview } from "../ProjectOverview";
 import { ProjectSettingsTab } from "../ProjectSettingsTab";
 import { NEW_TASK_KEY, ProjectTasksTab } from "../ProjectTasksTab";
@@ -194,6 +198,8 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     ),
     progress,
     health,
+    // V2.11 FILE-01 — the brief, the quote, the signed contract, the photo.
+    attachments: await loadRecordAttachments(scope, projectId),
     tasks: taskPage.tasks,
     tasksNextCursor: taskPage.nextCursor,
     taskParents,
@@ -227,6 +233,7 @@ export default function ProjectDetailRoute({
     links,
     knowledge,
     todayIso,
+    attachments,
   } = loaderData;
 
   const renderDrawer = useMemo(
@@ -247,6 +254,7 @@ export default function ProjectDetailRoute({
         links={links}
         knowledge={knowledge}
         todayIso={todayIso}
+        attachments={attachments}
       />
     </DrawerProvider>
   );
@@ -346,6 +354,7 @@ function ProjectDetail({
   links,
   knowledge,
   todayIso,
+  attachments,
 }: {
   readonly overview: SerializedProjectOverview;
   readonly progress: ProjectProgress;
@@ -357,6 +366,7 @@ function ProjectDetail({
   readonly links: readonly EntityLinkSelection[];
   readonly knowledge: SerializedKnowledgePage;
   readonly todayIso: string;
+  readonly attachments: readonly SerializedAttachment[];
 }) {
   const revalidator = useRevalidator();
   const navigate = useNavigate();
@@ -376,6 +386,7 @@ function ProjectDetail({
   const activeTabId =
     requestedTab === "linked" ||
     requestedTab === "knowledge" ||
+    requestedTab === "evidence" ||
     requestedTab === "activity" ||
     requestedTab === "settings"
       ? requestedTab
@@ -755,6 +766,16 @@ function ProjectDetail({
           onLink={onLink}
           onUnlink={onUnlink}
           archived={archived}
+        />
+      }
+      evidenceTab={
+        <AttachmentsSection
+          ownerEntityId={overview.id}
+          attachments={attachments}
+          readOnly={archived}
+          heading="Files"
+          description="The brief, a quote, a signed contract, a photo of the finished thing."
+          onChanged={() => revalidator.revalidate()}
         />
       }
       activityTab={

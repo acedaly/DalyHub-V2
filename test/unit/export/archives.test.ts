@@ -97,6 +97,10 @@ describe("buildExportManifest", () => {
   it("states what is included", () => {
     expect(manifest.contents).toEqual({
       includesActivity: true,
+      // V2.11 FILE-02 — a POSITIVE claim, replacing the standing exclusion that
+      // used to say DalyHub stored no files. An export that could not read one
+      // fails rather than setting this to `false`.
+      includesAttachmentFiles: true,
       includesDeletedRecords: true,
       includesArchivedRecords: true,
       includesOwnerPreferences: true,

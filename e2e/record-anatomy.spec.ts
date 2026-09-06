@@ -304,8 +304,10 @@ test.describe("the record tabs", () => {
 
     // MOBILE-01: every tab stays IN the tablist at every width; the compact
     // "More sections" menu is an accelerator over a strip that scrolls.
+    // EIGHT since V2.11 EVIDENCE: an Asset's own tabs, plus the shared
+    // attachment surface, plus Activity and Settings.
     const tabs = await page.getByRole("tab").count();
-    expect(tabs).toBe(7);
+    expect(tabs).toBe(8);
     await expect(page.getByTestId("record-tabs-more")).toBeVisible();
   });
 });

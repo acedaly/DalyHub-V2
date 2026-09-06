@@ -307,6 +307,24 @@ export interface WorkspaceRestoreRepository {
   /** Expire and purge restores that can never be applied. Never destructive. */
   purgeStaleOperations(): Promise<void>;
 
+  /**
+   * V2.11 FILE-02 — the attachment ids an operation has staged, or that any
+   * EXPIRED operation staged.
+   *
+   * This exists because a restore writes its attachment OBJECTS to their final,
+   * deterministic keys before the cutover — a row must never become visible
+   * naming a file that is not there — which means an operation that is then
+   * abandoned has left bytes behind. The keys are derivable from these ids, so
+   * every abandonment path can queue exactly what it wrote.
+   *
+   * Passing no `operationId` answers the same question for every operation that
+   * has EXPIRED but whose staged rows have not been removed yet. That closes the
+   * one path a caller cannot otherwise reach: an owner who starts a restore,
+   * closes the tab, and never comes back. The next restore attempt queues what
+   * they left, before {@link purgeStaleOperations} removes the evidence of it.
+   */
+  listStagedAttachmentIds(operationId?: string): Promise<readonly string[]>;
+
   readOperation(operationId: string): Promise<RestoreOperationRecord | null>;
 
   /**

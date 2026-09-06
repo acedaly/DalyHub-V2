@@ -12,8 +12,10 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 
+import type { SerializedAttachment } from "~/kernel/attachments";
 import { TITLE_MAX_LENGTH } from "~/kernel/entities";
 import type { PersonRelationship } from "~/kernel/relationships";
+import { attachmentsTab } from "~/shared/attachments";
 import { useCapture } from "~/shared/capture";
 import type { CaptureContextContract } from "~/shared/capture/capture-context";
 import { EntityIcon } from "~/shared/entity";
@@ -50,11 +52,23 @@ interface PersonRecordProps {
    */
   readonly onRename: (title: string) => Promise<InlineSaveOutcome>;
   readonly onSaved: () => void;
+  /**
+   * V2.11 FILE-01 — the shared Evidence tab.
+   *
+   * A Person is the most sensitive record DalyHub holds (AGENTS.md §5), and a
+   * file on one is at least as sensitive as the record. That is a reason to
+   * support it PROPERLY rather than a reason to refuse: the bytes never leave
+   * an authenticated same-origin route, the filename never reaches Activity,
+   * Search or a notification, and the AI platform cannot read an attachment at
+   * all — not by filter, but because attachments are not an evidence kind.
+   */
+  readonly attachments: readonly SerializedAttachment[];
 }
 
 export function PersonRecord({
   person,
   relationship,
+  attachments,
   activeTabId,
   onTabChange,
   onRename,
@@ -324,6 +338,13 @@ export function PersonRecord({
               />
             ),
           },
+          attachmentsTab({
+            ownerEntityId: person.id,
+            attachments,
+            readOnly: person.archived,
+            description: "A document about this person, kept privately here.",
+            onChanged: onSaved,
+          }),
           {
             id: "notes",
             label: "Notes",

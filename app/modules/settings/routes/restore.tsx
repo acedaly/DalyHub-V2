@@ -59,6 +59,7 @@ import {
   RESTORE_MAX_ARCHIVE_BYTES,
   type RestoreDependencies,
 } from "~/platform/restore";
+import { resolveAttachmentObjectStore } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
@@ -188,6 +189,16 @@ async function dependencies(
       environment: build.environment,
       buildCommit: build.commit,
     },
+    /*
+     * V2.11 FILE-02 — the second store, so a restore moves real bytes.
+     *
+     * `objects` may be `null` (no bucket bound). That is honest rather than
+     * lazy: an archive with no files restores exactly as it did before this
+     * release, and one WITH files is refused up front with a sentence saying
+     * why, rather than restoring rows that name evidence nothing can read.
+     */
+    attachments: scope.attachments,
+    objects: resolveAttachmentObjectStore(env),
     now: () => new Date(),
     newId: () => crypto.randomUUID(),
   };

@@ -27,7 +27,9 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 
+import type { SerializedAttachment } from "~/kernel/attachments";
 import { ASSET_METER_UNIT_OPTIONS, DEFAULT_CURRENCY } from "~/kernel/assets";
+import { attachmentsTab } from "~/shared/attachments";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { LinkedItemsTab } from "~/shared/linked-items";
@@ -46,6 +48,15 @@ import { ObligationActivityTab } from "./ObligationActivityTab";
 export interface ObligationRecordProps {
   readonly obligation: SerializedObligation;
   readonly todayIso: string;
+  /**
+   * V2.11 FILE-01 — the policy, the invoice, the notice, the receipt.
+   *
+   * This is the V2.10 → V2.11 bridge: the record that most wants a file is the
+   * one that says a renewal is due. It is on the record, in the shared Evidence
+   * tab — never on the Life Admin collection row and never on Today, because a
+   * list of what is due is not the place to carry a document.
+   */
+  readonly attachments: readonly SerializedAttachment[];
   readonly activeTabId: string;
   /** Open with the completion form already showing (the collection's route in). */
   readonly startCompleting?: boolean;
@@ -59,6 +70,7 @@ type Mode = "idle" | "completing" | "editing";
 export function ObligationRecord({
   obligation,
   todayIso,
+  attachments,
   activeTabId,
   startCompleting = false,
   onTabChange,
@@ -366,6 +378,19 @@ export function ObligationRecord({
               </div>
             ),
           },
+          attachmentsTab({
+            ownerEntityId: obligation.id,
+            attachments,
+            /*
+             * A completed occurrence is still worth reading — the receipt that
+             * proves it is exactly what an owner comes back for — but it is
+             * finished, so it does not take new files. Its successor does.
+             */
+            readOnly: obligation.status === "completed",
+            description:
+              "The policy, the invoice, the notice or the receipt that proves this one.",
+            onChanged: onSaved,
+          }),
           {
             id: "linked",
             label: "Linked",

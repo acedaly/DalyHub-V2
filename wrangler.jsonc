@@ -75,6 +75,36 @@
       "migrations_dir": "migrations",
     },
   ],
+  // V2.11 FILE-00 (ADR-119 decision 3): the private ATTACHMENT bucket -- the
+  // owner's live evidence, bound to the APPLICATION Worker because DalyHub owns
+  // every read and write path to it. There is no public bucket, no public object
+  // URL and no signed URL: every byte leaves through an authenticated route that
+  // re-derives the object key from a row it just read under a workspace
+  // predicate.
+  //
+  // This is NOT the backups bucket, and the two stay separate on purpose. The
+  // `env.production` comment below says the application Worker deliberately has
+  // no R2 binding and no D1-export token: that statement is about
+  // `dalyhub-v2-backups` and the token that protects it, and its reason -- a
+  // Worker that serves the owner's requests must not hold the credential that
+  // guards the recovery copies -- is untouched by binding a DIFFERENT bucket
+  // holding the live data those copies are of. One bucket for both would put the
+  // data and its backups in one blast radius, which is the argument BACKUP-01
+  // made for a separate Worker, applied to storage.
+  //
+  // Local development and the Workers Vitest integration use Miniflare's local,
+  // isolated object storage keyed by the binding name and need NO Cloudflare
+  // credentials and no remote bucket. `bucket_name` below is a clearly
+  // non-production LOCAL placeholder; production redeclares it in
+  // `env.production` with the real provisioned name (bindings are not inherited
+  // by named environments). See docs/development/ATTACHMENTS.md for the one
+  // owner action this needs: creating the bucket.
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "dalyhub-v2-attachments-local",
+    },
+  ],
   // CAL-01: the external calendar refresh runs on the Worker's own Cron Trigger
   // -- the same Worker, the same D1 binding, no new service to provision. Every
   // 15 minutes is a deliberate bound on cost and on how hard DalyHub polls
@@ -140,11 +170,28 @@
           "migrations_dir": "migrations",
         },
       ],
+      // V2.11 FILE-00: the production attachment bucket. Bindings are not
+      // inherited by named environments, which is why this is redeclared rather
+      // than assumed. The name is NOT a secret -- it is an R2 bucket name in the
+      // owner's own account, with no public development URL and no custom
+      // domain, exactly like `dalyhub-v2-backups` in infra/backup/wrangler.jsonc
+      // -- so it is committed rather than injected at deploy time. What IS
+      // private (the account id, the access keys) was never here.
+      "r2_buckets": [
+        {
+          "binding": "ATTACHMENTS",
+          "bucket_name": "dalyhub-v2-attachments",
+        },
+      ],
       // BACKUP-02: the Worker service binding that lets Settings → Backups show
       // backup health WITHOUT this Worker gaining access to the backups.
       //
-      // The application Worker deliberately has NO R2 binding and NO D1-export
-      // token. It calls the `BackupService` entrypoint on `dalyhub-v2-backup`,
+      // The application Worker deliberately has NO binding to the BACKUPS bucket
+      // and NO D1-export token. (It does bind its own private ATTACHMENTS bucket
+      // above -- V2.11, ADR-119 decision 3 -- which is the owner's live evidence
+      // rather than the recovery copies of it. The prohibition here is about the
+      // credential that guards the backups, and it is unchanged.)
+      // It calls the `BackupService` entrypoint on `dalyhub-v2-backup`,
       // which returns sanitised metadata — health, timestamps, sizes, retention —
       // and nothing else. `BackupService` is a NAMED entrypoint rather than a
       // fetch handler, so there is no URL that reaches it: the backup Worker keeps

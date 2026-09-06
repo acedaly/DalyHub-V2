@@ -16,6 +16,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AuthenticatedSession } from "~/kernel/auth";
 import { setAuthenticatedSession } from "~/platform/request";
 import { loader as exportLoader } from "~/modules/settings/routes/export";
+import { createSystemActorContext } from "~/kernel/activity";
+import { attachmentWorkspacePrefix, hexDigest } from "~/kernel/attachments";
+import { createR2ObjectStore, uploadAttachment } from "~/platform/attachments";
+import { createAttachmentRepository } from "~/platform/storage/d1";
+import { readZipArchive } from "~/platform/restore/zip-reader";
 
 import {
   countActivities,
@@ -56,6 +61,23 @@ async function runLoader(
     context,
     params: { format },
   } as unknown as Parameters<typeof exportLoader>[0])) as Response;
+}
+
+/**
+ * Read ONE entry's decompressed bytes, through the production ZIP reader.
+ *
+ * The archive is DEFLATEd, so a test cannot read an entry by slicing. Using the
+ * reader the restore path uses is also the stronger assertion: it proves the
+ * archive is one DalyHub can read back, not merely one it produced.
+ */
+async function readZipEntry(
+  archive: Uint8Array,
+  path: string,
+): Promise<Uint8Array> {
+  const entries = await readZipArchive(archive);
+  const entry = entries.find((candidate) => candidate.path === path);
+  expect(entry, `archive contains ${path}`).toBeDefined();
+  return entry!.data;
 }
 
 /** Read the entry names out of a ZIP's central directory. */
@@ -225,5 +247,141 @@ describe("/settings/export/:format", () => {
     expect(body).not.toMatch(/SELECT|INSERT|FROM |workspace_id|DB\b/);
     expect(body).not.toContain("at ");
     expect(body.length).toBeLessThan(300);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* V2.11 FILE-02 — the ROUTE carries the bytes                                */
+/* -------------------------------------------------------------------------- */
+
+describe("attachment bytes leave through this route, or nothing does", () => {
+  const PDF = new TextEncoder().encode("%PDF-1.4\nrego\n%%EOF\n");
+
+  async function attach(): Promise<{
+    readonly id: string;
+    readonly key: string;
+  }> {
+    const entities = makeRepository(makeContext(WS));
+    const owner = await entities.create({ type: "note", title: "Hilux" });
+    const result = await uploadAttachment(
+      {
+        attachments: createAttachmentRepository(env.DB, makeContext(WS), {
+          actorContext: createSystemActorContext(),
+        }),
+        objects: createR2ObjectStore(env.ATTACHMENTS),
+        workspaceId: WS,
+      },
+      {
+        ownerEntityId: owner.id,
+        filename: "Rego renewal.pdf",
+        declaredMediaType: "application/pdf",
+        bytes: PDF,
+        uploadOperationId: "export-route-op-0001",
+      },
+    );
+    return {
+      id: result.attachment.id,
+      key: result.attachment.storageKey,
+    };
+  }
+
+  beforeEach(async () => {
+    // This describe has its own reset: the suite above seeds a whole workspace
+    // it does not need, and one of its tests deliberately deletes the workspace
+    // row to force a failure.
+    await resetTables([WS]);
+    const listed = await env.ATTACHMENTS.list({
+      prefix: attachmentWorkspacePrefix(WS),
+      limit: 1000,
+    });
+    for (const object of listed.objects) {
+      await env.ATTACHMENTS.delete(object.key);
+    }
+  });
+
+  it("puts every file in the full export, with a manifest that names it", async () => {
+    /*
+     * The falsification this test exists for: an export that carries the
+     * attachment METADATA and quietly omits the bytes would still produce a
+     * valid-looking ZIP, a valid snapshot and a manifest — and would be a backup
+     * that cannot restore a single document. Every other assertion about the
+     * archive is made where it is BUILT; this one is made at the route, because
+     * the route is where the bytes are fetched and where forgetting to fetch
+     * them is a one-line mistake.
+     */
+    const { id } = await attach();
+
+    const response = await runLoader("full");
+    expect(response.status).toBe(200);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const names = zipEntryNames(bytes);
+
+    expect(names).toContain(`attachments/${id}`);
+
+    const manifest = JSON.parse(
+      new TextDecoder().decode(await readZipEntry(bytes, "manifest.json")),
+    ) as {
+      contents: { includesAttachmentFiles: boolean };
+      attachments: readonly {
+        id: string;
+        filename: string;
+        sha256: string;
+        path: string;
+        byteSize: number;
+      }[];
+    };
+    expect(manifest.contents.includesAttachmentFiles).toBe(true);
+    expect(manifest.attachments).toHaveLength(1);
+    expect(manifest.attachments[0]).toMatchObject({
+      id,
+      filename: "Rego renewal.pdf",
+      path: `attachments/${id}`,
+      byteSize: PDF.length,
+      sha256: await hexDigest(PDF),
+    });
+
+    /* And the entry really is the file, byte for byte. */
+    expect([...(await readZipEntry(bytes, `attachments/${id}`))]).toEqual([
+      ...PDF,
+    ]);
+
+    /* No storage key anywhere in the archive. */
+    expect(new TextDecoder().decode(bytes)).not.toContain("workspaces/");
+  });
+
+  it("puts every file in the VAULT too, under the owner's own name", async () => {
+    await attach();
+    const response = await runLoader("obsidian");
+    expect(response.status).toBe(200);
+    const names = zipEntryNames(new Uint8Array(await response.arrayBuffer()));
+    expect(names.some((name) => name.endsWith("/Rego renewal.pdf"))).toBe(true);
+  });
+
+  it("produces NO archive when a file cannot be read", async () => {
+    /*
+     * The "D1 says this exists and R2 disagrees" state, at the route. An export
+     * that reported this in `limitations` and handed over an archive would be an
+     * export that looks complete and is not — which is the single most expensive
+     * thing this release could get wrong.
+     */
+    const { key } = await attach();
+    await env.ATTACHMENTS.delete(key);
+
+    let thrown: unknown;
+    try {
+      await runLoader("full");
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(Response);
+    const failure = thrown as Response;
+    expect(failure.status).toBe(500);
+    const body = await failure.text();
+    expect(body).toMatch(/could not be read|did not match/);
+    // The owner is told no file was produced, not that one was produced badly.
+    expect(body).toMatch(/No file was produced|not a backup/);
+    // And nothing internal leaks.
+    expect(body).not.toContain("workspaces/");
+    expect(body).not.toMatch(/SELECT|R2Bucket|ATTACHMENTS/);
   });
 });

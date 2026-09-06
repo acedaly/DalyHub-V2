@@ -34,9 +34,19 @@ the differences are not cosmetic.
 | Who makes it | The **owner**, from Settings → Privacy & data | The `dalyhub-production-backup` **Cloudflare Workflow**, nightly (BACKUP-01) | The **GitHub Actions workflow**, nightly (AUDIT-11) |
 | Where it lives | Wherever the owner saves it | Private R2 bucket `dalyhub-v2-backups`, **plain SQL**, 90 days (365 for manual) | A GitHub Actions artifact, **GPG-encrypted**, 30 days |
 | Restored by | DalyHub itself: Settings → Privacy & data → Restore | `wrangler d1 execute` against the database | `wrangler d1 execute`, after decrypting |
-| Recovers | A workspace's records | The database, when the database is gone | The database, when Cloudflare itself is the problem |
+| Recovers | A workspace's records **and, from V2.11, its attached FILES** | The database, when the database is gone — **metadata only for files, never their bytes** | The database, when Cloudflare itself is the problem — **metadata only for files, never their bytes** |
 | **Use it when** | **Almost always.** Records deleted, a bad import, going back to a known-good day | D1 loss or an unrecoverable schema state — the **first** dump to reach for | The Cloudflare account is lost, compromised, or unreachable |
 | Check it is working | — | `Settings → This app → Backups` | GitHub → Actions → *Production D1 backup* |
+
+**The normal recovery path is the DalyHub backup, and from V2.11 it is the ONLY
+one that recovers attached files.** The two D1 dumps carry an attachment's
+metadata — its name, its size, its digest, the record it belongs to — because
+that metadata is a row in D1. They do not carry a single byte of the file
+itself, because the bytes live in a separate R2 bucket that neither dump reads.
+Restoring a D1 dump therefore produces a workspace whose records correctly say
+they have evidence, pointing at objects that are only there if the bucket
+survived too. See [§8c](#8c-attachment-files-v211) for what that means in
+practice and what to do about it.
 
 **The normal recovery path is the DalyHub backup.** The D1 dumps exist for the
 case where there is no working database to restore *into*. If you use one, the
@@ -862,8 +872,11 @@ now** button, which triggers the same Workflow and files the result under
 
 Three properties are worth knowing:
 
-- **The application Worker cannot read the backups.** It has no R2 binding and no
-  D1-export token. It calls a Worker service binding (`BACKUP_SERVICE`) into
+- **The application Worker cannot read the backups.** It has no binding to the
+  BACKUPS bucket and no D1-export token. (From V2.11 it does bind its own private
+  `ATTACHMENTS` bucket — the owner's live evidence, not the recovery copies of
+  it. The prohibition here is about the credential that guards the backups, and
+  it is unchanged.) It calls a Worker service binding (`BACKUP_SERVICE`) into
   `dalyhub-v2-backup`, which returns sanitised metadata only. The backup Worker's
   status API is a named `WorkerEntrypoint`, so there is no URL that reaches it.
 - **The screen never claims health it cannot prove.** "Backup status unavailable"
@@ -932,6 +945,56 @@ Nothing prints backup contents. Every log line is a file name, a byte count or a
 digest.
 
 ---
+
+### 8c. Attachment files (V2.11)
+
+**Neither automated backup copies an attachment's bytes.** This section exists so
+that is stated rather than assumed, because it is the one place this document
+could most easily leave a false impression.
+
+| | Attachment **metadata** | Attachment **bytes** |
+| --- | --- | --- |
+| The R2 D1 dump (§8a) | ✅ — it is a row in D1 | ❌ |
+| The GitHub D1 dump (§8b) | ✅ — same reason | ❌ |
+| The owner's **full export** (§1) | ✅ | ✅ — one archive entry per file, each verified against the digest recorded at upload |
+| R2's own durability | — | ✅ for `dalyhub-v2-attachments`, within Cloudflare |
+
+**Why the nightly Workflow was not extended to copy them.** The Workflow's whole
+design is that it holds a D1-export token and nothing else, in a Worker with no
+route, no domain and no application code; giving it read access to the live
+attachment bucket would put the owner's documents inside the one component that
+exists to be boring and unreachable. Copying bytes to a second bucket in the same
+account would also not be a second failure domain — which is the property that
+would have justified the cost. So the decision is: the owner's own export is the
+files' recovery path, and this table says so plainly rather than implying a
+coverage that does not exist.
+
+**What that means in practice.**
+
+- Recovering from a **D1 loss** with a dump restores every record and every
+  attachment ROW. The files themselves are whatever is still in
+  `dalyhub-v2-attachments`. If the bucket survived — which it does in every
+  database-loss scenario — the evidence is intact and nothing else is needed.
+- Recovering from a **bucket loss** needs a full export taken while the files
+  existed. Restoring it writes the bytes back to their derived keys before the
+  rows that name them become visible.
+- After any batch of important uploads, take a full export from Settings and keep
+  it somewhere you control. It is the only copy of your files that is not in the
+  same failure domain as the original.
+
+**The residual risk, stated truthfully.** Live attachment bytes and every
+automated copy of anything are inside Cloudflare. A provider-level loss is a
+**correlated** loss.
+[DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloudflare-encrypted-backup-has-never-been-produced-because-the-github-production-environment-holds-no-secrets--p2)
+— the off-Cloudflare encrypted copy — is open and remains V2.12 Finance's hard
+gate; V2.11 did not move it. The GitHub artifact (§8b) IS outside Cloudflare, and
+it carries the database and not the files. No document in this repository claims
+geographical or provider independence for attachment bytes, because there is
+none.
+
+Proven end to end by `test/kernel/attachment-restore-rehearsal.test.ts`, which
+uploads real files, exports, destroys every row and every object, restores, and
+compares the recovered bytes with the originals.
 
 ## 9. Production restore safety
 

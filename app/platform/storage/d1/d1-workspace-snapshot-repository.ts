@@ -836,6 +836,43 @@ const COLLECTIONS: CollectionDescriptors = {
       deletedAt: text(row.deleted_at),
     }),
   },
+  /*
+   * V2.11 FILE-00 — the attachment METADATA. The bytes are read separately, by
+   * the archive assembler, through the object store: a snapshot is JSON and a
+   * 10 MiB file has no business in one.
+   *
+   * `storage_key` is deliberately NOT in the column list. It is this
+   * deployment's own bucket layout, and an archive that carried it would either
+   * be ignored on restore or honoured — and honoured means a restore that
+   * depends on the shape of the bucket it came from. The key is derived on the
+   * way back in, from the id that does travel.
+   */
+  attachments: {
+    table: "attachments",
+    columns: [
+      "id",
+      "owner_entity_id",
+      "filename",
+      "media_type",
+      "byte_size",
+      "checksum_sha256",
+      "upload_operation_id",
+      "uploaded_by",
+      "created_at",
+    ].join(", "),
+    order: ["id"],
+    map: (row) => ({
+      id: requiredText(row.id),
+      ownerEntityId: requiredText(row.owner_entity_id),
+      filename: requiredText(row.filename),
+      mediaType: requiredText(row.media_type),
+      byteSize: integer(row.byte_size) ?? 0,
+      checksumSha256: requiredText(row.checksum_sha256),
+      uploadOperationId: requiredText(row.upload_operation_id),
+      uploadedBy: text(row.uploaded_by),
+      createdAt: requiredText(row.created_at),
+    }),
+  },
   reviewDetails: {
     table: "review_details",
     columns: [

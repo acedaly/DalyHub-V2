@@ -77,3 +77,15 @@ export {
   textEntry,
   type ZipEntry,
 } from "./zip";
+
+export {
+  ARCHIVE_ATTACHMENT_FOLDER,
+  AttachmentExportError,
+  archiveAttachmentPath,
+  attachmentIdFromArchivePath,
+  describeArchivedAttachments,
+  isArchiveAttachmentPath,
+  readAttachmentBytesForArchive,
+  type ArchivedAttachment,
+  type ManifestAttachment,
+} from "./attachment-archive";

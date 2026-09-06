@@ -128,6 +128,48 @@ export function taskRow(scope: Page | Locator, title: string): Locator {
  * row's, and fails strict mode; the header's own action row is the honest
  * scope for a question about the record.
  */
+/**
+ * Open a record tab by name, from any viewport width.
+ *
+ * The record tab strip SCROLLS rather than hiding tabs (MOBILE-01): every tab
+ * stays in the tablist at every width, and the "More sections" menu is an
+ * accelerator over the strip, not a replacement for it. At 320 px a record with
+ * six tabs therefore has its last tabs off-screen inside that strip, reachable
+ * by a swipe or through the menu — which is the intended behaviour, asserted by
+ * `record-anatomy.spec.ts`.
+ *
+ * What that means for a TEST is that clicking such a tab has to bring it into
+ * view first, exactly as the swipe does. Playwright's own actionability scroll
+ * does not reliably reach an element inside a nested horizontal scroller that
+ * begins entirely outside the viewport, and a click at coordinates outside the
+ * viewport is silently dropped — the tab stays unselected and the assertion
+ * that follows fails somewhere else entirely.
+ *
+ * V2.11 EVIDENCE is what made both of these reachable: a sixth tab on a record
+ * pushed Activity past the right edge at 320 px, and the extra work of
+ * rendering it widened the window in which the strip is drawn but not yet
+ * wired. Neither is new and neither is a product defect; the helper is what was
+ * missing.
+ */
+export async function openRecordTab(
+  page: Page,
+  name: string | RegExp,
+): Promise<Locator> {
+  /*
+   * Settle FIRST. A record's tab strip is server-rendered and looks
+   * interactive well before React attaches to it, so a click that arrives in
+   * that window is received by markup with no handler and is simply lost — the
+   * tab stays unselected and whatever the test asserts next fails somewhere
+   * else entirely, which is what makes this so expensive to diagnose.
+   */
+  await page.waitForLoadState("networkidle");
+  const tab = page.getByRole("tab", { name });
+  await tab.scrollIntoViewIfNeeded();
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  return tab;
+}
+
 export function recordOverflowTrigger(scope: Page | Locator): Locator {
   return scope
     .locator(".record-header__actions")
@@ -911,6 +953,19 @@ export async function revealRowActions(row: Locator): Promise<void> {
  * measures are reachable as well as correct.
  */
 export async function openTodayWeeklySummary(page: Page): Promise<Locator> {
+  /*
+   * Settle FIRST, through the shared gate. `/today` is one of the two routes
+   * that publishes `[data-hydrated]` precisely because its server-rendered
+   * markup is interactive-looking well before React attaches, and every caller
+   * of this helper arrives with a bare `page.goto("/today")`.
+   *
+   * Without it the summary is simply not there yet on a loaded machine, and the
+   * assertion below spends its five seconds waiting for an element the document
+   * has not rendered — which is how "every summary figure states a real count"
+   * failed in a CI partition running 4 % over its budget while passing every
+   * time it was run on its own.
+   */
+  await waitForInteractive(page);
   const summary = page.getByTestId("today-summary");
   await expect(summary).toBeVisible();
   const weekly = summary.locator("details.dh-today__weekly");

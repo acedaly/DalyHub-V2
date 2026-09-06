@@ -1,0 +1,227 @@
+/**
+ * V2.11 FILE-01 — the shared Evidence surface: the section, the row, the picker.
+ *
+ * ONE stylesheet for one component set, drawn identically on every record that
+ * carries evidence. There is deliberately no `assets.css` attachment block, no
+ * `meetings.css` document row and no per-module override: a second set of rules
+ * would be a second row anatomy wearing the same class names.
+ *
+ * Every value is a DHDS token. This file names meanings, never machinery.
+ *
+ * ## The two hard layout cases, both solved here rather than per surface
+ *
+ * **A long filename.** `Insurance renewal - comprehensive - 2026-2027 - policy
+ * schedule and product disclosure statement.pdf` is 96 characters and a real
+ * document name. It WRAPS rather than truncating, because the extension is the
+ * part that says what the file is and an ellipsis eats it. `overflow-wrap:
+ * anywhere` lets the break happen inside the word when 320px leaves nowhere
+ * else, and `min-width: 0` on the grid child is what allows a wrap at all
+ * inside a grid track.
+ *
+ * **Ten attachments on a phone.** The row is a two-column grid that becomes
+ * three at 45rem, exactly like the shared obligation row: on a narrow screen the
+ * actions take the full width beneath the name so each stays a thumb-sized
+ * target, and they move beside it once there is room.
+ */
+
+/* -- The section ---------------------------------------------------------- */
+
+.dh-attachments {
+  margin-block-start: var(--app-space-5);
+}
+
+.dh-attachments__header {
+  margin-block-end: var(--app-space-3);
+}
+
+.dh-attachments__heading {
+  margin: 0;
+  font-size: var(--dh-text-section-title-size);
+  font-weight: 500;
+}
+
+.dh-attachments__description,
+.dh-attachments__empty {
+  margin: var(--app-space-1) 0 0;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-attachments__empty {
+  margin-block-end: var(--app-space-3);
+}
+
+/* -- The list ------------------------------------------------------------- */
+
+.dh-attachment-list {
+  list-style: none;
+  margin: 0 0 var(--app-space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+/* -- The row -------------------------------------------------------------- */
+
+.dh-attachment-row {
+  padding: var(--app-space-3);
+  border: var(--app-border-width-thin) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--app-space-3);
+}
+
+/* A file that has not landed yet is visibly provisional, and it says so in
+   words as well — never by tone alone (§24). */
+.dh-attachment-row--uploading {
+  border-style: dashed;
+}
+
+.dh-attachment-row--failed {
+  border-color: var(--dh-color-danger);
+}
+
+.dh-attachment-row__lead {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  grid-row: 1;
+  /* A fixed square so a row with a thumbnail and a row without it line up. */
+  inline-size: var(--app-space-8);
+  block-size: var(--app-space-8);
+  border-radius: var(--dh-radius-md);
+  background: var(--dh-color-bg-sunken);
+  overflow: hidden;
+}
+
+.dh-attachment-row__thumb {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.dh-attachment-row__kind {
+  font-size: var(--dh-text-meta-size);
+  font-weight: 500;
+  color: var(--dh-color-text-muted);
+  /* The label is the fallback mark for a file with no preview ("PDF", "Text").
+     Bounded so a long one cannot push the square wider. */
+  padding-inline: var(--app-space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-inline-size: 100%;
+}
+
+.dh-attachment-row__main {
+  /* Load-bearing: without it a grid child refuses to wrap and the row overflows
+     the page on a long filename. */
+  min-width: 0;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.dh-attachment-row__name {
+  font-weight: 500;
+  /* Wrap, never truncate: the extension is the part that says what it is. */
+  overflow-wrap: anywhere;
+}
+
+.dh-attachment-row__meta {
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dh-attachment-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+  /* On a phone the actions take the full width under the name, so each stays a
+     thumb-sized target rather than being squeezed beside the text. */
+  grid-column: 1 / -1;
+}
+
+.dh-attachment-row__actions:empty {
+  display: none;
+}
+
+@media (min-width: 45rem) {
+  .dh-attachment-row {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .dh-attachment-row__actions {
+    grid-column: 3;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+}
+
+/* -- The picker ----------------------------------------------------------- */
+
+.dh-attachment-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+/*
+ * The label IS the control. The input stays in the accessibility tree and stays
+ * focusable — it is not `display: none` and not `visibility: hidden`, either of
+ * which would take it out of the tab order and leave a control only a mouse can
+ * reach.
+ */
+.dh-attachment-picker__input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dh-attachment-picker__control {
+  position: relative;
+  cursor: pointer;
+}
+
+/* The focus ring is drawn on the LABEL, because that is where the eye is. */
+.dh-attachment-picker__control:focus-within {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+.dh-attachment-picker__control:has(.dh-attachment-picker__input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * The camera control is a PHONE control. `capture` on a desktop browser opens
+ * the ordinary file picker, so above the phone breakpoint it would be a second
+ * button that does exactly what the first one does.
+ */
+@media (min-width: 45rem) {
+  .dh-attachment-picker__control--camera {
+    display: none;
+  }
+}
+
+.dh-attachment-picker__hint {
+  margin: 0;
+  flex-basis: 100%;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}

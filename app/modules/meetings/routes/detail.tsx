@@ -6,6 +6,7 @@ import {
   useSearchParams,
 } from "react-router";
 import { readAiAvailability } from "~/platform/ai";
+import { loadRecordAttachments } from "~/platform/attachments";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import {
@@ -46,6 +47,7 @@ import {
   type SubmitOutcome,
 } from "~/shared/forms";
 import { AiExtractionSurface } from "~/shared/ai";
+import { attachmentsTab } from "~/shared/attachments";
 import { RecordLayout } from "~/shared/record-layout";
 import {
   TASK_DRAWER_TITLE,
@@ -148,6 +150,15 @@ export async function loader({ context, params }: Route.LoaderArgs) {
         title: x.counterpart.title,
       })),
     followUps,
+    /*
+     * V2.11 FILE-01 — the agenda PDF, the document, the photo of the whiteboard.
+     *
+     * They are EVIDENCE, and they are deliberately not folded into the Notebook:
+     * the two Markdown bodies are what the owner wrote, and a file is a separate
+     * artefact that happens to be about the same meeting. Nothing here parses a
+     * file into the notes, and nothing ever will in V2.
+     */
+    attachments: await loadRecordAttachments(scope, meeting.id),
   };
 }
 
@@ -167,7 +178,15 @@ export async function loader({ context, params }: Route.LoaderArgs) {
  * that is what a meeting produces; and the metadata that used to be the front
  * page is now "Details", which is what it always was.
  */
-const tabs = ["meeting", "follow-up", "details", "ai", "activity", "settings"];
+const tabs = [
+  "meeting",
+  "follow-up",
+  "details",
+  "ai",
+  "evidence",
+  "activity",
+  "settings",
+];
 /*
  * Older links, redirected rather than broken. The four MEET-01 section slugs
  * folded into `meeting` when the notebook was unified; `overview` is UIX-04's
@@ -238,7 +257,7 @@ function MeetingRecord({
 }: {
   loaderData: Route.ComponentProps["loaderData"];
 }) {
-  const { meeting: m, followUps, aiAvailability } = loaderData,
+  const { meeting: m, followUps, aiAvailability, attachments } = loaderData,
     r = useRevalidator(),
     { openDrawer } = useDrawer(),
     capture = useCapture(),
@@ -887,6 +906,14 @@ function MeetingRecord({
                 />
               ),
             },
+            attachmentsTab({
+              ownerEntityId: m.id,
+              attachments,
+              readOnly,
+              description:
+                "The agenda, a document that was tabled, a photo of the board.",
+              onChanged: () => r.revalidate(),
+            }),
             {
               id: "activity",
               label: "Activity",
