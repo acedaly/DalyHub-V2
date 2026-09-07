@@ -1,4 +1,4 @@
--- V2.14 GROUND-00 — the usage ledger's feature vocabulary gains the two
+-- V2.14 GROUND-00: the usage ledger's feature vocabulary gains the two
 -- GROUNDED features.
 --
 -- ## What was wrong, and how it was found
@@ -6,7 +6,7 @@
 -- `ai_usage_requests.feature_id` carries a CHECK constraint listing exactly the
 -- four features AI-01 shipped. `report-explanation` and
 -- `grounded-question-answer` are not among them, so every grounded request
--- would have failed at the reservation — before a provider was contacted, with
+-- would have failed at the reservation, before a provider was contacted, with
 -- a bare "Could not reserve an AI request" and no usable diagnosis.
 --
 -- Nothing found it in review. It was found by running the whole gateway against
@@ -21,14 +21,14 @@
 -- assuming:
 --
 --   - `ai_usage_requests` is OPERATIONAL METADATA, not owner content. It holds
---     no prose, no figure and no record title — only ids, counts, states and
---     timestamps — so a rebuild moves nothing sensitive.
---   - Nothing references it by foreign key. It references `workspaces`; no
+--     no prose, no figure and no record title: only ids, counts, states and
+--     timestamps, so a rebuild moves nothing sensitive.
+--   - Nothing references it by foreign key. It references `workspaces`, and no
 --     table references it.
 --   - Every row is copied, so the owner's spend history is preserved exactly.
 --     The vocabulary WIDENS: every value that was legal before is legal after.
 --
--- Foreign keys are already off inside a migration's transaction in D1; the
+-- Foreign keys are already off inside a migration's transaction in D1, and the
 -- copy-and-rename below is ordered so the table is never absent while a
 -- reference could resolve to it.
 
@@ -68,8 +68,8 @@ CREATE TABLE ai_usage_requests_new (
   proposal_outcome TEXT,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE RESTRICT,
   CHECK (length(owner_id) > 0 AND length(owner_id) <= 256),
-  -- V2.14: the two grounded features are added; nothing is removed. The set is
-  -- still CLOSED — a ledger that accepted any string would accept a typo, and a
+  -- V2.14: the two grounded features are added, and nothing is removed. The set is
+  -- still CLOSED. A ledger that accepted any string would accept a typo, and a
   -- feature that cannot be recorded must fail loudly at the boundary rather
   -- than spend quietly.
   CHECK (feature_id IN (
