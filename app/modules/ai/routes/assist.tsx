@@ -45,6 +45,7 @@ import {
 import {
   parseReportDefinition,
   reportQuestion,
+  reportResultDigest,
   findBuiltInReport,
   serialiseReportDefinition,
   type ReportConfig,
@@ -94,8 +95,12 @@ interface AssistBody {
   readonly definition?: string;
   /** V2.14 — the built-in or saved report id, for the title and the link back. */
   readonly reportId?: string;
-  /** V2.14 — the identity of the FactBlock the browser is looking at. */
-  readonly factBlockHash?: string;
+  /**
+   * V2.14 — the identity of the RESULT the browser is looking at
+   * (`reportResultDigest`). Never a figure: an identity is all a browser is
+   * trusted to say about the numbers on its own screen.
+   */
+  readonly resultDigest?: string;
   readonly idempotencyKey: string;
   readonly deep?: boolean;
   /**
@@ -120,7 +125,7 @@ function parseBody(form: FormData): AssistBody | null {
   );
   const definition = String(form.get("definition") ?? "").slice(0, 4_000);
   const reportId = String(form.get("reportId") ?? "").slice(0, 128);
-  const hash = String(form.get("factBlockHash") ?? "").slice(0, 128);
+  const digest = String(form.get("resultDigest") ?? "").slice(0, 128);
   const scenario = String(form.get("scenario") ?? "").slice(0, 64);
   return {
     feature,
@@ -128,7 +133,7 @@ function parseBody(form: FormData): AssistBody | null {
     question: question.length > 0 ? question : undefined,
     definition: definition.length > 0 ? definition : undefined,
     reportId: reportId.length > 0 ? reportId : undefined,
-    factBlockHash: hash.length > 0 ? hash : undefined,
+    resultDigest: digest.length > 0 ? digest : undefined,
     idempotencyKey,
     // Deep analysis is only ever a deliberate, explicit flag on an owner action.
     deep: String(form.get("deep") ?? "") === "1",
@@ -239,8 +244,18 @@ async function reportAssembly(
     }),
   );
 
-  if (body.factBlockHash !== undefined && body.factBlockHash !== block.id) {
-    throw new AiError("result_stale", undefined, "fact_block_changed");
+  /*
+   * Freshness, checked against the RESULT rather than against the derived
+   * block, because the result is what the owner is looking at. The digest is
+   * Reports' own (`reportResultDigest`) and covers every row, total, remainder
+   * and note — but deliberately not `computedAtIso`, so two executions a second
+   * apart over unchanged data agree.
+   */
+  if (body.resultDigest !== undefined) {
+    const digest = await reportResultDigest(execution.result);
+    if (digest !== body.resultDigest) {
+      throw new AiError("result_stale", undefined, "report_figures_changed");
+    }
   }
 
   return factsOnly(block);
@@ -395,6 +410,15 @@ export async function action({ request, context }: Route.ActionArgs) {
     const retrieval = await retrieveFor(scope, ownerId, body, ai);
     const feature = retrieval.featureOverride ?? body.feature;
     const policy = aiFeaturePolicy(feature);
+    /*
+     * From here on, the facts EXIST. Every remaining failure — AI turned off,
+     * the feature not allowed, no provider configured, over budget, a timeout,
+     * a refusal, a malformed answer, an answer DalyHub would not verify — is
+     * answered with the block alongside the calm sentence, because the
+     * deterministic half is DalyHub's own and there is no reason to withhold it
+     * when the interpretation is unavailable.
+     */
+    const facts = retrieval.factBlock ?? null;
 
     /*
      * A grounded question resolved into a DIFFERENT feature, so its context —
@@ -406,31 +430,46 @@ export async function action({ request, context }: Route.ActionArgs) {
         ? ai
         : await resolveAiContext(scope, ownerId, feature, env);
 
-    const outcome = await runAiRequest({
-      featureId: feature,
-      ownerId,
-      preferences: effective.preferences,
-      /*
-       * GROUND-00 — the development provider's behaviour is chosen here, and
-       * only here. `fakeScenario` is inert unless `AI_FAKE_PROVIDER=1` AND the
-       * `ENVIRONMENT` is development or test, so in production this is exactly
-       * `effective.configuration` and the field is discarded before it reaches
-       * anything that could act on it.
-       */
-      configuration: resolveAiConfiguration(env, {
-        fakeScenario: body.scenario,
-      }),
-      usage: scope.aiUsage,
-      evidence: retrieval.evidence,
-      candidates: retrieval.candidates,
-      factBlock: retrieval.factBlock,
-      derivedFacts: retrieval.derivedFacts,
-      ownerInput:
-        policy.maxOwnerInputCharacters > 0 ? body.question : undefined,
-      idempotencyKey: body.idempotencyKey,
-      requestDeep: body.deep,
-      signal: request.signal,
-    });
+    /*
+     * The provider call, and the ONE place a failure still answers with facts.
+     *
+     * Everything above this line is DalyHub's own work over the owner's own
+     * records; everything below it is interpretation. So a failure here is
+     * caught, the calm sentence is returned as it always was, and the block
+     * rides beside it — which is what makes "AI explanation isn't enabled, and
+     * here are the figures it would have used" a real state rather than a
+     * sentence in a design document.
+     */
+    let outcome;
+    try {
+      outcome = await runAiRequest({
+        featureId: feature,
+        ownerId,
+        preferences: effective.preferences,
+        /*
+         * GROUND-00 — the development provider's behaviour is chosen here, and
+         * only here. `fakeScenario` is inert unless `AI_FAKE_PROVIDER=1` AND
+         * the `ENVIRONMENT` is development or test, so in production this is
+         * exactly the ordinary configuration and the field is discarded before
+         * it reaches anything that could act on it.
+         */
+        configuration: resolveAiConfiguration(env, {
+          fakeScenario: body.scenario,
+        }),
+        usage: scope.aiUsage,
+        evidence: retrieval.evidence,
+        candidates: retrieval.candidates,
+        factBlock: retrieval.factBlock,
+        derivedFacts: retrieval.derivedFacts,
+        ownerInput:
+          policy.maxOwnerInputCharacters > 0 ? body.question : undefined,
+        idempotencyKey: body.idempotencyKey,
+        requestDeep: body.deep,
+        signal: request.signal,
+      });
+    } catch (cause) {
+      return aiErrorResponse(cause, facts);
+    }
 
     return aiJson({
       ok: true,
@@ -444,7 +483,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       // The facts are returned so the surface can render them BESIDE the prose,
       // resolve a citation to a chip, and stay useful when the explanation
       // itself is refused or unavailable.
-      facts: retrieval.factBlock ?? null,
+      facts,
       assumptions: retrieval.assumptions ?? [],
       disclosure: {
         recordCount: retrieval.evidence.items.length,

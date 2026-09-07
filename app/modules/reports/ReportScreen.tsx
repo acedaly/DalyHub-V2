@@ -21,6 +21,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useFetcher } from "react-router";
 
+/*
+ * Imported by its own path rather than through `~/shared/ai`, so opening a
+ * report does not pull the extraction-review surface, the Weekly Review surface
+ * and the request controller into this route's bundle. PERF-01's rule: ship
+ * what the view needs.
+ */
+import { AiExplainReport } from "~/shared/ai/AiExplainReport";
 import { CollectionLayout } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
 import { Button, ButtonLink, Input } from "~/shared/ui";
@@ -71,6 +78,22 @@ export function ReportScreen(data: ReportPageData) {
         ) : null}
 
         {data.result ? <ReportResultView result={data.result} /> : null}
+
+        {/*
+          V2.14 — the interpretation layer, rendered BELOW the figures and owned
+          entirely by `~/shared/ai`. Reports hands it the question and the
+          identity of the answer on screen and knows nothing else about it: no
+          provider, no feature, no prompt, no fact. The report above is complete
+          and correct with this line deleted, which is the property
+          `report-boundaries.test.ts` exists to keep true.
+        */}
+        {data.result && data.resultDigest.length > 0 ? (
+          <AiExplainReport
+            definition={data.definition}
+            reportId={data.reportId}
+            resultDigest={data.resultDigest}
+          />
+        ) : null}
 
         {data.result ? <SaveBar data={data} /> : null}
       </div>

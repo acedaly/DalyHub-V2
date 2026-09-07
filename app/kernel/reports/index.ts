@@ -106,6 +106,8 @@ export {
   MAX_REPORT_READINGS,
   REPORT_NOTE_CODES,
   reportIsAllZero,
+  reportResultDigest,
+  reportResultSource,
   reportIsEmpty,
   reportIsMixedCurrency,
   unavailableReport,

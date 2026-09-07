@@ -185,6 +185,74 @@ export interface ReportResult {
   readonly computedAtIso: string;
 }
 
+/**
+ * The canonical serialisation a result's IDENTITY is taken over.
+ *
+ * V2.13 shaped `ReportResult` so a fact block could be derived from it; V2.14
+ * needs one thing more, and it is a Reports concern rather than an AI one: a
+ * stable value that says *"these are the same figures"*. A surface that has an
+ * explanation of a report needs to know whether the report still says what it
+ * said when the explanation was written, and the only honest way to answer that
+ * is to compare the figures themselves.
+ *
+ * It covers the definition, the window, the unit, every row of every block and
+ * every note. It does NOT cover `computedAtIso`: two executions a second apart
+ * over unchanged data must produce the same identity, or the check would fire
+ * on every single request and mean nothing.
+ *
+ * PURE, and deliberately not an AI concept — no AI file is imported to produce
+ * it, and Reports acquires no dependency by having one.
+ */
+export function reportResultSource(result: ReportResult): string {
+  const lines: string[] = [
+    `source=${result.source}`,
+    `measure=${result.measure}`,
+    `shape=${result.shape}`,
+    `unit=${result.unit}`,
+    `grain=${result.grain ?? "-"}`,
+    `window=${result.window.periodStart}..${result.window.periodEnd}`,
+    `availability=${result.availability}`,
+    `bounded=${result.bounded ? "1" : "0"}:${result.bound ?? "-"}`,
+  ];
+  for (const block of result.blocks) {
+    lines.push(
+      `block=${block.key}:${block.currencyCode ?? "-"}:${block.total ?? "-"}:${
+        block.recordCount ?? "-"
+      }:${
+        block.remainder === null
+          ? "-"
+          : `${block.remainder.groups}/${block.remainder.value}`
+      }`,
+    );
+    for (const row of block.rows) {
+      lines.push(
+        `row=${row.key}|${row.label}|${row.value ?? "-"}|${row.detail ?? "-"}|${
+          row.referenceId ?? "-"
+        }`,
+      );
+    }
+  }
+  for (const note of result.notes) lines.push(`note=${note.code}|${note.text}`);
+  return lines.join("\n");
+}
+
+/**
+ * A hex SHA-256 of {@link reportResultSource} — the result's identity.
+ *
+ * Not a secret and not an authorisation: two identical results hash identically
+ * by design, and nothing is granted by presenting one. It exists so a surface
+ * can ask "are these still the same figures?" and get a true answer.
+ */
+export async function reportResultDigest(
+  result: ReportResult,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(reportResultSource(result));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 /** True when every block of the result holds nothing. */
 export function reportIsEmpty(result: ReportResult): boolean {
   return result.blocks.every((block) => block.rows.length === 0);

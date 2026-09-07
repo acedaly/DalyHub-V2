@@ -325,4 +325,23 @@ export interface ReportPageData {
   /** The filter this definition still needs before it can answer. */
   readonly needs: string | null;
   readonly todayIso: string;
+  /**
+   * The definition, serialised by this module's own codec.
+   *
+   * Carried so a surface beside the report can hand the QUESTION to something
+   * that will execute it again for its own purposes. It is the same bytes a
+   * saved row stores, parsed back through the same total parser, and it is
+   * plain data: Reports learns nothing about what the other surface does with
+   * it, which is why this field costs no dependency.
+   */
+  readonly definition: string;
+  /**
+   * The identity of the figures on this page (`reportResultDigest`), or the
+   * empty string when there are none.
+   *
+   * It answers exactly one question — *"are these still the same figures?"* — so
+   * anything holding a derived artefact about this result can tell whether the
+   * result has moved underneath it, and refuse rather than mislead.
+   */
+  readonly resultDigest: string;
 }

@@ -71,6 +71,9 @@ export function useAiRequest(
           kind: "error",
           code: String(payload.code ?? "internal"),
           message: String(payload.message ?? "That didn’t work."),
+          // The deterministic half survives the failure wherever DalyHub had
+          // already assembled it. See `AiSurfaceState`.
+          facts: (payload.facts ?? null) as never,
         });
         return;
       }
@@ -100,6 +103,8 @@ export function useAiRequest(
         disclosure: payload.disclosure as never,
         candidates: (payload.candidates ?? NO_CANDIDATES) as never,
         usageId: String(payload.usageId ?? ""),
+        facts: (payload.facts ?? null) as never,
+        assumptions: (payload.assumptions ?? []) as never,
       } as AiSurfaceState);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") {
@@ -108,6 +113,7 @@ export function useAiRequest(
           code: "cancelled",
           message:
             "That request was cancelled. Nothing was added to DalyHub. If the provider had already started, the usage is still recorded.",
+          facts: null,
         });
         return;
       }
@@ -115,6 +121,7 @@ export function useAiRequest(
         kind: "error",
         code: "internal",
         message: "That didn’t work. Nothing was changed.",
+        facts: null,
       });
     } finally {
       busyRef.current = false;

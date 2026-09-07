@@ -10,6 +10,9 @@ import {
   isExtractionResult,
   proposedNotesOf,
   type AiResult,
+  type Fact,
+  type FactBlock,
+  type GroundedExplanationResult,
   type ActionExtractionResult,
   type ExtractionResult,
   type PrivacyCategory,
@@ -94,6 +97,22 @@ export type AiSurfaceState =
       /** The allowlists the answer was permitted to reference. */
       readonly candidates: AiCandidates;
       readonly usageId: string;
+      /**
+       * V2.14 — the FACTS the answer was allowed to state.
+       *
+       * Returned with the result so the surface renders the figures ITSELF,
+       * beside the prose, from DalyHub's own formatting — and so the deterministic
+       * half stays on screen when the explanation is refused, unavailable or
+       * discarded.
+       */
+      readonly facts: FactBlock | null;
+      /**
+       * V2.14 — how DalyHub resolved the question, where it had to decide.
+       * "No period was named, so this compares September with August." Never
+       * hidden: an answer over a period the owner did not ask for is wrong
+       * however well it is written.
+       */
+      readonly assumptions: readonly string[];
     }
   | {
       readonly kind: "deterministic";
@@ -104,7 +123,21 @@ export type AiSurfaceState =
         readonly date: string | null;
       }[];
     }
-  | { readonly kind: "error"; readonly code: string; readonly message: string };
+  | {
+      readonly kind: "error";
+      readonly code: string;
+      readonly message: string;
+      /**
+       * V2.14 — the facts DalyHub had assembled when the request failed.
+       *
+       * Present whenever the failure happened AFTER assembly, which is every
+       * provider-side failure and every policy refusal: the block is built from
+       * canonical reads before a provider is contacted, so an unconfigured,
+       * refused, slow, over-budget or unverifiable answer still leaves the
+       * owner every figure the explanation would have been about.
+       */
+      readonly facts: FactBlock | null;
+    };
 
 /** True when the surface is waiting on a provider. */
 export function isBusy(state: AiSurfaceState): boolean {
@@ -138,6 +171,28 @@ export function asWeeklyReview(
 
 export function asAnswer(result: AiResult): WorkspaceAnswerResult | null {
   return result.kind === "workspace_answer" ? result : null;
+}
+
+/** V2.14 — narrow to the grounded explanation contract. */
+export function asGrounded(result: AiResult): GroundedExplanationResult | null {
+  return result.kind === "grounded_explanation" ? result : null;
+}
+
+/**
+ * The facts an answer cited, resolved from the block DalyHub supplied.
+ *
+ * Only ids DalyHub issued resolve; anything else is simply absent, because the
+ * schema validator already refused an unknown id. This is the second,
+ * structural guarantee that a fabricated citation can never render.
+ */
+export function citedFacts(
+  block: FactBlock | null,
+  ids: readonly string[],
+): readonly Fact[] {
+  if (block === null) return [];
+  return ids
+    .map((id) => block.facts.find((fact) => fact.id === id))
+    .filter((fact): fact is Fact => fact !== undefined);
 }
 
 /**

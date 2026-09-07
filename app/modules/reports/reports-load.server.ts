@@ -26,6 +26,7 @@ import {
   findBuiltInReport,
   parseReportDefinition,
   reportMeasure,
+  reportResultDigest,
   serialiseReportDefinition,
   type ReportConfig,
   type ReportDefinition,
@@ -150,6 +151,8 @@ export async function loadReport(
     incompatible: null,
     needs: null,
     todayIso: ownerCalendarIso(new Date(), DEFAULT_APP_PREFERENCES.timezone),
+    definition: "",
+    resultDigest: "",
     ...over,
   });
 
@@ -307,6 +310,17 @@ export async function loadReport(
     incompatible: null,
     needs: null,
     todayIso,
+    definition: serialiseReportDefinition({ ok: true, config }),
+    /*
+     * Computed from the result that was JUST executed — not from a second read
+     * — so it names exactly the figures this page is about to draw. It is a
+     * SHA-256 over the rows, totals, remainder and notes, and it deliberately
+     * excludes `computedAtIso`, so two executions a second apart over unchanged
+     * data agree.
+     */
+    resultDigest: execution.ok
+      ? await reportResultDigest(execution.result)
+      : "",
   };
 }
 
