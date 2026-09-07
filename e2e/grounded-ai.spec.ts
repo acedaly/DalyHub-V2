@@ -32,8 +32,9 @@ import {
  *     with AI off, so the deterministic half is genuinely independent;
  *   - Ask says what it CAN answer, from the parser's own list;
  *   - the Weekly Review ritual is unaffected;
- *   - every grounded surface is usable at 320px, keyboard-reachable, and free
- *     of axe violations.
+ *   - every grounded surface is usable at every phone width the repository
+ *     recognises -- 320, 375, 390, 430 and landscape -- keyboard-reachable, and
+ *     free of axe violations.
  *
  * ## What it deliberately does NOT do
  *
@@ -148,20 +149,32 @@ test.describe("V2.14 — Explain this report", () => {
     ).toBeVisible();
   });
 
-  test("is readable at 320px with no horizontal overflow", async ({ page }) => {
-    await page.setViewportSize(PHONE_VIEWPORTS[0]);
-    await gotoFixture(page, "/reports/completed-tasks-by-area");
-    const button = explainPanel(page).getByRole("button", {
-      name: "Explain this report",
+  /*
+   * Every phone width the repository recognises, not just the narrowest.
+   *
+   * 320 is where a layout breaks, so it is the one that matters most -- but the
+   * panel is a list of chips whose content is the owner's own labels, and a
+   * label that fits at 320 and wraps into an overflow at 430 is not a
+   * hypothetical. Testing the range costs seconds and removes the argument.
+   */
+  for (const viewport of PHONE_VIEWPORTS) {
+    test(`is readable at ${viewport.label} with no horizontal overflow`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await gotoFixture(page, "/reports/completed-tasks-by-area");
+      const button = explainPanel(page).getByRole("button", {
+        name: "Explain this report",
+      });
+      await expect(button).toBeVisible();
+      await expectMinTouchTarget(button);
+      await button.click();
+      await expect(
+        explainPanel(page).getByRole("region", { name: "Facts" }),
+      ).toBeVisible();
+      await expectNoHorizontalOverflow(page);
     });
-    await expect(button).toBeVisible();
-    await expectMinTouchTarget(button);
-    await button.click();
-    await expect(
-      explainPanel(page).getByRole("region", { name: "Facts" }),
-    ).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-  });
+  }
 
   test("is keyboard-reachable and free of axe violations", async ({ page }) => {
     await gotoFixture(page, "/reports/completed-tasks-by-area");
@@ -380,10 +393,19 @@ test.describe("V2.14 — Ask DalyHub is bounded, and says so", () => {
     expect(JSON.stringify(payload.facts?.bounds)).not.toContain("1,000,000");
   });
 
-  test("holds at 320px and is free of axe violations", async ({ page }) => {
+  for (const viewport of PHONE_VIEWPORTS) {
+    test(`holds at ${viewport.label} with no horizontal overflow`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await gotoFixture(page, "/ai");
+      await expectNoHorizontalOverflow(page);
+    });
+  }
+
+  test("is free of axe violations on a phone", async ({ page }) => {
     await page.setViewportSize(PHONE_VIEWPORTS[0]);
     await gotoFixture(page, "/ai");
-    await expectNoHorizontalOverflow(page);
     await expectNoAxeViolations(page);
   });
 });
