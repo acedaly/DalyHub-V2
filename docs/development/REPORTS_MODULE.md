@@ -228,6 +228,7 @@ rename can never rewrite a question nobody could read.
 /reports/new          the builder, from a blank definition (a redirect)
 /reports/view?…       a definition executed from the URL
 /reports/:reportId    a saved report, or a built-in
+/reports/export?…     the current rows as CSV
 /reports/saved        the mutation resource route
 ```
 
@@ -241,6 +242,19 @@ rename can never rewrite a question nobody could read.
   table is never optional; `visual` chooses only what is drawn beside it.
 - **Built-ins are immutable.** Changing one and saving writes a new report.
 - **No dashboard.** No grid, no widgets, no arrangement, no previews.
+
+### The one output format
+
+`/reports/export` returns the rows of the definition in the URL, through the
+SAME codec and the SAME executor the page uses — so a downloaded figure and the
+figure on screen cannot differ. The currency travels beside every number, a row
+with no reading is written EMPTY rather than as `0`, and every note the surface
+printed is a comment row above the data: a spreadsheet is exactly where two
+currencies get summed and an approximation gets forgotten. The filename names
+the source and the measure, never a value.
+
+There is no PDF and no print designer. A PDF is a layout engine, and V2.13 does
+not have one.
 
 ### What a Report URL carries
 

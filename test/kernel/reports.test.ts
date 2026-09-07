@@ -39,6 +39,7 @@ import { createReportAdapters } from "~/platform/reports/report-adapters.server"
 import {
   createAssetHistoryRepository,
   createAssetRepository,
+  createWorkspaceSnapshotRepository,
   createEntityRepository,
   createFinanceRepository,
   createGoalMeasurementRepository,
@@ -775,23 +776,23 @@ describe("export and restore", () => {
     });
     const before = await run(builtIn("spend-by-category"));
 
-    // The snapshot's own projection, exactly as the export reads it.
-    const rows = await env.DB.prepare(
-      `SELECT id, kind, name, config_version, config
-         FROM task_saved_views WHERE workspace_id = ? AND owner_id = ?`,
-    )
-      .bind(WS, OWNER)
-      .all<{
-        id: string;
-        kind: string;
-        name: string;
-        config_version: number;
-        config: string;
-      }>();
-    const archived = (rows.results ?? []).find((row) => row.id === saved.id);
+    /*
+     * The REAL snapshot projection — the rows an export actually writes — not a
+     * hand-written query that would pass whatever the export happened to omit.
+     */
+    const snapshot = createWorkspaceSnapshotRepository(env.DB, makeContext(WS));
+    const archived = (await snapshot.readTaskSavedViews(OWNER)).find(
+      (row) => row.id === saved.id,
+    );
+    expect(archived).toBeDefined();
     expect(archived?.kind).toBe("report");
+    expect(archived?.name).toBe("Household spending");
+    // The DEFINITION is in the archive, not merely a row with a name.
+    expect(JSON.stringify(archived?.config)).toBe(
+      serialiseReportDefinition(saved.config),
+    );
 
-    // Destroy and restore the row from the archived projection.
+    // Destroy, then restore from the archived projection alone.
     await env.DB.prepare(
       "DELETE FROM task_saved_views WHERE workspace_id = ? AND id = ?",
     )
@@ -799,23 +800,57 @@ describe("export and restore", () => {
       .run();
     expect(await reports.get(OWNER, saved.id)).toBeNull();
 
+    const insert = (kind: string | null) =>
+      env.DB.prepare(
+        kind === null
+          ? `INSERT INTO task_saved_views
+               (workspace_id, id, owner_id, name, config_version, config, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          : `INSERT INTO task_saved_views
+               (workspace_id, id, owner_id, kind, name, config_version, config, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        ...(kind === null
+          ? [
+              WS,
+              archived!.id,
+              OWNER,
+              archived!.name,
+              archived!.configVersion,
+              JSON.stringify(archived!.config),
+              `${TODAY}T00:00:00.000Z`,
+              `${TODAY}T00:00:00.000Z`,
+            ]
+          : [
+              WS,
+              archived!.id,
+              OWNER,
+              kind,
+              archived!.name,
+              archived!.configVersion,
+              JSON.stringify(archived!.config),
+              `${TODAY}T00:00:00.000Z`,
+              `${TODAY}T00:00:00.000Z`,
+            ]),
+      );
+
+    /*
+     * First, the falsification the restore descriptor's own comment describes:
+     * a restore that DROPPED the kind column would take the table default and
+     * silently rewrite this report as a Tasks view. The report repository binds
+     * `kind = ?`, so the row would simply vanish from Reports — which is why
+     * `kind` is in the descriptor's column list and why this asserts it.
+     */
+    await insert(null).run();
+    expect(await reports.get(OWNER, saved.id)).toBeNull();
     await env.DB.prepare(
-      `INSERT INTO task_saved_views
-         (workspace_id, id, owner_id, kind, name, config_version, config, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      "DELETE FROM task_saved_views WHERE workspace_id = ? AND id = ?",
     )
-      .bind(
-        WS,
-        archived!.id,
-        OWNER,
-        archived!.kind,
-        archived!.name,
-        archived!.config_version,
-        archived!.config,
-        `${TODAY}T00:00:00.000Z`,
-        `${TODAY}T00:00:00.000Z`,
-      )
+      .bind(WS, saved.id)
       .run();
+
+    // Now the real restore, carrying the kind the archive holds.
+    await insert(archived!.kind).run();
 
     const restored = await reports.get(OWNER, saved.id);
     expect(restored?.name).toBe("Household spending");
@@ -827,6 +862,22 @@ describe("export and restore", () => {
     expect(
       after.blocks.map((block) => [block.currencyCode, block.total]),
     ).toEqual(before.blocks.map((block) => [block.currencyCode, block.total]));
+    expect(after.blocks[0].rows.map((row) => [row.label, row.value])).toEqual(
+      before.blocks[0].rows.map((row) => [row.label, row.value]),
+    );
+  });
+
+  it("the restore descriptor carries the kind and the config", async () => {
+    /*
+     * Read from the descriptor itself rather than from a comment, so removing
+     * a column from the restore path fails here as well as in the round trip
+     * above — one of them catches an omission, the other catches a rename.
+     */
+    const { RESTORE_TABLE_COLUMNS } =
+      await import("~/platform/storage/d1/d1-workspace-restore-repository");
+    expect(RESTORE_TABLE_COLUMNS.taskSavedViews).toContain("kind");
+    expect(RESTORE_TABLE_COLUMNS.taskSavedViews).toContain("config");
+    expect(RESTORE_TABLE_COLUMNS.taskSavedViews).toContain("config_version");
   });
 });
 

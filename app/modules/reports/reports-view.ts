@@ -15,6 +15,7 @@ import { GRAIN_LABELS } from "~/kernel/analytics";
 import {
   REPORT_GROUP_LABELS,
   reportMeasure,
+  reportQuestion,
   reportSource,
   reportWindowLabel,
   type ReportConfig,
@@ -131,14 +132,14 @@ export function breakdownWords(config: ReportConfig): string {
   return `By ${REPORT_GROUP_LABELS[config.breakdown.group].toLocaleLowerCase("en-AU")}`;
 }
 
-/** The one-line question a definition asks, for a card and a page subtitle. */
-export function questionWords(config: ReportConfig): string {
-  const measure = reportMeasure(config.measure);
-  const source = reportSource(config.source);
-  return measure
-    ? `${source.label} · ${measure.label} · ${reportWindowLabel(config.window)}`
-    : source.label;
-}
+/**
+ * The one-line question a definition asks, for a card and a page subtitle.
+ *
+ * The sentence itself is the KERNEL's, because the Obsidian vault prints it too
+ * and a platform export must not reach into a module's presentation layer. This
+ * is the module's name for it.
+ */
+export const questionWords = reportQuestion;
 
 /* -------------------------------------------------------------------------- */
 /* Serialisation                                                               */

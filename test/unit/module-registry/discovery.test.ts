@@ -757,6 +757,11 @@ describe("module discovery", () => {
           file: "routes/view.tsx",
         },
         {
+          id: "reports.export",
+          moduleId: "reports",
+          file: "routes/export.tsx",
+        },
+        {
           id: "reports.saved",
           moduleId: "reports",
           file: "routes/saved.tsx",

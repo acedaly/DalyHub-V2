@@ -227,6 +227,22 @@ function SaveBar({ data }: { readonly data: ReportPageData }) {
         </div>
       )}
 
+      {/*
+       * The one output format. A real `<a href download>`, so middle-click and
+       * "save as" behave, and so the download is an ordinary authenticated GET
+       * of the SAME definition through the SAME executor — a downloaded figure
+       * and the figure above it cannot differ.
+       */}
+      <p className="dh-report__save-hint">
+        <a
+          className="dh-report__download"
+          href={`/reports/export?${data.query}`}
+          download
+        >
+          Download these rows as CSV
+        </a>
+      </p>
+
       {data.builtIn ? (
         <p className="dh-report__save-hint">
           This is one of DalyHub’s examples. Changing it here never changes the

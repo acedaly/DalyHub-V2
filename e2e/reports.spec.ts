@@ -248,6 +248,35 @@ test.describe("Reports", () => {
     await expect(page).toHaveURL(/w=4-weeks/);
   });
 
+  test("downloads the same rows it drew, with the currency beside them", async ({
+    page,
+  }) => {
+    await gotoFixture(page, "/reports/completed-tasks-by-area");
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("link", { name: /Download these rows as CSV/ }).click(),
+    ]);
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const csv = Buffer.concat(chunks).toString("utf8");
+
+    // The header names the currency column, because a spreadsheet is exactly
+    // where two currencies would otherwise be summed by whoever opens it.
+    expect(csv).toContain('"label","value","currency","records"');
+    /*
+     * And every note the surface printed is in the file, above the data — a
+     * spreadsheet is exactly where an approximation gets forgotten.
+     */
+    expect(csv).toMatch(/where each Task sits today/);
+
+    // The rows are the ones the page drew.
+    const table = page.locator(".dh-report__table").first();
+    const firstLabel = await table.locator("tbody tr th").first().innerText();
+    expect(csv).toContain(`"${firstLabel.trim()}"`);
+  });
+
   test("the Insight rail entry keeps its route", async ({ page }) => {
     await gotoFixture(page, "/analytics");
     await expect(

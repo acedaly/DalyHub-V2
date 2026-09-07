@@ -63,6 +63,17 @@ const routes: readonly RouteContribution[] = [
     file: "routes/view.tsx",
   },
   {
+    /*
+     * The current result as CSV — the ONE output format V2.13 ships, because
+     * the rows are already computed and bounded so it costs a route and no new
+     * arithmetic. A PDF is a layout engine and a print designer is a product of
+     * its own; neither is here.
+     */
+    id: "reports.export",
+    path: "reports/export",
+    file: "routes/export.tsx",
+  },
+  {
     // The saved-report mutations. A resource route, so the page's fetchers
     // receive the action's JSON directly — the shape `/views/saved` uses.
     // Declared before the dynamic segment so it can never be read as an id.

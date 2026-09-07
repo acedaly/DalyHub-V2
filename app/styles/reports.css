@@ -356,3 +356,16 @@
 .dh-report__save-status:empty {
   display: none;
 }
+
+/* The one output format's link. An ordinary text link at the foot of the page:
+ * it is a secondary path off a surface whose job is the answer above it. */
+.dh-report .dh-report__download,
+.dh-report .dh-report__download:visited {
+  color: var(--dh-color-text-muted);
+  text-decoration: underline;
+}
+
+.dh-report .dh-report__download:hover,
+.dh-report .dh-report__download:focus-visible {
+  color: var(--dh-color-text);
+}

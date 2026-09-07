@@ -26,6 +26,8 @@
 
 import type { Grain } from "~/kernel/history";
 
+import { reportWindowLabel } from "./report-window";
+
 import {
   type ReportBreakdown,
   type ReportEmptyBucket,
@@ -446,6 +448,26 @@ export function availableReportSources(
   return REPORT_SOURCE_DEFINITIONS.filter(
     (source) => !hidden.has(source.moduleId),
   ).map((source) => source.key);
+}
+
+/**
+ * The question a definition asks, in one line and in the owner's words.
+ *
+ * It lives HERE rather than in the Reports module because three surfaces need
+ * it — the collection card, the report page's subtitle, and the Obsidian
+ * vault's list of saved definitions — and the vault is a platform export that
+ * must not import a module's presentation layer. One sentence, one authority.
+ */
+export function reportQuestion(config: {
+  readonly source: ReportSourceKey;
+  readonly measure: string;
+  readonly window: ReportWindow;
+}): string {
+  const measure = reportMeasure(config.measure);
+  const source = reportSource(config.source);
+  return measure
+    ? `${source.label} · ${measure.label} · ${reportWindowLabel(config.window)}`
+    : source.label;
 }
 
 /* -------------------------------------------------------------------------- */

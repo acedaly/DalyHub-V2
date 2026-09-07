@@ -344,6 +344,7 @@ decide those numbers:
 | no hot statement scans a base table | same |
 | payload ceiling per route | same |
 | the prefetch contract | `test/unit/shell/navigation-prefetch.test.tsx` |
+| the REPORT executor's statement count, at two sizes | `test/kernel/reports.test.ts` |
 | the revalidation contract | `test/kernel/navigation-revalidation.test.ts` |
 | the pending-navigation contract | `test/unit/shell/navigation-pending.test.tsx` |
 
@@ -352,6 +353,47 @@ decide those numbers:
 A route that legitimately grows raises its ceiling **in the same change**, with
 the new measurement quoted in the diff. A ceiling raised without a number beside
 it is how a budget stops being one.
+
+---
+
+## 10a. Reports (V2.13)
+
+Reports is a READ-HEAVY surface added after PERF-01, and it inherits rather than
+re-solves that programme's answers: `/reports` and `/analytics` are ordinary
+primary destinations, so they take `PRIMARY_NAV_PREFETCH` through the shared
+policy above. There is **no second prefetch strategy** and **no result cache** —
+a report is a live deterministic read, and a generic cache would buy nothing
+measurable in exchange for invalidation across every domain.
+
+Two shape decisions do the work:
+
+- **The collection executes nothing.** `/reports` is one statement — the owner's
+  saved definitions. The six built-ins are code and cost no read at all.
+  Rendering six previews would make the Reports home the most expensive route in
+  the product, to draw thumbnails of questions nobody asked.
+- **A report executes when it is OPENED**, in a fixed number of statements
+  decided by its definition and never by the data.
+
+| Built-in | Statements | Grows with |
+|---|---|---|
+| Spending by category | 1 | nothing |
+| Goal measurements | 1 | nothing |
+| Completed Tasks by Area | 2 (the bounded page, and the window's own totals) | nothing |
+| Obligations due in 90 days | 1 | nothing |
+| Project health across Reviews | 2 (the anchor Review, then the snapshot series) | nothing |
+| Recurring commitments by month | 1, plus pure arithmetic | nothing |
+
+`test/kernel/reports.test.ts` pins each number against real D1 at a small
+workspace and again after 200 more transactions and 40 more completed Tasks
+across 10 more Areas — the counts are identical. A separate assertion doubles a
+series' bucket count from 12 to 24 and checks the statement count does not move,
+which is the per-bucket N+1 that the same file's falsification produced when it
+was deliberately introduced.
+
+Where a bucketed read was needed, it uses V2.9's technique — bucket boundaries
+as ONE bound JSON parameter expanded by `json_each` — so the statement's shape is
+independent of the window and D1's 100-bound-variable ceiling is never
+approached. There is no private Report SQL batching.
 
 ---
 

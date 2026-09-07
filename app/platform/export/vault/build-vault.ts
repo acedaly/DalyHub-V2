@@ -37,6 +37,7 @@ import type {
   SnapshotTaskRecurrenceRule,
   WorkspaceSnapshotV1,
 } from "~/kernel/export";
+import { parseReportDefinition, reportQuestion } from "~/kernel/reports";
 import { resolveActorIdentity } from "~/kernel/identity";
 import { minorUnitsToDecimalString } from "~/kernel/money";
 import {
@@ -1356,12 +1357,56 @@ function writeHome(index: VaultIndex): VaultFile {
   };
 }
 
+/**
+ * The owner's saved views and REPORTS, grouped by kind.
+ *
+ * V2.13 — the list was headed "saved Tasks views" and carried every kind, which
+ * was already inaccurate for cross-module views and would have exported a saved
+ * REPORT as a Tasks view. One table holds three vocabularies, so the vault says
+ * which.
+ *
+ * A report prints its QUESTION, never its answer. A result is derived and stale
+ * the moment it is written to a file; the definition is the durable thing, and
+ * it is what the canonical archive carries too (ADR-121 decision 1).
+ */
+function savedViewLines(
+  views: readonly {
+    readonly kind: string;
+    readonly name: string;
+    readonly config: unknown;
+  }[],
+  kind: string,
+): string | null {
+  const matching = views.filter((view) => view.kind === kind);
+  if (matching.length === 0) return null;
+  return matching
+    .map((view) => {
+      if (kind !== "report") return `- ${view.name}`;
+      const definition = parseReportDefinition(view.config);
+      return definition.ok
+        ? `- ${view.name} — ${reportQuestion(definition.config)}`
+        : `- ${view.name} — saved by a different version of DalyHub`;
+    })
+    .join("\n");
+}
+
 function writeSettings(index: VaultIndex): VaultFile {
   const { preferences, taskSavedViews } = index.snapshot.owner;
+  const groups: readonly (readonly [string, string])[] = [
+    ["Saved Tasks views", "tasks"],
+    ["Saved cross-module views", "cross"],
+    ["Saved reports", "report"],
+  ];
+  const grouped = groups
+    .map(([heading, kind]) => {
+      const lines = savedViewLines(taskSavedViews, kind);
+      return lines === null ? null : `**${heading}**\n\n${lines}`;
+    })
+    .filter((entry): entry is string => entry !== null);
   const views =
-    taskSavedViews.length === 0
-      ? "_No saved Tasks views._"
-      : taskSavedViews.map((view) => `- ${view.name}`).join("\n");
+    grouped.length === 0
+      ? "_No saved views or reports._"
+      : grouped.join("\n\n");
   return {
     path: `${VAULT_META_FOLDER}/Settings.md`,
     contents: document([
@@ -1392,7 +1437,7 @@ function writeSettings(index: VaultIndex): VaultFile {
           ),
         ]),
       ),
-      section("Saved Tasks views", views),
+      section("Saved views and reports", views),
     ]),
   };
 }

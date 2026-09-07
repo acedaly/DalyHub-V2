@@ -738,13 +738,41 @@ Refused for V2.13, each with its reason:
 - **A net-worth series** — see [above](#net-worth-refused-with-the-reason).
 - **A result cache**, a stored aggregate, or any snapshot introduced to make
   Reports fast.
-- **PDF export or a print designer.** CSV of the current result is included
-  where it is nearly free; nothing beyond it.
+- **PDF export or a print designer.** CSV of the current result IS shipped — see
+  below — because the rows are already computed; nothing beyond it.
 - **Favourites, folders, report packs.** The saved list is enough.
-- **Offline Reports.** A loaded report stays visible under the existing PWA
-  cache; no sensitive result is persisted for offline use.
 - **Reports on Today.**
 - **Any AI.**
+
+### Three decisions the definition pass owed an answer
+
+**CSV: shipped.** `/reports/export` returns the rows of the definition in the
+URL, through the SAME codec and the SAME executor the page uses — so a
+downloaded figure and the figure on screen cannot differ. It costs one route and
+no new arithmetic. Three rules make it honest: the **currency travels with the
+number**, because a spreadsheet is exactly where two currencies get summed by
+whoever opens it; a row with **no reading is written empty**, never as `0`; and
+every **note the surface printed is in the file** as a comment row above the
+data, because a spreadsheet is exactly where an approximation gets forgotten.
+The filename names the source and the measure, never a value — a filename is
+visible in a download shelf.
+
+**Obsidian: the definition, never the result.** The vault's Settings page lists
+saved views and reports, and a report prints its QUESTION ("Finance · Money out
+· 12 months") rather than its answer. A result is derived and stale the moment
+it is written to a file; the definition is the durable thing, and it is what the
+canonical archive carries too. No static report snapshot is created inside
+DalyHub to feed the vault.
+
+The same change corrects an inaccuracy V2.13 would otherwise have made worse:
+that list was headed *"Saved Tasks views"* and already carried cross-module
+views, so a saved report would have been exported as a Tasks view. It is now
+grouped by kind.
+
+**Offline: no new behaviour, and none removed.** A report already open stays
+readable under the existing PWA cache; nothing about a result is persisted for
+offline use, and the `.data` request that produces one is never served stale
+(`PERFORMANCE.md` §8). Reports adds no offline surface of its own.
 
 ---
 
@@ -768,6 +796,54 @@ and
 [DEBT-249](../product/PRODUCT_DEBT.md#-debt-249--one-93-kb-stylesheet-is-render-blocking-on-every-first-paint--p3)
 (PERF-01's findings — Reports change neither system, and a release must not
 become a dumping ground for unrelated performance debt).
+
+---
+
+## Falsification: eighteen deliberate breakages, every one reverted
+
+Each rule below was BROKEN in the working tree, the narrowest suite that should
+catch it was run, and the breakage was reverted. A rule that survived its own
+falsification is a test gap, not a passing rule — **one did**, and the gap was
+closed before this release completed.
+
+| # | The breakage | What failed |
+|---|---|---|
+| 1 | The Finance adapter computes spend privately instead of `rangeDirectionAmount` | *spending by category equals the Finance month's own totals*; *transfers are excluded* |
+| 2 | The Tasks report counts `task.completed` ACTIVITY events instead of `completed_at` | *completed Tasks by Area equals the completion authority* — the reopened Task appeared, 5 against 4 |
+| 3 | The workspace predicate dropped from the range read | *a foreign CATEGORY narrows to nothing*; *a foreign ACCOUNT contributes nothing* |
+| 4 | An unsupported source/group combination accepted at parse | three refusal tests, including `review_period` |
+| 5 | A grain the window cannot hold silently truncated | *REFUSES a grain the window cannot hold, rather than shortening it* |
+| 6 | Unlike currencies collapsed into one block | five unit tests and four kernel tests, including *the two currencies never meet* |
+| 7 | A built-in seeded as a database row (a report migration added) | *adds no migration* |
+| 8 | The executor reads once per GROUP | *the statement budget holds at a SMALL workspace* — 4 against 2 |
+| 9 | The executor reads once per BUCKET | *is flat in the number of BUCKETS a series asks for* — 25 against 13 |
+| 10 | The export projection stops carrying `kind` | *a saved definition survives the archive* — the row came back as `tasks` |
+| 11 | The restore descriptor drops `kind`, so a restore rewrites the definition's meaning | *the restore descriptor carries the kind and the config* |
+| 12 | A Reports path records Activity | *records no Activity type and appends no event* |
+| 13 | A result read logged with a figure in the line | *logs no result, and no figure* |
+| 14 | The chart drawn without its table | five rendering tests, including *prints every label and value as text when the visual is BARS* |
+| 15 | The Reports home executes all six built-ins before first paint | *never executes more than one report per surface* |
+| 16 | An AI import added to a Reports path | *imports nothing from the AI kernel, platform or module* |
+| 17 | A second `SavedViewCodec` declared for the `report` kind | *declares exactly one codec, and no repository of its own* |
+| 18 | A `DashboardWidgetGrid` component added | **nothing failed** — see below |
+
+**The gap #18 found, and how it was closed.** The dashboard assertion matched
+`\bwidget`, which requires a word boundary — so `widget` was caught and
+`DashboardWidgetGrid` was not, and a dashboard arrives under the second spelling
+at least as often as the first. The pattern is now boundary-free and covers
+`dashboard`, `pinboard`, `gridlayout`, `draggable` and `resizable` as well;
+re-running the same breakage fails the test.
+
+Two findings the falsification pass produced were **fixed rather than recorded**:
+
+- The Tasks measure declared `areaId`, `projectId` and `goalId` filters that no
+  read applied. A declared filter no read applies computes a BROADER figure than
+  the owner asked for and prints it under their name — invisible, because a
+  total looks the same either way. The list is now empty, the reason is in
+  `report-source.ts`, and a test asserts it.
+- Deleting a saved report left the owner on a page whose next revalidation said
+  the report was no longer available. The delete now redirects to the
+  collection.
 
 ---
 

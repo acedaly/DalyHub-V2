@@ -66,6 +66,7 @@ export {
   availableReportSources,
   measureBreakdowns,
   reportMeasure,
+  reportQuestion,
   reportSource,
   shapeSorts,
   supportsBreakdown,
