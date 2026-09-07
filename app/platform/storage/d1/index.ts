@@ -32,6 +32,7 @@ import type {
   NotificationRepository,
   NotificationSettingsRepository,
 } from "~/kernel/notifications";
+import { REPORT_CODEC, type ReportDefinition } from "~/kernel/reports";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import type { AppPreferencesRepository } from "~/kernel/preferences";
 import { TASK_VIEW_CODEC, type TaskViewRepository } from "~/kernel/task-views";
@@ -806,6 +807,21 @@ export function createCrossViewRepository(
   options?: D1SavedViewRepositoryOptions,
 ): SavedViewRepository<CrossViewConfig> {
   return new D1SavedViewRepository(db, context, CROSS_VIEW_CODEC, options);
+}
+
+/**
+ * V2.13 RPT-00 — factory for the REPORT saved-view repository.
+ *
+ * The same class and the same table as the Tasks and cross-module ones, bound
+ * to the report codec. A third kind adds a codec and nothing else: no table, no
+ * migration, no export collection, no SQL path (ADR-121 decision 1).
+ */
+export function createReportRepository(
+  db: D1Database,
+  context: WorkspaceContext,
+  options?: D1SavedViewRepositoryOptions,
+): SavedViewRepository<ReportDefinition> {
+  return new D1SavedViewRepository(db, context, REPORT_CODEC, options);
 }
 
 /**

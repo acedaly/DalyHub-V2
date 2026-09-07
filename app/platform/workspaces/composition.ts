@@ -86,6 +86,7 @@ import type { ProjectRepository } from "~/kernel/projects";
 import type { RelationshipRepository } from "~/kernel/relationships";
 import type { ProjectSettingsRepository } from "~/kernel/project-settings";
 import type { ProjectTemplateRepository } from "~/kernel/project-templates";
+import type { ReportDefinition } from "~/kernel/reports";
 import type { ReviewRepository } from "~/kernel/reviews";
 import type { SpineRepository } from "~/kernel/spine";
 import type { TaskRepository } from "~/kernel/tasks";
@@ -149,6 +150,7 @@ import {
   createTaskRepository,
   createTaskViewRepository,
   createCrossViewRepository,
+  createReportRepository,
   createCrossViewQueryRepository,
   createWorkspaceMemberRepository,
   createWorkspaceRepository,
@@ -530,6 +532,14 @@ export interface WorkspaceScope {
    * describes a query, and re-opening it re-runs that query.
    */
   readonly crossViewQuery: CrossViewQueryRepository;
+  /**
+   * V2.13 RPT-00 — the saved REPORTS: the SAME workspace- and owner-scoped
+   * table and repository class as `taskViews` and `crossViews`, holding a
+   * `report` definition instead. A Report is a saved QUESTION — it stores no
+   * result, no aggregate and no cache, and re-opening one re-executes it over
+   * canonical domain reads (ADR-121 decision 1).
+   */
+  readonly reports: SavedViewRepository<ReportDefinition>;
   /**
    * The X-04 workspace-snapshot source: a READ-ONLY, bounded, deterministic
    * projection over every persisted table in the workspace, from which BOTH the
@@ -951,6 +961,10 @@ export function bindWorkspaceRepositories(
   // facts repositories so derived dimensions reuse those evaluators rather than
   // acquiring a second implementation.
   const crossViews = createCrossViewRepository(env.DB, context);
+  // V2.13 — the third saved-view KIND. Same class, same table, same statements;
+  // only the codec differs, which is what stops Reports from becoming a second
+  // persistence architecture.
+  const reports = createReportRepository(env.DB, context);
   const crossViewQuery = createCrossViewQueryRepository(env.DB, context, {
     health: projectHealth,
     goals,
@@ -1013,6 +1027,7 @@ export function bindWorkspaceRepositories(
     taskViews,
     crossViews,
     crossViewQuery,
+    reports,
     snapshot,
     restore,
     ownerTimeZone,
