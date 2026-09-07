@@ -6983,3 +6983,169 @@ guessing either is how a year of data goes quietly wrong. *Accepted:*
 is not satisfied and is not pretended to be — the implementation is complete and
 verified against synthetic data, and real financial data must not be imported
 until the off-Cloudflare copy exists and has been restored from once.
+
+---
+
+## ADR-121: REPORTS — a saved definition is a third saved-view kind, one breakdown axis per question, a closed per-source vocabulary, and a result that carries its own currency and bound
+
+- **Status.** Accepted (2026-09-07, V2.13 REPORTS, defined against `main` at
+  `8287d71`). The programme is
+  [`ROADMAP_V2_13.md`](../roadmap/ROADMAP_V2_13.md). This ADR records the five
+  durable decisions of that pass; it restates neither
+  [ADR-082 (saved views)](#adr-082-one-saved-view-system-two-kinds--the-tasks-declarative-configuration-generalised-into-a-cross-module-query-contract),
+  [ADR-116 (post-V2.8 boundaries)](#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+  nor
+  [ADR-117 (Insight)](#adr-117-insight--one-history-vocabulary-over-stores-already-written-a-bound-that-is-stated-rather-than-applied-and-a-link-check-that-makes-the-map-a-gate),
+  whose rules it consumes unchanged.
+
+- **Context.** After V2.12, DalyHub could answer a great many questions about
+  the owner's life and could keep none of them. Task completions, Project state
+  at each Review, Goal measurements, obligations and their expected amounts,
+  transactions, categories, budgets and balances all existed and were all
+  readable — each on the one screen that happened to hold it, over the period
+  that screen happened to offer. Nothing let the owner write down a *question*
+  and return to it.
+
+  The V2.9 sketch proposed a Report as a saved
+  `(source, window, grain, filters, group, measure, sort, visualisation)`
+  executed by the history layer. Re-measuring `main` at `8287d71` before
+  building it produced four facts that shaped the design and one that stopped a
+  feature:
+
+  1. **The saved-view seam is already generic.** `D1SavedViewRepository<TConfig>`
+     is parameterised by a `SavedViewCodec` and knows nothing about any config;
+     the `kind` column added by migration `0036` carries **no `CHECK`**; the
+     snapshot and restore descriptors both already carry `kind`. A third kind
+     therefore costs a codec and nothing else — no table, no migration, no
+     export collection, no entity type.
+  2. **Two authorities exist for "Tasks completed", and a report must pick.**
+     `spine_records.completed_at` (ADR-114 d4) is current completion state;
+     `ReviewInsightRepository.listPeriodContributions` groups completions from
+     the immutable Activity stream. They answer different questions and a
+     surface must not present one as evidence for the other.
+  3. **Finance can answer a month and not a range**, and obligations can be
+     listed and banded but not grouped. Executing the obvious built-ins over the
+     existing reads would have meant one statement per bucket.
+  4. **There is no obligation occurrence store**, by design (ADR-118): future
+     occurrences beyond the next one do not exist as rows.
+  5. **Asset valuations keep no history.** `listLatestAssetValuations` returns
+     the latest valuation only, so a net-worth *series* — which
+     `finance-networth.ts` had promised to V2.13 — cannot be computed without
+     fabricating the largest number in the product.
+
+- **Decision.**
+
+  1. **A Report is a saved-view KIND, and the seam is reused rather than bent.**
+     `SAVED_VIEW_KINDS` becomes `["tasks", "cross", "report"]`. One table, one
+     repository class, one storage path, one export collection. The report codec
+     obeys the seam's contract exactly — `parse` total, `validateForWrite`
+     throwing only on a non-configuration, `serialise` canonical, `equals` text
+     equality over the canonical form — and Reports register **no entity type,
+     no link type and no Activity type** (ADR-082 d10). **A Report stores the
+     question, never the answer**: nothing is cached, snapshotted or
+     pre-aggregated, and a result is recomputed from canonical reads on every
+     open. Saving, renaming and deleting write no Activity; executing certainly
+     does not, because reading is not history.
+
+  2. **One breakdown AXIS per report.** A definition breaks its measure down by
+     *time* (a `Grain`) **or** by a *group*, never both, with filters doing the
+     narrowing. Every question the release exists to make askable is answerable
+     that way, and the fourth shape — groups across periods — has no honest
+     drawing at the widths DalyHub supports: a twelve-category stacked bar is
+     unreadable on a desktop and a 144-cell matrix is absurd on a phone. The
+     axis is therefore a choice the registry offers, and an unsupported
+     combination is **impossible to express** rather than possible to express
+     and refused. `grouped_series` remains an additive fourth shape a later
+     release may add when a real question needs it.
+
+  3. **The vocabulary is closed, per-source, and declared once.** Five sources
+     ship (Tasks, Goals, Projects, Obligations, Finance). Each declares its
+     measures; each **measure** declares its unit, the grains and groups it
+     supports, how an empty bucket reads, and its defaults. That registry is the
+     single authority on what is legal — there is no switch statement in a
+     loader, an executor or a component. A definition can never carry SQL, a
+     formula, an operator, an expression, a column name or user-authored code:
+     the executor maps a validated key to a trusted canonical read, exactly as
+     `CrossViewConfig` maps a validated dimension to a trusted predicate. **A
+     missing measure is added deliberately as deterministic code**, never
+     reached by a formula field. **A source exists because a question exists,
+     not because a table does.**
+
+  4. **A result carries its own currency, its own emptiness and its own bound.**
+     A `ReportResult` holds one **block per currency**, so unlike currencies can
+     never be summed — the ADR-049 rule made a property of the type rather than
+     a rule a surface must remember, and there is no FX conversion. A row's
+     value is `number | null`, and each measure declares which it means: a
+     *flow* (completions, money, counts) reads an empty bucket as a true zero; a
+     *level* (a Goal measurement) reads it as **absent**, so a month with no
+     weigh-in is neither 70 kg nor 0 kg and nothing is interpolated. A grouped
+     result bounded to its row cap carries an arithmetically truthful
+     **remainder** computed in the same statement, never a bounded page
+     presented as a whole. A failed read renders **Not available**, never a
+     zero; a report reads one source, so failure is atomic at the source rather
+     than a quietly missing group.
+
+  5. **Where the product cannot answer truthfully, it says so and the finding is
+     recorded — it does not approximate silently.** Two cases, decided
+     oppositely and for the same reason:
+     - **Net worth over time is not a source.** Account balances are derivable
+       backwards; Asset valuations are not, and a series holding today's house
+       value constant across two years would be a fabricated history. It is
+       omitted, `finance-networth.ts`'s promise is corrected, and
+       [DEBT-250](../product/PRODUCT_DEBT.md) records the storage gap. Adding a
+       valuation-history store is a Finance decision under ADR-116 d2, not a
+       Reports one.
+     - **Completed Tasks by Area is grouped by where the Task sits TODAY**, and
+       the report says so on the surface every time it is drawn, because the
+       spine keeps no link history. The approximation is useful and the question
+       is real; an *unstated* approximation is what would be dishonest.
+       [DEBT-251](../product/PRODUCT_DEBT.md) records the gap.
+     Between them these fix the rule: **a report may approximate only when it
+     names the approximation, and may not approximate at all when the figure it
+     would produce is the product's largest.**
+
+- **Consequences.** *Easy:* a Report costs a codec, so it exports, restores,
+  scopes to a workspace and bounds itself for free; every report figure comes
+  from the read the owning module already uses, so a report and its source
+  surface cannot disagree; a phone reads number → table → chart with no chart
+  library shipped; V2.14 can derive a fact block from `ReportResult` without
+  Reports depending on AI. *Hard:* one axis means the twelve-by-twelve matrix is
+  not expressible in V2.13; five sources means several real collections have no
+  report; every new measure is code rather than configuration, which is slower
+  to add and impossible to get subtly wrong. *Accepted:* net worth over time —
+  the thing an owner most expects a reporting release to draw — is refused with
+  its reason rather than fabricated; the Analytics label becomes Insight while
+  its route deliberately does not change, so a bookmark keeps working and the
+  identifier stays historical, the same trade migration `0036` made when it kept
+  `task_saved_views`' name.
+
+- **Alternatives considered.** *A `reports` table with a Report as an entity*
+  (rejected: ADR-082 d10 — a definition describes a query and never becomes a
+  source of truth; nothing in the six built-ins needs a timeline, links or an
+  Activity feed). *Seeding the built-ins as rows* (rejected: a migration, a
+  duplicate per workspace, and built-ins that can be deleted or silently drift;
+  code definitions cost no storage and can be improved by a release). *A generic
+  `field + operator + value` report language* (rejected: an untyped query builder
+  wearing a product's clothes — the same rejection ADR-082 recorded for saved
+  views, and worse here because it would reach aggregates). *A calculated-field
+  or formula expression* (rejected: decision 3). *`grouped_series` as a fourth
+  shape now* (rejected: decision 2 — no question needs it and no drawing of it
+  is honest). *A charting library for the grouped bar* (rejected: the existing
+  primitives are hand-rolled SVG for the reasons `TrendBars` records, and one
+  more `map` over rectangles does not change the trade; a library would ship a
+  runtime dependency, a second colour system and a second accessibility contract
+  to keep correct). *A report-result cache* (rejected: invalidation across every
+  domain bought nothing measurable — reports are live deterministic reads).
+  *Executing the six built-ins as previews on the Reports home* (rejected: six
+  reports before first paint, to draw thumbnails of questions the owner has not
+  asked). *A current-only net-worth report* (rejected: the Finance home already
+  shows exactly that figure with its inputs and exclusions; a second place for
+  it is a second place for it to drift). *Introducing Asset valuation history
+  here* (rejected: decision 5 — a store, a migration, an export collection and a
+  restore rehearsal, which ADR-116 d2 calls a finding rather than a licence).
+  *Refusing the Area grouping on Tasks because attribution is approximate*
+  (rejected: decision 5 — the question is real and the current-classification
+  answer is useful; stating the approximation is the honest resolution).
+  *Moving `/analytics` to `/insight`* (rejected: churning a URL for a label
+  breaks every bookmark and every existing link to buy nothing the label does
+  not already buy).

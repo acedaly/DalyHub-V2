@@ -5,8 +5,9 @@
 > [`ROADMAP_V2.md`](ROADMAP_V2.md) is the closed record of V2;
 > [`ROADMAP_V2_1.md`](ROADMAP_V2_1.md) … [`ROADMAP_V2_8.md`](ROADMAP_V2_8.md)
 > hold V2.1 … V2.8; [`ROADMAP_V2_9.md`](ROADMAP_V2_9.md) holds V2.9 INSIGHT
-> **and the remaining V2 sequence, V2.13 … V2.16**, which this file does not
-> restate and does not replace; [`ROADMAP_V2_10.md`](ROADMAP_V2_10.md) holds
+> **and the remaining V2 sequence, V2.14 … V2.16**, which this file does not
+> restate and does not replace ([`ROADMAP_V2_13.md`](ROADMAP_V2_13.md) holds
+> V2.13 REPORTS, **complete 2026-09-07**); [`ROADMAP_V2_10.md`](ROADMAP_V2_10.md) holds
 > V2.10 LIFE ADMIN (**complete 2026-09-05**);
 > [`ROADMAP_V2_11.md`](ROADMAP_V2_11.md) holds V2.11 EVIDENCE (**complete
 > 2026-09-06**).
@@ -34,9 +35,10 @@ be imported until [DEBT-198](../product/PRODUCT_DEBT.md#-debt-198--the-off-cloud
 closes** — see [The hard gate](#the-hard-gate-debt-198) for exactly what that
 means and what remains.
 
-**Successor: V2.13 REPORTS — PLANNED, definition pass next** — see
-[`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v213--reports-presumptive). Nothing in
-V2.13 is built here. The Finance facts this release computes are deterministic
+**Successor: V2.13 REPORTS — COMPLETE (2026-09-07)** — defined and delivered
+in [`ROADMAP_V2_13.md`](ROADMAP_V2_13.md), which supersedes the PRESUMPTIVE
+sketch in [`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v213--reports-presumptive).
+Nothing in V2.13 is built here. The Finance facts this release computes are deterministic
 so a Report can execute over them later, and so V2.14's AI can explain them
 without computing one.
 
