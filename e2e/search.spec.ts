@@ -178,6 +178,9 @@ test.describe("DS-08 Shared Search — desktop", () => {
       "finance.search",
       // V2.10 LIFE-02 — Life Admin is a searchable domain of its own.
       "obligations.search",
+      // V2.13 — saved reports, by NAME only. A report is never executed to
+      // answer a search, and no figure from one ever reaches a result row.
+      "reports.search",
       "reviews.search",
     ]);
     expect(providerIds).not.toContain("today.search");
