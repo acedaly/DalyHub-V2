@@ -167,7 +167,23 @@ definition of "today".**
 
 ## Persistence
 
-One table, two kinds. Migration
+One table, **three** kinds since V2.13: `tasks`, `cross` and `report`
+([`REPORTS_MODULE.md`](REPORTS_MODULE.md), [ADR-121](../decisions/ARCHITECTURE_DECISIONS.md#adr-121-reports--a-saved-definition-is-a-third-saved-view-kind-one-breakdown-axis-per-question-a-closed-per-source-vocabulary-and-a-result-that-carries-its-own-currency-and-bound)).
+The third cost a codec and **no migration at all**, which is the seam paying off
+exactly as X-02 intended: the `kind` column carries no `CHECK`, the repository
+binds `kind = ?` on every statement, and the snapshot and restore descriptors
+already carry it.
+
+One difference is worth stating here, because it is a deliberate DEPARTURE from
+the rule below rather than an oversight: a report definition's **question half is
+not parsed leniently**. A cross-module view drops an unrecognised dimension and
+keeps the rest, because the owner can see the resulting list is wider. A report
+returns a NUMBER, and a broader total looks identical to the one the owner saved
+— so an unreadable source, measure, window, breakdown or filter makes the whole
+definition *incompatible*, its bytes are preserved verbatim, and every mutation
+on it is refused. Only its sort and visual fall back.
+
+Migration
 [`0036_generalise_saved_views.sql`](../../migrations/0036_generalise_saved_views.sql)
 adds `kind TEXT NOT NULL DEFAULT 'tasks'` to `task_saved_views` and swaps the two
 owner indexes for kind-aware ones. Nothing is rewritten; existing Tasks saved views

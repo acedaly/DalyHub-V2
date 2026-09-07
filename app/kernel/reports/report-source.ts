@@ -130,7 +130,26 @@ export const REPORT_SOURCE_DEFINITIONS: readonly ReportSourceDefinition[] = [
         groups: ["area", "project", "goal"],
         allowsScalar: true,
         windowKinds: ["preset", "custom"],
-        filters: ["areaId", "projectId", "goalId"],
+        /*
+         * NO filters in V2.13, and the omission is deliberate rather than an
+         * oversight.
+         *
+         * "Completed Tasks in Health, by week" is a real question, and
+         * answering it means an ancestry predicate on THREE shared reads —
+         * `countCompletedTasksInWindows`, `countCompletedInBuckets` and
+         * `countCompletedByGroup` — the first two of which V2.9 built for
+         * Insight and the Review. Changing a contract three surfaces share, to
+         * add a narrowing this release's own questions do not need, is exactly
+         * the widening a definition pass is supposed to refuse.
+         *
+         * What matters is that the registry stays HONEST: every filter a
+         * measure declares is applied by the read behind it. A declared filter
+         * that no read applies would compute a BROADER figure than the owner
+         * asked for and present it under their name, which is the one failure
+         * this whole vocabulary exists to prevent. So the list is empty until
+         * the reads can answer it.
+         */
+        filters: [],
         requiredFilters: [],
         defaultWindow: TWELVE_WEEKS,
         defaultBreakdown: { by: "group", group: "area" },

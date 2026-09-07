@@ -395,13 +395,27 @@ export function validateReportDefinitionForWrite(
       "must be a report definition object",
     );
   }
-  const source = value as Record<string, unknown>;
+  /*
+   * The saved-view seam's `TConfig` for this kind is `ReportDefinition` — the
+   * union, not the bare config — so a caller holding a parsed definition passes
+   * the WRAPPER, which is the natural and correct thing to hand `create` or
+   * `update`. Unwrapping it here means the write path accepts both shapes and
+   * neither is a special case at the call site. An INCOMPATIBLE wrapper falls
+   * through to the parse below and is refused, which is right: a definition
+   * this build could not read is one it must not store.
+   */
+  const wrapper = value as { readonly ok?: unknown; readonly config?: unknown };
+  const source = (
+    wrapper.ok === true && typeof wrapper.config === "object"
+      ? wrapper.config
+      : value
+  ) as Record<string, unknown>;
   const parsed = parseReportDefinition(
     // A definition handed in without a version is this build's; a WRONG version
     // is still refused below.
     source.version === undefined
       ? { ...source, version: REPORT_CONFIG_VERSION }
-      : value,
+      : source,
   );
   if (!parsed.ok) {
     throw new SavedViewValidationError(

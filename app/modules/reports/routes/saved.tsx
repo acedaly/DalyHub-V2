@@ -19,6 +19,8 @@
  * be created for, read from or deleted from another owner or workspace.
  */
 
+import { redirect } from "react-router";
+
 import { env } from "cloudflare:workers";
 
 import { isBuiltInReportId } from "~/kernel/reports";
@@ -94,7 +96,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   const scope = await resolveAuthenticatedWorkspaceScope(env, session);
 
   try {
-    return json(await dispatch(scope, session.user.subject, intent, form));
+    const result = await dispatch(scope, session.user.subject, intent, form);
+    /*
+     * A DELETE takes its own page with it. Answering with JSON would leave the
+     * owner looking at a report that no longer exists, whose next revalidation
+     * says "no longer available" — technically true and a dead end. A fetcher
+     * follows a redirect, so the one honest destination is the collection.
+     */
+    if (intent === "delete" && result.ok) return redirect("/reports");
+    return json(result);
   } catch (cause) {
     if (cause instanceof SavedViewValidationError) {
       return json(fail(cause.message), 400);

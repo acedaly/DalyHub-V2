@@ -208,6 +208,9 @@ describe("GET /search route loader", () => {
       "assets.search",
       "finance.search",
       "obligations.search",
+      // V2.13 — saved reports, by NAME only. A report is never executed to
+      // answer a search, and no figure from one ever reaches a result row.
+      "reports.search",
       "reviews.search",
     ]);
 

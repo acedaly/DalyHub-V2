@@ -224,7 +224,17 @@ export async function loadReport(
     return empty({
       title,
       todayIso,
-      incompatible: REPORT_INCOMPATIBILITY_MESSAGES[base.reason],
+      /*
+       * The two ways a definition becomes unreadable need different sentences.
+       * A STORED one was written by a different build, and the owner has lost
+       * nothing — the bytes are untouched. A URL one was typed or edited, and
+       * the honest answer is that the question itself could not be understood.
+       * Neither is answered approximately.
+       */
+      incompatible:
+        fromUrl !== null
+          ? "That question could not be understood, so DalyHub has not guessed at it. Build it again with the controls."
+          : REPORT_INCOMPATIBILITY_MESSAGES[base.reason],
     });
   }
 
@@ -308,9 +318,9 @@ async function readVocabularies(
       ];
     }
 
-    if (config.source === "goals" || config.source === "tasks") {
+    if (config.source === "goals") {
       const goals = await scope.goals.listGoals({ limit: 100 });
-      const vocabularies: ReportFilterVocabulary[] = [
+      return [
         {
           key: "goalId",
           label: REPORT_FILTER_LABELS.goalId,
@@ -320,18 +330,6 @@ async function readVocabularies(
           })),
         },
       ];
-      if (config.source === "tasks") {
-        const areas = await scope.areas.listAreas({ limit: 100 });
-        vocabularies.unshift({
-          key: "areaId",
-          label: REPORT_FILTER_LABELS.areaId,
-          options: areas.items.map((area) => ({
-            id: area.id,
-            title: area.title,
-          })),
-        });
-      }
-      return vocabularies;
     }
   } catch {
     return [];

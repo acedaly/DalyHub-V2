@@ -157,10 +157,19 @@ function ReportTable({
             <tr key={row.key}>
               <th scope="row">
                 {row.href ? <a href={row.href}>{row.label}</a> : row.label}
+                {/*
+                 * The full period, VISIBLY, beneath the short one.
+                 *
+                 * A month bucket is not always a calendar month: the history
+                 * kernel generates buckets backward from the window's END so
+                 * the most recent one is always whole, so a window ending on
+                 * 7 September tiles into 8 August – 7 September. Labelling that
+                 * "Aug 2026" and hiding the span from sight would be the table
+                 * describing a period it is not showing.
+                 */}
                 {row.periodLabel ? (
-                  <span className="dh-visually-hidden">
-                    {" "}
-                    ({row.periodLabel})
+                  <span className="dh-report__cell-detail">
+                    {row.periodLabel}
                   </span>
                 ) : null}
               </th>

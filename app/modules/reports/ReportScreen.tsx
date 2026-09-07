@@ -45,8 +45,8 @@ export function ReportScreen(data: ReportPageData) {
       <div className="dh-report__body">
         {data.incompatible ? (
           <EmptyState
-            title="This report was saved by a different version"
-            description={`${data.incompatible} Its definition has been left exactly as it is, so nothing has been lost — open DalyHub on the version that wrote it, or build the question again here.`}
+            title="This report can’t be opened"
+            description={`${data.incompatible} Nothing has been lost: a stored definition is left exactly as it is, byte for byte.`}
             primaryAction={
               <Link className="dh-btn dh-btn--primary" to="/reports/new">
                 New report

@@ -277,6 +277,7 @@
 
 .dh-report__cell-detail {
   display: block;
+  margin-block-start: var(--app-space-px);
   color: var(--dh-color-text-muted);
   font-size: var(--dh-text-meta-size);
   line-height: var(--dh-text-meta-line-height);
