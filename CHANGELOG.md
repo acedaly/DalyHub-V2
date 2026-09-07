@@ -1,5 +1,42 @@
 # Changelog
 
+- **One saved definition, many questions.**
+
+  DalyHub knew a great deal and could keep none of it. You could read this
+  month's spending on the Finance home, and next month you read it again from
+  scratch. You could not write the _question_ down.
+
+  Now you can. Open **Reports**, pick one of the six examples, change what you
+  want, name it, and it is yours. Come back tomorrow and it answers with
+  tomorrow's data, because what you saved was the question and not the answer.
+
+  Where your money went, by category, over the last year. How this Goal's
+  measurements have moved. How many Tasks you finished, and in which Area. What
+  falls due in the next ninety days. Which Projects kept turning up at risk.
+  What your known commitments are expected to cost, month by month.
+
+  **The figures are the same ones the rest of DalyHub shows you.** Not similar —
+  the same. A report reads the Finance month, the Goal's own readings, the
+  Task completion record and the Reviews' own snapshots; there is no second set
+  of sums anywhere. Transfers between your own accounts stay out of spending, a
+  refund makes a category smaller, and two currencies are two answers, never
+  one.
+
+  It tells you what it does not know. A month with no weigh-in in it is empty,
+  not zero. A commitment with no recorded amount is counted and left out of the
+  total rather than guessed at. A completed Task is filed under the Area it sits
+  in _today_, and the report says so every time, because DalyHub does not record
+  where it sat when you finished it. Where the honest answer would need
+  something DalyHub has never been told, there is no report at all — net worth
+  over time is missing for exactly that reason, and that is deliberate.
+
+  Every report reads as a number, then a table, then a chart, in that order, on
+  a phone and on a desktop alike. You can answer the question with the chart
+  turned off. You can take the rows to a spreadsheet. The whole thing lives in
+  the address bar, so a report is a link.
+
+  Analytics is now called **Insight**, and its address has not moved.
+
 - **Where is my money going?**
 
   DalyHub can answer that now. Add an account — everyday, savings, a credit

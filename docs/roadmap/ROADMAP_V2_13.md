@@ -890,6 +890,33 @@ V2.13 is complete when **all** of the following hold:
 
 ---
 
+## The product journey, and where each step is proven
+
+The synthetic journey the definition set for itself, and the test that holds it.
+Every step is asserted somewhere; none of it rests on a screenshot.
+
+| Step | Proven by |
+|---|---|
+| Open Insight; the label changed and the route did not | `e2e/reports.spec.ts` — *the Insight rail entry keeps its route* |
+| Open Reports; six examples, no figures drawn | *the collection lists definitions and runs nothing* |
+| Open a built-in; it answers from the workspace's own records | *a built-in answers from the workspace's own records* |
+| Truthful Finance totals, transfers excluded, currencies separate | `test/kernel/reports.test.ts` — three parity tests, by machine value |
+| Change the period; the URL updates and nothing is silently bounded | *changing a control changes the URL*, and *refuses a grain the period cannot hold* |
+| Save it under a name | *saves, reopens with the same question, and deletes* |
+| Reload; the same saved question, today's answer | same |
+| Completed Tasks by Area, with the attribution stated | kernel parity + *the historical-attribution note travels with the figures* |
+| Obligations due in 90 days; amounts only where supplied | kernel parity + *a commitment with no amount is counted, never estimated* |
+| Project health across Reviews; no score, the bound stated | the `projects` adapter's standing note, asserted for every built-in |
+| Export → destroy → restore → open again; identical machine values | *a saved definition survives the archive and answers identically* |
+| At 393 px: number, table, chart, no horizontal overflow | *holds at every width, and at 200% zoom*, and *reads as a number and a table before a chart, at 320px* |
+
+The one step that is **not** a browser journey is the export/restore leg, and
+deliberately: proving that a definition survives the archive means comparing
+machine values before and after, which a browser cannot see. It runs against
+real D1 instead, through the real snapshot projection.
+
+---
+
 ## Owner actions
 
 **None.** V2.13 creates no store, needs no migration, adds no binding, changes
