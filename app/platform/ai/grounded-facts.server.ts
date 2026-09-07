@@ -32,6 +32,7 @@
  */
 
 import {
+  aiFeaturePolicy,
   buildFactBlock,
   type FactBlock,
   type FactBound,
@@ -68,6 +69,13 @@ export interface GroundedFactsInput {
   readonly question: string;
   readonly now?: Date;
 }
+
+/**
+ * The feature's own ceiling on facts, read from the policy table rather than
+ * restated here — one number, in the place that already declares every other
+ * bound this feature obeys.
+ */
+const MAX_FACTS = aiFeaturePolicy("grounded-question-answer").maxFacts;
 
 /** How many category deltas one comparison names. Product-defined, and stated. */
 const MAX_CATEGORY_DELTAS = 8;
@@ -273,6 +281,11 @@ async function financeComparisonFacts(
         currencyCode: currency,
       },
       display: formatMinorUnits(Math.abs(delta), currency),
+      period: {
+        startIso: request.earlier.startIso,
+        endIso: request.later.endIso,
+        label: `${request.earlier.label} to ${request.later.label}`,
+      },
     });
 
     const laterRows =
@@ -347,6 +360,7 @@ async function financeComparisonFacts(
       label: `${request.earlier.label} and ${request.later.label}`,
     },
     facts,
+    maxFacts: MAX_FACTS,
     bounds,
     currencies,
   });
@@ -480,6 +494,7 @@ async function goalMovementFacts(
     subject: "Goal movement",
     period: periodOf(window),
     facts,
+    maxFacts: MAX_FACTS,
     bounds,
     consideredCount: ranked.length,
   });
@@ -556,6 +571,7 @@ async function projectHealthFacts(
     question: input.question,
     subject: "Project state across recent Reviews",
     facts,
+    maxFacts: MAX_FACTS,
     bounds,
     consideredCount: rows.length,
   });
@@ -650,6 +666,7 @@ async function obligationHorizonFacts(
     subject: `Commitments due in ${window.label}`,
     period: periodOf(window),
     facts,
+    maxFacts: MAX_FACTS,
     bounds,
     consideredCount: due.length,
   });

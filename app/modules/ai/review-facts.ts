@@ -53,6 +53,7 @@
  */
 
 import {
+  aiFeaturePolicy,
   buildFactBlock,
   type FactBlock,
   type FactBound,
@@ -403,6 +404,7 @@ export async function buildReviewFactBlock(
       subject: `Weekly Review, ${periodStart} to ${periodEnd}`,
       period,
       facts: drafts,
+      maxFacts: aiFeaturePolicy("weekly-review-assistant").maxFacts,
       bounds,
     }),
   };

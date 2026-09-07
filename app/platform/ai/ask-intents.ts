@@ -262,10 +262,13 @@ export function resolveGroundedAskIntent(
 
   if (MONEY_WORDS.test(text)) {
     const periods = periodsIn(question, todayIso);
-    if (
-      periods.length >= 2 ||
-      (periods.length === 1 && COMPARE_WORDS.test(text))
-    ) {
+    if (periods.length >= 1) {
+      /*
+       * One named period is enough. "Why was August so expensive?" is a
+       * comparison question whether or not the owner wrote the word "than", and
+       * the period it is compared against is stated as an assumption rather
+       * than chosen silently.
+       */
       return financeComparison(periods, todayIso);
     }
     if (COMPARE_WORDS.test(text) && periods.length === 0) {

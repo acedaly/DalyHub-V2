@@ -243,7 +243,6 @@ export function reportFactBlock(input: ReportFactBlockInput): FactBlock {
   }
 
   const facts = [...totals, ...rows];
-  const capped = facts.slice(0, Math.max(0, input.maxFacts));
 
   const bounds = result.notes.map(boundFor);
   if (result.availability === "unavailable") {
@@ -258,12 +257,12 @@ export function reportFactBlock(input: ReportFactBlockInput): FactBlock {
     question: input.question,
     subject: input.title,
     period,
-    facts: capped,
+    facts,
+    maxFacts: input.maxFacts,
     bounds,
     currencies: result.blocks
       .map((block) => block.currencyCode)
       .filter((code): code is string => code !== null),
-    consideredCount: facts.length,
   });
 }
 
