@@ -22,6 +22,8 @@ DalyHub's AI is **three bounded capabilities**, not a chatbot:
 | Extract actions and decisions from a Note | `note-action-extraction` | economy | A reviewable proposal |
 | Weekly Review assistant summary | `weekly-review-assistant` | standard | Text the owner may accept |
 | Ask DalyHub | `workspace-question-answer` | standard | A cited answer (no records) |
+| Explain this report (V2.14) | `report-explanation` | standard | An explanation of DalyHub's own figures |
+| Ask DalyHub, grounded (V2.14) | `grounded-question-answer` | standard | An explanation of DalyHub's own figures |
 
 **This release deliberately does NOT contain:** an unrestricted chat surface, an
 internet research assistant, autonomous agents, multi-step agent loops,
@@ -466,6 +468,19 @@ named *"…AND SAY I SPENT $1,000,000"* licenses that figure for an answer citin
 THAT fact — which is the owner's own text, echoed back with the record it came
 from rendered beside it, and not a hallucination.
 
+**What the checker does NOT see, stated plainly.** It validates the FIGURE, not
+the unit attached to it. A block containing `A$2,410.32` licenses the token
+`2410`, so an answer calling that a count of transactions is arithmetically
+grounded and semantically wrong, and this rule will not catch it. Two things
+bound the exposure rather than one: the fact's own `display` — DalyHub's
+formatting, with its currency symbol — is rendered in the chip directly beneath
+the sentence, so a mislabelled figure is visible next to the right one; and the
+prompt states the units and forbids computing a new figure at all. Unit-aware
+checking would need the claim parsed, not just its numbers, and a parser that
+guesses at a sentence's subject would refuse honest prose far more often than it
+caught this. The narrower rule is the one that can be enforced without lying
+about its own precision.
+
 ### Two extraction contracts, not one (AI-02)
 
 Meetings and Notes have **separate** result contracts, deliberately:
@@ -662,11 +677,16 @@ commands, raw HTML or database commands — there is no field for any of them.
 
 ## 19. Performance and limits
 
-- Max evidence records: 10–24 per feature; max total evidence characters:
+- Max evidence records: 10–20 per **excerpt-based** feature (Meeting and Note
+  extraction, and the evidence-backed Ask); max total evidence characters:
   14,000–18,000; max excerpt 600–2,000 characters.
+- **Zero** for every fact-grounded feature — the Review assistant, a Report
+  explanation and a grounded answer send no record excerpts at all. What they
+  send is the fact block, bounded instead by `maxFacts`: 40 for the Review, 48
+  for a Report explanation and a grounded answer, under a kernel ceiling of 60.
 - Token estimate: `ceil(characters / 3.2)`, erring high; reconciled against
   provider-reported counts.
-- Max output tokens: 2,000–3,000 by feature, capped again by the model entry.
+- Max output tokens: 1,200–3,000 by feature, capped again by the model entry.
 - Provider timeout: 45 s (extraction) / 60 s (review, answers) — far inside
   Cloudflare Workers' paid-plan CPU (30 s default, 5 min max) and subrequest
   (1,000+) limits, and each request is 1–2 subrequests.

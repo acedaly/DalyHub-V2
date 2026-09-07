@@ -162,10 +162,20 @@ const POLICIES: Readonly<Record<AiFeatureId, AiFeaturePolicy>> = {
     // Review's own focus section — text, never records. No Task is ever created.
     producesProposals: true,
     requiresDeliberateConfirmation: false,
-    maxEvidenceRecords: 24,
-    maxExcerptCharacters: 600,
-    maxTotalEvidenceCharacters: 18_000,
-    maxExcerptsPerRecord: 2,
+    /*
+     * V2.14 GROUND-02 — ZERO, where AI-01 sent 24 record excerpts.
+     *
+     * The assistant is now grounded by the Review's own fact block, and a fact
+     * carries the record's title as its LABEL and a link to the record as its
+     * reference. Sending the excerpts as well would send the same titles twice,
+     * in the one shape (free prose) that has no citation attached to it. A
+     * ceiling that permits data the code no longer sends is a ceiling that
+     * misdescribes the feature, so it says nought.
+     */
+    maxEvidenceRecords: 0,
+    maxExcerptCharacters: 0,
+    maxTotalEvidenceCharacters: 0,
+    maxExcerptsPerRecord: 0,
     maxOutputTokens: 3_000,
     timeoutMs: 60_000,
     maxOwnerInputCharacters: 0,
@@ -173,8 +183,6 @@ const POLICIES: Readonly<Record<AiFeatureId, AiFeaturePolicy>> = {
     maxPeriodDays: 31,
     defaultAllowedCategories: GENERAL_ONLY,
     dailyRequestLimit: 12,
-    // V2.14 GROUND-02 — the Review assistant is grounded by the Review's own
-    // fact block AND still cites the records behind it, so it carries both.
     groundedByFacts: true,
     maxFacts: 40,
   },
