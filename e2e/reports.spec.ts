@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 
 import { d1Execute, sqlLiteral } from "./d1";
 import {
+  expectMinTouchTarget,
   expectNoAxeViolations,
   expectNoHorizontalOverflow,
   gotoFixture,
@@ -230,6 +231,30 @@ test.describe("Reports", () => {
     if (order && order.length === 2) {
       expect(order[0]).toBe("dh-report__table");
       expect(order[1]).toBe("dh-catbars");
+    }
+  });
+
+  test("holds at every width, and at 200% zoom", async ({ page }) => {
+    /*
+     * 393 (a modern phone), 768 (a tablet) and a desktop, plus the 200%-zoom
+     * case — which is a 640px-wide viewport as far as layout is concerned, and
+     * the one most likely to push a wide figure column off the side.
+     */
+    for (const { width, height } of [
+      { width: 393, height: 852 },
+      { width: 768, height: 1024 },
+      { width: 1280, height: 900 },
+      { width: 640, height: 480 },
+    ]) {
+      await page.setViewportSize({ width, height });
+      await gotoFixture(page, "/reports/completed-tasks-by-area");
+      await expect(page.locator(".dh-report__table").first()).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      // A builder control is a real target at every width, including the
+      // compact density a phone uses.
+      await expectMinTouchTarget(
+        control(page, "Period").getByRole("link", { name: "4 weeks" }),
+      );
     }
   });
 

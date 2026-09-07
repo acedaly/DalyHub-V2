@@ -59,6 +59,12 @@ import {
   resetTables,
   sequentialIds,
 } from "./support";
+import {
+  explainQueryPlan,
+  planFindings,
+  profileDb,
+  schemaTableNames,
+} from "./perf-instrument";
 
 const WS = "ws_reports";
 const OTHER = "ws_reports_other";
@@ -969,6 +975,83 @@ describe("the statement budget", () => {
     // Twice the buckets, the same number of statements.
     expect(twentyFour.prepareCount()).toBe(twelve.prepareCount());
   });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Query plans, and round-trip depth                                           */
+/* -------------------------------------------------------------------------- */
+
+describe("query plans", () => {
+  /**
+   * No built-in's read scans a base table.
+   *
+   * PERF-01 established the rule and the instrument: an index is warranted when
+   * a MEASUREMENT shows an avoidable scan, not when a reader expects one. This
+   * runs `EXPLAIN QUERY PLAN` over every distinct statement the six built-ins
+   * issue, as issued, with their real bindings — and V2.13 adds NO index,
+   * because the measurement showed nothing to address.
+   *
+   * A `SCAN` of a materialised CTE is not a finding and is not counted: the
+   * reads here are composed out of named CTEs and no index can address those.
+   * `planFindings` resolves aliases, so `SCAN e` over `FROM entities e` is
+   * caught rather than looked past.
+   */
+  it("issues no statement that scans a base table", async () => {
+    const tables = await schemaTableNames(env.DB);
+    const findings: string[] = [];
+    let explained = 0;
+
+    for (const definition of BUILT_IN_REPORTS) {
+      const config =
+        definition.requiredFilter === "goalId"
+          ? builtIn(definition.id, { goalId: fixture.goalId })
+          : builtIn(definition.id);
+      const profile = profileDb(env.DB);
+      await run(config, WS, profile.db);
+
+      const seen = new Set<string>();
+      for (const record of profile.records()) {
+        if (record.batched || seen.has(record.sql)) continue;
+        seen.add(record.sql);
+        const plan = await explainQueryPlan(
+          env.DB,
+          record.sql,
+          record.bindings,
+        );
+        explained += 1;
+        const found = planFindings(plan, tables);
+        if (!found.scansTable) continue;
+        findings.push(
+          `${definition.id} scans ${found.scannedTables.join(", ")}: ${record.sql
+            .replace(/\s+/g, " ")
+            .slice(0, 140)}`,
+        );
+      }
+    }
+
+    // A pass with nothing explained would be a pass that proved nothing.
+    expect(explained).toBeGreaterThan(5);
+    expect(findings).toEqual([]);
+  }, 600_000);
+
+  it("never waits on one read to issue the next, beyond the shape's own depth", async () => {
+    /*
+     * A report reads ONE source, so its round-trip depth is the depth of that
+     * source's own read and nothing more. Two of the six are two statements, and
+     * both are genuinely sequential — the Tasks page and its totals could be
+     * concurrent, and the Project one cannot (the snapshot series needs the
+     * anchor Review first). Anything deeper would be a loader waterfall.
+     */
+    for (const definition of BUILT_IN_REPORTS) {
+      const config =
+        definition.requiredFilter === "goalId"
+          ? builtIn(definition.id, { goalId: fixture.goalId })
+          : builtIn(definition.id);
+      const profile = profileDb(env.DB);
+      await run(config, WS, profile.db);
+      expect(profile.depth(), definition.id).toBeLessThanOrEqual(2);
+    }
+  }, 600_000);
 });
 
 /* -------------------------------------------------------------------------- */

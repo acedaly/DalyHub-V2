@@ -345,6 +345,8 @@ decide those numbers:
 | payload ceiling per route | same |
 | the prefetch contract | `test/unit/shell/navigation-prefetch.test.tsx` |
 | the REPORT executor's statement count, at two sizes | `test/kernel/reports.test.ts` |
+| no report statement scans a base table | same |
+| the report executor's round-trip depth | same |
 | the revalidation contract | `test/kernel/navigation-revalidation.test.ts` |
 | the pending-navigation contract | `test/unit/shell/navigation-pending.test.tsx` |
 
@@ -389,6 +391,21 @@ across 10 more Areas — the counts are identical. A separate assertion doubles 
 series' bucket count from 12 to 24 and checks the statement count does not move,
 which is the per-bucket N+1 that the same file's falsification produced when it
 was deliberately introduced.
+
+`/reports` itself is in `navigation-statement-budget.test.ts` beside the seven
+PERF-01 routes, for the property rather than for the number: **2 statements,
+depth 2, 1,373 bytes at BOTH fixture sizes.** Every other route there grows with
+the records it draws; this one draws none, so its payload is flat — and a change
+that made the home render previews would move the ceiling by six reads and have
+to say so.
+
+`EXPLAIN QUERY PLAN` was run over every distinct statement the six built-ins
+issue, as issued, with their real bindings. **Not one scans a base table**, so
+V2.13 adds no index — an index is warranted when a measurement shows an
+avoidable scan, and the measurement showed none. Round-trip depth is at most 2
+for every built-in, and the two that pay it are the ones that genuinely must
+(the Project report cannot ask for a snapshot series before it knows the anchor
+Review). Both are asserted in `test/kernel/reports.test.ts`.
 
 Where a bucketed read was needed, it uses V2.9's technique — bucket boundaries
 as ONE bound JSON parameter expanded by `json_each` — so the statement's shape is

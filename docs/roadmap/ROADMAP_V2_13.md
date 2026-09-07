@@ -657,9 +657,19 @@ builder executes on an explicit, deselected-control change, never on a keystroke
 buy nothing measurable here and would cost invalidation across every domain;
 the strong bias against it is taken.
 
-Reports and Insight are registered with PERF-01's navigation instrumentation and
-inherit `PRIMARY_NAV_PREFETCH` (`intent`) through the shared policy. There is no
-second prefetch strategy.
+`/reports` is registered with PERF-01's navigation instrumentation beside the
+seven routes that programme measured: **2 statements, depth 2, 1,373 bytes at
+BOTH fixture sizes**. Every other route there grows with the records it draws;
+this one draws none.
+
+`EXPLAIN QUERY PLAN` over every distinct statement the six built-ins issue — as
+issued, with their real bindings — finds **no base-table scan**, so V2.13 adds
+**no index**: an index is warranted when a measurement shows an avoidable scan,
+and the measurement showed none. Round-trip depth is at most 2 for every
+built-in, and the two that pay it are the ones that genuinely must.
+
+Reports and Insight inherit `PRIMARY_NAV_PREFETCH` (`intent`) through the shared
+policy. There is no second prefetch strategy.
 
 ---
 
