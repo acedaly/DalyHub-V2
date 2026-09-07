@@ -41,6 +41,16 @@ export {
 } from "./anthropic-adapter";
 
 export {
+  FAKE_PROVIDER_SCENARIOS,
+  createFakeAdapter,
+  fakeProviderEnabled,
+  isFakeProviderScenario,
+  type FakeAdapterConfig,
+  type FakeProviderEnv,
+  type FakeProviderScenario,
+} from "./fake-provider";
+
+export {
   createOpenAiAdapter,
   readOpenAiResponse,
   type OpenAiAdapterConfig,
@@ -87,6 +97,23 @@ export {
 } from "./ai-runtime";
 
 export {
-  retrieveWeeklyReviewEvidence,
-  type WeeklyReviewFacts,
-} from "./weekly-review-evidence";
+  ASK_PARAMETER_BOUNDS,
+  GROUNDED_ASK_EXAMPLES,
+  GROUNDED_ASK_INTENTS,
+  horizonPeriod,
+  isGroundedAskIntent,
+  lookbackPeriod,
+  monthPeriod,
+  periodsIn,
+  resolveGroundedAskIntent,
+  type AskPeriod,
+  type GroundedAskIntent,
+  type GroundedAskRequest,
+} from "./ask-intents";
+
+export {
+  buildGroundedFacts,
+  type GroundedFactsInput,
+} from "./grounded-facts.server";
+
+export { reportFactBlock, type ReportFactBlockInput } from "./report-facts";

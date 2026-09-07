@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { computeWeeklyReviewFacts } from "~/modules/ai/review-facts";
+import { buildReviewFactBlock } from "~/modules/ai/review-facts";
 import type { TaskListItem } from "~/kernel/tasks";
 import type { WorkspaceScope } from "~/platform/workspaces";
 
@@ -39,6 +39,15 @@ function task(over: Partial<TaskListItem>): TaskListItem {
   } as TaskListItem;
 }
 
+/**
+ * A stub scope holding ONLY the two Task reads and the Meetings read.
+ *
+ * Everything else the fact block reads — Projects, health, next actions, Goal
+ * stories, the snapshot series, obligations — is absent on purpose, because the
+ * builder wraps every read and degrades to fewer facts rather than failing the
+ * owner's Review. What is under test here is the overdue DERIVATION, and this
+ * stub proves the degradation at the same time.
+ */
 function scopeWith(items: readonly TaskListItem[]): WorkspaceScope {
   return {
     tasks: {
@@ -49,36 +58,35 @@ function scopeWith(items: readonly TaskListItem[]): WorkspaceScope {
   } as unknown as WorkspaceScope;
 }
 
+async function overdueFor(items: readonly TaskListItem[]): Promise<number> {
+  const { facts } = await buildReviewFactBlock(scopeWith(items), {
+    reviewId: "review-1",
+    periodStart: "2026-08-17",
+    periodEnd: "2026-08-23",
+    todayIso: TODAY,
+    timezone: "Australia/Sydney",
+  });
+  return facts.tasksOverdue;
+}
+
 describe("the weekly Review facts count overdue work, not passed dates", () => {
   it("counts an open past-due Task", async () => {
-    const facts = await computeWeeklyReviewFacts(
-      scopeWith([task({ id: "a" })]),
-      "2026-08-17",
-      "2026-08-23",
-      TODAY,
-      "Australia/Sydney",
-    );
-    expect(facts.tasksOverdue).toBe(1);
+    expect(await overdueFor([task({ id: "a" })])).toBe(1);
   });
 
   it("does NOT count a cancelled or Someday / Maybe past-due Task", async () => {
-    const facts = await computeWeeklyReviewFacts(
-      scopeWith([
+    expect(
+      await overdueFor([
         task({ id: "a" }),
         task({ id: "b", status: "cancelled" }),
         task({ id: "c", commitmentState: "someday" }),
       ]),
-      "2026-08-17",
-      "2026-08-23",
-      TODAY,
-      "Australia/Sydney",
-    );
-    expect(facts.tasksOverdue).toBe(1);
+    ).toBe(1);
   });
 
   it("keeps a WAITING or ON HOLD past-due Task overdue — blocked is not abandoned", async () => {
-    const facts = await computeWeeklyReviewFacts(
-      scopeWith([
+    expect(
+      await overdueFor([
         task({
           id: "a",
           waiting: {
@@ -88,11 +96,6 @@ describe("the weekly Review facts count overdue work, not passed dates", () => {
         }),
         task({ id: "b", status: "on_hold" }),
       ]),
-      "2026-08-17",
-      "2026-08-23",
-      TODAY,
-      "Australia/Sydney",
-    );
-    expect(facts.tasksOverdue).toBe(2);
+    ).toBe(2);
   });
 });

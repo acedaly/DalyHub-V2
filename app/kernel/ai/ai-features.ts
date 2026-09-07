@@ -14,12 +14,22 @@
 import type { AiModelTier } from "./ai-models";
 import type { PrivacyCategory } from "./ai-evidence";
 
-/** The three capabilities this release ships. A CLOSED set. */
+/**
+ * Every capability the product ships. A CLOSED set.
+ *
+ * The last two are V2.14's GROUNDED features. They differ from the four above
+ * in one structural way that the policy table below makes explicit: their
+ * grounding is a {@link FactBlock}, not retrieved excerpts, so their response
+ * schema has no numeric field and every figure in their prose is checked
+ * against the facts DalyHub supplied.
+ */
 export const AI_FEATURE_IDS = [
   "meeting-action-extraction",
   "note-action-extraction",
   "weekly-review-assistant",
   "workspace-question-answer",
+  "report-explanation",
+  "grounded-question-answer",
 ] as const;
 
 export type AiFeatureId = (typeof AI_FEATURE_IDS)[number];
@@ -79,6 +89,22 @@ export interface AiFeaturePolicy {
   readonly defaultAllowedCategories: readonly PrivacyCategory[];
   /** Maximum requests of this feature per UTC day, per workspace. */
   readonly dailyRequestLimit: number;
+  /**
+   * V2.14 — true when this feature is grounded by a `FactBlock`.
+   *
+   * A grounded feature MAY run with no retrieved evidence at all (a Report
+   * explanation has none: its facts are the result), and MUST NOT run with an
+   * empty fact block. The runtime reads this field to decide which of those two
+   * refusals applies, so the rule lives in the policy table rather than in a
+   * condition somebody has to remember.
+   */
+  readonly groundedByFacts: boolean;
+  /**
+   * Maximum FACTS one request of this feature may carry. Bounds the prompt, the
+   * budget and what the owner is asked to read beside the answer. Zero for a
+   * feature that is not grounded by facts.
+   */
+  readonly maxFacts: number;
 }
 
 /**
@@ -105,6 +131,8 @@ const POLICIES: Readonly<Record<AiFeatureId, AiFeaturePolicy>> = {
     maxPeriodDays: 0,
     defaultAllowedCategories: GENERAL_ONLY,
     dailyRequestLimit: 40,
+    groundedByFacts: false,
+    maxFacts: 0,
   },
   "note-action-extraction": {
     id: "note-action-extraction",
@@ -123,6 +151,8 @@ const POLICIES: Readonly<Record<AiFeatureId, AiFeaturePolicy>> = {
     maxPeriodDays: 0,
     defaultAllowedCategories: GENERAL_ONLY,
     dailyRequestLimit: 40,
+    groundedByFacts: false,
+    maxFacts: 0,
   },
   "weekly-review-assistant": {
     id: "weekly-review-assistant",
@@ -143,6 +173,10 @@ const POLICIES: Readonly<Record<AiFeatureId, AiFeaturePolicy>> = {
     maxPeriodDays: 31,
     defaultAllowedCategories: GENERAL_ONLY,
     dailyRequestLimit: 12,
+    // V2.14 GROUND-02 — the Review assistant is grounded by the Review's own
+    // fact block AND still cites the records behind it, so it carries both.
+    groundedByFacts: true,
+    maxFacts: 40,
   },
   "workspace-question-answer": {
     id: "workspace-question-answer",
@@ -161,6 +195,57 @@ const POLICIES: Readonly<Record<AiFeatureId, AiFeaturePolicy>> = {
     maxPeriodDays: 400,
     defaultAllowedCategories: GENERAL_ONLY,
     dailyRequestLimit: 30,
+    groundedByFacts: false,
+    maxFacts: 0,
+  },
+  "report-explanation": {
+    id: "report-explanation",
+    label: "Explain this report",
+    tier: "standard",
+    // Read-only, and structurally so: the grounded schema has no field a
+    // proposal could be expressed in. V2.15 owns actions.
+    producesProposals: false,
+    requiresDeliberateConfirmation: false,
+    // A Report explanation retrieves NO record excerpts at all: the facts are
+    // the executed result, so there is nothing to bound here except the facts.
+    maxEvidenceRecords: 0,
+    maxExcerptCharacters: 0,
+    maxTotalEvidenceCharacters: 0,
+    maxExcerptsPerRecord: 0,
+    maxOutputTokens: 1_200,
+    timeoutMs: 45_000,
+    maxOwnerInputCharacters: 0,
+    allowsProviderFallback: true,
+    maxPeriodDays: 1_096,
+    defaultAllowedCategories: GENERAL_ONLY,
+    dailyRequestLimit: 40,
+    groundedByFacts: true,
+    // MAX_REPORT_GROUPS is 24; a block carries the rows, the block totals, the
+    // remainder and the period figures, and 48 covers the largest honest one.
+    maxFacts: 48,
+  },
+  "grounded-question-answer": {
+    id: "grounded-question-answer",
+    label: "Ask DalyHub — grounded comparisons",
+    tier: "standard",
+    producesProposals: false,
+    requiresDeliberateConfirmation: false,
+    maxEvidenceRecords: 0,
+    maxExcerptCharacters: 0,
+    maxTotalEvidenceCharacters: 0,
+    maxExcerptsPerRecord: 0,
+    maxOutputTokens: 1_200,
+    timeoutMs: 45_000,
+    // The owner's question is carried so the answer addresses what was asked;
+    // it never selects the data, which the deterministic parser has already
+    // done before this policy is read.
+    maxOwnerInputCharacters: 400,
+    allowsProviderFallback: true,
+    maxPeriodDays: 1_096,
+    defaultAllowedCategories: GENERAL_ONLY,
+    dailyRequestLimit: 30,
+    groundedByFacts: true,
+    maxFacts: 48,
   },
 };
 

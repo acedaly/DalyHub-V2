@@ -1,5 +1,5 @@
 /**
- * AI-01 — the single AI request route.
+ * AI-01 / V2.14 GROUND-03 — the single AI request route.
  *
  * Every AI capability enters here, by naming a FEATURE. There is no route that
  * takes a prompt, a model, a provider, a URL or a token; there is no route that
@@ -15,28 +15,66 @@
  *   - no provider error, payload, endpoint or credential can cross the boundary.
  *
  * This route NEVER writes DalyHub data. Accepting a proposal is `apply.tsx`.
+ *
+ * ## What V2.14 added, and the rule it obeys
+ *
+ * Three grounded paths — a Report explanation, a grounded Ask, and the Weekly
+ * Review — assemble a `FactBlock` here. In every one of them the ORDER is the
+ * guarantee:
+ *
+ *     owner action → deterministic resolution → canonical reads → FactBlock →
+ *     provider → validation against that same block
+ *
+ * The browser supplies an intent-shaped request and, for a Report, an
+ * IDENTITY (the hash of the block it is looking at). It never supplies a
+ * figure, a label, a title or a fact: a figure that came from a browser is not
+ * a fact, and the one thing the client sends about the numbers on its screen is
+ * whether they are still the same numbers.
  */
 
 import { env } from "cloudflare:workers";
 
-import { aiFeaturePolicy, isAiFeatureId, type AiFeatureId } from "~/kernel/ai";
+import {
+  aiFeaturePolicy,
+  identifyFactBlock,
+  isAiFeatureId,
+  AiError,
+  type AiFeatureId,
+  type FactBlock,
+} from "~/kernel/ai";
+import {
+  parseReportDefinition,
+  reportQuestion,
+  findBuiltInReport,
+  serialiseReportDefinition,
+  type ReportConfig,
+} from "~/kernel/reports";
 import {
   answerDeterministically,
+  buildGroundedFacts,
   classifyDeterministicIntent,
+  reportFactBlock,
+  resolveAiConfiguration,
+  resolveAiContext,
+  resolveGroundedAskIntent,
   retrieveAnswerEvidence,
   retrieveMeetingEvidence,
   retrieveNoteEvidence,
-  retrieveWeeklyReviewEvidence,
-  resolveAiContext,
   runAiRequest,
   serializeCitations,
+  EMPTY_CANDIDATES,
+  type RetrievalResult,
 } from "~/platform/ai";
+import { runReport } from "~/platform/reports/report-execution.server";
 import { requireAuthenticatedSession } from "~/platform/request";
-import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
+import {
+  resolveAuthenticatedWorkspaceScope,
+  type WorkspaceScope,
+} from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
 
 import { aiErrorResponse, aiJson } from "../ai-request";
-import { computeWeeklyReviewFacts } from "../review-facts";
+import { buildReviewFactBlock } from "../review-facts";
 import type { Route } from "./+types/assist";
 
 /*
@@ -52,8 +90,21 @@ interface AssistBody {
   readonly feature: AiFeatureId;
   readonly recordId?: string;
   readonly question?: string;
+  /** V2.14 — the serialised Report definition, parsed by the kernel's own codec. */
+  readonly definition?: string;
+  /** V2.14 — the built-in or saved report id, for the title and the link back. */
+  readonly reportId?: string;
+  /** V2.14 — the identity of the FactBlock the browser is looking at. */
+  readonly factBlockHash?: string;
   readonly idempotencyKey: string;
   readonly deep?: boolean;
+  /**
+   * V2.14 GROUND-00 — which deterministic behaviour the DEVELOPMENT provider
+   * should produce. Read only where the development provider is enabled, which
+   * requires a development or test `ENVIRONMENT`; in production the field is
+   * discarded before it reaches anything.
+   */
+  readonly scenario?: string;
 }
 
 /** Parse and bound the request. Never trusts a field it did not ask for. */
@@ -65,32 +116,157 @@ function parseBody(form: FormData): AssistBody | null {
   const recordId = String(form.get("recordId") ?? "").slice(0, 100);
   const question = String(form.get("question") ?? "").slice(
     0,
-    aiFeaturePolicy(feature).maxOwnerInputCharacters,
+    Math.max(aiFeaturePolicy(feature).maxOwnerInputCharacters, 400),
   );
+  const definition = String(form.get("definition") ?? "").slice(0, 4_000);
+  const reportId = String(form.get("reportId") ?? "").slice(0, 128);
+  const hash = String(form.get("factBlockHash") ?? "").slice(0, 128);
+  const scenario = String(form.get("scenario") ?? "").slice(0, 64);
   return {
     feature,
     recordId: recordId.length > 0 ? recordId : undefined,
     question: question.length > 0 ? question : undefined,
+    definition: definition.length > 0 ? definition : undefined,
+    reportId: reportId.length > 0 ? reportId : undefined,
+    factBlockHash: hash.length > 0 ? hash : undefined,
     idempotencyKey,
     // Deep analysis is only ever a deliberate, explicit flag on an owner action.
     deep: String(form.get("deep") ?? "") === "1",
+    scenario: scenario.length > 0 ? scenario : undefined,
   };
 }
 
+/** What a feature's assembly step produces: evidence, candidates, and facts. */
+interface Assembled extends RetrievalResult {
+  readonly factBlock?: FactBlock;
+  /** Set when DalyHub resolved the question into a different, grounded feature. */
+  readonly featureOverride?: AiFeatureId;
+  /** Deterministic assumptions the owner is told about, never hidden. */
+  readonly assumptions?: readonly string[];
+}
+
+/** An empty retrieval — the shape a fact-grounded feature uses. */
+function factsOnly(
+  factBlock: FactBlock,
+  extra: Partial<Assembled> = {},
+): Assembled {
+  return {
+    evidence: {
+      items: [],
+      truncated: false,
+      consideredCount: 0,
+      sensitiveCategories: [],
+      excludedCategories: [],
+      totalCharacters: 0,
+    },
+    candidates: EMPTY_CANDIDATES,
+    derivedFacts: "",
+    factBlock,
+    ...extra,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Report explanation                                                          */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Assemble the evidence for one feature. Each branch reads through DalyHub's own
- * repositories; none of them is reachable by a model, and none of them accepts a
- * query the browser wrote.
+ * Build the facts for one Report, from a fresh execution of its definition.
+ *
+ * Two things are deliberately NOT done here. The browser's figures are not
+ * trusted — it sends the definition and a hash, never a value. And the block is
+ * not built from a cached result — it is built from an execution taken now, and
+ * then CHECKED against the hash the browser holds, so an explanation is never
+ * paired with numbers it was not written about. A mismatch is `result_stale`,
+ * which the surface renders as "the figures changed; run it again".
+ */
+async function reportAssembly(
+  scope: WorkspaceScope,
+  body: AssistBody,
+  todayIso: string,
+  timeZone: string,
+  hiddenModuleIds: readonly string[],
+): Promise<Assembled> {
+  if (body.definition === undefined) {
+    throw new AiError("internal", undefined, "definition_missing");
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(body.definition);
+  } catch {
+    throw new AiError("internal", undefined, "definition_malformed");
+  }
+  const parsed = parseReportDefinition(raw);
+  if (!parsed.ok) {
+    throw new AiError(
+      "evidence_unavailable",
+      undefined,
+      "definition_unreadable",
+    );
+  }
+  const config: ReportConfig = parsed.config;
+
+  const execution = await runReport(config, {
+    scope,
+    todayIso,
+    timeZone,
+    hiddenModuleIds,
+  });
+  if (!execution.ok) {
+    throw new AiError("evidence_unavailable", undefined, "report_refused");
+  }
+
+  const builtIn =
+    body.reportId === undefined ? null : findBuiltInReport(body.reportId);
+  const href =
+    body.reportId === undefined
+      ? `/reports/view?${new URLSearchParams({
+          d: serialiseReportDefinition({ ok: true, config }),
+        }).toString()}`
+      : `/reports/${body.reportId}`;
+
+  const block = await identifyFactBlock(
+    reportFactBlock({
+      result: execution.result,
+      // The title and the question come from the SERVER — the built-in's own
+      // words, or the vocabulary's — never from the browser. Owner-authored
+      // report titles reach the block only through the row labels the executor
+      // produced, where they are sanitised as data like every other label.
+      title: builtIn?.title ?? reportQuestion(config),
+      question: builtIn?.question ?? reportQuestion(config),
+      href,
+      maxFacts: aiFeaturePolicy("report-explanation").maxFacts,
+    }),
+  );
+
+  if (body.factBlockHash !== undefined && body.factBlockHash !== block.id) {
+    throw new AiError("result_stale", undefined, "fact_block_changed");
+  }
+
+  return factsOnly(block);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Assembly                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Assemble what one feature is allowed to send. Each branch reads through
+ * DalyHub's own repositories; none of them is reachable by a model, and none of
+ * them accepts a query the browser wrote.
  */
 async function retrieveFor(
-  scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>,
+  scope: WorkspaceScope,
   ownerId: string,
   body: AssistBody,
   ai: Awaited<ReturnType<typeof resolveAiContext>>,
-) {
+): Promise<Assembled> {
   // HARDEN-06C (F-14) — ONE preference read for the whole branch, so every
   // cited date is the OWNER's date rather than the runtime's UTC day.
-  const { timezone } = await scope.appPreferences.get(ownerId);
+  const preferences = await scope.appPreferences.get(ownerId);
+  const { timezone } = preferences;
+  const todayIso = ownerCalendarIso(new Date(), timezone);
+
   switch (body.feature) {
     case "meeting-action-extraction":
       return retrieveMeetingEvidence(
@@ -111,29 +287,68 @@ async function retrieveFor(
     case "weekly-review-assistant": {
       const review = await scope.reviews.get(body.recordId ?? "");
       if (!review) throw new Response("Not Found", { status: 404 });
-      const todayIso = ownerCalendarIso(new Date(), timezone);
-      const facts = await computeWeeklyReviewFacts(
-        scope,
-        review.periodStart,
-        review.periodEnd,
+      const { block } = await buildReviewFactBlock(scope, {
+        reviewId: review.id,
+        periodStart: review.periodStart,
+        periodEnd: review.periodEnd,
         todayIso,
         timezone,
-      );
-      return retrieveWeeklyReviewEvidence(
-        scope,
-        facts,
-        ai.limits,
-        ai.allowedCategories,
-      );
+        firstDayOfWeek: preferences.firstDayOfWeek,
+      });
+      return factsOnly(await identifyFactBlock(block));
     }
-    case "workspace-question-answer":
+    case "report-explanation":
+      return reportAssembly(
+        scope,
+        body,
+        todayIso,
+        timezone,
+        preferences.navigation.hiddenModuleIds,
+      );
+    case "grounded-question-answer":
+    case "workspace-question-answer": {
+      const question = body.question ?? "";
+      /*
+       * The deterministic parser decides, before any repository is touched,
+       * whether this is one of the four GROUNDED questions. If it is, DalyHub
+       * resolves it into facts and the feature is upgraded; if it is not, the
+       * evidence-backed Ask that has shipped since AI-01 answers it unchanged.
+       *
+       * A model is never asked which of these to use, and never sees the
+       * question until the choice has already been made.
+       */
+      const resolved = resolveGroundedAskIntent(question, todayIso);
+      if (resolved !== null) {
+        const block = await buildGroundedFacts(resolved, {
+          scope,
+          todayIso,
+          timeZone: timezone,
+          hiddenModuleIds: preferences.navigation.hiddenModuleIds,
+          question,
+        });
+        return factsOnly(await identifyFactBlock(block), {
+          featureOverride: "grounded-question-answer",
+          assumptions: resolved.assumptions,
+        });
+      }
+      if (body.feature === "grounded-question-answer") {
+        // The client asked for a grounded answer to a question the parser does
+        // not recognise. Refusing is the honest outcome; the surface says what
+        // Ask can do rather than answering something else.
+        throw new AiError(
+          "evidence_unavailable",
+          undefined,
+          "intent_unsupported",
+        );
+      }
       return retrieveAnswerEvidence(
         scope,
-        body.question ?? "",
+        question,
         ai.limits,
         ai.allowedCategories,
         timezone,
       );
+    }
   }
 }
 
@@ -156,7 +371,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   try {
     const ai = await resolveAiContext(scope, ownerId, body.feature, env);
-    const policy = aiFeaturePolicy(body.feature);
 
     // Ask DalyHub answers deterministically wherever it can. A count is a count:
     // it is read from repositories, cited, and no provider is contacted.
@@ -173,25 +387,43 @@ export async function action({ request, context }: Route.ActionArgs) {
           preferences.timezone,
         );
         if (answer !== null) {
-          return aiJson({
-            ok: true,
-            source: "deterministic",
-            answer,
-          });
+          return aiJson({ ok: true, source: "deterministic", answer });
         }
       }
     }
 
     const retrieval = await retrieveFor(scope, ownerId, body, ai);
+    const feature = retrieval.featureOverride ?? body.feature;
+    const policy = aiFeaturePolicy(feature);
+
+    /*
+     * A grounded question resolved into a DIFFERENT feature, so its context —
+     * budget period, allowed-feature check, evidence limits — must be the one
+     * that feature declares rather than the one the request named.
+     */
+    const effective =
+      feature === body.feature
+        ? ai
+        : await resolveAiContext(scope, ownerId, feature, env);
 
     const outcome = await runAiRequest({
-      featureId: body.feature,
+      featureId: feature,
       ownerId,
-      preferences: ai.preferences,
-      configuration: ai.configuration,
+      preferences: effective.preferences,
+      /*
+       * GROUND-00 — the development provider's behaviour is chosen here, and
+       * only here. `fakeScenario` is inert unless `AI_FAKE_PROVIDER=1` AND the
+       * `ENVIRONMENT` is development or test, so in production this is exactly
+       * `effective.configuration` and the field is discarded before it reaches
+       * anything that could act on it.
+       */
+      configuration: resolveAiConfiguration(env, {
+        fakeScenario: body.scenario,
+      }),
       usage: scope.aiUsage,
       evidence: retrieval.evidence,
       candidates: retrieval.candidates,
+      factBlock: retrieval.factBlock,
       derivedFacts: retrieval.derivedFacts,
       ownerInput:
         policy.maxOwnerInputCharacters > 0 ? body.question : undefined,
@@ -203,15 +435,23 @@ export async function action({ request, context }: Route.ActionArgs) {
     return aiJson({
       ok: true,
       source: "ai",
+      feature,
       usageId: outcome.usageId,
       result: outcome.result,
       detail: outcome.detail,
       citations: serializeCitations(retrieval.evidence),
       candidates: retrieval.candidates,
+      // The facts are returned so the surface can render them BESIDE the prose,
+      // resolve a citation to a chip, and stay useful when the explanation
+      // itself is refused or unavailable.
+      facts: retrieval.factBlock ?? null,
+      assumptions: retrieval.assumptions ?? [],
       disclosure: {
         recordCount: retrieval.evidence.items.length,
         truncated: retrieval.evidence.truncated,
         excludedCategories: retrieval.evidence.excludedCategories,
+        factCount: retrieval.factBlock?.facts.length ?? 0,
+        factsTruncated: retrieval.factBlock?.truncated ?? false,
       },
     });
   } catch (cause) {

@@ -19,6 +19,7 @@
 
 import { AiError } from "./ai-errors";
 import type { AiFeatureId } from "./ai-features";
+import { checkNumericGrounding, type Fact } from "./fact-block";
 
 /** Confidence values a model may attach to an extracted item. */
 export const CONFIDENCE_LEVELS = ["high", "medium", "low"] as const;
@@ -60,6 +61,14 @@ export const COUNTS = {
   proposedPriorities: 3,
   uncertainties: 4,
   answerStatements: 8,
+  /**
+   * V2.14 — observations in a grounded explanation. Six is already more than a
+   * report or a comparison honestly supports; DalyHub is not asking for an
+   * essay, and a bounded output is a bounded cost.
+   */
+  observations: 6,
+  /** V2.14 — grounded reflection questions in a Weekly Review answer. */
+  reflectionQuestions: 3,
   /**
    * AI-02 — at most four proposed Notes per Meeting extraction. One durable
    * summary, one decision record and one open-questions note is already the
@@ -247,6 +256,16 @@ export interface WeeklyReviewAssistantResult {
   readonly patterns: readonly ObservedPattern[];
   readonly proposedNextWeekPriorities: readonly CitedStatement[];
   readonly uncertainties: readonly string[];
+  /**
+   * V2.14 GROUND-02 — neutral questions worth reflecting on, each cited.
+   *
+   * A question asserts nothing on its own, but it can still smuggle a figure
+   * ("was there a reason for the $4,000 month?"), so it is grounded exactly as
+   * a statement is. The prompt's one rule about tone is enforced by the prompt
+   * rather than by the validator: a validator cannot tell reproach from
+   * curiosity, and pretending otherwise would be theatre.
+   */
+  readonly reflectionQuestions: readonly CitedStatement[];
 }
 
 /** One statement in an Ask DalyHub answer, with its citations. */
@@ -266,12 +285,46 @@ export interface WorkspaceAnswerResult {
   readonly uncertainties: readonly string[];
 }
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* V2.14 — the grounded explanation contract                                  */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * One observation about a FactBlock, and the facts behind it.
+ *
+ * Note what this shape does NOT have: a number, an amount, a currency, a
+ * percentage, a delta, a date field, a record id, a URL or a title. A grounded
+ * answer is prose plus citations; every figure the owner reads beside it is
+ * rendered by DalyHub from the `Fact` the observation cites. A schema with a
+ * number field is a schema that invites a number.
+ */
+export interface GroundedObservation {
+  readonly text: string;
+  /** Never empty — an uncited observation is refused, not dropped. */
+  readonly factIds: readonly string[];
+}
+
+/**
+ * The validated result of a grounded explanation.
+ *
+ * `insufficient` is a SUCCESSFUL answer: "I don't have enough recorded history
+ * to explain why that changed" is the correct response more often than a
+ * confident one, and the facts stay on screen either way.
+ */
+export interface GroundedExplanationResult {
+  readonly kind: "grounded_explanation";
+  readonly status: "ok" | "insufficient";
+  readonly summary: string;
+  readonly observations: readonly GroundedObservation[];
+}
+
 /** The union every validated AI result belongs to. */
 export type AiResult =
   | ActionExtractionResult
   | MeetingExtractionResult
   | WeeklyReviewAssistantResult
-  | WorkspaceAnswerResult;
+  | WorkspaceAnswerResult
+  | GroundedExplanationResult;
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* JSON Schemas sent to the provider                                          */
@@ -442,6 +495,13 @@ export const WEEKLY_REVIEW_SCHEMA: JsonSchema = object({
     maxItems: COUNTS.uncertainties,
     items: { type: "string" },
   },
+  reflectionQuestions: {
+    type: "array",
+    maxItems: COUNTS.reflectionQuestions,
+    description:
+      "Neutral questions worth thinking about, each citing what prompted it.",
+    items: object({ text: { type: "string" }, evidenceIds: evidenceIdsSchema }),
+  },
 });
 
 /** The schema for Ask DalyHub. */
@@ -467,6 +527,37 @@ export const WORKSPACE_ANSWER_SCHEMA: JsonSchema = object({
   },
 });
 
+/**
+ * V2.14 — the schema for a grounded explanation.
+ *
+ * The citation array is named `factIds` rather than `evidenceIds` so the two
+ * namespaces are visibly separate in the request the provider receives, and so
+ * a model that has been asked for facts cannot answer with record excerpts it
+ * was not given.
+ */
+export const GROUNDED_EXPLANATION_SCHEMA: JsonSchema = object({
+  status: { type: "string", enum: ["ok", "insufficient"] },
+  summary: {
+    type: "string",
+    description:
+      "One or two plain sentences describing what the supplied facts show. No advice, no score, no judgement.",
+  },
+  observations: {
+    type: "array",
+    maxItems: COUNTS.observations,
+    items: object({
+      text: { type: "string" },
+      factIds: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: COUNTS.evidenceIdsPerItem,
+        description:
+          "Fact ids copied exactly from the supplied facts, e.g. F1. Never invent one.",
+      },
+    }),
+  },
+});
+
 /** The schema a feature sends to the provider. */
 export function schemaForFeature(feature: AiFeatureId): JsonSchema {
   switch (feature) {
@@ -478,6 +569,9 @@ export function schemaForFeature(feature: AiFeatureId): JsonSchema {
       return WEEKLY_REVIEW_SCHEMA;
     case "workspace-question-answer":
       return WORKSPACE_ANSWER_SCHEMA;
+    case "report-explanation":
+    case "grounded-question-answer":
+      return GROUNDED_EXPLANATION_SCHEMA;
   }
 }
 
@@ -495,6 +589,16 @@ export interface ValidationContext {
   readonly personCandidateIds: ReadonlySet<string>;
   /** EntityLink target ids offered as candidates. */
   readonly linkCandidateIds: ReadonlySet<string>;
+  /**
+   * V2.14 — the FACTS supplied this request, in a citation namespace of their
+   * own (`F1`, never `evidence_01`). Empty for a feature that supplies none, in
+   * which case every rule below behaves exactly as it did before V2.14.
+   *
+   * The facts themselves, not just their ids, because the numeric validator
+   * needs the values: a citation proves the model named a fact DalyHub
+   * supplied, and only the fact's own value proves the FIGURE came from it.
+   */
+  readonly facts: readonly Fact[];
 }
 
 /** An empty context — nothing may be referenced. */
@@ -503,7 +607,45 @@ export const EMPTY_VALIDATION_CONTEXT: ValidationContext = {
   projectCandidateIds: new Set(),
   personCandidateIds: new Set(),
   linkCandidateIds: new Set(),
+  facts: [],
 };
+
+/** The facts a validated citation list names, in the order they were cited. */
+function citedFacts(
+  ids: readonly string[],
+  context: ValidationContext,
+): readonly Fact[] {
+  return context.facts.filter((fact) => ids.includes(fact.id));
+}
+
+/**
+ * Refuse a claim carrying a figure DalyHub did not supply.
+ *
+ * This is the second half of the grounding guarantee. The first half is
+ * structural — a grounded response schema has no numeric field, so the figures
+ * the owner reads are rendered by DalyHub from the facts. This half catches the
+ * prose: a model that writes a number into a sentence must have taken it from a
+ * fact it was given, and an answer that does otherwise is refused whole rather
+ * than rendered with one sentence quietly deleted.
+ */
+function requireGroundedFigures(
+  text: string,
+  facts: readonly Fact[],
+  what: string,
+): void {
+  // A request that supplied no facts is a pre-V2.14 evidence-backed feature,
+  // whose figures are grounded by the excerpts it cites rather than by a block.
+  // Applying the numeric rule there would refuse every honest count. The
+  // grounded contract refuses an empty block outright instead, below.
+  if (facts.length === 0) return;
+  const result = checkNumericGrounding(text, facts);
+  if (result.grounded) return;
+  throw invalid(
+    result.ungroundedToken !== null
+      ? `${what}:ungrounded_figure`
+      : `${what}:ungrounded_comparison`,
+  );
+}
 
 /** Raised when a model answer is unacceptable. Always a `provider_response_invalid`. */
 function invalid(reason: string): AiError {
@@ -574,20 +716,32 @@ function requireEnum<T extends string>(
 /**
  * Validate a citation list. Every id must be one DalyHub actually supplied —
  * this is the rule that makes a fabricated citation impossible to render.
+ *
+ * V2.14 widened the accepted namespace, not the rule: a citation may name an
+ * EVIDENCE id (`evidence_01`) or a FACT id (`F1`), and both sets are DalyHub's
+ * own. The two namespaces cannot collide by construction, so an id is
+ * unambiguously one or the other and an id from neither is still refused.
  */
-function requireEvidenceIds(
+function requireCitationIds(
   source: Record<string, unknown>,
   context: ValidationContext,
+  key = "evidenceIds",
 ): readonly string[] {
-  const raw = requireArray(source, "evidenceIds", COUNTS.evidenceIdsPerItem);
+  const raw = requireArray(source, key, COUNTS.evidenceIdsPerItem);
   const ids: string[] = [];
   for (const value of raw) {
-    if (typeof value !== "string") throw invalid("evidenceIds:not_string");
-    if (!context.evidenceIds.has(value)) throw invalid("evidenceIds:unknown");
+    if (typeof value !== "string") throw invalid(`${key}:not_string`);
+    const known =
+      context.evidenceIds.has(value) ||
+      context.facts.some((fact) => fact.id === value);
+    if (!known) throw invalid(`${key}:unknown`);
     if (!ids.includes(value)) ids.push(value);
   }
   return ids;
 }
+
+/** The pre-V2.14 name, kept so the extraction validators read unchanged. */
+const requireEvidenceIds = requireCitationIds;
 
 /**
  * Reject an object carrying a property DalyHub did not ask for.
@@ -829,23 +983,39 @@ export function validateMeetingExtraction(
   return { kind: "meeting_extraction", ...core, proposedNotes };
 }
 
-/** Validate a Weekly Review assistant answer. */
+/**
+ * Validate a Weekly Review assistant answer.
+ *
+ * V2.14 — when the request supplied a FactBlock (which, after GROUND-02, it
+ * always does), every figure in every sentence must be traceable to one of
+ * those facts. The Review's statements cite RECORDS as well as facts, so the
+ * numeric check is run against the whole block rather than against one
+ * statement's own citations: the assistant is describing a period, and a
+ * period's figures are the block's.
+ */
 export function validateWeeklyReviewAssistant(
   raw: unknown,
   context: ValidationContext,
 ): WeeklyReviewAssistantResult {
   const source = asRecord(raw, "result");
+  const grounded = (text: string, what: string): string => {
+    requireGroundedFigures(text, context.facts, what);
+    return text;
+  };
   const cited = (entry: unknown, what: string): CitedStatement => {
     const item = asRecord(entry, what);
     return {
-      text: requireString(item, "text", LIMITS.line),
+      text: grounded(requireString(item, "text", LIMITS.line), what),
       evidenceIds: requireEvidenceIds(item, context),
     };
   };
 
   return {
     kind: "weekly_review_assistant",
-    overview: requireString(source, "overview", LIMITS.overview),
+    overview: grounded(
+      requireString(source, "overview", LIMITS.overview),
+      "overview",
+    ),
     notableProgress: requireArray(
       source,
       "notableProgress",
@@ -858,15 +1028,21 @@ export function validateWeeklyReviewAssistant(
     ).map((entry) => {
       const item = asRecord(entry, "attentionItem");
       return {
-        text: requireString(item, "text", LIMITS.line),
-        reason: requireString(item, "reason", LIMITS.reason),
+        text: grounded(
+          requireString(item, "text", LIMITS.line),
+          "attentionItem",
+        ),
+        reason: grounded(
+          requireString(item, "reason", LIMITS.reason),
+          "attentionItem.reason",
+        ),
         evidenceIds: requireEvidenceIds(item, context),
       } satisfies AttentionItem;
     }),
     patterns: requireArray(source, "patterns", COUNTS.patterns).map((entry) => {
       const item = asRecord(entry, "pattern");
       return {
-        text: requireString(item, "text", LIMITS.line),
+        text: grounded(requireString(item, "text", LIMITS.line), "pattern"),
         evidenceIds: requireEvidenceIds(item, context),
         classification: requireEnum(
           item,
@@ -889,8 +1065,13 @@ export function validateWeeklyReviewAssistant(
       const trimmed = entry.trim();
       if (trimmed.length === 0) throw invalid("uncertainties:empty");
       if (trimmed.length > LIMITS.line) throw invalid("uncertainties:too_long");
-      return trimmed;
+      return grounded(trimmed, "uncertainty");
     }),
+    reflectionQuestions: requireArray(
+      source,
+      "reflectionQuestions",
+      COUNTS.reflectionQuestions,
+    ).map((entry) => cited(entry, "reflectionQuestion")),
   };
 }
 
@@ -958,6 +1139,68 @@ export function validateWorkspaceAnswer(
   };
 }
 
+/** The keys a grounded explanation may carry, and nothing else. */
+const GROUNDED_KEYS = ["status", "summary", "observations"] as const;
+
+/**
+ * V2.14 — validate a grounded explanation against the facts behind it.
+ *
+ * Five refusals, each of them the point rather than a defensive habit:
+ *
+ *   1. an unknown property means the answer is not the shape asked for;
+ *   2. an observation citing nothing is refused, not silently dropped — an
+ *      uncited claim rendered beside cited ones is the failure citations exist
+ *      to prevent;
+ *   3. a citation of an id DalyHub did not supply is refused;
+ *   4. a figure in an observation that its OWN cited facts do not license is
+ *      refused — citing F1 and then quoting F7's number is not grounding;
+ *   5. a figure in the summary or a question that NO supplied fact licenses is
+ *      refused, because those carry no citations of their own.
+ *
+ * `status: "insufficient"` with no observations is a legitimate, successful
+ * answer and is accepted as one. `status: "ok"` with nothing behind it is not.
+ */
+export function validateGroundedExplanation(
+  raw: unknown,
+  context: ValidationContext,
+): GroundedExplanationResult {
+  const source = asRecord(raw, "result");
+  requireExactKeys(source, GROUNDED_KEYS, "groundedExplanation");
+  if (context.facts.length === 0) {
+    // A grounded explanation with no facts behind it has nothing to be grounded
+    // BY. The runtime refuses this before a provider is contacted; refusing it
+    // here too means the guarantee does not depend on the caller.
+    throw invalid("groundedExplanation:no_facts");
+  }
+
+  const status = requireEnum(source, "status", ["ok", "insufficient"] as const);
+  const summary = requireString(source, "summary", LIMITS.summary);
+
+  const observations = requireArray(
+    source,
+    "observations",
+    COUNTS.observations,
+  ).map((entry) => {
+    const item = asRecord(entry, "observation");
+    requireExactKeys(item, ["text", "factIds"], "observation");
+    const factIds = requireCitationIds(item, context, "factIds");
+    if (factIds.length === 0) throw invalid("observation:uncited");
+    const text = requireString(item, "text", LIMITS.line);
+    if (HTML_TAG.test(text)) throw invalid("observation:html_not_allowed");
+    requireGroundedFigures(text, citedFacts(factIds, context), "observation");
+    return { text, factIds } satisfies GroundedObservation;
+  });
+
+  if (status === "ok" && observations.length === 0) {
+    throw invalid("groundedExplanation:no_observations");
+  }
+
+  if (HTML_TAG.test(summary)) throw invalid("summary:html_not_allowed");
+  requireGroundedFigures(summary, context.facts, "summary");
+
+  return { kind: "grounded_explanation", status, summary, observations };
+}
+
 /** Validate whatever a feature produced. Throws a typed `AiError` on refusal. */
 export function validateFeatureResult(
   feature: AiFeatureId,
@@ -973,5 +1216,8 @@ export function validateFeatureResult(
       return validateWeeklyReviewAssistant(raw, context);
     case "workspace-question-answer":
       return validateWorkspaceAnswer(raw, context);
+    case "report-explanation":
+    case "grounded-question-answer":
+      return validateGroundedExplanation(raw, context);
   }
 }
