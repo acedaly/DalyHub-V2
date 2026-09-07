@@ -457,6 +457,7 @@
 
 .dh-ai-fact {
   display: inline-flex;
+  max-width: 100%;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--app-space-2);
@@ -496,6 +497,15 @@
   flex-wrap: wrap;
   gap: var(--app-space-2);
   min-width: 0;
+}
+
+/* A chip is as wide as it needs to be and never wider than the column. At 320px
+ * a category name and a formatted amount do not fit on one line, so the chip
+ * wraps rather than pushing the page sideways. */
+.dh-ai-facts__inline > li,
+.dh-ai-facts__list > li {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .dh-ai-facts__list {
@@ -563,6 +573,13 @@
   gap: var(--app-space-3);
 }
 
+/* The Explain control is a real target at every width, on the same rule the
+ * Review assistant's actions already follow: a control the owner reaches for on
+ * a phone is floored to the WCAG minimum regardless of the density preset. */
+.dh-report-explain__actions .dh-btn {
+  min-height: var(--app-touch-target-min);
+}
+
 /* ── Ask DalyHub's example questions ───────────────────────────────────────── */
 
 .dh-ask__examples {
@@ -572,4 +589,20 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--app-space-2);
+  min-width: 0;
+}
+
+/* An example is a whole question, not a word. It wraps onto as many lines as it
+ * needs at 320px; a nowrap button here would be the page's only horizontal
+ * scroll. */
+.dh-ask__examples > li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dh-ask__examples .dh-btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: start;
+  overflow-wrap: anywhere;
 }

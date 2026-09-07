@@ -26,10 +26,20 @@ import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createActivityActorContext } from "~/kernel/activity";
+import {
+  buildFactBlock,
+  identifyFactBlock,
+  type AiPreferences,
+} from "~/kernel/ai";
 import type { Review } from "~/kernel/reviews";
 import { buildReviewFactBlock } from "~/modules/ai/review-facts";
 import { loadReviewGuideStepData } from "~/modules/reviews/guided/review-guide-context";
-import { buildGroundedFacts } from "~/platform/ai";
+import {
+  EMPTY_CANDIDATES,
+  buildGroundedFacts,
+  resolveAiConfiguration,
+  runAiRequest,
+} from "~/platform/ai";
 import {
   bindWorkspaceRepositories,
   type WorkspaceScope,
@@ -531,5 +541,216 @@ describe("the block costs the same whatever the workspace holds", () => {
     );
 
     expect(many.count).toBe(few.count);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The gateway, end to end                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The development provider through the REAL runtime, against real D1.
+ *
+ * This is what GROUND-00 exists to make possible, and it is deliberately here
+ * rather than in the browser suite. `e2e/ai-assistance.spec.ts` records the
+ * reason and it still holds: the off-state journeys assert that the local
+ * development server has NO provider, and enabling one globally on that server
+ * would make those assertions measure a fixture instead of the product. So the
+ * provider path is proven where every layer of it is real except the network —
+ * preference gate, feature policy, fact bounds, token estimate, budget
+ * reservation, the `ai_usage_requests` row, schema validation, citation
+ * validation, numeric grounding, reconciliation and release — and the browser
+ * suite goes on proving the off state it was written to prove.
+ */
+describe("the development provider drives the real gateway", () => {
+  const CONFIGURED = { AI_FAKE_PROVIDER: "1", ENVIRONMENT: "test" } as const;
+
+  /**
+   * One ledger row, read straight out of D1 by its idempotency key.
+   *
+   * Deliberately raw rather than through the repository: what is under test is
+   * what was WRITTEN, and a projection could hide a column. Every assertion
+   * over it is about metadata — a state, a code, a token count — and the
+   * privacy assertion is over the serialised row exactly because a column name
+   * is not the claim.
+   */
+  async function ledgerRow(
+    key: string,
+  ): Promise<Record<string, unknown> | null> {
+    return env.DB.prepare(
+      "SELECT * FROM ai_usage_requests WHERE idempotency_key = ?",
+    )
+      .bind(key)
+      .first();
+  }
+
+  async function enableAi(scope: WorkspaceScope): Promise<AiPreferences> {
+    const { preferences } = await scope.aiPreferences.update("owner-1", {
+      enabled: true,
+    });
+    return preferences;
+  }
+
+  async function explain(
+    scope: WorkspaceScope,
+    block: Awaited<ReturnType<typeof buildReviewFactBlock>>["block"],
+    options: { readonly scenario?: string; readonly key?: string } = {},
+  ) {
+    return runAiRequest({
+      featureId: "report-explanation",
+      ownerId: "owner-1",
+      preferences: await enableAi(scope),
+      configuration: resolveAiConfiguration(CONFIGURED, {
+        fakeScenario: options.scenario,
+      }),
+      usage: scope.aiUsage,
+      evidence: {
+        items: [],
+        truncated: false,
+        consideredCount: 0,
+        sensitiveCategories: [],
+        excludedCategories: [],
+        totalCharacters: 0,
+      },
+      candidates: EMPTY_CANDIDATES,
+      factBlock: block,
+      derivedFacts: "",
+      idempotencyKey: options.key ?? `e2e-${Date.now()}-${Math.random()}`,
+      now: NOW,
+    });
+  }
+
+  async function reviewBlock(scope: WorkspaceScope) {
+    await seed(WS, { projects: 2, goals: 2 });
+    const review = await weeklyReview();
+    const { block } = await buildReviewFactBlock(scope, reviewInput(review));
+    return identifyFactBlock(block);
+  }
+
+  it("answers, validates, and writes ONE metadata-only ledger row", async () => {
+    const scope = scopeFor();
+    const block = await reviewBlock(scope);
+
+    const outcome = await explain(scope, block, { key: "kernel-explain-ok" });
+    expect(outcome.result.kind).toBe("grounded_explanation");
+    expect(outcome.detail.factCount).toBe(block.facts.length);
+    expect(outcome.detail.factBlockId).toBe(block.id);
+
+    const row = await scope.aiUsage.get(outcome.usageId);
+    expect(row?.state).toBe("succeeded");
+    expect(row?.featureId).toBe("report-explanation");
+    expect(row?.inputTokens).toBeGreaterThan(0);
+
+    /*
+     * Metadata only. The ledger row is serialised whole and searched for the
+     * things a fact carries — a figure, a label, a currency — because the
+     * privacy claim is about what is STORED, not about what a column is called.
+     */
+    const stored = JSON.stringify(row);
+    for (const label of block.facts.map((fact) => fact.label)) {
+      expect(stored).not.toContain(label);
+    }
+    for (const display of block.facts.map((fact) => fact.display)) {
+      if (display.length < 3) continue;
+      expect(stored).not.toContain(display);
+    }
+  });
+
+  it("refuses a fabricated figure and records the failure honestly", async () => {
+    const scope = scopeFor();
+    const block = await reviewBlock(scope);
+
+    await expect(
+      explain(scope, block, {
+        scenario: "fabricated_figure",
+        key: "kernel-explain-fabricated",
+      }),
+    ).rejects.toMatchObject({ code: "provider_response_invalid" });
+
+    const failed = await ledgerRow("kernel-explain-fabricated");
+    expect(failed?.state).toBe("failed");
+    expect(failed?.failure_code).toBe("provider_response_invalid");
+    /*
+     * The provider PERFORMED the work, so the tokens are owed whether or not
+     * DalyHub liked the answer. Releasing the whole reservation here would make
+     * repeated invalid answers free in the budget and expensive in the owner's
+     * account, which is the one thing the budget must never get wrong.
+     */
+    expect(failed?.input_tokens).toBeGreaterThan(0);
+  });
+
+  it("refuses a citation of a fact it was never given", async () => {
+    const scope = scopeFor();
+    const block = await reviewBlock(scope);
+    await expect(
+      explain(scope, block, {
+        scenario: "unknown_fact",
+        key: "kernel-explain-unknown",
+      }),
+    ).rejects.toMatchObject({ code: "provider_response_invalid" });
+  });
+
+  it("releases the whole reservation when the provider performed nothing", async () => {
+    const scope = scopeFor();
+    const block = await reviewBlock(scope);
+    await expect(
+      explain(scope, block, {
+        scenario: "timeout",
+        key: "kernel-explain-timeout",
+      }),
+    ).rejects.toMatchObject({ code: "provider_timeout" });
+
+    const failed = await ledgerRow("kernel-explain-timeout");
+    expect(failed?.state).toBe("failed");
+    expect(failed?.failure_code).toBe("provider_timeout");
+    expect(failed?.estimated_micro_usd).toBe(0);
+    expect(failed?.input_tokens).toBeNull();
+  });
+
+  it("refuses before contacting anything when AI is switched off", async () => {
+    const scope = scopeFor();
+    const block = await reviewBlock(scope);
+    const preferences = await scope.aiPreferences.get("owner-1");
+
+    await expect(
+      runAiRequest({
+        featureId: "report-explanation",
+        ownerId: "owner-1",
+        preferences,
+        configuration: resolveAiConfiguration(CONFIGURED),
+        usage: scope.aiUsage,
+        evidence: {
+          items: [],
+          truncated: false,
+          consideredCount: 0,
+          sensitiveCategories: [],
+          excludedCategories: [],
+          totalCharacters: 0,
+        },
+        candidates: EMPTY_CANDIDATES,
+        factBlock: block,
+        derivedFacts: "",
+        idempotencyKey: "kernel-explain-disabled",
+        now: NOW,
+      }),
+    ).rejects.toMatchObject({ code: "ai_disabled" });
+
+    // Nothing was reserved: a refusal before the provider costs nothing.
+    expect(await ledgerRow("kernel-explain-disabled")).toBeNull();
+  });
+
+  it("refuses a grounded request with no facts, before a provider exists", async () => {
+    const scope = scopeFor();
+    const empty = await identifyFactBlock(
+      buildFactBlock({
+        intent: "report_explanation",
+        question: "q",
+        subject: "s",
+        facts: [],
+      }),
+    );
+    await expect(
+      explain(scope, empty, { key: "kernel-explain-empty" }),
+    ).rejects.toMatchObject({ code: "evidence_unavailable" });
   });
 });
