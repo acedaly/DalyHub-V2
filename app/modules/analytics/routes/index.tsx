@@ -33,7 +33,7 @@ import type { Route } from "./+types/index";
 
 export function meta() {
   return [
-    { title: "Analytics · DalyHub" },
+    { title: "Insight · DalyHub" },
     {
       name: "description",
       content: "Where your effort has actually gone, over a period you choose.",

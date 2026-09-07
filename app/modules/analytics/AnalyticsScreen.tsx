@@ -178,7 +178,7 @@ export function AnalyticsScreen({
   return (
     <CollectionLayout
       className="dh-analytics dh-collection--dashboard"
-      title="Analytics"
+      title="Insight"
       headingLevel={1}
       subtitle={data.rangeLabel}
       viewSwitcher={viewSwitcher}

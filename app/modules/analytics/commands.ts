@@ -33,9 +33,15 @@ const WINDOW_KEYWORDS: Readonly<Record<InsightWindowId, readonly string[]>> = {
 export const analyticsCommands: readonly CommandContribution[] = [
   {
     id: "analytics.open",
-    title: "Open Analytics",
+    title: "Open Insight",
     subtitle: "Where your effort has actually gone",
+    /*
+     * V2.13 relabelled this surface to Insight. "analytics" STAYS in the
+     * keywords: an owner who learned the old name must still find the surface
+     * by typing it, and a command id is an identifier rather than a label.
+     */
     keywords: [
+      "insight",
       "analytics",
       "stats",
       "statistics",
@@ -60,9 +66,9 @@ export const analyticsCommands: readonly CommandContribution[] = [
      * from `INSIGHT_WINDOWS`.
      */
     id: `analytics.window_${window.id.replace(/-/g, "_")}`,
-    title: `Analytics — last ${window.label}`,
+    title: `Insight — last ${window.label}`,
     subtitle: `The shape of the last ${window.label}`,
-    keywords: ["analytics", ...WINDOW_KEYWORDS[window.id]],
+    keywords: ["insight", "analytics", ...WINDOW_KEYWORDS[window.id]],
     kind: "navigate" as const,
     target: {
       kind: "route" as const,

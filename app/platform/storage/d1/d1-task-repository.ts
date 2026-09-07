@@ -183,6 +183,8 @@ import {
   type TaskChecklistProgress,
   type TaskRelation,
   type TaskRelationKind,
+  type CompletedTaskGroupResult,
+  type CountCompletedByGroupInput,
   type TaskRepository,
   type TaskMatchSource,
   type TaskSearchHit,
@@ -929,6 +931,15 @@ const TASK_ACTIVITY_MAX_DAYS = 14;
  * than trusting a caller's.
  */
 const MAX_COMPLETION_BUCKETS = MAX_HISTORY_BUCKETS;
+
+/**
+ * V2.13 RPT-02 — the most GROUPS one completion breakdown returns.
+ *
+ * A display bound rather than a storage one: a chart of Areas is unreadable
+ * long before this, and the caller is told the real group count beside the page
+ * so the remainder it prints is arithmetic rather than a guess.
+ */
+const MAX_COMPLETION_GROUPS = 100;
 
 export class D1TaskRepository implements TaskRepository {
   readonly #db: D1Database;
@@ -4301,6 +4312,148 @@ export class D1TaskRepository implements TaskRepository {
         key: bucket.key,
         completed: byBucket.get(index) ?? 0,
       }));
+    } catch (cause) {
+      throw new TaskStorageError(undefined, { cause });
+    }
+  }
+
+  /**
+   * V2.13 RPT-02 — the same completion truth, grouped by where the work landed.
+   *
+   * ── One authority, one predicate ────────────────────────────────────────
+   * `spine_records.completed_at` with the live-entity check: exactly the
+   * predicate `countCompletedTasksInWindows` and `countCompletedInBuckets`
+   * apply, and exactly the population the Completed collection returns for the
+   * same window. A Task completed, reopened and completed again counts once, in
+   * the bucket its CURRENT completion falls in; a soft-deleted one counts
+   * nowhere. That is what makes a report figure and the list a reader opens to
+   * check it the same set.
+   *
+   * ── Ancestry is the SPINE's own precedence ──────────────────────────────
+   * A Task's Project may sit directly in an Area, or advance a Goal that does; a
+   * Task with no Project may float in an Area itself. The `COALESCE` order
+   * encodes exactly that, so this can never disagree with how the hierarchy is
+   * read elsewhere. The links are the CURRENT ones — the spine stores no link
+   * history — and every surface that draws this says so (DEBT-251).
+   *
+   * ── TWO statements, and why the second exists ───────────────────────────
+   * The page is bounded, so its rows cannot be summed into a total. The second
+   * statement counts every completion in the window and every distinct group,
+   * over the same rows, so the remainder the surface prints is arithmetic
+   * rather than a guess — the defect `ObligationAttentionResult` records ("the
+   * count used to be `page.items.length` … so a workspace with 200 waiting
+   * Tasks was told it had 50"). Both are flat in workspace size: one index
+   * range over `spine_records_workspace_kind_completed_idx`.
+   */
+  async countCompletedByGroup(
+    input: CountCompletedByGroupInput,
+  ): Promise<CompletedTaskGroupResult> {
+    const limit = Math.max(
+      1,
+      Math.min(Math.trunc(input.limit) || 1, MAX_COMPLETION_GROUPS),
+    );
+    const startAt = toStorageTimestamp(input.window.startsAt);
+    const endAt = toStorageTimestamp(input.window.endsAt);
+
+    /*
+     * The grouping expression is chosen from a CLOSED set here — never
+     * interpolated from a caller's string — so no caller-supplied SQL can reach
+     * this statement.
+     */
+    const resolved =
+      input.group === "area"
+        ? {
+            id: "COALESCE(pa.id, ga.id, ta.id)",
+            title: "COALESCE(pa.title, ga.title, ta.title)",
+          }
+        : input.group === "project"
+          ? { id: "p.id", title: "p.title" }
+          : { id: "g.id", title: "g.title" };
+
+    // The ancestry joins, written once and used by both statements.
+    const ancestry = `
+         FROM completed c
+         LEFT JOIN entity_links tp
+           ON tp.workspace_id = ? AND tp.source_entity_id = c.task_id
+              AND tp.type = '${TASK_BELONGS_TO_PROJECT}' AND tp.deleted_at IS NULL
+         LEFT JOIN entities p
+           ON p.workspace_id = ? AND p.id = tp.target_entity_id
+              AND p.type = '${PROJECT}' AND p.deleted_at IS NULL
+         LEFT JOIN entity_links pg
+           ON pg.workspace_id = ? AND pg.source_entity_id = p.id
+              AND pg.type = '${PROJECT_ADVANCES_GOAL}' AND pg.deleted_at IS NULL
+         LEFT JOIN entities g
+           ON g.workspace_id = ? AND g.id = pg.target_entity_id
+              AND g.deleted_at IS NULL
+         LEFT JOIN entity_links pal
+           ON pal.workspace_id = ? AND pal.source_entity_id = p.id
+              AND pal.type = '${PROJECT_BELONGS_TO_AREA}' AND pal.deleted_at IS NULL
+         LEFT JOIN entities pa
+           ON pa.workspace_id = ? AND pa.id = pal.target_entity_id
+              AND pa.type = '${AREA}' AND pa.deleted_at IS NULL
+         LEFT JOIN entity_links gal
+           ON gal.workspace_id = ? AND gal.source_entity_id = g.id
+              AND gal.type = '${GOAL_BELONGS_TO_AREA}' AND gal.deleted_at IS NULL
+         LEFT JOIN entities ga
+           ON ga.workspace_id = ? AND ga.id = gal.target_entity_id
+              AND ga.type = '${AREA}' AND ga.deleted_at IS NULL
+         LEFT JOIN entity_links tal
+           ON tal.workspace_id = ? AND tal.source_entity_id = c.task_id
+              AND tal.type = '${TASK_BELONGS_TO_AREA}' AND tal.deleted_at IS NULL
+         LEFT JOIN entities ta
+           ON ta.workspace_id = ? AND ta.id = tal.target_entity_id
+              AND ta.type = '${AREA}' AND ta.deleted_at IS NULL`;
+
+    const completed = `WITH completed AS (
+           SELECT sr.entity_id AS task_id
+           FROM spine_records sr
+           JOIN entities e
+             ON e.workspace_id = sr.workspace_id AND e.id = sr.entity_id
+                AND e.deleted_at IS NULL
+           WHERE sr.workspace_id = ? AND sr.kind = '${TASK}'
+             AND sr.completed_at >= ? AND sr.completed_at < ?
+         )`;
+
+    const scope = Array<string>(10).fill(this.#workspaceId);
+
+    try {
+      const [page, totals] = await Promise.all([
+        this.#db
+          .prepare(
+            `${completed}
+         SELECT ${resolved.id} AS group_id, ${resolved.title} AS group_title,
+                COUNT(*) AS n
+         ${ancestry}
+         GROUP BY group_id
+         ORDER BY n DESC, COALESCE(group_id, '')
+         LIMIT ?`,
+          )
+          .bind(this.#workspaceId, startAt, endAt, ...scope, limit)
+          .all<{
+            group_id: string | null;
+            group_title: string | null;
+            n: number;
+          }>(),
+        this.#db
+          .prepare(
+            `${completed}
+         SELECT COUNT(*) AS total,
+                COUNT(DISTINCT COALESCE(${resolved.id}, '__none')) AS groups
+         ${ancestry}`,
+          )
+          .bind(this.#workspaceId, startAt, endAt, ...scope)
+          .first<{ total: number; groups: number }>(),
+      ]);
+
+      return {
+        rows: (page.results ?? []).map((row) => ({
+          groupId: row.group_id,
+          groupTitle: row.group_title,
+          completed: Number(row.n ?? 0),
+        })),
+        total: Number(totals?.total ?? 0),
+        groups: Number(totals?.groups ?? 0),
+      };
     } catch (cause) {
       throw new TaskStorageError(undefined, { cause });
     }

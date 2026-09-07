@@ -173,6 +173,7 @@ export {
   addMonths,
   isFinanceMonth,
   monthDirectionTotals,
+  rangeDirectionAmount,
   monthEnd,
   monthLabel,
   monthOf,
@@ -181,6 +182,10 @@ export {
   type CategoryMonthTotal,
   type FinanceMonth,
   type FinanceMonthSummary,
+  type FinanceRangeDirection,
+  type FinanceRangeGroup,
+  type FinanceRangeTotal,
+  type SummariseRangeInput,
 } from "./finance-month";
 
 export {

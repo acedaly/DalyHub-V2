@@ -130,7 +130,8 @@ describe("Analytics screen (UIX-05)", () => {
   it("leads with the exact figures and the span they cover", () => {
     renderScreen(pageData());
     expect(
-      screen.getByRole("heading", { level: 1, name: "Analytics" }),
+      // V2.13 relabelled the surface to Insight. The ROUTE is unchanged.
+      screen.getByRole("heading", { level: 1, name: "Insight" }),
     ).toBeInTheDocument();
     // Twice, deliberately (V2.9 INS-04): once as the page's subtitle and once
     // on the "What changed" panel, which sits below a full page of scroll and

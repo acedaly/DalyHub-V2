@@ -82,6 +82,7 @@ import {
   type CompleteObligationResult,
   type CreateObligationInput,
   type ListObligationsInput,
+  type ListRecurringInput,
   type LinkObligationTaskResult,
   type Obligation,
   type ObligationMeterEvaluation,
@@ -93,6 +94,8 @@ import {
   type ObligationCategory,
   type ObligationChangeResult,
   type ObligationCursorScope,
+  type ObligationDueSummaryInput,
+  type ObligationDueTotal,
   type ObligationProofRef,
   type ObligationRecurrenceKind,
   type ObligationRepository,
@@ -104,6 +107,7 @@ import {
   type ObligationTaskReconciliation,
   type ObligationWithSubject,
   type ObligationWithSubjectPage,
+  type RecurringObligationPage,
   type UpdateObligationInput,
 } from "~/kernel/obligations";
 import { DEFAULT_OWNER_TIME_ZONE } from "~/kernel/preferences";
@@ -377,6 +381,17 @@ const SUBJECT_COLUMNS = `s.title AS subject_title, s.type AS subject_type,
   ad.current_meter_unit AS current_meter_unit`;
 
 /** The LEFT joins that resolve a subject and, where it is an Asset, its meter. */
+/**
+ * V2.13 RPT-02 — the most groups one due-window summary returns, and the most
+ * recurring commitments one projection reads.
+ *
+ * Both are display bounds rather than storage ones, and both are STATED by the
+ * caller rather than applied silently: a report says how many groups it folded
+ * and whether the commitment list was cut.
+ */
+const MAX_DUE_GROUPS = 100;
+const MAX_RECURRING_ROWS = 200;
+
 const SUBJECT_JOINS = `LEFT JOIN entities s
        ON s.workspace_id = o.workspace_id AND s.id = o.subject_entity_id
       AND s.deleted_at IS NULL
@@ -2164,6 +2179,232 @@ export class D1ObligationRepository implements ObligationRepository {
    * arithmetic, and `test/kernel/obligations.test.ts` asserts these counts
    * equal the kernel function's over the same rows, for every band.
    */
+  /**
+   * V2.13 RPT-02 — what falls due in a window, grouped, in ONE statement.
+   *
+   * ── The same due truth, a different question ────────────────────────────
+   * `countByBand` answers "how urgent is everything right now". This answers
+   * "what falls due between these two days, by month, by kind or by subject",
+   * which no existing read could. The population predicate is the SAME: a live
+   * obligation entity, an OPEN status, and a real due date. Nothing here is a
+   * second definition of "due".
+   *
+   * ── Amounts are only ever the ones DalyHub was TOLD ─────────────────────
+   * The currency is part of the grouping key, so two currencies in one month
+   * come back as two rows and can never meet (ADR-049). An obligation with no
+   * recorded amount groups under a NULL currency and contributes nothing to any
+   * total — it is counted, not estimated, not zeroed, and not inferred from a
+   * sibling occurrence.
+   */
+  async summariseDue(
+    input: ObligationDueSummaryInput,
+  ): Promise<readonly ObligationDueTotal[]> {
+    if (!isIsoDate(input.fromIso) || !isIsoDate(input.toIso)) {
+      throw new ObligationValidationError("fromIso", "must be a calendar date");
+    }
+    const filters = validateObligationFilters(input.filters);
+    const subjectEntityId =
+      input.subjectEntityId === undefined
+        ? undefined
+        : input.subjectEntityId === null
+          ? null
+          : validateObligationId(input.subjectEntityId);
+    const limit = Math.max(
+      1,
+      Math.min(Math.trunc(input.limit ?? MAX_DUE_GROUPS) || 1, MAX_DUE_GROUPS),
+    );
+
+    // Chosen from a CLOSED set here, never interpolated from a caller's string.
+    const axis =
+      input.groupBy === "month"
+        ? { key: "substr(o.due_date, 1, 7)", label: "NULL" }
+        : input.groupBy === "category"
+          ? { key: "o.category", label: "NULL" }
+          : { key: "o.subject_entity_id", label: "s.title" };
+
+    const conditions = [
+      "o.workspace_id = ?",
+      "o.deleted_at IS NULL",
+      "o.status = 'open'",
+      "o.due_date IS NOT NULL",
+      "o.due_date >= ?",
+      "o.due_date <= ?",
+    ];
+    const params: unknown[] = [this.#workspaceId, input.fromIso, input.toIso];
+
+    if (subjectEntityId === null) {
+      conditions.push("o.subject_entity_id IS NULL");
+    } else if (subjectEntityId !== undefined) {
+      conditions.push("o.subject_entity_id = ?");
+      params.push(subjectEntityId);
+    }
+    if (filters.categories.length > 0) {
+      conditions.push(
+        `o.category IN (${filters.categories.map(() => "?").join(", ")})`,
+      );
+      params.push(...filters.categories);
+    }
+
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT ${axis.key} AS group_key, ${axis.label} AS group_label,
+                  o.currency_code AS currency_code,
+                  COUNT(*) AS n,
+                  SUM(COALESCE(o.expected_amount_minor, 0)) AS amount,
+                  SUM(CASE WHEN o.expected_amount_minor IS NULL THEN 1 ELSE 0 END)
+                    AS without_amount
+             FROM obligation_details o
+             JOIN entities e
+               ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
+              AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
+             ${SUBJECT_JOINS}
+            WHERE ${conditions.join(" AND ")}
+            GROUP BY group_key, o.currency_code
+            ORDER BY group_key, o.currency_code
+            LIMIT ?`,
+        )
+        .bind(...params, limit)
+        .all<{
+          group_key: string | null;
+          group_label: string | null;
+          currency_code: string | null;
+          n: number;
+          amount: number;
+          without_amount: number;
+        }>();
+
+      return (result.results ?? []).map((row) => ({
+        groupKey: row.group_key,
+        groupLabel: row.group_label,
+        // An obligation with an amount but no currency cannot be totalled, so
+        // it is treated exactly as one with no amount: counted, never summed.
+        currencyCode: row.currency_code,
+        dueCount: Number(row.n ?? 0),
+        expectedAmountMinor:
+          row.currency_code === null ? 0 : Number(row.amount ?? 0),
+        withoutAmount: Number(row.without_amount ?? 0),
+      }));
+    } catch (cause) {
+      this.#fail(cause);
+    }
+  }
+
+  /**
+   * V2.13 RPT-02 — the OPEN, recurring commitments, for a calendar projection.
+   *
+   * An obligation has exactly one open occurrence, and the successor is written
+   * by `complete`; future occurrences do not exist as rows and this release
+   * creates no schedule store to make them exist (ADR-118). The projection is
+   * computed in the kernel from these rows and the canonical recurrence
+   * arithmetic.
+   *
+   * A METER-recurring commitment is COUNTED rather than listed: a meter has no
+   * calendar, and projecting one onto months would be an invention. The count
+   * reaches the surface as an exclusion note.
+   *
+   * ONE bounded statement; `bounded` is stated rather than hidden.
+   */
+  async listRecurring(
+    input: ListRecurringInput = {},
+  ): Promise<RecurringObligationPage> {
+    const filters = validateObligationFilters(input.filters);
+    const subjectEntityId =
+      input.subjectEntityId === undefined
+        ? undefined
+        : input.subjectEntityId === null
+          ? null
+          : validateObligationId(input.subjectEntityId);
+    const limit = Math.max(
+      1,
+      Math.min(
+        Math.trunc(input.limit ?? MAX_RECURRING_ROWS) || 1,
+        MAX_RECURRING_ROWS,
+      ),
+    );
+
+    const conditions = [
+      "o.workspace_id = ?",
+      "o.deleted_at IS NULL",
+      "o.status = 'open'",
+      "o.recurrence_kind <> 'none'",
+    ];
+    const params: unknown[] = [this.#workspaceId];
+    if (subjectEntityId === null) {
+      conditions.push("o.subject_entity_id IS NULL");
+    } else if (subjectEntityId !== undefined) {
+      conditions.push("o.subject_entity_id = ?");
+      params.push(subjectEntityId);
+    }
+    if (filters.categories.length > 0) {
+      conditions.push(
+        `o.category IN (${filters.categories.map(() => "?").join(", ")})`,
+      );
+      params.push(...filters.categories);
+    }
+
+    try {
+      const result = await this.#db
+        .prepare(
+          `SELECT o.entity_id, e.title, o.category, o.due_date,
+                  o.recurrence_kind, o.recurrence_interval,
+                  o.expected_amount_minor, o.currency_code, o.subject_entity_id
+             FROM obligation_details o
+             JOIN entities e
+               ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
+              AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
+            WHERE ${conditions.join(" AND ")}
+            ORDER BY o.due_date, o.entity_id
+            LIMIT ?`,
+        )
+        // One more than the limit, so "there are more" is READ rather than
+        // guessed from a full page.
+        .bind(...params, limit + 1)
+        .all<{
+          entity_id: string;
+          title: string;
+          category: string;
+          due_date: string | null;
+          recurrence_kind: string;
+          recurrence_interval: number | null;
+          expected_amount_minor: number | null;
+          currency_code: string | null;
+          subject_entity_id: string | null;
+        }>();
+
+      const rows = result.results ?? [];
+      const bounded = rows.length > limit;
+      const kept = bounded ? rows.slice(0, limit) : rows;
+      const dated = kept.filter(
+        (row) => row.recurrence_kind !== "meter" && row.due_date !== null,
+      );
+
+      return {
+        items: dated.map((row) => ({
+          obligationId: row.entity_id,
+          title: row.title,
+          category: row.category,
+          dueDate: row.due_date as string,
+          recurrenceKind: row.recurrence_kind,
+          recurrenceInterval:
+            row.recurrence_interval === null
+              ? null
+              : Number(row.recurrence_interval),
+          expectedAmountMinor:
+            row.expected_amount_minor === null
+              ? null
+              : Number(row.expected_amount_minor),
+          currencyCode: row.currency_code,
+          subjectEntityId: row.subject_entity_id,
+        })),
+        bounded,
+        meterBased: kept.length - dated.length,
+      };
+    } catch (cause) {
+      this.#fail(cause);
+    }
+  }
+
   async countByBand(
     input: ObligationBandCountInput,
   ): Promise<ObligationBandCounts> {

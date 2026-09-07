@@ -31,6 +31,8 @@ import type {
   ListWaitingTasksInput,
   CountWaitingTasksInput,
   CompletedTaskWindow,
+  CompletedTaskGroupResult,
+  CountCompletedByGroupInput,
   CountCompletedInBucketsInput,
   CompletedTaskWindowCount,
   TaskActivityDayCount,
@@ -421,6 +423,33 @@ export interface TaskRepository {
   countCompletedInBuckets(
     input: CountCompletedInBucketsInput,
   ): Promise<readonly CompletedTaskWindowCount[]>;
+
+  /**
+   * V2.13 RPT-02 — the same completion truth, broken down by WHERE the work
+   * landed: Area, Project or Goal.
+   *
+   * **The same authority, not a third one.** It reads
+   * `spine_records.completed_at` under exactly the predicates
+   * {@link countCompletedTasksInWindows} and {@link countCompletedInBuckets}
+   * apply — live Tasks, current completion state — so a Task completed,
+   * reopened and completed again is counted once and a deleted one is counted
+   * nowhere. It is deliberately NOT
+   * `ReviewInsightRepository.listPeriodContributions`, which groups the same
+   * work from the immutable Activity stream: that is a different question, and
+   * a Report must not present one as evidence for the other (ADR-114 d4).
+   *
+   * **Ancestry is resolved from the CURRENT spine links**, because the spine
+   * stores no link history — a Task moved to another Area after completion is
+   * attributed where it lives now. Every surface that renders this states so
+   * ([DEBT-251]); nothing here hides it.
+   *
+   * TWO statements whatever the workspace holds: the bounded grouped page, and
+   * the window's own totals. The totals are taken over every row rather than
+   * over the page, so a bounded list can never become a wrong total.
+   */
+  countCompletedByGroup(
+    input: CountCompletedByGroupInput,
+  ): Promise<CompletedTaskGroupResult>;
 
   /**
    * Plan a task (TODAY-04): set its scheduled date to the owner's committed day

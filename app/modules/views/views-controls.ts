@@ -13,7 +13,10 @@
  */
 
 import { GOAL_ALIGNMENT_STATES } from "~/kernel/alignment";
-import { PROJECT_HEALTH_STATES } from "~/kernel/project-health";
+import {
+  PROJECT_HEALTH_STATES,
+  PROJECT_HEALTH_STATE_LABELS,
+} from "~/kernel/project-health";
 import { REVIEW_TYPES } from "~/kernel/reviews";
 import {
   SHARED_DIMENSION_SUPPORT,
@@ -26,13 +29,9 @@ import { TASK_PRIORITY_OPTIONS } from "~/shared/task-record/priority-options";
 
 import { VIEWS_PARAMS } from "./views-url-state";
 
-const HEALTH_LABELS: Record<string, string> = {
-  on_track: "On track",
-  stale: "No recent movement",
-  blocked: "Blocked",
-  at_risk: "At risk",
-  completed: "Completed",
-};
+/* V2.13 — the ONE health vocabulary, from the kernel that owns the states. This
+ * file held its own copy of the five strings, and so did its sibling. */
+const HEALTH_LABELS: Record<string, string> = PROJECT_HEALTH_STATE_LABELS;
 
 const ALIGNMENT_LABELS: Record<string, string> = {
   completed: "Completed",

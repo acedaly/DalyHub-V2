@@ -109,6 +109,8 @@ describe("module discovery", () => {
         "people",
         "plan",
         "projects",
+        // V2.13 — Reports: saved questions over the records other modules own.
+        "reports",
         "reviews",
         "settings",
         "tasks",
@@ -142,6 +144,9 @@ describe("module discovery", () => {
         "finance",
         "obligations",
         "analytics",
+        // V2.13 — Reports directly after Insight: the ambient reading, then the
+        // saved questions, then the deliberate ritual.
+        "reports",
         "reviews",
         "ai",
         "settings",
@@ -732,6 +737,35 @@ describe("module discovery", () => {
           moduleId: "analytics",
           file: "routes/activity.tsx",
         },
+        // V2.13 — Reports: the collection, the builder, a definition executed
+        // from the URL, the mutation resource route, and one saved report. The
+        // three static segments are declared BEFORE the dynamic one, so the
+        // file reads in the order it resolves.
+        {
+          id: "reports.index",
+          moduleId: "reports",
+          file: "routes/index.tsx",
+        },
+        {
+          id: "reports.new",
+          moduleId: "reports",
+          file: "routes/new.tsx",
+        },
+        {
+          id: "reports.view",
+          moduleId: "reports",
+          file: "routes/view.tsx",
+        },
+        {
+          id: "reports.saved",
+          moduleId: "reports",
+          file: "routes/saved.tsx",
+        },
+        {
+          id: "reports.report",
+          moduleId: "reports",
+          file: "routes/report.tsx",
+        },
         {
           id: "reviews.index",
           moduleId: "reviews",
@@ -936,6 +970,10 @@ describe("module discovery", () => {
         "analytics.window_6_months",
         "analytics.window_12_months",
         "analytics.window_24_months",
+        // V2.13 — two, and deliberately not eight: opening Reports and starting
+        // a new one. There is no command per built-in.
+        "reports.open",
+        "reports.new",
         "reviews.open",
         "reviews.new",
         "settings.open",
@@ -973,6 +1011,8 @@ describe("module discovery", () => {
         // V2.10 LIFE-02 — obligations by title, category label and subject
         // title. Never by an amount (D11).
         "obligations.search",
+        // V2.13 — saved reports, by NAME only.
+        "reports.search",
         "reviews.search",
       ]);
       expect(

@@ -1,0 +1,357 @@
+/*
+ * V2.13 — the Reports surfaces: the collection, and one report.
+ *
+ * Two rules govern everything here.
+ *
+ *   1. **Number, then rows, then chart.** The DOM order is the reading order is
+ *      the tab order at EVERY width, so nothing below is a phone-only
+ *      rearrangement — the layout that works at 320px is the one that ships at
+ *      1440px, with more room.
+ *   2. **Nothing scrolls the page sideways.** The table owns its own horizontal
+ *      overflow and the bars are fluid, so a long category name or a wide
+ *      figure column never makes the whole surface scroll.
+ *
+ * The chart styles themselves are `charts.css`'s: `CategoryBars` is a
+ * design-system primitive, not a Reports component.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* The collection                                                              */
+/* -------------------------------------------------------------------------- */
+
+.dh-reports__body {
+  display: grid;
+  gap: var(--app-space-6);
+  min-inline-size: 0;
+}
+
+.dh-reports__section {
+  display: grid;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-reports__heading {
+  margin: 0;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
+}
+
+.dh-reports__lede,
+.dh-reports__absent {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-body-size);
+  line-height: var(--dh-text-body-line-height);
+  text-wrap: pretty;
+}
+
+/*
+ * A responsive grid rather than a fixed column count: the cards are questions,
+ * and a question is one to three lines whatever the viewport. `auto-fill` with a
+ * minimum is what keeps one card full-width on a phone and four across on a
+ * desktop with no breakpoint to maintain.
+ */
+.dh-reports__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
+  gap: var(--app-space-3);
+}
+
+.dh-reports__item {
+  min-inline-size: 0;
+}
+
+.dh-reports .dh-reports__card,
+.dh-reports .dh-reports__card:visited {
+  display: grid;
+  gap: var(--app-space-1);
+  block-size: 100%;
+  padding: var(--app-space-4);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  text-decoration: none;
+}
+
+.dh-reports .dh-reports__card:hover {
+  border-color: var(--dh-color-border-strong);
+  background: var(--dh-color-surface-selected);
+}
+
+.dh-reports__title {
+  font-size: var(--dh-text-card-title-size);
+  line-height: var(--dh-text-card-title-line-height);
+  font-weight: var(--dh-text-card-title-weight);
+  overflow-wrap: anywhere;
+}
+
+.dh-reports__question {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  text-wrap: pretty;
+}
+
+.dh-reports__badge {
+  margin-block-start: var(--app-space-1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* One report                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.dh-report__body {
+  display: grid;
+  gap: var(--app-space-6);
+  min-inline-size: 0;
+}
+
+/*
+ * The builder. Each control is a label above a wrapping row of link chips, so
+ * the whole thing reflows from six rows on a phone to two on a desktop with no
+ * layout of its own to maintain.
+ */
+.dh-report__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: var(--app-space-4);
+  padding: var(--app-space-4);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-bg-sunken);
+  min-inline-size: 0;
+}
+
+.dh-report__control {
+  display: grid;
+  gap: var(--app-space-2);
+  align-content: start;
+  min-inline-size: 0;
+}
+
+.dh-report__control-label {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-strong-weight);
+}
+
+.dh-report__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-1);
+  min-inline-size: 0;
+}
+
+.dh-report .dh-report__option,
+.dh-report .dh-report__option:visited {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--app-touch-target-min);
+  padding-inline: var(--app-space-3);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-surface);
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  text-decoration: none;
+}
+
+.dh-report .dh-report__option:hover {
+  border-color: var(--dh-color-border-strong);
+}
+
+/*
+ * The selected option is marked by a FILL and a border, and it also carries
+ * `aria-current` — the tint is the fast visual cue, never the only one.
+ */
+.dh-report .dh-report__option[data-selected="true"] {
+  border-color: var(--dh-color-accent);
+  background: var(--dh-color-accent-subtle);
+  font-weight: var(--dh-text-label-strong-weight);
+}
+
+@media (forced-colors: active) {
+  .dh-report .dh-report__option[data-selected="true"] {
+    border-color: Highlight;
+    outline: 2px solid Highlight;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The result                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.dh-report__result {
+  display: grid;
+  gap: var(--app-space-6);
+  min-inline-size: 0;
+}
+
+.dh-report__block {
+  display: grid;
+  gap: var(--app-space-4);
+  min-inline-size: 0;
+}
+
+.dh-report__block-heading {
+  margin: 0;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-section-title-size);
+  line-height: var(--dh-text-section-title-line-height);
+  font-weight: var(--dh-text-section-title-weight);
+}
+
+/* The headline figure, FIRST — the answer before its breakdown. */
+.dh-report__headline {
+  margin: 0;
+  display: grid;
+  gap: var(--app-space-1);
+}
+
+.dh-report__figure {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-metric-size);
+  line-height: var(--dh-text-metric-line-height);
+  font-weight: var(--dh-text-metric-weight);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.dh-report__figure-label {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  text-wrap: pretty;
+}
+
+/* The table owns its own horizontal overflow: the PAGE never scrolls sideways. */
+.dh-report__table-wrap {
+  overflow-x: auto;
+  min-inline-size: 0;
+}
+
+.dh-report__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--dh-text-row-size);
+  line-height: var(--dh-text-row-line-height);
+}
+
+.dh-report__table th,
+.dh-report__table td {
+  padding: var(--app-space-2) var(--app-space-3);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  text-align: start;
+  vertical-align: baseline;
+}
+
+.dh-report__table thead th {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  font-weight: var(--dh-text-label-strong-weight);
+}
+
+.dh-report__table tbody th {
+  font-weight: var(--dh-text-row-weight);
+  overflow-wrap: anywhere;
+}
+
+.dh-report__cell--figure {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dh-report__cell-detail {
+  display: block;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/* "No reading" is a WORD, never an empty cell and never a zero. */
+.dh-report__no-reading {
+  color: var(--dh-color-text-muted);
+  font-style: italic;
+}
+
+.dh-report__row--remainder th,
+.dh-report__row--remainder td {
+  color: var(--dh-color-text-muted);
+  font-style: italic;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notes, refusals and saving                                                  */
+/* -------------------------------------------------------------------------- */
+
+.dh-report__notes {
+  display: grid;
+  gap: var(--app-space-2);
+  padding-block-start: var(--app-space-2);
+}
+
+.dh-report__note,
+.dh-report__absent,
+.dh-report__refusal,
+.dh-report__save-hint,
+.dh-report__save-status {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  text-wrap: pretty;
+}
+
+/* A warning note is a stronger word, not a different colour doing the work: the
+ * sentence still says what was left out. */
+.dh-report__note[data-tone="warning"] {
+  color: var(--dh-color-text);
+}
+
+.dh-report__refusal {
+  padding: var(--app-space-3) var(--app-space-4);
+  border: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: var(--dh-radius-lg);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text);
+}
+
+.dh-report__save {
+  display: grid;
+  gap: var(--app-space-3);
+  padding-block-start: var(--app-space-4);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-border);
+}
+
+.dh-report__save-form,
+.dh-report__save-field {
+  display: grid;
+  gap: var(--app-space-2);
+  max-inline-size: 24rem;
+}
+
+.dh-report__save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  align-items: center;
+}
+
+/* An empty status region must not reserve a line it never fills. */
+.dh-report__save-status:empty {
+  display: none;
+}
