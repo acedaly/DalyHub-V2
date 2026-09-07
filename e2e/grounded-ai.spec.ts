@@ -178,6 +178,91 @@ test.describe("V2.14 — Explain this report", () => {
   });
 });
 
+/**
+ * A report definition in the bytes the Reports codec stores, so the route parses
+ * it with the SAME total parser a saved row goes through. Written out rather
+ * than scraped from the page, because what is under test is the route's own
+ * handling of it.
+ */
+const TASKS_BY_AREA = JSON.stringify({
+  version: 1,
+  source: "tasks",
+  measure: "completed_count",
+  window: { kind: "preset", preset: "12-weeks" },
+  breakdown: { by: "group", group: "area" },
+  filters: {},
+  sort: "value_desc",
+  visual: "bars",
+});
+
+test.describe("V2.14 — an explanation belongs to the figures it was written about", () => {
+  test("REFUSES when the figures on screen are not the figures now", async ({
+    request,
+  }) => {
+    /*
+     * The browser sends the IDENTITY of the result it is looking at, never a
+     * figure. The server re-executes and compares; a mismatch is refused as
+     * stale rather than answered, because prose paired with numbers it never
+     * described is worse than no prose.
+     *
+     * A digest from a different set of figures is exactly what an owner who
+     * left the page open for an hour would send.
+     */
+    const response = await postSameOrigin(request, "/ai/assist", {
+      form: {
+        feature: "report-explanation",
+        definition: TASKS_BY_AREA,
+        reportId: "completed-tasks-by-area",
+        resultDigest: "0".repeat(64),
+        idempotencyKey: `e2e-stale-report-${Date.now()}`,
+      },
+    });
+    const payload = (await response.json()) as { ok: boolean; code?: string };
+    expect(payload.ok).toBe(false);
+    expect(payload.code).toBe("result_stale");
+  });
+
+  test("builds the facts from a FRESH execution, not from anything the browser sent", async ({
+    request,
+  }) => {
+    /*
+     * With no digest to check against, the route still executes the definition
+     * itself and answers from what IT read. AI is off, so the request stops at
+     * the provider gate — and the facts beside that refusal are the ones the
+     * server computed.
+     */
+    const response = await postSameOrigin(request, "/ai/assist", {
+      form: {
+        feature: "report-explanation",
+        definition: TASKS_BY_AREA,
+        reportId: "completed-tasks-by-area",
+        idempotencyKey: `e2e-fresh-report-${Date.now()}`,
+      },
+    });
+    const payload = (await response.json()) as {
+      ok: boolean;
+      code?: string;
+      facts?: { intent?: string; facts?: unknown[] } | null;
+    };
+    expect(payload.ok).toBe(false);
+    expect(payload.code).toBe("ai_disabled");
+    expect(payload.facts?.intent).toBe("report_explanation");
+    expect((payload.facts?.facts ?? []).length).toBeGreaterThan(0);
+  });
+
+  test("REFUSES a definition this build cannot read", async ({ request }) => {
+    const response = await postSameOrigin(request, "/ai/assist", {
+      form: {
+        feature: "report-explanation",
+        definition: JSON.stringify({ version: 99, source: "everything" }),
+        idempotencyKey: `e2e-bad-definition-${Date.now()}`,
+      },
+    });
+    const payload = (await response.json()) as { ok: boolean };
+    expect(payload.ok).toBe(false);
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Ask DalyHub                                                                 */
 /* -------------------------------------------------------------------------- */
