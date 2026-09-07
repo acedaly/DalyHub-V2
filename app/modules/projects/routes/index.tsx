@@ -89,7 +89,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   let scope: Awaited<ReturnType<typeof resolveAuthenticatedWorkspaceScope>>;
   try {
-    scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    scope = await resolveAuthenticatedWorkspaceScope(env, session, {
+      // PERF-01 — this loader reads the owner's preferences immediately, so the
+      // read is started before the workspace check rather than after it.
+      warmOwnerPreferences: true,
+    });
   } catch {
     return {
       projects: [] as SerializedProjectListItem[],
@@ -114,74 +118,93 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     };
   }
 
+  /*
+   * PERF-01 — the five reads below run CONCURRENTLY.
+   *
+   * They were written one after another, and each was independent of every one
+   * before it: the list does not need the counts, the counts do not need the
+   * templates, and the Goals rail needs none of them. Measured on a workspace of
+   * 24 Projects, that sequence was EIGHT serial D1 round trips for two round
+   * trips' worth of dependency.
+   *
+   * Nothing about the failure domains changes, and that is the point of doing it
+   * this way rather than with one big `Promise.all` over bare reads: each block
+   * keeps its own `try`, so a template read that fails still leaves the gallery
+   * standing, a count that fails still degrades only the header line, and the
+   * project list is still the one failure that degrades the collection. The
+   * blocks are started together and awaited together; what each one MEANS is
+   * unchanged.
+   */
   // The project list is the primary failure domain: its own failure degrades the
   // whole collection to the calm "couldn't load your projects" state.
   let projects: SerializedProjectListItem[] = [];
   let nextCursor: string | null = null;
   let failed = false;
-  try {
-    /*
-     * A cursor is bound to the collection's whole scope, INCLUDING the search
-     * term (`PROJECT_CURSOR_VERSION` 4). Typing into the search field while a
-     * "Load more" cursor is in the URL therefore hands the repository a cursor
-     * from a different result set, which it correctly rejects. That is a reset,
-     * not an error: the narrowed collection simply starts at its first page.
-     */
-    let page;
+  const listRead = (async () => {
     try {
-      page = await scope.projects.listProjects({
-        state,
-        search: query,
-        cursor,
-      });
-    } catch (error) {
-      if (error instanceof InvalidSpineCursorError) {
-        page = await scope.projects.listProjects({ state, search: query });
-      } else {
-        throw error;
+      /*
+       * A cursor is bound to the collection's whole scope, INCLUDING the search
+       * term (`PROJECT_CURSOR_VERSION` 4). Typing into the search field while a
+       * "Load more" cursor is in the URL therefore hands the repository a cursor
+       * from a different result set, which it correctly rejects. That is a reset,
+       * not an error: the narrowed collection simply starts at its first page.
+       */
+      let page;
+      try {
+        page = await scope.projects.listProjects({
+          state,
+          search: query,
+          cursor,
+        });
+      } catch (error) {
+        if (error instanceof InvalidSpineCursorError) {
+          page = await scope.projects.listProjects({ state, search: query });
+        } else {
+          throw error;
+        }
       }
-    }
 
-    // Derive health for the WHOLE bounded page in one facts gather (no N+1), then
-    // evaluate each with the SAME owner-calendar clock the facts used.
-    // AUDIT-14 — the OWNER's day, from the one scope-level authority, so this
-    // collection's health agrees with every Project and Task record it links to.
-    const healthContext = createOwnerHealthContext(
-      new Date(),
-      await scope.ownerTimeZone(),
-    );
-    const factsById = await scope.projectHealth.listProjectHealthFacts(
-      page.items.map((item) => item.id),
-      healthContext.todayIso,
-    );
-    projects = page.items.map((item) => {
-      // Facts are gathered for the whole page; a project always has an entry, but
-      // fall back to its list-item counts if a concurrent delete removed it between
-      // reads (a calm, derived result either way — never a crash).
-      const facts = factsById.get(item.id) ?? {
-        projectId: item.id,
-        completedAt: item.completedAt,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        taskTotal: item.taskTotal,
-        taskCompleted: item.taskCompleted,
-        waitingOpen: 0,
-        overdueOpen: 0,
-        slippedOpen: 0,
-        upcomingDueOpen: 0,
-        upcomingScheduledOpen: 0,
-        oldestWaitingSince: null,
-        lastMeaningfulActivityAt: null,
-      };
-      return serializeProjectListItem(
-        item,
-        evaluateProjectHealth(facts, healthContext),
+      // Derive health for the WHOLE bounded page in one facts gather (no N+1), then
+      // evaluate each with the SAME owner-calendar clock the facts used.
+      // AUDIT-14 — the OWNER's day, from the one scope-level authority, so this
+      // collection's health agrees with every Project and Task record it links to.
+      const healthContext = createOwnerHealthContext(
+        new Date(),
+        await scope.ownerTimeZone(),
       );
-    });
-    nextCursor = page.nextCursor;
-  } catch {
-    failed = true;
-  }
+      const factsById = await scope.projectHealth.listProjectHealthFacts(
+        page.items.map((item) => item.id),
+        healthContext.todayIso,
+      );
+      projects = page.items.map((item) => {
+        // Facts are gathered for the whole page; a project always has an entry, but
+        // fall back to its list-item counts if a concurrent delete removed it between
+        // reads (a calm, derived result either way — never a crash).
+        const facts = factsById.get(item.id) ?? {
+          projectId: item.id,
+          completedAt: item.completedAt,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          taskTotal: item.taskTotal,
+          taskCompleted: item.taskCompleted,
+          waitingOpen: 0,
+          overdueOpen: 0,
+          slippedOpen: 0,
+          upcomingDueOpen: 0,
+          upcomingScheduledOpen: 0,
+          oldestWaitingSince: null,
+          lastMeaningfulActivityAt: null,
+        };
+        return serializeProjectListItem(
+          item,
+          evaluateProjectHealth(facts, healthContext),
+        );
+      });
+      nextCursor = page.nextCursor;
+    } catch {
+      failed = true;
+    }
+  })();
 
   // The Area/Goal parent options for the create form are a SEPARATE failure
   // domain (PROJ-05 §8/§2 follow-up): a failure here must never masquerade as
@@ -190,26 +213,28 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // needs to tell those two states apart.
   let parentOptions: SelectOption[] = [];
   let parentOptionsFailed = false;
-  try {
-    const [areas, goals] = await Promise.all([
-      scope.entities.list({ type: "area", limit: PARENT_OPTIONS_LIMIT }),
-      scope.entities.list({ type: "goal", limit: PARENT_OPTIONS_LIMIT }),
-    ]);
-    parentOptions = [
-      ...areas.items.map((a) => ({
-        value: a.id,
-        label: a.title,
-        description: "Area",
-      })),
-      ...goals.items.map((g) => ({
-        value: g.id,
-        label: g.title,
-        description: "Goal",
-      })),
-    ];
-  } catch {
-    parentOptionsFailed = true;
-  }
+  const parentOptionsRead = (async () => {
+    try {
+      const [areas, goals] = await Promise.all([
+        scope.entities.list({ type: "area", limit: PARENT_OPTIONS_LIMIT }),
+        scope.entities.list({ type: "goal", limit: PARENT_OPTIONS_LIMIT }),
+      ]);
+      parentOptions = [
+        ...areas.items.map((a) => ({
+          value: a.id,
+          label: a.title,
+          description: "Area",
+        })),
+        ...goals.items.map((g) => ({
+          value: g.id,
+          label: g.title,
+          description: "Goal",
+        })),
+      ];
+    } catch {
+      parentOptionsFailed = true;
+    }
+  })();
 
   /*
    * REDESIGN-04 §5.5 — the header's "8 active · 2 archived".
@@ -220,12 +245,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
    * fails degrades the line to the loaded-row wording rather than taking the
    * gallery down with it.
    */
-  let counts: ProjectLifecycleCounts | null;
-  try {
-    counts = await scope.projects.countProjectsByLifecycle();
-  } catch {
-    counts = null;
-  }
+  const countsRead = (async (): Promise<ProjectLifecycleCounts | null> => {
+    try {
+      return await scope.projects.countProjectsByLifecycle();
+    } catch {
+      return null;
+    }
+  })();
 
   /*
    * ADR-100 / CONVERGE-01 §4 — a large collection opens as a TABLE.
@@ -243,6 +269,50 @@ export async function loader({ request, context }: Route.LoaderArgs) {
    * The counts are already read for the header's "20 active · 62 completed"
    * line, so this adds no query.
    */
+  let templates: TemplateOption[] = [];
+  const templatesRead = (async () => {
+    try {
+      const page = await scope.projectTemplates.listTemplates();
+      templates = page.items.map((template) => ({
+        id: template.id,
+        name: template.name,
+        taskCount: template.taskCount,
+        checklistCount: template.checklistCount,
+        parentId: template.defaultParent?.id ?? null,
+      }));
+    } catch {
+      templates = [];
+    }
+  })();
+
+  let goals: readonly GoalSummary[] = [];
+  let goalsFailed = false;
+  const goalsRead = (async () => {
+    try {
+      const timeZone = await scope.ownerTimeZone();
+      const { evaluation, recentBoundaryStartIso } =
+        createOwnerAlignmentContext(new Date(), timeZone);
+      goals = (
+        await loadGoalSummaries(scope, {
+          now: new Date(),
+          timezone: timeZone,
+          todayIso: evaluation.todayIso,
+          recentBoundaryStartIso,
+        })
+      ).items.slice(0, PROJECTS_GOAL_SUMMARY_LIMIT);
+    } catch {
+      goalsFailed = true;
+    }
+  })();
+
+  const [, , counts] = await Promise.all([
+    listRead,
+    parentOptionsRead,
+    countsRead,
+    templatesRead,
+    goalsRead,
+  ]);
+
   const scopeTotal =
     counts === null
       ? null
@@ -259,59 +329,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     total: scopeTotal,
     large: "table",
   });
-
-  /*
-   * PROJECT-02 — the templates the create form can offer.
-   *
-   * ONE bounded read whose counts already come from grouped aggregates, so a
-   * workspace with a dozen templates costs three statements rather than
-   * thirteen. Its OWN failure domain: a template read that fails leaves the
-   * collection exactly as it was before templates existed — no field in the
-   * create form, no Templates link — rather than taking the gallery down.
-   */
-  let templates: TemplateOption[];
-  try {
-    const page = await scope.projectTemplates.listTemplates();
-    templates = page.items.map((template) => ({
-      id: template.id,
-      name: template.name,
-      taskCount: template.taskCount,
-      checklistCount: template.checklistCount,
-      parentId: template.defaultParent?.id ?? null,
-    }));
-  } catch {
-    templates = [];
-  }
-
-  /*
-   * REDESIGN-04 §5.3 — the compact Goals section beneath the gallery.
-   *
-   * The SHARED summary read Today already makes for its own Goal rail
-   * (`loadGoalSummaries`): a bounded page of Goals, then three GROUPED reads
-   * over that page's ids (configuration, measurement summaries, milestone
-   * weights). No history, and no query per Goal — the brief's hard rule. It is
-   * its own failure domain for the same reason the counts are: a summary rail
-   * is never worth the gallery.
-   */
-  let goals: readonly GoalSummary[] = [];
-  let goalsFailed = false;
-  try {
-    const timeZone = await scope.ownerTimeZone();
-    const { evaluation, recentBoundaryStartIso } = createOwnerAlignmentContext(
-      new Date(),
-      timeZone,
-    );
-    goals = (
-      await loadGoalSummaries(scope, {
-        now: new Date(),
-        timezone: timeZone,
-        todayIso: evaluation.todayIso,
-        recentBoundaryStartIso,
-      })
-    ).items.slice(0, PROJECTS_GOAL_SUMMARY_LIMIT);
-  } catch {
-    goalsFailed = true;
-  }
 
   return {
     projects,

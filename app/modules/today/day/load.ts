@@ -379,21 +379,30 @@ async function loadTasks(
    * this guard existed.
    */
   const ids = page.items.map((item) => item.id);
-  const progress = await safely(
-    () => scope.tasks.listChecklistProgress(ids),
-    new Map() as ReadonlyMap<string, TaskChecklistProgress>,
-  );
   /*
    * TASKS-12 — ONE bounded aggregate for the whole day's blocked state, guarded
    * on its own for the same reason the progress read is: the day's work is why
    * this surface exists, and a dependency read that fails must cost the "Blocked
    * by …" line rather than the day. A blocked Task then simply reads as it did
    * before TASKS-12, which is a truthful degradation rather than a wrong one.
+   *
+   * PERF-01 — the two are read TOGETHER. Both take the same page of ids and
+   * neither reads anything the other writes, so awaiting one before starting the
+   * other bought nothing and cost a D1 round trip on the slowest route in the
+   * product. Each keeps its OWN guard, so the pair is still two independent
+   * failure domains rather than one: a dependency read that fails costs the
+   * "Blocked by …" line and leaves the step counts standing, exactly as before.
    */
-  const blocked = await safely(
-    () => scope.tasks.listBlockedSummaries(ids),
-    new Map() as ReadonlyMap<string, TaskBlockedSummary>,
-  );
+  const [progress, blocked] = await Promise.all([
+    safely(
+      () => scope.tasks.listChecklistProgress(ids),
+      new Map() as ReadonlyMap<string, TaskChecklistProgress>,
+    ),
+    safely(
+      () => scope.tasks.listBlockedSummaries(ids),
+      new Map() as ReadonlyMap<string, TaskBlockedSummary>,
+    ),
+  ]);
   const tasks: DayTask[] = page.items.map((item) =>
     // Completion is a UTC instant; resolve its OWNER-calendar date so "completed
     // today" means the owner's day, not the runtime's.
@@ -575,7 +584,7 @@ export async function loadTodayDay(
     obligationAttention,
     scheduleResult,
     waiting,
-    projects,
+    projectWork,
     goals,
     measurableGoals,
     activityTrend,
@@ -613,9 +622,55 @@ export async function loadTodayDay(
       oldestDays: null,
       followUpDue: 0,
     }),
+    /*
+     * STEER-04 (DEBT-77) — the active Projects, AND the next action for each
+     * "Continue working" card, as one composed read.
+     *
+     * PERF-01 — the next-action read used to sit AFTER the whole parallel block,
+     * because it takes the ranked cards' ids and the ranking needs these health
+     * facts. But it only ever needed THIS read, not the twelve beside it, and
+     * awaiting all of them first put an extra D1 round trip on the slowest route
+     * in the product for no reason. It is composed onto the read it actually
+     * depends on, so it starts the moment that read returns and overlaps
+     * everything else.
+     *
+     * Its cost is unchanged and still flat in the number of cards —
+     * `rankContinueProjects` caps them at `CONTINUE_MAX`, which is DEBT-77's own
+     * bar: *"query count is unchanged (one additional statement, not N)"*.
+     *
+     * It is the product's ONE rule, evaluated at the database from the canonical
+     * smart ordering, so Today and `/tasks` cannot disagree about which Task is
+     * next. Its own failure domain: an unreadable next action leaves the cards
+     * exactly as they were before this feature, which is a narrower Today rather
+     * than a broken one.
+     */
     safely(
-      () => readActiveProjects(scope, now, todayIso, timezone),
-      [] as readonly AttentionProjectFacts[],
+      () =>
+        readActiveProjects(scope, now, todayIso, timezone).then(
+          async (facts) => {
+            const ranked = rankContinueProjects(
+              facts.map((project) => ({ ...project, nextAction: null })),
+            );
+            const nextActions = await safely(
+              () =>
+                scope.tasks.listProjectNextActions({
+                  projectIds: ranked.map((project) => project.id),
+                  todayIso,
+                  timezone,
+                }),
+              new Map<string, TaskListItem>(),
+            );
+            return { facts, ranked, nextActions };
+          },
+        ),
+      {
+        facts: [] as readonly AttentionProjectFacts[],
+        ranked: [] as ReturnType<typeof rankContinueProjects>,
+        nextActions: new Map<string, TaskListItem>() as ReadonlyMap<
+          string,
+          TaskListItem
+        >,
+      },
     ),
     safely(() => readGoalsAtRisk(scope, now, timezone), []),
     safely(
@@ -710,34 +765,7 @@ export async function loadTodayDay(
     ),
   ]);
 
-  /*
-   * STEER-04 (DEBT-77) — the next action for each "Continue working" card.
-   *
-   * ONE bounded statement, read AFTER the parallel block because it takes the
-   * RANKED cards' ids and the ranking needs the health facts above. Its cost is
-   * flat in the number of cards — `rankContinueProjects` caps them at
-   * `CONTINUE_MAX` — which is DEBT-77's own bar: *"query count is unchanged (one
-   * additional statement, not N)"*, reconciled as "the count does not grow with
-   * the cards".
-   *
-   * It is the product's ONE rule, evaluated at the database from the canonical
-   * smart ordering, so Today and `/tasks` cannot disagree about which Task is
-   * next. Its own failure domain: an unreadable next action leaves the cards
-   * exactly as they were before this feature, which is a narrower Today rather
-   * than a broken one.
-   */
-  const rankedProjects = rankContinueProjects(
-    projects.map((project) => ({ ...project, nextAction: null })),
-  );
-  const nextActions = await safely(
-    () =>
-      scope.tasks.listProjectNextActions({
-        projectIds: rankedProjects.map((project) => project.id),
-        todayIso,
-        timezone,
-      }),
-    new Map<string, TaskListItem>(),
-  );
+  const { facts: projects, ranked: rankedProjects, nextActions } = projectWork;
 
   return {
     todayIso,

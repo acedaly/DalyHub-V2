@@ -16,7 +16,10 @@ export {
   type WorkspaceScopeEnv,
 } from "./composition";
 
-export { resolveAuthenticatedWorkspaceScope } from "./authenticated-composition";
+export {
+  resolveAuthenticatedWorkspaceScope,
+  type AuthenticatedScopeOptions,
+} from "./authenticated-composition";
 
 export {
   createConfiguredWorkspaceContextResolver,

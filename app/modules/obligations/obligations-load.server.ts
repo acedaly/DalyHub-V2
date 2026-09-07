@@ -90,6 +90,11 @@ export async function loadObligationsCollection(input: {
     const scope = await resolveAuthenticatedWorkspaceScope(
       input.env,
       input.session,
+      {
+        // PERF-01 — this loader reads the owner's preferences immediately, so
+        // the read is started before the workspace check rather than after it.
+        warmOwnerPreferences: true,
+      },
     );
     todayIso = await scope.ownerTodayIso();
     const page: ObligationPageResult = await readObligationPage({

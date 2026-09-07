@@ -39,7 +39,7 @@
  */
 
 import { Fragment } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigation } from "react-router";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 import { Tooltip } from "~/shared/tooltip";
@@ -47,6 +47,8 @@ import { Tooltip } from "~/shared/tooltip";
 import { NavIcon } from "./NavIcon";
 import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
+import { pendingNavigationHref } from "./navigation-pending";
+import { PRIMARY_NAV_PREFETCH } from "./navigation-prefetch";
 
 /**
  * The display name for a navigation group, when it has one.
@@ -93,6 +95,15 @@ export function PrimaryNavigation({
   // consulting each item's module route prefixes as well as path nesting
   // (RECALL-00-E), so a singular record route keeps its module current.
   const currentHref = activeNavigationHref(items, pathname);
+  /*
+   * PERF-01 — the destination a click is on its way to, acknowledged instantly.
+   *
+   * `navigation-pending.ts` holds the rule and the reasoning; the row wears the
+   * selected row's own indicator shape while its loaders run, so a navigation
+   * says something the moment it starts rather than only when it finishes.
+   */
+  const routerNavigation = useNavigation();
+  const pendingHref = pendingNavigationHref(items, routerNavigation, pathname);
 
   /*
    * DS-03 — the collapsed rail's rows are glyph-only, so each one needs its
@@ -123,6 +134,7 @@ export function PrimaryNavigation({
           const heading =
             item.group === undefined ? undefined : GROUP_HEADINGS[item.group];
           const current = item.href === currentHref;
+          const pending = item.href === pendingHref;
           return (
             <Fragment key={item.id}>
               {startsNewGroup ? (
@@ -153,6 +165,12 @@ export function PrimaryNavigation({
                   {(tip) => (
                     <Link
                       to={item.href}
+                      /*
+                       * PERF-01 — the destination is warmed on INTENT, not on
+                       * click. `navigation-prefetch.ts` holds the policy and the
+                       * reasoning; this is the rail applying it.
+                       */
+                      prefetch={PRIMARY_NAV_PREFETCH}
                       ref={tip.ref}
                       className={
                         current
@@ -160,6 +178,8 @@ export function PrimaryNavigation({
                           : "dh-nav__link"
                       }
                       aria-current={current ? "page" : undefined}
+                      aria-busy={pending ? true : undefined}
+                      data-pending={pending ? "true" : undefined}
                       aria-describedby={tip.describedBy}
                       onClick={onNavigate}
                     >

@@ -20,9 +20,14 @@
 
 import { env } from "cloudflare:workers";
 import { useCallback, useMemo, useState } from "react";
-import { useRevalidator, useSearchParams } from "react-router";
+import {
+  useRevalidator,
+  useSearchParams,
+  type ShouldRevalidateFunctionArgs,
+} from "react-router";
 
 import { requireAuthenticatedSession } from "~/platform/request";
+import { isSameDocumentParameterChange } from "~/shared/router/revalidation";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
 import { DrawerProvider, useDrawer, withDrawerPushed } from "~/shared/drawer";
@@ -57,6 +62,34 @@ function ownerLocalHour(now: Date, timeZone: string): number {
   return Number.parseInt(raw, 10) % 24;
 }
 
+/**
+ * PERF-01 / PWA-12 — this loader's data does not depend on the URL, so a
+ * same-document parameter change must not re-read it.
+ *
+ * Opening a Task or an event from the day writes `?drawer=…`, which is a
+ * NAVIGATION. Today is the most expensive loader in the product — it reads
+ * thirty-eight statements across five round trips on a real workspace — and it
+ * was re-running all of it to produce a byte-for-byte identical payload every
+ * time the owner opened a row, and again when they closed it.
+ *
+ * `/tasks` and the app shell already declined this (PWA-12); Today never did,
+ * which also meant opening a Task from Today while OFFLINE took the page down —
+ * a loader that cannot reach the server throws into the global error boundary.
+ * A request that is never needed cannot fail.
+ *
+ * A SUBMISSION still revalidates, and so does an EXPLICIT `revalidate()` — an
+ * identical url is a deliberate re-read, not a move. That distinction is the
+ * whole of `isSameDocumentParameterChange`, and it is why this rule is not
+ * written as "same pathname → skip": completing a Task from the Drawer asks for
+ * exactly that re-read, and silencing it would leave the day showing work
+ * already done.
+ */
+export function shouldRevalidate(args: ShouldRevalidateFunctionArgs): boolean {
+  return isSameDocumentParameterChange(args)
+    ? false
+    : args.defaultShouldRevalidate;
+}
+
 export async function loader({ context }: Route.LoaderArgs) {
   // Authentication is guaranteed by the Worker boundary; re-check (401 propagates).
   const session = requireAuthenticatedSession(context);
@@ -71,7 +104,11 @@ export async function loader({ context }: Route.LoaderArgs) {
   let timezone = DEFAULT_APP_PREFERENCES.timezone;
   let day: TodayDayData;
   try {
-    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session, {
+      // PERF-01 — this loader reads the owner's preferences immediately, so the
+      // read is started before the workspace check rather than after it.
+      warmOwnerPreferences: true,
+    });
     const preferences = await scope.appPreferences.get(session.user.subject);
     timezone = preferences.timezone;
     day = await loadTodayDay(scope, {
