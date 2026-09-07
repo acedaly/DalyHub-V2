@@ -7149,3 +7149,122 @@ until the off-Cloudflare copy exists and has been restored from once.
   *Moving `/analytics` to `/insight`* (rejected: churning a URL for a label
   breaks every bookmark and every existing link to buy nothing the label does
   not already buy).
+
+---
+
+## ADR-122: GROUNDED AI — the provider never owns product truth, a FactBlock that is the whole of what may be stated, a response schema with no numeric field, and a fake provider at the adapter seam
+
+- **Status.** Accepted (2026-09-07, V2.14 GROUNDED AI, defined against `main` at
+  `353ede6`). The programme is
+  [`ROADMAP_V2_14.md`](../roadmap/ROADMAP_V2_14.md). This ADR records the five
+  durable decisions of that pass; it restates neither
+  [ADR-073 (the controlled AI platform)](#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract),
+  [ADR-116 (post-V2.8 boundaries)](#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export)
+  nor
+  [ADR-121 (Reports)](#adr-121-reports--a-saved-definition-is-a-third-saved-view-kind-one-breakdown-axis-per-question-a-closed-per-source-vocabulary-and-a-result-that-carries-its-own-currency-and-bound),
+  whose rules it consumes unchanged.
+
+- **Context.** ADR-073 built a controlled AI platform: bounded evidence,
+  DalyHub-owned response schemas, application-enforced budgets, a metadata-only
+  ledger and a proposal boundary no model can cross. Re-measuring it on
+  `353ede6` before building on it produced four facts:
+
+  1. **Nothing in it is dead.** 9,838 lines across 39 files, every module with a
+     live caller, four shipped features, no orphaned adapter and no half-built
+     second gateway. The platform is small and complete.
+  2. **Nothing below the adapter seam has ever run.** No provider credential has
+     ever existed in any environment this repository builds in, so every claim
+     about a real request is documentation rather than evidence. A feature built
+     on the platform could not be proven end to end and a failure could not be
+     diagnosed.
+  3. **The one grounded field is a string.** `RunAiRequestInput.derivedFacts` is
+     free text. `renderWeeklyReviewFacts` produces twelve lines of it, five of
+     which are hard-coded zeros ([DEBT-91](../product/PRODUCT_DEBT.md)). There
+     is no contract saying what a fact IS, no id a model can cite one by, and
+     therefore no way to check a figure in an answer against a figure DalyHub
+     supplied.
+  4. **`ReportResult` is already the right shape.** V2.13 deliberately gave it a
+     definition, a window, a unit, one block per currency, a `referenceId` per
+     row, an arithmetic remainder and the standing notes that qualify the claim
+     — everything a fact needs except an id.
+
+- **Decision.**
+
+  1. **The provider never owns product truth, and the flow is one-directional.**
+     Intent and parameters are resolved deterministically; canonical
+     repositories, Reports and the history layer compute the figures; a
+     `FactBlock` carries them; only then is a provider contacted; the answer is
+     validated back against the block. There is no tool-calling, no database
+     handle, no generated SQL, no model-chosen data authority and no embedding
+     index. The model's whole job is to explain a block it was handed.
+
+  2. **`FactBlock` is the one contract, and it is the whole of what may be
+     stated.** A `Fact` carries a stable per-response id (`F1`), an
+     owner-authored label (sanitised and bounded, and DATA — never
+     instruction), a canonical value in canonical units (integer minor units for
+     money, ADR-049), DalyHub's own formatting of it, its period, a safe
+     reference the UI builds a link from, and its own qualification. A block
+     carries the question, the subject, the period, the facts, the BOUNDS
+     inherited from the reads that produced them, the currencies (never merged)
+     and a deterministic hash of its canonical payload. Each intent gets exactly
+     the facts it needs from its own builder; there is no
+     `loadEverythingForAI()`.
+
+  3. **The response schema has NO numeric field, and grounding is structural.**
+     A grounded answer is a status, a summary, observations that each cite
+     `factIds`, and — for the Weekly Review only — reflection questions. Every
+     figure the owner sees beside the prose is rendered by DalyHub from the
+     `Fact`. On top of that: an observation with no citation is refused; a
+     citation of an id DalyHub did not supply is refused; and every
+     number-shaped token in the prose must be reproducible from a supplied fact
+     — its canonical value, its formatted display, its period or its record
+     count — or the whole answer is refused as
+     `provider_response_invalid` and the deterministic facts stay on screen.
+     Making a figure hard to fabricate *structurally* is the guarantee;
+     post-hoc detection is the belt to that braces.
+
+  4. **The fake provider lives at the ADAPTER seam, and nowhere else.** It
+     implements `AiProviderAdapter` and is constructed by
+     `resolveAiConfiguration` in place of a real adapter, so the preference
+     gate, feature policy, privacy filter, token estimate, budget reservation,
+     ledger row, retry and fallback plan, schema validation, citation
+     validation, reconciliation and release are all the code a real provider
+     runs. It requires `AI_FAKE_PROVIDER=1` **and** a development/test
+     `ENVIRONMENT` — the same two-key rule the development authenticator uses —
+     and an architecture test asserts a production configuration refuses it.
+     This is what makes "the platform works" an assertion rather than a hope,
+     while the owner-held key remains outstanding.
+
+  5. **A grounded surface degrades to its facts, never to an error.** A
+     provider that is off, unconfigured, refused, timed out, rate-limited, over
+     budget or malformed leaves the Report, the Review and Ask exactly as they
+     are, with one calm sentence where the explanation would have been. No AI
+     failure reaches the global error boundary, no AI call happens in a route
+     loader, and an explanation is bound to the FactBlock hash it was written
+     about — so prose is never paired with numbers it did not describe.
+
+- **Consequences.** Every grounded surface costs a builder, and a builder is
+  deterministic code with its own statement budget and its own workspace-scoped
+  reads — which is the cost of the guarantee and is paid deliberately. A figure
+  the product cannot compute is a figure the AI cannot state, so *"what will I
+  spend next year?"* is refused rather than estimated. Three of the four Ask
+  intents execute V2.13 report definitions, so a grounded answer and the Report
+  the owner opens to check it are computed by the same code and cannot disagree.
+  Persisting AI prose stays refused ([DEBT-92](../product/PRODUCT_DEBT.md)), and
+  keyword retrieval stays untouched for the surfaces that already use it
+  ([DEBT-93](../product/PRODUCT_DEBT.md)), because a grounded intent does not
+  retrieve by keyword at all.
+
+- **Alternatives considered.** *Giving the model bounded tools and letting it
+  choose* (rejected: a model that chooses its data authority owns product truth,
+  which is the one thing decision 1 exists to prevent). *Letting the model
+  return the figures in structured fields and validating them* (rejected:
+  decision 3 — a schema with a number field is a schema that invites a number,
+  and detection is strictly weaker than absence). *Persisting explanations so
+  they can be exported* (rejected: an explanation is derived interpretation, and
+  a second durable collection is a second recovery requirement for something the
+  source domains already export). *A generic `loadEverythingForAI()`* (rejected:
+  unbounded prompts, unstable budgets, unclear authority and a privacy surface
+  nobody could reason about). *Sending raw transactions and asking why August
+  cost more* (rejected: it is the exact inversion of decision 1, it is expensive,
+  and it is less correct than arithmetic DalyHub already performs).
