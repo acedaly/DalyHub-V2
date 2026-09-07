@@ -917,6 +917,65 @@ real D1 instead, through the real snapshot projection.
 
 ---
 
+## Verification: the whole gate, measured
+
+Run on the branch head against a fresh build, not inferred from a partial run.
+
+| Gate | Result |
+|---|---|
+| `pnpm run lint` | clean |
+| `prettier --check .` | clean |
+| `pnpm run typecheck` | clean |
+| `pnpm run dhds:check` | 0 direct machinery references |
+| `pnpm run scheme:check` | `tokens.css` and `scheme.ts` match the generator |
+| `pnpm run icons:check` | 11 icon assets match the canonical geometry |
+| `pnpm run docs:links:check` | 6,967 local links in 158 files, all resolve |
+| `pnpm run e2e:partitions:check` | 138 spec files across 13 partitions |
+| `pnpm run e2e:fixture-dates:check` | 1,300 literals, none unannotated in the future |
+| `pnpm run build` | clean |
+| `pnpm run test:unit` | **7,398 passed**, 516 files |
+| `pnpm run test:kernel` (real D1) | **3,523 passed**, 224 files |
+| `pnpm exec playwright test` | **2,089 passed**, 8 failed — see below |
+
+**The eight E2E failures, attributed.** The full suite was run end to end rather
+than only its Reports partition, and that is what caught them.
+
+*Two were this release's, and are fixed:*
+
+- `analytics.spec.ts` asserted the H1 and the rail link still said "Analytics".
+  The relabel is deliberate and the route did not move, which is exactly what
+  the navigation test now proves: it clicks **Insight** and asserts `/analytics`.
+- `search.spec.ts` enumerates every search provider in registry order, and
+  `reports.search` had been added to the unit and kernel copies of that list but
+  not to this one.
+
+Both are enumerated lists that exist so a new module cannot enter navigation or
+search unnoticed. They worked as designed, and both files now pass.
+
+*Six were not this release's,* and each was established rather than assumed:
+
+- `notes.spec.ts`, `project-health.spec.ts`, `projects.spec.ts` — pass in
+  isolation on this branch. They failed inside a 4.6-hour single-worker run on a
+  loaded container.
+- `color-scheme.spec.ts` (*keeps working surfaces NEUTRAL*) and `finance.spec.ts`
+  (*the Finance surfaces are axe-clean*) fail with a **30-second test timeout,
+  never an assertion**, and both were re-run at the base commit `8287d71`, where
+  they fail the same way and **slower** (35.8s and 35.1s against 31.9s and
+  ~30s). Neither is a regression. Both are structurally marginal on slow
+  hardware: five full page reloads and seven consecutive axe scans respectively,
+  inside one 30-second budget. `reports.css` is scoped entirely to
+  `.dh-report*` and cannot reach the `/today` canvas the first one measures.
+- The remaining two "did not run": the suite stopped early on the failure count.
+
+The Finance timeout deserves one more sentence, because `monthSummary` was
+re-pointed at `summariseRange` in this release and that page is inside its blast
+radius: the other 46 tests in the same run pass, including the ones that read
+the Finance home's own figures, and those would fail before an accessibility
+scan timed out. The delegation is separately proven by machine value against
+real D1.
+
+---
+
 ## Owner actions
 
 **None.** V2.13 creates no store, needs no migration, adds no binding, changes
