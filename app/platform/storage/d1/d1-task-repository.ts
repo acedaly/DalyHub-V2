@@ -7492,12 +7492,18 @@ export class D1TaskRepository implements TaskRepository {
      * ceil(ids / CHECKLIST_ID_CHUNK) — a function of the caller's page, not of
      * the workspace's size.
      */
+    const chunks: string[][] = [];
     for (let start = 0; start < unique.length; start += CHECKLIST_ID_CHUNK) {
-      const chunk = unique.slice(start, start + CHECKLIST_ID_CHUNK);
-      const result = await this.#run(
-        this.#db
-          .prepare(
-            `SELECT e.id AS id
+      chunks.push(unique.slice(start, start + CHECKLIST_ID_CHUNK));
+    }
+    // PERF-01 — concurrent, for the reason `listChecklistProgress` records: a
+    // chunk boundary is arithmetic, so no chunk waits on another.
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        this.#run(
+          this.#db
+            .prepare(
+              `SELECT e.id AS id
                FROM entities e
                JOIN spine_records sr
                  ON sr.workspace_id = e.workspace_id AND sr.entity_id = e.id
@@ -7509,9 +7515,12 @@ export class D1TaskRepository implements TaskRepository {
                 AND e.deleted_at IS NULL
                 AND sr.completed_at IS NULL
                 AND coalesce(td.status, 'todo') <> 'cancelled'`,
-          )
-          .bind(this.#workspaceId, ...chunk),
-      );
+            )
+            .bind(this.#workspaceId, ...chunk),
+        ),
+      ),
+    );
+    for (const result of results) {
       for (const row of (result.results ?? []) as {
         readonly id: string;
       }[]) {
@@ -7544,7 +7553,7 @@ export class D1TaskRepository implements TaskRepository {
     }
 
     /*
-     * ONE aggregate per CHUNK, never one per Task.
+     * ONE aggregate per CHUNK, never one per Task — and every chunk CONCURRENT.
      *
      * The chunk exists only because D1 accepts a finite number of bound
      * parameters; the statement count is therefore
@@ -7552,21 +7561,37 @@ export class D1TaskRepository implements TaskRepository {
      * which is a constant per surface, and independent of how many Tasks the
      * workspace holds. That is the property `no N+1` actually asks for, and
      * `task-checklist-query-bounds.test.ts` asserts it.
+     *
+     * PERF-01 — the chunks used to be awaited one after another, and on a real
+     * workspace that was measurable: Today reads 240 Tasks, which is three
+     * chunks, which was THREE serial D1 round trips inside one aggregate whose
+     * whole point was to be one. Chunk *n* does not depend on chunk *n-1* — the
+     * ids were split by arithmetic, not by anything the database says — so they
+     * are issued together and the aggregate costs one round trip again. The
+     * statement count is unchanged; the depth is not
+     * (`navigation-statement-budget.test.ts`).
      */
+    const chunks: string[][] = [];
     for (let start = 0; start < unique.length; start += CHECKLIST_ID_CHUNK) {
-      const chunk = unique.slice(start, start + CHECKLIST_ID_CHUNK);
-      const result = await this.#run(
-        this.#db
-          .prepare(
-            `SELECT task_id AS task_id,
+      chunks.push(unique.slice(start, start + CHECKLIST_ID_CHUNK));
+    }
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        this.#run(
+          this.#db
+            .prepare(
+              `SELECT task_id AS task_id,
                     COUNT(*) AS total,
                     SUM(completed) AS done
              FROM task_checklist_items
              WHERE workspace_id = ? AND task_id IN (${chunk.map(() => "?").join(", ")})
              GROUP BY task_id`,
-          )
-          .bind(this.#workspaceId, ...chunk),
-      );
+            )
+            .bind(this.#workspaceId, ...chunk),
+        ),
+      ),
+    );
+    for (const result of results) {
       for (const row of (result.results ?? []) as {
         readonly task_id: string;
         readonly total: number;
@@ -8143,12 +8168,17 @@ export class D1TaskRepository implements TaskRepository {
      * MIN(title) is the same blocker every device names, so two clients drawing
      * "Blocked by X" cannot disagree about which X.
      */
+    const chunks: string[][] = [];
     for (let start = 0; start < unique.length; start += DEPENDENCY_ID_CHUNK) {
-      const chunk = unique.slice(start, start + DEPENDENCY_ID_CHUNK);
-      const result = await this.#run(
-        this.#db
-          .prepare(
-            `SELECT l.target_entity_id AS task_id,
+      chunks.push(unique.slice(start, start + DEPENDENCY_ID_CHUNK));
+    }
+    // PERF-01 — concurrent, for the reason `listChecklistProgress` records.
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        this.#run(
+          this.#db
+            .prepare(
+              `SELECT l.target_entity_id AS task_id,
                     COUNT(*) AS blockers,
                     MIN(blocker.title) AS first_title
              FROM entity_links l
@@ -8166,9 +8196,12 @@ export class D1TaskRepository implements TaskRepository {
                AND l.target_entity_id IN (${chunk.map(() => "?").join(", ")})
                AND sr.completed_at IS NULL
              GROUP BY l.target_entity_id`,
-          )
-          .bind(this.#workspaceId, TASK_BLOCKS, ...chunk),
-      );
+            )
+            .bind(this.#workspaceId, TASK_BLOCKS, ...chunk),
+        ),
+      ),
+    );
+    for (const result of results) {
       for (const row of (result.results ?? []) as {
         readonly task_id: string;
         readonly blockers: number;

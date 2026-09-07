@@ -41,6 +41,7 @@ import type { TagVocabularyRepository } from "~/kernel/tags";
 import type { ReviewInsightRepository } from "~/kernel/review-insights";
 import {
   DEFAULT_OWNER_TIME_ZONE,
+  type AppPreferenceRecord,
   type AppPreferencesRepository,
 } from "~/kernel/preferences";
 import {
@@ -95,9 +96,12 @@ import type {
   CrossViewQueryRepository,
   SavedViewRepository,
 } from "~/kernel/views";
-import type {
-  WorkspaceContext,
-  WorkspaceContextResolver,
+import {
+  createWorkspaceContext,
+  parseWorkspaceId,
+  type WorkspaceContext,
+  type WorkspaceContextResolver,
+  type WorkspaceId,
 } from "~/kernel/workspaces";
 import {
   createActivityRepository,
@@ -604,6 +608,65 @@ export function createWorkspaceContextResolver(
  * mutation repositories — module calls cannot spoof it through a parameter. Fails
  * closed (throws a typed workspace error) if the workspace cannot be resolved.
  */
+/**
+ * PERF-01 — start the owner's preferences read BEFORE the workspace resolves.
+ *
+ * Every authenticated loader in the product begins with the same two round
+ * trips, one after the other: confirm the configured workspace exists, then read
+ * the owner's preference row. The second cannot begin until the first returns,
+ * even though it never depended on the answer — the row is addressed by the
+ * configured workspace id and the trusted actor, both of which are known before
+ * the existence check is issued. Two waves for one wave's worth of information,
+ * on the critical path of every navigation.
+ *
+ * So the read is STARTED here and awaited later. It is deliberately
+ * best-effort: the id is parsed with the same kernel validator the resolver
+ * uses, and anything at all that goes wrong (unconfigured, malformed) simply
+ * yields no warm read, leaving the resolver to produce the canonical typed
+ * error. **This function is not an authority.** It never decides whether the
+ * workspace exists, never widens a scope, and its result is used only after
+ * `resolve()` has returned a context whose id it matches.
+ *
+ * Nothing request-supplied reaches it: `configuredWorkspaceId` is server
+ * configuration and the owner is the trusted actor, exactly as in
+ * `bindWorkspaceRepositories` below.
+ */
+export function startOwnerPreferencesRead(
+  env: WorkspaceScopeEnv,
+  actorContext: ActivityActorContext,
+): WarmPreferencesRead | undefined {
+  const configured = env.DEFAULT_WORKSPACE_ID;
+  if (configured === undefined || configured.trim().length === 0) {
+    return undefined;
+  }
+  let workspaceId;
+  try {
+    workspaceId = parseWorkspaceId(configured);
+  } catch {
+    return undefined;
+  }
+  const ownerId = actorContext.actor.id ?? "system";
+  const read = createAppPreferencesRepository(
+    env.DB,
+    createWorkspaceContext(workspaceId),
+  ).get(ownerId);
+  /*
+   * A rejection must still reach whoever awaits the memo, but it must not be an
+   * UNHANDLED rejection in the window before anyone does — the resolver may
+   * throw first and nobody may ever await this. One no-op handler marks it
+   * handled without consuming it.
+   */
+  read.catch(() => {});
+  return { workspaceId, ownerId, read };
+}
+
+/** A preferences read started before the workspace context was confirmed. */
+interface WarmPreferencesRead {
+  readonly workspaceId: WorkspaceId;
+  readonly ownerId: string;
+  readonly read: Promise<AppPreferenceRecord>;
+}
+
 export async function resolveWorkspaceScope(
   env: WorkspaceScopeEnv,
 ): Promise<WorkspaceScope> {
@@ -623,6 +686,13 @@ export function bindWorkspaceRepositories(
   env: WorkspaceScopeEnv,
   context: WorkspaceContext,
   actorContext: ActivityActorContext,
+  /**
+   * PERF-01 — an owner preferences read already in flight, from
+   * {@link startOwnerPreferencesRead}. Adopted only when it names this exact
+   * workspace and this exact owner; anything else is ignored and the row is read
+   * normally, so a mismatched warm read can never answer for another scope.
+   */
+  warm?: WarmPreferencesRead,
 ): WorkspaceScope {
   /*
    * AUDIT-14 — resolve the owner's timezone ONCE, here, before anything that
@@ -640,8 +710,49 @@ export function bindWorkspaceRepositories(
    * an absent row degrades to `DEFAULT_OWNER_TIME_ZONE`: a page must not 500
    * because a preference row is missing.
    */
-  const appPreferences = createAppPreferencesRepository(env.DB, context);
+  const storedPreferences = createAppPreferencesRepository(env.DB, context);
   const preferencesOwnerId = actorContext.actor.id ?? "system";
+
+  /*
+   * PERF-01 — the owner's preference row is read ONCE per scope.
+   *
+   * A scope is built per request, so this is request-scoped memoisation and not
+   * a cache with a staleness question to answer. It exists because the row was
+   * genuinely being read twice on real routes: `/goals` asked
+   * `scope.ownerTimeZone()` for the owner's day and `scope.appPreferences.get()`
+   * for their week start, which is one row, two statements and — because the
+   * second was issued after the first resolved — an avoidable round trip. The
+   * shell's loader and the page's loader run concurrently in separate scopes and
+   * still read separately; this is about the duplication INSIDE one loader.
+   *
+   * A WRITE drops the memo. A preferences action that updates and then re-reads
+   * within one request must see what it wrote, and the alternative — a loader
+   * quietly serving the pre-write value — is exactly the kind of stale wrongness
+   * a performance change must not introduce.
+   */
+  let preferencesRead: Promise<AppPreferenceRecord> | null =
+    warm !== undefined &&
+    warm.workspaceId === context.workspaceId &&
+    warm.ownerId === preferencesOwnerId
+      ? warm.read
+      : null;
+  const appPreferences: AppPreferencesRepository = {
+    get: (ownerId: string) => {
+      if (ownerId !== preferencesOwnerId) return storedPreferences.get(ownerId);
+      preferencesRead ??= storedPreferences.get(ownerId).catch((error) => {
+        // A failed read must not be remembered as the answer: the next caller
+        // asks the database again rather than inheriting a rejection.
+        preferencesRead = null;
+        throw error;
+      });
+      return preferencesRead;
+    },
+    update: async (ownerId, patch, options) => {
+      preferencesRead = null;
+      return storedPreferences.update(ownerId, patch, options);
+    },
+  };
+
   let ownerTimeZonePromise: Promise<string> | null = null;
   const ownerTimeZone: OwnerTimeZoneResolver = () => {
     ownerTimeZonePromise ??= appPreferences

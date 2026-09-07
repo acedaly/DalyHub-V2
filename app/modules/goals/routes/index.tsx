@@ -198,7 +198,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   try {
-    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session, {
+      // PERF-01 — this loader reads the owner's preferences immediately, so the
+      // read is started before the workspace check rather than after it.
+      warmOwnerPreferences: true,
+    });
 
     // AUDIT-14 — the owner's day, from the one scope-level authority.
     const timeZone = await scope.ownerTimeZone();
@@ -256,6 +260,54 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       }
     }
     const ids = page.items.map((item) => item.id);
+
+    /*
+     * PERF-01 — the Area options and the selected Goal's detail are STARTED
+     * here, beside the page's grouped reads rather than after them.
+     *
+     * The options depend on nothing at all, and the detail depends only on WHICH
+     * Goal is selected — which the page above already decides. Neither needed
+     * the seven grouped reads below, so waiting for them cost two D1 round trips
+     * on a route that makes several.
+     *
+     * `selection ?? page.items[0]?.id` is the same id the serialized list would
+     * give: `goals` below is a pure `map` over `page.items`, so its first
+     * element's id is this one by construction. Reading it from the page rather
+     * than from the serialized copy is what lets the detail start early, and it
+     * cannot select a different Goal.
+     */
+    const selectedId = selection ?? page.items[0]?.id ?? null;
+    let areaOptions: SelectOption[] = [];
+    let areaOptionsFailed = false;
+    let selected: GoalWorkspaceDetail | null = null;
+    const paneReads = Promise.all([
+      (async () => {
+        try {
+          const areas = await scope.entities.list({
+            type: "area",
+            limit: AREA_OPTIONS_LIMIT,
+          });
+          areaOptions = areas.items.map((area) => ({
+            value: area.id,
+            label: area.title,
+          }));
+        } catch {
+          areaOptionsFailed = true;
+        }
+      })(),
+      (async () => {
+        if (selectedId === null) return;
+        try {
+          selected = await loadGoalWorkspaceDetail(scope, selectedId, {
+            timeZone,
+            evaluation,
+            recentWindowStartIso,
+          });
+        } catch {
+          selected = null;
+        }
+      })(),
+    ]);
 
     /*
      * GOAL-02 — the page's MEASURABLE state, in a fixed number of grouped
@@ -421,34 +473,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
      * workspace has no Areas", which is the state that would make creation
      * genuinely impossible.
      */
-    let areaOptions: SelectOption[] = [];
-    let areaOptionsFailed = false;
-    try {
-      const areas = await scope.entities.list({
-        type: "area",
-        limit: AREA_OPTIONS_LIMIT,
-      });
-      areaOptions = areas.items.map((area) => ({
-        value: area.id,
-        label: area.title,
-      }));
-    } catch {
-      areaOptionsFailed = true;
-    }
-
-    const selectedId = selection ?? goals[0]?.id ?? null;
-    let selected: GoalWorkspaceDetail | null = null;
-    if (selectedId !== null) {
-      try {
-        selected = await loadGoalWorkspaceDetail(scope, selectedId, {
-          timeZone,
-          evaluation,
-          recentWindowStartIso,
-        });
-      } catch {
-        selected = null;
-      }
-    }
+    // PERF-01 — started above, awaited here: by now they are usually done.
+    await paneReads;
 
     /*
      * FOLLOW-02 — the pane's movement is the SAME value its row carries.

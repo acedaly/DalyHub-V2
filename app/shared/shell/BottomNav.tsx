@@ -40,11 +40,12 @@
  */
 
 import { useRef } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigation } from "react-router";
 
 import { MoreIcon, PlusIcon } from "~/shared/icons";
 
 import { NavIcon } from "./NavIcon";
+import { PRIMARY_NAV_PREFETCH } from "./navigation-prefetch";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 
@@ -53,6 +54,7 @@ import {
   buildBottomNavigation,
   resolveMobilePrimaryDestinations,
 } from "./mobile-navigation";
+import { pendingNavigationHref } from "./navigation-pending";
 
 export type BottomNavProps = {
   /** The registry-driven navigation model, already filtered by SET-01 preferences. */
@@ -80,12 +82,25 @@ export function BottomNav({
   moreOpen,
 }: BottomNavProps) {
   const location = useLocation();
+  /*
+   * Named for what it is, because this component's PROP is also called
+   * `navigation` — that one is the registry-driven destination model, this one
+   * is the router's in-flight state. Two different things, and the bar reads
+   * both.
+   */
+  const routerNavigation = useNavigation();
   const captureRef = useRef<HTMLButtonElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
 
   const destinations = resolveMobilePrimaryDestinations(navigation);
   const slots = buildBottomNavigation(navigation);
   const activeHref = activeDestinationHref(destinations, location.pathname);
+  // PERF-01 — the same acknowledgement the rail gives, from the same rule.
+  const pendingHref = pendingNavigationHref(
+    destinations,
+    routerNavigation,
+    location.pathname,
+  );
 
   return (
     // Named DISTINCTLY from the sidebar's "Primary" navigation landmark: both are
@@ -156,9 +171,20 @@ export function BottomNav({
             <li key={item.id} className="dh-bottomnav__item">
               <Link
                 to={item.href}
+                /*
+                 * PERF-01 — the same intent policy the rail uses, and safe here
+                 * for the reason `navigation-prefetch.ts` records: the intent
+                 * trigger on touch is `touchstart`, which fires for the ONE
+                 * destination the finger has landed on. A tap warms that route
+                 * and no other; the bar never downloads five destinations
+                 * because it painted.
+                 */
+                prefetch={PRIMARY_NAV_PREFETCH}
                 className="dh-bottomnav__control"
                 aria-current={active ? "page" : undefined}
+                aria-busy={item.href === pendingHref ? true : undefined}
                 data-active={active ? "true" : "false"}
+                data-pending={item.href === pendingHref ? "true" : undefined}
               >
                 {/* M3's active-indicator PILL sits behind the glyph rather than
                     as a rule above it. It is a shape as well as a tint, so the

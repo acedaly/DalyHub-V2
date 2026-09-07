@@ -819,6 +819,27 @@ export class D1GoalRepository implements GoalRepository {
   async #selectGoalStartedOnMap(
     calendarIsoOf: (instant: Date) => string,
   ): Promise<string> {
+    /*
+     * PERF-01 measured this read twice per `/goals` load — `listGoalsByOutcome`
+     * and `countGoalsByOutcomeLens` both begin here, because the ordered page
+     * and the lens counts are derived from identical SQL precisely so they
+     * cannot disagree — and DECIDED NOT to memoise it.
+     *
+     * A memo on the repository instance would have saved one statement and one
+     * round trip, and `goal-outcome.test.ts` demonstrated the price: ask, create
+     * twenty Goals, ask again, and the second answer is the first one. A
+     * repository lives as long as its workspace scope, and a scope can outlive a
+     * write — so the memo would have been a cache whose correctness rested on
+     * nobody reading after writing through the same scope. That is a promise
+     * this file cannot make on behalf of every future caller, for one statement.
+     *
+     * The honest alternative — the CALLER reading the origins once and handing
+     * the same value to both reads — is a real option, and it is recorded in
+     * `docs/development/PERFORMANCE.md` as measured-but-declined rather than
+     * taken, because it puts an opaque repository intermediate into the kernel's
+     * public contract to save a single statement on a route that is not the
+     * slow one.
+     */
     const result = await this.#run(
       this.#db
         .prepare(

@@ -48,7 +48,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const now = new Date();
 
   try {
-    const scope = await resolveAuthenticatedWorkspaceScope(env, session);
+    const scope = await resolveAuthenticatedWorkspaceScope(env, session, {
+      // PERF-01 — this loader reads the owner's preferences immediately, so the
+      // read is started before the workspace check rather than after it.
+      warmOwnerPreferences: true,
+    });
     const preferences = await scope.appPreferences.get(session.user.subject);
     const todayIso = ownerCalendarIso(now, preferences.timezone);
     /*

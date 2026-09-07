@@ -28,6 +28,7 @@
     "docs:links:check": "node scripts/docs-links.mjs check",
     "docs:links:list": "node scripts/docs-links.mjs list",
     "e2e:gate": "node scripts/e2e-gate.mjs",
+    "perf:navigation": "node scripts/perf-navigation.mjs",
     "e2e:order-proof": "node scripts/e2e-order-proof.mjs",
     "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run dhds:check && pnpm run scheme:check && pnpm run docs:links:check && pnpm run test && pnpm run build && pnpm run test:e2e",
     "deploy:dry-run": "pnpm run build && wrangler deploy --dry-run --config build/server/wrangler.json",
