@@ -537,7 +537,7 @@ Review sets it to in progress through the existing `setStatus` contract.
   including the completion-blocked state and a long Markdown editor.
 
 
-## The Weekly Review assistant (AI-01, 2026-08-05)
+## The Weekly Review assistant (AI-01, 2026-08-05; grounded V2.14, 2026-09-07)
 
 The guided weekly Review's **Next week's focus** step offers one deliberate
 action: *Generate assistant summary*. It does **not** run when the Review opens,
@@ -545,10 +545,42 @@ does not complete the Review, and creates no Tasks.
 
 The facts are DalyHub's. Counts, overdue work and Inbox state are calculated from
 repositories and sent as an authoritative block the prompt tells the model to
-restate rather than recompute; a small, bounded set of open Tasks goes with them
-as citable supporting records. The output distinguishes recorded fact, derived
+restate rather than recompute. The output distinguishes recorded fact, derived
 calculation and AI inference — each pattern carries an explicit
 `observation | inference` label the surface renders in words, not colour.
+
+**V2.14 GROUND-02 replaced what that block contains.** Until then it carried five
+hard-coded zeros — stalled Projects, Projects with no visible next action, Goals
+with and without activity, and a Diary count — for facts this module computes
+properly three files away, so the assistant was told, authoritatively, that the
+owner had no stalled Projects and no Goals with activity in the one sitting
+dedicated to noticing exactly those things
+([DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3--resolved-2026-09-07-v214-ground-02)).
+
+It now CALLS the evaluators rather than re-deriving them:
+
+| fact | authority |
+|---|---|
+| Project health, staleness, overdue and waiting work | `evaluateProjectHealth` (PROJ-02) |
+| a Project's next action | `listProjectNextActions` (STEER-04) |
+| a Goal's measurement, movement, alignment and the owner's `set_aside` **condition** | `loadGoalStories` (STEER-03) |
+| what the recent Reviews recorded, and repeated carry-over | `readAcrossReviews` (INS-02) |
+| commitments falling due | `readObligationPage` (V2.10) |
+
+The condition is the one that mattered most: it is the owner's own recorded
+judgement, and an assistant without it would have described a Goal they
+deliberately put down as neglected — which is precisely what
+[ADR-111](../decisions/ARCHITECTURE_DECISIONS.md#adr-111-steering--owner-judgement-is-stored-beside-derived-signals-never-merged--one-next-action-rule-one-goal-story-and-a-collection-order-that-answers-a-recorded-question)
+decision 1 exists to prevent, arriving through the one surface the owner cannot
+correct by looking at the screen beside it.
+
+Every figure now carries an id the assistant cites, and the surface renders the
+figures itself from DalyHub's own formatting; the whole block is expandable
+beneath the summary, so the prose is checkable rather than merely fluent. **The
+Diary is absent entirely** — not a count, not a title, not an excerpt — and so
+are People and attachments; an architecture test asserts no builder reads them.
+`test/kernel/review-fact-block` parity is asserted against this module's own step
+projection over the same period, including a non-zero stalled case.
 
 Accepted text is **appended** to whatever the owner has already written in the
 focus section and still requires their own save, through the existing Review

@@ -249,14 +249,31 @@ type FactBlock = {
 type Fact = {
   id: string;                      // "F1" — stable within one response
   label: string;                   // owner-authored text, sanitised, bounded
-  kind: "money" | "count" | "value" | "delta" | "state" | "text";
   value: FactValue;                // canonical units — minor units for money
   display: string;                 // DalyHub's own formatting; the AI restates it
   period: FactPeriod | null;
   reference: FactReference | null; // a SAFE link the UI builds; never a model URL
   note: string | null;             // this fact's own qualification
 };
+
+type FactValue =
+  | { kind: "money"; minorUnits: number; currencyCode: string }
+  | { kind: "count"; count: number }
+  | { kind: "value"; amount: number; unit: string | null }
+  | { kind: "ratio"; numerator: number; denominator: number }
+  | { kind: "date"; iso: string }
+  | { kind: "state"; state: string }
+  | { kind: "absent" };
 ```
+
+The kind lives on the **value**, not beside it, so a fact cannot claim to be
+money and carry a bare number. `absent` is a first-class kind and the reason a
+grounded answer can say *"there is no reading for August"* rather than *"August
+is zero"* — the two are different claims about someone's life, and only one of
+them is true. A `delta` kind was in the definition sketch and was dropped when
+it was built: a difference is a `money` or `count` fact whose **label** states
+the direction DalyHub computed, so there is no second arithmetic convention for
+the model to interpret.
 
 **Why it reuses the evidence architecture rather than replacing it.** The
 existing `EvidenceItem` is a bounded *excerpt* with a citation id, a privacy
@@ -358,8 +375,60 @@ the same code, so they cannot disagree.
 - The ledger is asserted metadata-only by query: no amount, no payee, no label,
   no prompt and no fact value is written to `ai_usage_requests`.
 - Workspace isolation is proven per builder against a foreign id.
-- Every falsification listed below is performed, proven to fail a test, and
-  reverted.
+- Every falsification in the table below is performed, proven to fail a test,
+  and reverted.
+
+### Falsification — thirty deliberate breaks, thirty red suites
+
+A guarantee nothing can break is a guarantee nobody has tested. Each row below
+was introduced into the working tree, the relevant suite was run, the failure
+recorded, and the break reverted with `git checkout --` before the next.
+
+| # | The break | Caught by |
+|---:|---|---|
+| 1 | numeric validator disabled, so a fabricated figure renders | `ai/grounded-schema` |
+| 2 | an unknown fact id accepted as a citation | `ai/grounded-schema` |
+| 3 | an uncited observation rendered beside cited ones | `ai/grounded-schema` |
+| 4 | the adjacency rule removed, so "4 of 4" passes over a fact that says 3 of 4 | `ai/fact-block` |
+| 5 | the development provider made selectable in production | `ai/fake-provider` |
+| 6 | a fact builder reaches the Diary | `architecture/grounded-ai-boundaries` |
+| 7 | an attachment filename enters a fact builder | `architecture/grounded-ai-boundaries` |
+| 8 | an embedding model arrives on an AI path | `architecture/grounded-ai-boundaries` |
+| 9 | a credential is read outside `ai-configuration.ts` | `architecture/grounded-ai-boundaries` |
+| 10 | a grounded path calls a repository write | `architecture/grounded-ai-boundaries` |
+| 11 | a Report's bound is dropped from the FactBlock | `ai/report-facts` |
+| 12 | mixed currencies merged in the fact labels | `ai/report-facts` |
+| 13 | the fact ceiling drops a block's totals instead of its tail | `ai/report-facts` |
+| 14 | an arbitrary URL accepted as a fact reference | `ai/fact-block` |
+| 15 | an owner label can close the fact block and open a policy | `ai/injection-corpus` |
+| 16 | a truncated fact block reports itself complete | `ai/fact-block` |
+| 17 | an unsupported question falls through to an intent anyway | `ai/ask-intents` |
+| 18 | the grounded schema gains a field a figure could be returned in | `ai/grounded-schema` |
+| 19 | a grounded answer accepted over an empty fact block | `ai/grounded-schema` |
+| 20 | model markup rendered rather than refused | `ai/grounded-schema` |
+| 21 | the ledger stores a fact LABEL instead of a record id | `kernel/grounded-ai` |
+| 22 | a foreign workspace's record reaches a fact block | `kernel/grounded-ai` |
+| 23 | DEBT-91's stalled-Project zero comes back | `ai/review-facts-overdue` |
+| 24 | a set-aside Goal reported as ordinary | `ai/review-facts-overdue` |
+| 25 | the Review block acquires a per-Project read (N+1) | `kernel/grounded-ai` |
+| 26 | a Reports loader reaches the AI layer | `reports/report-boundaries` |
+| 27 | a SECOND AI surface appears in the Reports module | `reports/report-boundaries` |
+| 28 | the result identity moves with the clock | `reports/report-identity` |
+| 29 | a lost caveat leaves the result identity unchanged | `reports/report-identity` |
+| 30 | the stale-report refusal is deleted | `e2e/grounded-ai` |
+
+**Three of these were harness misses on the first attempt and are worth naming**,
+because a falsification that fails to break anything reads exactly like a
+guarantee that holds. #21 edited `findReusable` rather than `reserve`; #25 used a
+repository method that does not exist, so the break was swallowed by the
+builder's own `safe()` wrapper; #22 passed an option the repository ignores.
+Each was redone as a real break and then caught.
+
+**#30 was a genuine test gap.** Deleting the stale-report refusal from the assist
+route broke nothing: the refusal was covered only where it was constructed, not
+where it is enforced. Three route-level browser journeys and
+`test/unit/reports/report-identity.test.ts` were added, and the same deletion is
+now red.
 
 ---
 
@@ -378,9 +447,11 @@ still says so truthfully.
 
 ### Owner activation
 
-1. `pnpm exec wrangler secret put ANTHROPIC_API_KEY --config build/server/wrangler.json`
-   (or `OPENAI_API_KEY`; either is sufficient, both are supported, neither is
-   preferred).
+1. `pnpm exec wrangler secret put ANTHROPIC_API_KEY --env production` (or
+   `OPENAI_API_KEY`; either is sufficient, both are supported, neither is
+   preferred). The value is pasted at the prompt, never typed on a command line.
+   Full steps and reasoning:
+   [`DEPLOYMENT.md`](../development/DEPLOYMENT.md#activating-ai-in-production-owner-held-v214).
 2. Optionally `AI_GATEWAY_ACCOUNT_ID` **and** `AI_GATEWAY_ID` together to route
    through Cloudflare AI Gateway, plus `AI_GATEWAY_TOKEN` for an authenticated
    gateway. Half-configuring the gateway is refused by preflight rather than

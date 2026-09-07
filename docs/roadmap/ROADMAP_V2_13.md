@@ -35,9 +35,12 @@
 RPT-00 … RPT-05, delivered in one branch and one pull request, as the owner
 asked.
 
-**Successor: V2.14 GROUNDED AI — PLANNED, definition pass next** — see
-[`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v214--grounded-ai-presumptive--gated-on-the-owner-held-key).
-Nothing in V2.14 is built here. `ReportResult` is deliberately shaped so a fact
+**Successor: V2.14 GROUNDED AI — defined and delivered 2026-09-07** — see
+[`ROADMAP_V2_14.md`](ROADMAP_V2_14.md), which supersedes the presumptive sketch
+in [`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v214--grounded-ai-presumptive--gated-on-the-owner-held-key).
+It derives a fact block from `ReportResult` exactly as this release anticipated:
+Reports still imports no AI, and the "Explain this report" control lives in
+`~/shared/ai` and is handed plain data. Nothing in V2.14 is built here. `ReportResult` is deliberately shaped so a fact
 block can be derived from it without Reports acquiring any dependency on AI;
 there is no provider call, no "Explain" control and no dead AI surface in this
 release.

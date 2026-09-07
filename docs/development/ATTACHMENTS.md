@@ -284,6 +284,15 @@ Cloudflare, and taking one is worth doing after any batch of important uploads.
   `EVIDENCE_KIND`, and no AI retrieval path reads the attachments table or the
   bucket. A test asserts both halves. V3 may add a sanitising extraction layer;
   V2.11 sends nothing.
+  **V2.14 GROUNDED AI kept this boundary and widened the assertion.** A `Fact`
+  has no attachment reference kind, no fact builder reads the attachments table
+  or the bucket, no AI source names a filename field (`fileName`,
+  `originalName`, `storageKey`), and nothing on an AI path names OCR, PDF text,
+  image understanding or an embedding —
+  `test/unit/architecture/grounded-ai-boundaries.test.ts` asserts every one of
+  those over the AI sources with comments stripped, so a rule written in a
+  comment can never pass for a rule enforced in code. Neither an attachment's
+  **content** nor its **name** reaches a provider.
 - **There is no attachment Search provider.** Search's explicit-query boundary
   and its unbidden-palette path share one provider set, so a filename indexed for
   the first would surface in the second — and a filename (`MRI results.pdf`) is

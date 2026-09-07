@@ -331,7 +331,7 @@ test-provider seam in this repository — AI-01 shipped none on purpose."* So
 the gate **as written** has a small code-held half — a dev-only fake provider
 behind the existing adapter contract, and the check script wired as an npm
 script — beside its owner-held half. Raised as
-[DEBT-237](../product/PRODUCT_DEBT.md#-debt-237--the-ai-gate-names-a-fake-provider-path-that-the-repository-deliberately-does-not-have--p3) (P3).
+[DEBT-237](../product/PRODUCT_DEBT.md#-debt-237--the-ai-gate-names-a-fake-provider-path-that-the-repository-deliberately-does-not-have--p3--resolved-2026-09-07-v214-ground-00) (P3).
 A second code-adjacent risk stands unchanged: DEBT-213's registry is pinned to
 2026-08-05, so the first live run may fail on a retired model id for reasons
 unrelated to the adapter.

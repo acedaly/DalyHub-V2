@@ -85,7 +85,6 @@ export function AiExplainReport({
       feature: "report-explanation",
       definition,
       reportId: reportId ?? "",
-      factBlockHash: "",
       resultDigest,
       // Derived from the exact figures plus a per-press counter: a refresh
       // replays nothing, and a deliberate second press is a new, separately
