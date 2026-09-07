@@ -282,9 +282,19 @@ result — the line the Finance module already holds.
 | Spending by category | 1 | nothing |
 | Goal measurements | 1 | nothing |
 | Completed Tasks by Area | 2 | nothing |
-| Obligations due in 90 days | 1 | nothing |
+| Obligations due in 90 days | 2 | nothing |
 | Project health across Reviews | 2 | nothing |
 | Recurring commitments by month | 1 | nothing |
+
+The two that cost a second statement buy the same thing with it: a bounded page
+cannot state what it left out, so the population's own totals are read beside it
+and the surface prints an arithmetically truthful remainder.
+
+A TIME breakdown groups on the buckets the executor drew, passed to the read as
+one bound JSON parameter and expanded by `json_each`. It does **not** group by
+calendar month and translate: buckets run backward from the window's end, so the
+two disagree for any mid-month window, and at a week grain several buckets share
+a month and the translation is not even a function.
 
 Asserted against real D1 at a small workspace and again after 200 more
 transactions and 40 more completed Tasks across 10 more Areas — the counts are

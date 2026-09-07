@@ -29,13 +29,13 @@
 
 import {
   monthLabel,
-  monthOf,
   rangeDirectionAmount,
   type FinanceRangeGroup,
   type FinanceRepository,
 } from "~/kernel/finance";
 import {
   obligationCategoryLabel,
+  MAX_PROJECTED_OCCURRENCES,
   projectObligations,
   type ObligationRepository,
 } from "~/kernel/obligations";
@@ -87,13 +87,28 @@ async function financeAdapter(
     config.breakdown.by === "group"
       ? (FINANCE_GROUPS[config.breakdown.group] ?? "none")
       : config.breakdown.by === "time"
-        ? "month"
+        ? "bucket"
         : "none";
 
   const rows = await scope.finance.summariseRange({
     fromIso: window.periodStart,
     toIso: window.periodEnd,
     groupBy,
+    /*
+     * A time breakdown groups on the buckets the executor actually drew, never
+     * on calendar months translated into them: a report's buckets run backward
+     * from the window's END, so the two disagree for any mid-month window, and
+     * at a week grain several buckets share a month and the translation is not
+     * even a function.
+     */
+    buckets:
+      groupBy === "bucket"
+        ? (buckets?.buckets ?? []).map((bucket) => ({
+            key: bucket.key,
+            startIso: bucket.periodStart,
+            endIso: bucket.periodEnd,
+          }))
+        : undefined,
     categoryId: config.filters.categoryId,
     accountId: config.filters.accountId,
     uncategorised: config.filters.uncategorised,
@@ -133,7 +148,7 @@ async function financeAdapter(
     }
   }
 
-  const bucketKeyForMonth = monthBucketKeys(buckets);
+  const bucketEnd = bucketEnds(buckets);
   const cells: ReportCell[] = [];
   for (const entry of totals.values()) {
     const value = counting ? entry.count : entry.value;
@@ -142,15 +157,17 @@ async function financeAdapter(
     if (!counting && value === 0) continue;
 
     if (config.breakdown.by === "time") {
-      const bucketKey = entry.key
-        ? bucketKeyForMonth.get(entry.key)
-        : undefined;
-      // A month outside the buckets (the window's partial oldest one) is
-      // dropped rather than folded into a neighbour it did not happen in.
-      if (bucketKey === undefined) continue;
+      /*
+       * The group key IS the bucket key: the read grouped on the spans the
+       * executor drew, so there is nothing to translate and nothing to drop.
+       * The LABEL is the bucket's own end rather than a calendar-month name,
+       * because a rolling 8 Aug - 7 Sep span is not "September" — printing it
+       * as one was the misattribution this axis removed.
+       */
+      if (entry.key === null) continue;
       cells.push({
-        key: bucketKey,
-        label: monthLabel(entry.key as string),
+        key: entry.key,
+        label: bucketEnd.get(entry.key) ?? entry.key,
         currencyCode: counting ? null : entry.currency,
         value,
         detail: entry.count,
@@ -191,13 +208,20 @@ function labelFor(
   return key === null ? "Uncategorised" : key;
 }
 
-/** `YYYY-MM` → the bucket key that month falls in. */
-function monthBucketKeys(
+/**
+ * Bucket key -> the bucket's own last day.
+ *
+ * A series row is NAMED by the executor from the bucket's period, so this is
+ * only the fallback label — and it is a date rather than a month name on
+ * purpose: buckets run backward from the window's end, so a "month" bucket is a
+ * rolling span that no calendar-month name describes.
+ */
+function bucketEnds(
   buckets: ReportReadRequest["buckets"],
 ): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
   for (const bucket of buckets?.buckets ?? []) {
-    map.set(monthOf(bucket.periodEnd), bucket.key);
+    map.set(bucket.key, bucket.periodEnd);
   }
   return map;
 }
@@ -375,7 +399,7 @@ async function projectsAdapter(
   scope: ReportAdapterScope,
   request: ReportReadRequest,
 ): Promise<ReportRead> {
-  const { config } = request;
+  const { config, window } = request;
   const reviewType = (config.filters.reviewType ?? "weekly") as ReviewType;
 
   // The anchor: the most recent COMPLETED Review of the requested type. The
@@ -401,10 +425,63 @@ async function projectsAdapter(
     };
   }
 
-  const series = await scope.reviewInsights.listSnapshotSeries(
+  const wholeSeries = await scope.reviewInsights.listSnapshotSeries(
     anchor.id,
     REPORT_REVIEW_SERIES_LENGTH,
   );
+
+  /*
+   * The PERIOD narrows the population, because it is part of the question.
+   *
+   * Without this the control was decorative: a 4-week report and a 24-month one
+   * read the same twelve snapshots and printed the same figures under different
+   * date ranges — a figure that does not answer the question shown beside it.
+   *
+   * A Review is placed by ITS OWN period, not by when its snapshot happened to
+   * be written: a Review covering 1-7 September belongs to a September report
+   * whether it was completed on the 7th or written up on the 9th. The snapshot
+   * carries that period, so no second read is needed to know it.
+   */
+  const series = wholeSeries.filter(
+    (stored) =>
+      stored.snapshot.periodEnd >= window.periodStart &&
+      stored.snapshot.periodEnd <= window.periodEnd,
+  );
+
+  /*
+   * The READ bound, stated when it can actually hide something. The series is
+   * the most recent `REPORT_REVIEW_SERIES_LENGTH` Reviews before the anchor, so
+   * a period reaching back past the oldest of them contains Reviews this report
+   * did not read. Saying "none in this period" then would be false.
+   */
+  const oldestRead = wholeSeries.at(0)?.snapshot.periodEnd ?? null;
+  const reachesPastTheRead =
+    wholeSeries.length >= REPORT_REVIEW_SERIES_LENGTH &&
+    oldestRead !== null &&
+    window.periodStart < oldestRead;
+  const readBoundNote = reachesPastTheRead
+    ? ([
+        {
+          code: "bounded_series" as const,
+          text: `This report reads the ${REPORT_REVIEW_SERIES_LENGTH} most recent ${reviewType} Reviews. The period reaches back further than that, so older Reviews inside it are not counted here.`,
+          tone: "warning" as const,
+        },
+      ] as const)
+    : ([] as const);
+
+  if (series.length === 0) {
+    return {
+      cells: [],
+      notes: [
+        ...readBoundNote,
+        {
+          code: "no_records",
+          text: `No ${reviewType} Review this report read was completed in this period, so there is nothing to read across. Widen the period and this report fills in.`,
+          tone: "neutral",
+        },
+      ],
+    };
+  }
 
   const wantedState = config.filters.healthState ?? null;
   const wantedProject = config.filters.projectId ?? null;
@@ -429,9 +506,10 @@ async function projectsAdapter(
   }
 
   const notes = [
+    ...readBoundNote,
     {
       code: "standing" as const,
-      text: `Read across the ${series.length} most recent completed ${reviewType} ${series.length === 1 ? "Review" : "Reviews"} that captured a snapshot.`,
+      text: `Read across the ${series.length} completed ${reviewType} ${series.length === 1 ? "Review" : "Reviews"} in this period that captured a snapshot.`,
       tone: "neutral" as const,
     },
   ];
@@ -500,21 +578,31 @@ async function storedObligations(
 ): Promise<ReportRead> {
   const { config, buckets } = request;
   const money = config.measure === "expected_amount";
-  const group =
-    config.breakdown.by === "group"
-      ? (config.breakdown.group as "month" | "category" | "subject")
-      : "month";
+  const timeAxis = config.breakdown.by === "time";
+  const group = timeAxis
+    ? ("bucket" as const)
+    : ((config.breakdown as { group: string }).group as
+        "month" | "category" | "subject");
 
-  const rows = await scope.obligations.summariseDue({
+  const summary = await scope.obligations.summariseDue({
     fromIso: window.periodStart,
     toIso: window.periodEnd,
     groupBy: group,
+    // The spans the executor drew, never calendar months translated into them.
+    buckets: timeAxis
+      ? (buckets?.buckets ?? []).map((bucket) => ({
+          key: bucket.key,
+          startIso: bucket.periodStart,
+          endIso: bucket.periodEnd,
+        }))
+      : undefined,
     filters: config.filters.obligationCategory
       ? { categories: [config.filters.obligationCategory] }
       : undefined,
     subjectEntityId: config.filters.subjectId,
     limit: MAX_REPORT_GROUPS,
   });
+  const rows = summary.rows;
 
   const withoutAmount = rows.reduce((sum, row) => sum + row.withoutAmount, 0);
   const notes =
@@ -528,19 +616,19 @@ async function storedObligations(
         ]
       : undefined;
 
-  const bucketKeyForMonth = monthBucketKeys(buckets);
+  // A bucket's label is its own span: a rolling period is not a calendar month
+  // and must never be printed as one.
+  const bucketEnd = bucketEnds(buckets);
   const cells: ReportCell[] = [];
   for (const row of rows) {
     const value = money ? row.expectedAmountMinor : row.dueCount;
     if (money && row.currencyCode === null) continue;
-    if (config.breakdown.by === "time") {
-      const bucketKey = row.groupKey
-        ? bucketKeyForMonth.get(row.groupKey)
-        : undefined;
-      if (bucketKey === undefined) continue;
+    if (timeAxis) {
+      // The group key IS the bucket key, so nothing is translated or dropped.
+      if (row.groupKey === null) continue;
       cells.push({
-        key: bucketKey,
-        label: monthLabel(row.groupKey as string),
+        key: row.groupKey,
+        label: bucketEnd.get(row.groupKey) ?? row.groupKey,
         currencyCode: money ? row.currencyCode : null,
         value,
         detail: row.dueCount,
@@ -549,7 +637,11 @@ async function storedObligations(
     }
     cells.push({
       key: row.groupKey ?? "__none",
-      label: obligationGroupLabel(group, row.groupKey, row.groupLabel),
+      label: obligationGroupLabel(
+        group as "month" | "category" | "subject",
+        row.groupKey,
+        row.groupLabel,
+      ),
       currencyCode: money ? row.currencyCode : null,
       value,
       detail: row.dueCount,
@@ -558,7 +650,42 @@ async function storedObligations(
     });
   }
 
-  return { cells: mergeCells(cells), notes };
+  /*
+   * What the bounded page LEFT OUT, stated arithmetically.
+   *
+   * The page is capped at `MAX_REPORT_GROUPS` (group, currency) pairs; the
+   * range's own totals come from the same population, so the difference is the
+   * remainder rather than a guess. Reporting it is not decoration: a total that
+   * is quietly short is the exact failure this release forbids everywhere else.
+   */
+  const merged = mergeCells(cells);
+  const shown = new Map<string, number>();
+  for (const cell of merged) {
+    const key = cell.currencyCode ?? "";
+    shown.set(key, (shown.get(key) ?? 0) + (cell.value ?? 0));
+  }
+  const omitted = Math.max(0, summary.groups - merged.length);
+  const remainders = summary.overall
+    .filter((row) => !money || row.currencyCode !== null)
+    .map((row) => {
+      const key = money ? (row.currencyCode ?? "") : "";
+      const whole = money ? row.expectedAmountMinor : row.dueCount;
+      return {
+        currencyCode: money ? row.currencyCode : null,
+        groups: omitted,
+        value: whole - (shown.get(key) ?? 0),
+      };
+    })
+    .filter((entry) => entry.value !== 0);
+
+  const bounded = omitted > 0 && remainders.length > 0;
+
+  return {
+    cells: merged,
+    notes,
+    bounded,
+    remainders: bounded ? remainders : undefined,
+  };
 }
 
 async function projectedCommitments(
@@ -630,6 +757,20 @@ async function projectedCommitments(
       tone: "warning",
     });
   }
+  /*
+   * The OTHER bound, which is per commitment rather than per list: a frequent
+   * recurrence — daily, over a 365-day window — stops at
+   * `MAX_PROJECTED_OCCURRENCES`, and the occurrences past it are simply not in
+   * the totals. Saying so is not optional. A bound that is computed and then
+   * dropped is worse than no bound, because the figure looks complete.
+   */
+  if (projection.boundedCommitments > 0) {
+    notes.push({
+      code: "bounded_series",
+      text: `${projection.boundedCommitments} ${projection.boundedCommitments === 1 ? "commitment repeats" : "commitments repeat"} often enough to reach this projection's limit of ${MAX_PROJECTED_OCCURRENCES} occurrences each. Later occurrences are not counted here, so ${projection.boundedCommitments === 1 ? "its" : "their"} contribution is a floor rather than a total.`,
+      tone: "warning",
+    });
+  }
 
   const byMonth =
     config.breakdown.by !== "group" || config.breakdown.group !== "category";
@@ -645,7 +786,7 @@ async function projectedCommitments(
       sortKey: byMonth ? entry.key : undefined,
     })),
     notes,
-    bounded: page.bounded,
+    bounded: page.bounded || projection.boundedCommitments > 0,
   };
 }
 

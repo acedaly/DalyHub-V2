@@ -67,6 +67,7 @@ import {
   encodeObligationCursor,
   evaluateObligation,
   isIsoDate,
+  MAX_OBLIGATION_DUE_BUCKETS,
   nextObligationDate,
   obligationBandBoundaries,
   obligationCategoriesMatching,
@@ -94,6 +95,7 @@ import {
   type ObligationCategory,
   type ObligationChangeResult,
   type ObligationCursorScope,
+  type ObligationDueSummary,
   type ObligationDueSummaryInput,
   type ObligationDueTotal,
   type ObligationProofRef,
@@ -2198,9 +2200,44 @@ export class D1ObligationRepository implements ObligationRepository {
    */
   async summariseDue(
     input: ObligationDueSummaryInput,
-  ): Promise<readonly ObligationDueTotal[]> {
+  ): Promise<ObligationDueSummary> {
     if (!isIsoDate(input.fromIso) || !isIsoDate(input.toIso)) {
       throw new ObligationValidationError("fromIso", "must be a calendar date");
+    }
+    /*
+     * The BUCKET axis groups on the spans the caller drew, expanded from ONE
+     * bound JSON parameter by `json_each` — the `history-window-read.ts`
+     * technique, so the statement's shape is independent of the window.
+     */
+    const axisIsBucket = input.groupBy === "bucket";
+    const buckets = axisIsBucket ? (input.buckets ?? []) : [];
+    if (axisIsBucket) {
+      if (input.buckets === undefined) {
+        throw new ObligationValidationError(
+          "buckets",
+          "are required for `bucket`",
+        );
+      }
+      if (buckets.length > MAX_OBLIGATION_DUE_BUCKETS) {
+        throw new ObligationValidationError(
+          "buckets",
+          `must hold at most ${MAX_OBLIGATION_DUE_BUCKETS} spans`,
+        );
+      }
+      for (const bucket of buckets) {
+        if (!isIsoDate(bucket.startIso) || !isIsoDate(bucket.endIso)) {
+          throw new ObligationValidationError(
+            "buckets",
+            "must carry calendar dates",
+          );
+        }
+      }
+      if (buckets.length === 0) return { rows: [], groups: 0, overall: [] };
+    } else if (input.buckets !== undefined) {
+      throw new ObligationValidationError(
+        "buckets",
+        "are only meaningful for `bucket`",
+      );
     }
     const filters = validateObligationFilters(input.filters);
     const subjectEntityId =
@@ -2215,12 +2252,37 @@ export class D1ObligationRepository implements ObligationRepository {
     );
 
     // Chosen from a CLOSED set here, never interpolated from a caller's string.
-    const axis =
-      input.groupBy === "month"
+    const axis = axisIsBucket
+      ? { key: "b.bucket_key", label: "NULL" }
+      : input.groupBy === "month"
         ? { key: "substr(o.due_date, 1, 7)", label: "NULL" }
         : input.groupBy === "category"
           ? { key: "o.category", label: "NULL" }
           : { key: "o.subject_entity_id", label: "s.title" };
+
+    const bucketCte = axisIsBucket
+      ? `WITH b AS (
+           SELECT json_extract(value, '$[0]') AS bucket_key,
+                  json_extract(value, '$[1]') AS start_iso,
+                  json_extract(value, '$[2]') AS end_iso
+             FROM json_each(?)
+         )
+         `
+      : "";
+    const bucketJoin = axisIsBucket
+      ? "JOIN b ON o.due_date >= b.start_iso AND o.due_date <= b.end_iso"
+      : "";
+    const bucketParam = axisIsBucket
+      ? [
+          JSON.stringify(
+            buckets.map((bucket) => [
+              bucket.key,
+              bucket.startIso,
+              bucket.endIso,
+            ]),
+          ),
+        ]
+      : [];
 
     const conditions = [
       "o.workspace_id = ?",
@@ -2245,38 +2307,76 @@ export class D1ObligationRepository implements ObligationRepository {
       params.push(...filters.categories);
     }
 
-    try {
-      const result = await this.#db
-        .prepare(
-          `SELECT ${axis.key} AS group_key, ${axis.label} AS group_label,
-                  o.currency_code AS currency_code,
-                  COUNT(*) AS n,
-                  SUM(COALESCE(o.expected_amount_minor, 0)) AS amount,
-                  SUM(CASE WHEN o.expected_amount_minor IS NULL THEN 1 ELSE 0 END)
-                    AS without_amount
-             FROM obligation_details o
+    const from = `FROM obligation_details o
              JOIN entities e
                ON e.workspace_id = o.workspace_id AND e.id = o.entity_id
               AND e.type = '${OBLIGATION_ENTITY_TYPE}' AND e.deleted_at IS NULL
              ${SUBJECT_JOINS}
-            WHERE ${conditions.join(" AND ")}
+             ${bucketJoin}
+            WHERE ${conditions.join(" AND ")}`;
+    const figures = `COUNT(*) AS n,
+                  SUM(COALESCE(o.expected_amount_minor, 0)) AS amount,
+                  SUM(CASE WHEN o.expected_amount_minor IS NULL THEN 1 ELSE 0 END)
+                    AS without_amount`;
+
+    try {
+      /*
+       * TWO statements, for the reason `countCompletedByGroup` pays the same
+       * price: a bounded PAGE cannot state what it left out. The second reads
+       * the range's own totals and its true group count, so a bounded result
+       * carries an arithmetically truthful remainder rather than a total that
+       * is quietly short. A LIMIT with nothing beside it is silent truncation,
+       * which this release forbids everywhere else.
+       */
+      const [page, whole] = await Promise.all([
+        this.#db
+          .prepare(
+            `${bucketCte}SELECT ${axis.key} AS group_key, ${axis.label} AS group_label,
+                  o.currency_code AS currency_code,
+                  ${figures}
+             ${from}
             GROUP BY group_key, o.currency_code
             ORDER BY group_key, o.currency_code
             LIMIT ?`,
-        )
-        .bind(...params, limit)
-        .all<{
-          group_key: string | null;
-          group_label: string | null;
-          currency_code: string | null;
-          n: number;
-          amount: number;
-          without_amount: number;
-        }>();
+          )
+          .bind(...bucketParam, ...params, limit)
+          .all<{
+            group_key: string | null;
+            group_label: string | null;
+            currency_code: string | null;
+            n: number;
+            amount: number;
+            without_amount: number;
+          }>(),
+        this.#db
+          .prepare(
+            `${bucketCte}SELECT o.currency_code AS currency_code,
+                  ${figures},
+                  (SELECT COUNT(DISTINCT ${axis.key}) ${from}) AS groups
+             ${from}
+            GROUP BY o.currency_code
+            ORDER BY o.currency_code`,
+          )
+          .bind(...bucketParam, ...params, ...params)
+          .all<{
+            currency_code: string | null;
+            n: number;
+            amount: number;
+            without_amount: number;
+            groups: number;
+          }>(),
+      ]);
 
-      return (result.results ?? []).map((row) => ({
-        groupKey: row.group_key,
-        groupLabel: row.group_label,
+      const total = (row: {
+        group_key?: string | null;
+        group_label?: string | null;
+        currency_code: string | null;
+        n: number;
+        amount: number;
+        without_amount: number;
+      }): ObligationDueTotal => ({
+        groupKey: row.group_key ?? null,
+        groupLabel: row.group_label ?? null,
         // An obligation with an amount but no currency cannot be totalled, so
         // it is treated exactly as one with no amount: counted, never summed.
         currencyCode: row.currency_code,
@@ -2284,7 +2384,14 @@ export class D1ObligationRepository implements ObligationRepository {
         expectedAmountMinor:
           row.currency_code === null ? 0 : Number(row.amount ?? 0),
         withoutAmount: Number(row.without_amount ?? 0),
-      }));
+      });
+
+      const overallRows = whole.results ?? [];
+      return {
+        rows: (page.results ?? []).map(total),
+        groups: Number(overallRows[0]?.groups ?? 0),
+        overall: overallRows.map(total),
+      };
     } catch (cause) {
       this.#fail(cause);
     }

@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { env } from "cloudflare:test";
 
 import { monthDirectionTotals, monthEnd, monthStart } from "~/kernel/finance";
+import { REVIEW_INSIGHT_SNAPSHOT_VERSION } from "~/kernel/review-insights";
 import {
   BUILT_IN_REPORTS,
   executeReport,
@@ -56,6 +57,7 @@ import {
   makeGoalRepository,
   makeReportRepository,
   makeSpineRepository,
+  ensureWorkspace,
   resetTables,
   sequentialIds,
 } from "./support";
@@ -535,6 +537,125 @@ describe("machine-value parity with the surfaces these reports summarise", () =>
     expect(block.total).toBeNull();
   });
 
+  /*
+   * A time breakdown lands each figure in the bucket the DAY falls in.
+   *
+   * The buckets run backward from the window's END, so with a window ending
+   * 7 September a "month" bucket is 8 Aug - 7 Sep. Grouping the read by
+   * CALENDAR month and then deciding which bucket each month belongs to — the
+   * shape this release shipped first — files 8-31 August into the bucket that
+   * ends on 7 August, which is a month it did not happen in. At a WEEK grain it
+   * is worse than wrong: several buckets end in one calendar month, so the
+   * translation is not a function and all but one of them are lost.
+   *
+   * The fixture is its own workspace so the parity totals above cannot move.
+   */
+  it("Built-in 1: a figure lands in the bucket its DAY falls in", async () => {
+    const BUCKETS = "ws_reports_buckets";
+    await ensureWorkspace(BUCKETS);
+    const scope = scopeFor(BUCKETS);
+    const account = await scope.finance.createAccount({
+      title: "Everyday",
+      accountType: "transaction",
+      currencyCode: "AUD",
+      openingBalance: "0.00",
+      openingDate: "2025-01-01",
+    });
+    const groceries = (await scope.finance.listCategories()).find(
+      (category) => category.name === "Groceries",
+    )!.id;
+    const spend = (amount: string, occurredOn: string) =>
+      scope.finance.createTransaction({
+        accountId: account.id,
+        occurredOn,
+        amount,
+        payeeDisplay: "Synthetic",
+        categoryId: groceries,
+      });
+
+    // 4 August is BEFORE the 7 August boundary, so it belongs to the bucket
+    // ending 7 August. 20 August is AFTER it, so it belongs to the NEXT one —
+    // the same calendar month, a different bucket, and the whole point.
+    await spend("-10.00", "2026-08-04");
+    await spend("-25.00", "2026-08-20");
+    await spend("-40.00", "2026-09-02");
+
+    const result = await run(
+      {
+        ...builtIn("spend-by-category"),
+        breakdown: { by: "time", grain: "month" },
+        sort: "chronological",
+        visual: "trend",
+      },
+      BUCKETS,
+    );
+    const rows = result.blocks[0].rows;
+    const bucketFor = (dayIso: string) =>
+      rows.find(
+        (row) =>
+          row.period !== null &&
+          row.period.startIso <= dayIso &&
+          dayIso <= row.period.endIso,
+      );
+
+    // 20 August and 2 September share the bucket 8 Aug - 7 Sep: 2,500 + 4,000.
+    expect(bucketFor("2026-09-02")?.value).toBe(6_500);
+    expect(bucketFor("2026-08-20")?.key).toBe(bucketFor("2026-09-02")?.key);
+    // 4 August is on its own, in the bucket before it.
+    expect(bucketFor("2026-08-04")?.value).toBe(1_000);
+    // Nothing was dropped on the way: every cent is in a bucket.
+    const total = rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
+    expect(total).toBe(1_000 + 2_500 + 4_000);
+  });
+
+  it("Built-in 1: a WEEK grain keeps every bucket that shares a month", async () => {
+    const WEEKS = "ws_reports_weeks";
+    await ensureWorkspace(WEEKS);
+    const scope = scopeFor(WEEKS);
+    const account = await scope.finance.createAccount({
+      title: "Everyday",
+      accountType: "transaction",
+      currencyCode: "AUD",
+      openingBalance: "0.00",
+      openingDate: "2025-01-01",
+    });
+    const groceries = (await scope.finance.listCategories()).find(
+      (category) => category.name === "Groceries",
+    )!.id;
+    // Three spends in the SAME calendar month, a week apart. Translating a
+    // month key into a bucket keeps one of these and silently loses two.
+    for (const [amount, day] of [
+      ["-10.00", "2026-09-02"],
+      ["-20.00", "2026-08-26"],
+      ["-30.00", "2026-08-19"],
+    ] as const) {
+      await scope.finance.createTransaction({
+        accountId: account.id,
+        occurredOn: day,
+        amount,
+        payeeDisplay: "Synthetic",
+        categoryId: groceries,
+      });
+    }
+
+    const result = await run(
+      {
+        ...builtIn("spend-by-category"),
+        window: { kind: "preset", preset: "12-weeks" },
+        breakdown: { by: "time", grain: "week" },
+        sort: "chronological",
+        visual: "trend",
+      },
+      WEEKS,
+    );
+    const rows = result.blocks[0].rows;
+    const withValue = rows.filter((row) => (row.value ?? 0) > 0);
+    // THREE distinct weekly buckets, each holding its own spend.
+    expect(withValue).toHaveLength(3);
+    expect(withValue.map((row) => row.value)).toEqual([3_000, 2_000, 1_000]);
+    expect(rows.reduce((sum, row) => sum + (row.value ?? 0), 0)).toBe(6_000);
+  });
+
   it("Built-in 4: obligations due equals the canonical obligation read", async () => {
     const scope = scopeFor(WS);
     const canonical = await scope.obligations.list({ today: TODAY });
@@ -554,6 +675,50 @@ describe("machine-value parity with the surfaces these reports summarise", () =>
     expect(rows.get("November 2026")).toBe(1);
   });
 
+  /*
+   * A bounded page must say what it left out.
+   *
+   * `summariseDue` pages at `MAX_REPORT_GROUPS`; without the range's own totals
+   * beside it, the groups past the cap were simply gone and the printed total
+   * was quietly short — the failure this release forbids everywhere else. The
+   * second statement is what buys the remainder, and it is why this built-in
+   * costs two rather than one.
+   */
+  it("Built-in 4: a bounded due report states an arithmetically true remainder", async () => {
+    const MANY = "ws_reports_many_subjects";
+    await ensureWorkspace(MANY);
+    const scope = scopeFor(MANY);
+    const spine = makeSpineRepository(makeContext(MANY));
+
+    // More subjects than the result can show, each with one obligation due.
+    const subjects = 30;
+    for (let index = 0; index < subjects; index += 1) {
+      const area = await spine.createArea({ title: `Area ${index}` });
+      await scope.obligations.create({
+        title: `Commitment ${index}`,
+        category: "subscription",
+        dueDate: "2026-10-01",
+        subjectEntityId: area.id,
+      });
+    }
+
+    const result = await run(
+      {
+        ...builtIn("obligations-next-90-days"),
+        breakdown: { by: "group", group: "subject" },
+      },
+      MANY,
+    );
+    const block = result.blocks[0];
+    expect(block.rows.length).toBeLessThan(subjects);
+    expect(block.remainder).not.toBeNull();
+
+    // The shown rows PLUS the remainder are the whole period, exactly.
+    const shown = block.rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
+    expect(shown + (block.remainder?.value ?? 0)).toBe(subjects);
+    expect(result.bounded).toBe(true);
+  });
+
   it("Built-in 6: a commitment with no amount is counted, never estimated", async () => {
     const result = await run(builtIn("recurring-commitments-by-month"));
     // Electricity has no recorded amount, so it appears in no money total.
@@ -566,6 +731,106 @@ describe("machine-value parity with the surfaces these reports summarise", () =>
     // September through August is twelve streaming occurrences plus one
     // insurance renewal in October — nothing estimated for Electricity.
     expect(aud?.total).toBe(12 * 1_999 + 82_000);
+  });
+
+  /*
+   * The period control is part of the question, so it must change the figures.
+   *
+   * Before this it did not: `projectsAdapter` read the latest twelve snapshots
+   * whatever the window, so a 4-week report and a 24-month one printed
+   * IDENTICAL numbers under different date ranges — a figure that does not
+   * answer the question shown beside it. A Review is placed by its own period.
+   */
+  it("Built-in 5: the PERIOD narrows which Reviews are read", async () => {
+    const REVIEWS = "ws_reports_reviews";
+    await ensureWorkspace(REVIEWS);
+    const scope = scopeFor(REVIEWS);
+    const spine = makeSpineRepository(makeContext(REVIEWS));
+    const area = await spine.createArea({ title: "Home" });
+    const project = await spine.createProject({
+      title: "Rewire the shed",
+      parent: { kind: "area", id: area.id },
+    });
+
+    // Two weekly Reviews: one LAST week, one nine months ago. Both record the
+    // same Project at risk, so only the window can tell them apart.
+    const seed = async (periodStart: string, periodEnd: string) => {
+      const { review } = await scope.reviews.create({
+        type: "weekly",
+        periodStart,
+        periodEnd,
+      });
+      await scope.reviews.complete(review.id);
+      await scope.reviewInsights.saveSnapshot(review.id, {
+        version: REVIEW_INSIGHT_SNAPSHOT_VERSION,
+        periodStart,
+        periodEnd,
+        tasksCompleted: 0,
+        projectsCompleted: 0,
+        goalsCompleted: 0,
+        overdueCarryOver: 0,
+        waitingCarryOver: 0,
+        projects: [
+          { id: project.id, health: "at_risk", openTasks: 1, overdueTasks: 0 },
+        ],
+        projectsBounded: false,
+        goals: [],
+        goalsBounded: false,
+        areas: [],
+        areasBounded: false,
+        carryOverTaskIds: [],
+        carryOverTaskIdsBounded: false,
+      });
+      return review;
+    };
+    await seed("2025-12-01", "2025-12-07");
+    await seed("2026-08-31", "2026-09-06");
+
+    const at = async (preset: "4-weeks" | "12-months") =>
+      run(
+        {
+          ...builtIn("project-health-across-reviews"),
+          window: { kind: "preset", preset },
+        },
+        REVIEWS,
+      );
+    const count = (result: ReportResult) =>
+      result.blocks[0].rows.reduce((sum, row) => sum + (row.value ?? 0), 0);
+
+    // Twelve months holds BOTH Reviews; four weeks holds only the recent one.
+    expect(count(await at("12-months"))).toBe(2);
+    expect(count(await at("4-weeks"))).toBe(1);
+  });
+
+  /*
+   * The projection has TWO bounds, and both must be stated. The list bound was;
+   * the PER-COMMITMENT one was computed by the kernel and then dropped on the
+   * floor, so a daily commitment over a year silently stopped at 60 occurrences
+   * and printed a total that looked complete. A bound that is computed and not
+   * reported is worse than no bound at all.
+   */
+  it("Built-in 6: a commitment that outruns the projection says so", async () => {
+    const DAILY = "ws_reports_daily";
+    await ensureWorkspace(DAILY);
+    const scope = scopeFor(DAILY);
+
+    await scope.obligations.create({
+      title: "Daily parking",
+      category: "subscription",
+      dueDate: "2026-09-10",
+      recurrenceKind: "days",
+      recurrenceInterval: 1,
+      expectedAmount: "5.00",
+      currencyCode: "AUD",
+    });
+
+    const result = await run(builtIn("recurring-commitments-by-month"), DAILY);
+    // 365 days of a daily commitment cannot fit in 60 projected occurrences.
+    expect(result.bounded).toBe(true);
+    expect(result.notes.map((note) => note.code)).toContain("bounded_series");
+    expect(
+      result.notes.some((note) => /floor rather than a total/.test(note.text)),
+    ).toBe(true);
   });
 
   it("Built-in 6: a METER commitment cannot be projected onto a calendar", async () => {
@@ -900,7 +1165,13 @@ describe("the statement budget", () => {
   const BUDGET: Readonly<Record<string, number>> = {
     "spend-by-category": 1,
     "completed-tasks-by-area": 2,
-    "obligations-next-90-days": 1,
+    /*
+     * TWO, deliberately: the bounded grouped page, and the range's own totals
+     * and true group count. A bounded page cannot state what it left out, and a
+     * total that is quietly short is worse than a second statement — the same
+     * trade `completed-tasks-by-area` makes, for the same reason.
+     */
+    "obligations-next-90-days": 2,
     "recurring-commitments-by-month": 1,
   };
 

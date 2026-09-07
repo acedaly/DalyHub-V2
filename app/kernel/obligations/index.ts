@@ -168,7 +168,9 @@ export type {
   LinkObligationTaskResult,
   ObligationTaskReconciliation,
   ObligationSettlementGateway,
+  ObligationDueBucket,
   ObligationDueGroup,
+  ObligationDueSummary,
   ObligationDueSummaryInput,
   ObligationDueTotal,
   ListRecurringInput,
@@ -176,7 +178,10 @@ export type {
   RecurringObligationPage,
 } from "./obligation-repository";
 
-export { OBLIGATION_DUE_GROUPS } from "./obligation-repository";
+export {
+  MAX_OBLIGATION_DUE_BUCKETS,
+  OBLIGATION_DUE_GROUPS,
+} from "./obligation-repository";
 
 export {
   MAX_PROJECTED_OCCURRENCES,

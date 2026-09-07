@@ -381,9 +381,14 @@ Two shape decisions do the work:
 | Spending by category | 1 | nothing |
 | Goal measurements | 1 | nothing |
 | Completed Tasks by Area | 2 (the bounded page, and the window's own totals) | nothing |
-| Obligations due in 90 days | 1 | nothing |
+| Obligations due in 90 days | 2 (the bounded page, and the range's own totals) | nothing |
 | Project health across Reviews | 2 (the anchor Review, then the snapshot series) | nothing |
 | Recurring commitments by month | 1, plus pure arithmetic | nothing |
+
+The two that cost a second statement pay it for the same reason: a bounded page
+cannot state what it left out, so the range's own totals and true group count
+are read beside it and the surface shows an arithmetically truthful remainder.
+A `LIMIT` with nothing beside it is silent truncation.
 
 `test/kernel/reports.test.ts` pins each number against real D1 at a small
 workspace and again after 200 more transactions and 40 more completed Tasks

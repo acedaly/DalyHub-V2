@@ -211,7 +211,32 @@ export function monthDirectionTotals(summary: FinanceMonthSummary): {
  * it rather than beside it. That is what makes "a Report and the Finance home
  * agree" a property of the code (ADR-121 decision 1).
  */
-export type FinanceRangeGroup = "category" | "account" | "month" | "none";
+export type FinanceRangeGroup =
+  "category" | "account" | "month" | "bucket" | "none";
+
+/**
+ * One bucket of a time breakdown, as an INCLUSIVE owner-calendar date span.
+ *
+ * ── Why a caller passes spans rather than asking for `month` ────────────────
+ * A report's buckets are generated backward from the window's END
+ * (`bucketWindow`), so a "month" bucket is a rolling 8 Aug – 7 Sep span and not
+ * the calendar month of August. Grouping by `substr(occurred_on, 1, 7)` and
+ * then deciding which bucket each CALENDAR month belongs to cannot be made
+ * right: with a mid-month window the two disagree, and at a week grain several
+ * buckets share a calendar month and the mapping is not even a function. So the
+ * caller passes the boundaries it actually drew, and the read groups on those.
+ */
+export interface FinanceRangeBucket {
+  /** The caller's own key for the bucket; returned as `groupKey`. */
+  readonly key: string;
+  /** Owner wall-calendar `YYYY-MM-DD`, INCLUSIVE. */
+  readonly startIso: string;
+  /** Owner wall-calendar `YYYY-MM-DD`, INCLUSIVE. */
+  readonly endIso: string;
+}
+
+/** The most buckets one range read will group on. */
+export const MAX_FINANCE_RANGE_BUCKETS = 366;
 
 /** Which direction an UNCATEGORISED row moved. `net` for a categorised one. */
 export type FinanceRangeDirection = "net" | "out" | "in";
@@ -226,7 +251,7 @@ export type FinanceRangeDirection = "net" | "out" | "in";
  * make "spending by month" indistinguishable from "net movement by month".
  */
 export interface FinanceRangeTotal {
-  /** The category id, account id or `YYYY-MM`. `null` is the uncategorised line. */
+  /** The category id, account id, bucket key or `YYYY-MM`. `null` is uncategorised. */
   readonly groupKey: string | null;
   /** The owner's words for the group, where the store holds them. */
   readonly groupLabel: string | null;
@@ -243,6 +268,11 @@ export interface SummariseRangeInput {
   readonly fromIso: string;
   readonly toIso: string;
   readonly groupBy: FinanceRangeGroup;
+  /**
+   * Required when `groupBy` is `bucket`, and rejected otherwise. Spans may not
+   * overlap; a transaction outside every one of them is not counted.
+   */
+  readonly buckets?: readonly FinanceRangeBucket[];
   /** Narrow to one category. Mutually exclusive with `uncategorised`. */
   readonly categoryId?: string;
   readonly accountId?: string;

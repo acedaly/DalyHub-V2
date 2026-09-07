@@ -214,11 +214,47 @@ export async function loadReport(
     // A built-in that needs a filter the workspace supplies is not "broken":
     // it is a question waiting to be completed, and it says which part.
     if (builtIn?.requiredFilter && fromUrl === null) {
+      /*
+       * A question waiting to be completed must carry the means to complete it.
+       * Without the picker this state said "choose one below" above an empty
+       * page, and the built-in was unreachable through the UI — the owner could
+       * only reach it by hand-writing the filter into the URL.
+       *
+       * The options are the built-in's own definition with the missing filter
+       * filled in, so choosing one lands on exactly the report this page was
+       * describing, and the vocabulary is the same read the builder uses.
+       */
+      const required = builtIn.requiredFilter;
+      const vocabularies = await readVocabularies(scope, {
+        ...builtIn.config,
+        filters: { [required]: "__pending" },
+      } as ReportConfig);
+      const options = (
+        vocabularies.find((entry) => entry.key === required)?.options ?? []
+      ).map((option) => ({
+        value: option.id,
+        label: option.title,
+        href: `/reports/view?${paramsFromConfig({
+          ...builtIn.config,
+          filters: { [required]: option.id },
+        } as ReportConfig).toString()}`,
+      }));
       return empty({
         title,
         todayIso,
-        needs: REPORT_FILTER_LABELS[builtIn.requiredFilter],
+        needs: REPORT_FILTER_LABELS[required],
         question: builtIn.question,
+        controls:
+          options.length > 0
+            ? [
+                {
+                  id: required,
+                  label: REPORT_FILTER_LABELS[required],
+                  value: "",
+                  options,
+                },
+              ]
+            : [],
       });
     }
     return empty({
@@ -258,7 +294,14 @@ export async function loadReport(
       serialiseReportDefinition(fromUrl) !==
         serialiseReportDefinition(stored.config),
     query: paramsFromConfig(config).toString(),
-    controls: buildReportControls({ config, todayIso, vocabularies }),
+    controls: buildReportControls({
+      config,
+      todayIso,
+      vocabularies,
+      // Only a SAVED row keeps its identity through a control change; a
+      // built-in deliberately does not, because it is not editable.
+      reportId: stored ? (input.reportId ?? null) : null,
+    }),
     result: execution.ok ? serialiseReportResult(execution.result) : null,
     refusal: execution.ok ? null : execution.refusal.message,
     incompatible: null,

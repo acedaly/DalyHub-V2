@@ -89,6 +89,17 @@ export function buildReportControls(input: {
   readonly config: ReportConfig;
   readonly todayIso: string;
   readonly vocabularies?: readonly ReportFilterVocabulary[];
+  /**
+   * The SAVED report being edited, when there is one.
+   *
+   * A control change must not cost a saved report its identity: without this
+   * every control navigated to `/reports/view`, the next load saw no report id,
+   * and "Update this report" disappeared — so editing a saved report could only
+   * ever produce a copy. A BUILT-IN deliberately does not pass this: changing a
+   * control there still leaves the built-in and lands on `/reports/view`,
+   * because a built-in is not editable and never becomes modified in place.
+   */
+  readonly reportId?: string | null;
 }): readonly ReportControl[] {
   const { config, todayIso } = input;
   const measure = reportMeasure(config.measure);
@@ -110,15 +121,31 @@ export function buildReportControls(input: {
   controls.push(visualControl(config));
   const sort = sortControl(config);
   if (sort) controls.push(sort);
-  return controls;
+
+  // One rewrite, at the one place every control's href has already been built,
+  // rather than a base threaded through eight builders that do not otherwise
+  // care where they point.
+  if (!input.reportId) return controls;
+  const base = `/reports/${encodeURIComponent(input.reportId)}`;
+  return controls.map((control) => ({
+    ...control,
+    options: control.options.map((option) => ({
+      ...option,
+      href: option.href.startsWith(`${VIEW_PATH}?`)
+        ? `${base}?${option.href.slice(VIEW_PATH.length + 1)}`
+        : option.href,
+    })),
+  }));
 }
 
 /* -------------------------------------------------------------------------- */
 /* Structure                                                                   */
 /* -------------------------------------------------------------------------- */
 
+const VIEW_PATH = "/reports/view";
+
 function href(config: ReportConfig): string {
-  return `/reports/view?${paramsFromConfig(config).toString()}`;
+  return `${VIEW_PATH}?${paramsFromConfig(config).toString()}`;
 }
 
 /**

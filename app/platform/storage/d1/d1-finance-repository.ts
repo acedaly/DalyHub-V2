@@ -71,6 +71,7 @@ import {
   financeCursorScope,
   manualFingerprint,
   mapCsvRows,
+  MAX_FINANCE_RANGE_BUCKETS,
   monthEnd,
   monthStart,
   normalisePayee,
@@ -1842,6 +1843,47 @@ export class D1FinanceRepository implements FinanceRepository {
       throw new FinanceValidationError("toIso", "must not precede fromIso");
     }
 
+    /*
+     * The BUCKET axis groups on the spans the caller actually drew, expanded
+     * from ONE bound JSON parameter by `json_each` — the technique
+     * `history-window-read.ts` uses, and for its reason: the statement's shape
+     * stays independent of the window, so D1's 100-bound-variable ceiling is
+     * never approached whether there is one bucket or 366.
+     *
+     * It exists because a report's buckets are NOT calendar months: they are
+     * generated backward from the window's end, so translating a `YYYY-MM`
+     * aggregate into a bucket misfiles every mid-month window and, at a week
+     * grain, silently collapses several buckets onto one.
+     */
+    const axisIsBucket = input.groupBy === "bucket";
+    const buckets = axisIsBucket ? (input.buckets ?? []) : [];
+    if (axisIsBucket) {
+      if (input.buckets === undefined) {
+        throw new FinanceValidationError(
+          "buckets",
+          "are required for `bucket`",
+        );
+      }
+      if (buckets.length > MAX_FINANCE_RANGE_BUCKETS) {
+        throw new FinanceValidationError(
+          "buckets",
+          `must hold at most ${MAX_FINANCE_RANGE_BUCKETS} spans`,
+        );
+      }
+      for (const bucket of buckets) {
+        validateIsoDate(bucket.startIso, "buckets.startIso");
+        validateIsoDate(bucket.endIso, "buckets.endIso");
+      }
+      // No buckets is no question, and answering it with the whole range would
+      // be a different one.
+      if (buckets.length === 0) return [];
+    } else if (input.buckets !== undefined) {
+      throw new FinanceValidationError(
+        "buckets",
+        "are only meaningful for `bucket`",
+      );
+    }
+
     // The axis expression is chosen from a CLOSED set here — never interpolated
     // from a caller's string — so this statement can hold no caller-supplied SQL.
     const axis =
@@ -1851,7 +1893,9 @@ export class D1FinanceRepository implements FinanceRepository {
           ? { key: "t.account_id", label: "a.title" }
           : input.groupBy === "month"
             ? { key: "substr(t.occurred_on, 1, 7)", label: "NULL" }
-            : { key: "NULL", label: "NULL" };
+            : axisIsBucket
+              ? { key: "b.bucket_key", label: "NULL" }
+              : { key: "NULL", label: "NULL" };
 
     const clauses: string[] = [
       "t.workspace_id = ?",
@@ -1861,6 +1905,14 @@ export class D1FinanceRepository implements FinanceRepository {
       "t.occurred_on <= ?",
     ];
     const bindings: unknown[] = [this.#workspaceId, from, to];
+    if (axisIsBucket) {
+      // The CTE is the statement's first placeholder, so its parameter leads.
+      bindings.unshift(
+        JSON.stringify(
+          buckets.map((bucket) => [bucket.key, bucket.startIso, bucket.endIso]),
+        ),
+      );
+    }
     if (input.categoryId !== undefined) {
       clauses.push("t.category_id = ?");
       bindings.push(validateFinanceId(input.categoryId, "categoryId"));
@@ -1882,7 +1934,17 @@ export class D1FinanceRepository implements FinanceRepository {
     try {
       const { results } = await this.#db
         .prepare(
-          `SELECT ${axis.key} AS group_key, ${axis.label} AS group_label,
+          `${
+            axisIsBucket
+              ? `WITH b AS (
+           SELECT json_extract(value, '$[0]') AS bucket_key,
+                  json_extract(value, '$[1]') AS start_iso,
+                  json_extract(value, '$[2]') AS end_iso
+             FROM json_each(?)
+         )
+         `
+              : ""
+          }SELECT ${axis.key} AS group_key, ${axis.label} AS group_label,
                 c.kind AS category_kind, ${direction} AS direction,
                 t.currency_code, SUM(t.amount_minor) AS net_minor,
                 COUNT(*) AS n
@@ -1891,6 +1953,11 @@ export class D1FinanceRepository implements FinanceRepository {
              ON c.workspace_id = t.workspace_id AND c.id = t.category_id
            LEFT JOIN entities a
              ON a.workspace_id = t.workspace_id AND a.id = t.account_id
+           ${
+             axisIsBucket
+               ? "JOIN b ON t.occurred_on >= b.start_iso AND t.occurred_on <= b.end_iso"
+               : ""
+           }
           WHERE ${clauses.join(" AND ")}
           GROUP BY group_key, c.kind, ${direction}, t.currency_code
           ORDER BY group_key, t.currency_code, direction`,

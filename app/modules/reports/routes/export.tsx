@@ -29,7 +29,7 @@
 import { env } from "cloudflare:workers";
 
 import { DEFAULT_APP_PREFERENCES } from "~/kernel/preferences";
-import { reportQuestion } from "~/kernel/reports";
+import { csvField, reportQuestion } from "~/kernel/reports";
 import { runReport } from "~/platform/reports/report-execution.server";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
@@ -38,11 +38,8 @@ import { ownerCalendarIso } from "~/shared/datetime";
 import { definitionFromParams } from "../reports-url-state";
 import type { Route } from "./+types/export";
 
-/** One CSV field: quoted always, so a comma or a quote in a label is safe. */
-function field(value: string | number | null): string {
-  if (value === null) return "";
-  return `"${String(value).replace(/"/g, '""')}"`;
-}
+/** One CSV field, encoded by the kernel rule: quoted, and never executable. */
+const field = csvField;
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);

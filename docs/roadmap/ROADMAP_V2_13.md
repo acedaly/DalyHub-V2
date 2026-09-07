@@ -638,7 +638,7 @@ The executor's shape is fixed by the definition and **never by the data**.
 | 1 Spending by category | 1 (`summariseRange`) | nothing |
 | 2 Goal measurements | 1 (`listMeasurements`, bounded) | nothing |
 | 3 Completed Tasks by Area | 2 (grouped rows; totals) | nothing |
-| 4 Obligations due 90 days | 1 (`summariseDue`) | nothing |
+| 4 Obligations due 90 days | 2 (bounded page; the range's own totals) | nothing |
 | 5 Project health across Reviews | 2 (latest Review; snapshot series) | nothing |
 | 6 Recurring commitments | 1 (bounded list) + pure arithmetic | nothing |
 
@@ -914,6 +914,37 @@ The one step that is **not** a browser journey is the export/restore leg, and
 deliberately: proving that a definition survives the archive means comparing
 machine values before and after, which a browser cannot see. It runs against
 real D1 instead, through the real snapshot projection.
+
+---
+
+## What an automated review pass found, and what it changed
+
+An automated reviewer read the branch and raised **seven** findings. Every one
+was verified against the code before anything was written, and **every one was
+real**. Four of them contradicted claims this very document makes, which is the
+useful kind of finding: the release said "boundedness is stated, always" and
+"nothing is silently discarded", and in four places it was not.
+
+| # | The defect | The fix |
+|---|---|---|
+| 1 | **A time breakdown was filed by CALENDAR month.** The read grouped by `substr(occurred_on, 1, 7)` and a map then decided which bucket each month belonged to. But buckets run backward from the window's END, so for any mid-month window August 8-31 landed in the bucket ending 7 August — a month it did not happen in. At a WEEK grain it was not even a function: several buckets end in one calendar month, so all but one were silently lost. | `summariseRange` and `summariseDue` gained a **bucket axis**: the caller passes the spans it actually drew, expanded from one bound JSON parameter by `json_each` — V2.9's own technique, so the statement's shape is still independent of the window and the statement COUNT is unchanged. |
+| 2 | **The Projects report ignored its own period.** `projectsAdapter` read the latest twelve snapshots whatever the window, so a 4-week report and a 24-month one printed identical figures under different date ranges. | The window narrows the population, and a Review is placed by **its own period** rather than by when its snapshot happened to be written. The 12-Review read bound is now stated when the period reaches past it, instead of reading as "none in this period". |
+| 3 | **A bounded due report dropped its excess groups.** `summariseDue` took a `LIMIT` and returned nothing else, so past 24 groups the printed total was quietly short. | It now returns the page **and** the range's own totals and true group count, so the surface folds an arithmetically truthful remainder. This is what makes built-in 4 cost two statements instead of one — the same trade `countCompletedByGroup` already made. |
+| 4 | **A computed bound was thrown away.** `projectObligations` reports `boundedCommitments` for a commitment that outruns the 60-occurrence cap; the adapter propagated only the list bound, so a daily commitment over a year stopped silently and printed a total that looked complete. | The per-commitment bound is now a note and sets `bounded`. A bound that is computed and not reported is worse than no bound, because the figure looks whole. |
+| 5 | **The Goal built-in was unreachable through the UI.** It opened saying "choose a Goal below" above a page with no picker; the only way in was to hand-write the filter into the URL. | The waiting state now carries the choice it asks for, built from the same vocabulary read the builder uses. |
+| 6 | **Editing a saved report lost it.** Every control navigated to `/reports/view`, which carries no report id, so "Update this report" disappeared and the owner could only save a copy of their own report. | A control change keeps the saved report's path. A BUILT-IN deliberately still lands on `/reports/view`, because a built-in is not editable. |
+| 7 | **A CSV label could become a formula.** Quoting does not stop a spreadsheet executing a field that begins `=`, `+`, `-` or `@`; report labels are record names. | `csvField` lives in the kernel and neutralises a formula lead with `'`. A NUMBER is never neutralised — a negative amount legitimately begins `-`, and prefixing it would turn every figure into text. |
+
+Findings 1-4 and 6 are pinned by tests that were **falsified**: the fix was
+reverted, the test failed with the exact symptom described above, and the fix
+was restored. Findings 5 and 7 are pinned by a browser journey and by unit tests
+against the real encoder rather than a copy of its regex.
+
+The lesson this release takes from it: the eighteen falsifications tested the
+rules the pass thought to write down, and the four honesty defects above all sat
+in the gap between a rule and the code that was supposed to implement it. A
+falsification proves a test catches a break; it does not prove the rule was
+implemented in the first place.
 
 ---
 

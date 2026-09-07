@@ -235,7 +235,31 @@ export type ObligationTaskReconciliation = {
  * `subject` the entity the obligation is about (including the honest "about
  * nothing" line).
  */
-export const OBLIGATION_DUE_GROUPS = ["month", "category", "subject"] as const;
+export const OBLIGATION_DUE_GROUPS = [
+  "month",
+  "category",
+  "subject",
+  "bucket",
+] as const;
+
+/**
+ * One bucket of a time breakdown, as an INCLUSIVE owner-calendar date span.
+ *
+ * A report's buckets are generated backward from the window's END, so a "month"
+ * bucket is a rolling 8 Aug - 7 Sep span rather than the calendar month of
+ * August. Grouping by `substr(due_date, 1, 7)` and then deciding which bucket
+ * each calendar month belongs to is wrong for any mid-month window, and at a
+ * week grain it is not even a function: several buckets share one month, so all
+ * but one are silently lost. The caller passes the spans it actually drew.
+ */
+export type ObligationDueBucket = {
+  readonly key: string;
+  readonly startIso: string;
+  readonly endIso: string;
+};
+
+/** The most buckets one due-date read will group on. */
+export const MAX_OBLIGATION_DUE_BUCKETS = 366;
 
 export type ObligationDueGroup = (typeof OBLIGATION_DUE_GROUPS)[number];
 
@@ -248,6 +272,8 @@ export type ObligationDueSummaryInput = {
   /** Narrow to one subject; `null` reads only the ones about nothing. */
   readonly subjectEntityId?: string | null;
   readonly limit?: number;
+  /** Required when `groupBy` is `bucket`, and rejected otherwise. */
+  readonly buckets?: readonly ObligationDueBucket[];
 };
 
 /**
@@ -267,6 +293,22 @@ export type ObligationDueTotal = {
   readonly dueCount: number;
   readonly expectedAmountMinor: number;
   readonly withoutAmount: number;
+};
+
+/**
+ * A bounded page of grouped due obligations, WITH the range's own totals.
+ *
+ * The totals come from the same population rather than from the page, so a
+ * bounded result can state an arithmetically truthful remainder instead of a
+ * total that is quietly short. This is `CompletedTaskGroupResult`'s shape, for
+ * exactly that reason.
+ */
+export type ObligationDueSummary = {
+  readonly rows: readonly ObligationDueTotal[];
+  /** How many DISTINCT groups the range holds, whatever the page returned. */
+  readonly groups: number;
+  /** The whole range, per currency. `groupKey` is `null` on every row. */
+  readonly overall: readonly ObligationDueTotal[];
 };
 
 /** What one recurring commitment is, for a calendar projection. */
@@ -423,9 +465,7 @@ export interface ObligationRepository {
    * recorded amount is counted separately and contributes nothing to the total.
    * Currencies never meet; a group holding two produces two rows.
    */
-  summariseDue(
-    input: ObligationDueSummaryInput,
-  ): Promise<readonly ObligationDueTotal[]>;
+  summariseDue(input: ObligationDueSummaryInput): Promise<ObligationDueSummary>;
 
   /**
    * V2.13 RPT-02 — the OPEN, recurring commitments, so a projection can be

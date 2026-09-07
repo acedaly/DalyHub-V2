@@ -87,6 +87,8 @@ export {
 
 export { REPORT_CODEC } from "./report-codec";
 
+export { csvField } from "./report-csv";
+
 export {
   REPORT_REFUSALS,
   checkReportConfig,

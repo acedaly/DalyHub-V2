@@ -107,6 +107,31 @@ test.describe("Reports", () => {
     ).toBeVisible();
   });
 
+  /*
+   * A question waiting to be completed must carry the means to complete it.
+   * The Goal built-in is about ONE Goal, so it opens asking which — and it used
+   * to ask above an EMPTY page, which made it unreachable through the UI: the
+   * only way in was to hand-write the filter into the URL.
+   */
+  test("a built-in that needs a choice offers the choice", async ({ page }) => {
+    await gotoFixture(page, "/reports/goal-measurements");
+
+    await expect(page.getByText(/choose a goal/i).first()).toBeVisible();
+
+    // The picker is present, and choosing lands on the report it described.
+    const picker = control(page, "Goal");
+    await expect(picker).toBeVisible();
+    const first = picker.getByRole("link").first();
+    await expect(first).toBeVisible();
+    await first.click();
+
+    await expect(page).toHaveURL(/src=goals/);
+    await expect(page).toHaveURL(/m=measurement_value/);
+    await expect(page).toHaveURL(/goal=/);
+    // And it answers: the rows exist, as text, as every report does.
+    await expect(page.locator(".dh-report__table").first()).toBeVisible();
+  });
+
   test("changing a control changes the URL, and the URL is the definition", async ({
     page,
   }) => {
@@ -161,6 +186,24 @@ test.describe("Reports", () => {
     await expect(
       control(page, "Break down").getByRole("link", { name: "Project" }),
     ).toHaveAttribute("aria-current", "true");
+
+    /*
+     * Editing a saved report KEEPS it. A control change used to navigate to
+     * `/reports/view`, which carries no report id — so the next load saw no
+     * saved row, "Update this report" disappeared, and the owner could only
+     * ever save a copy of their own report.
+     */
+    await control(page, "Period")
+      .getByRole("link", { name: "4 weeks" })
+      .click();
+    await expect(page).toHaveURL(/w=4-weeks/);
+    await expect(page).not.toHaveURL(/\/reports\/view\?/);
+    await expect(
+      page.getByRole("button", { name: /Update this report/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: SAVED }),
+    ).toBeVisible();
 
     // And it deletes, taking its own page with it rather than leaving the owner
     // on a report that no longer exists.
