@@ -71,6 +71,7 @@ import {
   financeCursorScope,
   manualFingerprint,
   mapCsvRows,
+  MAX_FINANCE_RANGE_BUCKETS,
   monthEnd,
   monthStart,
   normalisePayee,
@@ -98,6 +99,9 @@ import {
   type CreateFinanceTransactionInput,
   type CsvMapping,
   type ExpectedCommitment,
+  type FinanceRangeDirection,
+  type FinanceRangeTotal,
+  type SummariseRangeInput,
   type FinanceAccount,
   type FinanceAccountWithBalance,
   type FinanceBudget,
@@ -1804,10 +1808,188 @@ export class D1FinanceRepository implements FinanceRepository {
    * "they agree" a property of the code. Transfer legs are excluded HERE, in the
    * query, so no consumer can forget.
    */
+  /**
+   * V2.13 RPT-02 — the ONE grouped read over a date range.
+   *
+   * `monthSummary` below is DEFINED in terms of this, which is the point: one
+   * predicate, one transfer exclusion, one refund rule and one uncategorised
+   * split, so the Finance home, the budget screen and a Report cannot come to
+   * disagree about what a month cost.
+   *
+   * ── What is grouped, and why the shape is this one ──────────────────────
+   * The requested AXIS, plus `category_kind` and a DIRECTION key, plus the
+   * currency. The last two are present whatever the axis, because money out and
+   * money in are told apart by exactly those two fields
+   * (`monthDirectionTotals`): without them, "spending by month" would be
+   * indistinguishable from "net movement by month", and a month with a salary
+   * in it would report as negative spending.
+   *
+   * Netting inside a CATEGORY is meaningful and is the whole refund model — a
+   * refund in Groceries makes the month's Groceries smaller, because those rows
+   * are about the same thing. Netting across the UNCATEGORISED bucket is not,
+   * because those rows have nothing in common but the absence of a category, so
+   * the direction key splits them (the defect V2.12 recorded: a $3,200 salary
+   * and $279.10 of purchases reported as one net "$2,920.90 with no category",
+   * which reads as unexplained spending).
+   *
+   * ONE statement, whatever the range and whatever the axis.
+   */
+  async summariseRange(
+    input: SummariseRangeInput,
+  ): Promise<readonly FinanceRangeTotal[]> {
+    const from = validateIsoDate(input.fromIso, "fromIso");
+    const to = validateIsoDate(input.toIso, "toIso");
+    if (from > to) {
+      throw new FinanceValidationError("toIso", "must not precede fromIso");
+    }
+
+    /*
+     * The BUCKET axis groups on the spans the caller actually drew, expanded
+     * from ONE bound JSON parameter by `json_each` — the technique
+     * `history-window-read.ts` uses, and for its reason: the statement's shape
+     * stays independent of the window, so D1's 100-bound-variable ceiling is
+     * never approached whether there is one bucket or 366.
+     *
+     * It exists because a report's buckets are NOT calendar months: they are
+     * generated backward from the window's end, so translating a `YYYY-MM`
+     * aggregate into a bucket misfiles every mid-month window and, at a week
+     * grain, silently collapses several buckets onto one.
+     */
+    const axisIsBucket = input.groupBy === "bucket";
+    const buckets = axisIsBucket ? (input.buckets ?? []) : [];
+    if (axisIsBucket) {
+      if (input.buckets === undefined) {
+        throw new FinanceValidationError(
+          "buckets",
+          "are required for `bucket`",
+        );
+      }
+      if (buckets.length > MAX_FINANCE_RANGE_BUCKETS) {
+        throw new FinanceValidationError(
+          "buckets",
+          `must hold at most ${MAX_FINANCE_RANGE_BUCKETS} spans`,
+        );
+      }
+      for (const bucket of buckets) {
+        validateIsoDate(bucket.startIso, "buckets.startIso");
+        validateIsoDate(bucket.endIso, "buckets.endIso");
+      }
+      // No buckets is no question, and answering it with the whole range would
+      // be a different one.
+      if (buckets.length === 0) return [];
+    } else if (input.buckets !== undefined) {
+      throw new FinanceValidationError(
+        "buckets",
+        "are only meaningful for `bucket`",
+      );
+    }
+
+    // The axis expression is chosen from a CLOSED set here — never interpolated
+    // from a caller's string — so this statement can hold no caller-supplied SQL.
+    const axis =
+      input.groupBy === "category"
+        ? { key: "t.category_id", label: "c.name" }
+        : input.groupBy === "account"
+          ? { key: "t.account_id", label: "a.title" }
+          : input.groupBy === "month"
+            ? { key: "substr(t.occurred_on, 1, 7)", label: "NULL" }
+            : axisIsBucket
+              ? { key: "b.bucket_key", label: "NULL" }
+              : { key: "NULL", label: "NULL" };
+
+    const clauses: string[] = [
+      "t.workspace_id = ?",
+      "t.deleted_at IS NULL",
+      "t.transfer_group_id IS NULL",
+      "t.occurred_on >= ?",
+      "t.occurred_on <= ?",
+    ];
+    const bindings: unknown[] = [this.#workspaceId, from, to];
+    if (axisIsBucket) {
+      // The CTE is the statement's first placeholder, so its parameter leads.
+      bindings.unshift(
+        JSON.stringify(
+          buckets.map((bucket) => [bucket.key, bucket.startIso, bucket.endIso]),
+        ),
+      );
+    }
+    if (input.categoryId !== undefined) {
+      clauses.push("t.category_id = ?");
+      bindings.push(validateFinanceId(input.categoryId, "categoryId"));
+    }
+    if (input.uncategorised === true) {
+      clauses.push("t.category_id IS NULL");
+    }
+    if (input.accountId !== undefined) {
+      clauses.push("t.account_id = ?");
+      bindings.push(validateFinanceId(input.accountId, "accountId"));
+    }
+
+    const direction = `CASE
+             WHEN t.category_id IS NOT NULL THEN 'net'
+             WHEN t.amount_minor < 0 THEN 'out'
+             ELSE 'in'
+           END`;
+
+    try {
+      const { results } = await this.#db
+        .prepare(
+          `${
+            axisIsBucket
+              ? `WITH b AS (
+           SELECT json_extract(value, '$[0]') AS bucket_key,
+                  json_extract(value, '$[1]') AS start_iso,
+                  json_extract(value, '$[2]') AS end_iso
+             FROM json_each(?)
+         )
+         `
+              : ""
+          }SELECT ${axis.key} AS group_key, ${axis.label} AS group_label,
+                c.kind AS category_kind, ${direction} AS direction,
+                t.currency_code, SUM(t.amount_minor) AS net_minor,
+                COUNT(*) AS n
+           FROM finance_transaction_details t
+           LEFT JOIN finance_categories c
+             ON c.workspace_id = t.workspace_id AND c.id = t.category_id
+           LEFT JOIN entities a
+             ON a.workspace_id = t.workspace_id AND a.id = t.account_id
+           ${
+             axisIsBucket
+               ? "JOIN b ON t.occurred_on >= b.start_iso AND t.occurred_on <= b.end_iso"
+               : ""
+           }
+          WHERE ${clauses.join(" AND ")}
+          GROUP BY group_key, c.kind, ${direction}, t.currency_code
+          ORDER BY group_key, t.currency_code, direction`,
+        )
+        .bind(...bindings)
+        .all<{
+          group_key: string | null;
+          group_label: string | null;
+          category_kind: string | null;
+          direction: string;
+          currency_code: string;
+          net_minor: number;
+          n: number;
+        }>();
+
+      return results.map((row) => ({
+        groupKey: text(row.group_key),
+        groupLabel: text(row.group_label),
+        categoryKind: (text(row.category_kind) ?? null) as
+          "spending" | "income" | null,
+        direction: row.direction as FinanceRangeDirection,
+        currencyCode: row.currency_code,
+        netMinor: Number(row.net_minor),
+        transactionCount: Number(row.n),
+      }));
+    } catch (cause) {
+      this.#fail(cause);
+    }
+  }
+
   async monthSummary(month: FinanceMonth): Promise<FinanceMonthSummary> {
     const period = validateFinanceMonth(month);
-    const from = monthStart(period);
-    const to = monthEnd(period);
 
     /*
      * PERF-01 — the two reads are issued TOGETHER.
@@ -1815,56 +1997,16 @@ export class D1FinanceRepository implements FinanceRepository {
      * The transfer count is a different question about the same month, and it
      * never depended on the grouping. Awaiting the grouped read first made
      * `/finance` pay two D1 round trips for one month's summary.
+     *
+     * V2.13 RPT-02 — the grouped half is now `summariseRange`, not a second
+     * statement that means the same thing. The statement COUNT is unchanged.
      */
     const [grouped, transfers] = await Promise.all([
-      this.#db
-        .prepare(
-          /*
-           * Grouped by category and currency — and, for the UNCATEGORISED bucket
-           * only, by DIRECTION as well.
-           *
-           * Netting inside a category is meaningful and is the whole refund
-           * model: a refund in Groceries makes the month's Groceries smaller,
-           * because those rows are about the same thing. Netting across the
-           * uncategorised bucket is not meaningful, because those rows have
-           * nothing in common but the absence of a category — and it lies.
-           *
-           * A month with a $3,200.00 salary and $279.10 of purchases, none of
-           * them categorised yet, reported as ONE net "$2,920.90 with no
-           * category", which reads as unexplained SPENDING of $2,920.90. The out
-           * and the in are now separate rows, so the surface says "$279.10 out
-           * and $3,200.00 in have no category yet" — which is what happened.
-           *
-           * The grouping key is only ever `'net'` for a categorised row, so this
-           * changes nothing for one.
-           */
-          `SELECT t.category_id, c.name AS category_name, c.kind AS category_kind,
-                t.currency_code, SUM(t.amount_minor) AS net_minor,
-                COUNT(*) AS n
-           FROM finance_transaction_details t
-           LEFT JOIN finance_categories c
-             ON c.workspace_id = t.workspace_id AND c.id = t.category_id
-          WHERE t.workspace_id = ? AND t.deleted_at IS NULL
-            AND t.transfer_group_id IS NULL
-            AND t.occurred_on >= ? AND t.occurred_on <= ?
-          GROUP BY t.category_id, t.currency_code,
-                   CASE
-                     WHEN t.category_id IS NOT NULL THEN 'net'
-                     WHEN t.amount_minor < 0 THEN 'out'
-                     ELSE 'in'
-                   END
-          ORDER BY c.sort_order, c.name, t.category_id, t.currency_code,
-                   SUM(t.amount_minor)`,
-        )
-        .bind(this.#workspaceId, from, to)
-        .all<{
-          category_id: string | null;
-          category_name: string | null;
-          category_kind: string | null;
-          currency_code: string;
-          net_minor: number;
-          n: number;
-        }>(),
+      this.summariseRange({
+        fromIso: monthStart(period),
+        toIso: monthEnd(period),
+        groupBy: "category",
+      }),
       this.#db
         .prepare(
           `SELECT COUNT(*) AS n FROM finance_transaction_details
@@ -1872,18 +2014,17 @@ export class D1FinanceRepository implements FinanceRepository {
             AND transfer_group_id IS NOT NULL
             AND occurred_on >= ? AND occurred_on <= ?`,
         )
-        .bind(this.#workspaceId, from, to)
+        .bind(this.#workspaceId, monthStart(period), monthEnd(period))
         .first<{ n: number }>(),
     ]);
 
-    const categories = grouped.results.map((row) => ({
-      categoryId: text(row.category_id),
-      categoryName: text(row.category_name),
-      categoryKind: (text(row.category_kind) ?? null) as
-        "spending" | "income" | null,
-      currencyCode: row.currency_code,
-      netMinor: Number(row.net_minor),
-      transactionCount: Number(row.n),
+    const categories = grouped.map((row) => ({
+      categoryId: row.groupKey,
+      categoryName: row.groupLabel,
+      categoryKind: row.categoryKind,
+      currencyCode: row.currencyCode,
+      netMinor: row.netMinor,
+      transactionCount: row.transactionCount,
     }));
 
     return {

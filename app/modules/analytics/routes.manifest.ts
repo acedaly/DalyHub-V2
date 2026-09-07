@@ -5,11 +5,21 @@
  * Router's bare `routes.ts` config loader and imported by `module.ts` for the
  * runtime registry (ADR-016 §5.10).
  *
- * `navGroup: "insight"` places Analytics beside Reviews, and `navOrder: 190`
- * puts it BEFORE them: Analytics is the ambient reading an owner glances at,
- * and a Review is the deliberate act they schedule. Analytics declares no
- * entity type — it is a way of ASKING about records other modules own, exactly
- * as Views is — so it declares its shell glyph explicitly (THEME-01).
+ * `navGroup: "organise"` places it beside Reviews, and `navOrder: 180` puts it
+ * BEFORE them: it is the ambient reading an owner glances at, and a Review is
+ * the deliberate act they schedule. It declares no entity type — it is a way of
+ * ASKING about records other modules own, exactly as Views is — so it declares
+ * its shell glyph explicitly (THEME-01).
+ *
+ * ── V2.13: the LABEL is Insight; the ROUTE is still `/analytics` ───────────
+ * Reports arrive as the SAVED half of the same domain, and "Analytics" beside
+ * "Reports" names a tool where the owner is looking for a question. So the rail
+ * says **Insight**, and `path` deliberately does not move: churning a URL for a
+ * label breaks every bookmark and every existing link — including this module's
+ * own `analytics/activity` resource route, which the Insight panel pages
+ * through — to buy nothing the label does not already buy. The identifier is
+ * historical; the label is the truth. The same trade migration `0036` made when
+ * it kept `task_saved_views`' name (ADR-121).
  */
 
 import type { RouteContribution } from "~/kernel/modules";
@@ -20,7 +30,7 @@ const routes: readonly RouteContribution[] = [
     path: "analytics",
     file: "routes/index.tsx",
     meta: {
-      navLabel: "Analytics",
+      navLabel: "Insight",
       navGroup: "organise",
       navOrder: 180,
       navIcon: "analytics",

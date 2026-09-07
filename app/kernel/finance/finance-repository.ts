@@ -46,7 +46,12 @@ import type {
   ImportPreview,
   ImportResult,
 } from "./finance-import";
-import type { FinanceMonth, FinanceMonthSummary } from "./finance-month";
+import type {
+  FinanceMonth,
+  FinanceMonthSummary,
+  FinanceRangeTotal,
+  SummariseRangeInput,
+} from "./finance-month";
 import type { NetWorthAsset } from "./finance-networth";
 import type {
   CreateFinanceTransactionInput,
@@ -353,6 +358,24 @@ export interface FinanceRepository extends ObligationSettlementGateway {
    * remember. Transfer legs are excluded by the query.
    */
   monthSummary(month: FinanceMonth): Promise<FinanceMonthSummary>;
+
+  /**
+   * V2.13 RPT-02 — the SAME question over an arbitrary date range, grouped by
+   * category, account or month, in ONE statement.
+   *
+   * `monthSummary` above is DEFINED in terms of this, rather than beside it:
+   * one predicate, one transfer exclusion, one refund rule, one uncategorised
+   * split. That is what stops a Report from becoming a second answer to a
+   * question the Finance home already answers, and it is asserted by a kernel
+   * test that compares the two over one month on a fixture built to expose a
+   * second implementation.
+   *
+   * ONE statement whatever the range and whatever the grouping. Transfer legs
+   * are excluded by the query, exactly as they are for a month.
+   */
+  summariseRange(
+    input: SummariseRangeInput,
+  ): Promise<readonly FinanceRangeTotal[]>;
 
   /** How many live transactions in the workspace carry no category. */
   countUncategorised(): Promise<number>;

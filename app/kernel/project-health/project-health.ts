@@ -90,6 +90,26 @@ export const PROJECT_HEALTH_STATES = [
 export type ProjectHealthState = (typeof PROJECT_HEALTH_STATES)[number];
 
 /**
+ * The owner-facing name of each state — ONE vocabulary, used everywhere.
+ *
+ * `ProjectHealth.label` is the evaluator's CONTEXTUAL wording ("No tasks yet"
+ * for a Project with nothing in it); this is the state's own name, which is
+ * what a filter control, a report row and a legend need. It lives here because
+ * V2.13 found the same five strings written out twice inside the Views module
+ * (`views-controls.ts` and `views-presentation.ts`) and was about to make it
+ * three — a vocabulary in three places is a vocabulary that drifts.
+ */
+export const PROJECT_HEALTH_STATE_LABELS: Readonly<
+  Record<ProjectHealthState, string>
+> = {
+  on_track: "On track",
+  stale: "No recent movement",
+  blocked: "Blocked",
+  at_risk: "At risk",
+  completed: "Completed",
+};
+
+/**
  * The health states that mean a Project currently needs a look.
  *
  * One authority for a question three surfaces ask: the cross-view "needs

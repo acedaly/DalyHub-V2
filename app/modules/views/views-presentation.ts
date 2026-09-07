@@ -9,6 +9,7 @@
  */
 
 import type { DateFormat } from "~/kernel/preferences";
+import { PROJECT_HEALTH_STATE_LABELS } from "~/kernel/project-health";
 import { isTaskOutOfCommitment } from "~/kernel/tasks";
 import type { CrossViewResult, ViewGroupBy, ViewScope } from "~/kernel/views";
 import { viewScopeDefinition } from "~/kernel/views";
@@ -29,13 +30,9 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
   on_hold: "On hold",
 };
 
-const HEALTH_LABELS: Record<string, string> = {
-  on_track: "On track",
-  stale: "No recent movement",
-  blocked: "Blocked",
-  at_risk: "At risk",
-  completed: "Completed",
-};
+/* V2.13 — the ONE health vocabulary, from the kernel that owns the states. This
+ * file held its own copy of the five strings, and so did its sibling. */
+const HEALTH_LABELS: Record<string, string> = PROJECT_HEALTH_STATE_LABELS;
 
 const ALIGNMENT_LABELS: Record<string, string> = {
   completed: "Completed",

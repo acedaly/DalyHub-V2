@@ -172,15 +172,22 @@ export { mapCsvRows, validRows, type MappedRow } from "./finance-import-rows";
 export {
   addMonths,
   isFinanceMonth,
+  MAX_FINANCE_RANGE_BUCKETS,
   monthDirectionTotals,
   monthEnd,
   monthLabel,
   monthOf,
   monthStart,
+  rangeDirectionAmount,
   resolveMonth,
   type CategoryMonthTotal,
   type FinanceMonth,
   type FinanceMonthSummary,
+  type FinanceRangeBucket,
+  type FinanceRangeDirection,
+  type FinanceRangeGroup,
+  type FinanceRangeTotal,
+  type SummariseRangeInput,
 } from "./finance-month";
 
 export {

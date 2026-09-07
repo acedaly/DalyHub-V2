@@ -1,8 +1,13 @@
 /**
- * UIX-05 — the Analytics surface, in a real browser against the seeded Worker/D1
+ * UIX-05 — the Insight surface, in a real browser against the seeded Worker/D1
  * app.
  *
- * Analytics writes nothing and owns no record, so there is no journey to drive.
+ * V2.13 relabelled this surface: the rail, the module manifest and the page
+ * heading say **Insight**, and the ROUTE is still `/analytics` — which is why
+ * every path below is unchanged and the navigation test still asserts the old
+ * URL after clicking the new label. A label moved; a bookmark did not.
+ *
+ * Insight writes nothing and owns no record, so there is no journey to drive.
  * What there IS to prove is the set of promises the surface makes, none of which
  * a unit test can check against real data:
  *
@@ -42,13 +47,13 @@ const WINDOWS = [
   { label: "24 months", path: "/analytics?window=24-months" },
 ] as const;
 
-test.describe("UIX-05 — Analytics", () => {
+test.describe("UIX-05 — Insight", () => {
   test("renders the surface with its span and its figures", async ({
     page,
   }) => {
     await gotoFixture(page, "/analytics");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Analytics" }),
+      page.getByRole("heading", { level: 1, name: "Insight" }),
     ).toBeVisible();
 
     // Either the figures OR the one empty state — never a blank region, and
@@ -216,7 +221,7 @@ test.describe("UIX-05 — Analytics", () => {
     await gotoFixture(page, "/today");
     await page
       .getByRole("navigation", { name: "Primary" })
-      .getByRole("link", { name: "Analytics" })
+      .getByRole("link", { name: "Insight" })
       .first()
       .click();
     await expect(page).toHaveURL(/\/analytics/);

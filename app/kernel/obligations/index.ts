@@ -168,4 +168,25 @@ export type {
   LinkObligationTaskResult,
   ObligationTaskReconciliation,
   ObligationSettlementGateway,
+  ObligationDueBucket,
+  ObligationDueGroup,
+  ObligationDueSummary,
+  ObligationDueSummaryInput,
+  ObligationDueTotal,
+  ListRecurringInput,
+  RecurringObligation,
+  RecurringObligationPage,
 } from "./obligation-repository";
+
+export {
+  MAX_OBLIGATION_DUE_BUCKETS,
+  OBLIGATION_DUE_GROUPS,
+} from "./obligation-repository";
+
+export {
+  MAX_PROJECTED_OCCURRENCES,
+  projectObligations,
+  type ObligationProjection,
+  type ProjectableObligation,
+  type ProjectedOccurrence,
+} from "./obligation-projection";

@@ -6250,6 +6250,12 @@
    * chart still yields to a phone. */
   --app-trend-width: 24rem;
 
+  /* V2.13 — one CategoryBars row's filled share of its track. `CategoryBars`
+   * sets it inline per row from that row's magnitude against the block's
+   * largest; the default is an empty bar, so a row that somehow arrives without
+   * one draws as "nothing here" rather than as full. */
+  --app-catbars-fill: 0%;
+
   /* MOBILE-01 — the phone shell's two structural insets.
    *
    * `--app-keyboard-inset` is the height of the on-screen keyboard, published by

@@ -668,10 +668,22 @@ test.describe("PROJ-01 — Projects", () => {
     await expectNoAxeViolations(page);
   });
 
-  test("has no horizontal overflow across the responsive matrix", async ({
-    page,
-  }) => {
-    for (const viewport of RESPONSIVE_VIEWPORTS) {
+  /*
+   * ONE test per viewport, which is the shape `analytics.spec.ts` and
+   * `people.spec.ts` already use for their matrices.
+   *
+   * As a single test this walked TEN viewports — ten `setViewportSize`s and ten
+   * full navigations, each waiting for `networkidle` — inside one 30-second
+   * budget. That is about 1.5s per viewport on an idle machine and roughly
+   * double on a loaded CI runner, so it sat right on the ceiling and timed out
+   * in `gotoFixture` rather than failing an assertion. Splitting it gives each
+   * viewport its own budget; not one assertion is weakened, and a real overflow
+   * now names the width it happened at instead of failing the whole matrix.
+   */
+  for (const viewport of RESPONSIVE_VIEWPORTS) {
+    test(`has no horizontal overflow at ${viewport.label} (${viewport.width}px)`, async ({
+      page,
+    }) => {
       await page.setViewportSize({
         width: viewport.width,
         height: viewport.height,
@@ -681,8 +693,8 @@ test.describe("PROJ-01 — Projects", () => {
         page.getByRole("heading", { name: "Website relaunch" }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
-    }
-  });
+    });
+  }
 
   test("meets touch targets on the narrow layout", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });

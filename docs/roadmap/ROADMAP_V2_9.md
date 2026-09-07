@@ -1026,6 +1026,18 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 
 ### V2.13 — REPORTS (PRESUMPTIVE)
 
+> **SUPERSEDED 2026-09-07 by [`ROADMAP_V2_13.md`](ROADMAP_V2_13.md)**, which
+> defined V2.13 against measured `main` at `8287d71` and delivered it. The
+> sketch below is retained as the record of what was presumed; where it and
+> `ROADMAP_V2_13.md` disagree, that file wins and states the measurement that
+> produced the disagreement. The four material corrections: the shape carries
+> **one breakdown axis** (a grain **or** a group, never both), so there is no
+> groups-across-periods result; **net worth over time is refused** because Asset
+> valuations keep no history ([DEBT-250](../product/PRODUCT_DEBT.md)); a fifth
+> and sixth implementation item were needed for the canonical grouped reads
+> Finance, Tasks and Obligations lacked; and the Analytics **label** becomes
+> Insight while its **route** deliberately does not change.
+
 - **Theme.** *One saved definition, many questions* — a Report is a saved
   `(source, window, grain, filters, group, measure, sort, visualisation)`
   executed by the history layer on open; nothing is stored but the definition.

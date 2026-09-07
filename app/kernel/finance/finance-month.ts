@@ -196,3 +196,111 @@ export function monthDirectionTotals(summary: FinanceMonthSummary): {
     uncategorisedIn: flatten(uncatIn),
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* A range's answer (V2.13 RPT-02)                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Which axis a range read groups by.
+ *
+ * V2.13 needs "where did my money go over a YEAR", and `monthSummary` answers
+ * exactly one month. Executing that question month by month would be one
+ * statement per bucket, which is the N+1 every read in this product is written
+ * to avoid — so the range read exists, and `monthSummary` is DEFINED in terms of
+ * it rather than beside it. That is what makes "a Report and the Finance home
+ * agree" a property of the code (ADR-121 decision 1).
+ */
+export type FinanceRangeGroup =
+  "category" | "account" | "month" | "bucket" | "none";
+
+/**
+ * One bucket of a time breakdown, as an INCLUSIVE owner-calendar date span.
+ *
+ * ── Why a caller passes spans rather than asking for `month` ────────────────
+ * A report's buckets are generated backward from the window's END
+ * (`bucketWindow`), so a "month" bucket is a rolling 8 Aug – 7 Sep span and not
+ * the calendar month of August. Grouping by `substr(occurred_on, 1, 7)` and
+ * then deciding which bucket each CALENDAR month belongs to cannot be made
+ * right: with a mid-month window the two disagree, and at a week grain several
+ * buckets share a calendar month and the mapping is not even a function. So the
+ * caller passes the boundaries it actually drew, and the read groups on those.
+ */
+export interface FinanceRangeBucket {
+  /** The caller's own key for the bucket; returned as `groupKey`. */
+  readonly key: string;
+  /** Owner wall-calendar `YYYY-MM-DD`, INCLUSIVE. */
+  readonly startIso: string;
+  /** Owner wall-calendar `YYYY-MM-DD`, INCLUSIVE. */
+  readonly endIso: string;
+}
+
+/** The most buckets one range read will group on. */
+export const MAX_FINANCE_RANGE_BUCKETS = 366;
+
+/** Which direction an UNCATEGORISED row moved. `net` for a categorised one. */
+export type FinanceRangeDirection = "net" | "out" | "in";
+
+/**
+ * One group's contribution to a range, in one currency.
+ *
+ * The shape carries `categoryKind` and `direction` WHATEVER the grouping axis,
+ * because money out and money in are told apart by exactly those two fields
+ * ({@link monthDirectionTotals}) — and a caller grouping by month or by account
+ * still has to tell them apart. Dropping them for a non-category axis would
+ * make "spending by month" indistinguishable from "net movement by month".
+ */
+export interface FinanceRangeTotal {
+  /** The category id, account id, bucket key or `YYYY-MM`. `null` is uncategorised. */
+  readonly groupKey: string | null;
+  /** The owner's words for the group, where the store holds them. */
+  readonly groupLabel: string | null;
+  readonly categoryKind: "spending" | "income" | null;
+  readonly direction: FinanceRangeDirection;
+  readonly currencyCode: string;
+  /** SIGNED, as stored. */
+  readonly netMinor: number;
+  readonly transactionCount: number;
+}
+
+/** A bounded, grouped read over an inclusive owner-calendar date range. */
+export interface SummariseRangeInput {
+  readonly fromIso: string;
+  readonly toIso: string;
+  readonly groupBy: FinanceRangeGroup;
+  /**
+   * Required when `groupBy` is `bucket`, and rejected otherwise. Spans may not
+   * overlap; a transaction outside every one of them is not counted.
+   */
+  readonly buckets?: readonly FinanceRangeBucket[];
+  /** Narrow to one category. Mutually exclusive with `uncategorised`. */
+  readonly categoryId?: string;
+  readonly accountId?: string;
+  /** Only transactions carrying no category. */
+  readonly uncategorised?: boolean;
+}
+
+/**
+ * Money out and money in for a set of range totals, per currency.
+ *
+ * The SAME rule {@link monthDirectionTotals} applies, factored out so a month
+ * summary and a range read cannot come to disagree about what "spend" means: a
+ * refund in a spending category makes the net less negative and therefore
+ * REDUCES spend, and an uncategorised row is classified by its own sign.
+ */
+export function rangeDirectionAmount(
+  row: FinanceRangeTotal,
+  direction: "out" | "in",
+): number | null {
+  if (row.categoryKind === "spending") {
+    return direction === "out" ? -row.netMinor : null;
+  }
+  if (row.categoryKind === "income") {
+    return direction === "in" ? row.netMinor : null;
+  }
+  // Uncategorised: the row's own direction decides, and the magnitude is taken.
+  if (direction === "out") {
+    return row.direction === "out" ? -row.netMinor : null;
+  }
+  return row.direction === "in" ? row.netMinor : null;
+}

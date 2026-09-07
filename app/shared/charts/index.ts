@@ -34,3 +34,10 @@ export {
   type SparklineProps,
   type SparklinePoint,
 } from "./Sparkline";
+/* V2.13 — a share across NAMED CATEGORIES, the one shape the four above could
+ * not draw. Horizontal, label-first, and readable with the SVG removed. */
+export {
+  CategoryBars,
+  type CategoryBarsProps,
+  type CategoryBarsRow,
+} from "./CategoryBars";

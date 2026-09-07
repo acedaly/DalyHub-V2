@@ -651,3 +651,138 @@
   color: var(--dh-color-text-muted);
   overflow-wrap: anywhere;
 }
+
+/* -------------------------------------------------------------------------- */
+/* CategoryBars (V2.13)                                                        */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A share across named categories: label, bar, figure — three columns pinned to
+ * the same two vertical rules, so a dozen shares are comparable at a glance.
+ * The same grid argument `.dh-analytics__split` records, generalised into a
+ * design-system component.
+ *
+ * On a phone the grid COLLAPSES rather than compressing: the label takes its
+ * own line above a full-width bar with the figure beside it, because a
+ * three-column row at 320px gives a category name about eight characters.
+ */
+.dh-catbars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-catbars__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-inline-size: 0;
+}
+
+.dh-catbars__name {
+  min-inline-size: 0;
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+  /* A category name is the subject of its row: it wraps rather than truncating,
+   * so "Groceries and household" is readable rather than "Groceries and…". */
+  overflow-wrap: anywhere;
+}
+
+.dh-catbars .dh-catbars__link,
+.dh-catbars .dh-catbars__link:visited {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dh-catbars .dh-catbars__link:hover,
+.dh-catbars .dh-catbars__link:focus-visible {
+  text-decoration: underline;
+}
+
+/* The 8px entity rung (D5): a bar whose whole job is a proportion. The track is
+ * the neutral sunken surface, so an empty bar can never read as a full one in
+ * another colour. */
+.dh-catbars__track {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--app-progress-bar-height-entity);
+  border-radius: var(--dh-radius-pill);
+  background: var(--dh-color-bg-sunken);
+  overflow: hidden;
+}
+
+.dh-catbars__fill {
+  display: block;
+  block-size: 100%;
+  inline-size: var(--app-catbars-fill, 0%);
+  border-radius: inherit;
+  background: var(--dh-color-accent);
+}
+
+/* A category whose refunds exceeded its spending draws at its MAGNITUDE in the
+ * warning tone, and prints its sign beside it — the number and the bar can
+ * never disagree about which is bigger, and the sign is never the only cue. */
+.dh-catbars__track[data-negative="true"] .dh-catbars__fill {
+  background: var(--dh-color-warning);
+}
+
+.dh-catbars__figure {
+  display: grid;
+  justify-items: end;
+  gap: var(--app-space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.dh-catbars__value {
+  color: var(--dh-color-text);
+  font-size: var(--dh-text-label-size);
+  line-height: var(--dh-text-label-line-height);
+  font-weight: var(--dh-text-label-weight);
+}
+
+.dh-catbars__detail {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: var(--dh-text-meta-line-height);
+}
+
+/* The remainder row states a BOUND rather than a category, so it is drawn
+ * quietly and without a bar — there is no share to compare it against. */
+.dh-catbars__row[data-remainder="true"] .dh-catbars__name,
+.dh-catbars__row[data-remainder="true"] .dh-catbars__value {
+  color: var(--dh-color-text-muted);
+  font-style: italic;
+}
+
+.dh-catbars__row[data-remainder="true"] .dh-catbars__track {
+  visibility: hidden;
+}
+
+@media (max-width: 37.4375rem) {
+  .dh-catbars__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--app-space-1);
+  }
+
+  .dh-catbars__name {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Forced colours collapses SVG and background fills alike, so the bar gets an
+ * explicit border and a system fill rather than vanishing. */
+@media (forced-colors: active) {
+  .dh-catbars__track {
+    border: 1px solid CanvasText;
+  }
+
+  .dh-catbars__fill,
+  .dh-catbars__track[data-negative="true"] .dh-catbars__fill {
+    background: Highlight;
+  }
+}

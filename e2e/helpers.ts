@@ -165,8 +165,25 @@ export async function openRecordTab(
   await page.waitForLoadState("networkidle");
   const tab = page.getByRole("tab", { name });
   await tab.scrollIntoViewIfNeeded();
-  await tab.click();
-  await expect(tab).toHaveAttribute("aria-selected", "true");
+
+  /*
+   * Then RETRY the click, because settling is not the same as being wired.
+   * `networkidle` says the network is quiet; it does not say React has
+   * attached, and on a loaded runner hydration can land after it — so the
+   * first click is still occasionally received by markup with no handler and
+   * lost. That is what this helper's own note above describes, and waiting
+   * longer cannot fix it: a lost click is never retried by waiting.
+   *
+   * The assertion is UNCHANGED in strength — the tab must end up selected — so
+   * a tab that genuinely never selects still fails, just after several honest
+   * attempts rather than after one unlucky one.
+   */
+  await expect(async () => {
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true", {
+      timeout: 1_000,
+    });
+  }).toPass({ timeout: 15_000 });
   return tab;
 }
 

@@ -50,6 +50,7 @@ import { loader as goalsLoader } from "~/modules/goals/routes/index";
 import { loader as obligationsLoader } from "~/modules/obligations/routes/index";
 import { loader as financeLoader } from "~/modules/finance/routes/index";
 import { loader as analyticsLoader } from "~/modules/analytics/routes/index";
+import { loader as reportsLoader } from "~/modules/reports/routes/index";
 import { createActivityActorContext } from "~/kernel/activity";
 import {
   bindWorkspaceRepositories,
@@ -170,6 +171,26 @@ const ROUTES: readonly RouteUnderTest[] = [
     url: "https://perf.test/analytics",
     small: { statements: 14, depth: 4, bytes: 10_000 },
     large: { statements: 14, depth: 4, bytes: 12_000 },
+  },
+  {
+    /*
+     * V2.13 — the Reports COLLECTION, in this instrument for the property it
+     * must keep rather than for the number it happens to have: it lists
+     * DEFINITIONS and executes no report. The six built-ins are code and cost no
+     * read; the saved list is one bounded statement. A future change that made
+     * the home render previews would move this ceiling by six reads and say so.
+     *
+     * MEASURED: 2 statements at depth 2 — the workspace resolution the shared
+     * boundary performs, then the saved-report list — and 1,373 bytes at BOTH
+     * sizes, because a definition is a name and a question whatever the
+     * workspace holds. That flatness is the property worth protecting: every
+     * other route here grows with the records it draws, and this one draws none.
+     */
+    name: "/reports",
+    loader: measurable(reportsLoader),
+    url: "https://perf.test/reports",
+    small: { statements: 2, depth: 2, bytes: 2_000 },
+    large: { statements: 2, depth: 2, bytes: 2_000 },
   },
 ];
 

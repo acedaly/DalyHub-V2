@@ -1508,6 +1508,48 @@ export type CountCompletedInBucketsInput = {
   readonly buckets: readonly CompletedTaskWindow[];
 };
 
+/**
+ * V2.13 RPT-02 — which AXIS a grouped completion read attributes work to.
+ *
+ * The spine's own precedence resolves each one: a Task's Project may sit
+ * directly in an Area, or advance a Goal that does; a Task with no Project may
+ * float in an Area itself.
+ */
+export const COMPLETED_TASK_GROUPS = ["area", "project", "goal"] as const;
+
+export type CompletedTaskGroup = (typeof COMPLETED_TASK_GROUPS)[number];
+
+/** A grouped completion read over one window. */
+export type CountCompletedByGroupInput = {
+  readonly window: CompletedTaskWindow;
+  readonly group: CompletedTaskGroup;
+  /** The most groups to return, highest first. The repository caps it too. */
+  readonly limit: number;
+};
+
+/** One group's completions, with its live title. */
+export type CompletedTaskGroupCount = {
+  /** `null` is the "not attributed to one" line, which is reported honestly. */
+  readonly groupId: string | null;
+  readonly groupTitle: string | null;
+  readonly completed: number;
+};
+
+/**
+ * A grouped completion answer, and the totals it was bounded against.
+ *
+ * The totals are counted over EVERY row in the window rather than over the
+ * returned page, so a bounded list of groups can never become a wrong total —
+ * the defect `ObligationAttentionResult` records in almost these words.
+ */
+export type CompletedTaskGroupResult = {
+  readonly rows: readonly CompletedTaskGroupCount[];
+  /** Completions in the window, attributed or not. */
+  readonly total: number;
+  /** How many DISTINCT groups the window holds, including the unattributed one. */
+  readonly groups: number;
+};
+
 /** How many Tasks are CURRENTLY recorded as completed inside one window. */
 export type CompletedTaskWindowCount = {
   readonly key: string;

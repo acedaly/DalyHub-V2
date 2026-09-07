@@ -24,9 +24,15 @@ import type { WorkspaceId } from "~/kernel/workspaces";
  *
  * `tasks` is TASKS-03's `TaskViewConfig` — every row written before X-02, which is
  * exactly why `tasks` is the column DEFAULT. `cross` is X-02's `CrossViewConfig`.
+ * `report` is V2.13's `ReportDefinition` (`~/kernel/reports`), added as a third
+ * KIND rather than a third table: the column carries no `CHECK`, the repository
+ * binds `kind = ?` on every statement, and the snapshot and restore descriptors
+ * already carry the column — so a report costs a codec and **no migration**
+ * (ADR-121 decision 1).
+ *
  * A row of an unrecognised kind is never decoded under another kind's rules.
  */
-export const SAVED_VIEW_KINDS = ["tasks", "cross"] as const;
+export const SAVED_VIEW_KINDS = ["tasks", "cross", "report"] as const;
 export type SavedViewKind = (typeof SAVED_VIEW_KINDS)[number];
 
 /** Narrow an untrusted string to a saved-view kind. */

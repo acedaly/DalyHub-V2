@@ -17,7 +17,7 @@ import routes from "./routes.manifest";
 
 export default defineModule({
   id: "analytics",
-  name: "Analytics",
+  name: "Insight",
   description: "Where your effort has actually gone, over a period you choose.",
   order: 190,
   routes,

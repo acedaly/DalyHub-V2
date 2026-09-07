@@ -228,6 +228,118 @@ export type ObligationTaskReconciliation = {
   readonly changed: boolean;
 };
 
+/**
+ * V2.13 RPT-02 — which axis a due-window read groups by.
+ *
+ * `month` is the due date's own `YYYY-MM`, `category` the closed vocabulary,
+ * `subject` the entity the obligation is about (including the honest "about
+ * nothing" line).
+ */
+export const OBLIGATION_DUE_GROUPS = [
+  "month",
+  "category",
+  "subject",
+  "bucket",
+] as const;
+
+/**
+ * One bucket of a time breakdown, as an INCLUSIVE owner-calendar date span.
+ *
+ * A report's buckets are generated backward from the window's END, so a "month"
+ * bucket is a rolling 8 Aug - 7 Sep span rather than the calendar month of
+ * August. Grouping by `substr(due_date, 1, 7)` and then deciding which bucket
+ * each calendar month belongs to is wrong for any mid-month window, and at a
+ * week grain it is not even a function: several buckets share one month, so all
+ * but one are silently lost. The caller passes the spans it actually drew.
+ */
+export type ObligationDueBucket = {
+  readonly key: string;
+  readonly startIso: string;
+  readonly endIso: string;
+};
+
+/** The most buckets one due-date read will group on. */
+export const MAX_OBLIGATION_DUE_BUCKETS = 366;
+
+export type ObligationDueGroup = (typeof OBLIGATION_DUE_GROUPS)[number];
+
+/** A grouped read over an inclusive due-date range. */
+export type ObligationDueSummaryInput = {
+  readonly fromIso: string;
+  readonly toIso: string;
+  readonly groupBy: ObligationDueGroup;
+  readonly filters?: ObligationFilters;
+  /** Narrow to one subject; `null` reads only the ones about nothing. */
+  readonly subjectEntityId?: string | null;
+  readonly limit?: number;
+  /** Required when `groupBy` is `bucket`, and rejected otherwise. */
+  readonly buckets?: readonly ObligationDueBucket[];
+};
+
+/**
+ * One group's due obligations, in ONE currency where a money figure is asked for.
+ *
+ * `expectedAmountMinor` is the sum of the amounts DalyHub was actually TOLD. An
+ * obligation with no recorded amount is counted in `withoutAmount` and
+ * contributes nothing — never zero, never estimated, never inferred from a
+ * sibling occurrence (ADR-118: an expected amount is not a payment).
+ */
+export type ObligationDueTotal = {
+  /** The `YYYY-MM`, the category key, or the subject entity id. */
+  readonly groupKey: string | null;
+  readonly groupLabel: string | null;
+  /** `null` on the row that counts obligations carrying no amount at all. */
+  readonly currencyCode: string | null;
+  readonly dueCount: number;
+  readonly expectedAmountMinor: number;
+  readonly withoutAmount: number;
+};
+
+/**
+ * A bounded page of grouped due obligations, WITH the range's own totals.
+ *
+ * The totals come from the same population rather than from the page, so a
+ * bounded result can state an arithmetically truthful remainder instead of a
+ * total that is quietly short. This is `CompletedTaskGroupResult`'s shape, for
+ * exactly that reason.
+ */
+export type ObligationDueSummary = {
+  readonly rows: readonly ObligationDueTotal[];
+  /** How many DISTINCT groups the range holds, whatever the page returned. */
+  readonly groups: number;
+  /** The whole range, per currency. `groupKey` is `null` on every row. */
+  readonly overall: readonly ObligationDueTotal[];
+};
+
+/** What one recurring commitment is, for a calendar projection. */
+export type RecurringObligation = {
+  readonly obligationId: string;
+  readonly title: string;
+  readonly category: string;
+  readonly dueDate: string;
+  readonly recurrenceKind: string;
+  readonly recurrenceInterval: number | null;
+  readonly expectedAmountMinor: number | null;
+  readonly currencyCode: string | null;
+  readonly subjectEntityId: string | null;
+};
+
+/** A bounded read of the open recurring commitments. */
+export type ListRecurringInput = {
+  readonly filters?: ObligationFilters;
+  readonly subjectEntityId?: string | null;
+  readonly limit?: number;
+};
+
+/** The open recurring commitments, and whether the read was bounded. */
+export type RecurringObligationPage = {
+  readonly items: readonly RecurringObligation[];
+  /** True when more exist beyond `limit` — stated, never hidden. */
+  readonly bounded: boolean;
+  /** How many repeat on a METER and therefore have no calendar to project on. */
+  readonly meterBased: number;
+};
+
 export interface ObligationRepository {
   /** The workspace this repository is bound to. */
   readonly context: WorkspaceContext;
@@ -340,4 +452,36 @@ export interface ObligationRepository {
    * the workspace holds one obligation or ten thousand.
    */
   countByBand(input: ObligationBandCountInput): Promise<ObligationBandCounts>;
+
+  /**
+   * V2.13 RPT-02 — what falls due in a window, grouped, in ONE statement.
+   *
+   * `countByBand` above answers "how urgent is everything right now"; this
+   * answers "what falls due between these two days, by month, kind or subject",
+   * which no existing read could. It reads the SAME due-date truth and the SAME
+   * open-status rule — nothing here is a second definition of "due".
+   *
+   * Amounts are only ever the ones DalyHub was told: an obligation with no
+   * recorded amount is counted separately and contributes nothing to the total.
+   * Currencies never meet; a group holding two produces two rows.
+   */
+  summariseDue(input: ObligationDueSummaryInput): Promise<ObligationDueSummary>;
+
+  /**
+   * V2.13 RPT-02 — the OPEN, recurring commitments, so a projection can be
+   * computed from their own rules.
+   *
+   * An obligation has exactly ONE open occurrence; the successor is written by
+   * `complete`. Future occurrences beyond the next therefore do not exist as
+   * rows, and this release does not create a schedule store to make them exist
+   * (ADR-118). A projection is computed in the kernel from these rows and the
+   * canonical recurrence arithmetic — the same arithmetic `complete` uses to
+   * write a successor — bounded and stated.
+   *
+   * METER-recurring commitments come back counted rather than listed: a meter
+   * has no calendar, and projecting one onto months would be an invention.
+   *
+   * ONE bounded statement.
+   */
+  listRecurring(input?: ListRecurringInput): Promise<RecurringObligationPage>;
 }

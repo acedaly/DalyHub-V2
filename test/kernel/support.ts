@@ -11,6 +11,7 @@ import {
   createAppPreferencesRepository,
   createTaskViewRepository,
   createCrossViewRepository,
+  createReportRepository,
   createCrossViewQueryRepository,
   createAreaRepository,
   createAreaSettingsRepository,
@@ -624,6 +625,18 @@ export function makeCrossViewRepository(
   options?: D1SavedViewRepositoryOptions,
 ) {
   return createCrossViewRepository(env.DB, context, options);
+}
+
+/**
+ * V2.13 RPT-00 — the workspace- and owner-scoped saved REPORTS. The same table
+ * and repository class as the two above, bound to the report codec: a kind
+ * costs a codec, never a persistence path.
+ */
+export function makeReportRepository(
+  context: WorkspaceContext,
+  options?: D1SavedViewRepositoryOptions,
+) {
+  return createReportRepository(env.DB, context, options);
 }
 
 /**

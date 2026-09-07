@@ -748,6 +748,24 @@ const TABLES: Readonly<Record<string, TableDescriptor>> = {
   },
 };
 
+/**
+ * The destination columns each staged collection writes, derived from the
+ * descriptors above and exposed so a TEST can assert a column is in the restore
+ * path rather than trusting the comment beside it.
+ *
+ * V2.13 added it on adding a third saved-view KIND: the reason `kind` is in the
+ * `taskSavedViews` list is recorded in a comment there, and a comment is not a
+ * gate. Dropping a column now fails a test as well as a restore.
+ */
+export const RESTORE_TABLE_COLUMNS: Readonly<
+  Record<string, readonly string[]>
+> = Object.fromEntries(
+  Object.entries(TABLES).map(([collection, descriptor]) => [
+    collection,
+    descriptor.columns,
+  ]),
+);
+
 /* -------------------------------------------------------------------------- */
 /* Snapshot row → column row                                                  */
 /* -------------------------------------------------------------------------- */
