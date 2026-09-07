@@ -62,6 +62,7 @@ import {
   SMALL,
   seedNavigationWorkspace,
   type FixtureSize,
+  type SeededWorkspace,
 } from "./navigation-fixture";
 import {
   measurable,
@@ -178,24 +179,43 @@ const ROUTES: readonly RouteUnderTest[] = [
  * Seeding the large workspace is the expensive part of this file, so it is done
  * twice in total rather than fourteen times.
  */
-async function measureAll(
-  size: FixtureSize,
-): Promise<ReadonlyMap<string, LoaderMeasurement>> {
+async function measureAll(size: FixtureSize): Promise<{
+  readonly seeded: SeededWorkspace;
+  readonly results: ReadonlyMap<string, LoaderMeasurement>;
+}> {
   await resetTables([WS]);
-  await seedNavigationWorkspace(WS, size);
+  const seeded = await seedNavigationWorkspace(WS, size);
   const results = new Map<string, LoaderMeasurement>();
   for (const route of ROUTES) {
     results.set(route.name, await measureLoader(route.loader, route.url));
   }
-  return results;
+  return { seeded, results };
 }
 
 let small: ReadonlyMap<string, LoaderMeasurement>;
 let large: ReadonlyMap<string, LoaderMeasurement>;
+let largeTaskIds: readonly string[] = [];
 
+/*
+ * ONE seeding pass for the whole file, and the LARGE workspace is left standing.
+ *
+ * Seeding `LARGE` writes 240 Tasks and 300 transactions through the real
+ * repositories, which is thousands of D1 writes — easily the most expensive
+ * thing in this file. The first version of it seeded `LARGE` three separate
+ * times (once to measure, once for the chunk assertions, once for the query
+ * plans) and ran all seven loaders a fourth time to collect statements it had
+ * already recorded.
+ *
+ * None of that was necessary: every one of those readers only READS. So the
+ * fixture is built once, the measurement's own records are reused for the plan
+ * pass, and the suite that has to fit inside CI's Unit budget stops paying for
+ * the same rows four times.
+ */
 beforeAll(async () => {
-  small = await measureAll(SMALL);
-  large = await measureAll(LARGE);
+  small = (await measureAll(SMALL)).results;
+  const largeRun = await measureAll(LARGE);
+  large = largeRun.results;
+  largeTaskIds = largeRun.seeded.taskIds;
 }, 600_000);
 
 describe("PERF-01 — every hot route stays inside its budget", () => {
@@ -248,13 +268,9 @@ describe("PERF-01 — the page aggregates read their chunks together", () => {
    * `depth === 1` is the whole claim, and it is exact rather than bounded: a
    * single method issuing statements in one tick has no room for jitter.
    */
-  let taskIds: readonly string[] = [];
-
-  beforeAll(async () => {
-    await resetTables([WS]);
-    const seeded = await seedNavigationWorkspace(WS, LARGE);
-    taskIds = seeded.taskIds;
-  }, 600_000);
+  // The LARGE workspace the file already seeded. These reads never write, so
+  // re-seeding it would buy nothing but CI minutes.
+  const taskIds = () => largeTaskIds;
 
   function scopeOver(db: D1Database) {
     return bindWorkspaceRepositories(
@@ -266,7 +282,7 @@ describe("PERF-01 — the page aggregates read their chunks together", () => {
 
   it("reads checklist progress for a multi-chunk page in ONE round trip", async () => {
     const profile = profileDb(env.DB);
-    const ids = taskIds.slice(0, 240);
+    const ids = taskIds().slice(0, 240);
     // The page really does span several chunks — otherwise the assertion below
     // would hold for a reason that has nothing to do with concurrency.
     expect(ids.length).toBeGreaterThan(160);
@@ -277,7 +293,7 @@ describe("PERF-01 — the page aggregates read their chunks together", () => {
 
   it("reads blocked summaries for a multi-chunk page in ONE round trip", async () => {
     const profile = profileDb(env.DB);
-    const ids = taskIds.slice(0, 240);
+    const ids = taskIds().slice(0, 240);
     expect(ids.length).toBeGreaterThan(160);
     await scopeOver(profile.db).tasks.listBlockedSummaries(ids);
     expect(profile.executions()).toBeGreaterThan(1);
@@ -286,7 +302,7 @@ describe("PERF-01 — the page aggregates read their chunks together", () => {
 
   it("reads the open subset of a multi-chunk id list in ONE round trip", async () => {
     const profile = profileDb(env.DB);
-    const ids = taskIds.slice(0, 240);
+    const ids = taskIds().slice(0, 240);
     await scopeOver(profile.db).tasks.listOpenTaskIds(ids);
     expect(profile.executions()).toBeGreaterThan(1);
     expect(profile.depth()).toBe(1);
@@ -329,11 +345,6 @@ describe("PERF-01 — the preference warm-up is opt-in", () => {
     );
     return profile.executions();
   }
-
-  beforeAll(async () => {
-    await resetTables([WS]);
-    await seedNavigationWorkspace(WS, SMALL);
-  }, 600_000);
 
   it("costs one statement for a caller that does not ask", async () => {
     // The workspace-existence check, and nothing else.
@@ -379,8 +390,6 @@ describe("PERF-01 — every hot statement reaches its tables by index", () => {
      * predicate is deliberately absent so no index leads with it: SQLite has
      * nothing to reach for.
      */
-    await resetTables([WS]);
-    await seedNavigationWorkspace(WS, SMALL);
     const tables = await schemaTableNames(env.DB);
     const plan = await explainQueryPlan(
       env.DB,
@@ -393,13 +402,17 @@ describe("PERF-01 — every hot statement reaches its tables by index", () => {
   }, 600_000);
 
   it("issues no statement that scans a base table", async () => {
-    await resetTables([WS]);
-    await seedNavigationWorkspace(WS, LARGE);
+    /*
+     * The statements were already recorded when the budget above measured these
+     * loaders against this same LARGE workspace, and a statement's SQL and its
+     * bindings are all a plan needs. Re-running all seven loaders to collect
+     * them a second time cost a full extra pass for no extra information.
+     */
     const tables = await schemaTableNames(env.DB);
     const findings: string[] = [];
     let explained = 0;
     for (const route of ROUTES) {
-      const measured = await measureLoader(route.loader, route.url);
+      const measured = large.get(route.name)!;
       const seen = new Set<string>();
       for (const record of measured.records) {
         if (record.batched || seen.has(record.sql)) continue;
