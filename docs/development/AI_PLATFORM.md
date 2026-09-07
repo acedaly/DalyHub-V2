@@ -306,8 +306,10 @@ record ids, and the proposal outcome.
 
 **V2.14** added the two grounded features to `feature_id`'s CHECK constraint
 (migration `0054`) and nothing else. A fact's REFERENCE id joins the existing
-`source_entity_ids` list — a fact's record id is a record id exactly as an
-evidence item's is — and no fact label, value, display string or currency is
+`source_entity_ids` list: an entity id where the fact points at a record (an
+Area, a Project, a Goal, a category), and otherwise a derived key the vocabulary
+already owns — a period like `2026-08`, a measure like `money_out`. None of them
+is owner-authored text, and no fact label, value, display string or currency is
 written anywhere. `test/kernel/grounded-ai.test.ts` asserts it by serialising the
 stored row and searching it for the block's own labels and displays, because the
 privacy claim is about what is STORED and a column name is not the claim.

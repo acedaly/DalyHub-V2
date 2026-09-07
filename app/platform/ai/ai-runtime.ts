@@ -387,10 +387,15 @@ export async function runAiRequest(
   if (!decision.ok) throw decision.error;
 
   /*
-   * The ledger records WHICH records a request drew on, never what they say.
-   * A fact's reference id is a record id exactly as an evidence item's is, so
-   * both belong here and neither brings a value, a label, an amount or a payee
-   * with it (V2.14; AI_PLATFORM.md §8).
+   * The ledger records WHAT a request drew on, never what any of it says.
+   *
+   * An evidence item contributes its entity id. A fact contributes its
+   * REFERENCE id, which is an entity id where the fact points at a record
+   * (`area`, `project`, `goal`, `category`) and otherwise a derived key the
+   * vocabulary already owns -- a period like `2026-08`, a measure like
+   * `money_out`. None of them is owner-authored text, and none brings a value,
+   * a label, an amount or a payee with it, which is the property this field has
+   * to hold (V2.14; AI_PLATFORM.md §8).
    */
   const sourceIds = [
     ...new Set([
