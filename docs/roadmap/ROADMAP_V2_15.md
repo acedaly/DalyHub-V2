@@ -261,7 +261,7 @@ vector memory or any learning from accepted proposals.
 
 ## The items
 
-### ASSIST-00 — make one proposal path authoritative, and typed ☐
+### ASSIST-00 — make one proposal path authoritative, and typed ☑
 
 **The problem.** The vocabulary is a ternary, the unsourced Task path has no
 replay guard, no kind declares its undo contract, and the architecture test
@@ -289,7 +289,7 @@ exactly one authority; a replayed acceptance of every kind creates nothing
 twice; the legacy Meeting/Note kinds meet the same apply/replay/stale/undo
 contract as the new ones.
 
-### ASSIST-01 — assist the Finance queue ☐
+### ASSIST-01 — assist the Finance queue ☑
 
 **The product goal.** Clear the uncategorised queue faster without surrendering
 control, on a phone.
@@ -321,7 +321,7 @@ reaches the UI; the batch bounded; replay a no-op; a manually-categorised row
 refused as stale; undo exact; the whole surface usable at 320 px with ≥ 44 px
 targets.
 
-### ASSIST-02 — draft a follow-up, and draft a reflection ☐
+### ASSIST-02 — draft a follow-up, and draft a reflection ☑
 
 **Obligation follow-up.** An overdue, **open** obligation (canonical open
 truth, never a completed or dismissed one — V2.14 fixed that class and this
@@ -350,7 +350,7 @@ silently reverted either.
 completed obligation refuses; a Review edited after generation refuses; provider
 absence leaves both surfaces fully usable.
 
-### ASSIST-03 — prove approval, replay, undo and safety ☐
+### ASSIST-03 — prove approval, replay, undo and safety ☑
 
 **Deliver.** Per-feature budgets measured from real serialised request sizes,
 not copied from V2.14. Development-provider scenarios for every new kind,
@@ -576,6 +576,62 @@ proposals. No search index over proposal prose. No offline AI queue.
 
 ## Programme status
 
-☐ **ASSIST-00** · ☐ **ASSIST-01** · ☐ **ASSIST-02** · ☐ **ASSIST-03**
+☑ **ASSIST-00** · ☑ **ASSIST-01** · ☑ **ASSIST-02** · ☑ **ASSIST-03**
 
-**V2.15 ASSISTED AI — DEFINED 2026-09-08 against `main` at `701fe25`.**
+**V2.15 ASSISTED AI — implementation complete; production Assisted AI remains
+owner-gated on V2.14 live-use evidence and provider activation.**
+
+Every proposal kind, every refusal path, every stale guard, every replay and
+every undo is proven on the deterministic provider through the real gateway and
+against real D1. **No request has ever been sent to Anthropic or OpenAI from
+this repository**, and
+[`AI_PLATFORM.md` §21](../development/AI_PLATFORM.md#21-manual-provider-verification-opt-in-never-in-ci)
+still says so truthfully.
+
+### What "implementation complete" means here, precisely
+
+| Claim | State |
+|---|---|
+| V2.15 defined against current `main` | ☑ `701fe25`, with three measured corrections to the presumptive sketch |
+| One proposal apply authority, ENUMERATED | ☑ `test/unit/architecture/proposal-apply-authority.test.ts` — the count is one |
+| The vocabulary closed and typed | ☑ six kinds, one registry, an unknown kind refused rather than coerced |
+| Finance categorisation | ☑ deterministic-first, bounded batch, per-item results |
+| Transfer pairing | ☑ **deliberately refused**, with the measurement recorded |
+| Duplicate correction | ☑ **deliberately refused** for want of grounding — raised as [DEBT-252](../product/PRODUCT_DEBT.md) |
+| Obligation follow-up | ☑ as `obligation_task`, the kind naming the mutation |
+| Review reflection draft | ☑ under REVIEW-02's own optimistic concurrency |
+| Meeting/Note proposals brought to the same standard | ☑ registered, feature-gated, the unguarded replay path closed |
+| Owner approval required for every mutation | ☑ nothing starts selected; no effect starts a request |
+| Stale-state protection | ☑ every kind, both directions, no force flag |
+| Browser tampering refused | ☑ five payload shapes, server-side, nothing moved |
+| Idempotency | ☑ replay reports `unchanged` and writes nothing |
+| Rejection | ☑ writes no data, records the disposition, contacts no provider |
+| Every applied kind undoable | ☑ and unrepresentable to omit — `undo` is a required typed field |
+| Consent preserved | ☑ `financial` and `reflection` remain the owner's, stated before the request |
+| Provider-off path preserved | ☑ every surface, proven in the browser |
+| Hostile workspace isolation | ☑ foreign ids refused with the identical sentence a missing id gets |
+| Injection corpus | ☑ extended into proposal generation, over payees and titles |
+| No background agents, no autonomous actions | ☑ asserted structurally, not just absent |
+| Full static / unit / kernel / build / E2E gate | ☑ see the PR |
+| **Production Assisted AI activated** | ☐ **owner-gated** — see below |
+
+### Owner activation
+
+V2.15 adds no new activation step. It inherits V2.14's exactly:
+
+1. `pnpm exec wrangler secret put ANTHROPIC_API_KEY --env production` (or
+   `OPENAI_API_KEY`). Full steps:
+   [`DEPLOYMENT.md`](../development/DEPLOYMENT.md#activating-ai-in-production-owner-held-v214).
+2. Turn AI on in Settings; it is off by default.
+3. **Tick `financial`** to use Finance categorisation, and **`reflection`** to
+   use the Review draft. Neither is on by default, and neither feature grants
+   itself its own consent.
+4. Run `node scripts/ai-integration-check.mjs anthropic` (or `openai`) against
+   synthetic data only, and record the result on
+   [`AI_PLATFORM.md` §21](../development/AI_PLATFORM.md#21-manual-provider-verification-opt-in-never-in-ci).
+
+Until step 4 has been done and V2.14 has produced legitimate usage in the AI
+ledger, the honest status line is the one above. It is not weakened to complete
+a release.
+
+**V2.15 ASSISTED AI — DEFINED 2026-09-08 against `main` at `701fe25`.

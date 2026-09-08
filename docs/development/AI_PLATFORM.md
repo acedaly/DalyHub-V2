@@ -873,9 +873,133 @@ and the browser suite goes on proving the off state it was written to prove.
 
 ---
 
+## 23. Assisted proposals (V2.15 ASSIST)
+
+V2.14's features EXPLAIN. V2.15's three ASSISTED features **propose a change**,
+and nothing about how a proposal becomes data is new — the path is AI-02's,
+extended in vocabulary and tightened in three places.
+
+### The shape
+
+```
+deterministic facts        (no model)
+   ↓
+AI proposal                (the model)
+   ↓
+validated proposal         (no model — DalyHub's own closed schema)
+   ↓
+owner reviews it, field by field, and selects
+   ↓
+ONE apply authority        (app/modules/ai/apply-proposal.ts)
+   ↓
+ordinary domain mutation   (the module's own repository, owner as actor)
+   ↓
+undo
+```
+
+### The three features
+
+| Feature | Proposes | Consent it declares |
+|---|---|---|
+| `finance-categorisation` | a category for each of ≤ 20 uncategorised rows | `financial` |
+| `obligation-follow-up` | ≤ 3 Tasks for one overdue, open commitment | `financial` only when it carries an expected amount |
+| `review-reflection-draft` | one reflection paragraph for one Review section | `reflection` |
+
+None of the three may send its sensitive category by default: each declares
+`general` in `defaultAllowedCategories`, so the owner's own per-category
+allowance is what permits it. A feature that granted itself its own consent
+would be the one path around AI-04's gate.
+
+### The vocabulary is closed, and lives in one registry
+
+[`app/kernel/ai/proposal-kinds.ts`](../../app/kernel/ai/proposal-kinds.ts) holds
+one row per kind: the target it resolves server-side, whether it CREATES or
+UPDATES, the features permitted to produce it, the privacy categories it
+discloses, and **how it is undone**. `undo` is a required field typed as a
+closed union of implemented strategies, so a kind with no undo contract does not
+typecheck — the release invariant is a type rather than a rule.
+
+An unrecognised kind is REFUSED. The code this replaced read
+
+```ts
+const kind = item.kind === "link" ? "link" : item.kind === "note" ? "note" : "task";
+```
+
+so `{ kind: "transaction_categry" }` created a Task.
+
+### The provider cannot name a record
+
+The Finance schema expresses every reference as an INTEGER POSITION into a list
+DalyHub sent — a `rowIndex` and a `categoryIndex`. There is no string id field
+anywhere in it, so an invented category id is not rejected at validation: it is
+unrepresentable. The positions are resolved back into ids server-side, and an
+out-of-range one refuses the whole answer rather than dropping a row.
+
+### Which feature may produce which kind is read from the LEDGER
+
+`/ai/apply` reads `ai_usage_requests.feature_id` for the usage id the acceptance
+names, and the registry decides which kinds that feature may carry. The browser
+never says. An acceptance naming no resolvable row may carry only the three
+CREATE kinds — a creation with no traceable generation is an ordinary record the
+owner asked for, and a CHANGE to an existing record with nothing behind it is a
+mutation nothing can audit.
+
+### The stale guard, per kind
+
+| Kind | What acceptance states it expected | A mismatch means |
+|---|---|---|
+| `task` · `note` · `link` | the source record still resolves and is not archived | refuse the item |
+| `transaction_category` | the category the proposal saw (normally none) | the owner categorised it themselves — refuse |
+| `obligation_task` | the obligation is still open | it has been settled — refuse |
+| `review_reflection` | the section's `updatedAt` | the owner has typed since — refuse (REVIEW-02's own guard) |
+
+There is no force flag. **"Already in the target state" is checked BEFORE
+staleness**, so a replayed acceptance reads as a replay rather than as a
+conflict — nothing is written either way, and the only thing at stake is which
+true sentence the owner reads.
+
+### Undo
+
+Every applied item returns the payload that reverses it, and the browser posts
+it back to `intent=undo` on the same route. That is not a convenience: it means
+undo travels the same dispatch, the same validation and the same canonical
+operations as the acceptance, so there is one authority rather than an apply
+authority and an undo authority that eventually disagree. The client never
+assembles an inverse — a client that could compose a reversal could compose a
+mutation.
+
+Undo is guarded in the direction that matters too: it states what it expects to
+find, so an owner who undoes a categorisation after re-categorising the row by
+hand gets a refusal rather than a silent reversion of their newer decision.
+
+### No new store
+
+Measured against what durable proposal state would buy: replay safety is already
+the PWA-05 receipts table's, the stale guard's authority is the target's own
+current state, undo's inverse is an ordinary mutation, and disposition is
+`ai_usage_requests.proposal_outcome` — widened by migration `0055` with
+`undone`, which is written only when EVERY item of an undo request was reversed.
+
+### What V2.15 deliberately does not do
+
+No background agent, no scheduled run, no unattended anything. No notification.
+No confidence threshold that applies anything — the response schemas carry no
+confidence field at all. No outbound email, SMS, message, calendar event or API
+call: a "follow-up" is a Task in DalyHub, and there is no code path that could
+send one. No transfer pairing (the deterministic candidate read already matches
+on the exactly opposite amount) and no duplicate correction (no deterministic
+post-import candidate read exists to ground one) — both recorded with their
+measurement in
+[`ROADMAP_V2_15.md`](../roadmap/ROADMAP_V2_15.md#the-three-corrections-this-pass-makes-to-the-presumptive-sketch).
+Ask DalyHub stays explanatory and gains no command execution.
+
+---
+
 ## Related
 
 - [ADR-073](../decisions/ARCHITECTURE_DECISIONS.md#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract)
+- [ADR-123](../decisions/ARCHITECTURE_DECISIONS.md#adr-123-assisted-ai--one-closed-proposal-vocabulary-behind-one-apply-authority-an-undo-that-is-a-type-rather-than-a-rule-an-expectation-on-every-change-and-two-capabilities-refused-for-want-of-grounding) — the ASSISTED proposal decisions
+- [`FINANCE_MODULE.md`](FINANCE_MODULE.md) — the queue the categorisation control sits on
 - [`SETTINGS_MODULE.md`](SETTINGS_MODULE.md) — the AI settings section
 - [`MEETINGS_MODULE.md`](MEETINGS_MODULE.md) · [`NOTES_MODULE.md`](NOTES_MODULE.md) — extraction
 - [`REVIEWS_MODULE.md`](REVIEWS_MODULE.md) — the Weekly Review assistant

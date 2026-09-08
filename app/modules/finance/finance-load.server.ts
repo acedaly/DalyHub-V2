@@ -262,12 +262,22 @@ export async function loadFinanceTransactions(
        * the queue's own timing is unaffected. What it decides is whether a
        * control appears, not whether the queue works.
        */
-      aiCategorisation: await readAiAvailability(
-        scope,
-        input.session.user.subject,
-        "finance-categorisation",
-        input.env,
-      ),
+      aiCategorisation: await (async () => {
+        const availability = await readAiAvailability(
+          scope,
+          input.session.user.subject,
+          "finance-categorisation",
+          input.env,
+        );
+        return {
+          enabled: availability.enabled,
+          providerConfigured: availability.providerConfigured,
+          featureAllowed: availability.featureAllowed,
+          budgetExhausted: availability.budgetExhausted,
+          financialAllowed:
+            availability.allowedCategories.includes("financial"),
+        };
+      })(),
     };
   } catch {
     return {
@@ -292,6 +302,7 @@ export async function loadFinanceTransactions(
         providerConfigured: false,
         featureAllowed: false,
         budgetExhausted: false,
+        financialAllowed: false,
       },
     };
   }

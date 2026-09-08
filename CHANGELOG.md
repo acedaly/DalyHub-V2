@@ -1,5 +1,41 @@
 # Changelog
 
+- **Suggestions you look at before anything happens.**
+
+  DalyHub can now offer a change and wait. Not make it — offer it, show you
+  exactly what it would do, and sit there until you decide.
+
+  Three places. The **uncategorised queue** has a **Suggest categories** button:
+  press it and you get a short list of `Uncategorised → Groceries` rows, each
+  with a sentence about why, each with a tick box, each with a picker so you can
+  disagree. Nothing is ticked when it arrives. **Apply selected** tells you how
+  many changes it is about to make, and afterwards every row says what actually
+  happened to it — applied, already done, or not applied because you had
+  categorised it yourself in the meantime. Then there is **Undo**, and it puts
+  back exactly what was there.
+
+  An **overdue commitment** can draft a follow-up: one to three concrete things
+  to do, which become ordinary linked Tasks if you accept them, with the
+  commitment's own due date rather than one anybody guessed. And the **Weekly
+  Review** can draft a paragraph for whichever reflection prompt you are on, from
+  the same figures the Review already shows you. If you have written something
+  there since the draft was made, accepting it is refused — your writing wins,
+  and DalyHub says so rather than quietly replacing it.
+
+  **It cannot categorise anything by itself.** Not "it is instructed not to" —
+  there is no path. Nothing applies on hover, on a timer, in the background, or
+  because a suggestion looked confident (there is no confidence number, because a
+  percentage is a false promise). Every change goes through the same code your
+  own tap goes through, is recorded as done by you, and is undoable.
+
+  It also does not waste your money. A shop you have categorised before is
+  answered by DalyHub itself, in one tap, and is never sent anywhere. AI is
+  offered the ones it does not already know.
+
+  Sending your payees and amounts to a provider needs your say-so, and the panel
+  tells you that up front rather than after the fact. Without it, the queue works
+  exactly as it always has.
+
 - **Explain the facts.**
 
   DalyHub can now put a report into words. Open a saved report, press **Explain

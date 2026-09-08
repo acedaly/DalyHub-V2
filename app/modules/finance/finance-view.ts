@@ -97,6 +97,16 @@ export interface FinanceTransactionsData extends FinanceMonthContext {
     readonly providerConfigured: boolean;
     readonly featureAllowed: boolean;
     readonly budgetExhausted: boolean;
+    /**
+     * Whether the owner has allowed FINANCIAL content to reach a provider.
+     *
+     * Carried separately from the four gates above because it is a different
+     * kind of "no": the others are switches, and this is consent. Knowing it
+     * before the request runs is what turns a refusal after the fact into an
+     * explanation before it — the owner is told what the feature would need
+     * rather than being told afterwards that it was not allowed.
+     */
+    readonly financialAllowed: boolean;
   };
 }
 

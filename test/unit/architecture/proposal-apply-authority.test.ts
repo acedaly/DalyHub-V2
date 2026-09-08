@@ -208,6 +208,52 @@ describe("the proposal vocabulary is closed and complete", () => {
   });
 });
 
+describe("nothing runs an AI request by itself", () => {
+  /*
+   * V2.15's first non-goal: no background agent, no scheduled run, no
+   * unattended anything. `grounded-ai-boundaries.test.ts` asserts the SERVER
+   * half — no loader contacts a provider. This is the CLIENT half, and it is
+   * the one a new surface is most likely to break by accident: a `useEffect`
+   * that fetches on mount is the shape "it just runs when you open the page"
+   * arrives in, and it would be nobody's deliberate decision.
+   */
+  const AI_SURFACES = APP.filter((entry) =>
+    entry.file.startsWith("app/shared/ai/"),
+  );
+
+  it("has an AI surface, so this is not asserting over an empty set", () => {
+    expect(AI_SURFACES.length).toBeGreaterThan(5);
+  });
+
+  it("starts no request from an effect, anywhere in the AI surfaces", () => {
+    for (const { file, code } of AI_SURFACES) {
+      expect(code, `${file} must not run on mount`).not.toMatch(
+        /useEffect\s*\(/,
+      );
+    }
+  });
+
+  it("starts no request from a timer or an interval", () => {
+    for (const { file, code } of AI_SURFACES) {
+      expect(code, `${file} must not run on a timer`).not.toMatch(
+        /setInterval\s*\(|setTimeout\s*\([^)]*run|requestIdleCallback/,
+      );
+    }
+  });
+
+  it("reaches the AI routes from exactly one place", () => {
+    // Every AI request and every acceptance goes through the shared request
+    // controller. A surface fetching `/ai/assist` or `/ai/apply` itself would
+    // be a second client contract for the same two routes.
+    const callers = APP.filter(
+      (entry) =>
+        entry.file !== "app/shared/ai/use-ai-request.ts" &&
+        /["'`]\/ai\/(assist|apply)["'`]/.test(entry.code),
+    ).map((entry) => entry.file);
+    expect(callers).toEqual([]);
+  });
+});
+
 describe("no module writes an AI mutation of its own", () => {
   it("keeps the V2.15 proposal kind names out of every module but AI", () => {
     /*

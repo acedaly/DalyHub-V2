@@ -33,7 +33,9 @@ import { money } from "~/shared/finance";
 
 export interface FinanceCategorySuggestionsProps {
   /** Availability, resolved server-side by the transactions loader. */
-  readonly availability: AiSurfaceAvailabilityGate;
+  readonly availability: AiSurfaceAvailabilityGate & {
+    readonly financialAllowed: boolean;
+  };
   /** How many uncategorised rows there are, for the disclosure sentence. */
   readonly queueSize: number;
 }
@@ -42,6 +44,39 @@ export function FinanceCategorySuggestions({
   availability,
   queueSize,
 }: FinanceCategorySuggestionsProps) {
+  /*
+   * CONSENT, said before the request rather than after it.
+   *
+   * A categorisation request IS the payee and the amount, so there is no
+   * reduced form of this feature that avoids the disclosure. Without the
+   * owner's `financial` allowance the runtime refuses it — correctly — but
+   * being told afterwards that a thing was not allowed is a worse experience
+   * than being told beforehand what it would need. The gate itself is the
+   * server's and is not re-implemented here.
+   */
+  if (
+    availability.enabled &&
+    availability.providerConfigured &&
+    availability.featureAllowed &&
+    !availability.financialAllowed
+  ) {
+    return (
+      <div className="dh-finance-suggestions" data-testid="finance-ai-suggest">
+        <div className="dh-ai__unavailable">
+          <p className="dh-ai__unavailable-text">
+            Suggesting categories would send this transaction’s payee, account
+            and amount to your AI provider. DalyHub has not been allowed to send
+            financial content, so it will not offer to. The suggestions DalyHub
+            works out itself are unaffected.
+          </p>
+          <a className="dh-btn dh-btn--ghost" href="/settings?section=ai">
+            Open AI settings
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dh-finance-suggestions" data-testid="finance-ai-suggest">
       <AiAssistSurface
