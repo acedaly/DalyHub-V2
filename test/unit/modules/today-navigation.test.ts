@@ -2,7 +2,8 @@
  * TODAY-01 — the Today module wires into the registry-driven sidebar.
  *
  * Today declares only a navigable route (no entity type — it is a view over the
- * shared model), so it must appear in primary navigation at the top (navOrder 5),
+ * shared model), so it must appear in primary navigation at the top of the DO
+ * group (navOrder 110 since V2.16 CONSOL-00, 5 before it),
  * and — declaring no entity type — surface with the shell's generic navigation
  * glyph rather than an entity icon (PrimaryNavigation's documented fallback). This
  * proves the manifest → registry → navigation flow without editing any central list.
@@ -25,11 +26,16 @@ describe("TODAY-01 navigation", () => {
 
     const today = nav.find((item) => item.id === "today.index");
     expect(today).toBeDefined();
-    expect(today).toMatchObject({ label: "Today", href: "/today", order: 5 });
+    expect(today).toMatchObject({
+      label: "Today",
+      href: "/today",
+      order: 110,
+      group: "do",
+    });
     // A view, not an entity — no entity-type icon (generic glyph fallback).
     expect(today?.entityType).toBeUndefined();
 
-    // Ordered ahead of Areas (navOrder 10).
+    // Ordered ahead of Areas (navOrder 230, in ORGANISE).
     const ids = nav.map((item) => item.id);
     expect(ids.indexOf("today.index")).toBeLessThan(ids.indexOf("areas.index"));
   });

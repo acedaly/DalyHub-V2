@@ -29,7 +29,18 @@ function item(
   } as NavigationItem;
 }
 
-/** The navigation model as the shipped manifests produce it. */
+/**
+ * A three-opt-in FIXTURE, not the shipped manifests.
+ *
+ * It said "as the shipped manifests produce it" and named Diary as the third
+ * phone destination — which stopped being true when Projects replaced Diary in
+ * the bar, and stayed in this file for four releases because nothing here reads
+ * the registry. V2.16 CONSOL-00 corrected the claim and moved the assertion
+ * about the REAL bar to
+ * `test/unit/modules/navigation-information-architecture.test.ts`, where the
+ * registry is. What this fixture is FOR is the arithmetic: ordering, the cap,
+ * the capture slot's position. It should stay a fixture.
+ */
 const SHIPPED: readonly NavigationItem[] = [
   item({
     id: "today.index",
@@ -111,7 +122,7 @@ describe("resolveMobilePrimaryDestinations", () => {
 });
 
 describe("buildBottomNavigation", () => {
-  it("produces Today · Tasks · Capture · Diary · More for the shipped manifests", () => {
+  it("produces destination · destination · Capture · destination · More for three opt-ins", () => {
     const slots = buildBottomNavigation(SHIPPED);
     expect(
       slots.map((slot) =>

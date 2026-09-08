@@ -4,8 +4,11 @@
  * The single source of truth for the People module's routes: plain data with only
  * a type import (erased at build time), safe for React Router's bare `routes.ts`
  * config loader and imported by `module.ts` for the runtime registry
- * (ADR-016 §5.10). `navGroup: "capture"` places People in the sidebar's capture
- * group (Notes/Diary/Meetings/People/Assets), after the spine modules. People
+ * (ADR-016 §5.10). `navGroup: "organise"` places People LAST in the rail's
+ * ORGANISE group — a person recurs across every record above them, so they
+ * close the block rather than open it. (The `capture` group this used to name
+ * was retired by PX-03 and superseded by V2.16 CONSOL-00's five questions.)
+ * People
  * contributes a SINGLE sidebar row ("People"); the `Recent` and `Archived`
  * sub-views are ordinary routes with NO `navLabel`, reached through the People
  * collection's own in-page view navigation (mirrors the Meetings module). Keeping
@@ -20,7 +23,7 @@ const routes: readonly RouteContribution[] = [
     id: "people.index",
     path: "people",
     file: "routes/index.tsx",
-    meta: { navLabel: "People", navGroup: "organise", navOrder: 170 },
+    meta: { navLabel: "People", navGroup: "organise", navOrder: 280 },
   },
   { id: "people.recent", path: "people/recent", file: "routes/recent.tsx" },
   {

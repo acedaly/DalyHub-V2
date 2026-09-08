@@ -938,10 +938,21 @@ describe("module discovery", () => {
         "diary.capture",
         "meetings.open",
         "meetings.new",
-        "meetings.search",
+        /*
+         * V2.16 CONSOL-00 retired `meetings.search` and `people.search`, the
+         * two navigation COMMANDS of those names. Both promised a search their
+         * destination could not keep: `meetings.search` targeted
+         * `/meetings?focus=search`, a parameter nothing reads, and
+         * `people.search` targeted `/people`, the same destination as
+         * `people.open` beside it. Their keywords moved onto the `*.open`
+         * commands, so the query that used to find them still does.
+         *
+         * The SEARCH PROVIDERS of the same ids are untouched and still listed
+         * below — a provider and a command sharing an id is how these modules
+         * have always been registered.
+         */
         "people.open",
         "people.new",
-        "people.search",
         "people.recent",
         "people.archived",
         // ASSET-01 navigation commands (open / new / expiring / service-due /

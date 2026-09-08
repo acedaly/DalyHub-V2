@@ -11,8 +11,10 @@ import type { RouteContribution } from "~/kernel/modules";
 
 const routes: readonly RouteContribution[] = [
   /*
-   * The DAILY group: Inbox and Upcoming sit beside Today and Tasks at the top of
-   * the sidebar, above the ORGANISE eyebrow.
+   * The DO group — "what do I need to do?", called `daily` until V2.16
+   * CONSOL-00 re-cut the rail around the five questions. Inbox and Upcoming sit
+   * beside Today, Plan and Tasks at the top of the sidebar, above the ORGANISE
+   * heading.
    *
    * Both are the `/tasks` surface under a system view (see `system-view.ts`) —
    * one loader, one query path — but they are declared as their own destinations
@@ -30,8 +32,8 @@ const routes: readonly RouteContribution[] = [
     file: "routes/inbox.tsx",
     meta: {
       navLabel: "Inbox",
-      navGroup: "daily",
-      navOrder: 10,
+      navGroup: "do",
+      navOrder: 130,
       // POLISH-01 — its own glyph. Inbox, Upcoming and Tasks are three
       // adjacent rows of one module, and inheriting the Task tick drew the
       // same mark three times on a rail whose collapsed form has no labels.
@@ -44,8 +46,8 @@ const routes: readonly RouteContribution[] = [
     file: "routes/upcoming.tsx",
     meta: {
       navLabel: "Upcoming",
-      navGroup: "daily",
-      navOrder: 20,
+      navGroup: "do",
+      navOrder: 140,
       navIcon: "upcoming",
     },
   },
@@ -56,8 +58,8 @@ const routes: readonly RouteContribution[] = [
     // MOBILE-01: Tasks is the second phone bottom-navigation destination.
     meta: {
       navLabel: "Tasks",
-      navGroup: "daily",
-      navOrder: 30,
+      navGroup: "do",
+      navOrder: 150,
       mobilePrimaryOrder: 20,
     },
   },

@@ -13,7 +13,18 @@ export const peopleCommands: readonly CommandContribution[] = [
     id: "people.open",
     title: "Open People",
     subtitle: "The people in your life",
-    keywords: ["people", "contacts", "relationships", "person"],
+    /*
+     * V2.16 CONSOL-00 — the retired `people.search` command's keywords moved
+     * here, so typing "find" or "search" still reaches People. See below.
+     */
+    keywords: [
+      "people",
+      "contacts",
+      "relationships",
+      "person",
+      "search",
+      "find",
+    ],
     kind: "navigate",
     target: { kind: "route", to: "/people" },
   },
@@ -25,14 +36,22 @@ export const peopleCommands: readonly CommandContribution[] = [
     kind: "navigate",
     target: { kind: "route", to: "/new/person" },
   },
-  {
-    id: "people.search",
-    title: "Search People",
-    subtitle: "Find someone by name, organisation or role",
-    keywords: ["search", "find", "people", "person", "contact"],
-    kind: "navigate",
-    target: { kind: "route", to: "/people" },
-  },
+  /*
+   * V2.16 CONSOL-00 retired `people.search` ("Search People").
+   *
+   * It navigated to `/people` — the SAME destination as `people.open` above,
+   * with a different title and a promise the destination does not keep: the
+   * People collection's search field holds its query in component state, so
+   * there is no URL that opens it focused and nothing about arriving from this
+   * command differed from arriving from the other one. Two palette rows, one
+   * destination, and the ranking decided which the owner got.
+   *
+   * Nothing is lost. The collection's field is the first control on the page,
+   * global Search (⌘K) already runs the People provider (`people.search` — the
+   * PROVIDER of that id, which is untouched), and the "search"/"find" keywords
+   * now belong to `people.open`, so the query that used to find this row still
+   * finds People.
+   */
   {
     id: "people.recent",
     title: "Recent People",

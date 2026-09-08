@@ -14,7 +14,7 @@ const routes: readonly RouteContribution[] = [
     meta: {
       navLabel: "About",
       navGroup: "system",
-      navOrder: 320,
+      navOrder: 940,
       navIcon: "about",
     },
   },

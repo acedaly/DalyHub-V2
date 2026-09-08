@@ -7,7 +7,7 @@
  * the route file; never `app/routes.ts`.
  *
  * ── ONE primary navigation item, in the group Insight already lives in ──────
- * `/reports` in `organise` at `navOrder: 185`, so the rail reads Insight →
+ * `/reports` in `understand` at `navOrder: 520`, so the rail reads Insight →
  * Reports → Reviews: the ambient reading, then the saved questions, then the
  * deliberate ritual. The rail gains ONE row for the whole domain — there is
  * deliberately no nav entry for the builder or for any built-in, because those
@@ -34,8 +34,8 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: {
       navLabel: "Reports",
-      navGroup: "organise",
-      navOrder: 185,
+      navGroup: "understand",
+      navOrder: 520,
       // Reports declares no entity type — it is a way of ASKING about records
       // other modules own, exactly as Views and Insight are — so it names its
       // shell glyph explicitly rather than borrowing an identity mark.

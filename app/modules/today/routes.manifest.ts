@@ -8,8 +8,11 @@
  * the validated registry at runtime (ADR-016 §5.10). Adding a module route means
  * editing this manifest and adding the route file; never `app/routes.ts`.
  *
- * `navOrder: 5` places Today at the top of the registry-driven sidebar — the place
- * the owner lands every morning (PRODUCT_EXPERIENCE Part V, "Today").
+ * V2.16 CONSOL-00 — Today opens the **DO** group ("what do I need to do?") at
+ * `navOrder: 110`: the top of the registry-driven sidebar, the place the owner
+ * lands every morning (PRODUCT_EXPERIENCE Part V, "Today"). The group was
+ * `daily` until V2.16 re-cut the rail around the five questions the product
+ * answers; the order within it is the shape of a day.
  */
 
 import type { RouteContribution } from "~/kernel/modules";
@@ -23,8 +26,8 @@ const routes: readonly RouteContribution[] = [
     // shell derives the bar from this capability — it holds no module list.
     meta: {
       navLabel: "Today",
-      navGroup: "daily",
-      navOrder: 5,
+      navGroup: "do",
+      navOrder: 110,
       mobilePrimaryOrder: 10,
       // Today owns no entity type, so it declares its shell glyph (THEME-01).
       navIcon: "today",

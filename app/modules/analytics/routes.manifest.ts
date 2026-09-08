@@ -5,9 +5,10 @@
  * Router's bare `routes.ts` config loader and imported by `module.ts` for the
  * runtime registry (ADR-016 §5.10).
  *
- * `navGroup: "organise"` places it beside Reviews, and `navOrder: 180` puts it
- * BEFORE them: it is the ambient reading an owner glances at, and a Review is
- * the deliberate act they schedule. It declares no entity type — it is a way of
+ * `navGroup: "understand"` opens the rail's UNDERSTAND group at `navOrder:
+ * 510` — "what is changing over time?" — with Reports, Reviews and AI beneath
+ * it. Insight comes BEFORE a Review because it is the ambient reading an owner
+ * glances at, and a Review is the deliberate act they schedule. It declares no entity type — it is a way of
  * ASKING about records other modules own, exactly as Views is — so it declares
  * its shell glyph explicitly (THEME-01).
  *
@@ -31,8 +32,8 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: {
       navLabel: "Insight",
-      navGroup: "organise",
-      navOrder: 180,
+      navGroup: "understand",
+      navOrder: 510,
       navIcon: "analytics",
     },
   },

@@ -7,7 +7,9 @@
  * the route file; never `app/routes.ts`.
  *
  * ── ONE primary navigation item, and Finance owns the rest ──────────────────
- * `/finance` in the MORE group at `navOrder: 210`, so the rail reads Finance →
+ * `/finance` is the whole of the rail's MONEY group at `navOrder: 410` — one
+ * question, one destination. Until V2.16 CONSOL-00 it sat in the leftovers
+ * `more` group, sharing `navOrder: 210` with Views, so the rail read Finance →
  * Life Admin → Assets: money, then paperwork, then things. There is deliberately
  * NO nav item for Accounts, Transactions, Budgets or Imports — those are
  * questions Finance answers, not places to go, and four rail rows for one domain
@@ -31,7 +33,7 @@ const routes: readonly RouteContribution[] = [
     id: "finance.index",
     path: "finance",
     file: "routes/index.tsx",
-    meta: { navLabel: "Finance", navGroup: "more", navOrder: 210 },
+    meta: { navLabel: "Finance", navGroup: "money", navOrder: 410 },
   },
   {
     /*
