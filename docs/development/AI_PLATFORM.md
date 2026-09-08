@@ -574,6 +574,35 @@ configured AI provider."* DalyHub makes no claim about NSW Government informatio
 classification and is not described as approved for classified, protected or
 otherwise restricted organisational information.
 
+### A FACT declares its category, because it has no excerpt to classify (V2.14)
+
+An evidence item carries a privacy category and the retriever filters by it
+before `runAiRequest` is reached. A **fact carries no excerpt**, so nothing about
+it can be classified after the event — which meant the consent boundary, as
+first built for V2.14, simply did not run on a grounded request. `financial` is
+not allowed by default, so the very first *"why was August more expensive than
+July?"* would have sent the owner's money to a provider they had never permitted
+financial content to reach. It was found in review, not by a test, and the fix is
+structural rather than a filter:
+
+- a `FactBlock` carries `categories`, declared by its BUILDER — the code that
+  went and read the records is the only thing that knows what it read;
+- `general` is always present, because a fact's label is an owner-authored
+  record title;
+- `runAiRequest` **refuses to send** a block naming a category outside the
+  owner's allowed set, as `consent_required`, **before** the budget is reserved
+  and before a provider exists — no ledger row, nothing spent;
+- the figures are still computed and still rendered. What consent governs is
+  whether they LEAVE, not whether DalyHub may do arithmetic for its owner.
+
+A Report declares `financial` when it is over the Finance source **or** carries
+money — the second clause is what makes a commitments report ordinary Life Admin
+until it costs something. A grounded finance comparison always declares it; an
+obligation horizon declares it only when a named commitment has a recorded
+amount. `test/kernel/grounded-ai.test.ts` proves both directions against real
+D1: the refusal with an empty ledger, and the same block sent once the owner
+allows the category.
+
 ---
 
 ## 16. Logging and provider data policies

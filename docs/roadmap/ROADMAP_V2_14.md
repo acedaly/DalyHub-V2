@@ -430,6 +430,30 @@ where it is enforced. Three route-level browser journeys and
 `test/unit/reports/report-identity.test.ts` were added, and the same deletion is
 now red.
 
+### What the falsification pass could not find, and a review did
+
+Thirty breaks proved thirty guarantees were **enforced**. Not one of them could
+ask whether a guarantee was **missing** — a harness tests the tests, and it does
+not test the specification. An automated review of the pull request found five
+defects that had survived it, and three of them are the kind this programme
+exists to prevent. They are recorded here rather than folded quietly into the
+diff.
+
+| Finding | What was wrong | Fixed as |
+|---|---|---|
+| **Consent never ran on a grounded request** | AI-04 is enforced through the evidence set's categories; a grounded feature sends no evidence, so the check had nothing to inspect. `financial` is not allowed by default, so the first spending question would have sent money to a provider the owner never permitted financial content to reach. | A `FactBlock` declares `categories`; the runtime refuses to SEND a disallowed one, before the budget is reserved. [`AI_PLATFORM.md` §15](../development/AI_PLATFORM.md#a-fact-declares-its-category-because-it-has-no-excerpt-to-classify-v214). |
+| **The obligation horizon named settled work** | `readObligationPage` returns every status by default, so completed, dismissed and on-hold commitments were counted and named as outstanding. | Filtered to `open`. Overdue commitments stay, with their own count fact and bound. |
+| **"Which Projects have been at risk?" could not see the worst case** | `readAcrossReviews` drops a Project whose state never changed — right for an Insight panel about what moved, exactly wrong for this question. A Project at risk at every Review produced "nothing to report". | `readProjectHealthAcrossReviews`, extracted from it with `includeUnchanged`. One derivation, two views. |
+| **The Review discarded its own figures on failure** | The route returns them on the failure envelope; the surface rendered the sentence and dropped them. | Rendered, and falsified. |
+| **A citation pointed at other figures** | A saved report with changed controls lives at `/reports/<id>?src=…`; links were the bare id. Worse: the unsaved branch built `/reports/view?d=<json>`, and `d` is not a parameter Reports reads. | The page sends its own URL, validated server-side to a `/reports` path. |
+
+**The lesson, stated so the next programme inherits it.** A falsification pass is
+evidence about coverage, not about completeness. The consent gap was not a broken
+guarantee; it was an absent one, and no amount of breaking the guarantees that
+existed would have surfaced it. Reading the diff against the CONTRACT — here,
+AI-04 — is a different activity from breaking the tests, and V2.15 should plan
+for both.
+
 ---
 
 ## Programme status
@@ -478,7 +502,10 @@ an export, D1 or a browser bundle.
 - [x] Report explanation works, bound to the result's own hash.
 - [x] Ask supports the four grounded intents and refuses the rest honestly.
 - [x] Provider-off, malformed, timeout and budget-refusal states all keep the
-      deterministic facts on screen.
+      deterministic facts on screen — on **every** grounded surface, the Weekly
+      Review included.
+- [x] A grounded request obeys AI-04: a block naming a privacy category the
+      owner has not allowed is refused before the budget is reserved.
 - [x] The injection corpus is green; attachment content, Diary and People are
       absent from every FactBlock.
 - [x] No new mutation path exists.
