@@ -247,6 +247,30 @@ export async function runAiRequest(
   } else if (input.evidence.items.length === 0) {
     throw new AiError("evidence_unavailable");
   }
+
+  /*
+   * V2.14 — the fact block's half of AI-04's consent boundary.
+   *
+   * Evidence carries a privacy category on every item and the retriever filters
+   * by them before this function ever sees them. A FACT carries no excerpt to
+   * classify, so its BUILDER declares what it went and read, and the check has
+   * to happen here — otherwise a grounded request is the one path around the
+   * consent gate, and `financial` is not allowed by default, so the very first
+   * "why was August more expensive than July?" would send money to a provider
+   * the owner never permitted financial content to reach.
+   *
+   * Refused BEFORE the budget is reserved and before a provider exists. The
+   * facts themselves are DalyHub's own and the surface still renders them: what
+   * is refused is SENDING them, which is the thing consent is about.
+   */
+  if (input.factBlock !== undefined) {
+    const denied = input.factBlock.categories.filter(
+      (category) => !allowed.has(category),
+    );
+    if (denied.length > 0) {
+      throw new AiError("consent_required", undefined, denied.join(","));
+    }
+  }
   if (input.evidence.totalCharacters > policy.maxTotalEvidenceCharacters) {
     throw new AiError("evidence_too_large");
   }

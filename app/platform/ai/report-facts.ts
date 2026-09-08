@@ -40,6 +40,7 @@ import {
   type FactDraft,
   type FactPeriod,
   type FactReference,
+  type PrivacyCategory,
 } from "~/kernel/ai";
 import { formatMinorUnits } from "~/kernel/money";
 import {
@@ -260,10 +261,32 @@ export function reportFactBlock(input: ReportFactBlockInput): FactBlock {
     facts,
     maxFacts: input.maxFacts,
     bounds,
+    categories: reportCategories(result),
     currencies: result.blocks
       .map((block) => block.currencyCode)
       .filter((code): code is string => code !== null),
   });
+}
+
+/**
+ * What this report READ, as privacy categories (AI-04).
+ *
+ * The runtime refuses to send a block naming a category the owner has not
+ * allowed, and `financial` is not allowed by default -- so this is what decides
+ * whether "Explain this report" over a spending report contacts a provider at
+ * all. It is derived from the report itself rather than declared by the caller:
+ * a report over the Finance source is financial whatever it measures (a COUNT
+ * of transactions still names the owner's categories and accounts), and a
+ * report from any source that carries MONEY is financial because the figures
+ * are money. Obligations are the case that makes the second clause earn its
+ * keep -- a commitments report is Life Admin until it costs something.
+ */
+function reportCategories(result: ReportResult): readonly PrivacyCategory[] {
+  const financial =
+    result.definition.source === "finance" ||
+    result.unit === "money" ||
+    result.blocks.some((block) => block.currencyCode !== null);
+  return financial ? ["general", "financial"] : ["general"];
 }
 
 /** A block's own figures: its total, its record count and its remainder. */

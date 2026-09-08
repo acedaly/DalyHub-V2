@@ -34,7 +34,11 @@
  * product does not hold the figure, the answer may not contain it.
  */
 
-import { sanitiseForPrompt } from "./ai-evidence";
+import {
+  PRIVACY_CATEGORIES,
+  sanitiseForPrompt,
+  type PrivacyCategory,
+} from "./ai-evidence";
 import { sha256Hex } from "./ai-fingerprint";
 
 /* -------------------------------------------------------------------------- */
@@ -241,6 +245,20 @@ export interface FactBlock {
   readonly bounds: readonly FactBound[];
   /** Present currencies, in canonical order. NEVER merged. */
   readonly currencies: readonly string[];
+  /**
+   * The PRIVACY CATEGORIES of what the builder read, in canonical order.
+   *
+   * This is the block's half of AI-04's consent boundary. Evidence carries its
+   * categories on each item and the retriever filters by them; a fact carries
+   * no excerpt to classify, so the BUILDER declares what it went and read, and
+   * `runAiRequest` refuses to send a block naming a category the owner has not
+   * allowed. Without it a grounded request would be the one path around the
+   * consent gate — a Finance comparison sending money to a provider the owner
+   * never permitted financial content to reach.
+   *
+   * Always at least `general`: a fact's label is an owner-authored record title.
+   */
+  readonly categories: readonly PrivacyCategory[];
   /** True when relevant facts existed that the limits excluded. */
   readonly truncated: boolean;
   /** How many candidates the builder considered before bounding. */
@@ -262,6 +280,7 @@ export function emptyFactBlock(
     facts: [],
     bounds: [],
     currencies: [],
+    categories: ["general"],
     truncated: false,
     consideredCount: 0,
   };
@@ -299,6 +318,15 @@ export interface FactBlockDraft {
   readonly facts: readonly FactDraft[];
   readonly bounds?: readonly FactBound[];
   readonly currencies?: readonly string[];
+  /**
+   * What the builder READ, as privacy categories. Defaults to `general`.
+   *
+   * A builder that reaches money, health, family, relationships, work or
+   * reflection content must say so here: the runtime's consent check has
+   * nothing else to go on, and a builder that stays silent is a builder that
+   * silently widens what the owner agreed to send.
+   */
+  readonly categories?: readonly PrivacyCategory[];
   readonly consideredCount?: number;
   /**
    * The FEATURE's own ceiling, when it is lower than the kernel's.
@@ -412,6 +440,13 @@ export function buildFactBlock(draft: FactBlockDraft): FactBlock {
         text: boundedLabel(bound.text, FACT_BLOCK_LIMITS.maxNoteCharacters),
       })),
     currencies,
+    // Canonical order, deduplicated, and `general` is always present: every
+    // fact label is an owner-authored record title, whatever else the block
+    // holds.
+    categories: PRIVACY_CATEGORIES.filter(
+      (category) =>
+        category === "general" || (draft.categories ?? []).includes(category),
+    ),
     truncated: draft.facts.length > kept.length,
     consideredCount: considered,
   };
@@ -475,6 +510,7 @@ export function factBlockSource(block: FactBlock): string {
         : `${block.period.startIso}..${block.period.endIso}`
     }`,
     `currencies=${block.currencies.join(",")}`,
+    `categories=${block.categories.join(",")}`,
     `truncated=${block.truncated ? "1" : "0"}`,
   ];
   for (const fact of block.facts) {

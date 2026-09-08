@@ -235,3 +235,65 @@ describe("the ceiling keeps the totals, not the tail", () => {
     expect(built.truncated).toBe(true);
   });
 });
+
+/**
+ * AI-04's consent boundary, over a Report.
+ *
+ * A fact has no excerpt to classify, so the builder declares what the report
+ * READ and `runAiRequest` refuses to send a block naming a category the owner
+ * has not allowed. `financial` is not allowed by default, so this is what
+ * decides whether "Explain this report" over a spending report contacts a
+ * provider at all — and a report that under-declares is a consent gate that
+ * silently opens.
+ */
+describe("the block declares what the report read", () => {
+  it("declares financial for a report over the Finance source", () => {
+    const facts = reportFactBlock({
+      result: result(),
+      title: "Where the money went",
+      question: "Where did my money go?",
+      href: "/reports/spend",
+    });
+    expect(facts.categories).toEqual(["general", "financial"]);
+  });
+
+  it("declares financial for ANY report carrying money", () => {
+    // An obligations report is Life Admin until it costs something. The rule is
+    // about the figures, not about which module produced them.
+    const facts = reportFactBlock({
+      result: result({
+        definition: { ...CONFIG, source: "obligations" } as ReportConfig,
+        source: "obligations",
+      }),
+      title: "What falls due",
+      question: "What falls due?",
+      href: "/reports/due",
+    });
+    expect(facts.categories).toEqual(["general", "financial"]);
+  });
+
+  it("declares general only for a report that counts records", () => {
+    const facts = reportFactBlock({
+      result: result({
+        definition: { ...CONFIG, source: "tasks" } as ReportConfig,
+        source: "tasks",
+        measure: "completed_count",
+        unit: "count",
+        blocks: [
+          {
+            key: "count",
+            currencyCode: null,
+            rows: [row({ value: 12 })],
+            total: 12,
+            recordCount: 12,
+            remainder: null,
+          },
+        ],
+      }),
+      title: "Completed Tasks by Area",
+      question: "What did I finish?",
+      href: "/reports/completed",
+    });
+    expect(facts.categories).toEqual(["general"]);
+  });
+});

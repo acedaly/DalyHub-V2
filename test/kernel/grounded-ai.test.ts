@@ -409,6 +409,55 @@ describe("what a fact block never contains", () => {
       true,
     );
   });
+
+  /*
+   * "What do I need to deal with in the next 60 days?" is a question about work
+   * still owed. `readObligationPage` returns every status by default, so an
+   * unfiltered read names commitments the owner has already DISMISSED or put ON
+   * HOLD as though they were outstanding -- the assistant being confidently
+   * wrong about something they have already dealt with, which is worse than
+   * saying nothing at all.
+   */
+  it("names no commitment the owner has already dismissed or held", async () => {
+    const obligations = makeObligationRepository(makeContext(WS));
+    const live = await obligations.create({
+      title: "Renew the house insurance",
+      category: "insurance",
+      dueDate: "2027-08-20",
+    });
+    const dismissed = await obligations.create({
+      title: "Cancel the old gym membership",
+      category: "insurance",
+      dueDate: "2027-08-21",
+    });
+    const held = await obligations.create({
+      title: "Service the mower, eventually",
+      category: "insurance",
+      dueDate: "2027-08-22",
+    });
+    await obligations.setStatus(dismissed.id, "dismissed");
+    await obligations.setStatus(held.id, "on_hold");
+
+    const block = await buildGroundedFacts(
+      { intent: "obligation_horizon", days: 60, assumptions: [] },
+      {
+        scope: scopeFor(),
+        todayIso: TODAY,
+        timeZone: TIMEZONE,
+        question: "what do I need to deal with?",
+        now: NOW,
+      },
+    );
+
+    const serialised = JSON.stringify(block);
+    expect(serialised).toContain("Renew the house insurance");
+    expect(serialised).not.toContain("Cancel the old gym membership");
+    expect(serialised).not.toContain("Service the mower");
+    // And the COUNT agrees with the names: one open commitment, not three.
+    const count = block.facts.find((fact) => fact.value.kind === "count");
+    expect(count?.value).toEqual({ kind: "count", count: 1 });
+    expect(live.id.length).toBeGreaterThan(0);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -752,5 +801,87 @@ describe("the development provider drives the real gateway", () => {
     await expect(
       explain(scope, empty, { key: "kernel-explain-empty" }),
     ).rejects.toMatchObject({ code: "evidence_unavailable" });
+  });
+
+  /*
+   * AI-04's consent boundary, over facts.
+   *
+   * Evidence carries a privacy category per item and the retriever filters by
+   * them; a FACT carries no excerpt, so its builder declares what it read and
+   * this check is the only thing standing between "why was August more
+   * expensive than July?" and money leaving the workspace. `financial` is NOT
+   * in the default allowed set, so the very first spending question is the case
+   * that matters.
+   */
+  it("refuses to SEND a financial block the owner has not allowed", async () => {
+    const scope = scopeFor();
+    const money = await identifyFactBlock(
+      buildFactBlock({
+        intent: "finance_comparison",
+        question: "Why was August more expensive than July?",
+        subject: "Spending",
+        categories: ["general", "financial"],
+        facts: [
+          {
+            label: "Total spending in August 2027",
+            value: { kind: "money", minorUnits: 241032, currencyCode: "AUD" },
+            display: "A$2,410.32",
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      explain(scope, money, { key: "kernel-explain-consent" }),
+    ).rejects.toMatchObject({ code: "consent_required" });
+
+    // Nothing reserved, nothing spent: the refusal happens before the budget.
+    expect(await ledgerRow("kernel-explain-consent")).toBeNull();
+  });
+
+  it("sends the same block once the owner allows financial content", async () => {
+    const scope = scopeFor();
+    const money = await identifyFactBlock(
+      buildFactBlock({
+        intent: "finance_comparison",
+        question: "Why was August more expensive than July?",
+        subject: "Spending",
+        categories: ["general", "financial"],
+        facts: [
+          {
+            label: "Total spending in August 2027",
+            value: { kind: "money", minorUnits: 241032, currencyCode: "AUD" },
+            display: "A$2,410.32",
+          },
+        ],
+      }),
+    );
+    await scope.aiPreferences.update("owner-1", {
+      enabled: true,
+      allowedCategories: ["general", "financial"],
+    });
+    const preferences = await scope.aiPreferences.get("owner-1");
+
+    const outcome = await runAiRequest({
+      featureId: "report-explanation",
+      ownerId: "owner-1",
+      preferences,
+      configuration: resolveAiConfiguration(CONFIGURED),
+      usage: scope.aiUsage,
+      evidence: {
+        items: [],
+        truncated: false,
+        consideredCount: 0,
+        sensitiveCategories: [],
+        excludedCategories: [],
+        totalCharacters: 0,
+      },
+      candidates: EMPTY_CANDIDATES,
+      factBlock: money,
+      derivedFacts: "",
+      idempotencyKey: "kernel-explain-consented",
+      now: NOW,
+    });
+    expect(outcome.result.kind).toBe("grounded_explanation");
   });
 });

@@ -28,6 +28,7 @@
  */
 
 import { useCallback, useState } from "react";
+import { useLocation } from "react-router";
 
 import type { FactBlock } from "~/kernel/ai";
 
@@ -74,6 +75,7 @@ export function AiExplainReport({
   scenario,
 }: AiExplainReportProps) {
   const controller = useAiRequest();
+  const location = useLocation();
   const [nonce, setNonce] = useState(0);
   const state = controller.state;
   const busy = state.kind === "running" || state.kind === "cancelling";
@@ -85,6 +87,15 @@ export function AiExplainReport({
       feature: "report-explanation",
       definition,
       reportId: reportId ?? "",
+      /*
+       * The page the owner is on, so a citation lands on the figures it cites.
+       * A saved report with changed controls lives at `/reports/<id>?src=…`,
+       * and its bare address answers a DIFFERENT question. The server refuses
+       * anything that is not a `/reports` path and falls back to one it derived
+       * itself, so this is a convenience for the honest case rather than a
+       * value the server depends on.
+       */
+      reportHref: `${location.pathname}${location.search}`,
       resultDigest,
       // Derived from the exact figures plus a per-press counter: a refresh
       // replays nothing, and a deliberate second press is a new, separately
@@ -92,7 +103,16 @@ export function AiExplainReport({
       idempotencyKey: `report:${resultDigest}:${next}`.slice(0, 200),
       ...(scenario === undefined ? {} : { scenario }),
     });
-  }, [controller, definition, reportId, resultDigest, nonce, scenario]);
+  }, [
+    controller,
+    definition,
+    reportId,
+    resultDigest,
+    nonce,
+    scenario,
+    location.pathname,
+    location.search,
+  ]);
 
   const grounded = state.kind === "result" ? asGrounded(state.result) : null;
   const facts: FactBlock | null =

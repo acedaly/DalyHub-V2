@@ -21,7 +21,11 @@ import {
   AiUnavailable,
 } from "./AiPanel";
 import { AiCitationList } from "./AiPanel";
-import { AiFactCitations, AiFactList } from "./AiGrounded";
+import {
+  AiFactCitations,
+  AiFactList,
+  AiFactsWithoutExplanation,
+} from "./AiGrounded";
 import { asWeeklyReview, type AiSurfaceState } from "./ai-view";
 import { useAiRequest } from "./use-ai-request";
 
@@ -110,7 +114,23 @@ export function AiWeeklyReviewSurface({
       ) : null}
 
       {state.kind === "error" ? (
-        <AiFailure message={state.message} onRetry={start} />
+        <>
+          <AiFailure message={state.message} onRetry={start} />
+          {/*
+            V2.14 — the deterministic half survives every failure, here as much
+            as on a Report. The route assembles this period's facts BEFORE it
+            contacts a provider and returns them on the failure envelope, so a
+            timeout, a refusal, an exhausted budget or an answer DalyHub would
+            not verify still leaves the owner with what their week actually
+            held. Withholding it would mean the Review's own figures were
+            hostage to a provider, which is the dependence GROUND-02 exists to
+            remove.
+          */}
+          <AiFactsWithoutExplanation
+            block={state.facts}
+            message="Here is what DalyHub counted for this period."
+          />
+        </>
       ) : null}
 
       {state.kind === "result" && summary !== null ? (

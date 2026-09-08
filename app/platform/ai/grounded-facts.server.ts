@@ -38,11 +38,13 @@ import {
   type FactBound,
   type FactDraft,
   type FactPeriod,
+  type PrivacyCategory,
 } from "~/kernel/ai";
 import { formatMinorUnits } from "~/kernel/money";
 import {
   ACROSS_REVIEWS_SERIES_LENGTH,
   readAcrossReviews,
+  readProjectHealthAcrossReviews,
   type GoalContributionAcrossReviews,
   type ProjectHealthAcrossReviews,
 } from "~/kernel/review-insights";
@@ -85,6 +87,16 @@ const MAX_NAMED_SUBJECTS = 8;
 const MAX_NAMED_OBLIGATIONS = 12;
 /** The bounded page a subject read may return. */
 const SUBJECT_PAGE = 50;
+
+/**
+ * What a block that reaches MONEY declares (AI-04).
+ *
+ * `financial` is not in the default allowed set, so declaring it is what makes
+ * the runtime refuse to send the block until the owner has said this content
+ * may go to a provider. The figures are still computed and still rendered; what
+ * consent governs is whether they leave.
+ */
+const FINANCIAL: readonly PrivacyCategory[] = ["general", "financial"];
 
 /* -------------------------------------------------------------------------- */
 /* Entry point                                                                 */
@@ -193,6 +205,7 @@ async function financeComparisonFacts(
       question: input.question,
       subject: `Spending: ${request.earlier.label} and ${request.later.label}`,
       facts: [],
+      categories: FINANCIAL,
       bounds: [
         ...bounds,
         {
@@ -362,6 +375,7 @@ async function financeComparisonFacts(
     facts,
     maxFacts: MAX_FACTS,
     bounds,
+    categories: FINANCIAL,
     currencies,
   });
 }
@@ -542,11 +556,19 @@ async function projectHealthFacts(
   if (rows.length === 0) {
     bounds.push({
       code: "no_records",
-      text: "Your recent Reviews have not recorded a state that changed for any Project.",
+      text: "Your recent Reviews have not recorded a state for any Project at least twice, so there is nothing to compare.",
     });
   }
 
   for (const row of rows.slice(0, MAX_NAMED_SUBJECTS)) {
+    /*
+     * A Project that held ONE state throughout is a different claim from one
+     * that moved, and the note says which. Both belong in the answer: the
+     * steady one is usually the more important, and an answer that let the
+     * model infer "unchanged" from a ratio of 6 of 6 would be inviting exactly
+     * the recombination the numeric validator exists to refuse.
+     */
+    const steady = new Set(row.states).size === 1;
     facts.push({
       label: `${row.title} — recorded "${row.state}" at Reviews`,
       value: { kind: "ratio", numerator: row.count, denominator: row.of },
@@ -557,7 +579,9 @@ async function projectHealthFacts(
         href: `/projects/${row.projectId}`,
         label: row.title,
       },
-      note: `The series holds ${row.reviews} Reviews, the oldest beginning ${row.sinceIso}.`,
+      note: steady
+        ? `Its recorded state did not change across the series. The series holds ${row.reviews} Reviews, the oldest beginning ${row.sinceIso}.`
+        : `Its recorded state changed across the series. The series holds ${row.reviews} Reviews, the oldest beginning ${row.sinceIso}.`,
     });
   }
 
@@ -602,22 +626,52 @@ async function obligationHorizonFacts(
   const page = await readObligationPage({
     scope: input.scope,
     today: input.todayIso,
+    /*
+     * OPEN only, which the unfiltered read is not.
+     *
+     * `readObligationPage` returns every status by default, so a commitment the
+     * owner has already COMPLETED, DISMISSED or put ON HOLD would be counted
+     * and named in the answer to "what do I need to deal with?" -- the
+     * assistant being confidently wrong about a thing they have already dealt
+     * with, which is worse than saying nothing. The Asset record's own
+     * obligations panel filters exactly this way.
+     */
+    filters: { statuses: ["open"] },
     limit: SUBJECT_PAGE,
   });
 
+  /*
+   * Anything open and due ON OR BEFORE the end of the horizon, which INCLUDES
+   * what is already overdue. An overdue commitment is the most pressing answer
+   * there is to "what do I need to deal with", so it is not filtered out -- but
+   * it is not silently folded in either: it gets its own count fact and its own
+   * bound, because "due in the next 60 days" and "was due a fortnight ago" are
+   * different claims about the owner's week.
+   */
   const due = page.items.filter(
     (item) => item.dueDate !== null && item.dueDate <= window.endIso,
+  );
+  const overdue = due.filter(
+    (item) => (item.dueDate as string) < input.todayIso,
   );
   const inHorizon = due.slice(0, MAX_NAMED_OBLIGATIONS);
 
   const facts: FactDraft[] = [
     {
-      label: `Known commitments falling due in ${window.label}`,
+      label: `Open commitments to deal with by the end of ${window.label}`,
       value: { kind: "count", count: due.length },
       display: new Intl.NumberFormat("en-AU").format(due.length),
       period: periodOf(window),
     },
   ];
+  if (overdue.length > 0) {
+    facts.push({
+      label: "Of those, already past their due date",
+      value: { kind: "count", count: overdue.length },
+      display: new Intl.NumberFormat("en-AU").format(overdue.length),
+      period: periodOf(window),
+    });
+  }
 
   for (const item of inHorizon) {
     facts.push({
@@ -641,6 +695,12 @@ async function obligationHorizonFacts(
     bounds.push({
       code: "bounded",
       text: `${inHorizon.length} of ${due.length} commitments are listed by name.`,
+    });
+  }
+  if (overdue.length > 0) {
+    bounds.push({
+      code: "bounded",
+      text: `${overdue.length} of these were already due before today and are included, because a commitment does not stop needing attention when its date passes.`,
     });
   }
   bounds.push({
@@ -668,6 +728,16 @@ async function obligationHorizonFacts(
     facts,
     maxFacts: MAX_FACTS,
     bounds,
+    /*
+     * A commitment's note carries what it is EXPECTED TO COST wherever one is
+     * recorded, so this block reaches money and says so. Where none of the
+     * named commitments has an amount it is ordinary Life Admin, and claiming
+     * `financial` would refuse the answer for an owner who never needed to
+     * allow it.
+     */
+    categories: inHorizon.some((item) => item.expectedAmountDisplay !== null)
+      ? FINANCIAL
+      : ["general"],
     consideredCount: due.length,
   });
 }
@@ -715,12 +785,41 @@ async function acrossReviewsGoals(
   }
 }
 
+/**
+ * Project health across the same series, INCLUDING the Projects that never
+ * moved.
+ *
+ * `readAcrossReviews` drops a Project whose recorded state was identical at
+ * every Review, which is right for the Insight surface — it answers *what
+ * changed* — and exactly wrong here. "Which Projects have been at risk
+ * recently?" over a workspace whose one genuinely troubled Project has been
+ * `at_risk` at all six Reviews would answer "nothing to report", omitting the
+ * only Project that needed reporting. So this asks the SAME derivation
+ * (`readProjectHealthAcrossReviews`, extracted from `readAcrossReviews` rather
+ * than reimplemented) for the unfiltered view.
+ */
 async function acrossReviewsProjects(
   scope: WorkspaceScope,
   projects: readonly { readonly id: string; readonly title: string }[],
 ): Promise<readonly ProjectHealthAcrossReviews[]> {
   try {
-    return (await acrossReviewsSeries(scope, projects, []))?.projects ?? [];
+    const anchors = await scope.reviews.list({
+      view: "completed",
+      type: "weekly",
+      sort: "period",
+      limit: 1,
+    });
+    const anchor = anchors.items[0];
+    if (anchor === undefined) return [];
+    const series = await scope.reviewInsights.listSnapshotSeries(
+      anchor.id,
+      ACROSS_REVIEWS_SERIES_LENGTH,
+    );
+    return readProjectHealthAcrossReviews({
+      series,
+      projects,
+      includeUnchanged: true,
+    });
   } catch {
     return [];
   }

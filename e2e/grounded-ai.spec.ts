@@ -263,6 +263,77 @@ test.describe("V2.14 — an explanation belongs to the figures it was written ab
     expect((payload.facts?.facts ?? []).length).toBeGreaterThan(0);
   });
 
+  /*
+   * A citation exists to let the owner CHECK a figure. It must therefore land
+   * on the report that produced it -- and a saved report with changed controls
+   * lives at `/reports/<id>?src=…`, so linking to the bare `/reports/<id>`
+   * would send them to different figures from the ones the explanation cites.
+   * The page sends where it is; the server takes it only if it is a Reports
+   * path.
+   */
+  test("cites the report the owner is actually looking at", async ({
+    request,
+  }) => {
+    const href =
+      "/reports/completed-tasks-by-area?src=tasks&m=completed_count&by=area";
+    const response = await postSameOrigin(request, "/ai/assist", {
+      form: {
+        feature: "report-explanation",
+        definition: TASKS_BY_AREA,
+        reportId: "completed-tasks-by-area",
+        reportHref: href,
+        idempotencyKey: `e2e-report-href-${Date.now()}`,
+      },
+    });
+    const payload = (await response.json()) as {
+      facts?: {
+        facts?: { reference?: { kind?: string; href?: string } | null }[];
+      } | null;
+    };
+    const links = (payload.facts?.facts ?? [])
+      .map((fact) => fact.reference?.href)
+      .filter((value): value is string => typeof value === "string");
+    expect(links).toContain(href);
+  });
+
+  test("REFUSES a citation link that is not a Reports path", async ({
+    request,
+  }) => {
+    /*
+     * The one client-supplied value this route turns into a rendered anchor, so
+     * the only acceptable answer to a hostile one is to drop it and use a path
+     * the server derived. `//` would be protocol-relative; the rest are simply
+     * somewhere else in the product, which a report citation may never be.
+     */
+    for (const hostile of [
+      "//evil.example.com/reports/x",
+      "https://evil.example.com/reports/x",
+      "/settings",
+      "/reportsomething",
+    ]) {
+      const response = await postSameOrigin(request, "/ai/assist", {
+        form: {
+          feature: "report-explanation",
+          definition: TASKS_BY_AREA,
+          reportId: "completed-tasks-by-area",
+          reportHref: hostile,
+          idempotencyKey: `e2e-report-href-bad-${Date.now()}-${Math.random()}`,
+        },
+      });
+      const payload = (await response.json()) as {
+        facts?: {
+          facts?: { reference?: { href?: string } | null }[];
+        } | null;
+      };
+      const links = (payload.facts?.facts ?? [])
+        .map((fact) => fact.reference?.href)
+        .filter((value): value is string => typeof value === "string");
+      expect(links, hostile).not.toContain(hostile);
+      // And it fell back to the report's own address rather than to nothing.
+      expect(links, hostile).toContain("/reports/completed-tasks-by-area");
+    }
+  });
+
   test("REFUSES a definition this build cannot read", async ({ request }) => {
     const response = await postSameOrigin(request, "/ai/assist", {
       form: {

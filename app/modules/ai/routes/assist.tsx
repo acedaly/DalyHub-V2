@@ -47,7 +47,6 @@ import {
   reportQuestion,
   reportResultDigest,
   findBuiltInReport,
-  serialiseReportDefinition,
   type ReportConfig,
 } from "~/kernel/reports";
 import {
@@ -101,6 +100,17 @@ interface AssistBody {
    * trusted to say about the numbers on its own screen.
    */
   readonly resultDigest?: string;
+  /**
+   * V2.14 — the Reports page the owner is actually looking at, so a citation
+   * lands on the figures it cites.
+   *
+   * The AI module cannot build this itself: the report URL vocabulary (`src`,
+   * `m`, `w`, `by`, …) belongs to the Reports module, and modules do not import
+   * one another. Nor may it be trusted: it is validated to a `/reports` path
+   * before it is ever used, so the worst a forged value can do is point the
+   * owner's own citation at another report of theirs.
+   */
+  readonly reportHref?: string;
   readonly idempotencyKey: string;
   readonly deep?: boolean;
   /**
@@ -110,6 +120,25 @@ interface AssistBody {
    * discarded before it reaches anything.
    */
   readonly scenario?: string;
+}
+
+/**
+ * A path inside `/reports`, or nothing.
+ *
+ * Deliberately narrow rather than "a safe URL": the only link this route builds
+ * from a client-supplied value is a citation back to a Report, so the value may
+ * be a Reports path and nothing else. A protocol-relative `//host`, a
+ * backslash, a control character, an absolute URL and any other section of the
+ * product are all simply refused, and the caller falls back to a path it
+ * derived itself.
+ */
+function safeReportsPath(value: string): string | null {
+  const path = value.slice(0, 512);
+  if (path !== "/reports" && !path.startsWith("/reports/")) return null;
+  if (path.startsWith("//") || path.includes("\\")) return null;
+  // eslint-disable-next-line no-control-regex -- refusing control characters is the point.
+  if (/[\u0000-\u0020\u007f]/.test(path)) return null;
+  return path;
 }
 
 /** Parse and bound the request. Never trusts a field it did not ask for. */
@@ -126,6 +155,7 @@ function parseBody(form: FormData): AssistBody | null {
   const definition = String(form.get("definition") ?? "").slice(0, 4_000);
   const reportId = String(form.get("reportId") ?? "").slice(0, 128);
   const digest = String(form.get("resultDigest") ?? "").slice(0, 128);
+  const reportHref = safeReportsPath(String(form.get("reportHref") ?? ""));
   const scenario = String(form.get("scenario") ?? "").slice(0, 64);
   return {
     feature,
@@ -134,6 +164,7 @@ function parseBody(form: FormData): AssistBody | null {
     definition: definition.length > 0 ? definition : undefined,
     reportId: reportId.length > 0 ? reportId : undefined,
     resultDigest: digest.length > 0 ? digest : undefined,
+    reportHref: reportHref ?? undefined,
     idempotencyKey,
     // Deep analysis is only ever a deliberate, explicit flag on an owner action.
     deep: String(form.get("deep") ?? "") === "1",
@@ -223,12 +254,26 @@ async function reportAssembly(
 
   const builtIn =
     body.reportId === undefined ? null : findBuiltInReport(body.reportId);
+  /*
+   * Where a citation LANDS.
+   *
+   * The page's own URL, when the browser supplied a valid one, because that is
+   * the report the owner is looking at and the figures being explained are the
+   * ones on it -- controls they have changed included. A saved report opened
+   * with modified controls lives at `/reports/<id>?src=…`, and linking to the
+   * bare `/reports/<id>` would send the owner to DIFFERENT figures from the
+   * ones the explanation cites, which is the one thing a citation must not do.
+   *
+   * Falling back to the report's own address rather than to a URL this module
+   * assembles: the query vocabulary belongs to Reports, and a link built here
+   * out of a parameter name this module guessed at is a link that silently
+   * stops working the day that vocabulary changes.
+   */
   const href =
-    body.reportId === undefined
-      ? `/reports/view?${new URLSearchParams({
-          d: serialiseReportDefinition({ ok: true, config }),
-        }).toString()}`
-      : `/reports/${body.reportId}`;
+    body.reportHref ??
+    (body.reportId === undefined
+      ? "/reports"
+      : `/reports/${encodeURIComponent(body.reportId)}`);
 
   const block = await identifyFactBlock(
     reportFactBlock({

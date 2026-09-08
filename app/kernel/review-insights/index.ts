@@ -17,6 +17,7 @@ export {
   MIN_ACROSS_REVIEWS,
   goalContributionAcrossReviewsLine,
   readAcrossReviews,
+  readProjectHealthAcrossReviews,
   type AcrossReviewsFacts,
   type AcrossReviewsSubject,
   type GoalContributionAcrossReviews,

@@ -389,3 +389,85 @@ describe("checkNumericGrounding", () => {
     ).toBe(false);
   });
 });
+
+/**
+ * V2.14 — the privacy categories a block declares (AI-04).
+ *
+ * `runAiRequest` refuses to SEND a block naming a category the owner has not
+ * allowed, and it has nothing to go on but this field: a fact carries no
+ * excerpt to classify the way an evidence item does. So the field's defaults
+ * matter as much as its contents — a block that forgot to declare anything must
+ * still declare `general`, and a builder that says nothing must not thereby
+ * acquire permission it was never given.
+ */
+describe("a block declares what its builder read", () => {
+  it("is general by default, because a label is a record title", () => {
+    const block = buildFactBlock({
+      intent: "weekly_review",
+      question: "How did the week go?",
+      subject: "This period",
+      facts: [
+        {
+          label: "Tasks completed",
+          value: { kind: "count", count: 3 },
+          display: "3",
+        },
+      ],
+    });
+    expect(block.categories).toEqual(["general"]);
+  });
+
+  it("keeps general even when the builder names something else", () => {
+    const block = buildFactBlock({
+      intent: "finance_comparison",
+      question: "Why was August more expensive?",
+      subject: "Spending",
+      categories: ["financial"],
+      facts: [
+        {
+          label: "Total spending",
+          value: { kind: "money", minorUnits: 100, currencyCode: "AUD" },
+          display: "A$1.00",
+        },
+      ],
+    });
+    expect(block.categories).toEqual(["general", "financial"]);
+  });
+
+  it("orders them canonically and never repeats one", () => {
+    const block = buildFactBlock({
+      intent: "finance_comparison",
+      question: "q",
+      subject: "s",
+      categories: ["financial", "general", "financial"],
+      facts: [
+        {
+          label: "Total",
+          value: { kind: "count", count: 1 },
+          display: "1",
+        },
+      ],
+    });
+    expect(block.categories).toEqual(["general", "financial"]);
+  });
+
+  it("changes the block's IDENTITY, so a re-declaration cannot reuse a fingerprint", async () => {
+    const draft = {
+      intent: "finance_comparison" as const,
+      question: "q",
+      subject: "s",
+      facts: [
+        {
+          label: "Total",
+          value: { kind: "count" as const, count: 1 },
+          display: "1",
+        },
+      ],
+    };
+    const general = await identifyFactBlock(buildFactBlock(draft));
+    const financial = await identifyFactBlock(
+      buildFactBlock({ ...draft, categories: ["financial"] }),
+    );
+    expect(financial.id).not.toBe(general.id);
+  });
+});
