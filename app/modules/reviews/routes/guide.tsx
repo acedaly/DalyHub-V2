@@ -41,7 +41,10 @@ import {
   type WeeklyReviewStepId,
 } from "~/kernel/reviews";
 import { formatPreferenceDate } from "~/kernel/preferences";
-import { readAiAvailability } from "~/platform/ai";
+import {
+  readAiAvailabilityForFeatures,
+  type AiAvailability,
+} from "~/platform/ai";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
@@ -78,6 +81,27 @@ export function meta() {
 /** The calm sentence a conflicting write reports. Never a storage detail. */
 const CONFLICT_MESSAGE =
   "This Review changed somewhere else — the newer version is shown. Your text was not overwritten.";
+
+/**
+ * Name the two availability answers the guided Review renders from.
+ *
+ * A tiny function rather than two properties spelled out at the call site,
+ * because the FEATURE IDS are the contract and this is the one place that maps
+ * them to the props the surface reads. A third feature would be added here.
+ */
+function aiAvailabilityFor(
+  availability: Readonly<
+    Record<
+      "weekly-review-assistant" | "review-reflection-draft",
+      AiAvailability
+    >
+  >,
+) {
+  return {
+    aiAvailability: availability["weekly-review-assistant"],
+    aiReflection: availability["review-reflection-draft"],
+  };
+}
 
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const session = requireAuthenticatedSession(context);
@@ -137,25 +161,24 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   return {
     // AI-01 — whether the Weekly Review assistant can run. Availability only:
     // the guide never sees a provider credential or a model name.
-    aiAvailability: await readAiAvailability(
-      scope,
-      session.user.subject,
-      "weekly-review-assistant",
-      env,
-    ),
     /*
-     * V2.15 — the reflection DRAFT's own availability.
+     * AI-01 — whether the Weekly Review assistant can run, and V2.15 —
+     * whether the reflection DRAFT can. Two features, deliberately: an owner
+     * may want the assistant's summary and not want a model drafting into
+     * their own writing, and two flags is how that becomes expressible.
      *
-     * A separate feature id, so it has its own budget, its own daily ceiling
-     * and its own row in Settings. Two reads rather than one, both of
-     * preferences and budget totals and neither of a provider: PERF-01's rule
-     * that no loader contacts a model is unchanged.
+     * ONE call, so the owner's preference row is read once rather than twice.
+     * Neither contacts a provider — PERF-01's rule that no loader reaches a
+     * model is unchanged, and this keeps the page's statement count from
+     * quietly growing by one to answer a second question about the same row.
      */
-    aiReflection: await readAiAvailability(
-      scope,
-      session.user.subject,
-      "review-reflection-draft",
-      env,
+    ...aiAvailabilityFor(
+      await readAiAvailabilityForFeatures(
+        scope,
+        session.user.subject,
+        ["weekly-review-assistant", "review-reflection-draft"] as const,
+        env,
+      ),
     ),
     review: serializeReview(review, preferences.dateFormat),
     stepId,

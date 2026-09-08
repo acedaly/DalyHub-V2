@@ -9,6 +9,7 @@
 
 export {
   readAiAvailability,
+  readAiAvailabilityForFeatures,
   resolveAiContext,
   serializeCitations,
   type AiAvailability,

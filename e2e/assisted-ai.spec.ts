@@ -103,11 +103,24 @@ function cleanupUsage(): void {
 }
 
 test.afterEach(() => {
-  cleanupUsage();
+  /*
+   * RECORDS FIRST, and the order is a repair rather than a preference.
+   *
+   * An earlier version swept the ledger rows first, and when that step threw
+   * (it named a table that does not exist) the whole hook aborted before the
+   * accounts and obligations were swept — so a broken run left uncategorised
+   * transactions in the shared database and the NEXT spec's axe pass ran
+   * against a queue full of somebody else's rows. DEBT-173 is the register
+   * entry for exactly that class, seen from the leaking side.
+   *
+   * Records are what compete for a page, so records are cleaned first, and
+   * each sweep is independent of the others.
+   */
   for (const title of ownedObligations) cleanupObligationByTitle(title);
   ownedObligations.clear();
   for (const title of owned) cleanupAccountByTitle(title);
   owned.clear();
+  cleanupUsage();
 });
 
 test.afterAll(() => {
