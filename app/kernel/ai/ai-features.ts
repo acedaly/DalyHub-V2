@@ -17,11 +17,19 @@ import type { PrivacyCategory } from "./ai-evidence";
 /**
  * Every capability the product ships. A CLOSED set.
  *
- * The last two are V2.14's GROUNDED features. They differ from the four above
- * in one structural way that the policy table below makes explicit: their
- * grounding is a {@link FactBlock}, not retrieved excerpts, so their response
- * schema has no numeric field and every figure in their prose is checked
- * against the facts DalyHub supplied.
+ * The middle two are V2.14's GROUNDED read-only features. They differ from the
+ * four above in one structural way that the policy table below makes explicit:
+ * their grounding is a {@link FactBlock}, not retrieved excerpts, so their
+ * response schema has no numeric field and every figure in their prose is
+ * checked against the facts DalyHub supplied.
+ *
+ * The last three are V2.15's ASSISTED features. They are grounded in the same
+ * way AND they produce proposals, which is a combination nothing before them
+ * had: AI-01's two extraction features produce proposals from EXCERPTS, and
+ * V2.14's grounded features produce no proposal at all. A V2.15 feature may
+ * therefore only propose values DalyHub itself put in the fact block — a
+ * category it supplied, a Task title over an obligation it read — and the
+ * response schemas carry no free identifier for it to invent one in.
  */
 export const AI_FEATURE_IDS = [
   "meeting-action-extraction",
@@ -30,6 +38,9 @@ export const AI_FEATURE_IDS = [
   "workspace-question-answer",
   "report-explanation",
   "grounded-question-answer",
+  "finance-categorisation",
+  "obligation-follow-up",
+  "review-reflection-draft",
 ] as const;
 
 export type AiFeatureId = (typeof AI_FEATURE_IDS)[number];
@@ -231,6 +242,112 @@ const POLICIES: Readonly<Record<AiFeatureId, AiFeaturePolicy>> = {
     // MAX_REPORT_GROUPS is 24; a block carries the rows, the block totals, the
     // remainder and the period figures, and 48 covers the largest honest one.
     maxFacts: 48,
+  },
+  /* ---------------------------------------------------------------------- */
+  /* V2.15 ASSISTED — the three proposal-producing grounded features          */
+  /* ---------------------------------------------------------------------- */
+  "finance-categorisation": {
+    id: "finance-categorisation",
+    label: "Suggest categories",
+    tier: "economy",
+    producesProposals: true,
+    requiresDeliberateConfirmation: false,
+    /*
+     * ZERO retrieved evidence, like every grounded feature.
+     *
+     * A transaction is not read as an excerpt: the block carries the payee, the
+     * account, the direction and the amount as FACTS, each with an id the model
+     * cites and DalyHub validates back. Sending the same rows twice — once as
+     * facts and once as prose — would send financial content in the one shape
+     * that has no citation attached to it.
+     */
+    maxEvidenceRecords: 0,
+    maxExcerptCharacters: 0,
+    maxTotalEvidenceCharacters: 0,
+    maxExcerptsPerRecord: 0,
+    /*
+     * Measured rather than copied. A batch of 20 rows produces at most 20
+     * proposals of roughly 40 output tokens each (an index, a category index
+     * and a short reason), plus the envelope: ~1,000. 1,500 leaves headroom
+     * without permitting an essay.
+     */
+    maxOutputTokens: 1_500,
+    timeoutMs: 45_000,
+    maxOwnerInputCharacters: 0,
+    allowsProviderFallback: true,
+    maxPeriodDays: 0,
+    /*
+     * `financial` is deliberately NOT here.
+     *
+     * `defaultAllowedCategories` names what may be sent WITHOUT the owner
+     * ticking the per-category allowance, and financial content is sensitive by
+     * AI-04's own list. A feature that granted itself its own consent would be
+     * the one path around the gate, which is exactly what V2.15 must not build.
+     * The owner ticks `financial` in Settings, or this feature reports itself
+     * unavailable and the deterministic queue carries on unchanged.
+     */
+    defaultAllowedCategories: GENERAL_ONLY,
+    dailyRequestLimit: 20,
+    groundedByFacts: true,
+    /*
+     * Three facts per transaction (payee+account, amount, direction is folded
+     * into the amount's sign) over a 20-row batch, plus the category
+     * vocabulary. 60 is the ceiling the batch bound implies; the builder is
+     * what actually decides, and it bounds the batch first.
+     */
+    maxFacts: 60,
+  },
+  "obligation-follow-up": {
+    id: "obligation-follow-up",
+    label: "Draft a follow-up",
+    tier: "economy",
+    producesProposals: true,
+    requiresDeliberateConfirmation: false,
+    maxEvidenceRecords: 0,
+    maxExcerptCharacters: 0,
+    maxTotalEvidenceCharacters: 0,
+    maxExcerptsPerRecord: 0,
+    // At most three proposed Tasks, each a title and a short reason.
+    maxOutputTokens: 800,
+    timeoutMs: 45_000,
+    maxOwnerInputCharacters: 0,
+    allowsProviderFallback: true,
+    maxPeriodDays: 0,
+    defaultAllowedCategories: GENERAL_ONLY,
+    dailyRequestLimit: 30,
+    groundedByFacts: true,
+    // One obligation: title, category, due date, days overdue, expected amount
+    // where consent permits it, and its open linked Task where it has one.
+    maxFacts: 20,
+  },
+  "review-reflection-draft": {
+    id: "review-reflection-draft",
+    label: "Draft a reflection",
+    tier: "standard",
+    producesProposals: true,
+    requiresDeliberateConfirmation: false,
+    maxEvidenceRecords: 0,
+    maxExcerptCharacters: 0,
+    maxTotalEvidenceCharacters: 0,
+    maxExcerptsPerRecord: 0,
+    // One draft, bounded well under the Review section ceiling: a draft is a
+    // starting point the owner edits, never a generated essay.
+    maxOutputTokens: 1_200,
+    timeoutMs: 60_000,
+    maxOwnerInputCharacters: 0,
+    allowsProviderFallback: true,
+    maxPeriodDays: 31,
+    /*
+     * `reflection` is deliberately NOT here either, and for a sharper reason
+     * than Finance: the draft is written INTO the owner's authored personal
+     * reflection. The Weekly Review assistant's own facts are the same block,
+     * and its consent behaviour is unchanged by this feature existing.
+     */
+    defaultAllowedCategories: GENERAL_ONLY,
+    dailyRequestLimit: 12,
+    groundedByFacts: true,
+    // The same block `weekly-review-assistant` builds, and the same ceiling.
+    maxFacts: 40,
   },
   "grounded-question-answer": {
     id: "grounded-question-answer",

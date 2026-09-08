@@ -117,3 +117,14 @@ export {
 } from "./grounded-facts.server";
 
 export { reportFactBlock, type ReportFactBlockInput } from "./report-facts";
+
+export {
+  MAX_CATEGORISATION_BATCH,
+  MAX_CATEGORISATION_OPTIONS,
+  buildFinanceCategorisationFacts,
+  buildObligationFollowUpFacts,
+  type CategorisationOption,
+  type CategorisationRow,
+  type FinanceCategorisationFacts,
+  type ObligationFollowUpFacts,
+} from "./assist-facts.server";

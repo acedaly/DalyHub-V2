@@ -142,11 +142,21 @@ export interface AiUsageRecord {
   readonly proposalOutcome: AiProposalOutcome | null;
 }
 
-/** What became of a proposal. `null` until the owner decides. */
+/**
+ * What became of a proposal. `null` until the owner decides.
+ *
+ * V2.15 added `undone`, and it is a DISPOSITION rather than a fifth state of
+ * the request: the column records the owner's LAST decision about a proposal,
+ * and taking an acceptance back is a decision. It is written only when every
+ * item of an undo request was reversed — a partial undo leaves the prior
+ * outcome, because "partially undone" is a state the owner would have to
+ * interpret, and the domain records already say precisely which changes stand.
+ */
 export const AI_PROPOSAL_OUTCOMES = [
   "accepted",
   "partially_accepted",
   "rejected",
+  "undone",
 ] as const;
 export type AiProposalOutcome = (typeof AI_PROPOSAL_OUTCOMES)[number];
 

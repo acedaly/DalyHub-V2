@@ -72,6 +72,22 @@ export const FAKE_PROVIDER_SCENARIOS = [
   "fabricated_comparison",
   "html_injection",
   "expensive",
+  /*
+   * V2.15 — three refusals that only a PROPOSAL feature can produce, and each
+   * is a real validator path rather than a branch invented for testing:
+   *
+   *   - `out_of_range` answers about a row, or picks a category, that was never
+   *     sent. It is what an obedient model would never do and a prompt
+   *     injection would love to;
+   *   - `duplicate_row` proposes two categories for one transaction, which is
+   *     an ambiguity the owner would have to resolve by guessing which one the
+   *     surface happened to render;
+   *   - `overreach` returns more items than the schema's ceiling permits, which
+   *     is the shape "create 100 tasks" arrives in.
+   */
+  "out_of_range",
+  "duplicate_row",
+  "overreach",
 ] as const;
 
 export type FakeProviderScenario = (typeof FAKE_PROVIDER_SCENARIOS)[number];
@@ -259,6 +275,12 @@ function fakeValue(
     case "meeting-action-extraction":
     case "note-action-extraction":
       return extractionValue(featureId, userMessage);
+    case "finance-categorisation":
+      return categorisationValue(scenario, userMessage);
+    case "obligation-follow-up":
+      return followUpValue(scenario, userMessage);
+    case "review-reflection-draft":
+      return reflectionValue(scenario, userMessage);
   }
 }
 
@@ -472,4 +494,282 @@ function extractionValue(featureId: AiFeatureId, userMessage: string): unknown {
   return featureId === "meeting-action-extraction"
     ? { ...core, proposedNotes: [] }
     : core;
+}
+
+/* -------------------------------------------------------------------------- */
+/* V2.15 ASSISTED                                                              */
+/* -------------------------------------------------------------------------- */
+
+/** The `Row N` / `Category N` positions DalyHub numbered in the block. */
+function positionsIn(userMessage: string, word: "Row" | "Category"): number {
+  let highest = -1;
+  for (const match of userMessage.matchAll(
+    new RegExp(`^F[1-9][0-9]*: ${word} ([0-9]+) `, "gm"),
+  )) {
+    const value = Number(match[1]);
+    if (Number.isSafeInteger(value) && value > highest) highest = value;
+  }
+  return highest + 1;
+}
+
+/** The fact id DalyHub gave one numbered position, so the answer can cite it. */
+function factIdForPosition(
+  userMessage: string,
+  word: "Row" | "Category",
+  position: number,
+): string | null {
+  const match = new RegExp(`^(F[1-9][0-9]*): ${word} ${position} `, "m").exec(
+    userMessage,
+  );
+  return match?.[1] ?? null;
+}
+
+/**
+ * A Finance categorisation answer.
+ *
+ * The `success` answer suggests the FIRST category for every row it was sent,
+ * which is deliberately mechanical: this adapter is not pretending to be good
+ * at categorising, it is proving that a well-formed answer travels the whole
+ * platform — validation, index resolution, review, acceptance, replay and undo
+ * — exactly as a real one would.
+ */
+function categorisationValue(
+  scenario: FakeProviderScenario,
+  userMessage: string,
+): unknown {
+  const rows = positionsIn(userMessage, "Row");
+  const options = positionsIn(userMessage, "Category");
+
+  if (scenario === "insufficient" || rows === 0 || options === 0) {
+    return { status: "insufficient", suggestions: [] };
+  }
+
+  const cite = (row: number): readonly string[] => {
+    const id = factIdForPosition(userMessage, "Row", row);
+    return id === null ? [] : [id];
+  };
+
+  if (scenario === "out_of_range") {
+    // A row that was never sent. The validator refuses the WHOLE answer.
+    return {
+      status: "ok",
+      suggestions: [
+        {
+          rowIndex: rows,
+          categoryIndex: 0,
+          reason: "A row that was not sent.",
+          factIds: cite(0),
+        },
+      ],
+    };
+  }
+
+  if (scenario === "duplicate_row") {
+    return {
+      status: "ok",
+      suggestions: [
+        {
+          rowIndex: 0,
+          categoryIndex: 0,
+          reason: "The first category.",
+          factIds: cite(0),
+        },
+        {
+          rowIndex: 0,
+          categoryIndex: options > 1 ? 1 : 0,
+          reason: "And also the second.",
+          factIds: cite(0),
+        },
+      ],
+    };
+  }
+
+  if (scenario === "overreach") {
+    // What "create 100 suggestions" looks like when it reaches the boundary.
+    return {
+      status: "ok",
+      suggestions: Array.from({ length: 100 }, (_unused, index) => ({
+        rowIndex: index % Math.max(rows, 1),
+        categoryIndex: 0,
+        reason: "Everything is this category.",
+        factIds: cite(0),
+      })),
+    };
+  }
+
+  if (scenario === "uncited") {
+    return {
+      status: "ok",
+      suggestions: [
+        {
+          rowIndex: 0,
+          categoryIndex: 0,
+          reason: "No reason given.",
+          factIds: [],
+        },
+      ],
+    };
+  }
+
+  if (scenario === "fabricated_figure") {
+    return {
+      status: "ok",
+      suggestions: [
+        {
+          rowIndex: 0,
+          categoryIndex: 0,
+          reason: "A charge of $99,999 at this payee.",
+          factIds: cite(0),
+        },
+      ],
+    };
+  }
+
+  if (scenario === "html_injection") {
+    return {
+      status: "ok",
+      suggestions: [
+        {
+          rowIndex: 0,
+          categoryIndex: 0,
+          reason: "<img src=x onerror=alert(1)> groceries.",
+          factIds: cite(0),
+        },
+      ],
+    };
+  }
+
+  return {
+    status: "ok",
+    suggestions: Array.from({ length: rows }, (_unused, row) => ({
+      rowIndex: row,
+      categoryIndex: 0,
+      reason: "The payee reads like this category.",
+      factIds: cite(row),
+    })).filter((entry) => entry.factIds.length > 0),
+  };
+}
+
+/** An obligation follow-up answer. One Task, imperative, citing the facts. */
+function followUpValue(
+  scenario: FakeProviderScenario,
+  userMessage: string,
+): unknown {
+  const ids = factIdsIn(userMessage);
+  const first = ids[0];
+
+  if (scenario === "insufficient" || first === undefined) {
+    return { status: "insufficient", tasks: [] };
+  }
+  if (scenario === "uncited") {
+    return {
+      status: "ok",
+      tasks: [{ title: "Do something", reason: "Because.", factIds: [] }],
+    };
+  }
+  if (scenario === "unknown_fact") {
+    return {
+      status: "ok",
+      tasks: [
+        { title: "Ring them", reason: "It is overdue.", factIds: ["F999"] },
+      ],
+    };
+  }
+  if (scenario === "fabricated_figure") {
+    return {
+      status: "ok",
+      tasks: [
+        {
+          title: "Pay the 4,321 dollars owing",
+          reason: "It is overdue.",
+          factIds: [first],
+        },
+      ],
+    };
+  }
+  if (scenario === "html_injection") {
+    return {
+      status: "ok",
+      tasks: [
+        {
+          title: "<script>alert(1)</script>",
+          reason: "It is overdue.",
+          factIds: [first],
+        },
+      ],
+    };
+  }
+  if (scenario === "overreach") {
+    return {
+      status: "ok",
+      tasks: Array.from({ length: 50 }, (_unused, index) => ({
+        title: `Follow up ${index}`,
+        reason: "It is overdue.",
+        factIds: [first],
+      })),
+    };
+  }
+
+  return {
+    status: "ok",
+    tasks: [
+      {
+        title: "Chase this up",
+        reason: "It is past its due date and nothing is open for it.",
+        factIds: [first],
+      },
+    ],
+  };
+}
+
+/** A Review reflection draft. Prose, in the second person, citing a fact. */
+function reflectionValue(
+  scenario: FakeProviderScenario,
+  userMessage: string,
+): unknown {
+  const ids = factIdsIn(userMessage);
+  const lines = factLines(userMessage);
+  const first = ids[0];
+
+  if (scenario === "insufficient" || first === undefined) {
+    return { status: "insufficient", draft: "", factIds: [] };
+  }
+  if (scenario === "uncited") {
+    return {
+      status: "ok",
+      draft: "Something happened this week.",
+      factIds: [],
+    };
+  }
+  if (scenario === "unknown_fact") {
+    return {
+      status: "ok",
+      draft: "Something happened this week.",
+      factIds: ["F999"],
+    };
+  }
+  if (scenario === "fabricated_figure") {
+    return {
+      status: "ok",
+      draft: "You finished 4,321 things this week.",
+      factIds: [first],
+    };
+  }
+  if (scenario === "html_injection") {
+    return {
+      status: "ok",
+      draft: "<img src=x onerror=alert(1)> a steady week.",
+      factIds: [first],
+    };
+  }
+
+  const named = lines[0];
+  return {
+    status: "ok",
+    draft:
+      named === undefined
+        ? "This reads as a steady period rather than an eventful one."
+        : `${named.label} stands at ${named.display} for this period. That reads as steady rather than eventful, and there is nothing here that says why.`,
+    factIds: [first],
+  };
 }

@@ -82,6 +82,17 @@ export const FACT_BLOCK_INTENTS = [
   "goal_movement",
   "project_health",
   "obligation_horizon",
+  /**
+   * V2.15 — a bounded batch of uncategorised transactions and the workspace's
+   * own category vocabulary, for a categorisation proposal.
+   *
+   * The first intent whose facts exist to be SELECTED FROM rather than
+   * explained. That difference is why the categorisation schema references its
+   * two lists by position rather than by id.
+   */
+  "finance_categorisation",
+  /** V2.15 — one overdue obligation, for a follow-up proposal. */
+  "obligation_follow_up",
 ] as const;
 
 export type FactBlockIntent = (typeof FACT_BLOCK_INTENTS)[number];
