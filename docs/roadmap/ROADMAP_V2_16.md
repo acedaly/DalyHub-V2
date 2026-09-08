@@ -184,7 +184,7 @@ authenticated request failing `WorkspaceNotFoundError`, with **no in-product
 path back**. A "Delete workspace" button in Settings would be a button that
 destroys the application that draws it.
 
-See [CONSOL-01](#consol-01--settle-the-workspace-deletion-boundary) for the
+See [CONSOL-01](#consol-01--settle-the-workspace-deletion-boundary-) for the
 decision and what ships instead.
 
 ### Debt
@@ -199,7 +199,7 @@ invalidated. CONSOL-03 gives each exactly one home.
 ### Open pull requests
 
 Four, measured 2026-09-08: **#230**, **#265**, **#266**, **#268**. Their
-disposition is [below](#open-pull-requests-disposition).
+disposition is [below](#open-pull-requests--disposition).
 
 ---
 

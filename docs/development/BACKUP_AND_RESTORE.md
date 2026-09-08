@@ -823,6 +823,20 @@ silently destroys every backup taken before it.
 DalyHub backup downloaded from Settings, kept somewhere they control. Those have
 no expiry, no GitHub dependency and no Cloudflare dependency.
 
+### What DELETING a workspace does not reach
+
+V2.16 CONSOL-01 settled the deletion boundary
+([ADR-124](../decisions/ARCHITECTURE_DECISIONS.md#adr-124-workspace-deletion-is-an-infrastructure-act-not-a-product-feature--a-registry-derived-purge-plan-an-executed-procedure-and-no-tombstone),
+procedure in [`WORKSPACE_DELETION.md`](WORKSPACE_DELETION.md)), and the
+retention policy above is the half of it people get wrong. Deleting a workspace
+removes the **live** D1 rows and the **live** R2 attachment objects. It does
+**not** touch `dalyhub-v2-backups` or the GitHub artifacts: those expire on the
+schedules in this section, and nothing about a deletion accelerates them.
+
+**DalyHub does not claim cryptographic erasure from historical backups, because
+it does not provide it.** If the requirement is that no copy survives anywhere,
+the buckets and the artifacts are separate, deliberate acts.
+
 ---
 
 ## 8. What the automated backups actually do

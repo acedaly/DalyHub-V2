@@ -5036,13 +5036,24 @@ dated disposition on its entry instead of a new number.
   - **The rule is recorded** in [`AGENTS.md` §12](../../AGENTS.md#12-development-workflow), in [this register's "how to use"](#how-to-use-this-register) and in [`SETUP_AND_CI.md`](../development/SETUP_AND_CI.md#documentation-links-v29-ins-00): the PR that changes a heading repairs every link to it in the same change, and Static proves it. No allowlist, no annotation, no escape.
 - **Related roadmap item.** [V2.9 INS-00](../roadmap/ROADMAP_V2_9.md#-ins-00--the-map-tells-the-truth--delivered-2026-09-04--closes-debt-241). The eleven `ROADMAP_V2_8.md` anchors were repaired by the defining pass, in the same change that raised this entry.
 
-### ☐ DEBT-242 — No workspace or account deletion path exists — P3
+### ☑ DEBT-242 — No workspace or account deletion path exists — P3 — **CLOSED 2026-09-08 (V2.16 CONSOL-01, ADR-124)**
 
 - **Current issue.** Settings → Privacy & data lists it by name among things not built: *"Import from other products, file attachments, AI-provider credentials, integrations, notifications, reminders, **workspace deletion**, roles and billing are not built yet."* ([`app/modules/settings/routes/index.tsx`](../../app/modules/settings/routes/index.tsx) `:1411-1419`). Export exists in two forms and restore in one; the only permanent-deletion path anywhere is Areas' guarded purge with an audit tombstone (ADR-046); sign-out clears reproducible device data only, by design (ADR-082 decision 8).
 - **Impact.** None today for a single owner who controls the Cloudflare account — deletion is `wrangler d1 delete` plus bucket removal. It becomes a stated requirement the moment Finance rows and attachments raise the sensitivity of what would be deleted, and the strategy's security section names it so it is decided rather than discovered.
 - **Desired future state.** Either a guarded in-product purge on the ADR-046 pattern (typed confirmation, a verified safety backup first, an audit tombstone, the R2 objects included), or a recorded decision that deletion is the owner's infrastructure act with the exact commands documented in `BACKUP_AND_RESTORE.md`.
 - **Closing condition.** One of the two, dated, with the Settings copy changed to say which.
-- **Related roadmap item.** [V2.16 CONSOLIDATE](../roadmap/ROADMAP_V2_9.md#v216--consolidate-presumptive--the-v3-readiness-release); re-rated at [V2.12](../roadmap/ROADMAP_V2_9.md#v212--finance-core-planned--gated-on-debt-198)'s definition if Finance's pass finds it must precede money.
+- **RESOLVED 2026-09-08 — the SECOND of the two, taken on a measurement the entry did not have.** [ADR-124](../decisions/ARCHITECTURE_DECISIONS.md#adr-124-workspace-deletion-is-an-infrastructure-act-not-a-product-feature--a-registry-derived-purge-plan-an-executed-procedure-and-no-tombstone) records the decision and its three reasons. The deciding one was not in this entry: **the product resolves ONE workspace from server configuration, confirms it exists, and has no auto-create and no creation surface** ([`configured-context-resolver.ts`](../../app/platform/workspaces/configured-context-resolver.ts) step 3), so an in-product delete would leave every authenticated request failing `WorkspaceNotFoundError` with no path back — a button that destroys the application drawing it. A kernel test asserts exactly that, using the real resolver.
+
+  What ships is not a paragraph, because documentation that has never been executed is a hypothesis:
+
+  - [`workspace-data-map.ts`](../../app/platform/storage/d1/workspace-data-map.ts) classifies all sixty tables and DERIVES the purge order from their real foreign keys, children strictly before parents;
+  - `pnpm run workspace:purge:plan` emits it as reviewable, parameterised SQL — a generator that opens no database and deletes nothing;
+  - [`whole-product-rehearsal.test.ts`](../../test/kernel/whole-product-rehearsal.test.ts) EXECUTES that plan over real D1 and real R2 against a seeded synthetic workspace, proving zero rows in every table, zero objects under the workspace prefix, and **a second populated workspace beside it untouched**;
+  - [`WORKSPACE_DELETION.md`](../development/WORKSPACE_DELETION.md) is the operator procedure, the exact commands, the R2 half the SQL cannot reach, and what the backups' retention policy still holds;
+  - **the Settings copy says which** — the closing condition's own words. It now states the boundary and links the procedure, and three things that row wrongly called "not built yet" (file attachments, notifications, calendar integrations — all shipped, each with its own Settings section a few rows above) are corrected in the same change.
+
+  **No tombstone**, and the reason is recorded rather than left as a silence: when the deletion is `wrangler d1 delete`, the database holding the tombstone is gone with everything else and Cloudflare's own audit log is the record.
+- **Related roadmap item.** [V2.16 CONSOLIDATE](../roadmap/ROADMAP_V2_16.md#consol-01--settle-the-workspace-deletion-boundary-); re-rated at [V2.12](../roadmap/ROADMAP_V2_9.md#v212--finance-core-planned--gated-on-debt-198)'s definition if Finance's pass finds it must precede money.
 
 ## Debt raised by V2.9 INS-02 (2026-09-04)
 
