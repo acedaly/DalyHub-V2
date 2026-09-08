@@ -253,6 +253,7 @@ describe("the block declares what the report read", () => {
       title: "Where the money went",
       question: "Where did my money go?",
       href: "/reports/spend",
+      maxFacts: 48,
     });
     expect(facts.categories).toEqual(["general", "financial"]);
   });
@@ -268,6 +269,7 @@ describe("the block declares what the report read", () => {
       title: "What falls due",
       question: "What falls due?",
       href: "/reports/due",
+      maxFacts: 48,
     });
     expect(facts.categories).toEqual(["general", "financial"]);
   });
@@ -293,6 +295,7 @@ describe("the block declares what the report read", () => {
       title: "Completed Tasks by Area",
       question: "What did I finish?",
       href: "/reports/completed",
+      maxFacts: 48,
     });
     expect(facts.categories).toEqual(["general"]);
   });
