@@ -51,7 +51,10 @@ const BLOCK: FactBlock = {
     },
   ],
   bounds: [
-    { code: "bounded", text: "This reads the Review's own period and no other." },
+    {
+      code: "bounded",
+      text: "This reads the Review's own period and no other.",
+    },
   ],
   currencies: [],
   categories: ["general"],
