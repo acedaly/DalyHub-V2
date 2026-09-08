@@ -18,6 +18,8 @@ import type {
 import { EmptyState } from "~/shared/empty-state";
 import { FormButton } from "~/shared/forms";
 import { AiWeeklyReviewSurface } from "~/shared/ai";
+
+import { ReviewReflectionDraft } from "./ReviewReflectionDraft";
 import type { ReviewInsights } from "~/kernel/review-insights";
 import { AlignmentIndicator, GoalMovementLine } from "~/shared/alignment";
 import { goalContributionAcrossReviewsLine } from "~/kernel/review-insights";
@@ -581,11 +583,18 @@ export function ReflectionStep({
   step,
   readOnly,
   onSaved,
+  aiAvailability,
 }: {
   readonly review: SerializedReview;
   readonly step: WeeklyReviewStepDefinition;
   readonly readOnly: boolean;
   readonly onSaved: () => void;
+  /**
+   * V2.15 — whether the reflection-draft control can run, resolved
+   * server-side. `null` means the step renders exactly as it did before V2.15,
+   * which is what every non-AI caller and every existing test gets.
+   */
+  readonly aiAvailability?: AiSurfaceAvailability | null;
 }) {
   const prompts = reviewGuidePrompts(review, step.sectionIds);
   const compact = useCompactViewport();
@@ -641,6 +650,23 @@ export function ReflectionStep({
       <p className="dh-review-guide__queue">
         Prompt {position + 1} of {prompts.length}
       </p>
+
+      {/*
+       * The draft control sits ABOVE the editor, and only for the prompt the
+       * owner is actually on. One draft, for one section, at a time — a
+       * "draft everything" control would be a bulk write into the owner's own
+       * writing, which is precisely the thing V2.15 refuses to build.
+       */}
+      {aiAvailability != null && !readOnly ? (
+        <ReviewReflectionDraft
+          key={`draft-${current.sectionId}`}
+          reviewId={review.id}
+          sectionId={current.sectionId}
+          sectionLabel={current.label}
+          availability={aiAvailability}
+          readOnly={readOnly}
+        />
+      ) : null}
 
       <ReviewPromptEditor
         key={current.sectionId}

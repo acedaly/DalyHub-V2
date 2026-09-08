@@ -29,6 +29,7 @@ import { useNavigate } from "react-router";
 
 import type { SerializedAttachment } from "~/kernel/attachments";
 import { ASSET_METER_UNIT_OPTIONS, DEFAULT_CURRENCY } from "~/kernel/assets";
+import type { AiSurfaceAvailabilityGate } from "~/shared/ai";
 import { attachmentsTab } from "~/shared/attachments";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
@@ -44,6 +45,7 @@ import { RecordLayout, type RecordMetaItem } from "~/shared/record-layout";
 import { useRecordLifecycle } from "~/shared/record-lifecycle";
 
 import { ObligationActivityTab } from "./ObligationActivityTab";
+import { ObligationFollowUp } from "./ObligationFollowUp";
 
 export interface ObligationRecordProps {
   readonly obligation: SerializedObligation;
@@ -62,6 +64,14 @@ export interface ObligationRecordProps {
   readonly startCompleting?: boolean;
   readonly onTabChange: (tabId: string) => void;
   readonly onSaved: () => void;
+  /**
+   * V2.15 — whether the follow-up draft control can run, resolved server-side.
+   *
+   * Optional so every other caller of this component (and every test that
+   * renders it) is unchanged: absent means the control is simply not offered,
+   * which is the correct behaviour for a surface that has not resolved it.
+   */
+  readonly aiFollowUp?: AiSurfaceAvailabilityGate;
 }
 
 /** What the record is currently doing in its feature region. */
@@ -75,6 +85,7 @@ export function ObligationRecord({
   startCompleting = false,
   onTabChange,
   onSaved,
+  aiFollowUp,
 }: ObligationRecordProps) {
   const feedback = useFeedback();
   const navigate = useNavigate();
@@ -356,6 +367,12 @@ export function ObligationRecord({
                       : `${obligation.recurrenceLabel}. Occurrence ${obligation.sequence + 1} of this series.`}
                   </p>
                 </section>
+                {aiFollowUp === undefined ? null : (
+                  <ObligationFollowUp
+                    obligation={obligation}
+                    availability={aiFollowUp}
+                  />
+                )}
                 {obligation.taskId ? (
                   <section>
                     <h2 className="dh-obligation-summary__heading">Task</h2>

@@ -143,6 +143,20 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       "weekly-review-assistant",
       env,
     ),
+    /*
+     * V2.15 — the reflection DRAFT's own availability.
+     *
+     * A separate feature id, so it has its own budget, its own daily ceiling
+     * and its own row in Settings. Two reads rather than one, both of
+     * preferences and budget totals and neither of a provider: PERF-01's rule
+     * that no loader contacts a model is unchanged.
+     */
+    aiReflection: await readAiAvailability(
+      scope,
+      session.user.subject,
+      "review-reflection-draft",
+      env,
+    ),
     review: serializeReview(review, preferences.dateFormat),
     stepId,
     progress,
@@ -328,6 +342,7 @@ function GuideBody(data: Awaited<ReturnType<typeof loader>>) {
       todayIso={data.todayIso}
       notice={data.notice}
       aiAvailability={data.aiAvailability}
+      aiReflection={data.aiReflection}
       onNoticeDismissed={dismissNotice}
     />
   );

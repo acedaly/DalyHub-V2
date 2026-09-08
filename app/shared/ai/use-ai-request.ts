@@ -105,6 +105,7 @@ export function useAiRequest(
         usageId: String(payload.usageId ?? ""),
         facts: (payload.facts ?? null) as never,
         assumptions: (payload.assumptions ?? []) as never,
+        proposal: payload.proposal ?? null,
       } as AiSurfaceState);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") {

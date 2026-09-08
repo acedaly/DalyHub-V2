@@ -83,6 +83,21 @@ export interface FinanceTransactionsData extends FinanceMonthContext {
   readonly nextCursor: string | null;
   readonly total: number;
   readonly failed: boolean;
+  /**
+   * V2.15 — whether the AI categorisation control can run, resolved
+   * SERVER-SIDE by this loader.
+   *
+   * The browser is told what is available; it never decides. An owner who has
+   * not allowed `financial` content, or has AI off, or has no provider
+   * configured, gets a calm sentence and a queue that works exactly as it did
+   * — the deterministic suggestions are not behind this gate and never were.
+   */
+  readonly aiCategorisation: {
+    readonly enabled: boolean;
+    readonly providerConfigured: boolean;
+    readonly featureAllowed: boolean;
+    readonly budgetExhausted: boolean;
+  };
 }
 
 export interface FinanceBudgetsData extends FinanceMonthContext {

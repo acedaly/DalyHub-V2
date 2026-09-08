@@ -46,9 +46,19 @@ import type {
   FinanceImportData,
   FinanceTransactionsData,
 } from "./finance-view";
+import { readAiAvailability, type AiConfigEnv } from "~/platform/ai";
 
 interface LoaderInput {
-  readonly env: WorkspaceScopeEnv;
+  /*
+   * V2.15 — the AI configuration bindings travel with the workspace ones.
+   *
+   * `readAiAvailability` reads preferences and budget totals; it needs to know
+   * whether a provider is CONFIGURED, which is a question only the environment
+   * can answer. It is handed the same `env` the route already has, and it
+   * returns booleans — never a key, which `ai-configuration.ts` is the only
+   * module in the product allowed to see.
+   */
+  readonly env: WorkspaceScopeEnv & AiConfigEnv;
   readonly session: AuthenticatedSession;
   readonly request: Request;
 }
@@ -244,6 +254,20 @@ export async function loadFinanceTransactions(
       nextCursor: page.nextCursor,
       total: page.total,
       failed: false,
+      /*
+       * V2.15 — resolved with the page, in the same authenticated scope.
+       *
+       * It is a READ of preferences and budget totals, never a provider call:
+       * PERF-01's guarantee that no loader contacts a model is unchanged, and
+       * the queue's own timing is unaffected. What it decides is whether a
+       * control appears, not whether the queue works.
+       */
+      aiCategorisation: await readAiAvailability(
+        scope,
+        input.session.user.subject,
+        "finance-categorisation",
+        input.env,
+      ),
     };
   } catch {
     return {
@@ -261,6 +285,14 @@ export async function loadFinanceTransactions(
       nextCursor: null,
       total: 0,
       failed: true,
+      // A page that could not read its own transactions cannot honestly say
+      // an AI control is available, so it says it is not.
+      aiCategorisation: {
+        enabled: false,
+        providerConfigured: false,
+        featureAllowed: false,
+        budgetExhausted: false,
+      },
     };
   }
 }

@@ -123,6 +123,12 @@ function renderGuide(options: {
           todayIso="2026-08-02"
           notice={options.notice ?? null}
           aiAvailability={null}
+          /*
+           * V2.15 — null, deliberately. These journeys are about the guided
+           * flow itself, and a step that renders an AI control it was never
+           * asked about is a step whose assertions are about something else.
+           */
+          aiReflection={null}
           onNoticeDismissed={() => undefined}
         />
       </DrawerProvider>

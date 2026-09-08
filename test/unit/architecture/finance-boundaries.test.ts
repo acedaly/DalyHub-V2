@@ -138,22 +138,80 @@ describe("Finance has no recurring-commitment model of its own", () => {
   });
 });
 
-describe("no AI touches Finance", () => {
-  it("imports nothing from the AI kernel, in any Finance file", () => {
-    const offenders = FINANCE_FILES.filter((file) =>
-      /from\s+["']~\/kernel\/ai|from\s+["']~\/shared\/ai|from\s+["']~\/platform\/ai/.test(
-        code(readFileSync(file, "utf8")),
-      ),
+describe("Finance's own truth owes nothing to AI", () => {
+  /*
+   * V2.12 asserted this as "no AI touches Finance", and over the whole domain.
+   * V2.15 adds a categorisation SUGGESTION panel to the uncategorised queue, so
+   * the blanket form would now be asserting that V2.15 does not exist — and
+   * would have to be deleted rather than corrected, which is how a boundary
+   * quietly stops being asserted at all.
+   *
+   * What was load-bearing is kept, and made SHARPER rather than weaker: no
+   * Finance figure, rule, read or write may depend on a model. The kernel, the
+   * repository and the shared row/drawer components must not know AI exists;
+   * exactly ONE presentation file may, and it is named here so a second one is
+   * a test failure rather than a habit.
+   */
+  const AI_AWARE_BY_DESIGN = [
+    // The "Suggest categories" control. It renders a shared AI surface and
+    // holds no Finance rule of its own — every figure on the queue, every
+    // deterministic suggestion and every mutation is unchanged by it.
+    "app/modules/finance/FinanceCategorySuggestions.tsx",
+    /*
+     * The transactions loader, for ONE call: `readAiAvailability`, which reads
+     * preferences and budget totals and answers with four booleans. It is the
+     * same seam the Meetings, Notes and Reviews loaders have used since AI-01,
+     * and it is a platform dependency rather than a module one — modules depend
+     * on the platform and never on each other (AGENTS.md §9.2). What it decides
+     * is whether a control appears, never what a figure says.
+     */
+    "app/modules/finance/finance-load.server.ts",
+  ];
+
+  it("keeps AI out of the Finance kernel, repository and shared components", () => {
+    const offenders = FINANCE_FILES.filter(
+      (file) =>
+        !AI_AWARE_BY_DESIGN.includes(relative(file)) &&
+        /from\s+["']~\/kernel\/ai|from\s+["']~\/shared\/ai|from\s+["']~\/platform\/ai/.test(
+          code(readFileSync(file, "utf8")),
+        ),
     ).map(relative);
     expect(offenders).toEqual([]);
   });
 
+  it("lets exactly TWO Finance files know AI exists, and names them", () => {
+    const aware = FINANCE_FILES.filter((file) =>
+      /from\s+["']~\/kernel\/ai|from\s+["']~\/shared\/ai|from\s+["']~\/platform\/ai/.test(
+        code(readFileSync(file, "utf8")),
+      ),
+    )
+      .map(relative)
+      .sort();
+    expect(aware).toEqual([...AI_AWARE_BY_DESIGN].sort());
+  });
+
+  it("never builds an AI request, a prompt, an adapter or a credential", () => {
+    /*
+     * The sharpest form of the rule, and the one that would still be true if
+     * every exception above were forgotten: no Finance file may RUN anything.
+     * It may ask whether a control is available; it may not assemble evidence,
+     * build a prompt, choose a model, construct an adapter, read a key or call
+     * a provider. Every one of those lives behind the AI module's own route.
+     */
+    for (const file of FINANCE_FILES) {
+      expect(code(readFileSync(file, "utf8")), relative(file)).not.toMatch(
+        /runAiRequest|createFakeAdapter|resolveAiConfiguration|buildUserMessage|promptForFeature|schemaForFeature|ANTHROPIC_API_KEY|OPENAI_API_KEY|AI_GATEWAY/,
+      );
+    }
+  });
+
   it("names no categorisation model, suggestion score or confidence", () => {
     /*
-     * The suggestion in this release is one SQL statement — the most recent
+     * The DETERMINISTIC suggestion is one SQL statement — the most recent
      * manually-confirmed category for a payee key — and it has no score because
-     * it has no uncertainty. A `confidence` field is the first thing a model
-     * would need.
+     * it has no uncertainty. V2.15 did not give it one: the AI suggestion
+     * carries a REASON in words and no number, because a confidence figure is
+     * fake precision an owner would reasonably read as a probability.
      */
     const offenders = FINANCE_FILES.filter((file) =>
       /\bconfidence\b|\bpredict\w*\(|\bclassif\w+\(/.test(
@@ -161,6 +219,21 @@ describe("no AI touches Finance", () => {
       ),
     ).map(relative);
     expect(offenders).toEqual([]);
+  });
+
+  it("keeps every Finance MUTATION free of AI, without exception", () => {
+    // The sharpest form of the original rule: a categorisation applied from a
+    // suggestion goes through `updateTransaction` like any other, from the AI
+    // module's own apply authority. No Finance route, hook or repository
+    // acquires an AI-shaped path.
+    const mutators = FINANCE_FILES.filter((file) =>
+      /mutate|repository|-load\.server/.test(relative(file)),
+    );
+    for (const file of mutators) {
+      expect(code(readFileSync(file, "utf8")), relative(file)).not.toMatch(
+        /~\/shared\/ai|~\/kernel\/ai/,
+      );
+    }
   });
 });
 

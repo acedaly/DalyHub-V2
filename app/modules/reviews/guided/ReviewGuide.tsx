@@ -68,6 +68,16 @@ export interface ReviewGuideProps {
   readonly onNoticeDismissed: () => void;
   /** AI-01 — whether the Weekly Review assistant can run. Never a credential. */
   readonly aiAvailability: AiSurfaceAvailability | null;
+  /**
+   * V2.15 — whether the reflection-DRAFT control can run.
+   *
+   * A separate feature from the assistant above, with its own budget, its own
+   * daily ceiling and its own row in Settings — so it has its own availability
+   * rather than borrowing one. An owner may want the assistant's summary and
+   * not want a model drafting into their own writing, and two flags is how
+   * that becomes possible rather than a preference nobody can express.
+   */
+  readonly aiReflection: AiSurfaceAvailability | null;
 }
 
 export function ReviewGuide({
@@ -81,6 +91,7 @@ export function ReviewGuide({
   todayIso,
   notice,
   aiAvailability,
+  aiReflection,
   onNoticeDismissed,
 }: ReviewGuideProps) {
   const compact = useCompactViewport();
@@ -254,6 +265,7 @@ export function ReviewGuide({
             revision={workflowRevision}
             acknowledged={currentProgress?.acknowledged === true}
             aiAvailability={aiAvailability}
+            aiReflection={aiReflection}
           />
 
           {/*
@@ -392,6 +404,7 @@ function StepBody({
   readOnly,
   blocked,
   aiAvailability,
+  aiReflection,
   revision,
   acknowledged,
 }: {
@@ -404,6 +417,7 @@ function StepBody({
   readonly readOnly: boolean;
   readonly blocked: boolean;
   readonly aiAvailability: AiSurfaceAvailability | null;
+  readonly aiReflection: AiSurfaceAvailability | null;
   readonly revision: number;
   readonly acknowledged: boolean;
 }) {
@@ -435,6 +449,7 @@ function StepBody({
           step={step}
           readOnly={readOnly}
           onSaved={() => undefined}
+          aiAvailability={aiReflection}
         />
       );
     case "focus":
