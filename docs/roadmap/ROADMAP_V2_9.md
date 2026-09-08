@@ -1162,6 +1162,18 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 
 ### V2.16 — CONSOLIDATE (PRESUMPTIVE — the V3 readiness release)
 
+> **SUPERSEDED 2026-09-08.** V2.16 **was** defined by its own decision pass,
+> against a re-measurement of `main` at `06f57c1`, exactly as every release
+> since V2.10 has been. [`ROADMAP_V2_16.md`](ROADMAP_V2_16.md) is that
+> definition and is where new work goes. The sketch below is kept as the
+> record of what was presumed; where the two disagree, the later file wins.
+> It differs in four measured places, each stated there: the grouping is
+> taken from the strategy's own table rather than this summary sentence,
+> CONSOL-01 resolves to the infrastructure boundary **and proves the
+> procedure**, CONSOL-02 grows a total store-classification half without
+> which the rehearsal expires at the next migration, and CONSOL-03 produces
+> a disposition report rather than only edited entries.
+
 - **Theme.** *One product, one map* — the question-first rail, the deletion
   path, every store in the archive and the rehearsal, and the register
   closed or re-homed.
