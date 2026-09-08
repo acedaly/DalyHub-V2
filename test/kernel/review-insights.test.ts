@@ -48,6 +48,7 @@ import {
   FakeClock,
   sequentialIds,
 } from "./support";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 const WS = "test-insights-workspace";
 const OTHER = "test-insights-other";
@@ -1093,7 +1094,11 @@ describe("the period's plan account", () => {
       [kept.id, late.id, moved.id].sort(),
     );
     for (const entry of account?.entries ?? []) {
-      expect(entry.link.to).toBe(`/tasks?task=${entry.taskId}`);
+      // V2.16 CONSOL-03 (DEBT-243) — the DRAWER contract, not a literal.
+      // This assertion pinned the string rather than the behaviour, which is
+      // exactly why nine dead links survived five releases: the claim was
+      // checkable in principle and not in fact.
+      expect(entry.link.to).toBe(taskDrawerHref(entry.taskId));
     }
   });
 

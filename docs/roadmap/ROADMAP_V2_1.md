@@ -968,7 +968,7 @@ They are small and well-understood; none of them blocks the V2 release.*
 - **Deliberately NOT done.** No barcode/QR/OCR, no registration, vehicle or insurer
   lookup, no attachments or receipt photos, no AI classification, no valuations, no
   reminders or notifications — all remain
-  [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3)
+  [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3--struck-by-decision-2026-09-08-v216-consol-03)
   and [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01).
 - **Verified.** `format:check`, `lint`, `typecheck`, `scheme:check`, unit, Workers/D1
   kernel, `build`, and a focused
@@ -1682,9 +1682,9 @@ because a reader would otherwise wonder whether it was forgotten:
 - collaboration, multi-user permissions and roles;
 - subscriptions and billing;
 - file attachments and R2 storage
-  ([DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3));
+  ([DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3--struck-by-decision-2026-09-08-v216-consol-03));
 - weather and calendar widgets on Today
-  ([DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3)
+  ([DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3--struck-by-decision-2026-09-08-v216-consol-03)
   — when a real source exists, weather returns as an OPTIONAL widget that is off
   until configured, never as reserved space).
 

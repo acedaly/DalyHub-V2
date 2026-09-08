@@ -14,6 +14,7 @@
 
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 /** The deterministic intents DalyHub answers itself. A CLOSED set. */
 export const DETERMINISTIC_INTENTS = [
@@ -104,7 +105,7 @@ export async function answerDeterministically(
               : `${overdue.length} ${overdue.length === 1 ? "Task is" : "Tasks are"} overdue.`,
           citations: overdue.slice(0, 5).map((task) => ({
             title: task.title,
-            href: `/tasks?task=${task.id}`,
+            href: taskDrawerHref(task.id),
             date: task.dueDate,
           })),
         };
@@ -133,7 +134,7 @@ export async function answerDeterministically(
               : `${inbox.length} unassigned ${inbox.length === 1 ? "Task is" : "Tasks are"} in the Inbox.`,
           citations: inbox.slice(0, 5).map((task) => ({
             title: task.title,
-            href: `/tasks?task=${task.id}`,
+            href: taskDrawerHref(task.id),
             date: task.dueDate,
           })),
         };

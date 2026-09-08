@@ -139,6 +139,13 @@ describe("FIND-02 — the tag vocabulary is structurally singular", () => {
     // The Notes tag FACET is the one deliberate exception and says so at its
     // call site: it is a grouped count over the collection in front of the
     // owner, which is a different question from "what words exist here".
+    //
+    // V2.16 CONSOL-02 adds the second exception, and it is a different KIND of
+    // one: `workspace-data-map.ts` names every table in the schema because it
+    // is the classification OF the schema — what each table is for, whether it
+    // leaves in an archive, and where it sits in the purge order. It contains
+    // no query at all, which is why the writer assertion above is unchanged. A
+    // registry of table names is not a second reader of them.
     expect(readers.sort()).toEqual(
       [
         TAG_SQL_OWNER,
@@ -158,6 +165,7 @@ describe("FIND-02 — the tag vocabulary is structurally singular", () => {
           "d1",
           "d1-workspace-snapshot-repository.ts",
         ),
+        path.join("app", "platform", "storage", "d1", "workspace-data-map.ts"),
       ].sort(),
     );
   });

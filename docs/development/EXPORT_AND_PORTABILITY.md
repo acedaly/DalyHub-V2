@@ -248,6 +248,23 @@ serialised snapshot: the real defence is that the contract has no such field and
 the D1 adapter selects **named columns**, so a column added by a future migration
 is never exported by accident.
 
+**And since V2.16 CONSOL-02, the omissions are CHECKED rather than described.**
+`EXPORT_EXCLUSIONS` is prose for a human reading the archive they downloaded;
+[`workspace-data-map.ts`](../../app/platform/storage/d1/workspace-data-map.ts)
+is the machine-readable half — every one of the sixty tables in the schema
+classified `exported` (naming its collection), `operational` (naming what it
+holds that must not leave), or `ephemeral` (naming the operation it stages) —
+and `test/kernel/workspace-data-map.test.ts` reads the table list out of
+`sqlite_master` after the real migrations and asserts the two agree in both
+directions.
+
+> **There is no persistent owner-data table outside an explicit export policy.**
+
+Before that, the archive was complete by INSPECTION. A migration could add a
+table holding owner data and no test would notice that it could not leave the
+product; now that migration fails the build until somebody decides what the
+table is.
+
 ### Validation is a gate, not a lint
 
 `assertValidWorkspaceSnapshot` runs before serialisation, and the route turns a
@@ -494,6 +511,39 @@ There is deliberately no best-effort import: data recovery is the wrong place
 for guesswork. `RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS` is the list of versions this
 build can actually read, and it is a list rather than a comparison because "can
 restore" is a statement about code that exists.
+
+### The support HORIZON, stated (V2.16 CONSOL-04)
+
+The policy above says what happens to an archive of a given version. It never
+said how far back that goes, and the answer had only ever been implied by three
+lists. It is stated here now, because a consolidation release that quietly
+narrowed it would turn "export always possible" into "yesterday's backup
+restores":
+
+> **DalyHub reads every archive it has ever written.**
+
+Three append-only lists are what make that true, and each is a permanent
+statement about files already on someone's disk rather than a convenience:
+
+| List | Means | Rule |
+|---|---|---|
+| `RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS` | The schema versions a build can read | Never shortened |
+| `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS` | Collections an OLDER archive may lack | Added to in the same change that adds a collection; never removed from |
+| `RETIRED_SNAPSHOT_COLLECTIONS` | Collections whose STORE is gone, still read and upgraded | Added to in the same change that retires a store; never removed from |
+
+`test/unit/export/archive-support-horizon.test.ts` asserts all three are
+non-empty, disjoint where they must be, and — the point of it — that every
+retired collection is still *readable*: a retired store is never written and is
+always read, because a change of mind about a table must not invalidate the
+backups taken before it (AGENTS.md §2, "own the data").
+
+**Retiring a COLLECTION and retiring a TABLE are different acts.** A table can
+go; the key it occupied in the archive stays in `SnapshotCollectionRowMap` and
+in the order, so the SHAPE of an archive never changes and a reader written for
+an older one still finds what it expects. `assetObligations` is the worked
+example: V2.10 replaced `asset_obligations` with `obligation_details`, and an
+archive written before that still restores, upgraded on read by the same rule
+migration `0050` applied.
 
 ---
 

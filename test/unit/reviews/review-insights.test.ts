@@ -29,6 +29,7 @@ import {
   previousSnapshot,
   projectFact,
 } from "../../support/review-insights";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 /* -------------------------------------------------------------------------- */
 /* Goal contribution                                                           */
@@ -258,7 +259,9 @@ describe("carry-over", () => {
       (insight) => insight.id === "attention.carry_over.overdue",
     );
     expect(item?.label).toBe("2 overdue commitments carried into this period");
-    expect(item?.links.map((link) => link.to)).toContain("/tasks?task=task-1");
+    expect(item?.links.map((link) => link.to)).toContain(
+      taskDrawerHref("task-1"),
+    );
     expect(item?.entityIds).toEqual(["task-1", "task-2"]);
   });
 

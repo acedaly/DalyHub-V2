@@ -24,6 +24,7 @@ import {
   projectFact,
   storedSnapshot,
 } from "../../support/review-insights";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 function renderPanel(insights: ReviewInsights, title?: string) {
   const element: ReactElement = (
@@ -143,7 +144,7 @@ describe("the Review evidence surface", () => {
       screen
         .getByRole("link", { name: "Renew the insurance" })
         .getAttribute("href"),
-    ).toBe("/tasks?task=task-1");
+    ).toBe(taskDrawerHref("task-1"));
     expect(
       screen
         .getByRole("link", { name: "Health & Fitness" })

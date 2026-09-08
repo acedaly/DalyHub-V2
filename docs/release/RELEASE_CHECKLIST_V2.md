@@ -69,7 +69,7 @@ Each row was exercised as a coherent workflow, on desktop **and** at phone width
 | Quick Capture creates the intended record | ✅ | `e2e/mobile-capture-journeys.spec.ts`, `today.spec.ts` (capture sheet, focus, Escape) |
 | Due-today, overdue and daily context are legible | ✅ | `e2e/today.spec.ts`, `planning.spec.ts`, `waiting.spec.ts` |
 | Empty / loading / error states are useful | ✅ | `test/unit/empty-state/`, `test/unit/skeleton/`, `e2e/feedback.spec.ts` |
-| **Widget and weather behaviour is not placeholder-like** | ✅ | Weather, calendar and the "coming soon" Focus panel are **removed**, not faked ([DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3); UX-01). Widget collapse/hide/reorder verified in `e2e/today.spec.ts` |
+| **Widget and weather behaviour is not placeholder-like** | ✅ | Weather, calendar and the "coming soon" Focus panel are **removed**, not faked ([DEBT-53](../product/PRODUCT_DEBT.md#-debt-53--weather-and-calendar-on-today-were-removed-not-implemented--p3--struck-by-decision-2026-09-08-v216-consol-03); UX-01). Widget collapse/hide/reorder verified in `e2e/today.spec.ts` |
 | Task captured quickly without a Project | ✅ | `e2e/tasks-daily-driver.spec.ts`; `test/kernel/task-inbox-parent.test.ts` |
 | Inbox / project-less behaviour | ✅ | `test/kernel/task-inbox-parent.test.ts`; `e2e/tasks-collection.spec.ts` |
 | Inline editing is reliable | ✅ | `e2e/tasks-daily-driver.spec.ts`, `tasks-collection.spec.ts` |

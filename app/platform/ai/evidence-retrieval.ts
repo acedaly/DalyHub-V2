@@ -28,6 +28,7 @@ import {
 } from "~/kernel/ai";
 import type { WorkspaceScope } from "~/platform/workspaces";
 import { ownerCalendarIso } from "~/shared/datetime";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 /** The candidate ids a feature is allowed to reference in its proposals. */
 export interface CandidateSets {
@@ -317,7 +318,7 @@ export function hrefForEntity(type: string, id: string): string | null {
     case "note":
       return `/notes/${id}`;
     case "task":
-      return `/tasks?task=${id}`;
+      return taskDrawerHref(id);
     case "project":
       return `/projects/${id}`;
     case "goal":
@@ -395,7 +396,7 @@ export async function retrieveAnswerEvidence(
       title: task.title,
       date:
         task.dueDate ?? task.scheduledDate ?? isoDate(task.updatedAt, timezone),
-      href: `/tasks?task=${task.id}`,
+      href: taskDrawerHref(task.id),
       text: `Task: ${task.title}${parent}. Status ${task.status}${
         task.dueDate ? `, due ${task.dueDate}` : ""
       }.`,

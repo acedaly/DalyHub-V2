@@ -1098,6 +1098,7 @@ does not expose.
 | Unit (R2 backup) | `test/unit/backup/*` — object-key naming (UTC, sortability, determinism, tier prefixes, refusal of unsafe database names); the D1 export client (every malformed response shape, and permanent-vs-transient classification); dump validation **and its parity with `scripts/production-backup.mjs`**; configuration refusal (placeholders, missing secret) and assertions over the real committed `infra/backup/wrangler.jsonc` — no route, no public origin, the correct cron, and no committed identifiers. |
 | Workers runtime (R2 backup) | `test/kernel/backup-workflow.test.ts` — the whole Workflow against a **real local R2 bucket**: the happy path and stage order, provenance metadata, byte fidelity, daily-vs-manual tier selection (including that a parameter cannot relabel a scheduled run), every failure mode storing nothing, retry idempotency, refusal to overwrite another instance's object, a verification failure reported as failure, and that no token, signed URL or dump content reaches a log line or an error message. |
 | End-to-end | `e2e/restore.spec.ts` — the Settings surface: choosing a backup, the preview, a corrupt backup, the destructive confirmation, and the restore result. |
+| **Whole product (V2.16)** | `pnpm run restore:rehearsal` — `test/kernel/whole-product-rehearsal.test.ts` and `test/kernel/workspace-data-map.test.ts`. ONE synthetic workspace covering every durable domain; a TRUTH MANIFEST of derived owner-facing values at a frozen owner day in `Australia/Sydney`; export; destroy every row through the registry-derived purge plan and every object in R2; prove it is gone; restore; recompute the manifest and compare. What is compared is not row counts: account balances DERIVED again from the restored rows, month totals per currency, a transfer still excluded from spending, an obligation still settled by the transaction that settled it, a Goal's measurement series, a Review's persisted insight snapshot, a saved Report RE-EXECUTED, the completion history Insight draws, and the AI FactBlock built from all of it — which needs no provider, because a FactBlock is deterministic. Plus the cross-domain refusals only a whole-product archive can express, and the proof that every table in the schema is classified for recovery. |
 
 No test performs a production export, and none needs Cloudflare credentials.
 
@@ -1110,5 +1111,8 @@ No test performs a production export, and none needs Cloudflare credentials.
 - [`infra/backup/README.md`](../../infra/backup/README.md) — the BACKUP-01 R2
   backup Worker: architecture, configuration, retention and commands.
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — deploys, migrations and the release order.
+- [`WORKSPACE_DELETION.md`](WORKSPACE_DELETION.md) — the deletion boundary
+  (V2.16 CONSOL-01): why there is no button, the operator procedure, and what a
+  deletion does NOT reach in this document's retention policy.
 - [ADR-065](../decisions/ARCHITECTURE_DECISIONS.md#adr-065-the-canonical-workspace-snapshot-and-two-serialisers-derived-from-it),
   [ADR-081](../decisions/ARCHITECTURE_DECISIONS.md#adr-081-restore--one-canonical-format-a-staged-atomic-cutover-and-a-verified-way-back).

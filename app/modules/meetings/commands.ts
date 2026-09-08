@@ -25,7 +25,8 @@ export const meetingCommands: readonly CommandContribution[] = [
    * parameter: the Meetings collection holds its search query in component
    * state. So the command landed on the ordinary collection with an inert
    * parameter in the address bar — the same defect DEBT-243 records for
-   * `/tasks?task=<id>`, found by V2.16's palette coherence check rather than by
+   * a Task with a search parameter nothing read (DEBT-243), found by V2.16's
+   * palette coherence check rather than by
    * a reader.
    *
    * Nothing is lost. The collection's field is the first control on the page,

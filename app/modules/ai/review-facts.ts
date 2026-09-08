@@ -76,6 +76,7 @@ import { createOwnerAlignmentContext } from "~/shared/alignment";
 import { ownerCalendarIso } from "~/shared/datetime";
 import { loadGoalStories } from "~/shared/goal-progress/goal-story-load.server";
 import { createOwnerHealthContext } from "~/shared/project-health";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 /** How many rows any single read here may return. */
 const LIMIT = 200;
@@ -702,7 +703,7 @@ async function readAcross(
         id: row.taskId,
         // DEBT-243 — the `?task=` parameter nothing reads. V2.14 declines to
         // add an eighth caller of it: the drawer contract is what resolves.
-        href: `/tasks?drawer=task:${row.taskId}`,
+        href: taskDrawerHref(row.taskId),
         label: row.title,
       },
     });
