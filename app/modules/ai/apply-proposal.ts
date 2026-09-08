@@ -945,6 +945,30 @@ async function setProposedCategory(
   }
 
   const current = view.transaction.categoryId;
+  /*
+   * ALREADY THERE is checked BEFORE staleness, and the order is the whole of
+   * what makes a replay safe.
+   *
+   * A replayed acceptance arrives with `expected: null` against a transaction
+   * whose category is now set — which, read as a staleness question, looks
+   * exactly like the owner having categorised it themselves. It is not: the
+   * value it finds is the value it wanted. Checking staleness first would
+   * report a replay as a conflict and tell the owner their own choice had been
+   * protected from a change they had already made.
+   *
+   * Nothing is written either way, so the only thing at stake is which true
+   * sentence the owner reads — and "this is already done" is the true one.
+   */
+  if (current === input.next) {
+    return {
+      index,
+      kind: "transaction_category",
+      ok: true,
+      outcome: "unchanged",
+      id: input.transactionId,
+      created: false,
+    };
+  }
   if (current !== input.expected) {
     return {
       index,
@@ -954,18 +978,6 @@ async function setProposedCategory(
       id: input.transactionId,
       message:
         "This transaction’s category changed after the suggestion was made, so it wasn’t applied. Your own choice is still there.",
-    };
-  }
-  if (current === input.next) {
-    // The forward write already happened — a replay, or a second tab. Nothing
-    // is written, and nothing is reported as written.
-    return {
-      index,
-      kind: "transaction_category",
-      ok: true,
-      outcome: "unchanged",
-      id: input.transactionId,
-      created: false,
     };
   }
 
@@ -1312,6 +1324,23 @@ async function applyReviewReflection(
   }
 
   /*
+   * ALREADY THERE first, for the same reason the Finance path checks it first:
+   * a replayed acceptance finds the section holding exactly the text it wanted
+   * to write, and reporting that as a conflict would tell the owner their
+   * writing had been protected from themselves.
+   */
+  if (currentBody === body) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: true,
+      outcome: "unchanged",
+      id: reviewId,
+      created: false,
+    };
+  }
+
+  /*
    * An expectation is REQUIRED for a section that already holds writing.
    *
    * A blank section has nothing to lose, and requiring a version for it would
@@ -1328,18 +1357,6 @@ async function applyReviewReflection(
       id: reviewId,
       message:
         "This reflection already has writing in it. Re-open it so DalyHub can see what is there before replacing it.",
-    };
-  }
-
-  if (currentBody === body) {
-    // A replay, or an owner who accepted a draft they had already accepted.
-    return {
-      index,
-      kind: "review_reflection",
-      ok: true,
-      outcome: "unchanged",
-      id: reviewId,
-      created: false,
     };
   }
 
