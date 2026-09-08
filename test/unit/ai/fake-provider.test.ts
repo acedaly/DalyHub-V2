@@ -57,6 +57,7 @@ const CONTEXT: ValidationContext = {
   projectCandidateIds: new Set(),
   personCandidateIds: new Set(),
   linkCandidateIds: new Set(),
+  selection: null,
   facts: FACTS,
 };
 

@@ -147,16 +147,41 @@ describe("feature policy", () => {
     }
   });
 
-  it("grounds a grounded feature, and never lets one write", () => {
+  it("keeps V2.14's four EXPLANATORY features read-only", () => {
+    /*
+     * V2.14 asserted this over every grounded feature, which was true of the
+     * whole set at the time. V2.15 adds three grounded features that DO produce
+     * proposals, so the blanket form would now be asserting that V2.15 does not
+     * exist — and would have to be deleted rather than corrected, which is how
+     * a boundary quietly stops being asserted at all.
+     *
+     * What was load-bearing is named instead: an EXPLANATION is not an action.
+     * Ask DalyHub stays explanatory in V2.15 by explicit decision, and a Report
+     * explanation and a grounded Ask have no field a proposal could be
+     * expressed in. Those three must never gain one.
+     */
+    for (const id of [
+      "report-explanation",
+      "grounded-question-answer",
+      "workspace-question-answer",
+    ] as const) {
+      expect(aiFeaturePolicy(id).producesProposals, id).toBe(false);
+    }
+  });
+
+  it("gives every PROPOSING feature a bounded output and a daily ceiling", () => {
+    // A feature that can change data is a feature whose cost and whose blast
+    // radius both have to be bounded before it runs, not after.
     for (const policy of allAiFeaturePolicies()) {
-      if (!policy.groundedByFacts) continue;
-      // Read-only is structural for the grounded contract — it has no field a
-      // proposal could be expressed in — but the policy says so too, because
-      // V2.15 is where actions arrive and this is the line it must not cross
-      // by accident.
-      if (policy.id !== "weekly-review-assistant") {
-        expect(policy.producesProposals).toBe(false);
-      }
+      if (!policy.producesProposals) continue;
+      expect(policy.maxOutputTokens, policy.id).toBeGreaterThan(0);
+      expect(policy.dailyRequestLimit, policy.id).toBeGreaterThan(0);
+      expect(policy.timeoutMs, policy.id).toBeGreaterThan(0);
+      // No proposing feature may send sensitive content by DEFAULT. Financial
+      // and reflection content each need the owner's own per-category tick.
+      expect([...policy.defaultAllowedCategories], policy.id).toEqual([
+        "general",
+      ]);
     }
   });
 

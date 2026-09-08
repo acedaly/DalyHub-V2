@@ -22,7 +22,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  AI_FEATURE_IDS,
+  PROPOSAL_KINDS,
+  PROPOSAL_UNDO_STRATEGIES,
   EVIDENCE_KINDS,
   FACT_BLOCK_INTENTS,
   FACT_REFERENCE_KINDS,
@@ -67,6 +68,11 @@ describe("the builders are the only thing that chooses what AI sees", () => {
   it("exists, and is a small closed set", () => {
     expect(BUILDERS.map((entry) => entry.file).sort()).toEqual([
       "app/modules/ai/review-facts.ts",
+      // V2.15 ASSIST — the Finance categorisation batch and the obligation
+      // follow-up. The Review reflection draft is deliberately NOT here: it
+      // reads the Weekly Review's own block, built by `review-facts.ts`,
+      // because a period's facts do not change because the ask did.
+      "app/platform/ai/assist-facts.server.ts",
       "app/platform/ai/grounded-facts.server.ts",
       "app/platform/ai/report-facts.ts",
     ]);
@@ -159,7 +165,7 @@ describe("no embeddings, no vector store, no semantic index", () => {
   });
 });
 
-describe("V2.14 adds no mutation", () => {
+describe("the AI platform mutates through the apply engine and nothing else", () => {
   const READ_ONLY = FILES.filter(
     (entry) =>
       entry.file !== "app/modules/ai/apply-proposal.ts" &&
@@ -168,10 +174,13 @@ describe("V2.14 adds no mutation", () => {
 
   it("calls no write on any grounded path", () => {
     /*
-     * `apply-proposal.ts` and its route are AI-02's existing, owner-approved
-     * apply path and are excluded by name — V2.14 neither widens nor touches
-     * them. Everything else must be read-only, and the words below are how a
-     * write arrives.
+     * `apply-proposal.ts` and its route are the ONE owner-approved apply path
+     * and are excluded by name. V2.14 neither widened nor touched them; V2.15
+     * widened the VOCABULARY inside them and added nothing beside them, which
+     * is why this exclusion list is still two entries long and why
+     * `proposal-apply-authority.test.ts` enumerates the callers rather than
+     * trusting that it stays that way. Everything else must be read-only, and
+     * the words below are how a write arrives.
      */
     for (const { file, code } of READ_ONLY) {
       /*
@@ -186,33 +195,72 @@ describe("V2.14 adds no mutation", () => {
     }
   });
 
-  it("declares every grounded feature read-only in the policy table", () => {
-    for (const id of AI_FEATURE_IDS) {
+  it("keeps V2.14's four READ-ONLY features read-only", () => {
+    /*
+     * V2.14 asserted that EVERY grounded feature was read-only, which was true
+     * of the whole set at the time. V2.15 adds three grounded features that
+     * DO produce proposals, so the blanket form of the rule would now be
+     * asserting that V2.15 does not exist.
+     *
+     * What survives is the part that was actually load-bearing, and it is
+     * NAMED rather than derived: an explanation is not an action. A Report
+     * explanation and a grounded Ask read figures the owner is already looking
+     * at, and their response schemas have no field a proposal could be
+     * expressed in. Ask DalyHub stays explanatory in V2.15 by explicit
+     * decision, not by omission.
+     */
+    for (const id of [
+      "report-explanation",
+      "grounded-question-answer",
+      "workspace-question-answer",
+      "note-action-extraction",
+    ] as const) {
       const policy = aiFeaturePolicy(id);
-      if (!policy.groundedByFacts) continue;
-      if (id === "weekly-review-assistant") {
-        // AI-01's existing boundary, preserved rather than widened: the Review
-        // assistant proposes TEXT the owner accepts into their own Review
-        // section. It creates no record, and V2.14 changed only its grounding.
-        continue;
-      }
-      expect(policy.producesProposals, id).toBe(false);
+      expect(
+        policy.producesProposals,
+        `${id} must not change its proposal stance`,
+      ).toBe(id === "note-action-extraction");
     }
+    expect(aiFeaturePolicy("report-explanation").producesProposals).toBe(false);
+    expect(aiFeaturePolicy("grounded-question-answer").producesProposals).toBe(
+      false,
+    );
+    expect(aiFeaturePolicy("workspace-question-answer").producesProposals).toBe(
+      false,
+    );
   });
 
-  it("adds no new proposal item kind", () => {
+  it("adds no proposal kind the registry does not declare", () => {
+    /*
+     * V2.14's version of this test listed five forbidden strings and asserted
+     * the apply engine contained none of them. V2.15 makes three of them
+     * legitimate, so the list would have to shrink every release until it said
+     * nothing — a test that decays into a comment.
+     *
+     * The rule it was reaching for is better stated positively: the apply
+     * engine speaks the REGISTRY's vocabulary and no other. A kind added to the
+     * engine without a registry row now fails here, which is the property the
+     * original list was approximating.
+     */
     const apply = FILES.find(
       (entry) => entry.file === "app/modules/ai/apply-proposal.ts",
     );
     expect(apply).toBeDefined();
-    for (const forbidden of [
-      "transaction_category",
-      "transfer_pair",
-      "obligation",
-      "report",
-      "goal_measurement",
-    ]) {
-      expect(apply?.code, forbidden).not.toContain(`"${forbidden}"`);
+    const dispatched = [
+      ...(apply?.code.matchAll(/case "([a-z_]+)":/g) ?? []),
+    ].map((match) => match[1] as string);
+    const known = new Set<string>([
+      ...PROPOSAL_KINDS,
+      ...PROPOSAL_UNDO_STRATEGIES,
+    ]);
+    for (const kind of dispatched) {
+      expect(known.has(kind), `${kind} is not in the registry`).toBe(true);
+    }
+    // And the ones V2.15 deliberately REFUSED stay refused, by name, because
+    // each was struck for a measured reason rather than for lack of time.
+    for (const struck of ["transfer_pair", "possible_duplicate"]) {
+      expect(apply?.code, struck).not.toContain(`"${struck}"`);
+      expect(PROPOSAL_KINDS as readonly string[]).not.toContain(struck);
     }
   });
 });

@@ -212,3 +212,14 @@
     padding-bottom: var(--app-bottomnav-height, 0px);
   }
 }
+
+/*
+ * V2.15 ASSIST-02 — the reflection draft, above the prompt it would write into.
+ *
+ * Deliberately unstyled beyond its spacing: it sits inside the guided flow's
+ * own stack and must read as part of writing the Review, not as a panel bolted
+ * beside it.
+ */
+.dh-review-reflection-draft {
+  min-width: 0;
+}

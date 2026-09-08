@@ -19,6 +19,7 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { readAiAvailability } from "~/platform/ai";
 import { loadRecordAttachments } from "~/platform/attachments";
 import { projectObligation } from "~/platform/obligations/obligation-facts.server";
 import { requireAuthenticatedSession } from "~/platform/request";
@@ -51,6 +52,19 @@ export async function loader({ params, context }: Route.LoaderArgs) {
     todayIso,
     // V2.11 FILE-01 — the record's own evidence, in one bounded statement.
     attachments: await loadRecordAttachments(scope, found.obligation.id),
+    /*
+     * V2.15 — whether the follow-up control can run, resolved SERVER-SIDE.
+     *
+     * A preference and a budget read, never a provider call: PERF-01's rule
+     * that no loader contacts a model is unchanged. What it decides is whether
+     * a control appears, not whether this record works.
+     */
+    aiFollowUp: await readAiAvailability(
+      scope,
+      session.user.subject,
+      "obligation-follow-up",
+      env,
+    ),
   };
 }
 
@@ -79,6 +93,7 @@ function ObligationDetail({
   obligation,
   todayIso,
   attachments,
+  aiFollowUp,
 }: Awaited<ReturnType<typeof loader>>) {
   const revalidator = useRevalidator();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -114,6 +129,7 @@ function ObligationDetail({
       activeTabId={activeTabId}
       onTabChange={onTabChange}
       onSaved={() => revalidator.revalidate()}
+      aiFollowUp={aiFollowUp}
     />
   );
 }

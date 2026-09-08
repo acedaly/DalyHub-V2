@@ -639,3 +639,15 @@
   background: var(--dh-color-danger-subtle);
   color: var(--dh-color-text-on-danger-subtle);
 }
+
+/*
+ * V2.15 ASSIST-01 — the categorisation suggestion panel, on the queue lens.
+ *
+ * It sits ABOVE the list and is deliberately quiet: a bordered region with the
+ * page's own surface, no accent, no gradient and no icon. The queue's job is
+ * unchanged and the panel must not read as the new main event.
+ */
+.dh-finance-suggestions {
+  margin-block-end: var(--app-space-4);
+  min-width: 0;
+}

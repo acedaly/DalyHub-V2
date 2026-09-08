@@ -1353,15 +1353,44 @@ export class D1FinanceRepository implements FinanceRepository {
             : toStorageTimestamp(current.categoryConfirmedAt)
           : nowTs;
 
+    /*
+     * V2.15 — OPTIMISTIC CONCURRENCY on the category, when the caller supplied
+     * the value it read.
+     *
+     * The predicate goes in the WHERE clause of BOTH statements, so a stale
+     * write moves nothing at all — not the category, and not the entity row's
+     * `updated_at`. A guard that lived in the caller would protect the cases
+     * the caller happened to think of; this one protects every path through
+     * here, including two requests interleaving at an await.
+     *
+     * `IS` rather than `=`, deliberately: uncategorised is `category_id IS
+     * NULL`, and `= NULL` is never true. Expecting "no category" has to be
+     * expressible, because it is the ordinary case for a suggestion.
+     */
+    const guarded = input.expectedCategoryId !== undefined;
+    const expected = guarded
+      ? validateOptionalFinanceId(input.expectedCategoryId, "categoryId")
+      : null;
+    const detailsGuard = guarded ? " AND category_id IS ?" : "";
+    const entitiesGuard = guarded
+      ? ` AND EXISTS (
+            SELECT 1 FROM finance_transaction_details d
+             WHERE d.workspace_id = entities.workspace_id
+               AND d.entity_id = entities.id
+               AND d.deleted_at IS NULL
+               AND d.category_id IS ?)`
+      : "";
+
     // A manual transaction's fingerprint is content-independent, so an amount or
     // date correction does not move it. An imported one cannot reach here.
+    let results;
     try {
-      await this.#db.batch(
+      results = await this.#db.batch(
         this.#withFault([
           this.#db
             .prepare(
               `UPDATE entities SET title = ?, updated_at = ?
-                WHERE workspace_id = ? AND id = ? AND type = ?`,
+                WHERE workspace_id = ? AND id = ? AND type = ?${entitiesGuard}`,
             )
             .bind(
               payeeDisplay,
@@ -1369,13 +1398,14 @@ export class D1FinanceRepository implements FinanceRepository {
               this.#workspaceId,
               current.id,
               FINANCE_TRANSACTION_ENTITY_TYPE,
+              ...(guarded ? [expected] : []),
             ),
           this.#db
             .prepare(
               `UPDATE finance_transaction_details
                   SET occurred_on = ?, amount_minor = ?, memo = ?,
                       category_id = ?, category_confirmed_at = ?, updated_at = ?
-                WHERE workspace_id = ? AND entity_id = ? AND deleted_at IS NULL`,
+                WHERE workspace_id = ? AND entity_id = ? AND deleted_at IS NULL${detailsGuard}`,
             )
             .bind(
               occurredOn,
@@ -1386,11 +1416,25 @@ export class D1FinanceRepository implements FinanceRepository {
               nowTs,
               this.#workspaceId,
               current.id,
+              ...(guarded ? [expected] : []),
             ),
         ]),
       );
     } catch (cause) {
       this.#fail(cause);
+    }
+
+    /*
+     * Nothing matched, so the category moved between the caller's read and
+     * this write. Reported as a refusal with its own reason rather than
+     * returned as a success over a row that was not touched — a caller that
+     * asked for a compare-and-set is a caller that needs to know it lost.
+     */
+    if (guarded && (results?.[1]?.meta.changes ?? 0) === 0) {
+      throw new FinanceRefusedError(
+        "stale_category",
+        "This transaction's category changed while that was being applied, so nothing was changed.",
+      );
     }
     const after = await this.getTransaction(current.id);
     if (after === null) throw new FinanceStorageError();

@@ -291,3 +291,14 @@
 .dh-obligation-not-found {
   padding-block: var(--app-space-6);
 }
+
+/*
+ * V2.15 ASSIST-02 — the follow-up draft, in the obligation's Overview.
+ *
+ * It sits with the record's other sections rather than in a panel of its own:
+ * "what should I do about this?" is a question about the commitment, not a
+ * separate feature bolted beside it.
+ */
+.dh-obligation-followup {
+  min-width: 0;
+}

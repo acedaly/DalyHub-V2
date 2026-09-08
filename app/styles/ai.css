@@ -606,3 +606,127 @@
   text-align: start;
   overflow-wrap: anywhere;
 }
+
+/* ── V2.15 ASSISTED AI ──────────────────────────────────────────────────────
+ *
+ * The proposal review surface. Quiet on purpose: a suggestion is a reviewable
+ * product change and it is painted like one. No gradient, no sparkle, no robot,
+ * no confidence gauge — a fake precision bar would be the clearest possible
+ * statement that the number means something, and it does not.
+ *
+ * Single-column and fluid, so 320px is the design width rather than a squeeze.
+ * The `current → proposed` line WRAPS rather than scrolling: a long category
+ * name must never push a phone page sideways, and Finance categorisation is a
+ * phone surface first.
+ */
+
+.dh-ai-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+.dh-ai-proposal__lead,
+.dh-ai-proposal__count {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.6;
+  max-inline-size: var(--app-width-prose);
+}
+
+.dh-ai-proposal__bulk {
+  display: flex;
+  align-items: center;
+  min-height: var(--app-touch-target-min);
+}
+
+.dh-ai-proposal__subject {
+  margin: 0;
+  font-weight: 500;
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-ai-proposal__context {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The difference. Flex-wrap rather than a grid, so the arrow stays with the
+ * value it points away from when the line breaks.
+ */
+.dh-ai-proposal__change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  margin: 0;
+  color: var(--dh-color-text);
+  overflow-wrap: anywhere;
+}
+
+.dh-ai-proposal__current {
+  color: var(--dh-color-text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: var(--app-border-width-thin);
+}
+
+.dh-ai-proposal__arrow {
+  color: var(--dh-color-text-muted);
+}
+
+.dh-ai-proposal__proposed {
+  font-weight: 600;
+  color: var(--dh-color-text);
+}
+
+.dh-ai-proposal__edited {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+}
+
+/*
+ * Visible only to assistive technology. The arrow is decorative, so the change
+ * has to be readable as words: "Uncategorised changes to Groceries".
+ */
+.dh-ai-proposal__sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The per-item result. The WORD is the state; `data-outcome` only weights it,
+ * so nothing here is conveyed by colour alone (AGENTS.md §24).
+ */
+.dh-ai-proposal__outcome {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.dh-ai-proposal__outcome[data-outcome="stale"],
+.dh-ai-proposal__outcome[data-outcome="failed"] {
+  color: var(--dh-color-text);
+}
+
+/* The word before a replaced value, so "Replaces" is read as a label. */
+.dh-ai-proposal__label {
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}

@@ -40,6 +40,7 @@ function contextFor(evidenceIds: readonly string[]): ValidationContext {
     projectCandidateIds: new Set(["project-allowed"]),
     personCandidateIds: new Set(["person-allowed"]),
     linkCandidateIds: new Set(["link-allowed"]),
+    selection: null,
     // V2.14 — these cases are the EVIDENCE-backed features, which supply no
     // fact block. An empty set is what makes the numeric-grounding rule inert
     // for them, exactly as it is in production.

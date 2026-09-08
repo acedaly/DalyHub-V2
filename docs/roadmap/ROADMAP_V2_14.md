@@ -29,10 +29,10 @@
 
 **Programme status: V2.14 GROUNDED AI — see [Programme status](#programme-status).**
 
-**Successor: V2.15 ASSISTED AI — PRESUMPTIVE, definition pass next** — see
-[`ROADMAP_V2_9.md`](ROADMAP_V2_9.md#v215--assisted-ai-presumptive). Nothing in
-V2.15 is built here. V2.14 is **read-only AI**: it adds no mutation, no new
-proposal kind and no apply path.
+**Successor: V2.15 ASSISTED AI — DEFINED 2026-09-08**, and it is where new work
+goes: [`ROADMAP_V2_15.md`](ROADMAP_V2_15.md). Nothing in V2.15 is built here.
+V2.14 is **read-only AI**: it adds no mutation, no new proposal kind and no
+apply path.
 
 ---
 

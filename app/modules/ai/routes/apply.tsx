@@ -27,6 +27,22 @@
  *     the actor, and there is no extra "AI created this" event;
  *   - a target that has moved or been deleted since the proposal was generated is
  *     re-read here and refused rather than written against stale state.
+ *
+ * ## V2.15 — two additions, and what each is for
+ *
+ * **The FEATURE is read from the ledger, not the request.** `usageId` names a
+ * row this workspace owns; the row says which feature produced the proposal;
+ * the registry says which kinds that feature may produce. So a Finance
+ * categorisation payload submitted under a Meeting extraction's usage id is
+ * refused, and an acceptance naming no resolvable row may carry only the three
+ * CREATE kinds. A browser that could choose the feature could choose the
+ * permission, which is why it cannot.
+ *
+ * **`intent=undo` is here**, not in a route of its own, and that is the whole
+ * point: there is still exactly ONE proposal application authority. An undo is
+ * the inverse of an acceptance, validated the same way, ending in the same
+ * canonical repository operations, under the same authentication and the same
+ * same-origin mutation check.
  */
 
 import { env } from "cloudflare:workers";
@@ -40,6 +56,7 @@ import {
   applyProposalItems,
   proposalOutcome,
   resolveProposalSource,
+  undoProposalItems,
 } from "../apply-proposal";
 import { aiJson } from "../ai-request";
 import type { Route } from "./+types/apply";
@@ -73,7 +90,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return aiJson({ ok: true, applied: [] });
   }
 
-  if (intent !== "accept") {
+  if (intent !== "accept" && intent !== "undo") {
     return aiJson({ ok: false, message: "Unknown action." }, 400);
   }
 
@@ -93,23 +110,56 @@ export async function action({ request, context }: Route.ActionArgs) {
     return aiJson({ ok: false, message: "Too many items at once." }, 400);
   }
 
+  /*
+   * V2.15 — which FEATURE produced this proposal, read from the ledger row.
+   *
+   * `aiUsage.get` is workspace-scoped, so another workspace's usage id resolves
+   * to `null` and the acceptance falls back to the three CREATE kinds rather
+   * than borrowing that row's permissions. A row that never existed behaves
+   * identically, which is the point: nothing here tells a caller whether a
+   * usage id is real.
+   */
+  const usage = usageId.length > 0 ? await scope.aiUsage.get(usageId) : null;
+  const feature = usage?.featureId ?? null;
+
   // The source record, read from storage. `sourceRecordId` is the ONLY thing the
   // browser gets to say about it; whether that id is a Meeting or a Note — and
   // therefore which write path its items take — is decided here.
   const source = await resolveProposalSource(scope, form.get("sourceRecordId"));
 
-  const applied = await applyProposalItems({
+  const proposalRequest = {
     scope,
     source,
     items: payload,
     usageId,
+    feature,
     receipts: {
       db: env.DB,
       workspaceId: scope.context.workspaceId,
       ownerSubject: session.user.subject,
       now: new Date(),
     },
-  });
+  };
+
+  if (intent === "undo") {
+    const undone = await undoProposalItems(proposalRequest);
+    /*
+     * The ledger records `undone` only when the WHOLE undo succeeded.
+     *
+     * A partial undo leaves the earlier outcome in place: "partially undone" is
+     * a state the owner would have to interpret, and the domain records already
+     * say exactly which changes survive. Reporting a half-reversal as a
+     * reversal would be the same class of lie as reporting a partial
+     * acceptance as an acceptance, which `proposalOutcome` exists to prevent.
+     */
+    const everyItemReversed = undone.every((entry) => entry.ok);
+    if (usageId.length > 0 && everyItemReversed) {
+      await scope.aiUsage.recordProposalOutcome(usageId, "undone");
+    }
+    return aiJson({ ok: everyItemReversed, applied: undone });
+  }
+
+  const applied = await applyProposalItems(proposalRequest);
 
   // A partial acceptance is recorded as a partial acceptance. It is never
   // rounded up to "accepted" because something worked.

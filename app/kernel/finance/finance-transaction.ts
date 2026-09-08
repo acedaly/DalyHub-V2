@@ -133,6 +133,27 @@ export interface UpdateFinanceTransactionInput {
   readonly memo?: string | null;
   /** `null` clears the category, returning the row to the queue. */
   readonly categoryId?: string | null;
+  /**
+   * V2.15 — OPTIMISTIC CONCURRENCY on the category, for a caller that is
+   * acting on a category it read earlier.
+   *
+   * Supply the category the caller SAW (`null` for uncategorised) and the
+   * write becomes a compare-and-set: if the stored row has moved on since, the
+   * update is refused with `stale_category` and NOTHING is written — not the
+   * category, and not the entity row's `updatedAt`.
+   *
+   * This exists for the same reason REVIEW-02 gave `updateSection` its
+   * `expectedUpdatedAt`, and it is the same shape: a read-then-write over two
+   * awaits is not a guard, because the owner can categorise the row in the gap
+   * from another tab. A guard that lives in the caller protects the cases the
+   * caller happened to think of; a guard that lives in the WHERE clause
+   * protects all of them.
+   *
+   * Omitting it preserves the original last-write-wins behaviour for every
+   * caller that has no prior value to quote — the drawer, the picker, the
+   * queue's one-tap accept — all unchanged.
+   */
+  readonly expectedCategoryId?: string | null;
   /** Manual rows only. Refused on an imported row. */
   readonly occurredOn?: string;
   /** Manual rows only. Refused on an imported row. */

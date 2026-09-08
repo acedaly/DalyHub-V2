@@ -172,6 +172,16 @@ test("a saved view survives a reload, a rename and an edit, and then deletes", a
   await expect(dialog).toContainText("Your tasks are not affected");
   await dialog.getByRole("button", { name: "Delete view" }).click();
 
+  /*
+   * The dialog closing IS the server's answer (HARDEN-06D): the delete is
+   * awaited, so the dialog holds itself open, labelled "Deleting…", until the
+   * POST settles. Waiting for it before navigating is not politeness — a
+   * document navigation destroys an in-flight request, so a journey that
+   * navigates on the next line is racing its own delete and sampling the
+   * result. That race is what failed this journey intermittently on CI.
+   */
+  await expect(dialog).toBeHidden({ timeout: 30_000 });
+
   await gotoFixture(page, "/tasks");
   await page.getByTestId("tasks-view-trigger").click();
   await expect(

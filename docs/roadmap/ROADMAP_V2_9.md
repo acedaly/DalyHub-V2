@@ -1123,6 +1123,20 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 
 ### V2.15 — ASSISTED AI (PRESUMPTIVE)
 
+> **Superseded as roadmap truth on 2026-09-08 by
+> [`ROADMAP_V2_15.md`](ROADMAP_V2_15.md), which defined this release against
+> `main` at `701fe25` by re-measuring the proposal path. It corrects the sketch
+> below in three places, each with the measurement recorded: **`transfer_pair`
+> is struck** (the deterministic candidate read already matches on the exactly
+> opposite amount, same currency, different account and a three-day window —
+> an arithmetic identity leaves no ambiguity for a model to reduce);
+> **duplicate correction is struck** (the only duplicate detector runs at import
+> preview, so no deterministic candidate read exists to ground an AI proposal,
+> and scanning history from prose is the ungrounded selection V2.14 forbids);
+> and **there is no `obligation` item kind** (the mutation a follow-up performs
+> is a Task creation plus an obligation pointer, so the kind names the
+> mutation: `obligation_task`). Where the two disagree, the newer file wins.
+
 - **Theme.** *Propose, never act* — Stage B: structured, approval-based
   proposals through the one existing apply path, for the work the domains now
   generate.

@@ -95,6 +95,19 @@ export interface RunAiRequestInput {
   readonly derivedFacts: string;
   /** The owner's typed input, where the feature accepts one. */
   readonly ownerInput?: string;
+  /**
+   * V2.15 — the CLOSED index spaces this request offers the model.
+   *
+   * A proposal-producing feature whose schema expresses references as integer
+   * positions (Finance categorisation) supplies the sizes of the two lists it
+   * sent, so an out-of-range index is refused by the validator. Absent for
+   * every feature that offers no index space, which is all of them before
+   * V2.15.
+   */
+  readonly selection?: {
+    readonly rowCount: number;
+    readonly optionCount: number;
+  } | null;
   /** Ties this run to ONE deliberate owner action. */
   readonly idempotencyKey: string;
   /** True when the owner deliberately asked for deep analysis. */
@@ -559,7 +572,12 @@ export async function runAiRequest(
 
     // 9 ─ Validate against DalyHub's own schema. Model output is data until this
     // succeeds, and a citation of evidence we did not supply fails here.
-    const context = validationContext(input.evidence, input.candidates, facts);
+    const context = validationContext(
+      input.evidence,
+      input.candidates,
+      facts,
+      input.selection ?? null,
+    );
     const result = validateFeatureResult(
       input.featureId,
       execution.response.value,
@@ -705,6 +723,7 @@ export function validationContext(
   evidence: EvidenceSet,
   candidates: CandidateSets,
   facts: readonly Fact[] = [],
+  selection: ValidationContext["selection"] = null,
 ): ValidationContext {
   return {
     evidenceIds: new Set(evidence.items.map((item) => item.id)),
@@ -712,6 +731,14 @@ export function validationContext(
     personCandidateIds: new Set(candidates.people.map((entry) => entry.id)),
     linkCandidateIds: new Set(candidates.links.map((entry) => entry.id)),
     facts,
+    /*
+     * V2.15 — the index spaces a proposal-producing feature may select from.
+     *
+     * `null` for every pre-V2.15 feature, which is what makes the addition
+     * inert for them: a validator that does not read `selection` behaves
+     * exactly as it did, and one that does refuses outright when it is absent.
+     */
+    selection,
   };
 }
 
@@ -730,6 +757,12 @@ export function schemaNameFor(feature: AiFeatureId): string {
       return "dalyhub_report_explanation";
     case "grounded-question-answer":
       return "dalyhub_grounded_answer";
+    case "finance-categorisation":
+      return "dalyhub_finance_categorisation";
+    case "obligation-follow-up":
+      return "dalyhub_obligation_follow_up";
+    case "review-reflection-draft":
+      return "dalyhub_review_reflection";
   }
 }
 

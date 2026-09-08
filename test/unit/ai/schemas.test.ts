@@ -82,6 +82,7 @@ const context = (
   personCandidateIds: new Set(["person-1"]),
   linkCandidateIds: new Set(["link-1"]),
   facts: [],
+  selection: null,
   ...extra,
 });
 

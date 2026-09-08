@@ -51,6 +51,13 @@ export function AiWeeklyReviewSurface({
   onAccept,
 }: AiWeeklyReviewSurfaceProps) {
   const controller = useAiRequest();
+  /*
+   * V2.15 — a per-MOUNT nonce. See `AiAssistSurface` for the full reasoning:
+   * a run counter that restarts at zero on every mount reuses its first
+   * idempotency key after a reload, and the ledger answers a repeated key with
+   * the EXISTING row rather than a fresh request.
+   */
+  const [nonce] = useState(() => Math.random().toString(36).slice(2, 12));
   const [run, setRun] = useState(0);
   const [chosen, setChosen] = useState<ReadonlySet<number>>(new Set());
 
@@ -71,9 +78,9 @@ export function AiWeeklyReviewSurface({
     void controller.run({
       feature: "weekly-review-assistant",
       recordId: reviewId,
-      idempotencyKey: `weekly-review-assistant:${reviewId}:${next}`,
+      idempotencyKey: `weekly-review-assistant:${reviewId}:${nonce}:${next}`,
     });
-  }, [controller, reviewId, run]);
+  }, [controller, nonce, reviewId, run]);
 
   const state = controller.state;
   const summary = state.kind === "result" ? asWeeklyReview(state.result) : null;

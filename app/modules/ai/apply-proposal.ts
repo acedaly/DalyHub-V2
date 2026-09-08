@@ -30,10 +30,63 @@
  *      owner reviewed and approved it. AI is never an Activity actor, and no
  *      "AI created this" event is written — an accepted proposal produces
  *      EXACTLY the events the same action taken by hand would produce.
+ *
+ * ## V2.15 — three things this file gained, and why each is here rather than
+ * ## anywhere else
+ *
+ * **1. The vocabulary is closed and typed.** The kind used to be decided by a
+ * ternary that fell through to `task`, so a browser payload naming a kind that
+ * does not exist produced a Task. It now goes through
+ * `parseProposalKind`, and an unknown kind is REFUSED. The registry
+ * (`app/kernel/ai/proposal-kinds.ts`) also says which FEATURE may produce each
+ * kind, and that is checked against the ledger row the acceptance names — not
+ * against anything the browser says, because a browser that could choose the
+ * feature could choose the permission.
+ *
+ * **2. Every kind carries a stale guard, and the two UPDATE kinds require one.**
+ * A proposal is generated against state X and accepted against state Y. For a
+ * creation that is harmless; for a change to a record the owner may have edited
+ * since, it is how a suggestion silently overwrites their own work. Acceptance
+ * therefore carries the state the proposal was generated against, the server
+ * re-reads the target, and a mismatch is REFUSED with a sentence saying so.
+ * There is no force flag. A stale refusal is always preferred to overwriting
+ * the owner.
+ *
+ * **3. Undo lives here, through the same authority.** Every applied item
+ * returns the payload that reverses it, and `undoProposalItems` dispatches
+ * those payloads back through the same registry to the same canonical
+ * operations. It is not a second write path — an undo of a category change IS
+ * a category change, and it is validated exactly as one, expectation and all.
+ * A kind with no undo strategy cannot be registered, because the descriptor
+ * type has no member for it.
  */
 
-import { LIMITS, parseIsoCalendarDate, sha256Hex } from "~/kernel/ai";
+import {
+  LIMITS,
+  parseIsoCalendarDate,
+  parseProposalKind,
+  proposalKindAllowedForFeature,
+  proposalKindDescriptor,
+  sha256Hex,
+  UNTRACEABLE_PROPOSAL_KINDS,
+  type AiFeatureId,
+  type ProposalKind,
+} from "~/kernel/ai";
 import { EntityValidationError } from "~/kernel/entities";
+import { FinanceRefusedError, FinanceValidationError } from "~/kernel/finance";
+import {
+  OBLIGATION_LINKED_TASK,
+  ObligationValidationError,
+  type Obligation,
+} from "~/kernel/obligations";
+import {
+  parseReviewSectionId,
+  ReviewArchivedError,
+  ReviewConflictError,
+  ReviewNotFoundError,
+  ReviewValidationError,
+  type ReviewSectionId,
+} from "~/kernel/reviews";
 import { MeetingArchivedError, MeetingNotFoundError } from "~/kernel/meetings";
 import { NoteDetailsValidationError } from "~/kernel/notes";
 import {
@@ -54,10 +107,40 @@ import type { WorkspaceScope } from "~/platform/workspaces";
 import { captureRelationshipPlan } from "~/shared/capture/capture-context";
 import { TASK_RELATES_TO } from "~/shared/task-record/task-view";
 
+/**
+ * V2.15 — the payload that REVERSES one applied item.
+ *
+ * It is an ordinary proposal item of the same kind, carrying the inverse
+ * values and an expectation of what the forward apply left behind. That is not
+ * a convenience: it means undo travels the SAME dispatch, the SAME validation
+ * and the SAME canonical operations as the acceptance did, so there is one
+ * apply authority rather than an apply authority and an undo authority that
+ * eventually disagree.
+ *
+ * It is handed to the browser, and the browser hands it back. That is safe for
+ * the reason every other reversible action in DalyHub is safe: the owner could
+ * perform the inverse by hand through the ordinary surface anyway, the server
+ * re-validates every field, and the expectation refuses the write outright if
+ * the record has moved since.
+ */
+export type ProposalUndo = Readonly<Record<string, unknown>> & {
+  readonly kind: ProposalKind;
+};
+
+/**
+ * V2.15 — what an item DID, beyond succeeding or failing.
+ *
+ * `unchanged` is the one that earns its place. A replayed acceptance of a
+ * category that is already set is neither a success that wrote something nor a
+ * failure; reporting it as either would be a lie in a surface whose whole job
+ * is telling the owner exactly what happened.
+ */
+export type AppliedOutcome = "created" | "updated" | "unchanged" | "stale";
+
 /** What one accepted item produced. */
 export interface AppliedItem {
   readonly index: number;
-  readonly kind: "task" | "note" | "link";
+  readonly kind: ProposalKind;
   readonly ok: boolean;
   readonly id?: string;
   /**
@@ -66,6 +149,13 @@ export interface AppliedItem {
    * converted. Present only on a successful item.
    */
   readonly created?: boolean;
+  /** V2.15 — the finer-grained outcome, where the kind has one. */
+  readonly outcome?: AppliedOutcome;
+  /**
+   * V2.15 — how to reverse this item. Present only on a successful item that
+   * actually changed something: there is nothing to undo about a no-op.
+   */
+  readonly undo?: ProposalUndo;
   readonly message?: string;
 }
 
@@ -135,6 +225,17 @@ export interface ApplyProposalInput {
    * pre-existing behaviour rather than a new failure mode.
    */
   readonly receipts?: Omit<CaptureReceiptContext, "kind"> | null;
+  /**
+   * V2.15 — the FEATURE recorded on the usage row this acceptance names, or
+   * `null` when no row resolved.
+   *
+   * Read from storage by the route, never from the request. It decides which
+   * proposal kinds this acceptance may carry: a Finance categorisation payload
+   * submitted under a Meeting extraction's usage id is refused, and an
+   * acceptance with no traceable generation may carry only the three CREATE
+   * kinds (see {@link UNTRACEABLE_PROPOSAL_KINDS}).
+   */
+  readonly feature?: AiFeatureId | null;
 }
 
 /**
@@ -162,8 +263,40 @@ export async function applyProposalItems(
       continue;
     }
     const item = entry as Record<string, unknown>;
-    const kind =
-      item.kind === "link" ? "link" : item.kind === "note" ? "note" : "task";
+    /*
+     * V2.15 — the kind is PARSED, not coerced.
+     *
+     * The code this replaces read `item.kind === "link" ? … : "task"`, so
+     * `{ kind: "transaction_categry" }` (or `{}`, or `{ kind: 42 }`) created a
+     * Task. An unrecognised kind is now a refusal, which is the only honest
+     * answer to a payload DalyHub does not understand.
+     */
+    const kind = parseProposalKind(item.kind);
+    if (kind === null) {
+      applied.push({
+        index,
+        kind: "task",
+        ok: false,
+        message: "That isn’t something DalyHub can apply.",
+      });
+      continue;
+    }
+    const permitted = permits(input.feature ?? null, kind);
+    if (!permitted) {
+      /*
+       * Deliberately the SAME sentence as an unknown kind. A caller learns that
+       * the item was refused, never whether the kind exists but was not allowed
+       * for this feature — which would be a small oracle for what the ledger row
+       * says.
+       */
+      applied.push({
+        index,
+        kind,
+        ok: false,
+        message: "That isn’t something DalyHub can apply.",
+      });
+      continue;
+    }
 
     try {
       applied.push(await applyOne(input, index, kind, item));
@@ -184,21 +317,48 @@ export async function applyProposalItems(
   return applied;
 }
 
+/**
+ * Whether this acceptance may carry `kind`, given the feature its ledger row
+ * names.
+ *
+ * Two rules, and the second is the interesting one. With a feature, the
+ * registry decides. WITHOUT one — no usage id, or a row that no longer resolves
+ * — only the three CREATE kinds are permitted. A creation with no traceable
+ * generation is an ordinary record the owner asked for; a CHANGE to a record
+ * that already exists, with nothing behind it, is a mutation nothing can audit.
+ */
+function permits(feature: AiFeatureId | null, kind: ProposalKind): boolean {
+  if (feature === null) return UNTRACEABLE_PROPOSAL_KINDS.includes(kind);
+  return proposalKindAllowedForFeature(kind, feature);
+}
+
 async function applyOne(
   input: ApplyProposalInput,
   index: number,
-  kind: AppliedItem["kind"],
+  kind: ProposalKind,
   item: Record<string, unknown>,
 ): Promise<AppliedItem> {
-  if (kind === "link") return applyLink(input, index, item);
-  if (kind === "note") return applyMeetingNote(input, index, item);
-  if (input.source?.kind === "meeting") {
-    return applyMeetingTask(input, index, item, input.source);
+  switch (kind) {
+    case "link":
+      return applyLink(input, index, item);
+    case "note":
+      return applyMeetingNote(input, index, item);
+    case "transaction_category":
+      return applyTransactionCategory(input, index, item);
+    case "obligation_task":
+      return applyObligationTask(input, index, item);
+    case "review_reflection":
+      return applyReviewReflection(input, index, item);
+    case "task": {
+      if (input.source?.kind === "meeting") {
+        return applyMeetingTask(input, index, item, input.source);
+      }
+      if (input.source?.kind === "note") {
+        return applyNoteTask(input, index, item, input.source);
+      }
+      return applyUnsourcedTask(input, index, item);
+    }
   }
-  if (input.source?.kind === "note") {
-    return applyNoteTask(input, index, item, input.source);
-  }
-  return applyUnsourcedTask(input, index, item);
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -720,6 +880,817 @@ async function applyLink(
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
+/* V2.15 — Finance categorisation                                             */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Read an optional record id from the payload. `""` and absent both mean null.
+ *
+ * Bounded at 128 characters for the same reason `resolveProposalSource` bounds
+ * its id: an unbounded string reaching a `WHERE id = ?` is a string somebody
+ * eventually tries to make interesting.
+ */
+function optionalId(item: Record<string, unknown>, key: string): string | null {
+  const value = String(item[key] ?? "").trim();
+  if (value.length === 0 || value.length > 128) return null;
+  return value;
+}
+
+/**
+ * The ONE place a transaction's category moves for a proposal, forward or back.
+ *
+ * Every rule the owner's own manual change obeys applies here unchanged,
+ * because it IS the owner's change: `updateTransaction` is the canonical
+ * mutation the drawer, the row and the queue all post to, and setting a
+ * category through it stamps `categoryConfirmedAt` — which is what the
+ * deterministic suggestion rule learns from. An accepted suggestion therefore
+ * teaches DalyHub exactly as much as a manual tap does, and a suggestion nobody
+ * accepted teaches it nothing.
+ *
+ * The stale guard is the whole reason this function takes an `expected`:
+ *
+ *   - the proposal was generated when the transaction was uncategorised;
+ *   - the owner categorised it themselves before accepting;
+ *   - applying anyway would silently overwrite a decision they had already
+ *     made, with one they had merely been offered.
+ *
+ * So the CURRENT category is re-read and compared. A mismatch is `stale` and
+ * writes nothing. An `expected` that already equals the target is `unchanged`,
+ * which is what makes a replayed acceptance a no-op rather than a second write.
+ */
+async function setProposedCategory(
+  scope: WorkspaceScope,
+  index: number,
+  input: {
+    readonly transactionId: string;
+    /** The category to set. `null` clears it, which is what an undo may need. */
+    readonly next: string | null;
+    /** The category the proposal was generated against. */
+    readonly expected: string | null;
+  },
+): Promise<AppliedItem> {
+  const view = await scope.finance.getTransaction(input.transactionId);
+  /*
+   * Missing, soft-deleted and another workspace's transaction are ONE answer.
+   * A distinguishable "that exists but is not yours" would let an acceptance
+   * enumerate a second workspace's ids one refusal at a time.
+   */
+  if (view === null || view.transaction.deletedAt !== null) {
+    return {
+      index,
+      kind: "transaction_category",
+      ok: false,
+      message: "That transaction is no longer available.",
+    };
+  }
+
+  const current = view.transaction.categoryId;
+  /*
+   * ALREADY THERE is checked BEFORE staleness, and the order is the whole of
+   * what makes a replay safe.
+   *
+   * A replayed acceptance arrives with `expected: null` against a transaction
+   * whose category is now set — which, read as a staleness question, looks
+   * exactly like the owner having categorised it themselves. It is not: the
+   * value it finds is the value it wanted. Checking staleness first would
+   * report a replay as a conflict and tell the owner their own choice had been
+   * protected from a change they had already made.
+   *
+   * Nothing is written either way, so the only thing at stake is which true
+   * sentence the owner reads — and "this is already done" is the true one.
+   */
+  if (current === input.next) {
+    return {
+      index,
+      kind: "transaction_category",
+      ok: true,
+      outcome: "unchanged",
+      id: input.transactionId,
+      created: false,
+    };
+  }
+  /*
+   * The EARLY stale answer, kept because it produces the better sentence.
+   *
+   * It is not the guarantee, though — the guarantee is the compare-and-set on
+   * the write below, because everything between this read and that write is
+   * await-separated and a second tab can categorise the row in the gap. This
+   * check exists so the ordinary, uncontended case reads as "your own choice is
+   * still there" rather than as a bare refusal, and so a stale item costs no
+   * category read at all.
+   */
+  if (current !== input.expected) {
+    return staleCategory(index, input.transactionId);
+  }
+
+  if (input.next !== null) {
+    /*
+     * The category is re-read too, and three things are checked that the
+     * repository does not check for us: it exists in THIS workspace, it is not
+     * archived, and its KIND matches the transaction's direction. The third is
+     * the one a model gets wrong: a refund is money in, and putting it in a
+     * "Money out" category is how a month's spending quietly stops adding up.
+     */
+    const categories = await scope.finance.listCategories({
+      includeArchived: true,
+    });
+    const category = categories.find((entry) => entry.id === input.next);
+    if (category === undefined) {
+      return {
+        index,
+        kind: "transaction_category",
+        ok: false,
+        message: "That category is no longer available.",
+      };
+    }
+    if (category.archivedAt !== null) {
+      return {
+        index,
+        kind: "transaction_category",
+        ok: false,
+        message: "That category is archived. Choose another.",
+      };
+    }
+    const amount = view.transaction.amountMinor;
+    const wantsIncome = category.kind === "income";
+    if (amount > 0 !== wantsIncome && amount !== 0) {
+      return {
+        index,
+        kind: "transaction_category",
+        ok: false,
+        message: wantsIncome
+          ? "That is a money-in category, and this is money out."
+          : "That is a money-out category, and this is money in.",
+      };
+    }
+  }
+
+  /*
+   * The write, and the ACTUAL stale guard.
+   *
+   * `expectedCategoryId` makes this a compare-and-set inside the database: the
+   * predicate is in the WHERE clause of both statements, so a row the owner
+   * categorised between the read above and this line is not written to at all
+   * — not the category, and not the entity's `updatedAt` — and the refusal
+   * comes back as `stale_category`.
+   *
+   * The check above cannot do this job. Two requests interleave at every
+   * await, and a guard that reads and then writes is a guard with a window in
+   * it. This is the same lesson REVIEW-02 learned for a Review section, and the
+   * same shape: the expectation travels WITH the write.
+   */
+  try {
+    await scope.finance.updateTransaction(input.transactionId, {
+      categoryId: input.next,
+      expectedCategoryId: input.expected,
+    });
+  } catch (cause) {
+    if (
+      cause instanceof FinanceRefusedError &&
+      cause.reason === "stale_category"
+    ) {
+      return staleCategory(index, input.transactionId);
+    }
+    throw cause;
+  }
+
+  return {
+    index,
+    kind: "transaction_category",
+    ok: true,
+    outcome: "updated",
+    id: input.transactionId,
+    created: false,
+    /*
+     * The inverse: put the category back where it was, expecting to find the
+     * one we just set. If the owner re-categorises between the apply and the
+     * undo, the undo refuses rather than reverting their newer decision — which
+     * is the same protection in the opposite direction.
+     */
+    undo: {
+      kind: "transaction_category",
+      transactionId: input.transactionId,
+      categoryId: input.expected,
+      expectedCategoryId: input.next,
+    },
+  };
+}
+
+/** The one stale-category refusal, so both guards say exactly the same thing. */
+function staleCategory(index: number, transactionId: string): AppliedItem {
+  return {
+    index,
+    kind: "transaction_category",
+    ok: false,
+    outcome: "stale",
+    id: transactionId,
+    message:
+      "This transaction’s category changed after the suggestion was made, so it wasn’t applied. Your own choice is still there.",
+  };
+}
+
+/**
+ * Accept ONE proposed transaction category.
+ *
+ * No replay guard, and it needs none: this is an UPDATE, and the guarantee a
+ * receipt would buy is already owned by the compare-and-set on the write. A
+ * second apply finds the category equal and reports `unchanged` — the database
+ * arbitrates it, not a disabled button and not a stored key.
+ */
+async function applyTransactionCategory(
+  input: ApplyProposalInput,
+  index: number,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const transactionId = optionalId(item, "transactionId");
+  const categoryId = optionalId(item, "categoryId");
+  if (transactionId === null) {
+    return {
+      index,
+      kind: "transaction_category",
+      ok: false,
+      message: "That suggestion is incomplete.",
+    };
+  }
+  if (categoryId === null) {
+    // Forward acceptance always names a category. Clearing one is an UNDO, and
+    // reaches `setProposedCategory` through `undoProposalItems` instead.
+    return {
+      index,
+      kind: "transaction_category",
+      ok: false,
+      message: "Choose a category before applying this suggestion.",
+    };
+  }
+  return setProposedCategory(input.scope, index, {
+    transactionId,
+    next: categoryId,
+    expected: optionalId(item, "expectedCategoryId"),
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* V2.15 — Obligation follow-up Tasks                                         */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * True when an obligation is still a legitimate subject for a follow-up.
+ *
+ * The SAME condition the fact builder used to decide there was anything to
+ * propose, applied again at acceptance — because between the two the owner may
+ * have paid the bill, dismissed the commitment or deleted it, and a follow-up
+ * for a settled obligation is the exact class of stale action V2.15 exists to
+ * refuse.
+ */
+function stillOpen(obligation: Obligation): boolean {
+  return (
+    obligation.status === "open" &&
+    obligation.deletedAt === null &&
+    obligation.archivedAt === null
+  );
+}
+
+/**
+ * Accept ONE proposed follow-up Task for an overdue obligation.
+ *
+ * Three writes, and they are the SAME three the existing `create-task` intent
+ * on `/obligations/mutate` performs — the canonical Task repository, the
+ * obligation's Task pointer, and the shared `obligation.linked_task`
+ * relationship. Nothing here is an AI-specific path: an accepted follow-up and
+ * one the owner made by hand are indistinguishable afterwards, which is the
+ * point.
+ *
+ * The pointer is what makes replay safe at the domain level: an obligation
+ * holds AT MOST ONE Task, so a second acceptance finds the first one's Task
+ * already linked and returns it rather than creating a second. The replay guard
+ * is still applied on top of that, because two SIMULTANEOUS accepts both read
+ * the obligation before either Task exists.
+ */
+async function applyObligationTask(
+  input: ApplyProposalInput,
+  index: number,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const obligationId = optionalId(item, "obligationId");
+  if (obligationId === null) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      message: "That suggestion is incomplete.",
+    };
+  }
+
+  const title = String(item.title ?? "")
+    .trim()
+    .slice(0, LIMITS.title);
+  if (title.length === 0) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      message: "A title is required.",
+    };
+  }
+
+  const obligation = await input.scope.obligations.get(obligationId);
+  if (obligation === null) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      message: "That commitment is no longer available.",
+    };
+  }
+  if (!stillOpen(obligation)) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      outcome: "stale",
+      id: obligationId,
+      message:
+        "This commitment isn’t open any more, so the follow-up wasn’t created.",
+    };
+  }
+
+  /*
+   * The obligation already points at a Task. Creating a second one and moving
+   * the pointer would orphan the first — a Task the owner can no longer reach
+   * from the commitment it is about — so this is reported rather than done.
+   */
+  if (obligation.taskId !== null) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      id: obligation.taskId,
+      message:
+        "There is already a Task for this commitment. Open it rather than adding another.",
+    };
+  }
+
+  return guardedKind(
+    input,
+    index,
+    "obligation_task",
+    JSON.stringify([obligationId, title]),
+    async () => {
+      const task = await input.scope.tasks.createTask({
+        title,
+        // The obligation stays authoritative for WHEN, exactly as the manual
+        // path has it: the Task inherits the due date and no model supplies one.
+        dueDate: obligation.dueDate,
+      });
+      await input.scope.obligations.linkTask(obligationId, task.id);
+      try {
+        await input.scope.entityLinks.create({
+          sourceEntityId: obligationId,
+          targetEntityId: task.id,
+          type: OBLIGATION_LINKED_TASK,
+        });
+      } catch {
+        /*
+         * Not fatal, and the manual path takes the same view: the POINTER is
+         * the authority and the EntityLink is the generic projection beside it.
+         * A Task that really was created must not be undone by a duplicate or
+         * last-mile link failure.
+         */
+      }
+      return {
+        index,
+        kind: "obligation_task" as const,
+        ok: true,
+        outcome: "created" as const,
+        id: task.id,
+        created: true,
+        undo: {
+          kind: "obligation_task" as const,
+          obligationId,
+          taskId: task.id,
+        },
+      };
+    },
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* V2.15 — Review reflection                                                  */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Accept ONE reviewed reflection draft into the owner's own Review section.
+ *
+ * This is the only V2.15 kind that writes over the owner's own WRITING, so it
+ * carries the strongest guard in the programme — and, deliberately, not a new
+ * one: REVIEW-02 already gave `updateSection` optimistic concurrency for
+ * exactly this hazard (a second tab, a phone and a desktop each holding an
+ * older copy). Supplying `expectedUpdatedAt` turns the write into a
+ * compare-and-set, and a section the owner has typed into since the draft was
+ * generated raises `ReviewConflictError` and keeps THEIR text.
+ *
+ * The body written is the one the owner left the review surface with — their
+ * edits, not the model's draft — and it is bounded again here.
+ */
+async function applyReviewReflection(
+  input: ApplyProposalInput,
+  index: number,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const reviewId = optionalId(item, "reviewId");
+  if (reviewId === null) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: false,
+      message: "That draft is incomplete.",
+    };
+  }
+
+  let sectionId: ReviewSectionId;
+  try {
+    sectionId = parseReviewSectionId(item.sectionId);
+  } catch {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: false,
+      message: "That isn’t a section of this Review.",
+    };
+  }
+
+  const body = String(item.body ?? "");
+  if (body.length > LIMITS.noteBody) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: false,
+      message: "That reflection is too long.",
+    };
+  }
+
+  const review = await input.scope.reviews.get(reviewId);
+  if (review === null || review.deletedAt !== null) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: false,
+      message: "That Review is no longer available.",
+    };
+  }
+  if (review.archivedAt !== null) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: false,
+      message: "This Review is archived — restore it before writing in it.",
+    };
+  }
+
+  const section =
+    review.sections.find((entry) => entry.sectionId === sectionId) ?? null;
+  const currentBody = section?.body ?? "";
+
+  const expectedIso = String(item.expectedUpdatedAt ?? "").trim();
+  const expectedUpdatedAt =
+    expectedIso.length === 0 ? null : new Date(expectedIso);
+  if (expectedUpdatedAt !== null && Number.isNaN(expectedUpdatedAt.getTime())) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: false,
+      message: "That draft couldn’t be read.",
+    };
+  }
+
+  /*
+   * ALREADY THERE first, for the same reason the Finance path checks it first:
+   * a replayed acceptance finds the section holding exactly the text it wanted
+   * to write, and reporting that as a conflict would tell the owner their
+   * writing had been protected from themselves.
+   */
+  if (currentBody === body) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: true,
+      outcome: "unchanged",
+      id: reviewId,
+      created: false,
+    };
+  }
+
+  /*
+   * An expectation is REQUIRED for a section that already holds writing.
+   *
+   * A blank section has nothing to lose, and requiring a version for it would
+   * make the first draft of a Review harder to accept than the second. A
+   * section with text in it is the owner's writing, and accepting a draft over
+   * it without a version is precisely the blind write REVIEW-02 removed.
+   */
+  if (currentBody.trim().length > 0 && expectedUpdatedAt === null) {
+    return {
+      index,
+      kind: "review_reflection",
+      ok: false,
+      outcome: "stale",
+      id: reviewId,
+      message:
+        "This reflection already has writing in it. Re-open it so DalyHub can see what is there before replacing it.",
+    };
+  }
+
+  let updated;
+  try {
+    updated = await input.scope.reviews.updateSection(
+      reviewId,
+      sectionId,
+      body,
+      expectedUpdatedAt === null ? undefined : { expectedUpdatedAt },
+    );
+  } catch (cause) {
+    if (cause instanceof ReviewConflictError) {
+      return {
+        index,
+        kind: "review_reflection",
+        ok: false,
+        outcome: "stale",
+        id: reviewId,
+        message:
+          "You wrote in this reflection after the draft was made, so nothing was replaced. Your own writing is still there.",
+      };
+    }
+    throw cause;
+  }
+
+  const written =
+    updated.review.sections.find((entry) => entry.sectionId === sectionId) ??
+    null;
+
+  return {
+    index,
+    kind: "review_reflection",
+    ok: true,
+    outcome: "updated",
+    id: reviewId,
+    created: false,
+    /*
+     * The inverse carries the owner's PREVIOUS text and the version the write
+     * just produced. Undoing therefore restores exactly what was there — and
+     * refuses if the owner has typed since, so an undo cannot eat writing that
+     * came after the thing it is undoing.
+     */
+    undo: {
+      kind: "review_reflection",
+      reviewId,
+      sectionId,
+      body: currentBody,
+      expectedUpdatedAt: written?.updatedAt.toISOString() ?? null,
+    },
+  };
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+/* V2.15 — Undo                                                               */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Reverse previously applied items.
+ *
+ * The SAME shape as `applyProposalItems`, dispatched through the SAME registry,
+ * ending in the SAME canonical repository operations — because an undo is an
+ * ordinary owner mutation and nothing about it deserves a second write path.
+ *
+ * Every undo is guarded in the direction that matters: it states what it
+ * expects to find, and refuses if the record has moved on. An owner who undoes
+ * a categorisation an hour after re-categorising the row by hand gets a
+ * refusal, not a silent reversion of their newer decision.
+ *
+ * Undoing something already undone is a no-op that reports `unchanged`, so the
+ * whole path is replay-safe for the same reason the forward one is.
+ */
+export async function undoProposalItems(
+  input: ApplyProposalInput,
+): Promise<readonly AppliedItem[]> {
+  const undone: AppliedItem[] = [];
+
+  for (const [index, entry] of input.items.entries()) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      undone.push({
+        index,
+        kind: "task",
+        ok: false,
+        message: "That couldn’t be undone.",
+      });
+      continue;
+    }
+    const item = entry as Record<string, unknown>;
+    const kind = parseProposalKind(item.kind);
+    if (kind === null || !permits(input.feature ?? null, kind)) {
+      undone.push({
+        index,
+        kind: kind ?? "task",
+        ok: false,
+        message: "That couldn’t be undone.",
+      });
+      continue;
+    }
+
+    try {
+      undone.push(await undoOne(input, index, kind, item));
+    } catch (cause) {
+      undone.push({ index, kind, ok: false, message: refusalFor(cause) });
+    }
+  }
+
+  return undone;
+}
+
+async function undoOne(
+  input: ApplyProposalInput,
+  index: number,
+  kind: ProposalKind,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const strategy = proposalKindDescriptor(kind).undo;
+  switch (strategy) {
+    case "restore_previous":
+      return kind === "transaction_category"
+        ? undoTransactionCategory(input, index, item)
+        : undoReviewReflection(input, index, item);
+    case "remove_link":
+      return undoLink(input, index, item);
+    case "unlink_and_delete":
+      return undoObligationTask(input, index, item);
+    case "delete_created":
+      return undoCreatedRecord(input, index, kind, item);
+  }
+}
+
+/** Put a transaction's category back, refusing if it has moved since. */
+async function undoTransactionCategory(
+  input: ApplyProposalInput,
+  index: number,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const transactionId = optionalId(item, "transactionId");
+  if (transactionId === null) {
+    return {
+      index,
+      kind: "transaction_category",
+      ok: false,
+      message: "That change couldn’t be undone.",
+    };
+  }
+  return setProposedCategory(input.scope, index, {
+    transactionId,
+    next: optionalId(item, "categoryId"),
+    expected: optionalId(item, "expectedCategoryId"),
+  });
+}
+
+/** Put a Review section's previous text back, refusing if the owner has typed. */
+async function undoReviewReflection(
+  input: ApplyProposalInput,
+  index: number,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  /*
+   * Deliberately the FORWARD applier, unchanged.
+   *
+   * Restoring the previous text IS writing a reflection, and it must obey every
+   * rule writing one obeys: the Review must be live and unarchived, the section
+   * must exist, the body must be bounded, and the version must still match. One
+   * function, one set of rules, no drift.
+   */
+  return applyReviewReflection(input, index, item);
+}
+
+/** Unlink a relationship an acceptance asserted. */
+async function undoLink(
+  input: ApplyProposalInput,
+  index: number,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const linkId = optionalId(item, "linkId");
+  if (linkId === null) {
+    return {
+      index,
+      kind: "link",
+      ok: false,
+      message: "That link couldn’t be undone.",
+    };
+  }
+  const result = await input.scope.entityLinks.unlink(linkId);
+  return {
+    index,
+    kind: "link",
+    ok: true,
+    id: linkId,
+    created: false,
+    outcome: result.changed ? "updated" : "unchanged",
+  };
+}
+
+/**
+ * Reverse a follow-up: clear the obligation's pointer, then delete the Task.
+ *
+ * In that order, and the order is the guarantee. Clearing the pointer first
+ * means a failure between the two leaves an obligation with no Task and a Task
+ * with no obligation — untidy, and completely recoverable. Deleting first would
+ * leave the obligation pointing at a deleted record.
+ *
+ * The pointer is also the EXPECTATION: an obligation that no longer points at
+ * this Task has been changed by the owner since, and the undo refuses rather
+ * than deleting a Task the owner may have detached and kept on purpose.
+ */
+async function undoObligationTask(
+  input: ApplyProposalInput,
+  index: number,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const obligationId = optionalId(item, "obligationId");
+  const taskId = optionalId(item, "taskId");
+  if (obligationId === null || taskId === null) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      message: "That follow-up couldn’t be undone.",
+    };
+  }
+
+  const obligation = await input.scope.obligations.get(obligationId);
+  if (obligation === null) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      message: "That commitment is no longer available.",
+    };
+  }
+  if (obligation.taskId !== taskId) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      outcome: "stale",
+      id: taskId,
+      message:
+        "That commitment doesn’t point at this Task any more, so nothing was removed.",
+    };
+  }
+
+  await input.scope.obligations.unlinkTask(obligationId);
+  const removed = await compensateCapturedRecord(input.scope, taskId, "task");
+  if (!removed) {
+    return {
+      index,
+      kind: "obligation_task",
+      ok: false,
+      id: taskId,
+      message:
+        "The commitment was unlinked, but the Task is still there. Delete it yourself if you meant to.",
+    };
+  }
+  return {
+    index,
+    kind: "obligation_task",
+    ok: true,
+    id: taskId,
+    created: false,
+    outcome: "updated",
+  };
+}
+
+/** Soft-delete a Task or a Note an acceptance created. */
+async function undoCreatedRecord(
+  input: ApplyProposalInput,
+  index: number,
+  kind: ProposalKind,
+  item: Record<string, unknown>,
+): Promise<AppliedItem> {
+  const id = optionalId(item, "id");
+  if (id === null) {
+    return { index, kind, ok: false, message: "That couldn’t be undone." };
+  }
+  /*
+   * The SAME compensation the acceptance path already uses when a link fails
+   * after a record was created — the spine's soft delete for a Task, the
+   * entity's for a Note. Reversible in the ordinary way: an undone Task is a
+   * deleted Task, and a deleted Task restores.
+   */
+  const removed = await compensateCapturedRecord(
+    input.scope,
+    id,
+    kind === "note" ? "note" : "task",
+  );
+  return removed
+    ? { index, kind, ok: true, id, created: false, outcome: "updated" }
+    : { index, kind, ok: false, id, message: "That couldn’t be undone." };
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
 /* Idempotency                                                                */
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -745,7 +1716,7 @@ async function applyLink(
 export async function acceptanceIdempotencyKey(
   usageId: string,
   index: number,
-  kind: "task" | "note",
+  kind: ProposalKind,
   identity: string,
 ): Promise<string> {
   // Hashed rather than concatenated: the owner's own title would otherwise sit
@@ -761,6 +1732,26 @@ async function guarded(
   identity: string,
   create: () => Promise<AppliedItem>,
 ): Promise<AppliedItem> {
+  return guardedKind(input, index, kind, identity, create);
+}
+
+/**
+ * The same guard, for any CREATE kind.
+ *
+ * `withReplayGuard` takes a receipt `kind`, and the receipts table's own
+ * vocabulary is the capture one (`task`, `note`) rather than the proposal one.
+ * A V2.15 `obligation_task` creates a Task, so it claims a `task` receipt — the
+ * key it is claimed under already carries the proposal kind, so two different
+ * proposal kinds creating a Task at the same index of the same acceptance still
+ * take different keys.
+ */
+async function guardedKind(
+  input: ApplyProposalInput,
+  index: number,
+  kind: ProposalKind,
+  identity: string,
+  create: () => Promise<AppliedItem>,
+): Promise<AppliedItem> {
   const receipts = input.receipts;
   if (!receipts || input.usageId.length === 0) return create();
 
@@ -770,13 +1761,21 @@ async function guarded(
     kind,
     identity,
   );
+  const receiptKind = kind === "note" ? "note" : "task";
 
   return withReplayGuard(
-    { ...receipts, kind },
+    { ...receipts, kind: receiptKind },
     key,
     create,
     (result) => (result.id !== undefined && result.ok ? result.id : null),
-    (recordId) => ({ index, kind, ok: true, id: recordId, created: false }),
+    (recordId) => ({
+      index,
+      kind,
+      ok: true,
+      id: recordId,
+      created: false,
+      outcome: "unchanged" as const,
+    }),
     (reason) => ({ index, kind, ok: false, message: reason }),
   );
 }
@@ -831,9 +1830,23 @@ export function refusalFor(cause: unknown): string {
     cause instanceof TaskValidationError ||
     cause instanceof SpineValidationError ||
     cause instanceof EntityValidationError ||
-    cause instanceof NoteDetailsValidationError
+    cause instanceof NoteDetailsValidationError ||
+    cause instanceof ObligationValidationError ||
+    cause instanceof ReviewValidationError ||
+    cause instanceof FinanceValidationError
   ) {
     return cause.message;
+  }
+  // V2.15 — the domain refusals the new kinds can raise. Each already carries an
+  // owner-facing, content-free sentence, which is why it is passed through
+  // rather than translated a second time here.
+  if (cause instanceof FinanceRefusedError) return cause.message;
+  if (cause instanceof ReviewConflictError) {
+    return "That Review changed before this was applied. Nothing was replaced.";
+  }
+  if (cause instanceof ReviewArchivedError) return cause.message;
+  if (cause instanceof ReviewNotFoundError) {
+    return "That Review is no longer available.";
   }
   return "That couldn’t be saved. Nothing was changed for this item.";
 }

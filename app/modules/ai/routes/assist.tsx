@@ -42,6 +42,7 @@ import {
   type AiFeatureId,
   type FactBlock,
 } from "~/kernel/ai";
+import { REVIEW_SECTION_IDS, type ReviewSectionId } from "~/kernel/reviews";
 import {
   parseReportDefinition,
   reportQuestion,
@@ -51,7 +52,9 @@ import {
 } from "~/kernel/reports";
 import {
   answerDeterministically,
+  buildFinanceCategorisationFacts,
   buildGroundedFacts,
+  buildObligationFollowUpFacts,
   classifyDeterministicIntent,
   reportFactBlock,
   resolveAiConfiguration,
@@ -111,6 +114,14 @@ interface AssistBody {
    * owner's own citation at another report of theirs.
    */
   readonly reportHref?: string;
+  /**
+   * V2.15 — which Review reflection section a draft is for.
+   *
+   * Validated against the Review's own closed `REVIEW_SECTION_IDS` vocabulary
+   * before it is used, so an unknown value is a refusal rather than a write to
+   * a section that does not exist.
+   */
+  readonly sectionId?: string;
   readonly idempotencyKey: string;
   readonly deep?: boolean;
   /**
@@ -141,6 +152,23 @@ function safeReportsPath(value: string): string | null {
   return path;
 }
 
+/**
+ * Narrow a browser value to one of the Review's own section ids, or `null`.
+ *
+ * The vocabulary is the Review kernel's, not a list retyped here, so a section
+ * added or removed there cannot leave this route accepting a stale one.
+ * Deliberately NOT the kernel's own `parseReviewSectionId`, which THROWS a
+ * validation error: at this boundary an unknown section is an AI refusal with a
+ * calm sentence, not a field-level form error about a field the owner never
+ * filled in.
+ */
+function reviewSectionIdOrNull(value: unknown): ReviewSectionId | null {
+  return typeof value === "string" &&
+    (REVIEW_SECTION_IDS as readonly string[]).includes(value)
+    ? (value as ReviewSectionId)
+    : null;
+}
+
 /** Parse and bound the request. Never trusts a field it did not ask for. */
 function parseBody(form: FormData): AssistBody | null {
   const feature = String(form.get("feature") ?? "");
@@ -157,8 +185,10 @@ function parseBody(form: FormData): AssistBody | null {
   const digest = String(form.get("resultDigest") ?? "").slice(0, 128);
   const reportHref = safeReportsPath(String(form.get("reportHref") ?? ""));
   const scenario = String(form.get("scenario") ?? "").slice(0, 64);
+  const sectionId = String(form.get("sectionId") ?? "").slice(0, 64);
   return {
     feature,
+    sectionId: sectionId.length > 0 ? sectionId : undefined,
     recordId: recordId.length > 0 ? recordId : undefined,
     question: question.length > 0 ? question : undefined,
     definition: definition.length > 0 ? definition : undefined,
@@ -179,6 +209,21 @@ interface Assembled extends RetrievalResult {
   readonly featureOverride?: AiFeatureId;
   /** Deterministic assumptions the owner is told about, never hidden. */
   readonly assumptions?: readonly string[];
+  /**
+   * V2.15 — the CLOSED index spaces a proposal feature offers the model, and
+   * the server-side lists those indexes resolve against.
+   *
+   * The lists never reach the browser as authority: the response carries
+   * positions, this route resolves them into ids, and the SURFACE is handed
+   * resolved rows. A browser that later submits an acceptance re-states the
+   * resolved id, and `apply-proposal.ts` re-reads it from storage anyway.
+   */
+  readonly selection?: {
+    readonly rowCount: number;
+    readonly optionCount: number;
+  };
+  /** V2.15 — what a proposal surface renders beside the suggestion. */
+  readonly proposalContext?: Record<string, unknown>;
 }
 
 /** An empty retrieval — the shape a fact-grounded feature uses. */
@@ -409,6 +454,107 @@ async function retrieveFor(
         timezone,
       );
     }
+    /* ------------------------------------------------ V2.15 ASSISTED ---- */
+    case "finance-categorisation": {
+      const assembled = await buildFinanceCategorisationFacts(scope, {
+        maxFacts: aiFeaturePolicy("finance-categorisation").maxFacts,
+        allowedCategories: ai.allowedCategories,
+      });
+      if (assembled.rows.length === 0) {
+        /*
+         * Nothing to ask about. Either the queue is empty or the deterministic
+         * rule already answers every row in it — and in the second case the
+         * honest outcome is to say so and charge nothing, rather than send a
+         * provider an empty batch and bill the owner for the round trip.
+         */
+        throw new AiError(
+          "evidence_unavailable",
+          undefined,
+          "nothing_to_categorise",
+        );
+      }
+      return factsOnly(await identifyFactBlock(assembled.block), {
+        selection: {
+          rowCount: assembled.rows.length,
+          optionCount: assembled.options.length,
+        },
+        proposalContext: {
+          rows: assembled.rows,
+          options: assembled.options,
+          deterministicallyAnswered: assembled.deterministicallyAnswered,
+        },
+      });
+    }
+    case "obligation-follow-up": {
+      const assembled = await buildObligationFollowUpFacts(scope, {
+        obligationId: body.recordId ?? "",
+        todayIso,
+        maxFacts: aiFeaturePolicy("obligation-follow-up").maxFacts,
+        allowedCategories: ai.allowedCategories,
+      });
+      /*
+       * `null` is every refusal at once — missing, another workspace's,
+       * deleted, archived, not open, no due date, or not actually overdue —
+       * and they are deliberately indistinguishable, as everywhere else in
+       * DalyHub. A caller learns that no follow-up is available, never whether
+       * an id exists.
+       */
+      if (assembled === null) {
+        throw new AiError(
+          "evidence_unavailable",
+          undefined,
+          "not_an_overdue_obligation",
+        );
+      }
+      return factsOnly(await identifyFactBlock(assembled.block), {
+        proposalContext: {
+          obligationId: assembled.obligation.id,
+          title: assembled.obligation.title,
+          dueDate: assembled.obligation.dueDate,
+          daysOverdue: assembled.daysOverdue,
+          hasOpenTask: assembled.hasOpenTask,
+        },
+      });
+    }
+    case "review-reflection-draft": {
+      const review = await scope.reviews.get(body.recordId ?? "");
+      if (!review) throw new Response("Not Found", { status: 404 });
+      const sectionId = reviewSectionIdOrNull(body.sectionId);
+      if (sectionId === null) {
+        throw new AiError("internal", undefined, "unknown_section");
+      }
+      /*
+       * The SAME block V2.14's Weekly Review assistant reads, built by the same
+       * builder. A period's facts do not change because the ask changed from
+       * "explain this" to "draft something about this", and building a second
+       * near-identical block for the draft is how two answers about one week
+       * come to disagree.
+       */
+      const { block } = await buildReviewFactBlock(scope, {
+        reviewId: review.id,
+        periodStart: review.periodStart,
+        periodEnd: review.periodEnd,
+        todayIso,
+        timezone,
+        firstDayOfWeek: preferences.firstDayOfWeek,
+      });
+      const section =
+        review.sections.find((entry) => entry.sectionId === sectionId) ?? null;
+      return factsOnly(await identifyFactBlock(block), {
+        proposalContext: {
+          reviewId: review.id,
+          sectionId,
+          /*
+           * The section's CURRENT body and its version, so the surface can show
+           * `current → proposed` and carry the expectation into the acceptance.
+           * Neither is trusted at apply time: `apply-proposal.ts` re-reads the
+           * section and hands the version to REVIEW-02's own concurrency guard.
+           */
+          currentBody: section?.body ?? "",
+          expectedUpdatedAt: section?.updatedAt.toISOString() ?? null,
+        },
+      });
+    }
   }
 }
 
@@ -508,6 +654,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         derivedFacts: retrieval.derivedFacts,
         ownerInput:
           policy.maxOwnerInputCharacters > 0 ? body.question : undefined,
+        selection: retrieval.selection ?? null,
         idempotencyKey: body.idempotencyKey,
         requestDeep: body.deep,
         signal: request.signal,
@@ -530,6 +677,15 @@ export async function action({ request, context }: Route.ActionArgs) {
       // itself is refused or unavailable.
       facts,
       assumptions: retrieval.assumptions ?? [],
+      /*
+       * V2.15 — what the proposal surface renders the suggestion AGAINST: the
+       * rows and categories a categorisation batch was built from, the
+       * obligation a follow-up is for, the Review section a draft would
+       * replace. All of it is DalyHub's own, read under the same scope the
+       * request was authenticated in, and none of it is authority at apply
+       * time — every id is re-read from storage when the owner accepts.
+       */
+      proposal: retrieval.proposalContext ?? null,
       disclosure: {
         recordCount: retrieval.evidence.items.length,
         truncated: retrieval.evidence.truncated,

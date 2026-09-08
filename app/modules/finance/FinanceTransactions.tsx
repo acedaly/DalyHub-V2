@@ -22,7 +22,21 @@
  * A row with a deterministic suggestion offers it as a button beside
  * "Categorise". Accepting it is what makes the category CONFIRMED, which is the
  * only thing the suggestion rule learns from — so it can never learn from its
- * own guesses. Nothing auto-applies, and there is no AI anywhere near it.
+ * own guesses. Nothing auto-applies.
+ *
+ * ## V2.15 — and the AI control sits BESIDE that, not in front of it
+ *
+ * The queue gained one control, on the queue lens only: **Suggest categories**.
+ * It is pressed, never automatic. It is offered the rows the deterministic rule
+ * cannot already answer, and nothing else. And every state of it — off,
+ * unconfigured, not permitted, over budget, failing — leaves this screen
+ * working exactly as it did, because the deterministic suggestion, the picker
+ * and the one-tap accept were never behind it.
+ *
+ * The sentence that used to end the paragraph above read "there is no AI
+ * anywhere near it". That is now false in one direction and still true in the
+ * one that matters: no AI participates in categorising a row. It suggests, and
+ * the owner categorises.
  *
  * ## No gesture without a keyboard path
  *
@@ -44,6 +58,7 @@ import {
 } from "~/shared/finance";
 import { Button, ButtonLink, Sheet } from "~/shared/ui";
 
+import { FinanceCategorySuggestions } from "./FinanceCategorySuggestions";
 import type { FinanceTransactionsData } from "./finance-view";
 import { MonthNav } from "./MonthNav";
 import { NewTransactionForm } from "./NewTransactionForm";
@@ -174,6 +189,19 @@ export function FinanceTransactions(props: FinanceTransactionsData) {
           {actions.error}
         </p>
       )}
+
+      {/*
+       * The AI control renders ONLY on the queue lens, and only above the
+       * list. On the month list it would be an action about a question the
+       * owner is not asking: the month is for reading, the queue is for
+       * clearing.
+       */}
+      {uncategorised && !failed ? (
+        <FinanceCategorySuggestions
+          availability={props.aiCategorisation}
+          queueSize={total}
+        />
+      ) : null}
 
       {transactions.length === 0 ? (
         uncategorised ? (

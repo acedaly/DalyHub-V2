@@ -117,6 +117,67 @@ export async function readAiAvailability(
   };
 }
 
+/**
+ * V2.15 — availability for SEVERAL features, reading the owner's preferences
+ * ONCE.
+ *
+ * The guided Weekly Review needs two answers on one page: whether the V2.14
+ * assistant can run, and whether the V2.15 reflection draft can. Calling
+ * `readAiAvailability` twice reads the same preference row twice, which is one
+ * bounded statement more than the page needs on its loading path — small, but
+ * PERF-01's rule is that a loader's cost is measured rather than assumed, and
+ * "it is only one more" is how a loader acquires six.
+ *
+ * The per-feature budget totals are still read per feature, because they ARE
+ * per feature: a daily request count for the assistant says nothing about the
+ * draft's.
+ */
+export async function readAiAvailabilityForFeatures<
+  const T extends readonly AiFeatureId[],
+>(
+  scope: WorkspaceScope,
+  ownerId: string,
+  featureIds: T,
+  env: AiConfigEnv,
+  now = new Date(),
+): Promise<Readonly<Record<T[number], AiAvailability>>> {
+  const preferences = await scope.aiPreferences.get(ownerId);
+  const configuration = resolveAiConfiguration(env);
+  const keys = budgetPeriodKeys(now);
+
+  const entries = await Promise.all(
+    featureIds.map(async (featureId) => {
+      const totals = await scope.aiUsage.totals({
+        day: keys.day,
+        month: keys.month,
+        featureId,
+      });
+      const snapshot = budgetSnapshot(preferences, totals, keys);
+      return [
+        featureId,
+        {
+          enabled: preferences.enabled,
+          providerConfigured: configuration.anyProviderConfigured,
+          usingDevelopmentProvider:
+            configuration.summary.usingDevelopmentProvider,
+          featureAllowed: preferences.allowedFeatures.includes(featureId),
+          budgetExhausted: snapshot.exhausted,
+          monthRemainingUsd: snapshot.remaining.monthUsd,
+          dayRemainingUsd: snapshot.remaining.dayUsd,
+          monthlyBudgetUsd: snapshot.monthlyBudgetUsd,
+          monthSpentUsd: snapshot.monthSpentUsd,
+          bodyLoggingEnabled: preferences.loggingMode === "bodies",
+          allowedCategories: preferences.allowedCategories,
+        } satisfies AiAvailability,
+      ] as const;
+    }),
+  );
+
+  return Object.fromEntries(entries) as Readonly<
+    Record<T[number], AiAvailability>
+  >;
+}
+
 /** A citation card, resolved from evidence DalyHub itself supplied. */
 export interface SerializedCitation {
   readonly id: string;

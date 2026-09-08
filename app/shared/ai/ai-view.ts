@@ -113,6 +113,21 @@ export type AiSurfaceState =
        * however well it is written.
        */
       readonly assumptions: readonly string[];
+      /**
+       * V2.15 — what the proposal is ABOUT, as DalyHub read it.
+       *
+       * The rows a categorisation batch was built from, the obligation a
+       * follow-up is for, the Review section a draft would replace. It is
+       * DalyHub's own — assembled server-side under the same scope the request
+       * was authenticated in — and it is presentation only: every id in it is
+       * re-read from storage when the owner accepts, so nothing here is
+       * authority for a mutation.
+       *
+       * `unknown` deliberately. Each surface narrows it with its own parser
+       * (`proposal-view.ts`), which refuses a shape it does not recognise
+       * rather than rendering a partial one.
+       */
+      readonly proposal: unknown;
     }
   | {
       readonly kind: "deterministic";

@@ -83,6 +83,31 @@ export interface FinanceTransactionsData extends FinanceMonthContext {
   readonly nextCursor: string | null;
   readonly total: number;
   readonly failed: boolean;
+  /**
+   * V2.15 — whether the AI categorisation control can run, resolved
+   * SERVER-SIDE by this loader.
+   *
+   * The browser is told what is available; it never decides. An owner who has
+   * not allowed `financial` content, or has AI off, or has no provider
+   * configured, gets a calm sentence and a queue that works exactly as it did
+   * — the deterministic suggestions are not behind this gate and never were.
+   */
+  readonly aiCategorisation: {
+    readonly enabled: boolean;
+    readonly providerConfigured: boolean;
+    readonly featureAllowed: boolean;
+    readonly budgetExhausted: boolean;
+    /**
+     * Whether the owner has allowed FINANCIAL content to reach a provider.
+     *
+     * Carried separately from the four gates above because it is a different
+     * kind of "no": the others are switches, and this is consent. Knowing it
+     * before the request runs is what turns a refusal after the fact into an
+     * explanation before it — the owner is told what the feature would need
+     * rather than being told afterwards that it was not allowed.
+     */
+    readonly financialAllowed: boolean;
+  };
 }
 
 export interface FinanceBudgetsData extends FinanceMonthContext {

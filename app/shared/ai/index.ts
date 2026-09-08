@@ -38,6 +38,45 @@ export {
 } from "./AiExtractionSurface";
 
 export {
+  AiAssistSurface,
+  type AiAssistSurfaceProps,
+  type AiSurfaceAvailabilityGate,
+} from "./AiAssistSurface";
+
+export {
+  AiProposalReview,
+  type AiProposalReviewProps,
+} from "./AiProposalReview";
+
+export {
+  applySummary,
+  asCategorisation,
+  asCategorisationContext,
+  asFollowUp,
+  asFollowUpContext,
+  asReflection,
+  asReflectionContext,
+  categorisationItem,
+  categorisationRows,
+  followUpItem,
+  followUpRows,
+  patchRow,
+  proposalOutcomeLabel,
+  reflectionItem,
+  reflectionRows,
+  selectedRows,
+  setAllSelected,
+  type CategorisationContext,
+  type CategorisationOptionContext,
+  type CategorisationRowContext,
+  type FollowUpContext,
+  type ProposalOption,
+  type ProposalRowDraft,
+  type ProposalRowOutcome,
+  type ReflectionContext,
+} from "./proposal-view";
+
+export {
   AiWeeklyReviewSurface,
   type AiWeeklyReviewSurfaceProps,
 } from "./AiWeeklyReviewSurface";

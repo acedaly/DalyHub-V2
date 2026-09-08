@@ -7268,3 +7268,121 @@ until the off-Cloudflare copy exists and has been restored from once.
   nobody could reason about). *Sending raw transactions and asking why August
   cost more* (rejected: it is the exact inversion of decision 1, it is expensive,
   and it is less correct than arithmetic DalyHub already performs).
+
+---
+
+## ADR-123: ASSISTED AI — one closed proposal vocabulary behind one apply authority, an undo that is a type rather than a rule, an expectation on every change, and two capabilities refused for want of grounding
+
+- **Status.** Accepted (2026-09-08, V2.15 ASSISTED AI, defined against `main` at
+  `701fe25`). The programme is
+  [`ROADMAP_V2_15.md`](../roadmap/ROADMAP_V2_15.md). This ADR records the six
+  durable decisions of that pass; it neither restates
+  [ADR-004](#adr-004-ai-proposal-architecture) (proposals, not mutations) nor
+  [ADR-073](#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract)
+  (the controlled platform) nor
+  [ADR-122](#adr-122-grounded-ai--the-provider-never-owns-product-truth-a-factblock-that-is-the-whole-of-what-may-be-stated-a-response-schema-with-no-numeric-field-and-a-fake-provider-at-the-adapter-seam)
+  (grounding), all three of which it depends on unchanged.
+
+- **Context.** V2.14 left DalyHub with an AI that can explain a fact it did not
+  invent. The next step is an AI that can propose a change it does not make. The
+  proposal path it inherits was three years of good decisions with three gaps a
+  release that adds *mutations* cannot carry: the item vocabulary was a ternary
+  that fell through to `task`, so a payload naming a kind that does not exist
+  created a record; one creation path had no replay guard; and **no AI surface
+  had undo at all**, in a product whose stated convention is `notifyUndo` plus a
+  reverse mutation.
+
+- **Decision.**
+
+  1. **The proposal vocabulary is CLOSED, TYPED and REGISTERED.** Six kinds —
+     `task`, `note`, `link`, `transaction_category`, `obligation_task`,
+     `review_reflection` — each with one registry row declaring its target, its
+     `create`/`update` nature, the features permitted to produce it, the privacy
+     categories generating it discloses and how it is undone. An unrecognised
+     kind is REFUSED, never coerced. A kind names the MUTATION rather than the
+     source: an obligation follow-up is a Task creation plus an obligation
+     pointer, so the kind is `obligation_task` and not `obligation`.
+
+  2. **Undo is a type, not a rule.** `undo` is a required field on every
+     descriptor whose type is a closed union of implemented strategies, so a
+     kind with no undo contract does not typecheck. The release invariant
+     "every applied proposal must be undoable" is therefore unrepresentable to
+     break, rather than remembered.
+
+  3. **There is still exactly ONE apply authority, and undo goes through it.**
+     `intent=undo` is a second intent on the existing route, dispatched through
+     the same registry to the same canonical repository operations, because an
+     undo of a category change IS a category change. A second route would have
+     been the second apply path the programme forbids. The count is asserted by
+     an architecture test that ENUMERATES every call site across the whole
+     application and both workers — an absence proof says nothing else writes,
+     and the rule is a count.
+
+  4. **Every change carries an expectation of the state it was generated
+     against, and a mismatch REFUSES.** A category proposal states the category
+     it saw (normally none); a Review draft states the section version it was
+     written about, checked by REVIEW-02's own optimistic concurrency; a
+     follow-up requires the obligation still open. There is no force flag and no
+     merge. A stale refusal is always preferred to overwriting the owner's own
+     work — in both directions, so an undo cannot eat writing that came after
+     the thing it is undoing either. "Already in the target state" is checked
+     BEFORE staleness, so a replay reads as a replay rather than as a conflict.
+
+  5. **No new persistent store.** Measured against the four things durable
+     proposal state would buy: replay safety is already the PWA-05 receipts
+     table's, arbitrated by primary key; the stale guard's authority is the
+     TARGET's own current state, which is already stored; undo's inverse is an
+     ordinary mutation whose prior value is a field on the record the owner is
+     looking at; and disposition is the existing `proposal_outcome` column,
+     widened by one value. A proposal is a transient artefact of one owner
+     action, and persisting model prose DalyHub decided not to keep would be
+     storing AI output in a ledger whose whole design is metadata-only.
+
+  6. **Two capabilities the presumptive sketch named are REFUSED, for want of
+     grounding rather than for want of time.** `transfer_pair` is struck because
+     `suggestTransferPartners` already matches on the exactly opposite amount,
+     the same currency, a different account and a three-day window — an
+     arithmetic identity leaves no ambiguity for a model to reduce, and adding a
+     provider round trip to a one-tap decision is a cost with no benefit.
+     Duplicate correction is struck because the only duplicate detector runs at
+     import preview and is per-file: there is no standing post-import candidate
+     read to bound an AI proposal, and deciding from prose that two rows are the
+     same is the ungrounded data selection ADR-122 decision 1 exists to prevent.
+     Note that the second is NOT a reversibility refusal — transaction deletion
+     is soft and `restoreTransaction` exists — which is why it is recorded as a
+     grounding decision and re-openable by Finance work rather than by AI work.
+
+- **Consequences.** Adding a proposal kind now costs a registry row, an apply
+  adapter, an undo adapter and a fact builder, and cannot be done by adding a
+  string — which is the cost of the guarantee and is paid deliberately. Finance
+  categorisation runs deterministic-first: a payee whose category the owner has
+  confirmed before is answered by one SQL statement and never reaches a
+  provider, so AI is offered only the residue and the owner keeps the one-tap
+  suggestion they already had. The `financial` and `reflection` consent gates
+  are unchanged and are the real gates: an owner who has not allowed financial
+  content gets the whole queue, the deterministic suggestions and a sentence
+  explaining what the AI control would need — with nothing leaving DalyHub. Two
+  V2.12/V2.14 architecture assertions are corrected rather than deleted ("no AI
+  touches Finance"; "every grounded feature is read-only"), each replaced by the
+  half that was load-bearing and stated more sharply than before.
+
+- **Alternatives considered.** *A generic `update_record` kind with a `changes`
+  map* (rejected: it makes an unsupported change representable, which is the
+  whole thing the closed vocabulary prevents — and it has no inverse, so
+  decision 2 could not hold). *Letting the provider return category and record
+  IDs and validating them* (rejected: the Finance schema expresses every
+  reference as an integer position into a list DalyHub supplied, so an invented
+  id is unrepresentable rather than detected — the same reasoning as ADR-122
+  decision 3). *A confidence threshold that auto-applies above a score*
+  (rejected: it is the autonomy the whole architecture refuses, and a percentage
+  is fake precision an owner reasonably reads as a probability; the response
+  schemas carry no confidence field at all). *An `ai_proposals` table*
+  (rejected: decision 5 — measured against what it would buy, and it buys
+  nothing the existing stores do not already own). *A second undo route*
+  (rejected: decision 3 — one authority, or the count is not one). *Drafting a
+  reflection as a DIFF against the owner's existing text* (rejected: a proposal
+  whose meaning depends on state nobody re-checked; the draft is whole and the
+  section version is the guard). *An AI actions dashboard collecting suggestions
+  across the product* (rejected: it is an inbox of pending mutations, which is
+  the background agent the programme's non-goals name first — every entry point
+  is local to the data it is about and is pressed by the owner).

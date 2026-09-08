@@ -101,6 +101,7 @@ function contextFor(text: string): ValidationContext {
     projectCandidateIds: new Set(),
     personCandidateIds: new Set(),
     linkCandidateIds: new Set(),
+    selection: null,
     facts: blockFor(text).facts,
   };
 }

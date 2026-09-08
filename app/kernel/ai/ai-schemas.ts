@@ -46,6 +46,14 @@ export const LIMITS = {
    */
   noteTitle: 120,
   noteBody: 4_000,
+  /**
+   * V2.15 — a proposed Review reflection.
+   *
+   * Deliberately far below what a hand-written reflection may hold. A draft is
+   * a starting point the owner edits before it becomes theirs, never a place
+   * for a model to write an essay into the owner's own personal writing.
+   */
+  reflectionDraft: 2_000,
 } as const;
 
 /** Per-feature item-count ceilings. */
@@ -76,6 +84,23 @@ export const COUNTS = {
    * than inviting a wall of generated prose the owner must wade through.
    */
   proposedNotes: 4,
+  /**
+   * V2.15 — category suggestions in one Finance batch.
+   *
+   * The SAME number as the batch bound, because the answer is at most one
+   * suggestion per row DalyHub sent. A response carrying more rows than were
+   * asked about is refused rather than truncated: an extra row is either a
+   * model that invented a transaction or a prompt-injection that succeeded, and
+   * neither should be silently trimmed to a plausible size.
+   */
+  categorySuggestions: 20,
+  /**
+   * V2.15 — proposed follow-up Tasks for ONE overdue obligation.
+   *
+   * Three. An overdue electricity bill needs a call, perhaps a payment and
+   * perhaps a diary note; a fourth is a list, not a follow-up.
+   */
+  followUpTasks: 3,
 } as const;
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -318,13 +343,93 @@ export interface GroundedExplanationResult {
   readonly observations: readonly GroundedObservation[];
 }
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* V2.15 ASSISTED — proposal result shapes                                    */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * ONE proposed category for ONE transaction.
+ *
+ * Note what is NOT here: a transaction id, and a category id. Both are
+ * INDEXES into lists DalyHub supplied with the request. That is the structural
+ * half of "the provider may not invent an id" — there is no field to put one
+ * in, so an invented id is not rejected at validation, it is unrepresentable.
+ *
+ * The reason is prose the owner reads beside the change, and it is subject to
+ * the same numeric-grounding rule as every other V2.14 claim: a figure in it
+ * must come from a fact the suggestion cites.
+ */
+export interface ProposedTransactionCategory {
+  /** Index into the batch of uncategorised rows DalyHub sent. */
+  readonly rowIndex: number;
+  /** Index into the ACTIVE category vocabulary DalyHub sent. */
+  readonly categoryIndex: number;
+  /** Why, in one short sentence the owner reads beside the change. */
+  readonly reason: string;
+  readonly factIds: readonly string[];
+}
+
+/** The validated result of a Finance categorisation request. */
+export interface FinanceCategorisationResult {
+  readonly kind: "finance_categorisation";
+  /**
+   * `insufficient` is a legitimate, successful answer: a batch of unfamiliar
+   * payees with nothing to go on SHOULD produce no suggestions, and saying so
+   * is better than guessing. A row the model has nothing to say about is simply
+   * absent from `suggestions`, and the surface renders "No suggestion".
+   */
+  readonly status: "ok" | "insufficient";
+  readonly suggestions: readonly ProposedTransactionCategory[];
+}
+
+/**
+ * ONE proposed follow-up Task for an overdue obligation.
+ *
+ * There is no date field, and that is deliberate. The obligation's own due date
+ * is the Task's due date — which is what the existing `create-task` intent on
+ * `/obligations/mutate` already does — so there is no date for a model to
+ * infer and no inferred date for the owner to have to check.
+ */
+export interface ProposedFollowUpTask {
+  readonly title: string;
+  readonly reason: string;
+  readonly factIds: readonly string[];
+}
+
+/** The validated result of an obligation follow-up request. */
+export interface ObligationFollowUpResult {
+  readonly kind: "obligation_follow_up";
+  readonly status: "ok" | "insufficient";
+  readonly tasks: readonly ProposedFollowUpTask[];
+}
+
+/**
+ * The validated result of a Review reflection draft.
+ *
+ * ONE draft. Not a list of drafts to choose between, and not a partial edit of
+ * the owner's existing text: a proposal that arrived as a diff against writing
+ * the owner may have changed since would be a proposal whose meaning depends on
+ * state nobody re-checked. The draft is whole, and the apply path guards the
+ * section it would replace with REVIEW-02's optimistic concurrency.
+ */
+export interface ReviewReflectionDraftResult {
+  readonly kind: "review_reflection_draft";
+  readonly status: "ok" | "insufficient";
+  /** Plain Markdown prose. Bounded by `LIMITS.reflectionDraft`. */
+  readonly draft: string;
+  readonly factIds: readonly string[];
+}
+
 /** The union every validated AI result belongs to. */
 export type AiResult =
   | ActionExtractionResult
   | MeetingExtractionResult
   | WeeklyReviewAssistantResult
   | WorkspaceAnswerResult
-  | GroundedExplanationResult;
+  | GroundedExplanationResult
+  | FinanceCategorisationResult
+  | ObligationFollowUpResult
+  | ReviewReflectionDraftResult;
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /* JSON Schemas sent to the provider                                          */
@@ -558,6 +663,96 @@ export const GROUNDED_EXPLANATION_SCHEMA: JsonSchema = object({
   },
 });
 
+/* -------------------------------------------------------------------------- */
+/* V2.15 ASSISTED — the three proposal schemas                                */
+/* -------------------------------------------------------------------------- */
+
+/** A citation array over FACT ids. The V2.15 features cite facts only. */
+const factIdsSchema: JsonSchema = {
+  type: "array",
+  items: { type: "string" },
+  maxItems: COUNTS.evidenceIdsPerItem,
+  description:
+    "Fact ids copied exactly from the supplied facts, e.g. F1. Never invent one.",
+};
+
+/**
+ * V2.15 — the schema for Finance categorisation.
+ *
+ * Every reference is an INTEGER INDEX. There is no string id anywhere in this
+ * schema, which is why "the provider invents a category id" is not a failure
+ * mode this feature has: the answer has nowhere to put one.
+ */
+export const FINANCE_CATEGORISATION_SCHEMA: JsonSchema = object({
+  status: { type: "string", enum: ["ok", "insufficient"] },
+  suggestions: {
+    type: "array",
+    maxItems: COUNTS.categorySuggestions,
+    description:
+      "At most one entry per supplied row. Omit a row you have nothing to go on for — no suggestion is a better answer than a guess.",
+    items: object({
+      rowIndex: {
+        type: "integer",
+        description:
+          "The zero-based position of the transaction in the supplied list.",
+      },
+      categoryIndex: {
+        type: "integer",
+        description:
+          "The zero-based position of the category in the supplied category list. Never a name, never an id.",
+      },
+      reason: {
+        type: "string",
+        description:
+          "One short sentence. State what in the payee supports the category. No advice.",
+      },
+      factIds: factIdsSchema,
+    }),
+  },
+});
+
+/**
+ * V2.15 — the schema for an obligation follow-up.
+ *
+ * A title and a reason. No date (the obligation's own due date is used), no
+ * project, no priority, no assignee, no recurrence — every one of those is the
+ * owner's, set through the ordinary Task surfaces after the Task exists.
+ */
+export const OBLIGATION_FOLLOW_UP_SCHEMA: JsonSchema = object({
+  status: { type: "string", enum: ["ok", "insufficient"] },
+  tasks: {
+    type: "array",
+    maxItems: COUNTS.followUpTasks,
+    description:
+      "Concrete next actions for this overdue obligation. Fewer is better; an empty list with status insufficient is a legitimate answer.",
+    items: object({
+      title: {
+        type: "string",
+        description:
+          "An imperative Task title. Plain text, no Markdown, no HTML, no ids.",
+      },
+      reason: { type: "string" },
+      factIds: factIdsSchema,
+    }),
+  },
+});
+
+/**
+ * V2.15 — the schema for a Review reflection draft.
+ *
+ * ONE string. The draft is prose the owner reads, edits and approves; it is not
+ * a structure, because a structured reflection would be the product telling the
+ * owner what shape their own thinking takes.
+ */
+export const REVIEW_REFLECTION_SCHEMA: JsonSchema = object({
+  status: { type: "string", enum: ["ok", "insufficient"] },
+  draft: {
+    type: "string",
+    description: `Plain Markdown prose in the owner's second person. No headings, no HTML, no record ids, no advice about what they should do next. At most ${LIMITS.reflectionDraft} characters.`,
+  },
+  factIds: factIdsSchema,
+});
+
 /** The schema a feature sends to the provider. */
 export function schemaForFeature(feature: AiFeatureId): JsonSchema {
   switch (feature) {
@@ -572,6 +767,12 @@ export function schemaForFeature(feature: AiFeatureId): JsonSchema {
     case "report-explanation":
     case "grounded-question-answer":
       return GROUNDED_EXPLANATION_SCHEMA;
+    case "finance-categorisation":
+      return FINANCE_CATEGORISATION_SCHEMA;
+    case "obligation-follow-up":
+      return OBLIGATION_FOLLOW_UP_SCHEMA;
+    case "review-reflection-draft":
+      return REVIEW_REFLECTION_SCHEMA;
   }
 }
 
@@ -599,6 +800,28 @@ export interface ValidationContext {
    * supplied, and only the fact's own value proves the FIGURE came from it.
    */
   readonly facts: readonly Fact[];
+  /**
+   * V2.15 — the CLOSED INDEX SPACES a proposal-producing feature may select
+   * from, or `null` for a feature that selects nothing.
+   *
+   * The Finance categorisation schema expresses every reference as an integer
+   * index rather than an id, which makes an invented id unrepresentable. This
+   * is the other half: an index OUT OF RANGE is refused, so a model that
+   * answers about a twenty-first row in a batch of twenty — or picks the
+   * hundredth category of twelve — has its whole answer rejected rather than
+   * having the stray entry quietly dropped.
+   *
+   * Refusing the answer WHOLE rather than filtering it is the same choice the
+   * citation validator makes, for the same reason: a response containing one
+   * fabricated reference is not a response with one bad row in it, it is a
+   * response DalyHub has no reason to trust the rest of.
+   */
+  readonly selection: {
+    /** How many rows the request asked about. */
+    readonly rowCount: number;
+    /** How many options the request offered. */
+    readonly optionCount: number;
+  } | null;
 }
 
 /** An empty context — nothing may be referenced. */
@@ -608,6 +831,7 @@ export const EMPTY_VALIDATION_CONTEXT: ValidationContext = {
   personCandidateIds: new Set(),
   linkCandidateIds: new Set(),
   facts: [],
+  selection: null,
 };
 
 /** The facts a validated citation list names, in the order they were cited. */
@@ -659,15 +883,27 @@ function asRecord(value: unknown, what: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/**
+ * A required string, trimmed and bounded.
+ *
+ * `allowEmpty` exists for exactly one case and is used in exactly one place: a
+ * V2.15 draft answered `insufficient`, where "" is the honest value and
+ * refusing it would force a model with nothing to say to say something. Every
+ * other caller keeps the original behaviour, in which an empty required string
+ * is a malformed answer.
+ */
 function requireString(
   source: Record<string, unknown>,
   key: string,
   max: number,
+  options?: { readonly allowEmpty?: boolean },
 ): string {
   const value = source[key];
   if (typeof value !== "string") throw invalid(`${key}:not_string`);
   const trimmed = value.trim();
-  if (trimmed.length === 0) throw invalid(`${key}:empty`);
+  if (trimmed.length === 0 && options?.allowEmpty !== true) {
+    throw invalid(`${key}:empty`);
+  }
   if (trimmed.length > max) throw invalid(`${key}:too_long`);
   return trimmed;
 }
@@ -1201,6 +1437,195 @@ export function validateGroundedExplanation(
   return { kind: "grounded_explanation", status, summary, observations };
 }
 
+/* -------------------------------------------------------------------------- */
+/* V2.15 ASSISTED — the three proposal validators                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Read an integer index and prove it names something DalyHub actually supplied.
+ *
+ * `Number.isSafeInteger` rather than `typeof === "number"` because `1.5`, `NaN`,
+ * `Infinity` and `-0` are all numbers and none of them is a position in a list.
+ */
+function requireIndex(
+  source: Record<string, unknown>,
+  key: string,
+  size: number,
+): number {
+  const value = source[key];
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+    throw invalid(`${key}:not_an_index`);
+  }
+  if (value < 0 || value >= size) throw invalid(`${key}:out_of_range`);
+  return value;
+}
+
+/** The selection bounds, or a refusal. A feature that selects must declare them. */
+function requireSelection(
+  context: ValidationContext,
+  what: string,
+): { readonly rowCount: number; readonly optionCount: number } {
+  if (context.selection === null) throw invalid(`${what}:no_selection`);
+  return context.selection;
+}
+
+/**
+ * V2.15 — validate a Finance categorisation answer.
+ *
+ * Six refusals, each closing a specific hole:
+ *
+ *   1. no facts supplied → the answer had nothing to be grounded by;
+ *   2. an unknown key → the answer is not the shape DalyHub asked for;
+ *   3. a `rowIndex` outside the batch → the model answered about a transaction
+ *      that was not sent, which is either invention or an injection that
+ *      worked;
+ *   4. a `categoryIndex` outside the vocabulary → the same, for categories;
+ *   5. a DUPLICATE `rowIndex` → two categories for one transaction is not a
+ *      suggestion, it is an ambiguity the owner would have to resolve by
+ *      guessing which one the surface happened to render;
+ *   6. a figure in a reason that its own cited facts do not license → V2.14's
+ *      numeric grounding rule, unchanged and applied here too.
+ */
+export function validateFinanceCategorisation(
+  raw: unknown,
+  context: ValidationContext,
+): FinanceCategorisationResult {
+  const source = asRecord(raw, "result");
+  requireExactKeys(source, ["status", "suggestions"], "financeCategorisation");
+  if (context.facts.length === 0) {
+    throw invalid("financeCategorisation:no_facts");
+  }
+  const bounds = requireSelection(context, "financeCategorisation");
+
+  const status = requireEnum(source, "status", ["ok", "insufficient"] as const);
+  const seen = new Set<number>();
+  const suggestions = requireArray(
+    source,
+    "suggestions",
+    COUNTS.categorySuggestions,
+  ).map((entry) => {
+    const item = asRecord(entry, "suggestion");
+    requireExactKeys(
+      item,
+      ["rowIndex", "categoryIndex", "reason", "factIds"],
+      "suggestion",
+    );
+    const rowIndex = requireIndex(item, "rowIndex", bounds.rowCount);
+    if (seen.has(rowIndex)) throw invalid("suggestion:duplicate_row");
+    seen.add(rowIndex);
+    const categoryIndex = requireIndex(
+      item,
+      "categoryIndex",
+      bounds.optionCount,
+    );
+    const factIds = requireCitationIds(item, context, "factIds");
+    if (factIds.length === 0) throw invalid("suggestion:uncited");
+    const reason = requireString(item, "reason", LIMITS.reason);
+    if (HTML_TAG.test(reason)) throw invalid("suggestion:html_not_allowed");
+    requireGroundedFigures(reason, citedFacts(factIds, context), "suggestion");
+    return {
+      rowIndex,
+      categoryIndex,
+      reason,
+      factIds,
+    } satisfies ProposedTransactionCategory;
+  });
+
+  // `ok` with nothing behind it is the one contradiction worth refusing: an
+  // answer that claims to have categorised something and then names nothing.
+  // `insufficient` with an empty list is the honest form of the same outcome.
+  if (status === "ok" && suggestions.length === 0) {
+    throw invalid("financeCategorisation:no_suggestions");
+  }
+
+  return { kind: "finance_categorisation", status, suggestions };
+}
+
+/**
+ * V2.15 — validate an obligation follow-up answer.
+ *
+ * The title is refused if it carries HTML or exceeds DalyHub's own Task title
+ * ceiling — the SAME ceiling the acceptance re-applies, because bounding what a
+ * model may return and bounding what an owner may submit are two different
+ * jobs and neither substitutes for the other.
+ */
+export function validateObligationFollowUp(
+  raw: unknown,
+  context: ValidationContext,
+): ObligationFollowUpResult {
+  const source = asRecord(raw, "result");
+  requireExactKeys(source, ["status", "tasks"], "obligationFollowUp");
+  if (context.facts.length === 0) {
+    throw invalid("obligationFollowUp:no_facts");
+  }
+
+  const status = requireEnum(source, "status", ["ok", "insufficient"] as const);
+  const tasks = requireArray(source, "tasks", COUNTS.followUpTasks).map(
+    (entry) => {
+      const item = asRecord(entry, "followUpTask");
+      requireExactKeys(item, ["title", "reason", "factIds"], "followUpTask");
+      const factIds = requireCitationIds(item, context, "factIds");
+      if (factIds.length === 0) throw invalid("followUpTask:uncited");
+      const title = requireString(item, "title", LIMITS.title);
+      if (HTML_TAG.test(title)) throw invalid("followUpTask:html_not_allowed");
+      const reason = requireString(item, "reason", LIMITS.reason);
+      if (HTML_TAG.test(reason)) throw invalid("followUpTask:html_not_allowed");
+      requireGroundedFigures(
+        title,
+        citedFacts(factIds, context),
+        "followUpTask",
+      );
+      requireGroundedFigures(
+        reason,
+        citedFacts(factIds, context),
+        "followUpTask",
+      );
+      return { title, reason, factIds } satisfies ProposedFollowUpTask;
+    },
+  );
+
+  if (status === "ok" && tasks.length === 0) {
+    throw invalid("obligationFollowUp:no_tasks");
+  }
+
+  return { kind: "obligation_follow_up", status, tasks };
+}
+
+/**
+ * V2.15 — validate a Review reflection draft.
+ *
+ * The strictest of the three, because this is the one whose output is written
+ * INTO the owner's own personal writing. Every figure in the draft must be
+ * licensed by a fact it cites; a draft with no citation at all is refused even
+ * when it contains no figure, because an uncited reflection is prose about the
+ * owner's week that DalyHub cannot show the working for.
+ */
+export function validateReviewReflectionDraft(
+  raw: unknown,
+  context: ValidationContext,
+): ReviewReflectionDraftResult {
+  const source = asRecord(raw, "result");
+  requireExactKeys(source, ["status", "draft", "factIds"], "reviewReflection");
+  if (context.facts.length === 0) throw invalid("reviewReflection:no_facts");
+
+  const status = requireEnum(source, "status", ["ok", "insufficient"] as const);
+  const factIds = requireCitationIds(source, context, "factIds");
+  const draft = requireString(source, "draft", LIMITS.reflectionDraft, {
+    allowEmpty: status === "insufficient",
+  });
+  if (HTML_TAG.test(draft)) throw invalid("reviewReflection:html_not_allowed");
+
+  if (status === "ok") {
+    // An empty `ok` draft was already refused above as `draft:empty`:
+    // `allowEmpty` is on only for `insufficient`, which is the one status for
+    // which "" is the honest value.
+    if (factIds.length === 0) throw invalid("reviewReflection:uncited");
+    requireGroundedFigures(draft, citedFacts(factIds, context), "draft");
+  }
+
+  return { kind: "review_reflection_draft", status, draft, factIds };
+}
+
 /** Validate whatever a feature produced. Throws a typed `AiError` on refusal. */
 export function validateFeatureResult(
   feature: AiFeatureId,
@@ -1219,5 +1644,11 @@ export function validateFeatureResult(
     case "report-explanation":
     case "grounded-question-answer":
       return validateGroundedExplanation(raw, context);
+    case "finance-categorisation":
+      return validateFinanceCategorisation(raw, context);
+    case "obligation-follow-up":
+      return validateObligationFollowUp(raw, context);
+    case "review-reflection-draft":
+      return validateReviewReflectionDraft(raw, context);
   }
 }
