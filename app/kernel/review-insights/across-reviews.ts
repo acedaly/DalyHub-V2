@@ -189,6 +189,82 @@ function dominant<Value extends string>(
 }
 
 /**
+ * Every Project's recorded state across a series, with the DOMINANT one named.
+ *
+ * Extracted from `readAcrossReviews` rather than copied, so there is exactly one
+ * derivation of "at risk at 3 of the last 4 Reviews" and two views of it. The
+ * views differ in one rule, and the difference is the whole reason this is
+ * separate:
+ *
+ *   - **The Insight surface** (`includeUnchanged: false`) asks *what CHANGED*.
+ *     A Project that held one state throughout has not moved, and a list of
+ *     unchanged Projects is a list nobody reads (ADR-079 d8/d9).
+ *   - **A grounded question** (`includeUnchanged: true`) asks *which Projects
+ *     have been at risk*. There, dropping the unchanged ones drops the WORST
+ *     case — a Project at risk at every single Review — and answers "nothing to
+ *     report" about precisely the Project that needed reporting. Silence about
+ *     the steadiest problem is the one failure a grounded answer must not have.
+ *
+ * PURE, like everything else here. Oldest-first series in, classifications out.
+ */
+export function readProjectHealthAcrossReviews(input: {
+  readonly series: readonly StoredReviewInsightSnapshot[];
+  readonly projects: readonly AcrossReviewsSubject[];
+  readonly includeUnchanged: boolean;
+}): ProjectHealthAcrossReviews[] {
+  const { series } = input;
+  if (series.length < MIN_ACROSS_REVIEWS) return [];
+  const titles = new Map(
+    input.projects.map((subject) => [subject.id, subject.title]),
+  );
+
+  const healthById = new Map<string, ProjectHealthState[]>();
+  const since = new Map<string, string>();
+  for (const stored of series) {
+    for (const project of stored.snapshot.projects) {
+      // `health: null` means there was NO reading at that Review (RECALL-04 /
+      // DEBT-234). It is skipped rather than counted as anything, so a Project
+      // with two readings across four Reviews says "2 of the 2 that recorded
+      // one" instead of inventing two more.
+      if (project.health === null) continue;
+      const states = healthById.get(project.id) ?? [];
+      states.push(project.health);
+      healthById.set(project.id, states);
+      if (!since.has(project.id)) {
+        since.set(project.id, stored.snapshot.periodStart);
+      }
+    }
+  }
+
+  const rows: ProjectHealthAcrossReviews[] = [];
+  for (const [projectId, states] of healthById) {
+    const title = titles.get(projectId);
+    if (title === undefined) continue;
+    if (states.length < MIN_ACROSS_REVIEWS) continue;
+    if (!input.includeUnchanged && new Set(states).size === 1) continue;
+    const top = dominant(states, HEALTH_CONCERN_RANK);
+    if (top === null) continue;
+    rows.push({
+      projectId,
+      title,
+      state: top.value,
+      count: top.count,
+      of: states.length,
+      reviews: series.length,
+      sinceIso: since.get(projectId) ?? series[0].snapshot.periodStart,
+      states,
+    });
+  }
+  rows.sort(
+    (left, right) =>
+      HEALTH_CONCERN_RANK[right.state] - HEALTH_CONCERN_RANK[left.state] ||
+      right.count - left.count ||
+      left.title.localeCompare(right.title),
+  );
+  return rows;
+}
+
+/**
  * Read a series of snapshots into across-Reviews facts.
  *
  * `series` is oldest first, as `listSnapshotSeries` returns it. `projects`,
@@ -213,9 +289,6 @@ export function readAcrossReviews(input: {
   };
   if (series.length < MIN_ACROSS_REVIEWS) return empty;
 
-  const projectTitles = new Map(
-    input.projects.map((subject) => [subject.id, subject.title]),
-  );
   const goalTitles = new Map(
     input.goals.map((subject) => [subject.id, subject.title]),
   );
@@ -224,50 +297,13 @@ export function readAcrossReviews(input: {
   );
 
   /* -- Project health ------------------------------------------------------ */
-  const healthById = new Map<string, ProjectHealthState[]>();
-  const projectSince = new Map<string, string>();
-  for (const stored of series) {
-    for (const project of stored.snapshot.projects) {
-      // `health: null` means there was NO reading at that Review (RECALL-04 /
-      // DEBT-234). It is skipped rather than counted as anything, so a Project
-      // with two readings across four Reviews says "2 of the 2 that recorded
-      // one" instead of inventing two more.
-      if (project.health === null) continue;
-      const states = healthById.get(project.id) ?? [];
-      states.push(project.health);
-      healthById.set(project.id, states);
-      if (!projectSince.has(project.id)) {
-        projectSince.set(project.id, stored.snapshot.periodStart);
-      }
-    }
-  }
-  const projects: ProjectHealthAcrossReviews[] = [];
-  for (const [projectId, states] of healthById) {
-    const title = projectTitles.get(projectId);
-    if (title === undefined) continue;
-    if (states.length < MIN_ACROSS_REVIEWS) continue;
-    // Absence renders less: a Project that held ONE state throughout has not
-    // moved, and a list of unchanged Projects is a list nobody reads.
-    if (new Set(states).size === 1) continue;
-    const top = dominant(states, HEALTH_CONCERN_RANK);
-    if (top === null) continue;
-    projects.push({
-      projectId,
-      title,
-      state: top.value,
-      count: top.count,
-      of: states.length,
-      reviews: series.length,
-      sinceIso: projectSince.get(projectId) ?? series[0].snapshot.periodStart,
-      states,
-    });
-  }
-  projects.sort(
-    (left, right) =>
-      HEALTH_CONCERN_RANK[right.state] - HEALTH_CONCERN_RANK[left.state] ||
-      right.count - left.count ||
-      left.title.localeCompare(right.title),
-  );
+  const projects = readProjectHealthAcrossReviews({
+    series,
+    projects: input.projects,
+    // INS-02's own rule: absence renders less, so a Project that held one state
+    // throughout has not moved and is not a finding on the Insight surface.
+    includeUnchanged: false,
+  });
 
   /* -- Goal contribution --------------------------------------------------- */
   const contributionById = new Map<string, SnapshotGoalContribution[]>();

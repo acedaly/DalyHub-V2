@@ -207,7 +207,7 @@ was made.
 
 ### Finding 3 — V2.5 made the AI grounding gap both cheaper and worse
 
-[DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3)
+[DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3--resolved-2026-09-07-v214-ground-02)
 records that the Weekly Review assistant's fact block reports `0` placeholders
 for stalled Projects, Projects without a next action, Goal alignment and Diary
 counts. Re-reading
@@ -946,7 +946,7 @@ rather than a blank page:
    new capability. Re-verifies the model/pricing registry as part of the same
    pass, closing DEBT-213.
 2. **The Weekly Review assistant's fact block** — close
-   [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3),
+   [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3--resolved-2026-09-07-v214-ground-02),
    which is now **cheap and urgent for the same reason**: `loadGoalStories`
    (STEER-03) and `selectGoalNextAction` (STEER-04) already *are* the bounded
    fact block, so the work is to call them instead of the reduced local one —
@@ -984,7 +984,7 @@ and this repository's whole method is that there is one.
 
 | Deferred | Evidence | Why not now |
 |---|---|---|
-| **AI over the follow-through and Goal data** | AI-03 ◐, [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3), DEBT-92, [DEBT-93](../product/PRODUCT_DEBT.md#-debt-93--ai-evidence-retrieval-is-keyword-and-relationship-only--p3), [DEBT-213](../product/PRODUCT_DEBT.md) | **The platform is built; it has never made a request.** Blocker, gate and sequence all named above rather than left as "later". V2.6 makes it *cheaper*: a tag vocabulary and a recency source are retrieval inputs, which is DEBT-93's own subject. |
+| **AI over the follow-through and Goal data** | AI-03 ◐, [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3--resolved-2026-09-07-v214-ground-02), DEBT-92, [DEBT-93](../product/PRODUCT_DEBT.md#-debt-93--ai-evidence-retrieval-is-keyword-and-relationship-only--p3), [DEBT-213](../product/PRODUCT_DEBT.md) | **The platform is built; it has never made a request.** Blocker, gate and sequence all named above rather than left as "later". V2.6 makes it *cheaper*: a tag vocabulary and a recency source are retrieval inputs, which is DEBT-93's own subject. |
 | **One Task anatomy** | [DEBT-128](../product/PRODUCT_DEBT.md#-debt-128--today-projects-and-search-still-render-tasks-as-cards-so-one-object-has-two-anatomies--p2--resolved-2026-09-03-v28-conv-02) + [DEBT-175](../product/PRODUCT_DEBT.md#-debt-175--the-project-records-tasks-tab-is-the-last-surface-that-does-not-render-the-shared-taskrow--p2--resolved-2026-09-03-v28-conv-01) (both P2) | Their own instruction is to close **together**, as one bounded pass. Still the strongest non-theme candidate to ride beside this programme. FIND-01 renders the existing search row unchanged and is explicitly forbidden from widening the fork. |
 | **A first-run / sparse-workspace experience** | DHDS-13 §13 (*"Below"*) | Unchanged from V2.4 and V2.5: a programme of its own; this product is one owner's populated daily driver. |
 | **The offline slice** | DEBT-155, 160, 161, 167, 170, 190 | One decision about what the offline contract covers. FIND-02 and FIND-04 each owe the existing contract an answer; neither reopens it. |

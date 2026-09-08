@@ -400,3 +400,209 @@
 .dh-ai-review__actions .dh-btn {
   min-height: var(--app-touch-target-min);
 }
+
+/* ── V2.14 GROUNDED AI ─────────────────────────────────────────────────────
+ *
+ * The interpretation layer over DalyHub's own figures. Deliberately quiet: no
+ * gradient, no sparkle, no separate visual language. An explanation reads as
+ * part of the page it explains, and a FACT reads as a figure with a label —
+ * because that is what it is.
+ *
+ * Single-column and fluid, so 320px is the design width. A fact chip wraps
+ * rather than scrolling, so a long category name never pushes the page
+ * sideways.
+ */
+
+.dh-ai-grounded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  background: var(--dh-color-surface);
+  border: none;
+  border-radius: var(--dh-radius-lg);
+  min-width: 0;
+}
+
+.dh-ai-grounded__assumptions {
+  list-style: disc;
+  margin: 0;
+  padding-inline-start: var(--app-space-5);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.65;
+}
+
+.dh-ai-grounded__observations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.dh-ai-grounded__observation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+/* ── A fact ────────────────────────────────────────────────────────────────
+ *
+ * The label and the value sit on one line and wrap together. The value is the
+ * emphasised half, because the value is the fact.
+ */
+
+.dh-ai-fact {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  padding: var(--app-space-1) var(--app-space-3);
+  border-radius: var(--dh-radius-control);
+  background: var(--dh-color-bg-sunken);
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-meta-size);
+  line-height: 1.5;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.dh-ai-fact--link:hover,
+.dh-ai-fact--link:focus-visible {
+  color: var(--dh-color-text);
+  text-decoration: underline;
+}
+
+.dh-ai-fact--link:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+}
+
+.dh-ai-fact__value {
+  color: var(--dh-color-text);
+  font-weight: 500;
+}
+
+.dh-ai-facts__inline,
+.dh-ai-facts__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+/* A chip is as wide as it needs to be and never wider than the column. At 320px
+ * a category name and a formatted amount do not fit on one line, so the chip
+ * wraps rather than pushing the page sideways. */
+.dh-ai-facts__inline > li,
+.dh-ai-facts__list > li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dh-ai-facts__list {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: var(--app-space-3);
+  margin-top: var(--app-space-3);
+}
+
+.dh-ai-facts__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+  min-width: 0;
+}
+
+.dh-ai-facts {
+  min-width: 0;
+}
+
+.dh-ai-facts__summary {
+  cursor: pointer;
+  font-size: var(--dh-text-meta-size);
+  color: var(--dh-color-text-muted);
+}
+
+.dh-ai-facts__summary:focus-visible {
+  outline: var(--dh-focus-width) solid var(--dh-focus-color);
+  outline-offset: var(--dh-focus-offset);
+  border-radius: var(--dh-radius-control);
+}
+
+.dh-ai-facts__period,
+.dh-ai-facts__note,
+.dh-ai-facts__bounds {
+  margin: 0;
+  color: var(--dh-color-text-muted);
+  font-size: var(--dh-text-label-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.dh-ai-facts__bounds {
+  list-style: disc;
+  padding-inline-start: var(--app-space-5);
+  margin-top: var(--app-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+/* ── The Report's Explain action ───────────────────────────────────────────── */
+
+.dh-report-explain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+.dh-report-explain__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+/* The Explain control is a real target at every width, on the same rule the
+ * Review assistant's actions already follow: a control the owner reaches for on
+ * a phone is floored to the WCAG minimum regardless of the density preset. */
+.dh-report-explain__actions .dh-btn {
+  min-height: var(--app-touch-target-min);
+}
+
+/* ── Ask DalyHub's example questions ───────────────────────────────────────── */
+
+.dh-ask__examples {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+/* An example is a whole question, not a word. It wraps onto as many lines as it
+ * needs at 320px; a nowrap button here would be the page's only horizontal
+ * scroll. */
+.dh-ask__examples > li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dh-ask__examples .dh-btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: start;
+  overflow-wrap: anywhere;
+}

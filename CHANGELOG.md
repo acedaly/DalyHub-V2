@@ -1,5 +1,44 @@
 # Changelog
 
+- **Explain the facts.**
+
+  DalyHub can now put a report into words. Open a saved report, press **Explain
+  this report**, and you get a few sentences about what moved and where — with
+  every figure in them attached to the row it came from. Press the figure and you
+  land on the record.
+
+  **It cannot make a number up.** Not "it is instructed not to" — it is not given
+  the ability. DalyHub does the arithmetic, hands over a short list of finished
+  facts, and the only figures the explanation is allowed to contain are the ones
+  on that list. A figure that is not on the list is refused before you ever see
+  it, and you get the facts on their own instead. Nothing is invented, quietly
+  rounded, converted between currencies or worked out on the side.
+
+  There is an **Ask DalyHub** box, and it is deliberately narrow. It answers four
+  kinds of question — how one month's spending compares with another, whether a
+  Goal has moved, how a Project is tracking, and what falls due soon — and it
+  tells you plainly when a question is not one of them rather than guessing at an
+  answer. It also tells you what it assumed: which months it read as "August" and
+  "July", how far ahead "soon" reaches.
+
+  The **Weekly Review** now has a hand available at the reflection step. It reads
+  the same week the Review itself reads — what you finished, what slipped, which
+  Projects stalled, which Goals moved — and offers a few things it noticed and a
+  few questions worth sitting with. It does not score your week, rank you, or
+  tell you that you failed. If it is unavailable the Review carries on exactly as
+  before; it was never load-bearing.
+
+  **It changes nothing.** It cannot create a Task, categorise a transaction,
+  settle a commitment or edit a record. It reads, and it explains.
+
+  **It is never sent your Diary, your people, or anything inside an attachment.**
+  Not as a matter of policy alone — there is no code path that could, and tests
+  fail if one is ever added.
+
+  All of this stays off until you turn it on in **Settings → AI** and supply your
+  own key. Every screen works without it, says so where the button would be, and
+  keeps showing you the figures either way.
+
 - **One saved definition, many questions.**
 
   DalyHub knew a great deal and could keep none of it. You could read this

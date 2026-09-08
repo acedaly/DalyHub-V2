@@ -16,19 +16,23 @@ import { useCallback, useId, useState, type FormEvent } from "react";
 
 import {
   AiCitationList,
+  AiFactList,
+  AiFactsWithoutExplanation,
   AiFailure,
+  AiGroundedAnswer,
   AiProgress,
   AiRunDetails,
   AiSendNotice,
   AiUnavailable,
   asAnswer,
+  asGrounded,
   useAiRequest,
   type AiSurfaceState,
 } from "~/shared/ai";
 import { requireAuthenticatedSession } from "~/platform/request";
 import { resolveAuthenticatedWorkspaceScope } from "~/platform/workspaces";
 
-import { readAiAvailability } from "~/platform/ai";
+import { GROUNDED_ASK_EXAMPLES, readAiAvailability } from "~/platform/ai";
 import type { Route } from "./+types/index";
 
 export function meta() {
@@ -50,11 +54,17 @@ export async function loader({ context }: Route.LoaderArgs) {
     "workspace-question-answer",
     env,
   );
-  return { availability };
+  /*
+   * The examples come from the PARSER's own list, so what the page offers and
+   * what DalyHub can actually resolve cannot drift apart. They are static
+   * examples of a closed capability — not AI-generated suggestions, and not a
+   * read of the owner's workspace.
+   */
+  return { availability, examples: GROUNDED_ASK_EXAMPLES };
 }
 
 export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
-  const { availability } = loaderData;
+  const { availability, examples } = loaderData;
   const controller = useAiRequest();
   const [question, setQuestion] = useState("");
   const [nonce, setNonce] = useState(0);
@@ -104,16 +114,17 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
 
   const state = controller.state;
   const answer = state.kind === "result" ? asAnswer(state.result) : null;
+  const grounded = state.kind === "result" ? asGrounded(state.result) : null;
 
   return (
     <div className="dh-ask">
       <header className="dh-ask__header">
         <h1 className="dh-ask__title">Ask DalyHub</h1>
         <p className="dh-ask__lead">
-          Questions about your own records — Meetings, Notes, Tasks and
-          Projects. DalyHub answers from what it can find and shows you the
-          records it used. It has no access to the internet and keeps no
-          conversation history.
+          Questions about your own records. DalyHub works out the figures
+          itself, then explains them — so every number you read here is one
+          DalyHub calculated, and you can open the record it came from. It has
+          no access to the internet and keeps no conversation history.
         </p>
       </header>
 
@@ -154,6 +165,30 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
             </div>
           </form>
 
+          <div className="dh-ask__uncertainties">
+            <h2 className="dh-ask__subheading">
+              Questions DalyHub can work out
+            </h2>
+            <ul className="dh-ask__examples">
+              {examples.map((example) => (
+                <li key={example.intent}>
+                  <button
+                    type="button"
+                    className="dh-btn dh-btn--ghost"
+                    onClick={() => setQuestion(example.question)}
+                  >
+                    {example.question}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="dh-ask__note">
+              Anything else is answered from the Notes, Meetings, Tasks and
+              Projects DalyHub can find, or declined honestly when it cannot
+              find enough.
+            </p>
+          </div>
+
           {deterministicStillAnswers ? (
             // Honest in the off state: nothing leaves DalyHub. The questions it
             // can answer itself, it answers; the rest are declined calmly.
@@ -185,7 +220,32 @@ export default function AskDalyHubRoute({ loaderData }: Route.ComponentProps) {
           ) : null}
 
           {state.kind === "error" ? (
-            <AiFailure message={state.message} />
+            <>
+              <AiFailure message={state.message} />
+              {/* The deterministic half survives every failure. */}
+              <AiFactsWithoutExplanation
+                block={state.facts}
+                message="Here are the figures DalyHub worked out for that question."
+              />
+            </>
+          ) : null}
+
+          {grounded !== null && state.kind === "result" ? (
+            <>
+              <AiGroundedAnswer
+                status={grounded.status}
+                summary={grounded.summary}
+                observations={grounded.observations}
+                block={state.facts}
+                assumptions={state.assumptions}
+                label="Answer"
+              />
+              <AiRunDetails detail={state.detail} />
+            </>
+          ) : null}
+
+          {state.kind === "result" && grounded === null && answer === null ? (
+            <AiFactList block={state.facts} open />
           ) : null}
 
           {state.kind === "deterministic" ? (

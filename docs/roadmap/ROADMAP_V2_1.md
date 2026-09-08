@@ -1649,7 +1649,7 @@ this repository ([`AI_PLATFORM.md`](../development/AI_PLATFORM.md) §21).
   Goal alignment and Diary counts are reported as `0` placeholders rather than
   re-deriving PROJ-02/AREA-03. Wiring the guided Review's own evaluators into the
   assistant, and daily planning, remain open; the fact block is recorded as
-  [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3).
+  [DEBT-91](../product/PRODUCT_DEBT.md#-debt-91--the-weekly-review-assistants-fact-block-is-narrower-than-the-guided-reviews-own-evaluators--p3--resolved-2026-09-07-v214-ground-02).
 - **Priority.** P3.
 
 - **Priority.** AI-01 P2 ☑, AI-04 P2 ☑, AI-02 P3 ☑ (2026-08-05), AI-03 P3 ◐.

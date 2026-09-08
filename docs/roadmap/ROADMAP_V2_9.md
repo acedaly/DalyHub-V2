@@ -1069,6 +1069,26 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 
 ### V2.14 — GROUNDED AI (PRESUMPTIVE — gated on the owner-held key)
 
+> **SUPERSEDED 2026-09-07 by [`ROADMAP_V2_14.md`](ROADMAP_V2_14.md)**, which
+> defined V2.14 against measured `main` at `353ede6` and delivered it. The
+> sketch below is retained as the record of what was presumed; where it and
+> `ROADMAP_V2_14.md` disagree, that file wins and states the measurement that
+> produced the disagreement. The five material corrections: the fact block does
+> **not** carry evidence ids — a `Fact` gets its own stable identity (`F1` … `Fn`)
+> and a reference layer of DalyHub route paths, because an internal D1 id in a
+> prompt is a leak with no upside; the response schema has **no numeric field at
+> all** rather than one that refuses an unsupplied figure, so a figure can only
+> ever arrive inside prose, where a deterministic claim checker refuses any token
+> no supplied fact licenses; **DEBT-213 is advanced, not closed** — a registry
+> re-verification needs a provider's live model list, which no run of this
+> repository can obtain, so GROUND-00 verified what code can verify and named
+> what it cannot; Ask is a **closed set of four intents** resolved by a
+> deterministic parser before any repository is read, not a general question box;
+> and the fake provider is proven in the **kernel suite against real D1** rather
+> than by a second E2E server, because an E2E server holding a fake provider
+> would have turned the existing provider-off journeys into fixtures of
+> themselves.
+
 - **Theme.** *Explain the facts* — Stage A: AI retrieves, compares,
   summarises, explains and identifies patterns over facts deterministic code
   computed, cited by id; it never computes or invents one.

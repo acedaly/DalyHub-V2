@@ -974,6 +974,56 @@ credentials.
 
 Full contract: [`AI_PLATFORM.md`](AI_PLATFORM.md) §5.
 
+### `AI_FAKE_PROVIDER` — a development switch, not a credential (V2.14, 2026-09-07)
+
+V2.14 added a deterministic development provider behind the adapter seam, so the
+gateway can be exercised end to end without a key and without a network
+([`AI_PLATFORM.md`](AI_PLATFORM.md) §22). It is selected by a plain `var`, and
+that var is **not a secret**: it carries no value worth protecting, it is absent
+from `UNCOMMITTED_VAR_KEYS`, and `wrangler secret put` is the wrong tool for it.
+
+| Var | Purpose | Where |
+|---|---|---|
+| `AI_FAKE_PROVIDER` | `1`/`true` selects the deterministic development adapter | `wrangler.jsonc` top-level `vars`, or a local `.dev.vars` |
+
+**It cannot reach production, and three independent things say so.** The adapter
+requires `AI_FAKE_PROVIDER` **and** an `ENVIRONMENT` of `development` or `test`
+— the same two-key rule the development authenticator uses. `wrangler.jsonc`
+pins `env.production.vars.ENVIRONMENT` to `production`, and the preflight above
+*refuses the deploy* if that value is ever anything else (`ENVIRONMENT must be
+"production"`). So setting `AI_FAKE_PROVIDER` on a production deploy changes
+nothing at all: the second key cannot be turned. `test/unit/ai/fake-provider.test.ts`
+asserts the refusal directly against a production-shaped environment.
+
+### Activating AI in production (owner-held, V2.14)
+
+Every V2.14 surface — **Explain this report**, the Review assistant, **Ask
+DalyHub** — is built, tested and shipped, and each degrades to a stated,
+designed off-state when no provider is configured. Activation is one owner
+action this repository has never been able to perform, because it has never held
+a key. The steps, in order:
+
+1. `pnpm exec wrangler secret put ANTHROPIC_API_KEY --env production`, and paste
+   the key at the prompt. It is never typed on a command line, never committed,
+   and never printed by anything here.
+2. Optionally set `AI_GATEWAY_ACCOUNT_ID` and `AI_GATEWAY_ID` the same way to
+   route through Cloudflare AI Gateway — **both or neither**; the preflight
+   refuses a half-configured gateway.
+3. `pnpm run verify:production` — confirms which secret NAMES are set on the
+   Worker. It never reads a value.
+4. In DalyHub, **Settings → AI** and turn AI on. The preference gate is the
+   owner's, and a key with the preference off still makes no request.
+5. Open a saved report and press **Explain this report**. A grounded explanation,
+   each observation citing a fact chip that links back to the row it came from,
+   is the whole activation test. If the model id in the registry has been retired
+   since 2026-08-05 the failure is a named `provider_error` in the panel rather
+   than a broken page — see
+   [DEBT-213](../product/PRODUCT_DEBT.md#-debt-213--the-ai-model-and-pricing-registry-is-pinned-to-one-dated-reading-with-nothing-scheduling-its-re-verification--p3).
+
+Spend is bounded before any of this: per-feature daily request limits, a daily
+and monthly micro-USD ceiling, and a ledger row per request, all in
+**Settings → AI** ([`AI_PLATFORM.md`](AI_PLATFORM.md) §8).
+
 ---
 
 ## External capture configuration (CAPTURE-01, 2026-08-11)

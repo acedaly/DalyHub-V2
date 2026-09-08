@@ -21,6 +21,11 @@ import {
   AiUnavailable,
 } from "./AiPanel";
 import { AiCitationList } from "./AiPanel";
+import {
+  AiFactCitations,
+  AiFactList,
+  AiFactsWithoutExplanation,
+} from "./AiGrounded";
 import { asWeeklyReview, type AiSurfaceState } from "./ai-view";
 import { useAiRequest } from "./use-ai-request";
 
@@ -85,7 +90,7 @@ export function AiWeeklyReviewSurface({
     <section className="dh-ai-review" aria-label="Review assistant">
       {state.kind === "idle" ? (
         <>
-          <AiEvidenceDisclosure summary="DalyHub will send the numbers it has already calculated for this period, plus a small set of your open Tasks, to your configured AI provider." />
+          <AiEvidenceDisclosure summary="DalyHub will send the figures it has already calculated for this period — completions, carry-over, Project state, Goal movement and what falls due — to your configured AI provider. No Diary entry, no Person and no attachment is included." />
           <AiSendNotice />
           <button
             type="button"
@@ -109,7 +114,23 @@ export function AiWeeklyReviewSurface({
       ) : null}
 
       {state.kind === "error" ? (
-        <AiFailure message={state.message} onRetry={start} />
+        <>
+          <AiFailure message={state.message} onRetry={start} />
+          {/*
+            V2.14 — the deterministic half survives every failure, here as much
+            as on a Report. The route assembles this period's facts BEFORE it
+            contacts a provider and returns them on the failure envelope, so a
+            timeout, a refusal, an exhausted budget or an answer DalyHub would
+            not verify still leaves the owner with what their week actually
+            held. Withholding it would mean the Review's own figures were
+            hostage to a provider, which is the dependence GROUND-02 exists to
+            remove.
+          */}
+          <AiFactsWithoutExplanation
+            block={state.facts}
+            message="Here is what DalyHub counted for this period."
+          />
+        </>
       ) : null}
 
       {state.kind === "result" && summary !== null ? (
@@ -142,6 +163,10 @@ export function AiWeeklyReviewSurface({
                       citations={state.citations}
                       ids={entry.evidenceIds}
                     />
+                    <AiFactCitations
+                      block={state.facts}
+                      ids={entry.evidenceIds}
+                    />
                   </li>
                 ))}
               </ul>
@@ -158,6 +183,10 @@ export function AiWeeklyReviewSurface({
                     <p className="dh-ai-review__confidence">{entry.reason}</p>
                     <AiCitationList
                       citations={state.citations}
+                      ids={entry.evidenceIds}
+                    />
+                    <AiFactCitations
+                      block={state.facts}
                       ids={entry.evidenceIds}
                     />
                   </li>
@@ -182,6 +211,10 @@ export function AiWeeklyReviewSurface({
                     </p>
                     <AiCitationList
                       citations={state.citations}
+                      ids={entry.evidenceIds}
+                    />
+                    <AiFactCitations
+                      block={state.facts}
                       ids={entry.evidenceIds}
                     />
                   </li>
@@ -217,6 +250,10 @@ export function AiWeeklyReviewSurface({
                       citations={state.citations}
                       ids={entry.evidenceIds}
                     />
+                    <AiFactCitations
+                      block={state.facts}
+                      ids={entry.evidenceIds}
+                    />
                   </li>
                 ))}
               </ul>
@@ -238,6 +275,23 @@ export function AiWeeklyReviewSurface({
             </section>
           ) : null}
 
+          {summary.reflectionQuestions.length > 0 ? (
+            <section className="dh-ai-review__block">
+              <h3 className="dh-ai-review__heading">Worth reflecting on</h3>
+              <ul className="dh-ai-review__list">
+                {summary.reflectionQuestions.map((entry, index) => (
+                  <li key={index} className="dh-ai-review__item">
+                    <p className="dh-ai-review__item-text">{entry.text}</p>
+                    <AiFactCitations
+                      block={state.facts}
+                      ids={entry.evidenceIds}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           {summary.uncertainties.length > 0 ? (
             <section className="dh-ai-review__block">
               <h3 className="dh-ai-review__heading">Not certain about</h3>
@@ -250,6 +304,13 @@ export function AiWeeklyReviewSurface({
               </ul>
             </section>
           ) : null}
+
+          {/*
+            The facts the whole summary was written from, expandable. It is what
+            makes the prose checkable rather than merely fluent: every figure
+            above is one of these, and each carries the record it came from.
+          */}
+          <AiFactList block={state.facts} summary="Figures this is based on" />
 
           <AiRunDetails detail={state.detail} />
         </>

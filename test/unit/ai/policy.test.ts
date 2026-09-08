@@ -122,13 +122,41 @@ describe("provider and model registry", () => {
 });
 
 describe("feature policy", () => {
-  it("bounds every feature", () => {
+  /**
+   * V2.14 widened this, and the widening is the contract rather than a
+   * concession: a feature must bound WHAT IT SENDS, and what it sends is either
+   * retrieved evidence or a fact block. A Report explanation retrieves no
+   * excerpts at all — its grounding is the executed result — so requiring an
+   * evidence bound of it would be requiring a bound on nothing while leaving
+   * the facts unbounded, which is exactly backwards.
+   */
+  it("bounds every feature, on whatever it actually sends", () => {
     for (const policy of allAiFeaturePolicies()) {
-      expect(policy.maxEvidenceRecords).toBeGreaterThan(0);
-      expect(policy.maxTotalEvidenceCharacters).toBeGreaterThan(0);
+      if (policy.groundedByFacts) {
+        expect(policy.maxFacts).toBeGreaterThan(0);
+      } else {
+        expect(policy.maxFacts).toBe(0);
+      }
+      if (!policy.groundedByFacts) {
+        expect(policy.maxEvidenceRecords).toBeGreaterThan(0);
+        expect(policy.maxTotalEvidenceCharacters).toBeGreaterThan(0);
+      }
       expect(policy.maxOutputTokens).toBeGreaterThan(0);
       expect(policy.timeoutMs).toBeGreaterThan(0);
       expect(policy.dailyRequestLimit).toBeGreaterThan(0);
+    }
+  });
+
+  it("grounds a grounded feature, and never lets one write", () => {
+    for (const policy of allAiFeaturePolicies()) {
+      if (!policy.groundedByFacts) continue;
+      // Read-only is structural for the grounded contract — it has no field a
+      // proposal could be expressed in — but the policy says so too, because
+      // V2.15 is where actions arrive and this is the line it must not cross
+      // by accident.
+      if (policy.id !== "weekly-review-assistant") {
+        expect(policy.producesProposals).toBe(false);
+      }
     }
   });
 

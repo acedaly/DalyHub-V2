@@ -408,9 +408,20 @@ export function renderEvidenceBlock(set: EvidenceSet): string {
  * validator and the proposal step are the real guarantees.
  */
 export function sanitiseForPrompt(text: string): string {
-  return text
-    .replace(/<\/?record>/gi, "[record]")
-    .replace(/<\/?evidence>/gi, "[evidence]")
-    .replace(/<\/?owner_request>/gi, "[owner_request]")
-    .replace(/<\/?system_policy>/gi, "[system_policy]");
+  return (
+    text
+      .replace(/<\/?record>/gi, "[record]")
+      .replace(/<\/?evidence>/gi, "[evidence]")
+      .replace(/<\/?owner_request>/gi, "[owner_request]")
+      .replace(/<\/?system_policy>/gi, "[system_policy]")
+      /*
+       * V2.14 — the two blocks `buildUserMessage` gained. `<derived_facts>` is
+       * where the FactBlock goes, so a label that could close it would be a
+       * label that could stop being data; `<candidates>` is the allowlist.
+       * Found by the injection corpus rather than by review, which is the
+       * argument for having one.
+       */
+      .replace(/<\/?derived_facts>/gi, "[derived_facts]")
+      .replace(/<\/?candidates>/gi, "[candidates]")
+  );
 }

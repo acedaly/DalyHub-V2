@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MIN_ACROSS_REVIEWS,
   readAcrossReviews,
+  readProjectHealthAcrossReviews,
   type AcrossReviewsSubject,
 } from "~/kernel/review-insights";
 
@@ -486,5 +487,108 @@ describe("the across-Reviews section of the evidence model", () => {
     expect(insights.acrossReviews.map((insight) => insight.tone)).not.toContain(
       "danger",
     );
+  });
+});
+
+/**
+ * V2.14 GROUND-03 — the same derivation, read by a question that needs the
+ * Projects INS-02 deliberately hides.
+ *
+ * "Absence renders less" is right for a panel about what changed. It is exactly
+ * wrong for "which Projects have been at risk recently?": the Project that was
+ * at risk at every single Review is the most important answer there is, and the
+ * change-only view drops it — so a grounded answer built on that view would say
+ * "nothing to report" about the one Project that needed reporting.
+ */
+describe("project health across Reviews, with and without the change filter", () => {
+  /** Four Reviews in which one Project never once looked healthy. */
+  function steadySeries() {
+    return ["2026-08-03", "2026-08-10", "2026-08-17", "2026-08-24"].map(
+      (periodStart, index) =>
+        storedSnapshot(`review-${index + 1}`, {
+          periodStart,
+          periodEnd: periodStart,
+          projects: [
+            {
+              id: "project-1",
+              health: "at_risk",
+              openTasks: 4,
+              overdueTasks: 2,
+            },
+          ],
+          carryOverTaskIds: [],
+        }),
+    );
+  }
+
+  it("hides a Project that never moved, for the Insight surface", () => {
+    const rows = readProjectHealthAcrossReviews({
+      series: steadySeries(),
+      projects: PROJECTS,
+      includeUnchanged: false,
+    });
+    expect(rows).toEqual([]);
+    // And the composed reader agrees, because it IS this function.
+    expect(
+      readAcrossReviews({
+        series: steadySeries(),
+        projects: PROJECTS,
+        goals: [],
+        tasks: [],
+      }).projects,
+    ).toEqual([]);
+  });
+
+  it("names it for a question about being at risk", () => {
+    const rows = readProjectHealthAcrossReviews({
+      series: steadySeries(),
+      projects: PROJECTS,
+      includeUnchanged: true,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.title).toBe("Kitchen renovation");
+    expect(rows[0]?.state).toBe("at_risk");
+    // Four of four, and the caller can tell it never moved from `states`.
+    expect(rows[0]?.count).toBe(4);
+    expect(rows[0]?.of).toBe(4);
+    expect(new Set(rows[0]?.states ?? []).size).toBe(1);
+  });
+
+  it("returns the SAME row for a Project that did move, either way", () => {
+    const changed = alternatingSeries();
+    const withFilter = readProjectHealthAcrossReviews({
+      series: changed,
+      projects: PROJECTS,
+      includeUnchanged: false,
+    });
+    const without = readProjectHealthAcrossReviews({
+      series: changed,
+      projects: PROJECTS,
+      includeUnchanged: true,
+    });
+    // One derivation, two views: the option decides what is OMITTED and nothing
+    // else. A row that differed between them would mean two implementations.
+    expect(without).toEqual(withFilter);
+    expect(withFilter.length).toBeGreaterThan(0);
+  });
+
+  it("still says nothing about a series too short to be one", () => {
+    expect(
+      readProjectHealthAcrossReviews({
+        series: steadySeries().slice(0, MIN_ACROSS_REVIEWS - 1),
+        projects: PROJECTS,
+        includeUnchanged: true,
+      }),
+    ).toEqual([]);
+  });
+
+  it("still drops a Project whose live title is gone", () => {
+    expect(
+      readProjectHealthAcrossReviews({
+        series: steadySeries(),
+        projects: [],
+        includeUnchanged: true,
+      }),
+    ).toEqual([]);
   });
 });

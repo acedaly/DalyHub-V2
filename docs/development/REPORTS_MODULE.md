@@ -146,8 +146,8 @@ ReportRow    { key, label, value | null, detail, period, referenceId }
   discarded.
 - **A failed read is `unavailable`, never a zero.** A report reads one source,
   so failure is atomic at the source rather than a quietly missing group.
-- **`referenceId`** is the seam V2.14 will cite a fact by. Reports depends on no
-  AI, calls no provider and shows no "Explain" control.
+- **`referenceId`** is the seam V2.14 cites a fact by, and it is how a doubted
+  figure gets a link back to the surface that owns it.
 
 ---
 
@@ -271,7 +271,23 @@ result — the line the Finance module already holds.
   query returns nothing.
 - **Activity**: none. Saving a report writes no event because saved views do
   not, and *executing* one certainly does not — reading is not history.
-- **AI**: no provider is reachable from any Reports code path.
+- **AI**: no provider is reachable from any Reports code path, and Reports
+  imports nothing from the AI kernel, platform or module — asserted by
+  `test/unit/reports/report-boundaries.test.ts`. **V2.14 added an Explain
+  control and did not change that.** The control is a shared component
+  (`~/shared/ai/AiExplainReport`) that `ReportScreen` renders, handed two pieces
+  of plain data: the serialised definition, and `reportResultDigest` — the
+  identity of the figures on screen. Reports builds no prompt, names no feature,
+  holds no fact and makes no request, and every figure it draws is computed with
+  the AI layer deleted.
+
+  `reportResultDigest` is Reports' own and answers one question — *are these
+  still the same figures?* It covers every row, total, remainder and note, and
+  deliberately excludes `computedAtIso`, so two executions a second apart over
+  unchanged data agree. The AI route re-executes the definition itself and
+  compares; a mismatch is refused as stale rather than answered, because prose
+  paired with numbers it was never written about is worse than no prose. The
+  browser therefore supplies an identity and never a figure.
 
 ---
 

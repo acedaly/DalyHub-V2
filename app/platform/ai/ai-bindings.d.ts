@@ -30,6 +30,17 @@ interface DalyHubAiBindings {
   readonly AI_GATEWAY_ID?: string;
   /** Optional authenticated-gateway token, sent as `cf-aig-authorization`. */
   readonly AI_GATEWAY_TOKEN?: string;
+  /**
+   * V2.14 GROUND-00 — enables the deterministic DEVELOPMENT provider.
+   *
+   * Not a secret and not a credential: it selects an adapter that contacts
+   * nothing. It is declared here beside the others because it is the same kind
+   * of deploy-time switch, and because it must be readable by
+   * `resolveAiConfiguration`, which is the only module allowed to decide which
+   * adapter a provider gets. It has no effect at all unless `ENVIRONMENT` is
+   * `development` or `test` — see `app/platform/ai/fake-provider.ts`.
+   */
+  readonly AI_FAKE_PROVIDER?: string;
 }
 
 declare global {

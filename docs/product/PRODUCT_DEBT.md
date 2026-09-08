@@ -1502,7 +1502,7 @@ authority now.)
 - **Evidence.** [`test/kernel/ai-apply-proposal.test.ts`](../../test/kernel/ai-apply-proposal.test.ts), against real repositories and real D1 constraints, proves: the `meeting_item_tasks` mapping is written (asserting the zero-row before-state first); `meetings.listFollowUps` — the projection the Follow-up tab renders — reports it as converted with the correct `itemId`; a replayed acceptance returns the SAME Task with `created: false` and leaves exactly one mapping row, one Task and one action item; an item the owner had already written is reused rather than duplicated; and an already-converted item stays converted. `e2e/ai-assistance.spec.ts` proves the same through the real UI: the Follow-up tab moves from its empty state to `Open (1)` and the meeting item offers *Open task*, not *Create task*. Duplicate conversion is still refused by the partial unique index — **no uniqueness error is caught and ignored** anywhere on this path.
 - **Related roadmap item.** [AI-02](../roadmap/ROADMAP_V2_1.md) ☑ (2026-08-05). **Related:** [MEET-02](../roadmap/ROADMAP_V2.md).
 
-### ☐ DEBT-91 — The Weekly Review assistant's fact block is narrower than the guided Review's own evaluators — P3
+### ☑ DEBT-91 — The Weekly Review assistant's fact block is narrower than the guided Review's own evaluators — P3 — **RESOLVED 2026-09-07 (V2.14 GROUND-02)**
 
 - **Current issue.** The assistant is fed facts DalyHub calculates rather than asking a model to count — which is the right design — but the bounded computation in [`app/modules/ai/review-facts.ts`](../../app/modules/ai/review-facts.ts) reports `0` for stalled Projects, Projects without a visible next action, Goal alignment and Diary counts instead of re-deriving PROJ-02 / AREA-03. The guided Review already computes several of these for the step the owner is on.
 - **Impact.** Two computations of the same week can disagree, and the assistant's summary is the one that will be wrong — it will describe a quiet week because its inputs were zeroed, not because the week was quiet.
@@ -1545,8 +1545,34 @@ authority now.)
   [V2.6](../roadmap/ROADMAP_V2_6.md#the-ai-decision-recorded-rather-than-postponed),
   which is a retrieval programme; taking a P3 off-theme is how a programme becomes
   a grab-bag. It is item 2 of the AI sequence recorded there, after the gate.
-- **V2.8 disposition — DEFERRED, unchanged (2026-09-02).** Still item 2 of the AI sequence, after the gate. The gate's passing condition is now stated in full in [`ROADMAP_V2_8.md`](../roadmap/ROADMAP_V2_8.md#ai-decided-again-step-3-of-the-decision-pass), and its code-held half is [DEBT-237](#-debt-237--the-ai-gate-names-a-fake-provider-path-that-the-repository-deliberately-does-not-have--p3).
+- **V2.8 disposition — DEFERRED, unchanged (2026-09-02).** Still item 2 of the AI sequence, after the gate. The gate's passing condition is now stated in full in [`ROADMAP_V2_8.md`](../roadmap/ROADMAP_V2_8.md#ai-decided-again-step-3-of-the-decision-pass), and its code-held half is [DEBT-237](#-debt-237--the-ai-gate-names-a-fake-provider-path-that-the-repository-deliberately-does-not-have--p3--resolved-2026-09-07-v214-ground-00).
 - **V2.9 disposition — DEFERRED, and made the pattern (2026-09-04).** Unchanged on `6b4d4a8`. The strategy generalises what this entry asks for: every AI feature is handed a **fact block** computed by the deterministic history layer V2.9 builds, and the model explains it and never computes it ([ADR-116](../decisions/ARCHITECTURE_DECISIONS.md#adr-116-the-post-v28-domain-boundaries--one-obligation-model-for-life-admin-and-finance-deterministic-facts-before-ai-explanation-saved-reports-before-dashboards-and-no-domain-without-its-export) decision 3). This entry closes as [V2.14 GROUND-02](../roadmap/ROADMAP_V2_9.md#v214--grounded-ai-presumptive--gated-on-the-owner-held-key), by calling `loadGoalStories`, `selectGoalNextAction` and the period account — the work is still "to call them".
+- **RESOLVED 2026-09-07 by [V2.14 GROUND-02](../roadmap/ROADMAP_V2_14.md#ground-02--ground-the-weekly-review-).**
+  [`review-facts.ts`](../../app/modules/ai/review-facts.ts) now CALLS the
+  evaluators instead of re-deriving them, which is what this entry's V2.6
+  amendment said the work was: `evaluateProjectHealth` for state and staleness,
+  `listProjectNextActions` for STEER-04's canonical next action, `loadGoalStories`
+  for measurement, movement, alignment and the owner's `set_aside` CONDITION, and
+  `readAcrossReviews` for what the recent Reviews recorded. The five hard-coded
+  zeros are gone.
+  - **The Diary count is gone entirely rather than fixed.** Diary is the most
+    private prose in the product; V2.14 starts grounded AI with Reports, Reviews,
+    Goals, Projects, Tasks and Obligations, and
+    [`test/unit/architecture/grounded-ai-boundaries.test.ts`](../../test/unit/architecture/grounded-ai-boundaries.test.ts)
+    asserts no builder reads it.
+  - **Both closing conditions are met by
+    [`test/kernel/grounded-ai.test.ts`](../../test/kernel/grounded-ai.test.ts)**,
+    against real D1: the fact block agrees with the guided Review's own
+    projection over the same period on a workspace where the stalled count is
+    NON-ZERO, and a Goal the owner set aside is reported as set aside, carries
+    the note saying it is a recorded decision rather than neglect, and is named
+    by no fact LABEL that judges the owner. Both were falsified — reinstating the
+    zero, and ignoring the condition — and both were caught.
+  - **One honest asymmetry, recorded rather than glossed.** The fact block asks
+    STEER-04's canonical per-Project next action; the guided step scans a bounded
+    page of the most actionable work. The canonical read is a SUPERSET by
+    construction, so the test asserts containment rather than equality: a Project
+    the step can see a next action for is never one the block calls stuck.
 - **Related roadmap item.** Part of what [AI-03](../roadmap/ROADMAP_V2_1.md#-ai-03--planning--review-assistance) still owes; the evaluators are [REVIEW-02](../roadmap/ROADMAP_V2_1.md#-review-02--weekly-review--delivered-2026-08-05)'s.
 
 ### ☐ DEBT-92 — Generated AI results are not persisted, so reuse is bounded to one isolate — P3
@@ -1562,6 +1588,16 @@ authority now.)
   This entry is blocked on the same owner-held credential the whole AI programme
   is ([`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2_6.md#the-blocker-named-exactly)),
   which is a fact worth recording rather than re-deriving.
+- **V2.14 disposition — RE-READ against live usage, and still unchangeable
+  (2026-09-07).** V2.14 asked exactly this question, because its roadmap told it
+  to. The answer has not moved: `ai_usage_requests` still holds no completed run
+  produced by a real provider, so the "duplicate identical requests are material"
+  evidence still cannot exist. What DID change is that the question is now
+  ANSWERABLE the day a key is supplied — the ledger records every grounded
+  request under a source fingerprint that covers the FactBlock's rendered bytes,
+  so a repeated identical question is visible in the data rather than inferred.
+  V2.14 deliberately persists no AI prose, which is the conservative answer this
+  entry's own desired state names.
 - **Related roadmap item.** [AI-01](../roadmap/ROADMAP_V2_1.md#-ai-01--proposal-architecture--review-ui--delivered-2026-08-05).
 
 ### ☐ DEBT-93 — AI evidence retrieval is keyword and relationship only — P3
@@ -1602,6 +1638,16 @@ authority now.)
   which is precisely why this entry stays open rather than being marked
   progressed into resolution.
 - **V2.8 disposition — DEFERRED, and measured rather than advanced (2026-09-02).** `evidence-retrieval.ts` (last touched at `4c46c36`, HARDEN-06) composes NAMED fields (`:118-153, 390-419`) and reads neither `matchSource` nor RECALL-01's excerpts — correctly, under ADR-114 decision 2. The indirect gain stands: the same providers now ADMIT a Meeting or Task by body content (`:362-374`), so a question in the words of a meeting's notes retrieves the meeting. This entry's wording is unchanged and still true.
+- **V2.14 disposition — RE-READ, and the premise now applies to LESS of the
+  product (2026-09-07).** V2.14's four grounded intents do not retrieve by
+  keyword at all: a question is resolved deterministically into a period or a
+  horizon, and the data comes from canonical repositories and V2.13 report
+  definitions rather than from a match on the owner's words. So the entry's
+  concern — that a synthesis question finds records by keyword and misses the
+  ones that phrase it differently — is now scoped to the evidence-backed Ask and
+  to Meeting/Note extraction, which are unchanged. Embeddings stay refused
+  ([ADR-073 §20](../decisions/ARCHITECTURE_DECISIONS.md#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract)),
+  and V2.14 added none.
 - **Related roadmap item.** [AI-01](../roadmap/ROADMAP_V2_1.md#-ai-01--proposal-architecture--review-ui--delivered-2026-08-05); [SHARED_SEARCH.md](../development/SHARED_SEARCH.md) is the retrieval this composes.
 
 ### ☑ DEBT-94 — AI preferences are the one kind of owner configuration the export snapshot omits — P3 — **RESOLVED 2026-08-25**
@@ -4232,6 +4278,25 @@ defect, which is why they are not a new ID.
   are true, this stays open.
 - **V2.8 disposition — DEFERRED, unchanged (2026-09-02).** Closes inside the AI gate's clause (e) as stated in [`ROADMAP_V2_8.md`](../roadmap/ROADMAP_V2_8.md#ai-decided-again-step-3-of-the-decision-pass).
 - **V2.9 disposition — DEFERRED, unchanged (2026-09-04).** `PRICING_VERIFIED_AT` still `2026-08-05` (`ai-models.ts:117-124`). Closes inside the gate as [V2.14 GROUNDED AI](../roadmap/ROADMAP_V2_9.md#v214--grounded-ai-presumptive--gated-on-the-owner-held-key)'s first item, with DEBT-237.
+- **V2.14 disposition — ADVANCED, deliberately NOT closed (2026-09-07).**
+  GROUND-00 re-verified what a repository can verify without a credential, and
+  says plainly what it cannot.
+  - **Verified, by test:** every shipped model has a stable internal id that is
+    never a provider string; exactly one budgetable model per provider and tier;
+    every model priced, so none can bypass the budget; a fallback only in the
+    same tier or cheaper; and — new in V2.14 — every FEATURE, including the two
+    grounded ones, resolves to a priced model at its declared tier
+    (`test/unit/ai/policy.test.ts`).
+  - **NOT verified, and unverifiable here:** whether those provider model ids
+    still exist, and whether those prices are still the prices.
+    `PRICING_VERIFIED_AT` remains `2026-08-05`. A retired model id would return
+    `404`, map to `model_unavailable`, and fail the first live run for a reason
+    that has nothing to do with the code under test.
+  - **Why it stays open.** Its closing condition is a reading taken against both
+    providers' current pages, and taking one from a session is a reading nobody
+    can attribute. It is the FIRST thing the owner should do on the day a key
+    exists, and [`ROADMAP_V2_14.md`](../roadmap/ROADMAP_V2_14.md#owner-activation)
+    says so as step 5 of activation.
 - **Related roadmap item.** The AI provider gate recorded in
   [`ROADMAP_V2_6.md`](../roadmap/ROADMAP_V2_6.md#the-sequence-ai-takes-when-the-blocker-clears),
   item 1, which is where this closes; [ADR-073](../decisions/ARCHITECTURE_DECISIONS.md#adr-073-the-controlled-ai-platform--provider-independence-proposal-only-writes-application-enforced-budgets-and-an-evidence-contract)
@@ -4847,7 +4912,7 @@ this register's own warning on DEBT-200: causes are claims to check.
   - **Falsified, both halves, on a scratch tree**: an unannotated future ISO literal in a seed and an unannotated long-form picker label whose date is already past each fail `Static`'s check with the file, line, literal and form named; each passes again once annotated. The clock could not be moved on this machine; the derivation is instead pinned by the unit tests over a fixed reference day and proven by the two journeys passing in the month that broke them.
 - **Related roadmap item.** [V2.8 CONV-00](../roadmap/ROADMAP_V2_8.md#-conv-00--the-gate-tells-the-truth-again--delivered-2026-09-02)-E.
 
-### ☐ DEBT-237 — The AI gate names a fake-provider path that the repository deliberately does not have — P3
+### ☑ DEBT-237 — The AI gate names a fake-provider path that the repository deliberately does not have — P3 — **RESOLVED 2026-09-07 (V2.14 GROUND-00)**
 
 - **Current issue.** [ADR-112](../decisions/ARCHITECTURE_DECISIONS.md#adr-112-retrieval-and-capture-velocity--one-tag-vocabulary-a-recency-source-that-is-not-activity-and-the-ai-gate-that-is-not-yet-runnable)
   decision 2 lists, among what the AI infrastructure gate proves, *"the
@@ -4876,6 +4941,37 @@ this register's own warning on DEBT-200: causes are claims to check.
   fake-provider path green in E2E on the same tree — is runnable on `main`
   without any secret; the remaining clauses need one.
 - **V2.9 disposition — DEFERRED, unchanged (2026-09-04).** Still its own PR on its own evidence the day the secret exists; it is the first item of the V2.14 GROUNDED AI sequence ([`ROADMAP_V2_9.md`](../roadmap/ROADMAP_V2_9.md#v214--grounded-ai-presumptive--gated-on-the-owner-held-key)) because every Stage A feature is E2E-proven through this seam without a key.
+- **RESOLVED 2026-09-07 by [V2.14 GROUND-00](../roadmap/ROADMAP_V2_14.md#ground-00--make-the-foundation-provable-).**
+  [`app/platform/ai/fake-provider.ts`](../../app/platform/ai/fake-provider.ts)
+  implements the existing `StructuredRequest → StructuredResponse` contract and
+  is constructed by `resolveAiConfiguration` in place of a real adapter, so the
+  preference gate, feature policy, privacy filter, token estimate, budget
+  reservation, ledger row, retry and fallback plan, schema validation, citation
+  validation, numeric grounding, reconciliation and release are all the code a
+  real provider runs. It simulates thirteen behaviours, including four transport
+  conditions and six answers DalyHub's own validator refuses.
+  - **Not reachable from production configuration**, on the two-key rule the
+    development authenticator uses: `AI_FAKE_PROVIDER=1` **and** an explicit
+    development or test `ENVIRONMENT`. Asserted against a production-shaped
+    environment by [`test/unit/ai/fake-provider.test.ts`](../../test/unit/ai/fake-provider.test.ts),
+    and falsified by removing the environment key (caught).
+  - **Where the closing condition was met differently, and why.** The condition
+    asked for the fake-on path in E2E. It is proven instead in
+    [`test/kernel/grounded-ai.test.ts`](../../test/kernel/grounded-ai.test.ts),
+    against real D1, where every layer is real except the network — because
+    `e2e/ai-assistance.spec.ts`'s off-state journeys assert that the local
+    development server has NO provider, and enabling one globally on that one
+    server would make those assertions measure a fixture instead of the product.
+    That is the entry's own reasoning applied to its own resolution: the point
+    was never the browser, it was that the seam exists and the gateway runs.
+  - **What it found on its first run**, which is the entry's real justification:
+    `ai_usage_requests.feature_id` carried a CHECK constraint listing exactly the
+    four AI-01 features, so **every grounded request would have failed at the
+    reservation** with a bare "Could not reserve an AI request". Fixed by
+    migration `0054`. Nothing found it in review.
+  - `scripts/ai-integration-check.mjs` remains unwired to npm and CI, and that is
+    unchanged on purpose: it is the one script that contacts a real provider, and
+    a script CI can reach is a script CI will eventually run.
 - **Related roadmap item.** Not taken by V2.8: the code-held half of a
   tripwire, done in its own PR the day the owner's secret exists (or before,
   by a session with nothing else to do), per V2.8's LATER.
@@ -4952,7 +5048,7 @@ dated disposition on its entry instead of a new number.
 
 ### ☐ DEBT-243 — Seven surfaces link a Task with `/tasks?task=<id>`, a parameter nothing reads — P3
 
-- **Current issue.** Nine production call sites across seven files (re-counted 2026-09-05 by the V2.9 completion pass; the title keeps the number the entry was raised with so its anchor holds) build a per-Task link as `` `/tasks?task=${id}` ``: [`review-insights.ts`](../../app/kernel/review-insights/review-insights.ts) (three, in the carry-over and plan-account facts), [`PlanWorkspace.tsx`](../../app/modules/plan/PlanWorkspace.tsx), and three in the AI platform ([`weekly-review-evidence.ts`](../../app/platform/ai/weekly-review-evidence.ts), [`evidence-retrieval.ts`](../../app/platform/ai/evidence-retrieval.ts) twice, [`deterministic-answers.ts`](../../app/platform/ai/deterministic-answers.ts) twice). **Nothing reads a `task` search parameter.** The Tasks collection decodes its state through `TASKS_PARAMS` (`tasks-url-state.ts`), which has no such key, and the Task drawer's contract is `?drawer=task:<id>` (`app/shared/drawer/drawer-url.ts`). One test asserts the shape (`test/kernel/review-insights.test.ts`), which is why it has survived: the assertion pins the string, not the behaviour.
+- **Current issue.** Nine production call sites across seven files (re-counted 2026-09-05 by the V2.9 completion pass; the title keeps the number the entry was raised with so its anchor holds) build a per-Task link as `` `/tasks?task=${id}` ``: [`review-insights.ts`](../../app/kernel/review-insights/review-insights.ts) (three, in the carry-over and plan-account facts), [`PlanWorkspace.tsx`](../../app/modules/plan/PlanWorkspace.tsx), and, in the AI platform, [`evidence-retrieval.ts`](../../app/platform/ai/evidence-retrieval.ts) (twice) and [`deterministic-answers.ts`](../../app/platform/ai/deterministic-answers.ts) (twice). *(V2.14 removed a fifth AI call site with `weekly-review-evidence.ts` itself — the module the Review fact block superseded — and its own carry-over fact deliberately emits the drawer form instead of adding a new one.)* **Nothing reads a `task` search parameter.** The Tasks collection decodes its state through `TASKS_PARAMS` (`tasks-url-state.ts`), which has no such key, and the Task drawer's contract is `?drawer=task:<id>` (`app/shared/drawer/drawer-url.ts`). One test asserts the shape (`test/kernel/review-insights.test.ts`), which is why it has survived: the assertion pins the string, not the behaviour.
 - **Impact.** Every one of those links lands on `/tasks` with the parameter ignored — the collection's default view, not the Task the owner clicked. It is a quiet dead end on the Review's evidence surface, the Plan queue and three AI answer paths, and it is exactly the class of defect ADR-079's "a way to check it" exists to prevent: the claim is checkable in principle and not in fact.
 - **Desired future state.** One shared href builder beside `completedRangeTasksHref` in `~/kernel/task-views` — the precedent that file's own comment records for why a cross-module URL shape belongs in the kernel — emitting the drawer form, with the seven call sites converged on it and the test asserting the drawer contract rather than the literal.
 - **Closing condition.** `grep -rn "tasks?task=" app/` returns nothing; a journey clicking one of those links opens the Task.

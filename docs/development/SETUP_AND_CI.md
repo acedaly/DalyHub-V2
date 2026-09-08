@@ -45,6 +45,41 @@ No manual repair should be needed.
 | `pnpm deploy:production:preflight` | Check production config is fully supplied (no upload)  |
 | `pnpm deploy:production` | Guarded live production deploy (needs credentials + real config)  |
 
+## Running the AI surfaces locally (V2.14)
+
+DalyHub's AI surfaces need **no key and no network** to develop against. Put
+
+```
+AI_FAKE_PROVIDER=1
+```
+
+in `.dev.vars` (git-ignored) — or in `wrangler.jsonc`'s top-level `vars`, which
+already pin `ENVIRONMENT=development` — and `pnpm dev` serves a deterministic
+adapter that sits at the ADAPTER seam. Everything above it is the code a real
+provider runs: the preference gate, the feature policy, the privacy filter, the
+token estimate, the budget reservation, the ledger row, the retry and fallback
+plan, schema validation, citation validation, numeric grounding and
+reconciliation. Only the network call is simulated.
+
+Send `scenario` in the assist request body to choose a behaviour — `success`,
+`insufficient`, `timeout`, `unavailable`, `rate_limited`, `refusal`,
+`malformed`, `unknown_fact`, `uncited`, `fabricated_figure`,
+`fabricated_comparison`, `html_injection`, `expensive` — each of which drives a
+real failure path rather than a branch invented for testing.
+
+**It cannot be turned on in production.** It needs `AI_FAKE_PROVIDER` *and* an
+`ENVIRONMENT` of `development` or `test`; a production deploy pins
+`ENVIRONMENT=production`, and the deploy preflight refuses to upload if that
+value is ever anything else. See
+[`AI_PLATFORM.md`](AI_PLATFORM.md) §22 and
+[`DEPLOYMENT.md`](DEPLOYMENT.md#ai_fake_provider--a-development-switch-not-a-credential-v214-2026-09-07).
+
+**CI never uses a real model.** The deterministic gate has no provider
+credential in any environment and asserts nothing that depends on one: the unit
+suite covers the contracts, `test/kernel/grounded-ai.test.ts` runs the whole
+gateway against real D1 through this adapter, and the E2E suite runs with the
+provider **off**, which is the state a checkout without a key is actually in.
+
 ## `pnpm verify`
 
 `pnpm verify` runs the complete local quality suite in a deterministic order —

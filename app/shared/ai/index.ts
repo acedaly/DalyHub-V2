@@ -16,6 +16,17 @@ export {
   AiUnavailable,
 } from "./AiPanel";
 
+export { AiExplainReport, type AiExplainReportProps } from "./AiExplainReport";
+
+export {
+  AiAssumptions,
+  AiFactCitations,
+  AiFactList,
+  AiFactsWithoutExplanation,
+  AiGroundedAnswer,
+  type AiGroundedAnswerProps,
+} from "./AiGrounded";
+
 export {
   AiExtractionReview,
   type AiExtractionReviewProps,
@@ -36,6 +47,8 @@ export {
   acceptancePayload,
   asActionExtraction,
   asAnswer,
+  asGrounded,
+  citedFacts,
   asExtraction,
   asWeeklyReview,
   dateBasisLabel,

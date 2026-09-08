@@ -39,6 +39,7 @@ import {
   reconcile,
   releaseUnused,
   renderEvidenceBlock,
+  renderFactBlock,
   resolveModel,
   resolveRequestedTier,
   schemaForFeature,
@@ -57,6 +58,8 @@ import {
   type AiUsageRepository,
   type EvidenceSet,
   type ExecutionPlan,
+  type Fact,
+  type FactBlock,
   type ValidationContext,
 } from "~/kernel/ai";
 
@@ -74,7 +77,21 @@ export interface RunAiRequestInput {
   readonly evidence: EvidenceSet;
   /** The allowlists the model may reference. */
   readonly candidates: CandidateSets;
-  /** Facts DalyHub calculated itself. */
+  /**
+   * V2.14 — the FACT BLOCK: every figure this request permits the answer to
+   * state, each with an id the model cites and DalyHub validates back.
+   *
+   * A feature whose policy says `groundedByFacts` MUST supply one and is
+   * refused without it; a feature that does not is unchanged by its absence.
+   */
+  readonly factBlock?: FactBlock;
+  /**
+   * Facts DalyHub calculated itself, as free text.
+   *
+   * Superseded by `factBlock` wherever one is supplied — the block renders
+   * itself into this slot — and retained for the pre-V2.14 features that have
+   * no block. Nothing sends both.
+   */
   readonly derivedFacts: string;
   /** The owner's typed input, where the feature accepts one. */
   readonly ownerInput?: string;
@@ -115,6 +132,12 @@ export interface AiRunDetail {
   readonly generatedAt: string | null;
   readonly evidenceCount: number;
   readonly evidenceTruncated: boolean;
+  /** V2.14 — how many facts the answer was permitted to state. */
+  readonly factCount: number;
+  /** V2.14 — the fact block's identity, so a stale pairing is detectable. */
+  readonly factBlockId: string | null;
+  /** V2.14 — true when the block left relevant facts out, and said so. */
+  readonly factsTruncated: boolean;
 }
 
 /** The in-memory cache of validated results, keyed by usage-row id. */
@@ -203,8 +226,50 @@ export async function runAiRequest(
   ) {
     throw new AiError("consent_required");
   }
-  if (input.evidence.items.length === 0) {
+
+  /*
+   * V2.14 — what "nothing to work from" MEANS depends on how the feature is
+   * grounded, and the policy table says which.
+   *
+   * A grounded feature is grounded by FACTS: a Report explanation retrieves no
+   * record excerpts at all, so requiring evidence would refuse the one surface
+   * whose grounding is strongest. What it must never run without is facts,
+   * because a grounded answer with nothing behind it has nothing to be
+   * validated against — and the schema validator refuses it a second time for
+   * the same reason, so the guarantee does not depend on this check alone.
+   */
+  const facts: readonly Fact[] = input.factBlock?.facts ?? [];
+  if (policy.groundedByFacts) {
+    if (facts.length === 0) throw new AiError("evidence_unavailable");
+    if (facts.length > policy.maxFacts) {
+      throw new AiError("evidence_too_large", undefined, "facts");
+    }
+  } else if (input.evidence.items.length === 0) {
     throw new AiError("evidence_unavailable");
+  }
+
+  /*
+   * V2.14 — the fact block's half of AI-04's consent boundary.
+   *
+   * Evidence carries a privacy category on every item and the retriever filters
+   * by them before this function ever sees them. A FACT carries no excerpt to
+   * classify, so its BUILDER declares what it went and read, and the check has
+   * to happen here — otherwise a grounded request is the one path around the
+   * consent gate, and `financial` is not allowed by default, so the very first
+   * "why was August more expensive than July?" would send money to a provider
+   * the owner never permitted financial content to reach.
+   *
+   * Refused BEFORE the budget is reserved and before a provider exists. The
+   * facts themselves are DalyHub's own and the surface still renders them: what
+   * is refused is SENDING them, which is the thing consent is about.
+   */
+  if (input.factBlock !== undefined) {
+    const denied = input.factBlock.categories.filter(
+      (category) => !allowed.has(category),
+    );
+    if (denied.length > 0) {
+      throw new AiError("consent_required", undefined, denied.join(","));
+    }
   }
   if (input.evidence.totalCharacters > policy.maxTotalEvidenceCharacters) {
     throw new AiError("evidence_too_large");
@@ -234,9 +299,16 @@ export async function runAiRequest(
   const prompt = promptForFeature(input.featureId);
   const evidenceBlock = renderEvidenceBlock(input.evidence);
   const candidateBlock = renderCandidates(input.candidates);
+  // The block renders ITSELF into the derived-facts slot. There is exactly one
+  // grounded section in a request, so a feature can never send two disagreeing
+  // sets of figures.
+  const derivedFacts =
+    input.factBlock !== undefined
+      ? renderFactBlock(input.factBlock)
+      : input.derivedFacts;
   const userMessage = buildUserMessage({
     ownerRequest: ownerInput,
-    derivedFacts: input.derivedFacts,
+    derivedFacts,
     candidates: candidateBlock,
     evidence: evidenceBlock,
   });
@@ -267,7 +339,7 @@ export async function runAiRequest(
     provider,
     modelId: model.id,
     ownerInput,
-    derivedFacts: input.derivedFacts,
+    derivedFacts,
     evidence: input.evidence,
     allowedCategories: [...allowed],
   });
@@ -312,6 +384,9 @@ export async function runAiRequest(
           generatedAt: prior.requestedAt.toISOString(),
           evidenceCount: input.evidence.items.length,
           evidenceTruncated: input.evidence.truncated,
+          factCount: facts.length,
+          factBlockId: input.factBlock?.id ?? null,
+          factsTruncated: input.factBlock?.truncated ?? false,
         },
       };
     }
@@ -335,9 +410,27 @@ export async function runAiRequest(
   });
   if (!decision.ok) throw decision.error;
 
-  const sourceIds = input.evidence.items
-    .map((item) => item.entityId)
-    .filter((id): id is string => id !== null);
+  /*
+   * The ledger records WHAT a request drew on, never what any of it says.
+   *
+   * An evidence item contributes its entity id. A fact contributes its
+   * REFERENCE id, which is an entity id where the fact points at a record
+   * (`area`, `project`, `goal`, `category`) and otherwise a derived key the
+   * vocabulary already owns -- a period like `2026-08`, a measure like
+   * `money_out`. None of them is owner-authored text, and none brings a value,
+   * a label, an amount or a payee with it, which is the property this field has
+   * to hold (V2.14; AI_PLATFORM.md §8).
+   */
+  const sourceIds = [
+    ...new Set([
+      ...input.evidence.items
+        .map((item) => item.entityId)
+        .filter((id): id is string => id !== null),
+      ...facts
+        .map((fact) => fact.reference?.id ?? null)
+        .filter((id): id is string => id !== null),
+    ]),
+  ];
 
   const { record, created } = await input.usage.reserve({
     ownerId: input.ownerId,
@@ -377,6 +470,7 @@ export async function runAiRequest(
             reused: true,
             generatedAt: record.requestedAt.toISOString(),
             evidence: input.evidence,
+            factBlock: input.factBlock,
           },
         ),
       };
@@ -465,7 +559,7 @@ export async function runAiRequest(
 
     // 9 ─ Validate against DalyHub's own schema. Model output is data until this
     // succeeds, and a citation of evidence we did not supply fails here.
-    const context = validationContext(input.evidence, input.candidates);
+    const context = validationContext(input.evidence, input.candidates, facts);
     const result = validateFeatureResult(
       input.featureId,
       execution.response.value,
@@ -523,6 +617,7 @@ export async function runAiRequest(
           reused: false,
           generatedAt: null,
           evidence: input.evidence,
+          factBlock: input.factBlock,
         },
       ),
     };
@@ -580,6 +675,7 @@ function detailFor(
     reused: boolean;
     generatedAt: string | null;
     evidence: EvidenceSet;
+    factBlock: FactBlock | undefined;
   },
 ): AiRunDetail {
   return {
@@ -598,6 +694,9 @@ function detailFor(
     generatedAt: extra.generatedAt,
     evidenceCount: extra.evidence.items.length,
     evidenceTruncated: extra.evidence.truncated,
+    factCount: extra.factBlock?.facts.length ?? 0,
+    factBlockId: extra.factBlock?.id ?? null,
+    factsTruncated: extra.factBlock?.truncated ?? false,
   };
 }
 
@@ -605,12 +704,14 @@ function detailFor(
 export function validationContext(
   evidence: EvidenceSet,
   candidates: CandidateSets,
+  facts: readonly Fact[] = [],
 ): ValidationContext {
   return {
     evidenceIds: new Set(evidence.items.map((item) => item.id)),
     projectCandidateIds: new Set(candidates.projects.map((entry) => entry.id)),
     personCandidateIds: new Set(candidates.people.map((entry) => entry.id)),
     linkCandidateIds: new Set(candidates.links.map((entry) => entry.id)),
+    facts,
   };
 }
 
@@ -625,6 +726,10 @@ export function schemaNameFor(feature: AiFeatureId): string {
       return "dalyhub_weekly_review";
     case "workspace-question-answer":
       return "dalyhub_workspace_answer";
+    case "report-explanation":
+      return "dalyhub_report_explanation";
+    case "grounded-question-answer":
+      return "dalyhub_grounded_answer";
   }
 }
 

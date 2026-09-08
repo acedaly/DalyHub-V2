@@ -67,6 +67,12 @@ export async function resolveAiContext(
 export interface AiAvailability {
   readonly enabled: boolean;
   readonly providerConfigured: boolean;
+  /**
+   * V2.14 — true when the deterministic DEVELOPMENT provider is answering. A
+   * surface says so plainly rather than letting a development answer read like
+   * a real one; it is always false in production, by construction.
+   */
+  readonly usingDevelopmentProvider: boolean;
   readonly featureAllowed: boolean;
   readonly budgetExhausted: boolean;
   readonly monthRemainingUsd: number;
@@ -98,6 +104,8 @@ export async function readAiAvailability(
   return {
     enabled: context.preferences.enabled,
     providerConfigured: context.configuration.anyProviderConfigured,
+    usingDevelopmentProvider:
+      context.configuration.summary.usingDevelopmentProvider,
     featureAllowed: context.preferences.allowedFeatures.includes(featureId),
     budgetExhausted: snapshot.exhausted,
     monthRemainingUsd: snapshot.remaining.monthUsd,

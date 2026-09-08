@@ -56,10 +56,9 @@ const FILES = sources();
 describe("no AI, anywhere on a Reports code path", () => {
   it("imports nothing from the AI kernel, platform or module", () => {
     /*
-     * V2.14 will consume `ReportResult`; Reports will not consume V2.14. The
-     * seam is a SHAPE, and a shape costs no dependency — so an import here is
-     * the dead AI surface ADR-121 forbids, appearing before the feature that
-     * would justify it.
+     * V2.14 consumes `ReportResult`; Reports does not consume V2.14. The seam
+     * is a SHAPE, and a shape costs no dependency — so an import here would
+     * invert the direction that makes the figures on a report DalyHub's own.
      */
     for (const { file, code } of FILES) {
       expect(code, `${file} must not reach the AI layer`).not.toMatch(
@@ -71,12 +70,44 @@ describe("no AI, anywhere on a Reports code path", () => {
     }
   });
 
-  it("offers no Explain control", () => {
+  /*
+   * V2.14 AMENDED the rule below, and the amendment is deliberate rather than a
+   * concession.
+   *
+   * Until V2.14 this said "Reports offers no Explain control", because the
+   * feature that would justify one did not exist and a control that does
+   * nothing is the dead surface ADR-121 forbids. The feature now exists, and
+   * the roadmap requires the control to live ON the report — the interpretation
+   * belongs beside the figures it interprets.
+   *
+   * What must stay true is the thing the old assertion was protecting: Reports
+   * must not IMPLEMENT an AI surface. It renders a shared component and hands
+   * it two pieces of plain data (the definition, and the identity of the
+   * result); it builds no prompt, names no feature, holds no fact and makes no
+   * request. Delete `~/shared/ai` and the report still draws every figure.
+   */
+  it("implements no AI surface of its own", () => {
     for (const { file, code } of FILES) {
-      expect(code, `${file} must not offer an AI action`).not.toMatch(
-        /Explain this|Ask DalyHub|Summarise this/i,
+      expect(code, `${file} must not build an AI request`).not.toMatch(
+        /\/ai\/assist|\/ai\/apply|idempotencyKey|factBlock|promptVersion/i,
+      );
+      expect(code, `${file} must not name an AI feature`).not.toMatch(
+        /report-explanation|weekly-review-assistant|workspace-question-answer|grounded-question-answer/,
       );
     }
+  });
+
+  it("keeps every figure on the page computed without AI", () => {
+    /*
+     * The one AI reference Reports may hold is the shared component, rendered
+     * below the result. It is checked by name so that a SECOND one — an AI
+     * control on the collection, an AI-written subtitle, an AI-chosen sort —
+     * fails here rather than arriving quietly.
+     */
+    const referencing = FILES.filter((entry) =>
+      /~\/shared\/ai/.test(entry.code),
+    ).map((entry) => entry.file);
+    expect(referencing).toEqual(["app/modules/reports/ReportScreen.tsx"]);
   });
 });
 
