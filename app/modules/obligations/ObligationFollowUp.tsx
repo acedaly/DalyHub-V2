@@ -40,16 +40,25 @@ export interface ObligationFollowUpProps {
 /**
  * True when drafting a follow-up is a sensible thing to offer.
  *
- * The SAME four conditions the server applies before it will build a fact
- * block, restated here so a control the owner cannot use is never shown. The
- * server remains the authority — this is courtesy, not enforcement.
+ * The same conditions the server applies before it will build a fact block,
+ * restated here so a control the owner cannot use is never shown. The server
+ * remains the authority — this is courtesy, not enforcement.
+ *
+ * `taskId === null`, NOT `!taskOpen`. They differ in exactly the case that
+ * matters: an obligation whose linked Task has been COMPLETED reports
+ * `taskOpen: false` while still pointing at that Task. Offering the control
+ * there would have spent a real provider request on a proposal
+ * `applyObligationTask` refuses by construction — it will not move a pointer
+ * off an existing Task, because doing so would orphan work the owner can no
+ * longer reach from the commitment it is about. A charged request that can
+ * never be accepted is worse than an absent control.
  */
 export function canDraftFollowUp(obligation: SerializedObligation): boolean {
   return (
     obligation.status === "open" &&
     obligation.state === "overdue" &&
     obligation.dueDate !== null &&
-    !obligation.taskOpen
+    obligation.taskId === null
   );
 }
 

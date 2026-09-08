@@ -58,7 +58,14 @@ export type FinanceRefusalReason =
   /** The field may not be edited on an imported transaction. */
   | "import_provenance"
   /** Two amounts are in different currencies, and DalyHub never converts. */
-  | "currency_mismatch";
+  | "currency_mismatch"
+  /**
+   * V2.15 — the category moved since the caller read it.
+   *
+   * Raised only for a caller that supplied `expectedCategoryId`, which is a
+   * caller acting on a value it read earlier. Nothing is written.
+   */
+  | "stale_category";
 
 /** The Finance store failed for a reason the caller cannot act on. */
 export class FinanceStorageError extends Error {

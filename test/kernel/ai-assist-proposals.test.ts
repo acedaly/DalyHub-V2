@@ -324,6 +324,95 @@ describe("an accepted category is an ordinary Finance mutation", () => {
     expect(after?.transaction.categoryId).toBe(ownersOwnChoice.id);
   });
 
+  it("refuses a write whose expected category moved AFTER the read — atomically", async () => {
+    /*
+     * The guarantee the early check only appeared to give.
+     *
+     * `setProposedCategory` reads the transaction, compares, reads the category
+     * list, and then writes — three awaits, and a second request can categorise
+     * the row in any of the gaps. The check cannot see that; the compare-and-set
+     * on the write can, because the expectation is in the WHERE clause.
+     *
+     * This drives the repository directly with an expectation that is already
+     * wrong, which is exactly the state the apply path reaches when it loses
+     * the race, and asserts that NOTHING moves — not the category, and not the
+     * entity row's `updatedAt`, which a half-guarded batch would have bumped.
+     */
+    const h = harness(WS);
+    const account = await everydayAccount(h);
+    const txn = await uncategorisedSpend(h, account.id);
+    const spending = (await h.finance.listCategories()).filter(
+      (entry) => entry.kind === "spending",
+    );
+
+    // The owner gets there first, in the window.
+    await h.finance.updateTransaction(txn.id, { categoryId: spending[0]!.id });
+    const before = await h.finance.getTransaction(txn.id);
+
+    h.clock.advance(60_000);
+    await expect(
+      h.finance.updateTransaction(txn.id, {
+        categoryId: spending[1]!.id,
+        // What the loser SAW: uncategorised.
+        expectedCategoryId: null,
+      }),
+    ).rejects.toMatchObject({ reason: "stale_category" });
+
+    const after = await h.finance.getTransaction(txn.id);
+    expect(after?.transaction.categoryId).toBe(spending[0]!.id);
+    // Not even a timestamp moved: both statements carry the predicate, so a
+    // stale write is not a partial write.
+    expect(after?.transaction.updatedAt.toISOString()).toBe(
+      before?.transaction.updatedAt.toISOString(),
+    );
+  });
+
+  it("applies when the expected category is right, including the NULL case", async () => {
+    const h = harness(WS);
+    const account = await everydayAccount(h);
+    const txn = await uncategorisedSpend(h, account.id);
+    const spending = (await h.finance.listCategories()).filter(
+      (entry) => entry.kind === "spending",
+    );
+
+    // `IS NULL`, not `= NULL`: expecting "uncategorised" has to be expressible,
+    // because it is the ordinary case for a suggestion.
+    await h.finance.updateTransaction(txn.id, {
+      categoryId: spending[0]!.id,
+      expectedCategoryId: null,
+    });
+    expect(
+      (await h.finance.getTransaction(txn.id))?.transaction.categoryId,
+    ).toBe(spending[0]!.id);
+
+    // …and a non-null expectation that matches.
+    await h.finance.updateTransaction(txn.id, {
+      categoryId: spending[1]!.id,
+      expectedCategoryId: spending[0]!.id,
+    });
+    expect(
+      (await h.finance.getTransaction(txn.id))?.transaction.categoryId,
+    ).toBe(spending[1]!.id);
+  });
+
+  it("leaves every unguarded caller exactly as it was", async () => {
+    // The drawer, the picker and the queue's one-tap accept supply no
+    // expectation and must keep last-write-wins. An optional guard that
+    // silently became mandatory would break every Finance surface.
+    const h = harness(WS);
+    const account = await everydayAccount(h);
+    const txn = await uncategorisedSpend(h, account.id);
+    const spending = (await h.finance.listCategories()).filter(
+      (entry) => entry.kind === "spending",
+    );
+
+    await h.finance.updateTransaction(txn.id, { categoryId: spending[0]!.id });
+    await h.finance.updateTransaction(txn.id, { categoryId: spending[1]!.id });
+    expect(
+      (await h.finance.getTransaction(txn.id))?.transaction.categoryId,
+    ).toBe(spending[1]!.id);
+  });
+
   it("refuses a category of the wrong KIND for the transaction's direction", async () => {
     const h = harness(WS);
     const account = await everydayAccount(h);

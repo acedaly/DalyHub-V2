@@ -97,6 +97,26 @@ export function AiAssistSurface(props: AiAssistSurfaceProps) {
   const revalidator = useRevalidator();
   const feedback = useFeedback();
 
+  /**
+   * A per-MOUNT nonce, and the reason the run counter is not enough on its own.
+   *
+   * The idempotency key ties one deliberate owner action to one paid request,
+   * and the ledger enforces it: `reserve` returns the EXISTING row when a key
+   * repeats. A counter that starts at zero on every mount therefore reuses
+   * `feature:scope:1` after every reload — so the first generation on a fresh
+   * page would be answered by the ledger row a PREVIOUS page created.
+   *
+   * For this surface that is worse than a wasted request. The Finance scope key
+   * names a QUEUE rather than a record, and its contents change as the owner
+   * clears it, so an old result paired with a new batch would resolve its row
+   * positions against a different set of transactions — a suggestion shown
+   * against a transaction it was never about.
+   *
+   * A nonce fixed at mount is exactly the right lifetime: a retry inside one
+   * page keeps its key, which is what duplicate-submit protection needs, and a
+   * new page cannot collide with an earlier one.
+   */
+  const [nonce] = useState(() => Math.random().toString(36).slice(2, 12));
   const [run, setRun] = useState(0);
   const [rows, setRows] = useState<readonly ProposalRowDraft[]>([]);
   const [outcomes, setOutcomes] = useState<
@@ -132,9 +152,9 @@ export function AiAssistSurface(props: AiAssistSurfaceProps) {
       feature: props.feature,
       // One deliberate owner action = one key. A refresh replays nothing; a
       // second deliberate run is a new, separately-budgeted request.
-      idempotencyKey: `${props.feature}:${props.scopeKey}:${next}`,
+      idempotencyKey: `${props.feature}:${props.scopeKey}:${nonce}:${next}`,
     });
-  }, [controller, props.feature, props.request, props.scopeKey, run]);
+  }, [controller, nonce, props.feature, props.request, props.scopeKey, run]);
 
   /*
    * The rows, derived from the result rather than stored beside it — until the
@@ -207,8 +227,13 @@ export function AiAssistSurface(props: AiAssistSurfaceProps) {
     [controller, props, revalidator, state],
   );
 
-  const undo = useCallback(async () => {
-    if (state.kind !== "result" || undoPayloads.length === 0) return;
+  const undo = useCallback(async (): Promise<{
+    readonly reversed: number;
+    readonly failed: number;
+  }> => {
+    if (state.kind !== "result" || undoPayloads.length === 0) {
+      return { reversed: 0, failed: 0 };
+    }
     setBusy(true);
     try {
       const response = (await controller.apply({
@@ -216,10 +241,9 @@ export function AiAssistSurface(props: AiAssistSurfaceProps) {
         usageId: state.usageId,
         items: JSON.stringify(undoPayloads),
       })) as { ok?: boolean; applied?: readonly AppliedResponseItem[] };
-      const reversed = (response.applied ?? []).filter(
-        (entry) => entry.ok,
-      ).length;
-      const failed = (response.applied ?? []).length - reversed;
+      const applied = response.applied ?? [];
+      const reversed = applied.filter((entry) => entry.ok).length;
+      const failed = applied.length - reversed;
       setUndoPayloads([]);
       setNotice(
         failed === 0
@@ -227,6 +251,7 @@ export function AiAssistSurface(props: AiAssistSurfaceProps) {
           : `${reversed} undone. ${failed} could not be — they changed again after the change was applied, and your newer version is still there.`,
       );
       void revalidator.revalidate();
+      return { reversed, failed };
     } finally {
       setBusy(false);
     }
@@ -247,10 +272,36 @@ export function AiAssistSurface(props: AiAssistSurfaceProps) {
   }, [controller, state]);
 
   const onUndo = useCallback(() => {
-    void undo().then(() => {
-      feedback.notifySuccess("Change undone", {
-        message: "DalyHub is back as it was.",
-      });
+    /*
+     * The toast says what ACTUALLY happened.
+     *
+     * An undo can be partly refused — a row the owner changed again after the
+     * change was applied is not reverted, on purpose — so resolving the request
+     * is not the same fact as reversing the change. Announcing "back as it was"
+     * over a partial reversal would be the same class of lie as reporting a
+     * partial acceptance as a complete one, which the apply path already
+     * refuses to tell.
+     */
+    void undo().then(({ reversed, failed }) => {
+      if (failed === 0 && reversed > 0) {
+        feedback.notifySuccess("Change undone", {
+          message: "DalyHub is back as it was.",
+        });
+        return;
+      }
+      if (reversed === 0) {
+        feedback.notifyWarning("Nothing was undone", {
+          message:
+            "Those changes moved again afterwards, so your newer version is still there.",
+        });
+        return;
+      }
+      feedback.notifyWarning(
+        reversed === 1 ? "1 change undone" : `${reversed} changes undone`,
+        {
+          message: `${failed} could not be — they changed again afterwards, and your newer version is still there.`,
+        },
+      );
     });
   }, [feedback, undo]);
 

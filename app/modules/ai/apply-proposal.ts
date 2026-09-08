@@ -969,16 +969,18 @@ async function setProposedCategory(
       created: false,
     };
   }
+  /*
+   * The EARLY stale answer, kept because it produces the better sentence.
+   *
+   * It is not the guarantee, though — the guarantee is the compare-and-set on
+   * the write below, because everything between this read and that write is
+   * await-separated and a second tab can categorise the row in the gap. This
+   * check exists so the ordinary, uncontended case reads as "your own choice is
+   * still there" rather than as a bare refusal, and so a stale item costs no
+   * category read at all.
+   */
   if (current !== input.expected) {
-    return {
-      index,
-      kind: "transaction_category",
-      ok: false,
-      outcome: "stale",
-      id: input.transactionId,
-      message:
-        "This transaction’s category changed after the suggestion was made, so it wasn’t applied. Your own choice is still there.",
-    };
+    return staleCategory(index, input.transactionId);
   }
 
   if (input.next !== null) {
@@ -1023,9 +1025,34 @@ async function setProposedCategory(
     }
   }
 
-  await scope.finance.updateTransaction(input.transactionId, {
-    categoryId: input.next,
-  });
+  /*
+   * The write, and the ACTUAL stale guard.
+   *
+   * `expectedCategoryId` makes this a compare-and-set inside the database: the
+   * predicate is in the WHERE clause of both statements, so a row the owner
+   * categorised between the read above and this line is not written to at all
+   * — not the category, and not the entity's `updatedAt` — and the refusal
+   * comes back as `stale_category`.
+   *
+   * The check above cannot do this job. Two requests interleave at every
+   * await, and a guard that reads and then writes is a guard with a window in
+   * it. This is the same lesson REVIEW-02 learned for a Review section, and the
+   * same shape: the expectation travels WITH the write.
+   */
+  try {
+    await scope.finance.updateTransaction(input.transactionId, {
+      categoryId: input.next,
+      expectedCategoryId: input.expected,
+    });
+  } catch (cause) {
+    if (
+      cause instanceof FinanceRefusedError &&
+      cause.reason === "stale_category"
+    ) {
+      return staleCategory(index, input.transactionId);
+    }
+    throw cause;
+  }
 
   return {
     index,
@@ -1049,13 +1076,26 @@ async function setProposedCategory(
   };
 }
 
+/** The one stale-category refusal, so both guards say exactly the same thing. */
+function staleCategory(index: number, transactionId: string): AppliedItem {
+  return {
+    index,
+    kind: "transaction_category",
+    ok: false,
+    outcome: "stale",
+    id: transactionId,
+    message:
+      "This transaction’s category changed after the suggestion was made, so it wasn’t applied. Your own choice is still there.",
+  };
+}
+
 /**
  * Accept ONE proposed transaction category.
  *
  * No replay guard, and it needs none: this is an UPDATE, and the guarantee a
- * receipt would buy is already owned by the comparison above. A second apply
- * finds the category equal and reports `unchanged` — the database arbitrates
- * it, not a disabled button and not a stored key.
+ * receipt would buy is already owned by the compare-and-set on the write. A
+ * second apply finds the category equal and reports `unchanged` — the database
+ * arbitrates it, not a disabled button and not a stored key.
  */
 async function applyTransactionCategory(
   input: ApplyProposalInput,

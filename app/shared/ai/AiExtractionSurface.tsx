@@ -50,6 +50,20 @@ export function AiExtractionSurface({
 }: AiExtractionSurfaceProps) {
   const controller = useAiRequest();
   const revalidator = useRevalidator();
+  /*
+   * V2.15 — a per-MOUNT nonce, for the reason `AiAssistSurface` records at
+   * length: a run counter that starts at zero on every mount reuses
+   * `feature:record:1` after a reload, and the ledger answers a repeated
+   * idempotency key with the EXISTING row rather than a new request.
+   *
+   * The exposure is smaller here than on a Finance queue — an extraction's key
+   * names a specific record, so a reused row is at least about the right
+   * Meeting — but "at least about the right record" is not the guarantee AI-01
+   * intended, and the first extraction after every reload should be a real
+   * request. ASSIST-00's remit is to hold the legacy proposal paths to the same
+   * standard as the new ones rather than assume they already meet it.
+   */
+  const [nonce] = useState(() => Math.random().toString(36).slice(2, 12));
   const [run, setRun] = useState(0);
   const [applied, setApplied] = useState<string | null>(null);
   const [createdNotes, setCreatedNotes] = useState<readonly string[]>([]);
@@ -73,9 +87,9 @@ export function AiExtractionSurface({
       recordId,
       // One deliberate owner action = one key. A refresh replays nothing; a
       // second deliberate run is a new, separately-budgeted request.
-      idempotencyKey: `${feature}:${recordId}:${next}`,
+      idempotencyKey: `${feature}:${recordId}:${nonce}:${next}`,
     });
-  }, [controller, feature, recordId, run]);
+  }, [controller, feature, nonce, recordId, run]);
 
   const state = controller.state;
   const extraction =
