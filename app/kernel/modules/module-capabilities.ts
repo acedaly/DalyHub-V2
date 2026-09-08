@@ -84,8 +84,23 @@ export const NAV_ICON_NAMES = [
   "help",
   "about",
   "settings",
-  "insight",
-  "search",
+  /*
+   * V2.16 CONSOL-04 retired two names from this list: `insight` and `search`.
+   *
+   * `insight` was declared by AI and Analytics until POLISH-01 gave each of
+   * them their own glyph (the note below records why), and nothing has declared
+   * it since. `search` was never declared by anything: Search is a shell
+   * affordance in the top bar and the phone sheet, not a registry destination,
+   * so a module could not have used it.
+   *
+   * Retired rather than kept, because this list is a CONTRACT a manifest is
+   * validated against, not a palette: a name in it is an offer, and an offer
+   * nothing takes is a reader's dead end. The GLYPHS are untouched and both
+   * still have consumers — `SearchIcon` in the collection search field and the
+   * Search surface, `IdeaIcon` in the Diary's own subtype icons — so this
+   * retires two registry names, not two drawings. Neither name is persisted
+   * anywhere, so nothing an owner has stored refers to one.
+   */
   /*
    * POLISH-01 — four names added so four adjacent destinations stop sharing a
    * glyph.
