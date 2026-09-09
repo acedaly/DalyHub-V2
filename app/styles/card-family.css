@@ -90,7 +90,7 @@
   position: relative;
   background: var(--app-hero-wash), var(--dh-color-surface-expressive);
   border-radius: var(--app-shape-hero);
-  box-shadow: var(--app-elevation-raised);
+  box-shadow: none;
   color: var(--dh-color-text-on-expressive);
   overflow: hidden;
 }
@@ -1471,9 +1471,9 @@
   border: none;
   border-radius: var(--app-shape-entity-card);
   background: var(--dh-color-surface);
-  box-shadow: var(--app-elevation-resting);
+  box-shadow: none;
   transition:
-    box-shadow var(--dh-motion-fast) var(--dh-ease-standard),
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
     transform var(--dh-motion-fast) var(--dh-ease-enter);
 }
 
@@ -1508,7 +1508,7 @@
 }
 
 .dh-scard--interactive:hover {
-  box-shadow: var(--app-elevation-raised);
+  background-color: var(--dh-color-surface-subtle);
   transform: translateY(-1px);
 }
 
@@ -1984,7 +1984,7 @@
 }
 
 .dh-stat--interactive:hover {
-  box-shadow: var(--app-elevation-raised);
+  background-color: var(--dh-color-surface-subtle);
   transform: translateY(-1px);
 }
 
@@ -3733,14 +3733,14 @@
   background: var(--dh-color-surface);
   border: none;
   border-radius: var(--app-shape-entity-card);
-  box-shadow: var(--app-elevation-resting);
+  box-shadow: none;
   transition:
-    box-shadow var(--dh-motion-fast) var(--dh-ease-standard),
+    background-color var(--dh-motion-fast) var(--dh-ease-standard),
     transform var(--dh-motion-fast) var(--dh-ease-enter);
 }
 
 .dh-rcard:hover {
-  box-shadow: var(--app-elevation-raised);
+  background-color: var(--dh-color-surface-subtle);
   transform: translateY(-1px);
 }
 

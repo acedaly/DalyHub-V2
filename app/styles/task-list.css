@@ -284,12 +284,10 @@
  *
  * A MARK rather than a wash, for two reasons. Bulk selection already owns the
  * wash above, and two states that look alike and mean different things is worse
- * than one state fewer. And it is an inset shadow rather than a border, so it
- * costs the row no width and moves no text — the same rule every revealed
- * affordance in the product keeps.
+ * than one state fewer. It is a border to adhere to the flat minimal design.
  */
 .dh-taskrow[data-current="true"] {
-  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-accent);
+  border-inline-start: var(--dh-border-width-strong) solid var(--dh-color-accent);
 }
 
 /* Forced colours discard the shadow, so the mark becomes a real edge. */

@@ -88,9 +88,8 @@
    * claim the surface does something, which is exactly what D1 reserves depth
    * for.
    */
-  box-shadow: var(--app-elevation-resting);
+  box-shadow: none;
   transition:
-    box-shadow var(--dh-motion-fast) var(--dh-ease-standard),
     background-color var(--dh-motion-fast) var(--dh-ease-standard);
 }
 
@@ -99,11 +98,9 @@
   gap: var(--app-space-2);
 }
 
-/* An interactive card lifts a level; a static one does not move, because
- * elevation that responds to a pointer is a claim that the surface does
- * something. */
+/* Interaction uses subtle background tints rather than depth changes. */
 .dh-card:hover:has(a, button) {
-  box-shadow: var(--dh-elevation-overlay);
+  background-color: var(--dh-color-surface-subtle);
 }
 
 /* Selected state: the primary container fill AND the native checked checkbox —
@@ -781,7 +778,7 @@
   background: var(--dh-color-surface);
   border: none;
   border-radius: var(--app-shape-card);
-  box-shadow: var(--app-elevation-resting);
+  box-shadow: none;
   padding-block: var(--app-space-2);
   padding-inline: var(--app-space-4);
   gap: 0;
@@ -1263,7 +1260,7 @@
   background: var(--dh-color-surface);
   border: none;
   border-radius: var(--dh-radius-lg);
-  box-shadow: var(--app-elevation-resting);
+  box-shadow: none;
   padding-block: var(--app-space-5);
   padding-inline: var(--app-space-6);
 }

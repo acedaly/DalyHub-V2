@@ -158,9 +158,9 @@
   display: block;
   margin: 0;
   padding: 0;
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 
@@ -465,11 +465,11 @@
 /* TODAY-12 — decision-first composition. The first row is the one decision the
  * owner can act on now and the next fixed commitment; reporting follows work. */
 .dh-today__now {
-  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-accent);
+  border-inline-start: var(--dh-border-width-strong) solid var(--dh-color-accent);
 }
 
 .dh-today__now[data-overdue="true"] {
-  box-shadow: inset var(--dh-border-width-strong) 0 0 var(--dh-color-overdue);
+  border-inline-start: var(--dh-border-width-strong) solid var(--dh-color-overdue);
 }
 
 .dh-today__now-label {
@@ -485,10 +485,10 @@
 }
 
 .dh-today__next {
-  padding: var(--dh-space-5);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  padding: var(--dh-space-5) 0;
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .dh-today__next-link {
@@ -819,9 +819,9 @@
  */
 .dh-today__panel--card {
   padding-block: var(--dh-space-4);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .dh-today__timeline {
@@ -850,10 +850,10 @@
    because it is the same kind of thing at a different cadence. Nothing here is
    a new panel treatment. */
 .dh-today__review-door {
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  padding: var(--dh-space-4) 0;
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .dh-today__now .dh-tasklist {
