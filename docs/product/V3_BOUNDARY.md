@@ -50,7 +50,7 @@ are stated below, separately.
 | 7b | **Architecture consolidated — deletion** | **TRUE** | V2.16 CONSOL-01, [ADR-124](../decisions/ARCHITECTURE_DECISIONS.md). A decided boundary with a PROVED procedure — which is what the clause asks for. A boundary is a decision, not necessarily a button. |
 | 7c | **Architecture consolidated — one recurrence engine per domain and no more** | **TRUE** | `one-obligation-domain.test.ts`, falsified by adding a second occurrence function. |
 | 7d | **Architecture consolidated — every store in the archive and the rehearsal** | **TRUE** | V2.16 CONSOL-02. All sixty tables classified, checked against the REAL migrated schema in both directions; the rehearsal covers every durable domain and compares derived owner-facing values, not row counts. |
-| 7e | **Architecture consolidated — the register closed or re-homed** | **TRUE** | V2.16 CONSOL-03. Ninety-eight entries, zero ambiguous: 4 closed against their own stated closing conditions, 10 owner-gated, 82 re-homed with a stated reason, 2 struck, 0 left open without a home. |
+| 7e | **Architecture consolidated — the register closed or re-homed** | **TRUE** | V2.16 CONSOL-03. Ninety-eight entries, zero ambiguous: 3 closed against their own stated closing conditions, 1 deferred to the dedicated PR its own condition names, 10 owner-gated, 82 re-homed with a stated reason, 2 struck, 0 left open without a home. |
 | 8 | **CI / order proof** | **OWNER-GATED** | [DEBT-203](PRODUCT_DEBT.md) (ten consecutive green runs), [DEBT-125](PRODUCT_DEBT.md) (two consecutive green gates on `main`) and [DEBT-157](PRODUCT_DEBT.md) (a green run's artefacts) are all counts nobody can produce from a branch. The mechanisms are closed; the measurements are owner-dispatched. |
 
 ---

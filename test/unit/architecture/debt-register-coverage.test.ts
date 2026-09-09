@@ -90,43 +90,45 @@ describe("CONSOL-03 — the register and its disposition report agree", () => {
   });
 
   it("keeps the report's summary table equal to the rows it actually carries", () => {
+    /*
+     * Read the categories the report DECLARES rather than a hard-coded list, so
+     * a future pass can add one — as V2.16 had to, when a review pointed out
+     * that DEBT-95's closing condition names a dedicated PR this one cannot be
+     * — without this check having to be edited to permit it. What it enforces
+     * is the arithmetic: every declared count equals the rows under the heading
+     * of the same name, and nothing is left without a home.
+     */
     const stated = Object.fromEntries(
-      [
-        ...REPORT.matchAll(
-          /^\| \*\*(CLOSED|OWNER-GATED|RE-HOMED TO V3|STRUCK BY DECISION|REMAIN OPEN)\*\* \| (\d+) \|/gm,
-        ),
-      ].map((match) => [match[1], Number(match[2])]),
+      [...REPORT.matchAll(/^\| \*\*([A-Z][A-Z0-9 -]+)\*\* \| (\d+) \|/gm)].map(
+        (match) => [match[1].trim(), Number(match[2])],
+      ),
     );
-    expect(new Set(Object.keys(stated))).toEqual(
-      new Set([
-        "CLOSED",
-        "OWNER-GATED",
-        "RE-HOMED TO V3",
-        "STRUCK BY DECISION",
-        "REMAIN OPEN",
-      ]),
-    );
+    expect(Object.keys(stated).length).toBeGreaterThanOrEqual(4);
+    expect(stated["REMAIN OPEN"], "an entry with no home").toBe(0);
 
-    // Count the rows under each `##` heading the summary names.
-    const counted: Record<string, number> = {
-      CLOSED: 0,
-      "OWNER-GATED": 0,
-      "RE-HOMED TO V3": 0,
-      "STRUCK BY DECISION": 0,
-    };
+    const counted: Record<string, number> = {};
     let section: string | null = null;
     for (const line of REPORT.split("\n")) {
       const heading = /^## (.+)$/.exec(line);
       if (heading) {
         const name = heading[1].split("—")[0].trim();
-        section = name in counted ? name : null;
+        section = name in stated ? name : null;
         continue;
       }
-      if (section !== null && line.startsWith("| [")) counted[section] += 1;
+      if (section !== null && line.startsWith("| [")) {
+        counted[section] = (counted[section] ?? 0) + 1;
+      }
     }
-    for (const [name, count] of Object.entries(counted)) {
-      expect(stated[name], `the ${name} count`).toBe(count);
+    for (const [name, count] of Object.entries(stated)) {
+      if (count === 0) continue;
+      expect(counted[name] ?? 0, `the ${name} count`).toBe(count);
     }
-    expect(stated["REMAIN OPEN"]).toBe(0);
+
+    // And the total is the register's own open count at the start of the pass,
+    // which the report states in prose. Both halves of that sentence are read.
+    const total = Object.values(stated).reduce((sum, n) => sum + n, 0);
+    const declared = /\*\*(\d+) open entries\*\*/.exec(REPORT)?.[1];
+    expect(declared, "the report's stated starting count").toBeDefined();
+    expect(total).toBe(Number(declared));
   });
 });

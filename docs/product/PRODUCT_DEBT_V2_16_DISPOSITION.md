@@ -11,7 +11,8 @@ bullet on its own entry naming one of four outcomes.
 
 | Disposition | Count | Means |
 |---|---|---|
-| **CLOSED** | 4 | Its own stated closing condition is satisfied, by work in this branch, and the proof is named |
+| **CLOSED** | 3 | Its own stated closing condition is satisfied, by work in this branch, and the proof is named |
+| **DEFERRED TO A DEDICATED PR** | 1 | Its own closing condition names a PR this one cannot be, and the constitution agrees |
 | **OWNER-GATED** | 10 | Code-side complete; an owner action or owner-held evidence remains |
 | **RE-HOMED TO V3** | 82 | New capability, architectural expansion, or a dependency outside this repository |
 | **STRUCK BY DECISION** | 2 | The premise no longer holds, and the superseding release or decision is named |
@@ -43,8 +44,9 @@ question".
 This register is overwhelmingly a record of **deliberately deferred
 capability, honestly written down** — which is what a good debt register looks
 like in a product that refuses things on purpose. It is not a backlog of
-defects. Four genuine defects were found and fixed here; two premises had been
-overtaken and are struck; ten wait on the owner.
+defects. Three genuine defects were found and fixed here; one is a correction that
+needs its own pull request and says so; two premises had been overtaken and are
+struck; ten wait on the owner.
 
 **What re-homing does NOT mean.** It is not a promise that V3 builds them. It
 is a statement that V2 will not, and that the entry belongs to a programme
@@ -60,7 +62,6 @@ condition is quoted on the entry itself and satisfied there.
 
 | Entry | What it was | Why |
 |---|---|---|
-| [DEBT-95](PRODUCT_DEBT.md#-debt-95--agentsmd-6-and-15-still-describe-the-colour-system-the-product-no-longer-has--p2--closed-2026-09-08-v216-consol-03) | `AGENTS.md` §6 and §15 still describe the colour system the product no longer has | §15's false sentence is corrected: `System` is the default and IS the honouring of `prefers-color-scheme`; an explicit Light or Dark is deliberate owner control. §6's half had already been amended by DS-01 and nobody had closed the entry. **The closing condition asked for a dedicated PR and this is not one** — the deviation is deliberate and named: a constitution that tells an agent the product cannot do what it demonstrably does is a truth defect, and V2.16's whole theme is that the repository stops carrying those. |
 | [DEBT-217](PRODUCT_DEBT.md#-debt-217--a-convergence-fixture-seeds-a-person-whose-relationship-is-outside-the-products-own-closed-vocabulary--p3--closed-2026-09-08-v216-consol-03) | A convergence fixture seeds a Person whose relationship is outside the product's own closed vocabulary | `p-rc-dan` is seeded `relationship = 'supplier'` — a member of the closed vocabulary — so every seeded Person now saves through the contact form without editing a field the journey did not intend to edit. The role and organisation still say he is a builder. |
 | [DEBT-242](PRODUCT_DEBT.md#-debt-242--no-workspace-or-account-deletion-path-exists--p3--closed-2026-09-08-v216-consol-01-adr-124) | No workspace or account deletion path exists | The second of its two permitted outcomes, taken on a measurement the entry did not have, and PROVED rather than documented. ADR-124; see the entry. |
 | [DEBT-243](PRODUCT_DEBT.md#-debt-243--seven-surfaces-link-a-task-with-taskstask-a-parameter-nothing-reads--p3--closed-2026-09-08-v216-consol-03) | Seven surfaces link a Task with `/tasks?task=<id>`, a parameter nothing reads | One `taskDrawerHref` in `~/kernel/task-views`; all nine call sites converged; `grep -rn "tasks?task=" app/` returns nothing; the three tests that pinned the literal now assert the drawer contract. The journey half of the condition is already covered end to end by `dhds-11-drag-reorder.spec.ts` and `command-palette.spec.ts`, which both open a Task from exactly this URL shape. |
@@ -84,6 +85,23 @@ artefact.
 | [DEBT-213](PRODUCT_DEBT.md#-debt-213--the-ai-model-and-pricing-registry-is-pinned-to-one-dated-reading-with-nothing-scheduling-its-re-verification--p3) | The AI model and pricing registry is pinned to one dated reading with nothing scheduling its re-verification | `PRICING_VERIFIED_AT` must reflect a reading taken on or after the first LIVE provider call. No live call has been made, so the reading cannot exist. Closing it on fake-provider evidence would be the exact dishonesty the entry exists to prevent. |
 | [DEBT-240](PRODUCT_DEBT.md#-debt-240--an-obligation-cannot-exist-without-an-asset-parent-and-carries-no-amount--p3) | An obligation cannot exist without an Asset parent and carries no amount | Every contributor-runnable half was met by V2.10 and is asserted end to end. What remains is the rehearsal against a RESTORED PRODUCTION ARTEFACT, which needs the encrypted artefact and the recovery key supplied out of band. |
 | [DEBT-244](PRODUCT_DEBT.md#-debt-244--one-theme-01-colour-scheme-journey-times-out-reading-computed-styles-on-main-as-well--p3) | One THEME-01 colour-scheme journey times out reading computed styles, on `main` as well | A cold local pass plus DEBT-203's ten-run count recording no flake for it. The second half is the same owner-held measurement. |
+
+## DEFERRED TO A DEDICATED PR — the closing condition names a PR this cannot be
+
+**One entry, and the reason it is here rather than in CLOSED is the whole point
+of CONSOL-03.** This release first amended `AGENTS.md` inside this branch and
+closed the entry with the deviation recorded as "deliberate and named". A review
+of the pull request pointed out what that reasoning had talked itself past: the
+entry's own closing condition asks for a dedicated PR, and `AGENTS.md`'s final
+line requires one for any amendment. **A pass whose stated rule is that debt is
+never closed by wording cannot close an entry by out-arguing its closing
+condition.** The amendment was reverted; the entry is open.
+
+| Entry | What it is | Why not here |
+|---|---|---|
+| [DEBT-95](PRODUCT_DEBT.md#-debt-95--agentsmd-6-and-15-still-describe-the-colour-system-the-product-no-longer-has--p2) | `AGENTS.md` §6 and §15 still describe the colour system the product no longer has | The correction is written and correct, and it is the whole of what that PR must do. What it cannot be is a line inside a 97-file consolidation: the constitution is the repository's highest authority and an amendment to it earns its own review. §6's half was already amended by DS-01. |
+
+---
 
 ## STRUCK BY DECISION — the premise no longer holds
 

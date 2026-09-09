@@ -151,21 +151,32 @@ Then:
    and REFUSES anything else outright rather than escaping it. Nothing is
    generated on a refusal.
 3. **Run the DELETE block** through
-   `wrangler d1 execute dalyhub-v2 --file purge.sql`. The runnable form carries
-   no `BEGIN`/`COMMIT`: D1 does not accept an explicit transaction from
-   `wrangler d1 execute` and applies a `--file` as one batch of its own, so a
-   wrapper there would fail the whole run before deleting anything. Stop before
-   the final `DELETE FROM workspaces` if you want an empty workspace rather than
-   no workspace.
-4. **Run the verification block** the plan prints after it. Every count must be
-   `0`.
+
+   ```bash
+   wrangler d1 execute dalyhub-v2 --remote --file purge.sql
+   ```
+
+   > **`--remote` is not optional and is not a style choice.** Without it
+   > Wrangler executes against the LOCAL database — and then step 4's
+   > verification block dutifully returns zero for every table, because the
+   > local database is empty, while every production row is still there. An
+   > operator would read sixty zeroes and believe they were finished. This is
+   > the same reason `scripts/production-d1.mjs` passes `--remote` on every
+   > production command, and the flag is asserted here by
+   > [`workspace-deletion-procedure.test.ts`](../../test/unit/architecture/workspace-deletion-procedure.test.ts).
+
+   The runnable form carries no `BEGIN`/`COMMIT`: D1 does not accept an explicit
+   transaction from `wrangler d1 execute` and applies a `--file` as one batch of
+   its own, so a wrapper there would fail the whole run before deleting
+   anything. Stop before the final `DELETE FROM workspaces` if you want an empty
+   workspace rather than no workspace.
+4. **Run the verification block** the plan prints after it, `--remote` again.
+   Every count must be `0`.
 5. **Delete the R2 objects.** They are not in D1 and the plan cannot reach them.
    Every one of the workspace's objects is under a single deterministic prefix:
 
-   ```bash
-   wrangler r2 object list dalyhub-v2-attachments --prefix "workspaces/<workspace-id>/attachments/"
-   # …then delete each key, or delete the whole bucket if the workspace is the
-   # only tenant.
+   ```
+   workspaces/<workspace-id>/attachments/
    ```
 
    The prefix rule is [`attachment-storage-key.ts`](../../app/kernel/attachments/attachment-storage-key.ts);
@@ -180,6 +191,45 @@ Then:
    > photograph the owner ever attached sitting in the bucket after a
    > "deletion". A prose prefix beside a derived key is exactly the pair that
    > drifts, and the drift is silent at the worst possible moment.
+
+   **How you delete them depends on whether the bucket has one tenant, and
+   Wrangler can only help you with one of those cases.**
+
+   **The single-tenant case — which is production's actual shape.** One
+   workspace, one bucket, so the bucket goes:
+
+   ```bash
+   wrangler r2 bucket delete dalyhub-v2-attachments
+   ```
+
+   **The shared-bucket case.** `wrangler r2 object` offers `get`, `put` and
+   `delete` and **nothing that enumerates a prefix** — there is no
+   `wrangler r2 object list`. That is a real limit of the tool, not an omission
+   from this document, and it is stated here rather than papered over with a
+   command that would fail: an operator who cannot list the keys cannot delete
+   them one at a time.
+
+   Two things do work, and both need a credential supplied out of band:
+
+   - **R2's S3-compatible endpoint**, with an R2 API token from the Cloudflare
+     dashboard. Any S3 client will enumerate and delete a prefix:
+
+     ```bash
+     aws s3 rm "s3://dalyhub-v2-attachments/workspaces/<workspace-id>/attachments/" \
+       --recursive --endpoint-url "https://<account-id>.r2.cloudflarestorage.com"
+     ```
+
+   - **The Cloudflare REST API's** object listing for the same bucket and
+     prefix, then `wrangler r2 object delete` per key.
+
+   Either way, **list first and read what comes back before deleting anything**.
+   The prefix is derived from a workspace id and nothing else, so a truncated or
+   mistyped id lists a different workspace's evidence — and there is no undo.
+
+   > This step is why [ADR-124](../decisions/ARCHITECTURE_DECISIONS.md) says
+   > deletion is an infrastructure act. It needs a credential the application
+   > does not hold, a tool the application does not ship, and a judgement the
+   > application cannot make.
 
 ---
 

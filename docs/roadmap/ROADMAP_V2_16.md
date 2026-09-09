@@ -541,9 +541,9 @@ stated per clause: production Finance use, live AI use, or nothing.
 
 ## Falsification
 
-Thirty deliberate breaks were promised. **Thirty-four were taken** — four more
-because gaps found while running them deserved their own breaks rather than
-footnotes. Each was applied to the real tree, run, and reverted; the working
+Thirty deliberate breaks were promised. **Thirty-eight were taken** — eight
+more because gaps found while running them, and while reviewing the pull
+request, deserved their own breaks rather than footnotes. Each was applied to the real tree, run, and reverted; the working
 tree was confirmed clean afterwards.
 
 **A falsification that stays green is a test gap, and the gap is fixed rather
@@ -639,6 +639,34 @@ route` is a real comparison, because registry paths carry no leading slash),
 `taskDrawerHref`'s decode-don't-pin shape, and the deleted
 `px-03-navigation.test.ts`, which is strictly subsumed.
 
+### The PR review, and the four things it found
+
+A second review — the repository's own Codex reviewer, on the opened pull
+request — found four more, and every one is the same shape as the first round:
+a document telling somebody to do something that does not work.
+
+| Found | What was actually wrong | What now holds it |
+|---|---|---|
+| **A purge that would have deleted nothing** | Procedure B said `wrangler d1 execute dalyhub-v2 --file purge.sql`. Without `--remote`, Wrangler runs against the LOCAL database — and then the verification block returns `0` for all sixty tables, because the local database is empty, while every production row is still there. **An operator would have read sixty zeroes and believed they were finished.** `scripts/production-d1.mjs` has always passed `--remote` for exactly this reason; the document had not | `workspace-deletion-procedure` |
+| **A command that does not exist** | The R2 step said `wrangler r2 object list … --prefix …`. There is no such subcommand: `wrangler r2 object` has `get`, `put` and `delete` and nothing that enumerates a prefix. The procedure stopped at the step that removes the owner's evidence. It now names what actually works — `wrangler r2 bucket delete` for the single-tenant case that production actually is, and the S3-compatible endpoint or the REST API for a shared bucket — and states the tool's limit rather than papering over it | `workspace-deletion-procedure` |
+| **A constitutional amendment smuggled into a release** | `AGENTS.md`'s own final line requires an amendment to be its own PR, and DEBT-95's own closing condition says the same. This release amended §15 anyway and closed the entry with the deviation "deliberate and named". **A pass whose stated rule is that debt is never closed by wording cannot close an entry by out-arguing its closing condition.** The amendment is reverted; DEBT-95 is open again, in a disposition category of its own, with the correction written out ready for the PR that should carry it | `debt-register-coverage` |
+| **A declared Node range the operator command could not run in** | `engines.node` said `>=22.0.0`, and `workspace:purge:plan` loads a `.ts` module through Node's own type stripping, which is only the default from **22.18**. On 22.0–22.17 — a supported environment by the repository's own declaration — the command failed before printing a line. The floor is `>=22.18.0` now, so the declaration is true | the declaration itself |
+
+The general guarantee behind the first two was missing entirely: **nothing
+checked that a command this repository tells an operator to type is a command
+the tool actually has.** Every `wrangler` invocation inside a fenced block of
+`WORKSPACE_DELETION.md` is now checked against Wrangler's real subcommand
+surface, and every `d1 execute` against the `--remote` flag. Prose *discussing*
+a command that does not work is deliberately out of scope — the document has to
+be able to explain why `wrangler r2 object list` is not the answer.
+
+| # | The break | The check that caught it |
+|---|---|---|
+| 35 | `--remote` dropped from the purge step | `workspace-deletion-procedure` |
+| 36 | The unrunnable `wrangler r2 object list` returns | `workspace-deletion-procedure` |
+| 37 | A new open entry appears with no disposition | `debt-register-coverage` |
+| 38 | A disposition row names an entry the register no longer has | `debt-register-coverage` |
+
 ### The two that stayed green, and what was done about them
 
 | # | The break | What happened |
@@ -699,11 +727,11 @@ the pull request. Nothing below is quoted from an earlier release.
 | **CONSOL-00** — question-first information architecture | Shipped. Six groups over the real registry, no href moved, the phone bar unchanged, grouping in the accessibility tree, and a WCAG 2.2 §2.5.8 defect four releases old ([DEBT-254](../product/PRODUCT_DEBT.md)) found and fixed on the way |
 | **CONSOL-01** — the deletion boundary | Decided and PROVED. An infrastructure act, on the measurement that the product resolves one configured workspace with no creation surface; a registry-derived purge plan, a generator with a runnable form, an executed kernel proof and an operator procedure whose every literal is checked against the code |
 | **CONSOL-02** — whole-product recovery | Shipped, in two halves. The rehearsal compares DERIVED owner-facing values across export → destroy → restore, and the total store classification means no owner-data table can exist outside an export policy |
-| **CONSOL-03** — the register | 98 entries, zero ambiguous: 4 closed against their own stated closing conditions, 10 owner-gated, 82 re-homed with a per-entry reason, 2 struck. The two this release raised are recorded separately, one resolved and one open by decision |
+| **CONSOL-03** — the register | 98 entries, zero ambiguous: 3 closed against their own stated closing conditions, 1 deferred to the dedicated PR its own condition names, 10 owner-gated, 82 re-homed with a per-entry reason, 2 struck. The two this release raised are recorded separately, one resolved and one open by decision |
 | **CONSOL-04** — retirement and the map | Shipped. Two registry names, two commands and nine hand-built URLs retired; the archive support horizon stated and made checkable; the cross-registry audit and the product map added, both as gates |
 | **The V3 boundary** | Measured clause by clause in [`V3_BOUNDARY.md`](../product/V3_BOUNDARY.md). **V2 is consolidated — YES. V3 may begin — YES, architecture only, under two named conditions. Every optional production feature activated — NO** |
-| **Falsification** | 34 breaks, all red. Two stayed green on first attempt: one was a no-op and was re-done, one was a real gap and is closed |
-| **Independent review** | Run against the whole diff. Eleven missing guarantees found, all fixed, each with its own check — see [Falsification](#falsification) |
+| **Falsification** | 38 breaks, all red. Two stayed green on first attempt: one was a no-op and was re-done, one was a real gap and is closed |
+| **Independent review** | Two rounds. Eleven missing guarantees before the PR opened and four more from the PR's own reviewer — fifteen, all fixed, each with its own check. See [Falsification](#falsification) |
 
 ---
 

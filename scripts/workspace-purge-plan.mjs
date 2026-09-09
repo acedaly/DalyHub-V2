@@ -79,6 +79,20 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /*
+ * ── Why this needs Node 22.18 ───────────────────────────────────────────────
+ *
+ * The import below is a `.ts` file loaded with no bundler and no loader, which
+ * works because Node strips the types itself. That is not available in every
+ * Node the repository used to claim to support: `--experimental-strip-types`
+ * arrived in **22.6**, and it only became the DEFAULT — no flag — in **22.18**.
+ * `engines.node` said `>=22.0.0`, so a contributor on 22.0 through 22.17 would
+ * have had this command fail before it printed a line, and it is the one
+ * command an operator runs when they are about to delete a workspace.
+ *
+ * `.nvmrc` says `22`, which resolves to the current 22.x and has always been
+ * fine; what was wrong was the DECLARED range, and V2.16's PR review caught the
+ * gap between the two. The floor is `>=22.18.0` now, so the declaration is true.
+ *
  * The map is deliberately import-free TypeScript, so Node's type stripping can
  * load it directly — no bundler, no path alias, and no second copy of the order
  * maintained in JavaScript for the script's benefit.
