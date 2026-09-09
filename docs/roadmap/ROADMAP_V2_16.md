@@ -692,6 +692,28 @@ register can still explain what the parameter WAS.
 |---|---|---|
 | 39 | A spec pins the retired `?task=` parameter again | `task-drawer-href` |
 
+**A second failure came from the same run and the same shape.**
+`export.spec.ts` asserted the Settings deferred list read *"Import from other
+products, file attachments…"* — the sentence CONSOL-01 corrected, because
+attachments, notifications, calendar integrations, reminders and workspace
+deletion have all shipped and listing them as "not built yet" was untrue. The
+spec pinned the sentence; the sentence was the defect. It asserts the RULE now —
+nothing that has shipped may appear in a list of what does not exist — which is
+what pinning the sentence was standing in for, and which cannot rot the same
+way.
+
+**Two more failed and are not yet explained**, and the honest thing is to say
+so rather than name them: `notes.spec.ts`'s unsaved-navigation guard and
+`ai-assistance.spec.ts`'s "the assist route rejects a GET". **Both pass in
+isolation.** Both are in partitions that ran a fifth longer than the split
+predicts — see the measurement added to
+[DEBT-255](../product/PRODUCT_DEBT.md), where every partition on that run came
+in 6–18% over budget. That is the condition
+[DEBT-203](../product/PRODUCT_DEBT.md)'s timing races surface under, and the two
+entries compound: a gate with no headroom makes a probabilistic gate worse.
+Neither is being called a flake and neither is being left alone — the next full
+run carries real code changes and decides it.
+
 **The parameter was read by nothing**, which is the whole reason DEBT-243
 existed — so that assertion had been checking that a link which opened nothing
 kept its shape, and passing, for three releases.

@@ -76,14 +76,46 @@ test.describe("Settings → Privacy & data → export", () => {
       page.getByRole("button", { name: "Download Obsidian vault" }),
     ).toBeVisible();
 
-    // The old dead "Deferred" export row is gone; what remains deferred is named.
-    // SET-02 removed "backup and restore" from that list when restore shipped —
-    // the list is only ever allowed to shrink by exactly what was delivered.
+    /*
+     * What remains deferred is NAMED, and the list is only ever allowed to
+     * shrink by exactly what was delivered. SET-02 took "backup and restore"
+     * out of it when restore shipped; V2.16 CONSOL-01 took out three more that
+     * had shipped and gone unnoticed — file attachments (V2.11), notifications
+     * (NOTIFY-01) and calendar integrations (CAL-01), each with its own
+     * Settings section a few rows above this one — plus reminders (V2.10
+     * LIFE-03) and workspace deletion, which is now a documented operator
+     * procedure with a group of its own rather than an absence.
+     *
+     * So this asserts the RULE rather than the sentence, which is what pinning
+     * the sentence was standing in for: nothing that has shipped may be listed
+     * here. A prose list beside nine shipped features is exactly the pair that
+     * rots, and it rotted for three releases before anybody read it.
+     */
     await expect(page.getByText("Not available yet")).toBeVisible();
-    await expect(
-      page.getByText(/Import from other products, file attachments/i),
-    ).toBeVisible();
-    await expect(page.getByText(/Backup and restore, import/i)).toHaveCount(0);
+    const deferred = page.getByText(/are not built/i);
+    await expect(deferred).toBeVisible();
+
+    // Still deferred, and true.
+    await expect(deferred).toContainText(/import/i);
+    await expect(deferred).toContainText(/billing/i);
+
+    // Shipped. None of these may appear in a list of what does not exist.
+    for (const delivered of [
+      /attachment/i,
+      /notification/i,
+      /integration/i,
+      /reminder/i,
+      /workspace deletion/i,
+      /backup and restore/i,
+    ]) {
+      await expect(deferred, `${delivered} has shipped`).not.toContainText(
+        delivered,
+      );
+    }
+
+    // And deletion is stated where an owner would look for it, rather than
+    // being an absence they have to infer.
+    await expect(page.getByText("Workspace deletion")).toBeVisible();
   });
 
   test("downloads the full export, and the archive holds a valid snapshot", async ({
