@@ -21,6 +21,9 @@
  * paying the gate twice for one claim.
  */
 
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { taskDrawerHref } from "~/kernel/task-views";
@@ -60,5 +63,67 @@ describe("taskDrawerHref", () => {
      * there would have failed that rule for a formatting choice.
      */
     expect(taskDrawerHref("tsk_123")).toBe("/tasks?drawer=task:tsk_123");
+  });
+});
+
+describe("the dead `?task=` parameter is gone from the whole repository", () => {
+  it("is pinned by no source file and no test, anywhere", () => {
+    /*
+     * DEBT-243's closure said `grep -rn "tasks?task=" app/` returns nothing,
+     * and it did. The grep was scoped to `app/`, and `e2e/` was not in it — so
+     * `follow-01-week-account.spec.ts` went on asserting
+     * `/\/tasks\?task=/` against links that had moved, and CI found it after
+     * the pull request was open.
+     *
+     * The parameter is READ BY NOTHING: the Drawer's contract is
+     * `?drawer=task:<id>`, which is why converging on `taskDrawerHref` was the
+     * fix in the first place. A test that pins `?task=` is therefore asserting
+     * a link that opens nothing — which is how one survived three releases.
+     *
+     * So the whole tree is checked, not one directory of it: `app/`, `e2e/` and
+     * `test/`. Documentation is deliberately out of scope — the register and
+     * the roadmaps have to be able to say what the old parameter WAS.
+     */
+    const ROOTS = ["app", "e2e", "test"];
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) return walk(path);
+        return /\.(ts|tsx)$/.test(entry.name) ? [path] : [];
+      });
+
+    /*
+     * Comments are stripped first, and this file is why: explaining the defect
+     * requires naming the parameter, and a check that could not survive its own
+     * explanation would be a check nobody could document. Prose about `?task=`
+     * is fine; CODE pinning it is not, and that is exactly the line.
+     */
+    const withoutComments = (source: string) =>
+      source
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .filter((line) => !/^\s*(\/\/|\*)/.test(line))
+        .join("\n");
+
+    /*
+     * ASSEMBLED rather than written out, so this file does not match itself.
+     * Two spellings: the literal an href carries, and the backslash-escaped
+     * form a Playwright or Vitest regex uses to match one — which is the
+     * spelling that actually went wrong.
+     */
+    const DEAD = ["tasks", "?", "task", "="].join("");
+    const DEAD_ESCAPED = ["tasks", "\\", "?", "task", "="].join("");
+
+    const offenders = ROOTS.flatMap((root) => walk(join(process.cwd(), root)))
+      .filter((file) => {
+        const source = withoutComments(readFileSync(file, "utf8"));
+        return source.includes(DEAD) || source.includes(DEAD_ESCAPED);
+      })
+      .map((file) => relative(process.cwd(), file));
+
+    expect(
+      offenders,
+      "these files pin a Task URL parameter nothing reads",
+    ).toEqual([]);
   });
 });

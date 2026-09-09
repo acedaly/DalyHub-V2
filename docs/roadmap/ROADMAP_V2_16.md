@@ -541,9 +541,9 @@ stated per clause: production Finance use, live AI use, or nothing.
 
 ## Falsification
 
-Thirty deliberate breaks were promised. **Thirty-eight were taken** — eight
-more because gaps found while running them, and while reviewing the pull
-request, deserved their own breaks rather than footnotes. Each was applied to the real tree, run, and reverted; the working
+Thirty deliberate breaks were promised. **Thirty-nine were taken** — nine more
+because gaps found while running them, while reviewing the pull request, and
+from CI's own gate deserved their own breaks rather than footnotes. Each was applied to the real tree, run, and reverted; the working
 tree was confirmed clean afterwards.
 
 **A falsification that stays green is a test gap, and the gap is fixed rather
@@ -667,6 +667,35 @@ be able to explain why `wrangler r2 object list` is not the answer.
 | 37 | A new open entry appears with no disposition | `debt-register-coverage` |
 | 38 | A disposition row names an entry the register no longer has | `debt-register-coverage` |
 
+### What CI found that neither review did
+
+One test failed on the full thirteen-partition gate, and it was **this
+programme's own defect**: `follow-01-week-account.spec.ts` still asserted
+`/\/tasks\?task=/` against links CONSOL-04 had moved to
+`?drawer=task:<id>`.
+
+The interesting part is why it survived every check up to that point.
+DEBT-243's closure is recorded as *"`grep -rn "tasks?task=" app/` returns
+nothing"* — and it did. **The grep was scoped to one directory**, so a
+Playwright spec pinning the dead parameter was never in the search, and the
+three tests that were updated were the three somebody happened to remember.
+A closure proved by a grep is only as good as the grep's scope, and nothing
+recorded the scope as part of the claim.
+
+`task-drawer-href.test.ts` now walks `app/`, `e2e/` and `test/` and fails on
+any file that pins the parameter, in either spelling — the literal an href
+carries and the backslash-escaped form a regex uses to match one, which is the
+spelling that actually went wrong. Comments are stripped, so this file and the
+register can still explain what the parameter WAS.
+
+| # | The break | The check that caught it |
+|---|---|---|
+| 39 | A spec pins the retired `?task=` parameter again | `task-drawer-href` |
+
+**The parameter was read by nothing**, which is the whole reason DEBT-243
+existed — so that assertion had been checking that a link which opened nothing
+kept its shape, and passing, for three releases.
+
 ### The two that stayed green, and what was done about them
 
 | # | The break | What happened |
@@ -730,7 +759,7 @@ the pull request. Nothing below is quoted from an earlier release.
 | **CONSOL-03** — the register | 98 entries, zero ambiguous: 3 closed against their own stated closing conditions, 1 deferred to the dedicated PR its own condition names, 10 owner-gated, 82 re-homed with a per-entry reason, 2 struck. The two this release raised are recorded separately, one resolved and one open by decision |
 | **CONSOL-04** — retirement and the map | Shipped. Two registry names, two commands and nine hand-built URLs retired; the archive support horizon stated and made checkable; the cross-registry audit and the product map added, both as gates |
 | **The V3 boundary** | Measured clause by clause in [`V3_BOUNDARY.md`](../product/V3_BOUNDARY.md). **V2 is consolidated — YES. V3 may begin — YES, architecture only, under two named conditions. Every optional production feature activated — NO** |
-| **Falsification** | 38 breaks, all red. Two stayed green on first attempt: one was a no-op and was re-done, one was a real gap and is closed |
+| **Falsification** | 39 breaks, all red. Two stayed green on first attempt: one was a no-op and was re-done, one was a real gap and is closed |
 | **Independent review** | Two rounds. Eleven missing guarantees before the PR opened and four more from the PR's own reviewer — fifteen, all fixed, each with its own check. See [Falsification](#falsification) |
 
 ---

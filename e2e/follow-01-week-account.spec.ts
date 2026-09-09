@@ -190,11 +190,23 @@ test.describe("the week you committed to", () => {
       await expect(entry, title).toBeVisible();
       await expect(entry, title).toHaveAttribute("data-outcome", outcome);
       await expect(entry, title).toContainText(reason);
-      // Every figure is drillable: the name is a link to the record itself.
-      await expect(entry.getByRole("link", { name: title })).toHaveAttribute(
-        "href",
-        /\/tasks\?task=/,
-      );
+      /*
+       * Every figure is drillable: the name is a link to the record itself.
+       *
+       * V2.16 CONSOL-04 (DEBT-243) converged nine hand-built Task links onto
+       * one `taskDrawerHref`, and the parameter changed with them: `?task=`
+       * was read by nothing, and the Drawer's actual contract is
+       * `?drawer=task:<id>`. This assertion had pinned the dead one — which is
+       * how a link that opened nothing kept passing a test for three releases.
+       *
+       * Pinned as the CONTRACT rather than the string: the id is captured and
+       * checked to be a real one, so a link to `?drawer=task:` with nothing
+       * after it fails here rather than looking right.
+       */
+      const href = await entry
+        .getByRole("link", { name: title })
+        .getAttribute("href");
+      expect(href, title).toMatch(/^\/tasks\?drawer=task:[^&]+$/);
     }
   });
 
