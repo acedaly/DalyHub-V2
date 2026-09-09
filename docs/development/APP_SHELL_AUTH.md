@@ -326,6 +326,18 @@ from the same route metadata (`meta.navLabel`, `navOrder`, `navGroup`). Adding a
 navigable module route requires only a manifest entry plus the route file —
 **never** editing `app/routes.ts`, a central navigation array or any switch.
 
+`meta.navGroup` must be one of the six keys in
+[`app/shared/shell/navigation-groups.ts`](../../app/shared/shell/navigation-groups.ts)
+— `do`, `organise`, `deal-with`, `money`, `understand`, `system` — which are the
+five questions the product answers plus the machine (V2.16 CONSOL-00). The group
+ORDER, its heading and its accessible name are the frame's, not the module's; the
+module chooses only which question its destination answers, and `meta.navOrder`
+places it inside that block's own hundred.
+[`test/unit/modules/navigation-information-architecture.test.ts`](../../test/unit/modules/navigation-information-architecture.test.ts)
+asserts the whole model against the real registry, so an unknown group, a
+duplicate `navOrder` or an out-of-band number fails the build rather than the
+rail.
+
 SET-01 layers owner/workspace navigation visibility over that registry-derived
 canonical list. The shell resolves `WorkspaceScope.appPreferences`, normalises
 hidden module ids against `getPrimaryNavigation()`, keeps Today and Settings

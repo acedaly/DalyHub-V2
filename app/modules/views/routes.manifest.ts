@@ -4,6 +4,12 @@
  * Plain data with only a type import (erased at build time), safe for React
  * Router's bare `routes.ts` config loader and imported by `module.ts` for the
  * runtime registry (ADR-016 §5.10).
+ *
+ * V2.16 CONSOL-00 moved Views from the leftovers `more` group to `system`.
+ * Views is not a product question — it is a way of reusing a saved perspective
+ * over records other modules own, exactly as Search is a way of finding them —
+ * so it belongs beside Settings rather than among the five questions. It is
+ * secondary, and the release deliberately gave it nothing else.
  */
 
 import type { RouteContribution } from "~/kernel/modules";
@@ -15,8 +21,8 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: {
       navLabel: "Views",
-      navGroup: "more",
-      navOrder: 210,
+      navGroup: "system",
+      navOrder: 910,
       // POLISH-01 — a stack, not the filter funnel: a saved view is a stored
       // way of looking at records, and the funnel is already the glyph of the
       // control that narrows a collection.

@@ -327,7 +327,13 @@ INSERT OR IGNORE INTO person_details
 VALUES
   ('local-dev-workspace', 'p-rc-dan', 'person', 'Dan', 'Daniel', 'Whitfield', 'he/him', 'Whitfield Building Co.', 'Site foreman', 'Residential',
    'dan@whitfieldbuilding.example', 'accounts@whitfieldbuilding.example', '+61 412 774 903', '+61 2 9412 0088',
-   '3/22 Kembla Road, Marrickville NSW 2204', 'https://whitfieldbuilding.example', '1979-04-18', 'Builder',
+   -- V2.16 CONSOL-03 (DEBT-217): 'supplier', not 'Builder'. `Builder` is not a
+   -- member of the closed Person relationship vocabulary the kernel validates
+   -- against, so ANY journey that opened Dan's contact form and saved it -- even
+   -- while editing something else entirely -- was rejected naming a field it had
+   -- not touched. `supplier` is the vocabulary's word for what he is, and the
+   -- ROLE ('Site foreman') and the organisation still say the rest.
+   '3/22 Kembla Road, Marrickville NSW 2204', 'https://whitfieldbuilding.example', '1979-04-18', 'supplier',
    'Prefers a phone call before 7am. Sends invoices fortnightly.',
    'phone', 'weekly', '2026-08-12', '2026-08-06', '2026-08-06T23:45:00.000Z'),
   ('local-dev-workspace', 'p-rc-ana', 'person', NULL, 'Ana', 'Ruiz', NULL, 'Marrickville Council', NULL, NULL,
@@ -338,7 +344,7 @@ SET preferred_name = 'Dan', first_name = 'Daniel', last_name = 'Whitfield', pron
     email = 'dan@whitfieldbuilding.example', secondary_email = 'accounts@whitfieldbuilding.example',
     mobile = '+61 412 774 903', work_phone = '+61 2 9412 0088',
     address = '3/22 Kembla Road, Marrickville NSW 2204', website = 'https://whitfieldbuilding.example',
-    birthday = '1979-04-18', relationship = 'Builder',
+    birthday = '1979-04-18', relationship = 'supplier',
     notes = 'Prefers a phone call before 7am. Sends invoices fortnightly.',
     favourite_contact_method = 'phone', follow_up_frequency = 'weekly', next_follow_up = '2026-08-12',
     last_interaction = '2026-08-06', archived_at = NULL

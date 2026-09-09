@@ -6,11 +6,13 @@
  * registry (ADR-016 §5.10). Adding a route means editing this file and adding the
  * route file; never `app/routes.ts`.
  *
- * `/habits` sits in the ORGANISE group between Goals and Areas, at `navOrder:
- * 125`. That is where it belongs in the information architecture rather than in
- * the daily one: a Habit is part of the INTENTIONAL side of DalyHub — the
- * behaviours that serve a Goal inside an Area — and the daily group is reserved
- * for the surfaces an owner opens many times a day. Today carries the day's
+ * `/habits` sits in the ORGANISE group after the spine (Projects → Goals →
+ * Areas), at `navOrder: 240`. That is where it belongs in the information
+ * architecture rather than in the DO one: a Habit is part of the INTENTIONAL
+ * side of DalyHub — the behaviours that serve a Goal inside an Area — and the
+ * DO group is reserved for the surfaces an owner opens many times a day.
+ * (V2.16 CONSOL-00 moved it from between Goals and Areas to after them: the
+ * spine is Area → Goal → Project → Task and reads best unbroken.) Today carries the day's
  * routines; this is where they are set up and reviewed.
  */
 
@@ -21,7 +23,7 @@ const routes: readonly RouteContribution[] = [
     id: "habits.index",
     path: "habits",
     file: "routes/index.tsx",
-    meta: { navLabel: "Habits", navGroup: "organise", navOrder: 125 },
+    meta: { navLabel: "Habits", navGroup: "organise", navOrder: 240 },
   },
   {
     id: "habits.archived",

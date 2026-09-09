@@ -132,6 +132,22 @@ export interface ExportManifest {
  * have made "this export hit no problems" unexpressible. `workspace-restore`'s
  * round-trip assertion, `expect(source.limitations).toEqual([])`, is exactly
  * that claim, and it caught the mistake.
+ *
+ * ── V2.16 CONSOL-02: this list has a machine-readable twin ──────────────────
+ *
+ * These sentences are what an OWNER reads in the archive they downloaded, and
+ * nothing checked that they covered the schema. They now have a counterpart:
+ * `app/platform/storage/d1/workspace-data-map.ts` classifies every one of the
+ * sixty tables in D1 — `exported` (naming its collection), `operational`
+ * (naming what it holds that must not leave) or `ephemeral` (naming the
+ * operation it stages) — and `test/kernel/workspace-data-map.test.ts` reads
+ * the real migrated schema out of `sqlite_master` and asserts the two agree in
+ * BOTH directions, including that every operational exclusion has a sentence
+ * here naming its subject.
+ *
+ * So a migration that adds a table now fails the build until somebody decides
+ * what the table is, and an exclusion cannot be added without the owner being
+ * told about it. Two audiences, one fact, neither able to drift from the other.
  */
 /**
  * V2.11 FILE-02 retired one entry from the list below.

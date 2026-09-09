@@ -83,7 +83,11 @@
   box-shadow: inset var(--dh-border-width) 0 0 var(--dh-color-accent);
 }
 
-.dh-nav__group-heading {
+/* V2.16 CONSOL-00 — this was `.dh-nav__group-heading`, a class no component has
+ * rendered since PX-03 introduced `.dh-nav__heading`. The premium sheet's
+ * intent — a quieter, sentence-case eyebrow — is kept and pointed at the class
+ * the rail actually draws. */
+.dh-nav__heading {
   margin-block-start: var(--dh-space-4);
   padding-inline: var(--dh-space-2);
   color: var(--dh-color-rail-text-muted);

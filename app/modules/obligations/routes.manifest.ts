@@ -7,7 +7,9 @@
  * the route file; never `app/routes.ts`.
  *
  * ── Where it sits, and what it is called ────────────────────────────────────
- * `/obligations` in the MORE group at `navOrder: 215` — immediately before
+ * `/obligations` opens the rail's DEAL WITH group at `navOrder: 310` — the
+ * question "what do I need to deal with?", with Assets beneath it. Until V2.16
+ * CONSOL-00 it sat in the leftovers `more` group at 215, immediately before
  * Assets (220), so the two read together (D9). The label an owner sees is
  * **Life Admin**, not "Obligations": the word describes the drawer of paperwork
  * this answers for, and nobody thinks "I must deal with my obligations". The
@@ -28,7 +30,7 @@ const routes: readonly RouteContribution[] = [
     id: "obligations.index",
     path: "obligations",
     file: "routes/index.tsx",
-    meta: { navLabel: "Life Admin", navGroup: "more", navOrder: 215 },
+    meta: { navLabel: "Life Admin", navGroup: "deal-with", navOrder: 310 },
   },
   {
     id: "obligations.new",

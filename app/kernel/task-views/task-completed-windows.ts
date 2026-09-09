@@ -150,3 +150,33 @@ export function completedRangeTasksHref(bounds: CompletedWindowBounds): string {
   });
   return `/tasks?${params.toString()}`;
 }
+
+/**
+ * The `/tasks` URL that OPENS one Task — V2.16 CONSOL-03, closing DEBT-243.
+ *
+ * Nine call sites across four files built this link by hand, pointing `/tasks`
+ * at a `task` search parameter, and **nothing has ever read one**: the Tasks
+ * collection decodes its state through `TASKS_PARAMS`,
+ * which has no such key, so every one of those links landed on the collection's
+ * default view with the parameter ignored. It survived because one test pinned
+ * the STRING rather than the behaviour — which is precisely the class of defect
+ * ADR-079's "a way to check it" exists to prevent: the claim was checkable in
+ * principle and not in fact.
+ *
+ * The shape a Task actually opens with is the Drawer's, `?drawer=task:<id>`
+ * (`app/shared/drawer/drawer-url.ts`), and it is stated HERE for the same reason
+ * `completedRangeTasksHref` above is: a module may not import another module's
+ * URL codec (AGENTS.md §9.1), the link IS the contract between the surfaces, and
+ * a hand-built one in five files is five chances to be wrong.
+ *
+ * The ID is percent-encoded; the `task:` prefix and its colon are NOT. A colon
+ * is legal in a query value (RFC 3986 §3.4 admits `pchar`, which includes it),
+ * every drawer key the product already writes carries a bare one, and
+ * `readDrawerStack` reads the raw value — so encoding it would produce a link
+ * that works but does not match the ones beside it, and would put a `%` in a
+ * string the Review insight model forbids one in for an unrelated and good
+ * reason (no percentages, because a percentage reads as a score).
+ */
+export function taskDrawerHref(taskId: string): string {
+  return `/tasks?drawer=task:${encodeURIComponent(taskId)}`;
+}

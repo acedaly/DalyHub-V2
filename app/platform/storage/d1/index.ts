@@ -1092,3 +1092,25 @@ export {
   RESTORE_OPERATION_TTL_MS,
   createWorkspaceRestoreRepository,
 } from "./d1-workspace-restore-repository";
+
+/**
+ * V2.16 CONSOL-02 — the TOTAL classification of every persistent store, and the
+ * ordered purge plan derived from it.
+ *
+ * Re-exported here because it is a statement about THIS schema: what every
+ * table in D1 is for, whether it leaves in an archive, and in what order a
+ * workspace's rows can be removed without violating a foreign key. It is
+ * deliberately import-free so the operator's plan generator can load it under
+ * Node's type stripping (see `scripts/workspace-purge-plan.mjs`).
+ */
+export {
+  WORKSPACE_TABLES,
+  WORKSPACE_TABLE_NAMES,
+  workspacePurgeOrder,
+  workspacePurgeStatements,
+  workspaceTable,
+  workspaceTablesOfClass,
+  type WorkspaceDataClass,
+  type WorkspaceTable,
+  type WorkspaceTableScope,
+} from "./workspace-data-map";

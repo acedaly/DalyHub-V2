@@ -87,7 +87,10 @@ export default defineModule({
       id: "widgets.list",
       path: "widgets",
       file: "routes/widget-list.tsx", // module-relative; resolved to app/modules/widgets/... and code-split by React Router
-      meta: { navLabel: "Widgets", navGroup: "make", navOrder: 1 },
+      // `navGroup` is one of the six keys in `app/shared/shell/navigation-groups.ts`
+      // (do · organise · deal-with · money · understand · system) and `navOrder`
+      // sits inside that group's own hundred. V2.16 CONSOL-00.
+      meta: { navLabel: "Widgets", navGroup: "organise", navOrder: 290 },
     },
     {
       id: "widgets.detail",

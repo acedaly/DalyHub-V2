@@ -26,7 +26,9 @@
 
 **Programme status: V2.15 ASSISTED AI — see [Programme status](#programme-status).**
 
-**Successor: V2.16 CONSOLIDATE — PRESUMPTIVE.** Nothing in V2.16 is built here.
+**Successor: V2.16 CONSOLIDATE — DEFINED 2026-09-08 in
+[`ROADMAP_V2_16.md`](ROADMAP_V2_16.md), which is where new work goes.**
+Nothing in V2.16 is built here.
 
 ---
 

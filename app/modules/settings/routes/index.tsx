@@ -1408,10 +1408,33 @@ function PrivacyDataSection() {
       >
         <RestoreFromBackup />
       </SettingsGroup>
+      {/*
+       * V2.16 CONSOL-01 — this group used to be one sentence listing nine
+       * things as "not built yet", and by 2026-09-08 three of them WERE built:
+       * file attachments shipped with V2.11, notifications with NOTIFY-01 and
+       * calendar integrations with CAL-01, each with its own Settings section
+       * a few rows above this one. A page that tells the owner a shipped
+       * feature does not exist is worse than one that says nothing.
+       *
+       * What is left is split in two, because "not built" and "decided not to
+       * build" are different statements and only one of them is a promise.
+       */}
+      <SettingsGroup title="Workspace deletion">
+        <SettingsRow
+          label="Deleting this workspace"
+          description="Deleting a workspace is an operator action, not a button here — DalyHub runs one configured workspace and cannot re-create it, so a delete control in this page would destroy the application drawing it. The procedure, what it does and does not reach, and what your backups' retention policy still holds are in docs/development/WORKSPACE_DELETION.md. Export first: the archive above is the only copy that is yours rather than the platform's."
+          control={
+            <span className="dh-settings-page__text-value">
+              By operator command
+            </span>
+          }
+          align="start"
+        />
+      </SettingsGroup>
       <SettingsGroup title="Not available yet">
         <SettingsRow
           label="Deferred data tools"
-          description="Import from other products, file attachments, AI-provider credentials, integrations, notifications, reminders, workspace deletion, roles and billing are not built yet."
+          description="Importing from other products, AI-provider credentials in the app, roles and billing are not built."
           control={
             <span className="dh-settings-page__text-value">Deferred</span>
           }

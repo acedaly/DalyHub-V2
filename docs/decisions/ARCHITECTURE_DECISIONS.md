@@ -7386,3 +7386,129 @@ until the off-Cloudflare copy exists and has been restored from once.
   across the product* (rejected: it is an inbox of pending mutations, which is
   the background agent the programme's non-goals name first — every entry point
   is local to the data it is about and is pressed by the owner).
+
+
+---
+
+## ADR-124: Workspace deletion is an INFRASTRUCTURE act, not a product feature — a registry-derived purge plan, an executed procedure, and no tombstone
+
+- **Status.** Accepted (2026-09-08, V2.16 CONSOLIDATE, decided against `main` at
+  `06f57c1`). The programme is
+  [`ROADMAP_V2_16.md`](../roadmap/ROADMAP_V2_16.md), the item is CONSOL-01, and
+  this closes
+  [DEBT-242](../product/PRODUCT_DEBT.md#-debt-242--no-workspace-or-account-deletion-path-exists--p3--closed-2026-09-08-v216-consol-01-adr-124).
+  It does not restate
+  [ADR-046](#adr-046-area-lifecycle--reversible-archival-on-a-module-owned-slice-and-the-first-guarded-permanent-deletion-purge-with-an-audit-tombstone)
+  (the guarded Area purge), which stands unchanged and is the precedent this
+  decision measures itself against and declines to generalise.
+
+- **Context.** DEBT-242 left the choice open in as many words: *either* a guarded
+  in-product purge on the ADR-046 pattern, *or* a recorded decision that deletion
+  is the owner's infrastructure act with the exact commands documented. Settings
+  → Privacy & data listed *"workspace deletion"* among things "not built yet",
+  which is a statement about the future rather than a boundary. V2.11 put the
+  owner's evidence in R2 and V2.12 put their money in D1, so the sensitivity of
+  what would be deleted is now high enough that the question had to be answered
+  rather than deferred again.
+
+  Three facts, measured before the decision, and the first was not in the
+  sketch:
+
+  1. **The product resolves ONE workspace from server configuration, confirms it
+     exists, and has no auto-create and no fallback**
+     (`app/platform/workspaces/configured-context-resolver.ts`, step 3). There is
+     no workspace-creation surface anywhere in DalyHub. Deleting the configured
+     workspace from inside the product therefore leaves every authenticated
+     request failing `WorkspaceNotFoundError` with **no in-product path back** —
+     a button that destroys the application that draws it.
+  2. **The product cannot honestly complete the act.** R2 object removal is
+     *queued* through the purge ledger and completed by a sweep, and the backups
+     bucket is deliberately unreachable from the application Worker
+     ([ADR-119](#adr-119-evidence--an-attachment-is-a-child-record-with-one-required-owner-bytes-in-a-private-bucket-the-application-worker-owns-a-compensated-write-and-an-archive-that-carries-the-bytes),
+     `wrangler.jsonc`). A button that says "deleted" while bytes remain in two
+     buckets is a lie with a progress spinner.
+  3. **The blast radius is wrong for the guarantee.** Sixty tables, two object
+     stores and a service binding, orchestrated from a request that can be
+     interrupted, with no cross-store transaction. ADR-046's precedent is a
+     *bounded* purge of one record family; generalising it to the whole workspace
+     is not the same decision made bigger.
+
+- **Decision.**
+
+  1. **Workspace deletion is an infrastructure act.** There is no in-product
+     delete path, and there will not be one while the product resolves a single
+     configured workspace it cannot re-create. Settings says the boundary rather
+     than "not yet", and links to the procedure.
+
+  2. **The procedure is PROVED, not documented.** Documentation that has never
+     been executed is a hypothesis. The purge ORDER is derived from
+     `app/platform/storage/d1/workspace-data-map.ts` — every table with its
+     foreign-key parents, topologically sorted so children precede parents —
+     `pnpm run workspace:purge:plan` emits it as reviewable, parameterised SQL,
+     and `test/kernel/whole-product-rehearsal.test.ts` EXECUTES it against a
+     seeded synthetic workspace over real D1 and real R2, proving zero rows in
+     all sixty tables, zero objects under the workspace prefix, and a second
+     populated workspace beside it untouched.
+
+  3. **The plan is generated, never written down.** MOST foreign keys in DalyHub
+     are `ON DELETE RESTRICT`, so a purge in the wrong order does not cascade —
+     it FAILS, halfway, having already deleted some of it. Nine are
+     `ON DELETE CASCADE`, each a child row hanging off its own parent, and one
+     (`obligation_details` → `entities`) is SQLite's default `NO ACTION`, which
+     still enforces the constraint. The cascading nine make the order matter
+     MORE rather than less: a wrong order there deletes more than the statement
+     names, and does it quietly. A
+     hand-kept order in a document would be correct on the day it was written
+     and silently wrong at the next migration; a derived one fails the build
+     instead (`test/kernel/workspace-data-map.test.ts` checks the map against
+     `sqlite_master` and `pragma_foreign_key_list`, including each key's
+     `on_delete` rule against a named list of the cascading ones).
+
+  4. **No tombstone.** A tombstone exists to prove a deletion happened and to
+     prevent id reuse. When the deletion is `wrangler d1 delete`, the database
+     holding the tombstone is gone with everything else, and Cloudflare's own
+     audit log is the record. A row in a database that no longer exists is
+     theatre. Where an operator purges ONE workspace out of a shared database
+     instead, the plan leaves no tombstone either, for the reason ADR-046 gives
+     for keeping its own minimal: whatever is retained must contain no owner
+     content, and there is nothing left that both is safe to keep and answers a
+     question the Cloudflare audit log does not.
+
+  5. **The backups bucket is out of scope, and the archive says so.** Deleting
+     live DalyHub removes the live D1 rows and the live R2 objects. It does not
+     reach `dalyhub-v2-backups`, whose lifecycle rules ARE the retention policy;
+     those copies expire on their own schedule. DalyHub does not claim
+     cryptographic erasure from historical backups, because it does not provide
+     it — and saying so is the difference between a documented limitation and a
+     surprise.
+
+  6. **A restore needs the workspace ROW.** The rehearsal found it rather than
+     assumed it: `workspace_restore_staged_rows` references `workspaces(id)`, so
+     staging an archive into a database whose workspace row is gone fails on a
+     foreign key before it reads a byte. The recovery scenario is therefore an
+     EMPTY workspace, not an absent one, and the two are documented as different
+     states with different procedures.
+
+- **Consequences.** An owner who wants their data gone runs two commands and
+  reads one verification query, all of them in
+  [`WORKSPACE_DELETION.md`](../development/WORKSPACE_DELETION.md), and the
+  ordering they depend on is generated from the schema rather than transcribed.
+  The product gains no destructive surface, which is one fewer thing that can be
+  pressed by mistake. Re-provisioning after a complete purge is an infrastructure
+  act too, and is documented beside it. If DalyHub ever grows more than one
+  workspace per deployment — a V3 question, not a V2 one — this decision is
+  re-openable on its first premise, and decisions 2 to 6 survive the re-opening
+  because they are about the schema rather than about the UI.
+
+- **Alternatives considered.** *A guarded in-product purge on the ADR-046
+  pattern* (rejected: decisions 1–3 — it would destroy its own application, could
+  not honestly complete, and would orchestrate sixty tables and two stores from
+  an interruptible request). *An "erase all my data" button that keeps the
+  workspace row* (rejected: it is a new destructive capability in a release whose
+  first rule is that it adds none, and `replace`-mode restore already overwrites
+  a workspace with a verified archive and a typed confirmation — a safer way to
+  reach the same state). *A tombstone table* (rejected: decision 4). *Documenting
+  the delete order in prose* (rejected: decision 3). *Leaving DEBT-242 open*
+  (rejected: "deletion unsupported" as an unexplained gap is exactly the
+  ambiguity the V3 boundary must not carry — a boundary is a decision, not
+  necessarily a button).

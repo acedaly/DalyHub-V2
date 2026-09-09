@@ -28,17 +28,38 @@
  * The rail therefore renders plain `Link`s and applies `aria-current`/the active
  * class from that one rule, rather than from `NavLink`'s own exact-match matching.
  *
- * PX-03 — group dividers. `NavigationItem.group` (already derived from
- * `meta.navGroup`, FND-09) was carried through the model but never rendered. A
- * plain, decorative `<hr>` divider is inserted whenever consecutive items' `group`
- * differs — a single flat list stays a single flat list when no module declares a
- * group (today's behaviour, unchanged), so this is additive, not a redesign. The
- * divider carries no text: the recommended module grouping (Today/Areas/Goals/
- * Projects/Tasks · Notes/Diary/Meetings/People/Assets · Reviews/AI · Settings/Help)
- * is conveyed by rhythm alone, matching the roadmap's sidebar sketch.
+ * ── V2.16 CONSOL-00: the grouping stops being decorative ────────────────────
+ *
+ * PX-03 carried `NavigationItem.group` through and rendered it as a plain `<hr>`
+ * plus, for two of the four groups, an `aria-hidden` caption. That was defensible
+ * while the groups were SHAPES: "daily" and "more" tell a screen-reader user
+ * nothing they cannot get from the row names.
+ *
+ * V2.16 re-cut them into the five QUESTIONS the product answers — Do, Organise,
+ * Deal with, Money, Understand — and a heading that says "Money" is now the
+ * shortest answer to "where do I go for this?". Hiding it from assistive
+ * technology would mean the release's entire user-visible outcome reached
+ * sighted users only.
+ *
+ * So each group's destinations are their OWN list, labelled by its own heading:
+ * a screen reader announces "Money, list, 1 item" once on entry rather than
+ * repeating the group on every row, the `system` block (which has no visible
+ * heading, by design) carries an `aria-label` instead, and keyboard order still
+ * matches visual order because the DOM order IS the visual order. No accordion,
+ * no button that is really a label, and no landmark per group — the rail is
+ * already the "Primary" navigation region, and six nested regions inside it
+ * would be six more things to walk past.
+ *
+ * The heading is a `<span>` rather than an `<h2>` deliberately: it names its
+ * list through `aria-labelledby`, which is what a grouped list needs, and adding
+ * six headings to the document outline would put the frame's furniture in the
+ * same structure as the page's own content.
+ *
+ * Group ORDER, group KEYS and group NAMES all live in `navigation-groups.ts` —
+ * one information architecture, read by the rail, by the phone sheet and by the
+ * test that asserts no module invents a seventh group.
  */
 
-import { Fragment } from "react";
 import { Link, useLocation, useNavigation } from "react-router";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
@@ -47,27 +68,9 @@ import { Tooltip } from "~/shared/tooltip";
 import { NavIcon } from "./NavIcon";
 import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
+import { buildNavigationGroups } from "./navigation-groups";
 import { pendingNavigationHref } from "./navigation-pending";
 import { PRIMARY_NAV_PREFETCH } from "./navigation-prefetch";
-
-/**
- * The display name for a navigation group, when it has one.
- *
- * A group that is absent from this map still gets its rhythm — the divider below
- * is unconditional — but no heading. That is deliberate and matches the visual
- * references: the DAILY block at the top of the rail is unlabelled (Today, Inbox,
- * Upcoming and Tasks need no heading to explain them), ORGANISE names the long
- * middle block that does, and the system block at the bottom is separated by
- * position alone.
- *
- * The map lives in the shell rather than in module manifests because a group
- * HEADING is a property of the frame's information architecture, not of any one
- * module — Projects does not get to name the group it happens to sit in.
- */
-const GROUP_HEADINGS: Readonly<Record<string, string>> = {
-  organise: "Organise",
-  more: "More",
-};
 
 export type PrimaryNavigationProps = {
   /** The id the mobile navigation toggle references via `aria-controls`. */
@@ -125,79 +128,88 @@ export function PrimaryNavigation({
    */
   const collapsed = useCollapsedRail(collapsible);
 
+  const groups = buildNavigationGroups(items);
+
   return (
     <div id={id} className="dh-nav">
-      <ul className="dh-nav__list">
-        {items.map((item, index) => {
-          const previous = items[index - 1];
-          const startsNewGroup = index > 0 && previous?.group !== item.group;
-          const heading =
-            item.group === undefined ? undefined : GROUP_HEADINGS[item.group];
-          const current = item.href === currentHref;
-          const pending = item.href === pendingHref;
-          return (
-            <Fragment key={item.id}>
-              {startsNewGroup ? (
-                <li className="dh-nav__divider" aria-hidden="true">
-                  <hr />
-                </li>
-              ) : null}
-              {/*
-               * The heading is decorative, not a landmark or a list item with
-               * meaning: the rail is already the "Primary" navigation region and
-               * every destination inside it is a link with its own name. An
-               * `aria-hidden` caption keeps the visual grouping the references
-               * ask for without inventing a second structure for a screen reader
-               * to walk past — and the collapsed rail hides it in CSS, where the
-               * label text is hidden too.
-               */}
-              {startsNewGroup && heading !== undefined ? (
-                <li className="dh-nav__heading" aria-hidden="true">
-                  {heading}
-                </li>
-              ) : null}
-              <li className="dh-nav__item">
-                <Tooltip
-                  label={item.label}
-                  placement="bottom"
-                  disabled={!collapsed}
-                >
-                  {(tip) => (
-                    <Link
-                      to={item.href}
-                      /*
-                       * PERF-01 — the destination is warmed on INTENT, not on
-                       * click. `navigation-prefetch.ts` holds the policy and the
-                       * reasoning; this is the rail applying it.
-                       */
-                      prefetch={PRIMARY_NAV_PREFETCH}
-                      ref={tip.ref}
-                      className={
-                        current
-                          ? "dh-nav__link dh-nav__link--active"
-                          : "dh-nav__link"
-                      }
-                      aria-current={current ? "page" : undefined}
-                      aria-busy={pending ? true : undefined}
-                      data-pending={pending ? "true" : undefined}
-                      aria-describedby={tip.describedBy}
-                      onClick={onNavigate}
+      {groups.map((group, groupIndex) => {
+        const headingId = `${id}-group-${group.definition.key}`;
+        const heading = group.definition.heading;
+        return (
+          <div className="dh-nav__group" key={group.definition.key}>
+            {/*
+             * The rule between blocks is decoration: the heading below it, or
+             * the block's own position, is what carries the meaning. It is
+             * `aria-hidden` and is skipped entirely before the first group,
+             * which has nothing above it to be separated from.
+             */}
+            {groupIndex > 0 ? (
+              <hr className="dh-nav__rule" aria-hidden="true" />
+            ) : null}
+            {heading === null ? null : (
+              <span className="dh-nav__heading" id={headingId}>
+                {heading}
+              </span>
+            )}
+            <ul
+              className="dh-nav__list"
+              {...(heading === null
+                ? { "aria-label": group.definition.accessibleName }
+                : { "aria-labelledby": headingId })}
+            >
+              {group.items.map((item) => {
+                const current = item.href === currentHref;
+                const pending = item.href === pendingHref;
+                return (
+                  <li className="dh-nav__item" key={item.id}>
+                    <Tooltip
+                      label={item.label}
+                      placement="bottom"
+                      disabled={!collapsed}
                     >
-                      <span className="dh-nav__icon">
-                        <NavIcon
-                          entityType={item.entityType}
-                          navIcon={item.navIcon}
-                        />
-                      </span>
-                      <span className="dh-nav__label">{item.label}</span>
-                    </Link>
-                  )}
-                </Tooltip>
-              </li>
-            </Fragment>
-          );
-        })}
-      </ul>
+                      {(tip) => (
+                        <Link
+                          to={item.href}
+                          /*
+                           * PERF-01 — the destination is warmed on INTENT, not on
+                           * click. `navigation-prefetch.ts` holds the policy and the
+                           * reasoning; this is the rail applying it. It is applied
+                           * HERE, once, to every row of every group — a regroup
+                           * that dropped it from one block would be a silent
+                           * performance regression, which is why
+                           * `navigation-prefetch.test.tsx` asserts it on all of
+                           * them rather than on a sample.
+                           */
+                          prefetch={PRIMARY_NAV_PREFETCH}
+                          ref={tip.ref}
+                          className={
+                            current
+                              ? "dh-nav__link dh-nav__link--active"
+                              : "dh-nav__link"
+                          }
+                          aria-current={current ? "page" : undefined}
+                          aria-busy={pending ? true : undefined}
+                          data-pending={pending ? "true" : undefined}
+                          aria-describedby={tip.describedBy}
+                          onClick={onNavigate}
+                        >
+                          <span className="dh-nav__icon">
+                            <NavIcon
+                              entityType={item.entityType}
+                              navIcon={item.navIcon}
+                            />
+                          </span>
+                          <span className="dh-nav__label">{item.label}</span>
+                        </Link>
+                      )}
+                    </Tooltip>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

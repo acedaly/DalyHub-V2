@@ -248,6 +248,23 @@ serialised snapshot: the real defence is that the contract has no such field and
 the D1 adapter selects **named columns**, so a column added by a future migration
 is never exported by accident.
 
+**And since V2.16 CONSOL-02, the omissions are CHECKED rather than described.**
+`EXPORT_EXCLUSIONS` is prose for a human reading the archive they downloaded;
+[`workspace-data-map.ts`](../../app/platform/storage/d1/workspace-data-map.ts)
+is the machine-readable half — every one of the sixty tables in the schema
+classified `exported` (naming its collection), `operational` (naming what it
+holds that must not leave), or `ephemeral` (naming the operation it stages) —
+and `test/kernel/workspace-data-map.test.ts` reads the table list out of
+`sqlite_master` after the real migrations and asserts the two agree in both
+directions.
+
+> **There is no persistent owner-data table outside an explicit export policy.**
+
+Before that, the archive was complete by INSPECTION. A migration could add a
+table holding owner data and no test would notice that it could not leave the
+product; now that migration fails the build until somebody decides what the
+table is.
+
 ### Validation is a gate, not a lint
 
 `assertValidWorkspaceSnapshot` runs before serialisation, and the route turns a
@@ -494,6 +511,61 @@ There is deliberately no best-effort import: data recovery is the wrong place
 for guesswork. `RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS` is the list of versions this
 build can actually read, and it is a list rather than a comparison because "can
 restore" is a statement about code that exists.
+
+### The support HORIZON, stated (V2.16 CONSOL-04)
+
+The policy above says what happens to an archive of a given version. It never
+said how far back that goes, and the answer had only ever been implied by three
+lists. It is stated here now, because a consolidation release that quietly
+narrowed it would turn "export always possible" into "yesterday's backup
+restores":
+
+> **DalyHub reads every schema-version-2 archive it has ever written — every
+> archive exported since 2026-08-21 — no matter how many collections have been
+> added or retired since. It does NOT read a version-1 archive, and says so by
+> name.**
+
+That second sentence is the measurement, and it is stated first because a
+horizon that is only half true is worse than none. Version 1 is the single
+break DalyHub has ever made to this shape: it carries
+`owner.preferences.theme`, a field whose feature no longer exists (M3-01,
+migration `0031`). Such an archive is refused as `unsupported_version` — a
+named refusal with a stated reason, never a guess, a partial import or a
+silent failure — because reading a field whose meaning is gone is how a
+restore quietly produces a workspace that is not the one that was backed up.
+An owner holding one still holds a readable JSON artefact; what they do not
+have is a one-click recovery, and pretending otherwise would be the dishonesty
+this section exists to prevent.
+
+Within version 2, three append-only lists are what make the first sentence
+true, and each is a permanent statement about files already on someone's disk
+rather than a convenience:
+
+| List | Means | Rule |
+|---|---|---|
+| `RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS` | The schema versions a build can read | A LITERAL, never derived from the current version; shortening it is a deliberate edit that fails a test |
+| `SNAPSHOT_OPTIONAL_ON_READ_COLLECTIONS` | Collections an OLDER archive may lack | Added to in the same change that adds a collection; never removed from |
+| `RETIRED_SNAPSHOT_COLLECTIONS` | Collections whose STORE is gone, still read and upgraded | Added to in the same change that retires a store; never removed from |
+
+`test/unit/export/archive-support-horizon.test.ts` pins the version list to its
+exact contents, exercises the REFUSAL for a version either side of the horizon,
+and — the point of it — asserts that every retired collection is still
+*readable*: a retired store is never written and is always read, because a
+change of mind about a table must not invalidate the backups taken before it
+(AGENTS.md §2, "own the data").
+
+**Bumping to version 3 is therefore a three-part edit**, and the test is what
+makes it one: bump the constant, decide in writing whether a version-2 reader
+survives, and put the answer in the list. There is no way to do two of the
+three.
+
+**Retiring a COLLECTION and retiring a TABLE are different acts.** A table can
+go; the key it occupied in the archive stays in `SnapshotCollectionRowMap` and
+in the order, so the SHAPE of an archive never changes and a reader written for
+an older one still finds what it expects. `assetObligations` is the worked
+example: V2.10 replaced `asset_obligations` with `obligation_details`, and an
+archive written before that still restores, upgraded on read by the same rule
+migration `0050` applied.
 
 ---
 

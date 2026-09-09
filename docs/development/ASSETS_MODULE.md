@@ -418,7 +418,7 @@ Asset Events link an existing **Note** (`note_id`) for a service report, a recei
 warranty details, a registration or insurance record. There is no second embedded
 notes system inside Assets, and no fake attachment UI: file attachments are not a
 DalyHub capability yet, so Notes and documented external references carry that job
-until they are ([DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3)).
+until they are ([DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3--struck-by-decision-2026-09-08-v216-consol-03)).
 
 **Providers are not People.** An event may store a plain provider name, a linked
 Person, or both. Typing a provider name **never** creates a Person record.
@@ -727,7 +727,7 @@ fast-capture actions, and a bounded obligation signal on every collection card.
   [ASSET-03 — phone-first capture](#asset-03--phone-first-capture-2026-08-08)
   below, including why "subtype" was stale wording rather than a missing column.
 
-**Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3) ·
+**Relevant product-debt items.** [DEBT-35](../product/PRODUCT_DEBT.md#-debt-35--assets-deferred-capabilities-attachments-reminders-logbooks-ingestion-ai--p3--struck-by-decision-2026-09-08-v216-consol-03) ·
 [DEBT-57](../product/PRODUCT_DEBT.md#-debt-57--asset-obligations-are-tracked-but-nothing-reaches-the-owner-outside-the-app--p2--resolved-2026-08-16-notify-01) — **resolved 2026-08-16 by NOTIFY-01**, which reads obligations through this module's existing bounded `listAttention` seam and its existing `evaluateObligation`; nothing in Assets changed · [DEBT-58](../product/PRODUCT_DEBT.md#-debt-58--the-assets-obligation-state-filter-narrows-a-page-not-the-collection--p3) · [DEBT-59](../product/PRODUCT_DEBT.md#-debt-59--linked-task-open-state-on-the-asset-obligations-tab-is-resolved-for-at-most-50-tasks--p3--resolved-2026-08-25).
 
 ---

@@ -25,7 +25,7 @@ const routes: readonly RouteContribution[] = [
     meta: {
       navLabel: "Projects",
       navGroup: "organise",
-      navOrder: 110,
+      navOrder: 210,
       // The third phone bottom-navigation destination. The references put
       // Projects beside Today and Tasks there; Diary held the slot and is a
       // writing surface reached deliberately rather than thumbed between.

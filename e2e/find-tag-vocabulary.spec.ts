@@ -174,12 +174,14 @@ test.describe("FIND-02 — one tag vocabulary", () => {
      * The whole of DEBT-182: one vocabulary, not three suggestion sets. Nothing
      * about this journey is possible with per-module free text.
      *
-     * `p-rc-ana` rather than `p-rc-dan`, and the reason is recorded rather than
-     * silent: the convergence fixture seeds Dan with `relationship = 'Builder'`,
-     * which is not a member of the closed relationship vocabulary, so his
-     * Contact tab cannot be SAVED at all — the first thing this journey needs.
-     * That is a fixture defect this item found and deliberately did not fix
-     * (DEBT-217); Ana's record is seeded with no relationship and saves.
+     * `p-rc-ana` rather than `p-rc-dan`. When this journey was written the
+     * convergence fixture seeded Dan with `relationship = 'Builder'`, which is
+     * not a member of the closed relationship vocabulary, so his Contact tab
+     * could not be SAVED at all — the first thing this journey needs. That was
+     * recorded as DEBT-217 and FIXED by V2.16 CONSOL-03 (he is a `supplier`
+     * now). Ana is kept as the subject anyway: she is seeded with no
+     * relationship, so this journey proves the tag path over the emptiest
+     * possible Person rather than over the one that happened to be broken.
      */
     const tag = uniqueTag("shared");
     try {

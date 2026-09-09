@@ -4,7 +4,12 @@
  * The single source of truth for the Assets module's routes: plain data with only a
  * type import (erased at build time), safe for React Router's bare `routes.ts`
  * config loader and imported by `module.ts` for the runtime registry. `navGroup:
- * "capture"` places Assets in the sidebar's capture group after People. Assets
+ * "deal-with"` places Assets in the rail's DEAL WITH group, after Life Admin:
+ * a possession is a thing you deal with, and almost everything the owner
+ * actually does with one — its registration, its service, its insurance — is an
+ * Obligation, which is the row above it. (The `capture` group this comment used
+ * to name was retired by PX-03; V2.16 CONSOL-00 made the placement a question
+ * rather than a shape.) Assets
  * contributes a SINGLE sidebar row ("Assets"); the collection sub-views (Recently
  * updated, Expiring soon, Service due, Archived) are ordinary routes with NO
  * `navLabel`, reached through the collection's own in-page view navigation (mirrors
@@ -19,7 +24,7 @@ const routes: readonly RouteContribution[] = [
     id: "assets.index",
     path: "assets",
     file: "routes/index.tsx",
-    meta: { navLabel: "Assets", navGroup: "more", navOrder: 220 },
+    meta: { navLabel: "Assets", navGroup: "deal-with", navOrder: 320 },
   },
   { id: "assets.recent", path: "assets/recent", file: "routes/recent.tsx" },
   {

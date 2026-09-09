@@ -7892,8 +7892,27 @@
   --dh-shell-bar-height: var(--app-shell-topbar-height);
   /** The phone's own top bar, which is a different component. */
   --dh-shell-mobile-bar-height: var(--app-shell-mobilebar-height);
-  /** One navigation destination's painted row. */
-  --dh-shell-nav-row-height: 36px;
+  /**
+   * One navigation destination's painted row.
+   *
+   * V2.16 CONSOL-00 — this was the literal `36px`, and that was a WCAG 2.5.8
+   * regression hiding in a token.
+   *
+   * `--app-nav-row-height` is 36px on a fine pointer and returns to the full
+   * `--app-touch-target-min` under `(pointer: coarse)` — the floor DS-03 wrote
+   * for the tablet rail and the phone navigation SHEET, explained at length at
+   * the bottom of this file, and restated by `shell.css` beside the rule that
+   * consumes it. DHDS-10 authored this DalyHub-layer name as a raw value
+   * instead of a `var()` onto it, which left `--app-nav-row-height` with NO
+   * consumer and every navigation row in the phone sheet 36px tall under a
+   * finger. Nobody noticed because no journey measured a sheet row: the
+   * touch-target spec checks the sheet's OPENER and its CLOSE control.
+   *
+   * It also broke the DalyHub layer's own first rule — "nothing in the layer is
+   * authored; every value is a `var()` onto an existing token" (AGENTS.md §9.8).
+   * A layer rule with an exception is a layer rule that stops being checked.
+   */
+  --dh-shell-nav-row-height: var(--app-nav-row-height);
   /** The page gutter currently in force (stepped by width in `base.css`). */
   --dh-shell-gutter: var(--app-page-padding);
   /** The measure ordinary page content is held to. */

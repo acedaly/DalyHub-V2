@@ -4,8 +4,10 @@
  * `diary.index` is the Timeline + quick-capture screen (replacing the PX-03
  * placeholder); `diary.new` captures an entry; `diary.entry` reads a single
  * entry for the route-backed editor Drawer; `diary.mutate` edits an entry's
- * title + detail slice. `navGroup: "capture"` places Diary in the sidebar's
- * capture group (mirrors the Notes manifest).
+ * title + detail slice. `navGroup: "organise"` places Diary in the rail's
+ * ORGANISE group, beside Notes (mirrors the Notes manifest). The `capture`
+ * group this used to name was retired by PX-03 and superseded by V2.16
+ * CONSOL-00's five questions.
  */
 
 import type { RouteContribution } from "~/kernel/modules";
@@ -18,7 +20,7 @@ const routes: readonly RouteContribution[] = [
     meta: {
       navLabel: "Diary",
       navGroup: "organise",
-      navOrder: 150,
+      navOrder: 260,
     },
   },
   {

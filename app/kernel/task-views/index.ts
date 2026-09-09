@@ -47,6 +47,7 @@ export {
   COMPLETED_WINDOW_IDS,
   COMPLETED_WINDOW_LABELS,
   completedRangeTasksHref,
+  taskDrawerHref,
   completedWindowBounds,
   completedWindowConfig,
   parseCompletedWindowId,

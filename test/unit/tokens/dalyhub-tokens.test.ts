@@ -375,6 +375,43 @@ describe("DS-01 the density model", () => {
     }
   });
 
+  it("keeps the navigation row's coarse-pointer floor REACHABLE", () => {
+    /*
+     * V2.16 CONSOL-00 — the regression this assertion exists for actually
+     * shipped, and it shipped inside a token.
+     *
+     * `--app-nav-row-height` is 36px for a cursor and returns to
+     * `--app-touch-target-min` under `(pointer: coarse)`. That floor is what
+     * gives the collapsed tablet rail and the phone navigation SHEET a 44px
+     * row under a finger, and `tokens.css` explains it at length where it is
+     * declared. DHDS-10 then authored the DalyHub-layer name the shell actually
+     * consumes, `--dh-shell-nav-row-height`, as the literal `36px` — so the
+     * machinery token had NO consumer and the floor was dead for four
+     * releases, on the one navigation surface a thumb ever touches.
+     *
+     * It is checked as a CHAIN rather than as a value, because a value is what
+     * hid it: `36px` and `var(--app-nav-row-height)` both compute to 36 on the
+     * pointer a unit test has, and only the second one moves under a finger.
+     */
+    const chain = resolveTokenChain("dh-shell-nav-row-height");
+    expect(
+      chain,
+      "the shell's nav row must resolve THROUGH --app-nav-row-height, which " +
+        "carries the coarse-pointer touch floor — an authored literal here " +
+        "silently drops it",
+    ).toContain("app-nav-row-height");
+
+    // …and the floor it reaches is a real 44px, stated here so a change to the
+    // machinery value fails beside the reason it matters.
+    const coarse = blockBody(
+      tokensCss.slice(tokensCss.indexOf("@media (pointer: coarse)")),
+      /:root\s*\{/,
+    );
+    expect(coarse).toContain(
+      "--app-nav-row-height: var(--app-touch-target-min)",
+    );
+  });
+
   it("lets an explicit density beat the responsive default", () => {
     // The responsive rule is a default for a document that has not chosen, not
     // an override of one that has — which is what makes a future Settings

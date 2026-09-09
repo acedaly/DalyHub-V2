@@ -1,11 +1,18 @@
 /**
- * PX-03 — group dividers in the primary navigation.
+ * PX-03 / V2.16 CONSOL-00 — grouping in the primary navigation.
  *
  * `NavigationItem.group` (FND-09's `meta.navGroup`) already flowed through the
- * navigation model but was never rendered. This proves the renderer inserts a
- * decorative divider exactly at each group transition, renders none when no
- * module declares a group (PX-02's original ungrouped behaviour, unchanged), and
- * keeps every row an accessible, labelled link regardless of grouping.
+ * navigation model. PX-03 rendered it as a decorative rule plus, for two of the
+ * four groups, an `aria-hidden` caption; V2.16 re-cut the groups into the five
+ * QUESTIONS the product answers and made the grouping SEMANTIC, because a
+ * heading that says "Money" is the shortest answer to "where do I go for this?"
+ * and hiding it from assistive technology would have shipped the release's
+ * entire user-visible outcome to sighted users only.
+ *
+ * So these assert what the rail is now: one labelled list per group, in the
+ * order `navigation-groups.ts` declares, a decorative rule at each transition
+ * but never before the first block, and every row still an accessible, labelled
+ * link regardless of grouping.
  */
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -47,38 +54,84 @@ function renderNav(
   return render(<Stub initialEntries={[initialPath]} />);
 }
 
-describe("PX-03 PrimaryNavigation grouping", () => {
-  it("renders no dividers when no item declares a group", () => {
+describe("V2.16 CONSOL-00 PrimaryNavigation grouping", () => {
+  it("renders one list, and no rule, for a single group", () => {
     const { container } = renderNav([
-      item("Today", 5),
-      item("Areas", 10),
-      item("Goals", 20),
+      item("Today", 110, "do"),
+      item("Plan", 120, "do"),
+      item("Tasks", 150, "do"),
     ]);
-    expect(container.querySelectorAll(".dh-nav__divider")).toHaveLength(0);
-    for (const label of ["Today", "Areas", "Goals"]) {
+    expect(container.querySelectorAll(".dh-nav__rule")).toHaveLength(0);
+    expect(container.querySelectorAll(".dh-nav__list")).toHaveLength(1);
+    for (const label of ["Today", "Plan", "Tasks"]) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
   });
 
-  it("inserts one divider at each group transition", () => {
+  it("inserts one rule at each group transition, and none before the first", () => {
     const { container } = renderNav([
-      item("Today", 5),
-      item("Areas", 10),
-      item("Notes", 100, "capture"),
-      item("Diary", 110, "capture"),
-      item("Reviews", 200, "insight"),
-      item("Settings", 300, "system"),
-      item("Help", 310, "system"),
+      item("Today", 110, "do"),
+      item("Notes", 250, "organise"),
+      item("Diary", 260, "organise"),
+      item("Finance", 410, "money"),
+      item("Settings", 920, "system"),
+      item("Help", 930, "system"),
     ]);
-    // Transitions: (none→capture), (capture→insight), (insight→system) = 3.
-    expect(container.querySelectorAll(".dh-nav__divider")).toHaveLength(3);
+    // Four groups → three transitions. The first block has nothing above it.
+    expect(container.querySelectorAll(".dh-nav__rule")).toHaveLength(3);
+    expect(container.querySelectorAll(".dh-nav__group")).toHaveLength(4);
+  });
+
+  it("names each group's list with its heading, so a screen reader hears it once", () => {
+    renderNav([
+      item("Today", 110, "do"),
+      item("Finance", 410, "money"),
+      item("Settings", 920, "system"),
+    ]);
+    // The heading NAMES the list rather than being hidden from the tree.
+    expect(screen.getByRole("list", { name: "Do" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Money" })).toBeInTheDocument();
+    // `system` is separated by position and carries an accessible name instead.
+    expect(
+      screen.getByRole("list", { name: "Tools and settings" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the groups in the information architecture's order, not the model's", () => {
+    // A module that mis-numbers `navOrder` can sit in the wrong place inside its
+    // own block; it can never interleave two blocks.
+    const { container } = renderNav([
+      item("Settings", 1, "system"),
+      item("Finance", 2, "money"),
+      item("Today", 3, "do"),
+    ]);
+    const headings = [...container.querySelectorAll(".dh-nav__list")].map(
+      (list) =>
+        list.getAttribute("aria-label") ?? list.getAttribute("aria-labelledby"),
+    );
+    expect(headings).toEqual([
+      "nav-group-do",
+      "nav-group-money",
+      "Tools and settings",
+    ]);
+  });
+
+  it("keeps a destination whose module declares no known group reachable, last", () => {
+    // A manifest typo is a build-time defect (`navigation-groups.test.ts` fails
+    // on it against the real registry). The shell still draws the row rather
+    // than throwing, because a blank application is worse than an untidy rail.
+    renderNav([item("Today", 110, "do"), item("Stray", 999, "stuff")]);
+    expect(screen.getByRole("link", { name: "Stray" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: "Other destinations" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps every row an accessible link regardless of grouping", () => {
     renderNav([
-      item("Today", 5),
-      item("Notes", 100, "capture"),
-      item("Settings", 300, "system"),
+      item("Today", 110, "do"),
+      item("Notes", 250, "organise"),
+      item("Settings", 920, "system"),
     ]);
     for (const label of ["Today", "Notes", "Settings"]) {
       const link = screen.getByRole("link", { name: label });
@@ -86,13 +139,13 @@ describe("PX-03 PrimaryNavigation grouping", () => {
     }
   });
 
-  it("dividers are decorative and excluded from the accessibility tree", () => {
+  it("rules are decorative and excluded from the accessibility tree", () => {
     const { container } = renderNav([
-      item("Today", 5),
-      item("Notes", 100, "capture"),
+      item("Today", 110, "do"),
+      item("Notes", 250, "organise"),
     ]);
-    const divider = container.querySelector(".dh-nav__divider");
-    expect(divider).toHaveAttribute("aria-hidden", "true");
+    const rule = container.querySelector(".dh-nav__rule");
+    expect(rule).toHaveAttribute("aria-hidden", "true");
   });
 });
 
@@ -104,7 +157,11 @@ describe("PX-03 PrimaryNavigation grouping", () => {
  * module highlighted. These pin the corrected, shared behaviour.
  */
 describe("UX-01 PrimaryNavigation current destination", () => {
-  const items = [item("Today", 5), item("Notes", 100), item("Projects", 110)];
+  const items = [
+    item("Today", 110, "do"),
+    item("Notes", 250, "organise"),
+    item("Projects", 210, "organise"),
+  ];
 
   it("marks the exact route as the current page", () => {
     renderNav(items, "/notes");
@@ -146,7 +203,7 @@ describe("UX-01 PrimaryNavigation current destination", () => {
  * never a replacement for the name.
  */
 describe("DS-03 PrimaryNavigation collapsed rail", () => {
-  const items = [item("Today", 5), item("Projects", 110)];
+  const items = [item("Today", 110, "do"), item("Projects", 210, "organise")];
 
   /** Drive `matchMedia` so the component believes the rail is collapsed. */
   function withViewport(collapsed: boolean) {

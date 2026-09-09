@@ -1,8 +1,10 @@
 /**
  * PX-03 — the Meetings module route descriptors (declarative, dependency-free).
  *
- * See the Notes manifest for the pattern this mirrors. `navGroup: "capture"`
- * places Meetings in the sidebar's capture group.
+ * See the Notes manifest for the pattern this mirrors. `navGroup: "organise"`
+ * places Meetings in the rail's ORGANISE group, after Diary. The `capture`
+ * group this used to name was retired by PX-03 and superseded by V2.16
+ * CONSOL-00's five questions.
  */
 
 import type { RouteContribution } from "~/kernel/modules";
@@ -12,7 +14,7 @@ const routes: readonly RouteContribution[] = [
     id: "meetings.index",
     path: "meetings",
     file: "routes/index.tsx",
-    meta: { navLabel: "Meetings", navGroup: "organise", navOrder: 160 },
+    meta: { navLabel: "Meetings", navGroup: "organise", navOrder: 270 },
   },
   {
     id: "meetings.upcoming",

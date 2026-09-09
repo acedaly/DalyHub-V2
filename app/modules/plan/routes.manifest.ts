@@ -6,10 +6,12 @@
  * registry (ADR-016 §5.10). Adding a route means editing this file and adding the
  * route file; never `app/routes.ts`.
  *
- * `/plan` sits in the DAILY group between Today and Tasks, at `navOrder: 7`. That
- * is the order of the loop it belongs to — REVIEW → **PLAN** → TODAY → EXECUTE —
- * read the other way round in the rail: you land on Today, and the week you
- * planned is the row beside it.
+ * `/plan` sits in the **DO** group between Today and Tasks, at `navOrder: 120`.
+ * That is the order of the loop it belongs to — REVIEW → **PLAN** → TODAY →
+ * EXECUTE — read the other way round in the rail: you land on Today, and the
+ * week you planned is the row beside it. (The group was `daily` until V2.16
+ * CONSOL-00 re-cut the rail around the five questions; the position is
+ * unchanged.)
  *
  * It is deliberately NOT a phone bottom-navigation destination. That bar holds the
  * four things an owner reaches for many times a day (Today, Tasks, and capture);
@@ -27,8 +29,8 @@ const routes: readonly RouteContribution[] = [
     file: "routes/index.tsx",
     meta: {
       navLabel: "Plan",
-      navGroup: "daily",
-      navOrder: 7,
+      navGroup: "do",
+      navOrder: 120,
       // Planning owns no entity type — it is a VIEW over Tasks — so it declares
       // its own shell glyph, exactly as Today does (THEME-01).
       navIcon: "plan",

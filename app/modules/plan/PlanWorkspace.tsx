@@ -110,6 +110,7 @@ import {
 import { createPlanDrawerRenderer } from "./PlanDrawer";
 
 import type { PlanDay, PlanPageData, PlanQueueItem } from "./plan-contract";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 /**
  * The board's columns.
@@ -1744,7 +1745,7 @@ function PlanAccountPanel({
           >
             <Link
               className="dh-plan__account-title"
-              to={`/tasks?task=${entry.taskId}`}
+              to={taskDrawerHref(entry.taskId)}
             >
               {entry.title}
             </Link>

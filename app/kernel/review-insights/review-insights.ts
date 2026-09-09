@@ -57,6 +57,7 @@ import type {
   SnapshotGoalContribution,
   StoredReviewInsightSnapshot,
 } from "./review-insight-snapshot";
+import { taskDrawerHref } from "~/kernel/task-views";
 
 /* -------------------------------------------------------------------------- */
 /* Vocabulary                                                                  */
@@ -849,7 +850,7 @@ function buildAttention(
       links: [
         ...named.map((task) => ({
           label: task.title,
-          to: `/tasks?task=${task.id}`,
+          to: taskDrawerHref(task.id),
         })),
         taskLink("overdue", "Open overdue Tasks"),
         crossViewLink(
@@ -875,7 +876,7 @@ function buildAttention(
       links: [
         ...waiting.slice(0, MAX_NAMED_CARRY_OVER).map((task) => ({
           label: task.title,
-          to: `/tasks?task=${task.id}`,
+          to: taskDrawerHref(task.id),
         })),
         taskLink("waiting", "Open waiting Tasks"),
       ],
@@ -1153,7 +1154,7 @@ function buildPlanAccount(input: ResolvedInput): PeriodPlanInsight | null {
         title: entry.title,
         outcome: entry.outcome,
         reason: entryReason(entry, formatDay, "period"),
-        link: { label: entry.title, to: `/tasks?task=${entry.taskId}` },
+        link: { label: entry.title, to: taskDrawerHref(entry.taskId) },
       });
     }
   }
@@ -1247,10 +1248,12 @@ function buildHabitConsistency(input: ResolvedInput): Insight | null {
  * follows for the same reason.
  *
  * The carry-over fact names its commitments in PROSE and offers one door that
- * works, rather than a link per Task: `/tasks?task=…` is a parameter nothing
- * reads (the Tasks drawer contract is `?drawer=task:<id>`), and this section
- * will not add a seventh caller of a dead link. That pre-existing defect spans
- * the AI, Plan and Reviews surfaces, so it is recorded rather than fixed here.
+ * works, rather than a link per Task. When INS-02 wrote it, the per-Task link
+ * every other surface used carried a search parameter nothing read, so this
+ * section declined to add a seventh caller of a dead link and recorded the
+ * defect as DEBT-243 instead. V2.16 CONSOL-03 closed that: there is now one
+ * `taskDrawerHref` in `~/kernel/task-views` and every caller uses it. The prose
+ * stays, because it was the better shape for THIS fact rather than a workaround.
  */
 function buildAcrossReviews(
   input: ResolvedInput,
