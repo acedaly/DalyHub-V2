@@ -100,9 +100,23 @@ insert a workspace row, and set `DEFAULT_WORKSPACE_ID` to it.
 ## Procedure B — purge ONE workspace from a database that holds others
 
 Rarely needed today (production runs one workspace), and the reason the plan is
-generated rather than written down: every foreign key in DalyHub is
-`ON DELETE RESTRICT`, so a purge in the wrong order does not cascade — it
-**fails, halfway, having already deleted some of it.**
+generated rather than written down.
+
+**Most** foreign keys in DalyHub are `ON DELETE RESTRICT`, so a purge in the
+wrong order does not cascade — it **fails, halfway, having already deleted some
+of it.** **Nine are `ON DELETE CASCADE`** — a tag assignment, a subscribed feed's
+events, a Meeting's agenda items and their Tasks, a Review's sections, workflow
+state, step acknowledgements and insight snapshot, and a notification's delivery
+attempts — every one a child row hanging off its own parent. **One
+(`obligation_details` → `entities`) is `NO ACTION`**, SQLite's default, which
+still enforces the constraint and merely defers it to the end of the statement.
+
+The cascading nine make the order matter MORE rather than less: a wrong order
+there deletes **more** than the statement names, silently, which is the failure
+an operator cannot see happening. All ten are checked against
+`pragma_foreign_key_list` by `test/kernel/workspace-data-map.test.ts`, each
+named with its rule and its reason — so a new one is a deliberate addition to a
+list rather than a surprise at 2am.
 
 ```bash
 # 1. Read the plan. It opens no database and deletes nothing.
@@ -110,6 +124,10 @@ pnpm run workspace:purge:plan
 
 # 2. Optional: read what each table IS before you delete it.
 pnpm run workspace:purge:plan --classes
+
+# 3. When you have satisfied yourself it says what you meant, build the
+#    RUNNABLE form for one specific workspace.
+pnpm run workspace:purge:plan --workspace=<id> > purge.sql
 ```
 
 The plan is derived from
@@ -124,26 +142,44 @@ build until somebody classifies it, so the plan cannot silently miss one.
 Then:
 
 1. **Export first**, from Settings → Privacy & data. Download it.
-2. **Bind the workspace id yourself.** The statements are parameterised
-   (`:workspace_id`) on purpose: a generator that pastes an id into a string is
-   one typo away from a statement that means something else, and the something
-   else here is somebody's whole life.
-3. **Run the DELETE block** through `wrangler d1 execute dalyhub-v2 --file …`.
-   Stop before the final `DELETE FROM workspaces` if you want an empty workspace
-   rather than no workspace.
+2. **Read the unbound form before you build the bound one.** The default output
+   carries `:workspace_id` unbound on purpose, so a reviewer reads statements
+   that say what they mean rather than statements with an id already baked in,
+   and so nobody can paste the review copy into a terminal by accident. The
+   `--workspace=<id>` form substitutes a **validated** id — 1–128 characters of
+   `[A-Za-z0-9_-]`, the same closed alphabet the attachment object key uses —
+   and REFUSES anything else outright rather than escaping it. Nothing is
+   generated on a refusal.
+3. **Run the DELETE block** through
+   `wrangler d1 execute dalyhub-v2 --file purge.sql`. The runnable form carries
+   no `BEGIN`/`COMMIT`: D1 does not accept an explicit transaction from
+   `wrangler d1 execute` and applies a `--file` as one batch of its own, so a
+   wrapper there would fail the whole run before deleting anything. Stop before
+   the final `DELETE FROM workspaces` if you want an empty workspace rather than
+   no workspace.
 4. **Run the verification block** the plan prints after it. Every count must be
    `0`.
 5. **Delete the R2 objects.** They are not in D1 and the plan cannot reach them.
    Every one of the workspace's objects is under a single deterministic prefix:
 
    ```bash
-   wrangler r2 object list dalyhub-v2-attachments --prefix "attachments/<workspace-id>/file/"
+   wrangler r2 object list dalyhub-v2-attachments --prefix "workspaces/<workspace-id>/attachments/"
    # …then delete each key, or delete the whole bucket if the workspace is the
    # only tenant.
    ```
 
    The prefix rule is [`attachment-storage-key.ts`](../../app/kernel/attachments/attachment-storage-key.ts);
    it is derived server-side and carries no owner-supplied string.
+
+   > **This literal is CHECKED**, by
+   > [`workspace-deletion-procedure.test.ts`](../../test/unit/architecture/workspace-deletion-procedure.test.ts),
+   > against `attachmentWorkspacePrefix()` itself. It has to be: the first draft
+   > of this document said `attachments/<workspace-id>/file/`, which matches
+   > **nothing**. An operator following it would have got an empty listing,
+   > concluded the workspace had no files, and left every PDF, receipt and
+   > photograph the owner ever attached sitting in the bucket after a
+   > "deletion". A prose prefix beside a derived key is exactly the pair that
+   > drifts, and the drift is silent at the worst possible moment.
 
 ---
 

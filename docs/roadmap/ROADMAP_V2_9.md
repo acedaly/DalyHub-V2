@@ -809,6 +809,10 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
                 V2.13 REPORTS ──► V2.14 GROUNDED AI ──► V2.15 ASSISTED AI ──► V2.16 CONSOLIDATE ──► V3
 ```
 
+Every arrow above has now been taken. V2.16 completed 2026-09-08 and the V2
+sequence is closed; the arrow into V3 points at a **definition pass**, not at
+a release — see [The V3 boundary](#the-v3-boundary).
+
 ### V2.10 — LIFE ADMIN (PLANNED)
 
 > **Superseded as roadmap truth on 2026-09-05 by
@@ -1165,7 +1169,8 @@ V2.9 INSIGHT ──► V2.10 LIFE ADMIN ──► V2.11 EVIDENCE ──► V2.12
 > **SUPERSEDED 2026-09-08.** V2.16 **was** defined by its own decision pass,
 > against a re-measurement of `main` at `06f57c1`, exactly as every release
 > since V2.10 has been. [`ROADMAP_V2_16.md`](ROADMAP_V2_16.md) is that
-> definition and is where new work goes. The sketch below is kept as the
+> definition, and it **completed on 2026-09-08**; new work goes to the V3
+> definition pass rather than to either file. The sketch below is kept as the
 > record of what was presumed; where the two disagree, the later file wins.
 > It differs in four measured places, each stated there: the grouping is
 > taken from the strategy's own table rather than this summary sentence,
@@ -1211,6 +1216,27 @@ document text as evidence, bank feeds, splits and holdings, a real
 capture-triage state, the offline slice if it is ever earned, and anything
 that would need an owner-supplied credential class the product does not yet
 hold. Not a number reached; a boundary crossed.
+
+**MEASURED 2026-09-08.** V2.16 CONSOLIDATE crossed it deliberately rather
+than by feeling: every clause above is answered TRUE, FALSE, OWNER-GATED or
+RE-HOMED, with its evidence named, in
+[`V3_BOUNDARY.md`](../product/V3_BOUNDARY.md). **V2 is consolidated**, and
+**V3 may begin as an architecture programme** under two conditions stated
+there. What V2.16 did NOT do is declare production ready: three optional
+production features stay owner-gated on evidence no contributor can produce,
+and that table is in the same file.
+
+### What comes after V2.16
+
+**Not another V2 release.** The V2 sequence ends here; the register carries
+no entry without a home, and the next pass is a **V3 DEFINITION /
+PRODUCT-STRATEGY pass** — the same shape every release since V2.10 has had:
+re-measure `main`, write the programme against what is actually there, and
+refuse what the measurement says to refuse. Its inputs are already written:
+the 82 re-homed register entries grouped by category in
+[`PRODUCT_DEBT_V2_16_DISPOSITION.md`](../product/PRODUCT_DEBT_V2_16_DISPOSITION.md),
+§12 of the strategy, and the boundary table itself. A V3 roadmap file does
+not exist yet, and creating one is that pass's first act, not this one's.
 
 ---
 

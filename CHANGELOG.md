@@ -1,5 +1,57 @@
 # Changelog
 
+- **The menu now reads like a question you'd actually ask.**
+
+  Twenty-four destinations used to sit in one long list. They're now in five
+  groups, each of which is a question rather than a category: **Do** (Today,
+  Plan, Inbox, Upcoming, Tasks), **Organise** (Projects, Goals, Areas, Habits,
+  Notes, Diary, Meetings, People), **Deal with** (Life Admin, Assets),
+  **Money** (Finance) and **Understand** (Insight, Reports, Reviews, AI).
+  Views, Settings, Help and About sit quietly at the bottom without a heading,
+  because they aren't a question you ask.
+
+  **Nothing moved.** Not one address changed — every bookmark, every saved
+  Report link, every drawer URL still goes exactly where it went yesterday.
+  The group names aren't pages; you can't click "Money", you click Finance.
+  And the phone bar is untouched: Today, Tasks, Add, Projects, More, in that
+  order, as it has been.
+
+  A screen reader now hears the groups as groups, with the heading read out
+  before the destinations under it, rather than one twenty-four item list.
+
+- **You can find out what happens if you delete everything.**
+
+  There is still no "Delete workspace" button, and now there is a document
+  that says why in plain terms rather than leaving you to wonder: DalyHub
+  opens one workspace, the one it is configured to open, and it has no way to
+  make another — so a delete button would be a button that destroys the
+  application drawing it. Settings says so where you would look for it, and
+  links to the operator procedure for actually doing it, which is a
+  deliberate act at the infrastructure level.
+
+- **The restore is rehearsed, end to end, every time the tests run.**
+
+  Not "the export includes everything" as a claim. A synthetic workspace with
+  something in every part of the product — tasks, habits with two schedule
+  versions, goal measurements, diary entries either side of a daylight-saving
+  change, three bank accounts in two currencies, a real CSV import, a
+  transfer pair, a budget, a settled commitment, four attachments including
+  two files with the same name and different contents, a saved Report — gets
+  exported, then the database is destroyed, then the file store is destroyed,
+  then it is all proved gone, then it is restored.
+
+  And then the hard part: everything is **worked out again from scratch** and
+  compared. Account balances, the month summary, the saved Report re-run, the
+  Review snapshot, the goal series, the completion history, the habit
+  schedule, every attachment's bytes, and the fact block the assistant is
+  allowed to quote. If any of them says something different afterwards, the
+  test fails.
+
+  There is also now a rule the database itself has to obey: every table is
+  either in the archive, or excluded for a written reason, or infrastructure.
+  A future migration that adds a table and forgets to say which will fail
+  before it ships.
+
 - **Suggestions you look at before anything happens.**
 
   DalyHub can now offer a change and wait. Not make it — offer it, show you

@@ -621,7 +621,7 @@ export const WORKSPACE_TABLES: readonly WorkspaceTable[] = [
     scope: "workspace-and-owner",
     dataClass: "ephemeral",
     reason:
-      "One in-flight restore: its mode, its status, its safety-backup acknowledgement and its single-use apply token. It exists between `prepareRestore` and the cutover and is discarded afterwards.",
+      "One restore operation: its mode, its status, its safety-backup acknowledgement and its single-use apply token. It is created by `prepareRestore` and reaches a terminal status at the cutover; the terminal row SURVIVES as the record that a restore happened, and its token is spent. What does not survive is `workspace_restore_staged_rows` — see there. MEASURED by the rehearsal after a completed round trip: exactly one row, status `completed`.",
     references: ["workspaces"],
   },
   {

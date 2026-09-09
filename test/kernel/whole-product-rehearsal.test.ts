@@ -88,6 +88,7 @@ import {
   createAttachmentRepository,
   createWorkspaceRestoreRepository,
   createWorkspaceSnapshotRepository,
+  WORKSPACE_TABLES,
   workspacePurgeOrder,
 } from "~/platform/storage/d1";
 import { createR2ObjectStore } from "~/platform/attachments";
@@ -560,6 +561,43 @@ describe("V2.16 CONSOL-02 — the whole-product rehearsal", () => {
     expect(before.ownerDays.before).toBe("2026-10-03T13:30:00.000Z");
     expect(before.ownerDays.after).toBe("2026-10-03T16:30:00.000Z");
 
+    /*
+     * And the check that makes all of the above mean something: the fixture has
+     * to have PUT SOMETHING in every table it claims to round-trip.
+     *
+     * V2.16's independent review named this as the hole, and it is the right
+     * one: `expect(after).toEqual(before)` is satisfied by empty equals empty.
+     * This repository has already paid for it once — `workspace-fixture.ts`
+     * records the day the fixture created a Goal and no `goal_details` row, so
+     * one whole collection's equality assertion could never fail. A table can
+     * therefore be classified `exported`, be named in the archive's order, pass
+     * every naming check in `workspace-data-map.test.ts`, and still have its
+     * export or restore half unwired — with the rehearsal green.
+     *
+     * So: every `exported` table has rows before the archive is written, or it
+     * is on a NAMED list with a stated reason.
+     */
+    const seededCounts = await rowCounts(WS);
+    const unseeded = WORKSPACE_TABLES.filter(
+      (entry) =>
+        entry.dataClass === "exported" &&
+        entry.scope !== "root" &&
+        (seededCounts.get(entry.table) ?? 0) === 0,
+    ).map((entry) => entry.table);
+    /*
+     * No exception list, and that is the point: every table this product
+     * classifies as owner data now has rows here before the archive is written,
+     * so `toEqual` compares something on both sides for all of them. Three did
+     * not when this check was added — `project_details` (written lazily, so the
+     * whole-product rehearsal had a Project with no detail row at all),
+     * `goal_milestones` and `owner_app_preferences` — and the fixture seeds
+     * them now rather than declaring them out of scope.
+     */
+    expect(
+      unseeded,
+      "these tables are exported but the rehearsal seeds none of them, so their round trip is unproven",
+    ).toEqual([]);
+
     /* ---- 3. Export, and prove the archive READS BACK -------------------- */
     const archive = await exportArchive();
     // `readBackupArchive` REJECTS rather than returning a flag, so reading it at
@@ -618,6 +656,35 @@ describe("V2.16 CONSOL-02 — the whole-product rehearsal", () => {
     expect(after.periodCompletions).toEqual(before.periodCompletions);
     expect(after.habitSchedule).toEqual(before.habitSchedule);
     expect(after.attachments).toEqual(before.attachments);
+
+    /*
+     * And the `ephemeral` class's own rule, checked where it is actually at
+     * risk. `workspace-data-map.test.ts` asserts these are empty on a freshly
+     * migrated database, where every table is empty and the assertion proves
+     * nothing. HERE a restore has just run through them: `applyRestore` stages
+     * every row it is about to write into `workspace_restore_staged_rows`, so a
+     * cutover that stopped clearing them would leave a complete SECOND copy of
+     * the owner's data in D1 — invisible to the archive, invisible to the
+     * manifest, and growing by one whole workspace per restore.
+     */
+    const settled = await rowCounts(WS);
+    expect(
+      settled.get("workspace_restore_staged_rows"),
+      "the staging table must be empty once the cutover has happened",
+    ).toBe(0);
+    /*
+     * The operation row is the other half, and it is NOT the same rule. It
+     * survives, in a terminal status, as the record that a restore happened and
+     * with its single-use apply token spent — so the assertion is that it has
+     * SETTLED, not that it is gone. A row still `staging` or `prepared` here
+     * would mean a cutover that never finished and an apply token still live.
+     */
+    const ops = await env.DB.prepare(
+      `SELECT status, COUNT(*) AS n FROM workspace_restore_operations WHERE workspace_id = ? GROUP BY status`,
+    )
+      .bind(WS)
+      .all<{ status: string; n: number }>();
+    expect(ops.results).toEqual([{ status: "completed", n: 1 }]);
   });
 
   it("carries every attachment's BYTES, including two files with one name", async () => {

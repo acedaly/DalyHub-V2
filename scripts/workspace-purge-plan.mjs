@@ -27,9 +27,14 @@
  *
  * ── Why it is generated rather than written down ────────────────────────────
  *
- * The order is the only hard part. Every foreign key in DalyHub is
+ * The order is the only hard part. MOST foreign keys in DalyHub are
  * `ON DELETE RESTRICT`, so a purge in the wrong order does not cascade — it
- * FAILS, halfway, having already deleted some of it. The order here is derived
+ * FAILS, halfway, having already deleted some of it. Nine are
+ * `ON DELETE CASCADE` and one is SQLite's default `NO ACTION`; the cascading
+ * nine are the dangerous half, because a wrong order there deletes MORE than
+ * the statement names and nothing tells the operator it happened. All ten are
+ * enumerated with their rules and reasons in
+ * `test/kernel/workspace-data-map.test.ts`. The order here is derived
  * from the classification in `app/platform/storage/d1/workspace-data-map.ts`,
  * which carries every table's foreign-key parents and is checked against the
  * REAL schema (`sqlite_master`, `pragma_foreign_key_list`) by
@@ -45,6 +50,23 @@
  *
  *   pnpm run workspace:purge:plan             the SQL, ready to review
  *   pnpm run workspace:purge:plan --classes   the classification, as a table
+ *   pnpm run workspace:purge:plan --workspace=<id>
+ *                                             the same SQL, RUNNABLE
+ *
+ * The default output is for a HUMAN: it carries `:workspace_id` unbound, so
+ * nobody can paste it into a terminal by accident, and a reviewer reads a
+ * statement that says what it means rather than one with an id baked into it.
+ *
+ * `--workspace=<id>` is for the machine. It substitutes a VALIDATED id — the
+ * same `[A-Za-z0-9_-]` rule the attachment key builder applies, refused
+ * loudly rather than escaped — and drops the `BEGIN TRANSACTION` / `COMMIT`
+ * wrapper, because D1 does not accept an explicit transaction from
+ * `wrangler d1 execute` and applies a `--file` as one batch of its own. The
+ * two forms exist because V2.16's review pointed out that the documented
+ * procedure could not actually be run: an unbound `:workspace_id` has no
+ * binding flag in `wrangler d1 execute`, so the operator was being asked to
+ * hand-substitute an id into sixty statements — precisely the typo the
+ * parameterisation was there to prevent.
  *
  * The R2 half of a deletion is NOT here and cannot be: object keys live in the
  * bucket, not in D1. `WORKSPACE_DELETION.md` documents it beside this, together
@@ -67,6 +89,26 @@ const { WORKSPACE_TABLES, workspacePurgeOrder, workspacePurgeStatements } =
   );
 
 const wantsClasses = process.argv.includes("--classes");
+
+const workspaceFlag = process.argv.find((arg) =>
+  arg.startsWith("--workspace="),
+);
+const workspaceId = workspaceFlag?.slice("--workspace=".length) ?? null;
+if (workspaceId !== null && !/^[A-Za-z0-9_-]{1,128}$/.test(workspaceId)) {
+  /*
+   * Refused, never escaped. A workspace id in this product is a generated
+   * identifier from a closed alphabet (`isSafeKeySegment`, the same rule the
+   * attachment object key uses); anything else is either a mistake or an
+   * attempt to make the statement mean something other than it reads, and the
+   * only safe response to either is to stop.
+   */
+  console.error(
+    `Refusing to build a plan for ${JSON.stringify(workspaceId)}: a workspace id is 1-128 characters of [A-Za-z0-9_-]. Nothing was generated.`,
+  );
+  process.exit(2);
+}
+/** The id as SQL, or the unbound placeholder when none was given. */
+const bound = workspaceId === null ? ":workspace_id" : `'${workspaceId}'`;
 
 if (wantsClasses) {
   const width = Math.max(
@@ -114,25 +156,27 @@ console.log(
 );
 console.log(`-- and does not promise.`);
 console.log(`--`);
-console.log(`-- Bind :workspace_id yourself. It is not interpolated here on`);
-console.log(`-- purpose.`);
-console.log(``);
-console.log(`BEGIN TRANSACTION;`);
+if (workspaceId === null) {
+  console.log(`-- Bind :workspace_id yourself. It is not interpolated here on`);
+  console.log(`-- purpose. For a RUNNABLE file, re-run with`);
+  console.log(`--   pnpm run workspace:purge:plan --workspace=<id>`);
+} else {
+  console.log(`-- Built for workspace ${workspaceId}, and RUNNABLE as it is.`);
+  console.log(`-- No BEGIN/COMMIT: D1 does not accept an explicit transaction`);
+  console.log(`-- from \`wrangler d1 execute\`, and applies a --file as one`);
+  console.log(`-- batch of its own.`);
+}
 console.log(``);
 for (let index = 0; index < statements.length; index += 1) {
   const entry = order[index];
   console.log(`-- ${index + 1}/${statements.length}  ${entry.dataClass}`);
-  console.log(statements[index]);
+  console.log(statements[index].replaceAll(":workspace_id", bound));
 }
-console.log(``);
-console.log(`COMMIT;`);
 console.log(``);
 console.log(`-- Verification: every count below must be 0.`);
 for (const entry of order) {
   const predicate =
-    entry.scope === "root"
-      ? "id = :workspace_id"
-      : "workspace_id = :workspace_id";
+    entry.scope === "root" ? `id = ${bound}` : `workspace_id = ${bound}`;
   console.log(
     `SELECT '${entry.table}' AS t, COUNT(*) AS n FROM ${entry.table} WHERE ${predicate};`,
   );

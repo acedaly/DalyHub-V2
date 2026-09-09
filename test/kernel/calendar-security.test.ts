@@ -281,10 +281,28 @@ describe("the scheduled refresh", () => {
    * budget, and what moves is the one-time module compilation, out of the
    * measurement and into setup where it belongs. If the handler ever becomes
    * genuinely slow, these tests still fail.
+   *
+   * ── V2.16: the half of that fix that was missing ────────────────────────
+   *
+   * Moving the compile into `beforeAll` left it under Vitest's DEFAULT 5,000 ms
+   * HOOK budget, and the compile does not fit in it. MEASURED on this branch,
+   * in a cold isolate: **9,751 ms** — so the hook has always been roughly twice
+   * over budget, and passed only when an earlier file in the same worker had
+   * already compiled the graph. That is the same "decided by its neighbours"
+   * defect one level up, and it surfaced as a red `beforeAll` (and these two
+   * tests reported as SKIPPED, which is the worst way for it to appear) the
+   * first time the kernel suite ran against a saturated worker pool.
+   *
+   * So the SETUP hook gets a stated budget of 30 s — about three times the
+   * measurement, which is headroom for a loaded shared runner rather than a
+   * blank cheque. Nothing else moves: every `it` below keeps the default five
+   * seconds, so a handler that becomes genuinely slow still fails, and this is
+   * a budget for a one-time module compilation rather than a timeout raised to
+   * bury a result.
    */
   beforeAll(async () => {
     await import("~/platform/workspaces");
-  });
+  }, 30_000);
 
   it("does nothing, quietly, when no encryption key is configured", async () => {
     const summary = await runScheduledCalendarRefresh({

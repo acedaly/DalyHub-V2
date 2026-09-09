@@ -189,11 +189,13 @@ decision and what ships instead.
 
 ### Debt
 
-**85 open entries** (`☐` or `◐`) in
-[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md), the oldest raised 2026-07,
-the newest by V2.15. They are not uniform: some are owner-held operational
-gates, some are refused capability recorded honestly, some are genuine
-correctness defects, and at least four have premises a later release
+**98 open entries** (`☐` or `◐`) in
+[`PRODUCT_DEBT.md`](../product/PRODUCT_DEBT.md) — 95 carrying a `DEBT-nnn`
+id and three carrying an older prefix (`UIQ-012`, `RECORD-02`, `RECORD-03`),
+which is why a count of the ids alone reads three short. The oldest was
+raised 2026-07 and the newest by V2.15. They are not uniform: some are
+owner-held operational gates, some are refused capability recorded honestly,
+some are genuine correctness defects, and some have premises a later release
 invalidated. CONSOL-03 gives each exactly one home.
 
 ### Open pull requests
@@ -539,10 +541,110 @@ stated per clause: production Finance use, live AI use, or nothing.
 
 ## Falsification
 
-Thirty deliberate breaks. Each must turn a specific check red; each is
-reverted. **A falsification that stays green is a test gap, and the gap is
-fixed rather than the break excused.** The table is completed in
-[Programme status](#programme-status) with the check that caught each.
+Thirty deliberate breaks were promised. **Thirty-four were taken** — four more
+because gaps found while running them deserved their own breaks rather than
+footnotes. Each was applied to the real tree, run, and reverted; the working
+tree was confirmed clean afterwards.
+
+**A falsification that stays green is a test gap, and the gap is fixed rather
+than the break excused.** Two stayed green on the first attempt and both are
+recorded as such below.
+
+### CONSOL-02 — the archive, the purge and the round trip
+
+| # | The break | The check that caught it |
+|---|---|---|
+| 1 | A table leaves the export registry while staying owner data | `workspace-data-map` — every `exported` table names a real archive slot |
+| 2 | An owner-data table is reclassified `ephemeral` | `workspace-data-map` — an `ephemeral` table must actually be empty after a seed |
+| 3 | The generated purge plan silently drops a table | `workspace-data-map` — the purge order is TOTAL over `sqlite_master` |
+| 4 | Attachment bytes survive the destroy step | `whole-product-rehearsal` — "prove gone" lists the bucket and expects nothing |
+| 5 | A Finance balance is carried rather than derived | `whole-product-rehearsal` — balances are recomputed on both sides |
+| 6 | A snapshot collection leaves the dependency order | `workspace-data-map` — the order is checked child-before-parent |
+| 7 | The archive stops carrying attachment bytes | `whole-product-rehearsal` — the byte-parity journey |
+| 8 | A saved Report fails to come back | `whole-product-rehearsal` — the Report is RE-EXECUTED after restore |
+| 17 | The purge reaches into a neighbouring workspace | `whole-product-rehearsal` — the neighbour is counted before and after |
+| 26 | Old-archive compatibility is quietly dropped | `archive-support-horizon` — the stated horizon is a test, not a sentence |
+| 27 | The AI FactBlock stops matching after a restore | `whole-product-rehearsal` — derived-truth parity, `factBlock` named explicitly |
+| 29 | An operational store leaves the archive with no stated reason | `workspace-data-map` — `EXPORT_EXCLUSIONS` must cover every exclusion in prose |
+| 31 | An `exported` table leaves `SNAPSHOT_COLLECTIONS` while the map still claims its slot | `workspace-data-map` — the map and the archive are checked against each other, both ways |
+
+### CONSOL-00 — the information architecture
+
+| # | The break | The check that caught it |
+|---|---|---|
+| 9 | A navigation item loses its group | `navigation-information-architecture` — no destination may be ungrouped |
+| 10 | The phone bar gains a fourth destination | `navigation-information-architecture` — the daily-driver bar is asserted by name |
+| 11 | "Analytics" returns to the rail | `navigation-information-architecture` + `command-palette-coherence` |
+| 12 | A command points at a route that does not exist | `command-palette-coherence` — every navigate command resolves |
+| 13 | Navigation prefetch is switched off | `PrimaryNavigation` — every row carries `PRIMARY_NAV_PREFETCH` |
+| 14 | The touch floor is authored away again | `consol-00-question-first-navigation` E2E — 44px under `pointer: coarse` |
+| 15 | Two destinations share one `navOrder` | `navigation-information-architecture` — order is unique and banded |
+| 16 | A group name becomes a route | `navigation-information-architecture` — no group key may be a path |
+| 20 | The per-Task link reverts to a hand-built string | `task-drawer-href` — the one authority decodes through `readDrawerStack` |
+
+### CONSOL-04 — one authority per thing
+
+| # | The break | The check that caught it |
+|---|---|---|
+| 18 | An entity type loses its destination | `v3-readiness-registry` — every identified type has somewhere to land |
+| 19 | Diary enters empty-query recency | `v3-readiness-registry` — the recency exclusions are named |
+| 21 | A second caller applies a proposal | `proposal-apply-authority` |
+| 22 | A documentation link breaks | `docs:links:check` |
+| 23 | An Obligation recurrence is duplicated | `one-obligation-domain` |
+| 24 | A stray attachment file input appears | `one-attachment-surface` |
+| 25 | An AI provider is called from a loader | `grounded-ai-boundaries` |
+| 30 | A provider endpoint is named in a browser-importable module | `grounded-ai-boundaries` — the server-only boundary |
+
+### The map itself — added because the review found it unguarded
+
+`PRODUCT_MAP.md` states three kinds of fact — where every destination is,
+which file proves each authority, and how much data there is — and **none of
+them was checked by anything**, because a route is not a repository link and a
+code span is invisible to every link checker. A map that can rot is worse than
+no map, because a reader trusts it. Closed in
+`product-map-coherence.test.ts`, then falsified three ways:
+
+| # | The break | The check that caught it |
+|---|---|---|
+| 32 | An authority test is renamed and the map still names the old file | `product-map-coherence` — every path in a code span resolves |
+| 33 | A destination is silently dropped from the map's table | `product-map-coherence` — the map's rows are checked against the discovered registry both ways |
+| 34 | The table count goes stale after a migration | `product-map-coherence` — the figures are read out of the prose and compared to the classification |
+
+### The independent review, and the eleven things it found
+
+The brief asked for an automated independent full-diff review pass whose
+question is **"what guarantee is missing entirely?"** — not "is this correct".
+It was run against the whole diff and it earned its place: it found **a false
+promise, a wrong operator command, a tautological test and a totality claim
+that the very commit making it had broken.** Every one is fixed here rather
+than argued with, and each fix carries its own check.
+
+| Found | What was actually wrong | What now holds it |
+|---|---|---|
+| The archive support horizon | `RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS` was DEFINED as `[SNAPSHOT_SCHEMA_VERSION]`, so the test asserting it contains that version was `[X].includes(X)` — and the promise "DalyHub reads every archive it has ever written" was **already false**: v1 archives have been refused since 2026-08-21. The list is a literal now, the document states the measured horizon, and the REFUSAL is exercised either side of it | `archive-support-horizon` |
+| The R2 deletion command | The operator procedure said `--prefix "attachments/<id>/file/"`. The real key root is `workspaces/<id>/attachments/`. The stated command matches **nothing** — an operator would have got an empty listing and left every attached file in the bucket after a "deletion" | `workspace-deletion-procedure` |
+| The rehearsal's own fixture | `expect(after).toEqual(before)` is satisfied by empty equals empty, and four `exported` tables had no rows — including `project_details`, so the whole-product rehearsal had a Project with no detail row at all. All four are seeded now, with no exception list | `whole-product-rehearsal` |
+| "Every foreign key is `ON DELETE RESTRICT`" | Stated three times as the REASON the purge order must be generated. Nine keys are `CASCADE` and one is `NO ACTION`; the query behind the check read each key's parent name and never its rule | `workspace-data-map` |
+| The plan could not be run as documented | Every statement carried an unbound `:workspace_id` and `wrangler d1 execute` has no binding flag, and the file opened with a `BEGIN TRANSACTION` D1 rejects — so the documented procedure asked an operator to hand-substitute an id into sixty statements, which is the typo the parameterisation exists to prevent | `workspace-deletion-procedure` |
+| "Every open entry has exactly one home" | `DEBT-255` was raised **by the CONSOL-03 commit itself**, open, with no disposition and in no table. The register is parsed now and every open entry must be disposed or named as this programme's own finding | `debt-register-coverage` |
+| The two buckets' trust boundary | "The application Worker cannot reach the backups bucket" — one of ADR-124's two measured reasons — was a COMMENT in `wrangler.jsonc` and nothing else | `worker-bucket-boundary` |
+| The ephemeral class's rule | Asserted only on a fresh database, where every table is empty. A cutover that stopped clearing `workspace_restore_staged_rows` would leave a second complete copy of the owner's data in D1, per restore | `whole-product-rehearsal` |
+| Every stated table count | "Sixty tables … 45 exported, 13 operational, 2 ephemeral" appears across six documents and an ADR, all correct today and all stale at the next migration | `product-map-coherence`, `workspace-deletion-procedure` |
+| Settings contradicted the disposition | The page still said reminders "are not built" while this release struck DEBT-35 on the grounds that obligation reminders shipped with V2.10 | the copy is corrected |
+| The declared-skip guard's own gaps | It missed `xit`, `xdescribe`, `test.skip.each` and `describe.skipIf(true)` — four spellings of the same quarantine. Widened, while still allowing the expression-gated form real capability checks use | `stability-run` |
+
+**What it found nothing wrong with**, checked and reported as such: the
+accessibility work, the navigation assertions (`turns no group name into a
+route` is a real comparison, because registry paths carry no leading slash),
+`taskDrawerHref`'s decode-don't-pin shape, and the deleted
+`px-03-navigation.test.ts`, which is strictly subsumed.
+
+### The two that stayed green, and what was done about them
+
+| # | The break | What happened |
+|---|---|---|
+| 27 | The AI FactBlock stops matching after a restore | The first attempt added a dead counter to the fact builder — a **no-op**, so green was correct. Re-done as a real defect: the obligations restore descriptor forgets its four completion columns. One test failed, and the diff named `factBlock`. |
+| 28 | A `test.skip` quarantines a journey inside the full gate | **A real gap.** `test.only` had been guarded since V2.8 CONV-03; the DECLARATION form of `skip` never was, and it is the cheaper dishonesty — one failing journey disappears, the run stays green, the count drops by one and nothing says so. Closed in `stability-run` over e2e, unit and kernel alike, telling the declaration form apart from the ~40 legitimate `test.skip(condition, "reason")` guards by their first argument. The break then went red. |
 
 ---
 
@@ -588,7 +690,20 @@ and in the PR body — never quoted from an earlier release.
 
 ## Programme status
 
-**V2.16 CONSOLIDATE — see the pull request for the measured close-out.**
+**V2.16 CONSOLIDATE — COMPLETE 2026-09-09.** Defined against `main` at
+`06f57c1`; the measured close-out, with exact counts and the final SHA, is in
+the pull request. Nothing below is quoted from an earlier release.
+
+| Item | State |
+|---|---|
+| **CONSOL-00** — question-first information architecture | Shipped. Six groups over the real registry, no href moved, the phone bar unchanged, grouping in the accessibility tree, and a WCAG 2.2 §2.5.8 defect four releases old ([DEBT-254](../product/PRODUCT_DEBT.md)) found and fixed on the way |
+| **CONSOL-01** — the deletion boundary | Decided and PROVED. An infrastructure act, on the measurement that the product resolves one configured workspace with no creation surface; a registry-derived purge plan, a generator with a runnable form, an executed kernel proof and an operator procedure whose every literal is checked against the code |
+| **CONSOL-02** — whole-product recovery | Shipped, in two halves. The rehearsal compares DERIVED owner-facing values across export → destroy → restore, and the total store classification means no owner-data table can exist outside an export policy |
+| **CONSOL-03** — the register | 98 entries, zero ambiguous: 4 closed against their own stated closing conditions, 10 owner-gated, 82 re-homed with a per-entry reason, 2 struck. The two this release raised are recorded separately, one resolved and one open by decision |
+| **CONSOL-04** — retirement and the map | Shipped. Two registry names, two commands and nine hand-built URLs retired; the archive support horizon stated and made checkable; the cross-registry audit and the product map added, both as gates |
+| **The V3 boundary** | Measured clause by clause in [`V3_BOUNDARY.md`](../product/V3_BOUNDARY.md). **V2 is consolidated — YES. V3 may begin — YES, architecture only, under two named conditions. Every optional production feature activated — NO** |
+| **Falsification** | 34 breaks, all red. Two stayed green on first attempt: one was a no-op and was re-done, one was a real gap and is closed |
+| **Independent review** | Run against the whole diff. Eleven missing guarantees found, all fixed, each with its own check — see [Falsification](#falsification) |
 
 ---
 

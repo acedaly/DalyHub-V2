@@ -7450,13 +7450,19 @@ until the off-Cloudflare copy exists and has been restored from once.
      all sixty tables, zero objects under the workspace prefix, and a second
      populated workspace beside it untouched.
 
-  3. **The plan is generated, never written down.** Every foreign key in DalyHub
-     is `ON DELETE RESTRICT`, so a purge in the wrong order does not cascade — it
-     FAILS, halfway, having already deleted some of it. A hand-kept order in a
-     document would be correct on the day it was written and silently wrong at
-     the next migration; a derived one fails the build instead
-     (`test/kernel/workspace-data-map.test.ts` checks the map against
-     `sqlite_master` and `pragma_foreign_key_list`).
+  3. **The plan is generated, never written down.** MOST foreign keys in DalyHub
+     are `ON DELETE RESTRICT`, so a purge in the wrong order does not cascade —
+     it FAILS, halfway, having already deleted some of it. Nine are
+     `ON DELETE CASCADE`, each a child row hanging off its own parent, and one
+     (`obligation_details` → `entities`) is SQLite's default `NO ACTION`, which
+     still enforces the constraint. The cascading nine make the order matter
+     MORE rather than less: a wrong order there deletes more than the statement
+     names, and does it quietly. A
+     hand-kept order in a document would be correct on the day it was written
+     and silently wrong at the next migration; a derived one fails the build
+     instead (`test/kernel/workspace-data-map.test.ts` checks the map against
+     `sqlite_master` and `pragma_foreign_key_list`, including each key's
+     `on_delete` rule against a named list of the cascading ones).
 
   4. **No tombstone.** A tombstone exists to prove a deletion happened and to
      prevent id reuse. When the deletion is `wrangler d1 delete`, the database

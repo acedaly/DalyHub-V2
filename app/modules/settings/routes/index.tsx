@@ -1434,7 +1434,7 @@ function PrivacyDataSection() {
       <SettingsGroup title="Not available yet">
         <SettingsRow
           label="Deferred data tools"
-          description="Importing from other products, AI-provider credentials in the app, reminders, roles and billing are not built."
+          description="Importing from other products, AI-provider credentials in the app, roles and billing are not built."
           control={
             <span className="dh-settings-page__text-value">Deferred</span>
           }

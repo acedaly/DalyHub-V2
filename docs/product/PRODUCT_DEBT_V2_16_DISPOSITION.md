@@ -17,11 +17,20 @@ bullet on its own entry naming one of four outcomes.
 | **STRUCK BY DECISION** | 2 | The premise no longer holds, and the superseding release or decision is named |
 | **REMAIN OPEN** | 0 | — |
 
+**Two entries this programme RAISED are not in those numbers**, and saying so is
+the difference between a report and a tidy-up. The 98 above were measured at the
+START of the pass; a release that finds something and writes it down then has an
+entry the report it already wrote does not contain. Both are listed under
+[What this programme raised](#what-this-programme-raised) below —
+one resolved inside the release, one **open on purpose**, with its closing
+condition — and a test asserts that every open register entry is either
+disposed here or named there, so a third cannot appear quietly.
+
 ---
 
 ## Read this before reading the numbers
 
-**Eighty-two of ninety-seven entries are re-homed to V3, and that is a fact
+**Eighty-two of ninety-eight entries are re-homed to V3, and that is a fact
 about the register rather than an act of tidying.** The prompt for this
 release warns against debt dumping, and the warning is right, so the test was
 applied entry by entry: *does its own stated closing condition name a
@@ -214,6 +223,24 @@ commitment**: V3's own definition pass decides what it takes and in what order.
 | [DEBT-167](PRODUCT_DEBT.md#-debt-167--creating-a-project-from-a-template-requires-connectivity--p3) | Creating a project from a template requires connectivity | Offline project-from-template. Offline slice. |
 | [DEBT-170](PRODUCT_DEBT.md#-debt-170--adding-or-removing-a-dependency-requires-connectivity--p3) | Adding or removing a dependency requires connectivity | Offline dependency edits. Offline slice. |
 | [DEBT-190](PRODUCT_DEBT.md#-debt-190--the-offline-slice-does-not-cover-relationship-or-order-changes--p3) | The offline slice does not cover relationship or ORDER changes | Relationship and ORDER changes in the offline slice. Offline programme. |
+
+---
+
+## What this programme raised
+
+A release that re-measures the product finds things. Recording them is the point
+of the register; leaving them out of the disposition report because they arrived
+after it was written would make the report's own totality claim a technicality.
+
+| Entry | What it is | Where it stands |
+|---|---|---|
+| [DEBT-254](PRODUCT_DEBT.md#-debt-254--the-navigation-rows-coarse-pointer-touch-floor-has-had-no-consumer-since-dhds-10--p2--resolved-2026-09-08-v216-consol-00) | The navigation row's coarse-pointer touch floor has had no consumer since DHDS-10 — every phone-sheet row measured 36px under a finger against WCAG 2.2 §2.5.8's 44 | **RESOLVED in this release.** Found by CONSOL-00's new phone journey, fixed in `tokens.css`, and pinned as a token CHAIN rather than a number, because a number is what hid it. |
+| [DEBT-255](PRODUCT_DEBT.md#-debt-255--the-e2e-gate-has-48-seconds-of-headroom-per-partition-so-the-next-spec-file-of-any-size-cannot-fit--p2) | The E2E gate's heaviest partition is at 99.5% of its ceiling, so the next item that adds any coverage cannot fit | **OPEN, deliberately.** Raising `PARTITION_COUNT` edits the machinery every CI job depends on and its only honest validation is a full gate run; V2.16 added exactly ONE spec file and sized it to fit rather than resizing the gate to hold it. The two candidate answers are measured on the entry. The next release that adds E2E coverage owns it. |
+
+**This is the one entry in the register with no disposition, and it is open by
+decision rather than by omission.** Closing it inside V2.16 would have meant
+either changing the gate's shape on a branch that is about something else, or
+writing a number nobody had run. Neither is a disposition.
 
 ---
 

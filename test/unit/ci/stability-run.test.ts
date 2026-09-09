@@ -28,7 +28,7 @@
  */
 
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -48,6 +48,41 @@ function e2eSources(): { file: string; source: string }[] {
       file: `e2e/${name}`,
       source: readFileSync(join(E2E_DIR, name), "utf8"),
     }));
+}
+
+const TEST_DIR = join(process.cwd(), "test");
+
+/** Every file of every suite in the gate — E2E, unit and kernel alike. */
+function gateSources(): { file: string; source: string }[] {
+  const walk = (dir: string): { file: string; source: string }[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) return walk(path);
+      if (!/\.tsx?$/.test(entry.name)) return [];
+      return [
+        {
+          file: relative(process.cwd(), path),
+          source: readFileSync(path, "utf8"),
+        },
+      ];
+    });
+  return [...e2eSources(), ...walk(TEST_DIR)];
+}
+
+/**
+ * Prose talks ABOUT `test.skip()` all over this suite — several fixtures
+ * exist precisely because a journey used to call it — so a text check that
+ * counted comments would be unusable. Strip the two comment shapes this
+ * repository actually writes, and leave string literals alone: a string
+ * containing `//` survives, which is the safe direction for a check that only
+ * ever adds candidates it then has to justify.
+ */
+function withoutComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => !/^\s*(\/\/|\*)/.test(line))
+    .join("\n");
 }
 
 describe("the stability run can be taken at all", () => {
@@ -121,6 +156,51 @@ describe("green is measured, never retried", () => {
     // `forbidOnly` already fails the run in CI; this fails the commit.
     const offenders = e2eSources()
       .filter(({ source }) => /\btest\.only\(|\bdescribe\.only\(/.test(source))
+      .map(({ file }) => file);
+    expect(offenders).toEqual([]);
+  });
+
+  it("has no DECLARED skip — the one form of quarantine this gate has left", () => {
+    // V2.16 CONSOL-04. `test.only` was guarded from the day CONV-03 wrote this
+    // file; the DECLARATION form of skip never was, and it is the cheaper
+    // dishonesty of the two: `test.only` shrinks the gate loudly to a single
+    // test, while `test.skip("a name", async () => {…})` removes exactly one
+    // failing journey and leaves the run green, the count one lower, and the
+    // reviewer with nothing to notice. A V2.16 falsification did it to a real
+    // spec and the whole verification gate stayed green — so this is the gap
+    // that falsification found, closed.
+    //
+    // The RUNTIME form stays legal and is used 40-odd times here on purpose:
+    // `test.skip(condition, "reason")` is a test declining a question the
+    // seeded data cannot ask, which is honest, visible in the report, and
+    // enforced elsewhere to carry a reason. The two are told apart by their
+    // first argument — a string names a test, an expression tests the world.
+    // `fixme` has no legitimate form at all: it is quarantine by another name.
+    const DECLARED_SKIP = new RegExp(
+      [
+        // `test.skip("name", fn)` — a string first argument NAMES a test, while
+        // the legal runtime form's first argument is an expression.
+        String.raw`\b(?:test|it|describe|suite)\.(?:skip|fixme)\s*\(\s*['"\`` +
+          "`" +
+          String.raw`]`,
+        // `test.skip.each\`…\`` and `test.skip.each([…])` — the same quarantine
+        // wearing a table.
+        String.raw`\b(?:test|it|describe|suite)\.(?:skip|fixme)\.each\b`,
+        /*
+         * `describe.skipIf(true)` / `test.runIf(false)` — a CONSTANT condition
+         * evaluated at collection time, which is `skip` spelled differently.
+         * The same call with an EXPRESSION is an environment capability gate
+         * (`it.runIf(gpgAvailable)`, `it.skipIf(!CAN_SYMLINK)`) and is legal
+         * for the same reason `test.skip(condition, "reason")` is: it declines
+         * a question this machine cannot ask, visibly, in the report.
+         */
+        String.raw`\b(?:test|it|describe|suite)\.(?:skipIf|runIf)\s*\(\s*(?:true|false|\d|['"])`,
+        // The `x` prefixes, which are the same thing in three fewer characters.
+        String.raw`(?:^|[^\w.])(?:xit|xdescribe|xtest)\s*\(`,
+      ].join("|"),
+    );
+    const offenders = gateSources()
+      .filter(({ source }) => DECLARED_SKIP.test(withoutComments(source)))
       .map(({ file }) => file);
     expect(offenders).toEqual([]);
   });

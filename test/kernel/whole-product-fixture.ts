@@ -43,15 +43,20 @@ import { createSystemActorContext } from "~/kernel/activity";
 import type { CsvMapping } from "~/kernel/finance";
 import { findBuiltInReport, parseReportDefinition } from "~/kernel/reports";
 import { uploadAttachment, createR2ObjectStore } from "~/platform/attachments";
-import { createAttachmentRepository } from "~/platform/storage/d1";
+import {
+  createAttachmentRepository,
+  createWorkspaceMemberRepository,
+} from "~/platform/storage/d1";
 
 import {
   FakeClock,
   makeContext,
   makeFinanceRepository,
   makeGoalMeasurementRepository,
+  makeAppPreferencesRepository,
   makeHabitRepository,
   makeObligationRepository,
+  makeProjectSettingsRepository,
   makeReportRepository,
   makeReviewInsightRepository,
   makeDiaryRepository,
@@ -199,6 +204,71 @@ export async function seedWholeProductWorkspace(): Promise<WholeProductSeeded> {
   const base = await seedWorkspace();
   const ws = WHOLE_PRODUCT_WORKSPACE;
   const context = makeContext(ws);
+
+  /*
+   * ---- The three stores the base fixture leaves empty ---------------------
+   *
+   * Found by the rehearsal's own fixture-completeness check, which V2.16's
+   * independent review asked for: `expect(after).toEqual(before)` is satisfied
+   * by empty equals empty, so an `exported` table with no rows has an UNPROVEN
+   * round trip no matter how many naming checks it passes. Three were empty.
+   *
+   * `project_details` was the one that mattered. The base fixture creates a
+   * Project, but the detail slice is written lazily — only when somebody sets a
+   * status or an identity — so the whole-product rehearsal, whose claim is that
+   * it covers every durable domain, had no Project detail row at all.
+   */
+  const projectSettings = makeProjectSettingsRepository(context, {
+    clock: clock(),
+  });
+  await projectSettings.setStatus(base.projectId, "on_hold");
+  await projectSettings.setIdentity(base.projectId, {
+    iconKey: "target",
+    colourSlot: "cyan",
+  });
+
+  // A Goal's stages, weighted unevenly and one of them complete, so a restore
+  // that lost the weights or the completion would change the Goal's story.
+  const milestones = makeGoalMeasurementRepository(context, { clock: clock() });
+  const firstStage = await milestones.createMilestone(base.goalId, {
+    title: "Base building",
+    weight: 3,
+  });
+  await milestones.createMilestone(base.goalId, {
+    title: "Threshold work",
+    weight: 2,
+  });
+  await milestones.updateMilestone(firstStage.id, { completed: true });
+
+  /*
+   * Owner preferences, set to values that are NOT the column defaults. A
+   * preference equal to its default is indistinguishable from an absent one on
+   * the far side of a restore, which would make this the emptiest kind of
+   * non-empty table.
+   */
+  await makeAppPreferencesRepository(context, { clock: clock() }).update(
+    FIXTURE_OWNER,
+    {
+      timezone: REHEARSAL_TIMEZONE,
+      firstDayOfWeek: "sunday",
+      defaultLandingDestination: "tasks",
+    },
+  );
+
+  /*
+   * A membership row, so the one collection that carries an IDENTITY across the
+   * round trip is not empty on both sides. What an archive keeps of it is the
+   * subject and the display name and nothing else — the email address and every
+   * sign-in fact are in `EXPORT_EXCLUSIONS` — so this also proves the exclusion
+   * is a filter rather than an empty table.
+   */
+  await createWorkspaceMemberRepository(env.DB, context, {
+    clock: clock(),
+  }).ensureMember({
+    subject: FIXTURE_OWNER,
+    email: "owner@example.invalid",
+    displayName: "The owner",
+  });
 
   /* ---- Habits: a chain with TWO versions, and check-ins ------------------ */
   const habits = makeHabitRepository(context, {

@@ -19,19 +19,33 @@
  * supplied.
  */
 
-import { SNAPSHOT_SCHEMA_NAME, SNAPSHOT_SCHEMA_VERSION } from "~/kernel/export";
+import { SNAPSHOT_SCHEMA_NAME } from "~/kernel/export";
 
 /**
  * Every snapshot schema version THIS build can restore.
  *
- * One entry today. It is a list rather than a comparison because "can restore"
- * is a statement about code that exists, not about arithmetic: when version 3
- * lands, whether version 2 is still restorable depends on whether a reader for
- * it was written, and that decision belongs here in the open.
+ * A list rather than a comparison because "can restore" is a statement about
+ * code that exists, not about arithmetic: when version 3 lands, whether version
+ * 2 is still restorable depends on whether a reader for it was written, and
+ * that decision belongs here in the open.
+ *
+ * **V2.16 CONSOL-04 — written as a LITERAL, not as `[SNAPSHOT_SCHEMA_VERSION]`.**
+ * It used to be derived from the current version, which made it a promise that
+ * could never be broken and never be kept: bumping the schema would have
+ * dropped the previous version from the horizon silently, in the same commit,
+ * with no test able to notice — because the only assertion available against a
+ * derived list is that it contains the thing it was derived from. Spelling the
+ * versions out makes narrowing the horizon an edit somebody has to make on
+ * purpose, which is the whole point of having a horizon.
+ *
+ * **Version 1 is deliberately NOT here.** It is the one break DalyHub has ever
+ * made to this shape: v1 carries `owner.preferences.theme`, a field whose
+ * feature no longer exists (M3-01, migration `0031`). A v1 archive is refused
+ * by name — `unsupported_version`, never a silent failure or a guess — and
+ * stays readable as a historical artefact rather than being mistaken for a
+ * current one.
  */
-export const RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS: readonly number[] = [
-  SNAPSHOT_SCHEMA_VERSION,
-];
+export const RESTORABLE_SNAPSHOT_SCHEMA_VERSIONS: readonly number[] = [2];
 
 /** Why a backup's declared version was or was not accepted. */
 export type BackupCompatibilityStatus =
