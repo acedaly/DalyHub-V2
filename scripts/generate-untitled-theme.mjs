@@ -46,6 +46,12 @@ const OUTPUT = fileURLToPath(
 const TOKENS = fileURLToPath(
   new URL("../app/styles/tokens.css", import.meta.url),
 );
+const PROVENANCE = JSON.parse(
+  readFileSync(
+    fileURLToPath(new URL("./untitled-provenance.json", import.meta.url)),
+    "utf8",
+  ),
+);
 
 /* ── Colour maths: sRGB ⇄ OKLCH ──────────────────────────────────────────────
  *
@@ -249,8 +255,10 @@ const BANNER = `/*
  * GENERATED FILE — DO NOT EDIT.
  *
  * Written by \`scripts/generate-untitled-theme.mjs\` from
- * \`app/styles/untitled/theme.source.css\` (Untitled UI React, MIT). Edit the
- * source or the generator; \`pnpm run untitled:theme:check\` fails the build on a
+ * \`app/styles/untitled/theme.source.css\` (Untitled UI React, MIT). The source
+ * revision is \`${PROVENANCE.revision}\` (sync marker \`${PROVENANCE.syncMarker}\`,
+ * retrieved ${PROVENANCE.retrieved}); edit the source or the generator;
+ * \`pnpm run untitled:theme:check\` fails the build on a
  * hand-edit here, the same guard \`scheme:check\` puts on the M3 scheme.
  *
  * Two DalyHub adaptations are applied, and are the only differences from

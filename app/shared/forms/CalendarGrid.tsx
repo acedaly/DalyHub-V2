@@ -35,6 +35,7 @@ import {
 import { mergeProps, useCalendarCell, useFocusRing } from "react-aria";
 
 import { ChevronRightIcon } from "~/shared/icons";
+import { Button as UntitledButton } from "~/shared/ui/untitled/base/buttons/button";
 import { addCalendarDays } from "~/shared/task-record/plan-targets";
 
 export interface CalendarGridProps {
@@ -88,6 +89,30 @@ function spokenDate(
     timeZone: "UTC",
   }).format(date.toDate("UTC"));
   return `${weekday} ${date.day} ${MONTH_NAMES[date.month - 1]} ${date.year}${isToday ? ", today" : ""}${isSelected ? ", selected" : ""}`;
+}
+
+function CalendarMonthHeading({
+  fallback,
+  id,
+}: {
+  readonly fallback: CalendarDate | undefined;
+  readonly id: string;
+}) {
+  const state = useContext(CalendarStateContext)!;
+  const month = state.visibleRange.start ?? fallback;
+  if (!month) return null;
+
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+  }).formatToParts(month.toDate("UTC"));
+
+  return (
+    <span id={id} className="dh-calendar__month">
+      <span>{parts.find((part) => part.type === "month")?.value}</span>
+      <span>{parts.find((part) => part.type === "year")?.value}</span>
+    </span>
+  );
 }
 
 // Adapted from React Aria's CalendarCell (react-aria-components 1.21.1,
@@ -246,42 +271,21 @@ export function CalendarGrid({
         {() => (
           <>
             <div className="dh-calendar__head">
-              <button
+              <UntitledButton
                 type="button"
                 slot="previous"
                 className="dh-calendar__month-step"
                 aria-label="Previous month"
-              >
-                <ChevronRightIcon className="dh-calendar__month-step-icon" />
-              </button>
-              <span id={headingId} className="dh-calendar__month">
-                {/* The calendar's internal heading supplies the live month announcement. */}
-                {focusedValue &&
-                  (() => {
-                    const parts = new Intl.DateTimeFormat("en-GB", {
-                      month: "long",
-                      year: "numeric",
-                    }).formatToParts(focusedValue.toDate("UTC"));
-                    return (
-                      <>
-                        <span>
-                          {parts.find((part) => part.type === "month")?.value}
-                        </span>
-                        <span>
-                          {parts.find((part) => part.type === "year")?.value}
-                        </span>
-                      </>
-                    );
-                  })()}
-              </span>
-              <button
+                iconLeading={ChevronRightIcon}
+              />
+              <CalendarMonthHeading fallback={focusedValue} id={headingId} />
+              <UntitledButton
                 type="button"
                 slot="next"
                 className="dh-calendar__month-step"
                 aria-label="Next month"
-              >
-                <ChevronRightIcon className="dh-calendar__month-step-icon" />
-              </button>
+                iconLeading={ChevronRightIcon}
+              />
             </div>
 
             <AriaCalendarGrid

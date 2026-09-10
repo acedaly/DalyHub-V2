@@ -24,7 +24,7 @@ importers:
         specifier: 6.43.6
         version: 6.43.6
       '@internationalized/date':
-        specifier: ^3.12.4
+        specifier: 3.12.4
         version: 3.12.4
       '@lezer/common':
         specifier: 1.5.2
@@ -36,22 +36,22 @@ importers:
         specifier: 1.7.2
         version: 1.7.2
       '@react-stately/utils':
-        specifier: ^3.12.1
+        specifier: 3.12.1
         version: 3.12.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@react-types/overlays':
-        specifier: ^3.10.0
+        specifier: 3.10.0
         version: 3.10.0(@react-spectrum/provider@3.11.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@react-types/shared':
-        specifier: ^3.36.1
+        specifier: 3.36.1
         version: 3.36.1(react@19.2.7)
       '@tailwindcss/vite':
-        specifier: ^4.3.3
+        specifier: 4.3.3
         version: 4.3.3(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.1)(jiti@2.7.0))
       '@untitledui/file-icons':
-        specifier: ^0.0.9
+        specifier: 0.0.9
         version: 0.0.9(react@19.2.7)
       '@untitledui/icons':
-        specifier: ^0.0.22
+        specifier: 0.0.22
         version: 0.0.22(react@19.2.7)
       ical.js:
         specifier: 2.2.1
@@ -66,16 +66,16 @@ importers:
         specifier: 19.2.7
         version: 19.2.7
       react-aria:
-        specifier: ^3.52.1
+        specifier: 3.52.1
         version: 3.52.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react-aria-components:
-        specifier: ^1.21.1
+        specifier: 1.21.1
         version: 1.21.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react-dom:
         specifier: 19.2.7
         version: 19.2.7(react@19.2.7)
       react-hotkeys-hook:
-        specifier: ^5.3.3
+        specifier: 5.3.3
         version: 5.3.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react-router:
         specifier: 8.3.0
@@ -96,16 +96,16 @@ importers:
         specifier: 11.1.2
         version: 11.1.2
       tailwind-merge:
-        specifier: ^3.6.0
+        specifier: 3.6.0
         version: 3.6.0
       tailwindcss:
-        specifier: ^4.3.3
+        specifier: 4.3.3
         version: 4.3.3
       tailwindcss-animate:
-        specifier: ^1.0.7
+        specifier: 1.0.7
         version: 1.0.7(tailwindcss@4.3.3)
       tailwindcss-react-aria-components:
-        specifier: ^2.2.0
+        specifier: 2.2.0
         version: 2.2.0(tailwindcss@4.3.3)
       unified:
         specifier: 11.0.5

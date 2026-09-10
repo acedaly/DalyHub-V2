@@ -60,6 +60,12 @@ function sourceCode(file: string): string {
 }
 
 describe("UNTITLED-02 the rail", () => {
+  it("uses the semantic navigation-height token for every pointer", () => {
+    const row = sourceCode("RailNavItem.tsx");
+    expect(row).toContain("h-[var(--dh-shell-nav-row-height)]");
+    expect(row).not.toContain('surface === "sheet" ? "min-h-11" : "h-9"');
+  });
+
   it("is recessed under the page canvas, in Untitled's surface vocabulary", () => {
     /*
      * AGENTS.md §6 D35: the rail sits UNDER its own canvas rather than on it,
