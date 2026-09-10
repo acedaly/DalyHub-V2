@@ -1,5 +1,8 @@
 # DHDS-03…07 — shared pattern and product completion
 
+> **Historical implementation record.** Current frontend implementation follows
+> Untitled UI React Pro; retain this file for product decisions and evidence.
+
 **Status:** implementation complete; current-branch visual recapture pending a
 browser runtime
 **Governing direction:** [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md)

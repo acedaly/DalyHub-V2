@@ -1,5 +1,8 @@
 # DS-05…DS-08 — whole-app visual completion (2026-08)
 
+> **Historical implementation record.** Current frontend implementation follows
+> the Untitled UI guide.
+
 > DS-01 gave DalyHub its own token layer, DS-02 the generic primitives, DS-03 the
 > frame, DS-04 the Tasks row. Each was a foundation. **This pass is the one that
 > has to make the product LOOK like the concept**, everywhere, and it is judged by

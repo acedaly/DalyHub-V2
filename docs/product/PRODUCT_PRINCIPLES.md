@@ -2,7 +2,7 @@
 
 > The product handbook. It explains **what** DalyHub is, **why** it exists, and **how it should feel** — the enduring product truths that outlast any single feature.
 >
-> This document guides *product* decisions. For *engineering* rules see [`AGENTS.md`](../../AGENTS.md); for *what to build next* see [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md); for *how it looks and behaves* see [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md).
+> This document guides *product* decisions. For *engineering* rules see [`AGENTS.md`](../../AGENTS.md); for *what to build next* see [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md); for product UX see [`DESIGN_DIRECTION.md`](../design/DESIGN_DIRECTION.md); for frontend implementation see [`UNTITLED_UI_IMPLEMENTATION.md`](../design/UNTITLED_UI_IMPLEMENTATION.md).
 >
 > It deliberately avoids implementation detail. When a product question arises — "should this feature exist?", "how should this feel?" — the answer should be derivable from here.
 

@@ -22,6 +22,25 @@
 
 ---
 
+## Current frontend migration state — 2026-09-10
+
+The Untitled migration is the target architecture, not additional product debt.
+The following compatibility work remains active and should be removed only when
+its consumers are displaced and the relevant gates are updated:
+
+- legacy DHDS/Material token and generated-scheme machinery still referenced by
+  older CSS and compatibility tests;
+- bespoke generic CSS and any duplicate interaction implementations not yet
+  migrated to Untitled source;
+- older module-local overlays and form controls that have not reached a shared
+  Untitled-backed composition.
+
+The completed shell, shared interactions, Today and Tasks checkpoints are not
+debt. Retained `Picker`, `Menu`, `Sheet` and calendar adaptations are intentional
+where they carry asynchronous search, Inbox semantics, safe-area behaviour,
+focus restoration or DalyHub scheduling semantics. The next frontend migration
+sequence is Projects → Areas → Goals, followed by the remaining module families.
+
 ## V2 release closure review — 2026-08-01
 
 Every open entry was re-read against the code on `main` for the

@@ -1,5 +1,8 @@
 # DHDS-13 — the commercial-quality gate
 
+> **Historical implementation record.** This closes the former DHDS programme;
+> current frontend authority is [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
+
 > **Status:** delivered, 21 August 2026. This phase **closes the broad
 > design-convergence programme**. See [§18](#18-what-happens-after-dhds-13).
 >

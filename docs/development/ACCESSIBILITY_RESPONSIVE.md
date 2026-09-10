@@ -1,4 +1,9 @@
-# Accessibility & Responsive Baseline (DS-11)
+# Accessibility & Responsive Baseline
+
+> Generic control behaviour now comes primarily from Untitled UI React Pro and
+> React Aria. This document records DalyHub's product-level accessibility and
+> responsive requirements plus the compatibility gates that remain during the
+> migration. See [`UNTITLED_UI_IMPLEMENTATION.md`](../design/UNTITLED_UI_IMPLEMENTATION.md).
 
 > The shared platform every DalyHub module inherits automatically for **WCAG 2.2
 > AA accessibility** and **responsive behaviour from 320px through ultra-wide**.

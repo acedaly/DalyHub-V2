@@ -15,7 +15,9 @@ Audit  (what already exists in the repo?)
    ↓
 Inspect existing implementation
    ↓
-Search open source  (GitHub / libraries)
+Search Untitled UI Pro via MCP
+   ↓
+Search open source  (when Untitled is not the fit)
    ↓
 Evaluate licensing
    ↓
@@ -60,27 +62,39 @@ Each step is expanded below with its inputs, actions, and the authority that gov
 - **Governed by.** [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), [`ARCHITECTURE_OVERVIEW.md`](../architecture/ARCHITECTURE_OVERVIEW.md).
 - **Output.** The set of existing shared pieces this item will build on.
 
-### 4. Search open source
+### 4. Search Untitled UI Pro
+- **Goal.** Use the purchased source catalogue before locally recreating solved UI.
+- **Do.** Search the configured Untitled MCP with natural language. Inspect
+  multiple component results, relevant application examples and page templates,
+  then search Untitled Icons before inventing an icon. Follow
+  [`UNTITLED_UI_IMPLEMENTATION.md`](../design/UNTITLED_UI_IMPLEMENTATION.md).
+- **Rule.** Searching Untitled is part of implementation, not optional inspiration.
+  Keep generic source close to upstream and put DalyHub semantics in a product
+  composition above it.
+- **Output.** A selected/adapted Untitled implementation or a concise reason no
+  suitable implementation exists.
+
+### 5. Search open source
 - **Goal.** Don't reinvent commodity solutions.
 - **Do.** For any commodity sub-problem (command palette, editor, DnD, dates), check [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) first; if not covered, investigate candidates per [GitHub investigation expectations](../governance/OPEN_SOURCE_POLICY.md#github-investigation-expectations).
 - **Governed by.** [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md), [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md).
 - **Output.** Candidate libraries/snippets, or a note that this is a DalyHub differentiator to build.
 
-### 5. Evaluate licensing
+### 6. Evaluate licensing
 - **Goal.** Only lawful, compatible code enters the repo.
 - **Do.** Verify the licence of each candidate **for the exact version** against the [licensing rules](../governance/OPEN_SOURCE_POLICY.md#licensing-rules) (including the transitive tree). Reject prohibited/no-licence code.
 - **Governed by.** [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md), [`AGENTS.md §11`](../../AGENTS.md#11-licensing--provenance-requirements).
 - **Output.** A licence verdict per candidate.
 
-### 6. Reuse assessment
+### 7. Reuse assessment
 - **Goal.** Decide depend / adapt / build.
 - **Do.** Run the [reusable evaluation checklist](../governance/OPEN_SOURCE_POLICY.md#reusable-evaluation-checklist). Record provenance for anything you'll use; update [`REFERENCE_PRODUCTS.md`](../reference/REFERENCE_PRODUCTS.md) with findings.
 - **Governed by.** [`OPEN_SOURCE_POLICY.md`](../governance/OPEN_SOURCE_POLICY.md).
 - **Output.** A decision with justification, and provenance recorded.
 
-### 7. Design
+### 8. Design
 - **Goal.** Design the feature from shared patterns.
-- **Do.** Compose the UI from [Design System](../design/DESIGN_SYSTEM.md) patterns. If a needed pattern doesn't exist, plan to build it *as shared* and document it. Check the design against [product feelings](PRODUCT_PRINCIPLES.md#how-users-should-feel) and [accessibility](../../AGENTS.md#15-accessibility-requirements).
+- **Do.** Compose the UI from Untitled source and [DalyHub pattern](../design/DESIGN_SYSTEM.md) rules. If a needed generic pattern doesn't exist in Untitled, document the reason before building it shared. Check the design against [product feelings](PRODUCT_PRINCIPLES.md#how-users-should-feel) and [accessibility](../../AGENTS.md#15-accessibility-requirements).
 - **Governed by.** [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md), [`PRODUCT_PRINCIPLES.md`](PRODUCT_PRINCIPLES.md).
 - **Output.** A design that names the patterns used/added.
 

@@ -1,4 +1,14 @@
-# The DalyHub Design System
+# The DalyHub Design System (historical / superseded)
+
+> **Status: historical implementation record.** This document records the
+> former bespoke DHDS policy and its Material-derived implementation. It is
+> retained for decision history and migration traceability, but it no longer
+> governs frontend implementation. Current authority is
+> [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md) for product UX,
+> [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md) for frontend
+> implementation, and [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) for DalyHub-specific
+> compositions. Preserve product principles that those documents explicitly
+> retain; do not build new generic controls from this document.
 
 > **Start with [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md).** It is the
 > product-level brief: the intended character, interaction model and module

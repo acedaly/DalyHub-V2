@@ -1,11 +1,11 @@
 # SETTINGS_LAYOUT.md — The Shared Settings layout (DS-10b)
 
-> ONE entity-agnostic Settings surface every DalyHub module composes for
+> ONE entity-agnostic Settings composition every DalyHub module composes for
 > application, workspace, module and record-level settings, and for the final
 > **Settings** tab/section of a record Inspector or Drawer. There is no bespoke
 > settings screen: a module supplies typed values, async apply/confirm callbacks
-> and copy, and composes these primitives over DS-06 controls and the DS-10
-> Feedback platform.
+> and copy, and composes Untitled-backed controls with DalyHub's feedback and
+> save semantics.
 >
 > Decision & rationale: [ADR-026](../decisions/ARCHITECTURE_DECISIONS.md#adr-026-shared-settings-layout--composition-primitives-declared-change-behaviour-and-the-dangerous-action-contract) ·
 > Roadmap item: [DS-10b](../roadmap/ROADMAP_V2.md#-ds-10b--settings-layout) ·

@@ -1,5 +1,8 @@
 # DS-14 — visual overhaul brief
 
+> **Historical implementation record.** Superseded for current frontend
+> implementation by [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
+
 > **Numbered and committed.** `DS-14` is the next free `DS-` number after DS-01…DS-13
 > in [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md); the roadmap entry is
 > [`ROADMAP_V2_1.md → DS-14`](../roadmap/ROADMAP_V2_1.md#-ds-14--whole-application-visual-overhaul)

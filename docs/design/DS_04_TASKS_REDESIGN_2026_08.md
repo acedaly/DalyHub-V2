@@ -1,5 +1,8 @@
 # DS-04 — Tasks redesign and visual convergence (2026-08)
 
+> **Historical implementation record.** Product task-row decisions remain
+> useful; generic implementation follows Untitled UI React Pro.
+
 > **The question this pass answers is not "does Tasks use the design system?"** —
 > DS-01 to DS-03 settled that. It is: **does the running product now look like the
 > two concept images in the repository root?**

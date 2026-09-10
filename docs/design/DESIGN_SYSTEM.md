@@ -1,16 +1,60 @@
-# DESIGN_SYSTEM.md — The DalyHub Shared Interaction Language
+# DESIGN_SYSTEM.md — DalyHub compositions and shared patterns
 
-> The catalogue of shared patterns every module reuses. DalyHub's coherence comes from the fact that a task, a project, a person, and a note all *behave the same way*. This document is that contract.
+> The catalogue of DalyHub-specific compositions and shared interaction rules.
+> Generic implementation comes from Untitled UI React Pro and React Aria; this
+> document records only the product semantics and adaptations that make those
+> primitives DalyHub.
 >
-> **Rule:** Before building any UI, find the pattern here. If it exists, reuse it. If it should exist but doesn't, build it *as a shared pattern* and document it here — in the same PR. A bespoke duplicate is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges. (See [`AGENTS.md §9.8`](../../AGENTS.md#98-shared-over-bespoke-and-one-authoritative-token-layer).)
+> **Rule:** Before building UI, read [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md), search Untitled UI Pro, then check this document for DalyHub-specific composition rules. If a pattern should be shared, add it above the module boundary. A bespoke generic duplicate is [Product Debt](../product/PRODUCT_DEBT.md) the moment it merges.
 >
-> Companion docs: product intent in [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md); UX/interaction philosophy in [`AGENTS.md §6–7`](../../AGENTS.md#6-ux-philosophy); build order in [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md).
+> Companion docs: product intent in [`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md); product direction in [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md); implementation in [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md); build order in [`ROADMAP_V2.md`](../roadmap/ROADMAP_V2.md).
+
+## Current implementation rule
+
+Use Untitled source components for generic controls, overlays, forms, state
+patterns and application layouts. Keep DalyHub domain behaviour in compositions
+such as `TaskRow`, `TodaySchedule`, `QuickCapture`, `ProjectGalleryItem` and
+`GoalProgress`. React Aria semantics, focus management and responsive behaviour
+are part of the primitive contract. The current retained `Picker`, `Menu` and
+`Sheet` adaptations are documented in the implementation guide because they
+carry asynchronous search, Inbox behaviour, safe areas or focus restoration.
+
+## Product composition rules
+
+- Today is a daily briefing: action before analytics and context after the main
+  work sequence.
+- Tasks, Inbox, Plan and Upcoming use one row grammar; rows are not cards.
+- Capture is immediate: capture first, enrich later.
+- Routine task metadata uses contextual menus, popovers, listboxes, comboboxes
+  and date interaction without forcing a full editor.
+- Metadata follows **when → where → how important** where applicable.
+- Mobile is recomposed deliberately, with safe areas and touch-sized targets.
+- Empty, loading and error states explain the next useful action.
+- Product colour is selective: P1 red, P2 orange, P3 blue and P4 neutral.
+
+The upstream Untitled catalogue owns generic component anatomy. Link to it rather
+than duplicating its catalogue here.
 
 ---
 
+> **Historical compatibility record below.** The detailed sections that follow
+> document the former DHDS/Material implementation and remain for migration
+> traceability and links from past decisions. They are not instructions to add
+> new Material-derived primitives or tokens. Current implementation authority is
+> [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
+
 ## Foundations — the DalyHub design system, over Material 3 machinery
 
-DalyHub's design language is **DalyHub's own**, specified in [`DALYHUB_DESIGN_SYSTEM.md`](DALYHUB_DESIGN_SYSTEM.md) ([ADR-092](../decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery)). **Material Design 3 is the machinery beneath it** ([ADR-074](../decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism)): hand-rolled in plain CSS over DalyHub's own components, with no `@material/web`, no CSS framework and **no runtime dependency**. What we take from M3 is its *values and algorithms* — a generated tonal palette, a typescale, a shape ladder, a state layer, motion curves. The markup, the behaviour, the accessibility contract and now the **vocabulary** stay ours.
+> Historical anchor retained for links from earlier ADRs and audits. The
+> content below is a compatibility record, not current frontend authority.
+
+## Historical DHDS implementation record
+
+The former architecture recorded here treated DalyHub's own components as the
+implementation source and Material Design 3 as machinery beneath them. That
+model is retained only as history. The current source model is
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md): Untitled UI
+React Pro, Tailwind CSS v4 and React Aria, with DalyHub compositions above them.
 
 The layering, top-down. A component reaches for the top layer; the rest is what that layer currently resolves to.
 

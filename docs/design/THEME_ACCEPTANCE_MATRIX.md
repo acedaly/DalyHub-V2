@@ -1,5 +1,8 @@
 # THEME_ACCEPTANCE_MATRIX.md — retired
 
+> **Historical migration gate.** Current theme authority is the Untitled/Tailwind
+> implementation guide; retain this matrix only for compatibility verification.
+
 > **This document is a tombstone.** The seven-theme system it recorded no longer
 > exists.
 

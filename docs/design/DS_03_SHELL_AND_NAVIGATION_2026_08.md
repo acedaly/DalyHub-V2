@@ -1,5 +1,8 @@
 # DS-03 — Shell & Navigation
 
+> **Historical implementation record.** The shell has since been migrated to
+> Untitled UI source; see [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
+
 > **What this stage delivers:** the DalyHub application FRAME — the rail, the top
 > bar, the page frame and the responsive chrome — rebuilt out of the DS-02
 > primitive layer rather than beside it. It is the first stage where opening

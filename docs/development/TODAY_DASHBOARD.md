@@ -1,5 +1,8 @@
 # The Today module
 
+> Product composition note. Today is a DalyHub daily briefing implemented with
+> Untitled UI React Pro primitives; it is not an Untitled dashboard template.
+
 Today is the surface the owner lands on every morning, and the one they work
 from. Its whole job is to answer *what am I doing today?* and to let the owner
 act on the answer without leaving the page.
@@ -49,7 +52,8 @@ app/modules/today/
   task/                      — the task record composition (TaskDrawerContent, the
                                per-task command builder, waiting-view, WaitingTaskCard)
   keyboard/KeyboardHelp.tsx  — the shared shortcut reference, hosted in the Drawer
-app/styles/today.css         — the Today screen; every value a DS-01 token
+app/styles/today.css         — remaining Today composition CSS during migration;
+                               generic controls use shared Untitled primitives
 app/styles/schedule.css      — CAL-01: the agenda rows, day rail, Next 7 Days
                                groups and event detail; composes today.css
 app/styles/tasks.css         — the /tasks workspace (extracted from today.css)
