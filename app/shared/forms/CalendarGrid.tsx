@@ -276,7 +276,9 @@ export function CalendarGrid({
                 slot="previous"
                 className="dh-calendar__month-step"
                 aria-label="Previous month"
-                iconLeading={ChevronRightIcon}
+                iconLeading={
+                  <ChevronRightIcon className="dh-calendar__month-step-icon -rotate-180" />
+                }
               />
               <CalendarMonthHeading fallback={focusedValue} id={headingId} />
               <UntitledButton
@@ -284,7 +286,9 @@ export function CalendarGrid({
                 slot="next"
                 className="dh-calendar__month-step"
                 aria-label="Next month"
-                iconLeading={ChevronRightIcon}
+                iconLeading={
+                  <ChevronRightIcon className="dh-calendar__month-step-icon" />
+                }
               />
             </div>
 

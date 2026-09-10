@@ -179,6 +179,8 @@ describe("CalendarGrid — the keyboard", () => {
       name: "Previous month",
     });
     const next = screen.getByRole("button", { name: "Next month" });
+    expect(previous.querySelector("svg")).toHaveClass("-rotate-180");
+    expect(next.querySelector("svg")).not.toHaveClass("-rotate-180");
 
     fireEvent.click(previous);
     expect(screen.getAllByText("August 2026").length).toBeGreaterThan(0);
