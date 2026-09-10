@@ -1515,6 +1515,7 @@ A **multi-field composition** still does not belong inline. A Task's recurrence 
 - **A column that offers capture must be able to honour it.** The row appears on a board column only where the bucket key IS a settable field — priority, time sector — and is withheld everywhere else. Typing into the "Priority 1" column and watching the task land under "No date" is the column lying about what it is.
 - **One live region per surface, not one per row.** Where the host already announces its own outcomes it passes its announcer in (`announce`) and the row draws no `role="status"` of its own. Two polite live regions on one screen is how "Added X" and "3 tasks completed" end up racing each other.
 - **Never a modal for the routine case.** A drawer or a full form is the escape hatch (`More options`), not the path.
+- **The escape hatch survives on a phone wherever it is the ONLY local one.** `/tasks` hides `More options` on a phone deliberately — the global capture sheet carries its own hand-off to the full form, so a second door on a one-line row is chrome. A Project record has no such second door: the row replaced its local "Add task", so hiding the control there would mean filing a task under the project you are looking at starts by being asked which project you meant.
 
 **Drawn by:** the Tasks workspace, each board / Time Sectors column, and a Project record's Tasks tab.
 

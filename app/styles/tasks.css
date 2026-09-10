@@ -1326,14 +1326,28 @@
     margin-inline-start: auto;
   }
 
-  /* Quick add is one line: the `+`, the field, and Add. "More options" opens
-   * the full New Task form, which the phone reaches through the capture sheet's
-   * own hand-off link — so it is a second door on a surface with no room. */
+  /* Quick add is one line: the `+`, the field, and Add. */
   .dh-tasks-quickadd {
     flex-wrap: nowrap;
   }
 
-  .dh-tasks-quickadd .dh-tasks-quickadd__more {
+  /*
+   * "More options" goes on a phone — on the TASKS COLLECTION, and only there.
+   *
+   * The original reasoning is sound and is specific: it "opens the full New
+   * Task form, which the phone reaches through the capture sheet's own hand-off
+   * link — so it is a second door on a surface with no room". That argument is
+   * about `/tasks`, where the global capture sheet IS the other door.
+   *
+   * On a Project record it is not: the row replaced a local "Add task" link,
+   * and with the control hidden a phone had NO local route to the form with the
+   * project already fixed — so filing a task under the project you are looking
+   * at would have started by being asked which project you meant, which is the
+   * exact cost `mobile-capture-journeys.spec.ts` exists to prevent. Found by
+   * that journey timing out on the missing control.
+   */
+  .dh-collection--tasks .dh-tasks-quickadd .dh-tasks-quickadd__more,
+  .dh-tasklist .dh-tasks-quickadd .dh-tasks-quickadd__more {
     display: none;
   }
 
