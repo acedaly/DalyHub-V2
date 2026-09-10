@@ -45,14 +45,6 @@
   And the page has a foreground. The day's work is lifted off the canvas; the
   context around it is set into it. It was eight identical rectangles.
 
-- **Goals stop repeating themselves.**
-
-  A Goal you have not set a measure for used to say "No measurement" and then
-  "No movement yet this week" directly underneath, on the Goals list and on
-  Today. Six of them and the only thing telling one row from another was its
-  title. It says it once now. A Goal that _has_ moved still says so, and a Goal
-  you are measuring keeps its movement line whatever it says.
-
 - **"Needs attention" says what the matter is.**
 
   Its facts were being cut off — "7 waiting items · oldest…", "2 obligations

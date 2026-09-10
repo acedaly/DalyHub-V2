@@ -50,7 +50,6 @@ import {
   AlignmentIndicator,
   GoalMovementLine,
   alignmentAccessibleSummary,
-  goalMovementIsAbsence,
   goalMovementStatement,
 } from "~/shared/alignment";
 
@@ -112,26 +111,7 @@ export function GoalStoryRow({
     .join(" · ");
 
   const signals: ReactNode[] = [];
-  /*
-   * A COLLECTION ROW states an absence ONCE.
-   *
-   * `goalProgressStatusLabel` already puts "No measurement" on the context line
-   * of an unmeasured Goal, and the movement line then added "No movement yet
-   * this week." underneath it. On a list where nothing is measured yet — which
-   * is every new workspace — that is six rows of the same two sentences, and
-   * the only thing distinguishing one Goal from another is its title. Neither
-   * sentence is wrong; saying both is what makes the list unreadable.
-   *
-   * So a row that has nothing to report AND nothing to report it against drops
-   * the movement line and keeps the status. A Goal that HAS moved still says so
-   * (that is news), and a measured Goal keeps its movement line whatever it
-   * says (against a real bar, "no movement yet" is information). The pane and
-   * the record are unchanged: they have room for the full statement, its
-   * evidence and its window, and they draw it.
-   */
-  const absence =
-    story.movement !== null && goalMovementIsAbsence(story.movement);
-  if (story.movement && !(absence && !story.progress.measured)) {
+  if (story.movement) {
     signals.push(<GoalMovementLine key="movement" movement={story.movement} />);
   }
   if (showAlignment && story.alignment) {

@@ -171,7 +171,6 @@ import { HELP_DRAWER_KEY } from "../keyboard/KeyboardHelp";
 import { goalIsOnTrack } from "~/shared/goal-progress";
 import {
   GoalMovementLine,
-  goalMovementIsAbsence,
   goalMovementRecap,
   type GoalMovement,
 } from "~/shared/alignment";
@@ -2134,11 +2133,7 @@ function GoalProgressSection({
                    * on the Goal record, because all three render this component
                    * from the same value.
                    */}
-                  {goal.movement &&
-                  !(
-                    goalMovementIsAbsence(goal.movement) &&
-                    !goal.progress.measured
-                  ) ? (
+                  {goal.movement ? (
                     <GoalMovementLine
                       movement={goal.movement}
                       className="dh-today__goal-movement"

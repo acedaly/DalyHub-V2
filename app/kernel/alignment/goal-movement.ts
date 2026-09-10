@@ -120,30 +120,6 @@ export const GOAL_MOVEMENT_KEYS = [
 
 export type GoalMovementKey = (typeof GOAL_MOVEMENT_KEYS)[number];
 
-/**
- * Whether a movement answer is an ABSENCE — nothing has happened, or nothing
- * could have yet.
- *
- * A dense surface uses this to decide whether the sentence is worth its line.
- * "Two Projects moved" is news on any row; "No movement yet this week" under a
- * Goal that is not measured either is the second half of an absence the row has
- * already stated, and a list of six says it six times. It is a property of the
- * KEY rather than of the prose, so the two surfaces that ask it (the Goals
- * collection row and Today's Goal panel) ask the same question.
- *
- * `unavailable` is deliberately NOT an absence: "we could not look" is a
- * different fact from "nothing moved", and it is always worth saying.
- */
-export function goalMovementIsAbsence(movement: {
-  readonly key: GoalMovementKey;
-}): boolean {
-  return (
-    movement.key === "no_movement_yet" ||
-    movement.key === "no_movement" ||
-    movement.key === "not_started"
-  );
-}
-
 /* -------------------------------------------------------------------------- */
 /* Facts (the evaluator's input)                                              */
 /* -------------------------------------------------------------------------- */

@@ -52,7 +52,6 @@ export {
   evaluateGoalMovement,
   goalMovementEvidenceText,
   goalMovementEvidenceTexts,
-  goalMovementIsAbsence,
   goalMovementRecap,
   goalMovementStatement,
   goalMovementWindowLabel,
