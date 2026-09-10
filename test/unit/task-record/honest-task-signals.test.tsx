@@ -156,9 +156,14 @@ describe("a Task row draws ONE checkbox-like control", () => {
     const { container: rest } = row();
     expect(rest.querySelector(".dh-check-circle")).not.toBeNull();
     const { container: selecting } = row({}, { selecting: true });
-    // D7 — "this is the square: selection". Not the unstyled `dh-checkbox__input`
-    // the queue used to draw, which no stylesheet in the repository painted.
-    expect(selecting.querySelector(".dh-checkbox__control")).not.toBeNull();
+    // D7 — "this is the square: selection". The selection path uses the
+    // Untitled React Aria checkbox; completion remains the DalyHub circle.
+    expect(selecting.querySelector(".dh-taskrow__select")).not.toBeNull();
+    expect(
+      screen.getByLabelText(
+        "Select Strip out the old kitchen to place on a day",
+      ),
+    ).toBeInTheDocument();
     expect(selecting.querySelector(".dh-checkbox__input")).toBeNull();
   });
 });

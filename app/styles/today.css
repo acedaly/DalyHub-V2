@@ -713,6 +713,16 @@
     grid-column: span 4;
   }
 
+  /* The attention list is actionable context; keep it in the primary column.
+     Goal progress follows it as the slower supporting read. */
+  .dh-today__attention {
+    grid-column: 1 / span 8;
+  }
+
+  .dh-today__goals {
+    grid-column: 9 / span 4;
+  }
+
   /*
    * The decision row is DATA-CONDITIONAL, so its spans are too. "Needs
    * attention" and "Continue working" each render only when they hold
@@ -858,10 +868,26 @@
    because it is the same kind of thing at a different cadence. Nothing here is
    a new panel treatment. */
 .dh-today__review-door {
-  padding: var(--dh-space-4);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-bg-sunken);
+  padding-block: var(--dh-space-2);
+  border-block-start: var(--dh-border-width) solid var(--dh-color-divider);
+  background: transparent;
+}
+
+/*
+ * Phase 4: supporting context is a continuation of the page, not a second
+ * dashboard. The task plan keeps the sole framed surface; schedule, attention,
+ * progress and reflection use typography, spacing and one quiet divider to
+ * stay scannable without competing with the next action.
+ */
+.dh-today__schedule,
+.dh-today__habits-panel,
+.dh-today__goals,
+.dh-today__attention,
+.dh-today__continue,
+.dh-today__reflection,
+.dh-today__review-door {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .dh-today__now .dh-tasklist {
@@ -1534,6 +1560,16 @@
 
   .dh-today__panel {
     padding: var(--dh-space-4);
+  }
+
+  .dh-today__schedule,
+  .dh-today__habits-panel,
+  .dh-today__goals,
+  .dh-today__attention,
+  .dh-today__continue,
+  .dh-today__reflection,
+  .dh-today__review-door {
+    padding-inline: 0;
   }
 
   .dh-today__head {

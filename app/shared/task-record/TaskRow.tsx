@@ -352,6 +352,7 @@ export function TaskRow({
    * the gesture an accelerator rather than the only way to reach either act.
    */
   const dateCellRef = useRef<HTMLSpanElement | null>(null);
+  const selectionShiftRef = useRef(false);
   const openScheduler = useCallback(() => {
     // The cell holds exactly one control: `InlineTaskDate`'s trigger button.
     dateCellRef.current?.querySelector("button")?.click();
@@ -540,25 +541,29 @@ export function TaskRow({
          * analyser — can verify without knowing what `Checkbox` renders.
          */}
         {selection ? (
-          <label
-            className="dh-check-circle-target dh-taskrow__select"
-            htmlFor={selectionId}
-          >
+          <span className="dh-check-circle-target dh-taskrow__select">
             <Checkbox
               id={selectionId}
               checked={selection.selected}
               data-testid="task-select"
               aria-label={selection.label}
-              onChange={(event) =>
-                selection.onSelectedChange(event.currentTarget.checked, {
-                  shift: (
-                    event.nativeEvent as unknown as { shiftKey?: boolean }
-                  ).shiftKey!,
-                })
-              }
+              onCheckedChange={(selected) => {
+                selection.onSelectedChange(selected, {
+                  shift: selectionShiftRef.current,
+                });
+                selectionShiftRef.current = false;
+              }}
+              onPointerDown={(event) => {
+                selectionShiftRef.current = event.shiftKey;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === " " || event.key === "Enter") {
+                  selectionShiftRef.current = event.shiftKey;
+                }
+              }}
               onClick={(event) => event.stopPropagation()}
             />
-          </label>
+          </span>
         ) : null}
         {/*
          * Completion. The SAME control the whole product uses, at the row's

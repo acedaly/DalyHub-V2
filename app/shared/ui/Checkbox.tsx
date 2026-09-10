@@ -35,7 +35,13 @@
  */
 
 import { useCallback } from "react";
-import type { InputHTMLAttributes, ReactNode, Ref } from "react";
+import type {
+  ComponentProps,
+  InputHTMLAttributes,
+  ReactNode,
+  Ref,
+} from "react";
+import { Checkbox as UntitledCheckbox } from "~/shared/ui/untitled/base/checkbox/checkbox";
 
 export interface CheckboxProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -53,6 +59,12 @@ export interface CheckboxProps extends Omit<
   readonly indeterminate?: boolean;
   /** Supporting text under the label. */
   readonly description?: ReactNode;
+  /**
+   * Opt into the React Aria-backed Untitled implementation. The native path
+   * remains available for legacy form consumers until their event contracts
+   * are migrated; product surfaces should use this callback for new work.
+   */
+  readonly onCheckedChange?: (checked: boolean) => void;
   readonly ref?: Ref<HTMLInputElement>;
 }
 
@@ -62,6 +74,11 @@ export function Checkbox({
   indeterminate,
   className,
   ref,
+  onCheckedChange,
+  onChange,
+  checked,
+  defaultChecked,
+  disabled,
   ...rest
 }: CheckboxProps) {
   const setNode = useCallback(
@@ -74,6 +91,19 @@ export function Checkbox({
     [indeterminate, ref],
   );
 
+  if (onCheckedChange) {
+    return (
+      <UntitledCheckbox
+        {...(rest as unknown as ComponentProps<typeof UntitledCheckbox>)}
+        className={className}
+        isSelected={checked}
+        defaultSelected={defaultChecked}
+        isDisabled={disabled}
+        onChange={onCheckedChange}
+      />
+    );
+  }
+
   const input = (
     <input
       type="checkbox"
@@ -83,6 +113,10 @@ export function Checkbox({
       // screen reader announces matches the one the eye is shown.
       aria-checked={indeterminate ? "mixed" : undefined}
       {...rest}
+      checked={checked}
+      defaultChecked={defaultChecked}
+      disabled={disabled}
+      onChange={onChange}
     />
   );
 
