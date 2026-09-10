@@ -1518,6 +1518,8 @@ A **multi-field composition** still does not belong inline. A Task's recurrence 
 
 **Drawn by:** the Tasks workspace, each board / Time Sectors column, and a Project record's Tasks tab.
 
+**Not drawn by Today, deliberately.** TODAY-12 removed Today's own capture panel and left one control at the foot of the plan that opens the shared capture sheet — "a control, not a second capture form: Today has no text input of its own", which `e2e/today.spec.ts` asserts by counting textboxes on the surface. Today is the one screen whose job is to be read at a glance before anything is typed, and a permanently-focusable field in the middle of it is the second capture panel that decision removed. The fast path from Today is the global `+`, the `C` shortcut and the phone bar, all of which reach the same sheet.
+
 ### Empty States
 **Purpose.** Turn "nothing here yet" into "here's the next action."
 **Anatomy.** A short, warm explanation of what belongs here · the primary action to create the first one · optional example/illustration.

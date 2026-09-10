@@ -162,9 +162,9 @@
 /*
  * The SHARED inline capture row: title first, everything else optional.
  *
- * One object, four surfaces (`~/shared/task-record/InlineCaptureRow`) — the
- * Tasks workspace, a board column, a Project record's Tasks tab and Today's
- * plan. The presentation used to be declared twice: a bordered card here and a
+ * One object, three surfaces (`~/shared/task-record/InlineCaptureRow`) — the
+ * Tasks workspace, a board / Time Sectors column, and a Project record's Tasks
+ * tab. The presentation used to be declared twice: a bordered card here and a
  * borderless list row further down, scoped to the one collection that wanted it.
  * The list row won — see the block at "The quick-add row" below, which is now
  * the only presentation and applies wherever the component is drawn.
@@ -641,15 +641,29 @@
     padding-block-end: var(--dh-space-2);
   }
 
-  /*
-   * A column is a SURFACE, and the quietest one that still reads as a column: a
-   * sunken ground with a hairline, no shadow, no second radius inside it. Naked
-   * lists side by side read as three lists that happen to be near each other —
-   * which is what the board was — and the whole point of the presentation is
-   * that the space between two tasks means something.
-   */
   .dh-tasks-board__column {
     scroll-snap-align: start;
+  }
+}
+
+/*
+ * A COLUMN IS A SURFACE — on the board and on the Time Sectors planning board,
+ * which is the same object at a different cadence.
+ *
+ * The quietest surface that still reads as a column: a sunken ground with a
+ * hairline, no shadow, no second radius inside it. Naked lists side by side read
+ * as three lists that happen to be near each other — which is what both boards
+ * were — and the whole point of either presentation is that the space between
+ * two tasks means something.
+ *
+ * The two grids differ and stay different: a board keeps its columns on ONE line
+ * and scrolls (a column is a position), while Time Sectors wraps, because every
+ * declared planning window must be visible and an empty one is itself the useful
+ * fact. Only the column's own chrome is shared.
+ */
+@media (min-width: 48rem) {
+  .dh-tasks-board__column,
+  .dh-tasks-sectors__column {
     padding: var(--dh-space-3) var(--dh-space-2) var(--dh-space-2);
     border: var(--dh-border-width) solid var(--dh-color-border);
     border-radius: var(--dh-radius-lg);
@@ -657,13 +671,13 @@
   }
 
   /*
-   * Inside a column the rows have the column's own padding as their inset, so
+   * Inside a column the rows take the column's own padding as their inset, so
    * the row does not indent twice, and the capture line at the foot sits on the
    * same left edge as the titles above it.
    */
-  .dh-tasks-board__column .dh-taskrow,
-  .dh-tasks-board__column .dh-taskgroup__header,
-  .dh-tasks-board__column .dh-tasks-quickadd {
+  :is(.dh-tasks-board__column, .dh-tasks-sectors__column) .dh-taskrow,
+  :is(.dh-tasks-board__column, .dh-tasks-sectors__column) .dh-taskgroup__header,
+  :is(.dh-tasks-board__column, .dh-tasks-sectors__column) .dh-tasks-quickadd {
     padding-inline: 0;
   }
 }

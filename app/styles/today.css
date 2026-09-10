@@ -596,22 +596,12 @@
     grid-column: span 12;
   }
 
-  .dh-today__now,
-  .dh-today__timeline,
-  .dh-today__goals {
-    grid-column: span 8;
-  }
-
-  .dh-today__next,
-  .dh-today__schedule,
-  .dh-today__attention {
-    grid-column: span 4;
-  }
-
-  .dh-today__continue,
-  .dh-today__reflection {
-    grid-column: span 6;
-  }
+  /*
+   * The MAJOR / MINOR spans are NOT declared here. They are one block, below,
+   * at "ONE SEAM" — this block owns the twelve tracks and the BANDS that take
+   * all of them. Three sets of spans used to live here and in two blocks after
+   * it, and the last one won by source order rather than by decision.
+   */
 
   /*
    * STEER-05 — the week's door is a BAND, not a column.
@@ -627,11 +617,6 @@
     grid-column: span 12;
   }
 
-  .dh-today__grid[data-now-context="now"] .dh-today__now,
-  .dh-today__grid[data-now-context="next"] .dh-today__next {
-    grid-column: span 12;
-  }
-
   /*
    * HABITS-01 — the routine band takes the full width.
    *
@@ -642,35 +627,6 @@
    * the decision row below it starts clean.
    */
   .dh-today__habits-panel {
-    grid-column: span 12;
-  }
-
-  /* The MAJOR cell of each working row — the list of titles. */
-  .dh-today__timeline,
-  .dh-today__attention,
-  .dh-today__goals {
-    grid-column: span 7;
-  }
-
-  /* The MINOR cell — the strip, the short run of facts, the two doorways. */
-  .dh-today__schedule,
-  .dh-today__continue,
-  .dh-today__stack {
-    grid-column: span 5;
-  }
-
-  /*
-   * The decision row is DATA-CONDITIONAL, so its spans are too.
-   *
-   * "Needs attention" and "Continue working" each render only when they hold
-   * something. With one of the pair absent, a fixed split would leave four (or
-   * eight) columns of hole beside the survivor and push the Goal row down past
-   * it — a gap that reads as a panel that failed to load rather than as a panel
-   * that had nothing to say. A lone survivor takes the full twelve, at both
-   * splits, which is why the rule lives in the OUTER query.
-   */
-  .dh-today__grid[data-support="attention"] .dh-today__attention,
-  .dh-today__grid[data-support="continue"] .dh-today__continue {
     grid-column: span 12;
   }
 }

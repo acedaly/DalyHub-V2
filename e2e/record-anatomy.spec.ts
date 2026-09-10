@@ -516,8 +516,16 @@ test.describe("contextual creation defaults", () => {
   }) => {
     // The route-param test: the create form already receives this project's id,
     // so the local action is faster than the global + and earns its place.
+    //
+    // The local action is the SHARED inline capture row now, which states the
+    // project in its own placeholder; the full form behind "More options"
+    // inherits the same fixed parent, which is what this test measures.
     await gotoFixture(page, "/projects/pr-rc-kitchen");
-    await page.getByRole("link", { name: "Add task" }).click();
+    const capture = page.getByRole("form", { name: /^Add a task to / });
+    await expect(
+      capture.getByRole("textbox", { name: "Task title" }),
+    ).toHaveAttribute("placeholder", /Kitchen fit-out/);
+    await capture.getByRole("button", { name: "More options" }).click();
 
     const drawer = page.getByRole("dialog");
     await expect(drawer).toBeVisible();

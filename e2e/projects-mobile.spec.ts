@@ -109,16 +109,31 @@ async function createProjectFromSheet(page: Page, title: string) {
   await expectNoHorizontalOverflow(page);
 }
 
+/**
+ * Add a task to the open Project record, through the SHARED inline capture row.
+ *
+ * This used to open the full New Task Drawer from an "Add task" link. The record
+ * now draws `InlineCaptureRow` in its place — type, Enter, created, ready for the
+ * next one — with the Drawer kept behind "More options" for anything the line
+ * cannot do. The assertions are unchanged in substance: a task is created under
+ * this project, and it opens in the SAME shared Task Drawer at a deep-linkable
+ * URL. What changed is that opening the record is now a separate act from
+ * creating it, which is the point of a capture row.
+ */
 async function addTask(page: Page, title: string) {
-  const addTask = page.getByRole("link", { name: "Add task" }).first();
-  await expectMinTouchTarget(addTask);
-  await addTask.click();
-
-  const createDialog = page.getByRole("dialog", { name: "New Task" });
-  await expect(createDialog).toBeVisible();
+  const capture = page.getByRole("textbox", { name: "Task title" });
+  await expectMinTouchTarget(capture);
+  await capture.fill(title);
   await expectNoHorizontalOverflow(page);
-  await createDialog.getByLabel(/Title/).fill(title);
-  await createDialog.getByRole("button", { name: "Add task" }).click();
+  await capture.press("Enter");
+
+  // The field clears and keeps focus, so the next task is one keystroke away.
+  await expect(capture).toHaveValue("");
+  await expect(capture).toBeFocused();
+
+  const row = page.getByRole("link", { name: `Open ${title}` }).first();
+  await expect(row).toBeVisible();
+  await row.click();
 
   const taskDialog = page.getByRole("dialog").filter({ hasText: title });
   await expect(taskDialog).toBeVisible();

@@ -280,7 +280,18 @@ test.describe("ADR-060 contextual capture on a phone", () => {
       page.getByRole("heading", { level: 1, name: "Website relaunch" }),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Add task" }).first().click();
+    /*
+     * The record's full New Task form, reached from the capture row.
+     *
+     * The row REPLACED the "Add task" link that used to open this dialog: a
+     * title and Enter is the fast path now, and the form is what "More options"
+     * is for. Same dialog, same fixed parent, same assertions — one control
+     * further in.
+     */
+    await page
+      .getByRole("form", { name: /^Add a task to / })
+      .getByRole("button", { name: "More options" })
+      .click();
     const dialog = page.getByRole("dialog", { name: "New Task" });
     await expect(dialog).toBeVisible();
 

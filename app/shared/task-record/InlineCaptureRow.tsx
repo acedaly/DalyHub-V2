@@ -4,9 +4,18 @@
  * DalyHub's cheapest task is the SECOND one. Every surface that holds a list of
  * tasks used to answer that differently: the Tasks workspace had `TasksQuickAdd`
  * (a real inline row), a Project record had a button that revealed a full form,
- * a board column had nothing at all, and Today's plan had a link to a drawer.
- * Four costs for one act. This is the ONE row all of them now draw, so filing a
- * burst of things is the same five titles and five Enters everywhere.
+ * and a board column had nothing at all — so a task typed into "Priority 1" had
+ * to be added somewhere else and then re-filed. Three costs for one act. This is
+ * the ONE row all three now draw, so filing a burst of things is the same five
+ * titles and five Enters everywhere.
+ *
+ * ── Today is NOT a host, and that is a decision rather than an omission ──────
+ * TODAY-12 removed Today's own capture panel and left one control at the foot of
+ * the plan that opens the shared capture sheet: "a control, not a second capture
+ * form: Today has no text input of its own", which `e2e/today.spec.ts` asserts by
+ * counting textboxes on the surface. Today is the one screen whose job is to be
+ * read at a glance before anything is typed. The fast path from there is the
+ * global `+`, the `C` shortcut and the phone bar, all of which reach the sheet.
  *
  * It changes no authority. It posts to the canonical `/tasks/new` resource route
  * exactly as the capture Drawer does (ADR-043 §13), so a task created from a
