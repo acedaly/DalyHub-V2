@@ -731,12 +731,6 @@
   outline-offset: calc(-1 * var(--dh-focus-width));
 }
 
-/* One chevron asset, rotated. Two mirrored SVGs would be two things to keep in
- * step for a shape that is its own mirror. */
-.dh-calendar__month-step:first-of-type .dh-calendar__month-step-icon {
-  transform: rotate(180deg);
-}
-
 .dh-calendar__grid {
   display: block;
   inline-size: 100%;

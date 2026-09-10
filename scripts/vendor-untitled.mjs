@@ -26,6 +26,7 @@
  *   node scripts/vendor-untitled.mjs               # copy / refresh
  *   node scripts/vendor-untitled.mjs --check       # fail if output drifted
  *   node scripts/vendor-untitled.mjs --refresh-provenance # update headers only
+ *   node scripts/vendor-untitled.mjs --provenance-report # print source identity
  *   UNTITLED_SRC=/path/to/untitled/src node scripts/vendor-untitled.mjs
  *
  * Deliberately NOT part of `pnpm run verify`: the vendored output is committed,
@@ -56,10 +57,23 @@ const PROVENANCE = JSON.parse(
 
 function commandOutput(command, args) {
   try {
-    return execFileSync(command, args, { encoding: "utf8" }).trim();
+    const output = execFileSync(command, args, { encoding: "utf8" }).trim();
+    return output || null;
   } catch {
-    return "unavailable";
+    return null;
   }
+}
+
+const REFRESH_ONLY = process.argv.includes("--refresh-provenance");
+
+function sourceSyncMarker() {
+  for (const candidate of [
+    join(SRC, "..", ".github", "last-sync-commit"),
+    join(SRC, ".github", "last-sync-commit"),
+  ]) {
+    if (existsSync(candidate)) return readFileSync(candidate, "utf8").trim();
+  }
+  return null;
 }
 
 /**
@@ -70,17 +84,16 @@ function commandOutput(command, args) {
  */
 const SOURCE_REVISION =
   process.env.UNTITLED_SOURCE_REVISION ??
+  (!REFRESH_ONLY
+    ? commandOutput("git", ["-C", SRC, "rev-parse", "HEAD"])
+    : null) ??
   PROVENANCE.revision ??
-  commandOutput("git", ["-C", SRC, "rev-parse", "HEAD"]);
+  "unavailable";
 const SOURCE_SYNC_MARKER =
   process.env.UNTITLED_SOURCE_SYNC_MARKER ??
+  (!REFRESH_ONLY ? sourceSyncMarker() : null) ??
   PROVENANCE.syncMarker ??
-  (existsSync(join(SRC, "..", ".github", "last-sync-commit"))
-    ? readFileSync(
-        join(SRC, "..", ".github", "last-sync-commit"),
-        "utf8",
-      ).trim()
-    : "unavailable");
+  "unavailable";
 const RETRIEVED = process.env.UNTITLED_RETRIEVED ?? PROVENANCE.retrieved;
 
 /**
@@ -336,9 +349,7 @@ function refreshProvenance() {
     for (const name of readdirSync(dir)) {
       const path = join(dir, name);
       if (statSync(path).isDirectory()) {
-        if (name === "overrides" || name === "utils" || name === "hooks") {
-          continue;
-        }
+        if (name === "overrides") continue;
         visitDirectory(path);
         continue;
       }
@@ -367,6 +378,22 @@ function refreshProvenance() {
 
 if (process.argv.includes("--refresh-provenance")) {
   refreshProvenance();
+  process.exit(0);
+}
+
+if (process.argv.includes("--provenance-report")) {
+  console.log(
+    JSON.stringify(
+      {
+        source: SRC,
+        revision: SOURCE_REVISION,
+        syncMarker: SOURCE_SYNC_MARKER,
+        retrieved: RETRIEVED,
+      },
+      null,
+      2,
+    ),
+  );
   process.exit(0);
 }
 
