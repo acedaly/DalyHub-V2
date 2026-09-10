@@ -92,10 +92,18 @@ export function ProjectsTable({
              * value differently from its visible text would break WCAG 2.5.3.
              * The Area is still named on the gallery card and on the record.
              */}
-            <th scope="col">Area or Goal</th>
-            <th scope="col">Progress</th>
-            <th scope="col">Tasks</th>
-            <th scope="col">Updated</th>
+            <th scope="col" className="dh-ptable__area">
+              Area or Goal
+            </th>
+            <th scope="col" className="dh-ptable__progress">
+              Progress
+            </th>
+            <th scope="col" className="dh-ptable__numeric">
+              Tasks
+            </th>
+            <th scope="col" className="dh-ptable__updated">
+              Updated
+            </th>
             {/* The actions column is named for assistive tech and unnamed
              * visually — a visible "Actions" heading over a 32px menu button is
              * a column title wider than its column. */}
@@ -232,7 +240,9 @@ function ProjectTableRow({
       <td className="dh-ptable__numeric">
         {card.meta.map((fact) => fact.text).join(" · ")}
       </td>
-      <td>{card.updatedLabel?.replace(/^Updated /, "") ?? <Absent />}</td>
+      <td className="dh-ptable__updated">
+        {card.updatedLabel?.replace(/^Updated /, "") ?? <Absent />}
+      </td>
       {/*
        * DHDS-13 — the reveal contract, WIRED UP.
        *

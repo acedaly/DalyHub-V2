@@ -110,7 +110,22 @@
  * to the pane's own child so no other consumer of the drawer host inherits a
  * height it did not ask for.
  */
-.dh-pane > .drawer-background {
+/*
+ * `:has(> .dh-collection)` is load-bearing, and it cost a regression to learn.
+ *
+ * The first form of this rule made the pane's wrapper a flex column
+ * unconditionally. Today is NOT a collection — it is a `.dh-today` sitting
+ * directly in the same wrapper — and it centres itself with `margin-inline:
+ * auto` above its cap. In a flex column an item with auto inline margins is
+ * sized to its CONTENT and the margins eat the rest, so Today collapsed from
+ * the full pane to a 32px column at every phone width: MEASURED at 320, 375 and
+ * 390, with 144–179px of margin either side and the page finally scrolling
+ * sideways at 320, which is how it was caught.
+ *
+ * Scoping the flex to a wrapper that actually holds a collection keeps the fix
+ * where it belongs and leaves every other pane child laid out exactly as it was.
+ */
+.dh-pane > .drawer-background:has(> .dh-collection) {
   display: flex;
   flex-direction: column;
   min-block-size: 100%;
