@@ -191,7 +191,11 @@ describe("DS-03 the tablet collapse", () => {
      * the accessibility tree at every width. `hidden` is the trap, and it is one
      * word away.
      */
-    for (const file of ["RailNavItem.tsx", "SidebarBrand.tsx", "UserMenu.tsx"]) {
+    for (const file of [
+      "RailNavItem.tsx",
+      "SidebarBrand.tsx",
+      "UserMenu.tsx",
+    ]) {
       const source = sourceCode(file);
       expect(source, `${file} hides collapsed text`).toContain("sr-only");
       expect(

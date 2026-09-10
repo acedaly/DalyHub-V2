@@ -61,7 +61,9 @@ const inDeadFamily = (cls) =>
  * dropped, and that is a judgement call, not a substitution.
  */
 function isDead(selector) {
-  const classes = [...selector.matchAll(/\.([A-Za-z0-9_-]+)/g)].map((m) => m[1]);
+  const classes = [...selector.matchAll(/\.([A-Za-z0-9_-]+)/g)].map(
+    (m) => m[1],
+  );
   if (classes.length === 0) return false;
   return classes.every(inDeadFamily);
 }

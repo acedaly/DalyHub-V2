@@ -142,8 +142,8 @@ export function BottomNav({
                   }}
                 >
                   {/* Capture is the ONE filled control in the bar — the same
-                    * primary emphasis the rail gives it, so the defining action
-                    * looks the same on both shells. */}
+                   * primary emphasis the rail gives it, so the defining action
+                   * looks the same on both shells. */}
                   <span
                     aria-hidden="true"
                     className="flex h-7 w-12 items-center justify-center rounded-full bg-brand-solid text-white *:size-5"

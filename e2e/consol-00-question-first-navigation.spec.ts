@@ -28,7 +28,7 @@
  * here.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import {
   AXE_TAGS,
@@ -42,6 +42,12 @@ import {
 /** The five questions, in rail order. `system` is separated by position. */
 const QUESTIONS = ["Do", "Organise", "Deal with", "Money", "Understand"];
 
+async function groupHeadings(scope: Locator): Promise<string[]> {
+  return scope
+    .locator("[data-nav-group] > span:not(.sr-only)")
+    .allTextContents();
+}
+
 test.describe("V2.16 CONSOL-00 - the desktop rail reads as five questions", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
@@ -53,8 +59,7 @@ test.describe("V2.16 CONSOL-00 - the desktop rail reads as five questions", () =
     const rail = page.getByRole("navigation", { name: "Primary" });
 
     // The headings, in the order the information architecture declares.
-    const headings = await rail.locator(".dh-nav__heading").allTextContents();
-    expect(headings).toEqual(QUESTIONS);
+    expect(await groupHeadings(rail)).toEqual(QUESTIONS);
 
     /*
      * And they are not decoration: each block's destinations are a LIST that
@@ -167,10 +172,14 @@ test.describe("V2.16 CONSOL-00 - the desktop rail reads as five questions", () =
     await page.goto("/today");
     await waitForInteractive(page);
     await expectNoHorizontalOverflow(page);
-    await expectNoAxeViolations(page, { include: ".dh-sidebar--rail" });
+    await expectNoAxeViolations(page, {
+      include: "[data-testid='sidebar-rail']",
+    });
 
     await page.emulateMedia({ colorScheme: "dark" });
-    await expectNoAxeViolations(page, { include: ".dh-sidebar--rail" });
+    await expectNoAxeViolations(page, {
+      include: "[data-testid='sidebar-rail']",
+    });
     await page.emulateMedia({ colorScheme: "light" });
   });
 });
@@ -235,9 +244,7 @@ test.describe("V2.16 CONSOL-00 - the phone is unchanged", () => {
 
     // The same five questions, readable at 393 - the sheet is where the whole
     // map lives on a phone, so this is where the grouping has to survive.
-    expect(await sheet.locator(".dh-nav__heading").allTextContents()).toEqual(
-      QUESTIONS,
-    );
+    expect(await groupHeadings(sheet)).toEqual(QUESTIONS);
     await expect(sheet.getByRole("list", { name: "Money" })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Finance" })).toHaveAttribute(
       "href",

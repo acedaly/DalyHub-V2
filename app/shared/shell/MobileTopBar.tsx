@@ -93,7 +93,7 @@ export function MobileTopBar({
               onClick={() => navigate(backTo)}
             >
               {/* The shared chevron, rotated: DalyHub publishes one
-                * directional glyph and points it, rather than shipping four. */}
+               * directional glyph and points it, rather than shipping four. */}
               <span aria-hidden="true" className="block rotate-180 *:size-full">
                 <ChevronRightIcon />
               </span>

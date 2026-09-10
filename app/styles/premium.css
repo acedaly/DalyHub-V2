@@ -204,7 +204,6 @@
 /* -------------------------------------------------------------------------- */
 
 @media (max-width: 47.99rem) {
-
   .dh-pane-header {
     padding-block: var(--dh-space-4) var(--dh-space-3);
   }

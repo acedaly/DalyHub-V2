@@ -69,7 +69,7 @@ const surfaces = {
 } as const;
 
 const ROOT =
-  "group/item relative flex max-h-9 w-full cursor-pointer items-center rounded-md p-2 outline-focus-ring transition duration-100 ease-linear select-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2";
+  "group/item relative flex w-full cursor-pointer items-center rounded-md p-2 outline-focus-ring transition duration-100 ease-linear select-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2";
 
 export type RailNavItemProps = {
   /** The destination. */
@@ -125,6 +125,7 @@ export function RailNavItem({
       prefetch={prefetch}
       className={cx(
         ROOT,
+        surface === "sheet" ? "min-h-11" : "h-9",
         !current && tone.hover,
         current && tone.selected,
         !current && pending && tone.pending,

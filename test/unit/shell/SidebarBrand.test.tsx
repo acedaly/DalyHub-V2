@@ -67,9 +67,7 @@ describe("SidebarBrand", () => {
     const { container } = render(<SidebarBrand workspaceName="DalyHub" />);
     const brand = brandBlock(container);
     expect(within(brand).getAllByText("DalyHub")).toHaveLength(1);
-    expect(
-      brand.querySelector("[data-testid='sidebar-workspace']"),
-    ).toBeNull();
+    expect(brand.querySelector("[data-testid='sidebar-workspace']")).toBeNull();
   });
 
   it("renders the brand mark, decoratively", () => {

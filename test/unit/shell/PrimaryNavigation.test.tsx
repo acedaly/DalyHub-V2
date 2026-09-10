@@ -93,9 +93,11 @@ describe("V2.16 CONSOL-00 PrimaryNavigation grouping", () => {
       item("Help", 930, "system"),
     ]);
     expect(container.querySelectorAll("[data-nav-group]")).toHaveLength(4);
-    expect([...container.querySelectorAll("[data-nav-group]")].map((el) =>
-      el.getAttribute("data-nav-group"),
-    )).toEqual(["do", "organise", "money", "system"]);
+    expect(
+      [...container.querySelectorAll("[data-nav-group]")].map((el) =>
+        el.getAttribute("data-nav-group"),
+      ),
+    ).toEqual(["do", "organise", "money", "system"]);
     // UNTITLED-02 — no decorative rules. Pinned so the quieter rail cannot
     // silently regain four horizontal lines.
     expect(container.querySelectorAll("hr")).toHaveLength(0);
