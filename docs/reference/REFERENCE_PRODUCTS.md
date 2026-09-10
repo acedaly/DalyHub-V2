@@ -18,6 +18,35 @@
 
 ---
 
+## Reference roles
+
+Product references answer **what good DalyHub behaviour feels like**. They do
+not determine the frontend implementation. Untitled UI React Pro is the primary
+implementation and application-pattern reference; search it first through the
+configured MCP and use its source where appropriate. Adapt its examples to
+DalyHub's entities, hierarchy, calm density and mobile priorities.
+
+### Untitled UI React Pro — adopted source implementation
+
+- **Role.** Default source for generic components, accessibility behaviour,
+  visual foundations, responsive patterns, application pages, settings, data
+  presentation, navigation, overlays and state patterns.
+- **What DalyHub adopts.** React Aria-backed components, Tailwind CSS v4 theme
+  conventions, Untitled Icons, base/application components and full-page
+  composition references. Selected source becomes DalyHub-owned application
+  source rather than an opaque dependency.
+- **What it does not decide.** Product semantics, information architecture,
+  Today, Tasks, Capture, the Area → Goal → Project → Task model, relationship
+  language or DalyHub's selective semantic colour.
+- **Workflow.** Search the MCP, inspect multiple relevant components and page
+  examples, select the closest source, adapt only the product composition, and
+  verify accessibility/responsive behaviour. See
+  [`UNTITLED_UI_IMPLEMENTATION.md`](../design/UNTITLED_UI_IMPLEMENTATION.md).
+- **Official documentation.** [Introduction](https://www.untitledui.com/react/docs/introduction),
+  [theming](https://www.untitledui.com/react/docs/theming),
+  [dark mode](https://www.untitledui.com/react/docs/dark-mode),
+  [MCP](https://www.untitledui.com/react/integrations/mcp).
+
 ## Product inspirations
 
 ### Notion — 🔴 study-only (closed source)
@@ -86,15 +115,18 @@
 
 ---
 
-## Reusable building blocks (candidate libraries)
+## Reusable building blocks (historical candidate evaluations)
 
-> These are *candidates*, not commitments. Adopt via the [reuse workflow](../governance/OPEN_SOURCE_POLICY.md#approved-reuse-workflow) and the [evaluation checklist](../governance/OPEN_SOURCE_POLICY.md#reusable-evaluation-checklist). **Re-verify the licence for the exact version before adopting.**
+> These entries record earlier evaluations. For generic frontend implementation,
+> Untitled UI React Pro is now the default source and must be searched first.
+> Adopt another library only for a non-UI problem or a documented
+> product-specific gap, following the [reuse workflow](../governance/OPEN_SOURCE_POLICY.md#approved-reuse-workflow).
 
 | Building block | Solves | Repo (typical) | Licence (verify!) | Notes / risks |
 |---|---|---|---|---|
 | **cmdk** | [Command Palette](../design/DESIGN_SYSTEM.md#command-palette) primitive | `pacocoursey/cmdk` | 🟢 MIT | Accessible, composable command menu. **Reviewed & rejected for DS-09** (see the Command Palette evaluation): DS-08's native combobox + the DS-03 modal hooks already meet the bar, and cmdk owns no execution/catalogue/contextual model — build, add no dependency. |
-| **Radix UI / primitives** | Accessible unstyled UI primitives (dialog, popover, tabs) | `radix-ui/primitives` | 🟢 MIT | Backbone for accessible [Design System](../design/DESIGN_SYSTEM.md) components. |
-| **shadcn/ui** | Copy-in component patterns over Radix + utility CSS | `shadcn-ui/ui` | 🟢 MIT | Components are *copied in* (provenance comment + record the source). |
+| **Radix UI / primitives** | Accessible unstyled UI primitives (dialog, popover, tabs) | `radix-ui/primitives` | 🟢 MIT | Historical candidate; not the current generic UI source. |
+| **shadcn/ui** | Copy-in component patterns over Radix + utility CSS | `shadcn-ui/ui` | 🟢 MIT | Historical candidate; not the current generic UI source. |
 | **Tiptap / ProseMirror** | Rich Markdown editor | `ueberdosis/tiptap`, `ProseMirror/*` | 🟢 MIT | **Not adopted** (still). These store a rich-text/proprietary document model as the source of truth, which violates the Markdown-source strategy. [NOTES-05](../roadmap/ROADMAP_V2.md#-notes-05--writing-first-markdown-editor) instead adopted **CodeMirror 6** (below), which edits *plain Markdown source* — see the CodeMirror row. |
 | **CodeMirror 6** | Live Markdown authoring surface | `@codemirror/*`, `@lezer/*` | 🟢 MIT | **Adopted (NOTES-05, [ADR-044](../decisions/ARCHITECTURE_DECISIONS.md#adr-044-the-writing-first-live-markdown-editor--adopting-codemirror-6-as-an-authoring-surface-over-the-unchanged-fnd-08-source-and-render-pipeline)).** The deliberate revisit the earlier "not adopted" note anticipated: NOTES-05 genuinely needs live, in-place formatting (Obsidian-style Live Preview) that a textarea cannot provide, while still saving Markdown source. CodeMirror is used as an *authoring surface only* — its document IS the plain Markdown source; the FND-08 pipeline stays the sole renderer/sanitiser/HTML-sink. See the reuse-evaluation checklist below. |
 | **remark / rehype** (`unified`) | Markdown parse + safe render | `remarkjs/*`, `rehypejs/*` | 🟢 MIT | **Adopted** for the Markdown pipeline ([FND-08](../roadmap/ROADMAP_V2.md#-fnd-08--markdown-pipeline) / [ADR-015](../decisions/ARCHITECTURE_DECISIONS.md#adr-015-markdown-source-and-safe-rendering-pipeline)) — see the [FND-08 evaluation](#markdown-pipeline-evaluation-fnd-08). `react-markdown` was evaluated and **not** adopted. |

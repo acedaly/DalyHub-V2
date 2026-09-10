@@ -1,15 +1,20 @@
 # DalyHub design direction
 
 > **The rule above all others:** DalyHub should feel like a finished product,
-> not a collection of components. A screen must not visibly announce Material
-> 3, shadcn, Radix, Tailwind or any other underlying toolkit. Those may provide
-> machinery. What the owner sees is DalyHub.
+> not a collection of components. A screen must not visibly announce Untitled
+> UI, Tailwind, React Aria or any other underlying toolkit. The implementation
+> supplies quality; what the owner sees is DalyHub.
 
 This is the product-level visual and interaction brief for every human and
 coding agent working on DalyHub. It defines the intended experience. The
-mechanics remain in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), while
-[`DALYHUB_DESIGN_SYSTEM.md`](DALYHUB_DESIGN_SYSTEM.md) defines the tokens,
-primitives and enforceable design policy.
+frontend implementation is governed by
+[`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md), while
+[`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) records DalyHub-specific compositions,
+semantic adaptations and exceptions.
+
+> **Implementation statement.** DalyHub's visual and interaction implementation
+> is built primarily from Untitled UI React Pro. DalyHub owns composition and
+> semantics; the product should never visibly announce the library.
 
 If a screenshot, historical implementation note or framework convention
 conflicts with this direction, this direction wins unless the proposed change
@@ -17,7 +22,7 @@ would break functionality, accessibility, truthful data presentation or an
 architecture decision. Existing concept images are evidence of this direction,
 not a substitute for understanding it.
 
-> **Programme status (21 August 2026).** The broad design-convergence programme
+> **Programme status.** The historical DHDS design-convergence programme
 > that delivered this direction — DHDS-01 through DHDS-11, closed by the
 > commercial-quality gate
 > [DHDS-13](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md) — is **complete**. This
@@ -26,7 +31,7 @@ not a substitute for understanding it.
 > one without a materially changed product direction: see
 > [DHDS-13 §18](DHDS_13_COMMERCIAL_QUALITY_GATE_2026_08.md#18-what-happens-after-dhds-13).
 > Future UI work is module-, feature-, bug- and accessibility-specific, tied to
-> actual product work.
+> actual product work, and follows the Untitled implementation guide.
 
 ## What DalyHub is
 

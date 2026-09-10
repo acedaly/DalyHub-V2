@@ -31,10 +31,10 @@ If you ever feel you need a long prompt to do a piece of work, that is a **docum
 | [`AGENTS.md`](AGENTS.md) (this file) | How do we build DalyHub, and what does "good" mean? |
 | [`docs/product/PRODUCT_PRINCIPLES.md`](docs/product/PRODUCT_PRINCIPLES.md) | What is DalyHub, why does it exist, and how should it feel? |
 | [`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) | What are we building next, and in what order? |
-| [`docs/design/DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) | What should the finished product feel like, and how should each module express that direction? |
-| [`docs/design/DHDS_01_WORK_PACKAGE.md`](docs/design/DHDS_01_WORK_PACKAGE.md) | How do we deliver the DalyHub-native design direction in staged, measurable implementation work? |
-| [`docs/design/DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) | What is DalyHub's design philosophy, and where does it deliberately depart from Material? |
-| [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) | What are the shared interaction patterns every module reuses? |
+| [`docs/design/DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) | What should DalyHub feel like and how should its product surfaces behave? |
+| [`docs/design/UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) | How does DalyHub implement that product direction with Untitled UI React Pro? |
+| [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) | Which DalyHub compositions, semantic adaptations and interaction exceptions are shared? |
+| [`docs/design/DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) | Historical DHDS policy and implementation record; it no longer governs frontend implementation. |
 | [`docs/governance/OPEN_SOURCE_POLICY.md`](docs/governance/OPEN_SOURCE_POLICY.md) | When and how do we reuse open-source code, and how do we handle licensing? |
 | [`docs/reference/REFERENCE_PRODUCTS.md`](docs/reference/REFERENCE_PRODUCTS.md) | Which products do we study, and what do we learn from each? |
 | [`docs/product/PRODUCT_DEBT.md`](docs/product/PRODUCT_DEBT.md) | What is inconsistent today, and what is the target state? |
@@ -133,11 +133,9 @@ or accessibility requirements.
 - **Never lose the user's place.** Navigation preserves context. Opening a task from Today should not throw away where you were. Back always works. State is restored.
 - **No dead ends.** Every empty state teaches the next action. Every error explains the recovery. See [Empty States](docs/design/DESIGN_SYSTEM.md#empty-states) and [Error Feedback](docs/design/DESIGN_SYSTEM.md#error-feedback).
 - **Calm defaults.** Restrained motion, no gratuitous notifications. Motion communicates causality (this became that), never decoration.
-- **DalyHub owns its design system; MD3 is machinery underneath it.** [`DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) is the **specification** — what the product looks like, how dense it is, how desktop and phone differ. Material 3 supplies values and algorithms and no longer settles a design question: colour *generated* from one seed and never authored, the typescale, the shape and elevation scales, the state layer, motion and the accessibility contract, hand-rolled in CSS over our own components. There is one light/dark pair per colour scheme, selected by the operating system or by the owner's three-value appearance preference.
+- **DalyHub owns product design; Untitled UI React Pro is the default frontend implementation system.** Read [`DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md) for the product experience and [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) for implementation. Search Untitled UI Pro before creating a generic component or page pattern. Compose DalyHub semantics above Untitled source components, preserve React Aria behaviour, and build bespoke generic UI only when no suitable Untitled implementation exists or product-specific behaviour genuinely requires it. Historical DHDS/Material records remain useful history but are not current frontend authority.
 
-  This bullet said "DalyHub is a Material Design 3 application" until UIX-06 corrected it, and said "MD3 is the foundation" until **DS-01** made the authority change explicit ([ADR-092](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery)) — the numbered departures in [`DALYHUB_DESIGN_SYSTEM.md` §5](docs/design/DALYHUB_DESIGN_SYSTEM.md#5-documented-departures-from-stock-material) had already made the old framing untrue. A new departure is legitimate; an *undocumented* one is debt.
-
-  Read [`DALYHUB_DESIGN_SYSTEM.md`](docs/design/DALYHUB_DESIGN_SYSTEM.md) for the *why* and the policy, [`DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) for the mechanics, [`DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md`](docs/design/DS_01_DESIGN_SYSTEM_FOUNDATION_2026_08.md) for the component inventory and the migration map, and [ADR-074](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) plus [ADR-092](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-092-the-dalyhub-design-system-becomes-the-governing-design-language--a-product-owned-semantic-layer-an-explicit-density-model-and-md3-demoted-to-machinery) for the token architecture.
+  Historical references in this section explain prior decisions; they do not override the current implementation guide.
 
 - **The navigation rail is RECESSED under its own canvas in both appearances — near-white under a white page, near-black under a dark one — and it has its own colour family regardless.** `--dh-color-rail`, `-text`, `-text-muted`, `-border`, `-selected`, `-focus` exist because the rail is a separate surface from the page it frames — a navigation object drawn ON the page (the phone bar, the modal navigation sheet) sits above it and stays bright, so the rail's foregrounds are chosen against ITS surface rather than against the appearance. Painting anything on the rail means asking for the rail's colours by name.
 
@@ -147,7 +145,7 @@ or accessibility requirements.
 
 - **Density is a system, not a per-surface decision.** Three presets — `compact`, `default`, `touch` — selected by `data-dh-density` (namespaced because plain `data-density` is already taken by the Markdown editor and the record summary), controlling eight tokens and nothing else. Density never costs a touch target: on a coarse pointer, `compact`'s hit areas are floored back to the WCAG minimum, unconditionally. See [`DALYHUB_DESIGN_SYSTEM.md` §11](docs/design/DALYHUB_DESIGN_SYSTEM.md#11-density-ds-01).
 
-- **Generic components carry no product rules, and they live in [`app/shared/ui/`](app/shared/ui/index.ts).** A `Button`, a `Menu`, a `Dialog` or an `Input` knows interaction, layout and tokens — never Areas, Goals, Projects, Tasks, priorities or overdue dates. A product component (`TaskRow`, `ProjectCard`, `GoalProgress`, `QuickCapture`) knows the domain and composes generic ones, never the reverse. **DS-02 built that directory**: it is the one generic path for each common interaction, so before writing a `<button className="dh-btn …">`, a styled `<input>`, a hand-rolled dropdown or a bordered `div`, import the primitive. **DS-03 rebuilt the application FRAME out of it** — the rail, the top bar and the page frame are compositions of those primitives rather than a parallel set of shell controls. See [`DALYHUB_DESIGN_SYSTEM.md` §13](docs/design/DALYHUB_DESIGN_SYSTEM.md#13-component-ownership-ds-01), [`DS_02…`](docs/design/DS_02_CORE_UI_PRIMITIVES_2026_08.md) and [`DS_03…`](docs/design/DS_03_SHELL_AND_NAVIGATION_2026_08.md).
+- **Generic components carry no product rules, and they live in [`app/shared/ui/`](app/shared/ui/index.ts).** A `Button`, `Menu`, `Dialog`, `Input` or `Checkbox` knows interaction and accessibility; it does not know Areas, Goals, Projects, Tasks, priorities or overdue dates. Product components (`TaskRow`, `ProjectCard`, `GoalProgress`, `QuickCapture`) compose those primitives. Use [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) and the configured Untitled MCP before adding a generic control. Building a second generic component library beside Untitled is a design-system defect.
 
 ---
 
@@ -202,20 +200,22 @@ Every meaningful change to any entity appends to a single, uniform **Activity** 
 Long-form text (Notes, descriptions, Diary) is authored and stored as Markdown, rendered through one shared renderer. This keeps content portable, diff-able, and export-safe. See [ADR-006: Markdown Strategy](docs/decisions/ARCHITECTURE_DECISIONS.md#adr-006-markdown-strategy).
 
 ### 9.8 Shared over bespoke, and one authoritative token layer
+
+> This heading is retained as a stable documentation anchor. The current rule
+> is the Untitled/Tailwind implementation authority described below.
+
+### 9.8a Shared over bespoke, and one frontend implementation authority
 Before building a module-specific version of anything — a card, a form, a filter bar — check the [Design System](docs/design/DESIGN_SYSTEM.md). If a shared pattern exists, use it. If one *should* exist but doesn't, build it as shared. A bespoke duplicate is [Product Debt](docs/product/PRODUCT_DEBT.md) the moment it's merged.
 
-The same rule applies to design VALUES. [`app/styles/tokens.css`](app/styles/tokens.css) is the one authoritative token layer, and application code — CSS and components alike — never hard-codes a raw hex, pixel, radius, shadow or duration where a token exists. The vocabulary is:
+The same rule applies to frontend implementation. [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md) is the current authority for generic UI source, theme and accessibility behaviour. Tailwind CSS v4 plus Untitled semantic theme variables is the target styling model. Application code does not hard-code visual values where the adopted theme provides a role.
 
 | Prefix | Owns | Layer |
 |---|---|---|
-| `--dh-*` | **The DalyHub design system** — colour, space, radius, borders, elevation, focus, typography, motion, density | **Reach for this one** |
-| `--app-*` | Structural values M3 does not own: spacing, sizing, z-index, breakpoints, shell measurements | machinery |
-| `--md-app-*` | The generated application surfaces (page, navigation, app bar, card, card-subtle, raised, sunken, hairline) | machinery |
-| `--md-sys-*` | Colour roles, typescale, shape, elevation, state layers, motion | machinery |
+| Untitled/Tailwind semantic theme | Generic colour, type, spacing, shape, focus and component styling | **Reach for this one** |
+| DalyHub semantic extensions | Product identity, priority, overdue and domain-specific meaning | Add only when product semantics require it |
+| `--dh-*`, `--app-*`, `--md-*` compatibility layers | Historical/transition machinery still present in code | Do not expand; remove as consumers migrate |
 
-**DS-01 added the `--dh-*` layer on top, and it is the one a new component consumes.** The three below it are what a DalyHub token currently resolves to; DS-02…DS-08 migrate consumers upward, and a file speaking both vocabularies during that is expected rather than debt. Four rules hold, each asserted by `test/unit/tokens/dalyhub-tokens.test.ts`: nothing in the layer is authored (every value is a `var()` onto an existing token), every `--dh-*` name is published in `app/shared/tokens/dalyhub.ts` and defined only in `tokens.css`, nothing is named after another design language, and every default resolves to the value the application already paints.
-
-Colour is **generated**, not authored: `scripts/generate-m3-scheme.mjs` derives every role from one seed and writes both the stylesheet blocks and their typed mirror, and `pnpm run scheme:check` fails the build on a hand-edit. A new colour belongs in the generator; a new non-colour token belongs in `tokens.css`; a new *name* the product reaches for belongs in the DalyHub layer and its registry. Add the token first, then consume it.
+The existing token and scheme tests remain valid compatibility gates while their consumers migrate. They do not establish MD3 or bespoke DHDS as the target. New generic UI must use Untitled/Tailwind source and theme conventions; when a compatibility token is unavoidable, record why and keep the migration path explicit.
 
 ---
 

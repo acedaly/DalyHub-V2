@@ -1,5 +1,8 @@
 # DHDS-01 — DalyHub product design convergence
 
+> **Historical implementation record.** This DHDS programme is superseded for
+> current frontend implementation by [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
+
 > **Binding inputs:** [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md) defines the
 > product outcome. [`DALYHUB_DESIGN_SYSTEM.md`](DALYHUB_DESIGN_SYSTEM.md)
 > defines current policy and departures. [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md)

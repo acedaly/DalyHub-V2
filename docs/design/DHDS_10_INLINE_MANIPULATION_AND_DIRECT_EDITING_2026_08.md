@@ -1,5 +1,8 @@
 # DHDS-10 — Inline manipulation and direct editing
 
+> **Historical implementation record.** Product-specific inline editing rules
+> remain useful; generic controls now follow the Untitled implementation guide.
+
 **Status:** implemented. Branch `claude/dhds-10-inline-manipulation-lemd0a`.
 **Date:** August 2026.
 **Extends:** [`DHDS_01_WORK_PACKAGE.md`](DHDS_01_WORK_PACKAGE.md),

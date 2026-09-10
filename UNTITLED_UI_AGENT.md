@@ -1,3 +1,10 @@
+> This file explains how to use Untitled UI source and tooling. DalyHub's
+> product authority remains [`DESIGN_DIRECTION.md`](docs/design/DESIGN_DIRECTION.md)
+> and its current frontend implementation authority is
+> [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md).
+> Search Untitled first, then compose DalyHub semantics above the generic
+> primitive. Do not copy page examples without adapting the product model.
+
 <!-- @embed:start file="public-components/CLAUDE.md" -->
 ## Project Overview
 

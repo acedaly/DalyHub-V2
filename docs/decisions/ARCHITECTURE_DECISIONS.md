@@ -3013,6 +3013,8 @@ Separately, the roadmap's SET-03 promised an owner-facing *Account & security* s
 
 ## ADR-092: The DalyHub design system becomes the governing design language — a product-owned semantic layer, an explicit density model, and MD3 demoted to machinery
 
+> **Frontend implementation status:** Superseded by [ADR-125](#adr-125-untitled-ui-react-pro-is-dalyhubs-primary-frontend-implementation-system) for current generic component source, theme and frontend implementation. The product-specific UX decisions recorded here remain historical context where the current direction explicitly preserves them.
+
 **Status:** Accepted · **Date:** 2026-08-14 · **Item:** DS-01 (design-system foundation)
 
 **Amends the DESIGN AUTHORITY of** [ADR-074](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism). Everything ADR-074 decided about *mechanism* survives intact: colour is generated from a seed and never authored, `scheme:check` gates a hand-edited hex, there is no `@material/web` and no runtime UI dependency, the icon geometry is Material Symbols behind `createIcon`, one typeface, and the accessibility contract. What changes is which document is the specification. Also amends [ADR-074 decision 6](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) (density is a per-surface typescale choice) and reverses the *destination* of [ADR-074 decision 8](#adr-074-material-design-3-as-the-design-language--one-generated-scheme-no-theme-feature-and-an-alias-layer-as-the-migration-mechanism) (the alias layer). Does not disturb [ADR-089](#adr-089-five-generated-colour-schemes-over-one-design-system--a-second-root-attribute-orthogonal-to-appearance), [ADR-087](#adr-087-inline-editors-float-in-a-shared-overlay-layer-and-become-sheets-on-a-phone) or [ADR-076](#adr-076-the-shared-writing-surface-refined-in-place-and-inline-editing-as-one-state-machine-over-focused-server-intents).
@@ -7512,3 +7514,85 @@ until the off-Cloudflare copy exists and has been restored from once.
   (rejected: "deletion unsupported" as an unexplained gap is exactly the
   ambiguity the V3 boundary must not carry — a boundary is a decision, not
   necessarily a button).
+# ADR-125: Untitled UI React Pro is DalyHub's primary frontend implementation system
+
+**Status:** Accepted (2026-09-10)
+
+## Context
+
+DalyHub accumulated substantial bespoke CSS, a custom design-system
+implementation, duplicated interaction machinery and a large documentation
+burden. Repeated convergence passes also left accessibility and commercial
+polish dependent on local implementation discipline. The product still needs
+its own semantics: the Area → Goal → Project → Task model, Today, Capture,
+calm density, contextual editing, mobile priorities and relationship language
+are not supplied by a component catalogue.
+
+The repository now has working Untitled UI React Pro adoption across the shell,
+shared interactions, Today and Tasks. The adopted stack is React, TypeScript,
+Tailwind CSS v4, React Aria and Untitled source components. The current
+checkpoints are `31597964`, `fedf27a6`, `b61058ea` and `737842f3`.
+
+## Decision
+
+Adopt Untitled UI React Pro as DalyHub's default frontend implementation and
+component source, with Tailwind CSS v4 and React Aria as its styling and
+behaviour foundations. Use the Untitled MCP as the first discovery path for
+generic components, application patterns, page examples and icons. Selected
+Untitled source enters the DalyHub tree and is maintained as application source.
+
+DalyHub retains authority over product semantics, composition, information
+hierarchy, workflows, identity, density, semantic colour, mobile priorities and
+domain-specific interaction. Generic Untitled-derived primitives remain free of
+domain rules; DalyHub compositions such as `TaskRow`, `TodaySchedule` and
+`QuickCapture` carry those rules above the primitive.
+
+The normal workflow is: understand the product need, search Untitled via MCP,
+inspect relevant components and page examples, select/adapt source, compose
+DalyHub behaviour, then verify accessibility, responsive behaviour and product
+semantics. Build a bespoke generic primitive only when Untitled has no suitable
+solution or the product requires behaviour that would be materially worse or
+more fragile if forced into the generic implementation.
+
+## Consequences
+
+Positive consequences include a broader professionally designed vocabulary,
+consistent React Aria behaviour, a stronger accessibility baseline, fewer
+duplicated controls, faster future frontend work, and useful complete page
+references for complex surfaces.
+
+Costs include migration work, Tailwind becoming a primary styling mechanism,
+maintenance responsibility for imported source, the risk of generic SaaS
+appearance when examples are copied blindly, and retirement or reclassification
+of old DHDS/Material implementation documentation. Existing generated Material
+tokens and legacy CSS remain compatibility machinery while consumers migrate;
+they are not permanent architectural peers.
+
+Intentional retained DalyHub components are valid when they carry product
+behaviour such as asynchronous search, Inbox-specific behaviour, mobile safe
+areas or focus restoration. The current calendar similarly uses Untitled/React
+Aria interaction while DalyHub owns scheduling semantics.
+
+## Rejected alternatives
+
+- **Continue the bespoke DHDS implementation:** rejected because it preserves
+  duplicated machinery and makes consistent accessibility and polish expensive.
+- **Replace the product with a Metronic or other complete template:** rejected
+  because page composition would dictate product semantics and create generic
+  SaaS identity.
+- **Undertake another complete frontend rewrite:** rejected because the current
+  migration already provides stable shell and interaction foundations; adoption
+  should proceed consumer by consumer.
+- **Use Untitled only as occasional inspiration:** rejected because it leaves
+  the same local reinvention and consistency problem the purchase is intended
+  to solve.
+
+## Authority after this decision
+
+[`PRODUCT_PRINCIPLES.md`](../product/PRODUCT_PRINCIPLES.md) owns product
+purpose. [`DESIGN_DIRECTION.md`](../design/DESIGN_DIRECTION.md) owns product
+UX and visual direction. [`UNTITLED_UI_IMPLEMENTATION.md`](../design/UNTITLED_UI_IMPLEMENTATION.md)
+owns frontend implementation. [`DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md)
+owns DalyHub-specific compositions and adaptations. DHDS, DS and Material
+implementation programmes are historical records unless a later decision says
+otherwise.

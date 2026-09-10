@@ -1,5 +1,8 @@
 # DHDS-11 — Drag, reorder and object continuity
 
+> **Historical implementation record.** Product rules remain context; current
+> generic frontend implementation follows Untitled UI/React Aria.
+
 **Status:** implemented. Branch `claude/dhds-11-drag-reorder-continuity-87une7`.
 **Date:** August 2026.
 **Extends:** [`DHDS_01_WORK_PACKAGE.md`](DHDS_01_WORK_PACKAGE.md),

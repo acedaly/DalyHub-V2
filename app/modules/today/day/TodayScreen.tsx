@@ -1613,12 +1613,6 @@ export function TodayScreen({
           todayIso={data.todayIso}
         />
 
-        <GoalProgressSection
-          goals={data.goals}
-          goalsBounded={data.goalsBounded}
-          onUpdateGoal={onUpdateGoal}
-        />
-
         {/*
          * ── The DECISION row ─────────────────────────────────────────────────
          * What has gone wrong, and what to pick up next. The audit moves this
@@ -1689,6 +1683,12 @@ export function TodayScreen({
             </ul>
           </section>
         ) : null}
+
+        <GoalProgressSection
+          goals={data.goals}
+          goalsBounded={data.goalsBounded}
+          onUpdateGoal={onUpdateGoal}
+        />
 
         <TodayStatRank
           trend={data.activityTrend}

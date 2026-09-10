@@ -1,5 +1,9 @@
 # THEME-01 — DalyHub colour schemes (August 2026)
 
+> **Historical implementation record.** The generated Material colour-scheme
+> architecture is compatibility machinery during the Untitled migration, not
+> the target frontend theme authority.
+
 > The record of the multi-scheme colour work: what shipped, what was decided
 > along the way, and the evidence that was kept.
 >

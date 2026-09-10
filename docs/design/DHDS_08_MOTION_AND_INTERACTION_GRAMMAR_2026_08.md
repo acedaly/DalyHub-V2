@@ -1,5 +1,9 @@
 # DHDS-08 — Motion and interaction grammar
 
+> **Historical implementation record.** Current generic interaction machinery
+> follows Untitled UI and React Aria; product motion rules remain useful where
+> preserved by [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md).
+
 **Status:** implemented. Branch `ui/dhds-08-motion-interaction-grammar`.
 **Date:** August 2026.
 **Extends:** [`DHDS_01_WORK_PACKAGE.md`](DHDS_01_WORK_PACKAGE.md) — it does not

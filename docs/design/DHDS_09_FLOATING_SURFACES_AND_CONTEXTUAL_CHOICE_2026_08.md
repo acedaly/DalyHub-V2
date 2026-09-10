@@ -1,5 +1,8 @@
 # DHDS-09 — Floating surfaces and contextual choice architecture
 
+> **Historical implementation record.** Current overlay implementation follows
+> Untitled UI/React Aria with documented DalyHub adaptations.
+
 **Status:** implemented. Branch `claude/dhds-09-floating-surfaces-ef7uoz`.
 **Date:** August 2026.
 **Extends:** [`DHDS_01_WORK_PACKAGE.md`](DHDS_01_WORK_PACKAGE.md) and

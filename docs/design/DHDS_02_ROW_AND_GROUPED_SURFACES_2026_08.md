@@ -1,5 +1,8 @@
 # DHDS-02 — Rows and grouped surfaces
 
+> **Historical implementation record.** Current implementation follows the
+> Untitled UI guide and DalyHub composition rules.
+
 **Status:** implemented
 **Governing direction:** [`DESIGN_DIRECTION.md`](DESIGN_DIRECTION.md), especially
 Interaction model, Tasks, and Plan and Schedule

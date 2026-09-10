@@ -1,5 +1,8 @@
 # DS-02 — Core UI Primitives
 
+> **Historical implementation record.** Current generic primitives are sourced
+> from Untitled UI React Pro; see [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
+
 > **What this stage delivers:** the DalyHub generic primitive layer —
 > [`app/shared/ui/`](../../app/shared/ui/index.ts) — written entirely in the
 > `--dh-*` vocabulary DS-01 established, and the first stage where the new

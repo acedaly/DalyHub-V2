@@ -4,12 +4,17 @@ Before making any changes, read and follow:
 
 - `AGENTS.md`
 - `docs/design/DESIGN_DIRECTION.md`
-- `docs/design/DALYHUB_DESIGN_SYSTEM.md`
 - `docs/design/DESIGN_SYSTEM.md`
+- `docs/design/UNTITLED_UI_IMPLEMENTATION.md`
 
 These DalyHub documents are authoritative for product behaviour, architecture and visual direction.
 
-The Untitled UI guidance below describes how to correctly use Untitled UI components. It does NOT override DalyHub's product design or architecture.
+`DESIGN_DIRECTION.md` and `PRODUCT_PRINCIPLES.md` decide DalyHub's product
+semantics. [`UNTITLED_UI_IMPLEMENTATION.md`](docs/design/UNTITLED_UI_IMPLEMENTATION.md)
+decides how the frontend adopts Untitled UI React Pro. The Untitled UI guidance
+below describes how to correctly use the library; it does not override DalyHub's
+product design or architecture. Historical DHDS/Material documents are records,
+not current implementation instructions.
 
 ---
 

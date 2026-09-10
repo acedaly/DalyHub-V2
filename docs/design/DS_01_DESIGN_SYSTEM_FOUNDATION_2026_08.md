@@ -1,5 +1,9 @@
 # DS-01 — The DalyHub Design System Foundation
 
+> **Historical implementation record.** This bespoke DHDS/Material foundation
+> is superseded for current frontend implementation by
+> [`UNTITLED_UI_IMPLEMENTATION.md`](UNTITLED_UI_IMPLEMENTATION.md).
+
 > **The decision this stage records:** Material Design 3 stops being DalyHub's
 > governing design specification and becomes its implementation machinery. The
 > DalyHub design system becomes the authority.
