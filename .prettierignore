@@ -14,8 +14,20 @@ docs/
 AGENTS.md
 README.md
 THIRD_PARTY_NOTICES.md
+CLAUDE.md
+UNTITLED_UI_AGENT.md
 
 # Generated from the canonical icon geometry by `pnpm run icons:generate`.
 # Reformatting it would make `pnpm run icons:check` fail for a reason that has
 # nothing to do with the artwork.
 app/shared/icons/brand-mark.generated.ts
+
+# UNTITLED-01 — vendor-derived source, written by `scripts/vendor-untitled.mjs`
+# and by `scripts/generate-untitled-theme.mjs`. Reformatting it would make both
+# scripts' `--check` modes fail for reasons that have nothing to do with DalyHub,
+# and would obscure the diff against upstream on the next re-vendor. DalyHub's
+# own compositions over these primitives live outside this directory and ARE
+# formatted.
+app/shared/ui/untitled/
+app/styles/untitled/theme.css
+app/styles/untitled/theme.source.css

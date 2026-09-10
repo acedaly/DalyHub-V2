@@ -24,6 +24,19 @@
  * branches on it, and a component styled once is correct in both appearances.
  */
 
+/*
+ * UNTITLED-01 — Tailwind v4 and the Untitled UI theme, FIRST in the cascade.
+ *
+ * Everything it emits lives inside `@layer`, and every DalyHub stylesheet below
+ * is unlayered, so the legacy cascade is untouched by construction: unlayered
+ * rules outrank layered ones whatever their specificity. A screen that has not
+ * migrated keeps every rule it had, including its own reset; a migrated
+ * component carries only Untitled utility classes, has no legacy rule competing
+ * for it, and is styled entirely from here. See that file's header for the full
+ * argument.
+ */
+@import "./styles/untitled/untitled.css";
+
 @import "./styles/tokens.css";
 /* DS-14 — the two self-hosted variable families, before anything consumes them. */
 @import "./styles/fonts.css";
