@@ -138,6 +138,7 @@ function renderTab(
   return frame(
     <ProjectTasksTab
       projectId="p1"
+      projectTitle="Kitchen fit-out"
       tasks={props.tasks}
       nextCursor={props.nextCursor}
       parents={[
@@ -593,6 +594,7 @@ function renderControllable(props: {
           </button>
           <ProjectTasksTab
             projectId="p1"
+            projectTitle="Kitchen fit-out"
             tasks={data.tasks}
             nextCursor={data.cursor}
             parents={[]}

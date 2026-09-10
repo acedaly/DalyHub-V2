@@ -68,6 +68,7 @@ import {
   TaskSelectionPrompt,
 } from "~/shared/task-record/TaskBulkActionBar";
 import { buildTaskRowActions } from "~/shared/task-record/task-row-actions";
+import { InlineCaptureRow } from "~/shared/task-record/InlineCaptureRow";
 import { TaskGroup, TaskList } from "~/shared/task-record/TaskList";
 import { useDepartingRows } from "~/shared/task-record/use-departing-rows";
 import {
@@ -115,7 +116,7 @@ import {
   isTaskDropDimension,
   type TaskDropDimension,
 } from "./task-drop-targets";
-import type { TasksPageData } from "./tasks-contract";
+import type { TaskParentOption, TasksPageData } from "./tasks-contract";
 import { PRESENTATION_LABELS } from "./tasks-presentation";
 import {
   EMPTY_TASK_SELECTION,
@@ -1790,6 +1791,7 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         sessionDefaults={sessionDefaults}
         todayIso={data.todayIso}
         onOpenFullForm={() => openDrawer(NEW_TASK_KEY)}
+        announce={quick.announce}
       />
 
       {/* PWA-12 — the queued Task changes, and any decision waiting on the owner.
@@ -1803,11 +1805,18 @@ function TasksWorkspaceInner({ data }: { readonly data: TasksPageData }) {
         <>
           <GroupedView
             presentation={config.presentation}
+            dimension={grouping.dimension}
             sections={groupedSections}
             renderCollection={renderCollection}
             viewAllHref={viewAllHref}
             dropDimension={dropDimension}
             onDropTask={handleTaskDrop}
+            capture={{
+              destination: data.defaultCaptureParent,
+              defaults: sessionDefaults,
+              todayIso: data.todayIso,
+              announce: quick.announce,
+            }}
           />
         </>
       ) : (
@@ -1917,6 +1926,48 @@ type RenderCollection = (
 ) => ReactNode;
 
 /**
+ * What a COLUMN's own capture row needs: where a task goes by default, and what
+ * the current view is already carrying. The bucket adds the one field its own
+ * heading stands for (see `bucketCaptureDefaults`).
+ */
+interface BucketCaptureContext {
+  readonly destination: TaskParentOption | null;
+  readonly defaults: {
+    readonly priority?: string;
+    readonly timeSector?: string;
+    readonly scheduledDate?: string;
+  };
+  readonly todayIso: string;
+  /** The workspace's ONE polite live region — never a second per column. */
+  readonly announce: (message: string) => void;
+}
+
+/**
+ * The classification a bucket's heading PROMISES, when the row can honour it.
+ *
+ * A board column is a claim about where a task will appear: typing into the P1
+ * column and watching the task land under "No date" is the column lying. So the
+ * capture row is offered only on the dimensions whose bucket key IS a settable
+ * field — priority and time sector — and returns null everywhere else rather
+ * than adding a row that would file the task somewhere the owner is not looking.
+ *
+ * `parent` is deliberately excluded despite being the obvious candidate: its
+ * bucket key is an entity id whose KIND (Area or Project) the section does not
+ * carry, and `/tasks/new` requires both.
+ */
+function bucketCaptureDefaults(
+  dimension: string,
+  key: string,
+): { readonly priority?: string; readonly timeSector?: string } | null {
+  if (key === "__none") return null;
+  if (dimension === "priority") {
+    return { priority: key === "untriaged" ? "p4" : key };
+  }
+  if (dimension === "sector") return { timeSector: key };
+  return null;
+}
+
+/**
  * One grouped bucket. Renders the AUTHORITATIVE server count in its heading, the
  * bounded slice the loader returned, and a "View all N" link when the bucket holds
  * more than the slice — pointing at the filtered flat list that isolates exactly
@@ -1929,11 +1980,20 @@ function GroupedBucket({
   viewAllHref,
   dropDimension,
   onDropTask,
+  capture,
 }: {
   readonly section: GroupedSection;
   readonly className: string;
   readonly renderCollection: RenderCollection;
   readonly viewAllHref: (section: GroupedSection) => string | null;
+  /** The column's own capture row, or null where the bucket cannot honour one. */
+  readonly capture: {
+    readonly context: BucketCaptureContext;
+    readonly defaults: {
+      readonly priority?: string;
+      readonly timeSector?: string;
+    };
+  } | null;
   /** DHDS-11 — null on every configuration that is not a spatial one. */
   readonly dropDimension: TaskDropDimension | null;
   readonly onDropTask: TaskBucketDrop;
@@ -1964,6 +2024,25 @@ function GroupedBucket({
        */
       tone={section.key === "overdue" ? "overdue" : "default"}
       className={className}
+      footer={
+        capture ? (
+          /*
+           * The column's own capture line — the SHARED row, with the bucket's
+           * classification folded into the view's. A board is only as fast as
+           * its slowest column, and before this the only way to add a P1 was to
+           * add a task and then re-file it.
+           */
+          <InlineCaptureRow
+            destination={capture.context.destination}
+            defaults={{ ...capture.context.defaults, ...capture.defaults }}
+            todayIso={capture.context.todayIso}
+            destinationLabel={section.title}
+            label={`Add a task to ${section.title}`}
+            className="dh-tasks-quickadd--column"
+            announce={capture.context.announce}
+          />
+        ) : undefined
+      }
       sectionRef={drop.ref}
       dropState={
         drop.isActive ? "active" : drop.isCandidate ? "candidate" : null
@@ -2002,18 +2081,22 @@ function GroupedBucket({
  */
 function GroupedView({
   presentation,
+  dimension,
   sections,
   renderCollection,
   viewAllHref,
   dropDimension,
   onDropTask,
+  capture,
 }: {
   readonly presentation: string;
+  readonly dimension: string;
   readonly sections: readonly GroupedSection[];
   readonly renderCollection: RenderCollection;
   readonly viewAllHref: (section: GroupedSection) => string | null;
   readonly dropDimension: TaskDropDimension | null;
   readonly onDropTask: TaskBucketDrop;
+  readonly capture: BucketCaptureContext;
 }) {
   const containerClass =
     presentation === "sectors"
@@ -2028,19 +2111,40 @@ function GroupedView({
         ? "dh-tasks-board__column"
         : "dh-tasks-grouped__section";
 
+  /*
+   * Capture belongs to a COLUMN, not to a stacked section.
+   *
+   * On a board (and on the Time Sectors planning board) a column is a place, so
+   * a line at its foot is where the next task goes. In the stacked List
+   * presentation the buckets are one scroll of one list and the workspace's own
+   * capture row is already directly above them — a second row per section there
+   * would be the same control repeated eight times down one page.
+   */
+  const columns = presentation === "board" || presentation === "sectors";
+
   return (
     <div className={containerClass}>
-      {sections.map((section) => (
-        <GroupedBucket
-          key={section.key}
-          section={section}
-          className={bucketClass}
-          renderCollection={renderCollection}
-          viewAllHref={viewAllHref}
-          dropDimension={dropDimension}
-          onDropTask={onDropTask}
-        />
-      ))}
+      {sections.map((section) => {
+        const bucketDefaults = columns
+          ? bucketCaptureDefaults(dimension, section.key)
+          : null;
+        return (
+          <GroupedBucket
+            key={section.key}
+            section={section}
+            className={bucketClass}
+            renderCollection={renderCollection}
+            viewAllHref={viewAllHref}
+            dropDimension={dropDimension}
+            onDropTask={onDropTask}
+            capture={
+              bucketDefaults
+                ? { context: capture, defaults: bucketDefaults }
+                : null
+            }
+          />
+        );
+      })}
     </div>
   );
 }

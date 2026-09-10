@@ -1128,24 +1128,13 @@
  * keeps focus and clears, and the parser applies `p1`, `today`, `every Monday`
  * deterministically. Nothing about that changes here.
  *
- * What changes is that it stops being an object. It was a 60px filled card with
- * a 16px radius carrying two visible buttons, sitting above the list like a
- * form; the concept has no such panel. It is now literally the row above the
- * first task — the same inset, the same height, the same `+` where a completion
- * circle goes — with a hairline under it, so capture reads as "add a line here"
- * rather than "fill this in".
+ * The row's SHAPE — the inset, the height, the hairline, the `+` where a
+ * completion circle goes — now lives with the component in `tasks.css`, because
+ * the row is drawn on four surfaces and only one of them is this collection.
+ * What remains here is what genuinely belongs to a list CONTEXT: the field's
+ * type size, and holding the two buttons back until the row is engaged with.
  */
-.dh-collection--tasks .dh-tasks-quickadd {
-  margin-block-end: 0;
-  padding-inline: var(--dh-inset-inline);
-  padding-block: 0;
-  border-radius: 0;
-  background: transparent;
-  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
-  min-block-size: var(--dh-row-height);
-}
-
-.dh-collection--tasks .dh-tasks-quickadd__input {
+.dh-tasks-quickadd .dh-tasks-quickadd__input {
   min-block-size: var(--dh-row-height);
   /*
    * HARDEN-05 — the row's type, but never under the anti-zoom floor.
@@ -1174,20 +1163,16 @@
  * and they are never removed from the accessibility tree.
  */
 @media (hover: hover) {
-  .dh-collection--tasks .dh-tasks-quickadd__submit,
-  .dh-collection--tasks .dh-tasks-quickadd__more {
+  .dh-tasks-quickadd .dh-tasks-quickadd__submit,
+  .dh-tasks-quickadd .dh-tasks-quickadd__more {
     opacity: 0;
     transition: opacity var(--dh-motion-fast) var(--dh-ease-standard);
   }
 
-  .dh-collection--tasks .dh-tasks-quickadd:hover .dh-tasks-quickadd__submit,
-  .dh-collection--tasks .dh-tasks-quickadd:hover .dh-tasks-quickadd__more,
-  .dh-collection--tasks
-    .dh-tasks-quickadd:focus-within
-    .dh-tasks-quickadd__submit,
-  .dh-collection--tasks
-    .dh-tasks-quickadd:focus-within
-    .dh-tasks-quickadd__more {
+  .dh-tasks-quickadd:hover .dh-tasks-quickadd__submit,
+  .dh-tasks-quickadd:hover .dh-tasks-quickadd__more,
+  .dh-tasks-quickadd:focus-within .dh-tasks-quickadd__submit,
+  .dh-tasks-quickadd:focus-within .dh-tasks-quickadd__more {
     opacity: 1;
   }
 }
@@ -1632,7 +1617,7 @@
 @media (max-width: 47.99rem) {
   .dh-taskgroup__header,
   .dh-taskrow,
-  .dh-collection--tasks .dh-tasks-quickadd {
+  .dh-tasks-quickadd {
     padding-inline: 0;
   }
 }

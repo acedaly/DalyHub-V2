@@ -125,8 +125,19 @@
   min-width: 0;
 }
 
-/* A board is columns where the viewport can afford them, and a stack where it
- * cannot — never a horizontally-scrolling document. */
+/*
+ * A BOARD is columns. Below `lg` it is a stack, because two 150px strips are not
+ * columns; from `lg` up it is a real board that scrolls SIDEWAYS when it has more
+ * columns than the pane can hold.
+ *
+ * It used to be `repeat(auto-fit, minmax(16rem, 1fr))`, which is a wrapping grid
+ * rather than a board: group by priority and the fifth column appeared on a
+ * SECOND ROW under the first four, so a "board" read top-to-bottom in places and
+ * left-to-right in others, and the column a task was in stopped being a position.
+ * A board's whole claim is that a column is a PLACE — so the columns keep their
+ * line and the board takes the scrollbar, inside its own box. The document never
+ * scrolls horizontally (`e2e/responsive-*`); this element does.
+ */
 .dh-tasks-board {
   display: flex;
   flex-direction: column;
@@ -148,27 +159,35 @@
   color: var(--dh-color-text-muted);
 }
 
-/* The in-workspace quick add row: title first, everything else optional. */
+/*
+ * The SHARED inline capture row: title first, everything else optional.
+ *
+ * One object, four surfaces (`~/shared/task-record/InlineCaptureRow`) — the
+ * Tasks workspace, a board column, a Project record's Tasks tab and Today's
+ * plan. The presentation used to be declared twice: a bordered card here and a
+ * borderless list row further down, scoped to the one collection that wanted it.
+ * The list row won — see the block at "The quick-add row" below, which is now
+ * the only presentation and applies wherever the component is drawn.
+ */
 .dh-tasks-quickadd {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--app-space-2);
-  margin-bottom: var(--app-space-4);
 }
 
-.dh-tasks-quickadd__input {
-  flex: 1 1 16rem;
+.dh-tasks-quickadd .dh-tasks-quickadd__input {
+  flex: 1 1 12rem;
   min-width: 0;
   min-height: var(--app-touch-target-min);
 }
 
-.dh-tasks-quickadd__submit,
-.dh-tasks-quickadd__more {
+.dh-tasks-quickadd .dh-tasks-quickadd__submit,
+.dh-tasks-quickadd .dh-tasks-quickadd__more {
   min-height: var(--app-touch-target-min);
 }
 
-.dh-tasks-quickadd__error {
+.dh-tasks-quickadd .dh-tasks-quickadd__error {
   flex-basis: 100%;
   margin: 0;
   font-size: var(--dh-text-meta-size);
@@ -603,10 +622,75 @@
   /* Board columns appear only where there is genuinely room for them. */
   .dh-tasks-board {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: var(--app-space-5);
+    grid-auto-flow: column;
+    /*
+     * The floor is the width a task row is still READABLE at, MEASURED rather
+     * than guessed: a board row spends 48px on its drag handle and completion
+     * circle and 32px on its overflow, so at 17rem the project name in the
+     * metadata line was down to "Task …". 19rem leaves the metadata line ~200px,
+     * which fits a real project name beside a priority mark. Three columns fit a
+     * 1280px window; the fourth scrolls, which is the honest answer.
+     */
+    grid-auto-columns: minmax(19rem, 1fr);
+    gap: var(--dh-space-4);
     align-items: start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    /* Room for the scrollbar so it never sits on the last column's hairline. */
+    padding-block-end: var(--dh-space-2);
   }
+
+  /*
+   * A column is a SURFACE, and the quietest one that still reads as a column: a
+   * sunken ground with a hairline, no shadow, no second radius inside it. Naked
+   * lists side by side read as three lists that happen to be near each other —
+   * which is what the board was — and the whole point of the presentation is
+   * that the space between two tasks means something.
+   */
+  .dh-tasks-board__column {
+    scroll-snap-align: start;
+    padding: var(--dh-space-3) var(--dh-space-2) var(--dh-space-2);
+    border: var(--dh-border-width) solid var(--dh-color-border);
+    border-radius: var(--dh-radius-lg);
+    background: var(--dh-color-bg-sunken);
+  }
+
+  /*
+   * Inside a column the rows have the column's own padding as their inset, so
+   * the row does not indent twice, and the capture line at the foot sits on the
+   * same left edge as the titles above it.
+   */
+  .dh-tasks-board__column .dh-taskrow,
+  .dh-tasks-board__column .dh-taskgroup__header,
+  .dh-tasks-board__column .dh-tasks-quickadd {
+    padding-inline: 0;
+  }
+}
+
+/*
+ * Column HEADINGS line up with each other.
+ *
+ * `.dh-taskgroup + .dh-taskgroup` carries a top margin so stacked buckets are
+ * separated by space — and in a board every column after the first is an
+ * adjacent sibling, so the rule that separates two stacked sections was pushing
+ * columns two, three and four down by 24px each. MEASURED on `/tasks?view=board`
+ * at 1280: "Overdue" sat 24px above "Later" and "No date", on a surface whose
+ * entire claim is that the columns are peers.
+ */
+:is(.dh-tasks-board, .dh-tasks-sectors) > .dh-taskgroup + .dh-taskgroup,
+:is(.dh-tasks-board, .dh-tasks-sectors) > .dh-taskgroup .dh-taskgroup__header {
+  margin-block-start: 0;
+}
+
+/*
+ * The column's own capture line sits at the FOOT, quietly, and keeps its
+ * hairline on the side the rows above it do not: it is the last line of the
+ * column rather than a rule under the column's content.
+ */
+.dh-tasks-quickadd--column {
+  margin-block-start: var(--dh-space-1);
+  border-block-end: 0;
 }
 
 /* The deterministic quick-capture interpretation preview. */
@@ -996,13 +1080,23 @@
  * controls (see below). The field is a real input with a real label, and Enter
  * still submits.
  */
-:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd {
+.dh-tasks-quickadd {
   gap: var(--app-space-2);
-  margin-block-end: var(--dh-space-2);
+  margin-block-end: 0;
   padding-inline: var(--dh-inset-inline);
-  border: var(--dh-border-width) solid var(--dh-color-border);
-  border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  padding-block: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  /*
+   * The row IS a row: the same height and the same hairline the task rows below
+   * it carry, so capture reads as "add a line here" rather than "fill this in".
+   * It used to be a 60px filled card with a 16px radius and two visible buttons,
+   * de-carded again by a `.dh-collection--tasks` override in `task-list.css`
+   * — one object described twice, in opposite directions, in two files.
+   */
+  min-block-size: var(--dh-row-height);
+  border-block-end: var(--dh-border-width) solid var(--dh-color-border);
 }
 
 .dh-collection--tasks .dh-collection__content {
@@ -1013,7 +1107,7 @@
   border-block: var(--dh-border-width) solid var(--dh-color-divider);
 }
 
-:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__input {
+.dh-tasks-quickadd .dh-tasks-quickadd__input {
   border-color: transparent;
   background: transparent;
   padding-inline-start: 0;
@@ -1021,7 +1115,7 @@
 
 /* The `+` stands where a task row's completion circle does, so the row lines up
  * with the list beneath it. Decorative: the field has its own label. */
-:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd::before {
+.dh-tasks-quickadd::before {
   content: "+";
   flex: none;
   display: grid;
@@ -1033,13 +1127,13 @@
   line-height: 1;
 }
 
-:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__submit {
+.dh-tasks-quickadd .dh-tasks-quickadd__submit {
   background: transparent;
   border-color: transparent;
   color: var(--dh-color-accent);
 }
 
-:is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__submit:disabled {
+.dh-tasks-quickadd .dh-tasks-quickadd__submit:disabled {
   color: var(--dh-color-text-muted);
 }
 
@@ -1221,11 +1315,11 @@
   /* Quick add is one line: the `+`, the field, and Add. "More options" opens
    * the full New Task form, which the phone reaches through the capture sheet's
    * own hand-off link — so it is a second door on a surface with no room. */
-  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd {
+  .dh-tasks-quickadd {
     flex-wrap: nowrap;
   }
 
-  :is(.dh-collection--tasks, .dh-tasklist) .dh-tasks-quickadd__more {
+  .dh-tasks-quickadd .dh-tasks-quickadd__more {
     display: none;
   }
 
