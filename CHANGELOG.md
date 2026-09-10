@@ -1,5 +1,80 @@
 # Changelog
 
+- **Adding the next task is the same act everywhere you can see a task.**
+
+  It used to depend on where you were standing. On Tasks you typed a line and
+  pressed Enter. On a project you pressed a button and a form slid in over the
+  page. On a board column there was no way at all — you added a task and then
+  re-filed it. Now it is one row, in all three places: click, type, Enter, and
+  the field clears and waits for the next one.
+
+  A board column captures into itself. Type into the "Priority 1" column and
+  you get a Priority 1. That only appears on columns that can honour it — a
+  column that quietly files your task somewhere else is worse than a column
+  with no capture line.
+
+  Everything the line already understood still works: `p1`, `today`,
+  `every Monday`, `#tag`. And "More options" still opens the full form for
+  anything the line deliberately cannot do.
+
+- **The board is a board.**
+
+  Group your tasks into columns and the fifth column used to appear on a second
+  row underneath the first four, so the board read left-to-right in some places
+  and top-to-bottom in others. Columns now keep their line and the board scrolls
+  sideways when there are more of them than fit — inside the board, never the
+  page. Each column sits on its own quiet surface with a hairline, so it reads
+  as a place rather than as a list standing near another list.
+
+  Column headings line up with each other now too. They were 24px out of step,
+  because the spacing rule that separates two stacked sections was also being
+  applied between two side-by-side columns.
+
+- **Today has one hierarchy and one seam.**
+
+  Every panel on Today sat on twelve invisible columns so their edges would line
+  up — and two rules written later quietly put a second gutter back, so the foot
+  of the page split at a different place from everything above it. One seam now,
+  all the way down.
+
+  A 1024px laptop got the worst of it: it landed on the tablet layout, where
+  "Now" — the one thing on the page you can act on immediately — was drawn at
+  half width beside nothing, and "This week's Review" ended up as a small box in
+  the bottom-right corner. Both are full-width bands again, at every size.
+
+  And the page has a foreground. The day's work is lifted off the canvas; the
+  context around it is set into it. It was eight identical rectangles.
+
+- **Goals stop repeating themselves.**
+
+  A Goal you have not set a measure for used to say "No measurement" and then
+  "No movement yet this week" directly underneath, on the Goals list and on
+  Today. Six of them and the only thing telling one row from another was its
+  title. It says it once now. A Goal that _has_ moved still says so, and a Goal
+  you are measuring keeps its movement line whatever it says.
+
+- **"Needs attention" says what the matter is.**
+
+  Its facts were being cut off — "7 waiting items · oldest…", "2 obligations
+  need atte…" — on a panel whose entire job is to tell you what has gone wrong.
+  They take the width they need now, and drop to a second line rather than an
+  ellipsis when they genuinely cannot share one.
+
+- **Projects on a phone is not a spreadsheet you scroll sideways.**
+
+  Above forty projects DalyHub shows a table, which is right on a laptop and was
+  being applied on a phone too — where the first column alone was wider than the
+  screen. It now shows the two columns that answer the question you opened it
+  with: which project, and how far along. Everything else is on the project
+  itself, one tap away, and you can still ask for the full table at any size.
+
+- **A short list finishes its page.**
+
+  A collection with a few rows in it painted its background only as far as its
+  last row, and the rest of the window showed the shell behind it — which looked
+  like a page that had failed to load rather than a list that happens to be
+  short.
+
 - **The menu now reads like a question you'd actually ask.**
 
   Twenty-four destinations used to sit in one long list. They're now in five

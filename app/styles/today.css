@@ -596,22 +596,12 @@
     grid-column: span 12;
   }
 
-  .dh-today__now,
-  .dh-today__timeline,
-  .dh-today__goals {
-    grid-column: span 8;
-  }
-
-  .dh-today__next,
-  .dh-today__schedule,
-  .dh-today__attention {
-    grid-column: span 4;
-  }
-
-  .dh-today__continue,
-  .dh-today__reflection {
-    grid-column: span 6;
-  }
+  /*
+   * The MAJOR / MINOR spans are NOT declared here. They are one block, below,
+   * at "ONE SEAM" — this block owns the twelve tracks and the BANDS that take
+   * all of them. Three sets of spans used to live here and in two blocks after
+   * it, and the last one won by source order rather than by decision.
+   */
 
   /*
    * STEER-05 — the week's door is a BAND, not a column.
@@ -627,11 +617,6 @@
     grid-column: span 12;
   }
 
-  .dh-today__grid[data-now-context="now"] .dh-today__now,
-  .dh-today__grid[data-now-context="next"] .dh-today__next {
-    grid-column: span 12;
-  }
-
   /*
    * HABITS-01 — the routine band takes the full width.
    *
@@ -642,35 +627,6 @@
    * the decision row below it starts clean.
    */
   .dh-today__habits-panel {
-    grid-column: span 12;
-  }
-
-  /* The MAJOR cell of each working row — the list of titles. */
-  .dh-today__timeline,
-  .dh-today__attention,
-  .dh-today__goals {
-    grid-column: span 7;
-  }
-
-  /* The MINOR cell — the strip, the short run of facts, the two doorways. */
-  .dh-today__schedule,
-  .dh-today__continue,
-  .dh-today__stack {
-    grid-column: span 5;
-  }
-
-  /*
-   * The decision row is DATA-CONDITIONAL, so its spans are too.
-   *
-   * "Needs attention" and "Continue working" each render only when they hold
-   * something. With one of the pair absent, a fixed split would leave four (or
-   * eight) columns of hole beside the survivor and push the Goal row down past
-   * it — a gap that reads as a panel that failed to load rather than as a panel
-   * that had nothing to say. A lone survivor takes the full twelve, at both
-   * splits, which is why the rule lives in the OUTER query.
-   */
-  .dh-today__grid[data-support="attention"] .dh-today__attention,
-  .dh-today__grid[data-support="continue"] .dh-today__continue {
     grid-column: span 12;
   }
 }
@@ -707,42 +663,64 @@
  * pay. That is the measured result rather than the blanket change, and it is why
  * this is a second query rather than an edit to the one above.
  */
-@container today (min-width: 60rem) {
-  .dh-today__timeline,
-  .dh-today__attention,
-  .dh-today__goals {
-    grid-column: span 8;
-  }
-
-  .dh-today__schedule,
-  .dh-today__continue,
-  .dh-today__stack {
-    grid-column: span 4;
-  }
-}
-
-/* TODAY-12 is the later composition decision: Now/plan/goals own the working
- * measure; fixed commitments and exceptions form the context rail. */
+/*
+ * ONE SEAM, and it is 8/4 — stated once, here, and nowhere else.
+ *
+ * CONVERGE-01 §1 put every panel on twelve tracks to end "three gutters, three
+ * column systems, one page". Two later blocks quietly reintroduced the second
+ * gutter, both by source order rather than by decision:
+ *
+ *   - a `min-width: 60rem` block carried TODAY-TASK-01's MEASURED 8/4 step and
+ *     was then overridden, in full, by a `min-width: 52rem` block written after
+ *     it. Same container, later source, equal specificity: the measurement never
+ *     reached the screen it was measured for;
+ *   - that same block gave `Continue working` / `Daily reflection` `span 6`
+ *     each, so the foot of the page split at x=576 while everything above it
+ *     split at x=768. MEASURED at 1440 on the seeded fixture, which is how it
+ *     was found: 752/368 for three rows, then 560/560 for the fourth.
+ *
+ * It also re-declared the lone-survivor rule as `span 6`, undoing the outer
+ * block's `span 12` — so "Needs attention" with no "Continue working" beside it
+ * left six columns of hole, which is the exact failure the outer rule's own
+ * comment exists to prevent.
+ *
+ * The three blocks are now one. Every working row is MAJOR 8 / MINOR 4: the left
+ * cell is a list of titles and wants the measure, the right is a strip of times,
+ * a short run of facts or a doorway. The bands (the day's decision, the week's
+ * door, habits, the measures) take all twelve.
+ */
 @container today (min-width: 52rem) {
+  /*
+   * The MAJOR cell of every working row — the list of titles. These are the
+   * LEFT-HAND member of each pair in DOM order (plan · goals · continue), and
+   * the pairing is auto-placement's, so the majors and minors must alternate or
+   * a row cannot close: two adjacent eights leave four columns of hole and push
+   * the next panel down past it.
+   */
   .dh-today__now,
   .dh-today__timeline,
-  .dh-today__goals {
+  .dh-today__goals,
+  .dh-today__continue {
     grid-column: span 8;
   }
 
+  /* The MINOR cell — the week strip, the short run of facts, the doorway. */
   .dh-today__next,
   .dh-today__schedule,
+  .dh-today__stack,
   .dh-today__attention,
-  .dh-today__grid[data-support="attention"] .dh-today__attention {
+  .dh-today__reflection {
     grid-column: span 4;
   }
 
-  .dh-today__continue,
-  .dh-today__reflection,
-  .dh-today__grid[data-support="continue"] .dh-today__continue {
-    grid-column: span 6;
-  }
-
+  /*
+   * The decision row is DATA-CONDITIONAL, so its spans are too. "Needs
+   * attention" and "Continue working" each render only when they hold
+   * something, and a lone survivor takes the full twelve rather than leaving
+   * four columns of hole that read as a panel which failed to load.
+   */
+  .dh-today__grid[data-support="attention"] .dh-today__attention,
+  .dh-today__grid[data-support="continue"] .dh-today__continue,
   .dh-today__grid[data-now-context="now"] .dh-today__now,
   .dh-today__grid[data-now-context="next"] .dh-today__next {
     grid-column: span 12;
@@ -766,11 +744,25 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  /* The plan and the measures keep the full width: the plan is the page's
-     subject, and three measures side by side in half a tablet are three
-     unreadable figures. */
+  /*
+   * The BANDS keep the full width here too, for the same reasons they have it
+   * at twelve tracks — and this is where a 1024px laptop lands, so getting it
+   * wrong is not a tablet-only cost.
+   *
+   * MEASURED at 1024 before this rule: the day's one actionable decision ("Now")
+   * was drawn at half width beside nothing, the plan below it at full width, and
+   * "This week's Review" — a band everywhere else — ended up as a 352px box in
+   * the bottom-right corner because auto-placement had a hole to fill. The
+   * composition is the same composition at every rung or it is not one.
+   */
   .dh-today__summary,
-  .dh-today__timeline {
+  .dh-today__timeline,
+  .dh-today__habits-panel,
+  .dh-today__review-door,
+  .dh-today__grid[data-support="attention"] .dh-today__attention,
+  .dh-today__grid[data-support="continue"] .dh-today__continue,
+  .dh-today__grid[data-now-context="now"] .dh-today__now,
+  .dh-today__grid[data-now-context="next"] .dh-today__next {
     grid-column: 1 / -1;
   }
 }
@@ -836,10 +828,26 @@
   }
 }
 
-/* TODAY-13 — production showed that loose supporting sections did not read as
+/*
+ * TODAY-13 — production showed that loose supporting sections did not read as
  * calm; their headings and rows simply ran into adjacent columns. These are
  * compact bounded regions, not elevated widgets: one hairline, one surface and
- * no resting shadow. */
+ * no resting shadow.
+ *
+ * ── What changed, and what did not ──────────────────────────────────────────
+ * The BOUNDARY stays. TODAY-13 diagnosed a real failure and a hairline is the
+ * right answer to it. What it also did, unintentionally, was hand every
+ * supporting region the SAME surface as the day's card — so the file ended up
+ * carrying FINAL-UI's "ONE bordered card holding the day's tasks" beside eight
+ * identical rectangles, and the page's whole hierarchy came down to which
+ * heading you happened to read first.
+ *
+ * Supporting regions are now RECESSED rather than raised: the page reads as one
+ * canvas with the day lifted off it and its context set into it, which is three
+ * ground values doing the work eight equal borders were failing to do. No new
+ * token, no shadow, no second radius — the ordinal ladder the product already
+ * has (`bg-sunken` < `bg` < `surface`), used in the order it was defined for.
+ */
 .dh-today__schedule,
 .dh-today__habits-panel,
 .dh-today__goals,
@@ -853,7 +861,7 @@
   padding: var(--dh-space-4);
   border: var(--dh-border-width) solid var(--dh-color-border);
   border-radius: var(--dh-radius-md);
-  background: var(--dh-color-surface);
+  background: var(--dh-color-bg-sunken);
 }
 
 .dh-today__now .dh-tasklist {
@@ -1348,18 +1356,42 @@
     flex-wrap: nowrap;
   }
 
+  /*
+   * ONE line where both halves fit, TWO where they do not — never a cut fact.
+   *
+   * The 55% cap this replaces was written for an eight-column cell. "Needs
+   * attention" is the MINOR cell of its row — 368px at 1440, 315px at 1280 — so
+   * 55% of the row's stack is ~163px, and MEASURED there every long fact was
+   * cut: "7 waiting items · oldest…", "2 obligations need atte…". The facts are
+   * the entire point of the panel: a truncated one is a row that says something
+   * has gone wrong and then declines to say what.
+   *
+   * Sizing the fact to itself is most of the fix, but a percentage swapped for
+   * a pixel floor is still a guess about how long a fact can get — and this one
+   * is data, so it will eventually be longer. So the fact does not SHRINK at
+   * all; when it and the subject cannot share a line, it takes the next one,
+   * which is exactly what the row does below this step anyway. The subject
+   * keeps the ellipsis, because a long subject with a short fact is the case
+   * where truncating the subject IS the right answer.
+   */
   .dh-day-row--attention .dh-day-row__stack {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: var(--dh-space-3);
   }
 
   .dh-day-row--attention .dh-day-row__meta {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     margin-inline-start: auto;
     padding-inline-start: 0;
-    max-inline-size: 55%;
+    max-inline-size: 100%;
     white-space: nowrap;
+  }
+
+  .dh-day-row--attention .dh-day-row__title {
+    flex: 1 1 auto;
+    min-inline-size: 4rem;
   }
 
   /* The two-fact row keeps its whole answer at every width: it may take a

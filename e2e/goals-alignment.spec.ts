@@ -78,7 +78,18 @@ test.describe("AREA-03 — Alignment view", () => {
       .click();
     await expect(page).toHaveURL(/\/projects\/[^/?#]+$/);
 
-    await page.getByRole("link", { name: "Add task" }).first().click();
+    /*
+     * The record's full New Task form, reached from the capture row.
+     *
+     * The row REPLACED the "Add task" link that used to open this dialog: a
+     * title and Enter is the fast path now, and the form is what "More options"
+     * is for. Same dialog, same fixed parent, same assertions — one control
+     * further in.
+     */
+    await page
+      .getByRole("form", { name: /^Add a task to / })
+      .getByRole("button", { name: "More options" })
+      .click();
     const newTaskDialog = page.getByRole("dialog", { name: "New Task" });
     await newTaskDialog.getByLabel(/Title/).fill(taskTitle);
     await newTaskDialog.getByRole("button", { name: "Add task" }).click();

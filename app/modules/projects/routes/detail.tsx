@@ -738,6 +738,7 @@ function ProjectDetail({
       tasksTab={
         <ProjectTasksTab
           projectId={overview.id}
+          projectTitle={overview.title}
           tasks={tasks}
           nextCursor={tasksNextCursor}
           parents={taskParents}

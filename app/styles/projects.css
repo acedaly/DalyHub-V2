@@ -252,6 +252,15 @@ a.dh-btn {
  */
 .dh-ptable__identity {
   inline-size: 40%;
+  /*
+   * 28rem, and it was RAISED to 34 and put back. An auto-layout table treats a
+   * cell's max as a preferred width as well as a ceiling, so the wider cap let
+   * this column grow past its 40% share whenever a title was long enough —
+   * MEASURED at 1280 on the seeded workspace, where "Consolidate every
+   * household insurance…" pushed the Tasks column off the end of the scroller
+   * and put a horizontal scrollbar on an ordinary desktop table. The ellipsis
+   * on a genuinely sentence-length title is the cheaper of the two.
+   */
   max-inline-size: 28rem;
   font-weight: var(--dh-text-card-title-weight);
   color: var(--dh-color-text);
@@ -323,6 +332,102 @@ a.dh-btn {
 
 .dh-ptable__absent {
   color: var(--dh-color-text-muted);
+}
+
+/*
+ * A NARROW VIEWPORT gets the columns that answer the question, not a table it
+ * has to scroll sideways.
+ *
+ * ADR-100 makes the table the default above forty Projects, and its threshold is
+ * reasoned — explicitly — against "a 1440px canvas". The rule then applied at
+ * every width: MEASURED on the seeded workspace, `/projects` opened at 390px on
+ * a six-column table whose first column alone was wider than the viewport, and
+ * at 768px with four of its six columns off the end of the scroller. A phone saw
+ * project names cut mid-word and had to scroll a box sideways to reach a
+ * percentage. That is the "desktop assumption on mobile" the responsive baseline
+ * exists to prevent, and the scroller doing its job is not a fix for it.
+ *
+ * Responsive DISCLOSURE, in two steps, the same rule the shared task row already
+ * applies:
+ *
+ *   below `lg`     the timestamp and the task counts step back — the two
+ *                  columns a narrow table can least afford and a reader least
+ *                  often came for;
+ *   below `md`     the structural parent goes too, leaving the two columns that
+ *                  answer "which project, and how far along".
+ *
+ * Nothing is lost. The gallery presentation names the Area on every card, the
+ * record carries all three facts, and the owner's `?present=` choice is honoured
+ * at every width — which is the part of ADR-100 that must not move.
+ */
+@media (max-width: 63.99rem) {
+  .dh-ptable__numeric,
+  .dh-ptable__updated {
+    display: none;
+  }
+
+  /*
+   * …and the name's cap comes in with them, because an auto-layout table reads
+   * a cell's max as a PREFERRED width. MEASURED at 768 and 1024 with only the
+   * two columns hidden: the identity column still took its full 28rem whenever
+   * a title was long enough, which left the Progress column hanging off the end
+   * of the scroller — the very thing hiding two columns was meant to stop.
+   */
+  .dh-ptable__identity {
+    max-inline-size: 18rem;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .dh-ptable__area {
+    display: none;
+  }
+
+  /*
+   * The NAME takes most of the row, and the bar takes what a bar needs.
+   *
+   * The progress cell carries two floors — 8rem on its row and 5rem on the
+   * track itself — so a desktop bar is a readable length. At 390px those floors
+   * plus a percentage were most of the row, and MEASURED there the name column
+   * settled at ~110px and put "Spanish course" on two lines. Releasing BOTH at
+   * this width is what gives the name its share back; the track is still a
+   * track, it is simply as long as the column it is in.
+   */
+  .dh-ptable__identity {
+    inline-size: 62%;
+    max-inline-size: none;
+  }
+
+  .dh-ptable__progress-inner {
+    min-inline-size: 0;
+  }
+
+  /*
+   * The track's own 5rem floor goes too, and the trade was MEASURED both ways:
+   * with a 3rem floor the names went back to two lines each, and with none the
+   * bar settles at ~32px. At this width the NAME is the question the row
+   * answers, the percentage beside the bar states the proportion exactly, and
+   * the bar is there to be glanced at rather than read off.
+   */
+  .dh-ptable__track {
+    min-inline-size: 0;
+  }
+
+  /* Two lines, then an ellipsis: a wrapped name is worth the height, a
+   * paragraph is not. */
+  .dh-ptable__open {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+  }
+
+  .dh-ptable th,
+  .dh-ptable td {
+    padding-inline: var(--dh-space-3);
+  }
 }
 
 .dh-ptable__actions {

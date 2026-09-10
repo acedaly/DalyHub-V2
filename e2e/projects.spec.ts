@@ -95,14 +95,33 @@ test.describe("PROJ-01 — Projects", () => {
     const before = (await progress.getAttribute("aria-valuetext")) ?? "";
     expect(before).not.toBe("");
 
-    // Add a task through the shared create Drawer.
-    await page.getByRole("link", { name: "Add task" }).first().click();
-    const createDialog = page.getByRole("dialog", { name: "New Task" });
-    await expect(createDialog).toBeVisible();
-    await createDialog.getByLabel(/Title/).fill("E2E launch task");
-    await createDialog.getByRole("button", { name: "Add task" }).click();
+    /*
+     * Add a task through the record's own capture row — the SHARED
+     * `InlineCaptureRow` every task-bearing surface now draws.
+     *
+     * It replaced an "Add task" link that opened the full New Task Drawer: a
+     * modal round trip for the commonest act on the screen. The Drawer is still
+     * reachable from the row for anything the line cannot do, which is asserted
+     * below rather than assumed.
+     */
+    const capture = page.getByRole("textbox", { name: "Task title" });
+    await capture.fill("E2E launch task");
+    await capture.press("Enter");
+
+    // The field clears and keeps focus: the cost of the SECOND task is one line.
+    await expect(capture).toHaveValue("");
+    await expect(capture).toBeFocused();
+
+    // The full form is still one control away, on the same row.
+    await expect(
+      page.getByRole("button", { name: "More options" }),
+    ).toBeAttached();
 
     // The new task opens in the SAME shared Task Drawer (deep-linkable URL).
+    await page
+      .getByRole("link", { name: "Open E2E launch task" })
+      .first()
+      .click();
     const taskDialog = page.getByRole("dialog");
     await expect(
       taskDialog.getByRole("heading", { name: "E2E launch task" }),

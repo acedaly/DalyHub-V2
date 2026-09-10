@@ -71,7 +71,7 @@ import {
 } from "react";
 import { useFetcher, useLocation, useSearchParams } from "react-router";
 
-import { DrawerTrigger, useDrawer, withDrawerPushed } from "~/shared/drawer";
+import { useDrawer, withDrawerPushed } from "~/shared/drawer";
 import { EmptyState } from "~/shared/empty-state";
 import { LoadMore } from "~/shared/load-more";
 import { ViewTabs } from "~/shared/view-switcher";
@@ -79,6 +79,7 @@ import {
   TaskBulkActionBar,
   TaskSelectionPrompt,
 } from "~/shared/task-record/TaskBulkActionBar";
+import { InlineCaptureRow } from "~/shared/task-record/InlineCaptureRow";
 import { TaskList } from "~/shared/task-record/TaskList";
 import { TaskRow, type TaskRowProps } from "~/shared/task-record/TaskRow";
 import type { TaskParentOption } from "~/shared/task-record/TaskRowFields";
@@ -111,6 +112,8 @@ type TaskState = "open" | "completed" | "all";
 
 interface ProjectTasksTabProps {
   readonly projectId: string;
+  /** The project's own name, for the inline capture row's placeholder. */
+  readonly projectTitle: string;
   readonly tasks: readonly SerializedProjectTask[];
   /** Opaque cursor for the next task page from the loader, or null when exhausted. */
   readonly nextCursor: string | null;
@@ -293,6 +296,7 @@ function useProjectTaskPagination(
 
 export function ProjectTasksTab({
   projectId,
+  projectTitle,
   tasks,
   nextCursor,
   parents,
@@ -566,20 +570,27 @@ export function ProjectTasksTab({
             {selection.mode ? "Stop selecting" : "Select tasks"}
           </button>
         )}
-        {/*
-         * RECORD-01 — the ONE local creation action on this record. The form
-         * already receives `projectId`, so a task created here lands in this
-         * project with nothing for the owner to pick.
-         */}
-        {archived ? null : (
-          <DrawerTrigger
-            drawerKey={NEW_TASK_KEY}
-            className="dh-btn dh-btn--ghost"
-          >
-            Add task
-          </DrawerTrigger>
-        )}
       </div>
+
+      {/*
+       * RECORD-01 / the shared inline capture row — the ONE local creation
+       * action on this record, and now the same object `/tasks` and each board
+       * column draw. It used to be a button that opened the full capture Drawer,
+       * which is a modal round trip for the commonest act on the screen: adding
+       * the next task to the project you are already looking at. The Drawer is
+       * still one click away ("More options") for anything the line cannot do.
+       */}
+      {archived ? null : (
+        <InlineCaptureRow
+          destination={{ id: projectId, kind: "project", title: projectTitle }}
+          todayIso={todayIso}
+          destinationLabel={projectTitle}
+          label={`Add a task to ${projectTitle}`}
+          onOpenFullForm={() => openDrawer(NEW_TASK_KEY)}
+          inputTestId="project-tasks-capture-input"
+          announce={actions.announce}
+        />
+      )}
 
       {items.length === 0 ? (
         /*

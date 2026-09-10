@@ -149,6 +149,15 @@ export interface TaskGroupProps {
   readonly dropState?: "candidate" | "active" | null;
   /** The words that say what the drop would do, drawn only while `active`. */
   readonly dropHint?: ReactNode;
+  /**
+   * The bucket's own FOOT — in practice a board column's inline capture row.
+   *
+   * Inside the disclosure body rather than after it, because a folded column
+   * must fold its capture line away with its rows: a `+ Add a task to P1` line
+   * hanging under a collapsed heading is an affordance for a list that is not
+   * on screen.
+   */
+  readonly footer?: ReactNode;
   readonly children: ReactNode;
 }
 
@@ -162,6 +171,7 @@ export function TaskGroup({
   sectionRef,
   dropState = null,
   dropHint,
+  footer,
   children,
 }: TaskGroupProps) {
   const Heading = `h${headingLevel}` as const;
@@ -328,6 +338,7 @@ export function TaskGroup({
           inert={collapsed ? true : undefined}
         >
           {children}
+          {footer}
         </div>
       </div>
     </section>
