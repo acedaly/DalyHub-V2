@@ -95,6 +95,32 @@
 }
 
 /*
+ * …and the plane reaches the bottom of the pane, which `min-height: 100%` on
+ * `.dh-collection` was already asking for and silently not getting.
+ *
+ * A percentage min-height resolves against the parent's height, and the pane's
+ * child here is a plain auto-height block — so the declaration was inert and a
+ * SHORT collection painted its ground only as far as its own last row.
+ * MEASURED on `/notes` with two notes at 1280: the surface stopped at 338px and
+ * the shell's canvas showed through for the remaining 500, which reads as a page
+ * that failed to finish loading rather than as a list that happens to be short.
+ *
+ * Giving the wrapper the pane's height is the whole fix. It changes nothing for
+ * a collection that already overflows, which is most of them, and it is scoped
+ * to the pane's own child so no other consumer of the drawer host inherits a
+ * height it did not ask for.
+ */
+.dh-pane > .drawer-background {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100%;
+}
+
+.dh-pane > .drawer-background > .dh-collection {
+  flex: 1 0 auto;
+}
+
+/*
  * DS-08 — the control band sits directly under a tightened header.
  *
  * DS-04 pulled the top padding off this band for Tasks alone, because the header

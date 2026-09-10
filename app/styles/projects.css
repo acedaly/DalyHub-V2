@@ -252,6 +252,15 @@ a.dh-btn {
  */
 .dh-ptable__identity {
   inline-size: 40%;
+  /*
+   * 28rem, and it was RAISED to 34 and put back. An auto-layout table treats a
+   * cell's max as a preferred width as well as a ceiling, so the wider cap let
+   * this column grow past its 40% share whenever a title was long enough —
+   * MEASURED at 1280 on the seeded workspace, where "Consolidate every
+   * household insurance…" pushed the Tasks column off the end of the scroller
+   * and put a horizontal scrollbar on an ordinary desktop table. The ellipsis
+   * on a genuinely sentence-length title is the cheaper of the two.
+   */
   max-inline-size: 28rem;
   font-weight: var(--dh-text-card-title-weight);
   color: var(--dh-color-text);
