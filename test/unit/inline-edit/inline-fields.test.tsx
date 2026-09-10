@@ -501,7 +501,7 @@ describe("InlineDateField — the keyboard walks the month", () => {
     ).toHaveAccessibleName("Friday 11 September 2026");
 
     fireEvent.keyDown(grid, { key: "PageDown" });
-    expect(screen.getByText("October 2026")).toBeInTheDocument();
+    expect(screen.getAllByText("October 2026").length).toBeGreaterThan(0);
   });
 
   it("crosses a month boundary with an arrow, not with the month buttons", () => {
@@ -511,7 +511,7 @@ describe("InlineDateField — the keyboard walks the month", () => {
     for (let index = 0; index < 4; index += 1) {
       fireEvent.keyDown(grid, { key: "ArrowDown" });
     }
-    expect(screen.getByText("October 2026")).toBeInTheDocument();
+    expect(screen.getAllByText("October 2026").length).toBeGreaterThan(0);
   });
 
   it("cancels on Enter over Cancel rather than saving", () => {

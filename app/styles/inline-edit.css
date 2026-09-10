@@ -695,6 +695,9 @@
 }
 
 .dh-calendar__month {
+  display: inline-flex;
+  justify-content: center;
+  gap: var(--dh-space-1);
   margin: 0;
   flex: 1 1 auto;
   text-align: center;
@@ -735,12 +738,29 @@
 }
 
 .dh-calendar__grid {
+  display: block;
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+.dh-calendar__row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--dh-space-px);
+}
+
+.dh-calendar__grid thead,
+.dh-calendar__grid tbody {
+  display: block;
+}
+
+.dh-calendar__grid tbody {
   display: flex;
   flex-direction: column;
   gap: var(--dh-space-px);
 }
 
-.dh-calendar__row {
+.dh-calendar__grid tr {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--dh-space-px);
