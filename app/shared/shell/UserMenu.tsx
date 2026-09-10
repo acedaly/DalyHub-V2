@@ -166,7 +166,12 @@ export function UserMenu({
       /* DHDS-09 — the shared floating surface. This is a disclosure rather
          than a menu (see the note above), so it composes the appearance
          without adopting the menu's keyboard model. */
-      className="absolute right-0 bottom-full left-0 z-10 mb-2 overflow-hidden rounded-lg bg-primary shadow-lg ring-1 ring-secondary_alt"
+      className={cx(
+        "absolute z-10 mb-2 overflow-hidden rounded-lg bg-primary shadow-lg ring-1 ring-secondary_alt",
+        collapsed
+          ? "bottom-0 left-full ml-2 w-72 min-w-72 max-w-[calc(100vw-1rem)]"
+          : "right-0 bottom-full left-0",
+      )}
       id={panelId}
       role="group"
       aria-label="Account"

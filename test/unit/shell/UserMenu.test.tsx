@@ -160,4 +160,34 @@ describe("DS-03 UserMenu on the rail", () => {
       ).toBeInTheDocument();
     }
   });
+
+  it("gives the collapsed rail panel its own readable width", () => {
+    const restore = withViewport(true);
+    try {
+      renderMenu();
+      fireEvent.click(trigger());
+      const panel = screen.getByRole("group", { name: "Account" });
+      expect(panel.className).toContain("left-full");
+      expect(panel.className).toContain("w-72");
+      expect(panel.className).toContain("max-w-[calc(100vw-1rem)]");
+      expect(panel.className).not.toContain("left-0");
+      expect(panel.className).not.toContain("right-0");
+    } finally {
+      restore();
+    }
+  });
+
+  it("keeps the expanded rail panel constrained to the sidebar", () => {
+    const restore = withViewport(false);
+    try {
+      renderMenu();
+      fireEvent.click(trigger());
+      const panel = screen.getByRole("group", { name: "Account" });
+      expect(panel.className).toContain("right-0");
+      expect(panel.className).toContain("left-0");
+      expect(panel.className).not.toContain("left-full");
+    } finally {
+      restore();
+    }
+  });
 });

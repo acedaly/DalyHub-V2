@@ -172,4 +172,21 @@ describe("CalendarGrid — the keyboard", () => {
     );
     expect(onSelect).toHaveBeenCalledWith("2026-09-14");
   });
+
+  it("pages months through the React Aria button slots", () => {
+    grid();
+    const previous = screen.getByRole("button", {
+      name: "Previous month",
+    });
+    const next = screen.getByRole("button", { name: "Next month" });
+
+    fireEvent.click(previous);
+    expect(screen.getAllByText("August 2026").length).toBeGreaterThan(0);
+    fireEvent.click(next);
+    expect(screen.getAllByText("September 2026").length).toBeGreaterThan(0);
+
+    previous.focus();
+    fireEvent.keyDown(previous, { key: "Enter" });
+    expect(screen.getAllByText("August 2026").length).toBeGreaterThan(0);
+  });
 });

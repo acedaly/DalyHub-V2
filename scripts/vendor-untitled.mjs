@@ -25,6 +25,7 @@
  * Usage:
  *   node scripts/vendor-untitled.mjs               # copy / refresh
  *   node scripts/vendor-untitled.mjs --check       # fail if output drifted
+ *   node scripts/vendor-untitled.mjs --refresh-provenance # update headers only
  *   UNTITLED_SRC=/path/to/untitled/src node scripts/vendor-untitled.mjs
  *
  * Deliberately NOT part of `pnpm run verify`: the vendored output is committed,
@@ -40,6 +41,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -48,6 +50,38 @@ const SRC =
   process.env.UNTITLED_SRC ??
   join(process.env.HOME ?? "", "Untitled-UI-Reference", "src");
 const DEST = join(ROOT, "app", "shared", "ui", "untitled");
+const PROVENANCE = JSON.parse(
+  readFileSync(join(ROOT, "scripts", "untitled-provenance.json"), "utf8"),
+);
+
+function commandOutput(command, args) {
+  try {
+    return execFileSync(command, args, { encoding: "utf8" }).trim();
+  } catch {
+    return "unavailable";
+  }
+}
+
+/**
+ * The local checkout is the licensed source snapshot used for vendoring. Keep
+ * both identifiers: the Git revision is reproducible, while the sync marker
+ * is the upstream delivery identifier when the licensed Pro checkout does not
+ * expose a public component commit.
+ */
+const SOURCE_REVISION =
+  process.env.UNTITLED_SOURCE_REVISION ??
+  PROVENANCE.revision ??
+  commandOutput("git", ["-C", SRC, "rev-parse", "HEAD"]);
+const SOURCE_SYNC_MARKER =
+  process.env.UNTITLED_SOURCE_SYNC_MARKER ??
+  PROVENANCE.syncMarker ??
+  (existsSync(join(SRC, "..", ".github", "last-sync-commit"))
+    ? readFileSync(
+        join(SRC, "..", ".github", "last-sync-commit"),
+        "utf8",
+      ).trim()
+    : "unavailable");
+const RETRIEVED = process.env.UNTITLED_RETRIEVED ?? PROVENANCE.retrieved;
 
 /**
  * THE MANIFEST — every Untitled component DalyHub uses, by its path under the
@@ -280,7 +314,9 @@ function visit(sourcePath) {
   }
 
   const header = `// Vendored from Untitled UI React (untitledui.com/react), MIT.
-// Source: \`src/${sourcePath}\`, retrieved 2026-09-10.
+// Source: \`src/${sourcePath}\`, retrieved ${RETRIEVED}.
+// Source revision: \`${SOURCE_REVISION}\`; sync marker: \`${SOURCE_SYNC_MARKER}\`.
+// Source licence: ${PROVENANCE.license}.
 // Written by \`scripts/vendor-untitled.mjs\`; edit the manifest or the override
 // layer in \`~/shared/ui/untitled/overrides/\` rather than this file, which is
 // regenerated. Only the import specifiers differ from upstream${patchNote ? ", plus:" : "."}
@@ -290,6 +326,49 @@ ${patchNote}`;
 }
 
 /* ── Run ──────────────────────────────────────────────────────────────────── */
+
+/** Refresh headers without requiring a local source tree or rewriting code. */
+function refreshProvenance() {
+  let changed = 0;
+
+  function visitDirectory(dir) {
+    if (!existsSync(dir)) return;
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) {
+        if (name === "overrides" || name === "utils" || name === "hooks") {
+          continue;
+        }
+        visitDirectory(path);
+        continue;
+      }
+      if (!path.endsWith(".tsx") && !path.endsWith(".ts")) continue;
+
+      const existing = readFileSync(path, "utf8");
+      const source = existing.match(
+        /^\/\/ Source: `([^`]+)`, retrieved [^\n]+\.\n(?:(?:\/\/ Source revision:|\/\/ Source licence:)[^\n]+\n)*/m,
+      );
+      if (!source) continue;
+
+      const next = existing.replace(
+        source[0],
+        `// Source: \`${source[1]}\`, retrieved ${RETRIEVED}.\n// Source revision: \`${SOURCE_REVISION}\`; sync marker: \`${SOURCE_SYNC_MARKER}\`.\n// Source licence: ${PROVENANCE.license}.\n`,
+      );
+      if (next !== existing) {
+        writeFileSync(path, next);
+        changed += 1;
+      }
+    }
+  }
+
+  visitDirectory(DEST);
+  console.log(`Refreshed provenance in ${changed} vendored file(s).`);
+}
+
+if (process.argv.includes("--refresh-provenance")) {
+  refreshProvenance();
+  process.exit(0);
+}
 
 if (!existsSync(SRC)) {
   console.error(

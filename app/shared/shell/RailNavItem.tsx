@@ -125,7 +125,8 @@ export function RailNavItem({
       prefetch={prefetch}
       className={cx(
         ROOT,
-        surface === "sheet" ? "min-h-11" : "h-9",
+        "h-[var(--dh-shell-nav-row-height)]",
+        surface === "sheet" && "min-h-11",
         !current && tone.hover,
         current && tone.selected,
         !current && pending && tone.pending,
