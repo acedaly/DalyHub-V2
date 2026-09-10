@@ -1750,6 +1750,12 @@ authority now.)
 - **Desired future state.** Each register row either fixed or explicitly accepted by the owner.
 - **Closing condition.** The register's "Recorded, deliberately not fixed here" table is empty or every remaining row carries an owner decision.
 - **V2.16 disposition (2026-09-08) — **RE-HOMED TO V3** *(V3 backlog: Design system)*.** Eleven recorded-not-fixed UI audit findings. A design-quality pass. See [the V2.16 disposition report](PRODUCT_DEBT_V2_16_DISPOSITION.md).
+- **Re-checked against the running application (2026-09-10).** Four of the seven rows still listed as open are **no longer reproducible**, each fixed as a side effect of later work rather than by this entry, and the register was never revisited to say so. Verified in the browser at the widths each finding names:
+  - **UIQ-016** (desktop capture dialog keeps the sheet's drag handle) — `sheet.css` hides `.dh-sheet__handle` from `48.0625rem` up, with the reasoning the finding asked for beside it.
+  - **UIQ-018** ("Back to Tasks" twice at equal weight) — the header action is suppressed when the queue is empty, which is the only state that renders the empty-state's own copy, so the two placements are now mutually exclusive rather than merely both defensible.
+  - **UIQ-019** (Notes filter bar's second row does not align, Apply floats detached) — there is no filter ROW to align: the surface is one anchored popover now, with no Apply.
+  - **UIQ-021** (shared overflow menu has no flip/clamp) — recorded as resolved in #130 and **measured** again here: opened low on `/notes` at 1440 the panel clamps at 892px against a 900px viewport and scrolls internally.
+  The three that remain are the three that were always product decisions rather than defects: **UIQ-012** (the "Open" vocabulary, an owner call across two spine entities), **UIQ-015** (a desktop-specific weight for the drawer's sticky action bar) and **UIQ-017** (an overflow fade on the phone editor toolbar). This entry's closing condition is unchanged; what changed is how much of it is left.
 - **Related roadmap item.** The audit register; DS-12/DS-16.
 
 ### ☐ DEBT-102 — DalyHub has no capture-processing state, so "unprocessed captures" cannot be shown — P3
