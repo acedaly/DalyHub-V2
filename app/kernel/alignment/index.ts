@@ -53,6 +53,7 @@ export type {
   GoalMovementKey,
   GoalMovementKind,
 } from "./goal-movement";
+export { goalMovementIsAbsence } from "./goal-movement";
 
 export {
   goalMovementEvidenceText,
