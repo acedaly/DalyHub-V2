@@ -78,13 +78,6 @@
     color: #000000;
   }
 
-  /* The shell is a `min-height: 100dvh` grid; collapsing it stops the hidden
-   * chrome from reserving a full viewport of empty paper. */
-  .dh-app {
-    display: block;
-    min-height: 0;
-  }
-
   /* A link's destination is useless on paper, and internal resolver paths are
    * noise. Print the words, not the URL. */
   .dh-note-print a {

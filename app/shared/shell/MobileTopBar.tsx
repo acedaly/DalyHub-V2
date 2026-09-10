@@ -65,7 +65,19 @@ export function MobileTopBar({
   const fallbackLabel = workspaceName.trim() || PRODUCT_NAME;
 
   return (
-    <header className="dh-mobilebar">
+    <header
+      /*
+       * UNTITLED-02 — phone-only, and STICKY rather than fixed, so the page
+       * scrolls under it without every surface having to reserve its height.
+       *
+       * The safe-area inset is added as padding ON TOP of the 52px bar rather
+       * than inside it, so a notched device clears its cutout and an un-notched
+       * one is genuinely 52px — the most valuable row of a phone display should
+       * not spend 20px on air.
+       */
+      data-testid="mobile-top-bar"
+      className="sticky top-0 z-20 flex min-h-[var(--dh-shell-mobile-bar-height)] items-center gap-1 border-b border-secondary bg-primary px-2 pt-[var(--dh-safe-top)] md:hidden"
+    >
       {/* M3-TIP — both bar controls are icon-only. A phone has no hover, so the
        * tooltip earns its place here on `:focus-visible` instead: an external
        * keyboard on a tablet-width window is exactly the case the audit's
@@ -76,14 +88,16 @@ export function MobileTopBar({
             <button
               type="button"
               ref={tip.ref}
-              className="dh-mobilebar__back"
+              className="flex size-11 shrink-0 items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:-outline-offset-2 *:size-5"
               aria-describedby={tip.describedBy}
               onClick={() => navigate(backTo)}
             >
-              <span className="dh-mobilebar__back-icon" aria-hidden="true">
+              {/* The shared chevron, rotated: DalyHub publishes one
+                * directional glyph and points it, rather than shipping four. */}
+              <span aria-hidden="true" className="block rotate-180 *:size-full">
                 <ChevronRightIcon />
               </span>
-              <span className="dh-visually-hidden">Back</span>
+              <span className="sr-only">Back</span>
             </button>
           )}
         </Tooltip>
@@ -102,13 +116,18 @@ export function MobileTopBar({
        * a logo repeated on every screen of a 393 px phone is chrome. The mobile
        * navigation sheet carries the full product identity (`SidebarBrand`). */}
       {title === null ? (
-        <span className="dh-mobilebar__mark" aria-hidden="true">
+        <span
+          aria-hidden="true"
+          className="flex size-6 shrink-0 items-center justify-center *:size-full"
+        >
           <BrandMark />
         </span>
       ) : null}
-      <p className="dh-mobilebar__title">{title ?? fallbackLabel}</p>
+      <p className="min-w-0 flex-1 truncate px-1 text-md font-semibold text-primary">
+        {title ?? fallbackLabel}
+      </p>
 
-      <div className="dh-mobilebar__actions">
+      <div className="flex shrink-0 items-center gap-0.5">
         {actions}
         {onOpenNotifications ? (
           <NotificationBell
@@ -123,7 +142,7 @@ export function MobileTopBar({
             <button
               type="button"
               ref={composeRefs(searchRef, tip.ref)}
-              className="dh-mobilebar__action"
+              className="flex size-11 shrink-0 items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:-outline-offset-2 *:size-5"
               aria-describedby={tip.describedBy}
               onClick={() => {
                 if (searchRef.current) {
@@ -131,10 +150,10 @@ export function MobileTopBar({
                 }
               }}
             >
-              <span aria-hidden="true">
+              <span aria-hidden="true" className="block *:size-full">
                 <SearchIcon />
               </span>
-              <span className="dh-visually-hidden">Search</span>
+              <span className="sr-only">Search</span>
             </button>
           )}
         </Tooltip>

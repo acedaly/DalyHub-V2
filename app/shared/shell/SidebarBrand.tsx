@@ -29,27 +29,63 @@
  * The workspace name is plain, safe text (server-derived); the mark is decorative
  * because "DalyHub" is written beside it as real text. A future workspace
  * switcher slots into the secondary line without a redesign.
+ *
+ * ── UNTITLED-02 ─────────────────────────────────────────────────────────────
+ * The `dh-sidebar__brand*` class family is gone; the layout is Untitled's type
+ * and colour tokens directly. The MARK is untouched — it is the one piece of the
+ * frame that is unmistakably this product, and the migration replaces generic
+ * chrome, not identity. Collapsed, the mark stands alone and the text is hidden
+ * with the visually-hidden technique rather than removed, so the accessible name
+ * survives at every width.
  */
 
 import { PRODUCT_NAME } from "~/shared/brand";
 import { BrandMark } from "~/shared/icons";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 export type SidebarBrandProps = {
   /** The current workspace's display name. */
   readonly workspaceName: string;
+  /** Whether the rail is collapsed to glyphs. */
+  readonly collapsed?: boolean;
 };
 
-export function SidebarBrand({ workspaceName }: SidebarBrandProps) {
-  const workspaceIsDistinct = workspaceName.trim() !== PRODUCT_NAME;
+export function SidebarBrand({
+  workspaceName,
+  collapsed = false,
+}: SidebarBrandProps) {
+  const workspaceIsDistinct =
+    workspaceName.trim().length > 0 && workspaceName !== PRODUCT_NAME;
+
   return (
-    <div className="dh-sidebar__brand">
-      <span className="dh-sidebar__brand-mark" aria-hidden="true">
+    <div
+      data-testid="sidebar-brand"
+      className={cx(
+        "flex items-center gap-2.5",
+        collapsed && "justify-center gap-0",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        data-testid="sidebar-brand-mark"
+        className="flex size-7 shrink-0 items-center justify-center *:size-full"
+      >
         <BrandMark />
       </span>
-      <span className="dh-sidebar__brand-text">
-        <span className="dh-sidebar__brand-name">{PRODUCT_NAME}</span>
+      <span className={cx("min-w-0 flex-1", collapsed && "sr-only")}>
+        <span
+          data-testid="sidebar-product-name"
+          className="block truncate text-md font-semibold text-primary"
+        >
+          {PRODUCT_NAME}
+        </span>
         {workspaceIsDistinct ? (
-          <span className="dh-sidebar__brand-workspace">{workspaceName}</span>
+          <span
+            data-testid="sidebar-workspace"
+            className="block truncate text-xs text-tertiary"
+          >
+            {workspaceName}
+          </span>
         ) : null}
       </span>
     </div>

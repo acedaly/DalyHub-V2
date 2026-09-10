@@ -118,7 +118,10 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     // banner now. It has to stay INSIDE one, though: axe's `region` rule wants
     // all page content contained, and an uncontained brand block is exactly the
     // kind of gap that produced the Help/About scan failures.
-    const rail = container.querySelector(".dh-sidebar--rail");
+    // UNTITLED-02 — found by `data-testid`, not by class name. The class named
+    // the rail's paint, which this migration replaced; the test id names the
+    // rail.
+    const rail = container.querySelector("[data-testid='sidebar-rail']");
     expect(rail).not.toBeNull();
     expect(rail).toHaveAttribute("aria-label", "Primary");
     expect(
@@ -133,8 +136,8 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     // drawer quietly taking the role back.
     const banners = [...container.querySelectorAll("header")];
     expect(banners).toHaveLength(2);
-    expect(banners[0]).toHaveClass("dh-topbar");
-    expect(banners[1]).toHaveClass("dh-mobilebar");
+    expect(banners[0]).toHaveAttribute("data-testid", "desktop-top-bar");
+    expect(banners[1]).toHaveAttribute("data-testid", "mobile-top-bar");
   });
 
   it("renders registry-driven navigation as icon + label rows", () => {
@@ -164,7 +167,7 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     // palette pill — 112px before its first destination, and a second control
     // as prominent as the primary one. They are still real, labelled controls
     // opening the same surfaces; they are just no longer in the rail.
-    const topBar = container.querySelector(".dh-topbar");
+    const topBar = container.querySelector("[data-testid='desktop-top-bar']");
     expect(topBar).not.toBeNull();
     expect(
       within(topBar as HTMLElement).getByRole("button", {
@@ -178,7 +181,7 @@ describe("PX-02 AppShell — frame & landmarks", () => {
     ).toBeInTheDocument();
 
     // And the rail no longer carries a duplicate of either.
-    const rail = container.querySelector(".dh-sidebar--rail");
+    const rail = container.querySelector("[data-testid='sidebar-rail']");
     expect(rail).not.toBeNull();
     expect(
       within(rail as HTMLElement).queryByRole("button", { name: /search/i }),

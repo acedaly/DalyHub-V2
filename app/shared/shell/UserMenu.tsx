@@ -38,6 +38,22 @@
  * deliberately does not declare `aria-haspopup="menu"`, whose menu keyboard model
  * the panel does not use — which is also why the appearance control can be a real
  * radio group in here rather than a `menuitemradio` reimplementation.
+ *
+ * ── UNTITLED-02 ─────────────────────────────────────────────────────────────
+ *
+ * The disclosure CONTROLLER above is untouched — dismissal, focus restoration,
+ * the upward panel, the `role="group"` semantics and the reasoning for all of it
+ * are load-bearing and better than what adopting a stock menu component would
+ * give. What changed is paint: the `dh-user-menu__*` family and its ~120 lines of
+ * `shell.css` are replaced by Untitled's own surface tokens, and the panel now
+ * wears the elevation Untitled gives a genuinely floating object (`shadow-lg`
+ * over a hairline ring), which is one of the few places the migration brief says
+ * a shadow is earned.
+ *
+ * The COLLAPSED trigger is now decided in TypeScript rather than by a media query
+ * in CSS. `useCollapsedRail` was already being read here for the tooltip, so the
+ * component already knew; having CSS hide the name while JavaScript separately
+ * worked out that CSS had done so was two sources for one fact.
  */
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -46,6 +62,7 @@ import type { AppearancePreference } from "~/kernel/preferences/appearance";
 import { useSignOut } from "~/shared/account-security";
 import { ChevronDownIcon, SettingsIcon, SignOutIcon } from "~/shared/icons";
 import { Tooltip, composeRefs } from "~/shared/tooltip";
+import { cx } from "~/shared/ui/untitled/utils/cx";
 
 import { ACCESS_LOGOUT_PATH } from "./access-logout";
 import { AppearanceSelector } from "./AppearanceSelector";
@@ -149,14 +166,16 @@ export function UserMenu({
       /* DHDS-09 — the shared floating surface. This is a disclosure rather
          than a menu (see the note above), so it composes the appearance
          without adopting the menu's keyboard model. */
-      className="dh-floating dh-user-menu__panel"
+      className="absolute right-0 bottom-full left-0 z-10 mb-2 overflow-hidden rounded-lg bg-primary shadow-lg ring-1 ring-secondary_alt"
       id={panelId}
       role="group"
       aria-label="Account"
     >
-      <div className="dh-user-menu__identity">
-        <span className="dh-user-menu__name">{displayName}</span>
-        <span className="dh-user-menu__email" title={email}>
+      <div className="flex flex-col gap-0.5 px-3 py-2.5">
+        <span className="truncate text-sm font-semibold text-primary">
+          {displayName}
+        </span>
+        <span className="truncate text-xs text-tertiary" title={email}>
           {email}
         </span>
       </div>
@@ -166,17 +185,20 @@ export function UserMenu({
        * them. Choosing an option does NOT close the panel — the point of setting
        * appearance here is to see the result and, if it is wrong, to change it
        * again without reopening the menu. */}
-      <div className="dh-user-menu__section dh-user-menu__appearance">
+      <div className="border-t border-secondary px-3 py-2.5">
         <AppearanceSelector value={appearance} variant="menu" />
       </div>
-      <div className="dh-user-menu__section dh-user-menu__links">
+      <div className="flex flex-col border-t border-secondary p-1">
         {settingsHref ? (
           <a
-            className="dh-user-menu__link"
+            className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm font-medium text-secondary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-secondary_hover focus-visible:outline-2 focus-visible:-outline-offset-2 aria-disabled:pointer-events-none aria-disabled:opacity-50"
             href={settingsHref}
             onClick={() => setOpen(false)}
           >
-            <span className="dh-user-menu__link-icon" aria-hidden="true">
+            <span
+              aria-hidden="true"
+              className="flex size-5 shrink-0 items-center justify-center text-fg-quaternary *:size-full"
+            >
               <SettingsIcon />
             </span>
             Settings
@@ -190,7 +212,7 @@ export function UserMenu({
          * destination either way, so what the browser shows on hover is the
          * truth. */}
         <a
-          className="dh-user-menu__link"
+          className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 text-sm font-medium text-secondary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-secondary_hover focus-visible:outline-2 focus-visible:-outline-offset-2 aria-disabled:pointer-events-none aria-disabled:opacity-50"
           href={ACCESS_LOGOUT_PATH}
           aria-disabled={signOut.state === "idle" ? undefined : true}
           onClick={(clickEvent) => {
@@ -199,7 +221,10 @@ export function UserMenu({
             void signOut.signOut();
           }}
         >
-          <span className="dh-user-menu__link-icon" aria-hidden="true">
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center text-fg-quaternary *:size-full"
+          >
             <SignOutIcon />
           </span>
           {signOut.state === "idle" ? "Sign out" : "Signing out…"}
@@ -247,7 +272,10 @@ export function UserMenu({
       {(tip) => (
         <button
           type="button"
-          className="dh-user-menu__trigger"
+          className={cx(
+            "group/account flex w-full cursor-pointer items-center gap-2.5 rounded-md p-2 outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover focus-visible:outline-2 focus-visible:outline-offset-2",
+            collapsed && "justify-center",
+          )}
           ref={composeRefs(triggerRef, tip.ref)}
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
@@ -255,20 +283,38 @@ export function UserMenu({
           aria-label={`Account — ${displayName}`}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className="dh-user-menu__avatar" aria-hidden="true">
+          <span
+            aria-hidden="true"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-solid text-xs font-semibold text-white"
+          >
             {initials}
           </span>
-          <span className="dh-user-menu__trigger-name">{displayName}</span>
-          <span className="dh-user-menu__chevron" aria-hidden="true">
-            <ChevronDownIcon />
+          <span
+            className={cx(
+              "flex-1 truncate text-left text-sm font-semibold text-secondary transition-inherit-all group-hover/account:text-secondary_hover",
+              collapsed && "sr-only",
+            )}
+          >
+            {displayName}
           </span>
+          {collapsed ? null : (
+            <span
+              aria-hidden="true"
+              className={cx(
+                "flex size-4 shrink-0 items-center justify-center text-fg-quaternary transition duration-100 ease-linear *:size-full",
+                open && "-scale-y-100",
+              )}
+            >
+              <ChevronDownIcon />
+            </span>
+          )}
         </button>
       )}
     </Tooltip>
   );
 
   return (
-    <div className="dh-user-menu" ref={containerRef}>
+    <div className="relative" ref={containerRef}>
       {panel}
       {trigger}
     </div>
