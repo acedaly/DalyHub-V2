@@ -17,7 +17,7 @@
  * the persistent rail is hidden on mobile and this sheet is viewport-fixed.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 import { useBodyScrollLock } from "~/shared/drawer/use-body-scroll-lock";
 import { useDrawerFocus } from "~/shared/drawer/use-drawer-focus";
@@ -85,18 +85,31 @@ export function MobileNav({
   }, [onClose]);
 
   return (
-    <div className="dh-mobilenav" ref={rootRef}>
+    <div className="fixed inset-0 z-40" ref={rootRef}>
+      {/* The scrim keeps the SHARED motion grammar (`motion.css`), which honours
+       * `prefers-reduced-motion` in one place for every overlay in the product. */}
       <div
-        className="dh-mobilenav__scrim dh-motion-scrim"
+        className="dh-motion-scrim absolute inset-0 bg-overlay"
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className="dh-mobilenav__panel dh-motion-edge-inline"
         role="dialog"
         aria-modal="true"
         aria-label="Navigation"
         ref={panelRef}
+        /*
+         * The M3 modal navigation drawer rounds its TRAILING edge only — the
+         * leading edge is flush with the screen it slid in from. Kept, because it
+         * is right: a sheet anchored to an edge should look anchored to it.
+         *
+         * The travel is the shared edge-anchored grammar
+         * (`.dh-motion-edge-inline`), pointed at the LEADING edge via the shared
+         * displacement custom property — same keyframe as the Drawer, opposite
+         * direction.
+         */
+        style={{ "--app-motion-edge-from": "-100%" } as CSSProperties}
+        className="dh-motion-edge-inline absolute inset-y-0 left-0 flex w-[min(20rem,86vw)] max-w-full flex-col overflow-y-auto rounded-r-xl bg-primary pb-[var(--dh-safe-bottom)] pl-[var(--dh-safe-left)] shadow-xl"
       >
         <Sidebar
           workspaceName={workspaceName}

@@ -10,9 +10,24 @@
  * entire user-visible outcome to sighted users only.
  *
  * So these assert what the rail is now: one labelled list per group, in the
- * order `navigation-groups.ts` declares, a decorative rule at each transition
- * but never before the first block, and every row still an accessible, labelled
- * link regardless of grouping.
+ * order `navigation-groups.ts` declares, and every row still an accessible,
+ * labelled link regardless of grouping.
+ *
+ * ── UNTITLED-02 ─────────────────────────────────────────────────────────────
+ *
+ * Two changes here, both consequences of the rail being rebuilt on Untitled UI.
+ *
+ * The decorative `<hr>` at each group transition is GONE, by design: the heading
+ * and the spacing already separate the blocks, and five rules down a 224px
+ * column is five more lines on a surface whose whole job is to recede. The two
+ * assertions that counted rules now assert its absence, so the decision is
+ * pinned rather than merely un-tested.
+ *
+ * And the assertions key off `data-nav-group` and the accessible names rather
+ * than off `.dh-nav__*` class names. The class names described paint, so a
+ * restyle broke tests that had nothing to say about what changed; the group key
+ * and the accessible name describe the information architecture, which is what
+ * these tests are actually about.
  */
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -55,20 +70,20 @@ function renderNav(
 }
 
 describe("V2.16 CONSOL-00 PrimaryNavigation grouping", () => {
-  it("renders one list, and no rule, for a single group", () => {
+  it("renders one list for a single group", () => {
     const { container } = renderNav([
       item("Today", 110, "do"),
       item("Plan", 120, "do"),
       item("Tasks", 150, "do"),
     ]);
-    expect(container.querySelectorAll(".dh-nav__rule")).toHaveLength(0);
-    expect(container.querySelectorAll(".dh-nav__list")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-nav-group]")).toHaveLength(1);
+    expect(screen.getAllByRole("list")).toHaveLength(1);
     for (const label of ["Today", "Plan", "Tasks"]) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
   });
 
-  it("inserts one rule at each group transition, and none before the first", () => {
+  it("renders one block per group, separated by heading and space rather than by rules", () => {
     const { container } = renderNav([
       item("Today", 110, "do"),
       item("Notes", 250, "organise"),
@@ -77,9 +92,15 @@ describe("V2.16 CONSOL-00 PrimaryNavigation grouping", () => {
       item("Settings", 920, "system"),
       item("Help", 930, "system"),
     ]);
-    // Four groups → three transitions. The first block has nothing above it.
-    expect(container.querySelectorAll(".dh-nav__rule")).toHaveLength(3);
-    expect(container.querySelectorAll(".dh-nav__group")).toHaveLength(4);
+    expect(container.querySelectorAll("[data-nav-group]")).toHaveLength(4);
+    expect(
+      [...container.querySelectorAll("[data-nav-group]")].map((el) =>
+        el.getAttribute("data-nav-group"),
+      ),
+    ).toEqual(["do", "organise", "money", "system"]);
+    // UNTITLED-02 — no decorative rules. Pinned so the quieter rail cannot
+    // silently regain four horizontal lines.
+    expect(container.querySelectorAll("hr")).toHaveLength(0);
   });
 
   it("names each group's list with its heading, so a screen reader hears it once", () => {
@@ -105,7 +126,7 @@ describe("V2.16 CONSOL-00 PrimaryNavigation grouping", () => {
       item("Finance", 2, "money"),
       item("Today", 3, "do"),
     ]);
-    const headings = [...container.querySelectorAll(".dh-nav__list")].map(
+    const headings = [...container.querySelectorAll("ul")].map(
       (list) =>
         list.getAttribute("aria-label") ?? list.getAttribute("aria-labelledby"),
     );
@@ -139,13 +160,17 @@ describe("V2.16 CONSOL-00 PrimaryNavigation grouping", () => {
     }
   });
 
-  it("rules are decorative and excluded from the accessibility tree", () => {
+  it("separates groups without adding anything to the accessibility tree", () => {
     const { container } = renderNav([
       item("Today", 110, "do"),
       item("Notes", 250, "organise"),
     ]);
-    const rule = container.querySelector(".dh-nav__rule");
-    expect(rule).toHaveAttribute("aria-hidden", "true");
+    // The blocks are told apart by their headings and their spacing. Nothing
+    // decorative is rendered between them at all, so there is nothing a screen
+    // reader has to be told to skip.
+    expect(container.querySelectorAll("hr")).toHaveLength(0);
+    expect(screen.getByRole("list", { name: "Do" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Organise" })).toBeInTheDocument();
   });
 });
 
@@ -174,8 +199,9 @@ describe("UX-01 PrimaryNavigation current destination", () => {
   it("keeps the module current while one of its records is open", () => {
     renderNav(items, "/projects/pr-1");
     const projects = screen.getByRole("link", { name: "Projects" });
+    // `aria-current` IS the contract — the visual treatment reinforces it and is
+    // asserted by the screenshot passes, not by a class name here.
     expect(projects).toHaveAttribute("aria-current", "page");
-    expect(projects).toHaveClass("dh-nav__link--active");
   });
 
   it("marks exactly one row current, and none for an unlisted route", () => {

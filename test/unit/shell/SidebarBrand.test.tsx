@@ -19,9 +19,18 @@ import { describe, expect, it } from "vitest";
 
 import { SidebarBrand } from "~/shared/shell/SidebarBrand";
 
-/** The brand block itself, which is what these assertions are about. */
+/**
+ * The brand block itself, which is what these assertions are about.
+ *
+ * UNTITLED-02 — found by `data-testid` rather than by class name. These tests
+ * used to key off `.dh-sidebar__brand*`, which meant the migration to Untitled
+ * UI broke four assertions that had nothing to say about what changed. A
+ * `data-testid` names the thing; a class name names its paint.
+ */
 function brandBlock(container: HTMLElement): HTMLElement {
-  const brand = container.querySelector<HTMLElement>(".dh-sidebar__brand");
+  const brand = container.querySelector<HTMLElement>(
+    "[data-testid='sidebar-brand']",
+  );
   if (!brand) throw new Error("the brand block did not render");
   return brand;
 }
@@ -43,16 +52,22 @@ describe("SidebarBrand", () => {
     expect(within(brand).getByText("DalyHub")).toBeInTheDocument();
     const workspace = within(brand).getByText("Aidan's things");
     expect(workspace).toBeInTheDocument();
-    // Subordinate by class, which is what carries the quieter token and the
-    // smaller size in `shell.css`.
-    expect(workspace).toHaveClass("dh-sidebar__brand-workspace");
+    // Subordinate, and it is the SECOND line: the product name comes first in
+    // document order, which is what "secondary context, not instead" means to a
+    // screen reader as well as to the eye.
+    expect(workspace).toHaveAttribute("data-testid", "sidebar-workspace");
+    const productName = within(brand).getByTestId("sidebar-product-name");
+    expect(
+      productName.compareDocumentPosition(workspace) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("does not repeat the name when the workspace IS DalyHub", () => {
     const { container } = render(<SidebarBrand workspaceName="DalyHub" />);
     const brand = brandBlock(container);
     expect(within(brand).getAllByText("DalyHub")).toHaveLength(1);
-    expect(brand.querySelector(".dh-sidebar__brand-workspace")).toBeNull();
+    expect(brand.querySelector("[data-testid='sidebar-workspace']")).toBeNull();
   });
 
   it("renders the brand mark, decoratively", () => {
@@ -62,10 +77,9 @@ describe("SidebarBrand", () => {
     const mark = container.querySelector(".dh-brand-mark");
     expect(mark).not.toBeNull();
     expect(mark).toHaveAttribute("aria-hidden", "true");
-    expect(container.querySelector(".dh-sidebar__brand-mark")).toHaveAttribute(
-      "aria-hidden",
-      "true",
-    );
+    expect(
+      container.querySelector("[data-testid='sidebar-brand-mark']"),
+    ).toHaveAttribute("aria-hidden", "true");
   });
 
   it("keeps the tagline OUT of the navigation rail", () => {

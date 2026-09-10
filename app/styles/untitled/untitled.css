@@ -1,0 +1,169 @@
+/*
+ * UNTITLED-01 — the Tailwind v4 + Untitled UI entry point.
+ *
+ * This is the ONE place Tailwind enters DalyHub's cascade. It is imported first
+ * from `app/app.css`, before `tokens.css` and every legacy stylesheet, and every
+ * part of it is placed in an explicit `@layer`.
+ *
+ * ── Why layers, and why this order ───────────────────────────────────────────
+ *
+ * Unlayered CSS beats layered CSS in the cascade, unconditionally and regardless
+ * of specificity. DalyHub's ~2 MB of existing stylesheets are entirely unlayered
+ * (verified: no `@layer` appears anywhere in `app/styles/*.css`). Putting all of
+ * Tailwind — preflight included — inside layers therefore makes this import
+ * SAFE BY CONSTRUCTION on day one:
+ *
+ *   · a legacy surface keeps every rule it has, because its unlayered CSS
+ *     outranks anything here;
+ *   · a MIGRATED component, which carries Untitled's utility classes and none of
+ *     DalyHub's class names, has no unlayered rule competing for it and is
+ *     styled purely by Tailwind.
+ *
+ * So the migration can proceed surface by surface without a flag day, and
+ * without preflight resetting controls out from under screens that have not
+ * moved yet. As each surface migrates, its legacy stylesheet is deleted and the
+ * layered rules simply become the only rules.
+ *
+ * ── What is deliberately NOT here ────────────────────────────────────────────
+ *
+ * `@tailwindcss/typography`. DalyHub already renders long-form Markdown through
+ * one shared treatment (`base.css`, ADR-006) and no Untitled component in use
+ * references `prose`. Adding the plugin would ship a second prose system and buy
+ * nothing.
+ */
+
+@layer theme, base, components, utilities;
+
+/*
+ * Tailwind's three parts, imported individually so each can be assigned a layer.
+ * `@import "tailwindcss"` would do this too, but it hard-codes the layer names,
+ * and being explicit is what makes the argument above checkable.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* The generated DalyHub-adapted Untitled theme. See `theme.source.css`. */
+@import "./theme.css";
+
+/*
+ * TYPEFACE — DalyHub's, not Untitled's.
+ *
+ * Untitled's theme asks for Inter. DalyHub self-hosts Instrument Sans as its one
+ * UI family (DS-14) and publishes it as `--font`; `tokens.css` is imported later
+ * in `app.css`, which is fine because a `var()` resolves at use time, not at
+ * declaration time. Overriding here rather than in the generated theme keeps the
+ * generator's output a faithful copy of upstream.
+ *
+ * The fallback stack repeats `tokens.css`'s own, so a component still renders
+ * correctly if this file is ever loaded without it.
+ */
+@theme {
+  --font-body:
+    var(--font, "Instrument Sans"), system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display:
+    var(--font, "Instrument Sans"), system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(
+    --font-mono-stack,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace
+  );
+}
+
+/*
+ * React Aria's state variants (`pressed:`, `selected:`, `entering:`, …). Untitled
+ * components lean on these heavily — 163 usages across the vendored set — because
+ * every one of them is built on React Aria, so this plugin is not optional.
+ */
+@plugin "tailwindcss-react-aria-components";
+/* Enter/exit keyframes for the overlay components (modal, slideout, popover). */
+@plugin "tailwindcss-animate";
+
+/*
+ * Tailwind v4 infers its scan root from this file's location, which would be
+ * `app/styles/untitled/`. Point it at the application tree instead, so classes
+ * written in `app/shared/`, `app/modules/` and `app/routes/` are detected.
+ */
+@source "../../";
+
+/*
+ * DARK APPEARANCE — bridged onto DalyHub's own decision.
+ *
+ * Untitled resolves dark mode from a `.dark-mode` class. DalyHub resolves it
+ * from `<html data-appearance>`, written during SSR from the owner's stored
+ * preference, where `system` defers to `prefers-color-scheme` (APPEARANCE-01).
+ * These are the same two conditions `tokens.css` and the generated
+ * `theme.css` use, so a `dark:` utility and a DalyHub token can never disagree
+ * about which appearance is in force.
+ */
+@custom-variant dark {
+  &:where([data-appearance="dark"], [data-appearance="dark"] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where(
+      :root:not([data-appearance="light"]),
+      :root:not([data-appearance="light"]) *
+    ) {
+      @slot;
+    }
+  }
+}
+
+/* Untitled's own variants, carried across because its components reference them. */
+@custom-variant label (& [data-label]);
+@custom-variant focus-input-within (&:has(input:focus));
+
+@utility scrollbar-hide {
+  /* Webkit-based browsers (Chrome, Safari, Opera). */
+  &::-webkit-scrollbar {
+    display: none;
+    -webkit-appearance: none;
+  }
+
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+@utility transition-inherit-all {
+  transition-property: inherit;
+  transition-duration: inherit;
+  transition-timing-function: inherit;
+}
+
+@layer base {
+  /*
+     * The small set of element normalisations Untitled's own `globals.css`
+     * applies. Kept in `base` so DalyHub's `base.css` still outranks them.
+     *
+     * The font declaration upstream puts on `html, body` is NOT carried across:
+     * DalyHub self-hosts its own two variable families (DS-14) and sets them in
+     * `fonts.css`. `--font-body` is pointed at that instead, below, so Untitled
+     * components inherit DalyHub's typeface rather than asking for Inter.
+     */
+
+  /* Hide Safari's default disclosure marker. */
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Hide the spinner from number inputs. */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Hide the default clear button from search inputs. */
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { reactRouter } from "@react-router/dev/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, type Plugin } from "vite";
 
 import { dalyhubServiceWorker } from "./vite-plugins/service-worker";
@@ -49,6 +50,11 @@ function tildePathAlias(): Plugin {
 export default defineConfig({
   plugins: [
     tildePathAlias(),
+    // UNTITLED-01 — Tailwind v4, the styling engine behind the Untitled UI
+    // component layer (`app/styles/untitled/untitled.css`). Before the other
+    // plugins so the CSS entry is transformed in every environment, SSR
+    // included; it adds no JavaScript to the client bundle.
+    tailwindcss(),
     cloudflare({ viteEnvironment: { name: "ssr" } }),
     reactRouter(),
     // PWA-02 — emits `/sw.js` from `vite-plugins/sw-template.js` with a

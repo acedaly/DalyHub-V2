@@ -11,6 +11,7 @@
 
 import type { BaseControlProps } from "./control-props";
 import { Field } from "./Field";
+import { Input, Textarea } from "~/shared/ui";
 
 export interface TextFieldProps extends BaseControlProps<string> {
   /** Render a multiline `<textarea>` instead of a single-line `<input>`. */
@@ -77,7 +78,7 @@ export function TextField({
       {(control) => (
         <>
           {multiline ? (
-            <textarea
+            <Textarea
               id={control.id}
               className="dh-input dh-input--multiline"
               value={value}
@@ -88,7 +89,7 @@ export function TextField({
               disabled={control.disabled}
               readOnly={control.readOnly}
               required={control.required}
-              aria-invalid={control.invalid || undefined}
+              invalid={control.invalid}
               aria-errormessage={control.errorId ?? undefined}
               aria-describedby={control.describedBy}
               ref={(node) => controlRef?.(node)}
@@ -96,7 +97,7 @@ export function TextField({
               onBlur={() => onBlur?.()}
             />
           ) : (
-            <input
+            <Input
               id={control.id}
               className="dh-input"
               type={type}
@@ -108,7 +109,7 @@ export function TextField({
               disabled={control.disabled}
               readOnly={control.readOnly}
               required={control.required}
-              aria-invalid={control.invalid || undefined}
+              invalid={control.invalid}
               aria-errormessage={control.errorId ?? undefined}
               aria-describedby={control.describedBy}
               ref={(node) => controlRef?.(node)}

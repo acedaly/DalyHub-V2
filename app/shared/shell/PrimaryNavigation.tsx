@@ -8,16 +8,8 @@
  * is recognisable at a glance in the sidebar exactly as it is on a Card. It imports
  * no module route component — it consumes plain data (label, href, entityType).
  *
- * THEME-01 — the cross-cutting modules (Today, Help, About, Settings, AI) own no
- * entity type and used to render a generic dot here, which read as a missing glyph
- * in permanent chrome. They now declare `meta.navIcon` and the shared `NavIcon`
- * resolver returns a real icon for every row. The resolution rule lives in one
- * place; this component just renders it.
- *
  * The current row carries `aria-current="page"`, so the active state is conveyed
- * SEMANTICALLY (reinforced by weight + a tint, never colour
- * alone — AGENTS.md §15). The row leaves room for a future quiet count and a future
- * collapsed icon-rail without a redesign.
+ * SEMANTICALLY (reinforced by weight + a tint, never colour alone — AGENTS.md §15).
  *
  * UX-01 — which row is current is decided by the ONE shared navigation-active rule
  * (`navigation-active.ts`), not by `NavLink`'s exact-match `end` prop. `end` meant a
@@ -25,8 +17,6 @@
  * row, so the owner lost their "you are here" anchor on the screens they use most —
  * while the phone bottom bar, reading the same registry model, correctly kept the
  * module current. The rail and the bar now answer that question the same way.
- * The rail therefore renders plain `Link`s and applies `aria-current`/the active
- * class from that one rule, rather than from `NavLink`'s own exact-match matching.
  *
  * ── V2.16 CONSOL-00: the grouping stops being decorative ────────────────────
  *
@@ -58,14 +48,29 @@
  * Group ORDER, group KEYS and group NAMES all live in `navigation-groups.ts` —
  * one information architecture, read by the rail, by the phone sheet and by the
  * test that asserts no module invents a seventh group.
+ *
+ * ── UNTITLED-02: the presentation is Untitled UI's ──────────────────────────
+ *
+ * The `dh-nav*` class names and the ~200 lines of `shell.css` behind them are
+ * gone. Rows are `RailNavItem` (Untitled's `NavItemBase` anatomy), and the group
+ * heading is Untitled's section-label treatment — `text-xs font-semibold
+ * text-quaternary`, NOT upstream's `uppercase`. Five uppercase captions stacked
+ * down a 276px column read as shouting in a product whose whole brief is calm,
+ * and the words are already short enough to scan.
+ *
+ * The `<hr>` between groups is gone too: the heading and the spacing separate
+ * the blocks, and a rule per group was five more lines on a surface that is
+ * meant to recede. Everything ABOVE the presentation — the model, the active
+ * rule, prefetch, pending, the collapsed-rail tooltip — is unchanged.
  */
 
-import { Link, useLocation, useNavigation } from "react-router";
+import { useLocation, useNavigation } from "react-router";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
 import { Tooltip } from "~/shared/tooltip";
 
 import { NavIcon } from "./NavIcon";
+import { RailNavItem } from "./RailNavItem";
 import { useCollapsedRail } from "./collapsed-rail";
 import { activeNavigationHref } from "./navigation-active";
 import { buildNavigationGroups } from "./navigation-groups";
@@ -85,6 +90,12 @@ export type PrimaryNavigationProps = {
    * it exists at — so it opts out and never pays for the media listener.
    */
   readonly collapsible?: boolean;
+  /**
+   * Which surface the rows are drawn on. The recessed rail and the phone sheet
+   * are different tones, so "the current row, one step up" is a different colour
+   * in each — see `RailNavItem`.
+   */
+  readonly surface?: "rail" | "sheet";
 };
 
 export function PrimaryNavigation({
@@ -92,6 +103,7 @@ export function PrimaryNavigation({
   items,
   onNavigate,
   collapsible = false,
+  surface = "rail",
 }: PrimaryNavigationProps) {
   const { pathname } = useLocation();
   // Exactly one row is current for any route — the longest matching destination,
@@ -123,36 +135,46 @@ export function PrimaryNavigation({
    *
    * SSR renders `false`, so the first byte is the labelled rail and the tooltip
    * is only ever added after mount. Nothing about the layout depends on it, so
-   * there is no hydration shift — the width is decided by the media query in
-   * `shell.css`, which the server and the browser resolve identically.
+   * there is no hydration shift.
    */
   const collapsed = useCollapsedRail(collapsible);
 
   const groups = buildNavigationGroups(items);
 
   return (
-    <div id={id} className="dh-nav">
-      {groups.map((group, groupIndex) => {
+    <div id={id} className="flex flex-col gap-4">
+      {groups.map((group) => {
         const headingId = `${id}-group-${group.definition.key}`;
         const heading = group.definition.heading;
         return (
-          <div className="dh-nav__group" key={group.definition.key}>
-            {/*
-             * The rule between blocks is decoration: the heading below it, or
-             * the block's own position, is what carries the meaning. It is
-             * `aria-hidden` and is skipped entirely before the first group,
-             * which has nothing above it to be separated from.
-             */}
-            {groupIndex > 0 ? (
-              <hr className="dh-nav__rule" aria-hidden="true" />
-            ) : null}
+          /*
+           * `data-nav-group` is the STABLE hook for this block: it names the
+           * group the rail is rendering, which is a fact about the information
+           * architecture rather than about how the block is painted. The tests
+           * assert against it (and against the accessible names below) so a
+           * restyle can never break them, which is exactly what happened to the
+           * `.dh-nav__group` assertions this replaces.
+           */
+          <div key={group.definition.key} data-nav-group={group.definition.key}>
             {heading === null ? null : (
-              <span className="dh-nav__heading" id={headingId}>
+              /*
+               * Hidden — not removed — when the rail is collapsed. The heading
+               * still NAMES its list through `aria-labelledby`, and a list whose
+               * label has `display:none` loses that name entirely.
+               */
+              <span
+                id={headingId}
+                className={
+                  collapsed
+                    ? "sr-only"
+                    : "block px-2 pb-1 text-xs font-semibold text-quaternary"
+                }
+              >
                 {heading}
               </span>
             )}
             <ul
-              className="dh-nav__list"
+              className="flex flex-col gap-0.5"
               {...(heading === null
                 ? { "aria-label": group.definition.accessibleName }
                 : { "aria-labelledby": headingId })}
@@ -161,46 +183,40 @@ export function PrimaryNavigation({
                 const current = item.href === currentHref;
                 const pending = item.href === pendingHref;
                 return (
-                  <li className="dh-nav__item" key={item.id}>
+                  <li key={item.id}>
                     <Tooltip
                       label={item.label}
                       placement="bottom"
                       disabled={!collapsed}
                     >
                       {(tip) => (
-                        <Link
-                          to={item.href}
-                          /*
-                           * PERF-01 — the destination is warmed on INTENT, not on
-                           * click. `navigation-prefetch.ts` holds the policy and the
-                           * reasoning; this is the rail applying it. It is applied
-                           * HERE, once, to every row of every group — a regroup
-                           * that dropped it from one block would be a silent
-                           * performance regression, which is why
-                           * `navigation-prefetch.test.tsx` asserts it on all of
-                           * them rather than on a sample.
-                           */
-                          prefetch={PRIMARY_NAV_PREFETCH}
-                          ref={tip.ref}
-                          className={
-                            current
-                              ? "dh-nav__link dh-nav__link--active"
-                              : "dh-nav__link"
-                          }
-                          aria-current={current ? "page" : undefined}
-                          aria-busy={pending ? true : undefined}
-                          data-pending={pending ? "true" : undefined}
-                          aria-describedby={tip.describedBy}
-                          onClick={onNavigate}
-                        >
-                          <span className="dh-nav__icon">
+                        <RailNavItem
+                          href={item.href}
+                          label={item.label}
+                          icon={
                             <NavIcon
                               entityType={item.entityType}
                               navIcon={item.navIcon}
                             />
-                          </span>
-                          <span className="dh-nav__label">{item.label}</span>
-                        </Link>
+                          }
+                          current={current}
+                          pending={pending}
+                          collapsed={collapsed}
+                          /*
+                           * PERF-01 — the destination is warmed on INTENT, not on
+                           * click. `navigation-prefetch.ts` holds the policy; this
+                           * is the rail applying it. It is applied HERE, once, to
+                           * every row of every group — a regroup that dropped it
+                           * from one block would be a silent performance
+                           * regression, which is why `navigation-prefetch.test.tsx`
+                           * asserts it on all of them rather than on a sample.
+                           */
+                          prefetch={PRIMARY_NAV_PREFETCH}
+                          onNavigate={onNavigate}
+                          tooltipRef={tip.ref}
+                          describedBy={tip.describedBy}
+                          surface={surface}
+                        />
                       )}
                     </Tooltip>
                   </li>

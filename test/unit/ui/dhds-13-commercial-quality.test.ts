@@ -61,19 +61,32 @@ describe("DHDS-13 — floating surfaces read as floating", () => {
 });
 
 describe("DHDS-13 — the tablet rail keeps its glyph", () => {
-  it("hides the Capture LABEL without collapsing the button's type scale", () => {
+  it("keeps the collapsed Capture control named, and its glyph drawn", () => {
     /*
-     * `font-size: 0` collapsed the `1em`-authored plus icon too, so the rail's
+     * The regression: `font-size: 0` was used to hide the label on the tablet
+     * rail, and it collapsed the `1em`-authored plus icon with it — so the rail's
      * primary action rendered as a blank violet block at every width in
      * 768–1023px.
+     *
+     * UNTITLED-02 removed the CSS this used to read, and the technique with it.
+     * The collapsed control now renders NO label child and states its name as an
+     * `aria-label` instead, which is what Untitled's `Button` needs to recognise
+     * an icon-only button and give it square padding — a visually-hidden child
+     * would defeat that and hand a 68px rail a full-width control.
+     *
+     * Both halves of the original defect are still asserted, against the source
+     * that now decides them: the name survives the collapse, and nothing scales
+     * the type to zero. `Sidebar.test.tsx` proves the rendered result.
      */
-    const css = read("app", "styles", "premium.css");
-    const band = css.slice(
-      css.indexOf("@media (min-width: 48rem) and (max-width: 63.9375rem)"),
-    );
-    const block = band.slice(0, band.indexOf("\n}\n\n"));
-    expect(block).not.toMatch(/font-size:\s*0/);
-    expect(block).toMatch(/\.dh-sidebar__capture \.dh-button__label/);
+    const sidebar = read("app", "shared", "shell", "Sidebar.tsx");
+    expect(
+      sidebar,
+      "the collapsed Capture control must still have a name",
+    ).toMatch(/aria-label=\{collapsed \? "Capture" : undefined\}/);
+    expect(
+      sidebar,
+      "nothing may hide a label by scaling its type away",
+    ).not.toMatch(/font-size:\s*0|text-\[0/);
   });
 });
 

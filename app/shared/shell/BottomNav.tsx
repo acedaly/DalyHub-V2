@@ -45,6 +45,8 @@ import { Link, useLocation, useNavigation } from "react-router";
 import { MoreIcon, PlusIcon } from "~/shared/icons";
 
 import { NavIcon } from "./NavIcon";
+import { cx } from "~/shared/ui/untitled/utils/cx";
+
 import { PRIMARY_NAV_PREFETCH } from "./navigation-prefetch";
 
 import type { NavigationItem } from "~/platform/modules/navigation-adapter";
@@ -109,31 +111,48 @@ export function BottomNav({
     // landmark. "Quick navigation" is also honest — this bar is the frequent
     // destinations; the COMPLETE navigation lives behind More.
     <nav
-      className="dh-bottomnav"
       aria-label="Quick navigation"
       data-testid="bottom-nav"
+      /*
+       * UNTITLED-02 — fixed to the bottom of the phone viewport, above the home
+       * indicator and BELOW the software keyboard.
+       *
+       * `--dh-safe-bottom` clears the home indicator; `--app-keyboard-inset`
+       * (published by the ONE shared Visual Viewport observer) translates the bar
+       * off-screen exactly while the keyboard covers that space, so it can never
+       * cover a focused field, a validation message or a sticky Save. The token
+       * is `0px` unless a real keyboard was measured, so the transform is a no-op
+       * the rest of the time.
+       */
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-secondary bg-primary pb-[var(--dh-safe-bottom)] transition-transform duration-100 ease-linear translate-y-[var(--app-keyboard-inset,0px)] md:hidden"
     >
-      <ul className="dh-bottomnav__list">
+      <ul className="flex items-stretch">
         {slots.map((slot) => {
           if (slot.kind === "capture") {
             return (
-              <li key="capture" className="dh-bottomnav__item">
+              <li key="capture" className="min-w-0 flex-1">
                 <button
                   type="button"
                   ref={captureRef}
-                  className="dh-bottomnav__control dh-bottomnav__control--capture"
+                  className="flex min-h-14 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:-outline-offset-2"
                   onClick={() => {
                     if (captureRef.current) {
                       onOpenCapture(captureRef.current);
                     }
                   }}
                 >
-                  <span className="dh-bottomnav__indicator" aria-hidden="true">
-                    <span className="dh-bottomnav__icon">
-                      <PlusIcon />
-                    </span>
+                  {/* Capture is the ONE filled control in the bar — the same
+                   * primary emphasis the rail gives it, so the defining action
+                   * looks the same on both shells. */}
+                  <span
+                    aria-hidden="true"
+                    className="flex h-7 w-12 items-center justify-center rounded-full bg-brand-solid text-white *:size-5"
+                  >
+                    <PlusIcon />
                   </span>
-                  <span className="dh-bottomnav__label">Add</span>
+                  <span className="text-xs font-semibold text-secondary">
+                    Add
+                  </span>
                 </button>
               </li>
             );
@@ -141,11 +160,11 @@ export function BottomNav({
 
           if (slot.kind === "more") {
             return (
-              <li key="more" className="dh-bottomnav__item">
+              <li key="more" className="min-w-0 flex-1">
                 <button
                   type="button"
                   ref={moreRef}
-                  className="dh-bottomnav__control"
+                  className="flex min-h-14 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:-outline-offset-2"
                   aria-expanded={moreOpen}
                   aria-controls="primary-navigation-mobile"
                   onClick={() => {
@@ -154,12 +173,20 @@ export function BottomNav({
                     }
                   }}
                 >
-                  <span className="dh-bottomnav__indicator" aria-hidden="true">
-                    <span className="dh-bottomnav__icon">
-                      <MoreIcon />
-                    </span>
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      "flex h-7 w-12 items-center justify-center rounded-full transition duration-100 ease-linear *:size-5",
+                      moreOpen
+                        ? "bg-brand-primary text-fg-brand-primary"
+                        : "text-fg-quaternary",
+                    )}
+                  >
+                    <MoreIcon />
                   </span>
-                  <span className="dh-bottomnav__label">More</span>
+                  <span className="text-xs font-semibold text-secondary">
+                    More
+                  </span>
                 </button>
               </li>
             );
@@ -168,7 +195,7 @@ export function BottomNav({
           const { item } = slot;
           const active = item.href === activeHref;
           return (
-            <li key={item.id} className="dh-bottomnav__item">
+            <li key={item.id} className="min-w-0 flex-1">
               <Link
                 to={item.href}
                 /*
@@ -180,7 +207,7 @@ export function BottomNav({
                  * because it painted.
                  */
                 prefetch={PRIMARY_NAV_PREFETCH}
-                className="dh-bottomnav__control"
+                className="flex min-h-14 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:-outline-offset-2"
                 aria-current={active ? "page" : undefined}
                 aria-busy={item.href === pendingHref ? true : undefined}
                 data-active={active ? "true" : "false"}
@@ -190,12 +217,27 @@ export function BottomNav({
                     as a rule above it. It is a shape as well as a tint, so the
                     active destination is still obvious under forced colours and
                     to a colour-blind user. */}
-                <span className="dh-bottomnav__indicator" aria-hidden="true">
-                  <span className="dh-bottomnav__icon">
-                    <DestinationIcon item={item} />
-                  </span>
+                <span
+                  aria-hidden="true"
+                  className={cx(
+                    "flex h-7 w-12 items-center justify-center rounded-full transition duration-100 ease-linear *:size-5",
+                    active || item.href === pendingHref
+                      ? "bg-brand-primary text-fg-brand-primary"
+                      : "text-fg-quaternary",
+                  )}
+                >
+                  <DestinationIcon item={item} />
                 </span>
-                <span className="dh-bottomnav__label">{item.label}</span>
+                <span
+                  className={cx(
+                    "text-xs transition duration-100 ease-linear",
+                    active
+                      ? "font-semibold text-brand-secondary"
+                      : "font-medium text-tertiary",
+                  )}
+                >
+                  {item.label}
+                </span>
               </Link>
             </li>
           );

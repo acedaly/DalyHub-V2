@@ -48,6 +48,7 @@ import {
   useCollectionLoading,
 } from "~/shared/collection-layout";
 import { EmptyState } from "~/shared/empty-state";
+import { Input } from "~/shared/ui";
 import { helpTopicHref } from "~/shared/help";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
@@ -213,11 +214,11 @@ export function ReviewsCollectionView({
 
   const filterBar = (
     <div className="dh-reviews-filters">
-      <label className="dh-reviews-filters__field">
+      <label className="dh-reviews-filters__field" htmlFor="reviews-search">
         <span className="dh-visually-hidden">Search reviews</span>
-        <input
+        <Input
+          id="reviews-search"
           type="search"
-          className="dh-input"
           placeholder="Search reviews…"
           defaultValue={data.query}
           aria-label="Search reviews"

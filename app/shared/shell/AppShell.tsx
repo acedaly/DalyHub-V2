@@ -392,7 +392,29 @@ export function AppShell({
                  * preference DS-07 may add has something to override rather than
                  * a width rule to fight.
                  */}
-                <div className="dh-app" data-dh-density="compact">
+                <div
+                  data-dh-density="compact"
+                  /*
+                   * UNTITLED-02 — the frame, in Tailwind.
+                   *
+                   * The document is the scroll container (a STICKY rail, not an
+                   * internal pane scroll), so the Drawer's body-scroll lock and
+                   * `ScrollRestoration` — which act on the window — keep working
+                   * unchanged, while sticky pane and collection headers still pin
+                   * to the viewport.
+                   *
+                   * Three column regimes, and the middle one is the deliberate
+                   * TABLET decision DS-03 made: below `md` there is no rail at
+                   * all (the phone's bottom bar navigates), between `md` and `lg`
+                   * the rail collapses to its glyphs — 148px back to the page on
+                   * the class of device with the least width to spare — and from
+                   * `lg` it is the full labelled column. It is a width rule rather
+                   * than a preference, so it is correct on the first byte, costs
+                   * no state, and cannot disagree with itself between the server
+                   * and the browser.
+                   */
+                  className="grid min-h-dvh grid-cols-1 bg-primary md:grid-cols-[var(--dh-shell-rail-width-collapsed)_1fr] lg:grid-cols-[var(--dh-shell-rail-width)_1fr]"
+                >
                   <a className="skip-link" href="#main-content">
                     Skip to main content
                   </a>
@@ -412,7 +434,7 @@ export function AppShell({
                     variant="rail"
                   />
 
-                  <div className="dh-main-col">
+                  <div className="flex min-w-0 flex-col">
                     {/* The DESKTOP top app bar: the primary search affordance and
                 the application's own utilities. Hidden at phone widths, where
                 the bar below takes over. It opens the SAME Search surface and

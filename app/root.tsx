@@ -40,6 +40,7 @@ import {
   readColorSchemePreference,
   type ColorScheme,
 } from "./kernel/preferences/color-scheme";
+import { AriaRouterProvider } from "./shared/router/AriaRouterProvider";
 import { isSameDocumentParameterChange } from "./shared/router/revalidation";
 import { COLOR_SCHEME_PALETTES } from "./shared/tokens";
 import "./app.css";
@@ -323,7 +324,19 @@ export function meta(): Route.MetaDescriptors {
 }
 
 export default function App() {
-  return <Outlet />;
+  /*
+   * UNTITLED-01 — every React Aria `href` becomes a React Router navigation.
+   *
+   * The Untitled UI layer renders its links through React Aria, which would
+   * otherwise hand them to the browser and reload the document. Wrapping the
+   * whole authenticated tree here is what keeps a migrated nav item as fast, and
+   * as place-preserving, as the `<Link>` it replaces. See `AriaRouterProvider`.
+   */
+  return (
+    <AriaRouterProvider>
+      <Outlet />
+    </AriaRouterProvider>
+  );
 }
 
 /**

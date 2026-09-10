@@ -84,15 +84,31 @@
  *
  * The search region nests inside the banner, which is ordinary, and it is the
  * only `role="search"` in the desktop shell.
+ *
+ * ── UNTITLED-02 ─────────────────────────────────────────────────────────────
+ *
+ * The `dh-topbar__*` family and its ~230 lines of `shell.css` are gone. Search
+ * takes Untitled's INPUT anatomy — the same height, radius, ring, shadow and
+ * focus ring a real `Input` has — while remaining a `<button>`, so it looks like
+ * the field it opens without becoming a second search implementation. The
+ * utilities are Untitled's `ButtonUtility`, and Create is Untitled's `Button`.
+ *
+ * The bar also lost its background. It was a filled band above the pane, which
+ * put two horizontal edges between the rail's top and the page's first row; it is
+ * now the same canvas as the pane with a single hairline under it, so the frame
+ * reads as one surface and the eye goes to the content rather than to the
+ * chrome.
  */
 
-import { useRef } from "react";
+import type { MouseEvent } from "react";
+
+import { Command, HelpCircle, Plus, SearchLg } from "@untitledui/icons";
 
 import { useCapture } from "~/shared/capture";
-import { CommandIcon, HelpIcon, PlusIcon, SearchIcon } from "~/shared/icons";
 import { NotificationBell } from "~/shared/notifications";
 import { Tooltip } from "~/shared/tooltip";
-import { Button, IconButton } from "~/shared/ui";
+import { Button } from "~/shared/ui/untitled/base/buttons/button";
+import { ButtonUtility } from "~/shared/ui/untitled/base/buttons/button-utility";
 
 /**
  * The bar's CREATE control, wired to the shared capture surface.
@@ -104,7 +120,6 @@ import { Button, IconButton } from "~/shared/ui";
  */
 function TopBarCreate() {
   const capture = useCapture();
-  const ref = useRef<HTMLButtonElement>(null);
   return (
     <Button
       /*
@@ -121,13 +136,18 @@ function TopBarCreate() {
        * target are all unchanged; only the emphasis moved to the surface that
        * owns the record being created.
        */
-      variant="secondary"
-      ref={ref}
-      className="dh-topbar__create"
+      color="secondary"
+      size="md"
       data-testid="topbar-create"
-      icon={<PlusIcon />}
-      onClick={() => {
-        if (ref.current) capture?.openCapture(undefined, ref.current);
+      iconLeading={Plus}
+      /*
+       * `onPress`, and the OPENER comes from the event rather than a ref — see
+       * the same note in `Sidebar`. The button hands itself to `openCapture`, so
+       * focus returns here when the surface closes, which is the contract the
+       * retired floating button had.
+       */
+      onPress={(event) => {
+        capture?.openCapture(undefined, event.target as HTMLElement);
       }}
     >
       {/* Real text, and the accessible name — never a visually-hidden name on a
@@ -162,53 +182,76 @@ export function DesktopTopBar({
   notificationsOpen = false,
 }: DesktopTopBarProps) {
   return (
-    <header className="dh-topbar">
+    <header
+      data-testid="desktop-top-bar"
+      className="flex h-16 shrink-0 items-center gap-3 border-b border-secondary bg-primary px-4 max-md:hidden lg:px-6"
+    >
       {/* Search LEADS, aligned to the page gutter beneath it. */}
       <div
         role="search"
         aria-label="Search DalyHub"
-        className="dh-topbar__lead"
+        className="min-w-0 flex-1 lg:max-w-80"
       >
         <button
           type="button"
-          className="dh-topbar__search md-state-layer"
+          data-testid="topbar-search"
           onClick={
             onOpenSearch
               ? (event) => onOpenSearch(event.currentTarget)
               : undefined
           }
+          /*
+           * Untitled's `Input` anatomy, on a button. Same height, radius, ring,
+           * shadow and focus treatment as a real field, so the control looks
+           * like the surface it opens — but it is still a button, because a
+           * second real text field would be a second search implementation to
+           * keep in step with the first.
+           */
+          className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg bg-primary px-3 py-2 text-md shadow-xs ring-1 ring-primary transition duration-100 ease-linear ring-inset hover:bg-primary_hover focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
         >
-          <span className="dh-topbar__search-icon" aria-hidden="true">
-            <SearchIcon />
-          </span>
+          <SearchLg
+            aria-hidden="true"
+            className="size-5 shrink-0 text-fg-quaternary"
+          />
           {/* The label is REAL text and the button's accessible name AT EVERY
-           * WIDTH: visible from 64rem up, collapsed with the shared
-           * visually-hidden technique (never `display:none`) in the 48–64rem
-           * band, so the name survives the visual collapse (RECALL-00-D /
-           * DEBT-225 — `display:none` used to leave an unnamed <button> across
-           * the whole tablet band). Pointer and screen reader are told the same
-           * thing; `aria-hidden` on the hint keeps the shortcut out of the
-           * name. */}
-          <span className="dh-topbar__search-label">Search DalyHub</span>
-          <span className="dh-topbar__search-hint" aria-hidden="true">
-            /
+           * WIDTH: visible from `lg` up, collapsed with the visually-hidden
+           * technique (never `display:none`) below it, so the name survives the
+           * visual collapse. Pointer and screen reader are told the same thing;
+           * `aria-hidden` on the hint keeps the shortcut out of the name. */}
+          <span className="flex-1 truncate text-left text-sm text-placeholder max-lg:sr-only">
+            Search DalyHub
           </span>
+          <kbd
+            aria-hidden="true"
+            className="hidden shrink-0 rounded border border-secondary px-1.5 py-0.5 font-mono text-xs text-quaternary lg:inline-block"
+          >
+            /
+          </kbd>
         </button>
       </div>
 
-      <div className="dh-topbar__utilities">
-        {/* M3-TIP — every utility here is icon-only, and none of them said what
-         * it was to a pointer OR a keyboard before. `IconButton` requires the
-         * accessible name by type and composes the shared tooltip, which carries
-         * each one's reserved shortcut. */}
-        <IconButton
-          icon={<CommandIcon />}
-          label="Command palette"
-          tooltip
-          shortcut="Mod-k"
+      <div className="ml-auto flex items-center gap-1">
+        {/* Every utility here is icon-only, and each one needs to say what it is
+         * to a pointer AND a keyboard. `ButtonUtility` requires the accessible
+         * name by type and composes Untitled's tooltip, which carries each one's
+         * reserved shortcut. */}
+        <ButtonUtility
+          size="sm"
+          color="tertiary"
+          icon={Command}
+          /*
+           * `ButtonUtility` names itself from its `tooltip`, which would make the
+           * accessible name "Command palette ⌘K". The shortcut is a DESCRIPTION,
+           * not part of the name — the same distinction the retired bar made by
+           * putting `aria-hidden` on its hint — so the label is stated
+           * separately and overrides it. Both still reach a pointer.
+           */
+          tooltip="Command palette  ⌘K"
+          aria-label="Command palette"
           onClick={
             onOpenCommand
-              ? (event) => onOpenCommand(event.currentTarget)
+              ? (event: MouseEvent<HTMLButtonElement>) =>
+                  onOpenCommand(event.currentTarget)
               : undefined
           }
         />
@@ -216,22 +259,18 @@ export function DesktopTopBar({
         {/* Help is a real destination, so it stays an ANCHOR rather than
          * becoming a button that navigates: middle-click, "open in new tab" and
          * the status-bar preview are all behaviours a button would remove.
-         * `IconButton` renders a `<button>`, and there is no icon-only link
-         * primitive to reach for — so this composes the shared tooltip directly,
-         * exactly as `IconButton` does internally, and takes the same paint from
-         * `.dh-topbar__utility`. */}
+         * `ButtonUtility` renders a `<button>`, so this composes the shared
+         * tooltip directly and takes the same paint. */}
         <Tooltip label="Help" placement="bottom">
           {(tip) => (
             <a
               ref={tip.ref}
-              className="dh-topbar__utility md-state-layer"
               href="/help"
               aria-describedby={tip.describedBy}
+              className="flex size-9 items-center justify-center rounded-md text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2"
             >
-              <span className="dh-topbar__utility-icon" aria-hidden="true">
-                <HelpIcon />
-              </span>
-              <span className="dh-visually-hidden">Help</span>
+              <HelpCircle aria-hidden="true" className="size-5" />
+              <span className="sr-only">Help</span>
             </a>
           )}
         </Tooltip>

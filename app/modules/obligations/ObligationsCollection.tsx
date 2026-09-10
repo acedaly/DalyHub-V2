@@ -45,6 +45,7 @@ import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { useFeedback } from "~/shared/feedback";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { Input } from "~/shared/ui";
 import {
   groupObligationsByBand,
   ObligationBands,
@@ -196,11 +197,14 @@ export function ObligationsCollection(props: ObligationsCollectionProps) {
 
   const filterBar = (
     <div className="dh-obligations-filters">
-      <label className="dh-obligations-filters__search">
+      <label
+        className="dh-obligations-filters__search"
+        htmlFor="obligations-search"
+      >
         <span className="dh-visually-hidden">Search obligations</span>
-        <input
+        <Input
+          id="obligations-search"
           type="search"
-          className="dh-input"
           placeholder="Search obligations…"
           defaultValue={data.query}
           onChange={(event) => setParam("q", event.currentTarget.value)}
