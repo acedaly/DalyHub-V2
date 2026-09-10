@@ -40,7 +40,14 @@
  * unreachable one.
  */
 
-import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type { ButtonHTMLAttributes, ReactElement, ReactNode, Ref } from "react";
+
+import { Button as UntitledButton } from "~/shared/ui/untitled/base/buttons/button";
+
+const UntitledButtonBridge = UntitledButton as (
+  props: Record<string, unknown> & { readonly ref?: Ref<HTMLElement> },
+) => ReactElement;
 
 /** The four button families. See the file header for when each is correct. */
 export type ButtonVariant = "primary" | "secondary" | "subtle" | "danger";
@@ -77,6 +84,21 @@ export interface ButtonProps
   readonly ref?: Ref<HTMLButtonElement>;
 }
 
+type UntitledButtonColor =
+  | "primary"
+  | "secondary"
+  | "tertiary"
+  | "link-color"
+  | "link-gray"
+  | "primary-destructive";
+
+const UNTITLED_VARIANTS: Record<ButtonVariant, UntitledButtonColor> = {
+  primary: "primary",
+  secondary: "secondary",
+  subtle: "tertiary",
+  danger: "primary-destructive",
+};
+
 /**
  * The legacy modifier each family answers to while the bridge is up.
  *
@@ -89,6 +111,14 @@ const LEGACY_VARIANTS: Record<ButtonVariant, string> = {
   subtle: "ghost",
   danger: "danger",
 };
+
+function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
+  if (typeof ref === "function") {
+    ref(value);
+  } else if (ref) {
+    ref.current = value;
+  }
+}
 
 /**
  * Build the class list. Exported because `ButtonLink` and the small number of
@@ -137,25 +167,6 @@ export function buttonClassName(options: {
     .join(" ");
 }
 
-/** The leading slot: a spinner while loading, the caller's glyph otherwise. */
-function LeadingSlot({
-  loading,
-  icon,
-}: {
-  readonly loading?: boolean;
-  readonly icon?: ReactNode;
-}) {
-  if (loading) {
-    return <span className="dh-button__spinner" aria-hidden="true" />;
-  }
-  if (!icon) return null;
-  return (
-    <span className="dh-button__icon" aria-hidden="true">
-      {icon}
-    </span>
-  );
-}
-
 /** The DalyHub button. */
 export function Button({
   variant = "secondary",
@@ -164,31 +175,81 @@ export function Button({
   icon,
   trailingIcon,
   loading,
+  disabled,
   children,
   className,
   type = "button",
+  ref,
   ...rest
 }: ButtonProps) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const setButtonRef = useCallback(
+    (node: HTMLButtonElement | null) => {
+      buttonRef.current = node;
+      assignRef(ref, node);
+    },
+    [ref],
+  );
+
+  useEffect(() => {
+    const node = buttonRef.current;
+    if (!node) return;
+    if (loading) {
+      node.setAttribute("aria-busy", "true");
+    } else {
+      node.removeAttribute("aria-busy");
+    }
+  }, [loading]);
+
+  const color: UntitledButtonColor = UNTITLED_VARIANTS[variant];
+
   return (
-    <button
+    <UntitledButtonBridge
       // An explicit default: a `<button>` inside a form is a SUBMIT button
       // unless it says otherwise, and the overwhelming majority of these are
       // not. A caller that means to submit passes `type="submit"`.
       type={type}
+      color={color as UntitledButtonColor}
+      size={size === "sm" ? "xs" : "sm"}
+      isDisabled={disabled}
+      showTextWhileLoading
+      ref={setButtonRef}
+      iconLeading={
+        loading ? (
+          <span
+            className="dh-button__spinner"
+            data-icon="loading"
+            aria-hidden="true"
+          />
+        ) : icon ? (
+          <span
+            className="dh-button__icon"
+            data-icon="leading"
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+        ) : undefined
+      }
+      iconTrailing={
+        trailingIcon ? (
+          <span
+            className="dh-button__icon"
+            data-icon="trailing"
+            aria-hidden="true"
+          >
+            {trailingIcon}
+          </span>
+        ) : undefined
+      }
       className={buttonClassName({ variant, size, block, className })}
       aria-busy={loading || undefined}
       {...rest}
     >
-      <LeadingSlot loading={loading} icon={icon} />
       {children !== undefined ? (
         <span className="dh-button__label">{children}</span>
       ) : null}
-      {trailingIcon ? (
-        <span className="dh-button__icon" aria-hidden="true">
-          {trailingIcon}
-        </span>
-      ) : null}
-    </button>
+    </UntitledButtonBridge>
   );
 }
 
@@ -218,20 +279,40 @@ export function ButtonLink({
   className,
   ...rest
 }: ButtonLinkProps) {
+  const color: UntitledButtonColor = UNTITLED_VARIANTS[variant];
+
   return (
-    <a
+    <UntitledButtonBridge
+      color={color as UntitledButtonColor}
+      size={size === "sm" ? "xs" : "sm"}
+      iconLeading={
+        icon ? (
+          <span
+            className="dh-button__icon"
+            data-icon="leading"
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+        ) : undefined
+      }
+      iconTrailing={
+        trailingIcon ? (
+          <span
+            className="dh-button__icon"
+            data-icon="trailing"
+            aria-hidden="true"
+          >
+            {trailingIcon}
+          </span>
+        ) : undefined
+      }
       className={buttonClassName({ variant, size, block, className })}
       {...rest}
     >
-      <LeadingSlot icon={icon} />
       {children !== undefined ? (
         <span className="dh-button__label">{children}</span>
       ) : null}
-      {trailingIcon ? (
-        <span className="dh-button__icon" aria-hidden="true">
-          {trailingIcon}
-        </span>
-      ) : null}
-    </a>
+    </UntitledButtonBridge>
   );
 }

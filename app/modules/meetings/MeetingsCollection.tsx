@@ -22,6 +22,7 @@ import {
 import { EmptyState } from "~/shared/empty-state";
 import { EntityIcon } from "~/shared/entity";
 import { LoadMore, useKeysetPagination } from "~/shared/load-more";
+import { Input } from "~/shared/ui";
 import { ViewSwitcher } from "~/shared/view-switcher";
 
 import { MeetingsList } from "./MeetingsList";
@@ -177,12 +178,15 @@ export function MeetingsCollection({
             VISUALLY hidden, so the control is still named for assistive tech;
             what goes is the empty, unlabelled box the band used to open with.
           */}
-          <label className="dh-field dh-meetings-search">
+          <label
+            className="dh-field dh-meetings-search"
+            htmlFor="meetings-search"
+          >
             <span className="dh-field__label-text dh-visually-hidden">
               Search meetings
             </span>
-            <input
-              className="dh-input"
+            <Input
+              id="meetings-search"
               type="search"
               placeholder="Search meetings"
               value={draftQuery}

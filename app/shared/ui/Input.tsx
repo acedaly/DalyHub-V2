@@ -32,6 +32,11 @@ import type {
   Ref,
   TextareaHTMLAttributes,
 } from "react";
+import {
+  Input as AriaInput,
+  TextArea as AriaTextArea,
+  TextField as AriaTextField,
+} from "react-aria-components";
 
 /** How a control reports a validation failure. */
 type InvalidProps = {
@@ -56,23 +61,41 @@ export interface InputProps
 }
 
 export function Input({ invalid, leading, className, ...rest }: InputProps) {
-  const control = (
-    <input
-      className={["dh-control", className].filter(Boolean).join(" ")}
+  const control = (inputClassName?: string) => (
+    <AriaInput
+      className={["dh-control", inputClassName, className]
+        .filter(Boolean)
+        .join(" ")}
       aria-invalid={invalid || undefined}
       {...rest}
     />
   );
 
-  if (!leading) return control;
+  if (!leading) {
+    return (
+      <AriaTextField
+        className="contents"
+        isInvalid={invalid}
+        isDisabled={rest.disabled}
+        isReadOnly={rest.readOnly}
+      >
+        {control()}
+      </AriaTextField>
+    );
+  }
 
   return (
-    <span className="dh-control-affix">
+    <AriaTextField
+      className="dh-control-affix"
+      isInvalid={invalid}
+      isDisabled={rest.disabled}
+      isReadOnly={rest.readOnly}
+    >
       <span className="dh-control-affix__leading" aria-hidden="true">
         {leading}
       </span>
-      {control}
-    </span>
+      {control()}
+    </AriaTextField>
   );
 }
 
@@ -92,12 +115,19 @@ export interface TextareaProps
  */
 export function Textarea({ invalid, className, ...rest }: TextareaProps) {
   return (
-    <textarea
-      className={["dh-control", "dh-control--multiline", className]
-        .filter(Boolean)
-        .join(" ")}
-      aria-invalid={invalid || undefined}
-      {...rest}
-    />
+    <AriaTextField
+      className="contents"
+      isInvalid={invalid}
+      isDisabled={rest.disabled}
+      isReadOnly={rest.readOnly}
+    >
+      <AriaTextArea
+        className={["dh-control", "dh-control--multiline", className]
+          .filter(Boolean)
+          .join(" ")}
+        aria-invalid={invalid || undefined}
+        {...rest}
+      />
+    </AriaTextField>
   );
 }
